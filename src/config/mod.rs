@@ -10,6 +10,7 @@ pub mod keys;
 pub mod theme;
 pub mod yazi;
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -87,6 +88,10 @@ impl Default for Ui {
 struct FilerToml {
     #[serde(default)]
     ui: Ui,
+    /// `[line_args]`: editor name (`mikan`, `notepad++`) to the arguments that
+    /// open a file at a line, e.g. `"-l {line} {path}"`.
+    #[serde(default)]
+    line_args: HashMap<String, String>,
 }
 
 pub struct Config {
@@ -94,6 +99,8 @@ pub struct Config {
     pub keymap: Keymap,
     pub theme: Theme,
     pub ui: Ui,
+    /// Line-jump templates, keyed by [`crate::exec::editor_key`].
+    pub line_args: HashMap<String, String>,
     /// Config files that were actually read, for the help panel.
     pub loaded: Vec<PathBuf>,
     pub warnings: Vec<String>,
@@ -109,6 +116,7 @@ impl Config {
         let mut keymap_texts: Vec<String> = Vec::new();
         let mut theme = Theme::default();
         let mut ui = Ui::default();
+        let mut line_args: HashMap<String, String> = HashMap::new();
 
         for dir in &dirs {
             if let Some(text) = read(dir, "yazi.toml", &mut loaded) {
@@ -128,7 +136,19 @@ impl Config {
             }
             if let Some(text) = read(dir, "filer.toml", &mut loaded) {
                 match toml::from_str::<FilerToml>(&text) {
-                    Ok(v) => ui = v.ui,
+                    Ok(v) => {
+                        ui = v.ui;
+                        for (name, template) in v.line_args {
+                            if crate::exec::template_is_valid(&template) {
+                                line_args.insert(crate::exec::editor_key(&name), template);
+                            } else {
+                                warnings.push(format!(
+                                    "{}/filer.toml: [line_args] {name}: needs exactly one {{path}}",
+                                    dir.display()
+                                ));
+                            }
+                        }
+                    }
                     Err(e) => warnings.push(format!("{}/filer.toml: {e}", dir.display())),
                 }
             }
@@ -138,7 +158,7 @@ impl Config {
         let (keymap, mut km_warnings) = Keymap::load(&refs);
         warnings.append(&mut km_warnings);
 
-        Self { yazi: yazi_cfg, keymap, theme, ui, loaded, warnings }
+        Self { yazi: yazi_cfg, keymap, theme, ui, line_args, loaded, warnings }
     }
 
     pub fn state_dir() -> PathBuf {

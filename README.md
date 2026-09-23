@@ -105,6 +105,24 @@ Bold text (headings, `**strong**`) uses a real bold face: the `-Bold` sibling of
 (e.g. `HackGen35ConsoleNF-Bold.ttf`) or Meiryo / Yu Gothic Bold. Without one it is faked by
 drawing the glyphs twice.
 
+### line_args (opening an editor at a line)
+
+Opening at a line (see [Outline](#outline-contents)) knows a list of editors by heart. Any other
+editor — and any of the built-in ones you disagree with — can be given its own syntax here:
+
+```toml
+[line_args]
+mikan = "-l {line} {path}"          # mikan.exe -l 123 "C:\a b\x.txt"
+myedit = "{path}:{line}"            # myedit.exe "C:\a b\x.txt:123"
+"notepad++" = "-n{line} {path}"     # the built-in entry, spelled out
+```
+
+The key is the program's file name, lowercased, without `.exe` / `.cmd` / `.bat`; the value is the
+arguments, which must name `{path}` exactly once. They take the place of the opener's own path
+placeholder, so the rest of its command line (`nvim -O %s`) is kept. The path is quoted for you,
+together with whatever sits next to it in the same word — `{path}:{line}` comes out as
+`"C:\a b\x.txt:123"`, never as a broken pair of words.
+
 ## Markdown preview
 
 `.md` / `.mdx` files are rendered: headings, emphasis, lists and task lists, tables, block quotes
@@ -127,8 +145,10 @@ when the file has no outline. While the outline has the keys the file list's cur
 
 `<Enter>` opens the file at the selected entry's line, and `<S-Enter>` does the same with the
 editor you pick. The line is passed as `+N` to nvim / vim / nano / emacs / micro / kak, as
-`-g file:N` to VS Code / Cursor / Windsurf, and as `file:N` to Helix / Sublime / Zed; other
-openers just open the file. `<Esc>`, `h` / `←` or `<S-Tab>` gives the keys back to the file list,
+`-g file:N` to VS Code / Cursor / Windsurf, as `file:N` to Helix / Sublime / Zed, and on Windows
+as `/jN` to Hidemaru, `-L=N` to Sakura, `/l N` to EmEditor and `-nN` to Notepad++; other openers
+(Notepad among them) just open the file. Any editor can be taught the syntax — or an entry of the
+list above overridden — with [`[line_args]` in filer.toml](#line_args-opening-an-editor-at-a-line). `<Esc>`, `h` / `←` or `<S-Tab>` gives the keys back to the file list,
 and any other key does so too before doing its usual job. In a narrow pane the outline shows as an
 overlay only while it has the keys.
 

@@ -1694,7 +1694,7 @@ impl App {
         let cwd = self.tabs[self.active].cwd.clone();
         match openers.first() {
             Some((run, block, orphan, _)) => {
-                let line = exec::command_line(run, &paths, line);
+                let line = exec::command_line(run, &paths, line, &self.cfg.line_args);
                 match exec::shell(&line, &cwd, *block, *orphan) {
                     Ok(_) => self.toast(format!("Opened with: {line}")),
                     Err(e) => self.error(format!("Open failed: {e}")),
@@ -2063,7 +2063,7 @@ impl App {
             PickAction::OpenWith { paths, runs, line } => {
                 let Some((run, block, orphan)) = runs.get(idx).cloned() else { return };
                 let cwd = self.tabs[self.active].cwd.clone();
-                let line = exec::command_line(&run, &paths, line);
+                let line = exec::command_line(&run, &paths, line, &self.cfg.line_args);
                 match exec::shell(&line, &cwd, block, orphan) {
                     Ok(_) => self.toast(format!("$ {line}")),
                     Err(e) => self.error(format!("Open failed: {e}")),
