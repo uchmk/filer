@@ -124,8 +124,8 @@ pub fn command_line(run: &str, paths: &[PathBuf], line: Option<usize>) -> String
 
 /// How an editor is told which line to open at.
 enum LineArg {
-    /// `nvim +12 file`
-    Plus,
+    /// A flag before the paths: `nvim +12 file`, `sakura -L=12 file`.
+    Flag(&'static str),
     /// `code -g file:12`
     Goto,
     /// `hx file:12`
@@ -148,7 +148,12 @@ pub fn at_line(run: &str, paths: &[PathBuf], line: usize) -> Option<String> {
         .find_map(|x| name.strip_suffix(x))
         .unwrap_or(&name);
     let how = match name {
-        "nvim" | "vim" | "vi" | "gvim" | "nano" | "emacs" | "emacsclient" | "micro" | "kak" => LineArg::Plus,
+        "nvim" | "vim" | "vi" | "gvim" | "nano" | "emacs" | "emacsclient" | "micro" | "kak" => LineArg::Flag("+"),
+        // Editors common on Windows. Notepad has no line switch, so it stays out.
+        "hidemaru" => LineArg::Flag("/j"),
+        "sakura" => LineArg::Flag("-L="),
+        "emeditor" => LineArg::Flag("/l "),
+        "notepad++" => LineArg::Flag("-n"),
         "code" | "code-insiders" | "codium" | "cursor" | "windsurf" => LineArg::Goto,
         "hx" | "helix" | "subl" | "zed" => LineArg::Colon,
         _ => return None,
@@ -156,7 +161,7 @@ pub fn at_line(run: &str, paths: &[PathBuf], line: usize) -> Option<String> {
     let (head, tail) = run.split_at(end);
     let colon = format!(":{line}");
     Some(match how {
-        LineArg::Plus => substitute(&format!("{head} +{line}{tail}"), paths),
+        LineArg::Flag(flag) => substitute(&format!("{head} {flag}{line}{tail}"), paths),
         LineArg::Goto => substitute_with(&format!("{head} -g{tail}"), paths, &colon),
         LineArg::Colon => substitute_with(run, paths, &colon),
     })
@@ -251,5 +256,25 @@ mod tests {
         );
         assert_eq!(at("explorer %s"), None);
         assert_eq!(at(""), None);
+    }
+
+    #[test]
+    fn opens_windows_editors_at_a_line() {
+        let paths = vec![PathBuf::from(r"C:\a b\x.txt")];
+        let at = |run| at_line(run, &paths, 123);
+        assert_eq!(at("hidemaru %s").as_deref(), Some(r#"hidemaru /j123 "C:\a b\x.txt""#));
+        assert_eq!(at("sakura %s").as_deref(), Some(r#"sakura -L=123 "C:\a b\x.txt""#));
+        assert_eq!(at("emeditor %s").as_deref(), Some(r#"emeditor /l 123 "C:\a b\x.txt""#));
+        assert_eq!(at("notepad++ %s").as_deref(), Some(r#"notepad++ -n123 "C:\a b\x.txt""#));
+        // Notepad takes no line, so it is opened the plain way.
+        assert_eq!(at("notepad %s"), None);
+        assert_eq!(
+            at(r#""C:\Program Files\sakura\sakura.exe" %s"#).as_deref(),
+            Some(r#""C:\Program Files\sakura\sakura.exe" -L=123 "C:\a b\x.txt""#)
+        );
+        assert_eq!(
+            at(r#""C:\Program Files\Notepad++\notepad++.exe" %s"#).as_deref(),
+            Some(r#""C:\Program Files\Notepad++\notepad++.exe" -n123 "C:\a b\x.txt""#)
+        );
     }
 }
