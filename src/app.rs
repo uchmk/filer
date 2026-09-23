@@ -1,0 +1,1940 @@
+//! Application state and the action dispatcher.
+//!
+//! Everything the UI does goes through [`Act`], so keys, mouse clicks and
+//! internal follow-ups all take the same path.
+
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+use crossbeam_channel::Sender;
+
+use crate::config::cmd::{Act, CopyWhat, EscapeWhat, RenameCursor, SearchVia, Step, Tri};
+use crate::config::keys::{Code, Key};
+use crate::config::{keymap, Config};
+use crate::core::folder::{Filter, Folder, LoadState};
+use crate::core::fuzzy;
+use crate::core::tab::{Finder, Tab};
+use crate::exec;
+use crate::fs::ops::{self, OpKind, OpRequest, Resolution};
+use crate::fs::scan::{ScanResult, Scanner};
+use crate::fs::watch::Watcher;
+use crate::fs::{Entry, SortSpec};
+use crate::preview::{self, Payload, Previewer};
+use crate::util::{self, Lru};
+
+pub const MAX_TABS: usize = 9;
+
+// ----------------------------------------------------------------- overlays
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum InputKind {
+    Create,
+    Rename { from: PathBuf },
+    Filter,
+    Find { prev: bool },
+    Cd,
+    Shell { block: bool },
+    Search { via: SearchVia },
+    ConflictRename { job: u64 },
+}
+
+pub struct InputOverlay {
+    pub kind: InputKind,
+    pub title: String,
+    pub text: String,
+    /// Where to put the caret when the widget first gains focus.
+    pub initial_selection: Option<(usize, usize)>,
+    pub focused: bool,
+    pub completion: Vec<String>,
+    pub completion_at: usize,
+}
+
+#[derive(Clone, Debug)]
+pub enum ConfirmAction {
+    Conflict { reply: Sender<Resolution>, job: u64 },
+    DeleteForever { paths: Vec<PathBuf> },
+    BookmarkDeleteAll,
+}
+
+pub struct ConfirmOverlay {
+    pub title: String,
+    pub body: Vec<String>,
+    pub options: Vec<(char, String)>,
+    pub action: ConfirmAction,
+    /// The colliding destination, when the dialog offers a rename.
+    pub dest: Option<PathBuf>,
+}
+
+#[derive(Clone, Debug)]
+pub enum PickAction {
+    OpenWith { paths: Vec<PathBuf>, runs: Vec<(String, bool, bool)> },
+    Jump { paths: Vec<PathBuf> },
+}
+
+pub struct PickOverlay {
+    pub title: String,
+    pub items: Vec<String>,
+    pub details: Vec<String>,
+    pub query: String,
+    pub matches: Vec<(usize, i32, Vec<usize>)>,
+    pub cursor: usize,
+    pub action: PickAction,
+    pub focused: bool,
+}
+
+impl PickOverlay {
+    pub fn refilter(&mut self) {
+        let cs = fuzzy::is_case_sensitive(&self.query, true, false);
+        let mut out: Vec<(usize, i32, Vec<usize>)> = Vec::new();
+        for (i, label) in self.items.iter().enumerate() {
+            if let Some(hit) = fuzzy::match_str(&self.query, label, cs) {
+                out.push((i, hit.score, hit.positions));
+            }
+        }
+        out.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        self.matches = out;
+        self.cursor = self.cursor.min(self.matches.len().saturating_sub(1));
+    }
+
+    pub fn selected(&self) -> Option<usize> {
+        self.matches.get(self.cursor).map(|m| m.0)
+    }
+}
+
+pub enum Overlay {
+    None,
+    Input(InputOverlay),
+    Confirm(ConfirmOverlay),
+    Pick(PickOverlay),
+    Help,
+    Tasks,
+}
+
+impl Overlay {
+    pub fn is_none(&self) -> bool {
+        matches!(self, Overlay::None)
+    }
+}
+
+// -------------------------------------------------------------------- tasks
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TaskState {
+    Running,
+    Done,
+    Failed,
+    Cancelled,
+}
+
+pub struct Task {
+    pub id: u64,
+    pub kind: OpKind,
+    pub label: String,
+    pub files: u64,
+    pub bytes: u64,
+    pub files_done: u64,
+    pub bytes_done: u64,
+    pub current: String,
+    pub state: TaskState,
+    pub errors: Vec<String>,
+    pub finished: Option<Instant>,
+}
+
+impl Task {
+    pub fn fraction(&self) -> f32 {
+        if self.bytes > 0 {
+            (self.bytes_done as f32 / self.bytes as f32).clamp(0.0, 1.0)
+        } else if self.files > 0 {
+            (self.files_done as f32 / self.files as f32).clamp(0.0, 1.0)
+        } else {
+            0.0
+        }
+    }
+}
+
+pub struct Toast {
+    pub text: String,
+    pub error: bool,
+    pub at: Instant,
+}
+
+// ------------------------------------------------------------------ preview
+
+pub enum PreviewState {
+    Empty,
+    Loading,
+    Dir(Folder),
+    Ready(Payload),
+}
+
+#[derive(Clone)]
+pub struct CachedPreview {
+    pub payload: Payload,
+}
+
+pub struct PreviewSlot {
+    pub key: Option<preview::Key>,
+    pub state: PreviewState,
+    pub texture: Option<egui::TextureHandle>,
+    pub request_id: u64,
+    pub pending_since: Option<Instant>,
+    pub cache: Lru<preview::Key, CachedPreview>,
+    /// Size of the preview pane in pixels, used when decoding images.
+    pub box_size: (u32, u32),
+}
+
+impl Default for PreviewSlot {
+    fn default() -> Self {
+        Self {
+            key: None,
+            state: PreviewState::Empty,
+            texture: None,
+            request_id: 0,
+            pending_since: None,
+            cache: Lru::new(24),
+            box_size: (900, 900),
+        }
+    }
+}
+
+// ---------------------------------------------------------------- bookmarks
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Bookmark {
+    pub key: String,
+    pub path: PathBuf,
+    #[serde(default)]
+    pub name: String,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum BookmarkOp {
+    Save,
+    Jump,
+    Delete,
+}
+
+#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
+struct BookmarkFile {
+    #[serde(default)]
+    bookmark: Vec<Bookmark>,
+}
+
+// ---------------------------------------------------------------------- app
+
+pub struct Yank {
+    pub paths: Vec<PathBuf>,
+    pub cut: bool,
+}
+
+pub struct App {
+    pub cfg: Config,
+    pub tabs: Vec<Tab>,
+    pub active: usize,
+    pub cache: Lru<PathBuf, Arc<Vec<Entry>>>,
+
+    pub scanner: Scanner,
+    pub previewer: Previewer,
+    pub ops: ops::Runner,
+    pub watcher: Watcher,
+
+    pub pending: Vec<Key>,
+    pub which: Vec<(String, String, String)>,
+    pub overlay: Overlay,
+    pub pending_bookmark: Option<BookmarkOp>,
+
+    pub yank: Yank,
+    pub preview: PreviewSlot,
+    pub max_preview: bool,
+    pub hide_parent: bool,
+
+    pub tasks: Vec<Task>,
+    pub toasts: Vec<Toast>,
+    pub bookmarks: Vec<Bookmark>,
+    pub history: Vec<PathBuf>,
+
+    pub search: Option<crate::search::Handle>,
+    pub ctx: egui::Context,
+    /// A copy job is blocked waiting for the new name being typed.
+    pending_conflict: Option<Sender<Resolution>>,
+
+    dirty: HashMap<PathBuf, Instant>,
+    /// Directories whose child count has already been asked for.
+    counted: std::collections::HashSet<PathBuf>,
+    /// Scans in flight, so results can be routed back to the right folder.
+    inflight: HashMap<u64, PathBuf>,
+    pub quit: bool,
+    pub cwd_file: Option<PathBuf>,
+    pub chooser_file: Option<PathBuf>,
+    pub help_scroll: usize,
+    pub last_action: Instant,
+}
+
+impl App {
+    pub fn new(cfg: Config, start: PathBuf, ctx: egui::Context) -> Self {
+        let wake = {
+            let ctx = ctx.clone();
+            move || ctx.request_repaint()
+        };
+        // yazi's `micro_workers` is the nearest equivalent knob for "small IO jobs".
+        let threads = (cfg.yazi.tasks.micro_workers as usize).clamp(2, 6);
+        let scanner = Scanner::new(threads, wake.clone());
+        let previewer = Previewer::new(wake.clone());
+        let opsr = ops::Runner::new(wake.clone());
+        let watcher = Watcher::new(wake);
+
+        let sort = SortSpec {
+            by: cfg.yazi.mgr.sort_by,
+            reverse: cfg.yazi.mgr.sort_reverse,
+            dir_first: cfg.yazi.mgr.sort_dir_first,
+            sensitive: cfg.yazi.mgr.sort_sensitive,
+        };
+        let tab = Tab::new(start, sort, cfg.yazi.mgr.show_hidden, cfg.yazi.mgr.linemode.clone());
+
+        let mut app = Self {
+            cfg,
+            tabs: vec![tab],
+            active: 0,
+            cache: Lru::new(64),
+            scanner,
+            previewer,
+            ops: opsr,
+            watcher,
+            pending: Vec::new(),
+            which: Vec::new(),
+            overlay: Overlay::None,
+            pending_bookmark: None,
+            yank: Yank { paths: Vec::new(), cut: false },
+            preview: PreviewSlot::default(),
+            max_preview: false,
+            hide_parent: false,
+            tasks: Vec::new(),
+            toasts: Vec::new(),
+            bookmarks: Vec::new(),
+            history: Vec::new(),
+            search: None,
+            ctx,
+            pending_conflict: None,
+            dirty: HashMap::new(),
+            counted: std::collections::HashSet::new(),
+            inflight: HashMap::new(),
+            quit: false,
+            cwd_file: None,
+            chooser_file: None,
+            help_scroll: 0,
+            last_action: Instant::now(),
+        };
+        app.load_state();
+        app.kick_scans();
+        app
+    }
+
+    // ------------------------------------------------------------- accessors
+
+    pub fn tab(&self) -> &Tab {
+        &self.tabs[self.active]
+    }
+
+    pub fn toast(&mut self, text: impl Into<String>) {
+        self.toasts.push(Toast { text: text.into(), error: false, at: Instant::now() });
+    }
+
+    pub fn error(&mut self, text: impl Into<String>) {
+        self.toasts.push(Toast { text: text.into(), error: true, at: Instant::now() });
+    }
+
+    // ------------------------------------------------------------- scanning
+
+    /// Ask for any listing the current view needs and does not have.
+    pub fn kick_scans(&mut self) {
+        let sort = self.tabs[self.active].sort;
+        let cwd = self.tabs[self.active].cwd.clone();
+        let parent = cwd.parent().map(Path::to_path_buf);
+
+        if self.tabs[self.active].current.scan_id.is_none()
+            && self.tabs[self.active].current.state == LoadState::Loading
+        {
+            let id = self.scanner.scan(cwd.clone(), sort);
+            self.inflight.insert(id, cwd.clone());
+            self.tabs[self.active].current.scan_id = Some(id);
+        }
+        if let Some(p) = parent {
+            let needs = match &self.tabs[self.active].parent {
+                Some(f) => f.scan_id.is_none() && f.state == LoadState::Loading,
+                None => false,
+            };
+            if needs {
+                let id = self.scanner.scan_low(p.clone(), sort);
+                self.inflight.insert(id, p.clone());
+                if let Some(f) = self.tabs[self.active].parent.as_mut() {
+                    f.scan_id = Some(id);
+                }
+            }
+        }
+        self.ensure_dir_sizes();
+        self.sync_watcher();
+    }
+
+    /// `linemode size` shows a child count for directories; compute it only for
+    /// the rows actually on screen, and only once per directory.
+    fn ensure_dir_sizes(&mut self) {
+        if self.tabs[self.active].linemode != "size" {
+            return;
+        }
+        let tab = &self.tabs[self.active];
+        let start = tab.current.offset;
+        let end = (start + tab.page_rows + 1).min(tab.current.view.len());
+        let mut want = Vec::new();
+        for row in start..end {
+            let Some(e) = tab.current.at(row) else { continue };
+            if e.is_dir_like() && e.dir_size.is_none() && !self.counted.contains(&e.path) {
+                want.push(e.path.clone());
+            }
+        }
+        if want.is_empty() {
+            return;
+        }
+        for p in &want {
+            self.counted.insert(p.clone());
+        }
+        self.scanner.count(want);
+    }
+
+    fn sync_watcher(&mut self) {
+        let mut dirs: Vec<PathBuf> = vec![self.tabs[self.active].cwd.clone()];
+        if let Some(p) = self.tabs[self.active].cwd.parent() {
+            dirs.push(p.to_path_buf());
+        }
+        if let PreviewState::Dir(f) = &self.preview.state {
+            dirs.push(f.path.clone());
+        }
+        let refs: Vec<&Path> = dirs.iter().map(PathBuf::as_path).collect();
+        self.watcher.sync(refs);
+    }
+
+    pub fn drain_channels(&mut self, ctx: &egui::Context) {
+        while let Ok(res) = self.scanner.rx.try_recv() {
+            self.on_scan(res);
+        }
+        while let Ok(res) = self.previewer.rx.try_recv() {
+            self.on_preview(res, ctx);
+        }
+        while let Ok(ev) = self.ops.rx.try_recv() {
+            self.on_op_event(ev);
+        }
+        while let Ok(dir) = self.watcher.rx.try_recv() {
+            self.dirty.insert(dir, Instant::now());
+        }
+        self.drain_search();
+        self.flush_dirty();
+        self.toasts.retain(|t| t.at.elapsed() < Duration::from_secs(6));
+        self.tasks.retain(|t| match t.finished {
+            Some(at) => at.elapsed() < Duration::from_secs(20) || !t.errors.is_empty(),
+            None => true,
+        });
+    }
+
+    /// Rescan directories the watcher flagged, once they have been quiet for a
+    /// moment — editors and installers touch a directory many times in a row.
+    fn flush_dirty(&mut self) {
+        if self.dirty.is_empty() {
+            return;
+        }
+        let ready: Vec<PathBuf> = self
+            .dirty
+            .iter()
+            .filter(|(_, t)| t.elapsed() > Duration::from_millis(150))
+            .map(|(p, _)| p.clone())
+            .collect();
+        for p in ready {
+            self.dirty.remove(&p);
+            self.cache.remove(&p);
+            self.rescan(&p);
+        }
+    }
+
+    fn rescan(&mut self, path: &Path) {
+        let sort = self.tabs[self.active].sort;
+        let mut wanted = false;
+        if self.tabs[self.active].cwd == path {
+            wanted = true;
+        }
+        if let Some(p) = self.tabs[self.active].parent.as_ref() {
+            if p.path == path {
+                wanted = true;
+            }
+        }
+        if let PreviewState::Dir(f) = &self.preview.state {
+            if f.path == path {
+                wanted = true;
+            }
+        }
+        if !wanted {
+            return;
+        }
+        let id = self.scanner.scan(path.to_path_buf(), sort);
+        self.inflight.insert(id, path.to_path_buf());
+    }
+
+    fn on_scan(&mut self, res: ScanResult) {
+        match res {
+            ScanResult::Listed { id, path, entries } => {
+                self.inflight.remove(&id);
+                let entries = Arc::new(entries);
+                self.cache.put(path.clone(), entries.clone());
+                self.apply_listing(&path, entries);
+            }
+            ScanResult::Failed { id, path, error } => {
+                self.inflight.remove(&id);
+                let show_hidden = self.tabs[self.active].show_hidden;
+                if self.tabs[self.active].cwd == path {
+                    let f = &mut self.tabs[self.active].current;
+                    f.state = LoadState::Error(error.clone());
+                    f.entries = Arc::new(Vec::new());
+                    f.rebuild(show_hidden);
+                } else if let PreviewState::Dir(f) = &mut self.preview.state {
+                    if f.path == path {
+                        f.state = LoadState::Error(error.clone());
+                    }
+                }
+                self.error(format!("{}: {error}", util::file_name(&path)));
+            }
+            ScanResult::Counted { counts, .. } => {
+                let map: HashMap<&PathBuf, u64> = counts.iter().map(|(p, n)| (p, *n)).collect();
+                for tab in &mut self.tabs {
+                    let entries = Arc::make_mut(&mut tab.current.entries);
+                    for e in entries.iter_mut() {
+                        if let Some(n) = map.get(&e.path) {
+                            e.dir_size = Some(*n);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn apply_listing(&mut self, path: &Path, entries: Arc<Vec<Entry>>) {
+        let show_hidden = self.tabs[self.active].show_hidden;
+        let memo = self.tabs[self.active].memo.get(path).cloned();
+
+        if self.tabs[self.active].cwd == path {
+            let keep = self.tabs[self.active].current.hovered_name().map(str::to_owned);
+            let filter = self.tabs[self.active].current.filter.clone();
+            let cursor = self.tabs[self.active].current.cursor;
+            let offset = self.tabs[self.active].current.offset;
+            let f = &mut self.tabs[self.active].current;
+            f.entries = entries.clone();
+            f.state = LoadState::Ready;
+            f.scan_id = None;
+            f.filter = filter;
+            f.cursor = cursor;
+            f.offset = offset;
+            f.rebuild(show_hidden);
+            if let Some(name) = keep.or(memo) {
+                f.select_name(&name);
+            }
+        }
+
+        let parent_hit = self
+            .tabs[self.active]
+            .parent
+            .as_ref()
+            .map(|p| p.path == path)
+            .unwrap_or(false);
+        if parent_hit {
+            let cwd = self.tabs[self.active].cwd.clone();
+            if let Some(f) = self.tabs[self.active].parent.as_mut() {
+                f.entries = entries.clone();
+                f.state = LoadState::Ready;
+                f.scan_id = None;
+                f.rebuild(show_hidden);
+                let name = util::file_name(&cwd);
+                f.select_name(&name);
+            }
+        }
+
+        if let PreviewState::Dir(f) = &mut self.preview.state {
+            if f.path == path {
+                f.entries = entries;
+                f.state = LoadState::Ready;
+                f.scan_id = None;
+                f.rebuild(show_hidden);
+            }
+        }
+
+        // Other tabs share the cache but keep their own cursors.
+        for (i, tab) in self.tabs.iter_mut().enumerate() {
+            if i == self.active || tab.cwd != path {
+                continue;
+            }
+            if let Some(cached) = self.cache.peek(&path.to_path_buf()) {
+                tab.current.entries = cached.clone();
+                tab.current.state = LoadState::Ready;
+                tab.current.rebuild(tab.show_hidden);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------- preview
+
+    pub fn request_preview(&mut self, force: bool) {
+        let Some(entry) = self.tabs[self.active].current.hovered().cloned() else {
+            self.preview.state = PreviewState::Empty;
+            self.preview.key = None;
+            return;
+        };
+
+        if entry.is_dir_like() {
+            let need = match &self.preview.state {
+                PreviewState::Dir(f) => f.path != entry.path,
+                _ => true,
+            };
+            if need {
+                let show_hidden = self.tabs[self.active].show_hidden;
+                let sort = self.tabs[self.active].sort;
+                let folder = match self.cache.get(&entry.path) {
+                    Some(entries) => Folder::from_entries(entry.path.clone(), entries.clone(), show_hidden),
+                    None => {
+                        let id = self.scanner.scan_low(entry.path.clone(), sort);
+                        self.inflight.insert(id, entry.path.clone());
+                        Folder::loading(entry.path.clone(), Some(id))
+                    }
+                };
+                self.preview.state = PreviewState::Dir(folder);
+                self.preview.key = None;
+                self.preview.texture = None;
+                self.tabs[self.active].preview_offset = 0;
+                self.sync_watcher();
+            }
+            return;
+        }
+
+        let key = preview::Key {
+            path: entry.path.clone(),
+            len: entry.len,
+            mtime: entry.modified,
+            box_size: self.preview.box_size,
+        };
+        if self.preview.key.as_ref() == Some(&key) && !force {
+            return;
+        }
+        if let Some(hit) = self.preview.cache.get(&key).cloned() {
+            self.preview.key = Some(key);
+            self.preview.texture = None;
+            self.preview.state = PreviewState::Ready(hit.payload);
+            return;
+        }
+
+        // Debounce: while the cursor is still moving, don't touch the disk.
+        let debounce = Duration::from_millis(self.cfg.ui.preview_debounce_ms);
+        match self.preview.pending_since {
+            Some(t) if t.elapsed() >= debounce => {}
+            Some(_) => return,
+            None => {
+                self.preview.pending_since = Some(Instant::now());
+                if !debounce.is_zero() {
+                    return;
+                }
+            }
+        }
+        self.preview.pending_since = None;
+
+        let mime = crate::mime::guess(&entry);
+        self.preview.key = Some(key.clone());
+        self.preview.texture = None;
+        self.preview.state = PreviewState::Loading;
+        self.preview.request_id = self.previewer.request(preview::Request {
+            id: 0,
+            key,
+            mime,
+            ext: entry.ext.clone(),
+            max_bytes: self.cfg.ui.max_text_bytes,
+            tab_size: self.cfg.yazi.preview.tab_size,
+            syntect_theme: self.cfg.theme.syntect_theme.clone(),
+        });
+    }
+
+    fn on_preview(&mut self, res: preview::Response, ctx: &egui::Context) {
+        if self.preview.key.as_ref() != Some(&res.key) {
+            return; // stale
+        }
+        if let Payload::Image { width, height, rgba, .. } = &res.payload {
+            let img = egui::ColorImage::from_rgba_unmultiplied(
+                [*width as usize, *height as usize],
+                rgba,
+            );
+            self.preview.texture =
+                Some(ctx.load_texture("preview", img, egui::TextureOptions::LINEAR));
+        }
+        self.preview.cache.put(res.key, CachedPreview { payload: res.payload.clone() });
+        self.preview.state = PreviewState::Ready(res.payload);
+    }
+
+    // ------------------------------------------------------------ navigation
+
+    pub fn cd(&mut self, target: PathBuf, push_history: bool) {
+        let target = util::normalize(&target);
+        if !target.is_dir() {
+            self.error(format!("Not a directory: {}", target.display()));
+            return;
+        }
+        if self.tabs[self.active].cwd == target {
+            return;
+        }
+        let show_hidden = self.tabs[self.active].show_hidden;
+        {
+            let tab = &mut self.tabs[self.active];
+            tab.remember_cursor();
+            if push_history {
+                let old = std::mem::replace(&mut tab.cwd, target.clone());
+                tab.back.push(old);
+                tab.forward.clear();
+            } else {
+                tab.cwd = target.clone();
+            }
+            tab.visual = None;
+            tab.finder = None;
+            tab.preview_offset = 0;
+        }
+
+        let cur = match self.cache.get(&target) {
+            Some(entries) => Folder::from_entries(target.clone(), entries.clone(), show_hidden),
+            None => Folder::loading(target.clone(), None),
+        };
+        self.tabs[self.active].current = cur;
+        self.tabs[self.active].recall_cursor();
+
+        let parent = target.parent().map(Path::to_path_buf);
+        self.tabs[self.active].parent = parent.map(|p| match self.cache.get(&p) {
+            Some(entries) => {
+                let mut f = Folder::from_entries(p.clone(), entries.clone(), show_hidden);
+                f.select_name(&util::file_name(&target));
+                f
+            }
+            None => Folder::loading(p, None),
+        });
+
+        self.preview.state = PreviewState::Empty;
+        self.preview.key = None;
+        self.preview.texture = None;
+        self.preview.pending_since = None;
+
+        self.remember_history(&target);
+        self.kick_scans();
+        // Even a cache hit gets a background refresh, so the view is never stale.
+        if self.cache.peek(&target).is_some() {
+            let sort = self.tabs[self.active].sort;
+            let id = self.scanner.scan(target.clone(), sort);
+            self.inflight.insert(id, target);
+        }
+    }
+
+    fn remember_history(&mut self, path: &Path) {
+        self.history.retain(|p| p != path);
+        self.history.push(path.to_path_buf());
+        let max = self.cfg.ui.max_history;
+        if self.history.len() > max {
+            let cut = self.history.len() - max;
+            self.history.drain(..cut);
+        }
+    }
+
+    pub fn exit_search_view(&mut self) {
+        self.search = None;
+        let cwd = self.tabs[self.active].cwd.clone();
+        let show_hidden = self.tabs[self.active].show_hidden;
+        let folder = match self.cache.get(&cwd) {
+            Some(entries) => Folder::from_entries(cwd.clone(), entries.clone(), show_hidden),
+            None => Folder::loading(cwd.clone(), None),
+        };
+        self.tabs[self.active].current = folder;
+        self.tabs[self.active].finder = None;
+        self.tabs[self.active].recall_cursor();
+        self.kick_scans();
+    }
+
+    fn enter(&mut self) {
+        let Some(entry) = self.tabs[self.active].current.hovered().cloned() else { return };
+        if entry.is_dir_like() {
+            self.cd(entry.path, true);
+        } else {
+            self.open(false);
+        }
+    }
+
+    fn leave(&mut self) {
+        if self.in_search_view() {
+            self.exit_search_view();
+            return;
+        }
+        let cwd = self.tabs[self.active].cwd.clone();
+        if let Some(p) = cwd.parent() {
+            let p = p.to_path_buf();
+            let name = util::file_name(&cwd);
+            self.tabs[self.active].memo.insert(p.clone(), name);
+            self.cd(p, true);
+        }
+    }
+
+    // ------------------------------------------------------------- dispatch
+
+    pub fn run(&mut self, acts: &[Act]) {
+        for a in acts {
+            self.act(a.clone());
+        }
+    }
+
+    pub fn act(&mut self, a: Act) {
+        self.last_action = Instant::now();
+        match a {
+            Act::Noop | Act::Unsupported(_) => {
+                if let Act::Unsupported(what) = a {
+                    self.error(format!("Not supported: {what}"));
+                }
+            }
+            Act::Escape(what) => self.escape(what),
+            Act::Quit => self.quit = true,
+            Act::Close => {
+                if self.tabs.len() > 1 {
+                    self.close_tab(self.active);
+                } else {
+                    self.quit = true;
+                }
+            }
+            Act::Suspend => {}
+
+            Act::Arrow(step) => {
+                let page = self.tabs[self.active].page_rows.max(1);
+                self.tabs[self.active].current.arrow(step, page);
+                self.tabs[self.active].sync_visual();
+                self.preview.pending_since = None;
+            }
+            Act::Leave => self.leave(),
+            Act::Enter => self.enter(),
+            Act::Back => {
+                if let Some(p) = self.tabs[self.active].back.pop() {
+                    let cur = self.tabs[self.active].cwd.clone();
+                    self.tabs[self.active].forward.push(cur);
+                    self.cd(p, false);
+                }
+            }
+            Act::Forward => {
+                if let Some(p) = self.tabs[self.active].forward.pop() {
+                    let cur = self.tabs[self.active].cwd.clone();
+                    self.tabs[self.active].back.push(cur);
+                    self.cd(p, false);
+                }
+            }
+            Act::Cd { target, interactive } => {
+                if interactive || target.is_empty() {
+                    let cwd = self.tabs[self.active].cwd.clone();
+                    self.open_input(InputKind::Cd, "Change directory", format!("{}\\", cwd.display()));
+                } else {
+                    let base = self.tabs[self.active].cwd.clone();
+                    self.cd(util::resolve_against(&base, &target), true);
+                }
+            }
+            Act::Reveal(target) => {
+                let base = self.tabs[self.active].cwd.clone();
+                let p = util::resolve_against(&base, &target);
+                let name = util::file_name(&p);
+                if let Some(dir) = p.parent() {
+                    self.cd(dir.to_path_buf(), true);
+                    let cwd = self.tabs[self.active].cwd.clone();
+                    self.tabs[self.active].memo.insert(cwd, name.clone());
+                    self.tabs[self.active].current.select_name(&name);
+                }
+            }
+            Act::Follow => self.follow_link(),
+            Act::Refresh => {
+                let cwd = self.tabs[self.active].cwd.clone();
+                self.cache.remove(&cwd);
+                self.preview.cache.clear();
+                self.counted.clear();
+                self.rescan(&cwd);
+                self.request_preview(true);
+            }
+
+            Act::Seek(step) => {
+                let page = self.tabs[self.active].page_rows.max(1) as i64;
+                let delta = match step {
+                    Step::Rel(n) => n,
+                    Step::Pct(p) => page * p / 100,
+                    Step::Top => i64::MIN / 2,
+                    Step::Bot => i64::MAX / 2,
+                };
+                let cur = self.tabs[self.active].preview_offset as i64;
+                self.tabs[self.active].preview_offset = cur.saturating_add(delta).max(0) as usize;
+            }
+
+            Act::TabCreate { current, path } => self.create_tab(current, path),
+            Act::TabClose(n) => {
+                let idx = n.unwrap_or(self.active);
+                self.close_tab(idx);
+            }
+            Act::TabSwitch { n, relative } => {
+                let len = self.tabs.len() as i64;
+                let idx = if relative {
+                    (self.active as i64 + n).rem_euclid(len)
+                } else {
+                    n.clamp(0, len - 1)
+                };
+                self.switch_tab(idx as usize);
+            }
+            Act::TabSwap(n) => {
+                let len = self.tabs.len() as i64;
+                let to = (self.active as i64 + n).rem_euclid(len) as usize;
+                self.tabs.swap(self.active, to);
+                self.active = to;
+            }
+
+            Act::Toggle { state } => {
+                self.tabs[self.active].toggle(state);
+            }
+            Act::ToggleAll { state } => self.tabs[self.active].toggle_all(state),
+            Act::VisualMode { unset } => {
+                if self.tabs[self.active].visual.is_some() {
+                    self.tabs[self.active].leave_visual();
+                } else {
+                    self.tabs[self.active].enter_visual(unset);
+                }
+            }
+
+            Act::Open { interactive, hovered } => {
+                let _ = hovered;
+                self.open(interactive);
+            }
+            Act::Yank { cut } => self.yank(cut),
+            Act::Unyank => {
+                self.yank.paths.clear();
+                self.yank.cut = false;
+            }
+            Act::Paste { force, follow } => self.paste(force, follow),
+            Act::Link { relative } => self.link(OpKind::Symlink { relative }),
+            Act::Hardlink => self.link(OpKind::Hardlink),
+            Act::Remove { permanently, force, hovered } => {
+                self.remove(permanently, force, hovered)
+            }
+            Act::Create { dir, force } => {
+                let _ = force;
+                let title = if dir { "Create directory" } else { "Create (end with / for a directory)" };
+                self.open_input(InputKind::Create, title, String::new());
+            }
+            Act::Rename { force, cursor } => {
+                let _ = force;
+                self.start_rename(cursor);
+            }
+            Act::Copy(what) => self.copy_text(what),
+            Act::Shell { run, block, confirm, orphan } => {
+                if run.is_empty() || confirm {
+                    self.open_input(InputKind::Shell { block }, "Shell", run);
+                } else {
+                    self.run_shell(&run, block, orphan);
+                }
+            }
+
+            Act::Hidden(state) => {
+                let tab = &mut self.tabs[self.active];
+                tab.show_hidden = state.unwrap_or(!tab.show_hidden);
+                let show = tab.show_hidden;
+                tab.current.rebuild(show);
+                if let Some(p) = tab.parent.as_mut() {
+                    p.rebuild(show);
+                }
+                if let PreviewState::Dir(f) = &mut self.preview.state {
+                    f.rebuild(show);
+                }
+            }
+            Act::Linemode(m) => self.tabs[self.active].linemode = m,
+            Act::Sort { by, reverse, dir_first } => self.sort(by, reverse, dir_first),
+
+            Act::Find { prev, smart, insensitive } => {
+                let _ = (smart, insensitive);
+                self.open_input(InputKind::Find { prev }, if prev { "Find previous" } else { "Find next" }, String::new());
+            }
+            Act::FindArrow { prev } => self.find_arrow(prev),
+            Act::Filter { smart, insensitive } => {
+                let _ = (smart, insensitive);
+                let current = self
+                    .tabs[self.active]
+                    .current
+                    .filter
+                    .as_ref()
+                    .map(|f| f.query.clone())
+                    .unwrap_or_default();
+                self.open_input(InputKind::Filter, "Filter", current);
+            }
+            Act::Search { via, .. } => {
+                self.open_input(InputKind::Search { via }, match via {
+                    SearchVia::Name => "Search by name",
+                    SearchVia::Content => "Search by content",
+                }, String::new());
+            }
+            Act::Submit => self.submit_input(),
+            Act::Complete => self.complete_input(),
+            Act::Jump => self.open_jump(),
+
+            Act::Help => {
+                self.help_scroll = 0;
+                self.overlay = Overlay::Help;
+            }
+            Act::TasksShow => self.overlay = Overlay::Tasks,
+            Act::Spot => self.request_preview(true),
+
+            Act::MaxPreview => {
+                self.max_preview = !self.max_preview;
+                if self.max_preview {
+                    self.hide_parent = false;
+                }
+            }
+            Act::TogglePaneParent => self.hide_parent = !self.hide_parent,
+            Act::BookmarkSave => self.pending_bookmark = Some(BookmarkOp::Save),
+            Act::BookmarkJump => self.pending_bookmark = Some(BookmarkOp::Jump),
+            Act::BookmarkDelete => self.pending_bookmark = Some(BookmarkOp::Delete),
+            Act::BookmarkDeleteAll => {
+                self.overlay = Overlay::Confirm(ConfirmOverlay {
+                    title: "Delete all bookmarks?".into(),
+                    body: vec![format!("{} bookmarks will be removed.", self.bookmarks.len())],
+                    options: vec![('y', "Yes".into()), ('n', "No".into())],
+                    action: ConfirmAction::BookmarkDeleteAll,
+                    dest: None,
+                });
+            }
+        }
+    }
+
+    fn escape(&mut self, what: EscapeWhat) {
+        if !self.overlay.is_none() {
+            self.cancel_input();
+            return;
+        }
+        if self.pending_bookmark.take().is_some() {
+            return;
+        }
+        let all = what.everything();
+        if (all || what.search) && self.in_search_view() {
+            self.exit_search_view();
+            return;
+        }
+        let tab = &mut self.tabs[self.active];
+        if (all || what.visual) && tab.leave_visual() {
+            return;
+        }
+        if (all || what.filter) && tab.current.filter.is_some() {
+            tab.current.filter = None;
+            let show = tab.show_hidden;
+            tab.current.rebuild(show);
+            return;
+        }
+        if (all || what.find || what.search) && tab.finder.take().is_some() {
+            return;
+        }
+        if all || what.select {
+            tab.clear_selection();
+        }
+    }
+
+    // ----------------------------------------------------------------- tabs
+
+    fn create_tab(&mut self, current: bool, path: Option<String>) {
+        if self.tabs.len() >= MAX_TABS {
+            self.error("Maximum number of tabs reached");
+            return;
+        }
+        let base = self.tabs[self.active].cwd.clone();
+        let target = match path {
+            Some(p) if !p.is_empty() => util::resolve_against(&base, &p),
+            _ if current => match self.tabs[self.active].current.hovered() {
+                Some(e) if e.is_dir_like() => e.path.clone(),
+                _ => base.clone(),
+            },
+            _ => dirs::home_dir().unwrap_or(base.clone()),
+        };
+        let target = if target.is_dir() { target } else { base };
+        let tab = Tab::new(
+            target,
+            self.tabs[self.active].sort,
+            self.tabs[self.active].show_hidden,
+            self.tabs[self.active].linemode.clone(),
+        );
+        let at = self.active + 1;
+        self.tabs.insert(at, tab);
+        self.switch_tab(at);
+    }
+
+    fn close_tab(&mut self, idx: usize) {
+        if self.tabs.len() <= 1 {
+            self.quit = true;
+            return;
+        }
+        if idx >= self.tabs.len() {
+            return;
+        }
+        self.tabs.remove(idx);
+        self.switch_tab(self.active.min(self.tabs.len() - 1));
+    }
+
+    fn switch_tab(&mut self, idx: usize) {
+        if idx >= self.tabs.len() || idx == self.active {
+            self.active = idx.min(self.tabs.len() - 1);
+        } else {
+            self.active = idx;
+        }
+        let show_hidden = self.tabs[self.active].show_hidden;
+        let cwd = self.tabs[self.active].cwd.clone();
+        if let Some(entries) = self.cache.get(&cwd).cloned() {
+            if self.tabs[self.active].current.state == LoadState::Loading {
+                let mut f = Folder::from_entries(cwd.clone(), entries, show_hidden);
+                if let Some(name) = self.tabs[self.active].memo.get(&cwd) {
+                    f.select_name(name);
+                }
+                self.tabs[self.active].current = f;
+            }
+        }
+        if let Some(p) = cwd.parent().map(Path::to_path_buf) {
+            let needs = self
+                .tabs[self.active]
+                .parent
+                .as_ref()
+                .map(|f| f.state == LoadState::Loading)
+                .unwrap_or(true);
+            if needs {
+                if let Some(entries) = self.cache.get(&p).cloned() {
+                    let mut f = Folder::from_entries(p, entries, show_hidden);
+                    f.select_name(&util::file_name(&cwd));
+                    self.tabs[self.active].parent = Some(f);
+                }
+            }
+        }
+        self.preview.state = PreviewState::Empty;
+        self.preview.key = None;
+        self.preview.texture = None;
+        self.kick_scans();
+    }
+
+    // ----------------------------------------------------------- operations
+
+    fn yank(&mut self, cut: bool) {
+        let paths = self.tabs[self.active].targets();
+        if paths.is_empty() {
+            return;
+        }
+        let n = paths.len();
+        self.yank = Yank { paths, cut };
+        self.toast(format!("Yanked {n} item(s){}", if cut { " (cut)" } else { "" }));
+    }
+
+    fn paste(&mut self, force: bool, _follow: bool) {
+        if self.yank.paths.is_empty() {
+            self.error("Nothing to paste");
+            return;
+        }
+        let dest = self.tabs[self.active].cwd.clone();
+        let kind = if self.yank.cut { OpKind::Move } else { OpKind::Copy };
+        let srcs = self.yank.paths.clone();
+        self.submit_op(kind, srcs, dest, force);
+        if self.yank.cut {
+            self.yank.paths.clear();
+            self.yank.cut = false;
+        }
+    }
+
+    fn link(&mut self, kind: OpKind) {
+        if self.yank.paths.is_empty() {
+            self.error("Nothing to link; yank something first");
+            return;
+        }
+        let dest = self.tabs[self.active].cwd.clone();
+        let srcs = self.yank.paths.clone();
+        self.submit_op(kind, srcs, dest, false);
+    }
+
+    fn remove(&mut self, permanently: bool, force: bool, hovered: bool) {
+        let paths = if hovered {
+            self.tabs[self.active].current.hovered().map(|e| vec![e.path.clone()]).unwrap_or_default()
+        } else {
+            self.tabs[self.active].targets()
+        };
+        if paths.is_empty() {
+            return;
+        }
+        if permanently && !force {
+            self.overlay = Overlay::Confirm(ConfirmOverlay {
+                title: "Delete permanently?".into(),
+                body: preview_paths(&paths),
+                options: vec![('y', "Delete".into()), ('n', "Cancel".into())],
+                action: ConfirmAction::DeleteForever { paths },
+                dest: None,
+            });
+            return;
+        }
+        let kind = if permanently { OpKind::Delete } else { OpKind::Trash };
+        let dest = self.tabs[self.active].cwd.clone();
+        self.submit_op(kind, paths, dest, true);
+        self.tabs[self.active].clear_selection();
+    }
+
+    fn submit_op(&mut self, kind: OpKind, srcs: Vec<PathBuf>, dest_dir: PathBuf, force: bool) {
+        let id = self.scanner.next_id();
+        let label = format!("{} {} item(s)", kind.verb(), srcs.len());
+        self.tasks.push(Task {
+            id,
+            kind,
+            label,
+            files: 0,
+            bytes: 0,
+            files_done: 0,
+            bytes_done: 0,
+            current: String::new(),
+            state: TaskState::Running,
+            errors: Vec::new(),
+            finished: None,
+        });
+        self.ops.submit(OpRequest { id, kind, srcs, dest_dir, force });
+    }
+
+    fn on_op_event(&mut self, ev: ops::OpEvent) {
+        match ev {
+            ops::OpEvent::Started { id, files, bytes } => {
+                if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
+                    t.files = files;
+                    t.bytes = bytes;
+                }
+            }
+            ops::OpEvent::Progress { id, files_done, bytes_done, current } => {
+                if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
+                    t.files_done = files_done;
+                    t.bytes_done = bytes_done;
+                    if !current.is_empty() {
+                        t.current = current;
+                    }
+                }
+            }
+            ops::OpEvent::Conflict { id, src, dest, reply } => {
+                self.overlay = Overlay::Confirm(ConfirmOverlay {
+                    title: "File already exists".into(),
+                    body: vec![
+                        format!("src:  {}", src.display()),
+                        format!("dest: {}", dest.display()),
+                    ],
+                    options: vec![
+                        ('o', "Overwrite".into()),
+                        ('a', "Overwrite all".into()),
+                        ('s', "Skip".into()),
+                        ('S', "Skip all".into()),
+                        ('r', "Rename…".into()),
+                        ('q', "Cancel".into()),
+                    ],
+                    action: ConfirmAction::Conflict { reply, job: id },
+                    dest: Some(dest),
+                });
+            }
+            ops::OpEvent::Finished { id, errors, cancelled, kind } => {
+                if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
+                    t.state = if cancelled {
+                        TaskState::Cancelled
+                    } else if errors.is_empty() {
+                        TaskState::Done
+                    } else {
+                        TaskState::Failed
+                    };
+                    t.errors = errors.clone();
+                    t.finished = Some(Instant::now());
+                }
+                if !errors.is_empty() {
+                    self.error(format!("{}: {}", kind.verb(), errors[0]));
+                }
+                let cwd = self.tabs[self.active].cwd.clone();
+                self.cache.remove(&cwd);
+                self.rescan(&cwd);
+            }
+        }
+    }
+
+    fn start_rename(&mut self, cursor: RenameCursor) {
+        let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
+        let name = e.name.clone();
+        let (stem, _ext) = util::stem_and_ext(&name);
+        let sel = match cursor {
+            RenameCursor::Start => (0, 0),
+            RenameCursor::End => (name.chars().count(), name.chars().count()),
+            RenameCursor::BeforeExt => (0, stem.chars().count()),
+        };
+        let mut ov = InputOverlay {
+            kind: InputKind::Rename { from: e.path.clone() },
+            title: "Rename".into(),
+            text: name,
+            initial_selection: Some(sel),
+            focused: false,
+            completion: Vec::new(),
+            completion_at: 0,
+        };
+        ov.completion.clear();
+        self.overlay = Overlay::Input(ov);
+    }
+
+    fn copy_text(&mut self, what: CopyWhat) {
+        let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
+        let text = match what {
+            CopyWhat::Path => e.path.display().to_string(),
+            CopyWhat::Dirname => e
+                .path
+                .parent()
+                .map(|p| p.display().to_string())
+                .unwrap_or_default(),
+            CopyWhat::Filename => e.name.clone(),
+            CopyWhat::NameWithoutExt => util::stem_and_ext(&e.name).0.to_owned(),
+        };
+        match exec::set_clipboard(&text) {
+            Ok(()) => self.toast(format!("Copied: {text}")),
+            Err(err) => self.error(format!("Clipboard: {err}")),
+        }
+    }
+
+    fn follow_link(&mut self) {
+        let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
+        if !e.kind.is_link() {
+            return;
+        }
+        match std::fs::canonicalize(&e.path) {
+            Ok(target) => {
+                let dir = if target.is_dir() {
+                    target.clone()
+                } else {
+                    target.parent().map(Path::to_path_buf).unwrap_or(target.clone())
+                };
+                let name = util::file_name(&target);
+                self.cd(dir, true);
+                self.tabs[self.active].current.select_name(&name);
+            }
+            Err(err) => self.error(format!("Broken link: {err}")),
+        }
+    }
+
+    fn sort(&mut self, by: Option<crate::fs::SortBy>, reverse: Tri, dir_first: Tri) {
+        let tab = &mut self.tabs[self.active];
+        if let Some(b) = by {
+            tab.sort.by = b;
+        }
+        if let Some(r) = reverse {
+            tab.sort.reverse = r;
+        }
+        if let Some(d) = dir_first {
+            tab.sort.dir_first = d;
+        }
+        let sort = tab.sort;
+        let show = tab.show_hidden;
+        tab.current.resort(&sort, show);
+        if let Some(p) = tab.parent.as_mut() {
+            p.resort(&sort, show);
+        }
+        if let PreviewState::Dir(f) = &mut self.preview.state {
+            f.resort(&sort, show);
+        }
+        let label = sort.by.label().to_owned();
+        self.toast(format!("Sort: {label}{}", if sort.reverse { " (reverse)" } else { "" }));
+    }
+
+    fn find_arrow(&mut self, prev: bool) {
+        let Some(finder) = self.tabs[self.active].finder.clone() else { return };
+        let tab = &mut self.tabs[self.active];
+        let len = tab.current.view.len();
+        if len == 0 {
+            return;
+        }
+        let dir: i64 = if prev != finder.prev { -1 } else { 1 };
+        for step in 1..=len as i64 {
+            let idx = (tab.current.cursor as i64 + dir * step).rem_euclid(len as i64) as usize;
+            let Some(e) = tab.current.at(idx) else { continue };
+            if fuzzy::find_substring(&finder.query, &e.name, finder.case_sensitive).is_some() {
+                tab.current.cursor = idx;
+                tab.sync_visual();
+                return;
+            }
+        }
+    }
+
+    fn open(&mut self, interactive: bool) {
+        let paths = self.tabs[self.active].targets();
+        if paths.is_empty() {
+            return;
+        }
+        let Some(entry) = self.tabs[self.active].current.hovered().cloned() else { return };
+        if entry.is_dir_like() && !interactive {
+            self.cd(entry.path, true);
+            return;
+        }
+        let mime = crate::mime::guess(&entry);
+        let openers: Vec<(String, bool, bool, String)> = exec::openers_for(&self.cfg.yazi, &entry, mime)
+            .into_iter()
+            .map(|o| (o.run.clone(), o.block, o.orphan, o.label()))
+            .collect();
+
+        if interactive {
+            if openers.is_empty() {
+                self.error("No opener configured for this file type");
+                return;
+            }
+            let items: Vec<String> = openers.iter().map(|o| o.3.clone()).collect();
+            let details: Vec<String> = openers.iter().map(|o| o.0.clone()).collect();
+            let runs: Vec<(String, bool, bool)> =
+                openers.iter().map(|o| (o.0.clone(), o.1, o.2)).collect();
+            let mut pick = PickOverlay {
+                title: "Open with".into(),
+                items,
+                details,
+                query: String::new(),
+                matches: Vec::new(),
+                cursor: 0,
+                action: PickAction::OpenWith { paths, runs },
+                focused: false,
+            };
+            pick.refilter();
+            self.overlay = Overlay::Pick(pick);
+            return;
+        }
+
+        let cwd = self.tabs[self.active].cwd.clone();
+        match openers.first() {
+            Some((run, block, orphan, _)) => {
+                let line = exec::substitute(run, &paths);
+                match exec::shell(&line, &cwd, *block, *orphan) {
+                    Ok(_) => self.toast(format!("Opened with: {line}")),
+                    Err(e) => self.error(format!("Open failed: {e}")),
+                }
+            }
+            None => match exec::open_default(&entry.path) {
+                Ok(()) => {}
+                Err(e) => self.error(format!("Open failed: {e}")),
+            },
+        }
+    }
+
+    fn run_shell(&mut self, run: &str, block: bool, orphan: bool) {
+        let paths = self.tabs[self.active].targets();
+        let cwd = self.tabs[self.active].cwd.clone();
+        let line = exec::substitute(run, &paths);
+        match exec::shell(&line, &cwd, block, orphan) {
+            Ok(_) => self.toast(format!("$ {line}")),
+            Err(e) => self.error(format!("Shell failed: {e}")),
+        }
+    }
+
+    // ---------------------------------------------------------------- input
+
+    pub fn open_input(&mut self, kind: InputKind, title: &str, text: String) {
+        let len = text.chars().count();
+        self.overlay = Overlay::Input(InputOverlay {
+            kind,
+            title: title.to_owned(),
+            text,
+            initial_selection: Some((len, len)),
+            focused: false,
+            completion: Vec::new(),
+            completion_at: 0,
+        });
+    }
+
+    /// Called on every keystroke for the live-updating inputs.
+    pub fn input_changed(&mut self) {
+        let Overlay::Input(ov) = &self.overlay else { return };
+        match ov.kind.clone() {
+            InputKind::Filter => {
+                let query = ov.text.clone();
+                let tab = &mut self.tabs[self.active];
+                tab.current.filter = Some(Filter { query, smart: true, insensitive: false });
+                let show = tab.show_hidden;
+                tab.current.rebuild(show);
+            }
+            InputKind::Find { prev } => {
+                let query = ov.text.clone();
+                let cs = fuzzy::is_case_sensitive(&query, true, false);
+                let tab = &mut self.tabs[self.active];
+                tab.finder = Some(Finder { query: query.clone(), case_sensitive: cs, prev });
+                if query.is_empty() {
+                    return;
+                }
+                let len = tab.current.view.len();
+                let start = tab.current.cursor;
+                for step in 0..len {
+                    let idx = if prev {
+                        (start + len - step) % len
+                    } else {
+                        (start + step) % len
+                    };
+                    let Some(e) = tab.current.at(idx) else { continue };
+                    if fuzzy::find_substring(&query, &e.name, cs).is_some() {
+                        tab.current.cursor = idx;
+                        break;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn submit_input(&mut self) {
+        let Overlay::Input(ov) = std::mem::replace(&mut self.overlay, Overlay::None) else {
+            return;
+        };
+        let text = ov.text.trim().to_owned();
+        match ov.kind {
+            InputKind::Create => self.do_create(&text),
+            InputKind::Rename { from } => self.do_rename(&from, &text),
+            InputKind::Filter => { /* already applied live */ }
+            InputKind::Find { .. } => { /* already applied live */ }
+            InputKind::Cd => {
+                if !text.is_empty() {
+                    let base = self.tabs[self.active].cwd.clone();
+                    let p = util::resolve_against(&base, &text);
+                    if p.is_dir() {
+                        self.cd(p, true);
+                    } else if let Some(dir) = p.parent().filter(|d| d.is_dir()) {
+                        let name = util::file_name(&p);
+                        self.cd(dir.to_path_buf(), true);
+                        self.tabs[self.active].current.select_name(&name);
+                    } else {
+                        self.error(format!("No such directory: {}", p.display()));
+                    }
+                }
+            }
+            InputKind::Shell { block } => {
+                if !text.is_empty() {
+                    self.run_shell(&text, block, false);
+                }
+            }
+            InputKind::Search { via } => self.start_search(&text, via),
+            InputKind::ConflictRename { .. } => {
+                if let Some(reply) = self.pending_conflict.take() {
+                    let r = if text.is_empty() {
+                        Resolution::Skip
+                    } else {
+                        Resolution::Rename(text)
+                    };
+                    let _ = reply.send(r);
+                }
+            }
+        }
+    }
+
+    /// Dismiss the input line without acting on it. A job waiting on a rename
+    /// must still be told something, or its worker stays parked forever.
+    pub fn cancel_input(&mut self) {
+        if let Some(reply) = self.pending_conflict.take() {
+            let _ = reply.send(Resolution::Skip);
+        }
+        self.overlay = Overlay::None;
+    }
+
+    fn do_create(&mut self, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        let base = self.tabs[self.active].cwd.clone();
+        let as_dir = text.ends_with('/') || text.ends_with('\\');
+        let target = util::resolve_against(&base, text.trim_end_matches(['/', '\\']));
+        let res = if as_dir {
+            std::fs::create_dir_all(&target)
+        } else {
+            if let Some(parent) = target.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&target)
+                .map(|_| ())
+        };
+        match res {
+            Ok(()) => {
+                let name = util::file_name(&target);
+                self.cache.remove(&base);
+                self.rescan(&base);
+                self.tabs[self.active].memo.insert(base, name);
+            }
+            Err(e) => self.error(format!("Create failed: {e}")),
+        }
+    }
+
+    fn do_rename(&mut self, from: &Path, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        let base = self.tabs[self.active].cwd.clone();
+        let to = util::resolve_against(&base, text);
+        if to == from {
+            return;
+        }
+        if ops::exists(&to) {
+            self.error(format!("Already exists: {}", util::file_name(&to)));
+            return;
+        }
+        if let Some(parent) = to.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        match std::fs::rename(from, &to) {
+            Ok(()) => {
+                let name = util::file_name(&to);
+                self.cache.remove(&base);
+                self.rescan(&base);
+                self.tabs[self.active].memo.insert(base, name);
+            }
+            Err(e) => self.error(format!("Rename failed: {e}")),
+        }
+    }
+
+    fn complete_input(&mut self) {
+        let Overlay::Input(ov) = &mut self.overlay else { return };
+        if !matches!(ov.kind, InputKind::Cd) {
+            return;
+        }
+        let text = ov.text.clone();
+        let p = util::expand(&text);
+        let (dir, prefix) = if text.ends_with('/') || text.ends_with('\\') {
+            (p.clone(), String::new())
+        } else {
+            (
+                p.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from(".")),
+                util::file_name(&p),
+            )
+        };
+        let mut hits: Vec<String> = Vec::new();
+        if let Ok(rd) = std::fs::read_dir(&dir) {
+            for e in rd.flatten() {
+                if !e.path().is_dir() {
+                    continue;
+                }
+                let name = e.file_name().to_string_lossy().into_owned();
+                if prefix.is_empty() || name.to_lowercase().starts_with(&prefix.to_lowercase()) {
+                    hits.push(name);
+                }
+            }
+        }
+        hits.sort_by(|a, b| util::natural_cmp(a, b, false));
+        if hits.is_empty() {
+            return;
+        }
+        let idx = ov.completion_at % hits.len();
+        ov.text = dir.join(&hits[idx]).display().to_string() + "\\";
+        ov.completion_at = idx + 1;
+        ov.completion = hits;
+        ov.initial_selection = {
+            let n = ov.text.chars().count();
+            Some((n, n))
+        };
+        ov.focused = false;
+    }
+
+    fn start_search(&mut self, query: &str, via: SearchVia) {
+        if query.is_empty() {
+            return;
+        }
+        let root = self.tabs[self.active].cwd.clone();
+        let show_hidden = self.tabs[self.active].show_hidden;
+        let ctx = self.ctx.clone();
+        let handle = crate::search::spawn(&root, query, via, show_hidden, 5000, move || {
+            ctx.request_repaint()
+        });
+
+        let tab = &mut self.tabs[self.active];
+        tab.remember_cursor();
+        let mut folder = Folder::loading(search_path(query, &root), None);
+        folder.state = LoadState::Ready;
+        tab.current = folder;
+        tab.finder = Some(Finder { query: query.to_owned(), case_sensitive: false, prev: false });
+        self.search = Some(handle);
+        self.preview.state = PreviewState::Empty;
+        self.preview.key = None;
+    }
+
+    /// True while the current view is a search result list rather than a real
+    /// directory; `leave`/`Esc` returns to the directory it started from.
+    pub fn in_search_view(&self) -> bool {
+        self.tabs[self.active].current.path != self.tabs[self.active].cwd
+    }
+
+    fn drain_search(&mut self) {
+        let Some(handle) = &self.search else { return };
+        let mut batch: Vec<PathBuf> = Vec::new();
+        let mut done: Option<(usize, bool)> = None;
+        while let Ok(msg) = handle.rx.try_recv() {
+            match msg {
+                crate::search::Msg::Found(mut v) => batch.append(&mut v),
+                crate::search::Msg::Done { total, truncated } => {
+                    done = Some((total, truncated));
+                    break;
+                }
+            }
+        }
+        if !batch.is_empty() {
+            let show_hidden = true;
+            let f = &mut self.tabs[self.active].current;
+            let entries = Arc::make_mut(&mut f.entries);
+            for p in batch {
+                if let Ok(e) = Entry::from_path(p) {
+                    entries.push(e);
+                }
+            }
+            f.rebuild(show_hidden);
+        }
+        if let Some((total, truncated)) = done {
+            self.search = None;
+            if total == 0 {
+                self.error("No matches");
+            } else {
+                self.toast(format!(
+                    "{total} match(es){} — <Esc> to leave the search view",
+                    if truncated { " (truncated)" } else { "" }
+                ));
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ bookmarks
+
+    pub fn bookmark_key(&mut self, ch: char) {
+        let Some(op) = self.pending_bookmark.take() else { return };
+        let key = ch.to_string();
+        match op {
+            BookmarkOp::Save => {
+                let path = self.tabs[self.active].cwd.clone();
+                let name = util::file_name(&path);
+                self.bookmarks.retain(|b| b.key != key);
+                self.bookmarks.push(Bookmark { key: key.clone(), path, name });
+                self.bookmarks.sort_by(|a, b| a.key.cmp(&b.key));
+                self.save_state();
+                self.toast(format!("Bookmark `{key}` saved"));
+            }
+            BookmarkOp::Jump => match self.bookmarks.iter().find(|b| b.key == key).cloned() {
+                Some(b) => self.cd(b.path, true),
+                None => self.error(format!("No bookmark `{key}`")),
+            },
+            BookmarkOp::Delete => {
+                let before = self.bookmarks.len();
+                self.bookmarks.retain(|b| b.key != key);
+                if self.bookmarks.len() == before {
+                    self.error(format!("No bookmark `{key}`"));
+                } else {
+                    self.save_state();
+                    self.toast(format!("Bookmark `{key}` deleted"));
+                }
+            }
+        }
+    }
+
+    fn open_jump(&mut self) {
+        let mut items = Vec::new();
+        let mut details = Vec::new();
+        let mut paths = Vec::new();
+        for b in &self.bookmarks {
+            items.push(format!("[{}] {}", b.key, b.path.display()));
+            details.push(b.name.clone());
+            paths.push(b.path.clone());
+        }
+        for p in self.history.iter().rev() {
+            if paths.contains(p) {
+                continue;
+            }
+            items.push(p.display().to_string());
+            details.push(String::new());
+            paths.push(p.clone());
+        }
+        if items.is_empty() {
+            self.error("No bookmarks or history yet");
+            return;
+        }
+        let mut pick = PickOverlay {
+            title: "Jump to".into(),
+            items,
+            details,
+            query: String::new(),
+            matches: Vec::new(),
+            cursor: 0,
+            action: PickAction::Jump { paths },
+            focused: false,
+        };
+        pick.refilter();
+        self.overlay = Overlay::Pick(pick);
+    }
+
+    pub fn submit_pick(&mut self) {
+        let Overlay::Pick(p) = std::mem::replace(&mut self.overlay, Overlay::None) else {
+            return;
+        };
+        let Some(idx) = p.selected() else { return };
+        match p.action {
+            PickAction::OpenWith { paths, runs } => {
+                let Some((run, block, orphan)) = runs.get(idx).cloned() else { return };
+                let cwd = self.tabs[self.active].cwd.clone();
+                let line = exec::substitute(&run, &paths);
+                match exec::shell(&line, &cwd, block, orphan) {
+                    Ok(_) => self.toast(format!("$ {line}")),
+                    Err(e) => self.error(format!("Open failed: {e}")),
+                }
+            }
+            PickAction::Jump { paths } => {
+                if let Some(p) = paths.get(idx).cloned() {
+                    self.cd(p, true);
+                }
+            }
+        }
+    }
+
+    pub fn answer_confirm(&mut self, ch: char) {
+        let Overlay::Confirm(c) = std::mem::replace(&mut self.overlay, Overlay::None) else {
+            return;
+        };
+        match c.action {
+            ConfirmAction::Conflict { reply, job } => {
+                let r = match ch {
+                    'o' => Resolution::Overwrite,
+                    'a' => Resolution::OverwriteAll,
+                    's' => Resolution::Skip,
+                    'S' => Resolution::SkipAll,
+                    'r' => {
+                        // The worker stays blocked until the new name is
+                        // submitted (or the prompt is cancelled).
+                        self.pending_conflict = Some(reply);
+                        let suggestion = match &c.dest {
+                            Some(d) => crate::util::file_name(&ops::unique_name(d)),
+                            None => String::new(),
+                        };
+                        self.open_input(
+                            InputKind::ConflictRename { job },
+                            "New name",
+                            suggestion,
+                        );
+                        return;
+                    }
+                    _ => Resolution::Cancel,
+                };
+                let _ = reply.send(r);
+            }
+            ConfirmAction::DeleteForever { paths } => {
+                if ch == 'y' {
+                    let dest = self.tabs[self.active].cwd.clone();
+                    self.submit_op(OpKind::Delete, paths, dest, true);
+                    self.tabs[self.active].clear_selection();
+                }
+            }
+            ConfirmAction::BookmarkDeleteAll => {
+                if ch == 'y' {
+                    self.bookmarks.clear();
+                    self.save_state();
+                    self.toast("All bookmarks deleted");
+                }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ persistence
+
+    fn state_file(name: &str) -> PathBuf {
+        Config::state_dir().join(name)
+    }
+
+    fn load_state(&mut self) {
+        if let Ok(text) = std::fs::read_to_string(Self::state_file("bookmarks.toml")) {
+            if let Ok(f) = toml::from_str::<BookmarkFile>(&text) {
+                self.bookmarks = f.bookmark;
+            }
+        }
+        if let Ok(text) = std::fs::read_to_string(Self::state_file("history.txt")) {
+            self.history = text.lines().map(PathBuf::from).collect();
+        }
+    }
+
+    pub fn save_state(&self) {
+        let dir = Config::state_dir();
+        if std::fs::create_dir_all(&dir).is_err() {
+            return;
+        }
+        let f = BookmarkFile { bookmark: self.bookmarks.clone() };
+        if let Ok(text) = toml::to_string_pretty(&f) {
+            let _ = std::fs::write(dir.join("bookmarks.toml"), text);
+        }
+        let hist: Vec<String> = self.history.iter().map(|p| p.display().to_string()).collect();
+        let _ = std::fs::write(dir.join("history.txt"), hist.join("\n"));
+    }
+
+    pub fn on_quit(&self) {
+        self.save_state();
+        if let Some(f) = &self.cwd_file {
+            let _ = std::fs::write(f, self.tabs[self.active].cwd.display().to_string());
+        }
+        if let Some(f) = &self.chooser_file {
+            let paths = self.tabs[self.active].targets();
+            let text: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();
+            let _ = std::fs::write(f, text.join("\n"));
+        }
+    }
+
+    // ------------------------------------------------------------ key input
+
+    pub fn feed_key(&mut self, k: Key) {
+        if let Some(_op) = self.pending_bookmark {
+            match k.code {
+                Code::Char(c) if k.is_bare_char() => {
+                    self.bookmark_key(c);
+                    return;
+                }
+                _ => {
+                    self.pending_bookmark = None;
+                    return;
+                }
+            }
+        }
+
+        self.pending.push(k);
+        let bindings = &self.cfg.keymap.mgr;
+        match keymap::resolve(bindings, &self.pending) {
+            keymap::Match::Exact(b) => {
+                let acts = b.run.clone();
+                self.pending.clear();
+                self.which.clear();
+                self.run(&acts);
+            }
+            keymap::Match::Pending(cands) => {
+                let depth = self.pending.len();
+                self.which = cands
+                    .iter()
+                    .filter(|b| b.on.len() > depth)
+                    .map(|b| {
+                        (
+                            crate::config::keys::render_seq(&b.on[depth..]),
+                            b.desc.clone(),
+                            b.raw.clone(),
+                        )
+                    })
+                    .collect();
+            }
+            keymap::Match::None => {
+                self.pending.clear();
+                self.which.clear();
+            }
+        }
+    }
+
+    /// Rows currently visible in the file list; set by the renderer.
+    pub fn set_page_rows(&mut self, rows: usize) {
+        self.tabs[self.active].page_rows = rows;
+    }
+}
+
+fn search_path(query: &str, root: &Path) -> PathBuf {
+    PathBuf::from(format!("search: {query}  in  {}", root.display()))
+}
+
+fn preview_paths(paths: &[PathBuf]) -> Vec<String> {
+    let mut out: Vec<String> = paths
+        .iter()
+        .take(8)
+        .map(|p| util::file_name(p))
+        .collect();
+    if paths.len() > 8 {
+        out.push(format!("… and {} more", paths.len() - 8));
+    }
+    out
+}

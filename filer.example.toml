@@ -1,0 +1,34 @@
+# Copy to %APPDATA%\filer\filer.toml to change GUI-only settings.
+# Everything else (keys, colors, openers, sorting) lives in yazi's own config
+# files and is read from %APPDATA%\yazi\config first.
+
+[ui]
+# Base font size in points. Row height follows from this.
+font_size = 14.0
+
+# Extra vertical padding per row.
+row_padding = 4.0
+
+# Font files to try before the built-in list. Useful if your Nerd Font is not
+# in the usual per-user font directory.
+# fonts = ["C:/Users/you/AppData/Local/Microsoft/Windows/Fonts/HackGen35ConsoleNF-Regular.ttf"]
+fonts = []
+
+# auto  — Nerd Font icons when a Nerd Font was loaded, ASCII otherwise
+# nerd  — force Nerd Font icons
+# ascii — force the plain fallback
+# none  — no icons at all
+icons = "auto"
+
+# How long the cursor must rest before a preview is read from disk.
+# Lower feels more immediate; higher is kinder to a slow disk.
+preview_debounce_ms = 40
+
+# Cap on how much of a text file is read for the preview.
+max_text_bytes = 262144
+
+# Directories remembered for `z` (fuzzy jump).
+max_history = 200
+
+window_width = 1360.0
+window_height = 860.0

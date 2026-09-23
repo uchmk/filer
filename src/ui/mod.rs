@@ -1,0 +1,519 @@
+//! Rendering. The whole frame is painted from a snapshot of app state; any
+//! interaction turns into an [`Act`] that runs after drawing, so the borrow
+//! checker never gets in the way of the layout code.
+
+mod list;
+mod overlay;
+mod preview;
+
+use egui::{Align2, Color32, CornerRadius, FontFamily, FontId, Rect, Stroke, Ui, Vec2};
+
+use crate::app::{App, Overlay, PreviewState};
+use crate::config::cmd::{Act, Step};
+use crate::config::theme::{Style, Theme};
+use crate::core::folder::Folder;
+use crate::util;
+
+pub fn font(size: f32) -> FontId {
+    FontId::new(size, FontFamily::Monospace)
+}
+
+pub fn draw(app: &mut App, ui: &mut Ui) {
+    let mut queued: Vec<Act> = Vec::new();
+    let size = app.cfg.ui.font_size;
+    let f = font(size);
+    let row_h = (size * 1.35 + app.cfg.ui.row_padding).round();
+
+    let full = ui.max_rect();
+    ui.painter().rect_filled(full, CornerRadius::ZERO, app.cfg.theme.bg);
+
+    let header_h = row_h * 2.0 + 8.0;
+    let status_h = row_h + 8.0;
+    let which_h = if app.which.is_empty() || !app.overlay.is_none() {
+        0.0
+    } else {
+        (row_h * ((app.which.len() as f32 / 3.0).ceil().min(8.0)) + 14.0).min(full.height() * 0.4)
+    };
+    let input_h = if matches!(app.overlay, Overlay::Input(_)) { row_h + 14.0 } else { 0.0 };
+
+    let header = Rect::from_min_size(full.left_top(), Vec2::new(full.width(), header_h));
+    let status = Rect::from_min_size(
+        egui::pos2(full.left(), full.bottom() - status_h),
+        Vec2::new(full.width(), status_h),
+    );
+    let bottom_extra = which_h + input_h;
+    let body = Rect::from_min_max(
+        egui::pos2(full.left(), header.bottom()),
+        egui::pos2(full.right(), status.top() - bottom_extra),
+    );
+
+    draw_header(app, ui, header, &f, row_h);
+    draw_body(app, ui, body, &f, row_h, &mut queued);
+    draw_status(app, ui, status, &f);
+
+    if which_h > 0.0 {
+        let r = Rect::from_min_size(
+            egui::pos2(full.left(), status.top() - which_h),
+            Vec2::new(full.width(), which_h),
+        );
+        overlay::which(app, ui, r, &f, row_h);
+    }
+    if input_h > 0.0 {
+        let r = Rect::from_min_size(
+            egui::pos2(full.left(), status.top() - input_h),
+            Vec2::new(full.width(), input_h),
+        );
+        overlay::input(app, ui, r, &f, &mut queued);
+    }
+
+    match &app.overlay {
+        Overlay::Help => overlay::help(app, ui, full, &f, row_h),
+        Overlay::Tasks => overlay::tasks(app, ui, full, &f, row_h),
+        Overlay::Confirm(_) => overlay::confirm(app, ui, full, &f, row_h, &mut queued),
+        Overlay::Pick(_) => overlay::pick(app, ui, full, &f, row_h, &mut queued),
+        _ => {}
+    }
+
+    if app.pending_bookmark.is_some() {
+        overlay::bookmark_hint(app, ui, full, &f, row_h);
+    }
+    draw_toasts(app, ui, full, &f, row_h);
+
+    app.run(&queued);
+}
+
+// ---------------------------------------------------------------- header
+
+fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
+    let theme = &app.cfg.theme;
+    let painter = ui.painter_at(rect);
+    painter.rect_filled(rect, CornerRadius::ZERO, theme.bg_alt);
+    painter.line_segment(
+        [rect.left_bottom(), rect.right_bottom()],
+        Stroke::new(1.0, theme.border),
+    );
+
+    // Tab strip
+    let mut x = rect.left() + 8.0;
+    let y = rect.top() + 4.0;
+    let mut clicked: Option<usize> = None;
+    for (i, tab) in app.tabs.iter().enumerate() {
+        let label = format!(" {} {} ", i + 1, util::ellipsize_middle(&tab.name(), 18));
+        let g = painter.layout_no_wrap(label, f.clone(), theme.fg);
+        let w = g.size().x + 8.0;
+        let chip = Rect::from_min_size(egui::pos2(x, y), Vec2::new(w, row_h));
+        let st = if i == app.active { theme.tab_active } else { theme.tab_inactive };
+        if let Some(bg) = st.bg {
+            painter.rect_filled(chip, CornerRadius::same(4), bg);
+        }
+        painter.galley(
+            egui::pos2(x + 4.0, y + (row_h - g.size().y) / 2.0),
+            g,
+            st.fg.unwrap_or(theme.fg),
+        );
+        let resp = ui.interact(chip, ui.id().with(("tab", i)), egui::Sense::click());
+        if resp.clicked() {
+            clicked = Some(i);
+        }
+        x += w + 4.0;
+    }
+    if let Some(i) = clicked {
+        app.act(Act::TabSwitch { n: i as i64, relative: false });
+    }
+
+    // Right-hand summary
+    let tab = app.tab();
+    let total = tab.current.view.len();
+    let sel = tab.selected.len();
+    let mut right = format!("{} items", total);
+    if sel > 0 {
+        right = format!("{sel} selected · {right}");
+    }
+    if tab.show_hidden {
+        right.push_str(" · hidden shown");
+    }
+    painter.text(
+        egui::pos2(rect.right() - 10.0, y + row_h / 2.0),
+        Align2::RIGHT_CENTER,
+        right,
+        f.clone(),
+        app.cfg.theme.fg_dim,
+    );
+
+    // Breadcrumb
+    let theme = &app.cfg.theme;
+    let y2 = rect.top() + row_h + 6.0;
+    let cwd = if app.in_search_view() {
+        app.tab().current.path.display().to_string()
+    } else {
+        app.tab().cwd.display().to_string()
+    };
+    let mut job = egui::text::LayoutJob::default();
+    job.wrap.max_width = rect.width() - 20.0;
+    job.wrap.max_rows = 1;
+    job.wrap.break_anywhere = true;
+    job.wrap.overflow_character = Some('…');
+    job.append(
+        &cwd,
+        0.0,
+        egui::TextFormat {
+            font_id: f.clone(),
+            color: theme.cwd.fg.unwrap_or(theme.fg),
+            ..Default::default()
+        },
+    );
+    if let Some(name) = app.tab().current.hovered_name() {
+        let sep = if cwd.ends_with('\\') || cwd.ends_with('/') { "" } else { "\\" };
+        job.append(
+            &format!("{sep}{name}"),
+            0.0,
+            egui::TextFormat { font_id: f.clone(), color: theme.fg, ..Default::default() },
+        );
+    }
+    let g = painter.layout_job(job);
+    painter.galley(egui::pos2(rect.left() + 10.0, y2), g, theme.fg);
+}
+
+// ------------------------------------------------------------------ body
+
+fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, queued: &mut Vec<Act>) {
+    let mut ratio = {
+        let r = &app.cfg.yazi.mgr.ratio;
+        [
+            r.first().copied().unwrap_or(1),
+            r.get(1).copied().unwrap_or(3),
+            r.get(2).copied().unwrap_or(4),
+        ]
+    };
+    if app.max_preview {
+        ratio[2] = 9999;
+    }
+    if app.hide_parent || app.in_search_view() {
+        ratio[0] = 0;
+    }
+    let gap = 6.0;
+    let total: f32 = ratio.iter().map(|&v| v as f32).sum::<f32>().max(1.0);
+    let usable = body.width() - gap * 2.0;
+    let widths = [
+        usable * ratio[0] as f32 / total,
+        usable * ratio[1] as f32 / total,
+        usable * ratio[2] as f32 / total,
+    ];
+
+    let mut x = body.left();
+    let rects: Vec<Rect> = widths
+        .iter()
+        .map(|w| {
+            let r = Rect::from_min_size(egui::pos2(x, body.top()), Vec2::new(*w, body.height()));
+            x += w + gap;
+            r
+        })
+        .collect();
+
+    let theme = app.cfg.theme.clone();
+    let linemode = app.tab().linemode.clone();
+
+    // --- parent ---
+    if widths[0] > 24.0 {
+        if let Some(parent) = &app.tabs[app.active].parent {
+            let st = list::ListStyle {
+                theme: &theme,
+                font: f.clone(),
+                row_h,
+                active: false,
+                linemode: "",
+            };
+            let cwd = app.tabs[app.active].cwd.clone();
+            let mut p = clone_view(parent);
+            let rows = ((rects[0].height() / row_h).floor() as usize).max(1);
+            p.clamp_offset(rows, app.cfg.yazi.mgr.scrolloff as usize);
+            let res = list::draw(ui, rects[0], &p, &st, &|_e| list::RowFlags {
+                selected: false,
+                yanked: None,
+            }, false);
+            if let Some(row) = res.clicked.or(res.double_clicked) {
+                if let Some(e) = p.at(row) {
+                    if e.is_dir_like() {
+                        queued.push(Act::Cd { target: e.path.display().to_string(), interactive: false });
+                    }
+                }
+            }
+            let _ = cwd;
+        }
+    }
+
+    // --- current ---
+    {
+        let rows = ((rects[1].height() / row_h).floor() as usize).max(1);
+        app.set_page_rows(rows);
+        let scrolloff = app.cfg.yazi.mgr.scrolloff as usize;
+        app.tabs[app.active].current.clamp_offset(rows, scrolloff);
+
+        let selected: std::collections::BTreeSet<std::path::PathBuf> =
+            app.tabs[app.active].selected.clone();
+        let yank_paths = app.yank.paths.clone();
+        let yank_cut = app.yank.cut;
+        let st = list::ListStyle {
+            theme: &theme,
+            font: f.clone(),
+            row_h,
+            active: true,
+            linemode: &linemode,
+        };
+        let has_filter = app.tabs[app.active].current.filter.is_some();
+        let res = list::draw(
+            ui,
+            rects[1],
+            &app.tabs[app.active].current,
+            &st,
+            &|e| list::RowFlags {
+                selected: selected.contains(&e.path),
+                yanked: if yank_paths.contains(&e.path) { Some(yank_cut) } else { None },
+            },
+            has_filter,
+        );
+        if res.scrolled != 0 {
+            app.tabs[app.active].current.scroll(res.scrolled, rows);
+            app.tabs[app.active].sync_visual();
+        }
+        if let Some(row) = res.clicked {
+            app.tabs[app.active].current.cursor = row;
+            app.tabs[app.active].sync_visual();
+        }
+        if let Some(row) = res.double_clicked {
+            app.tabs[app.active].current.cursor = row;
+            queued.push(Act::Enter);
+        }
+    }
+
+    // --- preview ---
+    if widths[2] > 24.0 {
+        let rect = rects[2];
+        ui.painter().rect_filled(rect, CornerRadius::same(4), theme.bg_alt);
+        app.preview.box_size = (
+            (rect.width() * 2.0).max(64.0) as u32,
+            (rect.height() * 2.0).max(64.0) as u32,
+        );
+        match &app.preview.state {
+            PreviewState::Dir(folder) => {
+                let st = list::ListStyle {
+                    theme: &theme,
+                    font: f.clone(),
+                    row_h,
+                    active: false,
+                    linemode: "",
+                };
+                let mut p = clone_view(folder);
+                p.offset = app.tabs[app.active].preview_offset.min(p.view.len().saturating_sub(1));
+                // Nothing is hovered in a preview, so park the cursor off-list.
+                p.cursor = usize::MAX;
+                list::draw(ui, rect.shrink(2.0), &p, &st, &|_| list::RowFlags {
+                    selected: false,
+                    yanked: None,
+                }, false);
+            }
+            other => {
+                let st = preview::PreviewStyle {
+                    theme: &theme,
+                    font: f.clone(),
+                    row_h,
+                    wrap: app.cfg.yazi.preview.wrap == "yes",
+                };
+                let lines = preview::draw(
+                    ui,
+                    rect.shrink(2.0),
+                    other,
+                    app.preview.texture.as_ref(),
+                    app.tabs[app.active].preview_offset,
+                    &st,
+                );
+                let rows = ((rect.height() / row_h).floor() as usize).max(1);
+                let max = lines.saturating_sub(rows / 2);
+                if app.tabs[app.active].preview_offset > max {
+                    app.tabs[app.active].preview_offset = max;
+                }
+                if ui.rect_contains_pointer(rect) {
+                    let scroll = ui.ctx().input(|i| i.smooth_scroll_delta.y);
+                    if scroll.abs() > 0.5 {
+                        let delta = -(scroll / row_h * 1.5) as i64;
+                        queued.push(Act::Seek(Step::Rel(delta)));
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The renderer needs its own cursor/offset for the read-only columns.
+fn clone_view(f: &Folder) -> Folder {
+    Folder {
+        path: f.path.clone(),
+        entries: f.entries.clone(),
+        view: f.view.clone(),
+        hits: f.hits.clone(),
+        cursor: f.cursor,
+        offset: f.offset,
+        state: f.state.clone(),
+        scan_id: f.scan_id,
+        filter: f.filter.clone(),
+    }
+}
+
+// ---------------------------------------------------------------- status
+
+fn draw_status(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId) {
+    let theme = &app.cfg.theme;
+    let painter = ui.painter_at(rect);
+    painter.rect_filled(rect, CornerRadius::ZERO, theme.status_bg);
+    painter.line_segment([rect.left_top(), rect.right_top()], Stroke::new(1.0, theme.border));
+
+    let tab = &app.tabs[app.active];
+    let (mode_label, mode_style): (&str, Style) = match &tab.visual {
+        Some(v) if v.unset => ("UNSET", theme.mode_unset),
+        Some(_) => ("SELECT", theme.mode_select),
+        None => ("NORMAL", theme.mode_normal),
+    };
+
+    let mut x = rect.left() + 8.0;
+    let cy = rect.center().y;
+    let label = format!(" {mode_label} ");
+    let g = painter.layout_no_wrap(label, f.clone(), mode_style.fg.unwrap_or(theme.fg));
+    let chip = Rect::from_min_size(
+        egui::pos2(x, cy - g.size().y / 2.0 - 2.0),
+        Vec2::new(g.size().x, g.size().y + 4.0),
+    );
+    if let Some(bg) = mode_style.bg {
+        painter.rect_filled(chip, CornerRadius::same(3), bg);
+    }
+    painter.galley(egui::pos2(x, cy - g.size().y / 2.0), g, theme.fg);
+    x += chip.width() + 10.0;
+
+    let mut left = String::new();
+    if let Some(e) = tab.current.hovered() {
+        left.push_str(&list::permissions(e));
+        left.push_str("  ");
+        if !e.is_dir_like() {
+            left.push_str(&util::human_size(e.len));
+            left.push_str("  ");
+        }
+        left.push_str(&util::fmt_time(e.modified, "%Y-%m-%d %H:%M"));
+    }
+    painter.text(egui::pos2(x, cy), Align2::LEFT_CENTER, left, f.clone(), theme.fg_dim);
+
+    // Right side: task progress, filter/find state, position.
+    let mut right: Vec<String> = Vec::new();
+    if let Some(t) = app.tasks.iter().find(|t| t.state == crate::app::TaskState::Running) {
+        right.push(format!("{} {:>3.0}%", t.kind.verb(), t.fraction() * 100.0));
+    }
+    if let Some(h) = &app.search {
+        right.push(match h.via {
+            crate::config::cmd::SearchVia::Content => format!("grepping {}…", h.query),
+            crate::config::cmd::SearchVia::Name => format!("searching {}…", h.query),
+        });
+    }
+    if let Some(fl) = &tab.current.filter {
+        if !fl.query.is_empty() {
+            right.push(format!("filter: {}", fl.query));
+        }
+    }
+    if let Some(fd) = &tab.finder {
+        if !fd.query.is_empty() {
+            right.push(format!("find: {}", fd.query));
+        }
+    }
+    if !app.yank.paths.is_empty() {
+        right.push(format!(
+            "{} {}",
+            if app.yank.cut { "cut" } else { "yank" },
+            app.yank.paths.len()
+        ));
+    }
+    let pos = if tab.current.view.is_empty() {
+        "0/0".to_string()
+    } else {
+        format!("{}/{}", tab.current.cursor + 1, tab.current.view.len())
+    };
+    right.push(pos);
+    painter.text(
+        egui::pos2(rect.right() - 10.0, cy),
+        Align2::RIGHT_CENTER,
+        right.join("   "),
+        f.clone(),
+        theme.fg_dim,
+    );
+
+    // A thin progress strip along the bottom while work is running.
+    if let Some(t) = app.tasks.iter().find(|t| t.state == crate::app::TaskState::Running) {
+        let w = rect.width() * t.fraction();
+        painter.rect_filled(
+            Rect::from_min_size(rect.left_bottom() - Vec2::new(0.0, 2.0), Vec2::new(w, 2.0)),
+            CornerRadius::ZERO,
+            theme.progress_fg,
+        );
+    }
+}
+
+// ---------------------------------------------------------------- toasts
+
+fn draw_toasts(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
+    if app.toasts.is_empty() {
+        return;
+    }
+    let theme = &app.cfg.theme;
+    let painter = ui.painter();
+    let mut y = full.top() + 8.0;
+    for t in app.toasts.iter().rev().take(5) {
+        let color = if t.error { theme.progress_error } else { theme.fg };
+        let g = painter.layout_no_wrap(t.text.clone(), f.clone(), color);
+        let w = g.size().x + 20.0;
+        let r = Rect::from_min_size(
+            egui::pos2(full.right() - w - 12.0, y),
+            Vec2::new(w, row_h + 8.0),
+        );
+        painter.rect_filled(r, CornerRadius::same(4), theme.bg_alt);
+        painter.rect_stroke(
+            r,
+            CornerRadius::same(4),
+            Stroke::new(1.0, if t.error { theme.progress_error } else { theme.border }),
+            egui::StrokeKind::Inside,
+        );
+        painter.galley(
+            egui::pos2(r.left() + 10.0, r.center().y - g.size().y / 2.0),
+            g,
+            color,
+        );
+        y += r.height() + 6.0;
+    }
+}
+
+pub fn modal_rect(full: Rect, w_frac: f32, h_frac: f32) -> Rect {
+    let w = (full.width() * w_frac).min(full.width() - 40.0);
+    let h = (full.height() * h_frac).min(full.height() - 40.0);
+    Rect::from_center_size(full.center(), Vec2::new(w, h))
+}
+
+pub fn modal_frame(ui: &Ui, rect: Rect, theme: &Theme, title: &str, f: &FontId, row_h: f32) -> Rect {
+    let painter = ui.painter();
+    painter.rect_filled(rect, CornerRadius::same(6), theme.bg_alt);
+    painter.rect_stroke(
+        rect,
+        CornerRadius::same(6),
+        Stroke::new(1.0, theme.border),
+        egui::StrokeKind::Inside,
+    );
+    painter.text(
+        rect.left_top() + Vec2::new(14.0, 10.0),
+        Align2::LEFT_TOP,
+        title,
+        f.clone(),
+        theme.cwd.fg.unwrap_or(theme.fg),
+    );
+    Rect::from_min_max(
+        rect.left_top() + Vec2::new(14.0, 12.0 + row_h),
+        rect.right_bottom() - Vec2::new(14.0, 12.0),
+    )
+}
+
+pub fn dim(ui: &Ui, full: Rect) {
+    ui.painter().rect_filled(full, CornerRadius::ZERO, Color32::from_black_alpha(140));
+}
