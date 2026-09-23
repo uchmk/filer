@@ -21,7 +21,8 @@ use crate::fs::ops::{self, OpKind, OpRequest, Resolution};
 use crate::fs::scan::{ScanResult, Scanner};
 use crate::fs::watch::Watcher;
 use crate::fs::{Entry, SortSpec};
-use crate::preview::{self, Payload, Previewer};
+use crate::preview::{self, Payload, Previewer, TocEntry};
+use crate::spot::{self, Section, Spotter};
 use crate::util::{self, Lru};
 
 pub const MAX_TABS: usize = 9;
@@ -69,7 +70,8 @@ pub struct ConfirmOverlay {
 
 #[derive(Clone, Debug)]
 pub enum PickAction {
-    OpenWith { paths: Vec<PathBuf>, runs: Vec<(String, bool, bool)> },
+    /// `line` (1-based) is handed to editors that take one.
+    OpenWith { paths: Vec<PathBuf>, runs: Vec<(String, bool, bool)>, line: Option<usize> },
     Jump { paths: Vec<PathBuf> },
 }
 
@@ -103,6 +105,14 @@ impl PickOverlay {
     }
 }
 
+/// The spot panel on the hovered file.
+pub struct SpotOverlay {
+    /// The selected value row, counted across all sections.
+    pub cursor: usize,
+    /// The first row on screen; the renderer keeps the cursor in view.
+    pub scroll: usize,
+}
+
 pub enum Overlay {
     None,
     Input(InputOverlay),
@@ -110,6 +120,7 @@ pub enum Overlay {
     Pick(PickOverlay),
     Help,
     Tasks,
+    Spot(SpotOverlay),
 }
 
 impl Overlay {
@@ -172,6 +183,8 @@ pub enum PreviewState {
 #[derive(Clone)]
 pub struct CachedPreview {
     pub payload: Payload,
+    /// The uploaded image, so a cache hit can draw without re-uploading.
+    pub texture: Option<egui::TextureHandle>,
 }
 
 pub struct PreviewSlot {
@@ -183,6 +196,14 @@ pub struct PreviewSlot {
     pub cache: Lru<preview::Key, CachedPreview>,
     /// Size of the preview pane in pixels, used when decoding images.
     pub box_size: (u32, u32),
+    /// Text columns across the pane, which rendered Markdown wraps to.
+    pub cols: u16,
+    /// The outline entry under the cursor while the keys drive the preview's
+    /// outline rather than the file list.
+    pub outline: Option<usize>,
+    /// A file whose outline should take the keys as soon as its preview lands
+    /// (`enter` was pressed before it had loaded).
+    pub outline_wanted: Option<PathBuf>,
 }
 
 impl Default for PreviewSlot {
@@ -195,6 +216,9 @@ impl Default for PreviewSlot {
             pending_since: None,
             cache: Lru::new(24),
             box_size: (900, 900),
+            cols: 80,
+            outline: None,
+            outline_wanted: None,
         }
     }
 }
@@ -239,6 +263,9 @@ pub struct App {
     pub previewer: Previewer,
     pub ops: ops::Runner,
     pub watcher: Watcher,
+    pub spotter: Spotter,
+    /// The spot worker's latest findings, for the file named.
+    pub spotted: Option<(PathBuf, Vec<Section>)>,
 
     pub pending: Vec<Key>,
     pub which: Vec<(String, String, String)>,
@@ -249,6 +276,10 @@ pub struct App {
     pub preview: PreviewSlot,
     pub max_preview: bool,
     pub hide_parent: bool,
+    /// Markdown is shown rendered rather than as source.
+    pub render_markdown: bool,
+    /// A bold face was loaded as the `bold` font family.
+    pub bold_font: bool,
 
     pub tasks: Vec<Task>,
     pub toasts: Vec<Toast>,
@@ -283,6 +314,7 @@ impl App {
         let scanner = Scanner::new(threads, wake.clone());
         let previewer = Previewer::new(wake.clone());
         let opsr = ops::Runner::new(wake.clone());
+        let spotter = Spotter::new(wake.clone());
         let watcher = Watcher::new(wake);
 
         let sort = SortSpec {
@@ -292,6 +324,7 @@ impl App {
             sensitive: cfg.yazi.mgr.sort_sensitive,
         };
         let tab = Tab::new(start, sort, cfg.yazi.mgr.show_hidden, cfg.yazi.mgr.linemode.clone());
+        let render_markdown = cfg.ui.render_markdown;
 
         let mut app = Self {
             cfg,
@@ -302,6 +335,8 @@ impl App {
             previewer,
             ops: opsr,
             watcher,
+            spotter,
+            spotted: None,
             pending: Vec::new(),
             which: Vec::new(),
             overlay: Overlay::None,
@@ -310,6 +345,8 @@ impl App {
             preview: PreviewSlot::default(),
             max_preview: false,
             hide_parent: false,
+            render_markdown,
+            bold_font: false,
             tasks: Vec::new(),
             toasts: Vec::new(),
             bookmarks: Vec::new(),
@@ -420,6 +457,9 @@ impl App {
         }
         while let Ok(res) = self.previewer.rx.try_recv() {
             self.on_preview(res, ctx);
+        }
+        while let Ok(res) = self.spotter.rx.try_recv() {
+            self.spotted = Some((res.path, res.sections));
         }
         while let Ok(ev) = self.ops.rx.try_recv() {
             self.on_op_event(ev);
@@ -583,8 +623,17 @@ impl App {
         let Some(entry) = self.tabs[self.active].current.hovered().cloned() else {
             self.preview.state = PreviewState::Empty;
             self.preview.key = None;
+            self.preview.outline = None;
+            self.preview.outline_wanted = None;
             return;
         };
+        // The outline belongs to the file it was opened on.
+        if self.preview.key.as_ref().is_none_or(|k| k.path != entry.path) {
+            self.preview.outline = None;
+        }
+        if self.preview.outline_wanted.as_ref().is_some_and(|p| *p != entry.path) {
+            self.preview.outline_wanted = None;
+        }
 
         if entry.is_dir_like() {
             let need = match &self.preview.state {
@@ -611,19 +660,24 @@ impl App {
             return;
         }
 
+        let mime = crate::mime::guess(&entry);
         let key = preview::Key {
             path: entry.path.clone(),
             len: entry.len,
             mtime: entry.modified,
             box_size: self.preview.box_size,
+            // Only Markdown is laid out to the pane's width; nothing else
+            // needs re-reading when the window is resized.
+            cols: if mime == "text/markdown" { self.preview.cols } else { 0 },
         };
         if self.preview.key.as_ref() == Some(&key) && !force {
             return;
         }
         if let Some(hit) = self.preview.cache.get(&key).cloned() {
             self.preview.key = Some(key);
-            self.preview.texture = None;
+            self.preview.texture = hit.texture;
             self.preview.state = PreviewState::Ready(hit.payload);
+            self.grant_outline_wish();
             return;
         }
 
@@ -641,10 +695,19 @@ impl App {
         }
         self.preview.pending_since = None;
 
-        let mime = crate::mime::guess(&entry);
+        // A re-layout of the file already shown keeps it up until the new
+        // one arrives, rather than blinking through "loading" on every resize.
+        let relayout = self
+            .preview
+            .key
+            .as_ref()
+            .is_some_and(|k| k.path == key.path && k.len == key.len && k.mtime == key.mtime)
+            && matches!(self.preview.state, PreviewState::Ready(Payload::Text { .. } | Payload::Markdown { .. }));
         self.preview.key = Some(key.clone());
-        self.preview.texture = None;
-        self.preview.state = PreviewState::Loading;
+        if !relayout {
+            self.preview.texture = None;
+            self.preview.state = PreviewState::Loading;
+        }
         self.preview.request_id = self.previewer.request(preview::Request {
             id: 0,
             key,
@@ -660,16 +723,225 @@ impl App {
         if self.preview.key.as_ref() != Some(&res.key) {
             return; // stale
         }
-        if let Payload::Image { width, height, rgba, .. } = &res.payload {
-            let img = egui::ColorImage::from_rgba_unmultiplied(
-                [*width as usize, *height as usize],
-                rgba,
-            );
-            self.preview.texture =
-                Some(ctx.load_texture("preview", img, egui::TextureOptions::LINEAR));
-        }
-        self.preview.cache.put(res.key, CachedPreview { payload: res.payload.clone() });
+        self.preview.texture = match &res.payload {
+            Payload::Image { width, height, rgba, .. } => {
+                let img = egui::ColorImage::from_rgba_unmultiplied(
+                    [*width as usize, *height as usize],
+                    rgba,
+                );
+                Some(ctx.load_texture("preview", img, egui::TextureOptions::LINEAR))
+            }
+            _ => None,
+        };
+        self.preview.cache.put(
+            res.key,
+            CachedPreview { payload: res.payload.clone(), texture: self.preview.texture.clone() },
+        );
         self.preview.state = PreviewState::Ready(res.payload);
+        self.grant_outline_wish();
+    }
+
+    /// The outline of the preview as it is shown: declarations in source
+    /// code, or the headings of rendered Markdown.
+    pub fn outline_entries(&self) -> &[TocEntry] {
+        match &self.preview.state {
+            PreviewState::Ready(Payload::Text { outline, .. }) => outline,
+            PreviewState::Ready(Payload::Markdown { doc, .. }) if self.render_markdown => &doc.toc,
+            _ => &[],
+        }
+    }
+
+    /// The preview on screen is the hovered file's, fully loaded.
+    fn preview_ready(&self) -> bool {
+        let hovered = self.tabs[self.active].current.hovered().map(|e| &e.path);
+        matches!(self.preview.state, PreviewState::Ready(_))
+            && self.preview.key.as_ref().map(|k| &k.path) == hovered
+    }
+
+    /// Hand the keys to the outline, starting on the entry being read.
+    /// Returns whether there was an outline to hand them to.
+    fn focus_outline(&mut self) -> bool {
+        if !self.preview_ready() {
+            return false;
+        }
+        let top = self.tabs[self.active].preview_offset;
+        let entries = self.outline_entries();
+        if entries.is_empty() {
+            return false;
+        }
+        self.preview.outline = Some(entries.iter().rposition(|e| e.line <= top).unwrap_or(0));
+        true
+    }
+
+    fn toggle_outline(&mut self) {
+        if self.preview.outline.take().is_some() {
+            return;
+        }
+        if !self.focus_outline() {
+            self.toast("No outline for this file");
+        }
+    }
+
+    /// `enter` on a file whose preview had not loaded yet: now that it has,
+    /// move into its outline if it has one.
+    fn grant_outline_wish(&mut self) {
+        let wanted = self.preview.outline_wanted.take();
+        if wanted.is_some() && wanted.as_ref() == self.preview.key.as_ref().map(|k| &k.path) {
+            self.focus_outline();
+        }
+    }
+
+    /// The 1-based source line outline entry `k` points at, for an editor.
+    fn outline_source_line(&self, k: usize) -> Option<usize> {
+        let e = self.outline_entries().get(k)?;
+        let line = match &self.preview.state {
+            PreviewState::Ready(Payload::Markdown { doc, .. }) => doc.src_for_line(e.line),
+            _ => e.line,
+        };
+        Some(line + 1)
+    }
+
+    /// While the outline has the keys, moves go through it and scroll the
+    /// preview along, and open starts the editor at the entry. Escape and
+    /// leave hand the keys back; anything else not about the preview hands
+    /// them back and then runs as usual. Returns whether the action was used
+    /// up.
+    fn outline_act(&mut self, a: &Act) -> bool {
+        let Some(cursor) = self.preview.outline else { return false };
+        let entries = self.outline_entries();
+        if entries.is_empty() {
+            self.preview.outline = None;
+            return false;
+        }
+        match a {
+            Act::Arrow(step) => {
+                let page = self.tabs[self.active].page_rows.max(1);
+                let k = step.apply(cursor.min(entries.len() - 1), entries.len(), page);
+                let line = entries[k].line;
+                self.preview.outline = Some(k);
+                self.tabs[self.active].preview_offset = line;
+                true
+            }
+            Act::Seek(_) | Act::MaxPreview => false,
+            // Already in the outline.
+            Act::Enter => true,
+            Act::Open { interactive, .. } => {
+                let line = self.outline_source_line(cursor.min(entries.len() - 1));
+                self.preview.outline = None;
+                self.open(*interactive, line);
+                true
+            }
+            Act::Escape(_) | Act::ToggleOutline | Act::Leave => {
+                self.preview.outline = None;
+                true
+            }
+            _ => {
+                self.preview.outline = None;
+                false
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ spot
+
+    fn open_spot(&mut self) {
+        let Some(entry) = self.tabs[self.active].current.hovered() else { return };
+        self.spotter.request(entry.path.clone());
+        self.overlay = Overlay::Spot(SpotOverlay { cursor: 0, scroll: 0 });
+    }
+
+    /// What the spot panel shows for the hovered file: the listing's facts,
+    /// what its preview found, then the worker's findings once they are in.
+    pub fn spot_sections(&self) -> Vec<Section> {
+        let Some(entry) = self.tabs[self.active].current.hovered() else { return Vec::new() };
+        let mut out = vec![spot::base(entry)];
+        if self.preview_ready() {
+            if let PreviewState::Ready(p) = &self.preview.state {
+                out.extend(self.preview_section(p));
+            }
+        }
+        if let Some((path, found)) = &self.spotted {
+            if *path == entry.path {
+                out.extend(found.iter().cloned());
+            }
+        }
+        out
+    }
+
+    fn preview_section(&self, payload: &Payload) -> Option<Section> {
+        let mut rows: Vec<(String, String)> = Vec::new();
+        let mut row = |k: &str, v: String| rows.push((k.into(), v));
+        let read = |truncated: bool| {
+            truncated.then(|| format!("first {} only", util::human_size(self.cfg.ui.max_text_bytes as u64)))
+        };
+        match payload {
+            Payload::Text { total_lines, truncated, outline, .. } => {
+                row("Lines", total_lines.to_string());
+                if !outline.is_empty() {
+                    row("Outline", format!("{} entries", outline.len()));
+                }
+                if let Some(r) = read(*truncated) {
+                    row("Read", r);
+                }
+            }
+            Payload::Markdown { doc, total_lines, truncated, .. } => {
+                row("Lines", total_lines.to_string());
+                row("Headings", doc.toc.len().to_string());
+                if let Some(r) = read(*truncated) {
+                    row("Read", r);
+                }
+            }
+            Payload::Image { caption, .. } if !caption.is_empty() => row("Shows", caption.clone()),
+            Payload::Meta { rows: meta } => rows.extend(meta.iter().cloned()),
+            Payload::Error(e) => row("Error", e.clone()),
+            _ => {}
+        }
+        (!rows.is_empty()).then(|| Section { title: "Preview".into(), rows })
+    }
+
+    pub fn feed_spot_key(&mut self, k: Key) {
+        self.pending.push(k);
+        let bindings = &self.cfg.keymap.spot;
+        match keymap::resolve(bindings, &self.pending) {
+            keymap::Match::Exact(b) => {
+                let acts = b.run.clone();
+                self.pending.clear();
+                for a in acts {
+                    self.spot_act(a);
+                }
+            }
+            keymap::Match::Pending(_) => {}
+            keymap::Match::None => self.pending.clear(),
+        }
+    }
+
+    /// yazi's spot commands: close, arrow (rows), swipe (files), copy (cell).
+    fn spot_act(&mut self, a: Act) {
+        let rows: usize = self.spot_sections().iter().map(|s| s.rows.len()).sum();
+        let page = self.tabs[self.active].page_rows.max(1);
+        let Overlay::Spot(ov) = &mut self.overlay else { return };
+        match a {
+            Act::Close | Act::Escape(_) | Act::Spot | Act::Quit => self.overlay = Overlay::None,
+            Act::Arrow(step) => ov.cursor = step.apply(ov.cursor, rows, page),
+            Act::Swipe(n) => {
+                let before = self.tabs[self.active].current.hovered().map(|e| e.path.clone());
+                self.act(Act::Arrow(Step::Rel(n)));
+                let after = self.tabs[self.active].current.hovered().map(|e| e.path.clone());
+                if let Some(path) = after.filter(|p| Some(p) != before.as_ref()) {
+                    self.spotter.request(path);
+                }
+            }
+            Act::Copy(_) => {
+                let cursor = ov.cursor;
+                let sections = self.spot_sections();
+                let Some((key, value)) = sections.iter().flat_map(|s| &s.rows).nth(cursor) else { return };
+                match exec::set_clipboard(value) {
+                    Ok(()) => self.toast(format!("Copied {key}: {value}")),
+                    Err(err) => self.error(format!("Clipboard: {err}")),
+                }
+            }
+            _ => {}
+        }
     }
 
     // ------------------------------------------------------------ navigation
@@ -759,8 +1031,10 @@ impl App {
         let Some(entry) = self.tabs[self.active].current.hovered().cloned() else { return };
         if entry.is_dir_like() {
             self.cd(entry.path, true);
-        } else {
-            self.open(false);
+        } else if !self.focus_outline() && !self.preview_ready() {
+            // Still loading: move in once it arrives. A file without an
+            // outline just stays where it is; opening is `open`'s job.
+            self.preview.outline_wanted = Some(entry.path);
         }
     }
 
@@ -788,6 +1062,9 @@ impl App {
 
     pub fn act(&mut self, a: Act) {
         self.last_action = Instant::now();
+        if self.outline_act(&a) {
+            return;
+        }
         match a {
             Act::Noop | Act::Unsupported(_) => {
                 if let Act::Unsupported(what) = a {
@@ -805,6 +1082,7 @@ impl App {
             }
             Act::Suspend => {}
 
+            Act::Swipe(n) => self.act(Act::Arrow(Step::Rel(n))),
             Act::Arrow(step) => {
                 let page = self.tabs[self.active].page_rows.max(1);
                 self.tabs[self.active].current.arrow(step, page);
@@ -904,7 +1182,7 @@ impl App {
 
             Act::Open { interactive, hovered } => {
                 let _ = hovered;
-                self.open(interactive);
+                self.open(interactive, None);
             }
             Act::Yank { cut } => self.yank(cut),
             Act::Unyank => {
@@ -981,7 +1259,20 @@ impl App {
                 self.overlay = Overlay::Help;
             }
             Act::TasksShow => self.overlay = Overlay::Tasks,
-            Act::Spot => self.request_preview(true),
+            Act::Spot => self.open_spot(),
+            Act::ToggleOutline => self.toggle_outline(),
+            Act::ToggleRender => {
+                self.render_markdown = !self.render_markdown;
+                // Stay on the same part of the document across the switch.
+                if let PreviewState::Ready(Payload::Markdown { doc, .. }) = &self.preview.state {
+                    let tab = &mut self.tabs[self.active];
+                    tab.preview_offset = if self.render_markdown {
+                        doc.line_for_src(tab.preview_offset)
+                    } else {
+                        doc.src_for_line(tab.preview_offset)
+                    };
+                }
+            }
 
             Act::MaxPreview => {
                 self.max_preview = !self.max_preview;
@@ -1278,7 +1569,8 @@ impl App {
     fn copy_text(&mut self, what: CopyWhat) {
         let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
         let text = match what {
-            CopyWhat::Path => e.path.display().to_string(),
+            // Outside the spot panel the hovered path is the only cell.
+            CopyWhat::Path | CopyWhat::Cell => e.path.display().to_string(),
             CopyWhat::Dirname => e
                 .path
                 .parent()
@@ -1356,7 +1648,9 @@ impl App {
         }
     }
 
-    fn open(&mut self, interactive: bool) {
+    /// Open the targets; `line` (1-based) asks an editor to start there, and is
+    /// only honored when the hovered file is the one being opened.
+    fn open(&mut self, interactive: bool, line: Option<usize>) {
         let paths = self.tabs[self.active].targets();
         if paths.is_empty() {
             return;
@@ -1366,6 +1660,7 @@ impl App {
             self.cd(entry.path, true);
             return;
         }
+        let line = line.filter(|_| paths.len() == 1 && paths[0] == entry.path);
         let mime = crate::mime::guess(&entry);
         let openers: Vec<(String, bool, bool, String)> = exec::openers_for(&self.cfg.yazi, &entry, mime)
             .into_iter()
@@ -1388,7 +1683,7 @@ impl App {
                 query: String::new(),
                 matches: Vec::new(),
                 cursor: 0,
-                action: PickAction::OpenWith { paths, runs },
+                action: PickAction::OpenWith { paths, runs, line },
                 focused: false,
             };
             pick.refilter();
@@ -1399,7 +1694,7 @@ impl App {
         let cwd = self.tabs[self.active].cwd.clone();
         match openers.first() {
             Some((run, block, orphan, _)) => {
-                let line = exec::substitute(run, &paths);
+                let line = exec::command_line(run, &paths, line);
                 match exec::shell(&line, &cwd, *block, *orphan) {
                     Ok(_) => self.toast(format!("Opened with: {line}")),
                     Err(e) => self.error(format!("Open failed: {e}")),
@@ -1765,10 +2060,10 @@ impl App {
         };
         let Some(idx) = p.selected() else { return };
         match p.action {
-            PickAction::OpenWith { paths, runs } => {
+            PickAction::OpenWith { paths, runs, line } => {
                 let Some((run, block, orphan)) = runs.get(idx).cloned() else { return };
                 let cwd = self.tabs[self.active].cwd.clone();
-                let line = exec::substitute(&run, &paths);
+                let line = exec::command_line(&run, &paths, line);
                 match exec::shell(&line, &cwd, block, orphan) {
                     Ok(_) => self.toast(format!("$ {line}")),
                     Err(e) => self.error(format!("Open failed: {e}")),

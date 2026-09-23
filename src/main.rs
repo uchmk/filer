@@ -9,6 +9,7 @@ mod glob;
 mod mime;
 mod preview;
 mod search;
+mod spot;
 mod ui;
 mod util;
 
@@ -75,7 +76,7 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(move |cc| {
             let mut cfg = cfg;
-            let has_nerd = install_fonts(&cc.egui_ctx, &cfg);
+            let (has_nerd, has_bold) = install_fonts(&cc.egui_ctx, &cfg);
             if !has_nerd && cfg.ui.icons != "nerd" {
                 cfg.theme.without_nerd_icons();
             }
@@ -89,6 +90,7 @@ fn main() -> eframe::Result<()> {
                 s.spacing.item_spacing = egui::vec2(0.0, 0.0);
             });
             let mut a = App::new(cfg, start, cc.egui_ctx.clone());
+            a.bold_font = has_bold;
             a.cwd_file = cli.cwd_file;
             a.chooser_file = cli.chooser_file;
             Ok(Box::new(Filer {
@@ -101,9 +103,11 @@ fn main() -> eframe::Result<()> {
     )
 }
 
-/// Load a font that covers ASCII, CJK and (ideally) Nerd Font icons.
-/// Returns whether the chosen font looks like a Nerd Font.
-fn install_fonts(ctx: &egui::Context, cfg: &Config) -> bool {
+/// Load a font that covers ASCII, CJK and (ideally) Nerd Font icons, plus
+/// bold faces for the `bold` family when any can be found.
+/// Returns whether the chosen font looks like a Nerd Font, and whether the
+/// `bold` family was registered.
+fn install_fonts(ctx: &egui::Context, cfg: &Config) -> (bool, bool) {
     let mut candidates: Vec<PathBuf> = cfg.ui.fonts.iter().map(PathBuf::from).collect();
     if let Some(local) = dirs::data_local_dir() {
         let user_fonts = local.join("Microsoft").join("Windows").join("Fonts");
@@ -124,25 +128,20 @@ fn install_fonts(ctx: &egui::Context, cfg: &Config) -> bool {
 
     let mut fonts = egui::FontDefinitions::default();
     let mut installed: Vec<String> = Vec::new();
+    let mut loaded: Vec<PathBuf> = Vec::new();
     let mut has_nerd = false;
 
     for path in candidates {
-        let Ok(bytes) = std::fs::read(&path) else { continue };
-        let name = path
-            .file_stem()
-            .map(|s| s.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "font".into());
-        if installed.iter().any(|n| n == &name) {
+        let name = font_stem(&path);
+        if installed.contains(&name) || !load_face(&mut fonts, &path, &name) {
             continue;
         }
-        let mut data = egui::FontData::from_owned(bytes);
-        data.index = 0; // .ttc collections: take the first face
-        fonts.font_data.insert(name.clone(), Arc::new(data));
         let lower = name.to_lowercase();
         if lower.contains("nf") || lower.contains("nerd") {
             has_nerd = true;
         }
         installed.push(name);
+        loaded.push(path);
         // One icon-capable font plus one CJK fallback is enough.
         if installed.len() >= 3 {
             break;
@@ -155,8 +154,70 @@ fn install_fonts(ctx: &egui::Context, cfg: &Config) -> bool {
             list.insert(i, name.clone());
         }
     }
+
+    // Bold: configured faces first, then the bold siblings of the regular
+    // faces in use, then stock Windows faces.
+    let mut bold_candidates: Vec<PathBuf> = cfg.ui.bold_fonts.iter().map(PathBuf::from).collect();
+    for path in &loaded {
+        bold_candidates.extend(bold_siblings(path));
+    }
+    for name in ["meiryob.ttc", "YuGothB.ttc", "consolab.ttf"] {
+        bold_candidates.push(PathBuf::from(r"C:\Windows\Fonts").join(name));
+    }
+    let mut bold: Vec<String> = Vec::new();
+    for path in bold_candidates {
+        let name = format!("bold:{}", font_stem(&path));
+        if bold.contains(&name) || !load_face(&mut fonts, &path, &name) {
+            continue;
+        }
+        bold.push(name);
+        // A Latin face and a CJK face at most; the regular faces cover the
+        // rest (icons, symbols) through the fallback chain below.
+        if bold.len() >= 2 {
+            break;
+        }
+    }
+    let has_bold = !bold.is_empty();
+    if has_bold {
+        let mut list = bold;
+        list.extend(fonts.families[&egui::FontFamily::Monospace].iter().cloned());
+        fonts.families.insert(egui::FontFamily::Name("bold".into()), list);
+    }
+
     ctx.set_fonts(fonts);
-    has_nerd
+    (has_nerd, has_bold)
+}
+
+fn font_stem(path: &std::path::Path) -> String {
+    path.file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "font".into())
+}
+
+fn load_face(fonts: &mut egui::FontDefinitions, path: &std::path::Path, name: &str) -> bool {
+    let Ok(bytes) = std::fs::read(path) else { return false };
+    let mut data = egui::FontData::from_owned(bytes);
+    data.index = 0; // .ttc collections: take the first face
+    fonts.font_data.insert(name.to_owned(), Arc::new(data));
+    true
+}
+
+/// Where the bold face of a regular font usually lives.
+fn bold_siblings(path: &std::path::Path) -> Vec<PathBuf> {
+    let Some(dir) = path.parent() else { return Vec::new() };
+    let stem = font_stem(path);
+    let ext = path.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
+    let mut out = Vec::new();
+    if let Some(base) = stem.strip_suffix("-Regular") {
+        out.push(dir.join(format!("{base}-Bold.{ext}")));
+    }
+    match stem.to_lowercase().as_str() {
+        "meiryo" => out.push(dir.join("meiryob.ttc")),
+        "yugothm" | "yugothr" => out.push(dir.join("YuGothB.ttc")),
+        "consola" => out.push(dir.join("consolab.ttf")),
+        _ => {}
+    }
+    out
 }
 
 struct Filer {
@@ -203,6 +264,16 @@ impl eframe::App for Filer {
             .show(ui, |ui| {
                 ui::draw(&mut self.app, ui);
             });
+
+        // egui walks focus across clickable rows on Tab / Shift+Tab, and a
+        // focused row then takes Space / Enter as a click. The keymap owns
+        // those keys, so nothing keeps focus outside of a text field or a
+        // picker (the spot panel takes Tab to close).
+        if !matches!(self.app.overlay, Overlay::Input(_) | Overlay::Pick(_)) {
+            if let Some(id) = ctx.memory(|m| m.focused()) {
+                ctx.memory_mut(|m| m.surrender_focus(id));
+            }
+        }
 
         if self.app.quit {
             self.app.on_quit();
@@ -278,6 +349,11 @@ fn handle_input(app: &mut App, ctx: &egui::Context) {
                         app.overlay = Overlay::None;
                     }
                 }
+                Overlay::Spot(_) => {
+                    for c in text.chars() {
+                        app.feed_spot_key(Key::char(c));
+                    }
+                }
                 _ => {}
             },
             _ => {}
@@ -343,6 +419,11 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
         Overlay::Tasks => {
             if key == K::Escape {
                 app.overlay = Overlay::None;
+            }
+        }
+        Overlay::Spot(_) => {
+            if let Some(k) = keys::from_egui(key, modifiers) {
+                app.feed_spot_key(k);
             }
         }
         Overlay::None => {

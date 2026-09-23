@@ -407,3 +407,81 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
     }
     let _ = queued;
 }
+
+/// The spot panel: one block of `key  value` rows per section, the selected
+/// row highlighted and kept in view.
+pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
+    dim(ui, full);
+    let sections = app.spot_sections();
+    let name = app.tabs[app.active].current.hovered().map(|e| e.name.clone()).unwrap_or_default();
+    let rect = modal_rect(full, 0.7, 0.7);
+    let title = format!("Spot: {name} — <Esc> to close");
+    let inner = modal_frame(ui, rect, &app.cfg.theme, &title, f, row_h);
+    let theme = &app.cfg.theme;
+    let painter = ui.painter_at(inner);
+
+    if sections.is_empty() {
+        painter.text(inner.left_top(), Align2::LEFT_TOP, "Nothing to spot", f.clone(), theme.fg_dim);
+        return;
+    }
+
+    // Flatten into lines: a header per section, then its rows. `Some(i)` marks
+    // the i-th row overall, which is what the cursor counts.
+    let mut lines: Vec<(Option<usize>, &str, &str)> = Vec::new();
+    let mut n = 0;
+    for (k, s) in sections.iter().enumerate() {
+        if k > 0 {
+            lines.push((None, "", ""));
+        }
+        lines.push((None, &s.title, ""));
+        for (key, value) in &s.rows {
+            lines.push((Some(n), key, value));
+            n += 1;
+        }
+    }
+
+    let Overlay::Spot(ov) = &mut app.overlay else { return };
+    ov.cursor = ov.cursor.min(n.saturating_sub(1));
+    let visible = ((inner.height() / row_h).floor() as usize).max(1);
+    let at = lines.iter().position(|l| l.0 == Some(ov.cursor)).unwrap_or(0);
+    // Keep the section header in view when the cursor is on its first row.
+    let top = if at > 0 && lines[at - 1].0.is_none() { at - 1 } else { at };
+    if top < ov.scroll {
+        ov.scroll = top;
+    } else if at >= ov.scroll + visible {
+        ov.scroll = at + 1 - visible;
+    }
+    ov.scroll = ov.scroll.min(lines.len().saturating_sub(visible));
+
+    let accent = theme.cwd.fg.unwrap_or(theme.fg);
+    let key_w = 130.0;
+    let value_chars = ((inner.width() - key_w) / (f.size * 0.6)).max(4.0) as usize;
+    for (i, (row, key, value)) in lines.iter().skip(ov.scroll).take(visible).enumerate() {
+        let y = inner.top() + i as f32 * row_h;
+        match row {
+            None => {
+                painter.text(egui::pos2(inner.left(), y), Align2::LEFT_TOP, *key, f.clone(), accent);
+            }
+            Some(r) => {
+                if *r == ov.cursor {
+                    let band = Rect::from_min_size(egui::pos2(inner.left(), y), Vec2::new(inner.width(), row_h));
+                    painter.rect_filled(band, CornerRadius::same(3), theme.hovered_bg);
+                }
+                painter.text(
+                    egui::pos2(inner.left() + 12.0, y),
+                    Align2::LEFT_TOP,
+                    *key,
+                    f.clone(),
+                    theme.fg_dim,
+                );
+                painter.text(
+                    egui::pos2(inner.left() + key_w, y),
+                    Align2::LEFT_TOP,
+                    crate::util::ellipsize_middle(value, value_chars),
+                    f.clone(),
+                    theme.fg,
+                );
+            }
+        }
+    }
+}

@@ -30,7 +30,7 @@ pub fn guess(entry: &Entry) -> &'static str {
         "json" | "jsonc" => "application/json",
         "toml" => "text/toml",
         "yaml" | "yml" => "text/yaml",
-        "xml" | "svg" => "text/xml",
+        "xml" => "text/xml",
         "ini" | "cfg" | "conf" | "properties" | "editorconfig" => "text/plain",
         "sh" | "bash" | "zsh" | "fish" => "text/x-shellscript",
         "ps1" | "psm1" => "text/x-powershell",
@@ -57,7 +57,9 @@ pub fn guess(entry: &Entry) -> &'static str {
         "pnm" | "pgm" | "ppm" | "pbm" => "image/x-portable-anymap",
         "avif" => "image/avif",
         "heic" | "heif" => "image/heic",
+        "jxl" => "image/jxl",
         "psd" => "image/vnd.adobe.photoshop",
+        "svg" => "image/svg+xml",
 
         // audio / video
         "mp3" => "audio/mpeg",
@@ -130,20 +132,19 @@ pub fn is_decodable_image(mime: &str) -> bool {
     )
 }
 
-/// Syntect language token for a mime / extension pair.
+/// Syntect language token for a mime / extension pair. The mime wins so that
+/// variants syntect doesn't know by extension (`mdx`, `jsonc`) still
+/// get their base language.
 pub fn syntax_hint(mime: &str, ext: Option<&str>) -> Option<String> {
-    if let Some(e) = ext {
-        return Some(e.to_string());
-    }
-    Some(match mime {
-        "text/markdown" => "md",
-        "text/html" => "html",
-        "text/css" => "css",
-        "application/json" => "json",
-        "text/toml" => "toml",
-        "text/yaml" => "yaml",
-        "text/xml" => "xml",
-        _ => return None,
-    }
-    .to_string())
+    let by_mime = match mime {
+        "text/markdown" => Some("md"),
+        "text/html" => Some("html"),
+        "text/css" => Some("css"),
+        "application/json" => Some("json"),
+        "text/toml" => Some("toml"),
+        "text/yaml" => Some("yaml"),
+        "text/xml" => Some("xml"),
+        _ => None,
+    };
+    by_mime.or(ext).map(str::to_string)
 }

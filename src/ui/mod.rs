@@ -71,6 +71,7 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
         Overlay::Tasks => overlay::tasks(app, ui, full, &f, row_h),
         Overlay::Confirm(_) => overlay::confirm(app, ui, full, &f, row_h, &mut queued),
         Overlay::Pick(_) => overlay::pick(app, ui, full, &f, row_h, &mut queued),
+        Overlay::Spot(_) => overlay::spot(app, ui, full, &f, row_h),
         _ => {}
     }
 
@@ -257,7 +258,8 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
             theme: &theme,
             font: f.clone(),
             row_h,
-            active: true,
+            // The outline has the keys while it is focused; dim the cursor.
+            active: app.preview.outline.is_none(),
             linemode: &linemode,
         };
         let has_filter = app.tabs[app.active].current.filter.is_some();
@@ -276,13 +278,17 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
             app.tabs[app.active].current.scroll(res.scrolled, rows);
             app.tabs[app.active].sync_visual();
         }
+        // Clicking the list takes the keys back from the outline.
         if let Some(row) = res.clicked {
+            app.preview.outline = None;
             app.tabs[app.active].current.cursor = row;
             app.tabs[app.active].sync_visual();
         }
         if let Some(row) = res.double_clicked {
+            app.preview.outline = None;
             app.tabs[app.active].current.cursor = row;
-            queued.push(Act::Enter);
+            // `enter` on a file moves into its outline; a double-click opens.
+            queued.push(Act::Open { interactive: false, hovered: true });
         }
     }
 
@@ -313,13 +319,21 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
                 }, false);
             }
             other => {
+                // Rendered Markdown is laid out in the worker on a grid of
+                // monospace cells, so it needs to know how many fit.
+                let cell = ui.painter().layout_no_wrap("M".repeat(20), f.clone(), theme.fg).size().x / 20.0;
+                app.preview.cols = ((rect.width() - 24.0) / cell).max(0.0) as u16;
                 let st = preview::PreviewStyle {
                     theme: &theme,
                     font: f.clone(),
+                    bold: app.bold_font.then(|| FontId::new(f.size, FontFamily::Name("bold".into()))),
+                    cell,
                     row_h,
                     wrap: app.cfg.yazi.preview.wrap == "yes",
+                    render_markdown: app.render_markdown,
+                    outline_focus: app.preview.outline,
                 };
-                let lines = preview::draw(
+                let drawn = preview::draw(
                     ui,
                     rect.shrink(2.0),
                     other,
@@ -327,6 +341,13 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
                     app.tabs[app.active].preview_offset,
                     &st,
                 );
+                if let Some((k, line)) = drawn.jump {
+                    app.tabs[app.active].preview_offset = line;
+                    if app.preview.outline.is_some() {
+                        app.preview.outline = Some(k);
+                    }
+                }
+                let lines = drawn.lines;
                 let rows = ((rect.height() / row_h).floor() as usize).max(1);
                 let max = lines.saturating_sub(rows / 2);
                 if app.tabs[app.active].preview_offset > max {

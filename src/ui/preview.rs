@@ -1,18 +1,41 @@
 use egui::text::{LayoutJob, TextFormat};
-use egui::{Align2, Color32, FontId, Rect, Ui, Vec2};
+use egui::{
+    pos2, vec2, Align2, Color32, CornerRadius, CursorIcon, FontId, Painter, Rect, Sense, Stroke, StrokeKind, Ui, Vec2,
+};
 
 use crate::app::PreviewState;
 use crate::config::theme::Theme;
-use crate::preview::Payload;
+use crate::preview::{cells, outline_cols, Doc, LineKind, Payload, Span, TocEntry};
 
 pub struct PreviewStyle<'a> {
     pub theme: &'a Theme,
     pub font: FontId,
+    /// A real bold face. Without one, bold text is overstruck.
+    pub bold: Option<FontId>,
+    /// Width of one monospace cell, the grid rendered Markdown is laid out on.
+    pub cell: f32,
     pub row_h: f32,
     pub wrap: bool,
+    /// Show Markdown rendered rather than as highlighted source.
+    pub render_markdown: bool,
+    /// The outline entry under the cursor while the keys drive the outline.
+    pub outline_focus: Option<usize>,
 }
 
-/// Returns the number of scrollable lines, so the caller can clamp `seek`.
+#[derive(Default)]
+pub struct Drawn {
+    /// Scrollable lines, so the caller can clamp `seek`.
+    pub lines: usize,
+    /// A click in the outline: the entry, and the line to scroll to.
+    pub jump: Option<(usize, usize)>,
+}
+
+/// Left margin of text in the pane.
+const PAD: f32 = 10.0;
+/// Source code keeps a narrower pane to itself: its lines don't reflow around
+/// an outline the way rendered Markdown does.
+const SOURCE_OUTLINE_MIN_COLS: u16 = 100;
+
 pub fn draw(
     ui: &mut Ui,
     rect: Rect,
@@ -20,15 +43,15 @@ pub fn draw(
     texture: Option<&egui::TextureHandle>,
     offset: usize,
     st: &PreviewStyle<'_>,
-) -> usize {
+) -> Drawn {
     let painter = ui.painter_at(rect);
-    let rows = ((rect.height() / st.row_h).floor() as usize).max(1);
+    let rows = rows(rect, st);
 
-    match state {
+    let lines = match state {
         PreviewState::Empty => 0,
         PreviewState::Loading => {
             painter.text(
-                rect.left_top() + Vec2::new(10.0, 8.0),
+                rect.left_top() + Vec2::new(PAD, 8.0),
                 Align2::LEFT_TOP,
                 "…",
                 st.font.clone(),
@@ -40,7 +63,7 @@ pub fn draw(
         PreviewState::Ready(payload) => match payload {
             Payload::Error(e) => {
                 painter.text(
-                    rect.left_top() + Vec2::new(10.0, 8.0),
+                    rect.left_top() + Vec2::new(PAD, 8.0),
                     Align2::LEFT_TOP,
                     e,
                     st.font.clone(),
@@ -48,62 +71,21 @@ pub fn draw(
                 );
                 0
             }
-            Payload::Text { lines, truncated, total_lines } => {
-                let start = offset.min(lines.len().saturating_sub(1));
-                let end = (start + rows).min(lines.len());
-                for (i, line) in lines[start..end].iter().enumerate() {
-                    let y = rect.top() + i as f32 * st.row_h;
-                    let mut job = LayoutJob::default();
-                    job.wrap.max_width = if st.wrap { rect.width() - 16.0 } else { f32::INFINITY };
-                    job.wrap.max_rows = if st.wrap { 3 } else { 1 };
-                    job.wrap.break_anywhere = true;
-                    job.wrap.overflow_character = None;
-                    for span in line {
-                        job.append(
-                            &span.text,
-                            0.0,
-                            TextFormat {
-                                font_id: st.font.clone(),
-                                color: span
-                                    .color
-                                    .map(|[r, g, b]| {
-                                        readable(
-                                            Color32::from_rgb(r, g, b),
-                                            st.theme.bg,
-                                            st.theme.fg,
-                                        )
-                                    })
-                                    .unwrap_or(st.theme.fg),
-                                ..Default::default()
-                            },
-                        );
-                    }
-                    if line.is_empty() {
-                        continue;
-                    }
-                    let galley = painter.layout_job(job);
-                    painter.galley(egui::pos2(rect.left() + 10.0, y), galley, st.theme.fg);
+            Payload::Text { lines, truncated, total_lines, outline } => {
+                return code(ui, &painter, rect, lines, outline, *truncated, *total_lines, offset, st);
+            }
+            Payload::Markdown { doc, source, truncated, total_lines } => {
+                if st.render_markdown {
+                    return markdown(ui, &painter, rect, doc, *truncated, *total_lines, offset, st);
                 }
-                if *truncated && end >= lines.len() {
-                    let y = rect.top() + (end - start) as f32 * st.row_h;
-                    if y < rect.bottom() {
-                        painter.text(
-                            egui::pos2(rect.left() + 10.0, y),
-                            Align2::LEFT_TOP,
-                            format!("… {total_lines} lines total (truncated)"),
-                            st.font.clone(),
-                            st.theme.fg_dim,
-                        );
-                    }
-                }
-                lines.len()
+                text(ui, &painter, rect, source, *truncated, *total_lines, offset, st)
             }
             Payload::Binary { lines, total } => {
                 let start = offset.min(lines.len().saturating_sub(1));
                 let end = (start + rows.saturating_sub(1)).min(lines.len());
                 for (i, line) in lines[start..end].iter().enumerate() {
                     painter.text(
-                        egui::pos2(rect.left() + 10.0, rect.top() + i as f32 * st.row_h),
+                        pos2(rect.left() + PAD, rect.top() + i as f32 * st.row_h),
                         Align2::LEFT_TOP,
                         line,
                         st.font.clone(),
@@ -111,7 +93,7 @@ pub fn draw(
                     );
                 }
                 painter.text(
-                    egui::pos2(rect.left() + 10.0, rect.bottom() - st.row_h),
+                    pos2(rect.left() + PAD, rect.bottom() - st.row_h),
                     Align2::LEFT_TOP,
                     format!("binary · {}", crate::util::human_size(*total)),
                     st.font.clone(),
@@ -123,14 +105,14 @@ pub fn draw(
                 for (i, (k, v)) in kv.iter().enumerate() {
                     let y = rect.top() + 8.0 + i as f32 * st.row_h;
                     painter.text(
-                        egui::pos2(rect.left() + 10.0, y),
+                        pos2(rect.left() + PAD, y),
                         Align2::LEFT_TOP,
                         k,
                         st.font.clone(),
                         st.theme.fg_dim,
                     );
                     painter.text(
-                        egui::pos2(rect.left() + 110.0, y),
+                        pos2(rect.left() + 110.0, y),
                         Align2::LEFT_TOP,
                         v,
                         st.font.clone(),
@@ -139,26 +121,23 @@ pub fn draw(
                 }
                 0
             }
-            Payload::Image { width, height, source, .. } => {
+            Payload::Image { width, height, caption, .. } => {
                 if let Some(tex) = texture {
                     let avail = rect.shrink(8.0);
                     let (w, h) = (*width as f32, *height as f32);
                     let scale = (avail.width() / w).min(avail.height() / h).min(1.0);
                     let size = Vec2::new(w * scale, h * scale);
-                    let pos = egui::pos2(
-                        avail.center().x - size.x / 2.0,
-                        avail.top(),
-                    );
+                    let pos = pos2(avail.center().x - size.x / 2.0, avail.top());
                     painter.image(
                         tex.id(),
                         Rect::from_min_size(pos, size),
-                        Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                        Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
                         Color32::WHITE,
                     );
                     painter.text(
-                        egui::pos2(avail.center().x, avail.top() + size.y + 6.0),
+                        pos2(avail.center().x, avail.top() + size.y + 6.0),
                         Align2::CENTER_TOP,
-                        format!("{} × {}", source.0, source.1),
+                        caption,
                         st.font.clone(),
                         st.theme.fg_dim,
                     );
@@ -166,7 +145,331 @@ pub fn draw(
                 0
             }
         },
+    };
+    Drawn { lines, jump: None }
+}
+
+fn rows(rect: Rect, st: &PreviewStyle<'_>) -> usize {
+    ((rect.height() / st.row_h).floor() as usize).max(1)
+}
+
+/// Cells across the pane, as the worker counts them for Markdown.
+fn pane_cols(rect: Rect, st: &PreviewStyle<'_>) -> u16 {
+    ((rect.width() - 20.0) / st.cell).max(0.0) as u16
+}
+
+/// How far text sits below the top of its row, so it is centered in it.
+fn lift(painter: &Painter, st: &PreviewStyle<'_>) -> f32 {
+    let glyph_h = painter.layout_no_wrap("M".into(), st.font.clone(), st.theme.fg).size().y;
+    ((st.row_h - glyph_h) / 2.0).max(0.0)
+}
+
+fn widest(entries: &[TocEntry]) -> usize {
+    entries.iter().map(|e| cells(&e.label)).max().unwrap_or(0)
+}
+
+/// Width of an outline laid over the text of a pane too narrow for a column.
+fn overlay_cols(widest: usize, cols: u16) -> u16 {
+    let max = 32.min(cols / 2).max(12);
+    (widest.min(100) as u16 + 1).clamp(12, max)
+}
+
+/// Where the separator left of an outline `cols` wide goes.
+fn outline_sep(rect: Rect, cols: u16, st: &PreviewStyle<'_>) -> f32 {
+    rect.right() - 8.0 - cols as f32 * st.cell - 1.5 * st.cell
+}
+
+/// Source code, with its outline in a column when the pane is wide enough for
+/// both, or laid over the code while the keys drive the outline.
+#[allow(clippy::too_many_arguments)]
+fn code(
+    ui: &Ui,
+    painter: &Painter,
+    rect: Rect,
+    lines: &[Vec<Span>],
+    entries: &[TocEntry],
+    truncated: bool,
+    total_lines: usize,
+    offset: usize,
+    st: &PreviewStyle<'_>,
+) -> Drawn {
+    let cols = pane_cols(rect, st);
+    let widest = widest(entries);
+    let column = (entries.len() >= 2 && cols >= SOURCE_OUTLINE_MIN_COLS).then(|| outline_cols(widest, cols));
+    let body = match column {
+        Some(width) => {
+            let right = outline_sep(rect, width, st) - 0.5 * st.cell;
+            Rect::from_x_y_ranges(rect.left()..=right, rect.y_range())
+        }
+        None => rect,
+    };
+    let lines = text(ui, &painter.with_clip_rect(body), body, lines, truncated, total_lines, offset, st);
+    let jump = match column {
+        Some(width) => outline(ui, painter, rect, entries, width, offset, false, st),
+        None if st.outline_focus.is_some() && !entries.is_empty() => {
+            outline(ui, painter, rect, entries, overlay_cols(widest, cols), offset, true, st)
+        }
+        None => None,
+    };
+    Drawn { lines, jump }
+}
+
+/// Highlighted source, one file line per row.
+#[allow(clippy::too_many_arguments)]
+fn text(
+    ui: &Ui,
+    painter: &Painter,
+    rect: Rect,
+    lines: &[Vec<Span>],
+    truncated: bool,
+    total_lines: usize,
+    offset: usize,
+    st: &PreviewStyle<'_>,
+) -> usize {
+    let start = offset.min(lines.len().saturating_sub(1));
+    let end = (start + rows(rect, st)).min(lines.len());
+    let bold_dx = overstrike(ui, st);
+    for (i, line) in lines[start..end].iter().enumerate() {
+        if line.is_empty() {
+            continue;
+        }
+        let job_for = |bold_only: bool| {
+            let mut job = LayoutJob::default();
+            job.wrap.max_width = if st.wrap { rect.width() - 16.0 } else { f32::INFINITY };
+            job.wrap.max_rows = if st.wrap { 3 } else { 1 };
+            job.wrap.break_anywhere = true;
+            job.wrap.overflow_character = None;
+            for span in line {
+                let color = if bold_only && !span.bold { Color32::TRANSPARENT } else { span_color(span, st) };
+                job.append(&span.text, 0.0, format(span, color, st));
+            }
+            job
+        };
+        let pos = pos2(rect.left() + PAD, rect.top() + i as f32 * st.row_h);
+        painter.galley(pos, painter.layout_job(job_for(false)), st.theme.fg);
+        // Without a bold face, bold spans are overstruck a pixel over; the
+        // identical layout keeps both passes aligned.
+        if st.bold.is_none() && line.iter().any(|s| s.bold) {
+            painter.galley(pos + Vec2::new(bold_dx, 0.0), painter.layout_job(job_for(true)), st.theme.fg);
+        }
     }
+    if truncated && end >= lines.len() {
+        truncation_note(painter, rect, end - start, total_lines, st);
+    }
+    lines.len()
+}
+
+/// Markdown laid out for reading, with the outline in a column on the right.
+#[allow(clippy::too_many_arguments)]
+fn markdown(
+    ui: &Ui,
+    painter: &Painter,
+    rect: Rect,
+    doc: &Doc,
+    truncated: bool,
+    total_lines: usize,
+    offset: usize,
+    st: &PreviewStyle<'_>,
+) -> Drawn {
+    let theme = st.theme;
+    let rows = rows(rect, st);
+    let left = rect.left() + PAD;
+    let right = left + doc.body_cols as f32 * st.cell;
+    let x_at = |col: usize| left + col as f32 * st.cell;
+    // Text sits in the middle of its row, so code bands and highlights frame it.
+    let lift = lift(painter, st);
+    let code_bg = mix(theme.bg_alt, theme.fg, 0.07);
+    let bold_dx = overstrike(ui, st);
+
+    // Glyphs a little wider than their cells must not spill into the outline.
+    let body = painter.with_clip_rect(Rect::from_x_y_ranges(rect.left()..=right + st.cell, rect.y_range()));
+    let start = offset.min(doc.lines.len().saturating_sub(1));
+    let end = (start + rows).min(doc.lines.len());
+    for (i, line) in doc.lines[start..end].iter().enumerate() {
+        let y = rect.top() + i as f32 * st.row_h;
+        let x0 = x_at(line.indent as usize);
+        match line.kind {
+            LineKind::Code => {
+                let band = Rect::from_min_max(pos2(x0, y), pos2(right, y + st.row_h));
+                body.rect_filled(band, CornerRadius::ZERO, code_bg);
+            }
+            LineKind::Rule => {
+                body.hline(x0..=right, y + st.row_h / 2.0, Stroke::new(1.0, theme.border));
+            }
+            LineKind::Heading(level @ 1..=2) => {
+                let color = if level == 1 { theme.fg_dim } else { theme.border };
+                body.hline(x0..=right, y + st.row_h - 1.0, Stroke::new(1.0, color));
+            }
+            _ => {}
+        }
+
+        // Each span starts on its own column, so tables stay aligned even
+        // where a fallback font's glyphs are not exactly one or two cells.
+        let mut col = 0;
+        let mut prev_end = left;
+        for span in &line.spans {
+            let w = cells(&span.text);
+            if span.text.trim().is_empty() {
+                col += w;
+                continue;
+            }
+            let x = prev_end.max(x_at(col));
+            let color = span_color(span, st);
+            let galley = painter.layout_job(LayoutJob::single_section(span.text.clone(), format(span, color, st)));
+            let size = galley.size();
+            let pos = pos2(x, y + lift);
+            if span.code {
+                let chip = Rect::from_min_size(pos - vec2(2.0, 0.0), vec2(size.x + 4.0, size.y));
+                body.rect_filled(chip, CornerRadius::same(3), code_bg);
+            }
+            if span.bold && st.bold.is_none() {
+                body.galley(pos + vec2(bold_dx, 0.0), galley.clone(), color);
+            }
+            body.galley(pos, galley, color);
+            prev_end = x + size.x;
+            col += w;
+        }
+    }
+    if truncated && end >= doc.lines.len() {
+        truncation_note(painter, rect, end - start, total_lines, st);
+    }
+
+    let jump = if doc.toc_cols > 0 && !doc.toc.is_empty() {
+        outline(ui, painter, rect, &doc.toc, doc.toc_cols, start, false, st)
+    } else if st.outline_focus.is_some() && !doc.toc.is_empty() {
+        let cols = overlay_cols(widest(&doc.toc), pane_cols(rect, st));
+        outline(ui, painter, rect, &doc.toc, cols, start, true, st)
+    } else {
+        None
+    };
+    Drawn { lines: doc.lines.len(), jump }
+}
+
+/// The outline on the right, `cols` cells wide: the entry being read (or the
+/// one under the cursor, while the keys drive the outline) is highlighted and
+/// kept in view, and clicking an entry scrolls to it. An `overlay` covers the
+/// text beneath it.
+#[allow(clippy::too_many_arguments)]
+fn outline(
+    ui: &Ui,
+    painter: &Painter,
+    rect: Rect,
+    entries: &[TocEntry],
+    cols: u16,
+    top_line: usize,
+    overlay: bool,
+    st: &PreviewStyle<'_>,
+) -> Option<(usize, usize)> {
+    let theme = st.theme;
+    let lift = lift(painter, st);
+    let width = cols as f32 * st.cell;
+    let sep = outline_sep(rect, cols, st);
+    let left = sep + 1.5 * st.cell;
+    let focused = st.outline_focus.is_some();
+    let accent = theme.tab_active.bg.unwrap_or(theme.fg);
+    if overlay {
+        painter.rect_filled(Rect::from_x_y_ranges(sep..=rect.right(), rect.y_range()), CornerRadius::ZERO, theme.bg);
+    }
+    let rule = if focused { accent } else { theme.border };
+    painter.vline(sep, rect.top() + 4.0..=rect.bottom() - 4.0, Stroke::new(1.0, rule));
+    let (font, color) = match (&st.bold, focused) {
+        (Some(bold), true) => (bold.clone(), accent),
+        (None, true) => (st.font.clone(), accent),
+        (_, false) => (st.font.clone(), theme.fg_dim),
+    };
+    painter.text(pos2(left, rect.top() + lift), Align2::LEFT_TOP, "Contents", font, color);
+
+    let top_level = entries.iter().map(|e| e.level).min().unwrap_or(1);
+    let current = match st.outline_focus {
+        Some(k) => Some(k.min(entries.len().saturating_sub(1))),
+        None => entries.iter().rposition(|e| e.line <= top_line),
+    };
+    let slots = rows(rect, st).saturating_sub(1).max(1);
+    let first = current
+        .map_or(0, |c| c.saturating_sub(slots / 2))
+        .min(entries.len().saturating_sub(slots));
+    let clip = painter.with_clip_rect(Rect::from_x_y_ranges(sep + 1.0..=rect.right(), rect.y_range()));
+    let hover = mix(theme.border, theme.fg_dim, 0.4);
+
+    let mut jump = None;
+    for (k, entry) in entries.iter().enumerate().skip(first).take(slots) {
+        let y = rect.top() + (k - first + 1) as f32 * st.row_h;
+        let row = Rect::from_min_size(pos2(left - 4.0, y), vec2(width + 8.0, st.row_h));
+        let resp = ui.interact(row, ui.id().with(("outline", k)), Sense::click());
+        let here = current == Some(k);
+        // Like the file list's cursor: bright only where the keys are.
+        if here {
+            let fill = if focused { theme.hovered_bg } else { theme.inactive_hovered_bg };
+            clip.rect_filled(row, CornerRadius::same(3), fill);
+        } else if resp.hovered() {
+            clip.rect_stroke(row, CornerRadius::same(3), Stroke::new(1.0, hover), StrokeKind::Inside);
+        }
+        if resp.hovered() {
+            ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+        }
+        if resp.clicked() {
+            jump = Some((k, entry.line));
+        }
+        let color = if here || entry.level == top_level { theme.fg } else { theme.fg_dim };
+        let font_id = match (&st.bold, here) {
+            (Some(bold), true) => bold.clone(),
+            _ => st.font.clone(),
+        };
+        let mut job = LayoutJob::single_section(entry.label.clone(), TextFormat { font_id, color, ..Default::default() });
+        job.wrap.max_width = width;
+        job.wrap.max_rows = 1;
+        job.wrap.break_anywhere = true;
+        job.wrap.overflow_character = Some('…');
+        clip.galley(pos2(left, y + lift), clip.layout_job(job), color);
+    }
+    jump
+}
+
+fn truncation_note(painter: &Painter, rect: Rect, shown: usize, total_lines: usize, st: &PreviewStyle<'_>) {
+    let y = rect.top() + shown as f32 * st.row_h;
+    if y < rect.bottom() {
+        painter.text(
+            pos2(rect.left() + PAD, y),
+            Align2::LEFT_TOP,
+            format!("… {total_lines} lines total (truncated)"),
+            st.font.clone(),
+            st.theme.fg_dim,
+        );
+    }
+}
+
+fn format(span: &Span, color: Color32, st: &PreviewStyle<'_>) -> TextFormat {
+    let font_id = match (&st.bold, span.bold) {
+        (Some(bold), true) => bold.clone(),
+        _ => st.font.clone(),
+    };
+    let line = Stroke::new(1.0, color);
+    TextFormat {
+        font_id,
+        color,
+        italics: span.italic,
+        underline: if span.underline { line } else { Stroke::NONE },
+        strikethrough: if span.strike { line } else { Stroke::NONE },
+        ..Default::default()
+    }
+}
+
+fn span_color(span: &Span, st: &PreviewStyle<'_>) -> Color32 {
+    span.color
+        .map(|[r, g, b]| readable(Color32::from_rgb(r, g, b), st.theme.bg, st.theme.fg))
+        .unwrap_or(st.theme.fg)
+}
+
+/// How far to shift the second pass of a faked bold: about a pixel at
+/// ordinary sizes, snapped to whole physical pixels.
+fn overstrike(ui: &Ui, st: &PreviewStyle<'_>) -> f32 {
+    let ppp = ui.ctx().pixels_per_point();
+    (st.font.size / 18.0 * ppp).round().max(1.0) / ppp
+}
+
+fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
+    let lerp = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
+    Color32::from_rgb(lerp(a.r(), b.r()), lerp(a.g(), b.g()), lerp(a.b(), b.b()))
 }
 
 /// Syntect themes are written against their own background, and some scopes

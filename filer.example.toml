@@ -14,6 +14,16 @@ row_padding = 4.0
 # fonts = ["C:/Users/you/AppData/Local/Microsoft/Windows/Fonts/HackGen35ConsoleNF-Regular.ttf"]
 fonts = []
 
+# Bold font files to try first. Without these, the "-Bold" sibling of the
+# regular font is used, then Meiryo / Yu Gothic Bold; if nothing is found,
+# bold text is faked by drawing it twice.
+# bold_fonts = ["C:/Users/you/AppData/Local/Microsoft/Windows/Fonts/HackGen35ConsoleNF-Bold.ttf"]
+bold_fonts = []
+
+# Show Markdown previews rendered (with a table of contents on wide panes)
+# rather than as highlighted source. `M` toggles this at runtime.
+render_markdown = true
+
 # auto  — Nerd Font icons when a Nerd Font was loaded, ASCII otherwise
 # nerd  — force Nerd Font icons
 # ascii — force the plain fallback

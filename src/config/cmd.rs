@@ -14,6 +14,21 @@ pub enum Step {
     Bot,
 }
 
+impl Step {
+    /// Where a cursor at `cursor` in a list of `len` ends up, never past
+    /// either end. `page` is the number of rows that fit on screen.
+    pub fn apply(self, cursor: usize, len: usize, page: usize) -> usize {
+        let last = len.saturating_sub(1) as i64;
+        let next = match self {
+            Step::Top => 0,
+            Step::Bot => last,
+            Step::Rel(n) => (cursor as i64).saturating_add(n),
+            Step::Pct(p) => (cursor as i64).saturating_add((page as i64).saturating_mul(p) / 100),
+        };
+        next.clamp(0, last) as usize
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct EscapeWhat {
     pub visual: bool,
@@ -36,6 +51,8 @@ pub enum CopyWhat {
     Dirname,
     Filename,
     NameWithoutExt,
+    /// The spot panel's selected value (yazi's `copy cell`).
+    Cell,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -60,6 +77,8 @@ pub enum Act {
     Suspend,
 
     Arrow(Step),
+    /// Spot the previous / next file (yazi's spot `swipe`).
+    Swipe(i64),
     Leave,
     Enter,
     Back,
@@ -112,6 +131,10 @@ pub enum Act {
     Help,
     TasksShow,
     Spot,
+    /// Switch Markdown between the rendered view and its source.
+    ToggleRender,
+    /// Hand the keys to the preview's outline (functions, headings) and back.
+    ToggleOutline,
 
     /// Built-in stand-ins for the plugins this config is likely to reference.
     MaxPreview,
@@ -243,6 +266,7 @@ pub fn parse(line: &str) -> Act {
         "suspend" => Act::Suspend,
 
         "arrow" => Act::Arrow(parse_step(a.first().unwrap_or("1"))),
+        "swipe" => Act::Swipe(a.first().and_then(|s| s.parse().ok()).unwrap_or(1)),
         "leave" => Act::Leave,
         "enter" => Act::Enter,
         "back" => Act::Back,
@@ -302,6 +326,7 @@ pub fn parse(line: &str) -> Act {
             Some("dirname") => CopyWhat::Dirname,
             Some("filename") => CopyWhat::Filename,
             Some("name_without_ext") => CopyWhat::NameWithoutExt,
+            Some("cell") => CopyWhat::Cell,
             _ => CopyWhat::Path,
         }),
         "shell" => Act::Shell {
@@ -343,6 +368,8 @@ pub fn parse(line: &str) -> Act {
         "help" => Act::Help,
         "tasks_show" => Act::TasksShow,
         "spot" => Act::Spot,
+        "toggle_render" => Act::ToggleRender,
+        "toggle_outline" => Act::ToggleOutline,
 
         "plugin" => plugin(&a.pos),
 
@@ -390,7 +417,8 @@ fn plugin(pos: &[String]) -> Act {
         ("bookmarks", "delete") => Act::BookmarkDelete,
         ("bookmarks", "delete_all") => Act::BookmarkDeleteAll,
         ("max-preview", _) => Act::MaxPreview,
-        ("smart-enter", _) => Act::Enter,
+        // Directories are entered, files opened — which is what `open` does.
+        ("smart-enter", _) => Act::Open { interactive: false, hovered: true },
         ("smart-filter", _) => Act::Filter { smart: true, insensitive: false },
         ("chmod", _) | ("mount", _) => Act::Unsupported(format!("plugin {name}")),
         _ => {
@@ -434,10 +462,26 @@ mod tests {
         assert_eq!(parse("tab_switch 1 --relative"), Act::TabSwitch { n: 1, relative: true });
         assert_eq!(parse("plugin toggle-pane max-preview"), Act::MaxPreview);
         assert_eq!(parse("plugin bookmarks jump"), Act::BookmarkJump);
+        assert_eq!(parse("toggle_render"), Act::ToggleRender);
+        assert_eq!(parse("toggle_outline"), Act::ToggleOutline);
+        assert_eq!(parse("plugin smart-enter"), Act::Open { interactive: false, hovered: true });
         assert!(matches!(parse("sort mtime --reverse"), Act::Sort {
             by: Some(SortBy::Mtime),
             reverse: Some(true),
             ..
         }));
+    }
+
+    #[test]
+    fn steps_stay_inside_the_list() {
+        assert_eq!(Step::Rel(1).apply(3, 5, 10), 4);
+        assert_eq!(Step::Rel(1).apply(4, 5, 10), 4);
+        assert_eq!(Step::Rel(-1).apply(0, 5, 10), 0);
+        assert_eq!(Step::Rel(i64::MAX).apply(2, 5, 10), 4);
+        assert_eq!(Step::Pct(50).apply(0, 100, 10), 5);
+        assert_eq!(Step::Pct(-100).apply(15, 100, 10), 5);
+        assert_eq!(Step::Top.apply(3, 5, 10), 0);
+        assert_eq!(Step::Bot.apply(0, 5, 10), 4);
+        assert_eq!(Step::Bot.apply(0, 0, 10), 0);
     }
 }

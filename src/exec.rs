@@ -67,6 +67,12 @@ fn rule_matches(rule: &crate::config::yazi::OpenRule, entry: &Entry, mime: &str)
 /// Windows (`%*`, `%0`) spellings are accepted, plus the `%s` that shows up in
 /// configs copied from elsewhere.
 pub fn substitute(template: &str, paths: &[PathBuf]) -> String {
+    substitute_with(template, paths, "")
+}
+
+/// [`substitute`], with `suffix` added to every path inside its quotes.
+fn substitute_with(template: &str, paths: &[PathBuf], suffix: &str) -> String {
+    let quote = |p: &Path| quote(p, suffix);
     let all = paths.iter().map(|p| quote(p)).collect::<Vec<_>>().join(" ");
     let mut out = String::with_capacity(template.len() + all.len());
     let bytes: Vec<char> = template.chars().collect();
@@ -102,12 +108,58 @@ pub fn substitute(template: &str, paths: &[PathBuf]) -> String {
     out.replace("\"\"", "\"")
 }
 
-fn quote(p: &Path) -> String {
+fn quote(p: &Path, suffix: &str) -> String {
     let s = p.to_string_lossy();
     if s.is_empty() {
         return "\"\"".into();
     }
-    format!("\"{}\"", s.replace('"', "\\\""))
+    format!("\"{}{suffix}\"", s.replace('"', "\\\""))
+}
+
+/// The opener's command line, at `line` when there is one and the editor
+/// takes it.
+pub fn command_line(run: &str, paths: &[PathBuf], line: Option<usize>) -> String {
+    line.and_then(|n| at_line(run, paths, n)).unwrap_or_else(|| substitute(run, paths))
+}
+
+/// How an editor is told which line to open at.
+enum LineArg {
+    /// `nvim +12 file`
+    Plus,
+    /// `code -g file:12`
+    Goto,
+    /// `hx file:12`
+    Colon,
+}
+
+/// The opener's command line, opening `paths` at `line` (1-based) when the
+/// program is an editor known to take a line; `None` when it is not.
+pub fn at_line(run: &str, paths: &[PathBuf], line: usize) -> Option<String> {
+    let run = run.trim_start();
+    // The program is the first token, quoted or not.
+    let end = match run.strip_prefix('"') {
+        Some(rest) => rest.find('"').map_or(run.len(), |i| i + 2),
+        None => run.find(char::is_whitespace).unwrap_or(run.len()),
+    };
+    let program = run[..end].trim_matches('"');
+    let name = Path::new(program).file_name()?.to_string_lossy().to_ascii_lowercase();
+    let name = [".exe", ".cmd", ".bat"]
+        .iter()
+        .find_map(|x| name.strip_suffix(x))
+        .unwrap_or(&name);
+    let how = match name {
+        "nvim" | "vim" | "vi" | "gvim" | "nano" | "emacs" | "emacsclient" | "micro" | "kak" => LineArg::Plus,
+        "code" | "code-insiders" | "codium" | "cursor" | "windsurf" => LineArg::Goto,
+        "hx" | "helix" | "subl" | "zed" => LineArg::Colon,
+        _ => return None,
+    };
+    let (head, tail) = run.split_at(end);
+    let colon = format!(":{line}");
+    Some(match how {
+        LineArg::Plus => substitute(&format!("{head} +{line}{tail}"), paths),
+        LineArg::Goto => substitute_with(&format!("{head} -g{tail}"), paths, &colon),
+        LineArg::Colon => substitute_with(run, paths, &colon),
+    })
 }
 
 /// Run a command line through the platform shell.
@@ -183,5 +235,21 @@ mod tests {
         assert_eq!(substitute("mpv $0", &paths), "mpv \"C:\\a b\\x.txt\"");
         // No placeholder at all: append the paths.
         assert_eq!(substitute("explorer", &paths), "explorer \"C:\\a b\\x.txt\"");
+    }
+
+    #[test]
+    fn opens_editors_at_a_line() {
+        let paths = vec![PathBuf::from(r"C:\a b\x.rs")];
+        let at = |run| at_line(run, &paths, 12);
+        assert_eq!(at("nvim %s").as_deref(), Some(r#"nvim +12 "C:\a b\x.rs""#));
+        assert_eq!(at("code %*").as_deref(), Some(r#"code -g "C:\a b\x.rs:12""#));
+        assert_eq!(at(r#"hx "$@""#).as_deref(), Some(r#"hx "C:\a b\x.rs:12""#));
+        assert_eq!(at("Code.CMD").as_deref(), Some(r#"Code.CMD -g "C:\a b\x.rs:12""#));
+        assert_eq!(
+            at(r#""C:\Program Files\Neovim\bin\nvim.exe" -O %s"#).as_deref(),
+            Some(r#""C:\Program Files\Neovim\bin\nvim.exe" +12 -O "C:\a b\x.rs""#)
+        );
+        assert_eq!(at("explorer %s"), None);
+        assert_eq!(at(""), None);
     }
 }

@@ -149,24 +149,9 @@ impl Folder {
 
     /// Move the cursor. `page` is the number of rows that fit on screen.
     pub fn arrow(&mut self, step: Step, page: usize) {
-        if self.view.is_empty() {
-            return;
+        if !self.view.is_empty() {
+            self.cursor = step.apply(self.cursor, self.view.len(), page);
         }
-        let last = self.view.len() - 1;
-        let delta = match step {
-            Step::Top => {
-                self.cursor = 0;
-                return;
-            }
-            Step::Bot => {
-                self.cursor = last;
-                return;
-            }
-            Step::Rel(n) => n,
-            Step::Pct(p) => (page as i64 * p) / 100,
-        };
-        let next = self.cursor as i64 + delta;
-        self.cursor = next.clamp(0, last as i64) as usize;
     }
 
     /// Keep `scrolloff` rows of context around the cursor.

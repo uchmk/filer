@@ -46,6 +46,12 @@ pub struct Ui {
     pub row_padding: f32,
     /// Explicit font file paths, tried in order before the built-in list.
     pub fonts: Vec<String>,
+    /// Bold faces, tried before the `-Bold` siblings of whatever `fonts`
+    /// resolved to. Without any, bold is faked by overstriking.
+    pub bold_fonts: Vec<String>,
+    /// Show Markdown laid out for reading (with an outline) instead of as
+    /// highlighted source; `toggle_render` flips it at runtime.
+    pub render_markdown: bool,
     /// `auto`, `nerd`, `ascii` or `none`.
     pub icons: String,
     pub animations: bool,
@@ -64,6 +70,8 @@ impl Default for Ui {
             font_size: 14.0,
             row_padding: 4.0,
             fonts: Vec::new(),
+            bold_fonts: Vec::new(),
+            render_markdown: true,
             icons: "auto".into(),
             animations: false,
             preview_debounce_ms: 40,

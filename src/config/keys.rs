@@ -150,6 +150,13 @@ impl Key {
                 }
             }
         };
+        // Shift+Tab arrives as BackTab with shift held, whichever way the
+        // config spells it: `<BackTab>`, `<S-Tab>` or `<S-BackTab>`.
+        let backtab = Code::Named(Named::BackTab);
+        if key.code == backtab || (key.code == Code::Named(Named::Tab) && key.shift) {
+            key.code = backtab;
+            key.shift = true;
+        }
         Some(key)
     }
 }
@@ -190,7 +197,8 @@ impl fmt::Display for Key {
                 if self.alt {
                     write!(f, "A-")?;
                 }
-                if self.shift {
+                // BackTab is Shift+Tab already.
+                if self.shift && self.code != Code::Named(Named::BackTab) {
                     write!(f, "S-")?;
                 }
                 if self.sup {
@@ -351,9 +359,21 @@ mod tests {
 
     #[test]
     fn round_trips() {
-        for s in ["a", "<C-a>", "<Enter>", "<Space>", "<F12>", "<A-S-Left>"] {
+        for s in ["a", "<C-a>", "<Enter>", "<Space>", "<F12>", "<A-S-Left>", "<BackTab>", "<C-BackTab>"] {
             let k = Key::parse(s).unwrap();
             assert_eq!(Key::parse(&k.to_string()), Some(k), "{s}");
         }
+    }
+
+    #[test]
+    fn shift_tab_matches_however_it_is_written() {
+        let pressed = from_egui(egui::Key::Tab, &egui::Modifiers::SHIFT);
+        for s in ["<BackTab>", "<S-Tab>", "<S-BackTab>", "<s-tab>"] {
+            let k = Key::parse(s);
+            assert_eq!(k, pressed, "{s}");
+            assert_eq!(k.unwrap().to_string(), "<BackTab>", "{s}");
+        }
+        // Plain Tab stays Tab.
+        assert_eq!(Key::parse("<Tab>"), from_egui(egui::Key::Tab, &egui::Modifiers::NONE));
     }
 }

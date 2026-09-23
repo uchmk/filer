@@ -85,7 +85,7 @@ desc = "Go back to the parent directory"
 [[mgr.keymap]]
 on = "l"
 run = "enter"
-desc = "Enter the child directory"
+desc = "Enter the directory, or focus the file's outline"
 [[mgr.keymap]]
 on = "<Left>"
 run = "leave"
@@ -93,7 +93,7 @@ desc = "Go back to the parent directory"
 [[mgr.keymap]]
 on = "<Right>"
 run = "enter"
-desc = "Enter the child directory"
+desc = "Enter the directory, or focus the file's outline"
 [[mgr.keymap]]
 on = "<Backspace>"
 run = "leave"
@@ -119,6 +119,18 @@ desc = "Scroll the preview up"
 on = "<A-j>"
 run = "seek 5"
 desc = "Scroll the preview down"
+[[mgr.keymap]]
+on = "M"
+run = "toggle_render"
+desc = "Switch Markdown preview between rendered and source"
+[[mgr.keymap]]
+on = "<BackTab>"
+run = "toggle_outline"
+desc = "Focus the preview's outline (functions / headings)"
+[[mgr.keymap]]
+on = "<Tab>"
+run = "spot"
+desc = "Spot hovered file"
 
 # --- Selection ----------------------------------------------------------------
 
@@ -516,3 +528,51 @@ desc = "Close the task manager"
 on = "<Esc>"
 run = "close"
 desc = "Close the spotter"
+[[spot.keymap]]
+on = "<Tab>"
+run = "close"
+desc = "Close the spotter"
+[[spot.keymap]]
+on = "q"
+run = "close"
+desc = "Close the spotter"
+[[spot.keymap]]
+on = "k"
+run = "arrow -1"
+desc = "Previous line"
+[[spot.keymap]]
+on = "j"
+run = "arrow 1"
+desc = "Next line"
+[[spot.keymap]]
+on = "h"
+run = "swipe -1"
+desc = "Swipe to the previous file"
+[[spot.keymap]]
+on = "l"
+run = "swipe 1"
+desc = "Swipe to the next file"
+[[spot.keymap]]
+on = "c"
+run = "copy cell"
+desc = "Copy the selected value"
+[[spot.keymap]]
+on = "<Up>"
+run = "arrow -1"
+desc = "Previous line"
+[[spot.keymap]]
+on = "<Down>"
+run = "arrow 1"
+desc = "Next line"
+[[spot.keymap]]
+on = "<Left>"
+run = "swipe -1"
+desc = "Swipe to the previous file"
+[[spot.keymap]]
+on = "<Right>"
+run = "swipe 1"
+desc = "Swipe to the next file"
+[[spot.keymap]]
+on = "y"
+run = "copy cell"
+desc = "Copy the selected value"

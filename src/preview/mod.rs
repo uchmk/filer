@@ -11,8 +11,16 @@ use std::time::SystemTime;
 
 use crossbeam_channel::{Receiver, Sender};
 
+mod font_preview;
 mod image_preview;
+mod markdown;
+mod shell_thumb;
+mod svg_preview;
+mod symbols;
 mod text;
+
+/// COM for a worker thread that talks to the Windows shell.
+pub use shell_thumb::init_thread as init_com_thread;
 
 /// Identity of a preview: re-reading is only needed when one of these changes.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -22,6 +30,8 @@ pub struct Key {
     pub mtime: Option<SystemTime>,
     /// Images are decoded for a specific box size.
     pub box_size: (u32, u32),
+    /// Text columns across the pane; rendered Markdown is wrapped to fit.
+    pub cols: u16,
 }
 
 #[derive(Debug)]
@@ -35,18 +45,101 @@ pub struct Request {
     pub syntect_theme: String,
 }
 
-/// A run of text sharing one color.
-#[derive(Clone, Debug)]
+/// A run of text sharing one style.
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Span {
     pub text: String,
     pub color: Option<[u8; 3]>,
+    pub bold: bool,
+    pub italic: bool,
+    pub strike: bool,
+    pub underline: bool,
+    /// Inline code, painted on a tinted background.
+    pub code: bool,
+}
+
+/// Markdown laid out for reading. Lines are already wrapped to `body_cols`,
+/// and each span starts at the column the widths before it add up to, so the
+/// UI can place spans on a cell grid even where glyph widths disagree.
+#[derive(Clone, Debug, Default)]
+pub struct Doc {
+    pub lines: Vec<DocLine>,
+    pub toc: Vec<TocEntry>,
+    /// Width of the outline column; 0 when the pane is too narrow for one.
+    pub toc_cols: u16,
+    pub body_cols: u16,
+}
+
+impl Doc {
+    /// The source line a rendered line came from.
+    pub fn src_for_line(&self, line: usize) -> usize {
+        self.lines.get(line).or(self.lines.last()).map_or(0, |l| l.src)
+    }
+
+    /// The first rendered line of the block holding a source line (or of the
+    /// nearest one above it, for blank source lines).
+    pub fn line_for_src(&self, src: usize) -> usize {
+        let Some(last) = self.lines.iter().rposition(|l| l.src <= src) else { return 0 };
+        let at = self.lines[last].src;
+        self.lines[..last].iter().rposition(|l| l.src != at).map_or(0, |i| i + 1)
+    }
+}
+
+/// Columns a string takes on the cell grid, with CJK characters counting two.
+pub fn cells(s: &str) -> usize {
+    use unicode_width::UnicodeWidthChar;
+    s.chars().map(|c| c.width().unwrap_or(0)).sum()
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct DocLine {
+    pub spans: Vec<Span>,
+    pub kind: LineKind,
+    /// Columns taken by quote bars and list markers; code bands and rules
+    /// start here.
+    pub indent: u16,
+    /// 0-based line in the source this came from.
+    pub src: usize,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LineKind {
+    #[default]
+    Text,
+    /// Last line of a heading, which H1 and H2 underline.
+    Heading(u8),
+    Code,
+    Rule,
+}
+
+/// A line of an outline: a Markdown heading, or a declaration in source code.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TocEntry {
+    /// 1 for the outermost entries.
+    pub level: u8,
+    /// Indented already; the UI elides whatever doesn't fit.
+    pub label: String,
+    /// Line it jumps to: the first rendered line of a heading, or the source
+    /// line of a declaration.
+    pub line: usize,
+}
+
+/// Width of an outline column whose widest label takes `widest` cells, in a
+/// pane `cols` wide.
+pub fn outline_cols(widest: usize, cols: u16) -> u16 {
+    let max = 32.min(cols / 3);
+    (widest.min(100) as u16 + 1).clamp(16.min(max), max)
 }
 
 #[derive(Clone, Debug)]
 pub enum Payload {
-    Text { lines: Vec<Vec<Span>>, truncated: bool, total_lines: usize },
-    /// Raw RGBA plus its dimensions; the UI turns this into a texture.
-    Image { width: u32, height: u32, rgba: Arc<Vec<u8>>, source: (u32, u32) },
+    /// `outline` lists the declarations of source code, if its grammar marks any.
+    Text { lines: Vec<Vec<Span>>, truncated: bool, total_lines: usize, outline: Vec<TocEntry> },
+    /// Markdown carries both views so switching between them needs no reload.
+    Markdown { doc: Doc, source: Vec<Vec<Span>>, truncated: bool, total_lines: usize },
+    /// Raw RGBA plus its dimensions; the UI turns this into a texture. The
+    /// caption goes under it (the source size, a font's name, ...).
+    Image { width: u32, height: u32, rgba: Arc<Vec<u8>>, caption: String },
     Binary { lines: Vec<String>, total: u64 },
     Meta { rows: Vec<(String, String)> },
     Error(String),
@@ -71,6 +164,7 @@ impl Previewer {
         std::thread::Builder::new()
             .name("preview".into())
             .spawn(move || {
+                shell_thumb::init_thread();
                 let mut syntax = text::Highlighter::default();
                 while let Ok(req) = req_rx.recv() {
                     // Skip anything already superseded while we were busy.
@@ -101,6 +195,9 @@ fn render(req: &Request, syntax: &mut text::Highlighter) -> Payload {
     let path = &req.key.path;
     let mime = req.mime;
 
+    if mime == "image/svg+xml" {
+        return svg_preview::render(path, req.key.box_size).unwrap_or_else(Payload::Error);
+    }
     if crate::mime::is_image(mime) {
         if crate::mime::is_decodable_image(mime) {
             return match image_preview::render(path, req.key.box_size) {
@@ -108,7 +205,23 @@ fn render(req: &Request, syntax: &mut text::Highlighter) -> Payload {
                 Err(e) => Payload::Error(e),
             };
         }
-        return meta(path, req, "Image preview not supported for this format");
+        return thumbnail(path, req, "No thumbnail handler (HEIC / AVIF need the HEIF / AV1 extensions)");
+    }
+    if mime.starts_with("video/") {
+        return thumbnail(path, req, "No video thumbnail (codec not installed?)");
+    }
+    if mime.starts_with("audio/") {
+        return thumbnail(path, req, "No cover art");
+    }
+    if mime == "application/pdf" {
+        return thumbnail(path, req, "No PDF thumbnail handler (Acrobat Reader or PowerToys add one)");
+    }
+
+    if mime == "font/sfnt" {
+        return match req.ext.as_deref() {
+            Some("woff" | "woff2") => meta(path, req, "WOFF fonts are compressed; not previewed"),
+            _ => font_preview::render(path, req.key.box_size).unwrap_or_else(Payload::Error),
+        };
     }
 
     let head = match read_head(path, req.max_bytes.max(4096)) {
@@ -172,6 +285,11 @@ fn binary(path: &std::path::Path, head: &[u8]) -> Payload {
         lines.push(s);
     }
     Payload::Binary { lines, total }
+}
+
+/// The shell's thumbnail, or a metadata card saying why there is none.
+fn thumbnail(path: &std::path::Path, req: &Request, note: &str) -> Payload {
+    shell_thumb::render(path, req.key.box_size).unwrap_or_else(|_| meta(path, req, note))
 }
 
 fn meta(path: &std::path::Path, _req: &Request, note: &str) -> Payload {
