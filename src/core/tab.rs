@@ -1,5 +1,5 @@
 use std::collections::{BTreeSet, HashMap};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::fs::SortSpec;
 
@@ -19,6 +19,32 @@ pub struct Finder {
     pub query: String,
     pub case_sensitive: bool,
     pub prev: bool,
+}
+
+/// A jump whose directory has not been listed yet. Nothing on disk is touched
+/// before a jump — a share that stopped answering can sit on `is_dir` for half
+/// a minute — so the background scan is what confirms the tab may stay.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PendingCd {
+    /// Where the tab sat before the jump, and where it returns if the scan fails.
+    pub from: PathBuf,
+    /// The jump pushed `from` onto `back`, so undoing it pops that entry.
+    pub pushed: bool,
+    /// Try the parent once before giving up. Set for a path someone typed,
+    /// which may well name a file rather than a directory.
+    pub fallback: bool,
+}
+
+/// What a failed listing does to the tab that asked for it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CdFallout {
+    /// The tab had listed this directory before; leave it on screen with the error.
+    Keep,
+    /// Show `to` instead; the name that failed is already in `memo`, so the
+    /// cursor lands on it whenever the listing arrives.
+    Reveal { to: PathBuf, pending: PendingCd },
+    /// Put the tab back where it started and report the error.
+    Revert { to: PathBuf },
 }
 
 pub struct Tab {
@@ -41,6 +67,8 @@ pub struct Tab {
     pub preview_offset: usize,
     /// Rows that fit in the list, measured by the renderer each frame.
     pub page_rows: usize,
+    /// The jump this tab is still waiting on, if any.
+    pub pending_cd: Option<PendingCd>,
 }
 
 impl Tab {
@@ -61,7 +89,26 @@ impl Tab {
             linemode,
             preview_offset: 0,
             page_rows: 20,
+            pending_cd: None,
         }
+    }
+
+    /// Decide what a failed listing of `cwd` means. The tab answers once: the
+    /// pending jump is spent either way, so a second failure cannot loop.
+    pub fn cd_failed(&mut self) -> CdFallout {
+        let Some(p) = self.pending_cd.take() else { return CdFallout::Keep };
+        if p.fallback {
+            if let Some(to) = self.cwd.parent().map(Path::to_path_buf) {
+                // `cd C:\dir\file.txt` means "show me that file".
+                let name = crate::util::file_name(&self.cwd);
+                self.memo.insert(to.clone(), name);
+                return CdFallout::Reveal { to, pending: PendingCd { fallback: false, ..p } };
+            }
+        }
+        if p.pushed {
+            self.back.pop();
+        }
+        CdFallout::Revert { to: p.from }
     }
 
     pub fn name(&self) -> String {
@@ -237,6 +284,52 @@ mod tests {
     /// The selection as the names it holds, in order.
     fn names(t: &Tab) -> Vec<String> {
         t.selected.iter().map(|p| crate::util::file_name(p)).collect()
+    }
+
+    /// The tab as `cd` leaves it: parked on `to`, waiting for its listing.
+    fn jumped(from: &str, to: &str, fallback: bool) -> Tab {
+        let mut t = Tab::new(PathBuf::from(to), SortSpec::default(), true, String::new());
+        t.back.push(PathBuf::from(from));
+        t.pending_cd =
+            Some(PendingCd { from: PathBuf::from(from), pushed: true, fallback });
+        t
+    }
+
+    #[test]
+    fn a_jump_that_never_listed_is_undone() {
+        let mut t = jumped("/a", "//dead/share", false);
+        assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/a") });
+        // The history entry the jump pushed goes with it.
+        assert!(t.back.is_empty());
+        assert!(t.pending_cd.is_none());
+    }
+
+    #[test]
+    fn a_directory_already_listed_keeps_its_error() {
+        let mut t = Tab::new(PathBuf::from("/a"), SortSpec::default(), true, String::new());
+        assert_eq!(t.cd_failed(), CdFallout::Keep);
+    }
+
+    #[test]
+    fn a_typed_path_that_names_a_file_falls_back_to_the_parent() {
+        let mut t = jumped("/a", "/b/note.txt", true);
+        let fallout = t.cd_failed();
+        assert_eq!(
+            fallout,
+            CdFallout::Reveal {
+                to: PathBuf::from("/b"),
+                pending: PendingCd { from: PathBuf::from("/a"), pushed: true, fallback: false },
+            }
+        );
+        // The cursor lands on the file once `/b` answers.
+        assert_eq!(t.memo.get(&PathBuf::from("/b")).map(String::as_str), Some("note.txt"));
+
+        // `/b` failing too is the end of it: the tab goes home, no third try.
+        let CdFallout::Reveal { to, pending } = fallout else { unreachable!() };
+        t.cwd = to;
+        t.pending_cd = Some(pending);
+        assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/a") });
+        assert!(t.back.is_empty());
     }
 
     #[test]

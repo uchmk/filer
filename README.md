@@ -284,8 +284,13 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
 - `\\host` on its own names no share, so there is nothing to list; filer reports the host you
   typed rather than silently dropping you at `\host` on the current drive. Enumerating a host's
   shares is not implemented — give the share name.
-- Slow or disconnected shares are not handled specially yet: listing runs on the scan pool so the
-  window keeps drawing, but the folder stays on *Loading* until the OS gives up.
+- A slow or disconnected share never blocks the window. Nothing on disk is checked before a jump —
+  `is_dir` on a dead share can sit for half a minute — so the tab moves at once, shows *Loading*,
+  and the scan pool has the last word. If the listing never arrives the tab returns to where it
+  was and the error appears as a toast; the same undo covers a path that was deleted, refused or
+  simply mistyped.
+- Typing a file's path into the `cd` prompt still lands on its folder with that file under the
+  cursor — that answer now comes from the scan rather than from a blocking check.
 
 ## Known limits
 

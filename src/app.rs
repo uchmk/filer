@@ -15,7 +15,7 @@ use crate::config::keys::{Code, Key};
 use crate::config::{keymap, Config};
 use crate::core::folder::{Filter, Folder, LoadState};
 use crate::core::fuzzy;
-use crate::core::tab::{Finder, Tab};
+use crate::core::tab::{CdFallout, Finder, PendingCd, Tab};
 use crate::exec;
 use crate::fs::ops::{self, OpKind, OpRequest, Resolution};
 use crate::fs::scan::{ScanResult, Scanner};
@@ -625,6 +625,16 @@ impl App {
             }
             ScanResult::Failed { id, path, error } => {
                 self.inflight.remove(&id);
+                // A jump that was never listed is undone first: the tab goes
+                // back where it was instead of showing an empty error column.
+                let jumped = self
+                    .pane_tabs()
+                    .into_iter()
+                    .find(|&i| self.tabs[i].cwd == path && self.tabs[i].pending_cd.is_some());
+                if let Some(idx) = jumped {
+                    self.undo_cd(idx, &path, &error);
+                    return;
+                }
                 let mut hit = false;
                 for idx in self.pane_tabs() {
                     if self.tabs[idx].cwd != path {
@@ -666,6 +676,8 @@ impl App {
         let memo = self.tabs[self.active].memo.get(path).cloned();
 
         if self.tabs[self.active].cwd == path {
+            // The directory answered, so the jump that led here stands.
+            self.tabs[self.active].pending_cd = None;
             let keep = self.tabs[self.active].current.hovered_name().map(str::to_owned);
             let filter = self.tabs[self.active].current.filter.clone();
             let cursor = self.tabs[self.active].current.cursor;
@@ -717,6 +729,7 @@ impl App {
             if i == self.active || tab.cwd != path {
                 continue;
             }
+            tab.pending_cd = None;
             let keep = tab.current.hovered_name().map(str::to_owned);
             tab.current.entries = entries.clone();
             tab.current.state = LoadState::Ready;
@@ -1058,52 +1071,42 @@ impl App {
     // ------------------------------------------------------------ navigation
 
     pub fn cd(&mut self, target: PathBuf, push_history: bool) {
+        self.cd_inner(target, push_history, false);
+    }
+
+    /// `cd` for a path someone typed. If it turns out to name a file, the tab
+    /// lands on the parent with that file under the cursor.
+    fn cd_or_reveal(&mut self, target: PathBuf) {
+        self.cd_inner(target, true, true);
+    }
+
+    /// Move the focused tab to `target`.
+    ///
+    /// No directory check happens here: on a share that stopped answering,
+    /// `is_dir` can block for half a minute, and the UI thread cannot wait.
+    /// The tab moves at once and the background scan has the last word —
+    /// `Tab::cd_failed` decides what to do when the listing never arrives.
+    fn cd_inner(&mut self, target: PathBuf, push_history: bool, fallback: bool) {
         let target = util::normalize(&target);
-        if !target.is_dir() {
-            self.error(format!("Not a directory: {}", target.display()));
-            return;
-        }
         if self.tabs[self.active].cwd == target {
             return;
         }
-        let show_hidden = self.tabs[self.active].show_hidden;
+        let from = self.tabs[self.active].cwd.clone();
         {
             let tab = &mut self.tabs[self.active];
             tab.remember_cursor();
             if push_history {
-                let old = std::mem::replace(&mut tab.cwd, target.clone());
-                tab.back.push(old);
+                tab.back.push(from.clone());
                 tab.forward.clear();
-            } else {
-                tab.cwd = target.clone();
             }
             tab.visual = None;
             tab.mouse_range = None;
             tab.finder = None;
-            tab.preview_offset = 0;
         }
 
-        let cur = match self.cache.get(&target) {
-            Some(entries) => Folder::from_entries(target.clone(), entries.clone(), show_hidden),
-            None => Folder::loading(target.clone(), None),
-        };
-        self.tabs[self.active].current = cur;
-        self.tabs[self.active].recall_cursor();
-
-        let parent = target.parent().map(Path::to_path_buf);
-        self.tabs[self.active].parent = parent.map(|p| match self.cache.get(&p) {
-            Some(entries) => {
-                let mut f = Folder::from_entries(p.clone(), entries.clone(), show_hidden);
-                f.select_name(&util::file_name(&target));
-                f
-            }
-            None => Folder::loading(p, None),
-        });
-
-        self.preview.state = PreviewState::Empty;
-        self.preview.key = None;
-        self.preview.texture = None;
-        self.preview.pending_since = None;
+        let active = self.active;
+        let pending = PendingCd { from, pushed: push_history, fallback };
+        self.arrive(active, target.clone(), Some(pending));
 
         self.remember_history(&target);
         self.kick_scans();
@@ -1112,6 +1115,58 @@ impl App {
             let sort = self.tabs[self.active].sort;
             let id = self.scanner.scan(target.clone(), sort);
             self.inflight.insert(id, target);
+        }
+    }
+
+    /// Put a tab on `target` and show whatever the cache already holds.
+    /// `pending` survives only while the listing is still missing: a cached
+    /// directory was listed before and needs no second opinion.
+    fn arrive(&mut self, idx: usize, target: PathBuf, pending: Option<PendingCd>) {
+        let show_hidden = self.tabs[idx].show_hidden;
+        let cur = match self.cache.get(&target) {
+            Some(entries) => Folder::from_entries(target.clone(), entries.clone(), show_hidden),
+            None => Folder::loading(target.clone(), None),
+        };
+        self.tabs[idx].cwd = target.clone();
+        self.tabs[idx].current = cur;
+        self.tabs[idx].preview_offset = 0;
+        self.tabs[idx].recall_cursor();
+
+        let parent = target.parent().map(Path::to_path_buf);
+        self.tabs[idx].parent = parent.map(|p| match self.cache.get(&p) {
+            Some(entries) => {
+                let mut f = Folder::from_entries(p.clone(), entries.clone(), show_hidden);
+                f.select_name(&util::file_name(&target));
+                f
+            }
+            None => Folder::loading(p, None),
+        });
+
+        let listed = self.tabs[idx].current.state != LoadState::Loading;
+        self.tabs[idx].pending_cd = pending.filter(|_| !listed);
+
+        if idx == self.active {
+            self.preview.state = PreviewState::Empty;
+            self.preview.key = None;
+            self.preview.texture = None;
+            self.preview.pending_since = None;
+        }
+    }
+
+    /// A jump whose listing never arrived: undo it rather than leave the tab
+    /// parked on a path that did not answer.
+    fn undo_cd(&mut self, idx: usize, path: &Path, error: &str) {
+        match self.tabs[idx].cd_failed() {
+            CdFallout::Keep => {}
+            CdFallout::Reveal { to, pending } => {
+                self.arrive(idx, to, Some(pending));
+                self.kick_scans();
+            }
+            CdFallout::Revert { to } => {
+                self.arrive(idx, to, None);
+                self.kick_scans();
+                self.error(format!("{}: {error}", path.display()));
+            }
         }
     }
 
@@ -1994,16 +2049,7 @@ impl App {
             InputKind::Cd => {
                 if !text.is_empty() {
                     let base = self.tabs[self.active].cwd.clone();
-                    let p = util::resolve_against(&base, &text);
-                    if p.is_dir() {
-                        self.cd(p, true);
-                    } else if let Some(dir) = p.parent().filter(|d| d.is_dir()) {
-                        let name = util::file_name(&p);
-                        self.cd(dir.to_path_buf(), true);
-                        self.tabs[self.active].current.select_name(&name);
-                    } else {
-                        self.error(format!("No such directory: {}", p.display()));
-                    }
+                    self.cd_or_reveal(util::resolve_against(&base, &text));
                 }
             }
             InputKind::Shell { block } => {
