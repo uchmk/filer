@@ -302,8 +302,9 @@ mod tests {
     /// the flags and the parsing agree with the version installed.
     #[test]
     fn a_real_repository_reports_what_was_done_to_it() {
-        let root =
-            std::env::temp_dir().join(format!("filer-git-{}-{:?}", std::process::id(), "status"));
+        // Plain characters only: `"` and `:` are legal in a Unix path and not
+        // in a Windows one, and CI is where that difference shows up.
+        let root = std::env::temp_dir().join(format!("filer-git-status-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("sub")).unwrap();
 
