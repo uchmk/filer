@@ -260,12 +260,18 @@ rather than another set of bindings. Only what the `[term]` keymap section binds
 
 | Key | |
 | --- | --- |
-| `<C-t>` | close the pane and the shell with it |
-| `<C-S-t>` | give the keys back to the list, leaving the shell running |
+| `<C-t>` | give the keys back to the list, leaving the shell running |
+| `<C-S-t>` | close the pane and end the shell |
+| `<F1>` `<C-S-p>` | the key list / the command palette |
 | `<A-Up>` | put the file list where the shell is |
 | `<S-PageUp>` `<S-PageDown>` | half a screen back / forward through the scrollback |
 | `<S-Home>` `<S-End>` | to the top of the scrollback / back to the bottom |
 | `<C-S-f>` `<C-S-n>` `<C-S-b>` | find in the scrollback / next match / previous |
+
+`<C-t>` is the way in and the way back out, and it leaves the shell alone: going to and fro is
+something you do all day, while ending a shell is something you do a few times, so the destructive
+one is the harder chord. The shell's own `<C-t>` — readline's transpose, or fzf's file widget — is
+the cost of that, and moving it is one line of `keymap.toml` away.
 
 `Shift` is what keeps those out of the shell's way: a program reading the keyboard sees `PageUp`,
 never `Shift`+`PageUp`. Typing anything brings the view back to the bottom, and while it is not
@@ -476,8 +482,8 @@ entries are listed and the pane says when there are more.
 
 ## Scrolling the preview, and the minimap
 
-The preview scrolls without the file list losing the cursor: `<A-k>` / `<A-j>`, or `K` / `J`, or the
-wheel with the pointer over it. Only the lines on screen are ever drawn, and only the first
+The preview scrolls without the file list losing the cursor: `<A-k>` / `<A-j>`, or the wheel with the
+pointer over it. Only the lines on screen are ever drawn, and only the first
 256 KiB of a file is read at all (`max_text_bytes`), so a huge log opens as fast as a short one.
 
 There is no scrollbar — this is a pane of lines, not a `ScrollArea`, because measuring ten thousand
@@ -547,10 +553,10 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `h` `j` `k` `l` | parent / down / up / enter the directory or the file's outline (arrows work too) |
 | `gg` `G` `<C-u>` `<C-d>` `<C-b>` `<C-f>` | top / bottom / half page / full page |
 | `H` `L` | back / forward in history |
-| `<Space>` `v` `V` `<C-a>` `<C-r>` | toggle / visual / visual-unset / select all / invert |
+| `<Space>` `v` `V` `<C-a>` `<C-S-r>` | toggle / visual / visual-unset / select all / invert |
 | `y` `x` `Y` `p` `P` `-` `_` `<C-->` | yank / cut / cancel the yank / paste / paste-force / symlink / relative symlink / hardlink |
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
-| `u` `U` | undo the last rename or delete / do it again |
+| `u` `U` (or `<C-r>`) | undo the last rename or delete / do it again |
 | `a` `r` | create (trailing `/` makes a directory) / rename |
 | `R` | bulk rename: one rule over everything selected, previewed as you type |
 | `<A-d>` | compare two files side by side |
@@ -563,14 +569,14 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter |
 | `s` `S` `<C-s>` | search by name / by content / stop |
 | `z` | fuzzy-jump to a bookmark or recent directory |
-| `b` `B` `<A-b>` | go to a bookmark / set one / delete one (then press its letter) |
+| `b` (or `'`) `B` `<A-b>` | go to a bookmark / set one / delete one (then press its letter) |
 | `.` `,…` `m…` | hidden files / sort menu / line-mode menu |
 | `t` `1`–`9` `[` `]` `{` `}` `<C-c>` | new tab / switch / previous / next / move it left / right / close it (quits on the last) |
 | `<F5>` `<C-F5>` | re-read the current directory / re-read the config files |
 | `<C-w>` `<C-S-w>` | split the view in two panes / move between them, close the split |
 | `;` `:` | shell command / blocking shell command |
-| `<C-t>` `<A-t>` | terminal pane / type the selection into it |
-| `<A-k>` `<A-j>` (or `K` `J`) | scroll the preview, without moving the list's cursor |
+| `<C-t>` `<C-S-t>` `<A-t>` | terminal: keys in and back out / end the shell / type the selection into it |
+| `<A-k>` `<A-j>` | scroll the preview, without moving the list's cursor |
 | `M` | Markdown rendered ↔ source |
 | `<A-i>` `<A-o>` `<A-0>` `<A-1>` | image: zoom in / out / fit the pane / 1:1 |
 | `<A-n>` | show or hide the preview's minimap |
@@ -579,6 +585,40 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `<C-S-p>` | command palette: fuzzy-search every key binding and run it |
 | `<S-F10>` | context menu for the file under the cursor |
 | `w` `q` | tasks (`p` pause, `x` cancel, `t` to the front) / quit |
+
+### Coming from yazi, lf or vim
+
+The defaults are yazi's wherever yazi has one, so a yazi user needs to learn almost nothing: the
+movement, selection, yank and paste, search, tabs, sort and line-mode keys are all the same. The
+movement is vim's too, and `<C-w>` moves between panes as it moves between windows.
+
+Two places knowingly differ, both for the same reason — a reflex too widespread to give up:
+
+- **`<C-r>` is redo**, not "invert the selection". That is yazi's key for inverting; it moves one
+  modifier over, to `<C-S-r>`. `U` also redoes, which is what was here first.
+- **`u` undoes.** In lf that key clears the selection.
+
+The rest of the friction is lf's own vocabulary, which is a different family from yazi's. If your
+fingers came from there, these six lines put them back — `prepend_keymap` is read before the
+defaults, so nothing has to be deleted:
+
+```toml
+# ~/.config/filer/keymap.toml (or %APPDATA%\filer\keymap.toml)
+[[mgr.prepend_keymap]]
+on = "d"                 # lf: cut, not delete
+run = "yank --cut"
+[[mgr.prepend_keymap]]
+on = "e"                 # lf: open in the editor, not extract
+run = "open"
+[[mgr.prepend_keymap]]
+on = "u"                 # lf: clear the selection, not undo
+run = "escape --select"
+```
+
+The differences worth knowing before you do that: here `d` sends to the recycle bin and `x` cuts
+(lf has `d` cut and no delete), `f` filters the listing (lf and vim jump to a character), `;` runs
+a shell command (lf repeats the character jump), and `e` / `E` unpack and pack. Every one of them is
+one `prepend_keymap` entry away from whatever you would rather it was.
 
 Mouse works too: click to move the cursor, double-click to open, right-click for the context
 menu, drag onto the other pane to copy there, wheel to scroll. `Shift`+click selects from the cursor to the row you clicked, and

@@ -131,17 +131,6 @@ on = "<A-j>"
 run = "seek 5"
 desc = "Scroll the preview down"
 
-# Shift+J / K do the same as the Alt pair: the preview scrolls without the
-# list's cursor moving either way.
-[[mgr.keymap]]
-on = "K"
-run = "seek -5"
-desc = "Scroll the preview up"
-[[mgr.keymap]]
-on = "J"
-run = "seek 5"
-desc = "Scroll the preview down"
-
 # Image preview. Ctrl and the wheel zoom about the pointer, dragging pans, and
 # a double-click goes back to fitting the pane. Letters rather than `+` and `-`:
 # on a JIS layout `=` is Shift and the minus key, which arrives as a different
@@ -189,8 +178,12 @@ desc = "Toggle the current selection state"
 on = "<C-a>"
 run = "toggle_all --state=on"
 desc = "Select all files"
+# `<C-r>` is redo, as it is in vim and nearly everything else. That is yazi's
+# key for inverting the selection, which moves to `<C-S-r>` -- the one place
+# this keymap knowingly leaves yazi's defaults, because a reflex as widespread
+# as Ctrl+R for redo is worth more than the compatibility.
 [[mgr.keymap]]
-on = "<C-r>"
+on = "<C-S-r>"
 run = "toggle_all"
 desc = "Invert selection of all files"
 [[mgr.keymap]]
@@ -292,8 +285,14 @@ desc = "Permanently delete the files"
 on = "u"
 run = "undo"
 desc = "Undo the last rename, or put the last deleted files back"
+# Two keys, because both reflexes are real: `U` is what was here first, and
+# vim's `U` is "undo this line", which nothing here has.
 [[mgr.keymap]]
 on = "U"
+run = "redo"
+desc = "Redo what undo took back"
+[[mgr.keymap]]
+on = "<C-r>"
 run = "redo"
 desc = "Redo what undo took back"
 [[mgr.keymap]]
@@ -386,6 +385,12 @@ desc = "Jump to a bookmark or a recently visited directory"
 # reaches the same way, unlike `'` and `"`.
 [[mgr.keymap]]
 on = "b"
+run = "plugin bookmarks jump"
+desc = "Go to the bookmark under a letter"
+# `'` as well: vim sets a mark with `m` and jumps to it with `'`, and half the
+# fingers that reach for a bookmark reach for that.
+[[mgr.keymap]]
+on = "'"
 run = "plugin bookmarks jump"
 desc = "Go to the bookmark under a letter"
 [[mgr.keymap]]
@@ -617,14 +622,27 @@ desc = "Type the selected paths into the terminal"
 # Only what is bound here is kept; every other key goes to the shell, which is
 # what makes the pane a terminal rather than another set of bindings.
 
+# `<C-t>` is the way in and the way back out, and it leaves the shell running:
+# going to and fro is something you do all day, ending the shell a few times.
+# The destructive one is the harder chord on purpose.
 [[term.keymap]]
 on = "<C-t>"
-run = "terminal close"
-desc = "Close the terminal"
+run = "close"
+desc = "Give the keys back to the list (the shell keeps running)"
 [[term.keymap]]
 on = "<C-S-t>"
-run = "close"
-desc = "Give the keys back to the list"
+run = "terminal close"
+desc = "Close the terminal and end the shell"
+# Two keys the shell has no use for, so the app keeps them: without these the
+# help and the palette are unreachable while the terminal holds the keys.
+[[term.keymap]]
+on = "<F1>"
+run = "help"
+desc = "Show the key list"
+[[term.keymap]]
+on = "<C-S-p>"
+run = "palette"
+desc = "Command palette"
 [[term.keymap]]
 on = "<A-Up>"
 run = "term_cd"

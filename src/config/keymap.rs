@@ -245,4 +245,85 @@ run = "plugin bookmarks save"
         let g = Key::parse("g").unwrap();
         assert!(matches!(resolve(&km.mgr, &[g]), Match::Pending(_)));
     }
+
+    fn bound(section: &[Binding], key: &str) -> Vec<Act> {
+        let k = Key::parse(key).unwrap_or_else(|| panic!("`{key}` is not key notation"));
+        match resolve(section, &[k]) {
+            Match::Exact(b) => b.run.clone(),
+            _ => panic!("`{key}` is not bound to anything on its own"),
+        }
+    }
+
+    /// The easy key must not be the destructive one. `<C-t>` is pressed all day
+    /// to go to and fro; ending the shell — losing the scrollback and whatever
+    /// is running — belongs on the harder chord.
+    #[test]
+    fn the_terminals_easy_key_keeps_the_shell_alive() {
+        let (km, _) = Keymap::load(&[]);
+
+        assert_eq!(bound(&km.term, "<C-t>"), vec![Act::Close]);
+        assert_eq!(bound(&km.term, "<C-S-t>"), vec![Act::Terminal(Some(false))]);
+    }
+
+    /// Without these the help and the palette cannot be reached at all while
+    /// the terminal holds the keys, and the shell has no use for either.
+    #[test]
+    fn the_terminal_layer_lets_the_help_and_the_palette_through() {
+        let (km, _) = Keymap::load(&[]);
+
+        assert_eq!(bound(&km.term, "<F1>"), vec![Act::Help]);
+        assert_eq!(bound(&km.term, "<C-S-p>"), vec![Act::Palette]);
+    }
+
+    /// The one place the defaults knowingly leave yazi's: `<C-r>` is redo, as
+    /// it is nearly everywhere, and inverting the selection moves over one
+    /// modifier. Worth a test, because the obvious "fix" is to put it back.
+    #[test]
+    fn ctrl_r_redoes_and_inverting_the_selection_moved() {
+        let (km, _) = Keymap::load(&[]);
+
+        assert_eq!(bound(&km.mgr, "<C-r>"), vec![Act::Redo]);
+        assert_eq!(bound(&km.mgr, "U"), vec![Act::Redo]);
+        assert_eq!(bound(&km.mgr, "<C-S-r>"), vec![Act::ToggleAll { state: None }]);
+    }
+
+    #[test]
+    fn a_bookmark_answers_to_both_b_and_the_vim_mark_key() {
+        let (km, _) = Keymap::load(&[]);
+
+        assert_eq!(bound(&km.mgr, "b"), vec![Act::BookmarkJump]);
+        assert_eq!(bound(&km.mgr, "'"), vec![Act::BookmarkJump]);
+    }
+
+    /// No key may mean two things in one layer, and no single key may sit in
+    /// front of a chord that starts with it: `resolve` takes the first exact
+    /// match, so the chord would never be reached.
+    #[test]
+    fn no_layer_binds_a_key_twice_or_swallows_its_own_chords() {
+        let (km, _) = Keymap::load(&[]);
+        let layers: [(&str, &[Binding]); 9] = [
+            ("mgr", &km.mgr),
+            ("input", &km.input),
+            ("confirm", &km.confirm),
+            ("pick", &km.pick),
+            ("help", &km.help),
+            ("tasks", &km.tasks),
+            ("spot", &km.spot),
+            ("term", &km.term),
+            ("diff", &km.diff),
+        ];
+        for (name, bindings) in layers {
+            for (i, b) in bindings.iter().enumerate() {
+                for (j, other) in bindings.iter().enumerate().skip(i + 1) {
+                    assert_ne!(b.on, other.on, "[{name}] binds {:?} twice", b.on);
+                    assert!(
+                        !(b.on.len() == 1 && other.on.len() > 1 && other.on[0] == b.on[0]),
+                        "[{name}] #{i} {:?} comes before #{j} {:?} and swallows it",
+                        b.on,
+                        other.on,
+                    );
+                }
+            }
+        }
+    }
 }
