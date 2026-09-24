@@ -73,6 +73,8 @@ pub enum PickAction {
     /// `line` (1-based) is handed to editors that take one.
     OpenWith { paths: Vec<PathBuf>, runs: Vec<(String, bool, bool)>, line: Option<usize> },
     Jump { paths: Vec<PathBuf> },
+    /// One keymap binding's command list per item.
+    Command { runs: Vec<Vec<Act>> },
 }
 
 pub struct PickOverlay {
@@ -103,6 +105,36 @@ impl PickOverlay {
     pub fn selected(&self) -> Option<usize> {
         self.matches.get(self.cursor).map(|m| m.0)
     }
+}
+
+/// Turn the `mgr` bindings into palette rows: `(labels, keys, runs)`.
+///
+/// The label carries both the description and the command text so either one
+/// can be typed at the filter. Commands bound to several keys appear once,
+/// under the first key the keymap gives them.
+pub fn palette_items(
+    bindings: &[keymap::Binding],
+) -> (Vec<String>, Vec<String>, Vec<Vec<Act>>) {
+    let mut items = Vec::new();
+    let mut details = Vec::new();
+    let mut runs = Vec::new();
+    let mut seen: Vec<&str> = Vec::new();
+    for b in bindings {
+        let skip = b.run.is_empty()
+            || b.run.iter().all(|a| *a == Act::Noop)
+            || b.run.iter().any(|a| matches!(a, Act::Unsupported(_)));
+        if skip || b.raw.is_empty() || seen.contains(&b.raw.as_str()) {
+            continue;
+        }
+        seen.push(&b.raw);
+        items.push(match b.desc.is_empty() {
+            true => b.raw.clone(),
+            false => format!("{}  ·  {}", b.desc, b.raw),
+        });
+        details.push(crate::config::keys::render_seq(&b.on));
+        runs.push(b.run.clone());
+    }
+    (items, details, runs)
 }
 
 /// The spot panel on the hovered file.
@@ -1261,6 +1293,7 @@ impl App {
             }
             Act::TasksShow => self.overlay = Overlay::Tasks,
             Act::Spot => self.open_spot(),
+            Act::Palette => self.open_palette(),
             Act::ToggleOutline => self.toggle_outline(),
             Act::ToggleRender => {
                 self.render_markdown = !self.render_markdown;
@@ -2020,6 +2053,26 @@ impl App {
         }
     }
 
+    fn open_palette(&mut self) {
+        let (items, details, runs) = palette_items(&self.cfg.keymap.mgr);
+        if items.is_empty() {
+            self.error("No commands are bound");
+            return;
+        }
+        let mut pick = PickOverlay {
+            title: "Commands".into(),
+            items,
+            details,
+            query: String::new(),
+            matches: Vec::new(),
+            cursor: 0,
+            action: PickAction::Command { runs },
+            focused: false,
+        };
+        pick.refilter();
+        self.overlay = Overlay::Pick(pick);
+    }
+
     fn open_jump(&mut self) {
         let mut items = Vec::new();
         let mut details = Vec::new();
@@ -2073,6 +2126,14 @@ impl App {
             PickAction::Jump { paths } => {
                 if let Some(p) = paths.get(idx).cloned() {
                     self.cd(p, true);
+                }
+            }
+            PickAction::Command { runs } => {
+                // The overlay is already closed, so a command that opens one of
+                // its own (input, confirm, help) lands on a clean slate.
+                let Some(acts) = runs.get(idx).cloned() else { return };
+                for a in acts {
+                    self.act(a);
                 }
             }
         }
@@ -2233,4 +2294,65 @@ fn preview_paths(paths: &[PathBuf]) -> Vec<String> {
         out.push(format!("… and {} more", paths.len() - 8));
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::keys::Key;
+
+    fn binding(on: &str, run: &str, desc: &str) -> keymap::Binding {
+        keymap::Binding {
+            on: on.chars().map(Key::char).collect(),
+            run: vec![crate::config::cmd::parse(run)],
+            desc: desc.into(),
+            raw: run.into(),
+        }
+    }
+
+    #[test]
+    fn palette_lists_every_command_once() {
+        let bindings = vec![
+            binding("k", "arrow -1", "Move cursor up"),
+            // The same command on a second key: listed once, under the first.
+            binding("K", "arrow -1", "Move cursor up"),
+            binding("w", "tasks_show", ""),
+            binding("z", "chmod", "Unimplemented"),
+            binding("x", "noop", "Nothing"),
+        ];
+        let (items, details, runs) = palette_items(&bindings);
+        assert_eq!(
+            items,
+            vec!["Move cursor up  ·  arrow -1".to_string(), "tasks_show".to_string()]
+        );
+        assert_eq!(details, vec!["k".to_string(), "w".to_string()]);
+        assert_eq!(runs, vec![vec![Act::Arrow(Step::Rel(-1))], vec![Act::TasksShow]]);
+    }
+
+    #[test]
+    fn palette_filters_on_both_the_description_and_the_command() {
+        let (km, _) = keymap::Keymap::load(&[]);
+        let (items, details, runs) = palette_items(&km.mgr);
+        assert!(items.len() > 30, "got {} commands", items.len());
+        assert_eq!(items.len(), details.len());
+        assert_eq!(items.len(), runs.len());
+        assert!(runs.iter().any(|r| r == &[Act::Palette]), "the palette lists itself");
+
+        let mut pick = PickOverlay {
+            title: "Commands".into(),
+            items,
+            details,
+            query: "tasks_show".into(),
+            matches: Vec::new(),
+            cursor: 0,
+            action: PickAction::Command { runs },
+            focused: false,
+        };
+        pick.refilter();
+        let by_command = pick.selected().expect("the command text must match");
+
+        pick.query = "task manager".into();
+        pick.refilter();
+        assert_eq!(pick.selected(), Some(by_command), "the description finds the same row");
+    }
 }

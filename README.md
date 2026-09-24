@@ -57,9 +57,9 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `cd`, `reveal`, `follow`, `refresh`, `seek`/`peek`, `tab_create`, `tab_close`, `tab_switch`,
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
-`find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `toggle_render` and
-`toggle_outline` (this project's own). In the `[spot]` section: `close`, `arrow`, `swipe` and
-`copy cell`.
+`find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
+`toggle_render` and `toggle_outline` (this project's own). In the `[spot]` section: `close`,
+`arrow`, `swipe` and `copy cell`.
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -168,6 +168,18 @@ copy the selected value, and `<Esc>` / `q` / `<Tab>` close it. Each kind of deta
 function in `src/spot.rs`, so more (e.g. Windows property-system values like media length or EXIF)
 can be added without touching the panel.
 
+## Command palette
+
+`<C-S-p>` (`Cmd`+`Shift`+`P` on macOS) lists every `mgr` binding — the built-in ones and whatever
+your `keymap.toml` added — and runs the one you pick. Each row carries the description and the
+command text, so `tasks_show` and `task manager` both find the task panel; the key that runs it is
+shown on the right. A command bound to several keys appears once, under the first key the keymap
+gives it, and commands the config left unsupported are left out.
+
+`↑` / `↓` (or `<C-p>` / `<C-n>`) move, `<Enter>` runs, `<Esc>` closes, and a click runs the row
+directly. Commands that need more input (`rename`, `filter`, `shell`, …) open their own prompt
+as if the key had been pressed.
+
 ## Other previews
 
 No external tools (magick, ffmpeg, pdftoppm) are needed:
@@ -207,6 +219,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `<A-k>` `<A-j>` `M` | scroll the preview / Markdown rendered ↔ source |
 | `<S-Tab>` | move the keys into the preview's outline and back |
 | `<Tab>` | spot: details of the hovered file |
+| `<C-S-p>` | command palette: fuzzy-search every key binding and run it |
 | `w` `q` | tasks / quit |
 
 Mouse works too: click to move the cursor, double-click to open, wheel to scroll.

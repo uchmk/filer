@@ -131,6 +131,8 @@ pub enum Act {
     Help,
     TasksShow,
     Spot,
+    /// Fuzzy-search every `mgr` binding and run the one picked.
+    Palette,
     /// Switch Markdown between the rendered view and its source.
     ToggleRender,
     /// Hand the keys to the preview's outline (functions, headings) and back.
@@ -368,6 +370,7 @@ pub fn parse(line: &str) -> Act {
         "help" => Act::Help,
         "tasks_show" => Act::TasksShow,
         "spot" => Act::Spot,
+        "palette" => Act::Palette,
         "toggle_render" => Act::ToggleRender,
         "toggle_outline" => Act::ToggleOutline,
 
@@ -462,6 +465,7 @@ mod tests {
         assert_eq!(parse("tab_switch 1 --relative"), Act::TabSwitch { n: 1, relative: true });
         assert_eq!(parse("plugin toggle-pane max-preview"), Act::MaxPreview);
         assert_eq!(parse("plugin bookmarks jump"), Act::BookmarkJump);
+        assert_eq!(parse("palette"), Act::Palette);
         assert_eq!(parse("toggle_render"), Act::ToggleRender);
         assert_eq!(parse("toggle_outline"), Act::ToggleOutline);
         assert_eq!(parse("plugin smart-enter"), Act::Open { interactive: false, hovered: true });

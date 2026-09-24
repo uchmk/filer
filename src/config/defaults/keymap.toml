@@ -478,6 +478,10 @@ desc = "Open help"
 on = "<F1>"
 run = "help"
 desc = "Open help"
+[[mgr.keymap]]
+on = "<C-S-p>"
+run = "palette"
+desc = "Open the command palette"
 
 # --- Input line ---------------------------------------------------------------
 # The input line is a native widget (so IME and clipboard behave), which means
