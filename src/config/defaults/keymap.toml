@@ -211,6 +211,19 @@ on = "<C-->"
 run = "hardlink"
 desc = "Hardlink the yanked files"
 
+# Copy / move straight into the other pane. Deliberately not F5 / F6: F5 is
+# refresh here and in every browser, so putting a file operation on it would
+# write files for someone reaching for a reload — and F6 / F7 would half-match
+# Total Commander, where F6 means move, which is worse still.
+[[mgr.keymap]]
+on = "<A-c>"
+run = "send_pane"
+desc = "Copy the selection to the other pane"
+[[mgr.keymap]]
+on = "<A-m>"
+run = "send_pane --cut"
+desc = "Move the selection to the other pane"
+
 [[mgr.keymap]]
 on = "e"
 run = "extract"

@@ -148,6 +148,10 @@ pub enum Act {
     /// Move the selected job to the front of the queue.
     TaskTop,
     Spot,
+    /// Copy (or move) the selection straight into the other pane, without
+    /// yanking and pasting to get there.
+    SendPane { cut: bool },
+
     /// Open the terminal pane and give it the keys, or take them back.
     /// `Some(false)` closes the pane and the shell with it.
     Terminal(Tri),
@@ -348,6 +352,7 @@ pub fn parse(line: &str) -> Act {
         "hardlink" => Act::Hardlink,
         "extract" => Act::Extract,
         "compress" => Act::Compress,
+        "send_pane" => Act::SendPane { cut: a.has("cut") },
         "remove" => Act::Remove {
             permanently: a.has("permanently"),
             force: a.has("force"),

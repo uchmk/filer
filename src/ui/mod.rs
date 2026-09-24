@@ -28,6 +28,8 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
 
     let full = ui.max_rect();
     ui.painter().rect_filled(full, CornerRadius::ZERO, app.cfg.theme.bg);
+    // Rebuilt every frame as the panes are laid out.
+    app.pane_rects.clear();
 
     let header_h = row_h * 2.0 + 8.0;
     let status_h = row_h + 8.0;
@@ -89,6 +91,8 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
         Overlay::Spot(_) => overlay::spot(app, ui, full, &f, row_h),
         _ => {}
     }
+
+    draw_drag(app, ui, &f);
 
     if app.pending_bookmark.is_some() {
         overlay::bookmark_hint(app, ui, full, &f, row_h);
@@ -390,6 +394,8 @@ fn draw_pane(
         active: focused && app.preview.outline.is_none(),
         linemode: &linemode,
     };
+    // Where this pane is, so a drop let go anywhere can find its target.
+    app.pane_rects.push((idx, rect));
     let has_filter = app.tabs[idx].current.filter.is_some();
     let git = app.git_status(&app.tabs[idx].cwd);
     let res = list::draw(
@@ -449,6 +455,63 @@ fn draw_pane(
         app.tabs[idx].right_click(row);
         queued.push(Act::Menu);
     }
+
+    // Dragging to the other pane. A drag that starts on a row with the plain
+    // pointer is a drag of files; with Shift or Ctrl held the click is a
+    // selection gesture and stays one.
+    if let Some(row) = res.drag_started.filter(|_| !multi) {
+        app.start_drag(idx, row);
+    }
+    if res.drag_stopped && app.drag.is_some() {
+        let pos = ui.ctx().input(|i| i.pointer.interact_pos());
+        let onto = pos.and_then(|p| {
+            app.pane_rects.iter().find(|(_, r)| r.contains(p)).map(|(i, _)| *i)
+        });
+        // Shift is the move modifier, as it is in Explorer; a plain drag copies.
+        let cut = ui.ctx().input(|i| i.modifiers.shift);
+        app.drop_drag(onto, cut);
+    }
+}
+
+/// What a drag in flight looks like: the pane it would land in outlined, and
+/// what is being carried named under the pointer.
+fn draw_drag(app: &App, ui: &mut Ui, f: &FontId) {
+    let Some(drag) = &app.drag else { return };
+    let Some(pos) = ui.ctx().input(|i| i.pointer.interact_pos()) else { return };
+    let theme = &app.cfg.theme;
+    let accent = theme.cwd.fg.unwrap_or(theme.fg);
+    let painter = ui.painter();
+
+    let over = app.pane_rects.iter().find(|(i, r)| *i != drag.from && r.contains(pos));
+    if let Some((_, r)) = over {
+        painter.rect_stroke(
+            *r,
+            CornerRadius::same(4),
+            Stroke::new(2.0, accent),
+            egui::StrokeKind::Inside,
+        );
+    }
+    // Shift means move, so say which one is about to happen.
+    let verb = match ui.ctx().input(|i| i.modifiers.shift) {
+        true => "move",
+        false => "copy",
+    };
+    let text = match over.is_some() {
+        true => format!("{verb} {}", drag.label),
+        // Nowhere to land yet: name the files without promising anything.
+        false => drag.label.clone(),
+    };
+    let g = painter.layout_no_wrap(text, f.clone(), theme.fg);
+    let at = pos + Vec2::new(12.0, 8.0);
+    let bg = Rect::from_min_size(at, g.size()).expand(4.0);
+    painter.rect_filled(bg, CornerRadius::same(3), theme.bg_alt);
+    painter.rect_stroke(
+        bg,
+        CornerRadius::same(3),
+        Stroke::new(1.0, if over.is_some() { accent } else { theme.border }),
+        egui::StrokeKind::Inside,
+    );
+    painter.galley(at, g, theme.fg);
 }
 
 /// The renderer needs its own cursor/offset for the read-only columns.

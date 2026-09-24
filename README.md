@@ -58,7 +58,7 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
-`menu`, `extract`, `compress`, `terminal`, `term_send`, `task_toggle`, `task_cancel`, `task_top`,
+`menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `task_toggle`, `task_cancel`, `task_top`,
 `split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
 project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
@@ -193,6 +193,17 @@ ordinary `y` … `<C-w>` … `p`. Splitting with one tab open creates a second o
 directory; with several, it borrows the next tab. `[` / `]` / `1`–`9` still switch tabs, and
 switching to the tab the other pane shows just moves the keys there. Closing or swapping tabs
 keeps the panes pointed at the right ones; closing the tab the other pane holds ends the split.
+
+`<A-c>` copies the selection into the other pane and `<A-m>` moves it — one key instead of
+`y` `<C-w>` `p`. The other pane's directory is already on screen, so naming a destination is the
+step worth removing; the yank register is left alone. Dragging does the same: drag a row (or a
+selection) onto the other pane to copy it, with `Shift` held to move it, the way Explorer does.
+The pane about to receive the drop is outlined and the pointer says which it will be.
+
+Neither is on `F5` / `F6` on purpose. `F5` is refresh here as it is in every browser, so putting a
+file operation there would write files for someone reaching for a reload; and `F6`/`F7` would
+half-match Total Commander, where `F6` means *move* — worse, because the mismatch loses data
+rather than just surprising. Rebind them in `keymap.toml` if your fingers disagree.
 
 The pane with the keys is outlined and keeps the bright cursor; the other is dimmed. Clicking the
 dim pane takes the keys first, so a click, a `Shift`+click or a double-click always lands on the
@@ -373,6 +384,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
 | `a` `r` | create (trailing `/` makes a directory) / rename |
 | `e` `E` | extract the selected archives / compress the selection |
+| `<A-c>` `<A-m>` | copy / move the selection to the other pane |
 | `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` config, `gt` temp, `g<Space>` type a path, `gf` follow the link |
 | `c…` | `cc` copy the path, `cd` the parent, `cf` the file name, `cn` the name without its extension |
 | `o` `O` `<Enter>` `<S-Enter>` | open / open with… / open (at the outline's line) / open with… |
@@ -393,7 +405,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `w` `q` | tasks (`p` pause, `x` cancel, `t` to the front) / quit |
 
 Mouse works too: click to move the cursor, double-click to open, right-click for the context
-menu, wheel to scroll. `Shift`+click selects from the cursor to the row you clicked, and
+menu, drag onto the other pane to copy there, wheel to scroll. `Shift`+click selects from the cursor to the row you clicked, and
 `Ctrl`+click (`Cmd` on macOS) adds or removes one row. Both share the selection with `<Space>`
 and visual mode, so you can start a range with the mouse and finish it with the keyboard.
 

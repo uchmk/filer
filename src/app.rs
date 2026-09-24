@@ -229,6 +229,7 @@ fn acts_on_file(a: &Act) -> bool {
             | Act::Shell { .. }
             | Act::Extract
             | Act::Compress
+            | Act::SendPane { .. }
             | Act::TermSend
             | Act::Spot
             | Act::Follow
@@ -436,6 +437,18 @@ pub struct Split {
     pub right: bool,
 }
 
+/// Files being dragged from one pane towards the other.
+///
+/// It lives on `App` rather than in the list because the two panes are drawn
+/// separately: the one the drag began in has no idea where it ends.
+pub struct Drag {
+    /// The tab the drag started in.
+    pub from: usize,
+    pub paths: Vec<PathBuf>,
+    /// What to draw under the pointer while it is in flight.
+    pub label: String,
+}
+
 /// Follow the other pane's tab index after the tab at `removed` is dropped.
 /// `None` means that pane's own tab went away, so the split closes.
 fn split_after_remove(other: usize, removed: usize) -> Option<usize> {
@@ -534,6 +547,10 @@ pub struct App {
     pub term: Option<crate::terminal::Terminal>,
     /// The terminal has the keys, so they go to the shell rather than here.
     pub term_focus: bool,
+    /// A drag in flight between the panes.
+    pub drag: Option<Drag>,
+    /// Where each pane was drawn this frame, so a drop can be placed.
+    pub pane_rects: Vec<(usize, egui::Rect)>,
     /// What git says about each directory on screen, by directory.
     git_status: Lru<PathBuf, Arc<git::Status>>,
     pub spotter: Spotter,
@@ -618,6 +635,8 @@ impl App {
             git_status: Lru::new(8),
             term: None,
             term_focus: false,
+            drag: None,
+            pane_rects: Vec::new(),
             spotter,
             spotted: None,
             pending: Vec::new(),
@@ -1795,6 +1814,7 @@ impl App {
             Act::TermSend => self.term_send_paths(),
             Act::Extract => self.do_extract(),
             Act::Compress => self.ask_compress(),
+            Act::SendPane { cut } => self.send_to_pane(cut),
             Act::ToggleOutline => self.toggle_outline(),
             Act::ToggleRender => {
                 self.render_markdown = !self.render_markdown;
@@ -2044,6 +2064,67 @@ impl App {
             self.yank.paths.clear();
             self.yank.cut = false;
         }
+    }
+
+    /// Finish a drag. `onto` is the tab the pointer was over when it was let
+    /// go, and `cut` is whether the move modifier was held.
+    ///
+    /// A drop needs somewhere to land, so it does nothing unless the pointer
+    /// ended over a different pane: dropping a file back where it came from
+    /// should be the no-op it looks like.
+    pub fn drop_drag(&mut self, onto: Option<usize>, cut: bool) {
+        let Some(drag) = self.drag.take() else { return };
+        let Some(onto) = onto.filter(|&i| i != drag.from && i < self.tabs.len()) else { return };
+        let dest = self.tabs[onto].cwd.clone();
+        if dest == self.tabs[drag.from].cwd {
+            return;
+        }
+        let kind = if cut { OpKind::Move } else { OpKind::Copy };
+        self.submit_op(kind, drag.paths, dest, false);
+        self.tabs[drag.from].clear_selection();
+    }
+
+    /// Start a drag on `row` in `tab`. The selection travels when the row is
+    /// part of it; otherwise it is that one file, the way a drag usually works.
+    pub fn start_drag(&mut self, tab: usize, row: usize) {
+        let Some(entry) = self.tabs[tab].current.at(row).cloned() else { return };
+        let selected = self.tabs[tab].selected.contains(&entry.path);
+        let paths: Vec<PathBuf> = match selected {
+            true => self.tabs[tab].selected.iter().cloned().collect(),
+            false => vec![entry.path.clone()],
+        };
+        let label = match paths.len() {
+            1 => entry.name.clone(),
+            n => format!("{n} items"),
+        };
+        self.drag = Some(Drag { from: tab, paths, label });
+    }
+
+    /// Copy or move the selection into the other pane in one keypress.
+    ///
+    /// The same job a yank and a paste would raise, with the other pane's
+    /// directory as the destination — the point being that the destination is
+    /// already on screen, so naming it again is the step worth removing. The
+    /// yank register is left alone: this is not a yank.
+    fn send_to_pane(&mut self, cut: bool) {
+        let Some(other) = self.other_pane().filter(|&i| i < self.tabs.len()) else {
+            self.error("Open the second pane first (<C-w>)");
+            return;
+        };
+        let srcs = self.tabs[self.active].targets();
+        if srcs.is_empty() {
+            return;
+        }
+        let dest = self.tabs[other].cwd.clone();
+        // Into the directory it is already in: the copy would land beside
+        // itself under another name, which is never what this key meant.
+        if dest == self.tabs[self.active].cwd {
+            self.error("Both panes are in the same directory");
+            return;
+        }
+        let kind = if cut { OpKind::Move } else { OpKind::Copy };
+        self.submit_op(kind, srcs, dest, false);
+        self.tabs[self.active].clear_selection();
     }
 
     fn link(&mut self, kind: OpKind) {
