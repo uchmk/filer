@@ -229,6 +229,7 @@ fn acts_on_file(a: &Act) -> bool {
             | Act::Shell { .. }
             | Act::Extract
             | Act::Compress
+            | Act::TermSend
             | Act::Spot
             | Act::Follow
             | Act::Reveal(_)
@@ -529,6 +530,10 @@ pub struct App {
     pub ops: ops::Runner,
     pub watcher: Watcher,
     pub git: git::Git,
+    /// The shell in the bottom pane, while there is one.
+    pub term: Option<crate::terminal::Terminal>,
+    /// The terminal has the keys, so they go to the shell rather than here.
+    pub term_focus: bool,
     /// What git says about each directory on screen, by directory.
     git_status: Lru<PathBuf, Arc<git::Status>>,
     pub spotter: Spotter,
@@ -611,6 +616,8 @@ impl App {
             git,
             // One per pane, plus the few a walk just left behind.
             git_status: Lru::new(8),
+            term: None,
+            term_focus: false,
             spotter,
             spotted: None,
             pending: Vec::new(),
@@ -788,6 +795,7 @@ impl App {
             self.git_status.put(rep.dir, Arc::new(rep.status));
         }
         self.drain_search();
+        self.pump_terminal();
         self.flush_dirty();
         self.toasts.retain(|t| t.at.elapsed() < Duration::from_secs(6));
         self.tasks.retain(|t| match t.finished {
@@ -1783,6 +1791,8 @@ impl App {
             Act::Spot => self.open_spot(),
             Act::Palette => self.open_palette(),
             Act::Menu => self.open_menu(),
+            Act::Terminal(what) => self.terminal(what),
+            Act::TermSend => self.term_send_paths(),
             Act::Extract => self.do_extract(),
             Act::Compress => self.ask_compress(),
             Act::ToggleOutline => self.toggle_outline(),
@@ -2642,6 +2652,98 @@ impl App {
             Some((n, n))
         };
         ov.focused = false;
+    }
+
+    /// Open the terminal pane, close it, or move the keys in and out of it.
+    ///
+    /// `None` is the toggle a key presses: open it and take the keys, or give
+    /// them back when it already has them.
+    fn terminal(&mut self, what: Tri) {
+        if what == Some(false) {
+            // Dropping it sends the shell its shutdown.
+            self.term = None;
+            self.term_focus = false;
+            return;
+        }
+        if self.term.is_some() {
+            self.term_focus = what.unwrap_or(!self.term_focus);
+            return;
+        }
+        let cwd = self.tabs[self.active].cwd.clone();
+        let ctx = self.ctx.clone();
+        // The real shape arrives with the first frame that draws it; this is
+        // only what the shell starts life believing.
+        let size = crate::terminal::Size::new(80, 24);
+        match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), move || ctx.request_repaint()) {
+            Ok(t) => {
+                self.term = Some(t);
+                self.term_focus = true;
+            }
+            Err(e) => self.error(format!("Terminal failed: {e}")),
+        }
+    }
+
+    /// Type the selection into the shell, quoted so a path with a space in it
+    /// arrives as one word. Nothing is run: the line is left for the user to
+    /// put a command in front of.
+    fn term_send_paths(&mut self) {
+        let paths = self.tabs[self.active].targets();
+        if paths.is_empty() {
+            return;
+        }
+        let Some(term) = &self.term else {
+            self.error("The terminal is not open");
+            return;
+        };
+        let line: Vec<String> =
+            paths.iter().map(|p| crate::terminal::quote(&p.to_string_lossy())).collect();
+        term.send(format!(" {}", line.join(" ")).into_bytes());
+        self.term_focus = true;
+    }
+
+    /// Read what the shell has said, and keep it in the directory the pane is
+    /// showing. Called once a frame, and cheap when there is nothing to do.
+    fn pump_terminal(&mut self) {
+        let cwd = self.tabs[self.active].cwd.clone();
+        let Some(term) = &mut self.term else { return };
+        for text in term.drain() {
+            // A program asked for the clipboard; only this thread can oblige.
+            let _ = exec::set_clipboard(&text);
+        }
+        if term.exited {
+            self.term = None;
+            self.term_focus = false;
+            self.toast("The shell exited");
+            return;
+        }
+        term.follow(&cwd);
+    }
+
+    /// A key while the terminal has the keys. The `[term]` keymap gets first
+    /// refusal — that is where the way out is bound — and everything else is
+    /// the shell's.
+    pub fn feed_term_key(&mut self, k: Key, bytes: Option<Vec<u8>>) {
+        // Only exact single-key bindings are consulted: a chord would have to
+        // hold a key back, and the shell wants it now.
+        let hit = self
+            .cfg
+            .keymap
+            .term
+            .iter()
+            .find(|b| b.on.len() == 1 && b.on[0] == k)
+            .map(|b| b.run.clone());
+        if let Some(acts) = hit {
+            for a in acts {
+                match a {
+                    Act::Close | Act::Escape(_) => self.term_focus = false,
+                    other => self.act(other),
+                }
+            }
+            return;
+        }
+        if let (Some(term), Some(bytes)) = (&self.term, bytes) {
+            term.send(bytes);
+        }
     }
 
     /// What git says about the rows of `dir`, or nothing while the answer is

@@ -508,6 +508,27 @@ desc = "Open the command palette"
 on = "<S-F10>"
 run = "menu"
 desc = "Open the context menu"
+[[mgr.keymap]]
+on = "<C-t>"
+run = "terminal"
+desc = "Open the terminal pane"
+[[mgr.keymap]]
+on = "<A-t>"
+run = "term_send"
+desc = "Type the selected paths into the terminal"
+
+# --- Terminal pane ------------------------------------------------------------
+# Only what is bound here is kept; every other key goes to the shell, which is
+# what makes the pane a terminal rather than another set of bindings.
+
+[[term.keymap]]
+on = "<C-t>"
+run = "terminal close"
+desc = "Close the terminal"
+[[term.keymap]]
+on = "<C-S-t>"
+run = "close"
+desc = "Give the keys back to the list"
 
 # --- Input line ---------------------------------------------------------------
 # The input line is a native widget (so IME and clipboard behave), which means

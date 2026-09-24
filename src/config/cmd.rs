@@ -148,6 +148,12 @@ pub enum Act {
     /// Move the selected job to the front of the queue.
     TaskTop,
     Spot,
+    /// Open the terminal pane and give it the keys, or take them back.
+    /// `Some(false)` closes the pane and the shell with it.
+    Terminal(Tri),
+    /// Type the selected paths into the terminal.
+    TermSend,
+
     /// Fuzzy-search every `mgr` binding and run the one picked.
     Palette,
     /// The context menu for the file under the cursor: its openers from
@@ -407,6 +413,12 @@ pub fn parse(line: &str) -> Act {
         "spot" => Act::Spot,
         "palette" => Act::Palette,
         "menu" => Act::Menu,
+        "terminal" => Act::Terminal(match a.first() {
+            Some("open") => Some(true),
+            Some("close") => Some(false),
+            _ => None,
+        }),
+        "term_send" => Act::TermSend,
         "toggle_render" => Act::ToggleRender,
         "toggle_outline" => Act::ToggleOutline,
 

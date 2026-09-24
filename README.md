@@ -58,11 +58,12 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
-`menu`, `extract`, `compress`, `task_toggle`, `task_cancel`, `task_top`, `split`, `pane_focus`,
-`toggle_render` and `toggle_outline` (this
+`menu`, `extract`, `compress`, `terminal`, `term_send`, `task_toggle`, `task_cancel`, `task_top`,
+`split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
 project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
-`close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe` and `copy cell`.
+`close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe` and `copy cell`; in `[term]`:
+`close` and anything from `[mgr]`, with every other key going to the shell.
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -234,6 +235,32 @@ how many. Right-clicking outside the selection drops it and acts on that one row
 Explorer does. This is the nearest thing here to a plugin menu: a `shell` binding or an opener is
 how a Lua plugin's action gets onto the screen, with no Lua runtime involved.
 
+## Terminal
+
+`<C-t>` opens a shell in a pane along the bottom, started in the directory you are looking at.
+It is a real terminal: a PTY on Unix, ConPTY on Windows, with
+[alacritty_terminal](https://crates.io/crates/alacritty_terminal) parsing the escape sequences,
+so `vim`, `less` and anything else that paints the screen work as they do anywhere else.
+
+While the pane has the keys, **every key goes to the shell** — that is what makes it a terminal
+rather than another set of bindings. Only what the `[term]` keymap section binds is kept:
+
+| Key | |
+| --- | --- |
+| `<C-t>` | close the pane and the shell with it |
+| `<C-S-t>` | give the keys back to the list, leaving the shell running |
+
+Click the pane to take the keys back. The grid is drawn with the list's own font and the theme's
+colors, so the 16 ANSI colors match the rest of the window; the 256-color cube and true-color
+values are used as the program asked for them.
+
+It follows the pane: change directory and the shell is sent a `cd` for the new one. That is a
+line of input like any other — harmless at a prompt, a nuisance in the middle of a command — so
+it is only sent when the directory has actually changed.
+
+`<A-t>` types the selected paths onto the shell's line, quoted so a path with a space in it
+arrives as one word. Nothing is run: the line is left for you to put a command in front of.
+
 ## Tasks
 
 Copying, moving, deleting, packing and unpacking all run as jobs on one worker, one at a time —
@@ -357,6 +384,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `<F5>` | re-read the current directory |
 | `<C-w>` `<C-S-w>` | split the view in two panes / move between them, close the split |
 | `;` `:` | shell command / blocking shell command |
+| `<C-t>` `<A-t>` | terminal pane / type the selection into it |
 | `<A-k>` `<A-j>` `M` | scroll the preview / Markdown rendered ↔ source |
 | `<S-Tab>` | move the keys into the preview's outline and back |
 | `<Tab>` | spot: details of the hovered file |
@@ -443,6 +471,9 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.
 - Git signs need `git` on `PATH`; without it the rows are simply unmarked. Only the status is
   shown — there is no staging, diffing or committing here, and no branch in the status bar yet.
+- The terminal pane has no scrollback keys, no mouse selection and no search of its own yet: what
+  is on screen is what you can see. `cd` following types a line into the shell, so it lands in
+  whatever is running if something is.
 
 ## Layout
 
@@ -454,7 +485,8 @@ src/
   core/          folder + cursor state, tabs, fuzzy matching
   fs/            entries, sorting, scan pool, file operations, watcher, archives, git status
   preview/       preview worker: text + syntect, Markdown layout, images, SVG, fonts, shell thumbnails
-  ui/            painting: columns, preview pane, overlays
+  terminal.rs    the embedded shell: PTY, key encoding
+  ui/            painting: columns, preview pane, terminal pane, overlays
   search.rs      recursive name/content search
   exec.rs        openers and shell
 ```

@@ -5,6 +5,7 @@
 mod list;
 mod overlay;
 mod preview;
+mod term;
 
 use egui::{Align2, Color32, CornerRadius, FontFamily, FontId, Rect, Stroke, Ui, Vec2};
 
@@ -42,7 +43,13 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
         egui::pos2(full.left(), full.bottom() - status_h),
         Vec2::new(full.width(), status_h),
     );
-    let bottom_extra = which_h + input_h;
+    // The terminal takes the bottom third, and never so much that the list
+    // it sits under stops being usable.
+    let term_h = match app.term.is_some() {
+        true => (full.height() * 0.35).clamp(row_h * 4.0, full.height() - header_h - row_h * 6.0),
+        false => 0.0,
+    };
+    let bottom_extra = which_h + input_h + term_h;
     let body = Rect::from_min_max(
         egui::pos2(full.left(), header.bottom()),
         egui::pos2(full.right(), status.top() - bottom_extra),
@@ -50,6 +57,13 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
 
     draw_header(app, ui, header, &f, row_h);
     draw_body(app, ui, body, &f, row_h, &mut queued);
+    if term_h > 0.0 {
+        let r = Rect::from_min_size(
+            egui::pos2(full.left(), status.top() - bottom_extra),
+            Vec2::new(full.width(), term_h),
+        );
+        term::draw(app, ui, r, &f, row_h);
+    }
     draw_status(app, ui, status, &f);
 
     if which_h > 0.0 {
