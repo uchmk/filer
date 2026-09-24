@@ -296,6 +296,9 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   one that answers nothing falls back to the working directory with the error as a toast.
 - `follow` (`gf`) on a link into a slow share is instant too — the target is read on the scan
   worker along with the rest of the entry, so the key never waits on `canonicalize`.
+- A new tab (`t`, or `tab_create <path>`) opens the same way: it appears at once on the path it
+  was given, and a listing that never arrives puts it back on the directory it was opened from.
+  A path that names a file reveals that file in its folder.
 
 ## Known limits
 

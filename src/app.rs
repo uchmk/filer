@@ -277,6 +277,27 @@ fn split_after_remove(other: usize, removed: usize) -> Option<usize> {
     }
 }
 
+/// Where `tab_create` opens, and whether the target still has to prove itself
+/// a directory. A path someone typed gets the same benefit of the doubt a
+/// typed `cd` gets — it may name a file, and the parent is then what was
+/// meant. `hovered` is the entry under the cursor, which came from a listing.
+fn new_tab_target(
+    base: &Path,
+    current: bool,
+    path: Option<&str>,
+    hovered: Option<&Entry>,
+    home: Option<PathBuf>,
+) -> (PathBuf, bool) {
+    match path {
+        Some(p) if !p.is_empty() => (util::resolve_against(base, p), true),
+        _ if current => match hovered {
+            Some(e) if e.is_dir_like() => (e.path.clone(), false),
+            _ => (base.to_path_buf(), false),
+        },
+        _ => (home.unwrap_or_else(|| base.to_path_buf()), false),
+    }
+}
+
 /// Follow the other pane's tab index across `tabs.swap(a, b)`.
 fn split_after_swap(other: usize, a: usize, b: usize) -> usize {
     if other == a {
@@ -1538,23 +1559,27 @@ impl App {
 
     // ----------------------------------------------------------------- tabs
 
+    /// Open a tab on `path`, on the hovered directory, or on home.
+    ///
+    /// Nothing checks the target first, for the reason `cd_inner` gives: the
+    /// tab opens where it was asked to and the background scan has the last
+    /// word. A listing that never arrives sends the new tab back to the
+    /// directory it was opened from, rather than closing it.
     fn create_tab(&mut self, current: bool, path: Option<String>) {
         if self.tabs.len() >= MAX_TABS {
             self.error("Maximum number of tabs reached");
             return;
         }
         let base = self.tabs[self.active].cwd.clone();
-        let target = match path {
-            Some(p) if !p.is_empty() => util::resolve_against(&base, &p),
-            _ if current => match self.tabs[self.active].current.hovered() {
-                Some(e) if e.is_dir_like() => e.path.clone(),
-                _ => base.clone(),
-            },
-            _ => dirs::home_dir().unwrap_or(base.clone()),
-        };
-        let target = if target.is_dir() { target } else { base };
+        let (target, fallback) = new_tab_target(
+            &base,
+            current,
+            path.as_deref(),
+            self.tabs[self.active].current.hovered(),
+            dirs::home_dir(),
+        );
         let tab = Tab::new(
-            target,
+            target.clone(),
             self.tabs[self.active].sort,
             self.tabs[self.active].show_hidden,
             self.tabs[self.active].linemode.clone(),
@@ -1568,6 +1593,11 @@ impl App {
             }
         }
         self.switch_tab(at);
+        // `switch_tab` fills the tab from the cache when the directory has been
+        // listed before; one that is still loading has yet to prove it exists.
+        if target != base && self.tabs[at].current.state == LoadState::Loading {
+            self.tabs[at].pending_cd = Some(PendingCd { from: base, pushed: false, fallback });
+        }
     }
 
     fn close_tab(&mut self, idx: usize) {
@@ -2546,6 +2576,26 @@ mod tests {
     use super::*;
     use crate::config::keys::Key;
 
+    /// The bare bones of a listing row: a path and whether entering it means
+    /// changing directory.
+    fn entry(path: &str, dir: bool) -> Entry {
+        let path = PathBuf::from(path);
+        Entry {
+            name: util::file_name(&path),
+            path,
+            ext: None,
+            kind: if dir { Kind::Dir } else { Kind::File },
+            len: 0,
+            modified: None,
+            created: None,
+            accessed: None,
+            hidden: false,
+            readonly: false,
+            link_to: None,
+            dir_size: None,
+        }
+    }
+
     fn binding(on: &str, run: &str, desc: &str) -> keymap::Binding {
         keymap::Binding {
             on: on.chars().map(Key::char).collect(),
@@ -2562,6 +2612,45 @@ mod tests {
         assert_eq!(split_after_remove(3, 1), Some(2));
         // Closing the tab the other pane shows leaves nothing to split with.
         assert_eq!(split_after_remove(2, 2), None);
+    }
+
+    /// A new tab opens where it was asked to, with no `is_dir` on the way: the
+    /// second half of the pair says whether the scan still has to confirm it.
+    #[test]
+    fn a_new_tab_opens_on_a_path_nobody_checked() {
+        let base = Path::new("/a");
+        let home = Some(PathBuf::from("/home"));
+
+        // A typed path is unproven and may name a file, hence the fallback.
+        let (to, fallback) = new_tab_target(base, false, Some("b/c"), None, home.clone());
+        assert_eq!(to, PathBuf::from("/a/b/c"));
+        assert!(fallback, "a typed path falls back to the parent");
+
+        // No path and nothing to follow: home, and home is not typed.
+        let (to, fallback) = new_tab_target(base, false, Some(""), None, home.clone());
+        assert_eq!(to, PathBuf::from("/home"));
+        assert!(!fallback);
+
+        // Without a home directory the tab stays where it was opened from.
+        let (to, _) = new_tab_target(base, false, None, None, None);
+        assert_eq!(to, base.to_path_buf());
+    }
+
+    #[test]
+    fn a_new_tab_follows_the_cursor_only_onto_a_directory() {
+        let base = Path::new("/a");
+        let dir = entry("/a/sub", true);
+        let file = entry("/a/note.txt", false);
+
+        let (to, fallback) = new_tab_target(base, true, None, Some(&dir), None);
+        assert_eq!(to, PathBuf::from("/a/sub"));
+        assert!(!fallback, "the entry came from a listing, so the parent is no help");
+
+        // The cursor on a file opens a second view of the directory instead.
+        let (to, _) = new_tab_target(base, true, None, Some(&file), None);
+        assert_eq!(to, base.to_path_buf());
+        let (to, _) = new_tab_target(base, true, None, None, None);
+        assert_eq!(to, base.to_path_buf());
     }
 
     #[test]
