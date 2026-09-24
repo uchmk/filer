@@ -49,6 +49,11 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
     ui.painter()
         .line_segment([rect.left_top(), rect.right_top()], Stroke::new(1.0, theme_border));
 
+    // Tab hands the listing to the scan pool, so the answer can be a moment
+    // behind on a slow share. Say so rather than look like the key did nothing.
+    let waiting = app.completing();
+    let gutter = if waiting { 22.0 } else { 0.0 };
+
     let Overlay::Input(ov) = &mut app.overlay else { return };
     let title = format!("{}:", ov.title);
     let g = ui.painter().layout_no_wrap(title, f.clone(), accent);
@@ -58,7 +63,7 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
 
     let field = Rect::from_min_max(
         egui::pos2(rect.left() + tw + 18.0, rect.top() + 5.0),
-        egui::pos2(rect.right() - 10.0, rect.bottom() - 5.0),
+        egui::pos2(rect.right() - 10.0 - gutter, rect.bottom() - 5.0),
     );
     let id = egui::Id::new("filer-input");
     let before = ov.text.clone();
@@ -78,6 +83,14 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
     }
     if resp.changed() && ov.text != before {
         app.input_changed();
+    }
+    if waiting {
+        let g = ui.painter().layout_no_wrap("…".into(), f.clone(), theme_border);
+        ui.painter().galley(
+            egui::pos2(rect.right() - 10.0 - g.size().x, rect.center().y - g.size().y / 2.0),
+            g,
+            theme_border,
+        );
     }
     let _ = queued;
 }

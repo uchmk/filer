@@ -339,6 +339,15 @@ pub struct Yank {
     pub cut: bool,
 }
 
+/// A `Tab` completion in the `cd` prompt that is waiting for its listing.
+/// `dir` and `prefix` are what the input line said when the key was pressed,
+/// so an answer that arrives over newer text can be told apart and dropped.
+struct PendingCompletion {
+    id: u64,
+    dir: PathBuf,
+    prefix: String,
+}
+
 pub struct App {
     pub cfg: Config,
     pub tabs: Vec<Tab>,
@@ -382,6 +391,9 @@ pub struct App {
     dirty: HashMap<PathBuf, Instant>,
     /// Directories whose child count has already been asked for.
     counted: std::collections::HashSet<PathBuf>,
+    /// A path completion waiting on the scan pool. Only the newest one
+    /// answers; anything the user typed over is dropped.
+    pending_completion: Option<PendingCompletion>,
     /// Scans in flight, so results can be routed back to the right folder.
     inflight: HashMap<u64, PathBuf>,
     pub quit: bool,
@@ -445,6 +457,7 @@ impl App {
             pending_conflict: None,
             dirty: HashMap::new(),
             counted: std::collections::HashSet::new(),
+            pending_completion: None,
             inflight: HashMap::new(),
             quit: false,
             cwd_file: None,
@@ -655,10 +668,16 @@ impl App {
                 self.inflight.remove(&id);
                 let entries = Arc::new(entries);
                 self.cache.put(path.clone(), entries.clone());
-                self.apply_listing(&path, entries);
+                self.apply_listing(&path, entries.clone());
+                self.complete_from(id, &path, &entries);
             }
             ScanResult::Failed { id, path, error } => {
                 self.inflight.remove(&id);
+                // A completion that cannot be listed simply has no answer; the
+                // toast below still says why.
+                if self.pending_completion.as_ref().is_some_and(|p| p.id == id) {
+                    self.pending_completion = None;
+                }
                 // A jump that was never listed is undone first: the tab goes
                 // back where it was instead of showing an empty error column.
                 let jumped = self
@@ -2090,6 +2109,7 @@ impl App {
         let Overlay::Input(ov) = std::mem::replace(&mut self.overlay, Overlay::None) else {
             return;
         };
+        self.pending_completion = None;
         let text = ov.text.trim().to_owned();
         match ov.kind {
             InputKind::Create => self.do_create(&text),
@@ -2124,6 +2144,7 @@ impl App {
     /// Dismiss the input line without acting on it. A job waiting on a rename
     /// must still be told something, or its worker stays parked forever.
     pub fn cancel_input(&mut self) {
+        self.pending_completion = None;
         if let Some(reply) = self.pending_conflict.take() {
             let _ = reply.send(Resolution::Skip);
         }
@@ -2188,38 +2209,55 @@ impl App {
     }
 
     fn complete_input(&mut self) {
-        let Overlay::Input(ov) = &mut self.overlay else { return };
+        let Overlay::Input(ov) = &self.overlay else { return };
         if !matches!(ov.kind, InputKind::Cd) {
             return;
         }
-        let text = ov.text.clone();
-        let p = util::expand(&text);
-        let (dir, prefix) = if text.ends_with('/') || text.ends_with('\\') {
-            (p.clone(), String::new())
-        } else {
-            (
-                p.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from(".")),
-                util::file_name(&p),
-            )
-        };
-        let mut hits: Vec<String> = Vec::new();
-        if let Ok(rd) = std::fs::read_dir(&dir) {
-            for e in rd.flatten() {
-                if !e.path().is_dir() {
-                    continue;
-                }
-                let name = e.file_name().to_string_lossy().into_owned();
-                if prefix.is_empty() || name.to_lowercase().starts_with(&prefix.to_lowercase()) {
-                    hits.push(name);
-                }
-            }
+        let (dir, prefix) = completion_target(&ov.text, &self.tabs[self.active].cwd);
+        // A directory that has been listed once answers on the spot, which
+        // covers the cwd, its parent and everywhere the tab has been.
+        if let Some(entries) = self.cache.get(&dir).cloned() {
+            self.pending_completion = None;
+            self.apply_completion(&dir, completion_hits(&entries, &prefix));
+            return;
         }
-        hits.sort_by(|a, b| util::natural_cmp(a, b, false));
+        // Everything else goes to the scan pool. `read_dir` on a dead share
+        // sits for half a minute, and Tab must not take the window with it.
+        let sort = self.tabs[self.active].sort;
+        let id = self.scanner.scan_low(dir.clone(), sort);
+        self.inflight.insert(id, dir.clone());
+        self.pending_completion = Some(PendingCompletion { id, dir, prefix });
+    }
+
+    /// Answer a completion whose listing has just arrived. What the user typed
+    /// in the meantime wins: an answer to an older question is dropped.
+    fn complete_from(&mut self, id: u64, path: &Path, entries: &[Entry]) {
+        let Some(p) = self.pending_completion.take() else { return };
+        if p.id != id || p.dir != path {
+            self.pending_completion = Some(p);
+            return;
+        }
+        let Overlay::Input(ov) = &self.overlay else { return };
+        if !matches!(ov.kind, InputKind::Cd) {
+            return;
+        }
+        if completion_target(&ov.text, &self.tabs[self.active].cwd)
+            != (p.dir.clone(), p.prefix.clone())
+        {
+            return;
+        }
+        self.apply_completion(&p.dir, completion_hits(entries, &p.prefix));
+    }
+
+    /// Put the next match on the input line. Repeated presses walk the list,
+    /// and `completion_at` remembers how far they got.
+    fn apply_completion(&mut self, dir: &Path, hits: Vec<String>) {
+        let Overlay::Input(ov) = &mut self.overlay else { return };
         if hits.is_empty() {
             return;
         }
         let idx = ov.completion_at % hits.len();
-        ov.text = dir.join(&hits[idx]).display().to_string() + "\\";
+        ov.text = completed_text(dir, &hits[idx]);
         ov.completion_at = idx + 1;
         ov.completion = hits;
         ov.initial_selection = {
@@ -2227,6 +2265,11 @@ impl App {
             Some((n, n))
         };
         ov.focused = false;
+    }
+
+    /// True while Tab is waiting on a listing, so the prompt can say so.
+    pub fn completing(&self) -> bool {
+        self.pending_completion.is_some()
     }
 
     fn start_search(&mut self, query: &str, via: SearchVia) {
@@ -2559,6 +2602,44 @@ fn search_path(query: &str, root: &Path) -> PathBuf {
     PathBuf::from(format!("search: {query}  in  {}", root.display()))
 }
 
+/// Split what has been typed into the directory a completion has to list and
+/// the prefix its names have to carry on from. A trailing separator means the
+/// directory itself is the question, so every child answers it. The text is
+/// resolved the way `cd` resolves it, so a relative path completes against the
+/// tab it was typed in.
+fn completion_target(text: &str, cwd: &Path) -> (PathBuf, String) {
+    let p = util::resolve_against(cwd, text);
+    if text.ends_with('/') || text.ends_with('\\') {
+        return (p, String::new());
+    }
+    let prefix = util::file_name(&p);
+    match p.parent() {
+        Some(dir) => (dir.to_path_buf(), prefix),
+        // A drive or share root has nothing above it: list the root itself.
+        None => (p, String::new()),
+    }
+}
+
+/// The directories in a listing that carry on from `prefix`, in the order the
+/// prompt walks them. Links to directories count, the same as entering one.
+fn completion_hits(entries: &[Entry], prefix: &str) -> Vec<String> {
+    let prefix = prefix.to_lowercase();
+    let mut hits: Vec<String> = entries
+        .iter()
+        .filter(|e| e.is_dir_like())
+        .map(|e| e.name.clone())
+        .filter(|n| prefix.is_empty() || n.to_lowercase().starts_with(&prefix))
+        .collect();
+    hits.sort_by(|a, b| util::natural_cmp(a, b, false));
+    hits
+}
+
+/// What the input line reads once a name is chosen: the directory, ready for
+/// the next component to be typed or completed.
+fn completed_text(dir: &Path, name: &str) -> String {
+    format!("{}{}", dir.join(name).display(), std::path::MAIN_SEPARATOR)
+}
+
 fn preview_paths(paths: &[PathBuf]) -> Vec<String> {
     let mut out: Vec<String> = paths
         .iter()
@@ -2634,6 +2715,42 @@ mod tests {
         // Without a home directory the tab stays where it was opened from.
         let (to, _) = new_tab_target(base, false, None, None, None);
         assert_eq!(to, base.to_path_buf());
+    }
+
+    /// Tab asks the scan pool a question, and the answer may arrive over text
+    /// that has since moved on. The question is the pair below, so an answer
+    /// to an older one can be recognised and dropped.
+    #[test]
+    fn a_completion_asks_about_one_directory_and_one_prefix() {
+        let cwd = Path::new("/here");
+        assert_eq!(completion_target("/a/b/sr", cwd), (PathBuf::from("/a/b"), "sr".into()));
+        // A trailing separator asks about the directory itself.
+        assert_eq!(completion_target("/a/b/", cwd), (PathBuf::from("/a/b"), String::new()));
+        // Another keystroke is another question, so an answer to the old one
+        // can be told apart and dropped.
+        assert_ne!(completion_target("/a/b/src", cwd), completion_target("/a/b/sr", cwd));
+        // A relative name completes where it was typed, as `cd` would take it.
+        assert_eq!(completion_target("sr", cwd), (PathBuf::from("/here"), "sr".into()));
+    }
+
+    #[test]
+    fn a_completion_offers_the_directories_that_carry_on_from_the_prefix() {
+        let entries = vec![
+            entry("/a/src10", true),
+            entry("/a/Src2", true),
+            entry("/a/srcs.txt", false),
+            entry("/a/target", true),
+        ];
+        // Case is ignored on the way in, and the order is the listing's own.
+        assert_eq!(completion_hits(&entries, "sr"), vec!["Src2", "src10"]);
+        // An empty prefix offers every directory, files still left out.
+        assert_eq!(completion_hits(&entries, ""), vec!["Src2", "src10", "target"]);
+        assert!(completion_hits(&entries, "zz").is_empty());
+        // The chosen name comes back ready for the next component to be typed,
+        // with the separator this platform spells paths with.
+        let done = completed_text(Path::new("/a"), "Src2");
+        assert!(done.ends_with(std::path::MAIN_SEPARATOR), "{done}");
+        assert!(done.contains("Src2"), "{done}");
     }
 
     #[test]

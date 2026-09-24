@@ -299,6 +299,11 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
 - A new tab (`t`, or `tab_create <path>`) opens the same way: it appears at once on the path it
   was given, and a listing that never arrives puts it back on the directory it was opened from.
   A path that names a file reveals that file in its folder.
+- `Tab` in the `cd` prompt completes without waiting on disk. A directory that has been
+  listed once answers from the cache — the folder you are in, its parent, anywhere the tab has
+  been — and anything else is listed by the scan pool while the prompt stays live, with a `…`
+  at the end of the line until the answer arrives. Typing on carries the prompt forward: an
+  answer to a path you have moved past is dropped rather than pasted over what you typed.
 - Change watching runs on its own thread. Registering a directory opens a handle to it
   (`ReadDirectoryChangesW` on Windows) and that call can hang on a dead share, so the window only
   posts the set of folders it wants watched. While a registration is stuck the panes still scroll
