@@ -85,6 +85,56 @@ impl Doc {
     }
 }
 
+/// One line as the minimap needs it: where its text starts, how far it runs,
+/// and what color it mostly is.
+///
+/// Six bytes a line, so even a file at the read limit costs tens of kilobytes.
+/// The color stays `None` where syntect had nothing to say, so the theme —
+/// which `config_reload` can change under a preview already on screen — still
+/// gets to decide what the default is.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct MapRow {
+    /// Leading whitespace, in cells.
+    pub indent: u16,
+    /// Cells of text after the indent. Zero for a blank line.
+    pub len: u16,
+    pub color: Option<[u8; 3]>,
+}
+
+/// Squash highlighted lines into what the minimap draws. Built on the worker,
+/// beside the lines themselves: walking every span of a ten-thousand-line file
+/// is not something to do again on each frame.
+pub fn minimap(lines: &[Vec<Span>]) -> Vec<MapRow> {
+    lines
+        .iter()
+        .map(|spans| {
+            let mut row = MapRow::default();
+            let mut started = false;
+            // The widest span speaks for the line, so code with a comment after
+            // it still reads as code.
+            let mut widest = 0usize;
+            for span in spans {
+                let trimmed = span.text.trim_start();
+                if !started {
+                    let lead = span.text.len() - trimmed.len();
+                    row.indent = row.indent.saturating_add(cells(&span.text[..lead]) as u16);
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    started = true;
+                }
+                let w = cells(trimmed.trim_end());
+                row.len = row.len.saturating_add(cells(span.text.trim_start()) as u16);
+                if w > widest {
+                    widest = w;
+                    row.color = span.color;
+                }
+            }
+            row
+        })
+        .collect()
+}
+
 /// Columns a string takes on the cell grid, with CJK characters counting two.
 pub fn cells(s: &str) -> usize {
     use unicode_width::UnicodeWidthChar;
@@ -134,12 +184,33 @@ pub fn outline_cols(widest: usize, cols: u16) -> u16 {
 #[derive(Clone, Debug)]
 pub enum Payload {
     /// `outline` lists the declarations of source code, if its grammar marks any.
-    Text { lines: Vec<Vec<Span>>, truncated: bool, total_lines: usize, outline: Vec<TocEntry> },
+    Text {
+        lines: Vec<Vec<Span>>,
+        /// One entry per line, for the minimap.
+        map: Vec<MapRow>,
+        truncated: bool,
+        total_lines: usize,
+        outline: Vec<TocEntry>,
+    },
     /// Markdown carries both views so switching between them needs no reload.
-    Markdown { doc: Doc, source: Vec<Vec<Span>>, truncated: bool, total_lines: usize },
+    /// `map` describes `source`, which is why the minimap is only shown for the
+    /// source view: a rendered line and a source line are not the same line.
+    Markdown { doc: Doc, source: Vec<Vec<Span>>, map: Vec<MapRow>, truncated: bool, total_lines: usize },
     /// Raw RGBA plus its dimensions; the UI turns this into a texture. The
     /// caption goes under it (the source size, a font's name, ...).
-    Image { width: u32, height: u32, rgba: Arc<Vec<u8>>, caption: String },
+    ///
+    /// `width` and `height` are the decode, which is only ever as big as the
+    /// box asked for. `source` is the picture itself, and is what the geometry
+    /// is built from: a zoom re-decodes at a higher resolution, and if the size
+    /// on screen followed the texture instead, the image would jump the moment
+    /// the sharper copy arrived.
+    Image {
+        width: u32,
+        height: u32,
+        source: (u32, u32),
+        rgba: Arc<Vec<u8>>,
+        caption: String,
+    },
     Binary { lines: Vec<String>, total: u64 },
     Meta { rows: Vec<(String, String)> },
     Error(String),
@@ -332,7 +403,8 @@ fn archive_listing(path: &std::path::Path) -> Payload {
             ]
         })
         .collect();
-    Payload::Text { lines, truncated: more, total_lines: total, outline: Vec::new() }
+    let map = minimap(&lines);
+    Payload::Text { lines, map, truncated: more, total_lines: total, outline: Vec::new() }
 }
 
 fn meta(path: &std::path::Path, _req: &Request, note: &str) -> Payload {
@@ -343,4 +415,60 @@ fn meta(path: &std::path::Path, _req: &Request, note: &str) -> Payload {
     }
     rows.push(("Note".into(), note.to_owned()));
     Payload::Meta { rows }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn span(text: &str, color: Option<[u8; 3]>) -> Span {
+        Span { text: text.into(), color, ..Default::default() }
+    }
+
+    #[test]
+    fn a_minimap_row_records_the_indent_and_the_width() {
+        let rows = minimap(&[
+            vec![span("    let x = 1;", None)],
+            vec![span("", None)],
+            vec![span("fn main() {", None)],
+        ]);
+
+        assert_eq!(rows[0], MapRow { indent: 4, len: 10, color: None });
+        assert_eq!(rows[1], MapRow::default(), "a blank line leaves a gap");
+        assert_eq!(rows[2].indent, 0);
+    }
+
+    /// The widest span decides the color, so a line of code with a comment
+    /// after it still reads as code rather than as a comment.
+    #[test]
+    fn the_widest_span_gives_the_row_its_color() {
+        const CODE: [u8; 3] = [0x80, 0xc0, 0xff];
+        const NOTE: [u8; 3] = [0x60, 0x60, 0x60];
+
+        let long_code = minimap(&[vec![
+            span("let answer = compute();", Some(CODE)),
+            span(" // why", Some(NOTE)),
+        ]]);
+        assert_eq!(long_code[0].color, Some(CODE));
+
+        let all_comment = minimap(&[vec![span("x;", Some(CODE)), span(" // a long explanation", Some(NOTE))]]);
+        assert_eq!(all_comment[0].color, Some(NOTE));
+    }
+
+    /// The indent is counted across spans: a highlighter is free to hand back
+    /// the leading whitespace on its own.
+    #[test]
+    fn an_indent_split_across_spans_still_counts() {
+        let rows = minimap(&[vec![span("  ", None), span("  ", None), span("x", None)]]);
+
+        assert_eq!(rows[0].indent, 4);
+        assert_eq!(rows[0].len, 1);
+    }
+
+    #[test]
+    fn a_wide_character_counts_as_two_cells() {
+        let rows = minimap(&[vec![span("日本語", None)]]);
+
+        assert_eq!(rows[0].len, 6);
+    }
 }

@@ -62,6 +62,18 @@ pub enum RenameCursor {
     BeforeExt,
 }
 
+/// What `zoom` does to the image preview. Fixed steps rather than a factor, so
+/// [`Act`] stays comparable and a keymap needs no arithmetic in it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ZoomTo {
+    /// Back to filling the pane, where every image starts.
+    Fit,
+    /// One texture pixel per screen point.
+    Actual,
+    In,
+    Out,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SearchVia {
     Name,
@@ -152,6 +164,11 @@ pub enum Act {
     /// Show the hovered file big, over the panes — macOS's Quick Look. The
     /// cursor keys still move, so the panel follows down the list.
     Quick(Tri),
+
+    /// Scale the image preview. Does nothing when the preview is not an image.
+    Zoom(ZoomTo),
+    /// Show or hide the preview's minimap.
+    Minimap(Tri),
 
     /// Rename everything selected at once, by a rule typed at the prompt.
     BulkRename,
@@ -327,6 +344,19 @@ pub fn parse(line: &str) -> Act {
         "redo" => Act::Redo,
         "config_reload" => Act::ConfigReload,
         "bulk_rename" => Act::BulkRename,
+        // A bare `zoom`, and anything unrecognized, fits the pane -- the state
+        // it is always safe to land in.
+        "zoom" => Act::Zoom(match a.first() {
+            Some("actual" | "1:1") => ZoomTo::Actual,
+            Some("in") => ZoomTo::In,
+            Some("out") => ZoomTo::Out,
+            _ => ZoomTo::Fit,
+        }),
+        "minimap" => Act::Minimap(match a.first() {
+            Some("on" | "show") => Some(true),
+            Some("off" | "hide") => Some(false),
+            _ => None,
+        }),
         "compare" => Act::Compare,
         "quick" => Act::Quick(match a.first() {
             Some("open") => Some(true),

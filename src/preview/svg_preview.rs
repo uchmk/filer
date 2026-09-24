@@ -46,7 +46,9 @@ fn render_bytes(data: &[u8], dir: Option<&Path>, box_size: (u32, u32)) -> Result
     let img = image::RgbaImage::from_raw(w, h, straight).ok_or("SVG buffer size mismatch")?;
     let (width, height, rgba) = image_preview::finish(img);
     let caption = format!("SVG · {} × {}", size.width().round(), size.height().round());
-    Ok(Payload::Image { width, height, rgba, caption })
+    // Vector art is re-rendered into a bigger box as the zoom grows, so what
+    // came back is the source for now.
+    Ok(Payload::Image { width, height, source: (width, height), rgba, caption })
 }
 
 fn system_fonts() -> Arc<usvg::fontdb::Database> {

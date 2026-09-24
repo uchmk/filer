@@ -130,6 +130,42 @@ desc = "Scroll the preview up"
 on = "<A-j>"
 run = "seek 5"
 desc = "Scroll the preview down"
+
+# Shift+J / K do the same as the Alt pair: the preview scrolls without the
+# list's cursor moving either way.
+[[mgr.keymap]]
+on = "K"
+run = "seek -5"
+desc = "Scroll the preview up"
+[[mgr.keymap]]
+on = "J"
+run = "seek 5"
+desc = "Scroll the preview down"
+
+# Image preview. Ctrl and the wheel zoom about the pointer, dragging pans, and
+# a double-click goes back to fitting the pane. Letters rather than `+` and `-`:
+# on a JIS layout `=` is Shift and the minus key, which arrives as a different
+# key entirely, so the obvious pair would work on one keyboard and not another.
+[[mgr.keymap]]
+on = "<A-i>"
+run = "zoom in"
+desc = "Zoom into the image"
+[[mgr.keymap]]
+on = "<A-o>"
+run = "zoom out"
+desc = "Zoom out of the image"
+[[mgr.keymap]]
+on = "<A-0>"
+run = "zoom fit"
+desc = "Fit the image to the pane"
+[[mgr.keymap]]
+on = "<A-1>"
+run = "zoom actual"
+desc = "Show the image at 1:1"
+[[mgr.keymap]]
+on = "<A-n>"
+run = "minimap"
+desc = "Show or hide the preview's minimap"
 [[mgr.keymap]]
 on = "M"
 run = "toggle_render"

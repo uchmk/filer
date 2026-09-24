@@ -78,7 +78,8 @@ fn render_bytes(data: &[u8], file_name: &str, box_size: (u32, u32)) -> Result<Pa
         caption.push_str(&format!(" · face 1 of {n}"));
     }
     let (width, height, rgba) = sheet.finish(y.ceil() as u32 + pad as u32);
-    Ok(Payload::Image { width, height, rgba, caption })
+    // A rendered specimen is its own source: there is nothing sharper to ask for.
+    Ok(Payload::Image { width, height, source: (width, height), rgba, caption })
 }
 
 /// The English full name if there is one, else any readable full or family name.

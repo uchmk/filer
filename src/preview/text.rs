@@ -134,9 +134,11 @@ pub fn render(bytes: &[u8], req: &Request, hl: &mut Highlighter) -> Payload {
     }
     if is_markdown {
         let (doc, clipped) = super::markdown::render(&expanded, req.key.cols, theme, syntaxes);
-        return Payload::Markdown { doc, source: lines, truncated: truncated || clipped, total_lines };
+        let map = super::minimap(&lines);
+        return Payload::Markdown { doc, source: lines, map, truncated: truncated || clipped, total_lines };
     }
-    Payload::Text { lines, truncated, total_lines, outline: symbols.finish() }
+    let map = super::minimap(&lines);
+    Payload::Text { lines, map, truncated, total_lines, outline: symbols.finish() }
 }
 
 /// Resolve a language name as people write it after a fence or in a hint.
@@ -240,12 +242,13 @@ fn plain_line(line: &str) -> Vec<Span> {
 }
 
 fn plain(text: &str, truncated: bool, total_lines: usize) -> Payload {
-    let lines = text
+    let lines: Vec<Vec<Span>> = text
         .lines()
         .take(MAX_LINES)
         .map(|l| vec![Span { text: clip(l, MAX_LINE_CHARS), ..Default::default() }])
         .collect();
-    Payload::Text { lines, truncated, total_lines, outline: Vec::new() }
+    let map = super::minimap(&lines);
+    Payload::Text { lines, map, truncated, total_lines, outline: Vec::new() }
 }
 
 fn clip(s: &str, max: usize) -> String {

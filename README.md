@@ -58,7 +58,7 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `undo`, `redo`, `jump`,
-`bulk_rename`, `compare`, `quick`, `config_reload`, `palette`,
+`bulk_rename`, `compare`, `quick`, `zoom`, `minimap`, `config_reload`, `palette`,
 `menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `term_cd`, `term_find`, `term_scroll`, `task_toggle`, `task_cancel`, `task_top`,
 `split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
 project's own). `select` and `select_all` are accepted as `toggle --state=on` /
@@ -474,6 +474,54 @@ one (a zip's central directory, a 7z's header), so nothing is decompressed to an
 question; a tar has no index, so its entries are walked with the data skipped. The first 2000
 entries are listed and the pane says when there are more.
 
+## Scrolling the preview, and the minimap
+
+The preview scrolls without the file list losing the cursor: `<A-k>` / `<A-j>`, or `K` / `J`, or the
+wheel with the pointer over it. Only the lines on screen are ever drawn, and only the first
+256 KiB of a file is read at all (`max_text_bytes`), so a huge log opens as fast as a short one.
+
+There is no scrollbar — this is a pane of lines, not a `ScrollArea`, because measuring ten thousand
+lines to know how tall the content is would cost the frame that virtualizing just saved. The
+**minimap** down the right takes its place:
+
+```
+    fn draw(…) {            ▏▔▔▔▔▔
+        let rect = …;       ▏  ▄▄▄▄
+        …                   ▏ ▟▓▓▓▓   ← where the pane is looking
+```
+
+Each band is one rectangle spanning the widest line in it, colored by what syntect said, so a block
+of code reads as a block, a comment header as a lighter band, and a blank run as a gap. No glyphs
+are drawn: at two pixels a line a letter is a smudge, and laying out ten thousand of them is exactly
+the cost being avoided. The rows are summarised on the preview worker, six bytes a line.
+
+Click or drag the minimap to go there — the line pointed at lands in the middle of the pane. It
+appears where the pane is wide enough to spare seven columns, and `<A-n>` (or `[ui] minimap = false`
+in `filer.toml`) turns it off. Rendered Markdown gets none: its lines are not the file's lines, so
+the box would point at the wrong place, and its [Contents](#outline-contents) column already answers
+"where am I". Switch it to source with `M` and the map comes back.
+
+## Image previews
+
+| Key | |
+| --- | --- |
+| `<A-i>` `<A-o>` | zoom in / out |
+| `<A-0>` | fit the pane (where every image starts) |
+| `<A-1>` | 1:1, one image pixel per point |
+
+`Ctrl` and the wheel zoom about the pointer, so the thing being looked at stays under the cursor
+instead of sliding away as it grows. Dragging pans, and a double-click goes back to fitting. The
+caption carries the scale (`fit 34%`, `1:1`, `250%`), because whether what is on screen is the real
+pixels is the first thing worth knowing. A zoom belongs to the file it was set on: walking to the
+next image starts it fitted again.
+
+The worker decodes into the pane's size, so magnifying would show a blurred copy of a small
+texture. Instead the zoom asks for a **bigger decode** — the box size is part of the preview's
+identity, so the newest-wins worker and the cache handle it with nothing added. The box steps in
+powers of two and stops at 4096, so dragging the zoom about costs a handful of decodes rather than
+one a frame, and the picture on screen stays put while the sharper copy is read: the geometry
+follows the image's own dimensions, never the texture's.
+
 ## Other previews
 
 No external tools (magick, ffmpeg, pdftoppm) are needed:
@@ -522,7 +570,10 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `<C-w>` `<C-S-w>` | split the view in two panes / move between them, close the split |
 | `;` `:` | shell command / blocking shell command |
 | `<C-t>` `<A-t>` | terminal pane / type the selection into it |
-| `<A-k>` `<A-j>` `M` | scroll the preview / Markdown rendered ↔ source |
+| `<A-k>` `<A-j>` (or `K` `J`) | scroll the preview, without moving the list's cursor |
+| `M` | Markdown rendered ↔ source |
+| `<A-i>` `<A-o>` `<A-0>` `<A-1>` | image: zoom in / out / fit the pane / 1:1 |
+| `<A-n>` | show or hide the preview's minimap |
 | `<S-Tab>` | move the keys into the preview's outline and back |
 | `<Tab>` | spot: details of the hovered file |
 | `<C-S-p>` | command palette: fuzzy-search every key binding and run it |
@@ -612,6 +663,10 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   only renames — see [Undo](#undo). It is not written to disk, so closing the window forgets it.
 - Comparing is line-level and read-only: no word-level highlighting inside a changed line, no
   editing from the view, and no comparing directories.
+- The minimap is a map, not a second view: no hover preview of the line under the pointer, and it
+  stops where the file was cut off at `max_text_bytes` rather than describing the rest.
+- Zooming an image asks for a sharper decode, but a small image has nothing sharper to give and a
+  font specimen or a shell thumbnail is its own source, so those go soft past 1:1.
 - `<C-F5>` re-reads the config, including fonts and the theme, but leaves what you have changed by
   hand since — the sort a `,` key chose, whether Markdown is rendered — as you set it. The window
   size is only read at startup.
@@ -630,7 +685,7 @@ src/
   fs/            entries, sorting, scan pool, file operations, watcher, archives, git status, undelete
   rename.rs      bulk-rename rules and the order a batch of renames has to happen in
   diff.rs        comparing two files line by line, and the worker that reads them
-  preview/       preview worker: text + syntect, Markdown layout, images, SVG, fonts, shell thumbnails
+  preview/       preview worker: text + syntect, Markdown layout, images, SVG, fonts, shell thumbnails, minimap rows
   terminal.rs    the embedded shell: PTY, key encoding
   ui/            painting: columns, preview pane, terminal pane, overlays
   search.rs      recursive name/content search

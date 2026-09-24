@@ -9,7 +9,8 @@ mod term;
 
 use egui::{Align2, Color32, CornerRadius, FontFamily, FontId, Rect, Stroke, Ui, Vec2};
 
-use crate::app::{App, Overlay, PreviewState};
+use crate::app::{self, App, Overlay, PreviewState};
+use crate::preview::Payload;
 use crate::config::cmd::{Act, Step};
 use crate::config::theme::{Style, Theme};
 use crate::core::folder::Folder;
@@ -288,10 +289,16 @@ pub(super) fn draw_preview(
     queued: &mut Vec<Act>,
 ) {
     let theme = app.cfg.theme.clone();
-    app.preview.box_size = (
+    // A zoomed image asks for a bigger decode, so magnifying shows the picture
+    // rather than a blurred copy of the pane-sized one.
+    let pane_px = (
         (rect.width() * 2.0).max(64.0) as u32,
         (rect.height() * 2.0).max(64.0) as u32,
     );
+    // `image_input` first: only it knows the pane's size, so it is what leaves
+    // the fit scale behind for the decode box to be judged against.
+    image_input(app, ui, rect);
+    app.preview.box_size = app::zoom_box(pane_px, app.preview.zoom, app.preview.fit);
     match &app.preview.state {
         PreviewState::Dir(folder) => {
             let st = list::ListStyle {
@@ -325,6 +332,9 @@ pub(super) fn draw_preview(
                 wrap: app.cfg.yazi.preview.wrap == "yes",
                 render_markdown: app.render_markdown,
                 outline_focus: app.preview.outline,
+                minimap: app.cfg.ui.minimap,
+                zoom: app.preview.zoom,
+                pan: app.preview.pan,
             };
             let drawn = preview::draw(
                 ui,
@@ -334,6 +344,9 @@ pub(super) fn draw_preview(
                 app.tabs[app.active].preview_offset,
                 &st,
             );
+            if let Some(line) = drawn.scroll_to {
+                app.tabs[app.active].preview_offset = line;
+            }
             if let Some((k, line)) = drawn.jump {
                 app.tabs[app.active].preview_offset = line;
                 if app.preview.outline.is_some() {
@@ -347,14 +360,65 @@ pub(super) fn draw_preview(
                 app.tabs[app.active].preview_offset = max;
             }
             if ui.rect_contains_pointer(rect) {
-                let scroll = ui.ctx().input(|i| i.smooth_scroll_delta.y);
-                if scroll.abs() > 0.5 {
+                // Ctrl and the wheel is the image zoom, so it must not scroll
+                // the pane with the same turn.
+                let (scroll, ctrl) =
+                    ui.ctx().input(|i| (i.smooth_scroll_delta.y, i.modifiers.command));
+                if scroll.abs() > 0.5 && !ctrl {
                     let delta = -(scroll / row_h * 1.5) as i64;
                     queued.push(Act::Seek(Step::Rel(delta)));
                 }
             }
         }
     }
+}
+
+/// Mouse handling for the image preview: drag to pan, `Ctrl` and the wheel to
+/// zoom about the pointer, double-click back to fit.
+///
+/// Separate from the painting because it is the only part that writes: the
+/// painter sees a scale and an offset and draws them.
+fn image_input(app: &mut App, ui: &mut Ui, rect: Rect) {
+    let PreviewState::Ready(Payload::Image { source, .. }) = &app.preview.state else {
+        return;
+    };
+    // The picture's own size, not the texture's: a re-decode at a higher
+    // resolution must not change how big it looks.
+    let (w, h) = (source.0 as f32, source.1 as f32);
+    let avail = rect.shrink(8.0);
+    // The pane is the only one that knows how big it is, so it leaves the fit
+    // scale behind for `zoom in` to start from.
+    app.preview.fit = app::image_fit(avail.size(), w, h);
+
+    let resp = ui.interact(avail, ui.id().with("image"), egui::Sense::click_and_drag());
+    let fit = app.preview.fit;
+    if resp.dragged() {
+        // Dragging means a zoom: fitting the pane has nothing to pan.
+        app.preview.zoom.get_or_insert(fit);
+        app.preview.pan += resp.drag_delta();
+    }
+    if let Some(p) = resp.hover_pos() {
+        let (scroll, ctrl) = ui.ctx().input(|i| (i.smooth_scroll_delta.y, i.modifiers.command));
+        // A plain wheel keeps scrolling the pane, as it does over text; `Ctrl`
+        // is the zoom, the way it is everywhere else.
+        if ctrl && scroll.abs() > 0.5 {
+            let zoom = *app.preview.zoom.get_or_insert(fit);
+            let (next, pan) =
+                app::zoom_at(zoom, app.preview.pan, avail.center(), p, 1.0 + scroll * 0.004);
+            app.preview.zoom = Some(next);
+            app.preview.pan = pan;
+        }
+    }
+    if resp.double_clicked() {
+        // The quickest way back out of being lost inside a photograph.
+        app.preview.zoom = None;
+        app.preview.pan = Vec2::ZERO;
+    }
+    if resp.hovered() && app.preview.zoom.is_some() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
+    }
+    let shown = Vec2::new(w, h) * app.preview.zoom.unwrap_or(app.preview.fit);
+    app.preview.pan = app::clamp_pan(app.preview.pan, shown, avail.size());
 }
 
 /// What every file-list column needs from the frame.

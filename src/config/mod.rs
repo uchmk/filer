@@ -55,6 +55,8 @@ pub struct Ui {
     pub render_markdown: bool,
     /// `auto`, `nerd`, `ascii` or `none`.
     pub icons: String,
+    /// Draw the shape of the whole file down the right of the text preview.
+    pub minimap: bool,
     /// Milliseconds the cursor must rest before a preview is requested.
     pub preview_debounce_ms: u64,
     pub max_text_bytes: usize,
@@ -73,6 +75,7 @@ impl Default for Ui {
             bold_fonts: Vec::new(),
             render_markdown: true,
             icons: "auto".into(),
+            minimap: true,
             preview_debounce_ms: 40,
             max_text_bytes: 256 * 1024,
             max_history: 200,

@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use crossbeam_channel::Sender;
 
-use crate::config::cmd::{Act, CopyWhat, EscapeWhat, RenameCursor, SearchVia, Step, Tri};
+use crate::config::cmd::{Act, CopyWhat, EscapeWhat, RenameCursor, SearchVia, Step, Tri, ZoomTo};
 use crate::config::keys::{Code, Key};
 use crate::config::{keymap, Config};
 use crate::core::folder::{Filter, Folder, LoadState};
@@ -426,6 +426,68 @@ pub struct PreviewSlot {
     /// A file whose outline should take the keys as soon as its preview lands
     /// (`enter` was pressed before it had loaded).
     pub outline_wanted: Option<PathBuf>,
+    /// How an image is scaled. `None` is fit-to-pane, where every image starts.
+    pub zoom: Option<f32>,
+    /// How far a zoomed image has been dragged from centered, in points.
+    pub pan: egui::Vec2,
+    /// The scale *fit* comes to for the image on screen. Written by the pane
+    /// each frame, since only it knows how big it is; read when zooming away
+    /// from fit so the first step does not jump.
+    pub fit: f32,
+}
+
+/// The scale that fits an image of `w` × `h` into `avail`, never magnifying: a
+/// small image sits at its own size rather than being blown up unasked.
+pub fn image_fit(avail: egui::Vec2, w: f32, h: f32) -> f32 {
+    if w <= 0.0 || h <= 0.0 {
+        return 1.0;
+    }
+    (avail.x / w).min(avail.y / h).min(1.0)
+}
+
+/// The smallest and largest an image may be scaled to.
+const ZOOM_MIN: f32 = 0.05;
+const ZOOM_MAX: f32 = 32.0;
+
+/// Zoom about `pointer`, so whatever is under the cursor stays under it.
+/// Without this the image slides out from under the eye as it grows.
+pub fn zoom_at(zoom: f32, pan: egui::Vec2, center: egui::Pos2, pointer: egui::Pos2, factor: f32) -> (f32, egui::Vec2) {
+    let next = (zoom * factor).clamp(ZOOM_MIN, ZOOM_MAX);
+    if zoom <= 0.0 {
+        return (next, pan);
+    }
+    // Where the pointer is relative to the image's own centre.
+    let d = pointer - center - pan;
+    (next, pan + d * (1.0 - next / zoom))
+}
+
+/// Keep an image from being dragged off the pane. Smaller than the pane, it has
+/// nowhere to go and stays centred.
+pub fn clamp_pan(pan: egui::Vec2, shown: egui::Vec2, avail: egui::Vec2) -> egui::Vec2 {
+    let slack = ((shown - avail) * 0.5).max(egui::Vec2::ZERO);
+    egui::Vec2::new(pan.x.clamp(-slack.x, slack.x), pan.y.clamp(-slack.y, slack.y))
+}
+
+/// The box the preview worker should decode an image into for the zoom in
+/// force. The worker renders to the pane's size, so magnifying past that would
+/// show a blurred copy; asking for a bigger decode is what the
+/// `box_size` in [`preview::Key`] is for, and the cache keeps both.
+///
+/// Stepping in powers of two means dragging the zoom around costs a handful of
+/// decodes rather than one per frame, and the cap keeps a huge photo from
+/// asking for a gigabyte of texture.
+///
+/// What matters is the zoom against `fit`, not the zoom on its own: a photo that
+/// fits at 5% is already asking for twice the pane's detail at 10%, while a
+/// small icon at 2x is asking for nothing that exists.
+pub fn zoom_box(pane: (u32, u32), zoom: Option<f32>, fit: f32) -> (u32, u32) {
+    const CAP: u32 = 4096;
+    let want = match zoom {
+        Some(z) if fit > 0.0 => (z / fit).max(1.0),
+        _ => 1.0,
+    };
+    let step = want.log2().ceil().exp2();
+    (((pane.0 as f32 * step) as u32).min(CAP), ((pane.1 as f32 * step) as u32).min(CAP))
 }
 
 impl Default for PreviewSlot {
@@ -441,6 +503,9 @@ impl Default for PreviewSlot {
             cols: 80,
             outline: None,
             outline_wanted: None,
+            zoom: None,
+            pan: egui::Vec2::ZERO,
+            fit: 1.0,
         }
     }
 }
@@ -1240,9 +1305,12 @@ impl App {
             self.preview.outline_wanted = None;
             return;
         };
-        // The outline belongs to the file it was opened on.
+        // The outline and the zoom belong to the file they were set on. Without
+        // this, walking onto the next image shows a corner of it at 8x.
         if self.preview.key.as_ref().is_none_or(|k| k.path != entry.path) {
             self.preview.outline = None;
+            self.preview.zoom = None;
+            self.preview.pan = egui::Vec2::ZERO;
         }
         if self.preview.outline_wanted.as_ref().is_some_and(|p| *p != entry.path) {
             self.preview.outline_wanted = None;
@@ -1315,7 +1383,15 @@ impl App {
             .key
             .as_ref()
             .is_some_and(|k| k.path == key.path && k.len == key.len && k.mtime == key.mtime)
-            && matches!(self.preview.state, PreviewState::Ready(Payload::Text { .. } | Payload::Markdown { .. }));
+            && matches!(
+                self.preview.state,
+                PreviewState::Ready(
+                    // An image re-decoded for a zoom is the same picture at a
+                    // different size: blinking through "loading" for it would
+                    // be worse than a moment of the softer copy.
+                    Payload::Text { .. } | Payload::Markdown { .. } | Payload::Image { .. }
+                )
+            );
         self.preview.key = Some(key.clone());
         if !relayout {
             self.preview.texture = None;
@@ -1350,7 +1426,15 @@ impl App {
             res.key,
             CachedPreview { payload: res.payload.clone(), texture: self.preview.texture.clone() },
         );
-        self.preview.state = PreviewState::Ready(res.payload);
+        if let PreviewState::Ready(Payload::Image { source, .. }) = &self.preview.state {
+            // A seed until the pane draws and says exactly: the box is twice the
+            // pane in pixels, so half of it is roughly the points available.
+            // Without this a zoom key pressed on this very frame would step from
+            // whatever the last image's scale was.
+            let (bw, bh) = self.preview.box_size;
+            let avail = egui::vec2(bw as f32 / 2.0, bh as f32 / 2.0);
+            self.preview.fit = image_fit(avail, source.0 as f32, source.1 as f32);
+        }
         self.grant_outline_wish();
     }
 
@@ -2030,6 +2114,10 @@ impl App {
             // Deliberately not an overlay: with the panel up, every key still
             // works, so `j` and `k` walk the list and the panel follows.
             Act::Quick(state) => self.quick = state.unwrap_or(!self.quick),
+            Act::Zoom(to) => self.zoom_preview(to),
+            Act::Minimap(state) => {
+                self.cfg.ui.minimap = state.unwrap_or(!self.cfg.ui.minimap);
+            }
             Act::BulkRename => self.start_bulk_rename(),
             Act::Compare => self.start_compare(),
 
@@ -3171,6 +3259,24 @@ impl App {
         Ok(())
     }
 
+    /// Scale the image preview. Stepping in or out from *fit* starts from the
+    /// scale on screen, so the first press does not jump.
+    fn zoom_preview(&mut self, to: ZoomTo) {
+        if !matches!(self.preview.state, PreviewState::Ready(Payload::Image { .. })) {
+            return;
+        }
+        let from = self.preview.zoom.unwrap_or(self.preview.fit);
+        self.preview.zoom = match to {
+            ZoomTo::Fit => None,
+            ZoomTo::Actual => Some(1.0),
+            ZoomTo::In => Some((from * 1.25).clamp(ZOOM_MIN, ZOOM_MAX)),
+            ZoomTo::Out => Some((from / 1.25).clamp(ZOOM_MIN, ZOOM_MAX)),
+        };
+        if self.preview.zoom.is_none() {
+            self.preview.pan = egui::Vec2::ZERO;
+        }
+    }
+
     /// Read the config files again, so a theme, an icon set or a key can be
     /// changed without closing the window.
     ///
@@ -4217,6 +4323,69 @@ mod tests {
         pick.query = "task manager".into();
         pick.refilter();
         assert_eq!(pick.selected(), Some(by_command), "the description finds the same row");
+    }
+
+    /// The point of zooming about the pointer: the pixel under the cursor is
+    /// the one being looked at, and it must not move.
+    #[test]
+    fn zooming_keeps_what_is_under_the_pointer_under_it() {
+        let center = egui::pos2(100.0, 100.0);
+        let pointer = egui::pos2(160.0, 80.0);
+        let (zoom, pan) = (1.0, egui::vec2(10.0, -5.0));
+
+        // Where in the image the pointer is, before and after.
+        let at = |z: f32, p: egui::Vec2| (pointer - center - p) / z;
+        let before = at(zoom, pan);
+        let (z2, p2) = zoom_at(zoom, pan, center, pointer, 2.0);
+
+        assert_eq!(z2, 2.0);
+        let after = at(z2, p2);
+        assert!((after - before).length() < 0.001, "{before:?} vs {after:?}");
+    }
+
+    #[test]
+    fn the_zoom_stays_within_its_bounds() {
+        let (c, p) = (egui::Pos2::ZERO, egui::Pos2::ZERO);
+        assert_eq!(zoom_at(ZOOM_MAX, egui::Vec2::ZERO, c, p, 4.0).0, ZOOM_MAX);
+        assert_eq!(zoom_at(ZOOM_MIN, egui::Vec2::ZERO, c, p, 0.25).0, ZOOM_MIN);
+    }
+
+    #[test]
+    fn an_image_smaller_than_the_pane_cannot_be_dragged_off_center() {
+        let avail = egui::vec2(400.0, 300.0);
+
+        let stuck = clamp_pan(egui::vec2(50.0, 50.0), egui::vec2(100.0, 80.0), avail);
+        assert_eq!(stuck, egui::Vec2::ZERO);
+
+        // Twice the pane wide: it may travel half the overhang either way.
+        let free = clamp_pan(egui::vec2(999.0, 0.0), egui::vec2(800.0, 300.0), avail);
+        assert_eq!(free.x, 200.0);
+    }
+
+    #[test]
+    fn fit_never_magnifies_a_small_image() {
+        let avail = egui::vec2(400.0, 400.0);
+        assert_eq!(image_fit(avail, 40.0, 40.0), 1.0, "a small image sits at its own size");
+        assert_eq!(image_fit(avail, 800.0, 400.0), 0.5, "the wider side decides");
+        assert_eq!(image_fit(avail, 0.0, 0.0), 1.0, "a zero-sized image cannot divide");
+    }
+
+    /// The decode box steps in powers of two, so dragging the zoom about costs
+    /// a handful of decodes rather than one a frame, and is capped so a huge
+    /// photo cannot ask for a huge texture.
+    #[test]
+    fn the_decode_box_grows_in_steps_and_stops() {
+        assert_eq!(zoom_box((800, 600), None, 1.0), (800, 600));
+        assert_eq!(zoom_box((800, 600), Some(0.4), 1.0), (800, 600), "fitting needs no more");
+        assert_eq!(zoom_box((800, 600), Some(1.5), 1.0), (1600, 1200));
+        assert_eq!(zoom_box((800, 600), Some(2.0), 1.0), (1600, 1200), "same step as 1.5");
+        assert_eq!(zoom_box((800, 600), Some(3.0), 1.0), (3200, 2400));
+        assert_eq!(zoom_box((800, 600), Some(32.0), 1.0), (4096, 4096), "capped");
+
+        // A big photo fits at 5%, so a tenth of full size is already twice the
+        // detail the pane holds.
+        assert_eq!(zoom_box((800, 600), Some(0.1), 0.05), (1600, 1200));
+        assert_eq!(zoom_box((800, 600), Some(0.05), 0.05), (800, 600), "still fitting");
     }
 
     /// The whole point of weighting by age: the directory being worked in today
