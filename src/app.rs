@@ -15,12 +15,12 @@ use crate::config::keys::{Code, Key};
 use crate::config::{keymap, Config};
 use crate::core::folder::{Filter, Folder, LoadState};
 use crate::core::fuzzy;
-use crate::core::tab::{Finder, Tab};
+use crate::core::tab::{CdFallout, Finder, PendingCd, Tab};
 use crate::exec;
 use crate::fs::ops::{self, OpKind, OpRequest, Resolution};
 use crate::fs::scan::{ScanResult, Scanner};
 use crate::fs::watch::Watcher;
-use crate::fs::{Entry, SortSpec};
+use crate::fs::{Entry, Kind, SortSpec};
 use crate::preview::{self, Payload, Previewer, TocEntry};
 use crate::spot::{self, Section, Spotter};
 use crate::util::{self, Lru};
@@ -73,6 +73,8 @@ pub enum PickAction {
     /// `line` (1-based) is handed to editors that take one.
     OpenWith { paths: Vec<PathBuf>, runs: Vec<(String, bool, bool)>, line: Option<usize> },
     Jump { paths: Vec<PathBuf> },
+    /// One keymap binding's command list per item.
+    Command { runs: Vec<Vec<Act>> },
 }
 
 pub struct PickOverlay {
@@ -103,6 +105,36 @@ impl PickOverlay {
     pub fn selected(&self) -> Option<usize> {
         self.matches.get(self.cursor).map(|m| m.0)
     }
+}
+
+/// Turn the `mgr` bindings into palette rows: `(labels, keys, runs)`.
+///
+/// The label carries both the description and the command text so either one
+/// can be typed at the filter. Commands bound to several keys appear once,
+/// under the first key the keymap gives them.
+pub fn palette_items(
+    bindings: &[keymap::Binding],
+) -> (Vec<String>, Vec<String>, Vec<Vec<Act>>) {
+    let mut items = Vec::new();
+    let mut details = Vec::new();
+    let mut runs = Vec::new();
+    let mut seen: Vec<&str> = Vec::new();
+    for b in bindings {
+        let skip = b.run.is_empty()
+            || b.run.iter().all(|a| *a == Act::Noop)
+            || b.run.iter().any(|a| matches!(a, Act::Unsupported(_)));
+        if skip || b.raw.is_empty() || seen.contains(&b.raw.as_str()) {
+            continue;
+        }
+        seen.push(&b.raw);
+        items.push(match b.desc.is_empty() {
+            true => b.raw.clone(),
+            false => format!("{}  ·  {}", b.desc, b.raw),
+        });
+        details.push(crate::config::keys::render_seq(&b.on));
+        runs.push(b.run.clone());
+    }
+    (items, details, runs)
 }
 
 /// The spot panel on the hovered file.
@@ -223,6 +255,60 @@ impl Default for PreviewSlot {
     }
 }
 
+// --------------------------------------------------------------- split view
+
+/// The second pane. The pane holding the keys always shows `App::active`, so
+/// every action keeps working on one tab and never has to know about the split.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Split {
+    /// The tab shown in the pane that does not have the keys.
+    pub other: usize,
+    /// The pane holding the keys is the right-hand one.
+    pub right: bool,
+}
+
+/// Follow the other pane's tab index after the tab at `removed` is dropped.
+/// `None` means that pane's own tab went away, so the split closes.
+fn split_after_remove(other: usize, removed: usize) -> Option<usize> {
+    match other.cmp(&removed) {
+        std::cmp::Ordering::Equal => None,
+        std::cmp::Ordering::Less => Some(other),
+        std::cmp::Ordering::Greater => Some(other - 1),
+    }
+}
+
+/// Where `tab_create` opens, and whether the target still has to prove itself
+/// a directory. A path someone typed gets the same benefit of the doubt a
+/// typed `cd` gets — it may name a file, and the parent is then what was
+/// meant. `hovered` is the entry under the cursor, which came from a listing.
+fn new_tab_target(
+    base: &Path,
+    current: bool,
+    path: Option<&str>,
+    hovered: Option<&Entry>,
+    home: Option<PathBuf>,
+) -> (PathBuf, bool) {
+    match path {
+        Some(p) if !p.is_empty() => (util::resolve_against(base, p), true),
+        _ if current => match hovered {
+            Some(e) if e.is_dir_like() => (e.path.clone(), false),
+            _ => (base.to_path_buf(), false),
+        },
+        _ => (home.unwrap_or_else(|| base.to_path_buf()), false),
+    }
+}
+
+/// Follow the other pane's tab index across `tabs.swap(a, b)`.
+fn split_after_swap(other: usize, a: usize, b: usize) -> usize {
+    if other == a {
+        b
+    } else if other == b {
+        a
+    } else {
+        other
+    }
+}
+
 // ---------------------------------------------------------------- bookmarks
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -257,6 +343,8 @@ pub struct App {
     pub cfg: Config,
     pub tabs: Vec<Tab>,
     pub active: usize,
+    /// The second pane, when the view is split.
+    pub split: Option<Split>,
     pub cache: Lru<PathBuf, Arc<Vec<Entry>>>,
 
     pub scanner: Scanner,
@@ -330,6 +418,7 @@ impl App {
             cfg,
             tabs: vec![tab],
             active: 0,
+            split: None,
             cache: Lru::new(64),
             scanner,
             previewer,
@@ -368,10 +457,36 @@ impl App {
         app
     }
 
+    /// Treat the directory the app opened on as unproven, the way a typed `cd`
+    /// is: nothing checked it before the window went up, since `is_dir` on a
+    /// dead share can hold the first frame for half a minute. If the first
+    /// listing fails, the tab falls back to `home` — by way of the parent, so
+    /// `filer C:\dir\file.txt` reveals the file instead of giving up.
+    pub fn start_unproven(&mut self, home: PathBuf) {
+        if self.tabs[self.active].cwd == home {
+            return;
+        }
+        self.tabs[self.active].pending_cd =
+            Some(PendingCd { from: home, pushed: false, fallback: true });
+    }
+
     // ------------------------------------------------------------- accessors
 
     pub fn tab(&self) -> &Tab {
         &self.tabs[self.active]
+    }
+
+    /// The tab in the pane that does not have the keys.
+    pub fn other_pane(&self) -> Option<usize> {
+        self.split.map(|s| s.other)
+    }
+
+    /// Every tab on screen: the focused one, plus the other pane's.
+    fn pane_tabs(&self) -> Vec<usize> {
+        match self.other_pane() {
+            Some(i) if i != self.active && i < self.tabs.len() => vec![self.active, i],
+            _ => vec![self.active],
+        }
     }
 
     pub fn toast(&mut self, text: impl Into<String>) {
@@ -410,6 +525,17 @@ impl App {
                 }
             }
         }
+        // The other pane is not what the keys drive, so it waits in the low
+        // priority queue behind the directory the cursor is in.
+        if let Some(idx) = self.other_pane().filter(|&i| i < self.tabs.len() && i != self.active) {
+            let f = &self.tabs[idx].current;
+            if f.scan_id.is_none() && f.state == LoadState::Loading {
+                let (path, sort) = (self.tabs[idx].cwd.clone(), self.tabs[idx].sort);
+                let id = self.scanner.scan_low(path.clone(), sort);
+                self.inflight.insert(id, path);
+                self.tabs[idx].current.scan_id = Some(id);
+            }
+        }
         self.ensure_dir_sizes();
         self.sync_watcher();
     }
@@ -443,6 +569,9 @@ impl App {
         let mut dirs: Vec<PathBuf> = vec![self.tabs[self.active].cwd.clone()];
         if let Some(p) = self.tabs[self.active].cwd.parent() {
             dirs.push(p.to_path_buf());
+        }
+        if let Some(idx) = self.other_pane().filter(|&i| i < self.tabs.len()) {
+            dirs.push(self.tabs[idx].cwd.clone());
         }
         if let PreviewState::Dir(f) = &self.preview.state {
             dirs.push(f.path.clone());
@@ -498,8 +627,10 @@ impl App {
     fn rescan(&mut self, path: &Path) {
         let sort = self.tabs[self.active].sort;
         let mut wanted = false;
-        if self.tabs[self.active].cwd == path {
-            wanted = true;
+        for idx in self.pane_tabs() {
+            if self.tabs[idx].cwd == path {
+                wanted = true;
+            }
         }
         if let Some(p) = self.tabs[self.active].parent.as_ref() {
             if p.path == path {
@@ -528,15 +659,34 @@ impl App {
             }
             ScanResult::Failed { id, path, error } => {
                 self.inflight.remove(&id);
-                let show_hidden = self.tabs[self.active].show_hidden;
-                if self.tabs[self.active].cwd == path {
-                    let f = &mut self.tabs[self.active].current;
+                // A jump that was never listed is undone first: the tab goes
+                // back where it was instead of showing an empty error column.
+                let jumped = self
+                    .pane_tabs()
+                    .into_iter()
+                    .find(|&i| self.tabs[i].cwd == path && self.tabs[i].pending_cd.is_some());
+                if let Some(idx) = jumped {
+                    self.undo_cd(idx, &path, &error);
+                    return;
+                }
+                let mut hit = false;
+                for idx in self.pane_tabs() {
+                    if self.tabs[idx].cwd != path {
+                        continue;
+                    }
+                    let show_hidden = self.tabs[idx].show_hidden;
+                    let f = &mut self.tabs[idx].current;
                     f.state = LoadState::Error(error.clone());
                     f.entries = Arc::new(Vec::new());
+                    f.scan_id = None;
                     f.rebuild(show_hidden);
-                } else if let PreviewState::Dir(f) = &mut self.preview.state {
-                    if f.path == path {
-                        f.state = LoadState::Error(error.clone());
+                    hit = true;
+                }
+                if !hit {
+                    if let PreviewState::Dir(f) = &mut self.preview.state {
+                        if f.path == path {
+                            f.state = LoadState::Error(error.clone());
+                        }
                     }
                 }
                 self.error(format!("{}: {error}", util::file_name(&path)));
@@ -560,6 +710,8 @@ impl App {
         let memo = self.tabs[self.active].memo.get(path).cloned();
 
         if self.tabs[self.active].cwd == path {
+            // The directory answered, so the jump that led here stands.
+            self.tabs[self.active].pending_cd = None;
             let keep = self.tabs[self.active].current.hovered_name().map(str::to_owned);
             let filter = self.tabs[self.active].current.filter.clone();
             let cursor = self.tabs[self.active].current.cursor;
@@ -597,22 +749,28 @@ impl App {
 
         if let PreviewState::Dir(f) = &mut self.preview.state {
             if f.path == path {
-                f.entries = entries;
+                f.entries = entries.clone();
                 f.state = LoadState::Ready;
                 f.scan_id = None;
                 f.rebuild(show_hidden);
             }
         }
 
-        // Other tabs share the cache but keep their own cursors.
+        // Other tabs share the listing but keep their own cursors. The other
+        // pane is one of them, and it is on screen, so it needs the same care
+        // over the cursor as the focused tab.
         for (i, tab) in self.tabs.iter_mut().enumerate() {
             if i == self.active || tab.cwd != path {
                 continue;
             }
-            if let Some(cached) = self.cache.peek(&path.to_path_buf()) {
-                tab.current.entries = cached.clone();
-                tab.current.state = LoadState::Ready;
-                tab.current.rebuild(tab.show_hidden);
+            tab.pending_cd = None;
+            let keep = tab.current.hovered_name().map(str::to_owned);
+            tab.current.entries = entries.clone();
+            tab.current.state = LoadState::Ready;
+            tab.current.scan_id = None;
+            tab.current.rebuild(tab.show_hidden);
+            if let Some(name) = keep.or_else(|| tab.memo.get(path).cloned()) {
+                tab.current.select_name(&name);
             }
         }
     }
@@ -947,51 +1105,42 @@ impl App {
     // ------------------------------------------------------------ navigation
 
     pub fn cd(&mut self, target: PathBuf, push_history: bool) {
+        self.cd_inner(target, push_history, false);
+    }
+
+    /// `cd` for a path someone typed. If it turns out to name a file, the tab
+    /// lands on the parent with that file under the cursor.
+    fn cd_or_reveal(&mut self, target: PathBuf) {
+        self.cd_inner(target, true, true);
+    }
+
+    /// Move the focused tab to `target`.
+    ///
+    /// No directory check happens here: on a share that stopped answering,
+    /// `is_dir` can block for half a minute, and the UI thread cannot wait.
+    /// The tab moves at once and the background scan has the last word —
+    /// `Tab::cd_failed` decides what to do when the listing never arrives.
+    fn cd_inner(&mut self, target: PathBuf, push_history: bool, fallback: bool) {
         let target = util::normalize(&target);
-        if !target.is_dir() {
-            self.error(format!("Not a directory: {}", target.display()));
-            return;
-        }
         if self.tabs[self.active].cwd == target {
             return;
         }
-        let show_hidden = self.tabs[self.active].show_hidden;
+        let from = self.tabs[self.active].cwd.clone();
         {
             let tab = &mut self.tabs[self.active];
             tab.remember_cursor();
             if push_history {
-                let old = std::mem::replace(&mut tab.cwd, target.clone());
-                tab.back.push(old);
+                tab.back.push(from.clone());
                 tab.forward.clear();
-            } else {
-                tab.cwd = target.clone();
             }
             tab.visual = None;
+            tab.mouse_range = None;
             tab.finder = None;
-            tab.preview_offset = 0;
         }
 
-        let cur = match self.cache.get(&target) {
-            Some(entries) => Folder::from_entries(target.clone(), entries.clone(), show_hidden),
-            None => Folder::loading(target.clone(), None),
-        };
-        self.tabs[self.active].current = cur;
-        self.tabs[self.active].recall_cursor();
-
-        let parent = target.parent().map(Path::to_path_buf);
-        self.tabs[self.active].parent = parent.map(|p| match self.cache.get(&p) {
-            Some(entries) => {
-                let mut f = Folder::from_entries(p.clone(), entries.clone(), show_hidden);
-                f.select_name(&util::file_name(&target));
-                f
-            }
-            None => Folder::loading(p, None),
-        });
-
-        self.preview.state = PreviewState::Empty;
-        self.preview.key = None;
-        self.preview.texture = None;
-        self.preview.pending_since = None;
+        let active = self.active;
+        let pending = PendingCd { from, pushed: push_history, fallback };
+        self.arrive(active, target.clone(), Some(pending));
 
         self.remember_history(&target);
         self.kick_scans();
@@ -1000,6 +1149,58 @@ impl App {
             let sort = self.tabs[self.active].sort;
             let id = self.scanner.scan(target.clone(), sort);
             self.inflight.insert(id, target);
+        }
+    }
+
+    /// Put a tab on `target` and show whatever the cache already holds.
+    /// `pending` survives only while the listing is still missing: a cached
+    /// directory was listed before and needs no second opinion.
+    fn arrive(&mut self, idx: usize, target: PathBuf, pending: Option<PendingCd>) {
+        let show_hidden = self.tabs[idx].show_hidden;
+        let cur = match self.cache.get(&target) {
+            Some(entries) => Folder::from_entries(target.clone(), entries.clone(), show_hidden),
+            None => Folder::loading(target.clone(), None),
+        };
+        self.tabs[idx].cwd = target.clone();
+        self.tabs[idx].current = cur;
+        self.tabs[idx].preview_offset = 0;
+        self.tabs[idx].recall_cursor();
+
+        let parent = target.parent().map(Path::to_path_buf);
+        self.tabs[idx].parent = parent.map(|p| match self.cache.get(&p) {
+            Some(entries) => {
+                let mut f = Folder::from_entries(p.clone(), entries.clone(), show_hidden);
+                f.select_name(&util::file_name(&target));
+                f
+            }
+            None => Folder::loading(p, None),
+        });
+
+        let listed = self.tabs[idx].current.state != LoadState::Loading;
+        self.tabs[idx].pending_cd = pending.filter(|_| !listed);
+
+        if idx == self.active {
+            self.preview.state = PreviewState::Empty;
+            self.preview.key = None;
+            self.preview.texture = None;
+            self.preview.pending_since = None;
+        }
+    }
+
+    /// A jump whose listing never arrived: undo it rather than leave the tab
+    /// parked on a path that did not answer.
+    fn undo_cd(&mut self, idx: usize, path: &Path, error: &str) {
+        match self.tabs[idx].cd_failed() {
+            CdFallout::Keep => {}
+            CdFallout::Reveal { to, pending } => {
+                self.arrive(idx, to, Some(pending));
+                self.kick_scans();
+            }
+            CdFallout::Revert { to } => {
+                self.arrive(idx, to, None);
+                self.kick_scans();
+                self.error(format!("{}: {error}", path.display()));
+            }
         }
     }
 
@@ -1080,7 +1281,6 @@ impl App {
                     self.quit = true;
                 }
             }
-            Act::Suspend => {}
 
             Act::Swipe(n) => self.act(Act::Arrow(Step::Rel(n))),
             Act::Arrow(step) => {
@@ -1158,14 +1358,42 @@ impl App {
                     (self.active as i64 + n).rem_euclid(len)
                 } else {
                     n.clamp(0, len - 1)
-                };
-                self.switch_tab(idx as usize);
+                } as usize;
+                if self.other_pane() == Some(idx) {
+                    // It is already on screen: move the keys to its pane.
+                    self.focus_pane(idx);
+                } else {
+                    self.switch_tab(idx);
+                }
             }
             Act::TabSwap(n) => {
                 let len = self.tabs.len() as i64;
+                let from = self.active;
                 let to = (self.active as i64 + n).rem_euclid(len) as usize;
-                self.tabs.swap(self.active, to);
+                self.tabs.swap(from, to);
                 self.active = to;
+                if let Some(sp) = self.split {
+                    self.split =
+                        Some(Split { other: split_after_swap(sp.other, from, to), ..sp });
+                }
+                self.check_split();
+            }
+
+            Act::Split(state) => {
+                if state.unwrap_or(self.split.is_none()) {
+                    self.open_split();
+                } else {
+                    self.close_split();
+                }
+            }
+            Act::PaneFocus(side) => {
+                // The first press splits the view; the next moves the keys.
+                self.open_split();
+                if let Some(sp) = self.split {
+                    if side.unwrap_or(!sp.right) != sp.right {
+                        self.focus_pane(sp.other);
+                    }
+                }
             }
 
             Act::Toggle { state } => {
@@ -1260,6 +1488,7 @@ impl App {
             }
             Act::TasksShow => self.overlay = Overlay::Tasks,
             Act::Spot => self.open_spot(),
+            Act::Palette => self.open_palette(),
             Act::ToggleOutline => self.toggle_outline(),
             Act::ToggleRender => {
                 self.render_markdown = !self.render_markdown;
@@ -1329,30 +1558,45 @@ impl App {
 
     // ----------------------------------------------------------------- tabs
 
+    /// Open a tab on `path`, on the hovered directory, or on home.
+    ///
+    /// Nothing checks the target first, for the reason `cd_inner` gives: the
+    /// tab opens where it was asked to and the background scan has the last
+    /// word. A listing that never arrives sends the new tab back to the
+    /// directory it was opened from, rather than closing it.
     fn create_tab(&mut self, current: bool, path: Option<String>) {
         if self.tabs.len() >= MAX_TABS {
             self.error("Maximum number of tabs reached");
             return;
         }
         let base = self.tabs[self.active].cwd.clone();
-        let target = match path {
-            Some(p) if !p.is_empty() => util::resolve_against(&base, &p),
-            _ if current => match self.tabs[self.active].current.hovered() {
-                Some(e) if e.is_dir_like() => e.path.clone(),
-                _ => base.clone(),
-            },
-            _ => dirs::home_dir().unwrap_or(base.clone()),
-        };
-        let target = if target.is_dir() { target } else { base };
+        let (target, fallback) = new_tab_target(
+            &base,
+            current,
+            path.as_deref(),
+            self.tabs[self.active].current.hovered(),
+            dirs::home_dir(),
+        );
         let tab = Tab::new(
-            target,
+            target.clone(),
             self.tabs[self.active].sort,
             self.tabs[self.active].show_hidden,
             self.tabs[self.active].linemode.clone(),
         );
         let at = self.active + 1;
         self.tabs.insert(at, tab);
+        if let Some(sp) = self.split {
+            // The other pane keeps its tab, which the insert may have moved.
+            if sp.other >= at {
+                self.split = Some(Split { other: sp.other + 1, ..sp });
+            }
+        }
         self.switch_tab(at);
+        // `switch_tab` fills the tab from the cache when the directory has been
+        // listed before; one that is still loading has yet to prove it exists.
+        if target != base && self.tabs[at].current.state == LoadState::Loading {
+            self.tabs[at].pending_cd = Some(PendingCd { from: base, pushed: false, fallback });
+        }
     }
 
     fn close_tab(&mut self, idx: usize) {
@@ -1364,7 +1608,71 @@ impl App {
             return;
         }
         self.tabs.remove(idx);
+        if let Some(sp) = self.split {
+            self.split = split_after_remove(sp.other, idx).map(|other| Split { other, ..sp });
+        }
         self.switch_tab(self.active.min(self.tabs.len() - 1));
+        self.check_split();
+    }
+
+    // ----------------------------------------------------------- split panes
+
+    /// Open the second pane. The current tab keeps the keys on the left; the
+    /// right pane takes the next tab, or a fresh view of the same directory
+    /// when this is the only tab.
+    fn open_split(&mut self) -> bool {
+        if self.split.is_some() {
+            return true;
+        }
+        let other = if self.tabs.len() > 1 {
+            (self.active + 1) % self.tabs.len()
+        } else if self.tabs.len() >= MAX_TABS {
+            self.error("Maximum number of tabs reached");
+            return false;
+        } else {
+            let src = &self.tabs[self.active];
+            let name = src.current.hovered_name().map(str::to_owned);
+            let mut tab =
+                Tab::new(src.cwd.clone(), src.sort, src.show_hidden, src.linemode.clone());
+            // The listing is already in hand, so the new pane starts filled.
+            if let Some(entries) = self.cache.get(&tab.cwd).cloned() {
+                let show = tab.show_hidden;
+                tab.current = Folder::from_entries(tab.cwd.clone(), entries, show);
+                if let Some(name) = name {
+                    tab.current.select_name(&name);
+                }
+            }
+            let at = self.active + 1;
+            self.tabs.insert(at, tab);
+            at
+        };
+        self.split = Some(Split { other, right: false });
+        self.kick_scans();
+        true
+    }
+
+    /// Close the second pane. Its tab stays open, just no longer on screen.
+    fn close_split(&mut self) {
+        self.split = None;
+    }
+
+    /// Give the keys to the pane showing `idx`, which must be the other pane.
+    pub fn focus_pane(&mut self, idx: usize) {
+        let Some(sp) = self.split else { return };
+        if sp.other != idx || idx == self.active || idx >= self.tabs.len() {
+            return;
+        }
+        self.split = Some(Split { other: self.active, right: !sp.right });
+        self.switch_tab(idx);
+    }
+
+    /// Drop the split once its two tabs stop being a pair.
+    fn check_split(&mut self) {
+        if let Some(sp) = self.split {
+            if sp.other >= self.tabs.len() || sp.other == self.active {
+                self.split = None;
+            }
+        }
     }
 
     fn switch_tab(&mut self, idx: usize) {
@@ -1585,23 +1893,30 @@ impl App {
         }
     }
 
+    /// Jump to where the hovered link points. The target came off the scan
+    /// worker with the rest of the entry, so nothing here touches disk —
+    /// `canonicalize` on a link into a share that stopped answering used to
+    /// freeze the window until it gave up.
     fn follow_link(&mut self) {
         let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
-        if !e.kind.is_link() {
+        let Kind::Link { to_dir, broken } = e.kind else { return };
+        let Some(target) = e.link_to.filter(|_| !broken) else {
+            self.error(format!("Broken link: {}", e.name));
             return;
-        }
-        match std::fs::canonicalize(&e.path) {
-            Ok(target) => {
-                let dir = if target.is_dir() {
-                    target.clone()
-                } else {
-                    target.parent().map(Path::to_path_buf).unwrap_or(target.clone())
-                };
-                let name = util::file_name(&target);
-                self.cd(dir, true);
-                self.tabs[self.active].current.select_name(&name);
-            }
-            Err(err) => self.error(format!("Broken link: {err}")),
+        };
+        // A link to a file lands on its directory with the file under the
+        // cursor; a link to a directory simply opens it.
+        let (dir, reveal) = match target.parent() {
+            Some(p) if !to_dir => (p.to_path_buf(), Some(util::file_name(&target))),
+            _ => (target, None),
+        };
+        self.cd(dir.clone(), true);
+        if let Some(name) = reveal {
+            // The listing may still be on its way, so leave the name in `memo`
+            // as well — that is what the cursor is restored from on arrival.
+            let tab = &mut self.tabs[self.active];
+            tab.memo.insert(dir, name.clone());
+            tab.current.select_name(&name);
         }
     }
 
@@ -1694,7 +2009,7 @@ impl App {
         let cwd = self.tabs[self.active].cwd.clone();
         match openers.first() {
             Some((run, block, orphan, _)) => {
-                let line = exec::command_line(run, &paths, line);
+                let line = exec::command_line(run, &paths, line, &self.cfg.line_args);
                 match exec::shell(&line, &cwd, *block, *orphan) {
                     Ok(_) => self.toast(format!("Opened with: {line}")),
                     Err(e) => self.error(format!("Open failed: {e}")),
@@ -1783,16 +2098,7 @@ impl App {
             InputKind::Cd => {
                 if !text.is_empty() {
                     let base = self.tabs[self.active].cwd.clone();
-                    let p = util::resolve_against(&base, &text);
-                    if p.is_dir() {
-                        self.cd(p, true);
-                    } else if let Some(dir) = p.parent().filter(|d| d.is_dir()) {
-                        let name = util::file_name(&p);
-                        self.cd(dir.to_path_buf(), true);
-                        self.tabs[self.active].current.select_name(&name);
-                    } else {
-                        self.error(format!("No such directory: {}", p.display()));
-                    }
+                    self.cd_or_reveal(util::resolve_against(&base, &text));
                 }
             }
             InputKind::Shell { block } => {
@@ -2019,6 +2325,26 @@ impl App {
         }
     }
 
+    fn open_palette(&mut self) {
+        let (items, details, runs) = palette_items(&self.cfg.keymap.mgr);
+        if items.is_empty() {
+            self.error("No commands are bound");
+            return;
+        }
+        let mut pick = PickOverlay {
+            title: "Commands".into(),
+            items,
+            details,
+            query: String::new(),
+            matches: Vec::new(),
+            cursor: 0,
+            action: PickAction::Command { runs },
+            focused: false,
+        };
+        pick.refilter();
+        self.overlay = Overlay::Pick(pick);
+    }
+
     fn open_jump(&mut self) {
         let mut items = Vec::new();
         let mut details = Vec::new();
@@ -2063,7 +2389,7 @@ impl App {
             PickAction::OpenWith { paths, runs, line } => {
                 let Some((run, block, orphan)) = runs.get(idx).cloned() else { return };
                 let cwd = self.tabs[self.active].cwd.clone();
-                let line = exec::command_line(&run, &paths, line);
+                let line = exec::command_line(&run, &paths, line, &self.cfg.line_args);
                 match exec::shell(&line, &cwd, block, orphan) {
                     Ok(_) => self.toast(format!("$ {line}")),
                     Err(e) => self.error(format!("Open failed: {e}")),
@@ -2072,6 +2398,14 @@ impl App {
             PickAction::Jump { paths } => {
                 if let Some(p) = paths.get(idx).cloned() {
                     self.cd(p, true);
+                }
+            }
+            PickAction::Command { runs } => {
+                // The overlay is already closed, so a command that opens one of
+                // its own (input, confirm, help) lands on a clean slate.
+                let Some(acts) = runs.get(idx).cloned() else { return };
+                for a in acts {
+                    self.act(a);
                 }
             }
         }
@@ -2212,9 +2546,11 @@ impl App {
         }
     }
 
-    /// Rows currently visible in the file list; set by the renderer.
-    pub fn set_page_rows(&mut self, rows: usize) {
-        self.tabs[self.active].page_rows = rows;
+    /// Rows currently visible in one pane's file list; set by the renderer.
+    pub fn set_page_rows(&mut self, idx: usize, rows: usize) {
+        if let Some(tab) = self.tabs.get_mut(idx) {
+            tab.page_rows = rows;
+        }
     }
 }
 
@@ -2232,4 +2568,149 @@ fn preview_paths(paths: &[PathBuf]) -> Vec<String> {
         out.push(format!("… and {} more", paths.len() - 8));
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::keys::Key;
+
+    /// The bare bones of a listing row: a path and whether entering it means
+    /// changing directory.
+    fn entry(path: &str, dir: bool) -> Entry {
+        let path = PathBuf::from(path);
+        Entry {
+            name: util::file_name(&path),
+            path,
+            ext: None,
+            kind: if dir { Kind::Dir } else { Kind::File },
+            len: 0,
+            modified: None,
+            created: None,
+            accessed: None,
+            hidden: false,
+            readonly: false,
+            link_to: None,
+            dir_size: None,
+        }
+    }
+
+    fn binding(on: &str, run: &str, desc: &str) -> keymap::Binding {
+        keymap::Binding {
+            on: on.chars().map(Key::char).collect(),
+            run: vec![crate::config::cmd::parse(run)],
+            desc: desc.into(),
+            raw: run.into(),
+        }
+    }
+
+    #[test]
+    fn the_other_pane_follows_its_tab_when_a_tab_closes() {
+        // Tabs before it keep their index; tabs after it shift down by one.
+        assert_eq!(split_after_remove(0, 2), Some(0));
+        assert_eq!(split_after_remove(3, 1), Some(2));
+        // Closing the tab the other pane shows leaves nothing to split with.
+        assert_eq!(split_after_remove(2, 2), None);
+    }
+
+    /// A new tab opens where it was asked to, with no `is_dir` on the way: the
+    /// second half of the pair says whether the scan still has to confirm it.
+    #[test]
+    fn a_new_tab_opens_on_a_path_nobody_checked() {
+        let base = Path::new("/a");
+        let home = Some(PathBuf::from("/home"));
+
+        // A typed path is unproven and may name a file, hence the fallback.
+        let (to, fallback) = new_tab_target(base, false, Some("b/c"), None, home.clone());
+        assert_eq!(to, PathBuf::from("/a/b/c"));
+        assert!(fallback, "a typed path falls back to the parent");
+
+        // No path and nothing to follow: home, and home is not typed.
+        let (to, fallback) = new_tab_target(base, false, Some(""), None, home.clone());
+        assert_eq!(to, PathBuf::from("/home"));
+        assert!(!fallback);
+
+        // Without a home directory the tab stays where it was opened from.
+        let (to, _) = new_tab_target(base, false, None, None, None);
+        assert_eq!(to, base.to_path_buf());
+    }
+
+    #[test]
+    fn a_new_tab_follows_the_cursor_only_onto_a_directory() {
+        let base = Path::new("/a");
+        let dir = entry("/a/sub", true);
+        let file = entry("/a/note.txt", false);
+
+        let (to, fallback) = new_tab_target(base, true, None, Some(&dir), None);
+        assert_eq!(to, PathBuf::from("/a/sub"));
+        assert!(!fallback, "the entry came from a listing, so the parent is no help");
+
+        // The cursor on a file opens a second view of the directory instead.
+        let (to, _) = new_tab_target(base, true, None, Some(&file), None);
+        assert_eq!(to, base.to_path_buf());
+        let (to, _) = new_tab_target(base, true, None, None, None);
+        assert_eq!(to, base.to_path_buf());
+    }
+
+    #[test]
+    fn the_other_pane_follows_its_tab_when_two_tabs_swap() {
+        assert_eq!(split_after_swap(1, 1, 3), 3);
+        assert_eq!(split_after_swap(3, 1, 3), 1);
+        // A swap between two tabs neither pane shows changes nothing.
+        assert_eq!(split_after_swap(2, 0, 4), 2);
+    }
+
+    #[test]
+    fn the_default_keymap_splits_the_view() {
+        let (km, _) = keymap::Keymap::load(&[]);
+        let runs: Vec<&Act> = km.mgr.iter().flat_map(|b| b.run.iter()).collect();
+        assert!(runs.contains(&&Act::PaneFocus(None)), "<C-w> moves between panes");
+        assert!(runs.contains(&&Act::Split(Some(false))), "a key closes the split");
+    }
+
+    #[test]
+    fn palette_lists_every_command_once() {
+        let bindings = vec![
+            binding("k", "arrow -1", "Move cursor up"),
+            // The same command on a second key: listed once, under the first.
+            binding("K", "arrow -1", "Move cursor up"),
+            binding("w", "tasks_show", ""),
+            binding("z", "chmod", "Unimplemented"),
+            binding("x", "noop", "Nothing"),
+        ];
+        let (items, details, runs) = palette_items(&bindings);
+        assert_eq!(
+            items,
+            vec!["Move cursor up  ·  arrow -1".to_string(), "tasks_show".to_string()]
+        );
+        assert_eq!(details, vec!["k".to_string(), "w".to_string()]);
+        assert_eq!(runs, vec![vec![Act::Arrow(Step::Rel(-1))], vec![Act::TasksShow]]);
+    }
+
+    #[test]
+    fn palette_filters_on_both_the_description_and_the_command() {
+        let (km, _) = keymap::Keymap::load(&[]);
+        let (items, details, runs) = palette_items(&km.mgr);
+        assert!(items.len() > 30, "got {} commands", items.len());
+        assert_eq!(items.len(), details.len());
+        assert_eq!(items.len(), runs.len());
+        assert!(runs.iter().any(|r| r == &[Act::Palette]), "the palette lists itself");
+
+        let mut pick = PickOverlay {
+            title: "Commands".into(),
+            items,
+            details,
+            query: "tasks_show".into(),
+            matches: Vec::new(),
+            cursor: 0,
+            action: PickAction::Command { runs },
+            focused: false,
+        };
+        pick.refilter();
+        let by_command = pick.selected().expect("the command text must match");
+
+        pick.query = "task manager".into();
+        pick.refilter();
+        assert_eq!(pick.selected(), Some(by_command), "the description finds the same row");
+    }
 }

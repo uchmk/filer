@@ -192,6 +192,11 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
     if app.hide_parent || app.in_search_view() {
         ratio[0] = 0;
     }
+    if app.split.is_some() {
+        // The second pane takes the parent column's place, at the same width
+        // as the list it sits next to.
+        ratio[0] = ratio[1];
+    }
     let gap = 6.0;
     let total: f32 = ratio.iter().map(|&v| v as f32).sum::<f32>().max(1.0);
     let usable = body.width() - gap * 2.0;
@@ -212,84 +217,21 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
         .collect();
 
     let theme = app.cfg.theme.clone();
-    let linemode = app.tab().linemode.clone();
 
-    // --- parent ---
-    if widths[0] > 24.0 {
-        if let Some(parent) = &app.tabs[app.active].parent {
-            let st = list::ListStyle {
-                theme: &theme,
-                font: f.clone(),
-                row_h,
-                active: false,
-                linemode: "",
-            };
-            let cwd = app.tabs[app.active].cwd.clone();
-            let mut p = clone_view(parent);
-            let rows = ((rects[0].height() / row_h).floor() as usize).max(1);
-            p.clamp_offset(rows, app.cfg.yazi.mgr.scrolloff as usize);
-            let res = list::draw(ui, rects[0], &p, &st, &|_e| list::RowFlags {
-                selected: false,
-                yanked: None,
-            }, false);
-            if let Some(row) = res.clicked.or(res.double_clicked) {
-                if let Some(e) = p.at(row) {
-                    if e.is_dir_like() {
-                        queued.push(Act::Cd { target: e.path.display().to_string(), interactive: false });
-                    }
-                }
-            }
-            let _ = cwd;
+    // --- the other pane, or the parent directory in its place ---
+    let ctx = PaneCtx { theme: &theme, font: f, row_h };
+    if let Some(sp) = app.split {
+        let left = if sp.right { sp.other } else { app.active };
+        if widths[0] > 24.0 {
+            draw_pane(app, ui, rects[0], left, &ctx, queued);
         }
-    }
-
-    // --- current ---
-    {
-        let rows = ((rects[1].height() / row_h).floor() as usize).max(1);
-        app.set_page_rows(rows);
-        let scrolloff = app.cfg.yazi.mgr.scrolloff as usize;
-        app.tabs[app.active].current.clamp_offset(rows, scrolloff);
-
-        let selected: std::collections::BTreeSet<std::path::PathBuf> =
-            app.tabs[app.active].selected.clone();
-        let yank_paths = app.yank.paths.clone();
-        let yank_cut = app.yank.cut;
-        let st = list::ListStyle {
-            theme: &theme,
-            font: f.clone(),
-            row_h,
-            // The outline has the keys while it is focused; dim the cursor.
-            active: app.preview.outline.is_none(),
-            linemode: &linemode,
-        };
-        let has_filter = app.tabs[app.active].current.filter.is_some();
-        let res = list::draw(
-            ui,
-            rects[1],
-            &app.tabs[app.active].current,
-            &st,
-            &|e| list::RowFlags {
-                selected: selected.contains(&e.path),
-                yanked: if yank_paths.contains(&e.path) { Some(yank_cut) } else { None },
-            },
-            has_filter,
-        );
-        if res.scrolled != 0 {
-            app.tabs[app.active].current.scroll(res.scrolled, rows);
-            app.tabs[app.active].sync_visual();
+        let right = if sp.right { app.active } else { sp.other };
+        draw_pane(app, ui, rects[1], right, &ctx, queued);
+    } else {
+        if widths[0] > 24.0 {
+            draw_parent(app, ui, rects[0], &ctx, queued);
         }
-        // Clicking the list takes the keys back from the outline.
-        if let Some(row) = res.clicked {
-            app.preview.outline = None;
-            app.tabs[app.active].current.cursor = row;
-            app.tabs[app.active].sync_visual();
-        }
-        if let Some(row) = res.double_clicked {
-            app.preview.outline = None;
-            app.tabs[app.active].current.cursor = row;
-            // `enter` on a file moves into its outline; a double-click opens.
-            queued.push(Act::Open { interactive: false, hovered: true });
-        }
+        draw_pane(app, ui, rects[1], app.active, &ctx, queued);
     }
 
     // --- preview ---
@@ -362,6 +304,123 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
                 }
             }
         }
+    }
+}
+
+/// What every file-list column needs from the frame.
+struct PaneCtx<'a> {
+    theme: &'a Theme,
+    font: &'a FontId,
+    row_h: f32,
+}
+
+/// The read-only column showing the directory above the current one.
+fn draw_parent(app: &mut App, ui: &mut Ui, rect: Rect, ctx: &PaneCtx, queued: &mut Vec<Act>) {
+    let PaneCtx { theme, font: f, row_h } = *ctx;
+    if let Some(parent) = &app.tabs[app.active].parent {
+        let st = list::ListStyle {
+            theme,
+            font: f.clone(),
+            row_h,
+            active: false,
+            linemode: "",
+        };
+        let mut p = clone_view(parent);
+        let rows = ((rect.height() / row_h).floor() as usize).max(1);
+        p.clamp_offset(rows, app.cfg.yazi.mgr.scrolloff as usize);
+        let res = list::draw(ui, rect, &p, &st, &|_e| list::RowFlags {
+            selected: false,
+            yanked: None,
+        }, false);
+        if let Some(row) = res.clicked.or(res.double_clicked) {
+            if let Some(e) = p.at(row) {
+                if e.is_dir_like() {
+                    queued.push(Act::Cd { target: e.path.display().to_string(), interactive: false });
+                }
+            }
+        }
+    }
+}
+
+/// One file list: the middle column, or one side of the split. The pane with
+/// the keys is the one showing `app.active`; a click on the other pane takes
+/// the keys first, so the gesture still lands on the focused tab.
+fn draw_pane(
+    app: &mut App,
+    ui: &mut Ui,
+    rect: Rect,
+    idx: usize,
+    ctx: &PaneCtx,
+    queued: &mut Vec<Act>,
+) {
+    let PaneCtx { theme, font: f, row_h } = *ctx;
+    let focused = idx == app.active;
+    let rows = ((rect.height() / row_h).floor() as usize).max(1);
+    app.set_page_rows(idx, rows);
+    let scrolloff = app.cfg.yazi.mgr.scrolloff as usize;
+    app.tabs[idx].current.clamp_offset(rows, scrolloff);
+
+    let selected: std::collections::BTreeSet<std::path::PathBuf> = app.tabs[idx].selected.clone();
+    let yank_paths = app.yank.paths.clone();
+    let yank_cut = app.yank.cut;
+    let linemode = app.tabs[idx].linemode.clone();
+    let st = list::ListStyle {
+        theme,
+        font: f.clone(),
+        row_h,
+        // The outline has the keys while it is focused; dim the cursor. The
+        // pane without the keys is dimmed for the same reason.
+        active: focused && app.preview.outline.is_none(),
+        linemode: &linemode,
+    };
+    let has_filter = app.tabs[idx].current.filter.is_some();
+    let res = list::draw(
+        ui,
+        rect,
+        &app.tabs[idx].current,
+        &st,
+        &|e| list::RowFlags {
+            selected: selected.contains(&e.path),
+            yanked: if yank_paths.contains(&e.path) { Some(yank_cut) } else { None },
+        },
+        has_filter,
+    );
+    // Which side has the keys should be clear at a glance.
+    if app.split.is_some() {
+        let color = if focused { theme.cwd.fg.unwrap_or(theme.fg) } else { theme.border };
+        ui.painter().rect_stroke(
+            rect,
+            CornerRadius::same(4),
+            Stroke::new(1.0, color),
+            egui::StrokeKind::Inside,
+        );
+    }
+    if res.scrolled != 0 {
+        app.tabs[idx].current.scroll(res.scrolled, rows);
+        app.tabs[idx].sync_visual();
+    }
+    // Shift / Ctrl (Cmd on macOS) turn a click into a selection gesture, so
+    // it never counts as a double-click to open with.
+    let multi = res.mods.shift || res.mods.command;
+    // Clicking the list takes the keys back from the outline.
+    if let Some(row) = res.clicked.or(if multi { res.double_clicked } else { None }) {
+        app.focus_pane(idx);
+        app.preview.outline = None;
+        let tab = &mut app.tabs[idx];
+        if res.mods.shift {
+            tab.shift_click(row);
+        } else if res.mods.command {
+            tab.ctrl_click(row);
+        } else {
+            tab.click(row);
+        }
+    }
+    if let Some(row) = res.double_clicked.filter(|_| !multi) {
+        app.focus_pane(idx);
+        app.preview.outline = None;
+        app.tabs[idx].current.cursor = row;
+        // `enter` on a file moves into its outline; a double-click opens.
+        queued.push(Act::Open { interactive: false, hovered: true });
     }
 }
 

@@ -74,7 +74,6 @@ pub enum Act {
     Escape(EscapeWhat),
     Quit,
     Close,
-    Suspend,
 
     Arrow(Step),
     /// Spot the previous / next file (yazi's spot `swipe`).
@@ -95,6 +94,12 @@ pub enum Act {
     TabClose(Option<usize>),
     TabSwitch { n: i64, relative: bool },
     TabSwap(i64),
+
+    /// Open / close the second pane (a filer extra; yazi has one pane).
+    Split(Tri),
+    /// Move the keys to the left / right pane, or to the other one when no
+    /// side is named. Opens the split if it is closed.
+    PaneFocus(Option<bool>),
 
     Toggle { state: Tri },
     ToggleAll { state: Tri },
@@ -131,6 +136,8 @@ pub enum Act {
     Help,
     TasksShow,
     Spot,
+    /// Fuzzy-search every `mgr` binding and run the one picked.
+    Palette,
     /// Switch Markdown between the rendered view and its source.
     ToggleRender,
     /// Hand the keys to the preview's outline (functions, headings) and back.
@@ -263,7 +270,6 @@ pub fn parse(line: &str) -> Act {
         "close" => Act::Close,
         "complete" => Act::Complete,
         "jump" => Act::Jump,
-        "suspend" => Act::Suspend,
 
         "arrow" => Act::Arrow(parse_step(a.first().unwrap_or("1"))),
         "swipe" => Act::Swipe(a.first().and_then(|s| s.parse().ok()).unwrap_or(1)),
@@ -292,6 +298,17 @@ pub fn parse(line: &str) -> Act {
             relative: a.has("relative"),
         },
         "tab_swap" => Act::TabSwap(a.first().and_then(|s| s.parse().ok()).unwrap_or(0)),
+
+        "split" => Act::Split(match a.first() {
+            Some("open") => Some(true),
+            Some("close") => Some(false),
+            _ => None,
+        }),
+        "pane_focus" => Act::PaneFocus(match a.first() {
+            Some("left") => Some(false),
+            Some("right") => Some(true),
+            _ => None,
+        }),
 
         "toggle" => Act::Toggle { state: state_flag(&a) },
         "toggle_all" => Act::ToggleAll { state: state_flag(&a) },
@@ -368,6 +385,7 @@ pub fn parse(line: &str) -> Act {
         "help" => Act::Help,
         "tasks_show" => Act::TasksShow,
         "spot" => Act::Spot,
+        "palette" => Act::Palette,
         "toggle_render" => Act::ToggleRender,
         "toggle_outline" => Act::ToggleOutline,
 
@@ -462,6 +480,11 @@ mod tests {
         assert_eq!(parse("tab_switch 1 --relative"), Act::TabSwitch { n: 1, relative: true });
         assert_eq!(parse("plugin toggle-pane max-preview"), Act::MaxPreview);
         assert_eq!(parse("plugin bookmarks jump"), Act::BookmarkJump);
+        assert_eq!(parse("palette"), Act::Palette);
+        assert_eq!(parse("split"), Act::Split(None));
+        assert_eq!(parse("split close"), Act::Split(Some(false)));
+        assert_eq!(parse("pane_focus"), Act::PaneFocus(None));
+        assert_eq!(parse("pane_focus right"), Act::PaneFocus(Some(true)));
         assert_eq!(parse("toggle_render"), Act::ToggleRender);
         assert_eq!(parse("toggle_outline"), Act::ToggleOutline);
         assert_eq!(parse("plugin smart-enter"), Act::Open { interactive: false, hovered: true });

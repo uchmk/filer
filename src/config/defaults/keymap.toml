@@ -464,6 +464,19 @@ on = "}"
 run = "tab_swap 1"
 desc = "Swap the current tab with the next one"
 
+# --- Split view ---------------------------------------------------------------
+# A filer extra; yazi shows one pane. The second pane borrows another tab, so
+# every tab command keeps working while the view is split.
+
+[[mgr.keymap]]
+on = "<C-w>"
+run = "pane_focus"
+desc = "Split the view, or move to the other pane"
+[[mgr.keymap]]
+on = "<C-S-w>"
+run = "split close"
+desc = "Close the second pane"
+
 # --- Panels -------------------------------------------------------------------
 
 [[mgr.keymap]]
@@ -478,6 +491,10 @@ desc = "Open help"
 on = "<F1>"
 run = "help"
 desc = "Open help"
+[[mgr.keymap]]
+on = "<C-S-p>"
+run = "palette"
+desc = "Open the command palette"
 
 # --- Input line ---------------------------------------------------------------
 # The input line is a native widget (so IME and clipboard behave), which means

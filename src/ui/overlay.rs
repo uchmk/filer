@@ -12,7 +12,7 @@ pub fn which(app: &App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
 
     let cols = theme.which_cols;
     let col_w = (rect.width() - 20.0) / cols as f32;
-    let per_col = ((app.which.len() + cols - 1) / cols).max(1);
+    let per_col = app.which.len().div_ceil(cols).max(1);
     for (i, (keys, desc, raw)) in app.which.iter().enumerate() {
         let col = i / per_col;
         let row = i % per_col;
@@ -350,7 +350,7 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
     );
     let painter = ui.painter_at(list);
     let rows = ((list.height() / row_h).floor() as usize).max(1);
-    let start = p.cursor.saturating_sub(rows / 2).min(p.matches.len().saturating_sub(rows).max(0));
+    let start = p.cursor.saturating_sub(rows / 2).min(p.matches.len().saturating_sub(rows));
 
     let mut clicked: Option<usize> = None;
     for (i, (idx, _score, positions)) in p.matches[start..].iter().take(rows).enumerate() {

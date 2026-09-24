@@ -57,9 +57,11 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `cd`, `reveal`, `follow`, `refresh`, `seek`/`peek`, `tab_create`, `tab_close`, `tab_switch`,
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
-`find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `toggle_render` and
-`toggle_outline` (this project's own). In the `[spot]` section: `close`, `arrow`, `swipe` and
-`copy cell`.
+`find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
+`split`, `pane_focus`, `toggle_render` and `toggle_outline` (this project's own). `select` and
+`select_all` are accepted as `toggle --state=on` / `toggle_all --state=on`. In the `[input]`
+section: `close --submit` (and the `*_do` spellings), `close` and `complete`; in `[spot]`:
+`close`, `arrow`, `swipe` and `copy cell`.
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -81,6 +83,9 @@ if you press it — it never breaks config loading. There is no Lua runtime.
 syntax theme.
 
 ### filer.toml (GUI-only settings)
+
+[`filer.example.toml`](filer.example.toml) in this repository is a commented copy of the defaults —
+copy it to `%APPDATA%\filer\filer.toml` and edit from there.
 
 ```toml
 [ui]
@@ -105,6 +110,24 @@ Bold text (headings, `**strong**`) uses a real bold face: the `-Bold` sibling of
 (e.g. `HackGen35ConsoleNF-Bold.ttf`) or Meiryo / Yu Gothic Bold. Without one it is faked by
 drawing the glyphs twice.
 
+### line_args (opening an editor at a line)
+
+Opening at a line (see [Outline](#outline-contents)) knows a list of editors by heart. Any other
+editor — and any of the built-in ones you disagree with — can be given its own syntax here:
+
+```toml
+[line_args]
+mikan = "-l {line} {path}"          # mikan.exe -l 123 "C:\a b\x.txt"
+myedit = "{path}:{line}"            # myedit.exe "C:\a b\x.txt:123"
+"notepad++" = "-n{line} {path}"     # the built-in entry, spelled out
+```
+
+The key is the program's file name, lowercased, without `.exe` / `.cmd` / `.bat`; the value is the
+arguments, which must name `{path}` exactly once. They take the place of the opener's own path
+placeholder, so the rest of its command line (`nvim -O %s`) is kept. The path is quoted for you,
+together with whatever sits next to it in the same word — `{path}:{line}` comes out as
+`"C:\a b\x.txt:123"`, never as a broken pair of words.
+
 ## Markdown preview
 
 `.md` / `.mdx` files are rendered: headings, emphasis, lists and task lists, tables, block quotes
@@ -127,8 +150,10 @@ when the file has no outline. While the outline has the keys the file list's cur
 
 `<Enter>` opens the file at the selected entry's line, and `<S-Enter>` does the same with the
 editor you pick. The line is passed as `+N` to nvim / vim / nano / emacs / micro / kak, as
-`-g file:N` to VS Code / Cursor / Windsurf, and as `file:N` to Helix / Sublime / Zed; other
-openers just open the file. `<Esc>`, `h` / `←` or `<S-Tab>` gives the keys back to the file list,
+`-g file:N` to VS Code / Cursor / Windsurf, as `file:N` to Helix / Sublime / Zed, and on Windows
+as `/jN` to Hidemaru, `-L=N` to Sakura, `/l N` to EmEditor and `-nN` to Notepad++; other openers
+(Notepad among them) just open the file. Any editor can be taught the syntax — or an entry of the
+list above overridden — with [`[line_args]` in filer.toml](#line_args-opening-an-editor-at-a-line). `<Esc>`, `h` / `←` or `<S-Tab>` gives the keys back to the file list,
 and any other key does so too before doing its usual job. In a narrow pane the outline shows as an
 overlay only while it has the keys.
 
@@ -147,6 +172,37 @@ overlay only while it has the keys.
 copy the selected value, and `<Esc>` / `q` / `<Tab>` close it. Each kind of detail is one provider
 function in `src/spot.rs`, so more (e.g. Windows property-system values like media length or EXIF)
 can be added without touching the panel.
+
+## Split view (two panes)
+
+`<C-w>` splits the window in two and, from then on, moves the keys between the panes. The second
+pane takes the parent column's place, so the layout stays three columns wide: pane, pane, preview.
+`<C-S-w>` closes it (`split close`; `split` alone toggles, `split open` / `split close` are explicit).
+
+The second pane is just another tab, shown side by side. That is what keeps everything else
+working: the focused pane is always the current tab, so every command — `cd`, `yank`, `paste`,
+filter, search — runs on it with no notion of panes at all, and copying between panes is the
+ordinary `y` … `<C-w>` … `p`. Splitting with one tab open creates a second one on the same
+directory; with several, it borrows the next tab. `[` / `]` / `1`–`9` still switch tabs, and
+switching to the tab the other pane shows just moves the keys there. Closing or swapping tabs
+keeps the panes pointed at the right ones; closing the tab the other pane holds ends the split.
+
+The pane with the keys is outlined and keeps the bright cursor; the other is dimmed. Clicking the
+dim pane takes the keys first, so a click, a `Shift`+click or a double-click always lands on the
+pane you aimed at. Both panes are watched for changes and rescanned, the passive one at a lower
+priority so the focused directory is never made to wait behind it.
+
+## Command palette
+
+`<C-S-p>` (`Cmd`+`Shift`+`P` on macOS) lists every `mgr` binding — the built-in ones and whatever
+your `keymap.toml` added — and runs the one you pick. Each row carries the description and the
+command text, so `tasks_show` and `task manager` both find the task panel; the key that runs it is
+shown on the right. A command bound to several keys appears once, under the first key the keymap
+gives it, and commands the config left unsupported are left out.
+
+`↑` / `↓` (or `<C-p>` / `<C-n>`) move, `<Enter>` runs, `<Esc>` closes, and a click runs the row
+directly. Commands that need more input (`rename`, `filter`, `shell`, …) open their own prompt
+as if the key had been pressed.
 
 ## Other previews
 
@@ -174,22 +230,30 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `gg` `G` `<C-u>` `<C-d>` `<C-b>` `<C-f>` | top / bottom / half page / full page |
 | `H` `L` | back / forward in history |
 | `<Space>` `v` `V` `<C-a>` `<C-r>` | toggle / visual / visual-unset / select all / invert |
-| `y` `x` `p` `P` `-` `_` | yank / cut / paste / paste-force / symlink / relative symlink |
+| `y` `x` `Y` `p` `P` `-` `_` `<C-->` | yank / cut / cancel the yank / paste / paste-force / symlink / relative symlink / hardlink |
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
 | `a` `r` | create (trailing `/` makes a directory) / rename |
+| `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` config, `gt` temp, `g<Space>` type a path, `gf` follow the link |
+| `c…` | `cc` copy the path, `cd` the parent, `cf` the file name, `cn` the name without its extension |
 | `o` `O` `<Enter>` `<S-Enter>` | open / open with… / open (at the outline's line) / open with… |
 | `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter |
 | `s` `S` `<C-s>` | search by name / by content / stop |
 | `z` | fuzzy-jump to a bookmark or recent directory |
 | `.` `,…` `m…` | hidden files / sort menu / line-mode menu |
-| `t` `1`–`9` `[` `]` `{` `}` | tabs |
+| `t` `1`–`9` `[` `]` `{` `}` `<C-c>` | new tab / switch / previous / next / move it left / right / close it (quits on the last) |
+| `<F5>` | re-read the current directory |
+| `<C-w>` `<C-S-w>` | split the view in two panes / move between them, close the split |
 | `;` `:` | shell command / blocking shell command |
 | `<A-k>` `<A-j>` `M` | scroll the preview / Markdown rendered ↔ source |
 | `<S-Tab>` | move the keys into the preview's outline and back |
 | `<Tab>` | spot: details of the hovered file |
+| `<C-S-p>` | command palette: fuzzy-search every key binding and run it |
 | `w` `q` | tasks / quit |
 
 Mouse works too: click to move the cursor, double-click to open, wheel to scroll.
+`Shift`+click selects from the cursor to the row you clicked, and `Ctrl`+click (`Cmd` on macOS)
+adds or removes one row. Both share the selection with `<Space>` and visual mode, so you can
+start a range with the mouse and finish it with the keyboard.
 
 ## Shell integration
 
@@ -217,6 +281,36 @@ major operating systems and architectures.
 | **macOS** | Apple Silicon (ARM64) / Intel (x64) | Cmd key support, Finder integration |
 | **Linux** | x64 / ARM64 | X11 / Wayland |
 
+## Network paths (UNC)
+
+On Windows a UNC path is an ordinary path here — type `\\192.168.1.5\pub` (or a mapped drive
+letter) into the `cd` prompt and browse it like any folder. Forward slashes work too
+(`//192.168.1.5/pub`) and are shown back in the `\\host\share` spelling.
+
+- A share root is the top of the tree: `..` / `h` stop there instead of climbing into the host.
+- `\\host` on its own names no share, so there is nothing to list; filer reports the host you
+  typed rather than silently dropping you at `\host` on the current drive. Enumerating a host's
+  shares is not implemented — give the share name.
+- A slow or disconnected share never blocks the window. Nothing on disk is checked before a jump —
+  `is_dir` on a dead share can sit for half a minute — so the tab moves at once, shows *Loading*,
+  and the scan pool has the last word. If the listing never arrives the tab returns to where it
+  was and the error appears as a toast; the same undo covers a path that was deleted, refused or
+  simply mistyped.
+- Typing a file's path into the `cd` prompt still lands on its folder with that file under the
+  cursor — that answer now comes from the scan rather than from a blocking check.
+- The path on the command line (`filer \\host\share`) is opened the same way: the window goes up
+  at once and the first listing decides. A path that names a file reveals it in its folder, and
+  one that answers nothing falls back to the working directory with the error as a toast.
+- `follow` (`gf`) on a link into a slow share is instant too — the target is read on the scan
+  worker along with the rest of the entry, so the key never waits on `canonicalize`.
+- A new tab (`t`, or `tab_create <path>`) opens the same way: it appears at once on the path it
+  was given, and a listing that never arrives puts it back on the directory it was opened from.
+  A path that names a file reveals that file in its folder.
+- Change watching runs on its own thread. Registering a directory opens a handle to it
+  (`ReadDirectoryChangesW` on Windows) and that call can hang on a dead share, so the window only
+  posts the set of folders it wants watched. While a registration is stuck the panes still scroll
+  and move; requests that pile up behind it collapse to the newest one.
+
 ## Known limits
 
 - Windows-first. The code compiles for Unix but only Windows is tested; `block = true` openers and
@@ -241,3 +335,53 @@ src/
   search.rs      recursive name/content search
   exec.rs        openers and shell
 ```
+
+## Building
+
+```
+cargo build --release      # target\release\filer.exe
+cargo test                 # the parsing, sorting and fuzzy-matching tests
+```
+
+Rust 1.95 or newer (`rust-version` in `Cargo.toml`) — the floor comes from egui 0.36, not from
+this code. Everything the previews need is compiled in, so there is nothing else to install: no
+magick, ffmpeg or pdftoppm. CI builds and tests on `windows-latest`, which is the platform the
+code is written against; the handful of tests that assert Windows path and editor behavior only
+pass there.
+
+## License
+
+Dual-licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or
+  <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
+
+at your option. This is the usual arrangement in the Rust ecosystem, and it is what every
+dependency here already offers: pick whichever of the two suits you, you do not need both.
+
+`Cargo.toml` carries the same thing as `license = "MIT OR Apache-2.0"`, so tooling agrees with
+these files.
+
+### Contributing
+
+Unless you state otherwise, any contribution you intentionally submit for inclusion in this work,
+as defined in the Apache-2.0 license, is dual-licensed as above, with no additional terms or
+conditions.
+
+### Third-party code
+
+filer links a number of crates, all under permissive licenses (MIT, Apache-2.0, BSD, Zlib, ISC,
+Unlicense, CC0 and one MPL-2.0 file-level component in `option-ext`, reached through `dirs`). None
+of them constrains the choice above. A binary you distribute still carries their notice
+requirements: `cargo about` or `cargo bundle-licenses` will generate the attribution file.
+
+Two of them also ship data rather than only code:
+
+- **syntect** and **two-face** embed syntax definitions collected by [bat], which are third-party
+  Sublime Text grammars under their own (mostly MIT) licenses. See two-face's acknowledgements for
+  the list.
+- **resvg** brings its own font handling; the fonts filer draws with are the ones already installed
+  on your system and are not redistributed here.
+
+[bat]: https://github.com/sharkdp/bat

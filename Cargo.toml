@@ -2,8 +2,11 @@
 name = "filer"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/uchmk/filer"
+readme = "README.md"
 
 [dependencies]
 eframe = "0.36"
