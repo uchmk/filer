@@ -19,8 +19,27 @@ cargo clippy        --manifest-path C:\dev\filer\Cargo.toml
 cargo build --release --manifest-path C:\dev\filer\Cargo.toml
 ```
 
-- clippy の `main.rs` の never_loop（Confirm の Text 処理）は以前からある。直すのは別タスク（TODO.md）。
-- CI は `.github/workflows/ci.yml`（Windows）。
+- clippy は `--all-targets` で警告ゼロを保っている。増やさないこと。
+- CI は `.github/workflows/ci.yml`（Windows）でテスト、`build.yml` が `filer.exe` を
+  アーティファクトとして残す（Actions タブからダウンロードできる）。
+- egui 0.36 は rustc 1.95 以上を要求する。`Cargo.toml` の `rust-version` はそれより低い。
+
+### Linux 上で作業する場合（クラウドセッションなど）
+
+Windows 専用のコード（ConPTY、`is_hidden`、`#[cfg(windows)]` のテスト）は Linux では 1 行も
+コンパイルされないため、手元で通っても CI で落ちる。リンクしない型検査なら MSVC ツールチェーン
+なしで通せるので、push 前にこれを回すこと。
+
+```bash
+rustup target add x86_64-pc-windows-msvc
+cargo check --release --target x86_64-pc-windows-msvc --all-targets
+```
+
+- ただし型検査なので実行時の問題は捕まえない。実際、`format!("{:?}", "status")` が
+  ディレクトリ名に引用符を入れ（Unix では合法、Windows では不正）、CI で初めて落ちたことがある。
+  パス文字列は目視でも確認すること。
+- `cargo test` の失敗 4 件（`exec::tests::*` 3 件と `util::tests::normalizes`）は Linux 限定。
+  Windows のパス表記を前提にしたテストなので、CI（Windows）では通る。
 
 ## 自動実行モード
 
