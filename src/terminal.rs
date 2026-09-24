@@ -18,8 +18,10 @@ use std::sync::Arc;
 
 use alacritty_terminal::event::{Event as PtyEvent, EventListener, WindowSize};
 use alacritty_terminal::event_loop::{EventLoop, EventLoopSender, Msg};
-use alacritty_terminal::grid::Dimensions;
-use alacritty_terminal::index::{Column, Line};
+use alacritty_terminal::grid::{Dimensions, Scroll};
+use alacritty_terminal::index::{Column, Direction, Line, Point, Side};
+use alacritty_terminal::selection::{Selection, SelectionType};
+use alacritty_terminal::term::search::RegexSearch;
 use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::{Config, Term};
 use alacritty_terminal::tty::{self, EventedReadWrite};
@@ -269,6 +271,8 @@ pub struct Terminal {
     /// Where the shell was last told to go, so it is not told twice.
     followed: Option<PathBuf>,
     cwd_rx: Receiver<PathBuf>,
+    /// Where the last search matched, so the next one carries on past it.
+    found: Option<Point>,
     /// Where the shell says it is, when it says so at all. A shell that does
     /// not send OSC 7 leaves this `None` for ever, which is why it only ever
     /// suppresses work rather than driving any.
@@ -317,6 +321,7 @@ impl Terminal {
             size,
             followed: Some(cwd.to_path_buf()),
             cwd_rx,
+            found: None,
             shell_cwd: None,
         })
     }
@@ -356,7 +361,107 @@ impl Terminal {
     }
 
     pub fn send(&self, bytes: Vec<u8>) {
+        // Typing is an answer to what is on screen, so the view comes back to
+        // the bottom — every terminal does this, and a key that seemed to do
+        // nothing because the view was in the scrollback is a bad surprise.
+        self.term.lock().scroll_display(Scroll::Bottom);
         let _ = self.sender.send(Msg::Input(bytes.into()));
+    }
+
+    pub fn size(&self) -> Size {
+        self.size
+    }
+
+    /// Move the view through the scrollback. Lines are positive for older.
+    pub fn scroll(&self, by: Scroll) {
+        self.term.lock().scroll_display(by);
+    }
+
+    /// Whether the view is somewhere above the bottom, which the pane says so
+    /// the scrollback is never a silent place to be lost in.
+    pub fn scrolled_back(&self) -> usize {
+        self.term.lock().grid().display_offset()
+    }
+
+    /// Begin a selection at a cell, or carry one on to it. `start` is the
+    /// press; everything after is the drag.
+    pub fn select(&self, cell: (usize, usize), start: bool) {
+        let point = self.point(cell);
+        let mut term = self.term.lock();
+        match start {
+            true => {
+                term.selection = Some(Selection::new(SelectionType::Simple, point, Side::Left));
+            }
+            false => {
+                if let Some(sel) = term.selection.as_mut() {
+                    sel.update(point, Side::Right);
+                }
+            }
+        }
+    }
+
+    /// Select the word under a cell — what a double-click means everywhere.
+    pub fn select_word(&self, cell: (usize, usize)) {
+        let point = self.point(cell);
+        let mut term = self.term.lock();
+        term.selection = Some(Selection::new(SelectionType::Semantic, point, Side::Left));
+    }
+
+    pub fn clear_selection(&self) {
+        self.term.lock().selection = None;
+    }
+
+    /// The selected text, if any of it is.
+    pub fn selection(&self) -> Option<String> {
+        self.term.lock().selection_to_string().filter(|s| !s.is_empty())
+    }
+
+    /// Find `needle` from the top of the view, and put the match on screen.
+    /// Returns whether anything matched.
+    pub fn search(&mut self, needle: &str, back: bool) -> bool {
+        let Ok(mut re) = RegexSearch::new(needle) else { return false };
+        let mut term = self.term.lock();
+        // From where the last match left off, so a repeat walks the matches
+        // rather than finding the same one.
+        let origin = self.found.unwrap_or_else(|| {
+            let line = Line(-(term.grid().display_offset() as i32));
+            Point::new(line, Column(0))
+        });
+        let dir = if back { Direction::Left } else { Direction::Right };
+        let Some(m) = term.search_next(&mut re, origin, dir, Side::Left, None) else {
+            drop(term);
+            // Wrap: a search that runs off the end starts again.
+            self.found = None;
+            return false;
+        };
+        let hit = *m.start();
+        // Put the line holding the match on screen.
+        let want = (-hit.line.0).max(0);
+        let now = term.grid().display_offset() as i32;
+        term.scroll_display(Scroll::Delta(want - now));
+        term.selection = Some(Selection::new(SelectionType::Simple, hit, Side::Left));
+        if let Some(sel) = term.selection.as_mut() {
+            sel.update(*m.end(), Side::Right);
+        }
+        drop(term);
+        // Step past this one so the next search moves on.
+        self.found = Some(match back {
+            true => Point::new(hit.line, Column(hit.column.0.saturating_sub(1))),
+            false => Point::new(hit.line, Column(m.end().column.0 + 1)),
+        });
+        true
+    }
+
+    /// Forget where a search got to, so the next one starts from the view.
+    pub fn end_search(&mut self) {
+        self.found = None;
+    }
+
+    /// A cell of the visible grid as a point in the whole buffer, which is
+    /// where the scrollback lives above line zero.
+    fn point(&self, (col, line): (usize, usize)) -> Point {
+        let offset = self.term.lock().grid().display_offset() as i32;
+        Point::new(Line(line as i32 - offset), Column(col))
     }
 
     /// Type text in, as a paste rather than as keys.

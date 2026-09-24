@@ -6,6 +6,7 @@
 //! PTY reader thread wants it back, and laying out text takes longer than
 //! copying a screenful of cells.
 
+use alacritty_terminal::grid::Scroll;
 use alacritty_terminal::term::cell::Flags;
 use alacritty_terminal::vte::ansi::{Color as AnsiColor, NamedColor};
 use egui::{Align2, Color32, CornerRadius, FontId, Rect, Stroke, Ui, Vec2};
@@ -34,6 +35,20 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
 
     let inner = rect.shrink2(Vec2::new(6.0, 4.0));
     let size = fit(inner, cell_w, row_h);
+
+    // The pointer is read before the terminal is borrowed, so the two do not
+    // fight over `app`.
+    let id = ui.id().with("term-pane");
+    let resp = ui.interact(rect, id, egui::Sense::click_and_drag());
+    let pointer = resp.interact_pointer_pos();
+    let over = ui.rect_contains_pointer(rect);
+    let wheel = match over {
+        true => ui.ctx().input(|i| i.smooth_scroll_delta.y),
+        false => 0.0,
+    };
+    if resp.clicked() || resp.drag_started() {
+        app.term_focus = true;
+    }
 
     let Some(term) = &mut app.term else { return };
     term.resize(size, (cell_w.round() as u16, row_h.round() as u16));
@@ -110,10 +125,49 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         }
     }
 
-    // A click anywhere in the pane is a request for the keys.
-    let id = ui.id().with("term-pane");
-    if ui.interact(rect, id, egui::Sense::click()).clicked() {
-        app.term_focus = true;
+    // Somewhere above the bottom, which is easy to forget being in.
+    let back = term.scrolled_back();
+    if back > 0 {
+        let note = format!(" {back} lines back — <S-End> to return ");
+        let g = painter.layout_no_wrap(note, f.clone(), theme.bg);
+        let at = egui::pos2(inner.right() - g.size().x - 6.0, inner.top() + 2.0);
+        painter.rect_filled(
+            Rect::from_min_size(at, g.size()),
+            CornerRadius::same(3),
+            theme.cwd.fg.unwrap_or(theme.fg),
+        );
+        painter.galley(at, g, theme.bg);
+    }
+
+    // Which cell the pointer is over, for selecting.
+    let cell_at = |p: egui::Pos2| {
+        let col = ((p.x - inner.left()) / cell_w).floor().max(0.0) as usize;
+        let line = ((p.y - inner.top()) / row_h).floor().max(0.0) as usize;
+        (col.min(size.cols.saturating_sub(1)), line.min(size.lines.saturating_sub(1)))
+    };
+    if let Some(p) = pointer {
+        if resp.double_clicked() {
+            term.select_word(cell_at(p));
+        } else if resp.drag_started() {
+            term.select(cell_at(p), true);
+        } else if resp.dragged() {
+            term.select(cell_at(p), false);
+        } else if resp.clicked() {
+            // A plain click puts the caret nowhere; it just clears what was
+            // selected, the way a terminal does.
+            term.clear_selection();
+        }
+    }
+    // Letting go of a selection copies it, which is what a terminal means by
+    // selecting: there is no other step.
+    if resp.drag_stopped() || resp.double_clicked() {
+        if let Some(text) = term.selection() {
+            let _ = crate::exec::set_clipboard(&text);
+        }
+    }
+    // The wheel walks the scrollback rather than the file list under it.
+    if wheel.abs() > 0.5 {
+        term.scroll(Scroll::Delta((wheel / row_h * 1.5) as i32));
     }
 }
 

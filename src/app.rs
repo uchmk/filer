@@ -38,6 +38,8 @@ pub enum InputKind {
     Filter,
     Find { prev: bool },
     Cd,
+    /// A string to find in the terminal's scrollback.
+    TermFind,
     /// The name of the archive to pack the selection into.
     Compress,
     Shell { block: bool },
@@ -547,6 +549,8 @@ pub struct App {
     pub term: Option<crate::terminal::Terminal>,
     /// The terminal has the keys, so they go to the shell rather than here.
     pub term_focus: bool,
+    /// What the terminal was last searched for, so the key repeats it.
+    term_needle: String,
     /// A drag in flight between the panes.
     pub drag: Option<Drag>,
     /// Where each pane was drawn this frame, so a drop can be placed.
@@ -635,6 +639,7 @@ impl App {
             git_status: Lru::new(8),
             term: None,
             term_focus: false,
+            term_needle: String::new(),
             drag: None,
             pane_rects: Vec::new(),
             spotter,
@@ -1813,6 +1818,26 @@ impl App {
             Act::Terminal(what) => self.terminal(what),
             Act::TermSend => self.term_send_paths(),
             Act::TermCd => self.term_pull_cwd(),
+            Act::TermFind { prev, repeat } => {
+                let needle = self.term_needle.clone();
+                match repeat && !needle.is_empty() {
+                    true => self.term_find(&needle, prev),
+                    // Nothing to repeat, so ask what to look for.
+                    false => self.open_input(InputKind::TermFind, "Find in terminal", needle),
+                }
+            }
+            Act::TermScroll(step) => {
+                if let Some(t) = &self.term {
+                    use alacritty_terminal::grid::Scroll;
+                    let page = t.size().lines as i64;
+                    t.scroll(match step {
+                        Step::Top => Scroll::Top,
+                        Step::Bot => Scroll::Bottom,
+                        Step::Rel(n) => Scroll::Delta(n as i32),
+                        Step::Pct(p) => Scroll::Delta((page * p / 100) as i32),
+                    });
+                }
+            }
             Act::Extract => self.do_extract(),
             Act::Compress => self.ask_compress(),
             Act::SendPane { cut } => self.send_to_pane(cut),
@@ -2582,6 +2607,7 @@ impl App {
         match ov.kind {
             InputKind::Create => self.do_create(&text),
             InputKind::Compress => self.do_compress(&text),
+            InputKind::TermFind => self.term_find(&text, false),
             InputKind::Rename { from } => self.do_rename(&from, &text),
             InputKind::Filter => { /* already applied live */ }
             InputKind::Find { .. } => { /* already applied live */ }
@@ -2781,6 +2807,26 @@ impl App {
             paths.iter().map(|p| crate::terminal::quote(&p.to_string_lossy())).collect();
         term.send(format!(" {}", line.join(" ")).into_bytes());
         self.term_focus = true;
+    }
+
+    /// Look for `needle` in the terminal's scrollback and put the match on
+    /// screen. Repeating the command walks the matches; running out wraps.
+    fn term_find(&mut self, needle: &str, back: bool) {
+        let needle = needle.trim();
+        if needle.is_empty() {
+            return;
+        }
+        self.term_needle = needle.to_owned();
+        let Some(term) = &mut self.term else { return };
+        if term.search(needle, back) {
+            return;
+        }
+        // Nothing from here on; start again from the view.
+        term.end_search();
+        match term.search(needle, back) {
+            true => self.toast("Wrapped"),
+            false => self.error(format!("No match for {needle}")),
+        }
     }
 
     /// Follow the shell: put the pane where it says it is.
@@ -3553,6 +3599,22 @@ mod tests {
         // The context menu has a key of its own, so it is reachable without a
         // mouse and the palette lists it like any other command.
         assert!(runs.iter().any(|r| r == &[Act::Menu]), "the palette lists the context menu");
+
+        // The terminal layer is loaded, and holds only the few keys the pane
+        // keeps for itself — everything else has to reach the shell.
+        assert!(!km.term.is_empty(), "the [term] section is read");
+        assert!(
+            km.term.iter().all(|b| b.on.len() == 1),
+            "only single keys are consulted there, so only single keys belong"
+        );
+        assert!(
+            km.term.iter().any(|b| b.run == vec![Act::Terminal(Some(false))]),
+            "there is a way to close it"
+        );
+        assert!(
+            km.term.iter().any(|b| matches!(b.run.first(), Some(Act::TermScroll(_)))),
+            "and a way into the scrollback"
+        );
         assert_eq!(items.len(), details.len());
         assert_eq!(items.len(), runs.len());
         assert!(runs.iter().any(|r| r == &[Act::Palette]), "the palette lists itself");

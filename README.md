@@ -58,7 +58,7 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
-`menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `term_cd`, `task_toggle`, `task_cancel`, `task_top`,
+`menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `term_cd`, `term_find`, `term_scroll`, `task_toggle`, `task_cancel`, `task_top`,
 `split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
 project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
@@ -259,12 +259,23 @@ rather than another set of bindings. Only what the `[term]` keymap section binds
 | Key | |
 | --- | --- |
 | `<C-t>` | close the pane and the shell with it |
-| `<A-Up>` | put the file list where the shell is |
 | `<C-S-t>` | give the keys back to the list, leaving the shell running |
+| `<A-Up>` | put the file list where the shell is |
+| `<S-PageUp>` `<S-PageDown>` | half a screen back / forward through the scrollback |
+| `<S-Home>` `<S-End>` | to the top of the scrollback / back to the bottom |
+| `<C-S-f>` `<C-S-n>` `<C-S-b>` | find in the scrollback / next match / previous |
 
-Click the pane to take the keys back. The grid is drawn with the list's own font and the theme's
-colors, so the 16 ANSI colors match the rest of the window; the 256-color cube and true-color
-values are used as the program asked for them.
+`Shift` is what keeps those out of the shell's way: a program reading the keyboard sees `PageUp`,
+never `Shift`+`PageUp`. Typing anything brings the view back to the bottom, and while it is not
+there the pane says how far back it is.
+
+The wheel walks the scrollback. Drag to select and the selection is copied when you let go —
+that is what selecting means in a terminal, there is no second step — and a double-click takes
+the word. Click the pane to take the keys back.
+
+The grid is drawn with the list's own font and the theme's colors, so the 16 ANSI colors match
+the rest of the window; the 256-color cube and true-color values are used as the program asked
+for them.
 
 It follows the pane: change directory and the shell is sent a `cd` for the new one. Typing is the
 only way in — a shell takes no other instruction — so that is a line of input like any other,
@@ -497,9 +508,9 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.
 - Git signs need `git` on `PATH`; without it the rows are simply unmarked. Only the status is
   shown — there is no staging, diffing or committing here, and no branch in the status bar yet.
-- The terminal pane has no scrollback keys, no mouse selection and no search of its own yet: what
-  is on screen is what you can see. `cd` following types a line into the shell, so it lands in
-  whatever is running if something is.
+- The terminal pane has no tabs and no split of its own, and `cd` following types a line into the
+  shell, so it lands in whatever is running if something is — unless the shell reports its
+  directory, in which case it is usually not sent at all.
 
 ## Layout
 
