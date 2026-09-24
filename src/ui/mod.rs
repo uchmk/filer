@@ -5,6 +5,7 @@
 mod list;
 mod overlay;
 mod preview;
+mod term;
 
 use egui::{Align2, Color32, CornerRadius, FontFamily, FontId, Rect, Stroke, Ui, Vec2};
 
@@ -12,6 +13,7 @@ use crate::app::{App, Overlay, PreviewState};
 use crate::config::cmd::{Act, Step};
 use crate::config::theme::{Style, Theme};
 use crate::core::folder::Folder;
+use crate::fs::git;
 use crate::util;
 
 pub fn font(size: f32) -> FontId {
@@ -41,7 +43,13 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
         egui::pos2(full.left(), full.bottom() - status_h),
         Vec2::new(full.width(), status_h),
     );
-    let bottom_extra = which_h + input_h;
+    // The terminal takes the bottom third, and never so much that the list
+    // it sits under stops being usable.
+    let term_h = match app.term.is_some() {
+        true => (full.height() * 0.35).clamp(row_h * 4.0, full.height() - header_h - row_h * 6.0),
+        false => 0.0,
+    };
+    let bottom_extra = which_h + input_h + term_h;
     let body = Rect::from_min_max(
         egui::pos2(full.left(), header.bottom()),
         egui::pos2(full.right(), status.top() - bottom_extra),
@@ -49,6 +57,13 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
 
     draw_header(app, ui, header, &f, row_h);
     draw_body(app, ui, body, &f, row_h, &mut queued);
+    if term_h > 0.0 {
+        let r = Rect::from_min_size(
+            egui::pos2(full.left(), status.top() - bottom_extra),
+            Vec2::new(full.width(), term_h),
+        );
+        term::draw(app, ui, r, &f, row_h);
+    }
     draw_status(app, ui, status, &f);
 
     if which_h > 0.0 {
@@ -68,7 +83,7 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
 
     match &app.overlay {
         Overlay::Help => overlay::help(app, ui, full, &f, row_h),
-        Overlay::Tasks => overlay::tasks(app, ui, full, &f, row_h),
+        Overlay::Tasks(_) => overlay::tasks(app, ui, full, &f, row_h),
         Overlay::Confirm(_) => overlay::confirm(app, ui, full, &f, row_h, &mut queued),
         Overlay::Pick(_) => overlay::pick(app, ui, full, &f, row_h, &mut queued),
         Overlay::Spot(_) => overlay::spot(app, ui, full, &f, row_h),
@@ -258,6 +273,7 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
                 list::draw(ui, rect.shrink(2.0), &p, &st, &|_| list::RowFlags {
                     selected: false,
                     yanked: None,
+                    git: git::State::Clean,
                 }, false);
             }
             other => {
@@ -331,6 +347,7 @@ fn draw_parent(app: &mut App, ui: &mut Ui, rect: Rect, ctx: &PaneCtx, queued: &m
         let res = list::draw(ui, rect, &p, &st, &|_e| list::RowFlags {
             selected: false,
             yanked: None,
+            git: git::State::Clean,
         }, false);
         if let Some(row) = res.clicked.or(res.double_clicked) {
             if let Some(e) = p.at(row) {
@@ -374,6 +391,7 @@ fn draw_pane(
         linemode: &linemode,
     };
     let has_filter = app.tabs[idx].current.filter.is_some();
+    let git = app.git_status(&app.tabs[idx].cwd);
     let res = list::draw(
         ui,
         rect,
@@ -382,6 +400,7 @@ fn draw_pane(
         &|e| list::RowFlags {
             selected: selected.contains(&e.path),
             yanked: if yank_paths.contains(&e.path) { Some(yank_cut) } else { None },
+            git: git.as_ref().map(|g| g.get(&e.name)).unwrap_or(git::State::Clean),
         },
         has_filter,
     );
@@ -421,6 +440,14 @@ fn draw_pane(
         app.tabs[idx].current.cursor = row;
         // `enter` on a file moves into its outline; a double-click opens.
         queued.push(Act::Open { interactive: false, hovered: true });
+    }
+    // Right-click asks what can be done with the row it landed on, so the pane
+    // and the cursor move there first.
+    if let Some(row) = res.secondary_clicked {
+        app.focus_pane(idx);
+        app.preview.outline = None;
+        app.tabs[idx].right_click(row);
+        queued.push(Act::Menu);
     }
 }
 
@@ -482,8 +509,27 @@ fn draw_status(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId) {
 
     // Right side: task progress, filter/find state, position.
     let mut right: Vec<String> = Vec::new();
-    if let Some(t) = app.tasks.iter().find(|t| t.state == crate::app::TaskState::Running) {
-        right.push(format!("{} {:>3.0}%", t.kind.verb(), t.fraction() * 100.0));
+    if let Some(t) = running_task(app) {
+        let mut s = format!("{} {:>3.0}%", t.kind.verb(), t.fraction() * 100.0);
+        if t.state == crate::app::TaskState::Paused {
+            s.push_str(" paused");
+        }
+        if let Some(b) = t.speed() {
+            s.push_str(&format!("  {}/s", util::human_size(b)));
+        }
+        if let Some(eta) = t.eta() {
+            s.push_str(&format!("  {}", util::fmt_duration(eta)));
+        }
+        // What else is waiting, so a queue is never a surprise.
+        let waiting = app
+            .tasks
+            .iter()
+            .filter(|o| o.id != t.id && o.state.is_live())
+            .count();
+        if waiting > 0 {
+            s.push_str(&format!("  +{waiting}"));
+        }
+        right.push(s);
     }
     if let Some(h) = &app.search {
         right.push(match h.via {
@@ -523,14 +569,29 @@ fn draw_status(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId) {
     );
 
     // A thin progress strip along the bottom while work is running.
-    if let Some(t) = app.tasks.iter().find(|t| t.state == crate::app::TaskState::Running) {
+    if let Some(t) = running_task(app) {
         let w = rect.width() * t.fraction();
+        let color = match t.state {
+            crate::app::TaskState::Paused => theme.fg_dim,
+            _ => theme.progress_fg,
+        };
         painter.rect_filled(
             Rect::from_min_size(rect.left_bottom() - Vec2::new(0.0, 2.0), Vec2::new(w, 2.0)),
             CornerRadius::ZERO,
-            theme.progress_fg,
+            color,
         );
     }
+}
+
+/// The job the status bar speaks for: the one being worked on, or the one
+/// parked mid-way, which is worth saying more than a queue of jobs that have
+/// not begun.
+fn running_task(app: &App) -> Option<&crate::app::Task> {
+    use crate::app::TaskState;
+    app.tasks
+        .iter()
+        .find(|t| t.state == TaskState::Running)
+        .or_else(|| app.tasks.iter().find(|t| t.state == TaskState::Paused))
 }
 
 // ---------------------------------------------------------------- toasts

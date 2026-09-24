@@ -1,0 +1,416 @@
+//! Packing and unpacking, in pure Rust.
+//!
+//! zip / tar / flate2 / sevenz-rust do the work, so nothing here shells out to
+//! 7-Zip and nothing links a C library: a machine without 7-Zip installed
+//! behaves like one with it, and an ARM64 build needs no toolchain beyond
+//! cargo.
+//!
+//! An archive is untrusted input. Every entry name goes through [`safe_dest`]
+//! before anything is written, so one rule covers all three readers.
+
+use std::fs::File;
+use std::io::{self, BufReader, BufWriter, Read, Write};
+use std::path::{Component, Path, PathBuf};
+
+/// What an archive is, as far as this app is concerned.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Format {
+    Zip,
+    Tar,
+    TarGz,
+    SevenZ,
+}
+
+impl Format {
+    /// The format a name asks for, or `None` when it names no archive.
+    /// `.tar.gz` is looked at before `.gz` so the double extension wins.
+    pub fn from_path(p: &Path) -> Option<Format> {
+        let name = p.file_name()?.to_string_lossy().to_ascii_lowercase();
+        for (suffix, f) in [
+            (".tar.gz", Format::TarGz),
+            (".tgz", Format::TarGz),
+            (".zip", Format::Zip),
+            (".tar", Format::Tar),
+            (".7z", Format::SevenZ),
+        ] {
+            // `.zip` alone is a file called nothing, not an archive.
+            if name.len() > suffix.len() && name.ends_with(suffix) {
+                return Some(f);
+            }
+        }
+        None
+    }
+
+    /// Whether [`compress`] can write this format. 7z is read-only here:
+    /// sevenz-rust packs only what it can encode, and the formats above cover
+    /// what a file manager is asked for.
+    pub fn can_write(self) -> bool {
+        !matches!(self, Format::SevenZ)
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Format::Zip => "zip",
+            Format::Tar => "tar",
+            Format::TarGz => "tar.gz",
+            Format::SevenZ => "7z",
+        }
+    }
+}
+
+/// Called as each entry lands, with its name and its size in bytes. Returning
+/// `false` stops the job where it is.
+pub type OnEntry<'a> = &'a mut dyn FnMut(&str, u64) -> bool;
+
+/// Where an entry of `name` may be written under `dest`.
+///
+/// An archive names its own entries, so it can ask for `../../autorun` or
+/// `C:\Windows\x` and `dest.join()` would happily oblige. Only plain
+/// components are kept: anything that climbs, roots or carries a drive letter
+/// is refused, and so is a name that lands back on `dest` itself.
+fn safe_dest(dest: &Path, name: &str) -> Option<PathBuf> {
+    let mut out = dest.to_path_buf();
+    let mut pushed = false;
+    for c in Path::new(name).components() {
+        match c {
+            Component::Normal(s) => {
+                out.push(s);
+                pushed = true;
+            }
+            Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => return None,
+        }
+    }
+    pushed.then_some(out)
+}
+
+/// Unpack `archive` into `dest`, which is created if it is not there.
+pub fn extract(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<()> {
+    let Some(format) = Format::from_path(archive) else {
+        return Err(io::Error::other("not an archive this build can read"));
+    };
+    std::fs::create_dir_all(dest)?;
+    match format {
+        Format::Zip => extract_zip(archive, dest, on_entry),
+        Format::Tar => extract_tar(&mut BufReader::new(File::open(archive)?), dest, on_entry),
+        Format::TarGz => {
+            let gz = flate2::read::GzDecoder::new(BufReader::new(File::open(archive)?));
+            extract_tar(&mut BufReader::new(gz), dest, on_entry)
+        }
+        Format::SevenZ => extract_7z(archive, dest, on_entry),
+    }
+}
+
+fn extract_zip(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<()> {
+    let mut zip = zip::ZipArchive::new(BufReader::new(File::open(archive)?))
+        .map_err(|e| io::Error::other(e.to_string()))?;
+    let mut refused = 0usize;
+    for i in 0..zip.len() {
+        let mut entry = zip.by_index(i).map_err(|e| io::Error::other(e.to_string()))?;
+        let name = entry.name().to_owned();
+        let Some(path) = safe_dest(dest, &name) else {
+            refused += 1;
+            continue;
+        };
+        if entry.is_dir() {
+            std::fs::create_dir_all(&path)?;
+            continue;
+        }
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let size = entry.size();
+        let mut out = BufWriter::new(File::create(&path)?);
+        io::copy(&mut entry, &mut out)?;
+        out.flush()?;
+        if !on_entry(&name, size) {
+            return Ok(());
+        }
+    }
+    refused_error(refused)
+}
+
+fn extract_tar<R: Read>(reader: &mut R, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<()> {
+    let mut tar = tar::Archive::new(reader);
+    let mut refused = 0usize;
+    for entry in tar.entries()? {
+        let mut entry = entry?;
+        let name = entry.path()?.to_string_lossy().into_owned();
+        let Some(path) = safe_dest(dest, &name) else {
+            refused += 1;
+            continue;
+        };
+        let size = entry.size();
+        if entry.header().entry_type().is_dir() {
+            std::fs::create_dir_all(&path)?;
+            continue;
+        }
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let mut out = BufWriter::new(File::create(&path)?);
+        io::copy(&mut entry, &mut out)?;
+        out.flush()?;
+        if !on_entry(&name, size) {
+            return Ok(());
+        }
+    }
+    refused_error(refused)
+}
+
+fn extract_7z(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<()> {
+    let file = File::open(archive)?;
+    let mut refused = 0usize;
+    let mut stop = false;
+    // sevenz-rust hands each entry to this closure with the destination it
+    // worked out itself; that one is ignored in favour of `safe_dest`.
+    let res = sevenz_rust::decompress_with_extract_fn(file, dest, |entry, reader, _their_dest| {
+        if stop {
+            return Ok(false);
+        }
+        let name = entry.name().to_owned();
+        let Some(path) = safe_dest(dest, &name) else {
+            refused += 1;
+            return Ok(true);
+        };
+        let mut write = || -> io::Result<()> {
+            if entry.is_directory() {
+                std::fs::create_dir_all(&path)?;
+                return Ok(());
+            }
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let mut out = BufWriter::new(File::create(&path)?);
+            io::copy(reader, &mut out)?;
+            out.flush()
+        };
+        write().map_err(sevenz_rust::Error::io)?;
+        if !entry.is_directory() && !on_entry(&name, entry.size()) {
+            stop = true;
+            return Ok(false);
+        }
+        Ok(true)
+    });
+    res.map_err(|e| io::Error::other(e.to_string()))?;
+    refused_error(refused)
+}
+
+fn refused_error(refused: usize) -> io::Result<()> {
+    match refused {
+        0 => Ok(()),
+        n => Err(io::Error::other(format!(
+            "{n} entr{} refused: the name escapes the destination",
+            if n == 1 { "y" } else { "ies" }
+        ))),
+    }
+}
+
+/// Pack `srcs` into `archive`. Names inside are taken relative to `base`, so
+/// a folder keeps its shape and a file keeps its own name.
+pub fn compress(
+    srcs: &[PathBuf],
+    base: &Path,
+    archive: &Path,
+    format: Format,
+    on_entry: OnEntry<'_>,
+) -> io::Result<()> {
+    if !format.can_write() {
+        return Err(io::Error::other(format!("cannot write {}", format.label())));
+    }
+    let members = walk(srcs, base);
+    let out = BufWriter::new(File::create(archive)?);
+    // Each writer is closed by hand rather than on drop: a gzip trailer or a
+    // zip central directory written by a destructor has nowhere to report a
+    // failure, and a truncated archive still looks openable.
+    let mut out = match format {
+        Format::Zip => write_zip(&members, out, on_entry)?,
+        Format::Tar => write_tar(&members, out, on_entry)?,
+        Format::TarGz => {
+            let gz = flate2::write::GzEncoder::new(out, flate2::Compression::default());
+            write_tar(&members, gz, on_entry)?.finish()?
+        }
+        Format::SevenZ => unreachable!("guarded by can_write"),
+    };
+    out.flush()?;
+    out.into_inner().map_err(io::Error::other)?.sync_all()
+}
+
+/// One thing to put in an archive: where it is on disk, what it is called
+/// inside, and whether it is a directory.
+struct Member {
+    path: PathBuf,
+    name: String,
+    dir: bool,
+}
+
+/// Every file under `srcs`, named relative to `base`. Directories come before
+/// what they hold, so a reader can create them in order.
+fn walk(srcs: &[PathBuf], base: &Path) -> Vec<Member> {
+    let mut out = Vec::new();
+    let mut stack: Vec<PathBuf> = srcs.to_vec();
+    stack.reverse();
+    while let Some(p) = stack.pop() {
+        let Ok(md) = std::fs::symlink_metadata(&p) else { continue };
+        let name = match p.strip_prefix(base) {
+            Ok(rel) => rel.to_string_lossy().replace('\\', "/"),
+            // Not under `base` (a selection from elsewhere): its own name will do.
+            Err(_) => p.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default(),
+        };
+        if name.is_empty() {
+            continue;
+        }
+        if md.file_type().is_symlink() {
+            // Store what a link points at, and never walk through it: a link
+            // back up the tree would pack forever.
+            if std::fs::metadata(&p).map(|t| t.is_file()).unwrap_or(false) {
+                out.push(Member { path: p, name, dir: false });
+            }
+            continue;
+        }
+        if md.is_dir() {
+            out.push(Member { path: p.clone(), name, dir: true });
+            let Ok(rd) = std::fs::read_dir(&p) else { continue };
+            let mut children: Vec<PathBuf> = rd.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+            children.sort();
+            children.reverse();
+            stack.extend(children);
+        } else {
+            out.push(Member { path: p, name, dir: false });
+        }
+    }
+    out
+}
+
+fn write_zip<W: Write + io::Seek>(
+    members: &[Member],
+    out: W,
+    on_entry: OnEntry<'_>,
+) -> io::Result<W> {
+    let mut zip = zip::ZipWriter::new(out);
+    let opts = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+    for m in members {
+        let to_io = |e: zip::result::ZipError| io::Error::other(e.to_string());
+        if m.dir {
+            zip.add_directory(&m.name, opts).map_err(to_io)?;
+            continue;
+        }
+        zip.start_file(&m.name, opts).map_err(to_io)?;
+        let mut f = BufReader::new(File::open(&m.path)?);
+        let size = io::copy(&mut f, &mut zip)?;
+        if !on_entry(&m.name, size) {
+            break;
+        }
+    }
+    zip.finish().map_err(|e| io::Error::other(e.to_string()))
+}
+
+fn write_tar<W: Write>(members: &[Member], out: W, on_entry: OnEntry<'_>) -> io::Result<W> {
+    let mut tar = tar::Builder::new(out);
+    for m in members {
+        if m.dir {
+            tar.append_dir(&m.name, &m.path)?;
+            continue;
+        }
+        let mut f = File::open(&m.path)?;
+        let size = std::fs::metadata(&m.path).map(|md| md.len()).unwrap_or(0);
+        tar.append_file(&m.name, &mut f)?;
+        if !on_entry(&m.name, size) {
+            break;
+        }
+    }
+    tar.into_inner()
+}
+
+/// Where an archive unpacks: a folder in `into` named after it, with the
+/// extension dropped. `report.tar.gz` gives `report`, not `report.tar`.
+pub fn extract_dir(archive: &Path, into: &Path) -> PathBuf {
+    let name = archive.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+    let lower = name.to_ascii_lowercase();
+    let stem = [".tar.gz", ".tgz", ".zip", ".tar", ".7z"]
+        .iter()
+        .find(|s| lower.ends_with(**s))
+        .map(|s| &name[..name.len() - s.len()])
+        .unwrap_or(&name);
+    into.join(if stem.is_empty() { "extracted" } else { stem })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_name_decides_the_format() {
+        assert_eq!(Format::from_path(Path::new("a/b.zip")), Some(Format::Zip));
+        assert_eq!(Format::from_path(Path::new("B.ZIP")), Some(Format::Zip));
+        assert_eq!(Format::from_path(Path::new("x.tar")), Some(Format::Tar));
+        // The double extension beats the single one.
+        assert_eq!(Format::from_path(Path::new("x.tar.gz")), Some(Format::TarGz));
+        assert_eq!(Format::from_path(Path::new("x.tgz")), Some(Format::TarGz));
+        assert_eq!(Format::from_path(Path::new("x.7z")), Some(Format::SevenZ));
+        assert_eq!(Format::from_path(Path::new("notes.txt")), None);
+        // A name that is nothing but the extension names no archive.
+        assert_eq!(Format::from_path(Path::new(".zip")), None);
+        // 7z is read-only here; the rest round-trip.
+        assert!(!Format::SevenZ.can_write());
+        assert!(Format::Zip.can_write() && Format::TarGz.can_write());
+    }
+
+    /// An archive names its own entries, so the names are an attacker's to
+    /// choose. Nothing may land outside the directory the user asked for.
+    #[test]
+    fn an_entry_cannot_climb_out_of_the_destination() {
+        let dest = Path::new("/out");
+        assert_eq!(safe_dest(dest, "a/b.txt"), Some(PathBuf::from("/out/a/b.txt")));
+        assert_eq!(safe_dest(dest, "./a"), Some(PathBuf::from("/out/a")));
+        // Climbing, rooted and drive-qualified names are refused outright.
+        assert_eq!(safe_dest(dest, "../evil"), None);
+        assert_eq!(safe_dest(dest, "a/../../evil"), None);
+        assert_eq!(safe_dest(dest, "/etc/passwd"), None);
+        // Nothing to write: an entry that names the destination itself.
+        assert_eq!(safe_dest(dest, ""), None);
+        assert_eq!(safe_dest(dest, "."), None);
+    }
+
+    #[test]
+    fn an_archive_unpacks_into_a_folder_named_after_it() {
+        let into = Path::new("/a");
+        assert_eq!(extract_dir(Path::new("/a/report.zip"), into), PathBuf::from("/a/report"));
+        // The whole double extension goes, not just the `.gz`.
+        assert_eq!(extract_dir(Path::new("/a/report.tar.gz"), into), PathBuf::from("/a/report"));
+        assert_eq!(extract_dir(Path::new("/b/report.7z"), into), PathBuf::from("/a/report"));
+    }
+
+    /// The round trip is the real test of the writers: pack a small tree, read
+    /// it back, and see the same names and bytes.
+    #[test]
+    fn a_tree_survives_being_packed_and_unpacked() {
+        for format in [Format::Zip, Format::Tar, Format::TarGz] {
+            let root = std::env::temp_dir().join(format!("filer-archive-{}", format.label()));
+            let _ = std::fs::remove_dir_all(&root);
+            let src = root.join("src");
+            std::fs::create_dir_all(src.join("sub")).unwrap();
+            std::fs::write(src.join("top.txt"), b"top").unwrap();
+            std::fs::write(src.join("sub").join("deep.txt"), b"deep").unwrap();
+
+            let archive = root.join(format!("out.{}", format.label()));
+            let mut packed = Vec::new();
+            compress(std::slice::from_ref(&src), &root, &archive, format, &mut |n, _| {
+                packed.push(n.to_owned());
+                true
+            })
+            .unwrap();
+            assert_eq!(packed.len(), 2, "{:?}: both files are packed", format);
+
+            let out = root.join("out");
+            extract(&archive, &out, &mut |_, _| true).unwrap();
+            assert_eq!(std::fs::read(out.join("src").join("top.txt")).unwrap(), b"top");
+            assert_eq!(
+                std::fs::read(out.join("src").join("sub").join("deep.txt")).unwrap(),
+                b"deep"
+            );
+            let _ = std::fs::remove_dir_all(&root);
+        }
+    }
+}

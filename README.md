@@ -58,10 +58,12 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
-`split`, `pane_focus`, `toggle_render` and `toggle_outline` (this project's own). `select` and
-`select_all` are accepted as `toggle --state=on` / `toggle_all --state=on`. In the `[input]`
-section: `close --submit` (and the `*_do` spellings), `close` and `complete`; in `[spot]`:
-`close`, `arrow`, `swipe` and `copy cell`.
+`menu`, `extract`, `compress`, `terminal`, `term_send`, `task_toggle`, `task_cancel`, `task_top`,
+`split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
+project's own). `select` and `select_all` are accepted as `toggle --state=on` /
+`toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
+`close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe` and `copy cell`; in `[term]`:
+`close` and anything from `[mgr]`, with every other key going to the shell.
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -75,10 +77,15 @@ A few plugin invocations are mapped onto built-in behavior so common setups keep
 Anything else parses cleanly, reports itself as unsupported in the help panel, and shows a toast
 if you press it — it never breaks config loading. There is no Lua runtime.
 
+What a plugin is mostly used for — a custom action on the file under the cursor — is written here
+as a `shell` binding or as an `[opener]` entry, and both show up on their own in the
+[context menu](#context-menu) and the [command palette](#command-palette). Nothing has to be
+registered: the menu is read back out of the config every time it opens.
+
 ### theme.toml
 
-`[mgr]` colors, `[status]` modes, `[which]`, `[filetype].rules` and `[icon]` (`globs`, `dirs`,
-`exts`, `files`, `conds`) are applied on top of a built-in dark theme. Colors may be ANSI names
+`[mgr]` colors, `[status]` modes, `[which]`, `[git]`, `[filetype].rules` and `[icon]` (`globs`,
+`dirs`, `exts`, `files`, `conds`) are applied on top of a built-in dark theme. Colors may be ANSI names
 (`lightblue`, `darkgray`, `reset`) or hex (`#7ab8f5`). `syntect_theme` selects the preview's
 syntax theme.
 
@@ -204,6 +211,138 @@ gives it, and commands the config left unsupported are left out.
 directly. Commands that need more input (`rename`, `filter`, `shell`, …) open their own prompt
 as if the key had been pressed.
 
+The openers `yazi.toml` lists for the file under the cursor ride along at the end of the list,
+named `Open with <desc>`, so a custom action written as an opener is reachable without knowing
+which key opens it.
+
+## Context menu
+
+Right-click a row — or press `<S-F10>`, or run `menu` — for what this config says can be done with
+that file. There is no fixed list: the rows are read back out of your own configuration.
+
+| Group | Where it comes from |
+| --- | --- |
+| Openers | `yazi.toml`'s `[opener]` entries that `[open].rules` selects for this file |
+| Custom actions | every `keymap.toml` binding that runs `shell` |
+| File commands | the bindings that act on a file — `open`, `yank`, `paste`, `rename`, `remove`, `link`, `copy`, `spot`, … |
+
+Commands that only move the cursor or change what the view shows are left out, and anything the
+config left unsupported never appears. Each row shows the key that also runs it, so the menu
+doubles as a reminder of the keymap.
+
+Right-clicking inside the selection keeps it, and the command acts on all of it — the title says
+how many. Right-clicking outside the selection drops it and acts on that one row, the way
+Explorer does. This is the nearest thing here to a plugin menu: a `shell` binding or an opener is
+how a Lua plugin's action gets onto the screen, with no Lua runtime involved.
+
+## Terminal
+
+`<C-t>` opens a shell in a pane along the bottom, started in the directory you are looking at.
+It is a real terminal: a PTY on Unix, ConPTY on Windows, with
+[alacritty_terminal](https://crates.io/crates/alacritty_terminal) parsing the escape sequences,
+so `vim`, `less` and anything else that paints the screen work as they do anywhere else.
+
+While the pane has the keys, **every key goes to the shell** — that is what makes it a terminal
+rather than another set of bindings. Only what the `[term]` keymap section binds is kept:
+
+| Key | |
+| --- | --- |
+| `<C-t>` | close the pane and the shell with it |
+| `<C-S-t>` | give the keys back to the list, leaving the shell running |
+
+Click the pane to take the keys back. The grid is drawn with the list's own font and the theme's
+colors, so the 16 ANSI colors match the rest of the window; the 256-color cube and true-color
+values are used as the program asked for them.
+
+It follows the pane: change directory and the shell is sent a `cd` for the new one. That is a
+line of input like any other — harmless at a prompt, a nuisance in the middle of a command — so
+it is only sent when the directory has actually changed.
+
+`<A-t>` types the selected paths onto the shell's line, quoted so a path with a space in it
+arrives as one word. Nothing is run: the line is left for you to put a command in front of.
+
+## Tasks
+
+Copying, moving, deleting, packing and unpacking all run as jobs on one worker, one at a time —
+two copies on the same disk are slower than one. The status bar carries the one being worked on:
+
+```
+Copy  42%  18.4 M/s  1m12s  +2
+```
+
+the percentage, the speed, how long the rest should take, and how many other jobs are waiting.
+The speed is measured over a window rather than between reports, and smoothed, so it stays
+readable instead of flickering; the time left is only shown when the size is known, since a file
+count says nothing about how big the files are.
+
+`w` opens the panel, which is a list you can act on:
+
+| Key | |
+| --- | --- |
+| `j` `k` (or `↑` `↓`) | move between jobs |
+| `p` | pause the job, or set it going again |
+| `x` | cancel it, queued or running |
+| `t` | move a queued job to the front |
+| `q` `<Esc>` | close |
+
+Pausing lands between files, or between chunks of a large one, never mid-write. A paused job
+holds the worker, so nothing behind it starts until it is resumed or cancelled — `t` is how you
+change your mind about what should have gone first. The commands are `task_toggle`,
+`task_cancel` and `task_top`, bound in the `[tasks]` keymap section.
+
+## Git status
+
+In a repository, each row carries a sign for what git says about it:
+
+| Sign | Meaning | Default color |
+| :---: | --- | --- |
+| `M` | changed in the working tree | yellow |
+| `+` | staged, matching the index | green |
+| `?` | untracked | gray |
+| `D` | deleted, or a staged delete | red |
+| `!` | an unfinished merge | red |
+
+A directory carries the strongest state of anything inside it, so a conflict shows from the top of
+the tree down. A file both staged and changed since reads as changed — that is the part still to be
+committed. The colors come from `theme.toml`'s `[git]` section (`modified`, `added`, `untracked`,
+`deleted`, `updated`), the same keys yazi's git plugin uses.
+
+`git` on `PATH` is what answers: one `git status --porcelain` per listing, run on a worker, so a
+big repository never holds up the window and whatever version of git is installed is the one that
+decides. Nothing is linked in, so this costs no C dependency and no build step. Where there is no
+repository — or no git — the rows simply carry no signs. The status refreshes with the listing, so
+a file operation or a change the watcher catches updates the signs with it.
+
+## Archives
+
+`e` unpacks the selected archives, `E` packs the selection into one. Both run on the same worker
+as copy and move, so a large archive never blocks the window and its progress shows in the task
+panel (`w`) with the name of each entry as it goes past.
+
+| Format | Read | Write |
+| --- | :---: | :---: |
+| `.zip` | ✓ | ✓ |
+| `.tar` | ✓ | ✓ |
+| `.tar.gz`, `.tgz` | ✓ | ✓ |
+| `.7z` | ✓ | |
+
+Everything is done in-process by pure-Rust crates (zip, tar, flate2, sevenz-rust): no 7-Zip
+installation, no C toolchain, and the same behavior on x64 and ARM64.
+
+`e` gives each archive a folder of its own, named after it with the extension dropped
+(`report.tar.gz` unpacks into `report`), and steps the name past anything already there rather
+than merging into it. A selection holding things that are not archives extracts the ones that are
+and says how many it skipped.
+
+`E` asks what to call the archive, prefilled with `<name>.zip`. **The extension you type decides
+the format** — change it to `.tar.gz` and that is what you get. Names inside the archive are
+relative to the directory you are in, so a folder keeps its shape. An archive that already exists
+raises the same overwrite / rename prompt a paste does.
+
+Entry names coming out of an archive are treated as untrusted: one that climbs out of the
+destination with `..`, names an absolute path or carries a drive letter is refused and reported
+rather than written.
+
 ## Other previews
 
 No external tools (magick, ffmpeg, pdftoppm) are needed:
@@ -233,6 +372,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `y` `x` `Y` `p` `P` `-` `_` `<C-->` | yank / cut / cancel the yank / paste / paste-force / symlink / relative symlink / hardlink |
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
 | `a` `r` | create (trailing `/` makes a directory) / rename |
+| `e` `E` | extract the selected archives / compress the selection |
 | `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` config, `gt` temp, `g<Space>` type a path, `gf` follow the link |
 | `c…` | `cc` copy the path, `cd` the parent, `cf` the file name, `cn` the name without its extension |
 | `o` `O` `<Enter>` `<S-Enter>` | open / open with… / open (at the outline's line) / open with… |
@@ -244,16 +384,18 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `<F5>` | re-read the current directory |
 | `<C-w>` `<C-S-w>` | split the view in two panes / move between them, close the split |
 | `;` `:` | shell command / blocking shell command |
+| `<C-t>` `<A-t>` | terminal pane / type the selection into it |
 | `<A-k>` `<A-j>` `M` | scroll the preview / Markdown rendered ↔ source |
 | `<S-Tab>` | move the keys into the preview's outline and back |
 | `<Tab>` | spot: details of the hovered file |
 | `<C-S-p>` | command palette: fuzzy-search every key binding and run it |
-| `w` `q` | tasks / quit |
+| `<S-F10>` | context menu for the file under the cursor |
+| `w` `q` | tasks (`p` pause, `x` cancel, `t` to the front) / quit |
 
-Mouse works too: click to move the cursor, double-click to open, wheel to scroll.
-`Shift`+click selects from the cursor to the row you clicked, and `Ctrl`+click (`Cmd` on macOS)
-adds or removes one row. Both share the selection with `<Space>` and visual mode, so you can
-start a range with the mouse and finish it with the keyboard.
+Mouse works too: click to move the cursor, double-click to open, right-click for the context
+menu, wheel to scroll. `Shift`+click selects from the cursor to the row you clicked, and
+`Ctrl`+click (`Cmd` on macOS) adds or removes one row. Both share the selection with `<Space>`
+and visual mode, so you can start a range with the mouse and finish it with the keyboard.
 
 ## Shell integration
 
@@ -306,6 +448,11 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
 - A new tab (`t`, or `tab_create <path>`) opens the same way: it appears at once on the path it
   was given, and a listing that never arrives puts it back on the directory it was opened from.
   A path that names a file reveals that file in its folder.
+- `Tab` in the `cd` prompt completes without waiting on disk. A directory that has been
+  listed once answers from the cache — the folder you are in, its parent, anywhere the tab has
+  been — and anything else is listed by the scan pool while the prompt stays live, with a `…`
+  at the end of the line until the answer arrives. Typing on carries the prompt forward: an
+  answer to a path you have moved past is dropped rather than pasted over what you typed.
 - Change watching runs on its own thread. Registering a directory opens a handle to it
   (`ReadDirectoryChangesW` on Windows) and that call can hang on a dead share, so the window only
   posts the set of folders it wants watched. While a registration is stuck the panes still scroll
@@ -315,11 +462,18 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
 
 - Windows-first. The code compiles for Unix but only Windows is tested; `block = true` openers and
   the hidden-file attribute are Windows-specific paths.
-- No Lua plugin runtime — see the plugin table above for what is emulated natively.
-- Archives show a metadata card rather than a listing; woff / woff2 fonts aren't previewed. Video,
+- No Lua plugin runtime — see the plugin table above for what is emulated natively, and the
+  [context menu](#context-menu) for how a custom action reaches the screen without one.
+- An archive's *preview* is a metadata card rather than a listing of what is inside — `e` unpacks
+  it, but the pane does not browse it. woff / woff2 fonts aren't previewed. Video,
   PDF and HEIC previews rely on Windows thumbnail handlers (see [Other previews](#other-previews)).
 - `[input]`, `[confirm]` and `[pick]` keymap layers are parsed for compatibility, but the prompts
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.
+- Git signs need `git` on `PATH`; without it the rows are simply unmarked. Only the status is
+  shown — there is no staging, diffing or committing here, and no branch in the status bar yet.
+- The terminal pane has no scrollback keys, no mouse selection and no search of its own yet: what
+  is on screen is what you can see. `cd` following types a line into the shell, so it lands in
+  whatever is running if something is.
 
 ## Layout
 
@@ -329,9 +483,10 @@ src/
   app.rs         state and the Act dispatcher — every key and click goes through it
   config/        yazi.toml, keymap.toml, theme.toml, key notation, command parsing
   core/          folder + cursor state, tabs, fuzzy matching
-  fs/            entries, sorting, scan pool, file operations, watcher
+  fs/            entries, sorting, scan pool, file operations, watcher, archives, git status
   preview/       preview worker: text + syntect, Markdown layout, images, SVG, fonts, shell thumbnails
-  ui/            painting: columns, preview pane, overlays
+  terminal.rs    the embedded shell: PTY, key encoding
+  ui/            painting: columns, preview pane, terminal pane, overlays
   search.rs      recursive name/content search
   exec.rs        openers and shell
 ```

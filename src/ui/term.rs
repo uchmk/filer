@@ -1,0 +1,256 @@
+//! The terminal pane.
+//!
+//! One glyph per cell, painted the way the file list is painted: only what is
+//! on screen is touched, and the font is the app's own so the two panes look
+//! like one program. The grid is copied out from under the lock first — the
+//! PTY reader thread wants it back, and laying out text takes longer than
+//! copying a screenful of cells.
+
+use alacritty_terminal::term::cell::Flags;
+use alacritty_terminal::vte::ansi::{Color as AnsiColor, NamedColor};
+use egui::{Align2, Color32, CornerRadius, FontId, Rect, Stroke, Ui, Vec2};
+
+use crate::app::App;
+use crate::config::theme::Theme;
+use crate::terminal::{self, Size};
+
+/// How many cells fit, given the space and the font.
+pub fn fit(rect: Rect, cell_w: f32, row_h: f32) -> Size {
+    Size::new((rect.width() / cell_w).floor() as usize, (rect.height() / row_h).floor() as usize)
+}
+
+pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
+    let theme = app.cfg.theme.clone();
+    let focused = app.term_focus;
+    let painter = ui.painter_at(rect);
+    // A monospace font gives every cell the same width, so one measurement
+    // does for the whole grid.
+    let cell_w = painter.layout_no_wrap("M".into(), f.clone(), theme.fg).size().x.max(1.0);
+    painter.rect_filled(rect, CornerRadius::ZERO, theme.bg_alt);
+    painter.line_segment(
+        [rect.left_top(), rect.right_top()],
+        Stroke::new(1.0, if focused { theme.cwd.fg.unwrap_or(theme.fg) } else { theme.border }),
+    );
+
+    let inner = rect.shrink2(Vec2::new(6.0, 4.0));
+    let size = fit(inner, cell_w, row_h);
+
+    let Some(term) = &mut app.term else { return };
+    term.resize(size, (cell_w.round() as u16, row_h.round() as u16));
+    // Out from under the lock before any laying out happens.
+    let (rows, cursor, _app_cursor) =
+        term.with_grid(|t| (terminal::snapshot(t), terminal::cursor_cell(t), terminal::app_cursor(t)));
+
+    for (y, row) in rows.iter().enumerate() {
+        let top = inner.top() + y as f32 * row_h;
+        if top > inner.bottom() {
+            break;
+        }
+        // Backgrounds first, run by run: one rectangle for a stretch of the
+        // same color beats one per cell.
+        let mut run: Option<(usize, Color32)> = None;
+        for (x, cell) in row.iter().enumerate() {
+            let bg = color(cell.bg, &theme, true);
+            match run {
+                Some((_, c)) if c == bg => {}
+                Some((start, c)) => {
+                    fill(&painter, inner, start, x, top, cell_w, row_h, c, &theme);
+                    run = Some((x, bg));
+                }
+                None => run = Some((x, bg)),
+            }
+        }
+        if let Some((start, c)) = run {
+            fill(&painter, inner, start, row.len(), top, cell_w, row_h, c, &theme);
+        }
+
+        for (x, cell) in row.iter().enumerate() {
+            if cell.c == ' ' || cell.c == '\0' {
+                continue;
+            }
+            let mut fg = color(cell.fg, &theme, false);
+            if cell.flags.contains(Flags::DIM) {
+                fg = fg.linear_multiply(0.6);
+            }
+            if cell.flags.contains(Flags::INVERSE) {
+                fg = color(cell.bg, &theme, true);
+            }
+            painter.text(
+                egui::pos2(inner.left() + x as f32 * cell_w, top),
+                Align2::LEFT_TOP,
+                cell.c,
+                f.clone(),
+                fg,
+            );
+        }
+    }
+
+    // The cursor: filled while the pane has the keys, outlined when it does
+    // not, which is the same language the split panes use.
+    let (cx, cy) = cursor;
+    if cy < size.lines && cx < size.cols {
+        let at = Rect::from_min_size(
+            egui::pos2(inner.left() + cx as f32 * cell_w, inner.top() + cy as f32 * row_h),
+            Vec2::new(cell_w, row_h),
+        );
+        if focused {
+            painter.rect_filled(at, CornerRadius::ZERO, theme.cwd.fg.unwrap_or(theme.fg));
+            if let Some(cell) = rows.get(cy).and_then(|r| r.get(cx)) {
+                if cell.c != ' ' {
+                    painter.text(at.left_top(), Align2::LEFT_TOP, cell.c, f.clone(), theme.bg);
+                }
+            }
+        } else {
+            painter.rect_stroke(
+                at,
+                CornerRadius::ZERO,
+                Stroke::new(1.0, theme.fg_dim),
+                egui::StrokeKind::Inside,
+            );
+        }
+    }
+
+    // A click anywhere in the pane is a request for the keys.
+    let id = ui.id().with("term-pane");
+    if ui.interact(rect, id, egui::Sense::click()).clicked() {
+        app.term_focus = true;
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn fill(
+    painter: &egui::Painter,
+    inner: Rect,
+    from: usize,
+    to: usize,
+    top: f32,
+    cell_w: f32,
+    row_h: f32,
+    c: Color32,
+    theme: &Theme,
+) {
+    if c == theme.bg_alt || to <= from {
+        return;
+    }
+    painter.rect_filled(
+        Rect::from_min_size(
+            egui::pos2(inner.left() + from as f32 * cell_w, top),
+            Vec2::new((to - from) as f32 * cell_w, row_h),
+        ),
+        CornerRadius::ZERO,
+        c,
+    );
+}
+
+/// An ANSI color as something to paint with.
+///
+/// The sixteen named colors come from the theme so the pane matches the rest
+/// of the window; the 256-color cube and the true-color values are what the
+/// program asked for and are used as given.
+fn color(c: AnsiColor, theme: &Theme, is_bg: bool) -> Color32 {
+    match c {
+        AnsiColor::Named(n) => named(n, theme, is_bg),
+        AnsiColor::Spec(rgb) => Color32::from_rgb(rgb.r, rgb.g, rgb.b),
+        AnsiColor::Indexed(i) => indexed(i, theme, is_bg),
+    }
+}
+
+fn named(n: NamedColor, theme: &Theme, is_bg: bool) -> Color32 {
+    use NamedColor::*;
+    match n {
+        Background => theme.bg_alt,
+        Foreground => theme.fg,
+        Cursor => theme.cwd.fg.unwrap_or(theme.fg),
+        Black => Color32::from_rgb(0x1b, 0x1e, 0x24),
+        Red => Color32::from_rgb(0xf0, 0x71, 0x78),
+        Green => Color32::from_rgb(0x8e, 0xd0, 0x8e),
+        Yellow => Color32::from_rgb(0xe8, 0xc8, 0x7a),
+        Blue => Color32::from_rgb(0x7a, 0xb8, 0xf5),
+        Magenta => Color32::from_rgb(0xc9, 0x9c, 0xf0),
+        Cyan => Color32::from_rgb(0x6f, 0xd0, 0xd0),
+        White => theme.fg,
+        BrightBlack => theme.fg_dim,
+        BrightRed => Color32::from_rgb(0xff, 0x96, 0x9c),
+        BrightGreen => Color32::from_rgb(0xb0, 0xe8, 0xb0),
+        BrightYellow => Color32::from_rgb(0xff, 0xe0, 0x9c),
+        BrightBlue => Color32::from_rgb(0x9c, 0xd0, 0xff),
+        BrightMagenta => Color32::from_rgb(0xe0, 0xbc, 0xff),
+        BrightCyan => Color32::from_rgb(0x9c, 0xe8, 0xe8),
+        BrightWhite => Color32::WHITE,
+        _ => {
+            if is_bg {
+                theme.bg_alt
+            } else {
+                theme.fg
+            }
+        }
+    }
+}
+
+/// The xterm 256-color palette: sixteen named, a 6×6×6 cube, then a grey ramp.
+fn indexed(i: u8, theme: &Theme, is_bg: bool) -> Color32 {
+    match i {
+        0..=15 => {
+            let n = [
+                NamedColor::Black,
+                NamedColor::Red,
+                NamedColor::Green,
+                NamedColor::Yellow,
+                NamedColor::Blue,
+                NamedColor::Magenta,
+                NamedColor::Cyan,
+                NamedColor::White,
+                NamedColor::BrightBlack,
+                NamedColor::BrightRed,
+                NamedColor::BrightGreen,
+                NamedColor::BrightYellow,
+                NamedColor::BrightBlue,
+                NamedColor::BrightMagenta,
+                NamedColor::BrightCyan,
+                NamedColor::BrightWhite,
+            ][i as usize];
+            named(n, theme, is_bg)
+        }
+        16..=231 => {
+            let i = i - 16;
+            let step = |v: u8| if v == 0 { 0 } else { 55 + v * 40 };
+            Color32::from_rgb(step(i / 36), step((i % 36) / 6), step(i % 6))
+        }
+        232..=255 => {
+            let v = 8 + (i - 232) * 10;
+            Color32::from_gray(v)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_color_cube_lands_where_xterm_puts_it() {
+        let theme = Theme::default();
+        // The corners of the 6x6x6 cube.
+        assert_eq!(indexed(16, &theme, false), Color32::from_rgb(0, 0, 0));
+        assert_eq!(indexed(231, &theme, false), Color32::from_rgb(255, 255, 255));
+        // Pure red is the first step of the red axis, not 0xff.
+        assert_eq!(indexed(196, &theme, false), Color32::from_rgb(255, 0, 0));
+        // The grey ramp at both ends.
+        assert_eq!(indexed(232, &theme, false), Color32::from_gray(8));
+        assert_eq!(indexed(255, &theme, false), Color32::from_gray(238));
+        // The first sixteen come from the theme, so the pane matches.
+        assert_eq!(indexed(7, &theme, false), theme.fg);
+    }
+
+    #[test]
+    fn the_grid_is_measured_in_whole_cells() {
+        let r = Rect::from_min_size(egui::pos2(0.0, 0.0), Vec2::new(101.0, 55.0));
+        let size = fit(r, 10.0, 20.0);
+        assert_eq!((size.cols, size.lines), (10, 2), "a part-cell is not a cell");
+        // A pane too small to hold anything still has to answer something a
+        // grid can divide by.
+        let tiny = Rect::from_min_size(egui::pos2(0.0, 0.0), Vec2::new(1.0, 1.0));
+        let size = fit(tiny, 10.0, 20.0);
+        assert_eq!((size.cols, size.lines), (1, 1));
+    }
+}

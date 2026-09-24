@@ -4,10 +4,15 @@
 //! concurrent copies on the same disk are slower than one, and sequential
 //! progress is easier to reason about.
 
+use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
 
 use crossbeam_channel::{Receiver, Sender};
+
+use super::archive;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum OpKind {
@@ -17,6 +22,10 @@ pub enum OpKind {
     Hardlink,
     Trash,
     Delete,
+    /// Unpack each source archive into a folder of its own under `dest_dir`.
+    Extract,
+    /// Pack the sources into the one archive `dest_file` names.
+    Compress(archive::Format),
 }
 
 impl OpKind {
@@ -28,6 +37,8 @@ impl OpKind {
             Self::Hardlink => "Hardlink",
             Self::Trash => "Trash",
             Self::Delete => "Delete",
+            Self::Extract => "Extract",
+            Self::Compress(_) => "Compress",
         }
     }
 }
@@ -38,6 +49,8 @@ pub struct OpRequest {
     pub kind: OpKind,
     pub srcs: Vec<PathBuf>,
     pub dest_dir: PathBuf,
+    /// The archive a [`OpKind::Compress`] job writes. Unused by the rest.
+    pub dest_file: Option<PathBuf>,
     /// Overwrite without asking.
     pub force: bool,
 }
@@ -48,6 +61,8 @@ pub enum OpEvent {
     Progress { id: u64, files_done: u64, bytes_done: u64, current: String },
     /// The worker is blocked until the UI sends a [`Resolution`].
     Conflict { id: u64, src: PathBuf, dest: PathBuf, reply: Sender<Resolution> },
+    /// The job has parked, or started moving again.
+    Paused { id: u64, paused: bool },
     Finished { id: u64, kind: OpKind, errors: Vec<String>, cancelled: bool },
 }
 
@@ -61,28 +76,48 @@ pub enum Resolution {
     Cancel,
 }
 
+/// What the task panel can say to a job while it runs.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Control {
+    Pause,
+    Resume,
+    Cancel,
+}
+
+/// The jobs waiting their turn. A queue rather than a channel, because the
+/// task panel reorders it: a `VecDeque` can be looked into and rearranged,
+/// and a channel cannot.
+type Queue = Arc<(Mutex<VecDeque<OpRequest>>, Condvar)>;
+
 pub struct Runner {
-    tx: Sender<OpRequest>,
+    queue: Queue,
+    stop: Arc<AtomicBool>,
+    ctl: Sender<(u64, Control)>,
     pub rx: Receiver<OpEvent>,
 }
 
 impl Runner {
     pub fn new(wake: impl Fn() + Send + 'static) -> Self {
-        let (tx, job_rx) = crossbeam_channel::unbounded::<OpRequest>();
         let (ev_tx, rx) = crossbeam_channel::unbounded::<OpEvent>();
+        let (ctl, ctl_rx) = crossbeam_channel::unbounded::<(u64, Control)>();
+        let queue: Queue = Arc::new((Mutex::new(VecDeque::new()), Condvar::new()));
+        let stop = Arc::new(AtomicBool::new(false));
+        let (q, s) = (queue.clone(), stop.clone());
         std::thread::Builder::new()
             .name("fs-ops".into())
             .spawn(move || {
-                while let Ok(req) = job_rx.recv() {
+                while let Some(req) = next_job(&q, &s) {
                     let mut ctx = Ctx {
                         id: req.id,
                         ev: &ev_tx,
+                        ctl: &ctl_rx,
                         wake: &wake,
                         files_done: 0,
                         bytes_done: 0,
                         policy: if req.force { Policy::OverwriteAll } else { Policy::Ask },
                         errors: Vec::new(),
                         cancelled: false,
+                        paused: false,
                         last_report: std::time::Instant::now(),
                     };
                     ctx.run(&req);
@@ -96,11 +131,64 @@ impl Runner {
                 }
             })
             .expect("spawn fs-ops worker");
-        Self { tx, rx }
+        Self { queue, stop, ctl, rx }
     }
 
     pub fn submit(&self, req: OpRequest) {
-        let _ = self.tx.send(req);
+        let (lock, cv) = &*self.queue;
+        if let Ok(mut q) = lock.lock() {
+            q.push_back(req);
+        }
+        cv.notify_one();
+    }
+
+    /// Pause, resume or cancel the job that is running. A queued job is not
+    /// running yet, so [`Runner::drop_queued`] is what cancels one of those.
+    pub fn control(&self, id: u64, c: Control) {
+        let _ = self.ctl.send((id, c));
+    }
+
+    /// Take a job out of the queue before it starts. `false` when it is not
+    /// there, which means it is already running (or already done).
+    pub fn drop_queued(&self, id: u64) -> bool {
+        let (lock, _) = &*self.queue;
+        let Ok(mut q) = lock.lock() else { return false };
+        let Some(at) = q.iter().position(|r| r.id == id) else { return false };
+        q.remove(at);
+        true
+    }
+
+    /// Move a queued job to the front, so it is the next one to run.
+    pub fn promote(&self, id: u64) -> bool {
+        let (lock, _) = &*self.queue;
+        let Ok(mut q) = lock.lock() else { return false };
+        let Some(at) = q.iter().position(|r| r.id == id) else { return false };
+        let Some(req) = q.remove(at) else { return false };
+        q.push_front(req);
+        true
+    }
+}
+
+impl Drop for Runner {
+    fn drop(&mut self) {
+        // Let the worker out of its wait so the thread ends with the app.
+        self.stop.store(true, Ordering::Relaxed);
+        self.queue.1.notify_all();
+    }
+}
+
+/// Block until there is a job to run, or until the app is going away.
+fn next_job(queue: &Queue, stop: &AtomicBool) -> Option<OpRequest> {
+    let (lock, cv) = &**queue;
+    let mut q = lock.lock().ok()?;
+    loop {
+        if stop.load(Ordering::Relaxed) {
+            return None;
+        }
+        if let Some(req) = q.pop_front() {
+            return Some(req);
+        }
+        q = cv.wait(q).ok()?;
     }
 }
 
@@ -114,12 +202,14 @@ enum Policy {
 struct Ctx<'a> {
     id: u64,
     ev: &'a Sender<OpEvent>,
+    ctl: &'a Receiver<(u64, Control)>,
     wake: &'a (dyn Fn() + Send),
     files_done: u64,
     bytes_done: u64,
     policy: Policy,
     errors: Vec<String>,
     cancelled: bool,
+    paused: bool,
     last_report: std::time::Instant,
 }
 
@@ -128,7 +218,12 @@ impl Ctx<'_> {
         let (files, bytes) = match req.kind {
             OpKind::Trash | OpKind::Delete => (req.srcs.len() as u64, 0),
             OpKind::Symlink { .. } | OpKind::Hardlink => (req.srcs.len() as u64, 0),
-            OpKind::Copy | OpKind::Move => measure(&req.srcs),
+            // Extract counts each archive as one unit: what is inside is only
+            // known by reading it, and reading it twice to fill a progress bar
+            // is not worth it. The name of each entry still goes past.
+            OpKind::Copy | OpKind::Move | OpKind::Compress(_) | OpKind::Extract => {
+                measure(&req.srcs)
+            }
         };
         let _ = self.ev.send(OpEvent::Started { id: self.id, files, bytes });
         (self.wake)();
@@ -204,8 +299,92 @@ impl Ctx<'_> {
                     self.transfer(src, &dest, moving);
                 }
             }
+            OpKind::Extract => self.extract(req),
+            OpKind::Compress(format) => self.compress(req, format),
         }
         self.report("");
+    }
+
+    /// Each archive gets a folder of its own, named after it. A name already
+    /// taken is stepped past rather than merged into: two unpacks of the same
+    /// archive should not interleave their contents.
+    fn extract(&mut self, req: &OpRequest) {
+        for src in &req.srcs {
+            if self.cancelled {
+                break;
+            }
+            if archive::Format::from_path(src).is_none() {
+                self.errors.push(format!("{}: not an archive", short(src)));
+                continue;
+            }
+            let into = unique_name(&archive::extract_dir(src, &req.dest_dir));
+            let mut seen = 0u64;
+            let r = archive::extract(src, &into, &mut |name, _size| {
+                seen += 1;
+                self.report_entry(name);
+                !self.cancelled
+            });
+            if let Err(e) = r {
+                self.errors.push(format!("{}: {e}", short(src)));
+                // A refused entry leaves the rest in place; an empty folder
+                // from a job that got nowhere is just litter.
+                if seen == 0 {
+                    let _ = std::fs::remove_dir(&into);
+                }
+            }
+            self.files_done += 1;
+            self.bytes_done += std::fs::metadata(src).map(|m| m.len()).unwrap_or(0);
+            self.report(&src.to_string_lossy());
+        }
+    }
+
+    /// One archive from everything selected, named relative to the directory
+    /// the job started in so a folder keeps its shape inside.
+    fn compress(&mut self, req: &OpRequest, format: archive::Format) {
+        let Some(dest) = req.dest_file.clone() else {
+            self.errors.push("compress: no archive name".into());
+            return;
+        };
+        // An archive that is already there goes through the same prompt a
+        // paste would. The first source stands in as `src` so the dialog reads
+        // as what is being packed into what.
+        let first = req.srcs.first().cloned().unwrap_or_else(|| dest.clone());
+        let dest = match req.force {
+            true => dest,
+            false => match self.resolve_dest(&first, dest) {
+                Some(d) => d,
+                None => return,
+            },
+        };
+        let r = archive::compress(&req.srcs, &req.dest_dir, &dest, format, &mut |name, bytes| {
+            self.files_done += 1;
+            self.bytes_done += bytes;
+            self.report_entry(name);
+            !self.cancelled
+        });
+        if let Err(e) = r {
+            self.errors.push(format!("{}: {e}", short(&dest)));
+            // A half-written archive is worse than none: it looks openable.
+            let _ = std::fs::remove_file(&dest);
+        }
+    }
+
+    /// Progress from inside an archive, where the entry name is most of what
+    /// there is to say. Rate-limited like [`Ctx::report`], but never silent:
+    /// an entry is always worth naming once the interval has passed.
+    fn report_entry(&mut self, name: &str) {
+        self.pump();
+        if self.last_report.elapsed().as_millis() < 50 {
+            return;
+        }
+        self.last_report = std::time::Instant::now();
+        let _ = self.ev.send(OpEvent::Progress {
+            id: self.id,
+            files_done: self.files_done,
+            bytes_done: self.bytes_done,
+            current: name.to_owned(),
+        });
+        (self.wake)();
     }
 
     /// Apply the conflict policy, asking the UI when needed.
@@ -335,7 +514,56 @@ impl Ctx<'_> {
         Ok(())
     }
 
+    /// Take whatever the task panel has said, and park here while it wants the
+    /// job paused. Every loop that moves bytes calls this, so a pause lands
+    /// between files, or between chunks of one big file, and never mid-write.
+    fn pump(&mut self) {
+        let mut was = self.paused;
+        while let Ok((id, c)) = self.ctl.try_recv() {
+            if id == self.id {
+                self.apply(c);
+            }
+        }
+        // A paused job costs nothing but the thread it sits on, so it waits
+        // here rather than spinning.
+        while self.paused && !self.cancelled {
+            if was != self.paused {
+                self.announce_pause();
+                was = self.paused;
+            }
+            match self.ctl.recv() {
+                Ok((id, c)) if id == self.id => self.apply(c),
+                Ok(_) => {}
+                // The app is gone; there is nothing left to finish for.
+                Err(_) => {
+                    self.cancelled = true;
+                    self.paused = false;
+                }
+            }
+        }
+        if was != self.paused {
+            self.announce_pause();
+        }
+    }
+
+    fn apply(&mut self, c: Control) {
+        match c {
+            Control::Pause => self.paused = true,
+            Control::Resume => self.paused = false,
+            Control::Cancel => {
+                self.cancelled = true;
+                self.paused = false;
+            }
+        }
+    }
+
+    fn announce_pause(&mut self) {
+        let _ = self.ev.send(OpEvent::Paused { id: self.id, paused: self.paused });
+        (self.wake)();
+    }
+
     fn report(&mut self, current: &str) {
+        self.pump();
         // ~20 Hz is plenty for a progress bar and keeps the channel quiet.
         if self.last_report.elapsed().as_millis() < 50 && !current.is_empty() {
             return;

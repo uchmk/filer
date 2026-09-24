@@ -212,6 +212,15 @@ run = "hardlink"
 desc = "Hardlink the yanked files"
 
 [[mgr.keymap]]
+on = "e"
+run = "extract"
+desc = "Extract the selected archives"
+[[mgr.keymap]]
+on = "E"
+run = "compress"
+desc = "Compress the selection into an archive"
+
+[[mgr.keymap]]
 on = "d"
 run = "remove"
 desc = "Move the files to the recycle bin"
@@ -495,6 +504,31 @@ desc = "Open help"
 on = "<C-S-p>"
 run = "palette"
 desc = "Open the command palette"
+[[mgr.keymap]]
+on = "<S-F10>"
+run = "menu"
+desc = "Open the context menu"
+[[mgr.keymap]]
+on = "<C-t>"
+run = "terminal"
+desc = "Open the terminal pane"
+[[mgr.keymap]]
+on = "<A-t>"
+run = "term_send"
+desc = "Type the selected paths into the terminal"
+
+# --- Terminal pane ------------------------------------------------------------
+# Only what is bound here is kept; every other key goes to the shell, which is
+# what makes the pane a terminal rather than another set of bindings.
+
+[[term.keymap]]
+on = "<C-t>"
+run = "terminal close"
+desc = "Close the terminal"
+[[term.keymap]]
+on = "<C-S-t>"
+run = "close"
+desc = "Give the keys back to the list"
 
 # --- Input line ---------------------------------------------------------------
 # The input line is a native widget (so IME and clipboard behave), which means
@@ -540,6 +574,38 @@ desc = "Close help"
 on = "<Esc>"
 run = "close"
 desc = "Close the task manager"
+[[tasks.keymap]]
+on = "q"
+run = "close"
+desc = "Close the task manager"
+[[tasks.keymap]]
+on = "j"
+run = "arrow 1"
+desc = "Next task"
+[[tasks.keymap]]
+on = "k"
+run = "arrow -1"
+desc = "Previous task"
+[[tasks.keymap]]
+on = "<Down>"
+run = "arrow 1"
+desc = "Next task"
+[[tasks.keymap]]
+on = "<Up>"
+run = "arrow -1"
+desc = "Previous task"
+[[tasks.keymap]]
+on = "p"
+run = "task_toggle"
+desc = "Pause / resume the task"
+[[tasks.keymap]]
+on = "x"
+run = "task_cancel"
+desc = "Cancel the task"
+[[tasks.keymap]]
+on = "t"
+run = "task_top"
+desc = "Move the task to the front of the queue"
 
 [[spot.keymap]]
 on = "<Esc>"

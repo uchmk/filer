@@ -28,6 +28,9 @@ pub struct Keymap {
     pub help: Vec<Binding>,
     pub tasks: Vec<Binding>,
     pub spot: Vec<Binding>,
+    /// The few keys the terminal pane keeps for itself; everything else it
+    /// hears goes to the shell.
+    pub term: Vec<Binding>,
     /// Commands that parsed but aren't implemented, for the help panel.
     pub unsupported: Vec<String>,
 }
@@ -72,6 +75,8 @@ struct KeymapFile {
     tasks: Section,
     #[serde(default)]
     spot: Section,
+    #[serde(default)]
+    term: Section,
     #[serde(default)]
     cmp: Section,
 }
@@ -195,6 +200,7 @@ impl Keymap {
             km.help = fold(std::mem::take(&mut km.help), &f.help, &mut warnings);
             km.tasks = fold(std::mem::take(&mut km.tasks), &f.tasks, &mut warnings);
             km.spot = fold(std::mem::take(&mut km.spot), &f.spot, &mut warnings);
+            km.term = fold(std::mem::take(&mut km.term), &f.term, &mut warnings);
             let _ = &f.cmp; // parsed for compatibility; completion is native here
         }
         km.unsupported = warnings.clone();

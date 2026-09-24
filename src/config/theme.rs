@@ -39,6 +39,24 @@ pub struct ThemeToml {
     pub icon: IconTheme,
     #[serde(default)]
     pub which: WhichTheme,
+    #[serde(default)]
+    pub git: GitTheme,
+}
+
+/// yazi's `[git]` section, which its git plugin colors its signs with.
+#[derive(Deserialize, Debug, Default)]
+pub struct GitTheme {
+    #[serde(default)]
+    pub modified: RawStyle,
+    #[serde(default)]
+    pub deleted: RawStyle,
+    #[serde(default)]
+    pub added: RawStyle,
+    #[serde(default)]
+    pub untracked: RawStyle,
+    /// yazi names this one for a conflicted merge.
+    #[serde(default)]
+    pub updated: RawStyle,
 }
 
 #[derive(Deserialize, Debug, Default)]
@@ -288,6 +306,12 @@ pub struct Theme {
     pub which_rest: Style,
     pub which_desc: Style,
 
+    pub git_modified: Color32,
+    pub git_deleted: Color32,
+    pub git_added: Color32,
+    pub git_untracked: Color32,
+    pub git_conflict: Color32,
+
     pub syntect_theme: String,
 
     pub filetypes: Vec<FileRule>,
@@ -365,6 +389,14 @@ impl Default for Theme {
             which_rest: Style::fg(Color32::from_rgb(0x79, 0x80, 0x90)),
             which_desc: Style::fg(Color32::from_rgb(0xc9, 0x9c, 0xf0)),
 
+            // Git signs, in the colors the TODO asks for and yazi uses:
+            // changed is yellow, added green, untracked quiet, a conflict red.
+            git_modified: Color32::from_rgb(0xe8, 0xc8, 0x7a),
+            git_deleted: Color32::from_rgb(0xf0, 0x71, 0x78),
+            git_added: Color32::from_rgb(0x8e, 0xd0, 0x8e),
+            git_untracked: Color32::from_rgb(0x79, 0x80, 0x90),
+            git_conflict: Color32::from_rgb(0xf0, 0x71, 0x78),
+
             syntect_theme: "base16-ocean.dark".into(),
 
             filetypes: default_filetypes(),
@@ -395,6 +427,20 @@ impl Theme {
         self.icon_dir_default = Icon { text: "/".into(), fg: self.icon_dir_default.fg };
         self.icon_file_default = Icon { text: " ".into(), fg: None };
         self.icon_link_default = Icon { text: "~".into(), fg: self.icon_link_default.fg };
+    }
+
+    /// The color a git sign is drawn in. `Clean` never reaches here, since it
+    /// has no sign to draw, but it answers in the plain foreground anyway.
+    pub fn git_color(&self, state: crate::fs::git::State) -> Color32 {
+        use crate::fs::git::State;
+        match state {
+            State::Clean => self.fg,
+            State::Untracked => self.git_untracked,
+            State::Staged => self.git_added,
+            State::Modified => self.git_modified,
+            State::Deleted => self.git_deleted,
+            State::Conflict => self.git_conflict,
+        }
     }
 
     pub fn apply(&mut self, t: &ThemeToml) {
@@ -441,6 +487,17 @@ impl Theme {
         self.which_cand = self.which_cand.overlay(&t.which.cand);
         self.which_rest = self.which_rest.overlay(&t.which.rest);
         self.which_desc = self.which_desc.overlay(&t.which.desc);
+        for (raw, slot) in [
+            (&t.git.modified, &mut self.git_modified),
+            (&t.git.deleted, &mut self.git_deleted),
+            (&t.git.added, &mut self.git_added),
+            (&t.git.untracked, &mut self.git_untracked),
+            (&t.git.updated, &mut self.git_conflict),
+        ] {
+            if let Some(c) = raw.fg.as_deref().and_then(parse_color) {
+                *slot = c;
+            }
+        }
         if let Some(s) = t.mgr.syntect_theme.as_deref() {
             if !s.is_empty() {
                 self.syntect_theme = s.to_string();

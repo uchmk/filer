@@ -1,4 +1,6 @@
+pub mod archive;
 pub mod entry;
+pub mod git;
 pub mod ops;
 pub mod scan;
 pub mod sort;

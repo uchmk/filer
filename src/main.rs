@@ -10,6 +10,7 @@ mod mime;
 mod preview;
 mod search;
 mod spot;
+mod terminal;
 mod ui;
 mod util;
 
@@ -322,10 +323,24 @@ fn handle_input(app: &mut App, ctx: &egui::Context) {
             egui::Event::Cut if matches!(app.overlay, Overlay::None) => {
                 app.feed_key(Key::ctrl('x'));
             }
+            // The terminal takes a paste as text for the shell; everywhere
+            // else it is the yank register's `p`.
+            egui::Event::Paste(text) if app.term_focus => {
+                if let Some(t) = &app.term {
+                    t.paste(&text);
+                }
+            }
             egui::Event::Paste(_) if matches!(app.overlay, Overlay::None) => {
                 app.feed_key(Key::ctrl('v'));
             }
             egui::Event::Text(text) => match &app.overlay {
+                // Typing into the terminal is the text itself, not a keymap
+                // lookup: the shell wants the characters.
+                Overlay::None if app.term_focus => {
+                    if let Some(t) = &app.term {
+                        t.send(text.clone().into_bytes());
+                    }
+                }
                 Overlay::None => {
                     for c in text.chars() {
                         app.feed_key(Key::char(c));
@@ -347,9 +362,9 @@ fn handle_input(app: &mut App, ctx: &egui::Context) {
                         }
                     }
                 }
-                Overlay::Tasks => {
-                    if text.contains('q') {
-                        app.overlay = Overlay::None;
+                Overlay::Tasks(_) => {
+                    for c in text.chars() {
+                        app.feed_tasks_key(Key::char(c));
                     }
                 }
                 Overlay::Spot(_) => {
@@ -419,9 +434,9 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
             K::PageUp => app.help_scroll = app.help_scroll.saturating_sub(20),
             _ => {}
         },
-        Overlay::Tasks => {
-            if key == K::Escape {
-                app.overlay = Overlay::None;
+        Overlay::Tasks(_) => {
+            if let Some(k) = keys::from_egui(key, modifiers) {
+                app.feed_tasks_key(k);
             }
         }
         Overlay::Spot(_) => {
@@ -429,12 +444,74 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
                 app.feed_spot_key(k);
             }
         }
+        // The terminal hears every key. The `[term]` layer keeps the few that
+        // are the pane's own; the rest become the bytes a shell expects.
+        Overlay::None if app.term_focus => {
+            let Some(k) = keys::from_egui(key, modifiers) else { return };
+            let mods = terminal::Mods {
+                ctrl: modifiers.command || modifiers.ctrl,
+                alt: modifiers.alt,
+                shift: modifiers.shift,
+            };
+            let bytes = match special(key, mods.shift) {
+                Some(s) => {
+                    let app_cursor =
+                        app.term.as_ref().is_some_and(|t| t.with_grid(terminal::app_cursor));
+                    Some(terminal::encode(s, mods, app_cursor))
+                }
+                // A letter with Ctrl held is a control code; egui sends no
+                // Text event for those, so this is where they are made.
+                None if mods.ctrl => key.name().chars().next().and_then(|c| {
+                    terminal::control_code(c.to_ascii_lowercase(), mods.alt)
+                }),
+                None => None,
+            };
+            app.feed_term_key(k, bytes);
+        }
         Overlay::None => {
             if let Some(k) = keys::from_egui(key, modifiers) {
                 app.feed_key(k);
             }
         }
     }
+}
+
+/// The egui keys a terminal has an escape sequence for. Anything else is
+/// either text (which arrives as its own event) or nothing a shell wants.
+fn special(key: egui::Key, shift: bool) -> Option<terminal::Special> {
+    use egui::Key as K;
+    use terminal::Special as S;
+    Some(match key {
+        K::Enter => S::Enter,
+        K::Backspace => S::Backspace,
+        // Shift+Tab is its own sequence, not Tab with a modifier on it.
+        K::Tab if shift => S::BackTab,
+        K::Tab => S::Tab,
+        K::Escape => S::Escape,
+        K::ArrowUp => S::Up,
+        K::ArrowDown => S::Down,
+        K::ArrowRight => S::Right,
+        K::ArrowLeft => S::Left,
+        K::Home => S::Home,
+        K::End => S::End,
+        K::PageUp => S::PageUp,
+        K::PageDown => S::PageDown,
+        K::Insert => S::Insert,
+        K::Delete => S::Delete,
+        K::F1 => S::F(1),
+        K::F2 => S::F(2),
+        K::F3 => S::F(3),
+        K::F4 => S::F(4),
+        K::F5 => S::F(5),
+        K::F6 => S::F(6),
+        K::F7 => S::F(7),
+        K::F8 => S::F(8),
+        K::F9 => S::F(9),
+        K::F10 => S::F(10),
+        K::F11 => S::F(11),
+        K::F12 => S::F(12),
+        _ => return None,
+    })
 }
 
 // Keep these referenced so the compiler checks them even before every command

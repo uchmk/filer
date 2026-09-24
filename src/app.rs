@@ -17,6 +17,8 @@ use crate::core::folder::{Filter, Folder, LoadState};
 use crate::core::fuzzy;
 use crate::core::tab::{CdFallout, Finder, PendingCd, Tab};
 use crate::exec;
+use crate::fs::archive;
+use crate::fs::git;
 use crate::fs::ops::{self, OpKind, OpRequest, Resolution};
 use crate::fs::scan::{ScanResult, Scanner};
 use crate::fs::watch::Watcher;
@@ -36,6 +38,8 @@ pub enum InputKind {
     Filter,
     Find { prev: bool },
     Cd,
+    /// The name of the archive to pack the selection into.
+    Compress,
     Shell { block: bool },
     Search { via: SearchVia },
     ConflictRename { job: u64 },
@@ -107,17 +111,23 @@ impl PickOverlay {
     }
 }
 
-/// Turn the `mgr` bindings into palette rows: `(labels, keys, runs)`.
+/// One opener from `yazi.toml`: `(run, block, orphan, label)`, as the pick
+/// overlays want it.
+pub type OpenerRow = (String, bool, bool, String);
+
+/// Rows of a pick overlay: `(labels, details, runs)`. The three always have
+/// the same length; the overlay indexes all of them by the row picked.
+pub type PickRows = (Vec<String>, Vec<String>, Vec<Vec<Act>>);
+
+/// Turn the `mgr` bindings into palette rows.
 ///
 /// The label carries both the description and the command text so either one
 /// can be typed at the filter. Commands bound to several keys appear once,
-/// under the first key the keymap gives them.
-pub fn palette_items(
-    bindings: &[keymap::Binding],
-) -> (Vec<String>, Vec<String>, Vec<Vec<Act>>) {
-    let mut items = Vec::new();
-    let mut details = Vec::new();
-    let mut runs = Vec::new();
+/// under the first key the keymap gives them. `openers` are what `yazi.toml`
+/// offers for the file under the cursor; they come last, since the palette is
+/// a list of commands first.
+pub fn palette_items(bindings: &[keymap::Binding], openers: &[OpenerRow]) -> PickRows {
+    let (mut items, mut details, mut runs) = (Vec::new(), Vec::new(), Vec::new());
     let mut seen: Vec<&str> = Vec::new();
     for b in bindings {
         let skip = b.run.is_empty()
@@ -127,14 +137,109 @@ pub fn palette_items(
             continue;
         }
         seen.push(&b.raw);
-        items.push(match b.desc.is_empty() {
-            true => b.raw.clone(),
-            false => format!("{}  ·  {}", b.desc, b.raw),
-        });
+        items.push(binding_label(b));
         details.push(crate::config::keys::render_seq(&b.on));
         runs.push(b.run.clone());
     }
+    push_openers(&mut items, &mut details, &mut runs, openers, "Open with ");
     (items, details, runs)
+}
+
+/// The context menu for the file under the cursor: everything the config says
+/// can be done with it, without a key having to be pressed for it.
+///
+/// `yazi.toml`'s openers come first, then the keymap's own `shell` actions —
+/// the custom actions a yazi config would write as plugins — then the rest of
+/// the bindings that act on the file rather than on the view.
+pub fn menu_items(bindings: &[keymap::Binding], openers: &[OpenerRow]) -> PickRows {
+    let (mut items, mut details, mut runs) = (Vec::new(), Vec::new(), Vec::new());
+    push_openers(&mut items, &mut details, &mut runs, openers, "");
+
+    let mut seen: Vec<&str> = Vec::new();
+    // Two passes so the custom actions sit together at the top, above the
+    // ordinary file commands.
+    for shell_pass in [true, false] {
+        for b in bindings {
+            let usable = !b.run.is_empty()
+                && !b.raw.is_empty()
+                && b.run.iter().any(acts_on_file)
+                && !b.run.iter().any(|a| matches!(a, Act::Unsupported(_)));
+            let is_shell = b.run.iter().any(|a| matches!(a, Act::Shell { .. }));
+            if !usable || is_shell != shell_pass || seen.contains(&b.raw.as_str()) {
+                continue;
+            }
+            seen.push(&b.raw);
+            items.push(binding_label(b));
+            details.push(crate::config::keys::render_seq(&b.on));
+            runs.push(b.run.clone());
+        }
+    }
+    (items, details, runs)
+}
+
+/// An opener is a shell command with the file substituted in, so it runs as
+/// one. `prefix` says what to call it where the file is not already named.
+fn push_openers(
+    items: &mut Vec<String>,
+    details: &mut Vec<String>,
+    runs: &mut Vec<Vec<Act>>,
+    openers: &[OpenerRow],
+    prefix: &str,
+) {
+    let mut seen: Vec<&str> = Vec::new();
+    for (run, block, orphan, label) in openers {
+        if seen.contains(&run.as_str()) {
+            continue;
+        }
+        seen.push(run);
+        items.push(format!("{prefix}{label}"));
+        details.push(run.clone());
+        runs.push(vec![Act::Shell {
+            run: run.clone(),
+            block: *block,
+            confirm: false,
+            orphan: *orphan,
+        }]);
+    }
+}
+
+fn binding_label(b: &keymap::Binding) -> String {
+    match b.desc.is_empty() {
+        true => b.raw.clone(),
+        false => format!("{}  ·  {}", b.desc, b.raw),
+    }
+}
+
+/// Whether a command does something to the file under the cursor (or to the
+/// selection), as opposed to moving around or changing what the view shows.
+/// It decides what the context menu is worth offering.
+fn acts_on_file(a: &Act) -> bool {
+    matches!(
+        a,
+        Act::Open { .. }
+            | Act::Yank { .. }
+            | Act::Unyank
+            | Act::Paste { .. }
+            | Act::Link { .. }
+            | Act::Hardlink
+            | Act::Remove { .. }
+            | Act::Create { .. }
+            | Act::Rename { .. }
+            | Act::Copy(_)
+            | Act::Shell { .. }
+            | Act::Extract
+            | Act::Compress
+            | Act::TermSend
+            | Act::Spot
+            | Act::Follow
+            | Act::Reveal(_)
+            | Act::Toggle { .. }
+    )
+}
+
+/// The task panel, which is a list now that its rows can be acted on.
+pub struct TasksOverlay {
+    pub cursor: usize,
 }
 
 /// The spot panel on the hovered file.
@@ -151,7 +256,7 @@ pub enum Overlay {
     Confirm(ConfirmOverlay),
     Pick(PickOverlay),
     Help,
-    Tasks,
+    Tasks(TasksOverlay),
     Spot(SpotOverlay),
 }
 
@@ -165,10 +270,31 @@ impl Overlay {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TaskState {
+    /// Waiting its turn: one job runs at a time.
+    Queued,
     Running,
+    Paused,
     Done,
     Failed,
     Cancelled,
+}
+
+impl TaskState {
+    pub fn label(&self) -> &'static str {
+        match self {
+            TaskState::Queued => "queued",
+            TaskState::Running => "running",
+            TaskState::Paused => "paused",
+            TaskState::Done => "done",
+            TaskState::Failed => "failed",
+            TaskState::Cancelled => "cancelled",
+        }
+    }
+
+    /// Whether the job still has somewhere to go, and so is worth a key.
+    pub fn is_live(&self) -> bool {
+        matches!(self, TaskState::Queued | TaskState::Running | TaskState::Paused)
+    }
 }
 
 pub struct Task {
@@ -183,6 +309,11 @@ pub struct Task {
     pub state: TaskState,
     pub errors: Vec<String>,
     pub finished: Option<Instant>,
+    /// Bytes per second, smoothed. Zero until there is enough to say.
+    speed: f64,
+    /// The last point the speed was measured from.
+    sampled_at: Instant,
+    sampled_bytes: u64,
 }
 
 impl Task {
@@ -194,6 +325,44 @@ impl Task {
         } else {
             0.0
         }
+    }
+
+    /// Fold a new byte count into the running speed. Reports arrive about 20
+    /// times a second, which is far too often to measure over: a quarter of a
+    /// second of work is the shortest window that reads steadily.
+    fn sample(&mut self, bytes_done: u64) {
+        let dt = self.sampled_at.elapsed().as_secs_f64();
+        if dt < 0.25 {
+            return;
+        }
+        let now = bytes_done.saturating_sub(self.sampled_bytes) as f64 / dt;
+        // Smoothed, so a run of small files does not make the number jump
+        // about faster than it can be read.
+        self.speed = match self.speed {
+            0.0 => now,
+            prev => prev * 0.7 + now * 0.3,
+        };
+        self.sampled_at = Instant::now();
+        self.sampled_bytes = bytes_done;
+    }
+
+    /// Bytes per second, or nothing while the job is too young or too still
+    /// to have a useful answer.
+    pub fn speed(&self) -> Option<u64> {
+        (self.state == TaskState::Running && self.speed >= 1.0).then_some(self.speed as u64)
+    }
+
+    /// How long the rest should take at the current speed. Only bytes can
+    /// answer this: a file count says nothing about how big the files are.
+    pub fn eta(&self) -> Option<Duration> {
+        let speed = self.speed()? as f64;
+        let left = self.bytes.checked_sub(self.bytes_done)?;
+        if left == 0 || self.bytes == 0 {
+            return None;
+        }
+        let secs = left as f64 / speed;
+        // Past a day the number stops meaning anything.
+        (secs.is_finite() && secs < 86_400.0).then(|| Duration::from_secs_f64(secs))
     }
 }
 
@@ -339,6 +508,15 @@ pub struct Yank {
     pub cut: bool,
 }
 
+/// A `Tab` completion in the `cd` prompt that is waiting for its listing.
+/// `dir` and `prefix` are what the input line said when the key was pressed,
+/// so an answer that arrives over newer text can be told apart and dropped.
+struct PendingCompletion {
+    id: u64,
+    dir: PathBuf,
+    prefix: String,
+}
+
 pub struct App {
     pub cfg: Config,
     pub tabs: Vec<Tab>,
@@ -351,6 +529,13 @@ pub struct App {
     pub previewer: Previewer,
     pub ops: ops::Runner,
     pub watcher: Watcher,
+    pub git: git::Git,
+    /// The shell in the bottom pane, while there is one.
+    pub term: Option<crate::terminal::Terminal>,
+    /// The terminal has the keys, so they go to the shell rather than here.
+    pub term_focus: bool,
+    /// What git says about each directory on screen, by directory.
+    git_status: Lru<PathBuf, Arc<git::Status>>,
     pub spotter: Spotter,
     /// The spot worker's latest findings, for the file named.
     pub spotted: Option<(PathBuf, Vec<Section>)>,
@@ -382,6 +567,9 @@ pub struct App {
     dirty: HashMap<PathBuf, Instant>,
     /// Directories whose child count has already been asked for.
     counted: std::collections::HashSet<PathBuf>,
+    /// A path completion waiting on the scan pool. Only the newest one
+    /// answers; anything the user typed over is dropped.
+    pending_completion: Option<PendingCompletion>,
     /// Scans in flight, so results can be routed back to the right folder.
     inflight: HashMap<u64, PathBuf>,
     pub quit: bool,
@@ -403,6 +591,7 @@ impl App {
         let previewer = Previewer::new(wake.clone());
         let opsr = ops::Runner::new(wake.clone());
         let spotter = Spotter::new(wake.clone());
+        let git = git::Git::new(wake.clone());
         let watcher = Watcher::new(wake);
 
         let sort = SortSpec {
@@ -424,6 +613,11 @@ impl App {
             previewer,
             ops: opsr,
             watcher,
+            git,
+            // One per pane, plus the few a walk just left behind.
+            git_status: Lru::new(8),
+            term: None,
+            term_focus: false,
             spotter,
             spotted: None,
             pending: Vec::new(),
@@ -445,6 +639,7 @@ impl App {
             pending_conflict: None,
             dirty: HashMap::new(),
             counted: std::collections::HashSet::new(),
+            pending_completion: None,
             inflight: HashMap::new(),
             quit: false,
             cwd_file: None,
@@ -596,7 +791,11 @@ impl App {
         while let Ok(dir) = self.watcher.rx.try_recv() {
             self.dirty.insert(dir, Instant::now());
         }
+        while let Ok(rep) = self.git.rx.try_recv() {
+            self.git_status.put(rep.dir, Arc::new(rep.status));
+        }
         self.drain_search();
+        self.pump_terminal();
         self.flush_dirty();
         self.toasts.retain(|t| t.at.elapsed() < Duration::from_secs(6));
         self.tasks.retain(|t| match t.finished {
@@ -655,10 +854,16 @@ impl App {
                 self.inflight.remove(&id);
                 let entries = Arc::new(entries);
                 self.cache.put(path.clone(), entries.clone());
-                self.apply_listing(&path, entries);
+                self.apply_listing(&path, entries.clone());
+                self.complete_from(id, &path, &entries);
             }
             ScanResult::Failed { id, path, error } => {
                 self.inflight.remove(&id);
+                // A completion that cannot be listed simply has no answer; the
+                // toast below still says why.
+                if self.pending_completion.as_ref().is_some_and(|p| p.id == id) {
+                    self.pending_completion = None;
+                }
                 // A jump that was never listed is undone first: the tab goes
                 // back where it was instead of showing an empty error column.
                 let jumped = self
@@ -706,6 +911,12 @@ impl App {
     }
 
     fn apply_listing(&mut self, path: &Path, entries: Arc<Vec<Entry>>) {
+        // A directory a pane is showing gets its git status asked for. Every
+        // rescan comes through here, so a file operation or a change the
+        // watcher caught refreshes the marks along with the listing.
+        if self.pane_tabs().into_iter().any(|i| self.tabs[i].cwd == path) {
+            self.git.request(path.to_path_buf());
+        }
         let show_hidden = self.tabs[self.active].show_hidden;
         let memo = self.tabs[self.active].memo.get(path).cloned();
 
@@ -1055,6 +1266,88 @@ impl App {
             _ => {}
         }
         (!rows.is_empty()).then(|| Section { title: "Preview".into(), rows })
+    }
+
+    pub fn feed_tasks_key(&mut self, k: Key) {
+        self.pending.push(k);
+        let bindings = &self.cfg.keymap.tasks;
+        match keymap::resolve(bindings, &self.pending) {
+            keymap::Match::Exact(b) => {
+                let acts = b.run.clone();
+                self.pending.clear();
+                for a in acts {
+                    self.tasks_act(a);
+                }
+            }
+            keymap::Match::Pending(_) => {}
+            keymap::Match::None => self.pending.clear(),
+        }
+    }
+
+    /// The task panel's own commands: move, pause, cancel, reorder.
+    fn tasks_act(&mut self, a: Act) {
+        let len = self.tasks.len();
+        let page = self.tabs[self.active].page_rows.max(1);
+        let Overlay::Tasks(ov) = &mut self.overlay else { return };
+        match a {
+            Act::Close | Act::Escape(_) | Act::TasksShow | Act::Quit => {
+                self.overlay = Overlay::None;
+            }
+            Act::Arrow(step) if len > 0 => ov.cursor = step.apply(ov.cursor, len, page),
+            Act::TaskToggle => self.toggle_task(),
+            Act::TaskCancel => self.cancel_task(),
+            Act::TaskTop => self.promote_task(),
+            _ => {}
+        }
+    }
+
+    /// The job the panel's cursor is on, when there is one.
+    fn selected_task(&self) -> Option<(u64, TaskState)> {
+        let Overlay::Tasks(ov) = &self.overlay else { return None };
+        self.tasks.get(ov.cursor).map(|t| (t.id, t.state.clone()))
+    }
+
+    fn toggle_task(&mut self) {
+        let Some((id, state)) = self.selected_task() else { return };
+        match state {
+            // A queued job has not started, so there is nothing to park.
+            TaskState::Queued => self.toast("That job has not started yet"),
+            TaskState::Running => self.ops.control(id, ops::Control::Pause),
+            TaskState::Paused => self.ops.control(id, ops::Control::Resume),
+            _ => {}
+        }
+    }
+
+    fn cancel_task(&mut self) {
+        let Some((id, state)) = self.selected_task() else { return };
+        if !state.is_live() {
+            return;
+        }
+        // A job still in the queue never reaches the worker, so the panel
+        // closes it out itself; a running one is told to stop and answers
+        // with its own `Finished`.
+        if self.ops.drop_queued(id) {
+            if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
+                t.state = TaskState::Cancelled;
+                t.finished = Some(Instant::now());
+            }
+            return;
+        }
+        self.ops.control(id, ops::Control::Cancel);
+    }
+
+    fn promote_task(&mut self) {
+        let Some((id, state)) = self.selected_task() else { return };
+        if state != TaskState::Queued {
+            self.toast("Only a queued job can be moved up");
+            return;
+        }
+        if !self.ops.promote(id) {
+            return;
+        }
+        // The panel lists jobs in the order they were made, so say what
+        // happened rather than leaving the row where it was.
+        self.toast("Moved to the front of the queue");
     }
 
     pub fn feed_spot_key(&mut self, k: Key) {
@@ -1486,9 +1779,22 @@ impl App {
                 self.help_scroll = 0;
                 self.overlay = Overlay::Help;
             }
-            Act::TasksShow => self.overlay = Overlay::Tasks,
+            Act::TasksShow => self.overlay = Overlay::Tasks(TasksOverlay { cursor: 0 }),
+            // These act on the row the task panel has under its cursor, so
+            // they open it first when it is not the overlay in front.
+            Act::TaskToggle | Act::TaskCancel | Act::TaskTop => {
+                if !matches!(self.overlay, Overlay::Tasks(_)) {
+                    self.overlay = Overlay::Tasks(TasksOverlay { cursor: 0 });
+                }
+                self.tasks_act(a);
+            }
             Act::Spot => self.open_spot(),
             Act::Palette => self.open_palette(),
+            Act::Menu => self.open_menu(),
+            Act::Terminal(what) => self.terminal(what),
+            Act::TermSend => self.term_send_paths(),
+            Act::Extract => self.do_extract(),
+            Act::Compress => self.ask_compress(),
             Act::ToggleOutline => self.toggle_outline(),
             Act::ToggleRender => {
                 self.render_markdown = !self.render_markdown;
@@ -1775,9 +2081,88 @@ impl App {
         self.tabs[self.active].clear_selection();
     }
 
+    /// Unpack every selected archive. Anything that is not one is named in an
+    /// error rather than silently dropped, so a mixed selection says what it
+    /// skipped.
+    fn do_extract(&mut self) {
+        let paths = self.tabs[self.active].targets();
+        if paths.is_empty() {
+            return;
+        }
+        let (archives, rest): (Vec<PathBuf>, Vec<PathBuf>) =
+            paths.into_iter().partition(|p| archive::Format::from_path(p).is_some());
+        if archives.is_empty() {
+            self.error("Nothing here is an archive filer can read");
+            return;
+        }
+        if !rest.is_empty() {
+            self.toast(format!("Skipping {} non-archive item(s)", rest.len()));
+        }
+        let cwd = self.tabs[self.active].cwd.clone();
+        self.submit_op(OpKind::Extract, archives, cwd, false);
+        self.tabs[self.active].clear_selection();
+    }
+
+    /// Ask what the archive should be called. The extension picks the format,
+    /// so one prompt covers zip, tar and tar.gz without a second menu.
+    fn ask_compress(&mut self) {
+        let paths = self.tabs[self.active].targets();
+        if paths.is_empty() {
+            return;
+        }
+        // One item names the archive after itself; several after the folder
+        // they are in, which is what the user would have typed anyway.
+        let stem = match paths.len() {
+            1 => util::stem_and_ext(&util::file_name(&paths[0])).0.to_owned(),
+            _ => util::file_name(&self.tabs[self.active].cwd),
+        };
+        let stem = match stem.is_empty() {
+            true => "archive".to_owned(),
+            false => stem,
+        };
+        self.open_input(InputKind::Compress, "Compress to", format!("{stem}.zip"));
+    }
+
+    fn do_compress(&mut self, name: &str) {
+        let name = name.trim();
+        if name.is_empty() {
+            return;
+        }
+        let cwd = self.tabs[self.active].cwd.clone();
+        let dest = util::resolve_against(&cwd, name);
+        let Some(format) = archive::Format::from_path(&dest) else {
+            self.error("Name it .zip, .tar or .tar.gz to say which format");
+            return;
+        };
+        if !format.can_write() {
+            self.error(format!("{} can be read here but not written", format.label()));
+            return;
+        }
+        let paths = self.tabs[self.active].targets();
+        if paths.is_empty() {
+            return;
+        }
+        self.submit_op_to(OpKind::Compress(format), paths, cwd, Some(dest), false);
+        self.tabs[self.active].clear_selection();
+    }
+
     fn submit_op(&mut self, kind: OpKind, srcs: Vec<PathBuf>, dest_dir: PathBuf, force: bool) {
+        self.submit_op_to(kind, srcs, dest_dir, None, force);
+    }
+
+    fn submit_op_to(
+        &mut self,
+        kind: OpKind,
+        srcs: Vec<PathBuf>,
+        dest_dir: PathBuf,
+        dest_file: Option<PathBuf>,
+        force: bool,
+    ) {
         let id = self.scanner.next_id();
-        let label = format!("{} {} item(s)", kind.verb(), srcs.len());
+        let label = match &dest_file {
+            Some(f) => format!("{} {} item(s) into {}", kind.verb(), srcs.len(), util::file_name(f)),
+            None => format!("{} {} item(s)", kind.verb(), srcs.len()),
+        };
         self.tasks.push(Task {
             id,
             kind,
@@ -1787,11 +2172,16 @@ impl App {
             files_done: 0,
             bytes_done: 0,
             current: String::new(),
-            state: TaskState::Running,
+            // One job runs at a time, so a new one is queued until the worker
+            // picks it up and says `Started`.
+            state: TaskState::Queued,
             errors: Vec::new(),
             finished: None,
+            speed: 0.0,
+            sampled_at: Instant::now(),
+            sampled_bytes: 0,
         });
-        self.ops.submit(OpRequest { id, kind, srcs, dest_dir, force });
+        self.ops.submit(OpRequest { id, kind, srcs, dest_dir, dest_file, force });
     }
 
     fn on_op_event(&mut self, ev: ops::OpEvent) {
@@ -1800,15 +2190,31 @@ impl App {
                 if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
                     t.files = files;
                     t.bytes = bytes;
+                    t.state = TaskState::Running;
+                    // The queue may have held it a while; the speed is about
+                    // the work, not the wait.
+                    t.sampled_at = Instant::now();
+                    t.sampled_bytes = 0;
                 }
             }
             ops::OpEvent::Progress { id, files_done, bytes_done, current } => {
                 if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
                     t.files_done = files_done;
+                    t.sample(bytes_done);
                     t.bytes_done = bytes_done;
                     if !current.is_empty() {
                         t.current = current;
                     }
+                }
+            }
+            ops::OpEvent::Paused { id, paused } => {
+                if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
+                    t.state = if paused { TaskState::Paused } else { TaskState::Running };
+                    // Nothing moved while it was parked, so the old speed is
+                    // not a measurement of anything.
+                    t.speed = 0.0;
+                    t.sampled_at = Instant::now();
+                    t.sampled_bytes = t.bytes_done;
                 }
             }
             ops::OpEvent::Conflict { id, src, dest, reply } => {
@@ -2089,9 +2495,11 @@ impl App {
         let Overlay::Input(ov) = std::mem::replace(&mut self.overlay, Overlay::None) else {
             return;
         };
+        self.pending_completion = None;
         let text = ov.text.trim().to_owned();
         match ov.kind {
             InputKind::Create => self.do_create(&text),
+            InputKind::Compress => self.do_compress(&text),
             InputKind::Rename { from } => self.do_rename(&from, &text),
             InputKind::Filter => { /* already applied live */ }
             InputKind::Find { .. } => { /* already applied live */ }
@@ -2123,6 +2531,7 @@ impl App {
     /// Dismiss the input line without acting on it. A job waiting on a rename
     /// must still be told something, or its worker stays parked forever.
     pub fn cancel_input(&mut self) {
+        self.pending_completion = None;
         if let Some(reply) = self.pending_conflict.take() {
             let _ = reply.send(Resolution::Skip);
         }
@@ -2187,38 +2596,55 @@ impl App {
     }
 
     fn complete_input(&mut self) {
-        let Overlay::Input(ov) = &mut self.overlay else { return };
+        let Overlay::Input(ov) = &self.overlay else { return };
         if !matches!(ov.kind, InputKind::Cd) {
             return;
         }
-        let text = ov.text.clone();
-        let p = util::expand(&text);
-        let (dir, prefix) = if text.ends_with('/') || text.ends_with('\\') {
-            (p.clone(), String::new())
-        } else {
-            (
-                p.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from(".")),
-                util::file_name(&p),
-            )
-        };
-        let mut hits: Vec<String> = Vec::new();
-        if let Ok(rd) = std::fs::read_dir(&dir) {
-            for e in rd.flatten() {
-                if !e.path().is_dir() {
-                    continue;
-                }
-                let name = e.file_name().to_string_lossy().into_owned();
-                if prefix.is_empty() || name.to_lowercase().starts_with(&prefix.to_lowercase()) {
-                    hits.push(name);
-                }
-            }
+        let (dir, prefix) = completion_target(&ov.text, &self.tabs[self.active].cwd);
+        // A directory that has been listed once answers on the spot, which
+        // covers the cwd, its parent and everywhere the tab has been.
+        if let Some(entries) = self.cache.get(&dir).cloned() {
+            self.pending_completion = None;
+            self.apply_completion(&dir, completion_hits(&entries, &prefix));
+            return;
         }
-        hits.sort_by(|a, b| util::natural_cmp(a, b, false));
+        // Everything else goes to the scan pool. `read_dir` on a dead share
+        // sits for half a minute, and Tab must not take the window with it.
+        let sort = self.tabs[self.active].sort;
+        let id = self.scanner.scan_low(dir.clone(), sort);
+        self.inflight.insert(id, dir.clone());
+        self.pending_completion = Some(PendingCompletion { id, dir, prefix });
+    }
+
+    /// Answer a completion whose listing has just arrived. What the user typed
+    /// in the meantime wins: an answer to an older question is dropped.
+    fn complete_from(&mut self, id: u64, path: &Path, entries: &[Entry]) {
+        let Some(p) = self.pending_completion.take() else { return };
+        if p.id != id || p.dir != path {
+            self.pending_completion = Some(p);
+            return;
+        }
+        let Overlay::Input(ov) = &self.overlay else { return };
+        if !matches!(ov.kind, InputKind::Cd) {
+            return;
+        }
+        if completion_target(&ov.text, &self.tabs[self.active].cwd)
+            != (p.dir.clone(), p.prefix.clone())
+        {
+            return;
+        }
+        self.apply_completion(&p.dir, completion_hits(entries, &p.prefix));
+    }
+
+    /// Put the next match on the input line. Repeated presses walk the list,
+    /// and `completion_at` remembers how far they got.
+    fn apply_completion(&mut self, dir: &Path, hits: Vec<String>) {
+        let Overlay::Input(ov) = &mut self.overlay else { return };
         if hits.is_empty() {
             return;
         }
         let idx = ov.completion_at % hits.len();
-        ov.text = dir.join(&hits[idx]).display().to_string() + "\\";
+        ov.text = completed_text(dir, &hits[idx]);
         ov.completion_at = idx + 1;
         ov.completion = hits;
         ov.initial_selection = {
@@ -2226,6 +2652,109 @@ impl App {
             Some((n, n))
         };
         ov.focused = false;
+    }
+
+    /// Open the terminal pane, close it, or move the keys in and out of it.
+    ///
+    /// `None` is the toggle a key presses: open it and take the keys, or give
+    /// them back when it already has them.
+    fn terminal(&mut self, what: Tri) {
+        if what == Some(false) {
+            // Dropping it sends the shell its shutdown.
+            self.term = None;
+            self.term_focus = false;
+            return;
+        }
+        if self.term.is_some() {
+            self.term_focus = what.unwrap_or(!self.term_focus);
+            return;
+        }
+        let cwd = self.tabs[self.active].cwd.clone();
+        let ctx = self.ctx.clone();
+        // The real shape arrives with the first frame that draws it; this is
+        // only what the shell starts life believing.
+        let size = crate::terminal::Size::new(80, 24);
+        match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), move || ctx.request_repaint()) {
+            Ok(t) => {
+                self.term = Some(t);
+                self.term_focus = true;
+            }
+            Err(e) => self.error(format!("Terminal failed: {e}")),
+        }
+    }
+
+    /// Type the selection into the shell, quoted so a path with a space in it
+    /// arrives as one word. Nothing is run: the line is left for the user to
+    /// put a command in front of.
+    fn term_send_paths(&mut self) {
+        let paths = self.tabs[self.active].targets();
+        if paths.is_empty() {
+            return;
+        }
+        let Some(term) = &self.term else {
+            self.error("The terminal is not open");
+            return;
+        };
+        let line: Vec<String> =
+            paths.iter().map(|p| crate::terminal::quote(&p.to_string_lossy())).collect();
+        term.send(format!(" {}", line.join(" ")).into_bytes());
+        self.term_focus = true;
+    }
+
+    /// Read what the shell has said, and keep it in the directory the pane is
+    /// showing. Called once a frame, and cheap when there is nothing to do.
+    fn pump_terminal(&mut self) {
+        let cwd = self.tabs[self.active].cwd.clone();
+        let Some(term) = &mut self.term else { return };
+        for text in term.drain() {
+            // A program asked for the clipboard; only this thread can oblige.
+            let _ = exec::set_clipboard(&text);
+        }
+        if term.exited {
+            self.term = None;
+            self.term_focus = false;
+            self.toast("The shell exited");
+            return;
+        }
+        term.follow(&cwd);
+    }
+
+    /// A key while the terminal has the keys. The `[term]` keymap gets first
+    /// refusal — that is where the way out is bound — and everything else is
+    /// the shell's.
+    pub fn feed_term_key(&mut self, k: Key, bytes: Option<Vec<u8>>) {
+        // Only exact single-key bindings are consulted: a chord would have to
+        // hold a key back, and the shell wants it now.
+        let hit = self
+            .cfg
+            .keymap
+            .term
+            .iter()
+            .find(|b| b.on.len() == 1 && b.on[0] == k)
+            .map(|b| b.run.clone());
+        if let Some(acts) = hit {
+            for a in acts {
+                match a {
+                    Act::Close | Act::Escape(_) => self.term_focus = false,
+                    other => self.act(other),
+                }
+            }
+            return;
+        }
+        if let (Some(term), Some(bytes)) = (&self.term, bytes) {
+            term.send(bytes);
+        }
+    }
+
+    /// What git says about the rows of `dir`, or nothing while the answer is
+    /// still on its way — or for ever, when there is no repository here.
+    pub fn git_status(&self, dir: &Path) -> Option<Arc<git::Status>> {
+        self.git_status.peek(&dir.to_path_buf()).cloned()
+    }
+
+    /// True while Tab is waiting on a listing, so the prompt can say so.
+    pub fn completing(&self) -> bool {
+        self.pending_completion.is_some()
     }
 
     fn start_search(&mut self, query: &str, via: SearchVia) {
@@ -2326,13 +2855,55 @@ impl App {
     }
 
     fn open_palette(&mut self) {
-        let (items, details, runs) = palette_items(&self.cfg.keymap.mgr);
+        let (items, details, runs) = palette_items(&self.cfg.keymap.mgr, &self.hovered_openers());
         if items.is_empty() {
             self.error("No commands are bound");
             return;
         }
+        self.open_pick("Commands".into(), items, details, runs);
+    }
+
+    /// The context menu for the file under the cursor. Right-click opens it;
+    /// so does the `menu` command.
+    fn open_menu(&mut self) {
+        let Some(name) = self.tabs[self.active].current.hovered_name().map(str::to_owned) else {
+            self.error("Nothing under the cursor");
+            return;
+        };
+        let (items, details, runs) = menu_items(&self.cfg.keymap.mgr, &self.hovered_openers());
+        if items.is_empty() {
+            self.error("Nothing is bound for this file");
+            return;
+        }
+        // The selection is what the commands will act on, so say so when it is
+        // more than the one file the pointer landed on.
+        let n = self.tabs[self.active].targets().len();
+        let title = match n > 1 {
+            true => format!("Actions: {n} selected"),
+            false => format!("Actions: {name}"),
+        };
+        self.open_pick(title, items, details, runs);
+    }
+
+    /// What `yazi.toml` offers to open the file under the cursor with.
+    fn hovered_openers(&self) -> Vec<OpenerRow> {
+        let Some(entry) = self.tabs[self.active].current.hovered() else { return Vec::new() };
+        let mime = crate::mime::guess(entry);
+        exec::openers_for(&self.cfg.yazi, entry, mime)
+            .into_iter()
+            .map(|o| (o.run.clone(), o.block, o.orphan, o.label()))
+            .collect()
+    }
+
+    fn open_pick(
+        &mut self,
+        title: String,
+        items: Vec<String>,
+        details: Vec<String>,
+        runs: Vec<Vec<Act>>,
+    ) {
         let mut pick = PickOverlay {
-            title: "Commands".into(),
+            title,
             items,
             details,
             query: String::new(),
@@ -2558,6 +3129,44 @@ fn search_path(query: &str, root: &Path) -> PathBuf {
     PathBuf::from(format!("search: {query}  in  {}", root.display()))
 }
 
+/// Split what has been typed into the directory a completion has to list and
+/// the prefix its names have to carry on from. A trailing separator means the
+/// directory itself is the question, so every child answers it. The text is
+/// resolved the way `cd` resolves it, so a relative path completes against the
+/// tab it was typed in.
+fn completion_target(text: &str, cwd: &Path) -> (PathBuf, String) {
+    let p = util::resolve_against(cwd, text);
+    if text.ends_with('/') || text.ends_with('\\') {
+        return (p, String::new());
+    }
+    let prefix = util::file_name(&p);
+    match p.parent() {
+        Some(dir) => (dir.to_path_buf(), prefix),
+        // A drive or share root has nothing above it: list the root itself.
+        None => (p, String::new()),
+    }
+}
+
+/// The directories in a listing that carry on from `prefix`, in the order the
+/// prompt walks them. Links to directories count, the same as entering one.
+fn completion_hits(entries: &[Entry], prefix: &str) -> Vec<String> {
+    let prefix = prefix.to_lowercase();
+    let mut hits: Vec<String> = entries
+        .iter()
+        .filter(|e| e.is_dir_like())
+        .map(|e| e.name.clone())
+        .filter(|n| prefix.is_empty() || n.to_lowercase().starts_with(&prefix))
+        .collect();
+    hits.sort_by(|a, b| util::natural_cmp(a, b, false));
+    hits
+}
+
+/// What the input line reads once a name is chosen: the directory, ready for
+/// the next component to be typed or completed.
+fn completed_text(dir: &Path, name: &str) -> String {
+    format!("{}{}", dir.join(name).display(), std::path::MAIN_SEPARATOR)
+}
+
 fn preview_paths(paths: &[PathBuf]) -> Vec<String> {
     let mut out: Vec<String> = paths
         .iter()
@@ -2635,6 +3244,104 @@ mod tests {
         assert_eq!(to, base.to_path_buf());
     }
 
+    /// Tab asks the scan pool a question, and the answer may arrive over text
+    /// that has since moved on. The question is the pair below, so an answer
+    /// to an older one can be recognised and dropped.
+    fn task(bytes: u64) -> Task {
+        Task {
+            id: 1,
+            kind: OpKind::Copy,
+            label: "Copy".into(),
+            files: 1,
+            bytes,
+            files_done: 0,
+            bytes_done: 0,
+            current: String::new(),
+            state: TaskState::Running,
+            errors: Vec::new(),
+            finished: None,
+            speed: 0.0,
+            sampled_at: Instant::now(),
+            sampled_bytes: 0,
+        }
+    }
+
+    /// The speed is measured over a window, not per report: reports arrive
+    /// about twenty times a second and the gap between two of them says
+    /// nothing useful.
+    #[test]
+    fn a_running_job_reports_a_speed_and_what_is_left() {
+        let mut t = task(3_000_000);
+        // Too soon to measure: the sample is ignored and there is no answer.
+        t.sample(500_000);
+        assert_eq!(t.speed(), None, "a fraction of a second is not a measurement");
+
+        // A second's worth of work, a megabyte of it.
+        t.sampled_at = Instant::now() - Duration::from_secs(1);
+        t.sampled_bytes = 0;
+        t.sample(1_000_000);
+        t.bytes_done = 1_000_000;
+        let speed = t.speed().expect("a second of copying is measurable");
+        assert!((900_000..=1_100_000).contains(&speed), "got {speed} B/s");
+
+        // Two of the three megabytes are left, at about a megabyte a second.
+        let eta = t.eta().expect("bytes are known, so the rest can be timed");
+        assert!((1..=3).contains(&eta.as_secs()), "got {eta:?}");
+    }
+
+    #[test]
+    fn a_job_that_is_not_running_says_nothing_about_speed() {
+        let mut t = task(3_000_000);
+        t.sampled_at = Instant::now() - Duration::from_secs(1);
+        t.sample(1_000_000);
+        t.bytes_done = 1_000_000;
+
+        // Parked: the number would be a memory, not a measurement.
+        t.state = TaskState::Paused;
+        assert_eq!(t.speed(), None);
+        assert_eq!(t.eta(), None);
+
+        // A job counted in files rather than bytes cannot say how long the
+        // rest will take, however fast it is going.
+        t.state = TaskState::Running;
+        t.bytes = 0;
+        assert_eq!(t.eta(), None);
+        assert!(t.speed().is_some());
+    }
+
+    #[test]
+    fn a_completion_asks_about_one_directory_and_one_prefix() {
+        let cwd = Path::new("/here");
+        assert_eq!(completion_target("/a/b/sr", cwd), (PathBuf::from("/a/b"), "sr".into()));
+        // A trailing separator asks about the directory itself.
+        assert_eq!(completion_target("/a/b/", cwd), (PathBuf::from("/a/b"), String::new()));
+        // Another keystroke is another question, so an answer to the old one
+        // can be told apart and dropped.
+        assert_ne!(completion_target("/a/b/src", cwd), completion_target("/a/b/sr", cwd));
+        // A relative name completes where it was typed, as `cd` would take it.
+        assert_eq!(completion_target("sr", cwd), (PathBuf::from("/here"), "sr".into()));
+    }
+
+    #[test]
+    fn a_completion_offers_the_directories_that_carry_on_from_the_prefix() {
+        let entries = vec![
+            entry("/a/src10", true),
+            entry("/a/Src2", true),
+            entry("/a/srcs.txt", false),
+            entry("/a/target", true),
+        ];
+        // Case is ignored on the way in, and the order is the listing's own.
+        assert_eq!(completion_hits(&entries, "sr"), vec!["Src2", "src10"]);
+        // An empty prefix offers every directory, files still left out.
+        assert_eq!(completion_hits(&entries, ""), vec!["Src2", "src10", "target"]);
+        assert!(completion_hits(&entries, "zz").is_empty());
+        // The chosen name comes back ready for the next component to be typed,
+        // with the separator this platform spells paths with.
+        let done = completed_text(Path::new("/a"), "Src2");
+        assert!(done.ends_with(std::path::MAIN_SEPARATOR), "{done}");
+        assert!(done.contains("Src2"), "{done}");
+    }
+
     #[test]
     fn a_new_tab_follows_the_cursor_only_onto_a_directory() {
         let base = Path::new("/a");
@@ -2678,20 +3385,71 @@ mod tests {
             binding("z", "chmod", "Unimplemented"),
             binding("x", "noop", "Nothing"),
         ];
-        let (items, details, runs) = palette_items(&bindings);
+        let (items, details, runs) = palette_items(&bindings, &[]);
         assert_eq!(
             items,
             vec!["Move cursor up  ·  arrow -1".to_string(), "tasks_show".to_string()]
         );
         assert_eq!(details, vec!["k".to_string(), "w".to_string()]);
         assert_eq!(runs, vec![vec![Act::Arrow(Step::Rel(-1))], vec![Act::TasksShow]]);
+
+        // The openers for the hovered file ride along at the end, named so it
+        // is clear what picking one does.
+        let openers = vec![(r"code %s".to_string(), false, true, "VS Code".to_string())];
+        let (items, details, runs) = palette_items(&bindings, &openers);
+        assert_eq!(items.last().unwrap(), "Open with VS Code");
+        assert_eq!(details.last().unwrap(), "code %s");
+        assert_eq!(
+            runs.last().unwrap(),
+            &vec![Act::Shell {
+                run: "code %s".into(),
+                block: false,
+                confirm: false,
+                orphan: true
+            }]
+        );
+    }
+
+    /// The context menu is the config read back: what `yazi.toml` opens this
+    /// file with, the custom `shell` actions, then the file commands. Moving
+    /// around and changing the view are not offered.
+    #[test]
+    fn the_menu_offers_the_openers_then_the_custom_actions_then_the_file_commands() {
+        let bindings = vec![
+            binding("k", "arrow -1", "Move cursor up"),
+            binding("d", "remove", "Delete"),
+            binding("E", "shell 'explorer %s' --orphan", "Reveal in Explorer"),
+            binding("z", "chmod", "Unimplemented"),
+            binding("gg", "arrow top", "Go to top"),
+        ];
+        let openers = vec![("notepad %s".to_string(), true, false, "Notepad".to_string())];
+        let (items, details, runs) = menu_items(&bindings, &openers);
+
+        assert_eq!(
+            items,
+            vec![
+                "Notepad".to_string(),
+                "Reveal in Explorer  ·  shell 'explorer %s' --orphan".to_string(),
+                "Delete  ·  remove".to_string(),
+            ],
+            "moving the cursor is not a thing to do to a file"
+        );
+        assert_eq!(details[0], "notepad %s", "the opener shows the command it runs");
+        assert_eq!(details[2], "d", "a binding shows the key that also runs it");
+        assert_eq!(runs[2], vec![Act::Remove { permanently: false, force: false, hovered: false }]);
+        // An opener is run as the shell command it is, `block` and all.
+        assert!(matches!(runs[0][0], Act::Shell { block: true, orphan: false, .. }));
     }
 
     #[test]
     fn palette_filters_on_both_the_description_and_the_command() {
-        let (km, _) = keymap::Keymap::load(&[]);
-        let (items, details, runs) = palette_items(&km.mgr);
+        let (km, warnings) = keymap::Keymap::load(&[]);
+        assert!(warnings.is_empty(), "the built-in keymap must load clean: {warnings:?}");
+        let (items, details, runs) = palette_items(&km.mgr, &[]);
         assert!(items.len() > 30, "got {} commands", items.len());
+        // The context menu has a key of its own, so it is reachable without a
+        // mouse and the palette lists it like any other command.
+        assert!(runs.iter().any(|r| r == &[Act::Menu]), "the palette lists the context menu");
         assert_eq!(items.len(), details.len());
         assert_eq!(items.len(), runs.len());
         assert!(runs.iter().any(|r| r == &[Act::Palette]), "the palette lists itself");

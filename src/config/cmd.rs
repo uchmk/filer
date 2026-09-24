@@ -117,6 +117,12 @@ pub enum Act {
     Copy(CopyWhat),
     Shell { run: String, block: bool, confirm: bool, orphan: bool },
 
+    /// Unpack the selected archives, each into a folder of its own.
+    Extract,
+    /// Pack the selection into one archive; the name typed at the prompt
+    /// decides the format.
+    Compress,
+
     Hidden(Tri),
     Linemode(String),
     Sort { by: Option<SortBy>, reverse: Tri, dir_first: Tri },
@@ -135,9 +141,24 @@ pub enum Act {
 
     Help,
     TasksShow,
+    /// Pause the selected job, or set it going again.
+    TaskToggle,
+    /// Stop the selected job, queued or running.
+    TaskCancel,
+    /// Move the selected job to the front of the queue.
+    TaskTop,
     Spot,
+    /// Open the terminal pane and give it the keys, or take them back.
+    /// `Some(false)` closes the pane and the shell with it.
+    Terminal(Tri),
+    /// Type the selected paths into the terminal.
+    TermSend,
+
     /// Fuzzy-search every `mgr` binding and run the one picked.
     Palette,
+    /// The context menu for the file under the cursor: its openers from
+    /// `yazi.toml` and the bindings that act on it. Right-click runs this.
+    Menu,
     /// Switch Markdown between the rendered view and its source.
     ToggleRender,
     /// Hand the keys to the preview's outline (functions, headings) and back.
@@ -325,6 +346,8 @@ pub fn parse(line: &str) -> Act {
         "paste" => Act::Paste { force: a.has("force"), follow: a.has("follow") },
         "link" => Act::Link { relative: a.has("relative") },
         "hardlink" => Act::Hardlink,
+        "extract" => Act::Extract,
+        "compress" => Act::Compress,
         "remove" => Act::Remove {
             permanently: a.has("permanently"),
             force: a.has("force"),
@@ -384,8 +407,18 @@ pub fn parse(line: &str) -> Act {
 
         "help" => Act::Help,
         "tasks_show" => Act::TasksShow,
+        "task_toggle" => Act::TaskToggle,
+        "task_cancel" => Act::TaskCancel,
+        "task_top" => Act::TaskTop,
         "spot" => Act::Spot,
         "palette" => Act::Palette,
+        "menu" => Act::Menu,
+        "terminal" => Act::Terminal(match a.first() {
+            Some("open") => Some(true),
+            Some("close") => Some(false),
+            _ => None,
+        }),
+        "term_send" => Act::TermSend,
         "toggle_render" => Act::ToggleRender,
         "toggle_outline" => Act::ToggleOutline,
 
@@ -481,6 +514,7 @@ mod tests {
         assert_eq!(parse("plugin toggle-pane max-preview"), Act::MaxPreview);
         assert_eq!(parse("plugin bookmarks jump"), Act::BookmarkJump);
         assert_eq!(parse("palette"), Act::Palette);
+        assert_eq!(parse("menu"), Act::Menu);
         assert_eq!(parse("split"), Act::Split(None));
         assert_eq!(parse("split close"), Act::Split(Some(false)));
         assert_eq!(parse("pane_focus"), Act::PaneFocus(None));

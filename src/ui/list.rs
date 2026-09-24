@@ -24,11 +24,14 @@ pub struct ListStyle<'a> {
 pub struct RowFlags {
     pub selected: bool,
     pub yanked: Option<bool>, // Some(true) = cut
+    pub git: crate::fs::git::State,
 }
 
 pub struct ListResult {
     pub clicked: Option<usize>,
     pub double_clicked: Option<usize>,
+    /// Right-click, which opens the context menu on that row.
+    pub secondary_clicked: Option<usize>,
     pub scrolled: i64,
     /// Modifiers held down for the click above.
     pub mods: egui::Modifiers,
@@ -44,8 +47,13 @@ pub fn draw(
 ) -> ListResult {
     let painter = ui.painter_at(rect);
     let rows = ((rect.height() / st.row_h).floor() as usize).max(1);
-    let mut out =
-        ListResult { clicked: None, double_clicked: None, scrolled: 0, mods: egui::Modifiers::NONE };
+    let mut out = ListResult {
+        clicked: None,
+        double_clicked: None,
+        secondary_clicked: None,
+        scrolled: 0,
+        mods: egui::Modifiers::NONE,
+    };
 
     match &folder.state {
         LoadState::Error(e) => {
@@ -148,6 +156,20 @@ pub fn draw(
             );
         }
 
+        // The git sign sits between the name and the line mode, so it stays
+        // put as the name grows and the two never collide.
+        if let Some(mark) = f.git.mark() {
+            let color = st.theme.git_color(f.git);
+            let g = painter.layout_no_wrap(mark.to_string(), st.font.clone(), color);
+            let w = g.size().x;
+            painter.galley(
+                egui::pos2(row_rect.right() - right_w - w - 2.0, y + (st.row_h - g.size().y) / 2.0),
+                g,
+                color,
+            );
+            right_w += w + 8.0;
+        }
+
         let avail = (row_rect.right() - right_w - x - 6.0).max(16.0);
         let mut name = entry.name.clone();
         if let crate::fs::Kind::Link { .. } = entry.kind {
@@ -183,13 +205,17 @@ pub fn draw(
     // Interaction
     let id = ui.id().with(("list", rect.left() as i32, rect.top() as i32));
     let resp = ui.interact(rect, id, egui::Sense::click_and_drag());
-    if let Some(pos) = resp.interact_pointer_pos() {
+    // `hover_pos` is the fallback: a press that egui reports without an
+    // interaction position still names the row the pointer is over.
+    if let Some(pos) = resp.interact_pointer_pos().or_else(|| resp.hover_pos()) {
         let row = start + (((pos.y - rect.top()) / st.row_h).floor().max(0.0) as usize);
         if row < end {
             if resp.double_clicked() {
                 out.double_clicked = Some(row);
             } else if resp.clicked() {
                 out.clicked = Some(row);
+            } else if resp.secondary_clicked() {
+                out.secondary_clicked = Some(row);
             }
             if out.clicked.is_some() || out.double_clicked.is_some() {
                 out.mods = ui.ctx().input(|i| i.modifiers);
