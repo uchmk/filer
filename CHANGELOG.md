@@ -9,6 +9,17 @@
 
 ## [未リリース]
 
+## [0.7.1] - 2026-09-24
+
+### 追加
+
+- ウィンドウアイコンを SVG からラスタライズする `app_icon`。正方形に収めて縦横比を保ち、
+  余白は透明のまま。壊れた SVG では `None` を返す — アイコンの出ないウィンドウには意味があるが、
+  開かないウィンドウには無い。
+  - **新しい依存はゼロ。** `resvg` は SVG プレビューで既に入っている。
+  - **まだ呼び出し元が無い**（アイコンの SVG がリポジトリに入っていないため `#[allow(dead_code)]`）。
+    テスト 2 件でだけ動かしている。ファイルが入り次第、`ViewportBuilder::with_icon` に繋ぐ。
+
 ## [0.7.0] - 2026-09-24
 
 実機テストを人に依頼できる状態にした版。書いている途中でバルクリネームのバグが 1 件出た。
@@ -230,7 +241,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.7.0...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/uchmk/filer/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/uchmk/filer/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/uchmk/filer/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/uchmk/filer/compare/v0.4.0...v0.5.0

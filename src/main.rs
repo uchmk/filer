@@ -103,6 +103,46 @@ fn main() -> eframe::Result<()> {
     )
 }
 
+/// The window's icon, rasterized from SVG at `px` square.
+///
+/// The source stays vector so there is one file to change and no binary blob in
+/// the tree, and `resvg` is already here for the SVG previews — an icon costs no
+/// new dependency. `None` rather than an error: a window with the wrong icon is
+/// worth having, a window that refuses to open is not.
+///
+/// This is the *window's* icon — the title bar, Alt+Tab and the taskbar button.
+/// The icon Explorer draws on `filer.exe` itself is a resource compiled into the
+/// binary, which is a separate thing and not this.
+// Unreachable until the icon's SVG is in the tree; the tests below are what
+// exercise it in the meantime.
+#[allow(dead_code)]
+fn app_icon(svg: &[u8], px: u32) -> Option<egui::IconData> {
+    use resvg::{tiny_skia, usvg};
+
+    let tree = usvg::Tree::from_data(svg, &usvg::Options::default()).ok()?;
+    let size = tree.size();
+    // Fit the square, keeping the aspect ratio, and centre what is left over.
+    let scale = (px as f32 / size.width()).min(px as f32 / size.height());
+    let dx = (px as f32 - size.width() * scale) / 2.0;
+    let dy = (px as f32 - size.height() * scale) / 2.0;
+    let mut pixmap = tiny_skia::Pixmap::new(px, px)?;
+    resvg::render(
+        &tree,
+        tiny_skia::Transform::from_scale(scale, scale).post_translate(dx, dy),
+        &mut pixmap.as_mut(),
+    );
+    // `IconData` wants straight alpha; tiny-skia works premultiplied.
+    let rgba = pixmap
+        .pixels()
+        .iter()
+        .flat_map(|p| {
+            let c = p.demultiply();
+            [c.red(), c.green(), c.blue(), c.alpha()]
+        })
+        .collect();
+    Some(egui::IconData { rgba, width: px, height: px })
+}
+
 /// Install the fonts `cfg` asks for and fold the outcome back into it: without
 /// a Nerd Font the icon glyphs would come out as boxes, and `icons = "none"`
 /// asks for none either way. Returns whether a bold face was found.
@@ -546,4 +586,39 @@ fn special(key: egui::Key, shift: bool) -> Option<terminal::Special> {
 fn _unused(app: &mut App) {
     app.act(Act::Escape(EscapeWhat::default()));
     app.act(Act::Arrow(Step::Rel(1)));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A square icon out of a non-square drawing: the art keeps its shape and
+    /// the leftover is transparent, rather than being stretched to fit.
+    #[test]
+    fn the_icon_is_square_and_keeps_the_drawing_in_proportion() {
+        // 40 wide, 20 tall, filled edge to edge.
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20">
+            <rect width="40" height="20" fill="#ff8800"/></svg>"##;
+
+        let icon = app_icon(svg, 64).expect("a valid SVG rasterizes");
+
+        assert_eq!((icon.width, icon.height), (64, 64));
+        assert_eq!(icon.rgba.len(), 64 * 64 * 4);
+
+        let at = |x: usize, y: usize| {
+            let i = (y * 64 + x) * 4;
+            (icon.rgba[i], icon.rgba[i + 1], icon.rgba[i + 2], icon.rgba[i + 3])
+        };
+        // The middle row is the drawing, scaled to the full width.
+        assert_eq!(at(32, 32), (0xff, 0x88, 0x00, 0xff));
+        // Above and below it, the padding is clear rather than stretched paint.
+        assert_eq!(at(32, 2).3, 0, "top band is transparent");
+        assert_eq!(at(32, 61).3, 0, "bottom band is transparent");
+    }
+
+    #[test]
+    fn a_broken_icon_does_not_stop_the_window_opening() {
+        assert!(app_icon(b"not an svg at all", 64).is_none());
+        assert!(app_icon(b"", 64).is_none());
+    }
 }
