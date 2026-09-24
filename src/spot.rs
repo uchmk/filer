@@ -185,11 +185,7 @@ fn grouped(n: u64) -> String {
 
 /// `canonicalize` hands out `\\?\` paths; show them as Explorer would.
 fn plain(p: &Path) -> String {
-    let s = p.display().to_string();
-    match s.strip_prefix(r"\\?\") {
-        Some(rest) if !rest.starts_with("UNC\\") => rest.to_owned(),
-        _ => s,
-    }
+    util::unverbatim(p).display().to_string()
 }
 
 // ------------------------------------------------------------------- worker

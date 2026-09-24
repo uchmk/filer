@@ -170,6 +170,18 @@ pub fn normalize(path: &Path) -> PathBuf {
     out
 }
 
+/// Drop the `\\?\` that Windows puts on junction targets and canonical paths.
+/// Verbatim UNC (`\\?\UNC\host\share`) keeps its prefix: the shorter spelling
+/// is not a plain prefix strip, and the verbatim form works everywhere we pass
+/// it on.
+pub fn unverbatim(path: &Path) -> PathBuf {
+    let Some(s) = path.to_str() else { return path.to_path_buf() };
+    match s.strip_prefix(r"\\?\") {
+        Some(rest) if !rest.starts_with("UNC\\") => PathBuf::from(rest),
+        _ => path.to_path_buf(),
+    }
+}
+
 fn backslashed(s: &std::ffi::OsStr) -> std::ffi::OsString {
     match s.to_str() {
         Some(t) if t.contains('/') => std::ffi::OsString::from(t.replace('/', r"\")),

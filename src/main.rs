@@ -55,13 +55,15 @@ fn main() -> eframe::Result<()> {
     let cli = parse_cli();
     let cfg = Config::load();
 
-    let start = cli
-        .path
-        .map(|p| util::normalize(&p))
-        .filter(|p| p.is_dir())
-        .or_else(|| std::env::current_dir().ok())
+    // Where the window opens if the command line named nothing usable. The
+    // path it did name is taken on faith: `is_dir` on a share that stopped
+    // answering would hold the window back for half a minute, so the first
+    // listing is what decides (see `App::start_unproven`).
+    let home = std::env::current_dir()
+        .ok()
         .or_else(dirs::home_dir)
         .unwrap_or_else(|| PathBuf::from("."));
+    let start = cli.path.as_deref().map(util::normalize).unwrap_or_else(|| home.clone());
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -90,6 +92,7 @@ fn main() -> eframe::Result<()> {
                 s.spacing.item_spacing = egui::vec2(0.0, 0.0);
             });
             let mut a = App::new(cfg, start, cc.egui_ctx.clone());
+            a.start_unproven(home);
             a.bold_font = has_bold;
             a.cwd_file = cli.cwd_file;
             a.chooser_file = cli.chooser_file;

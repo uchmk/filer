@@ -272,6 +272,7 @@ mod tests {
                     accessed: None,
                     hidden: false,
                     readonly: false,
+                    link_to: None,
                     dir_size: None,
                 }
             })
@@ -330,6 +331,25 @@ mod tests {
         t.pending_cd = Some(pending);
         assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/a") });
         assert!(t.back.is_empty());
+    }
+
+    /// `filer C:\dir\file.txt`: nothing checked the path before the window
+    /// went up, so the first failed listing reveals the file, and a second
+    /// failure sends the tab home. No history entry was pushed to undo.
+    #[test]
+    fn a_start_path_that_names_a_file_reveals_it() {
+        let cwd = PathBuf::from("/b/note.txt");
+        let mut t = Tab::new(cwd, SortSpec::default(), true, String::new());
+        t.pending_cd =
+            Some(PendingCd { from: PathBuf::from("/home"), pushed: false, fallback: true });
+        let fallout = t.cd_failed();
+        let CdFallout::Reveal { to, pending } = fallout else { panic!("want Reveal") };
+        assert_eq!(to, PathBuf::from("/b"));
+        assert_eq!(t.memo.get(&PathBuf::from("/b")).map(String::as_str), Some("note.txt"));
+
+        t.cwd = to;
+        t.pending_cd = Some(pending);
+        assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/home") });
     }
 
     #[test]

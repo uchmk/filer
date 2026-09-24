@@ -291,6 +291,11 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   simply mistyped.
 - Typing a file's path into the `cd` prompt still lands on its folder with that file under the
   cursor — that answer now comes from the scan rather than from a blocking check.
+- The path on the command line (`filer \\host\share`) is opened the same way: the window goes up
+  at once and the first listing decides. A path that names a file reveals it in its folder, and
+  one that answers nothing falls back to the working directory with the error as a toast.
+- `follow` (`gf`) on a link into a slow share is instant too — the target is read on the scan
+  worker along with the rest of the entry, so the key never waits on `canonicalize`.
 
 ## Known limits
 

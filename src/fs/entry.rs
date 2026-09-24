@@ -35,6 +35,9 @@ pub struct Entry {
     pub accessed: Option<SystemTime>,
     pub hidden: bool,
     pub readonly: bool,
+    /// Where a link points, resolved against its own directory. Read here, on
+    /// the scan worker, so following a link never waits on disk in the UI.
+    pub link_to: Option<PathBuf>,
     /// Directory child count, filled in lazily by the size/count worker.
     pub dir_size: Option<u64>,
 }
@@ -67,11 +70,13 @@ impl Entry {
             Some(f) if f.is_symlink() => Kind::Link { to_dir: false, broken: true },
             _ => Kind::File,
         };
+        let mut link_to = None;
         if is_symlink {
             match std::fs::metadata(&path) {
                 Ok(target) => kind = Kind::Link { to_dir: target.is_dir(), broken: false },
                 Err(_) => kind = Kind::Link { to_dir: false, broken: true },
             }
+            link_to = std::fs::read_link(&path).ok().map(|t| link_target(&path, t));
         }
         let ext = if kind.is_dir_like() { None } else { util::extension(&name) };
         let (len, modified, created, accessed, hidden, readonly) = match &md {
@@ -96,6 +101,7 @@ impl Entry {
             accessed,
             hidden,
             readonly,
+            link_to,
             dir_size: None,
         }
     }
@@ -114,6 +120,17 @@ impl Entry {
     }
 }
 
+/// Absolutize what `read_link` handed back. A relative target is relative to
+/// the link's own directory, and a junction's `\\?\` form is not what anyone
+/// wants to look at or hand to a shell.
+fn link_target(link: &Path, target: PathBuf) -> PathBuf {
+    let joined = match link.parent() {
+        Some(dir) if target.is_relative() => dir.join(target),
+        _ => target,
+    };
+    util::normalize(&util::unverbatim(&joined))
+}
+
 #[cfg(windows)]
 fn is_hidden(_path: &Path, md: &Metadata, name: &str) -> bool {
     use std::os::windows::fs::MetadataExt;
@@ -126,4 +143,39 @@ fn is_hidden(_path: &Path, md: &Metadata, name: &str) -> bool {
 #[cfg(not(windows))]
 fn is_hidden(_path: &Path, _md: &Metadata, name: &str) -> bool {
     name.starts_with('.')
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn link_targets_are_absolute_and_plain() {
+        let link = Path::new(r"C:\a\b\shortcut");
+        assert_eq!(
+            link_target(link, PathBuf::from(r"..\c\file.txt")),
+            PathBuf::from(r"C:\a\c\file.txt")
+        );
+        assert_eq!(
+            link_target(link, PathBuf::from(r"\\?\D:\junction")),
+            PathBuf::from(r"D:\junction")
+        );
+        // A verbatim UNC target keeps the spelling Windows gave us.
+        assert_eq!(
+            link_target(link, PathBuf::from(r"\\?\UNC\host\share")),
+            PathBuf::from(r"\\?\UNC\host\share")
+        );
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn link_targets_are_absolute() {
+        let link = Path::new("/a/b/shortcut");
+        assert_eq!(
+            link_target(link, PathBuf::from("../c/file.txt")),
+            PathBuf::from("/a/c/file.txt")
+        );
+        assert_eq!(link_target(link, PathBuf::from("/d/other")), PathBuf::from("/d/other"));
+    }
 }

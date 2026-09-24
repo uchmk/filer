@@ -20,7 +20,7 @@ use crate::exec;
 use crate::fs::ops::{self, OpKind, OpRequest, Resolution};
 use crate::fs::scan::{ScanResult, Scanner};
 use crate::fs::watch::Watcher;
-use crate::fs::{Entry, SortSpec};
+use crate::fs::{Entry, Kind, SortSpec};
 use crate::preview::{self, Payload, Previewer, TocEntry};
 use crate::spot::{self, Section, Spotter};
 use crate::util::{self, Lru};
@@ -434,6 +434,19 @@ impl App {
         app.load_state();
         app.kick_scans();
         app
+    }
+
+    /// Treat the directory the app opened on as unproven, the way a typed `cd`
+    /// is: nothing checked it before the window went up, since `is_dir` on a
+    /// dead share can hold the first frame for half a minute. If the first
+    /// listing fails, the tab falls back to `home` — by way of the parent, so
+    /// `filer C:\dir\file.txt` reveals the file instead of giving up.
+    pub fn start_unproven(&mut self, home: PathBuf) {
+        if self.tabs[self.active].cwd == home {
+            return;
+        }
+        self.tabs[self.active].pending_cd =
+            Some(PendingCd { from: home, pushed: false, fallback: true });
     }
 
     // ------------------------------------------------------------- accessors
@@ -1851,23 +1864,30 @@ impl App {
         }
     }
 
+    /// Jump to where the hovered link points. The target came off the scan
+    /// worker with the rest of the entry, so nothing here touches disk —
+    /// `canonicalize` on a link into a share that stopped answering used to
+    /// freeze the window until it gave up.
     fn follow_link(&mut self) {
         let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
-        if !e.kind.is_link() {
+        let Kind::Link { to_dir, broken } = e.kind else { return };
+        let Some(target) = e.link_to.filter(|_| !broken) else {
+            self.error(format!("Broken link: {}", e.name));
             return;
-        }
-        match std::fs::canonicalize(&e.path) {
-            Ok(target) => {
-                let dir = if target.is_dir() {
-                    target.clone()
-                } else {
-                    target.parent().map(Path::to_path_buf).unwrap_or(target.clone())
-                };
-                let name = util::file_name(&target);
-                self.cd(dir, true);
-                self.tabs[self.active].current.select_name(&name);
-            }
-            Err(err) => self.error(format!("Broken link: {err}")),
+        };
+        // A link to a file lands on its directory with the file under the
+        // cursor; a link to a directory simply opens it.
+        let (dir, reveal) = match target.parent() {
+            Some(p) if !to_dir => (p.to_path_buf(), Some(util::file_name(&target))),
+            _ => (target, None),
+        };
+        self.cd(dir.clone(), true);
+        if let Some(name) = reveal {
+            // The listing may still be on its way, so leave the name in `memo`
+            // as well — that is what the cursor is restored from on arrival.
+            let tab = &mut self.tabs[self.active];
+            tab.memo.insert(dir, name.clone());
+            tab.current.select_name(&name);
         }
     }
 
