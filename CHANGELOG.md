@@ -9,6 +9,32 @@
 
 ## [未リリース]
 
+## [0.8.0] - 2026-09-24
+
+### 追加
+
+- **アプリのアイコン。** 元データは `assets/icon.svg` の 1 ファイルだけ。
+  - **ウィンドウのアイコン**（タイトルバー・Alt+Tab・タスクバー）は起動時に SVG から
+    ラスタライズする。**全プラットフォームで効き、新しい依存はゼロ**
+    （`resvg` は SVG プレビューで既に入っている）。
+  - **`filer.exe` 自身のアイコン**（Explorer で見えるもの、ショートカット、ピン留め）は
+    `assets/icon.ico` を Windows リソースとして埋め込む。16 / 32 / 48 / 64 / 128 / 256 px を
+    それぞれベクタから描くので、小さいサイズも潰れない。
+  - `.ico` は `cargo run --example make-icon` で SVG から作り直せる。
+    生成に使うのは `image` の `ico` フィーチャで、**これも既に有効だったので依存は増えていない。**
+  - 壊れた SVG ならアイコン無しでウィンドウが開く。アイコンの出ないウィンドウには意味があるが、
+    開かないウィンドウには無い。
+- `assets/README.md`。`.ico` の作り直し方と、**アートワークはコードの MIT / Apache-2.0 の
+  対象外である**ことを明記した。fork するなら差し替えてほしいため。
+
+### 依存
+
+- `winresource` を **build-dependency** として追加。**ホストが Windows のときだけ**解決される
+  （`[target.'cfg(windows)'.build-dependencies]`）ので、macOS / Linux では取得もされない。
+  ビルド時にも、**ホストとターゲットの両方が Windows のときだけ**リソースを compile する
+  （`rc.exe` が要るため）。他所から Windows へクロスビルドした場合はファイルアイコンが付かないだけで、
+  ウィンドウのアイコンは効く。失敗しても警告に留めてビルドは通す。
+
 ## [0.7.1] - 2026-09-24
 
 ### 追加
@@ -241,7 +267,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.7.1...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/uchmk/filer/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/uchmk/filer/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/uchmk/filer/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/uchmk/filer/compare/v0.5.0...v0.6.0

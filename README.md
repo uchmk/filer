@@ -718,7 +718,7 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
 
 ```
 src/
-  main.rs        window, fonts, CLI, input routing
+  main.rs        window, fonts, icon, CLI, input routing
   app.rs         state and the Act dispatcher — every key and click goes through it
   config/        yazi.toml, keymap.toml, theme.toml, key notation, command parsing
   core/          folder + cursor state, tabs, fuzzy matching
@@ -747,6 +747,9 @@ checklist of what has never been on a screen, and
 ```powershell
 .\scripts\make-fixtures.ps1
 ```
+
+The icon is `assets/icon.svg`; `assets/README.md` says how the `.ico` beside it
+is rebuilt, and that the artwork is not covered by the code's license.
 
 ## Building
 

@@ -68,13 +68,17 @@ fn main() -> eframe::Result<()> {
         .unwrap_or_else(|| PathBuf::from("."));
     let start = cli.path.as_deref().map(util::normalize).unwrap_or_else(|| home.clone());
 
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([cfg.ui.window_width, cfg.ui.window_height])
-            .with_min_inner_size([520.0, 360.0])
-            .with_title("Filer"),
-        ..Default::default()
-    };
+    let mut viewport = egui::ViewportBuilder::default()
+        .with_inner_size([cfg.ui.window_width, cfg.ui.window_height])
+        .with_min_inner_size([520.0, 360.0])
+        .with_title("Filer");
+    // The title bar, Alt+Tab and the taskbar button. `filer.exe`'s own icon is
+    // a resource compiled in by `build.rs`, from an `.ico` made of this same
+    // drawing. Without an icon the window still opens.
+    if let Some(icon) = app_icon(ICON_SVG, 256) {
+        viewport = viewport.with_icon(icon);
+    }
+    let options = eframe::NativeOptions { viewport, ..Default::default() };
 
     eframe::run_native(
         "Filer",
@@ -113,9 +117,11 @@ fn main() -> eframe::Result<()> {
 /// This is the *window's* icon — the title bar, Alt+Tab and the taskbar button.
 /// The icon Explorer draws on `filer.exe` itself is a resource compiled into the
 /// binary, which is a separate thing and not this.
-// Unreachable until the icon's SVG is in the tree; the tests below are what
-// exercise it in the meantime.
-#[allow(dead_code)]
+/// The artwork, kept as a vector so there is one file to change. `build.rs`
+/// works from `assets/icon.ico`, which `cargo run --example make-icon` rebuilds
+/// from this same file.
+const ICON_SVG: &[u8] = include_bytes!("../assets/icon.svg");
+
 fn app_icon(svg: &[u8], px: u32) -> Option<egui::IconData> {
     use resvg::{tiny_skia, usvg};
 
