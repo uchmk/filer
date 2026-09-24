@@ -74,7 +74,6 @@ pub enum Act {
     Escape(EscapeWhat),
     Quit,
     Close,
-    Suspend,
 
     Arrow(Step),
     /// Spot the previous / next file (yazi's spot `swipe`).
@@ -280,7 +279,6 @@ pub fn parse(line: &str) -> Act {
         "close" => Act::Close,
         "complete" => Act::Complete,
         "jump" => Act::Jump,
-        "suspend" => Act::Suspend,
 
         "arrow" => Act::Arrow(parse_step(a.first().unwrap_or("1"))),
         "swipe" => Act::Swipe(a.first().and_then(|s| s.parse().ok()).unwrap_or(1)),

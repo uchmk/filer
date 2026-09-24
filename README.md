@@ -59,9 +59,9 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
 `menu`, `extract`, `compress`, `split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
-project's own). In the `[spot]`
-section: `close`,
-`arrow`, `swipe` and `copy cell`.
+project's own). `select` and `select_all` are accepted as `toggle --state=on` /
+`toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
+`close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe` and `copy cell`.
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -88,6 +88,9 @@ registered: the menu is read back out of the config every time it opens.
 syntax theme.
 
 ### filer.toml (GUI-only settings)
+
+[`filer.example.toml`](filer.example.toml) in this repository is a commented copy of the defaults —
+copy it to `%APPDATA%\filer\filer.toml` and edit from there.
 
 ```toml
 [ui]
@@ -286,16 +289,19 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `gg` `G` `<C-u>` `<C-d>` `<C-b>` `<C-f>` | top / bottom / half page / full page |
 | `H` `L` | back / forward in history |
 | `<Space>` `v` `V` `<C-a>` `<C-r>` | toggle / visual / visual-unset / select all / invert |
-| `y` `x` `p` `P` `-` `_` | yank / cut / paste / paste-force / symlink / relative symlink |
+| `y` `x` `Y` `p` `P` `-` `_` `<C-->` | yank / cut / cancel the yank / paste / paste-force / symlink / relative symlink / hardlink |
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
 | `a` `r` | create (trailing `/` makes a directory) / rename |
 | `e` `E` | extract the selected archives / compress the selection |
+| `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` config, `gt` temp, `g<Space>` type a path, `gf` follow the link |
+| `c…` | `cc` copy the path, `cd` the parent, `cf` the file name, `cn` the name without its extension |
 | `o` `O` `<Enter>` `<S-Enter>` | open / open with… / open (at the outline's line) / open with… |
 | `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter |
 | `s` `S` `<C-s>` | search by name / by content / stop |
 | `z` | fuzzy-jump to a bookmark or recent directory |
 | `.` `,…` `m…` | hidden files / sort menu / line-mode menu |
-| `t` `1`–`9` `[` `]` `{` `}` | tabs |
+| `t` `1`–`9` `[` `]` `{` `}` `<C-c>` | new tab / switch / previous / next / move it left / right / close it (quits on the last) |
+| `<F5>` | re-read the current directory |
 | `<C-w>` `<C-S-w>` | split the view in two panes / move between them, close the split |
 | `;` `:` | shell command / blocking shell command |
 | `<A-k>` `<A-j>` `M` | scroll the preview / Markdown rendered ↔ source |
@@ -397,3 +403,53 @@ src/
   search.rs      recursive name/content search
   exec.rs        openers and shell
 ```
+
+## Building
+
+```
+cargo build --release      # target\release\filer.exe
+cargo test                 # the parsing, sorting and fuzzy-matching tests
+```
+
+Rust 1.95 or newer (`rust-version` in `Cargo.toml`) — the floor comes from egui 0.36, not from
+this code. Everything the previews need is compiled in, so there is nothing else to install: no
+magick, ffmpeg or pdftoppm. CI builds and tests on `windows-latest`, which is the platform the
+code is written against; the handful of tests that assert Windows path and editor behavior only
+pass there.
+
+## License
+
+Dual-licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or
+  <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
+
+at your option. This is the usual arrangement in the Rust ecosystem, and it is what every
+dependency here already offers: pick whichever of the two suits you, you do not need both.
+
+`Cargo.toml` carries the same thing as `license = "MIT OR Apache-2.0"`, so tooling agrees with
+these files.
+
+### Contributing
+
+Unless you state otherwise, any contribution you intentionally submit for inclusion in this work,
+as defined in the Apache-2.0 license, is dual-licensed as above, with no additional terms or
+conditions.
+
+### Third-party code
+
+filer links a number of crates, all under permissive licenses (MIT, Apache-2.0, BSD, Zlib, ISC,
+Unlicense, CC0 and one MPL-2.0 file-level component in `option-ext`, reached through `dirs`). None
+of them constrains the choice above. A binary you distribute still carries their notice
+requirements: `cargo about` or `cargo bundle-licenses` will generate the attribution file.
+
+Two of them also ship data rather than only code:
+
+- **syntect** and **two-face** embed syntax definitions collected by [bat], which are third-party
+  Sublime Text grammars under their own (mostly MIT) licenses. See two-face's acknowledgements for
+  the list.
+- **resvg** brings its own font handling; the fonts filer draws with are the ones already installed
+  on your system and are not redistributed here.
+
+[bat]: https://github.com/sharkdp/bat

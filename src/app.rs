@@ -1398,7 +1398,6 @@ impl App {
                     self.quit = true;
                 }
             }
-            Act::Suspend => {}
 
             Act::Swipe(n) => self.act(Act::Arrow(Step::Rel(n))),
             Act::Arrow(step) => {
