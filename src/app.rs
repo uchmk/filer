@@ -967,6 +967,7 @@ impl App {
                 tab.cwd = target.clone();
             }
             tab.visual = None;
+            tab.mouse_range = None;
             tab.finder = None;
             tab.preview_offset = 0;
         }

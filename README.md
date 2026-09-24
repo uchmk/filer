@@ -210,6 +210,9 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `w` `q` | tasks / quit |
 
 Mouse works too: click to move the cursor, double-click to open, wheel to scroll.
+`Shift`+click selects from the cursor to the row you clicked, and `Ctrl`+click (`Cmd` on macOS)
+adds or removes one row. Both share the selection with `<Space>` and visual mode, so you can
+start a range with the mouse and finish it with the keyboard.
 
 ## Shell integration
 

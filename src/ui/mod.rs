@@ -278,13 +278,22 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
             app.tabs[app.active].current.scroll(res.scrolled, rows);
             app.tabs[app.active].sync_visual();
         }
+        // Shift / Ctrl (Cmd on macOS) turn a click into a selection gesture, so
+        // it never counts as a double-click to open with.
+        let multi = res.mods.shift || res.mods.command;
         // Clicking the list takes the keys back from the outline.
-        if let Some(row) = res.clicked {
+        if let Some(row) = res.clicked.or(if multi { res.double_clicked } else { None }) {
             app.preview.outline = None;
-            app.tabs[app.active].current.cursor = row;
-            app.tabs[app.active].sync_visual();
+            let tab = &mut app.tabs[app.active];
+            if res.mods.shift {
+                tab.shift_click(row);
+            } else if res.mods.command {
+                tab.ctrl_click(row);
+            } else {
+                tab.click(row);
+            }
         }
-        if let Some(row) = res.double_clicked {
+        if let Some(row) = res.double_clicked.filter(|_| !multi) {
             app.preview.outline = None;
             app.tabs[app.active].current.cursor = row;
             // `enter` on a file moves into its outline; a double-click opens.

@@ -30,6 +30,8 @@ pub struct ListResult {
     pub clicked: Option<usize>,
     pub double_clicked: Option<usize>,
     pub scrolled: i64,
+    /// Modifiers held down for the click above.
+    pub mods: egui::Modifiers,
 }
 
 pub fn draw(
@@ -42,7 +44,8 @@ pub fn draw(
 ) -> ListResult {
     let painter = ui.painter_at(rect);
     let rows = ((rect.height() / st.row_h).floor() as usize).max(1);
-    let mut out = ListResult { clicked: None, double_clicked: None, scrolled: 0 };
+    let mut out =
+        ListResult { clicked: None, double_clicked: None, scrolled: 0, mods: egui::Modifiers::NONE };
 
     match &folder.state {
         LoadState::Error(e) => {
@@ -187,6 +190,9 @@ pub fn draw(
                 out.double_clicked = Some(row);
             } else if resp.clicked() {
                 out.clicked = Some(row);
+            }
+            if out.clicked.is_some() || out.double_clicked.is_some() {
+                out.mods = ui.ctx().input(|i| i.modifiers);
             }
         }
     }
