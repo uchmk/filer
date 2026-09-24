@@ -253,6 +253,19 @@ major operating systems and architectures.
 | **macOS** | Apple Silicon (ARM64) / Intel (x64) | Cmd key support, Finder integration |
 | **Linux** | x64 / ARM64 | X11 / Wayland |
 
+## Network paths (UNC)
+
+On Windows a UNC path is an ordinary path here — type `\\192.168.1.5\pub` (or a mapped drive
+letter) into the `cd` prompt and browse it like any folder. Forward slashes work too
+(`//192.168.1.5/pub`) and are shown back in the `\\host\share` spelling.
+
+- A share root is the top of the tree: `..` / `h` stop there instead of climbing into the host.
+- `\\host` on its own names no share, so there is nothing to list; filer reports the host you
+  typed rather than silently dropping you at `\host` on the current drive. Enumerating a host's
+  shares is not implemented — give the share name.
+- Slow or disconnected shares are not handled specially yet: listing runs on the scan pool so the
+  window keeps drawing, but the folder stays on *Loading* until the OS gives up.
+
 ## Known limits
 
 - Windows-first. The code compiles for Unix but only Windows is tested; `block = true` openers and

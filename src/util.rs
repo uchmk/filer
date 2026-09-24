@@ -118,24 +118,77 @@ pub fn fmt_time(t: Option<SystemTime>, fmt: &str) -> String {
 }
 
 /// Lexically normalize a path (resolve `.`/`..`) without touching the filesystem.
+///
+/// `..` never climbs past a root, so a drive root, a UNC share root (`\\host\share`)
+/// and `/` all stay put — the same as the OS resolves them.
 pub fn normalize(path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
+    // Roots pushed so far (a prefix and/or a separator), and the components
+    // above them that `..` is allowed to pop.
+    let mut rooted = false;
+    let mut depth = 0usize;
     for c in path.components() {
         match c {
             Component::CurDir => {}
             Component::ParentDir => {
-                if !out.pop() {
+                if depth > 0 {
+                    out.pop();
+                    depth -= 1;
+                } else if !rooted {
+                    // Relative path: keep climbing, there is nothing to pop.
                     out.push("..");
                 }
+                // At a root `..` is the root itself; drop it.
             }
-            other => out.push(other.as_os_str()),
+            // Only Windows produces a prefix, and only there can it be spelled
+            // with forward slashes (`//host/share`); settle on one spelling so
+            // paths compare and display the same either way.
+            Component::Prefix(_) => {
+                out.push(backslashed(c.as_os_str()));
+                rooted = true;
+            }
+            Component::RootDir => {
+                out.push(c.as_os_str());
+                rooted = true;
+            }
+            Component::Normal(s) => {
+                out.push(s);
+                depth += 1;
+            }
         }
     }
     if out.as_os_str().is_empty() {
-        PathBuf::from(".")
-    } else {
-        out
+        return PathBuf::from(".");
     }
+    if host_only_unc(path) {
+        // `\\host` without a share is no prefix to `std`, which would leave us
+        // with `\host` — a different place. Keep the pair the user typed.
+        let mut s = std::ffi::OsString::from(r"\");
+        s.push(out.as_os_str());
+        return PathBuf::from(s);
+    }
+    out
+}
+
+fn backslashed(s: &std::ffi::OsStr) -> std::ffi::OsString {
+    match s.to_str() {
+        Some(t) if t.contains('/') => std::ffi::OsString::from(t.replace('/', r"\")),
+        _ => s.to_os_string(),
+    }
+}
+
+/// `\\host` or `//host`: the start of a UNC path that names no share yet.
+fn host_only_unc(path: &Path) -> bool {
+    if !cfg!(windows) {
+        // A leading `//` is an ordinary path elsewhere.
+        return false;
+    }
+    let b = path.as_os_str().as_encoded_bytes();
+    b.len() > 2
+        && matches!(b[0], b'\\' | b'/')
+        && matches!(b[1], b'\\' | b'/')
+        && !matches!(b[2], b'\\' | b'/')
+        && !matches!(path.components().next(), Some(Component::Prefix(_)))
 }
 
 /// Expand `~`, `%VAR%` and `$VAR` in a user-supplied path string.
@@ -165,7 +218,9 @@ pub fn expand(input: &str) -> PathBuf {
 /// Absolutize relative to `base`, then normalize.
 pub fn resolve_against(base: &Path, input: &str) -> PathBuf {
     let p = expand(input);
-    if p.is_absolute() || has_windows_prefix(&p) {
+    // `\\host` has a root but no prefix, so `is_absolute` says no; joining it
+    // onto the base would quietly turn it into `<drive>\host`.
+    if p.is_absolute() || has_windows_prefix(&p) || host_only_unc(&p) {
         normalize(&p)
     } else {
         normalize(&base.join(p))
@@ -311,6 +366,50 @@ mod tests {
     #[test]
     fn normalizes() {
         assert_eq!(normalize(Path::new(r"C:\a\b\..\c")), PathBuf::from(r"C:\a\c"));
+        assert_eq!(normalize(Path::new("a/./b/../c")), PathBuf::from("a").join("c"));
+        // Relative paths have nothing to pop, so `..` stays.
+        assert_eq!(normalize(Path::new("../../a")), PathBuf::from("..").join("..").join("a"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn dot_dot_stops_at_a_root() {
+        for (input, want) in [
+            (r"C:\a\..\..", r"C:\"),
+            (r"C:\..\..\x", r"C:\x"),
+            (r"\\host\share\a\..\..", r"\\host\share\"),
+            (r"\\host\share\..\..\x", r"\\host\share\x"),
+        ] {
+            assert_eq!(normalize(Path::new(input)), PathBuf::from(want), "{input}");
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn keeps_unc_paths_whole() {
+        // A share root is its own parent, and it keeps its two leading slashes.
+        let share = normalize(Path::new(r"\\192.168.1.5\pub"));
+        assert_eq!(share, PathBuf::from(r"\\192.168.1.5\pub"));
+        assert_eq!(share.parent(), None);
+        assert_eq!(file_name(&share), r"\\192.168.1.5\pub\");
+
+        // Forward slashes spell the same share.
+        assert_eq!(normalize(Path::new("//192.168.1.5/pub/x")), PathBuf::from(r"\\192.168.1.5\pub\x"));
+
+        // A host with no share yet must not collapse to `\host`.
+        assert_eq!(normalize(Path::new(r"\\192.168.1.5")), PathBuf::from(r"\\192.168.1.5"));
+        assert_eq!(
+            resolve_against(Path::new(r"C:\work"), r"\\192.168.1.5"),
+            PathBuf::from(r"\\192.168.1.5")
+        );
+
+        // Typing a share into the prompt is absolute, not relative to the tab.
+        assert_eq!(
+            resolve_against(Path::new(r"C:\work"), r"\\nas\media\photos"),
+            PathBuf::from(r"\\nas\media\photos")
+        );
+        // ...and a plain rooted path still picks up the base's drive.
+        assert_eq!(resolve_against(Path::new(r"D:\work"), r"\tmp"), PathBuf::from(r"D:\tmp"));
     }
 
     #[test]
