@@ -299,6 +299,10 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
 - A new tab (`t`, or `tab_create <path>`) opens the same way: it appears at once on the path it
   was given, and a listing that never arrives puts it back on the directory it was opened from.
   A path that names a file reveals that file in its folder.
+- Change watching runs on its own thread. Registering a directory opens a handle to it
+  (`ReadDirectoryChangesW` on Windows) and that call can hang on a dead share, so the window only
+  posts the set of folders it wants watched. While a registration is stuck the panes still scroll
+  and move; requests that pile up behind it collapse to the newest one.
 
 ## Known limits
 
