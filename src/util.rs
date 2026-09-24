@@ -107,6 +107,18 @@ pub fn human_size(bytes: u64) -> String {
     }
 }
 
+/// A waiting time, in the shortest form that still reads: `45s`, `3m10s`,
+/// `2h05m`. Long enough to be worth showing, short enough to sit in a status
+/// bar beside everything else.
+pub fn fmt_duration(d: std::time::Duration) -> String {
+    let secs = d.as_secs();
+    match secs {
+        0..=59 => format!("{secs}s"),
+        60..=3599 => format!("{}m{:02}s", secs / 60, secs % 60),
+        _ => format!("{}h{:02}m", secs / 3600, (secs % 3600) / 60),
+    }
+}
+
 pub fn fmt_time(t: Option<SystemTime>, fmt: &str) -> String {
     match t {
         Some(t) => {
@@ -366,6 +378,19 @@ mod tests {
         let mut v = vec!["a10", "a2", "a1", "b1"];
         v.sort_by(|a, b| natural_cmp(a, b, false));
         assert_eq!(v, vec!["a1", "a2", "a10", "b1"]);
+    }
+
+    #[test]
+    fn durations_read_at_a_glance() {
+        use std::time::Duration;
+        assert_eq!(fmt_duration(Duration::from_secs(0)), "0s");
+        assert_eq!(fmt_duration(Duration::from_secs(45)), "45s");
+        // A minute in, seconds are padded so the text stops jittering.
+        assert_eq!(fmt_duration(Duration::from_secs(60)), "1m00s");
+        assert_eq!(fmt_duration(Duration::from_secs(190)), "3m10s");
+        assert_eq!(fmt_duration(Duration::from_secs(3599)), "59m59s");
+        assert_eq!(fmt_duration(Duration::from_secs(3600)), "1h00m");
+        assert_eq!(fmt_duration(Duration::from_secs(7_500)), "2h05m");
     }
 
     #[test]

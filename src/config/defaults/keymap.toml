@@ -553,6 +553,38 @@ desc = "Close help"
 on = "<Esc>"
 run = "close"
 desc = "Close the task manager"
+[[tasks.keymap]]
+on = "q"
+run = "close"
+desc = "Close the task manager"
+[[tasks.keymap]]
+on = "j"
+run = "arrow 1"
+desc = "Next task"
+[[tasks.keymap]]
+on = "k"
+run = "arrow -1"
+desc = "Previous task"
+[[tasks.keymap]]
+on = "<Down>"
+run = "arrow 1"
+desc = "Next task"
+[[tasks.keymap]]
+on = "<Up>"
+run = "arrow -1"
+desc = "Previous task"
+[[tasks.keymap]]
+on = "p"
+run = "task_toggle"
+desc = "Pause / resume the task"
+[[tasks.keymap]]
+on = "x"
+run = "task_cancel"
+desc = "Cancel the task"
+[[tasks.keymap]]
+on = "t"
+run = "task_top"
+desc = "Move the task to the front of the queue"
 
 [[spot.keymap]]
 on = "<Esc>"

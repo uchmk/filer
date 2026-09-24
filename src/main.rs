@@ -347,9 +347,9 @@ fn handle_input(app: &mut App, ctx: &egui::Context) {
                         }
                     }
                 }
-                Overlay::Tasks => {
-                    if text.contains('q') {
-                        app.overlay = Overlay::None;
+                Overlay::Tasks(_) => {
+                    for c in text.chars() {
+                        app.feed_tasks_key(Key::char(c));
                     }
                 }
                 Overlay::Spot(_) => {
@@ -419,9 +419,9 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
             K::PageUp => app.help_scroll = app.help_scroll.saturating_sub(20),
             _ => {}
         },
-        Overlay::Tasks => {
-            if key == K::Escape {
-                app.overlay = Overlay::None;
+        Overlay::Tasks(_) => {
+            if let Some(k) = keys::from_egui(key, modifiers) {
+                app.feed_tasks_key(k);
             }
         }
         Overlay::Spot(_) => {

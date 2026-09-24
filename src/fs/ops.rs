@@ -4,8 +4,11 @@
 //! concurrent copies on the same disk are slower than one, and sequential
 //! progress is easier to reason about.
 
+use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
 
 use crossbeam_channel::{Receiver, Sender};
 
@@ -58,6 +61,8 @@ pub enum OpEvent {
     Progress { id: u64, files_done: u64, bytes_done: u64, current: String },
     /// The worker is blocked until the UI sends a [`Resolution`].
     Conflict { id: u64, src: PathBuf, dest: PathBuf, reply: Sender<Resolution> },
+    /// The job has parked, or started moving again.
+    Paused { id: u64, paused: bool },
     Finished { id: u64, kind: OpKind, errors: Vec<String>, cancelled: bool },
 }
 
@@ -71,28 +76,48 @@ pub enum Resolution {
     Cancel,
 }
 
+/// What the task panel can say to a job while it runs.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Control {
+    Pause,
+    Resume,
+    Cancel,
+}
+
+/// The jobs waiting their turn. A queue rather than a channel, because the
+/// task panel reorders it: a `VecDeque` can be looked into and rearranged,
+/// and a channel cannot.
+type Queue = Arc<(Mutex<VecDeque<OpRequest>>, Condvar)>;
+
 pub struct Runner {
-    tx: Sender<OpRequest>,
+    queue: Queue,
+    stop: Arc<AtomicBool>,
+    ctl: Sender<(u64, Control)>,
     pub rx: Receiver<OpEvent>,
 }
 
 impl Runner {
     pub fn new(wake: impl Fn() + Send + 'static) -> Self {
-        let (tx, job_rx) = crossbeam_channel::unbounded::<OpRequest>();
         let (ev_tx, rx) = crossbeam_channel::unbounded::<OpEvent>();
+        let (ctl, ctl_rx) = crossbeam_channel::unbounded::<(u64, Control)>();
+        let queue: Queue = Arc::new((Mutex::new(VecDeque::new()), Condvar::new()));
+        let stop = Arc::new(AtomicBool::new(false));
+        let (q, s) = (queue.clone(), stop.clone());
         std::thread::Builder::new()
             .name("fs-ops".into())
             .spawn(move || {
-                while let Ok(req) = job_rx.recv() {
+                while let Some(req) = next_job(&q, &s) {
                     let mut ctx = Ctx {
                         id: req.id,
                         ev: &ev_tx,
+                        ctl: &ctl_rx,
                         wake: &wake,
                         files_done: 0,
                         bytes_done: 0,
                         policy: if req.force { Policy::OverwriteAll } else { Policy::Ask },
                         errors: Vec::new(),
                         cancelled: false,
+                        paused: false,
                         last_report: std::time::Instant::now(),
                     };
                     ctx.run(&req);
@@ -106,11 +131,64 @@ impl Runner {
                 }
             })
             .expect("spawn fs-ops worker");
-        Self { tx, rx }
+        Self { queue, stop, ctl, rx }
     }
 
     pub fn submit(&self, req: OpRequest) {
-        let _ = self.tx.send(req);
+        let (lock, cv) = &*self.queue;
+        if let Ok(mut q) = lock.lock() {
+            q.push_back(req);
+        }
+        cv.notify_one();
+    }
+
+    /// Pause, resume or cancel the job that is running. A queued job is not
+    /// running yet, so [`Runner::drop_queued`] is what cancels one of those.
+    pub fn control(&self, id: u64, c: Control) {
+        let _ = self.ctl.send((id, c));
+    }
+
+    /// Take a job out of the queue before it starts. `false` when it is not
+    /// there, which means it is already running (or already done).
+    pub fn drop_queued(&self, id: u64) -> bool {
+        let (lock, _) = &*self.queue;
+        let Ok(mut q) = lock.lock() else { return false };
+        let Some(at) = q.iter().position(|r| r.id == id) else { return false };
+        q.remove(at);
+        true
+    }
+
+    /// Move a queued job to the front, so it is the next one to run.
+    pub fn promote(&self, id: u64) -> bool {
+        let (lock, _) = &*self.queue;
+        let Ok(mut q) = lock.lock() else { return false };
+        let Some(at) = q.iter().position(|r| r.id == id) else { return false };
+        let Some(req) = q.remove(at) else { return false };
+        q.push_front(req);
+        true
+    }
+}
+
+impl Drop for Runner {
+    fn drop(&mut self) {
+        // Let the worker out of its wait so the thread ends with the app.
+        self.stop.store(true, Ordering::Relaxed);
+        self.queue.1.notify_all();
+    }
+}
+
+/// Block until there is a job to run, or until the app is going away.
+fn next_job(queue: &Queue, stop: &AtomicBool) -> Option<OpRequest> {
+    let (lock, cv) = &**queue;
+    let mut q = lock.lock().ok()?;
+    loop {
+        if stop.load(Ordering::Relaxed) {
+            return None;
+        }
+        if let Some(req) = q.pop_front() {
+            return Some(req);
+        }
+        q = cv.wait(q).ok()?;
     }
 }
 
@@ -124,12 +202,14 @@ enum Policy {
 struct Ctx<'a> {
     id: u64,
     ev: &'a Sender<OpEvent>,
+    ctl: &'a Receiver<(u64, Control)>,
     wake: &'a (dyn Fn() + Send),
     files_done: u64,
     bytes_done: u64,
     policy: Policy,
     errors: Vec<String>,
     cancelled: bool,
+    paused: bool,
     last_report: std::time::Instant,
 }
 
@@ -293,6 +373,7 @@ impl Ctx<'_> {
     /// there is to say. Rate-limited like [`Ctx::report`], but never silent:
     /// an entry is always worth naming once the interval has passed.
     fn report_entry(&mut self, name: &str) {
+        self.pump();
         if self.last_report.elapsed().as_millis() < 50 {
             return;
         }
@@ -433,7 +514,56 @@ impl Ctx<'_> {
         Ok(())
     }
 
+    /// Take whatever the task panel has said, and park here while it wants the
+    /// job paused. Every loop that moves bytes calls this, so a pause lands
+    /// between files, or between chunks of one big file, and never mid-write.
+    fn pump(&mut self) {
+        let mut was = self.paused;
+        while let Ok((id, c)) = self.ctl.try_recv() {
+            if id == self.id {
+                self.apply(c);
+            }
+        }
+        // A paused job costs nothing but the thread it sits on, so it waits
+        // here rather than spinning.
+        while self.paused && !self.cancelled {
+            if was != self.paused {
+                self.announce_pause();
+                was = self.paused;
+            }
+            match self.ctl.recv() {
+                Ok((id, c)) if id == self.id => self.apply(c),
+                Ok(_) => {}
+                // The app is gone; there is nothing left to finish for.
+                Err(_) => {
+                    self.cancelled = true;
+                    self.paused = false;
+                }
+            }
+        }
+        if was != self.paused {
+            self.announce_pause();
+        }
+    }
+
+    fn apply(&mut self, c: Control) {
+        match c {
+            Control::Pause => self.paused = true,
+            Control::Resume => self.paused = false,
+            Control::Cancel => {
+                self.cancelled = true;
+                self.paused = false;
+            }
+        }
+    }
+
+    fn announce_pause(&mut self) {
+        let _ = self.ev.send(OpEvent::Paused { id: self.id, paused: self.paused });
+        (self.wake)();
+    }
+
     fn report(&mut self, current: &str) {
+        self.pump();
         // ~20 Hz is plenty for a progress bar and keeps the channel quiet.
         if self.last_report.elapsed().as_millis() < 50 && !current.is_empty() {
             return;

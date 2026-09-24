@@ -69,7 +69,7 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
 
     match &app.overlay {
         Overlay::Help => overlay::help(app, ui, full, &f, row_h),
-        Overlay::Tasks => overlay::tasks(app, ui, full, &f, row_h),
+        Overlay::Tasks(_) => overlay::tasks(app, ui, full, &f, row_h),
         Overlay::Confirm(_) => overlay::confirm(app, ui, full, &f, row_h, &mut queued),
         Overlay::Pick(_) => overlay::pick(app, ui, full, &f, row_h, &mut queued),
         Overlay::Spot(_) => overlay::spot(app, ui, full, &f, row_h),
@@ -495,8 +495,27 @@ fn draw_status(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId) {
 
     // Right side: task progress, filter/find state, position.
     let mut right: Vec<String> = Vec::new();
-    if let Some(t) = app.tasks.iter().find(|t| t.state == crate::app::TaskState::Running) {
-        right.push(format!("{} {:>3.0}%", t.kind.verb(), t.fraction() * 100.0));
+    if let Some(t) = running_task(app) {
+        let mut s = format!("{} {:>3.0}%", t.kind.verb(), t.fraction() * 100.0);
+        if t.state == crate::app::TaskState::Paused {
+            s.push_str(" paused");
+        }
+        if let Some(b) = t.speed() {
+            s.push_str(&format!("  {}/s", util::human_size(b)));
+        }
+        if let Some(eta) = t.eta() {
+            s.push_str(&format!("  {}", util::fmt_duration(eta)));
+        }
+        // What else is waiting, so a queue is never a surprise.
+        let waiting = app
+            .tasks
+            .iter()
+            .filter(|o| o.id != t.id && o.state.is_live())
+            .count();
+        if waiting > 0 {
+            s.push_str(&format!("  +{waiting}"));
+        }
+        right.push(s);
     }
     if let Some(h) = &app.search {
         right.push(match h.via {
@@ -536,14 +555,29 @@ fn draw_status(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId) {
     );
 
     // A thin progress strip along the bottom while work is running.
-    if let Some(t) = app.tasks.iter().find(|t| t.state == crate::app::TaskState::Running) {
+    if let Some(t) = running_task(app) {
         let w = rect.width() * t.fraction();
+        let color = match t.state {
+            crate::app::TaskState::Paused => theme.fg_dim,
+            _ => theme.progress_fg,
+        };
         painter.rect_filled(
             Rect::from_min_size(rect.left_bottom() - Vec2::new(0.0, 2.0), Vec2::new(w, 2.0)),
             CornerRadius::ZERO,
-            theme.progress_fg,
+            color,
         );
     }
+}
+
+/// The job the status bar speaks for: the one being worked on, or the one
+/// parked mid-way, which is worth saying more than a queue of jobs that have
+/// not begun.
+fn running_task(app: &App) -> Option<&crate::app::Task> {
+    use crate::app::TaskState;
+    app.tasks
+        .iter()
+        .find(|t| t.state == TaskState::Running)
+        .or_else(|| app.tasks.iter().find(|t| t.state == TaskState::Paused))
 }
 
 // ---------------------------------------------------------------- toasts

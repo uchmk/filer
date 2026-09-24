@@ -58,7 +58,8 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
-`menu`, `extract`, `compress`, `split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
+`menu`, `extract`, `compress`, `task_toggle`, `task_cancel`, `task_top`, `split`, `pane_focus`,
+`toggle_render` and `toggle_outline` (this
 project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe` and `copy cell`.
@@ -233,6 +234,35 @@ how many. Right-clicking outside the selection drops it and acts on that one row
 Explorer does. This is the nearest thing here to a plugin menu: a `shell` binding or an opener is
 how a Lua plugin's action gets onto the screen, with no Lua runtime involved.
 
+## Tasks
+
+Copying, moving, deleting, packing and unpacking all run as jobs on one worker, one at a time —
+two copies on the same disk are slower than one. The status bar carries the one being worked on:
+
+```
+Copy  42%  18.4 M/s  1m12s  +2
+```
+
+the percentage, the speed, how long the rest should take, and how many other jobs are waiting.
+The speed is measured over a window rather than between reports, and smoothed, so it stays
+readable instead of flickering; the time left is only shown when the size is known, since a file
+count says nothing about how big the files are.
+
+`w` opens the panel, which is a list you can act on:
+
+| Key | |
+| --- | --- |
+| `j` `k` (or `↑` `↓`) | move between jobs |
+| `p` | pause the job, or set it going again |
+| `x` | cancel it, queued or running |
+| `t` | move a queued job to the front |
+| `q` `<Esc>` | close |
+
+Pausing lands between files, or between chunks of a large one, never mid-write. A paused job
+holds the worker, so nothing behind it starts until it is resumed or cancelled — `t` is how you
+change your mind about what should have gone first. The commands are `task_toggle`,
+`task_cancel` and `task_top`, bound in the `[tasks]` keymap section.
+
 ## Git status
 
 In a repository, each row carries a sign for what git says about it:
@@ -332,7 +362,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `<Tab>` | spot: details of the hovered file |
 | `<C-S-p>` | command palette: fuzzy-search every key binding and run it |
 | `<S-F10>` | context menu for the file under the cursor |
-| `w` `q` | tasks / quit |
+| `w` `q` | tasks (`p` pause, `x` cancel, `t` to the front) / quit |
 
 Mouse works too: click to move the cursor, double-click to open, right-click for the context
 menu, wheel to scroll. `Shift`+click selects from the cursor to the row you clicked, and

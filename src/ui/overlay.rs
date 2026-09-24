@@ -203,7 +203,8 @@ pub fn help(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
 pub fn tasks(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     dim(ui, full);
     let rect = modal_rect(full, 0.7, 0.6);
-    let inner = modal_frame(ui, rect, &app.cfg.theme, "Tasks — <Esc> to close", f, row_h);
+    let title = "Tasks — j/k move · p pause · x cancel · t to the front · <Esc> to close";
+    let inner = modal_frame(ui, rect, &app.cfg.theme, title, f, row_h);
     let theme = &app.cfg.theme;
     let painter = ui.painter_at(inner);
 
@@ -217,23 +218,33 @@ pub fn tasks(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         );
         return;
     }
+    let cursor = match &app.overlay {
+        Overlay::Tasks(ov) => ov.cursor,
+        _ => usize::MAX,
+    };
     let mut y = inner.top();
-    for t in &app.tasks {
-        let state = match t.state {
-            TaskState::Running => "running",
-            TaskState::Done => "done",
-            TaskState::Failed => "failed",
-            TaskState::Cancelled => "cancelled",
-        };
+    for (i, t) in app.tasks.iter().enumerate() {
         let color = match t.state {
             TaskState::Failed => theme.progress_error,
             TaskState::Done => theme.marker_copied,
+            TaskState::Paused | TaskState::Queued => theme.fg_dim,
             _ => theme.fg,
         };
+        if i == cursor {
+            // The row the keys act on, marked the way the list marks its own.
+            painter.rect_filled(
+                Rect::from_min_size(
+                    egui::pos2(inner.left() - 6.0, y - 2.0),
+                    Vec2::new(inner.width() + 12.0, row_h + 4.0),
+                ),
+                CornerRadius::same(3),
+                theme.hovered_bg,
+            );
+        }
         painter.text(
             egui::pos2(inner.left(), y),
             Align2::LEFT_TOP,
-            format!("{}  {}  [{}]", t.kind.verb(), t.label, state),
+            format!("{}  {}  [{}]", t.kind.verb(), t.label, t.state.label()),
             f.clone(),
             color,
         );
@@ -246,13 +257,19 @@ pub fn tasks(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
             theme.progress_fg,
         );
         y += 10.0;
-        let detail = format!(
+        let mut detail = format!(
             "{}/{} files · {} / {}",
             t.files_done,
             t.files,
             crate::util::human_size(t.bytes_done),
             crate::util::human_size(t.bytes)
         );
+        if let Some(s) = t.speed() {
+            detail.push_str(&format!(" · {}/s", crate::util::human_size(s)));
+        }
+        if let Some(eta) = t.eta() {
+            detail.push_str(&format!(" · {} left", crate::util::fmt_duration(eta)));
+        }
         painter.text(egui::pos2(inner.left(), y), Align2::LEFT_TOP, detail, f.clone(), theme.fg_dim);
         y += row_h;
         for e in t.errors.iter().take(3) {

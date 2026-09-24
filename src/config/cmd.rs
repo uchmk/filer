@@ -141,6 +141,12 @@ pub enum Act {
 
     Help,
     TasksShow,
+    /// Pause the selected job, or set it going again.
+    TaskToggle,
+    /// Stop the selected job, queued or running.
+    TaskCancel,
+    /// Move the selected job to the front of the queue.
+    TaskTop,
     Spot,
     /// Fuzzy-search every `mgr` binding and run the one picked.
     Palette,
@@ -395,6 +401,9 @@ pub fn parse(line: &str) -> Act {
 
         "help" => Act::Help,
         "tasks_show" => Act::TasksShow,
+        "task_toggle" => Act::TaskToggle,
+        "task_cancel" => Act::TaskCancel,
+        "task_top" => Act::TaskTop,
         "spot" => Act::Spot,
         "palette" => Act::Palette,
         "menu" => Act::Menu,

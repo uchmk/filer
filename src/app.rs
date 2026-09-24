@@ -236,6 +236,11 @@ fn acts_on_file(a: &Act) -> bool {
     )
 }
 
+/// The task panel, which is a list now that its rows can be acted on.
+pub struct TasksOverlay {
+    pub cursor: usize,
+}
+
 /// The spot panel on the hovered file.
 pub struct SpotOverlay {
     /// The selected value row, counted across all sections.
@@ -250,7 +255,7 @@ pub enum Overlay {
     Confirm(ConfirmOverlay),
     Pick(PickOverlay),
     Help,
-    Tasks,
+    Tasks(TasksOverlay),
     Spot(SpotOverlay),
 }
 
@@ -264,10 +269,31 @@ impl Overlay {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TaskState {
+    /// Waiting its turn: one job runs at a time.
+    Queued,
     Running,
+    Paused,
     Done,
     Failed,
     Cancelled,
+}
+
+impl TaskState {
+    pub fn label(&self) -> &'static str {
+        match self {
+            TaskState::Queued => "queued",
+            TaskState::Running => "running",
+            TaskState::Paused => "paused",
+            TaskState::Done => "done",
+            TaskState::Failed => "failed",
+            TaskState::Cancelled => "cancelled",
+        }
+    }
+
+    /// Whether the job still has somewhere to go, and so is worth a key.
+    pub fn is_live(&self) -> bool {
+        matches!(self, TaskState::Queued | TaskState::Running | TaskState::Paused)
+    }
 }
 
 pub struct Task {
@@ -282,6 +308,11 @@ pub struct Task {
     pub state: TaskState,
     pub errors: Vec<String>,
     pub finished: Option<Instant>,
+    /// Bytes per second, smoothed. Zero until there is enough to say.
+    speed: f64,
+    /// The last point the speed was measured from.
+    sampled_at: Instant,
+    sampled_bytes: u64,
 }
 
 impl Task {
@@ -293,6 +324,44 @@ impl Task {
         } else {
             0.0
         }
+    }
+
+    /// Fold a new byte count into the running speed. Reports arrive about 20
+    /// times a second, which is far too often to measure over: a quarter of a
+    /// second of work is the shortest window that reads steadily.
+    fn sample(&mut self, bytes_done: u64) {
+        let dt = self.sampled_at.elapsed().as_secs_f64();
+        if dt < 0.25 {
+            return;
+        }
+        let now = bytes_done.saturating_sub(self.sampled_bytes) as f64 / dt;
+        // Smoothed, so a run of small files does not make the number jump
+        // about faster than it can be read.
+        self.speed = match self.speed {
+            0.0 => now,
+            prev => prev * 0.7 + now * 0.3,
+        };
+        self.sampled_at = Instant::now();
+        self.sampled_bytes = bytes_done;
+    }
+
+    /// Bytes per second, or nothing while the job is too young or too still
+    /// to have a useful answer.
+    pub fn speed(&self) -> Option<u64> {
+        (self.state == TaskState::Running && self.speed >= 1.0).then_some(self.speed as u64)
+    }
+
+    /// How long the rest should take at the current speed. Only bytes can
+    /// answer this: a file count says nothing about how big the files are.
+    pub fn eta(&self) -> Option<Duration> {
+        let speed = self.speed()? as f64;
+        let left = self.bytes.checked_sub(self.bytes_done)?;
+        if left == 0 || self.bytes == 0 {
+            return None;
+        }
+        let secs = left as f64 / speed;
+        // Past a day the number stops meaning anything.
+        (secs.is_finite() && secs < 86_400.0).then(|| Duration::from_secs_f64(secs))
     }
 }
 
@@ -1191,6 +1260,88 @@ impl App {
         (!rows.is_empty()).then(|| Section { title: "Preview".into(), rows })
     }
 
+    pub fn feed_tasks_key(&mut self, k: Key) {
+        self.pending.push(k);
+        let bindings = &self.cfg.keymap.tasks;
+        match keymap::resolve(bindings, &self.pending) {
+            keymap::Match::Exact(b) => {
+                let acts = b.run.clone();
+                self.pending.clear();
+                for a in acts {
+                    self.tasks_act(a);
+                }
+            }
+            keymap::Match::Pending(_) => {}
+            keymap::Match::None => self.pending.clear(),
+        }
+    }
+
+    /// The task panel's own commands: move, pause, cancel, reorder.
+    fn tasks_act(&mut self, a: Act) {
+        let len = self.tasks.len();
+        let page = self.tabs[self.active].page_rows.max(1);
+        let Overlay::Tasks(ov) = &mut self.overlay else { return };
+        match a {
+            Act::Close | Act::Escape(_) | Act::TasksShow | Act::Quit => {
+                self.overlay = Overlay::None;
+            }
+            Act::Arrow(step) if len > 0 => ov.cursor = step.apply(ov.cursor, len, page),
+            Act::TaskToggle => self.toggle_task(),
+            Act::TaskCancel => self.cancel_task(),
+            Act::TaskTop => self.promote_task(),
+            _ => {}
+        }
+    }
+
+    /// The job the panel's cursor is on, when there is one.
+    fn selected_task(&self) -> Option<(u64, TaskState)> {
+        let Overlay::Tasks(ov) = &self.overlay else { return None };
+        self.tasks.get(ov.cursor).map(|t| (t.id, t.state.clone()))
+    }
+
+    fn toggle_task(&mut self) {
+        let Some((id, state)) = self.selected_task() else { return };
+        match state {
+            // A queued job has not started, so there is nothing to park.
+            TaskState::Queued => self.toast("That job has not started yet"),
+            TaskState::Running => self.ops.control(id, ops::Control::Pause),
+            TaskState::Paused => self.ops.control(id, ops::Control::Resume),
+            _ => {}
+        }
+    }
+
+    fn cancel_task(&mut self) {
+        let Some((id, state)) = self.selected_task() else { return };
+        if !state.is_live() {
+            return;
+        }
+        // A job still in the queue never reaches the worker, so the panel
+        // closes it out itself; a running one is told to stop and answers
+        // with its own `Finished`.
+        if self.ops.drop_queued(id) {
+            if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
+                t.state = TaskState::Cancelled;
+                t.finished = Some(Instant::now());
+            }
+            return;
+        }
+        self.ops.control(id, ops::Control::Cancel);
+    }
+
+    fn promote_task(&mut self) {
+        let Some((id, state)) = self.selected_task() else { return };
+        if state != TaskState::Queued {
+            self.toast("Only a queued job can be moved up");
+            return;
+        }
+        if !self.ops.promote(id) {
+            return;
+        }
+        // The panel lists jobs in the order they were made, so say what
+        // happened rather than leaving the row where it was.
+        self.toast("Moved to the front of the queue");
+    }
+
     pub fn feed_spot_key(&mut self, k: Key) {
         self.pending.push(k);
         let bindings = &self.cfg.keymap.spot;
@@ -1620,7 +1771,15 @@ impl App {
                 self.help_scroll = 0;
                 self.overlay = Overlay::Help;
             }
-            Act::TasksShow => self.overlay = Overlay::Tasks,
+            Act::TasksShow => self.overlay = Overlay::Tasks(TasksOverlay { cursor: 0 }),
+            // These act on the row the task panel has under its cursor, so
+            // they open it first when it is not the overlay in front.
+            Act::TaskToggle | Act::TaskCancel | Act::TaskTop => {
+                if !matches!(self.overlay, Overlay::Tasks(_)) {
+                    self.overlay = Overlay::Tasks(TasksOverlay { cursor: 0 });
+                }
+                self.tasks_act(a);
+            }
             Act::Spot => self.open_spot(),
             Act::Palette => self.open_palette(),
             Act::Menu => self.open_menu(),
@@ -2003,9 +2162,14 @@ impl App {
             files_done: 0,
             bytes_done: 0,
             current: String::new(),
-            state: TaskState::Running,
+            // One job runs at a time, so a new one is queued until the worker
+            // picks it up and says `Started`.
+            state: TaskState::Queued,
             errors: Vec::new(),
             finished: None,
+            speed: 0.0,
+            sampled_at: Instant::now(),
+            sampled_bytes: 0,
         });
         self.ops.submit(OpRequest { id, kind, srcs, dest_dir, dest_file, force });
     }
@@ -2016,15 +2180,31 @@ impl App {
                 if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
                     t.files = files;
                     t.bytes = bytes;
+                    t.state = TaskState::Running;
+                    // The queue may have held it a while; the speed is about
+                    // the work, not the wait.
+                    t.sampled_at = Instant::now();
+                    t.sampled_bytes = 0;
                 }
             }
             ops::OpEvent::Progress { id, files_done, bytes_done, current } => {
                 if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
                     t.files_done = files_done;
+                    t.sample(bytes_done);
                     t.bytes_done = bytes_done;
                     if !current.is_empty() {
                         t.current = current;
                     }
+                }
+            }
+            ops::OpEvent::Paused { id, paused } => {
+                if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
+                    t.state = if paused { TaskState::Paused } else { TaskState::Running };
+                    // Nothing moved while it was parked, so the old speed is
+                    // not a measurement of anything.
+                    t.speed = 0.0;
+                    t.sampled_at = Instant::now();
+                    t.sampled_bytes = t.bytes_done;
                 }
             }
             ops::OpEvent::Conflict { id, src, dest, reply } => {
@@ -2965,6 +3145,68 @@ mod tests {
     /// Tab asks the scan pool a question, and the answer may arrive over text
     /// that has since moved on. The question is the pair below, so an answer
     /// to an older one can be recognised and dropped.
+    fn task(bytes: u64) -> Task {
+        Task {
+            id: 1,
+            kind: OpKind::Copy,
+            label: "Copy".into(),
+            files: 1,
+            bytes,
+            files_done: 0,
+            bytes_done: 0,
+            current: String::new(),
+            state: TaskState::Running,
+            errors: Vec::new(),
+            finished: None,
+            speed: 0.0,
+            sampled_at: Instant::now(),
+            sampled_bytes: 0,
+        }
+    }
+
+    /// The speed is measured over a window, not per report: reports arrive
+    /// about twenty times a second and the gap between two of them says
+    /// nothing useful.
+    #[test]
+    fn a_running_job_reports_a_speed_and_what_is_left() {
+        let mut t = task(3_000_000);
+        // Too soon to measure: the sample is ignored and there is no answer.
+        t.sample(500_000);
+        assert_eq!(t.speed(), None, "a fraction of a second is not a measurement");
+
+        // A second's worth of work, a megabyte of it.
+        t.sampled_at = Instant::now() - Duration::from_secs(1);
+        t.sampled_bytes = 0;
+        t.sample(1_000_000);
+        t.bytes_done = 1_000_000;
+        let speed = t.speed().expect("a second of copying is measurable");
+        assert!((900_000..=1_100_000).contains(&speed), "got {speed} B/s");
+
+        // Two of the three megabytes are left, at about a megabyte a second.
+        let eta = t.eta().expect("bytes are known, so the rest can be timed");
+        assert!((1..=3).contains(&eta.as_secs()), "got {eta:?}");
+    }
+
+    #[test]
+    fn a_job_that_is_not_running_says_nothing_about_speed() {
+        let mut t = task(3_000_000);
+        t.sampled_at = Instant::now() - Duration::from_secs(1);
+        t.sample(1_000_000);
+        t.bytes_done = 1_000_000;
+
+        // Parked: the number would be a memory, not a measurement.
+        t.state = TaskState::Paused;
+        assert_eq!(t.speed(), None);
+        assert_eq!(t.eta(), None);
+
+        // A job counted in files rather than bytes cannot say how long the
+        // rest will take, however fast it is going.
+        t.state = TaskState::Running;
+        t.bytes = 0;
+        assert_eq!(t.eta(), None);
+        assert!(t.speed().is_some());
+    }
+
     #[test]
     fn a_completion_asks_about_one_directory_and_one_prefix() {
         let cwd = Path::new("/here");
