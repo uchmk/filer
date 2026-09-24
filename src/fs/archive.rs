@@ -206,6 +206,81 @@ fn refused_error(refused: usize) -> io::Result<()> {
     }
 }
 
+/// One entry of an archive, as the preview pane wants it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Listed {
+    pub name: String,
+    pub size: u64,
+    pub dir: bool,
+}
+
+/// What is inside `archive`, up to `limit` entries. The flag says whether the
+/// archive holds more than were read.
+///
+/// Only the table of contents is touched where the format has one: a zip's
+/// central directory and a 7z's header are read without inflating anything. A
+/// tar has no index, so its entries are walked — but the data is skipped, not
+/// decompressed into memory.
+pub fn list(archive: &Path, limit: usize) -> io::Result<(Vec<Listed>, bool)> {
+    let Some(format) = Format::from_path(archive) else {
+        return Err(io::Error::other("not an archive this build can read"));
+    };
+    let mut out: Vec<Listed> = Vec::new();
+    let mut more = false;
+    match format {
+        Format::Zip => {
+            let mut zip = zip::ZipArchive::new(BufReader::new(File::open(archive)?))
+                .map_err(|e| io::Error::other(e.to_string()))?;
+            more = zip.len() > limit;
+            for i in 0..zip.len().min(limit) {
+                let e = zip.by_index(i).map_err(|e| io::Error::other(e.to_string()))?;
+                out.push(Listed { name: e.name().to_owned(), size: e.size(), dir: e.is_dir() });
+            }
+        }
+        Format::Tar => list_tar(&mut BufReader::new(File::open(archive)?), limit, &mut out, &mut more)?,
+        Format::TarGz => {
+            let gz = flate2::read::GzDecoder::new(BufReader::new(File::open(archive)?));
+            list_tar(&mut BufReader::new(gz), limit, &mut out, &mut more)?
+        }
+        Format::SevenZ => {
+            let reader = sevenz_rust::SevenZReader::open(archive, sevenz_rust::Password::empty())
+                .map_err(|e| io::Error::other(e.to_string()))?;
+            let files = &reader.archive().files;
+            more = files.len() > limit;
+            for f in files.iter().take(limit) {
+                out.push(Listed {
+                    name: f.name().to_owned(),
+                    size: f.size(),
+                    dir: f.is_directory(),
+                });
+            }
+        }
+    }
+    Ok((out, more))
+}
+
+fn list_tar<R: Read>(
+    reader: &mut R,
+    limit: usize,
+    out: &mut Vec<Listed>,
+    more: &mut bool,
+) -> io::Result<()> {
+    let mut tar = tar::Archive::new(reader);
+    for entry in tar.entries()? {
+        let entry = entry?;
+        if out.len() == limit {
+            *more = true;
+            break;
+        }
+        out.push(Listed {
+            name: entry.path()?.to_string_lossy().into_owned(),
+            size: entry.size(),
+            dir: entry.header().entry_type().is_dir(),
+        });
+    }
+    Ok(())
+}
+
 /// Pack `srcs` into `archive`. Names inside are taken relative to `base`, so
 /// a folder keeps its shape and a file keeps its own name.
 pub fn compress(
@@ -402,6 +477,26 @@ mod tests {
             })
             .unwrap();
             assert_eq!(packed.len(), 2, "{:?}: both files are packed", format);
+
+            // The table of contents names the same things, without unpacking.
+            let (listed, more) = list(&archive, 100).unwrap();
+            assert!(!more, "{:?}: four entries is not a hundred", format);
+            let names: Vec<&str> = listed.iter().map(|l| l.name.trim_end_matches('/')).collect();
+            assert!(names.contains(&"src/top.txt"), "{:?}: got {names:?}", format);
+            assert!(names.contains(&"src/sub/deep.txt"), "{:?}: got {names:?}", format);
+            let top = listed.iter().find(|l| l.name == "src/top.txt").unwrap();
+            assert_eq!(top.size, 3, "{:?}: `top` is three bytes", format);
+            assert!(!top.dir);
+            assert!(
+                listed.iter().any(|l| l.dir && l.name.starts_with("src")),
+                "{:?}: the directories are listed too, and marked: {listed:?}",
+                format
+            );
+
+            // Reading only the first entry says there are more.
+            let (few, more) = list(&archive, 1).unwrap();
+            assert_eq!(few.len(), 1);
+            assert!(more, "{:?}: a limit that cuts the listing says so", format);
 
             let out = root.join("out");
             extract(&archive, &out, &mut |_, _| true).unwrap();

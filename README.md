@@ -354,6 +354,12 @@ Entry names coming out of an archive are treated as untrusted: one that climbs o
 destination with `..`, names an absolute path or carries a drive letter is refused and reported
 rather than written.
 
+Selecting an archive shows what is inside it in the preview pane — size and name, one entry a
+line, scrolling like any other preview. Only the table of contents is read where the format has
+one (a zip's central directory, a 7z's header), so nothing is decompressed to answer the
+question; a tar has no index, so its entries are walked with the data skipped. The first 2000
+entries are listed and the pane says when there are more.
+
 ## Other previews
 
 No external tools (magick, ffmpeg, pdftoppm) are needed:
@@ -476,8 +482,8 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   the hidden-file attribute are Windows-specific paths.
 - No Lua plugin runtime — see the plugin table above for what is emulated natively, and the
   [context menu](#context-menu) for how a custom action reaches the screen without one.
-- An archive's *preview* is a metadata card rather than a listing of what is inside — `e` unpacks
-  it, but the pane does not browse it. woff / woff2 fonts aren't previewed. Video,
+- An archive's preview lists what is inside but does not browse it: no entering a folder, and
+  no reading one file out. woff / woff2 fonts aren't previewed. Video,
   PDF and HEIC previews rely on Windows thumbnail handlers (see [Other previews](#other-previews)).
 - `[input]`, `[confirm]` and `[pick]` keymap layers are parsed for compatibility, but the prompts
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.
