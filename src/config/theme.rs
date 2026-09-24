@@ -459,7 +459,7 @@ impl Theme {
                 style: Style::from_raw(&r.style),
             })
             .collect();
-        rules.extend(self.filetypes.drain(..));
+        rules.append(&mut self.filetypes);
         self.filetypes = rules;
 
         prepend_icons(&mut self.icon_globs, &t.icon.globs);
@@ -530,7 +530,7 @@ fn prepend_icons(dest: &mut Vec<(String, Icon)>, src: &[IconRule]) {
             (r.name.clone(), Icon { text: r.text.clone(), fg: r.fg.as_deref().and_then(parse_color) })
         })
         .collect();
-    v.extend(dest.drain(..));
+    v.append(dest);
     *dest = v;
 }
 

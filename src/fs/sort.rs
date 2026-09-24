@@ -89,7 +89,7 @@ impl SortSpec {
                 entries.swap(i, j);
             }
             if dir_first {
-                entries.sort_by(|a, b| dir_rank(a).cmp(&dir_rank(b)));
+                entries.sort_by_key(dir_rank);
             }
             return;
         }

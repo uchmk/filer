@@ -98,7 +98,7 @@ mod tests {
         assert!(matches("*.rs", "main.rs", true));
         assert!(!matches("*.rs", "main.rss", true));
         assert!(matches("text/*", "text/plain", true));
-        assert!(matches("Cargo.???", "Cargo.toml", true) == false);
+        assert!(!matches("Cargo.???", "Cargo.toml", true));
         assert!(matches("Cargo.????", "Cargo.toml", true));
         assert!(matches("*", "anything", true));
         assert!(matches("[abc]x", "bx", true));
