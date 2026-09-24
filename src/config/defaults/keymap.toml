@@ -242,6 +242,14 @@ on = "D"
 run = "remove --permanently"
 desc = "Permanently delete the files"
 [[mgr.keymap]]
+on = "u"
+run = "undo"
+desc = "Undo the last rename, or put the last deleted files back"
+[[mgr.keymap]]
+on = "U"
+run = "redo"
+desc = "Redo what undo took back"
+[[mgr.keymap]]
 on = "a"
 run = "create"
 desc = "Create a file (end with / for a directory)"

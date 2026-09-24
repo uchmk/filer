@@ -20,6 +20,7 @@ use crate::exec;
 use crate::fs::archive;
 use crate::fs::git;
 use crate::fs::ops::{self, OpKind, OpRequest, Resolution};
+use crate::fs::restore;
 use crate::fs::scan::{ScanResult, Scanner};
 use crate::fs::watch::Watcher;
 use crate::fs::{Entry, Kind, SortSpec};
@@ -516,6 +517,100 @@ struct BookmarkFile {
     bookmark: Vec<Bookmark>,
 }
 
+// --------------------------------------------------------------- undo / redo
+
+/// A step that `u` can take back. Each variant holds enough to go either way,
+/// so the same value moves between the two stacks as it is undone and redone.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum UndoStep {
+    /// `from` became `to`.
+    Rename { from: PathBuf, to: PathBuf },
+    /// These paths, which were in `dir`, went to the trash.
+    Trash { paths: Vec<PathBuf>, dir: PathBuf },
+}
+
+impl UndoStep {
+    /// What a toast says about the step once it has been taken back.
+    fn undone_label(&self) -> String {
+        match self {
+            Self::Rename { from, .. } => format!("Renamed back to {}", util::file_name(from)),
+            Self::Trash { paths, .. } => match paths.len() {
+                1 => format!("Restored {}", util::file_name(&paths[0])),
+                n => format!("Restored {n} item(s)"),
+            },
+        }
+    }
+
+    /// And once it has been done again.
+    fn redone_label(&self) -> String {
+        match self {
+            Self::Rename { to, .. } => format!("Renamed to {}", util::file_name(to)),
+            Self::Trash { paths, .. } => match paths.len() {
+                1 => format!("Trashed {}", util::file_name(&paths[0])),
+                n => format!("Trashed {n} item(s)"),
+            },
+        }
+    }
+}
+
+/// Where a step belongs once the work behind it has succeeded.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Land {
+    /// Something the person just did: `u` can take it back, and whatever was
+    /// undone before is no longer on the way forward.
+    Fresh,
+    /// `u` took it back, so `U` can do it again.
+    Undone,
+    /// `U` did it again, so `u` can take it back again.
+    Redone,
+}
+
+/// The two stacks behind `u` and `U`. Apart from `App` so that the rules about
+/// which stack a step lands on can be tested without a window.
+#[derive(Default, Debug)]
+pub struct Undos {
+    /// What `u` takes back, newest last.
+    pub undo: Vec<UndoStep>,
+    /// What `U` does again, newest last.
+    pub redo: Vec<UndoStep>,
+}
+
+impl Undos {
+    /// Older steps than this fall off the bottom. Undo is for the slip that was
+    /// just made, not a journal of the session.
+    const MAX: usize = 50;
+
+    fn land(&mut self, step: UndoStep, how: Land) {
+        match how {
+            Land::Fresh => {
+                // A new action forks history; what was undone cannot be
+                // reached from here any more.
+                self.redo.clear();
+                Self::push(&mut self.undo, step);
+            }
+            Land::Undone => Self::push(&mut self.redo, step),
+            Land::Redone => Self::push(&mut self.undo, step),
+        }
+    }
+
+    /// Put a step back where it came from, for work that did not go through.
+    fn keep(&mut self, step: UndoStep, how: Land) {
+        match how {
+            // The action itself failed, so there is nothing to take back.
+            Land::Fresh => {}
+            Land::Undone => Self::push(&mut self.undo, step),
+            Land::Redone => Self::push(&mut self.redo, step),
+        }
+    }
+
+    fn push(stack: &mut Vec<UndoStep>, step: UndoStep) {
+        stack.push(step);
+        if stack.len() > Self::MAX {
+            stack.remove(0);
+        }
+    }
+}
+
 // ---------------------------------------------------------------------- app
 
 pub struct Yank {
@@ -579,6 +674,10 @@ pub struct App {
     pub toasts: Vec<Toast>,
     pub bookmarks: Vec<Bookmark>,
     pub history: Vec<PathBuf>,
+    pub undos: Undos,
+    /// Jobs whose step joins a stack once they finish, and where it goes. A job
+    /// that fails puts its step back rather than losing it.
+    op_undo: HashMap<u64, (UndoStep, Land)>,
 
     pub search: Option<crate::search::Handle>,
     pub ctx: egui::Context,
@@ -658,6 +757,8 @@ impl App {
             toasts: Vec::new(),
             bookmarks: Vec::new(),
             history: Vec::new(),
+            undos: Undos::default(),
+            op_undo: HashMap::new(),
             search: None,
             ctx,
             pending_conflict: None,
@@ -1798,6 +1899,8 @@ impl App {
             Act::Submit => self.submit_input(),
             Act::Complete => self.complete_input(),
             Act::Jump => self.open_jump(),
+            Act::Undo => self.undo_step(),
+            Act::Redo => self.redo_step(),
 
             Act::Help => {
                 self.help_scroll = 0;
@@ -2184,7 +2287,11 @@ impl App {
         }
         let kind = if permanently { OpKind::Delete } else { OpKind::Trash };
         let dest = self.tabs[self.active].cwd.clone();
-        self.submit_op(kind, paths, dest, true);
+        let id = self.submit_op(kind, paths.clone(), dest.clone(), true);
+        // Only the trash can be undone. `D` is asked for twice and then means it.
+        if kind == OpKind::Trash {
+            self.record_job(id, UndoStep::Trash { paths, dir: dest }, Land::Fresh);
+        }
         self.tabs[self.active].clear_selection();
     }
 
@@ -2253,10 +2360,18 @@ impl App {
         self.tabs[self.active].clear_selection();
     }
 
-    fn submit_op(&mut self, kind: OpKind, srcs: Vec<PathBuf>, dest_dir: PathBuf, force: bool) {
-        self.submit_op_to(kind, srcs, dest_dir, None, force);
+    fn submit_op(
+        &mut self,
+        kind: OpKind,
+        srcs: Vec<PathBuf>,
+        dest_dir: PathBuf,
+        force: bool,
+    ) -> u64 {
+        self.submit_op_to(kind, srcs, dest_dir, None, force)
     }
 
+    /// Queue a job and return its id, which [`App::record_job`] uses to hang an
+    /// undo step on it.
     fn submit_op_to(
         &mut self,
         kind: OpKind,
@@ -2264,7 +2379,7 @@ impl App {
         dest_dir: PathBuf,
         dest_file: Option<PathBuf>,
         force: bool,
-    ) {
+    ) -> u64 {
         let id = self.scanner.next_id();
         let label = match &dest_file {
             Some(f) => format!("{} {} item(s) into {}", kind.verb(), srcs.len(), util::file_name(f)),
@@ -2289,6 +2404,13 @@ impl App {
             sampled_bytes: 0,
         });
         self.ops.submit(OpRequest { id, kind, srcs, dest_dir, dest_file, force });
+        id
+    }
+
+    /// Remember that finishing job `id` leaves `step` on one of the undo
+    /// stacks. Nothing is pushed until the worker says the work went through.
+    fn record_job(&mut self, id: u64, step: UndoStep, how: Land) {
+        self.op_undo.insert(id, (step, how));
     }
 
     fn on_op_event(&mut self, ev: ops::OpEvent) {
@@ -2357,6 +2479,21 @@ impl App {
                 }
                 if !errors.is_empty() {
                     self.error(format!("{}: {}", kind.verb(), errors[0]));
+                }
+                if let Some((step, how)) = self.op_undo.remove(&id) {
+                    if errors.is_empty() && !cancelled {
+                        let said = match how {
+                            Land::Undone => Some(step.undone_label()),
+                            Land::Redone => Some(step.redone_label()),
+                            Land::Fresh => None,
+                        };
+                        self.undos.land(step, how);
+                        if let Some(said) = said {
+                            self.toast(said);
+                        }
+                    } else {
+                        self.undos.keep(step, how);
+                    }
                 }
                 let cwd = self.tabs[self.active].cwd.clone();
                 self.cache.remove(&cwd);
@@ -2685,21 +2822,93 @@ impl App {
         if to == from {
             return;
         }
-        if ops::exists(&to) {
-            self.error(format!("Already exists: {}", util::file_name(&to)));
-            return;
+        match self.apply_rename(from, &to) {
+            Ok(()) => self
+                .undos
+                .land(UndoStep::Rename { from: from.to_path_buf(), to }, Land::Fresh),
+            Err(e) => self.error(format!("Rename failed: {e}")),
+        }
+    }
+
+    /// Move `from` onto `to` and leave the cursor there. Undo and redo walk the
+    /// same rename backwards and forwards, so this takes two paths rather than
+    /// the name typed at the prompt.
+    fn apply_rename(&mut self, from: &Path, to: &Path) -> Result<(), String> {
+        if ops::exists(to) {
+            return Err(format!("Already exists: {}", util::file_name(to)));
         }
         if let Some(parent) = to.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        match std::fs::rename(from, &to) {
-            Ok(()) => {
-                let name = util::file_name(&to);
-                self.cache.remove(&base);
-                self.rescan(&base);
-                self.tabs[self.active].memo.insert(base, name);
+        std::fs::rename(from, to).map_err(|e| e.to_string())?;
+        // `r` takes a path, so a rename can cross directories and leave a
+        // listing stale at either end.
+        for dir in [from.parent(), to.parent()].into_iter().flatten() {
+            let dir = dir.to_path_buf();
+            self.cache.remove(&dir);
+            self.rescan(&dir);
+        }
+        if let Some(dir) = to.parent() {
+            let name = util::file_name(to);
+            self.tabs[self.active].memo.insert(dir.to_path_buf(), name);
+        }
+        Ok(())
+    }
+
+    /// Take back the newest step. A step that will not go back stays on the
+    /// stack — the usual reason is something standing where it came from, which
+    /// the person can clear before pressing `u` again.
+    fn undo_step(&mut self) {
+        let Some(step) = self.undos.undo.pop() else {
+            self.toast("Nothing to undo");
+            return;
+        };
+        match step {
+            UndoStep::Rename { from, to } => match self.apply_rename(&to, &from) {
+                Ok(()) => {
+                    let step = UndoStep::Rename { from, to };
+                    self.toast(step.undone_label());
+                    self.undos.land(step, Land::Undone);
+                }
+                Err(e) => {
+                    self.error(format!("Undo: {e}"));
+                    self.undos.keep(UndoStep::Rename { from, to }, Land::Undone);
+                }
+            },
+            UndoStep::Trash { paths, dir } => {
+                if !restore::SUPPORTED {
+                    self.error(format!("Undo: {}", restore::UNSUPPORTED));
+                    self.undos.keep(UndoStep::Trash { paths, dir }, Land::Undone);
+                    return;
+                }
+                let id = self.submit_op(OpKind::Restore, paths.clone(), dir.clone(), true);
+                self.record_job(id, UndoStep::Trash { paths, dir }, Land::Undone);
             }
-            Err(e) => self.error(format!("Rename failed: {e}")),
+        }
+    }
+
+    /// Do again what `u` took back.
+    fn redo_step(&mut self) {
+        let Some(step) = self.undos.redo.pop() else {
+            self.toast("Nothing to redo");
+            return;
+        };
+        match step {
+            UndoStep::Rename { from, to } => match self.apply_rename(&from, &to) {
+                Ok(()) => {
+                    let step = UndoStep::Rename { from, to };
+                    self.toast(step.redone_label());
+                    self.undos.land(step, Land::Redone);
+                }
+                Err(e) => {
+                    self.error(format!("Redo: {e}"));
+                    self.undos.keep(UndoStep::Rename { from, to }, Land::Redone);
+                }
+            },
+            UndoStep::Trash { paths, dir } => {
+                let id = self.submit_op(OpKind::Trash, paths.clone(), dir.clone(), true);
+                self.record_job(id, UndoStep::Trash { paths, dir }, Land::Redone);
+            }
         }
     }
 
@@ -3635,5 +3844,70 @@ mod tests {
         pick.query = "task manager".into();
         pick.refilter();
         assert_eq!(pick.selected(), Some(by_command), "the description finds the same row");
+    }
+
+    fn renamed(from: &str, to: &str) -> UndoStep {
+        UndoStep::Rename { from: PathBuf::from(from), to: PathBuf::from(to) }
+    }
+
+    #[test]
+    fn undoing_and_redoing_pass_the_step_between_the_stacks() {
+        let mut u = Undos::default();
+        u.land(renamed("a", "b"), Land::Fresh);
+        assert_eq!(u.undo.len(), 1);
+
+        // `u`: the step comes off the undo stack and lands on the redo stack.
+        let step = u.undo.pop().unwrap();
+        u.land(step, Land::Undone);
+        assert!(u.undo.is_empty());
+        assert_eq!(u.redo, vec![renamed("a", "b")]);
+
+        // `U`: and back again, as many times as the person likes.
+        let step = u.redo.pop().unwrap();
+        u.land(step, Land::Redone);
+        assert_eq!(u.undo, vec![renamed("a", "b")]);
+        assert!(u.redo.is_empty());
+    }
+
+    #[test]
+    fn a_new_action_after_an_undo_drops_what_could_have_been_redone() {
+        let mut u = Undos::default();
+        u.land(renamed("a", "b"), Land::Fresh);
+        let step = u.undo.pop().unwrap();
+        u.land(step, Land::Undone);
+        assert_eq!(u.redo.len(), 1);
+
+        u.land(renamed("c", "d"), Land::Fresh);
+
+        assert_eq!(u.undo, vec![renamed("c", "d")]);
+        assert!(u.redo.is_empty(), "history forked, so there is no way forward");
+    }
+
+    /// Work that did not go through leaves the stacks as they were, so the key
+    /// can be pressed again once whatever was in the way is gone.
+    #[test]
+    fn a_step_that_fails_goes_back_where_it_came_from() {
+        let mut u = Undos::default();
+        u.keep(renamed("a", "b"), Land::Undone);
+        assert_eq!(u.undo, vec![renamed("a", "b")]);
+
+        u.keep(renamed("c", "d"), Land::Redone);
+        assert_eq!(u.redo, vec![renamed("c", "d")]);
+
+        // A fresh action that failed never happened; there is nothing to take back.
+        let mut u = Undos::default();
+        u.keep(renamed("a", "b"), Land::Fresh);
+        assert!(u.undo.is_empty() && u.redo.is_empty());
+    }
+
+    #[test]
+    fn the_oldest_steps_fall_off_the_bottom() {
+        let mut u = Undos::default();
+        for i in 0..Undos::MAX + 10 {
+            u.land(renamed(&format!("a{i}"), &format!("b{i}")), Land::Fresh);
+        }
+
+        assert_eq!(u.undo.len(), Undos::MAX);
+        assert_eq!(u.undo[0], renamed("a10", "b10"), "the first ten are gone");
     }
 }

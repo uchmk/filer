@@ -12,7 +12,7 @@ use std::sync::{Arc, Condvar, Mutex};
 
 use crossbeam_channel::{Receiver, Sender};
 
-use super::archive;
+use super::{archive, restore};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum OpKind {
@@ -22,6 +22,9 @@ pub enum OpKind {
     Hardlink,
     Trash,
     Delete,
+    /// Put `srcs` back where they were before a [`OpKind::Trash`] job sent them
+    /// away. This is what `u` runs to undo a delete.
+    Restore,
     /// Unpack each source archive into a folder of its own under `dest_dir`.
     Extract,
     /// Pack the sources into the one archive `dest_file` names.
@@ -37,6 +40,7 @@ impl OpKind {
             Self::Hardlink => "Hardlink",
             Self::Trash => "Trash",
             Self::Delete => "Delete",
+            Self::Restore => "Restore",
             Self::Extract => "Extract",
             Self::Compress(_) => "Compress",
         }
@@ -216,7 +220,7 @@ struct Ctx<'a> {
 impl Ctx<'_> {
     fn run(&mut self, req: &OpRequest) {
         let (files, bytes) = match req.kind {
-            OpKind::Trash | OpKind::Delete => (req.srcs.len() as u64, 0),
+            OpKind::Trash | OpKind::Delete | OpKind::Restore => (req.srcs.len() as u64, 0),
             OpKind::Symlink { .. } | OpKind::Hardlink => (req.srcs.len() as u64, 0),
             // Extract counts each archive as one unit: what is inside is only
             // known by reading it, and reading it twice to fill a progress bar
@@ -235,6 +239,24 @@ impl Ctx<'_> {
                 }
                 self.files_done = req.srcs.len() as u64;
             }
+            // Reading the trash walks all of it, so it is read once here and
+            // then asked about each path in turn. Restoring one at a time keeps
+            // a path that something else has taken over from stopping the rest.
+            OpKind::Restore => match restore::found(&req.srcs) {
+                Err(e) => self.errors.push(e),
+                Ok(found) => {
+                    for p in &req.srcs {
+                        if self.cancelled {
+                            break;
+                        }
+                        self.report(&p.to_string_lossy());
+                        if let Err(e) = restore::put_back(&found, p) {
+                            self.errors.push(e);
+                        }
+                        self.files_done += 1;
+                    }
+                }
+            },
             OpKind::Delete => {
                 for p in &req.srcs {
                     if self.cancelled {

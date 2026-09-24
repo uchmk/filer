@@ -57,7 +57,7 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `cd`, `reveal`, `follow`, `refresh`, `seek`/`peek`, `tab_create`, `tab_close`, `tab_switch`,
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
-`find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
+`find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `undo`, `redo`, `jump`, `palette`,
 `menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `term_cd`, `term_find`, `term_scroll`, `task_toggle`, `task_cancel`, `task_top`,
 `split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
 project's own). `select` and `select_all` are accepted as `toggle --state=on` /
@@ -320,6 +320,33 @@ holds the worker, so nothing behind it starts until it is resumed or cancelled �
 change your mind about what should have gone first. The commands are `task_toggle`,
 `task_cancel` and `task_top`, bound in the `[tasks]` keymap section.
 
+## Undo
+
+`u` takes back the last thing that can be taken back, `U` does it again. Two things qualify:
+
+| Step | `u` | `U` |
+| --- | --- | --- |
+| `d` — files sent to the recycle bin | puts them back where they were | sends them again |
+| `r` — a rename | renames it back | renames it again |
+
+Everything else is left alone on purpose. `D` asks before it deletes and then means it, and undoing
+a copy or an unpack would mean deleting files to tidy up — a worse thing to get wrong than the
+operation it was undoing.
+
+Putting files back reads the recycle bin, which is a job like any other: it shows in the task panel
+and can be cancelled. Each path is matched to the newest thing trashed under that name, so deleting
+two files called `notes.txt` an hour apart and pressing `u` brings back the one that just went.
+
+A step that will not go back stays on the stack rather than being thrown away — if something has
+taken the name in the meantime, `u` says so, and pressing it again after moving that file out of the
+way works. Doing something new after an undo drops what `U` would have redone, the way an editor
+does. The stacks hold the last 50 steps and are not written to disk: undo is for the slip you just
+made, not a log of the session.
+
+On macOS `u` can still undo a rename, but not a delete: there is no API for reading the Trash back,
+only the Finder's own ⌘Z. `u` says so instead of pretending, and the files are in the Trash either
+way.
+
 ## Git status
 
 In a repository, each row carries a sign for what git says about it:
@@ -407,6 +434,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `<Space>` `v` `V` `<C-a>` `<C-r>` | toggle / visual / visual-unset / select all / invert |
 | `y` `x` `Y` `p` `P` `-` `_` `<C-->` | yank / cut / cancel the yank / paste / paste-force / symlink / relative symlink / hardlink |
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
+| `u` `U` | undo the last rename or delete / do it again |
 | `a` `r` | create (trailing `/` makes a directory) / rename |
 | `e` `E` | extract the selected archives / compress the selection |
 | `<A-c>` `<A-m>` | copy / move the selection to the other pane |
@@ -506,8 +534,10 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   PDF and HEIC previews rely on Windows thumbnail handlers (see [Other previews](#other-previews)).
 - `[input]`, `[confirm]` and `[pick]` keymap layers are parsed for compatibility, but the prompts
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.
-- Git signs need `git` on `PATH`; without it the rows are simply unmarked. Only the status is
-  shown — there is no staging, diffing or committing here, and no branch in the status bar yet.
+- Git signs need `git` on `PATH`; without it the rows are simply unmarked. Only the status and the
+  branch name are shown — there is no staging, diffing or committing here.
+- Undo covers renames and trips to the recycle bin, nothing else, and on macOS only renames — see
+  [Undo](#undo). It is not written to disk, so closing the window forgets it.
 - The terminal pane has no tabs and no split of its own, and `cd` following types a line into the
   shell, so it lands in whatever is running if something is — unless the shell reports its
   directory, in which case it is usually not sent at all.
@@ -520,7 +550,7 @@ src/
   app.rs         state and the Act dispatcher — every key and click goes through it
   config/        yazi.toml, keymap.toml, theme.toml, key notation, command parsing
   core/          folder + cursor state, tabs, fuzzy matching
-  fs/            entries, sorting, scan pool, file operations, watcher, archives, git status
+  fs/            entries, sorting, scan pool, file operations, watcher, archives, git status, undelete
   preview/       preview worker: text + syntect, Markdown layout, images, SVG, fonts, shell thumbnails
   terminal.rs    the embedded shell: PTY, key encoding
   ui/            painting: columns, preview pane, terminal pane, overlays

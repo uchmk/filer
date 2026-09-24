@@ -139,6 +139,12 @@ pub enum Act {
     /// Fuzzy-jump to a bookmark or a recently visited directory.
     Jump,
 
+    /// Take back the newest step that can be taken back: a rename, or a trip
+    /// to the trash.
+    Undo,
+    /// Do again what [`Act::Undo`] took back.
+    Redo,
+
     Help,
     TasksShow,
     /// Pause the selected job, or set it going again.
@@ -302,6 +308,8 @@ pub fn parse(line: &str) -> Act {
         "close" => Act::Close,
         "complete" => Act::Complete,
         "jump" => Act::Jump,
+        "undo" => Act::Undo,
+        "redo" => Act::Redo,
 
         "arrow" => Act::Arrow(parse_step(a.first().unwrap_or("1"))),
         "swipe" => Act::Swipe(a.first().and_then(|s| s.parse().ok()).unwrap_or(1)),
