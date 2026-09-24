@@ -328,10 +328,10 @@ fn handle_input(app: &mut App, ctx: &egui::Context) {
                         app.feed_key(Key::char(c));
                     }
                 }
+                // Only the first character answers; the rest of the burst is dropped.
                 Overlay::Confirm(_) => {
-                    for c in text.chars() {
+                    if let Some(c) = text.chars().next() {
                         app.answer_confirm(c);
-                        break;
                     }
                 }
                 Overlay::Help => {
