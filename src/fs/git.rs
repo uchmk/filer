@@ -13,8 +13,13 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::{Duration, Instant};
 
 use crossbeam_channel::{Receiver, Sender};
+
+/// How long a "not a repository" answer is trusted. Long enough that a rescan
+/// storm asks once, short enough that `git init` is noticed.
+const NOT_REPO_TTL: Duration = Duration::from_secs(10);
 
 /// What git says about one row of the listing.
 ///
@@ -62,6 +67,9 @@ pub struct Status {
     /// *inside* one is told about the directory and nothing else — and
     /// everything in it is untracked too.
     pub all: State,
+    /// The branch HEAD is on, for the status bar. Empty outside a repository,
+    /// and `HEAD` when it is detached, which is what git itself answers.
+    pub branch: String,
 }
 
 impl Status {
@@ -90,13 +98,38 @@ impl Git {
         std::thread::Builder::new()
             .name("git".into())
             .spawn(move || {
+                // Most of the disk is not a repository, and a rescan asks
+                // again every time. Remembering the noes keeps `git` from
+                // being started to hear the same one; the note is short-lived
+                // so a `git init` still shows up.
+                let mut not_repo: HashMap<PathBuf, Instant> = HashMap::new();
                 while let Ok(mut dir) = req_rx.recv() {
                     // Newest wins: walking through directories leaves a trail
                     // of requests nobody is waiting for any more.
                     while let Ok(newer) = req_rx.try_recv() {
                         dir = newer;
                     }
-                    let status = status(&dir).unwrap_or_default();
+                    let fresh_no = not_repo
+                        .get(&dir)
+                        .is_some_and(|at| at.elapsed() < NOT_REPO_TTL);
+                    let status = match fresh_no {
+                        true => Status::default(),
+                        false => match status(&dir) {
+                            Some(st) => {
+                                not_repo.remove(&dir);
+                                st
+                            }
+                            None => {
+                                not_repo.insert(dir.clone(), Instant::now());
+                                // A walk through a big tree would otherwise
+                                // remember every directory in it.
+                                if not_repo.len() > 64 {
+                                    not_repo.retain(|_, at| at.elapsed() < NOT_REPO_TTL);
+                                }
+                                Status::default()
+                            }
+                        },
+                    };
                     if res_tx.send(Report { dir, status }).is_err() {
                         return;
                     }
@@ -116,10 +149,13 @@ impl Git {
 /// installed, or it failed — all of which mean the same thing to the list:
 /// draw no marks.
 fn status(dir: &Path) -> Option<Status> {
-    // Where `dir` sits inside the repository. This doubles as the "is it a
-    // repository at all" question, and it is the cheaper of the two calls.
-    let prefix = run(dir, &["rev-parse", "--show-prefix"])?;
-    let prefix = prefix.trim_end_matches(['\n', '\r']).to_owned();
+    // Where `dir` sits inside the repository, and what branch it is on. One
+    // call answers both, and answers "is this a repository at all" by failing.
+    let head = run(dir, &["rev-parse", "--show-prefix", "--abbrev-ref", "HEAD"])?;
+    let mut lines = head.lines();
+    let prefix = lines.next().unwrap_or_default().to_owned();
+    // A repository with no commits yet has no HEAD to name.
+    let branch = lines.next().unwrap_or_default().to_owned();
 
     // `-z` because a path may hold anything, including a newline.
     // `--no-renames` keeps every record to one path, so a rename reads as the
@@ -130,7 +166,9 @@ fn status(dir: &Path) -> Option<Status> {
         dir,
         &["status", "--porcelain=v1", "-z", "--no-renames", "-unormal", "--", "."],
     )?;
-    Some(parse(&out, &prefix))
+    let mut st = parse(&out, &prefix);
+    st.branch = branch;
+    Some(st)
 }
 
 fn run(dir: &Path, args: &[&str]) -> Option<String> {

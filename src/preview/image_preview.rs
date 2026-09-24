@@ -52,7 +52,7 @@ pub fn finish(mut img: RgbaImage) -> (u32, u32, Arc<Vec<u8>>) {
             if a == 255 {
                 continue;
             }
-            let bg = if (x / CELL + y / CELL) % 2 == 0 { 0xcc } else { 0x99 };
+            let bg = if (x / CELL + y / CELL).is_multiple_of(2) { 0xcc } else { 0x99 };
             for c in &mut p.0[..3] {
                 *c = ((u32::from(*c) * a + bg * (255 - a) + 127) / 255) as u8;
             }

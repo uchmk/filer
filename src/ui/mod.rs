@@ -537,6 +537,12 @@ fn draw_status(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId) {
             crate::config::cmd::SearchVia::Name => format!("searching {}…", h.query),
         });
     }
+    // The branch, when the directory is in a repository at all.
+    if let Some(g) = app.git_status(&tab.cwd) {
+        if !g.branch.is_empty() {
+            right.push(format!(" {} ", g.branch));
+        }
+    }
     if let Some(fl) = &tab.current.filter {
         if !fl.query.is_empty() {
             right.push(format!("filter: {}", fl.query));
