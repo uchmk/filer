@@ -58,7 +58,8 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
-`toggle_render` and `toggle_outline` (this project's own). In the `[spot]` section: `close`,
+`split`, `pane_focus`, `toggle_render` and `toggle_outline` (this project's own). In the `[spot]`
+section: `close`,
 `arrow`, `swipe` and `copy cell`.
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
@@ -168,6 +169,25 @@ copy the selected value, and `<Esc>` / `q` / `<Tab>` close it. Each kind of deta
 function in `src/spot.rs`, so more (e.g. Windows property-system values like media length or EXIF)
 can be added without touching the panel.
 
+## Split view (two panes)
+
+`<C-w>` splits the window in two and, from then on, moves the keys between the panes. The second
+pane takes the parent column's place, so the layout stays three columns wide: pane, pane, preview.
+`<C-S-w>` closes it (`split close`; `split` alone toggles, `split open` / `split close` are explicit).
+
+The second pane is just another tab, shown side by side. That is what keeps everything else
+working: the focused pane is always the current tab, so every command — `cd`, `yank`, `paste`,
+filter, search — runs on it with no notion of panes at all, and copying between panes is the
+ordinary `y` … `<C-w>` … `p`. Splitting with one tab open creates a second one on the same
+directory; with several, it borrows the next tab. `[` / `]` / `1`–`9` still switch tabs, and
+switching to the tab the other pane shows just moves the keys there. Closing or swapping tabs
+keeps the panes pointed at the right ones; closing the tab the other pane holds ends the split.
+
+The pane with the keys is outlined and keeps the bright cursor; the other is dimmed. Clicking the
+dim pane takes the keys first, so a click, a `Shift`+click or a double-click always lands on the
+pane you aimed at. Both panes are watched for changes and rescanned, the passive one at a lower
+priority so the focused directory is never made to wait behind it.
+
 ## Command palette
 
 `<C-S-p>` (`Cmd`+`Shift`+`P` on macOS) lists every `mgr` binding — the built-in ones and whatever
@@ -215,6 +235,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `z` | fuzzy-jump to a bookmark or recent directory |
 | `.` `,…` `m…` | hidden files / sort menu / line-mode menu |
 | `t` `1`–`9` `[` `]` `{` `}` | tabs |
+| `<C-w>` `<C-S-w>` | split the view in two panes / move between them, close the split |
 | `;` `:` | shell command / blocking shell command |
 | `<A-k>` `<A-j>` `M` | scroll the preview / Markdown rendered ↔ source |
 | `<S-Tab>` | move the keys into the preview's outline and back |

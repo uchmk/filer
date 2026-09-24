@@ -255,6 +255,39 @@ impl Default for PreviewSlot {
     }
 }
 
+// --------------------------------------------------------------- split view
+
+/// The second pane. The pane holding the keys always shows `App::active`, so
+/// every action keeps working on one tab and never has to know about the split.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Split {
+    /// The tab shown in the pane that does not have the keys.
+    pub other: usize,
+    /// The pane holding the keys is the right-hand one.
+    pub right: bool,
+}
+
+/// Follow the other pane's tab index after the tab at `removed` is dropped.
+/// `None` means that pane's own tab went away, so the split closes.
+fn split_after_remove(other: usize, removed: usize) -> Option<usize> {
+    match other.cmp(&removed) {
+        std::cmp::Ordering::Equal => None,
+        std::cmp::Ordering::Less => Some(other),
+        std::cmp::Ordering::Greater => Some(other - 1),
+    }
+}
+
+/// Follow the other pane's tab index across `tabs.swap(a, b)`.
+fn split_after_swap(other: usize, a: usize, b: usize) -> usize {
+    if other == a {
+        b
+    } else if other == b {
+        a
+    } else {
+        other
+    }
+}
+
 // ---------------------------------------------------------------- bookmarks
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -289,6 +322,8 @@ pub struct App {
     pub cfg: Config,
     pub tabs: Vec<Tab>,
     pub active: usize,
+    /// The second pane, when the view is split.
+    pub split: Option<Split>,
     pub cache: Lru<PathBuf, Arc<Vec<Entry>>>,
 
     pub scanner: Scanner,
@@ -362,6 +397,7 @@ impl App {
             cfg,
             tabs: vec![tab],
             active: 0,
+            split: None,
             cache: Lru::new(64),
             scanner,
             previewer,
@@ -406,6 +442,19 @@ impl App {
         &self.tabs[self.active]
     }
 
+    /// The tab in the pane that does not have the keys.
+    pub fn other_pane(&self) -> Option<usize> {
+        self.split.map(|s| s.other)
+    }
+
+    /// Every tab on screen: the focused one, plus the other pane's.
+    fn pane_tabs(&self) -> Vec<usize> {
+        match self.other_pane() {
+            Some(i) if i != self.active && i < self.tabs.len() => vec![self.active, i],
+            _ => vec![self.active],
+        }
+    }
+
     pub fn toast(&mut self, text: impl Into<String>) {
         self.toasts.push(Toast { text: text.into(), error: false, at: Instant::now() });
     }
@@ -442,6 +491,17 @@ impl App {
                 }
             }
         }
+        // The other pane is not what the keys drive, so it waits in the low
+        // priority queue behind the directory the cursor is in.
+        if let Some(idx) = self.other_pane().filter(|&i| i < self.tabs.len() && i != self.active) {
+            let f = &self.tabs[idx].current;
+            if f.scan_id.is_none() && f.state == LoadState::Loading {
+                let (path, sort) = (self.tabs[idx].cwd.clone(), self.tabs[idx].sort);
+                let id = self.scanner.scan_low(path.clone(), sort);
+                self.inflight.insert(id, path);
+                self.tabs[idx].current.scan_id = Some(id);
+            }
+        }
         self.ensure_dir_sizes();
         self.sync_watcher();
     }
@@ -475,6 +535,9 @@ impl App {
         let mut dirs: Vec<PathBuf> = vec![self.tabs[self.active].cwd.clone()];
         if let Some(p) = self.tabs[self.active].cwd.parent() {
             dirs.push(p.to_path_buf());
+        }
+        if let Some(idx) = self.other_pane().filter(|&i| i < self.tabs.len()) {
+            dirs.push(self.tabs[idx].cwd.clone());
         }
         if let PreviewState::Dir(f) = &self.preview.state {
             dirs.push(f.path.clone());
@@ -530,8 +593,10 @@ impl App {
     fn rescan(&mut self, path: &Path) {
         let sort = self.tabs[self.active].sort;
         let mut wanted = false;
-        if self.tabs[self.active].cwd == path {
-            wanted = true;
+        for idx in self.pane_tabs() {
+            if self.tabs[idx].cwd == path {
+                wanted = true;
+            }
         }
         if let Some(p) = self.tabs[self.active].parent.as_ref() {
             if p.path == path {
@@ -560,15 +625,24 @@ impl App {
             }
             ScanResult::Failed { id, path, error } => {
                 self.inflight.remove(&id);
-                let show_hidden = self.tabs[self.active].show_hidden;
-                if self.tabs[self.active].cwd == path {
-                    let f = &mut self.tabs[self.active].current;
+                let mut hit = false;
+                for idx in self.pane_tabs() {
+                    if self.tabs[idx].cwd != path {
+                        continue;
+                    }
+                    let show_hidden = self.tabs[idx].show_hidden;
+                    let f = &mut self.tabs[idx].current;
                     f.state = LoadState::Error(error.clone());
                     f.entries = Arc::new(Vec::new());
+                    f.scan_id = None;
                     f.rebuild(show_hidden);
-                } else if let PreviewState::Dir(f) = &mut self.preview.state {
-                    if f.path == path {
-                        f.state = LoadState::Error(error.clone());
+                    hit = true;
+                }
+                if !hit {
+                    if let PreviewState::Dir(f) = &mut self.preview.state {
+                        if f.path == path {
+                            f.state = LoadState::Error(error.clone());
+                        }
                     }
                 }
                 self.error(format!("{}: {error}", util::file_name(&path)));
@@ -629,22 +703,27 @@ impl App {
 
         if let PreviewState::Dir(f) = &mut self.preview.state {
             if f.path == path {
-                f.entries = entries;
+                f.entries = entries.clone();
                 f.state = LoadState::Ready;
                 f.scan_id = None;
                 f.rebuild(show_hidden);
             }
         }
 
-        // Other tabs share the cache but keep their own cursors.
+        // Other tabs share the listing but keep their own cursors. The other
+        // pane is one of them, and it is on screen, so it needs the same care
+        // over the cursor as the focused tab.
         for (i, tab) in self.tabs.iter_mut().enumerate() {
             if i == self.active || tab.cwd != path {
                 continue;
             }
-            if let Some(cached) = self.cache.peek(&path.to_path_buf()) {
-                tab.current.entries = cached.clone();
-                tab.current.state = LoadState::Ready;
-                tab.current.rebuild(tab.show_hidden);
+            let keep = tab.current.hovered_name().map(str::to_owned);
+            tab.current.entries = entries.clone();
+            tab.current.state = LoadState::Ready;
+            tab.current.scan_id = None;
+            tab.current.rebuild(tab.show_hidden);
+            if let Some(name) = keep.or_else(|| tab.memo.get(path).cloned()) {
+                tab.current.select_name(&name);
             }
         }
     }
@@ -1191,14 +1270,42 @@ impl App {
                     (self.active as i64 + n).rem_euclid(len)
                 } else {
                     n.clamp(0, len - 1)
-                };
-                self.switch_tab(idx as usize);
+                } as usize;
+                if self.other_pane() == Some(idx) {
+                    // It is already on screen: move the keys to its pane.
+                    self.focus_pane(idx);
+                } else {
+                    self.switch_tab(idx);
+                }
             }
             Act::TabSwap(n) => {
                 let len = self.tabs.len() as i64;
+                let from = self.active;
                 let to = (self.active as i64 + n).rem_euclid(len) as usize;
-                self.tabs.swap(self.active, to);
+                self.tabs.swap(from, to);
                 self.active = to;
+                if let Some(sp) = self.split {
+                    self.split =
+                        Some(Split { other: split_after_swap(sp.other, from, to), ..sp });
+                }
+                self.check_split();
+            }
+
+            Act::Split(state) => {
+                if state.unwrap_or(self.split.is_none()) {
+                    self.open_split();
+                } else {
+                    self.close_split();
+                }
+            }
+            Act::PaneFocus(side) => {
+                // The first press splits the view; the next moves the keys.
+                self.open_split();
+                if let Some(sp) = self.split {
+                    if side.unwrap_or(!sp.right) != sp.right {
+                        self.focus_pane(sp.other);
+                    }
+                }
             }
 
             Act::Toggle { state } => {
@@ -1386,6 +1493,12 @@ impl App {
         );
         let at = self.active + 1;
         self.tabs.insert(at, tab);
+        if let Some(sp) = self.split {
+            // The other pane keeps its tab, which the insert may have moved.
+            if sp.other >= at {
+                self.split = Some(Split { other: sp.other + 1, ..sp });
+            }
+        }
         self.switch_tab(at);
     }
 
@@ -1398,7 +1511,71 @@ impl App {
             return;
         }
         self.tabs.remove(idx);
+        if let Some(sp) = self.split {
+            self.split = split_after_remove(sp.other, idx).map(|other| Split { other, ..sp });
+        }
         self.switch_tab(self.active.min(self.tabs.len() - 1));
+        self.check_split();
+    }
+
+    // ----------------------------------------------------------- split panes
+
+    /// Open the second pane. The current tab keeps the keys on the left; the
+    /// right pane takes the next tab, or a fresh view of the same directory
+    /// when this is the only tab.
+    fn open_split(&mut self) -> bool {
+        if self.split.is_some() {
+            return true;
+        }
+        let other = if self.tabs.len() > 1 {
+            (self.active + 1) % self.tabs.len()
+        } else if self.tabs.len() >= MAX_TABS {
+            self.error("Maximum number of tabs reached");
+            return false;
+        } else {
+            let src = &self.tabs[self.active];
+            let name = src.current.hovered_name().map(str::to_owned);
+            let mut tab =
+                Tab::new(src.cwd.clone(), src.sort, src.show_hidden, src.linemode.clone());
+            // The listing is already in hand, so the new pane starts filled.
+            if let Some(entries) = self.cache.get(&tab.cwd).cloned() {
+                let show = tab.show_hidden;
+                tab.current = Folder::from_entries(tab.cwd.clone(), entries, show);
+                if let Some(name) = name {
+                    tab.current.select_name(&name);
+                }
+            }
+            let at = self.active + 1;
+            self.tabs.insert(at, tab);
+            at
+        };
+        self.split = Some(Split { other, right: false });
+        self.kick_scans();
+        true
+    }
+
+    /// Close the second pane. Its tab stays open, just no longer on screen.
+    fn close_split(&mut self) {
+        self.split = None;
+    }
+
+    /// Give the keys to the pane showing `idx`, which must be the other pane.
+    pub fn focus_pane(&mut self, idx: usize) {
+        let Some(sp) = self.split else { return };
+        if sp.other != idx || idx == self.active || idx >= self.tabs.len() {
+            return;
+        }
+        self.split = Some(Split { other: self.active, right: !sp.right });
+        self.switch_tab(idx);
+    }
+
+    /// Drop the split once its two tabs stop being a pair.
+    fn check_split(&mut self) {
+        if let Some(sp) = self.split {
+            if sp.other >= self.tabs.len() || sp.other == self.active {
+                self.split = None;
+            }
+        }
     }
 
     fn switch_tab(&mut self, idx: usize) {
@@ -2274,9 +2451,11 @@ impl App {
         }
     }
 
-    /// Rows currently visible in the file list; set by the renderer.
-    pub fn set_page_rows(&mut self, rows: usize) {
-        self.tabs[self.active].page_rows = rows;
+    /// Rows currently visible in one pane's file list; set by the renderer.
+    pub fn set_page_rows(&mut self, idx: usize, rows: usize) {
+        if let Some(tab) = self.tabs.get_mut(idx) {
+            tab.page_rows = rows;
+        }
     }
 }
 
@@ -2308,6 +2487,31 @@ mod tests {
             desc: desc.into(),
             raw: run.into(),
         }
+    }
+
+    #[test]
+    fn the_other_pane_follows_its_tab_when_a_tab_closes() {
+        // Tabs before it keep their index; tabs after it shift down by one.
+        assert_eq!(split_after_remove(0, 2), Some(0));
+        assert_eq!(split_after_remove(3, 1), Some(2));
+        // Closing the tab the other pane shows leaves nothing to split with.
+        assert_eq!(split_after_remove(2, 2), None);
+    }
+
+    #[test]
+    fn the_other_pane_follows_its_tab_when_two_tabs_swap() {
+        assert_eq!(split_after_swap(1, 1, 3), 3);
+        assert_eq!(split_after_swap(3, 1, 3), 1);
+        // A swap between two tabs neither pane shows changes nothing.
+        assert_eq!(split_after_swap(2, 0, 4), 2);
+    }
+
+    #[test]
+    fn the_default_keymap_splits_the_view() {
+        let (km, _) = keymap::Keymap::load(&[]);
+        let runs: Vec<&Act> = km.mgr.iter().flat_map(|b| b.run.iter()).collect();
+        assert!(runs.contains(&&Act::PaneFocus(None)), "<C-w> moves between panes");
+        assert!(runs.contains(&&Act::Split(Some(false))), "a key closes the split");
     }
 
     #[test]
