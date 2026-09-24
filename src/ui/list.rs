@@ -32,6 +32,10 @@ pub struct ListResult {
     pub double_clicked: Option<usize>,
     /// Right-click, which opens the context menu on that row.
     pub secondary_clicked: Option<usize>,
+    /// The row a drag began on, the frame it began.
+    pub drag_started: Option<usize>,
+    /// The drag that began here has been let go, wherever the pointer is now.
+    pub drag_stopped: bool,
     pub scrolled: i64,
     /// Modifiers held down for the click above.
     pub mods: egui::Modifiers,
@@ -51,6 +55,8 @@ pub fn draw(
         clicked: None,
         double_clicked: None,
         secondary_clicked: None,
+        drag_started: None,
+        drag_stopped: false,
         scrolled: 0,
         mods: egui::Modifiers::NONE,
     };
@@ -217,11 +223,16 @@ pub fn draw(
             } else if resp.secondary_clicked() {
                 out.secondary_clicked = Some(row);
             }
+            if resp.drag_started() {
+                out.drag_started = Some(row);
+            }
             if out.clicked.is_some() || out.double_clicked.is_some() {
                 out.mods = ui.ctx().input(|i| i.modifiers);
             }
         }
     }
+    // Let go anywhere, not just over the row it started on.
+    out.drag_stopped = resp.drag_stopped();
     if ui.rect_contains_pointer(rect) {
         let scroll = ui.ctx().input(|i| i.smooth_scroll_delta.y);
         if scroll.abs() > 0.5 {

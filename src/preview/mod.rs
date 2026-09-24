@@ -217,6 +217,12 @@ fn render(req: &Request, syntax: &mut text::Highlighter) -> Payload {
         return thumbnail(path, req, "No PDF thumbnail handler (Acrobat Reader or PowerToys add one)");
     }
 
+    // An archive's table of contents, rendered as lines so it scrolls and
+    // truncates like any other text preview.
+    if crate::fs::archive::Format::from_path(path).is_some() {
+        return archive_listing(path);
+    }
+
     if mime == "font/sfnt" {
         return match req.ext.as_deref() {
             Some("woff" | "woff2") => meta(path, req, "WOFF fonts are compressed; not previewed"),
@@ -290,6 +296,43 @@ fn binary(path: &std::path::Path, head: &[u8]) -> Payload {
 /// The shell's thumbnail, or a metadata card saying why there is none.
 fn thumbnail(path: &std::path::Path, req: &Request, note: &str) -> Payload {
     shell_thumb::render(path, req.key.box_size).unwrap_or_else(|_| meta(path, req, note))
+}
+
+/// How many entries of an archive are read for the pane. Enough to see what a
+/// release tarball holds, few enough that a 200k-file archive does not stall
+/// the worker on a preview nobody asked to read in full.
+const ARCHIVE_ENTRIES: usize = 2000;
+
+/// What is inside an archive, one entry a line: size, then name. Directories
+/// are dimmed and carry no size, the way the file list draws them.
+fn archive_listing(path: &std::path::Path) -> Payload {
+    let (entries, more) = match crate::fs::archive::list(path, ARCHIVE_ENTRIES) {
+        Ok(v) => v,
+        // A password-protected or damaged archive still has a name and a size
+        // worth showing, so it falls back to the card rather than an error.
+        Err(e) => return Payload::Meta {
+            rows: vec![
+                ("Name".into(), crate::util::file_name(path)),
+                ("Note".into(), format!("Cannot list: {e}")),
+            ],
+        },
+    };
+    let total = entries.len();
+    let dim = Some([0x79, 0x80, 0x90]);
+    let lines: Vec<Vec<Span>> = entries
+        .into_iter()
+        .map(|e| {
+            let size = match e.dir {
+                true => format!("{:>9}  ", "—"),
+                false => format!("{:>9}  ", crate::util::human_size(e.size)),
+            };
+            vec![
+                Span { text: size, color: dim, ..Default::default() },
+                Span { text: e.name, color: None, ..Default::default() },
+            ]
+        })
+        .collect();
+    Payload::Text { lines, truncated: more, total_lines: total, outline: Vec::new() }
 }
 
 fn meta(path: &std::path::Path, _req: &Request, note: &str) -> Payload {

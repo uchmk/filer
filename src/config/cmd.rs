@@ -148,11 +148,22 @@ pub enum Act {
     /// Move the selected job to the front of the queue.
     TaskTop,
     Spot,
+    /// Copy (or move) the selection straight into the other pane, without
+    /// yanking and pasting to get there.
+    SendPane { cut: bool },
+
     /// Open the terminal pane and give it the keys, or take them back.
     /// `Some(false)` closes the pane and the shell with it.
     Terminal(Tri),
     /// Type the selected paths into the terminal.
     TermSend,
+    /// Put the pane where the shell is, when the shell has said.
+    TermCd,
+    /// Search the terminal's scrollback. `prev` walks back through the
+    /// matches; with no string yet, it asks for one.
+    TermFind { prev: bool, repeat: bool },
+    /// Move the terminal's view through its scrollback.
+    TermScroll(Step),
 
     /// Fuzzy-search every `mgr` binding and run the one picked.
     Palette,
@@ -348,6 +359,7 @@ pub fn parse(line: &str) -> Act {
         "hardlink" => Act::Hardlink,
         "extract" => Act::Extract,
         "compress" => Act::Compress,
+        "send_pane" => Act::SendPane { cut: a.has("cut") },
         "remove" => Act::Remove {
             permanently: a.has("permanently"),
             force: a.has("force"),
@@ -419,6 +431,9 @@ pub fn parse(line: &str) -> Act {
             _ => None,
         }),
         "term_send" => Act::TermSend,
+        "term_cd" => Act::TermCd,
+        "term_find" => Act::TermFind { prev: a.has("prev"), repeat: a.has("repeat") },
+        "term_scroll" => Act::TermScroll(parse_step(a.first().unwrap_or("-1"))),
         "toggle_render" => Act::ToggleRender,
         "toggle_outline" => Act::ToggleOutline,
 

@@ -211,6 +211,19 @@ on = "<C-->"
 run = "hardlink"
 desc = "Hardlink the yanked files"
 
+# Copy / move straight into the other pane. Deliberately not F5 / F6: F5 is
+# refresh here and in every browser, so putting a file operation on it would
+# write files for someone reaching for a reload — and F6 / F7 would half-match
+# Total Commander, where F6 means move, which is worse still.
+[[mgr.keymap]]
+on = "<A-c>"
+run = "send_pane"
+desc = "Copy the selection to the other pane"
+[[mgr.keymap]]
+on = "<A-m>"
+run = "send_pane --cut"
+desc = "Move the selection to the other pane"
+
 [[mgr.keymap]]
 on = "e"
 run = "extract"
@@ -529,6 +542,41 @@ desc = "Close the terminal"
 on = "<C-S-t>"
 run = "close"
 desc = "Give the keys back to the list"
+[[term.keymap]]
+on = "<A-Up>"
+run = "term_cd"
+desc = "Put the pane where the shell is"
+
+# Scrollback and search. Shift is what keeps these out of the shell's way:
+# a program reading the keyboard sees PageUp, never Shift+PageUp.
+[[term.keymap]]
+on = "<S-PageUp>"
+run = "term_scroll -50%"
+desc = "Scroll back half a screen"
+[[term.keymap]]
+on = "<S-PageDown>"
+run = "term_scroll 50%"
+desc = "Scroll forward half a screen"
+[[term.keymap]]
+on = "<S-Home>"
+run = "term_scroll top"
+desc = "To the top of the scrollback"
+[[term.keymap]]
+on = "<S-End>"
+run = "term_scroll bot"
+desc = "Back to the bottom"
+[[term.keymap]]
+on = "<C-S-f>"
+run = "term_find"
+desc = "Find in the scrollback"
+[[term.keymap]]
+on = "<C-S-n>"
+run = "term_find --repeat"
+desc = "Find the next match"
+[[term.keymap]]
+on = "<C-S-b>"
+run = "term_find --repeat --prev"
+desc = "Find the previous match"
 
 # --- Input line ---------------------------------------------------------------
 # The input line is a native widget (so IME and clipboard behave), which means

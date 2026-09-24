@@ -10,6 +10,43 @@ yazi 風のキーボード操作ファイルマネージャーを Rust + egui 0.
 - 改行は LF（`.gitattributes` の `eol=lf`）。スクリプトで書き換えるときは改行を変えない（Python なら `newline=''`）。
 - タスクは [TODO.md](TODO.md)、人への確認事項は [QUESTIONS.md](QUESTIONS.md) で管理する（書き方は「確認事項」の節）。
 
+## ブランチ・バージョン・変更ログ
+
+一人開発なので、`main` への直接コミット・push を許可する。区切りたいときはブランチと PR を
+使ってもよい（どちらでもよい。PR にするなら CI が緑になってからマージする）。
+
+### セマンティックバージョニング
+
+`MAJOR.MINOR.PATCH`。版は `Cargo.toml` の `version` が正とする。
+
+| 上げる桁 | 対象 | 例 |
+| --- | --- | --- |
+| PATCH | バグ修正、ドキュメント更新、内部の小さな整理 | 0.0.1 → 0.0.2 |
+| MINOR | 新機能の追加、大きめの変更 | 0.0.2 → 0.1.0 |
+| MAJOR | 正式版リリース、大改修 | 0.1.1 → 1.0.0 |
+
+- 1.0.0 未満なので、MINOR が破壊的変更を含んでもよい（semver の 4 項）。
+  既定キーの変更や設定ファイルの互換性に関わる変更は、CHANGELOG に**変更**として明記する。
+- 迷ったら小さいほうに倒す。機能が入っているなら MINOR。
+
+### `main` にコミット・push するときの手順
+
+**バージョンの繰り上げと [CHANGELOG.md](CHANGELOG.md) への追記はセットで行う。**片方だけを
+コミットしない。
+
+1. 変更の大きさから桁を決める（上の表）。
+2. `Cargo.toml` の `version` を書き換える。
+3. `cargo build`（または `cargo test`）を一度回して `Cargo.lock` の `filer` の版も更新する。
+   これを忘れると CI の `cargo build --locked` が落ちる。
+4. CHANGELOG.md の先頭に新しい版の節を足す。形式は
+   [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に寄せる（`### 追加` / `### 変更` /
+   `### 修正` / `### 削除`）。日付は `YYYY-MM-DD`。
+5. コードと一緒にコミットする。コミットメッセージは英語。
+
+- 1 回の push に複数の変更が入るなら、版は 1 つだけ上げてまとめて書く。
+- ドキュメントだけの変更でも PATCH を上げる。
+- タグは切っていない。必要になったら `v0.2.0` の形で始める。
+
 ## ビルド・検証（PowerShell）
 
 ```powershell
@@ -19,8 +56,27 @@ cargo clippy        --manifest-path C:\dev\filer\Cargo.toml
 cargo build --release --manifest-path C:\dev\filer\Cargo.toml
 ```
 
-- clippy の `main.rs` の never_loop（Confirm の Text 処理）は以前からある。直すのは別タスク（TODO.md）。
-- CI は `.github/workflows/ci.yml`（Windows）。
+- clippy は `--all-targets` で警告ゼロを保っている。増やさないこと。
+- CI は `.github/workflows/ci.yml`（Windows）でテスト、`build.yml` が `filer.exe` を
+  アーティファクトとして残す（Actions タブからダウンロードできる）。
+- egui 0.36 は rustc 1.95 以上を要求する。`Cargo.toml` の `rust-version` はそれより低い。
+
+### Linux 上で作業する場合（クラウドセッションなど）
+
+Windows 専用のコード（ConPTY、`is_hidden`、`#[cfg(windows)]` のテスト）は Linux では 1 行も
+コンパイルされないため、手元で通っても CI で落ちる。リンクしない型検査なら MSVC ツールチェーン
+なしで通せるので、push 前にこれを回すこと。
+
+```bash
+rustup target add x86_64-pc-windows-msvc
+cargo check --release --target x86_64-pc-windows-msvc --all-targets
+```
+
+- ただし型検査なので実行時の問題は捕まえない。実際、`format!("{:?}", "status")` が
+  ディレクトリ名に引用符を入れ（Unix では合法、Windows では不正）、CI で初めて落ちたことがある。
+  パス文字列は目視でも確認すること。
+- `cargo test` の失敗 4 件（`exec::tests::*` 3 件と `util::tests::normalizes`）は Linux 限定。
+  Windows のパス表記を前提にしたテストなので、CI（Windows）では通る。
 
 ## 自動実行モード
 
@@ -34,11 +90,15 @@ cargo build --release --manifest-path C:\dev\filer\Cargo.toml
   - テストは全件通すこと。
   - clippy は既存の指摘（never_loop など）を除いて、新しい警告やエラーを増やさないこと。
   - release ビルドは検証に要らないのでしない（test / clippy は debug ビルドなので、`filer.exe` が起動中でも動く）。
-- タスクが 1 つ終わるたびにコミットとプッシュをする。検証が通ったら、TODO.md のチェックを更新して `git commit` し、続けて `git push -u origin auto/todo` する。
+- タスクが 1 つ終わるたびにコミットとプッシュをする。検証が通ったら、TODO.md のチェックを更新し、
+  「ブランチ・バージョン・変更ログ」の手順（版の繰り上げ＋ CHANGELOG.md）を踏んで `git commit` し、
+  続けて `git push -u origin <今いるブランチ>` する。
   - コミットメッセージは英語。
-  - push 先は `origin` の `auto/todo` だけ。main には push しない。`--force` は使わない。
+  - **ブランチは切り替えない。**スクリプトが用意したブランチにそのまま積む（`auto-todo.sh` なら
+    `auto/todo`）。人が見ていない前提なので、自動実行モードからは `main` へ push しない。
+    対話中の `main` 直コミットは許可しているが、それは人が見ているときの話。
+  - `--force` は使わない。
   - push に失敗したら（認証・ネットワークなど）、コミットはそのまま残して終わる。次の起動で、またはスクリプトの後処理で push し直す。
-  - ブランチは切り替えない（スクリプトが `auto/todo` を用意する）。
 - 検証が通らず直せなかった場合は、変更を `git restore` / `git clean` で戻し、TODO.md に失敗の理由を書く。コミットはしない。
 - 自動で進められるタスクが残っていなければ、何も変更しない。自動で進められるタスクとは、`要確認` の付いていない未完了タスクと、質問が回答済みになったタスクのこと。
   - そのときは「未回答の確認事項 N 件（QUESTIONS.md）」と出力し、最後の行に `ALL_DONE` とだけ出力する。

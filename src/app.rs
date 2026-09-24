@@ -38,6 +38,8 @@ pub enum InputKind {
     Filter,
     Find { prev: bool },
     Cd,
+    /// A string to find in the terminal's scrollback.
+    TermFind,
     /// The name of the archive to pack the selection into.
     Compress,
     Shell { block: bool },
@@ -229,6 +231,7 @@ fn acts_on_file(a: &Act) -> bool {
             | Act::Shell { .. }
             | Act::Extract
             | Act::Compress
+            | Act::SendPane { .. }
             | Act::TermSend
             | Act::Spot
             | Act::Follow
@@ -436,6 +439,18 @@ pub struct Split {
     pub right: bool,
 }
 
+/// Files being dragged from one pane towards the other.
+///
+/// It lives on `App` rather than in the list because the two panes are drawn
+/// separately: the one the drag began in has no idea where it ends.
+pub struct Drag {
+    /// The tab the drag started in.
+    pub from: usize,
+    pub paths: Vec<PathBuf>,
+    /// What to draw under the pointer while it is in flight.
+    pub label: String,
+}
+
 /// Follow the other pane's tab index after the tab at `removed` is dropped.
 /// `None` means that pane's own tab went away, so the split closes.
 fn split_after_remove(other: usize, removed: usize) -> Option<usize> {
@@ -534,6 +549,12 @@ pub struct App {
     pub term: Option<crate::terminal::Terminal>,
     /// The terminal has the keys, so they go to the shell rather than here.
     pub term_focus: bool,
+    /// What the terminal was last searched for, so the key repeats it.
+    term_needle: String,
+    /// A drag in flight between the panes.
+    pub drag: Option<Drag>,
+    /// Where each pane was drawn this frame, so a drop can be placed.
+    pub pane_rects: Vec<(usize, egui::Rect)>,
     /// What git says about each directory on screen, by directory.
     git_status: Lru<PathBuf, Arc<git::Status>>,
     pub spotter: Spotter,
@@ -618,6 +639,9 @@ impl App {
             git_status: Lru::new(8),
             term: None,
             term_focus: false,
+            term_needle: String::new(),
+            drag: None,
+            pane_rects: Vec::new(),
             spotter,
             spotted: None,
             pending: Vec::new(),
@@ -1793,8 +1817,30 @@ impl App {
             Act::Menu => self.open_menu(),
             Act::Terminal(what) => self.terminal(what),
             Act::TermSend => self.term_send_paths(),
+            Act::TermCd => self.term_pull_cwd(),
+            Act::TermFind { prev, repeat } => {
+                let needle = self.term_needle.clone();
+                match repeat && !needle.is_empty() {
+                    true => self.term_find(&needle, prev),
+                    // Nothing to repeat, so ask what to look for.
+                    false => self.open_input(InputKind::TermFind, "Find in terminal", needle),
+                }
+            }
+            Act::TermScroll(step) => {
+                if let Some(t) = &self.term {
+                    use alacritty_terminal::grid::Scroll;
+                    let page = t.size().lines as i64;
+                    t.scroll(match step {
+                        Step::Top => Scroll::Top,
+                        Step::Bot => Scroll::Bottom,
+                        Step::Rel(n) => Scroll::Delta(n as i32),
+                        Step::Pct(p) => Scroll::Delta((page * p / 100) as i32),
+                    });
+                }
+            }
             Act::Extract => self.do_extract(),
             Act::Compress => self.ask_compress(),
+            Act::SendPane { cut } => self.send_to_pane(cut),
             Act::ToggleOutline => self.toggle_outline(),
             Act::ToggleRender => {
                 self.render_markdown = !self.render_markdown;
@@ -2044,6 +2090,67 @@ impl App {
             self.yank.paths.clear();
             self.yank.cut = false;
         }
+    }
+
+    /// Finish a drag. `onto` is the tab the pointer was over when it was let
+    /// go, and `cut` is whether the move modifier was held.
+    ///
+    /// A drop needs somewhere to land, so it does nothing unless the pointer
+    /// ended over a different pane: dropping a file back where it came from
+    /// should be the no-op it looks like.
+    pub fn drop_drag(&mut self, onto: Option<usize>, cut: bool) {
+        let Some(drag) = self.drag.take() else { return };
+        let Some(onto) = onto.filter(|&i| i != drag.from && i < self.tabs.len()) else { return };
+        let dest = self.tabs[onto].cwd.clone();
+        if dest == self.tabs[drag.from].cwd {
+            return;
+        }
+        let kind = if cut { OpKind::Move } else { OpKind::Copy };
+        self.submit_op(kind, drag.paths, dest, false);
+        self.tabs[drag.from].clear_selection();
+    }
+
+    /// Start a drag on `row` in `tab`. The selection travels when the row is
+    /// part of it; otherwise it is that one file, the way a drag usually works.
+    pub fn start_drag(&mut self, tab: usize, row: usize) {
+        let Some(entry) = self.tabs[tab].current.at(row).cloned() else { return };
+        let selected = self.tabs[tab].selected.contains(&entry.path);
+        let paths: Vec<PathBuf> = match selected {
+            true => self.tabs[tab].selected.iter().cloned().collect(),
+            false => vec![entry.path.clone()],
+        };
+        let label = match paths.len() {
+            1 => entry.name.clone(),
+            n => format!("{n} items"),
+        };
+        self.drag = Some(Drag { from: tab, paths, label });
+    }
+
+    /// Copy or move the selection into the other pane in one keypress.
+    ///
+    /// The same job a yank and a paste would raise, with the other pane's
+    /// directory as the destination — the point being that the destination is
+    /// already on screen, so naming it again is the step worth removing. The
+    /// yank register is left alone: this is not a yank.
+    fn send_to_pane(&mut self, cut: bool) {
+        let Some(other) = self.other_pane().filter(|&i| i < self.tabs.len()) else {
+            self.error("Open the second pane first (<C-w>)");
+            return;
+        };
+        let srcs = self.tabs[self.active].targets();
+        if srcs.is_empty() {
+            return;
+        }
+        let dest = self.tabs[other].cwd.clone();
+        // Into the directory it is already in: the copy would land beside
+        // itself under another name, which is never what this key meant.
+        if dest == self.tabs[self.active].cwd {
+            self.error("Both panes are in the same directory");
+            return;
+        }
+        let kind = if cut { OpKind::Move } else { OpKind::Copy };
+        self.submit_op(kind, srcs, dest, false);
+        self.tabs[self.active].clear_selection();
     }
 
     fn link(&mut self, kind: OpKind) {
@@ -2500,6 +2607,7 @@ impl App {
         match ov.kind {
             InputKind::Create => self.do_create(&text),
             InputKind::Compress => self.do_compress(&text),
+            InputKind::TermFind => self.term_find(&text, false),
             InputKind::Rename { from } => self.do_rename(&from, &text),
             InputKind::Filter => { /* already applied live */ }
             InputKind::Find { .. } => { /* already applied live */ }
@@ -2699,6 +2807,47 @@ impl App {
             paths.iter().map(|p| crate::terminal::quote(&p.to_string_lossy())).collect();
         term.send(format!(" {}", line.join(" ")).into_bytes());
         self.term_focus = true;
+    }
+
+    /// Look for `needle` in the terminal's scrollback and put the match on
+    /// screen. Repeating the command walks the matches; running out wraps.
+    fn term_find(&mut self, needle: &str, back: bool) {
+        let needle = needle.trim();
+        if needle.is_empty() {
+            return;
+        }
+        self.term_needle = needle.to_owned();
+        let Some(term) = &mut self.term else { return };
+        if term.search(needle, back) {
+            return;
+        }
+        // Nothing from here on; start again from the view.
+        term.end_search();
+        match term.search(needle, back) {
+            true => self.toast("Wrapped"),
+            false => self.error(format!("No match for {needle}")),
+        }
+    }
+
+    /// Follow the shell: put the pane where it says it is.
+    ///
+    /// The other direction, and the useful one when a command has moved the
+    /// shell somewhere the pane knows nothing about. It needs the shell to
+    /// report its directory (OSC 7), which most do out of the box and some
+    /// have to be told to.
+    fn term_pull_cwd(&mut self) {
+        let Some(term) = &self.term else {
+            self.error("The terminal is not open");
+            return;
+        };
+        let Some(cwd) = term.shell_cwd.clone() else {
+            self.error("The shell has not said where it is (it sends no OSC 7)");
+            return;
+        };
+        if cwd == self.tabs[self.active].cwd {
+            return;
+        }
+        self.cd(cwd, true);
     }
 
     /// Read what the shell has said, and keep it in the directory the pane is
@@ -3450,6 +3599,22 @@ mod tests {
         // The context menu has a key of its own, so it is reachable without a
         // mouse and the palette lists it like any other command.
         assert!(runs.iter().any(|r| r == &[Act::Menu]), "the palette lists the context menu");
+
+        // The terminal layer is loaded, and holds only the few keys the pane
+        // keeps for itself — everything else has to reach the shell.
+        assert!(!km.term.is_empty(), "the [term] section is read");
+        assert!(
+            km.term.iter().all(|b| b.on.len() == 1),
+            "only single keys are consulted there, so only single keys belong"
+        );
+        assert!(
+            km.term.iter().any(|b| b.run == vec![Act::Terminal(Some(false))]),
+            "there is a way to close it"
+        );
+        assert!(
+            km.term.iter().any(|b| matches!(b.run.first(), Some(Act::TermScroll(_)))),
+            "and a way into the scrollback"
+        );
         assert_eq!(items.len(), details.len());
         assert_eq!(items.len(), runs.len());
         assert!(runs.iter().any(|r| r == &[Act::Palette]), "the palette lists itself");

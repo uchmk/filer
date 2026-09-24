@@ -58,7 +58,7 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
-`menu`, `extract`, `compress`, `terminal`, `term_send`, `task_toggle`, `task_cancel`, `task_top`,
+`menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `term_cd`, `term_find`, `term_scroll`, `task_toggle`, `task_cancel`, `task_top`,
 `split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
 project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
@@ -194,6 +194,17 @@ directory; with several, it borrows the next tab. `[` / `]` / `1`–`9` still sw
 switching to the tab the other pane shows just moves the keys there. Closing or swapping tabs
 keeps the panes pointed at the right ones; closing the tab the other pane holds ends the split.
 
+`<A-c>` copies the selection into the other pane and `<A-m>` moves it — one key instead of
+`y` `<C-w>` `p`. The other pane's directory is already on screen, so naming a destination is the
+step worth removing; the yank register is left alone. Dragging does the same: drag a row (or a
+selection) onto the other pane to copy it, with `Shift` held to move it, the way Explorer does.
+The pane about to receive the drop is outlined and the pointer says which it will be.
+
+Neither is on `F5` / `F6` on purpose. `F5` is refresh here as it is in every browser, so putting a
+file operation there would write files for someone reaching for a reload; and `F6`/`F7` would
+half-match Total Commander, where `F6` means *move* — worse, because the mismatch loses data
+rather than just surprising. Rebind them in `keymap.toml` if your fingers disagree.
+
 The pane with the keys is outlined and keeps the bright cursor; the other is dimmed. Clicking the
 dim pane takes the keys first, so a click, a `Shift`+click or a double-click always lands on the
 pane you aimed at. Both panes are watched for changes and rescanned, the passive one at a lower
@@ -249,14 +260,33 @@ rather than another set of bindings. Only what the `[term]` keymap section binds
 | --- | --- |
 | `<C-t>` | close the pane and the shell with it |
 | `<C-S-t>` | give the keys back to the list, leaving the shell running |
+| `<A-Up>` | put the file list where the shell is |
+| `<S-PageUp>` `<S-PageDown>` | half a screen back / forward through the scrollback |
+| `<S-Home>` `<S-End>` | to the top of the scrollback / back to the bottom |
+| `<C-S-f>` `<C-S-n>` `<C-S-b>` | find in the scrollback / next match / previous |
 
-Click the pane to take the keys back. The grid is drawn with the list's own font and the theme's
-colors, so the 16 ANSI colors match the rest of the window; the 256-color cube and true-color
-values are used as the program asked for them.
+`Shift` is what keeps those out of the shell's way: a program reading the keyboard sees `PageUp`,
+never `Shift`+`PageUp`. Typing anything brings the view back to the bottom, and while it is not
+there the pane says how far back it is.
 
-It follows the pane: change directory and the shell is sent a `cd` for the new one. That is a
-line of input like any other — harmless at a prompt, a nuisance in the middle of a command — so
-it is only sent when the directory has actually changed.
+The wheel walks the scrollback. Drag to select and the selection is copied when you let go —
+that is what selecting means in a terminal, there is no second step — and a double-click takes
+the word. Click the pane to take the keys back.
+
+The grid is drawn with the list's own font and the theme's colors, so the 16 ANSI colors match
+the rest of the window; the 256-color cube and true-color values are used as the program asked
+for them.
+
+It follows the pane: change directory and the shell is sent a `cd` for the new one. Typing is the
+only way in — a shell takes no other instruction — so that is a line of input like any other,
+harmless at a prompt and a nuisance in the middle of a command. It is therefore sent as rarely as
+it can be: not when the pane has not moved, and not when the shell has already said it is there.
+
+The saying is OSC 7, the escape a shell emits to report its directory; most send it out of the
+box and some have to be told to. filer reads it off the PTY as the bytes go past. A shell that
+sends it never hears a `cd` it does not need — including the one that would otherwise chase its
+own. `<A-Up>` in the pane goes the other way: it puts the file list where the shell is, which is
+what you want after a command has moved it somewhere the list knows nothing about.
 
 `<A-t>` types the selected paths onto the shell's line, quoted so a path with a space in it
 arrives as one word. Nothing is run: the line is left for you to put a command in front of.
@@ -343,6 +373,12 @@ Entry names coming out of an archive are treated as untrusted: one that climbs o
 destination with `..`, names an absolute path or carries a drive letter is refused and reported
 rather than written.
 
+Selecting an archive shows what is inside it in the preview pane — size and name, one entry a
+line, scrolling like any other preview. Only the table of contents is read where the format has
+one (a zip's central directory, a 7z's header), so nothing is decompressed to answer the
+question; a tar has no index, so its entries are walked with the data skipped. The first 2000
+entries are listed and the pane says when there are more.
+
 ## Other previews
 
 No external tools (magick, ffmpeg, pdftoppm) are needed:
@@ -373,6 +409,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
 | `a` `r` | create (trailing `/` makes a directory) / rename |
 | `e` `E` | extract the selected archives / compress the selection |
+| `<A-c>` `<A-m>` | copy / move the selection to the other pane |
 | `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` config, `gt` temp, `g<Space>` type a path, `gf` follow the link |
 | `c…` | `cc` copy the path, `cd` the parent, `cf` the file name, `cn` the name without its extension |
 | `o` `O` `<Enter>` `<S-Enter>` | open / open with… / open (at the outline's line) / open with… |
@@ -393,7 +430,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `w` `q` | tasks (`p` pause, `x` cancel, `t` to the front) / quit |
 
 Mouse works too: click to move the cursor, double-click to open, right-click for the context
-menu, wheel to scroll. `Shift`+click selects from the cursor to the row you clicked, and
+menu, drag onto the other pane to copy there, wheel to scroll. `Shift`+click selects from the cursor to the row you clicked, and
 `Ctrl`+click (`Cmd` on macOS) adds or removes one row. Both share the selection with `<Space>`
 and visual mode, so you can start a range with the mouse and finish it with the keyboard.
 
@@ -464,16 +501,16 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   the hidden-file attribute are Windows-specific paths.
 - No Lua plugin runtime — see the plugin table above for what is emulated natively, and the
   [context menu](#context-menu) for how a custom action reaches the screen without one.
-- An archive's *preview* is a metadata card rather than a listing of what is inside — `e` unpacks
-  it, but the pane does not browse it. woff / woff2 fonts aren't previewed. Video,
+- An archive's preview lists what is inside but does not browse it: no entering a folder, and
+  no reading one file out. woff / woff2 fonts aren't previewed. Video,
   PDF and HEIC previews rely on Windows thumbnail handlers (see [Other previews](#other-previews)).
 - `[input]`, `[confirm]` and `[pick]` keymap layers are parsed for compatibility, but the prompts
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.
 - Git signs need `git` on `PATH`; without it the rows are simply unmarked. Only the status is
   shown — there is no staging, diffing or committing here, and no branch in the status bar yet.
-- The terminal pane has no scrollback keys, no mouse selection and no search of its own yet: what
-  is on screen is what you can see. `cd` following types a line into the shell, so it lands in
-  whatever is running if something is.
+- The terminal pane has no tabs and no split of its own, and `cd` following types a line into the
+  shell, so it lands in whatever is running if something is — unless the shell reports its
+  directory, in which case it is usually not sent at all.
 
 ## Layout
 
