@@ -1,0 +1,31 @@
+name: Build
+
+# A downloadable `filer.exe`, so getting one does not mean having a Rust
+# toolchain to hand. Kept apart from `ci.yml` on purpose: this one produces an
+# artifact, that one is the gate, and a failure here should not read as a
+# failing test.
+
+on:
+  push:
+    branches: [main]
+  # Or from the Actions tab, on any branch, whenever a build is wanted.
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release --locked
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          # The commit is in the name, so two downloads are never confused.
+          name: filer-windows-x64-${{ github.sha }}
+          path: target/release/filer.exe
+          if-no-files-found: error
