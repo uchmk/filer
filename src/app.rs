@@ -1812,6 +1812,7 @@ impl App {
             Act::Menu => self.open_menu(),
             Act::Terminal(what) => self.terminal(what),
             Act::TermSend => self.term_send_paths(),
+            Act::TermCd => self.term_pull_cwd(),
             Act::Extract => self.do_extract(),
             Act::Compress => self.ask_compress(),
             Act::SendPane { cut } => self.send_to_pane(cut),
@@ -2780,6 +2781,27 @@ impl App {
             paths.iter().map(|p| crate::terminal::quote(&p.to_string_lossy())).collect();
         term.send(format!(" {}", line.join(" ")).into_bytes());
         self.term_focus = true;
+    }
+
+    /// Follow the shell: put the pane where it says it is.
+    ///
+    /// The other direction, and the useful one when a command has moved the
+    /// shell somewhere the pane knows nothing about. It needs the shell to
+    /// report its directory (OSC 7), which most do out of the box and some
+    /// have to be told to.
+    fn term_pull_cwd(&mut self) {
+        let Some(term) = &self.term else {
+            self.error("The terminal is not open");
+            return;
+        };
+        let Some(cwd) = term.shell_cwd.clone() else {
+            self.error("The shell has not said where it is (it sends no OSC 7)");
+            return;
+        };
+        if cwd == self.tabs[self.active].cwd {
+            return;
+        }
+        self.cd(cwd, true);
     }
 
     /// Read what the shell has said, and keep it in the directory the pane is

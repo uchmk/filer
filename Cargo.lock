@@ -1309,6 +1309,7 @@ dependencies = [
  "image",
  "notify",
  "open",
+ "polling",
  "pulldown-cmark",
  "resvg",
  "serde",

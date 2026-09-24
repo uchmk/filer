@@ -22,7 +22,7 @@ use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::index::{Column, Line};
 use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::{Config, Term};
-use alacritty_terminal::tty;
+use alacritty_terminal::tty::{self, EventedReadWrite};
 
 use crossbeam_channel::{Receiver, Sender};
 
@@ -71,6 +71,192 @@ impl EventListener for Proxy {
     }
 }
 
+/// The PTY with a tap on the bytes coming out of it.
+///
+/// A shell says where it is with OSC 7, and `alacritty_terminal`'s parser does
+/// not carry that one — vte handles the title, the clipboard and the colors,
+/// and lets the rest fall on the floor. Rather than replace the event loop to
+/// get at it, the PTY is wrapped: the loop reads through here, so the bytes
+/// are seen on the way past and the terminal still gets every one of them.
+///
+/// `Reader = Self` because [`tty::EventedReadWrite::reader`] hands back a
+/// reference into `self`, which leaves nowhere to put a wrapper that borrows
+/// it. Being its own reader is how the tap gets to keep its state.
+struct Tapped {
+    inner: tty::Pty,
+    cwd: Sender<PathBuf>,
+    /// Bytes of an OSC 7 that has begun but not ended, since a read can stop
+    /// anywhere — including in the middle of one.
+    partial: Vec<u8>,
+}
+
+/// Longest OSC 7 worth waiting for. A path cannot sensibly be longer, and a
+/// stream that never terminates one must not grow this for ever.
+const MAX_OSC: usize = 4096;
+
+impl io::Read for Tapped {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let n = self.inner.reader().read(buf)?;
+        for path in scan_osc7(&mut self.partial, &buf[..n]) {
+            let _ = self.cwd.send(path);
+        }
+        Ok(n)
+    }
+}
+
+impl tty::EventedReadWrite for Tapped {
+    type Reader = Self;
+    type Writer = <tty::Pty as tty::EventedReadWrite>::Writer;
+
+    unsafe fn register(
+        &mut self,
+        poller: &Arc<polling::Poller>,
+        interest: polling::Event,
+        mode: polling::PollMode,
+    ) -> io::Result<()> {
+        unsafe { self.inner.register(poller, interest, mode) }
+    }
+
+    fn reregister(
+        &mut self,
+        poller: &Arc<polling::Poller>,
+        interest: polling::Event,
+        mode: polling::PollMode,
+    ) -> io::Result<()> {
+        self.inner.reregister(poller, interest, mode)
+    }
+
+    fn deregister(&mut self, poller: &Arc<polling::Poller>) -> io::Result<()> {
+        self.inner.deregister(poller)
+    }
+
+    fn reader(&mut self) -> &mut Self::Reader {
+        self
+    }
+
+    fn writer(&mut self) -> &mut Self::Writer {
+        self.inner.writer()
+    }
+}
+
+impl tty::EventedPty for Tapped {
+    fn next_child_event(&mut self) -> Option<tty::ChildEvent> {
+        self.inner.next_child_event()
+    }
+}
+
+impl alacritty_terminal::event::OnResize for Tapped {
+    fn on_resize(&mut self, window_size: WindowSize) {
+        self.inner.on_resize(window_size)
+    }
+}
+
+/// Pull the directories out of any OSC 7 sequences in `chunk`.
+///
+/// The shape is `ESC ] 7 ; file://host/path` closed by BEL or ST (`ESC \`).
+///
+/// A read stops wherever the pipe happened to fill, which can be anywhere —
+/// including between the `ESC` and the `]`. So `carry` holds whatever of the
+/// previous read could still matter, and each call works over the join: an
+/// unfinished sequence, or the first bytes of a start marker. Everything
+/// older is dropped, so the buffer does not grow with the output.
+fn scan_osc7(carry: &mut Vec<u8>, chunk: &[u8]) -> Vec<PathBuf> {
+    const START: &[u8] = b"\x1b]7;";
+    let mut out = Vec::new();
+    carry.extend_from_slice(chunk);
+
+    let mut from = 0usize;
+    // Where the kept tail begins once the scan runs out of complete sequences.
+    let keep;
+    loop {
+        let Some(rel) = find(&carry[from..], START) else {
+            // Nothing begun: only a split start marker could still matter.
+            keep = from.max(carry.len().saturating_sub(START.len() - 1));
+            break;
+        };
+        let at = from + rel;
+        let body = at + START.len();
+        match end_of_osc(&carry[body..]) {
+            Some((end, skip)) => {
+                if let Some(p) = from_file_url(&carry[body..body + end]) {
+                    out.push(p);
+                }
+                from = body + end + skip;
+            }
+            None => {
+                // Still waiting for the end. A sequence this long is not a
+                // path, so give up rather than hold it for ever.
+                keep = match carry.len() - at > MAX_OSC {
+                    true => carry.len(),
+                    false => at,
+                };
+                break;
+            }
+        }
+    }
+    carry.drain(..keep);
+    out
+}
+
+/// Where an OSC body ends, and how many bytes the terminator takes.
+fn end_of_osc(bytes: &[u8]) -> Option<(usize, usize)> {
+    let bel = bytes.iter().position(|&b| b == 0x07);
+    let st = find(bytes, b"\x1b\\");
+    match (bel, st) {
+        (Some(a), Some(b)) if a < b => Some((a, 1)),
+        (Some(_), Some(b)) => Some((b, 2)),
+        (Some(a), None) => Some((a, 1)),
+        (None, Some(b)) => Some((b, 2)),
+        (None, None) => None,
+    }
+}
+
+fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack.windows(needle.len()).position(|w| w == needle)
+}
+
+/// The path out of a `file://host/path` URL, with percent-escapes undone.
+///
+/// The host is whatever machine the shell is on; a remote one names a path
+/// this side cannot open, but there is no way to tell from here, so it is
+/// taken at face value and simply fails to list if it is not there.
+fn from_file_url(bytes: &[u8]) -> Option<PathBuf> {
+    let s = std::str::from_utf8(bytes).ok()?.trim();
+    let rest = s.strip_prefix("file://")?;
+    // Past the host, which may be empty (`file:///home/…`).
+    let path = &rest[rest.find('/')?..];
+    let decoded = percent_decode(path);
+    let decoded = decoded.trim_end_matches('/');
+    if decoded.is_empty() {
+        return Some(PathBuf::from("/"));
+    }
+    // Windows spells it `file:///C:/dir`, which is a path once the slash goes.
+    let trimmed = match decoded.as_bytes() {
+        [b'/', c, b':', ..] if c.is_ascii_alphabetic() => &decoded[1..],
+        _ => decoded,
+    };
+    Some(crate::util::normalize(Path::new(trimmed)))
+}
+
+fn percent_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' && i + 2 < b.len() {
+            let hex = std::str::from_utf8(&b[i + 1..i + 3]).ok();
+            if let Some(v) = hex.and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                out.push(v);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(b[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
 pub struct Terminal {
     term: Arc<FairMutex<Term<Proxy>>>,
     sender: EventLoopSender,
@@ -82,6 +268,11 @@ pub struct Terminal {
     size: Size,
     /// Where the shell was last told to go, so it is not told twice.
     followed: Option<PathBuf>,
+    cwd_rx: Receiver<PathBuf>,
+    /// Where the shell says it is, when it says so at all. A shell that does
+    /// not send OSC 7 leaves this `None` for ever, which is why it only ever
+    /// suppresses work rather than driving any.
+    pub shell_cwd: Option<PathBuf>,
 }
 
 impl Terminal {
@@ -103,6 +294,8 @@ impl Terminal {
         };
         let window = window_size(size, cell);
         let pty = tty::new(&options, window, 0)?;
+        let (cwd_tx, cwd_rx) = crossbeam_channel::unbounded();
+        let pty = Tapped { inner: pty, cwd: cwd_tx, partial: Vec::new() };
 
         let (tx, rx) = crossbeam_channel::unbounded();
         let proxy = Proxy { tx, wake: Arc::new(wake) };
@@ -123,6 +316,8 @@ impl Terminal {
             exited: false,
             size,
             followed: Some(cwd.to_path_buf()),
+            cwd_rx,
+            shell_cwd: None,
         })
     }
 
@@ -130,6 +325,10 @@ impl Terminal {
     /// text it asked to put on the clipboard, which only the UI thread can do.
     pub fn drain(&mut self) -> Vec<String> {
         let mut clipboard = Vec::new();
+        // Where the shell says it is. Only the last one matters.
+        while let Ok(p) = self.cwd_rx.try_recv() {
+            self.shell_cwd = Some(p);
+        }
         while let Ok(ev) = self.rx.try_recv() {
             match ev {
                 PtyEvent::Title(t) => self.title = t,
@@ -170,15 +369,21 @@ impl Terminal {
 
     /// Follow the pane into `cwd`, by typing the `cd` a person would.
     ///
-    /// There is no way to ask a shell where it is, so this is a line of input
-    /// like any other: harmless at a prompt, and a nuisance in the middle of
-    /// a command, which is why it is only sent when the directory has really
-    /// changed.
+    /// Typing is the only way in: a shell takes no other instruction. That
+    /// makes it a line of input like any other — harmless at a prompt, a
+    /// nuisance in the middle of a command — so it is sent as rarely as it
+    /// can be. Twice over: not when the pane has not moved, and not when the
+    /// shell has already said (through OSC 7) that it is there. A shell that
+    /// reports its directory therefore never hears a `cd` it does not need,
+    /// including the one that would otherwise follow its own.
     pub fn follow(&mut self, cwd: &Path) {
         if self.followed.as_deref() == Some(cwd) {
             return;
         }
         self.followed = Some(cwd.to_path_buf());
+        if self.shell_cwd.as_deref() == Some(cwd) {
+            return;
+        }
         let quoted = quote(&cwd.to_string_lossy());
         self.send(format!("cd {quoted}\r").into_bytes());
     }
@@ -470,6 +675,83 @@ mod tests {
         assert_eq!(control_code('c', true), Some(vec![0x1b, 0x03]));
         // Nothing sensible to send, so nothing is sent.
         assert_eq!(control_code('é', false), None);
+    }
+
+    fn osc7(path: &str) -> Vec<u8> {
+        format!("\x1b]7;file://host{path}\x07").into_bytes()
+    }
+
+    #[test]
+    fn a_shell_saying_where_it_is_is_understood() {
+        let mut partial = Vec::new();
+        assert_eq!(
+            scan_osc7(&mut partial, &osc7("/home/user/src")),
+            vec![PathBuf::from("/home/user/src")]
+        );
+        // Terminated by ST rather than BEL, which is equally correct.
+        let st = b"\x1b]7;file:///tmp\x1b\\";
+        assert_eq!(scan_osc7(&mut partial, st), vec![PathBuf::from("/tmp")]);
+        // Percent-escapes, which is how a space arrives.
+        let esc = b"\x1b]7;file://h/a%20b/c\x07";
+        assert_eq!(scan_osc7(&mut partial, esc), vec![PathBuf::from("/a b/c")]);
+        // Ordinary output carries none, and must not be mistaken for one.
+        assert!(scan_osc7(&mut partial, b"just some output\r\n").is_empty());
+        // The tail of every read is kept in case a start marker was split
+        // across it, but only ever those few bytes: output does not pile up.
+        for _ in 0..50 {
+            scan_osc7(&mut partial, &vec![b'x'; 4096]);
+        }
+        assert!(partial.len() < 4, "the carry stays small: {}", partial.len());
+    }
+
+    /// A read stops wherever the pipe happened to fill, which can be in the
+    /// middle of the escape sequence.
+    #[test]
+    fn a_sequence_split_across_two_reads_is_still_one() {
+        let whole = osc7("/var/log");
+        for at in 1..whole.len() {
+            let mut partial = Vec::new();
+            let first = scan_osc7(&mut partial, &whole[..at]);
+            let second = scan_osc7(&mut partial, &whole[at..]);
+            let got: Vec<PathBuf> = first.into_iter().chain(second).collect();
+            assert_eq!(got, vec![PathBuf::from("/var/log")], "split at {at}");
+        }
+    }
+
+    #[test]
+    fn two_in_one_read_are_both_seen() {
+        let mut partial = Vec::new();
+        let mut chunk = osc7("/one");
+        chunk.extend_from_slice(b"some output\n");
+        chunk.extend_from_slice(&osc7("/two"));
+        assert_eq!(
+            scan_osc7(&mut partial, &chunk),
+            vec![PathBuf::from("/one"), PathBuf::from("/two")]
+        );
+    }
+
+    /// A sequence that never terminates must not grow the buffer for ever.
+    #[test]
+    fn an_unterminated_sequence_is_given_up_on() {
+        let mut partial = Vec::new();
+        assert!(scan_osc7(&mut partial, b"\x1b]7;file://h/start").is_empty());
+        assert!(!partial.is_empty(), "it is still waiting for the end");
+        for _ in 0..10 {
+            scan_osc7(&mut partial, &vec![b'x'; 1024]);
+        }
+        assert!(partial.len() <= MAX_OSC, "got {}", partial.len());
+    }
+
+    #[test]
+    fn a_windows_file_url_names_a_windows_path() {
+        // `file:///C:/dev/filer`: the slash before the drive letter goes.
+        let got = from_file_url(b"file:///C:/dev/filer").unwrap();
+        assert_eq!(got, crate::util::normalize(Path::new("C:/dev/filer")));
+        // A bare root stays one.
+        assert_eq!(from_file_url(b"file:///"), Some(PathBuf::from("/")));
+        // Anything that is not a file URL is not a directory.
+        assert_eq!(from_file_url(b"http://example.com/"), None);
+        assert_eq!(from_file_url(b"nonsense"), None);
     }
 
     #[test]

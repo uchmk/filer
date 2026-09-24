@@ -157,6 +157,8 @@ pub enum Act {
     Terminal(Tri),
     /// Type the selected paths into the terminal.
     TermSend,
+    /// Put the pane where the shell is, when the shell has said.
+    TermCd,
 
     /// Fuzzy-search every `mgr` binding and run the one picked.
     Palette,
@@ -424,6 +426,7 @@ pub fn parse(line: &str) -> Act {
             _ => None,
         }),
         "term_send" => Act::TermSend,
+        "term_cd" => Act::TermCd,
         "toggle_render" => Act::ToggleRender,
         "toggle_outline" => Act::ToggleOutline,
 

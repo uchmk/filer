@@ -58,7 +58,7 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
-`menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `task_toggle`, `task_cancel`, `task_top`,
+`menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `term_cd`, `task_toggle`, `task_cancel`, `task_top`,
 `split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
 project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
@@ -259,15 +259,23 @@ rather than another set of bindings. Only what the `[term]` keymap section binds
 | Key | |
 | --- | --- |
 | `<C-t>` | close the pane and the shell with it |
+| `<A-Up>` | put the file list where the shell is |
 | `<C-S-t>` | give the keys back to the list, leaving the shell running |
 
 Click the pane to take the keys back. The grid is drawn with the list's own font and the theme's
 colors, so the 16 ANSI colors match the rest of the window; the 256-color cube and true-color
 values are used as the program asked for them.
 
-It follows the pane: change directory and the shell is sent a `cd` for the new one. That is a
-line of input like any other — harmless at a prompt, a nuisance in the middle of a command — so
-it is only sent when the directory has actually changed.
+It follows the pane: change directory and the shell is sent a `cd` for the new one. Typing is the
+only way in — a shell takes no other instruction — so that is a line of input like any other,
+harmless at a prompt and a nuisance in the middle of a command. It is therefore sent as rarely as
+it can be: not when the pane has not moved, and not when the shell has already said it is there.
+
+The saying is OSC 7, the escape a shell emits to report its directory; most send it out of the
+box and some have to be told to. filer reads it off the PTY as the bytes go past. A shell that
+sends it never hears a `cd` it does not need — including the one that would otherwise chase its
+own. `<A-Up>` in the pane goes the other way: it puts the file list where the shell is, which is
+what you want after a command has moved it somewhere the list knows nothing about.
 
 `<A-t>` types the selected paths onto the shell's line, quoted so a path with a space in it
 arrives as one word. Nothing is run: the line is left for you to put a command in front of.

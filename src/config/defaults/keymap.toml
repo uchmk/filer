@@ -542,6 +542,10 @@ desc = "Close the terminal"
 on = "<C-S-t>"
 run = "close"
 desc = "Give the keys back to the list"
+[[term.keymap]]
+on = "<A-Up>"
+run = "term_cd"
+desc = "Put the pane where the shell is"
 
 # --- Input line ---------------------------------------------------------------
 # The input line is a native widget (so IME and clipboard behave), which means
