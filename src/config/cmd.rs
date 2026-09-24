@@ -145,6 +145,21 @@ pub enum Act {
     /// Do again what [`Act::Undo`] took back.
     Redo,
 
+    /// Read `yazi.toml`, `keymap.toml`, `theme.toml` and `filer.toml` again
+    /// without restarting.
+    ConfigReload,
+
+    /// Show the hovered file big, over the panes — macOS's Quick Look. The
+    /// cursor keys still move, so the panel follows down the list.
+    Quick(Tri),
+
+    /// Rename everything selected at once, by a rule typed at the prompt.
+    BulkRename,
+
+    /// Put two files side by side and mark what differs: the two panes' files
+    /// when the view is split, or the two that are selected.
+    Compare,
+
     Help,
     TasksShow,
     /// Pause the selected job, or set it going again.
@@ -310,6 +325,14 @@ pub fn parse(line: &str) -> Act {
         "jump" => Act::Jump,
         "undo" => Act::Undo,
         "redo" => Act::Redo,
+        "config_reload" => Act::ConfigReload,
+        "bulk_rename" => Act::BulkRename,
+        "compare" => Act::Compare,
+        "quick" => Act::Quick(match a.first() {
+            Some("open") => Some(true),
+            Some("close") => Some(false),
+            _ => None,
+        }),
 
         "arrow" => Act::Arrow(parse_step(a.first().unwrap_or("1"))),
         "swipe" => Act::Swipe(a.first().and_then(|s| s.parse().ok()).unwrap_or(1)),

@@ -3,7 +3,7 @@
 //! Everything the UI does goes through [`Act`], so keys, mouse clicks and
 //! internal follow-ups all take the same path.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -16,6 +16,7 @@ use crate::config::{keymap, Config};
 use crate::core::folder::{Filter, Folder, LoadState};
 use crate::core::fuzzy;
 use crate::core::tab::{CdFallout, Finder, PendingCd, Tab};
+use crate::diff;
 use crate::exec;
 use crate::fs::archive;
 use crate::fs::git;
@@ -25,6 +26,7 @@ use crate::fs::scan::{ScanResult, Scanner};
 use crate::fs::watch::Watcher;
 use crate::fs::{Entry, Kind, SortSpec};
 use crate::preview::{self, Payload, Previewer, TocEntry};
+use crate::rename;
 use crate::spot::{self, Section, Spotter};
 use crate::util::{self, Lru};
 
@@ -36,6 +38,8 @@ pub const MAX_TABS: usize = 9;
 pub enum InputKind {
     Create,
     Rename { from: PathBuf },
+    /// A rule to rename all of these at once, previewed as it is typed.
+    Bulk { paths: Vec<PathBuf> },
     Filter,
     Find { prev: bool },
     Cd,
@@ -228,6 +232,8 @@ fn acts_on_file(a: &Act) -> bool {
             | Act::Remove { .. }
             | Act::Create { .. }
             | Act::Rename { .. }
+            | Act::BulkRename
+            | Act::Compare
             | Act::Copy(_)
             | Act::Shell { .. }
             | Act::Extract
@@ -235,6 +241,7 @@ fn acts_on_file(a: &Act) -> bool {
             | Act::SendPane { .. }
             | Act::TermSend
             | Act::Spot
+            | Act::Quick(_)
             | Act::Follow
             | Act::Reveal(_)
             | Act::Toggle { .. }
@@ -262,6 +269,16 @@ pub enum Overlay {
     Help,
     Tasks(TasksOverlay),
     Spot(SpotOverlay),
+    Diff(DiffOverlay),
+}
+
+/// Two files side by side. `outcome` is `None` until the diff worker answers,
+/// which is what the view shows as *Comparing…*.
+pub struct DiffOverlay {
+    pub left: PathBuf,
+    pub right: PathBuf,
+    pub outcome: Option<diff::Outcome>,
+    pub offset: usize,
 }
 
 impl Overlay {
@@ -517,6 +534,82 @@ struct BookmarkFile {
     bookmark: Vec<Bookmark>,
 }
 
+// --------------------------------------------------------------- jump history
+
+/// One directory `z` can jump to, with what it takes to rank it: how often it
+/// has been visited and when it last was.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Visit {
+    pub path: PathBuf,
+    pub hits: u32,
+    /// Seconds since the epoch, or 0 for a visit read from a history file
+    /// written before this was recorded.
+    pub at: i64,
+}
+
+/// How highly a directory ranks in `z`: how often it has been visited, weighted
+/// by how long ago that last was. The shape is zoxide's — the point of it is
+/// that a directory visited twenty times last month does not outrank the one
+/// being worked in today.
+fn frecency(hits: u32, age_secs: i64) -> f64 {
+    let hits = hits as f64;
+    // A clock that has gone backwards falls into the first arm, which is where
+    // a just-visited directory belongs anyway.
+    if age_secs < HOUR {
+        hits * 4.0
+    } else if age_secs < DAY {
+        hits * 2.0
+    } else if age_secs < 7 * DAY {
+        hits * 0.5
+    } else {
+        hits * 0.25
+    }
+}
+
+const HOUR: i64 = 3_600;
+const DAY: i64 = 24 * HOUR;
+
+/// How long ago, for the second column of the jump list. Deliberately coarse:
+/// this is to tell today's directory from last month's, not to the minute.
+fn ago(secs: i64) -> String {
+    if secs < 0 {
+        String::new()
+    } else if secs < 60 {
+        "just now".into()
+    } else if secs < HOUR {
+        format!("{}m ago", secs / 60)
+    } else if secs < DAY {
+        format!("{}h ago", secs / HOUR)
+    } else if secs < 30 * DAY {
+        format!("{}d ago", secs / DAY)
+    } else {
+        format!("{}mo ago", secs / (30 * DAY))
+    }
+}
+
+/// Now, as the history file counts it.
+fn epoch_secs() -> i64 {
+    chrono::Utc::now().timestamp()
+}
+
+/// One line of `history.txt`: `path`, a tab, the hit count, a tab, the time.
+/// A path cannot hold a tab on any platform this runs on, so the path needs no
+/// escaping and comes first.
+fn write_visit(v: &Visit) -> String {
+    format!("{}\t{}\t{}", v.path.display(), v.hits, v.at)
+}
+
+/// The other direction. A line with no counts is one a version before this
+/// wrote: it is a real visit, so it keeps a hit, and its age is unknown, which
+/// leaves it ranked below anything visited since.
+fn parse_visit(line: &str) -> Visit {
+    let mut fields = line.split('\t');
+    let path = PathBuf::from(fields.next().unwrap_or_default());
+    let hits = fields.next().and_then(|s| s.parse().ok()).unwrap_or(1).max(1);
+    let at = fields.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+    Visit { path, hits, at }
+}
+
 // --------------------------------------------------------------- undo / redo
 
 /// A step that `u` can take back. Each variant holds enough to go either way,
@@ -527,6 +620,9 @@ pub enum UndoStep {
     Rename { from: PathBuf, to: PathBuf },
     /// These paths, which were in `dir`, went to the trash.
     Trash { paths: Vec<PathBuf>, dir: PathBuf },
+    /// A bulk rename: every `from` became its `to`. One step, so a single `u`
+    /// takes the whole batch back.
+    Bulk { pairs: Vec<(PathBuf, PathBuf)> },
 }
 
 impl UndoStep {
@@ -538,6 +634,7 @@ impl UndoStep {
                 1 => format!("Restored {}", util::file_name(&paths[0])),
                 n => format!("Restored {n} item(s)"),
             },
+            Self::Bulk { pairs } => format!("Put {} name(s) back", pairs.len()),
         }
     }
 
@@ -549,6 +646,7 @@ impl UndoStep {
                 1 => format!("Trashed {}", util::file_name(&paths[0])),
                 n => format!("Trashed {n} item(s)"),
             },
+            Self::Bulk { pairs } => format!("Renamed {} file(s)", pairs.len()),
         }
     }
 }
@@ -652,6 +750,7 @@ pub struct App {
     pub pane_rects: Vec<(usize, egui::Rect)>,
     /// What git says about each directory on screen, by directory.
     git_status: Lru<PathBuf, Arc<git::Status>>,
+    pub differ: diff::Differ,
     pub spotter: Spotter,
     /// The spot worker's latest findings, for the file named.
     pub spotted: Option<(PathBuf, Vec<Section>)>,
@@ -664,16 +763,23 @@ pub struct App {
     pub yank: Yank,
     pub preview: PreviewSlot,
     pub max_preview: bool,
+    /// The quick-look panel is up: the hovered file, big, over the panes.
+    pub quick: bool,
     pub hide_parent: bool,
     /// Markdown is shown rendered rather than as source.
     pub render_markdown: bool,
     /// A bold face was loaded as the `bold` font family.
     pub bold_font: bool,
+    /// The fonts named in the config have changed and must be installed again.
+    /// Only `main` can do that, so it is left as a flag for the frame loop.
+    pub refont: bool,
 
     pub tasks: Vec<Task>,
     pub toasts: Vec<Toast>,
     pub bookmarks: Vec<Bookmark>,
-    pub history: Vec<PathBuf>,
+    /// Where `z` can jump, in visit order (newest last). Ranked by [`frecency`]
+    /// when the picker opens.
+    pub history: Vec<Visit>,
     pub undos: Undos,
     /// Jobs whose step joins a stack once they finish, and where it goes. A job
     /// that fails puts its step back rather than losing it.
@@ -711,6 +817,7 @@ impl App {
         let previewer = Previewer::new(wake.clone());
         let opsr = ops::Runner::new(wake.clone());
         let spotter = Spotter::new(wake.clone());
+        let differ = diff::Differ::new(wake.clone());
         let git = git::Git::new(wake.clone());
         let watcher = Watcher::new(wake);
 
@@ -741,6 +848,7 @@ impl App {
             term_needle: String::new(),
             drag: None,
             pane_rects: Vec::new(),
+            differ,
             spotter,
             spotted: None,
             pending: Vec::new(),
@@ -750,9 +858,11 @@ impl App {
             yank: Yank { paths: Vec::new(), cut: false },
             preview: PreviewSlot::default(),
             max_preview: false,
+            quick: false,
             hide_parent: false,
             render_markdown,
             bold_font: false,
+            refont: false,
             tasks: Vec::new(),
             toasts: Vec::new(),
             bookmarks: Vec::new(),
@@ -909,6 +1019,15 @@ impl App {
         }
         while let Ok(res) = self.spotter.rx.try_recv() {
             self.spotted = Some((res.path, res.sections));
+        }
+        while let Ok(res) = self.differ.rx.try_recv() {
+            // An answer to a comparison that has since been closed, or replaced
+            // by another pair, has nowhere to go.
+            if let Overlay::Diff(ov) = &mut self.overlay {
+                if ov.left == res.left && ov.right == res.right {
+                    ov.outcome = Some(res.outcome);
+                }
+            }
         }
         while let Ok(ev) = self.ops.rx.try_recv() {
             self.on_op_event(ev);
@@ -1622,9 +1741,15 @@ impl App {
         }
     }
 
+    /// Count a visit. The hit count survives the move to the end of the list,
+    /// so a directory worked in every day climbs even though each visit looks
+    /// like the last one.
     fn remember_history(&mut self, path: &Path) {
-        self.history.retain(|p| p != path);
-        self.history.push(path.to_path_buf());
+        let hits = match self.history.iter().position(|v| v.path == path) {
+            Some(i) => self.history.remove(i).hits.saturating_add(1),
+            None => 1,
+        };
+        self.history.push(Visit { path: path.to_path_buf(), hits, at: epoch_secs() });
         let max = self.cfg.ui.max_history;
         if self.history.len() > max {
             let cut = self.history.len() - max;
@@ -1901,6 +2026,12 @@ impl App {
             Act::Jump => self.open_jump(),
             Act::Undo => self.undo_step(),
             Act::Redo => self.redo_step(),
+            Act::ConfigReload => self.reload_config(),
+            // Deliberately not an overlay: with the panel up, every key still
+            // works, so `j` and `k` walk the list and the panel follows.
+            Act::Quick(state) => self.quick = state.unwrap_or(!self.quick),
+            Act::BulkRename => self.start_bulk_rename(),
+            Act::Compare => self.start_compare(),
 
             Act::Help => {
                 self.help_scroll = 0;
@@ -1986,6 +2117,11 @@ impl App {
             return;
         }
         if self.pending_bookmark.take().is_some() {
+            return;
+        }
+        // The panel is the thing in front of everything else, so it goes first.
+        if self.quick {
+            self.quick = false;
             return;
         }
         let all = what.everything();
@@ -2746,6 +2882,7 @@ impl App {
             InputKind::Compress => self.do_compress(&text),
             InputKind::TermFind => self.term_find(&text, false),
             InputKind::Rename { from } => self.do_rename(&from, &text),
+            InputKind::Bulk { paths } => self.do_bulk_rename(&paths, &text),
             InputKind::Filter => { /* already applied live */ }
             InputKind::Find { .. } => { /* already applied live */ }
             InputKind::Cd => {
@@ -2830,6 +2967,185 @@ impl App {
         }
     }
 
+    /// The two files to compare. With the view split that is what each pane is
+    /// standing on, which is the whole reason the split exists; otherwise it is
+    /// the two that are selected.
+    fn compare_pair(&self) -> Result<(PathBuf, PathBuf), String> {
+        let hovered = |t: usize| self.tabs[t].current.hovered().map(|e| (e.path.clone(), e.kind));
+        let (a, b) = match self.split {
+            Some(sp) => {
+                let (l, r) = match sp.right {
+                    true => (sp.other, self.active),
+                    false => (self.active, sp.other),
+                };
+                match (hovered(l), hovered(r)) {
+                    (Some(a), Some(b)) => (a, b),
+                    _ => return Err("both panes need a file".into()),
+                }
+            }
+            None => {
+                let sel = self.tabs[self.active].targets();
+                if sel.len() != 2 {
+                    return Err("split the view, or select exactly two files".into());
+                }
+                let of = |p: &PathBuf| {
+                    let kind = self.tabs[self.active]
+                        .current
+                        .entries
+                        .iter()
+                        .find(|e| &e.path == p)
+                        .map(|e| e.kind);
+                    (p.clone(), kind.unwrap_or(Kind::File))
+                };
+                (of(&sel[0]), of(&sel[1]))
+            }
+        };
+        if a.1.is_dir_like() || b.1.is_dir_like() {
+            return Err("directories cannot be compared".into());
+        }
+        if a.0 == b.0 {
+            return Err("that is the same file on both sides".into());
+        }
+        Ok((a.0, b.0))
+    }
+
+    fn start_compare(&mut self) {
+        let (left, right) = match self.compare_pair() {
+            Ok(pair) => pair,
+            Err(why) => return self.error(format!("Compare: {why}")),
+        };
+        self.differ.request(diff::Request {
+            left: left.clone(),
+            right: right.clone(),
+            max_bytes: self.cfg.ui.max_text_bytes,
+        });
+        self.overlay = Overlay::Diff(DiffOverlay { left, right, outcome: None, offset: 0 });
+    }
+
+    pub fn feed_diff_key(&mut self, k: Key) {
+        self.pending.push(k);
+        let bindings = &self.cfg.keymap.diff;
+        match keymap::resolve(bindings, &self.pending) {
+            keymap::Match::Exact(b) => {
+                let acts = b.run.clone();
+                self.pending.clear();
+                for a in acts {
+                    self.diff_act(a);
+                }
+            }
+            keymap::Match::Pending(_) => {}
+            keymap::Match::None => self.pending.clear(),
+        }
+    }
+
+    /// The compare view's own commands: scroll, jump between differences, close.
+    fn diff_act(&mut self, a: Act) {
+        let page = self.tabs[self.active].page_rows.max(1);
+        let Overlay::Diff(ov) = &mut self.overlay else { return };
+        let rows: &[diff::Row] = match &ov.outcome {
+            Some(diff::Outcome::Rows { rows, .. }) => rows,
+            _ => &[],
+        };
+        match a {
+            Act::Close | Act::Escape(_) | Act::Quit | Act::Compare => self.overlay = Overlay::None,
+            Act::Arrow(step) if !rows.is_empty() => {
+                ov.offset = step.apply(ov.offset, rows.len(), page);
+            }
+            Act::FindArrow { prev } if !rows.is_empty() => {
+                match diff::next_change(rows, ov.offset, prev) {
+                    Some(at) => ov.offset = at,
+                    None => {
+                        let word = if prev { "first" } else { "last" };
+                        self.toast(format!("At the {word} difference"));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Ask for a rule to rename everything selected by. The prompt starts on
+    /// the rule that changes nothing, so the preview below it opens showing the
+    /// names as they are and the person edits from there.
+    fn start_bulk_rename(&mut self) {
+        let paths = self.tabs[self.active].targets();
+        if paths.is_empty() {
+            return;
+        }
+        self.overlay = Overlay::Input(InputOverlay {
+            kind: InputKind::Bulk { paths },
+            title: "Bulk rename".into(),
+            text: "{name}{ext}".into(),
+            initial_selection: Some((0, "{name}{ext}".chars().count())),
+            focused: false,
+            completion: Vec::new(),
+            completion_at: 0,
+        });
+    }
+
+    /// What the preview panel under the prompt shows, and what the apply step
+    /// works from. Both read the directory out of the listing already in
+    /// memory, so typing a rule never touches the disk.
+    pub fn bulk_preview(&self, paths: &[PathBuf], text: &str) -> Result<Vec<rename::Row>, String> {
+        let taken: BTreeSet<String> =
+            self.tabs[self.active].current.entries.iter().map(|e| e.name.clone()).collect();
+        rename::plan(paths, text.trim(), &taken)
+    }
+
+    fn do_bulk_rename(&mut self, paths: &[PathBuf], text: &str) {
+        let rows = match self.bulk_preview(paths, text) {
+            Ok(rows) => rows,
+            Err(e) => return self.error(format!("Bulk rename: {e}")),
+        };
+        // The preview already said which rows are wrong; renaming the rest and
+        // leaving the batch half applied would be worse than doing nothing.
+        if let Some(bad) = rows.iter().find(|r| r.problem.is_some()) {
+            let why = bad.problem.as_deref().unwrap_or_default();
+            return self.error(format!("{}: {why}", util::file_name(&bad.from)));
+        }
+        let pairs: Vec<(PathBuf, PathBuf)> = rows
+            .iter()
+            .filter(|r| r.to != util::file_name(&r.from))
+            .map(|r| (r.from.clone(), r.from.with_file_name(&r.to)))
+            .collect();
+        if pairs.is_empty() {
+            return self.toast("Bulk rename: nothing to change");
+        }
+        let done = pairs.len();
+        match self.run_renames(&pairs) {
+            Ok(()) => {
+                self.tabs[self.active].clear_selection();
+                self.undos.land(UndoStep::Bulk { pairs }, Land::Fresh);
+                self.toast(format!("Renamed {done} file(s)"));
+            }
+            Err(e) => self.error(format!("Bulk rename: {e}")),
+        }
+    }
+
+    /// Carry out a batch of renames, in an order that works even when two files
+    /// swap names. Stops at the first failure and says so: what has already
+    /// moved keeps its new name, which is at least a state the listing shows
+    /// honestly.
+    fn run_renames(&mut self, pairs: &[(PathBuf, PathBuf)]) -> Result<(), String> {
+        let names: Vec<(String, String)> =
+            pairs.iter().map(|(a, b)| (util::file_name(a), util::file_name(b))).collect();
+        // Where each file is right now; parking moves one aside for a moment.
+        let mut at: Vec<PathBuf> = pairs.iter().map(|(a, _)| a.clone()).collect();
+
+        for step in rename::order(&names) {
+            let (i, to) = match step {
+                rename::Step::Park(i) => {
+                    let dir = pairs[i].0.parent().unwrap_or(Path::new(""));
+                    (i, rename::park_name(dir, i))
+                }
+                rename::Step::Rename(i) => (i, pairs[i].1.clone()),
+            };
+            self.apply_rename(&at[i].clone(), &to)?;
+            at[i] = to;
+        }
+        Ok(())
+    }
+
     /// Move `from` onto `to` and leave the cursor there. Undo and redo walk the
     /// same rename backwards and forwards, so this takes two paths rather than
     /// the name typed at the prompt.
@@ -2855,6 +3171,29 @@ impl App {
         Ok(())
     }
 
+    /// Read the config files again, so a theme, an icon set or a key can be
+    /// changed without closing the window.
+    ///
+    /// What the person has changed by hand since the window opened is left
+    /// alone: the sort a `,` key chose, and whether Markdown is rendered. Those
+    /// have keys of their own, and having a reload undo them would be a
+    /// surprise. The fonts are the one thing this cannot do itself — installing
+    /// a face belongs to the frame loop — so it asks for it with a flag.
+    fn reload_config(&mut self) {
+        let cfg = Config::load();
+        let files = cfg.loaded.len();
+        let warning = cfg.warnings.first().cloned();
+        self.cfg = cfg;
+        self.refont = true;
+        // A theme change can turn every row a different color, and the preview
+        // holds a highlighted copy of the old one.
+        self.preview = PreviewSlot::default();
+        match warning {
+            Some(w) => self.error(format!("Config: {w}")),
+            None => self.toast(format!("Reloaded {files} config file(s)")),
+        }
+    }
+
     /// Take back the newest step. A step that will not go back stays on the
     /// stack — the usual reason is something standing where it came from, which
     /// the person can clear before pressing `u` again.
@@ -2875,6 +3214,21 @@ impl App {
                     self.undos.keep(UndoStep::Rename { from, to }, Land::Undone);
                 }
             },
+            UndoStep::Bulk { pairs } => {
+                let back: Vec<(PathBuf, PathBuf)> =
+                    pairs.iter().rev().map(|(a, b)| (b.clone(), a.clone())).collect();
+                match self.run_renames(&back) {
+                    Ok(()) => {
+                        let step = UndoStep::Bulk { pairs };
+                        self.toast(step.undone_label());
+                        self.undos.land(step, Land::Undone);
+                    }
+                    Err(e) => {
+                        self.error(format!("Undo: {e}"));
+                        self.undos.keep(UndoStep::Bulk { pairs }, Land::Undone);
+                    }
+                }
+            }
             UndoStep::Trash { paths, dir } => {
                 if !restore::SUPPORTED {
                     self.error(format!("Undo: {}", restore::UNSUPPORTED));
@@ -2903,6 +3257,17 @@ impl App {
                 Err(e) => {
                     self.error(format!("Redo: {e}"));
                     self.undos.keep(UndoStep::Rename { from, to }, Land::Redone);
+                }
+            },
+            UndoStep::Bulk { pairs } => match self.run_renames(&pairs) {
+                Ok(()) => {
+                    let step = UndoStep::Bulk { pairs };
+                    self.toast(step.redone_label());
+                    self.undos.land(step, Land::Redone);
+                }
+                Err(e) => {
+                    self.error(format!("Redo: {e}"));
+                    self.undos.keep(UndoStep::Bulk { pairs }, Land::Redone);
                 }
             },
             UndoStep::Trash { paths, dir } => {
@@ -3283,13 +3648,21 @@ impl App {
             details.push(b.name.clone());
             paths.push(b.path.clone());
         }
-        for p in self.history.iter().rev() {
-            if paths.contains(p) {
+        // Bookmarks were named on purpose, so they stay on top in their own
+        // order. The rest is ranked: most used, least stale first.
+        let now = epoch_secs();
+        let mut ranked: Vec<&Visit> = self.history.iter().collect();
+        ranked.sort_by(|a, b| {
+            let score = |v: &Visit| frecency(v.hits, now.saturating_sub(v.at));
+            score(b).total_cmp(&score(a)).then(b.at.cmp(&a.at))
+        });
+        for v in ranked {
+            if paths.contains(&v.path) {
                 continue;
             }
-            items.push(p.display().to_string());
-            details.push(String::new());
-            paths.push(p.clone());
+            items.push(v.path.display().to_string());
+            details.push(ago(now.saturating_sub(v.at)));
+            paths.push(v.path.clone());
         }
         if items.is_empty() {
             self.error("No bookmarks or history yet");
@@ -3400,7 +3773,7 @@ impl App {
             }
         }
         if let Ok(text) = std::fs::read_to_string(Self::state_file("history.txt")) {
-            self.history = text.lines().map(PathBuf::from).collect();
+            self.history = text.lines().map(parse_visit).collect();
         }
     }
 
@@ -3413,7 +3786,7 @@ impl App {
         if let Ok(text) = toml::to_string_pretty(&f) {
             let _ = std::fs::write(dir.join("bookmarks.toml"), text);
         }
-        let hist: Vec<String> = self.history.iter().map(|p| p.display().to_string()).collect();
+        let hist: Vec<String> = self.history.iter().map(write_visit).collect();
         let _ = std::fs::write(dir.join("history.txt"), hist.join("\n"));
     }
 
@@ -3844,6 +4217,45 @@ mod tests {
         pick.query = "task manager".into();
         pick.refilter();
         assert_eq!(pick.selected(), Some(by_command), "the description finds the same row");
+    }
+
+    /// The whole point of weighting by age: the directory being worked in today
+    /// beats the one that was busy last month.
+    #[test]
+    fn frecency_puts_today_ahead_of_a_bigger_count_long_ago() {
+        let today = frecency(3, 10 * 60);
+        let last_month = frecency(40, 40 * DAY);
+
+        assert!(today > last_month, "{today} vs {last_month}");
+    }
+
+    #[test]
+    fn frecency_breaks_ties_within_an_age_by_the_count() {
+        assert!(frecency(5, 30) > frecency(2, 30));
+        // And a clock that has run backwards is treated as "just now".
+        assert_eq!(frecency(2, -500), frecency(2, 0));
+    }
+
+    #[test]
+    fn ago_is_coarse_but_never_wrong() {
+        assert_eq!(ago(0), "just now");
+        assert_eq!(ago(59), "just now");
+        assert_eq!(ago(60), "1m ago");
+        assert_eq!(ago(HOUR), "1h ago");
+        assert_eq!(ago(DAY + 1), "1d ago");
+        assert_eq!(ago(45 * DAY), "1mo ago");
+        assert_eq!(ago(-1), "", "a time in the future says nothing at all");
+    }
+
+    /// A `history.txt` from before the counts were written still lists the
+    /// directories; they simply rank below anything visited since.
+    #[test]
+    fn a_history_line_without_counts_still_reads_as_a_visit() {
+        let old = parse_visit(r"C:\work\filer");
+        assert_eq!(old, Visit { path: PathBuf::from(r"C:\work\filer"), hits: 1, at: 0 });
+
+        let new = Visit { path: PathBuf::from(r"C:\work\filer"), hits: 7, at: 1_700_000_000 };
+        assert_eq!(parse_visit(&write_visit(&new)), new, "a round trip keeps everything");
     }
 
     fn renamed(from: &str, to: &str) -> UndoStep {

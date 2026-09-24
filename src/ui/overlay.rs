@@ -1,7 +1,7 @@
 use egui::{Align2, CornerRadius, FontId, Rect, Stroke, Ui, Vec2};
 
 use super::{dim, modal_frame, modal_rect};
-use crate::app::{App, Overlay, TaskState};
+use crate::app::{App, InputKind, Overlay, TaskState};
 use crate::config::cmd::Act;
 
 pub fn which(app: &App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
@@ -93,6 +93,116 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
         );
     }
     let _ = queued;
+}
+
+/// The hovered file, big, over the panes — macOS's Quick Look.
+///
+/// A panel rather than an overlay on purpose: `Act::Quick` takes no keys, so
+/// `j` and `k` keep walking the list and this follows them down it. `<A-j>` /
+/// `<A-k>` scroll it, since it shares `preview_offset` with the side column.
+pub fn quick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queued: &mut Vec<Act>) {
+    dim(ui, full);
+    let theme = app.cfg.theme.clone();
+    let name = match app.tabs[app.active].current.hovered() {
+        Some(e) => e.name.clone(),
+        None => "(nothing here)".into(),
+    };
+    let rect = modal_rect(full, 0.86, 0.88);
+    let inner = modal_frame(ui, rect, &theme, &name, f, row_h);
+    // Nothing else on screen changed, so say how to get out.
+    ui.painter().text(
+        rect.right_top() + Vec2::new(-14.0, 10.0),
+        Align2::RIGHT_TOP,
+        "Esc to close",
+        f.clone(),
+        theme.fg_dim,
+    );
+    super::draw_preview(app, ui, inner, f, row_h, queued);
+}
+
+/// The live preview under the bulk-rename prompt: what every selected file is
+/// about to be called, and what is wrong with any of it. Redrawn on every
+/// keystroke, which is why [`App::bulk_preview`] reads the directory out of the
+/// listing in memory rather than off the disk.
+pub fn bulk(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bottom: f32) {
+    const MAX_ROWS: usize = 14;
+    let theme = &app.cfg.theme;
+    let Overlay::Input(ov) = &app.overlay else { return };
+    let InputKind::Bulk { paths } = &ov.kind else { return };
+
+    let (rows, trouble) = match app.bulk_preview(paths, &ov.text) {
+        Ok(rows) => {
+            let bad = rows.iter().filter(|r| r.problem.is_some()).count();
+            (rows, (bad > 0).then(|| format!("{bad} name(s) cannot be used — Enter is refused")))
+        }
+        // A rule that does not parse yet is the normal state halfway through
+        // typing one, so it reads as a note rather than an error.
+        Err(e) => (Vec::new(), Some(e)),
+    };
+
+    let shown = rows.len().min(MAX_ROWS);
+    let lines = shown + usize::from(rows.len() > shown) + usize::from(trouble.is_some());
+    let h = row_h * lines as f32 + 20.0;
+    // A long selection would push the top of the panel off a short window.
+    let top = (bottom - h - 6.0).max(full.top() + 4.0);
+    let rect = Rect::from_min_max(
+        egui::pos2(full.left() + 20.0, top),
+        egui::pos2(full.left() + 20.0 + (full.width() - 40.0).min(900.0), bottom - 6.0),
+    );
+    let painter = ui.painter();
+    painter.rect_filled(rect, CornerRadius::same(6), theme.bg_alt);
+    painter.rect_stroke(
+        rect,
+        CornerRadius::same(6),
+        Stroke::new(1.0, theme.border),
+        egui::StrokeKind::Inside,
+    );
+
+    // The arrow column is set by the longest name on show, so the new names
+    // line up and a stray change is easy to spot.
+    let widest = rows
+        .iter()
+        .take(shown)
+        .map(|r| crate::util::file_name(&r.from).chars().count())
+        .max()
+        .unwrap_or(0);
+    let mut y = rect.top() + 10.0;
+    for r in rows.iter().take(shown) {
+        let from = crate::util::file_name(&r.from);
+        let pad = " ".repeat(widest.saturating_sub(from.chars().count()));
+        let (tail, color) = match &r.problem {
+            Some(why) => (format!("{}   ({why})", r.to), theme.progress_error),
+            None if r.to == from => (r.to.clone(), theme.fg_dim),
+            None => (r.to.clone(), theme.cwd.fg.unwrap_or(theme.fg)),
+        };
+        painter.text(
+            egui::pos2(rect.left() + 12.0, y),
+            Align2::LEFT_TOP,
+            format!("{from}{pad}  →  {tail}"),
+            f.clone(),
+            color,
+        );
+        y += row_h;
+    }
+    if rows.len() > shown {
+        painter.text(
+            egui::pos2(rect.left() + 12.0, y),
+            Align2::LEFT_TOP,
+            format!("… {} more", rows.len() - shown),
+            f.clone(),
+            theme.fg_dim,
+        );
+        y += row_h;
+    }
+    if let Some(note) = trouble {
+        painter.text(
+            egui::pos2(rect.left() + 12.0, y),
+            Align2::LEFT_TOP,
+            note,
+            f.clone(),
+            theme.progress_error,
+        );
+    }
 }
 
 pub fn bookmark_hint(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
@@ -440,6 +550,97 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
 
 /// The spot panel: one block of `key  value` rows per section, the selected
 /// row highlighted and kept in view.
+/// Two files side by side, the lines that differ marked. The gutter carries
+/// each side's own line number, so a line can be found in either file without
+/// counting rows.
+pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
+    use crate::diff::Outcome;
+
+    dim(ui, full);
+    let theme = app.cfg.theme.clone();
+    let Overlay::Diff(ov) = &mut app.overlay else { return };
+    let title = format!(
+        "{}  ↔  {} — n/N differences, q to close",
+        crate::util::file_name(&ov.left),
+        crate::util::file_name(&ov.right),
+    );
+    let rect = modal_rect(full, 0.92, 0.86);
+    let inner = modal_frame(ui, rect, &theme, &title, f, row_h);
+    let painter = ui.painter_at(inner);
+
+    let note = |text: &str, color| {
+        painter.text(inner.left_top(), Align2::LEFT_TOP, text, f.clone(), color);
+    };
+    let (rows, truncated, rough) = match &ov.outcome {
+        None => return note("Comparing…", theme.fg_dim),
+        Some(Outcome::Error(e)) => return note(e, theme.progress_error),
+        Some(Outcome::Identical) => return note("The two files are identical.", theme.fg_dim),
+        Some(Outcome::Binary { .. }) => {
+            return note("Not text on both sides, and the bytes differ.", theme.fg_dim)
+        }
+        Some(Outcome::Rows { rows, truncated, rough }) => (rows, *truncated, *rough),
+    };
+
+    // One row is given up to the footer, but never the last one.
+    let visible = ((inner.height() / row_h).floor() as usize).max(2) - 1;
+    ov.offset = ov.offset.min(rows.len().saturating_sub(1));
+    let top = ov.offset.min(rows.len().saturating_sub(visible.min(rows.len())));
+
+    // Two equal halves with a hairline between them.
+    let mid = inner.center().x;
+    painter.line_segment(
+        [egui::pos2(mid, inner.top()), egui::pos2(mid, inner.bottom())],
+        Stroke::new(1.0, theme.border),
+    );
+    let cell = painter.layout_no_wrap("M".repeat(20), f.clone(), theme.fg).size().x / 20.0;
+    let half = (mid - inner.left() - 12.0).max(0.0);
+    let cols = ((half - 5.0 * cell) / cell).max(4.0) as usize;
+
+    // Removed on the left, added on the right: the same two colors the git
+    // signs use, so a changed line reads the same way it does in the listing.
+    let mut y = inner.top();
+    for row in rows.iter().skip(top).take(visible) {
+        let sides = [
+            (&row.left, inner.left(), theme.git_deleted),
+            (&row.right, mid + 8.0, theme.git_added),
+        ];
+        for (side, x, mark) in sides {
+            // Nothing on this side: the line exists only in the other file.
+            let Some(l) = side else { continue };
+            if !row.same {
+                painter.rect_filled(
+                    Rect::from_min_size(egui::pos2(x - 2.0, y), Vec2::new(half, row_h)),
+                    CornerRadius::same(2),
+                    mark.gamma_multiply(0.22),
+                );
+            }
+            painter.text(
+                egui::pos2(x, y),
+                Align2::LEFT_TOP,
+                format!("{:>4} {}", l.no, crate::util::ellipsize_middle(&l.text, cols)),
+                f.clone(),
+                theme.fg,
+            );
+        }
+        y += row_h;
+    }
+
+    let mut foot = format!("{}–{} of {}", top + 1, (top + visible).min(rows.len()), rows.len());
+    if rough {
+        foot.push_str("  ·  too large to line up exactly");
+    }
+    if truncated {
+        foot.push_str("  ·  cut short");
+    }
+    painter.text(
+        egui::pos2(inner.left(), inner.bottom() - row_h),
+        Align2::LEFT_TOP,
+        foot,
+        f.clone(),
+        theme.fg_dim,
+    );
+}
+
 pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     dim(ui, full);
     let sections = app.spot_sections();

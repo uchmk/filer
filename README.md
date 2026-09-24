@@ -57,13 +57,15 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `cd`, `reveal`, `follow`, `refresh`, `seek`/`peek`, `tab_create`, `tab_close`, `tab_switch`,
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
-`find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `undo`, `redo`, `jump`, `palette`,
+`find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `undo`, `redo`, `jump`,
+`bulk_rename`, `compare`, `quick`, `config_reload`, `palette`,
 `menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `term_cd`, `term_find`, `term_scroll`, `task_toggle`, `task_cancel`, `task_top`,
 `split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
 project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe` and `copy cell`; in `[term]`:
-`close` and anything from `[mgr]`, with every other key going to the shell.
+`close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
+`close`, `arrow` and `find_arrow`.
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -320,6 +322,71 @@ holds the worker, so nothing behind it starts until it is resumed or cancelled �
 change your mind about what should have gone first. The commands are `task_toggle`,
 `task_cancel` and `task_top`, bound in the `[tasks]` keymap section.
 
+## Bulk rename
+
+Select some files and press `R`. The prompt takes one rule for all of them, and the panel above it
+shows what every name is about to become while you type:
+
+```
+IMG_0431.jpg  →  holiday-01.jpg
+IMG_0432.jpg  →  holiday-02.jpg
+IMG_0433.jpg  →  holiday-03.jpg
+```
+
+The rule is a **template** — the new name, with pieces filled in:
+
+| | |
+| --- | --- |
+| `{name}` | the name without its extension |
+| `{ext}` | the extension, dot and all, or nothing where there is none |
+| `{n}`, `{n:3}` | the row's number from 1, optionally zero-padded |
+
+The prompt opens on `{name}{ext}`, which changes nothing, so you edit from where you are.
+`holiday-{n:2}{ext}` gives the list above.
+
+A rule starting with `s/` is a **regular expression** over the whole name instead, spelled as in
+sed and vim: `s/pattern/replacement/`, with `g` for every match and `i` for case-insensitive, `$1`
+for a group and `\/` for a literal slash. `s/ copy//g` drops every " copy". The engine is
+`fancy-regex`, already in the build for syntax highlighting.
+
+Nothing is renamed until Enter, and Enter is refused outright if any row is a problem — an empty
+name, a separator in it, two files given the same name, or a name another file in the directory is
+keeping. Those rows are marked in the preview, and the whole batch is one undo step, so `u` puts
+every name back at once.
+
+Files swapping names works: renaming `a` to `b` and `b` to `a` moves one aside first and puts it
+back, rather than failing on the second rename the way a loop of `mv` would.
+
+## Compare (side by side)
+
+`<A-d>` puts two files next to each other and marks what differs — removals on the left, additions
+on the right, in the same two colors the git signs use. The two files are the ones each pane is
+standing on when the [view is split](#split-view-two-panes), or the two that are selected when it
+is not.
+
+| Key | |
+| --- | --- |
+| `j` `k` `<C-d>` `<C-u>` `gg` `G` | scroll |
+| `n` `N` | to the next / previous difference |
+| `q` `<Esc>` | close |
+
+Each side carries its own line numbers, so a line found here can be found in the file. An edited
+line sits opposite the line it replaced rather than being listed as a removal and an addition far
+apart.
+
+Reading the files and lining them up happens on a worker, so a big file or a slow share never holds
+the window. Identical files say so rather than drawing thousands of matching rows, and two files
+that are not both text report only whether the bytes match — lining up bytes is nobody's idea of a
+diff. The matching top and bottom are peeled off before the work starts, which is what makes a
+one-line change in a four-thousand-line file cost nothing; files with nothing in common at all are
+laid side by side without being matched up, and say so.
+
+## Quick look
+
+`<F3>` shows the hovered file big, over the panes — the same preview, with room to read it. The
+keys are not taken while it is up, so `j` and `k` keep walking the list and the panel follows them
+down it; `<A-j>` / `<A-k>` scroll it. `<F3>` again or `<Esc>` closes it.
+
 ## Undo
 
 `u` takes back the last thing that can be taken back, `U` does it again. Two things qualify:
@@ -328,6 +395,7 @@ change your mind about what should have gone first. The commands are `task_toggl
 | --- | --- | --- |
 | `d` — files sent to the recycle bin | puts them back where they were | sends them again |
 | `r` — a rename | renames it back | renames it again |
+| `R` — a bulk rename | puts every name back, in one step | renames them again |
 
 Everything else is left alone on purpose. `D` asks before it deletes and then means it, and undoing
 a copy or an unpack would mean deleting files to tidy up — a worse thing to get wrong than the
@@ -436,6 +504,9 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
 | `u` `U` | undo the last rename or delete / do it again |
 | `a` `r` | create (trailing `/` makes a directory) / rename |
+| `R` | bulk rename: one rule over everything selected, previewed as you type |
+| `<A-d>` | compare two files side by side |
+| `<F3>` | quick look: the hovered file, big, over the panes |
 | `e` `E` | extract the selected archives / compress the selection |
 | `<A-c>` `<A-m>` | copy / move the selection to the other pane |
 | `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` config, `gt` temp, `g<Space>` type a path, `gf` follow the link |
@@ -444,9 +515,10 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter |
 | `s` `S` `<C-s>` | search by name / by content / stop |
 | `z` | fuzzy-jump to a bookmark or recent directory |
+| `b` `B` `<A-b>` | go to a bookmark / set one / delete one (then press its letter) |
 | `.` `,…` `m…` | hidden files / sort menu / line-mode menu |
 | `t` `1`–`9` `[` `]` `{` `}` `<C-c>` | new tab / switch / previous / next / move it left / right / close it (quits on the last) |
-| `<F5>` | re-read the current directory |
+| `<F5>` `<C-F5>` | re-read the current directory / re-read the config files |
 | `<C-w>` `<C-S-w>` | split the view in two panes / move between them, close the split |
 | `;` `:` | shell command / blocking shell command |
 | `<C-t>` `<A-t>` | terminal pane / type the selection into it |
@@ -536,8 +608,13 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.
 - Git signs need `git` on `PATH`; without it the rows are simply unmarked. Only the status and the
   branch name are shown — there is no staging, diffing or committing here.
-- Undo covers renames and trips to the recycle bin, nothing else, and on macOS only renames — see
-  [Undo](#undo). It is not written to disk, so closing the window forgets it.
+- Undo covers renames (single and bulk) and trips to the recycle bin, nothing else, and on macOS
+  only renames — see [Undo](#undo). It is not written to disk, so closing the window forgets it.
+- Comparing is line-level and read-only: no word-level highlighting inside a changed line, no
+  editing from the view, and no comparing directories.
+- `<C-F5>` re-reads the config, including fonts and the theme, but leaves what you have changed by
+  hand since — the sort a `,` key chose, whether Markdown is rendered — as you set it. The window
+  size is only read at startup.
 - The terminal pane has no tabs and no split of its own, and `cd` following types a line into the
   shell, so it lands in whatever is running if something is — unless the shell reports its
   directory, in which case it is usually not sent at all.
@@ -551,6 +628,8 @@ src/
   config/        yazi.toml, keymap.toml, theme.toml, key notation, command parsing
   core/          folder + cursor state, tabs, fuzzy matching
   fs/            entries, sorting, scan pool, file operations, watcher, archives, git status, undelete
+  rename.rs      bulk-rename rules and the order a batch of renames has to happen in
+  diff.rs        comparing two files line by line, and the worker that reads them
   preview/       preview worker: text + syntect, Markdown layout, images, SVG, fonts, shell thumbnails
   terminal.rs    the embedded shell: PTY, key encoding
   ui/            painting: columns, preview pane, terminal pane, overlays

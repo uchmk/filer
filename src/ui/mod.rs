@@ -68,6 +68,12 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
     }
     draw_status(app, ui, status, &f);
 
+    // Over the panes, but under the prompts: a `rename` typed with the panel up
+    // still has to be readable.
+    if app.quick {
+        overlay::quick(app, ui, full, &f, row_h, &mut queued);
+    }
+
     if which_h > 0.0 {
         let r = Rect::from_min_size(
             egui::pos2(full.left(), status.top() - which_h),
@@ -80,6 +86,9 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
             egui::pos2(full.left(), status.top() - input_h),
             Vec2::new(full.width(), input_h),
         );
+        // Above the prompt, since a bulk rename is judged by what it will do
+        // rather than by the rule that says it.
+        overlay::bulk(app, ui, full, &f, row_h, r.top());
         overlay::input(app, ui, r, &f, &mut queued);
     }
 
@@ -89,6 +98,7 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
         Overlay::Confirm(_) => overlay::confirm(app, ui, full, &f, row_h, &mut queued),
         Overlay::Pick(_) => overlay::pick(app, ui, full, &f, row_h, &mut queued),
         Overlay::Spot(_) => overlay::spot(app, ui, full, &f, row_h),
+        Overlay::Diff(_) => overlay::diff(app, ui, full, &f, row_h),
         _ => {}
     }
 
@@ -254,73 +264,93 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
     }
 
     // --- preview ---
-    if widths[2] > 24.0 {
+    // With the quick-look panel up it owns the preview: it covers this column
+    // anyway, and two rects asking the worker for two image sizes every frame
+    // would have it rendering the same picture back and forth.
+    if widths[2] > 24.0 && !app.quick {
         let rect = rects[2];
         ui.painter().rect_filled(rect, CornerRadius::same(4), theme.bg_alt);
-        app.preview.box_size = (
-            (rect.width() * 2.0).max(64.0) as u32,
-            (rect.height() * 2.0).max(64.0) as u32,
-        );
-        match &app.preview.state {
-            PreviewState::Dir(folder) => {
-                let st = list::ListStyle {
-                    theme: &theme,
-                    font: f.clone(),
-                    row_h,
-                    active: false,
-                    linemode: "",
-                };
-                let mut p = clone_view(folder);
-                p.offset = app.tabs[app.active].preview_offset.min(p.view.len().saturating_sub(1));
-                // Nothing is hovered in a preview, so park the cursor off-list.
-                p.cursor = usize::MAX;
-                list::draw(ui, rect.shrink(2.0), &p, &st, &|_| list::RowFlags {
-                    selected: false,
-                    yanked: None,
-                    git: git::State::Clean,
-                }, false);
+        draw_preview(app, ui, rect, f, row_h, queued);
+    }
+}
+
+/// Paint whatever the preview worker has for the hovered file into `rect`.
+///
+/// The side column and the quick-look panel both come through here, so they
+/// cannot drift apart, and `preview.box_size` — the size images are rendered
+/// at — is set by whichever of them is on screen.
+pub(super) fn draw_preview(
+    app: &mut App,
+    ui: &mut Ui,
+    rect: Rect,
+    f: &FontId,
+    row_h: f32,
+    queued: &mut Vec<Act>,
+) {
+    let theme = app.cfg.theme.clone();
+    app.preview.box_size = (
+        (rect.width() * 2.0).max(64.0) as u32,
+        (rect.height() * 2.0).max(64.0) as u32,
+    );
+    match &app.preview.state {
+        PreviewState::Dir(folder) => {
+            let st = list::ListStyle {
+                theme: &theme,
+                font: f.clone(),
+                row_h,
+                active: false,
+                linemode: "",
+            };
+            let mut p = clone_view(folder);
+            p.offset = app.tabs[app.active].preview_offset.min(p.view.len().saturating_sub(1));
+            // Nothing is hovered in a preview, so park the cursor off-list.
+            p.cursor = usize::MAX;
+            list::draw(ui, rect.shrink(2.0), &p, &st, &|_| list::RowFlags {
+                selected: false,
+                yanked: None,
+                git: git::State::Clean,
+            }, false);
+        }
+        other => {
+            // Rendered Markdown is laid out in the worker on a grid of
+            // monospace cells, so it needs to know how many fit.
+            let cell = ui.painter().layout_no_wrap("M".repeat(20), f.clone(), theme.fg).size().x / 20.0;
+            app.preview.cols = ((rect.width() - 24.0) / cell).max(0.0) as u16;
+            let st = preview::PreviewStyle {
+                theme: &theme,
+                font: f.clone(),
+                bold: app.bold_font.then(|| FontId::new(f.size, FontFamily::Name("bold".into()))),
+                cell,
+                row_h,
+                wrap: app.cfg.yazi.preview.wrap == "yes",
+                render_markdown: app.render_markdown,
+                outline_focus: app.preview.outline,
+            };
+            let drawn = preview::draw(
+                ui,
+                rect.shrink(2.0),
+                other,
+                app.preview.texture.as_ref(),
+                app.tabs[app.active].preview_offset,
+                &st,
+            );
+            if let Some((k, line)) = drawn.jump {
+                app.tabs[app.active].preview_offset = line;
+                if app.preview.outline.is_some() {
+                    app.preview.outline = Some(k);
+                }
             }
-            other => {
-                // Rendered Markdown is laid out in the worker on a grid of
-                // monospace cells, so it needs to know how many fit.
-                let cell = ui.painter().layout_no_wrap("M".repeat(20), f.clone(), theme.fg).size().x / 20.0;
-                app.preview.cols = ((rect.width() - 24.0) / cell).max(0.0) as u16;
-                let st = preview::PreviewStyle {
-                    theme: &theme,
-                    font: f.clone(),
-                    bold: app.bold_font.then(|| FontId::new(f.size, FontFamily::Name("bold".into()))),
-                    cell,
-                    row_h,
-                    wrap: app.cfg.yazi.preview.wrap == "yes",
-                    render_markdown: app.render_markdown,
-                    outline_focus: app.preview.outline,
-                };
-                let drawn = preview::draw(
-                    ui,
-                    rect.shrink(2.0),
-                    other,
-                    app.preview.texture.as_ref(),
-                    app.tabs[app.active].preview_offset,
-                    &st,
-                );
-                if let Some((k, line)) = drawn.jump {
-                    app.tabs[app.active].preview_offset = line;
-                    if app.preview.outline.is_some() {
-                        app.preview.outline = Some(k);
-                    }
-                }
-                let lines = drawn.lines;
-                let rows = ((rect.height() / row_h).floor() as usize).max(1);
-                let max = lines.saturating_sub(rows / 2);
-                if app.tabs[app.active].preview_offset > max {
-                    app.tabs[app.active].preview_offset = max;
-                }
-                if ui.rect_contains_pointer(rect) {
-                    let scroll = ui.ctx().input(|i| i.smooth_scroll_delta.y);
-                    if scroll.abs() > 0.5 {
-                        let delta = -(scroll / row_h * 1.5) as i64;
-                        queued.push(Act::Seek(Step::Rel(delta)));
-                    }
+            let lines = drawn.lines;
+            let rows = ((rect.height() / row_h).floor() as usize).max(1);
+            let max = lines.saturating_sub(rows / 2);
+            if app.tabs[app.active].preview_offset > max {
+                app.tabs[app.active].preview_offset = max;
+            }
+            if ui.rect_contains_pointer(rect) {
+                let scroll = ui.ctx().input(|i| i.smooth_scroll_delta.y);
+                if scroll.abs() > 0.5 {
+                    let delta = -(scroll / row_h * 1.5) as i64;
+                    queued.push(Act::Seek(Step::Rel(delta)));
                 }
             }
         }

@@ -110,6 +110,17 @@ desc = "Go forward to the next directory"
 on = "<F5>"
 run = "refresh"
 desc = "Re-read the current directory"
+[[mgr.keymap]]
+on = "<C-F5>"
+run = "config_reload"
+desc = "Read the config files again (theme, icons, keys)"
+# F3 is "view" in every file manager going back to Norton Commander. `<Space>`
+# would be the macOS key, but it toggles the selection here as it does in yazi,
+# and a bare printable key with Shift held never reaches the keymap anyway.
+[[mgr.keymap]]
+on = "<F3>"
+run = "quick"
+desc = "Quick look: the hovered file, big, over the panes"
 
 [[mgr.keymap]]
 on = "<A-k>"
@@ -258,6 +269,14 @@ on = "r"
 run = "rename"
 desc = "Rename the file or directory"
 [[mgr.keymap]]
+on = "R"
+run = "bulk_rename"
+desc = "Rename everything selected by one rule"
+[[mgr.keymap]]
+on = "<A-d>"
+run = "compare"
+desc = "Compare two files side by side"
+[[mgr.keymap]]
 on = ";"
 run = "shell --interactive"
 desc = "Run a shell command"
@@ -325,6 +344,26 @@ desc = "Cancel the ongoing search"
 on = "z"
 run = "jump"
 desc = "Jump to a bookmark or a recently visited directory"
+
+# Bookmarks. `m` would be the vim key, but it is the line-mode prefix here as
+# it is in yazi, so these sit on `b` — a letter, which every keyboard layout
+# reaches the same way, unlike `'` and `"`.
+[[mgr.keymap]]
+on = "b"
+run = "plugin bookmarks jump"
+desc = "Go to the bookmark under a letter"
+[[mgr.keymap]]
+on = "B"
+run = "plugin bookmarks save"
+desc = "Bookmark this directory under a letter"
+[[mgr.keymap]]
+on = "<A-b>"
+run = "plugin bookmarks delete"
+desc = "Delete the bookmark under a letter"
+[[mgr.keymap]]
+on = "<A-B>"
+run = "plugin bookmarks delete_all"
+desc = "Delete every bookmark"
 
 # --- Sorting ------------------------------------------------------------------
 
@@ -715,3 +754,54 @@ desc = "Swipe to the next file"
 on = "y"
 run = "copy cell"
 desc = "Copy the selected value"
+
+# --- Compare (side by side) ---------------------------------------------------
+
+[[diff.keymap]]
+on = "q"
+run = "close"
+desc = "Close the comparison"
+[[diff.keymap]]
+on = "<Esc>"
+run = "close"
+desc = "Close the comparison"
+[[diff.keymap]]
+on = "k"
+run = "arrow -1"
+desc = "Up one line"
+[[diff.keymap]]
+on = "j"
+run = "arrow 1"
+desc = "Down one line"
+[[diff.keymap]]
+on = "<Up>"
+run = "arrow -1"
+desc = "Up one line"
+[[diff.keymap]]
+on = "<Down>"
+run = "arrow 1"
+desc = "Down one line"
+[[diff.keymap]]
+on = "<C-u>"
+run = "arrow -50%"
+desc = "Up half a page"
+[[diff.keymap]]
+on = "<C-d>"
+run = "arrow 50%"
+desc = "Down half a page"
+[[diff.keymap]]
+on = [ "g", "g" ]
+run = "arrow top"
+desc = "To the top"
+[[diff.keymap]]
+on = "G"
+run = "arrow bot"
+desc = "To the bottom"
+[[diff.keymap]]
+on = "n"
+run = "find_arrow"
+desc = "To the next difference"
+[[diff.keymap]]
+on = "N"
+run = "find_arrow --previous"
+desc = "To the previous difference"

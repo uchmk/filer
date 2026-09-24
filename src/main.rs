@@ -3,11 +3,13 @@
 mod app;
 mod config;
 mod core;
+mod diff;
 mod exec;
 mod fs;
 mod glob;
 mod mime;
 mod preview;
+mod rename;
 mod search;
 mod spot;
 mod terminal;
@@ -79,13 +81,7 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(move |cc| {
             let mut cfg = cfg;
-            let (has_nerd, has_bold) = install_fonts(&cc.egui_ctx, &cfg);
-            if !has_nerd && cfg.ui.icons != "nerd" {
-                cfg.theme.without_nerd_icons();
-            }
-            if cfg.ui.icons == "none" {
-                cfg.theme.without_nerd_icons();
-            }
+            let has_bold = apply_fonts(&cc.egui_ctx, &mut cfg);
             cc.egui_ctx.set_visuals(egui::Visuals::dark());
             cc.egui_ctx.all_styles_mut(|s| {
                 s.animation_time = 0.0;
@@ -105,6 +101,20 @@ fn main() -> eframe::Result<()> {
             }))
         }),
     )
+}
+
+/// Install the fonts `cfg` asks for and fold the outcome back into it: without
+/// a Nerd Font the icon glyphs would come out as boxes, and `icons = "none"`
+/// asks for none either way. Returns whether a bold face was found.
+///
+/// Startup and `config_reload` both go through here, so a reloaded config gets
+/// exactly the fonts a fresh start would have given it.
+fn apply_fonts(ctx: &egui::Context, cfg: &mut Config) -> bool {
+    let (has_nerd, has_bold) = install_fonts(ctx, cfg);
+    if (!has_nerd && cfg.ui.icons != "nerd") || cfg.ui.icons == "none" {
+        cfg.theme.without_nerd_icons();
+    }
+    has_bold
 }
 
 /// Load a font that covers ASCII, CJK and (ideally) Nerd Font icons, plus
@@ -247,6 +257,12 @@ impl eframe::App for Filer {
             self.last_input_frame = frame_nr;
             handle_input(&mut self.app, &ctx);
         }
+        // `config_reload` may have named different fonts, and only the frame
+        // loop can install a face.
+        if self.app.refont {
+            self.app.refont = false;
+            self.app.bold_font = apply_fonts(&ctx, &mut self.app.cfg);
+        }
         self.app.kick_scans();
         self.app.request_preview(false);
 
@@ -372,6 +388,11 @@ fn handle_input(app: &mut App, ctx: &egui::Context) {
                         app.feed_spot_key(Key::char(c));
                     }
                 }
+                Overlay::Diff(_) => {
+                    for c in text.chars() {
+                        app.feed_diff_key(Key::char(c));
+                    }
+                }
                 _ => {}
             },
             _ => {}
@@ -442,6 +463,11 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
         Overlay::Spot(_) => {
             if let Some(k) = keys::from_egui(key, modifiers) {
                 app.feed_spot_key(k);
+            }
+        }
+        Overlay::Diff(_) => {
+            if let Some(k) = keys::from_egui(key, modifiers) {
+                app.feed_diff_key(k);
             }
         }
         // The terminal hears every key. The `[term]` layer keeps the few that

@@ -28,6 +28,8 @@ pub struct Keymap {
     pub help: Vec<Binding>,
     pub tasks: Vec<Binding>,
     pub spot: Vec<Binding>,
+    /// The side-by-side compare view's own keys.
+    pub diff: Vec<Binding>,
     /// The few keys the terminal pane keeps for itself; everything else it
     /// hears goes to the shell.
     pub term: Vec<Binding>,
@@ -75,6 +77,8 @@ struct KeymapFile {
     tasks: Section,
     #[serde(default)]
     spot: Section,
+    #[serde(default)]
+    diff: Section,
     #[serde(default)]
     term: Section,
     #[serde(default)]
@@ -200,6 +204,7 @@ impl Keymap {
             km.help = fold(std::mem::take(&mut km.help), &f.help, &mut warnings);
             km.tasks = fold(std::mem::take(&mut km.tasks), &f.tasks, &mut warnings);
             km.spot = fold(std::mem::take(&mut km.spot), &f.spot, &mut warnings);
+            km.diff = fold(std::mem::take(&mut km.diff), &f.diff, &mut warnings);
             km.term = fold(std::mem::take(&mut km.term), &f.term, &mut warnings);
             let _ = &f.cmp; // parsed for compatibility; completion is native here
         }
