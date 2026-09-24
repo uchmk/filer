@@ -1,3 +1,4 @@
+pub mod archive;
 pub mod entry;
 pub mod ops;
 pub mod scan;

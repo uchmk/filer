@@ -212,6 +212,15 @@ run = "hardlink"
 desc = "Hardlink the yanked files"
 
 [[mgr.keymap]]
+on = "e"
+run = "extract"
+desc = "Extract the selected archives"
+[[mgr.keymap]]
+on = "E"
+run = "compress"
+desc = "Compress the selection into an archive"
+
+[[mgr.keymap]]
 on = "d"
 run = "remove"
 desc = "Move the files to the recycle bin"

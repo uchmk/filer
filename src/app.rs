@@ -17,6 +17,7 @@ use crate::core::folder::{Filter, Folder, LoadState};
 use crate::core::fuzzy;
 use crate::core::tab::{CdFallout, Finder, PendingCd, Tab};
 use crate::exec;
+use crate::fs::archive;
 use crate::fs::ops::{self, OpKind, OpRequest, Resolution};
 use crate::fs::scan::{ScanResult, Scanner};
 use crate::fs::watch::Watcher;
@@ -36,6 +37,8 @@ pub enum InputKind {
     Filter,
     Find { prev: bool },
     Cd,
+    /// The name of the archive to pack the selection into.
+    Compress,
     Shell { block: bool },
     Search { via: SearchVia },
     ConflictRename { job: u64 },
@@ -223,6 +226,8 @@ fn acts_on_file(a: &Act) -> bool {
             | Act::Rename { .. }
             | Act::Copy(_)
             | Act::Shell { .. }
+            | Act::Extract
+            | Act::Compress
             | Act::Spot
             | Act::Follow
             | Act::Reveal(_)
@@ -1603,6 +1608,8 @@ impl App {
             Act::Spot => self.open_spot(),
             Act::Palette => self.open_palette(),
             Act::Menu => self.open_menu(),
+            Act::Extract => self.do_extract(),
+            Act::Compress => self.ask_compress(),
             Act::ToggleOutline => self.toggle_outline(),
             Act::ToggleRender => {
                 self.render_markdown = !self.render_markdown;
@@ -1889,9 +1896,88 @@ impl App {
         self.tabs[self.active].clear_selection();
     }
 
+    /// Unpack every selected archive. Anything that is not one is named in an
+    /// error rather than silently dropped, so a mixed selection says what it
+    /// skipped.
+    fn do_extract(&mut self) {
+        let paths = self.tabs[self.active].targets();
+        if paths.is_empty() {
+            return;
+        }
+        let (archives, rest): (Vec<PathBuf>, Vec<PathBuf>) =
+            paths.into_iter().partition(|p| archive::Format::from_path(p).is_some());
+        if archives.is_empty() {
+            self.error("Nothing here is an archive filer can read");
+            return;
+        }
+        if !rest.is_empty() {
+            self.toast(format!("Skipping {} non-archive item(s)", rest.len()));
+        }
+        let cwd = self.tabs[self.active].cwd.clone();
+        self.submit_op(OpKind::Extract, archives, cwd, false);
+        self.tabs[self.active].clear_selection();
+    }
+
+    /// Ask what the archive should be called. The extension picks the format,
+    /// so one prompt covers zip, tar and tar.gz without a second menu.
+    fn ask_compress(&mut self) {
+        let paths = self.tabs[self.active].targets();
+        if paths.is_empty() {
+            return;
+        }
+        // One item names the archive after itself; several after the folder
+        // they are in, which is what the user would have typed anyway.
+        let stem = match paths.len() {
+            1 => util::stem_and_ext(&util::file_name(&paths[0])).0.to_owned(),
+            _ => util::file_name(&self.tabs[self.active].cwd),
+        };
+        let stem = match stem.is_empty() {
+            true => "archive".to_owned(),
+            false => stem,
+        };
+        self.open_input(InputKind::Compress, "Compress to", format!("{stem}.zip"));
+    }
+
+    fn do_compress(&mut self, name: &str) {
+        let name = name.trim();
+        if name.is_empty() {
+            return;
+        }
+        let cwd = self.tabs[self.active].cwd.clone();
+        let dest = util::resolve_against(&cwd, name);
+        let Some(format) = archive::Format::from_path(&dest) else {
+            self.error("Name it .zip, .tar or .tar.gz to say which format");
+            return;
+        };
+        if !format.can_write() {
+            self.error(format!("{} can be read here but not written", format.label()));
+            return;
+        }
+        let paths = self.tabs[self.active].targets();
+        if paths.is_empty() {
+            return;
+        }
+        self.submit_op_to(OpKind::Compress(format), paths, cwd, Some(dest), false);
+        self.tabs[self.active].clear_selection();
+    }
+
     fn submit_op(&mut self, kind: OpKind, srcs: Vec<PathBuf>, dest_dir: PathBuf, force: bool) {
+        self.submit_op_to(kind, srcs, dest_dir, None, force);
+    }
+
+    fn submit_op_to(
+        &mut self,
+        kind: OpKind,
+        srcs: Vec<PathBuf>,
+        dest_dir: PathBuf,
+        dest_file: Option<PathBuf>,
+        force: bool,
+    ) {
         let id = self.scanner.next_id();
-        let label = format!("{} {} item(s)", kind.verb(), srcs.len());
+        let label = match &dest_file {
+            Some(f) => format!("{} {} item(s) into {}", kind.verb(), srcs.len(), util::file_name(f)),
+            None => format!("{} {} item(s)", kind.verb(), srcs.len()),
+        };
         self.tasks.push(Task {
             id,
             kind,
@@ -1905,7 +1991,7 @@ impl App {
             errors: Vec::new(),
             finished: None,
         });
-        self.ops.submit(OpRequest { id, kind, srcs, dest_dir, force });
+        self.ops.submit(OpRequest { id, kind, srcs, dest_dir, dest_file, force });
     }
 
     fn on_op_event(&mut self, ev: ops::OpEvent) {
@@ -2207,6 +2293,7 @@ impl App {
         let text = ov.text.trim().to_owned();
         match ov.kind {
             InputKind::Create => self.do_create(&text),
+            InputKind::Compress => self.do_compress(&text),
             InputKind::Rename { from } => self.do_rename(&from, &text),
             InputKind::Filter => { /* already applied live */ }
             InputKind::Find { .. } => { /* already applied live */ }

@@ -58,7 +58,8 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
-`menu`, `split`, `pane_focus`, `toggle_render` and `toggle_outline` (this project's own). In the `[spot]`
+`menu`, `extract`, `compress`, `split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
+project's own). In the `[spot]`
 section: `close`,
 `arrow`, `swipe` and `copy cell`.
 
@@ -229,6 +230,36 @@ how many. Right-clicking outside the selection drops it and acts on that one row
 Explorer does. This is the nearest thing here to a plugin menu: a `shell` binding or an opener is
 how a Lua plugin's action gets onto the screen, with no Lua runtime involved.
 
+## Archives
+
+`e` unpacks the selected archives, `E` packs the selection into one. Both run on the same worker
+as copy and move, so a large archive never blocks the window and its progress shows in the task
+panel (`w`) with the name of each entry as it goes past.
+
+| Format | Read | Write |
+| --- | :---: | :---: |
+| `.zip` | ✓ | ✓ |
+| `.tar` | ✓ | ✓ |
+| `.tar.gz`, `.tgz` | ✓ | ✓ |
+| `.7z` | ✓ | |
+
+Everything is done in-process by pure-Rust crates (zip, tar, flate2, sevenz-rust): no 7-Zip
+installation, no C toolchain, and the same behavior on x64 and ARM64.
+
+`e` gives each archive a folder of its own, named after it with the extension dropped
+(`report.tar.gz` unpacks into `report`), and steps the name past anything already there rather
+than merging into it. A selection holding things that are not archives extracts the ones that are
+and says how many it skipped.
+
+`E` asks what to call the archive, prefilled with `<name>.zip`. **The extension you type decides
+the format** — change it to `.tar.gz` and that is what you get. Names inside the archive are
+relative to the directory you are in, so a folder keeps its shape. An archive that already exists
+raises the same overwrite / rename prompt a paste does.
+
+Entry names coming out of an archive are treated as untrusted: one that climbs out of the
+destination with `..`, names an absolute path or carries a drive letter is refused and reported
+rather than written.
+
 ## Other previews
 
 No external tools (magick, ffmpeg, pdftoppm) are needed:
@@ -258,6 +289,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `y` `x` `p` `P` `-` `_` | yank / cut / paste / paste-force / symlink / relative symlink |
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
 | `a` `r` | create (trailing `/` makes a directory) / rename |
+| `e` `E` | extract the selected archives / compress the selection |
 | `o` `O` `<Enter>` `<S-Enter>` | open / open with… / open (at the outline's line) / open with… |
 | `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter |
 | `s` `S` `<C-s>` | search by name / by content / stop |
@@ -345,7 +377,8 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   the hidden-file attribute are Windows-specific paths.
 - No Lua plugin runtime — see the plugin table above for what is emulated natively, and the
   [context menu](#context-menu) for how a custom action reaches the screen without one.
-- Archives show a metadata card rather than a listing; woff / woff2 fonts aren't previewed. Video,
+- An archive's *preview* is a metadata card rather than a listing of what is inside — `e` unpacks
+  it, but the pane does not browse it. woff / woff2 fonts aren't previewed. Video,
   PDF and HEIC previews rely on Windows thumbnail handlers (see [Other previews](#other-previews)).
 - `[input]`, `[confirm]` and `[pick]` keymap layers are parsed for compatibility, but the prompts
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.

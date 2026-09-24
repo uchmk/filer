@@ -118,6 +118,12 @@ pub enum Act {
     Copy(CopyWhat),
     Shell { run: String, block: bool, confirm: bool, orphan: bool },
 
+    /// Unpack the selected archives, each into a folder of its own.
+    Extract,
+    /// Pack the selection into one archive; the name typed at the prompt
+    /// decides the format.
+    Compress,
+
     Hidden(Tri),
     Linemode(String),
     Sort { by: Option<SortBy>, reverse: Tri, dir_first: Tri },
@@ -330,6 +336,8 @@ pub fn parse(line: &str) -> Act {
         "paste" => Act::Paste { force: a.has("force"), follow: a.has("follow") },
         "link" => Act::Link { relative: a.has("relative") },
         "hardlink" => Act::Hardlink,
+        "extract" => Act::Extract,
+        "compress" => Act::Compress,
         "remove" => Act::Remove {
             permanently: a.has("permanently"),
             force: a.has("force"),

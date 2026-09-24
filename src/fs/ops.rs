@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 
 use crossbeam_channel::{Receiver, Sender};
 
+use super::archive;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum OpKind {
     Copy,
@@ -17,6 +19,10 @@ pub enum OpKind {
     Hardlink,
     Trash,
     Delete,
+    /// Unpack each source archive into a folder of its own under `dest_dir`.
+    Extract,
+    /// Pack the sources into the one archive `dest_file` names.
+    Compress(archive::Format),
 }
 
 impl OpKind {
@@ -28,6 +34,8 @@ impl OpKind {
             Self::Hardlink => "Hardlink",
             Self::Trash => "Trash",
             Self::Delete => "Delete",
+            Self::Extract => "Extract",
+            Self::Compress(_) => "Compress",
         }
     }
 }
@@ -38,6 +46,8 @@ pub struct OpRequest {
     pub kind: OpKind,
     pub srcs: Vec<PathBuf>,
     pub dest_dir: PathBuf,
+    /// The archive a [`OpKind::Compress`] job writes. Unused by the rest.
+    pub dest_file: Option<PathBuf>,
     /// Overwrite without asking.
     pub force: bool,
 }
@@ -128,7 +138,12 @@ impl Ctx<'_> {
         let (files, bytes) = match req.kind {
             OpKind::Trash | OpKind::Delete => (req.srcs.len() as u64, 0),
             OpKind::Symlink { .. } | OpKind::Hardlink => (req.srcs.len() as u64, 0),
-            OpKind::Copy | OpKind::Move => measure(&req.srcs),
+            // Extract counts each archive as one unit: what is inside is only
+            // known by reading it, and reading it twice to fill a progress bar
+            // is not worth it. The name of each entry still goes past.
+            OpKind::Copy | OpKind::Move | OpKind::Compress(_) | OpKind::Extract => {
+                measure(&req.srcs)
+            }
         };
         let _ = self.ev.send(OpEvent::Started { id: self.id, files, bytes });
         (self.wake)();
@@ -204,8 +219,91 @@ impl Ctx<'_> {
                     self.transfer(src, &dest, moving);
                 }
             }
+            OpKind::Extract => self.extract(req),
+            OpKind::Compress(format) => self.compress(req, format),
         }
         self.report("");
+    }
+
+    /// Each archive gets a folder of its own, named after it. A name already
+    /// taken is stepped past rather than merged into: two unpacks of the same
+    /// archive should not interleave their contents.
+    fn extract(&mut self, req: &OpRequest) {
+        for src in &req.srcs {
+            if self.cancelled {
+                break;
+            }
+            if archive::Format::from_path(src).is_none() {
+                self.errors.push(format!("{}: not an archive", short(src)));
+                continue;
+            }
+            let into = unique_name(&archive::extract_dir(src, &req.dest_dir));
+            let mut seen = 0u64;
+            let r = archive::extract(src, &into, &mut |name, _size| {
+                seen += 1;
+                self.report_entry(name);
+                !self.cancelled
+            });
+            if let Err(e) = r {
+                self.errors.push(format!("{}: {e}", short(src)));
+                // A refused entry leaves the rest in place; an empty folder
+                // from a job that got nowhere is just litter.
+                if seen == 0 {
+                    let _ = std::fs::remove_dir(&into);
+                }
+            }
+            self.files_done += 1;
+            self.bytes_done += std::fs::metadata(src).map(|m| m.len()).unwrap_or(0);
+            self.report(&src.to_string_lossy());
+        }
+    }
+
+    /// One archive from everything selected, named relative to the directory
+    /// the job started in so a folder keeps its shape inside.
+    fn compress(&mut self, req: &OpRequest, format: archive::Format) {
+        let Some(dest) = req.dest_file.clone() else {
+            self.errors.push("compress: no archive name".into());
+            return;
+        };
+        // An archive that is already there goes through the same prompt a
+        // paste would. The first source stands in as `src` so the dialog reads
+        // as what is being packed into what.
+        let first = req.srcs.first().cloned().unwrap_or_else(|| dest.clone());
+        let dest = match req.force {
+            true => dest,
+            false => match self.resolve_dest(&first, dest) {
+                Some(d) => d,
+                None => return,
+            },
+        };
+        let r = archive::compress(&req.srcs, &req.dest_dir, &dest, format, &mut |name, bytes| {
+            self.files_done += 1;
+            self.bytes_done += bytes;
+            self.report_entry(name);
+            !self.cancelled
+        });
+        if let Err(e) = r {
+            self.errors.push(format!("{}: {e}", short(&dest)));
+            // A half-written archive is worse than none: it looks openable.
+            let _ = std::fs::remove_file(&dest);
+        }
+    }
+
+    /// Progress from inside an archive, where the entry name is most of what
+    /// there is to say. Rate-limited like [`Ctx::report`], but never silent:
+    /// an entry is always worth naming once the interval has passed.
+    fn report_entry(&mut self, name: &str) {
+        if self.last_report.elapsed().as_millis() < 50 {
+            return;
+        }
+        self.last_report = std::time::Instant::now();
+        let _ = self.ev.send(OpEvent::Progress {
+            id: self.id,
+            files_done: self.files_done,
+            bytes_done: self.bytes_done,
+            current: name.to_owned(),
+        });
+        (self.wake)();
     }
 
     /// Apply the conflict policy, asking the UI when needed.
