@@ -653,4 +653,80 @@ mod tests {
         let string = Color32::from_rgb(0xa3, 0xbe, 0x8c);
         assert_eq!(readable(string, bg, fg), string);
     }
+
+    /// A pane of `cols` columns, with a cell one point wide so the arithmetic
+    /// in the tests is the arithmetic in the code.
+    fn pane(cols: f32, theme: &Theme, minimap: bool) -> (Rect, PreviewStyle<'_>) {
+        let rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(cols + 20.0, 400.0));
+        let st = PreviewStyle {
+            theme,
+            font: FontId::monospace(10.0),
+            bold: None,
+            cell: 1.0,
+            row_h: 10.0,
+            wrap: false,
+            render_markdown: false,
+            outline_focus: None,
+            minimap,
+            zoom: None,
+            pan: Vec2::ZERO,
+        };
+        (rect, st)
+    }
+
+    fn rows_of(n: usize) -> Vec<MapRow> {
+        vec![MapRow { indent: 0, len: 10, color: None }; n]
+    }
+
+    /// The minimap takes its strip off the right, and the body keeps the rest.
+    /// Without this the text would be painted under the map.
+    #[test]
+    fn the_minimap_narrows_the_body_by_its_own_width() {
+        let theme = Theme::default();
+        let (rect, st) = pane(120.0, &theme, true);
+
+        let (body, strip) = split_minimap(rect, &rows_of(500), &st);
+        let strip = strip.expect("a wide pane has room for a map");
+
+        assert!(body.right() <= strip.left(), "they must not overlap");
+        assert_eq!(strip.right(), rect.right(), "the map sits against the edge");
+        assert_eq!(strip.width(), MINIMAP_COLS as f32, "one cell is one point here");
+        assert_eq!(body.left(), rect.left());
+    }
+
+    /// Three ways there is no map, all of them deliberate: turned off, nothing
+    /// worth mapping, and a pane that needs its width for the text.
+    #[test]
+    fn a_narrow_or_empty_or_disabled_pane_gets_no_minimap() {
+        let theme = Theme::default();
+
+        let (rect, st) = pane(120.0, &theme, false);
+        assert!(split_minimap(rect, &rows_of(500), &st).1.is_none(), "turned off");
+
+        let (rect, st) = pane(120.0, &theme, true);
+        assert!(split_minimap(rect, &rows_of(1), &st).1.is_none(), "one line is not a map");
+
+        let (rect, st) = pane(MINIMAP_MIN_COLS as f32 - 1.0, &theme, true);
+        let (body, strip) = split_minimap(rect, &rows_of(500), &st);
+        assert!(strip.is_none(), "too narrow to spare the columns");
+        assert_eq!(body, rect, "and the body keeps all of it");
+    }
+
+    /// The outline column asks the same question of the body, not of the pane,
+    /// so with a map up a pane has to be wider before an outline fits too.
+    #[test]
+    fn the_outline_column_is_judged_against_what_the_minimap_left() {
+        let theme = Theme::default();
+        let cols = SOURCE_OUTLINE_MIN_COLS as f32 + 3.0;
+
+        let (rect, st) = pane(cols, &theme, false);
+        assert!(pane_cols(rect, &st) >= SOURCE_OUTLINE_MIN_COLS, "an outline fits on its own");
+
+        let (rect, st) = pane(cols, &theme, true);
+        let (body, _) = split_minimap(rect, &rows_of(500), &st);
+        assert!(
+            pane_cols(body, &st) < SOURCE_OUTLINE_MIN_COLS,
+            "and does not once the map has taken its strip"
+        );
+    }
 }

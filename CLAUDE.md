@@ -9,6 +9,8 @@ yazi 風のキーボード操作ファイルマネージャーを Rust + egui 0.
 - 実行中の `filer.exe` を止めるときは事前確認を不要とし、ビルドを優先する。
 - 改行は LF（`.gitattributes` の `eol=lf`）。スクリプトで書き換えるときは改行を変えない（Python なら `newline=''`）。
 - タスクは [TODO.md](TODO.md)、人への確認事項は [QUESTIONS.md](QUESTIONS.md) で管理する（書き方は「確認事項」の節）。
+- **実機でしか確かめられないことは [TESTING.md](TESTING.md) に積む。**画面の無い環境で書いた機能は、
+  ここにチェック項目として足してから完了にする。テスト用ファイルは `scripts/make-fixtures.ps1` が作る。
 
 ## ブランチ・バージョン・変更ログ
 

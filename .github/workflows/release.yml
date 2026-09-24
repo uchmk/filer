@@ -1,0 +1,94 @@
+name: Release
+
+# A `filer.exe` anyone can download without a GitHub account.
+#
+# `build.yml` already produces one on every push, but an Actions artifact needs
+# a signed-in user with access to the repository and expires after 90 days, so
+# it cannot be handed to someone who is only being asked to try the thing. A
+# release asset is a plain URL that outlives the run.
+
+on:
+  push:
+    tags: ['v*']
+  # Or by hand, to cut one without tagging first.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release, e.g. v0.6.0. It is created if it does not exist.'
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # `softprops/action-gh-release` reads the changelog out of the tree,
+          # and the notes below want the tag's own commit.
+          fetch-depth: 0
+
+      - name: Work out the tag
+        id: tag
+        shell: bash
+        run: echo "name=${{ inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      # The version in the tag and the version in Cargo.toml disagreeing is the
+      # one mistake worth failing the release for: whoever downloads it would
+      # have no way to tell which they have.
+      - name: Check the tag matches Cargo.toml
+        shell: bash
+        run: |
+          crate=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
+          tag="${{ steps.tag.outputs.name }}"
+          if [ "v$crate" != "$tag" ]; then
+            echo "::error::tag $tag does not match Cargo.toml's $crate"
+            exit 1
+          fi
+          echo "$tag matches Cargo.toml"
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test
+        run: cargo test --locked
+
+      - name: Build
+        run: cargo build --release --locked
+
+      # Named for the version rather than the commit: this one is meant to be
+      # linked to and recognised, not told apart from its neighbours.
+      - name: Name the binary
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/release/filer.exe "dist/filer-${{ steps.tag.outputs.name }}-windows-x64.exe"
+
+      - name: Pull this version's section out of the changelog
+        id: notes
+        shell: bash
+        run: |
+          tag="${{ steps.tag.outputs.name }}"
+          # From the heading for this version to the one before it.
+          awk -v v="## [${tag#v}]" '
+            index($0, v) == 1 { on = 1; next }
+            on && /^## \[/     { exit }
+            on                 { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "No section for $tag in CHANGELOG.md." > notes.md
+          fi
+          echo "wrote $(wc -l < notes.md) lines of notes"
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: ${{ steps.tag.outputs.name }}
+          body_path: notes.md
+          files: dist/*.exe
+          fail_on_unmatched_files: true

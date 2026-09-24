@@ -1,0 +1,250 @@
+# Testing on a real machine
+
+Everything here is something automated tests cannot reach, and most of it is
+something nobody has looked at yet. The development sessions that wrote these
+features ran in a Linux container with no display and no MSVC linker: the code
+was type-checked for Windows and its logic was unit-tested, but **the window has
+never been on a screen**. That is the gap this checklist is for.
+
+What *is* covered automatically, so it is not repeated below: every pure
+function (key parsing, the diff algorithm, rename rules, the undo stacks, image
+zoom arithmetic, minimap row summaries, pane geometry), the keymap's
+consistency, and that the whole thing compiles for Windows, macOS and Linux.
+`cargo test` on Windows CI runs all of it on every push.
+
+## What you need
+
+1. **A `filer.exe`.** Either:
+   - a [release](https://github.com/uchmk/filer/releases) — a plain download, no
+     account needed; or
+   - the artifact on the newest green [Build run](https://github.com/uchmk/filer/actions/workflows/build.yml)
+     — needs a signed-in GitHub account with access, and expires after 90 days; or
+   - `cargo build --release` in a clone, which needs a Rust toolchain (1.95 or
+     newer, as egui 0.36 requires) and the MSVC build tools.
+2. **The fixtures.** `scripts/make-fixtures.ps1` builds every file the checks
+   below point at:
+   ```powershell
+   .\scripts\make-fixtures.ps1
+   ```
+   It writes to `filer-fixtures` on your desktop unless `-Path` says otherwise,
+   and clears that directory first. `git` on `PATH` is optional; without it the
+   repository fixture is skipped and the git checks with it.
+3. **Nothing else.** With no `yazi.toml` or `keymap.toml` anywhere, filer uses
+   its built-in defaults, which is what the key names below mean. If you *do*
+   have a yazi config, it is read, and your own bindings win — worth knowing
+   before reporting a key as wrong.
+
+## How to report
+
+Anything that does not match the "expect" column: the check's number, what
+happened instead, and a screenshot where it is something visual. Versions matter
+— say which `filer.exe` (the release tag, or the commit the artifact is named
+for). A check that cannot be run at all (no editor installed, no network share)
+is a skip, not a failure; say which.
+
+---
+
+## A. The terminal pane
+
+The riskiest area: an embedded terminal is a lot of machinery and none of its
+drawing has been seen. `<C-t>` opens it.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| A1 | `<C-t>` from the file list | A shell opens along the bottom, already in the directory the list is showing |
+| A2 | Type `dir` and press Enter | Output in the list's own font, columns lined up, no overlapping glyphs |
+| A3 | Look at the cursor | A block where the shell's cursor is, and it moves as you type |
+| A4 | Run something colorful (`git status` in the `repo` fixture) | The 16 ANSI colors, and they match the file list's own colors rather than looking like a second palette |
+| A5 | **`<C-t>` again** | Keys go back to the list — **and the shell is still there**, with its output intact. This is the v0.6.0 fix; before it, this ended the shell |
+| A6 | `<C-t>`, `<C-t>`, `<C-t>` a few times | The same shell throughout. The scrollback never resets |
+| A7 | `<C-S-t>` | *Now* the pane closes and the shell ends |
+| A8 | Reopen, then resize the window | The grid reflows; no clipped half-columns, no stretched text |
+| A9 | `dir` in `many\` to fill the screen, then `<S-PageUp>` | The view goes back; a note says how many lines back you are |
+| A10 | `<S-End>`, then type a character | Back at the bottom, and typing alone would have done it |
+| A11 | Drag across some output | It highlights, and is on the clipboard when you let go — no second step |
+| A12 | Double-click a word | The word is selected |
+| A13 | `<C-S-f>`, type a word from the scrollback, Enter, then `<C-S-n>` | Matches are found and stepped through; it wraps at the end |
+| A14 | `<F1>` inside the terminal | The key list opens **over** the terminal. `<Esc>` closes it and typing goes back to the shell |
+| A15 | `<C-S-p>` inside the terminal | The command palette opens, and running something from it works |
+| A16 | `cd` somewhere in the shell, then `<A-Up>` | The file list follows to where the shell is |
+| A17 | Select two files, `<A-t>` | Their paths are typed onto the shell's line, quoted, **not run** |
+| A18 | With a shell that reports OSC 7 (PowerShell 7, or bash with a `PROMPT_COMMAND`), change directory in the list | No stray `cd` is typed into the shell |
+
+## B. The minimap (v0.5.0)
+
+Open `long.rs` — 4000 lines, shaped so the bands should be recognisable.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| B1 | Hover `long.rs` | A narrow strip down the right of the preview, made of short horizontal bars |
+| B2 | Look at the shape | Comment headers read as long bars, indented blocks as bars starting further right, the blank line every 40 as a gap. It should look like the file |
+| B3 | Look at the colors | The bars carry syntax colors — strings and comments differ from code — not one flat color |
+| B4 | Find the viewport box | A lighter box with a border, covering the part of the file on screen |
+| B5 | `<A-j>` a few times | The box moves down in step with the text |
+| B6 | Click halfway down the strip | The preview jumps there, with the clicked line in the **middle** of the pane, not at its top |
+| B7 | Drag up and down the strip | The preview follows continuously |
+| B8 | Narrow the window until the preview is thin | The map disappears before the text becomes unreadable, and the text takes the space back |
+| B9 | `<A-n>` | The map toggles off and on |
+| B10 | Open `notes.md` (rendered) | **No map** — this is deliberate, the rendered lines are not the file's lines |
+| B11 | Press `M` for source | The map appears |
+| B12 | A short file (`same-a.txt`) | No map: two lines are not worth mapping |
+
+## C. Image zoom and pan (v0.5.0)
+
+`zoom-me.png` is 3200×2400 with an 8-pixel grid, so blur is obvious.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| C1 | Hover `zoom-me.png` | It fits the pane. The caption reads `3200 × 2400 · fit NN%` |
+| C2 | `<A-1>` (1:1) | It fills far more than the pane, showing the middle. **The grid lines are crisp** — this is the re-decode working; if it is a blurred enlargement of the fitted copy, that is the bug this was built to avoid |
+| C3 | Watch the moment it sharpens | The picture must **not jump or change size** when the sharper copy arrives. Only its sharpness changes |
+| C4 | Drag it | It pans, and stops when its edge reaches the pane's edge — it cannot be thrown off screen |
+| C5 | `Ctrl` and the wheel, pointer on a grid intersection | It zooms **about the pointer**: the intersection under the cursor stays under it |
+| C6 | Plain wheel (no Ctrl) | Scrolls the pane, does not zoom |
+| C7 | Double-click | Back to fitting, centred |
+| C8 | `<A-i>` / `<A-o>` | In and out in steps. The caption's percentage follows |
+| C9 | Zoom in, then `j` to the next file and back | It is fitted again — a zoom belongs to the file it was set on |
+| C10 | Hover `tiny.png` (48×48) | Shown at its own size, **not blown up** to fill the pane |
+
+## D. Compare, side by side (v0.4.0)
+
+`<A-d>` with `compare-left.txt` and `compare-right.txt` both selected, or one in
+each pane with the view split.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| D1 | Compare the two | Two columns, a line down the middle, with line numbers on each side |
+| D2 | Find line 100 | The changed line sits **opposite** the line it replaced — not listed as a removal and an addition far apart |
+| D3 | Look at the colors | Removals tinted on the left, additions on the right, matching the git signs' colors |
+| D4 | Look at the line numbers after the insertion | The two sides differ by one, each counting its own file |
+| D5 | `n` / `N` | Between the two differences, not line by line inside one |
+| D6 | `j` `k` `<C-d>` `gg` `G` | Scrolling, with the footer's `x–y of z` keeping up |
+| D7 | `same-a.txt` and `same-b.txt` | "The two files are identical." — no thousands of matching rows |
+| D8 | `binary.dat` against anything | Says it is not text on both sides and that the bytes differ |
+| D9 | Two directories | Refused with a reason |
+| D10 | `q` | Closes |
+
+## E. Bulk rename (v0.4.0)
+
+In `bulk-rename\`.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| E1 | Select the 12 `IMG_*.jpg`, press `R` | A prompt reading `{name}{ext}`, and a panel above it listing every file with `→` and its new name — unchanged, since that rule changes nothing |
+| E2 | Type `holiday-{n:2}{ext}` | The panel updates **as you type**, showing `holiday-01.jpg` … `holiday-12.jpg` |
+| E3 | Enter | All twelve renamed. A toast says how many |
+| E4 | `u` | **All twelve names back**, in one step |
+| E5 | `U` | Renamed again |
+| E6 | Select the twelve, `R`, type `in the way.txt` | Every row after the first is marked "two files would get this name", and Enter is refused |
+| E7 | Select one file, `R`, type `in the way.txt` | Marked "already in this directory", Enter refused |
+| E8 | Select `ab.txt` and `ba.txt`, `R`, type `s/^([ab])([ab])/$2$1/` | The panel shows `ab.txt → ba.txt` and `ba.txt → ab.txt`, **neither marked as a problem** |
+| E9 | Enter | **The names swap.** A loop of `mv` fails on the second rename; this moves one out of the way first. Then `u` puts both back |
+| E9b | Select `ab.txt` and `in the way.txt`, `R`, type `s/^ab/in the way/` | `ab.txt → in the way.txt` is marked "already in this directory": the file holding that name is selected but is **not moving**, so the name is not going spare. (Before v0.7.0 this was allowed, and failed at the last moment instead) |
+| E10 | `R` with `s/IMG_(\d+)/photo-$1/` | Group references work |
+| E11 | `R` with `{nope}` | Says the placeholder is unknown; nothing renamed |
+
+## F. Undo and redo (v0.3.0)
+
+| # | Do | Expect |
+| --- | --- | --- |
+| F1 | `d` on a file in `many\` | It goes to the recycle bin |
+| F2 | `u` | It comes back, in its original place. A toast says so |
+| F3 | Check the task panel (`w`) during F2 | A `Restore` row appears and completes |
+| F4 | `U` | Deleted again |
+| F5 | Delete two files with the same name from different folders, an interval apart, then `u` | The one just deleted comes back — not the older one |
+| F6 | `r` to rename, then `u` | The old name is back |
+| F7 | `u` with nothing to undo | "Nothing to undo" — no error |
+| F8 | Rename a file, undo it, then create a new file, then `U` | Redo is gone: the new action forked history |
+| F9 | Delete a file, `u`, but create a file with that name first | `u` says the name is taken, and pressing it again after moving that file out of the way works |
+
+## G. Quick look, minimap's neighbours, and the rest of the panes
+
+| # | Do | Expect |
+| --- | --- | --- |
+| G1 | `<F3>` on any file | A large panel over the panes, with the file's name at the top and "Esc to close" |
+| G2 | With it open, press `j` and `k` | **The list still moves**, and the panel follows down it. This is why it is not an overlay |
+| G3 | `<A-j>` / `<A-k>` with it open | The panel's content scrolls |
+| G4 | `<F3>` or `<Esc>` | Closes |
+| G5 | `<C-w>` | The view splits into two panes; the one with the keys is framed, the other's cursor is dimmed |
+| G6 | Select files, `<A-c>` | Copied into the other pane |
+| G7 | Drag files onto the other pane | A frame marks the target, and a label by the pointer says "copy" — `Shift` makes it "move" — **before** you let go |
+| G8 | `<Tab>` on a file | The spot panel, with the file's details |
+| G9 | `<S-F10>` or right-click | The context menu, with the openers from your config |
+| G10 | `<C-S-p>` | The palette, listing every binding; typing filters it |
+| G11 | `b` then a letter, having saved one with `B` | Jumps there. `'` and the letter does the same |
+| G12 | `z` | The jump list: bookmarks first, then recent directories with "2h ago" beside them |
+
+## H. Configuration and theming
+
+| # | Do | Expect |
+| --- | --- | --- |
+| H1 | With filer open, edit `theme.toml` (change `[mgr] cwd` to something loud) and press `<C-F5>` | The color changes without restarting |
+| H2 | Change `[ui] font_size` in `filer.toml`, `<C-F5>` | The text resizes |
+| H3 | Add a `keymap.toml` binding, `<C-F5>` | The new key works, and `<F1>` lists it |
+| H4 | Sort with `,s`, then `<C-F5>` | The sort **stays** as you set it — a reload does not undo what you changed by hand |
+| H5 | Put a syntax error in `filer.toml`, `<C-F5>` | An error toast naming the problem; the old config stays in force |
+| H6 | `[ui] minimap = false`, `<C-F5>` | No minimap |
+
+## I. Archives (v0.2.0)
+
+| # | Do | Expect |
+| --- | --- | --- |
+| I1 | Hover `sample.zip` | The preview lists what is inside |
+| I2 | `e` on it | Unpacked into a `sample` folder beside it; progress in the task panel |
+| I3 | `e` again | The second one gets a different name; the first is not overwritten |
+| I4 | Select `to-pack\`, press `E`, accept `to-pack.zip` | Packed, and the result opens |
+| I5 | `E` and change the name to end in `.tar.gz` | A gzipped tar, not a zip |
+| I6 | `e` on a text file | A toast says it was skipped; nothing else happens |
+
+## J. Editors, at a line (needs the editors installed)
+
+Open a file's outline with `l` or `<S-Tab>`, put the cursor on an entry, press
+Enter. Each of these is a skip if the editor is not installed.
+
+| # | Editor | Expect |
+| --- | --- | --- |
+| J1 | 秀丸エディタ | Opens at the outline entry's line |
+| J2 | サクラエディタ | Same |
+| J3 | EmEditor | Same |
+| J4 | Notepad++ | Same |
+| J5 | メモ帳 | Opens, at the top — it has no line argument, and that is correct |
+| J6 | VS Code / nvim, if you have them | At the line |
+
+## K. Network paths (needs a share)
+
+| # | Do | Expect |
+| --- | --- | --- |
+| K1 | `g<Space>`, type `\\server\share` | It opens |
+| K2 | Copy a file to and from it | Works, with progress |
+| K3 | Unplug the network mid-listing, or point at a dead host | **The window keeps responding.** An error toast, and the tab goes back where it was |
+| K4 | Tab-complete a path on the share | The prompt stays responsive; a `…` shows while it waits |
+
+## L. Awkward names
+
+In `awkward names\`.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| L1 | The CJK names | Drawn correctly, columns lined up (they are two cells wide each) |
+| L2 | The very long name | Elided in the middle, with the extension still readable |
+| L3 | `UPPER.TXT` and `upper.txt` | Both listed, both openable |
+| L4 | Copy the name with a quote in it, `<A-t>` into the terminal | Quoted so the shell sees one word |
+| L5 | `d` then `u` on the CJK-named file | Comes back under the same name |
+
+---
+
+## Known gaps in this checklist
+
+- **Nothing here has been run.** The checklist was written from the code, not
+  from use; a step that does not match the program may be the checklist's
+  mistake rather than the program's. Say so if a step reads wrong.
+- **macOS and Linux are unexercised.** They compile, and the undo of a delete is
+  known not to work on macOS (no API for reading the Trash back), but no one has
+  run the program there at all.
+- **Automated screenshot testing was looked at and not adopted.** egui ships
+  `egui_kittest`, which renders offscreen and compares against baseline images,
+  and it would cover most of sections B, C, D and G. It needs a GPU adapter,
+  which the development container has none of (no Vulkan driver, no EGL), so the
+  baselines cannot be produced there — they would have to be generated on
+  Windows and committed. It is worth doing; it is not something that can be set
+  up blind.

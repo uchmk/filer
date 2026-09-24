@@ -130,17 +130,30 @@ pub struct Row {
 /// Work out the new name of every file, and what is wrong with any of them.
 ///
 /// `taken` is the names already in the directory, from the listing in memory —
-/// a name that is in the way is only a problem when it belongs to a file that
-/// is not itself being renamed.
+/// a name that is in the way is only a problem when it belongs to a file that is
+/// not itself moving out of it. Being in the selection is not enough: a rule
+/// that leaves a file's name alone leaves the name occupied, so the new names
+/// are all worked out first and only then judged against each other.
 pub fn plan(paths: &[PathBuf], text: &str, taken: &BTreeSet<String>) -> Result<Vec<Row>, String> {
     let rule = parse_rule(text)?;
-    let sources: BTreeSet<String> = paths.iter().map(|p| util::file_name(p)).collect();
+    let named: Vec<(String, String)> = paths
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let name = util::file_name(p);
+            let to = apply(&rule, &name, i + 1);
+            (name, to)
+        })
+        .collect();
+    // The names this batch gives up. Only a file that actually moves does.
+    let vacated: BTreeSet<&str> =
+        named.iter().filter(|(from, to)| from != to).map(|(from, _)| from.as_str()).collect();
+
     let mut rows: Vec<Row> = Vec::with_capacity(paths.len());
     let mut seen: BTreeSet<String> = BTreeSet::new();
 
-    for (i, from) in paths.iter().enumerate() {
-        let name = util::file_name(from);
-        let to = apply(&rule, &name, i + 1);
+    for (from, (name, to)) in paths.iter().zip(&named) {
+        let (name, to) = (name.as_str(), to.clone());
         let problem = if to.is_empty() {
             Some("empty name".into())
         } else if to.contains('/') || to.contains('\\') {
@@ -149,7 +162,7 @@ pub fn plan(paths: &[PathBuf], text: &str, taken: &BTreeSet<String>) -> Result<V
             Some("reserved name".into())
         } else if !seen.insert(to.clone()) {
             Some("two files would get this name".into())
-        } else if to != name && taken.contains(&to) && !sources.contains(&to) {
+        } else if to != name && taken.contains(&to) && !vacated.contains(to.as_str()) {
             Some("already in this directory".into())
         } else {
             None
@@ -306,19 +319,49 @@ mod tests {
         assert_eq!(rows[1].problem.as_deref(), Some("two files would get this name"));
     }
 
-    /// A file already in the directory is only in the way when it is staying
-    /// put; one that is being renamed out of the way is not a problem.
+    /// A name already in the directory is in the way unless the file holding it
+    /// is moving out of it. Being in the selection is not enough — a rule that
+    /// does not match a file leaves that file exactly where it was.
     #[test]
-    fn a_name_in_use_is_a_problem_only_when_its_owner_is_not_moving() {
+    fn a_name_in_use_is_a_problem_unless_its_owner_actually_moves() {
         let taken: BTreeSet<String> =
             ["a.txt", "b.txt", "bystander.txt"].iter().map(|s| s.to_string()).collect();
 
         let rows = plan(&names(&["a.txt"]), "bystander.txt", &taken).unwrap();
-        assert!(rows[0].problem.is_some());
+        assert!(rows[0].problem.is_some(), "nothing frees bystander.txt");
 
+        // `b.txt` is selected, but this rule does not match it, so it keeps its
+        // name and `a.txt` cannot have it. Letting this through meant the
+        // preview promised a rename that failed at the last moment.
         let rows = plan(&names(&["a.txt", "b.txt"]), "s/a\\.txt/b.txt/", &taken).unwrap();
         assert_eq!(rows[0].to, "b.txt");
-        assert!(rows[0].problem.is_none(), "b.txt is in this batch, so it will move");
+        assert_eq!(rows[0].problem.as_deref(), Some("already in this directory"));
+
+        // Now b.txt does move, so its name is going spare and a.txt may take it.
+        let rows = plan(&names(&["a.txt", "b.txt"]), "s/([ab])\\.txt/{$1}.txt/", &taken).unwrap();
+        assert_eq!(rows[0].to, "{a}.txt");
+        let rows = plan(&names(&["a.txt", "b.txt"]), "s/^a/b/", &taken).unwrap();
+        assert_eq!(rows[0].to, "b.txt");
+        assert_eq!(rows[1].to, "b.txt");
+        assert_eq!(rows[1].problem.as_deref(), Some("two files would get this name"));
+    }
+
+    /// The one rule shape that produces a true swap, and the reason
+    /// [`order`] has to park a file: `ab` and `ba` trading names.
+    #[test]
+    fn a_rule_that_swaps_two_names_is_allowed_and_ordered() {
+        let taken: BTreeSet<String> = ["ab.txt", "ba.txt"].iter().map(|s| s.to_string()).collect();
+
+        let rows = plan(&names(&["ab.txt", "ba.txt"]), r"s/^([ab])([ab])/$2$1/", &taken).unwrap();
+
+        assert_eq!(rows[0].to, "ba.txt");
+        assert_eq!(rows[1].to, "ab.txt");
+        assert!(rows.iter().all(|r| r.problem.is_none()), "each frees what the other wants");
+
+        let pairs: Vec<(String, String)> =
+            rows.iter().map(|r| (util::file_name(&r.from), r.to.clone())).collect();
+        let steps = order(&pairs);
+        assert_eq!(steps.iter().filter(|s| matches!(s, Step::Park(_))).count(), 1);
     }
 
     #[test]

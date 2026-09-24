@@ -732,6 +732,22 @@ src/
   exec.rs        openers and shell
 ```
 
+## Testing
+
+`cargo test` on Windows covers every pure function — key parsing, the diff
+algorithm, the rename rules, the undo stacks, the image-zoom arithmetic, the
+minimap's row summaries, pane geometry — and `ci.yml` runs it on every push.
+Four tests fail on Linux and are meant to: they assert Windows path spellings.
+
+What that cannot reach is whether the window looks right. Much of this was
+written in a container with no display, so [TESTING.md](TESTING.md) is the
+checklist of what has never been on a screen, and
+`scripts/make-fixtures.ps1` builds the files it points at:
+
+```powershell
+.\scripts\make-fixtures.ps1
+```
+
 ## Building
 
 ```
