@@ -18,6 +18,7 @@ use crate::core::fuzzy;
 use crate::core::tab::{CdFallout, Finder, PendingCd, Tab};
 use crate::exec;
 use crate::fs::archive;
+use crate::fs::git;
 use crate::fs::ops::{self, OpKind, OpRequest, Resolution};
 use crate::fs::scan::{ScanResult, Scanner};
 use crate::fs::watch::Watcher;
@@ -458,6 +459,9 @@ pub struct App {
     pub previewer: Previewer,
     pub ops: ops::Runner,
     pub watcher: Watcher,
+    pub git: git::Git,
+    /// What git says about each directory on screen, by directory.
+    git_status: Lru<PathBuf, Arc<git::Status>>,
     pub spotter: Spotter,
     /// The spot worker's latest findings, for the file named.
     pub spotted: Option<(PathBuf, Vec<Section>)>,
@@ -513,6 +517,7 @@ impl App {
         let previewer = Previewer::new(wake.clone());
         let opsr = ops::Runner::new(wake.clone());
         let spotter = Spotter::new(wake.clone());
+        let git = git::Git::new(wake.clone());
         let watcher = Watcher::new(wake);
 
         let sort = SortSpec {
@@ -534,6 +539,9 @@ impl App {
             previewer,
             ops: opsr,
             watcher,
+            git,
+            // One per pane, plus the few a walk just left behind.
+            git_status: Lru::new(8),
             spotter,
             spotted: None,
             pending: Vec::new(),
@@ -707,6 +715,9 @@ impl App {
         while let Ok(dir) = self.watcher.rx.try_recv() {
             self.dirty.insert(dir, Instant::now());
         }
+        while let Ok(rep) = self.git.rx.try_recv() {
+            self.git_status.put(rep.dir, Arc::new(rep.status));
+        }
         self.drain_search();
         self.flush_dirty();
         self.toasts.retain(|t| t.at.elapsed() < Duration::from_secs(6));
@@ -823,6 +834,12 @@ impl App {
     }
 
     fn apply_listing(&mut self, path: &Path, entries: Arc<Vec<Entry>>) {
+        // A directory a pane is showing gets its git status asked for. Every
+        // rescan comes through here, so a file operation or a change the
+        // watcher caught refreshes the marks along with the listing.
+        if self.pane_tabs().into_iter().any(|i| self.tabs[i].cwd == path) {
+            self.git.request(path.to_path_buf());
+        }
         let show_hidden = self.tabs[self.active].show_hidden;
         let memo = self.tabs[self.active].memo.get(path).cloned();
 
@@ -2445,6 +2462,12 @@ impl App {
             Some((n, n))
         };
         ov.focused = false;
+    }
+
+    /// What git says about the rows of `dir`, or nothing while the answer is
+    /// still on its way — or for ever, when there is no repository here.
+    pub fn git_status(&self, dir: &Path) -> Option<Arc<git::Status>> {
+        self.git_status.peek(&dir.to_path_buf()).cloned()
     }
 
     /// True while Tab is waiting on a listing, so the prompt can say so.

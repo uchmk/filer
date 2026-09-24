@@ -82,8 +82,8 @@ registered: the menu is read back out of the config every time it opens.
 
 ### theme.toml
 
-`[mgr]` colors, `[status]` modes, `[which]`, `[filetype].rules` and `[icon]` (`globs`, `dirs`,
-`exts`, `files`, `conds`) are applied on top of a built-in dark theme. Colors may be ANSI names
+`[mgr]` colors, `[status]` modes, `[which]`, `[git]`, `[filetype].rules` and `[icon]` (`globs`,
+`dirs`, `exts`, `files`, `conds`) are applied on top of a built-in dark theme. Colors may be ANSI names
 (`lightblue`, `darkgray`, `reset`) or hex (`#7ab8f5`). `syntect_theme` selects the preview's
 syntax theme.
 
@@ -232,6 +232,29 @@ Right-clicking inside the selection keeps it, and the command acts on all of it 
 how many. Right-clicking outside the selection drops it and acts on that one row, the way
 Explorer does. This is the nearest thing here to a plugin menu: a `shell` binding or an opener is
 how a Lua plugin's action gets onto the screen, with no Lua runtime involved.
+
+## Git status
+
+In a repository, each row carries a sign for what git says about it:
+
+| Sign | Meaning | Default color |
+| :---: | --- | --- |
+| `M` | changed in the working tree | yellow |
+| `+` | staged, matching the index | green |
+| `?` | untracked | gray |
+| `D` | deleted, or a staged delete | red |
+| `!` | an unfinished merge | red |
+
+A directory carries the strongest state of anything inside it, so a conflict shows from the top of
+the tree down. A file both staged and changed since reads as changed — that is the part still to be
+committed. The colors come from `theme.toml`'s `[git]` section (`modified`, `added`, `untracked`,
+`deleted`, `updated`), the same keys yazi's git plugin uses.
+
+`git` on `PATH` is what answers: one `git status --porcelain` per listing, run on a worker, so a
+big repository never holds up the window and whatever version of git is installed is the one that
+decides. Nothing is linked in, so this costs no C dependency and no build step. Where there is no
+repository — or no git — the rows simply carry no signs. The status refreshes with the listing, so
+a file operation or a change the watcher catches updates the signs with it.
 
 ## Archives
 
@@ -388,6 +411,8 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   PDF and HEIC previews rely on Windows thumbnail handlers (see [Other previews](#other-previews)).
 - `[input]`, `[confirm]` and `[pick]` keymap layers are parsed for compatibility, but the prompts
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.
+- Git signs need `git` on `PATH`; without it the rows are simply unmarked. Only the status is
+  shown — there is no staging, diffing or committing here, and no branch in the status bar yet.
 
 ## Layout
 
@@ -397,7 +422,7 @@ src/
   app.rs         state and the Act dispatcher — every key and click goes through it
   config/        yazi.toml, keymap.toml, theme.toml, key notation, command parsing
   core/          folder + cursor state, tabs, fuzzy matching
-  fs/            entries, sorting, scan pool, file operations, watcher
+  fs/            entries, sorting, scan pool, file operations, watcher, archives, git status
   preview/       preview worker: text + syntect, Markdown layout, images, SVG, fonts, shell thumbnails
   ui/            painting: columns, preview pane, overlays
   search.rs      recursive name/content search

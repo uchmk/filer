@@ -24,6 +24,7 @@ pub struct ListStyle<'a> {
 pub struct RowFlags {
     pub selected: bool,
     pub yanked: Option<bool>, // Some(true) = cut
+    pub git: crate::fs::git::State,
 }
 
 pub struct ListResult {
@@ -153,6 +154,20 @@ pub fn draw(
                 g,
                 st.theme.fg_dim,
             );
+        }
+
+        // The git sign sits between the name and the line mode, so it stays
+        // put as the name grows and the two never collide.
+        if let Some(mark) = f.git.mark() {
+            let color = st.theme.git_color(f.git);
+            let g = painter.layout_no_wrap(mark.to_string(), st.font.clone(), color);
+            let w = g.size().x;
+            painter.galley(
+                egui::pos2(row_rect.right() - right_w - w - 2.0, y + (st.row_h - g.size().y) / 2.0),
+                g,
+                color,
+            );
+            right_w += w + 8.0;
         }
 
         let avail = (row_rect.right() - right_w - x - 6.0).max(16.0);

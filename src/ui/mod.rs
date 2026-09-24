@@ -12,6 +12,7 @@ use crate::app::{App, Overlay, PreviewState};
 use crate::config::cmd::{Act, Step};
 use crate::config::theme::{Style, Theme};
 use crate::core::folder::Folder;
+use crate::fs::git;
 use crate::util;
 
 pub fn font(size: f32) -> FontId {
@@ -258,6 +259,7 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
                 list::draw(ui, rect.shrink(2.0), &p, &st, &|_| list::RowFlags {
                     selected: false,
                     yanked: None,
+                    git: git::State::Clean,
                 }, false);
             }
             other => {
@@ -331,6 +333,7 @@ fn draw_parent(app: &mut App, ui: &mut Ui, rect: Rect, ctx: &PaneCtx, queued: &m
         let res = list::draw(ui, rect, &p, &st, &|_e| list::RowFlags {
             selected: false,
             yanked: None,
+            git: git::State::Clean,
         }, false);
         if let Some(row) = res.clicked.or(res.double_clicked) {
             if let Some(e) = p.at(row) {
@@ -374,6 +377,7 @@ fn draw_pane(
         linemode: &linemode,
     };
     let has_filter = app.tabs[idx].current.filter.is_some();
+    let git = app.git_status(&app.tabs[idx].cwd);
     let res = list::draw(
         ui,
         rect,
@@ -382,6 +386,7 @@ fn draw_pane(
         &|e| list::RowFlags {
             selected: selected.contains(&e.path),
             yanked: if yank_paths.contains(&e.path) { Some(yank_cut) } else { None },
+            git: git.as_ref().map(|g| g.get(&e.name)).unwrap_or(git::State::Clean),
         },
         has_filter,
     );
