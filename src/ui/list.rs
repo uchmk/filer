@@ -29,6 +29,8 @@ pub struct RowFlags {
 pub struct ListResult {
     pub clicked: Option<usize>,
     pub double_clicked: Option<usize>,
+    /// Right-click, which opens the context menu on that row.
+    pub secondary_clicked: Option<usize>,
     pub scrolled: i64,
     /// Modifiers held down for the click above.
     pub mods: egui::Modifiers,
@@ -44,8 +46,13 @@ pub fn draw(
 ) -> ListResult {
     let painter = ui.painter_at(rect);
     let rows = ((rect.height() / st.row_h).floor() as usize).max(1);
-    let mut out =
-        ListResult { clicked: None, double_clicked: None, scrolled: 0, mods: egui::Modifiers::NONE };
+    let mut out = ListResult {
+        clicked: None,
+        double_clicked: None,
+        secondary_clicked: None,
+        scrolled: 0,
+        mods: egui::Modifiers::NONE,
+    };
 
     match &folder.state {
         LoadState::Error(e) => {
@@ -183,13 +190,17 @@ pub fn draw(
     // Interaction
     let id = ui.id().with(("list", rect.left() as i32, rect.top() as i32));
     let resp = ui.interact(rect, id, egui::Sense::click_and_drag());
-    if let Some(pos) = resp.interact_pointer_pos() {
+    // `hover_pos` is the fallback: a press that egui reports without an
+    // interaction position still names the row the pointer is over.
+    if let Some(pos) = resp.interact_pointer_pos().or_else(|| resp.hover_pos()) {
         let row = start + (((pos.y - rect.top()) / st.row_h).floor().max(0.0) as usize);
         if row < end {
             if resp.double_clicked() {
                 out.double_clicked = Some(row);
             } else if resp.clicked() {
                 out.clicked = Some(row);
+            } else if resp.secondary_clicked() {
+                out.secondary_clicked = Some(row);
             }
             if out.clicked.is_some() || out.double_clicked.is_some() {
                 out.mods = ui.ctx().input(|i| i.modifiers);

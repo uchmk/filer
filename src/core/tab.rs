@@ -211,6 +211,23 @@ impl Tab {
         self.sync_visual();
     }
 
+    /// Right-click: point the menu at something unambiguous. A row inside the
+    /// selection keeps it, so the menu acts on all of it; a row outside drops
+    /// it and the menu acts on that row alone.
+    pub fn right_click(&mut self, row: usize) {
+        self.leave_visual();
+        self.mouse_range = None;
+        let inside = self
+            .current
+            .at(row)
+            .map(|e| self.selected.contains(&e.path))
+            .unwrap_or(false);
+        if !inside {
+            self.selected.clear();
+        }
+        self.current.cursor = row;
+    }
+
     /// Ctrl+click (Cmd on macOS): flip one row, leaving the rest alone. The
     /// row becomes the anchor a following Shift+click grows from.
     pub fn ctrl_click(&mut self, row: usize) {

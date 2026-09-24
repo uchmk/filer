@@ -107,17 +107,23 @@ impl PickOverlay {
     }
 }
 
-/// Turn the `mgr` bindings into palette rows: `(labels, keys, runs)`.
+/// One opener from `yazi.toml`: `(run, block, orphan, label)`, as the pick
+/// overlays want it.
+pub type OpenerRow = (String, bool, bool, String);
+
+/// Rows of a pick overlay: `(labels, details, runs)`. The three always have
+/// the same length; the overlay indexes all of them by the row picked.
+pub type PickRows = (Vec<String>, Vec<String>, Vec<Vec<Act>>);
+
+/// Turn the `mgr` bindings into palette rows.
 ///
 /// The label carries both the description and the command text so either one
 /// can be typed at the filter. Commands bound to several keys appear once,
-/// under the first key the keymap gives them.
-pub fn palette_items(
-    bindings: &[keymap::Binding],
-) -> (Vec<String>, Vec<String>, Vec<Vec<Act>>) {
-    let mut items = Vec::new();
-    let mut details = Vec::new();
-    let mut runs = Vec::new();
+/// under the first key the keymap gives them. `openers` are what `yazi.toml`
+/// offers for the file under the cursor; they come last, since the palette is
+/// a list of commands first.
+pub fn palette_items(bindings: &[keymap::Binding], openers: &[OpenerRow]) -> PickRows {
+    let (mut items, mut details, mut runs) = (Vec::new(), Vec::new(), Vec::new());
     let mut seen: Vec<&str> = Vec::new();
     for b in bindings {
         let skip = b.run.is_empty()
@@ -127,14 +133,101 @@ pub fn palette_items(
             continue;
         }
         seen.push(&b.raw);
-        items.push(match b.desc.is_empty() {
-            true => b.raw.clone(),
-            false => format!("{}  ·  {}", b.desc, b.raw),
-        });
+        items.push(binding_label(b));
         details.push(crate::config::keys::render_seq(&b.on));
         runs.push(b.run.clone());
     }
+    push_openers(&mut items, &mut details, &mut runs, openers, "Open with ");
     (items, details, runs)
+}
+
+/// The context menu for the file under the cursor: everything the config says
+/// can be done with it, without a key having to be pressed for it.
+///
+/// `yazi.toml`'s openers come first, then the keymap's own `shell` actions —
+/// the custom actions a yazi config would write as plugins — then the rest of
+/// the bindings that act on the file rather than on the view.
+pub fn menu_items(bindings: &[keymap::Binding], openers: &[OpenerRow]) -> PickRows {
+    let (mut items, mut details, mut runs) = (Vec::new(), Vec::new(), Vec::new());
+    push_openers(&mut items, &mut details, &mut runs, openers, "");
+
+    let mut seen: Vec<&str> = Vec::new();
+    // Two passes so the custom actions sit together at the top, above the
+    // ordinary file commands.
+    for shell_pass in [true, false] {
+        for b in bindings {
+            let usable = !b.run.is_empty()
+                && !b.raw.is_empty()
+                && b.run.iter().any(acts_on_file)
+                && !b.run.iter().any(|a| matches!(a, Act::Unsupported(_)));
+            let is_shell = b.run.iter().any(|a| matches!(a, Act::Shell { .. }));
+            if !usable || is_shell != shell_pass || seen.contains(&b.raw.as_str()) {
+                continue;
+            }
+            seen.push(&b.raw);
+            items.push(binding_label(b));
+            details.push(crate::config::keys::render_seq(&b.on));
+            runs.push(b.run.clone());
+        }
+    }
+    (items, details, runs)
+}
+
+/// An opener is a shell command with the file substituted in, so it runs as
+/// one. `prefix` says what to call it where the file is not already named.
+fn push_openers(
+    items: &mut Vec<String>,
+    details: &mut Vec<String>,
+    runs: &mut Vec<Vec<Act>>,
+    openers: &[OpenerRow],
+    prefix: &str,
+) {
+    let mut seen: Vec<&str> = Vec::new();
+    for (run, block, orphan, label) in openers {
+        if seen.contains(&run.as_str()) {
+            continue;
+        }
+        seen.push(run);
+        items.push(format!("{prefix}{label}"));
+        details.push(run.clone());
+        runs.push(vec![Act::Shell {
+            run: run.clone(),
+            block: *block,
+            confirm: false,
+            orphan: *orphan,
+        }]);
+    }
+}
+
+fn binding_label(b: &keymap::Binding) -> String {
+    match b.desc.is_empty() {
+        true => b.raw.clone(),
+        false => format!("{}  ·  {}", b.desc, b.raw),
+    }
+}
+
+/// Whether a command does something to the file under the cursor (or to the
+/// selection), as opposed to moving around or changing what the view shows.
+/// It decides what the context menu is worth offering.
+fn acts_on_file(a: &Act) -> bool {
+    matches!(
+        a,
+        Act::Open { .. }
+            | Act::Yank { .. }
+            | Act::Unyank
+            | Act::Paste { .. }
+            | Act::Link { .. }
+            | Act::Hardlink
+            | Act::Remove { .. }
+            | Act::Create { .. }
+            | Act::Rename { .. }
+            | Act::Copy(_)
+            | Act::Shell { .. }
+            | Act::Spot
+            | Act::Follow
+            | Act::Reveal(_)
+            | Act::Toggle { .. }
+    )
 }
 
 /// The spot panel on the hovered file.
@@ -1509,6 +1602,7 @@ impl App {
             Act::TasksShow => self.overlay = Overlay::Tasks,
             Act::Spot => self.open_spot(),
             Act::Palette => self.open_palette(),
+            Act::Menu => self.open_menu(),
             Act::ToggleOutline => self.toggle_outline(),
             Act::ToggleRender => {
                 self.render_markdown = !self.render_markdown;
@@ -2370,13 +2464,55 @@ impl App {
     }
 
     fn open_palette(&mut self) {
-        let (items, details, runs) = palette_items(&self.cfg.keymap.mgr);
+        let (items, details, runs) = palette_items(&self.cfg.keymap.mgr, &self.hovered_openers());
         if items.is_empty() {
             self.error("No commands are bound");
             return;
         }
+        self.open_pick("Commands".into(), items, details, runs);
+    }
+
+    /// The context menu for the file under the cursor. Right-click opens it;
+    /// so does the `menu` command.
+    fn open_menu(&mut self) {
+        let Some(name) = self.tabs[self.active].current.hovered_name().map(str::to_owned) else {
+            self.error("Nothing under the cursor");
+            return;
+        };
+        let (items, details, runs) = menu_items(&self.cfg.keymap.mgr, &self.hovered_openers());
+        if items.is_empty() {
+            self.error("Nothing is bound for this file");
+            return;
+        }
+        // The selection is what the commands will act on, so say so when it is
+        // more than the one file the pointer landed on.
+        let n = self.tabs[self.active].targets().len();
+        let title = match n > 1 {
+            true => format!("Actions: {n} selected"),
+            false => format!("Actions: {name}"),
+        };
+        self.open_pick(title, items, details, runs);
+    }
+
+    /// What `yazi.toml` offers to open the file under the cursor with.
+    fn hovered_openers(&self) -> Vec<OpenerRow> {
+        let Some(entry) = self.tabs[self.active].current.hovered() else { return Vec::new() };
+        let mime = crate::mime::guess(entry);
+        exec::openers_for(&self.cfg.yazi, entry, mime)
+            .into_iter()
+            .map(|o| (o.run.clone(), o.block, o.orphan, o.label()))
+            .collect()
+    }
+
+    fn open_pick(
+        &mut self,
+        title: String,
+        items: Vec<String>,
+        details: Vec<String>,
+        runs: Vec<Vec<Act>>,
+    ) {
         let mut pick = PickOverlay {
-            title: "Commands".into(),
+            title,
             items,
             details,
             query: String::new(),
@@ -2796,20 +2932,71 @@ mod tests {
             binding("z", "chmod", "Unimplemented"),
             binding("x", "noop", "Nothing"),
         ];
-        let (items, details, runs) = palette_items(&bindings);
+        let (items, details, runs) = palette_items(&bindings, &[]);
         assert_eq!(
             items,
             vec!["Move cursor up  ·  arrow -1".to_string(), "tasks_show".to_string()]
         );
         assert_eq!(details, vec!["k".to_string(), "w".to_string()]);
         assert_eq!(runs, vec![vec![Act::Arrow(Step::Rel(-1))], vec![Act::TasksShow]]);
+
+        // The openers for the hovered file ride along at the end, named so it
+        // is clear what picking one does.
+        let openers = vec![(r"code %s".to_string(), false, true, "VS Code".to_string())];
+        let (items, details, runs) = palette_items(&bindings, &openers);
+        assert_eq!(items.last().unwrap(), "Open with VS Code");
+        assert_eq!(details.last().unwrap(), "code %s");
+        assert_eq!(
+            runs.last().unwrap(),
+            &vec![Act::Shell {
+                run: "code %s".into(),
+                block: false,
+                confirm: false,
+                orphan: true
+            }]
+        );
+    }
+
+    /// The context menu is the config read back: what `yazi.toml` opens this
+    /// file with, the custom `shell` actions, then the file commands. Moving
+    /// around and changing the view are not offered.
+    #[test]
+    fn the_menu_offers_the_openers_then_the_custom_actions_then_the_file_commands() {
+        let bindings = vec![
+            binding("k", "arrow -1", "Move cursor up"),
+            binding("d", "remove", "Delete"),
+            binding("E", "shell 'explorer %s' --orphan", "Reveal in Explorer"),
+            binding("z", "chmod", "Unimplemented"),
+            binding("gg", "arrow top", "Go to top"),
+        ];
+        let openers = vec![("notepad %s".to_string(), true, false, "Notepad".to_string())];
+        let (items, details, runs) = menu_items(&bindings, &openers);
+
+        assert_eq!(
+            items,
+            vec![
+                "Notepad".to_string(),
+                "Reveal in Explorer  ·  shell 'explorer %s' --orphan".to_string(),
+                "Delete  ·  remove".to_string(),
+            ],
+            "moving the cursor is not a thing to do to a file"
+        );
+        assert_eq!(details[0], "notepad %s", "the opener shows the command it runs");
+        assert_eq!(details[2], "d", "a binding shows the key that also runs it");
+        assert_eq!(runs[2], vec![Act::Remove { permanently: false, force: false, hovered: false }]);
+        // An opener is run as the shell command it is, `block` and all.
+        assert!(matches!(runs[0][0], Act::Shell { block: true, orphan: false, .. }));
     }
 
     #[test]
     fn palette_filters_on_both_the_description_and_the_command() {
-        let (km, _) = keymap::Keymap::load(&[]);
-        let (items, details, runs) = palette_items(&km.mgr);
+        let (km, warnings) = keymap::Keymap::load(&[]);
+        assert!(warnings.is_empty(), "the built-in keymap must load clean: {warnings:?}");
+        let (items, details, runs) = palette_items(&km.mgr, &[]);
         assert!(items.len() > 30, "got {} commands", items.len());
+        // The context menu has a key of its own, so it is reachable without a
+        // mouse and the palette lists it like any other command.
+        assert!(runs.iter().any(|r| r == &[Act::Menu]), "the palette lists the context menu");
         assert_eq!(items.len(), details.len());
         assert_eq!(items.len(), runs.len());
         assert!(runs.iter().any(|r| r == &[Act::Palette]), "the palette lists itself");

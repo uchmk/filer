@@ -58,7 +58,7 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `jump`, `palette`,
-`split`, `pane_focus`, `toggle_render` and `toggle_outline` (this project's own). In the `[spot]`
+`menu`, `split`, `pane_focus`, `toggle_render` and `toggle_outline` (this project's own). In the `[spot]`
 section: `close`,
 `arrow`, `swipe` and `copy cell`.
 
@@ -73,6 +73,11 @@ A few plugin invocations are mapped onto built-in behavior so common setups keep
 
 Anything else parses cleanly, reports itself as unsupported in the help panel, and shows a toast
 if you press it — it never breaks config loading. There is no Lua runtime.
+
+What a plugin is mostly used for — a custom action on the file under the cursor — is written here
+as a `shell` binding or as an `[opener]` entry, and both show up on their own in the
+[context menu](#context-menu) and the [command palette](#command-palette). Nothing has to be
+registered: the menu is read back out of the config every time it opens.
 
 ### theme.toml
 
@@ -200,6 +205,30 @@ gives it, and commands the config left unsupported are left out.
 directly. Commands that need more input (`rename`, `filter`, `shell`, …) open their own prompt
 as if the key had been pressed.
 
+The openers `yazi.toml` lists for the file under the cursor ride along at the end of the list,
+named `Open with <desc>`, so a custom action written as an opener is reachable without knowing
+which key opens it.
+
+## Context menu
+
+Right-click a row — or press `<S-F10>`, or run `menu` — for what this config says can be done with
+that file. There is no fixed list: the rows are read back out of your own configuration.
+
+| Group | Where it comes from |
+| --- | --- |
+| Openers | `yazi.toml`'s `[opener]` entries that `[open].rules` selects for this file |
+| Custom actions | every `keymap.toml` binding that runs `shell` |
+| File commands | the bindings that act on a file — `open`, `yank`, `paste`, `rename`, `remove`, `link`, `copy`, `spot`, … |
+
+Commands that only move the cursor or change what the view shows are left out, and anything the
+config left unsupported never appears. Each row shows the key that also runs it, so the menu
+doubles as a reminder of the keymap.
+
+Right-clicking inside the selection keeps it, and the command acts on all of it — the title says
+how many. Right-clicking outside the selection drops it and acts on that one row, the way
+Explorer does. This is the nearest thing here to a plugin menu: a `shell` binding or an opener is
+how a Lua plugin's action gets onto the screen, with no Lua runtime involved.
+
 ## Other previews
 
 No external tools (magick, ffmpeg, pdftoppm) are needed:
@@ -241,12 +270,13 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `<S-Tab>` | move the keys into the preview's outline and back |
 | `<Tab>` | spot: details of the hovered file |
 | `<C-S-p>` | command palette: fuzzy-search every key binding and run it |
+| `<S-F10>` | context menu for the file under the cursor |
 | `w` `q` | tasks / quit |
 
-Mouse works too: click to move the cursor, double-click to open, wheel to scroll.
-`Shift`+click selects from the cursor to the row you clicked, and `Ctrl`+click (`Cmd` on macOS)
-adds or removes one row. Both share the selection with `<Space>` and visual mode, so you can
-start a range with the mouse and finish it with the keyboard.
+Mouse works too: click to move the cursor, double-click to open, right-click for the context
+menu, wheel to scroll. `Shift`+click selects from the cursor to the row you clicked, and
+`Ctrl`+click (`Cmd` on macOS) adds or removes one row. Both share the selection with `<Space>`
+and visual mode, so you can start a range with the mouse and finish it with the keyboard.
 
 ## Shell integration
 
@@ -313,7 +343,8 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
 
 - Windows-first. The code compiles for Unix but only Windows is tested; `block = true` openers and
   the hidden-file attribute are Windows-specific paths.
-- No Lua plugin runtime — see the plugin table above for what is emulated natively.
+- No Lua plugin runtime — see the plugin table above for what is emulated natively, and the
+  [context menu](#context-menu) for how a custom action reaches the screen without one.
 - Archives show a metadata card rather than a listing; woff / woff2 fonts aren't previewed. Video,
   PDF and HEIC previews rely on Windows thumbnail handlers (see [Other previews](#other-previews)).
 - `[input]`, `[confirm]` and `[pick]` keymap layers are parsed for compatibility, but the prompts

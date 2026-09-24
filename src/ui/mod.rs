@@ -422,6 +422,14 @@ fn draw_pane(
         // `enter` on a file moves into its outline; a double-click opens.
         queued.push(Act::Open { interactive: false, hovered: true });
     }
+    // Right-click asks what can be done with the row it landed on, so the pane
+    // and the cursor move there first.
+    if let Some(row) = res.secondary_clicked {
+        app.focus_pane(idx);
+        app.preview.outline = None;
+        app.tabs[idx].right_click(row);
+        queued.push(Act::Menu);
+    }
 }
 
 /// The renderer needs its own cursor/offset for the read-only columns.

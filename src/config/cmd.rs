@@ -139,6 +139,9 @@ pub enum Act {
     Spot,
     /// Fuzzy-search every `mgr` binding and run the one picked.
     Palette,
+    /// The context menu for the file under the cursor: its openers from
+    /// `yazi.toml` and the bindings that act on it. Right-click runs this.
+    Menu,
     /// Switch Markdown between the rendered view and its source.
     ToggleRender,
     /// Hand the keys to the preview's outline (functions, headings) and back.
@@ -388,6 +391,7 @@ pub fn parse(line: &str) -> Act {
         "tasks_show" => Act::TasksShow,
         "spot" => Act::Spot,
         "palette" => Act::Palette,
+        "menu" => Act::Menu,
         "toggle_render" => Act::ToggleRender,
         "toggle_outline" => Act::ToggleOutline,
 
@@ -483,6 +487,7 @@ mod tests {
         assert_eq!(parse("plugin toggle-pane max-preview"), Act::MaxPreview);
         assert_eq!(parse("plugin bookmarks jump"), Act::BookmarkJump);
         assert_eq!(parse("palette"), Act::Palette);
+        assert_eq!(parse("menu"), Act::Menu);
         assert_eq!(parse("split"), Act::Split(None));
         assert_eq!(parse("split close"), Act::Split(Some(false)));
         assert_eq!(parse("pane_focus"), Act::PaneFocus(None));
