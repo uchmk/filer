@@ -742,10 +742,17 @@ On Windows a UNC path is an ordinary path here — type `\\192.168.1.5\pub` (or 
 letter) into the `cd` prompt and browse it like any folder. Forward slashes work too
 (`//192.168.1.5/pub`) and are shown back in the `\\host\share` spelling.
 
-- A share root is the top of the tree: `..` / `h` stop there instead of climbing into the host.
-- `\\host` on its own names no share, so there is nothing to list; filer reports the host you
-  typed rather than silently dropping you at `\host` on the current drive. Enumerating a host's
-  shares is not implemented — give the share name.
+- `\\host` on its own lists the shares that host is offering, the way Explorer's network view
+  does. They are not files and nothing on a disk here holds them — the network provider is asked
+  what is being shared, over the same connection Explorer uses, so a host you can reach there you
+  can reach here, with the credentials you already have. Shares show as folders with no size and
+  no dates, because there are none to read.
+- `h` from a share root therefore goes up to its host. (`\\host\share` has no parent as far as
+  the path arithmetic is concerned — the host and the share are one prefix — so this is a
+  deliberate step rather than a fallout.)
+- A host that refuses says so: the tab returns to where it was and the reason appears as a toast.
+  A login the machine has not been given is the usual one; open the host in Explorer once and it
+  will work here too.
 - A slow or disconnected share never blocks the window. Nothing on disk is checked before a jump —
   `is_dir` on a dead share can sit for half a minute — so the tab moves at once, shows *Loading*,
   and the scan pool has the last word. If the listing never arrives the tab returns to where it

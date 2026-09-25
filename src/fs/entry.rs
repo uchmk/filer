@@ -51,6 +51,31 @@ impl Entry {
         Self::build(path, name, ft, md)
     }
 
+    /// A directory that no filesystem was asked about.
+    ///
+    /// For the things that are shown as folders without being files: a
+    /// server's shares, which have a name and nothing else — no size, no
+    /// dates, no attributes. Reading those would mean a round trip to the
+    /// server per share, and the list would still be the same list.
+    // Only the share listing builds one, and that is Windows-only.
+    #[cfg_attr(not(windows), allow(dead_code))]
+    pub fn directory(path: PathBuf, name: String) -> Self {
+        Self {
+            path,
+            name,
+            ext: None,
+            kind: Kind::Dir,
+            len: 0,
+            modified: None,
+            created: None,
+            accessed: None,
+            hidden: false,
+            readonly: false,
+            link_to: None,
+            dir_size: None,
+        }
+    }
+
     pub fn from_path(path: PathBuf) -> std::io::Result<Self> {
         let name = util::file_name(&path);
         let md = std::fs::symlink_metadata(&path)?;

@@ -127,6 +127,14 @@ fn run(task: Task) -> Option<ScanResult> {
 }
 
 pub fn list_dir(path: &std::path::Path, sort: SortSpec) -> std::io::Result<Vec<Entry>> {
+    // `\\host` is a server rather than a directory: the shares under it are
+    // not on any disk here, and `read_dir` fails on one no matter how well the
+    // server is answering. Ask the network for those instead.
+    if crate::util::host_only_unc(path) {
+        let mut out = super::shares::list(path)?;
+        sort.apply(&mut out);
+        return Ok(out);
+    }
     let rd = std::fs::read_dir(path)?;
     // Most directories are small; the reserve keeps big ones from re-allocating much.
     let mut out: Vec<Entry> = Vec::with_capacity(64);

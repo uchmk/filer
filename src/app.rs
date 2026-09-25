@@ -1921,8 +1921,14 @@ impl App {
             return;
         }
         let cwd = self.tabs[self.active].cwd.clone();
-        if let Some(p) = cwd.parent() {
-            let p = p.to_path_buf();
+        // A share root has no parent to `std`, which folds `\\host\share` into
+        // a single prefix. The host above it is a real place now that its
+        // shares can be listed, so going up from a share lands there.
+        let up = match cwd.parent() {
+            Some(p) if !p.as_os_str().is_empty() => Some(p.to_path_buf()),
+            _ => util::unc_host(&cwd),
+        };
+        if let Some(p) = up {
             let name = util::file_name(&cwd);
             self.tabs[self.active].memo.insert(p.clone(), name);
             self.cd(p, true);

@@ -331,6 +331,26 @@ instructions.
 | Q13 | Right-click in the terminal while `vim` is open | The text is inserted; no `[200~` on screen |
 | Q14 | `<C-v>` in the terminal | Same as the right-click, including Q11 |
 
+## R. A host's shares (v0.16.0)
+
+Only testable against a real file server, and the interesting cases are the
+ones where it says no.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| R1 | `g`+`<Space>`, type `\\10.0.0.1`, `<Enter>` | The shares are listed, the same ones Explorer shows |
+| R2 | Same with a host **name** rather than an address, and with `//10.0.0.1` | Both arrive; the path is shown back as `\\10.0.0.1` |
+| R3 | Walk into a share and back out with `h` | Into the share, then back to the host list |
+| R4 | `h` again, at the host | Nothing moves (the host is the top), no crash |
+| R5 | A host that is off, or does not exist (`\\10.0.0.99`) | The tab returns to where it was and a toast says why — it does not hang the window |
+| R6 | A host that needs a login the machine has not been given | Same: a refusal as a toast, naming it |
+| R7 | A host with **many** shares (more than a screenful) | All of them, scrolling normally |
+| R8 | A share name with a space or non-ASCII in it | Intact |
+| R9 | Hover a share and look at the size column | Empty — there is nothing to read, and it must not sit there counting |
+| R10 | `<C-r>` / refresh on the host listing | Re-asks the server; no crash |
+| R11 | Open the host in the **other pane** (`<C-w>`) and in a second tab | Both fine |
+| R12 | Go to a host, then change directory away | The watcher does not complain about the host it could not watch |
+
 ---
 
 ## Known gaps in this checklist

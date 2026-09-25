@@ -4,6 +4,7 @@ pub mod git;
 pub mod ops;
 pub mod restore;
 pub mod scan;
+pub mod shares;
 pub mod sort;
 pub mod watch;
 

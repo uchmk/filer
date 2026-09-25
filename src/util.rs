@@ -201,8 +201,32 @@ fn backslashed(s: &std::ffi::OsStr) -> std::ffi::OsString {
     }
 }
 
+/// The server a share sits on: `\\host\share` → `\\host`.
+///
+/// Its own function because `std` folds the host and the share into a single
+/// prefix, leaving a share root with no parent at all. That was right while a
+/// host could not be listed, and is a dead end now that it can be: `h` from a
+/// share would have nowhere to go.
+///
+/// Written against the shape of the string rather than the components, so it
+/// can be reasoned about — and tested — on any platform. It answers only for a
+/// share root: anything deeper has an ordinary parent, and `\\host` is already
+/// the top.
+pub fn unc_host(path: &Path) -> Option<PathBuf> {
+    let s = path.to_str()?;
+    let rest = s.strip_prefix(r"\\").or_else(|| s.strip_prefix("//"))?;
+    let mut parts = rest.split(['\\', '/']).filter(|p| !p.is_empty());
+    let host = parts.next()?;
+    parts.next()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some(PathBuf::from(format!(r"\\{host}")))
+}
+
 /// `\\host` or `//host`: the start of a UNC path that names no share yet.
-fn host_only_unc(path: &Path) -> bool {
+/// `\\host` with no share after it — a server, not a directory.
+pub fn host_only_unc(path: &Path) -> bool {
     if !cfg!(windows) {
         // A leading `//` is an ordinary path elsewhere.
         return false;
@@ -398,6 +422,24 @@ mod tests {
         assert_eq!(human_size(999), "999 B");
         assert_eq!(human_size(1024), "1.0 K");
         assert_eq!(human_size(1024 * 1024 * 20), "20 M");
+    }
+
+    /// Up from a share is the server. Up from anything else is `parent()`'s
+    /// business, and this says so by declining.
+    #[test]
+    fn a_share_knows_which_server_it_is_on() {
+        let host = |s: &str| unc_host(Path::new(s));
+        assert_eq!(host(r"\\10.0.0.1\Backup"), Some(PathBuf::from(r"\\10.0.0.1")));
+        assert_eq!(host(r"\\10.0.0.1\Backup\"), Some(PathBuf::from(r"\\10.0.0.1")));
+        // Forward slashes are how the same path arrives from a config or a URL.
+        assert_eq!(host("//server/pub"), Some(PathBuf::from(r"\\server")));
+        // Deeper than a share root: `parent()` already answers that one.
+        assert_eq!(host(r"\\10.0.0.1\Backup\2025"), None);
+        // The host itself is the top; there is nothing above it.
+        assert_eq!(host(r"\\10.0.0.1"), None);
+        // Not UNC at all.
+        assert_eq!(host(r"C:\dev\filer"), None);
+        assert_eq!(host("/home/user"), None);
     }
 
     #[test]
