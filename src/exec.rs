@@ -279,6 +279,14 @@ pub fn open_default(path: &Path) -> std::io::Result<()> {
     open::that_detached(path)
 }
 
+/// Hand a URL to the default browser.
+///
+/// Detached for the same reason as `open_default`: the browser outlives us, and
+/// waiting on it would freeze the window until it closed.
+pub fn open_url(url: &str) -> std::io::Result<()> {
+    open::that_detached(url)
+}
+
 pub fn set_clipboard(text: &str) -> Result<(), String> {
     let mut cb = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     cb.set_text(text.to_owned()).map_err(|e| e.to_string())

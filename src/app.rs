@@ -2125,6 +2125,13 @@ impl App {
                 self.help_scroll = 0;
                 self.overlay = Overlay::Help;
             }
+            // Opening a browser is a visible thing to do to someone's machine,
+            // so it says what it did rather than leaving a window to appear
+            // from nowhere.
+            Act::BugReport => match exec::open_url(&crate::bugreport::url()) {
+                Ok(()) => self.toast("Opened a bug report in your browser"),
+                Err(e) => self.error(format!("could not open the browser: {e}")),
+            },
             Act::TasksShow => self.overlay = Overlay::Tasks(TasksOverlay { cursor: 0 }),
             // These act on the row the task panel has under its cursor, so
             // they open it first when it is not the overlay in front.

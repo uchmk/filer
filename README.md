@@ -60,7 +60,7 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `undo`, `redo`, `jump`,
 `bulk_rename`, `compare`, `quick`, `zoom`, `minimap`, `config_reload`, `palette`,
 `menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `term_cd`, `term_find`, `term_scroll`, `task_toggle`, `task_cancel`, `task_top`,
-`split`, `pane_focus`, `toggle_render` and `toggle_outline` (this
+`split`, `pane_focus`, `toggle_render`, `toggle_outline` and `bug-report` (this
 project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe` and `copy cell`; in `[term]`:
@@ -584,6 +584,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `<Tab>` | spot: details of the hovered file |
 | `<C-S-p>` | command palette: fuzzy-search every key binding and run it |
 | `<S-F10>` | context menu for the file under the cursor |
+| `<F12>` | bug report, with the version, architecture and OS build filled in |
 | `w` `q` | tasks (`p` pause, `x` cancel, `t` to the front) / quit |
 
 ### Coming from yazi, lf or vim
@@ -776,7 +777,13 @@ pass there.
 
 ## Reporting a bug
 
-Open an issue: <https://github.com/uchmk/filer/issues>. The bug report form asks for the version
+Press `<F12>` in the app. It opens the report form in your browser with the version, the
+architecture and the Windows build already filled in, which is the part of a report most
+likely to be looked up wrongly or not at all — and on Windows on ARM the program is better
+placed to answer than you are, since an x64 build running under emulation will tell the
+shell it is on x64 while knowing perfectly well what it is.
+
+Or open one by hand: <https://github.com/uchmk/filer/issues>. The bug report form asks for the version
 (`filer --version`), your Windows build, and the smallest sequence of keys that shows the problem —
 this is a keyboard-driven program, so the keys usually *are* the reproduction. It also asks what
 kind of file or folder was involved, since a 3000-line source file and a 40-character filename break

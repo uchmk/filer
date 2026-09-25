@@ -178,6 +178,9 @@ pub enum Act {
     Compare,
 
     Help,
+    /// Open a bug report in the browser with the version, architecture
+    /// and OS build already filled in.
+    BugReport,
     TasksShow,
     /// Pause the selected job, or set it going again.
     TaskToggle,
@@ -479,6 +482,7 @@ pub fn parse(line: &str) -> Act {
         "filter_do" | "find_do" | "search_do" | "cd_do" | "rename_do" | "create_do" => Act::Submit,
 
         "help" => Act::Help,
+        "bug-report" => Act::BugReport,
         "tasks_show" => Act::TasksShow,
         "task_toggle" => Act::TaskToggle,
         "task_cancel" => Act::TaskCancel,

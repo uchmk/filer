@@ -602,6 +602,10 @@ on = "<F1>"
 run = "help"
 desc = "Open help"
 [[mgr.keymap]]
+on = "<F12>"
+run = "bug-report"
+desc = "Open a pre-filled bug report in the browser"
+[[mgr.keymap]]
 on = "<C-S-p>"
 run = "palette"
 desc = "Open the command palette"
