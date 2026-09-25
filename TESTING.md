@@ -12,6 +12,22 @@ zoom arithmetic, minimap row summaries, pane geometry), the keymap's
 consistency, and that the whole thing compiles for Windows, macOS and Linux.
 `cargo test` on Windows CI runs all of it on every push.
 
+## The keys
+
+[TESTING-KEYS.md](TESTING-KEYS.md) is a tickable line per key binding — 193 of them
+across nine layers, which is more than anyone tracks in their head while working
+through them one at a time. It is generated from the default keymap:
+
+```powershell
+cargo run --example make-keycheck
+```
+
+Ticks survive regeneration, so a keymap change does not cost the afternoon
+already spent. Keys that have left the keymap are listed at the end rather than
+dropped, since one that vanished is worth noticing.
+
+The sections below are the other half: behaviour that no single key exercises.
+
 ## What you need
 
 1. **A `filer.exe`.** Either:

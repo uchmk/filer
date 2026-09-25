@@ -762,6 +762,10 @@ checklist of what has never been on a screen, and
 The icon is `assets/icon.svg`; `assets/README.md` says how the `.ico` beside it
 is rebuilt, and that the artwork is not covered by the code's license.
 
+Every key binding has a tickable line in [TESTING-KEYS.md](TESTING-KEYS.md),
+generated from the default keymap by `cargo run --example make-keycheck` and
+keeping its ticks when regenerated.
+
 ## Building
 
 ```
