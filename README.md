@@ -43,6 +43,65 @@ Honored: `[mgr]` (`ratio`, `sort_by`, `sort_reverse`, `sort_dir_first`, `sort_se
 
 Opener placeholders `$@`, `$0`, `%*`, `%0` and `%s` all expand to the selected paths.
 `block = true` gets its own console window (so `nvim` works); everything else starts without one.
+Rule patterns take `*`, `?`, `[abc]` and `{jpg,png}`, which is what yazi's own rules are written
+with.
+
+### Openers — what `<Enter>` and `<S-Enter>` offer
+
+`<Enter>` runs the first opener that applies; `<S-Enter>` shows all of them and lets you pick.
+Both lists come from your own `yazi.toml` — nothing is built in, so an editor that is not in
+there cannot appear. Two tables do the work: `[opener]` names the lists, `[open].rules` says
+which list a file gets.
+
+```toml
+[opener]
+# The list `<Enter>` reaches for on a text file. Order matters: the first entry wins.
+edit = [
+  { run = '"C:\Program Files\Hidemaru\Hidemaru.exe" %*', desc = "秀丸エディタ" },
+  { run = '"C:\Program Files (x86)\sakura\sakura.exe" %*', desc = "サクラエディタ" },
+  { run = 'code %*', desc = "VS Code" },
+  { run = 'nvim %*', desc = "Neovim", block = true },
+]
+
+# Anything the OS already knows how to open.
+open = [{ run = 'start "" %*', desc = "Open with the default app" }]
+
+browser = [
+  { run = 'start "" msedge %*', desc = "Edge" },
+  { run = 'start "" chrome %*', desc = "Chrome" },
+]
+
+office = [
+  { run = 'start "" excel %*', desc = "Excel" },
+  { run = 'start "" winword %*', desc = "Word" },
+]
+
+[open]
+rules = [
+  { name = "*.pdf", use = ["browser", "open"] },
+  { name = "*.{xlsx,xls,csv}", use = ["office", "open", "edit"] },
+  { name = "*.{docx,doc}", use = ["office", "open"] },
+  { name = "*.{txt,md,toml,rs,py,json,yml,yaml,ini,log}", use = ["edit", "open"] },
+  { name = "*", use = ["open", "edit"] },        # the fallback, last
+]
+```
+
+Every rule that matches contributes, in the order written, so the catch-all at the end adds
+*Open with the default app* to everything without taking the top spot from a more specific rule.
+`<S-Enter>` shows `desc` with the command line beside it, so name them however you think of them.
+
+Two Windows details worth knowing, both of which turn "it does nothing" into "it works":
+
+- **`start "" ` in front of a GUI program that is not on `PATH`.** Commands run through
+  `cmd /C`, which searches `PATH` and nothing else; `excel.exe` and `msedge.exe` are not on it.
+  `start` asks the shell instead, which knows where installed programs live. The empty `""` is
+  the window title `start` would otherwise steal the program name for.
+- **Full paths need the quotes shown above**, and the `%*` stays outside them. The paths filer
+  substitutes are quoted for you, so a name with a space stays one argument either way.
+
+An editor listed here also gets the line number when you open from the outline, if filer knows
+its syntax — 秀丸, サクラ, EmEditor, Notepad++, VS Code and the vim family are known already, and
+[line_args](#line_args-opening-an-editor-at-a-line) covers the rest.
 
 ### keymap.toml
 

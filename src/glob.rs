@@ -1,7 +1,16 @@
 //! Minimal glob matching for the `name = "*.rs"` / `mime = "text/*"` rules in
-//! yazi's config. Supports `*`, `?` and character classes.
+//! yazi's config. Supports `*`, `?`, character classes and `{a,b}` alternatives.
+
+/// How many patterns one `{...}` pattern may become before it is given up on
+/// and matched literally. Nested braces multiply, and a config is not worth
+/// spending a second of the UI thread on.
+const MAX_ALTERNATIVES: usize = 64;
 
 pub fn matches(pattern: &str, text: &str, case_insensitive: bool) -> bool {
+    expand(pattern).iter().any(|p| one(p, text, case_insensitive))
+}
+
+fn one(pattern: &str, text: &str, case_insensitive: bool) -> bool {
     if case_insensitive {
         let p = pattern.to_lowercase();
         let t = text.to_lowercase();
@@ -9,6 +18,74 @@ pub fn matches(pattern: &str, text: &str, case_insensitive: bool) -> bool {
     } else {
         imp(pattern.as_bytes(), text.as_bytes())
     }
+}
+
+/// `*.{jpg,png}` into `*.jpg` and `*.png`.
+///
+/// Yazi's own rules are written this way, and a config copied from there used
+/// to match nothing at all here — silently, since a rule that matches nothing
+/// looks exactly like a file type nobody configured.
+///
+/// Braces are expanded before matching rather than handled inside the matcher:
+/// the matcher backtracks, and alternatives that can themselves contain `*`
+/// make that a much harder problem than repeating a linear match a few times.
+fn expand(pattern: &str) -> Vec<String> {
+    let b = pattern.as_bytes();
+    let Some(open) = b.iter().position(|&c| c == b'{') else {
+        return vec![pattern.to_owned()];
+    };
+    // The `}` that closes *this* `{`, counting the ones in between.
+    let mut depth = 0usize;
+    let mut close = None;
+    for (i, &c) in b.iter().enumerate().skip(open) {
+        match c {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    close = Some(i);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    // Unbalanced: a literal brace, which is a legal character in a file name.
+    let Some(close) = close else {
+        return vec![pattern.to_owned()];
+    };
+
+    let (head, tail) = (&pattern[..open], &pattern[close + 1..]);
+    let mut out = Vec::new();
+    for alt in split_top_level(&pattern[open + 1..close]) {
+        for rest in expand(&format!("{head}{alt}{tail}")) {
+            if out.len() >= MAX_ALTERNATIVES {
+                return vec![pattern.to_owned()];
+            }
+            out.push(rest);
+        }
+    }
+    out
+}
+
+/// The commas that separate this brace's own alternatives, not a nested one's.
+fn split_top_level(inner: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut depth = 0usize;
+    let mut start = 0usize;
+    for (i, c) in inner.char_indices() {
+        match c {
+            '{' => depth += 1,
+            '}' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                out.push(&inner[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    out.push(&inner[start..]);
+    out
 }
 
 fn imp(p: &[u8], t: &[u8]) -> bool {
@@ -103,5 +180,34 @@ mod tests {
         assert!(matches("*", "anything", true));
         assert!(matches("[abc]x", "bx", true));
         assert!(!matches("[!abc]x", "bx", true));
+    }
+
+    /// The form yazi's own `[open]` rules are written in. Without it a config
+    /// copied from there matches nothing, and looks like a file type no one
+    /// configured.
+    #[test]
+    fn alternatives() {
+        assert!(matches("*.{jpg,png}", "photo.png", true));
+        assert!(matches("*.{jpg,png}", "photo.JPG", true));
+        assert!(!matches("*.{jpg,png}", "photo.gif", true));
+        assert!(matches("*.{xlsx,xls,csv}", "支払.csv", true));
+        // Nested, and an empty alternative meaning "or nothing at all".
+        assert!(matches("*.{tar.{gz,bz2},zip}", "src.tar.bz2", true));
+        assert!(matches("*.{tar.{gz,bz2},zip}", "src.zip", true));
+        assert!(matches("a{,b}c", "ac", true));
+        assert!(matches("a{,b}c", "abc", true));
+        // A brace is a legal character in a file name; an unbalanced one is
+        // itself rather than a syntax error.
+        assert!(matches("{unclosed", "{unclosed", true));
+        assert!(matches("*}", "odd}", true));
+    }
+
+    /// `expand` stops rather than producing a pattern list the length of a
+    /// combinatorial explosion; the pattern then stands for itself.
+    #[test]
+    fn a_runaway_pattern_is_not_expanded() {
+        let big = "{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}"; // 128 alternatives
+        assert_eq!(super::expand(big), vec![big.to_owned()]);
+        assert!(matches("{a,b}{a,b}{a,b}", "aba", true)); // 8 is fine
     }
 }

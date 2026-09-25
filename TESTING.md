@@ -351,6 +351,23 @@ ones where it says no.
 | R11 | Open the host in the **other pane** (`<C-w>`) and in a second tab | Both fine |
 | R12 | Go to a host, then change directory away | The watcher does not complain about the host it could not watch |
 
+## S. Openers (v0.17.0)
+
+The README's example config is the thing under test: if a step here fails, the
+instructions are wrong, which is worse than a missing feature.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| S1 | Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` | 秀丸 / サクラ / VS Code / Neovim / default — with the descriptions, not the command lines |
+| S2 | `<Enter>` on the same file | Opens in the first entry (秀丸), no console flash |
+| S3 | `<S-Enter>` on a `.pdf` | Edge and Chrome first, then the default-app entry |
+| S4 | `<S-Enter>` on a `.xlsx`, pick Excel | Excel opens it — this is the `start ""` case that fails without it |
+| S5 | A file whose name has a **space**, through each of the above | One argument, opens correctly |
+| S6 | Several files selected, then `<Enter>` | All of them go to one invocation |
+| S7 | A rule written `*.{xlsx,xls,csv}` | Matches all three (this is what did not work before v0.17.0) |
+| S8 | An opener naming a program that is not installed | An error toast, no hang |
+| S9 | Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ | Lands on the line |
+
 ---
 
 ## Known gaps in this checklist
