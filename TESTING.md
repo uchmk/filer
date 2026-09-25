@@ -242,9 +242,10 @@ tests cover the encoding and the shape of the URL, not what GitHub does with it.
 | M1 | `<F12>` | The default browser opens GitHub's new-issue form, and a toast says so |
 | M2 | Look at the form | **Version** and **OS とアーキテクチャ** are already filled in; the rest is empty |
 | M3 | Compare the filled version against `filer --version` in a terminal | The same string, architecture included |
-| M4 | Compare the filled OS build against `winver` | The same build number |
-| M5 | On the ARM64 machine, with the **ARM64** build | Process arch reads `aarch64` |
-| M6 | On the ARM64 machine, with the **x64** build (under emulation) | Process arch reads `x86_64` — the emulation is visible, which is the point |
+| M4 | Compare the filled OS line against `winver` | Edition, feature update and build all match, UBR included (`Windows 11 Pro 25H2 (build 26200.9457)`) |
+| M4b | Compare it against the form's own PowerShell snippet | The same facts. Nothing left worth pasting over the top |
+| M5 | On the ARM64 machine, with the **ARM64** build | OS arch and Process arch both read `aarch64` |
+| M6 | On the ARM64 machine, with the **x64** build (under emulation) | OS arch `aarch64`, Process arch `x86_64` — **the two disagree, and that is the finding** |
 | M7 | Submit the report | It posts, and the pre-filled fields survive |
 | M8 | `<F12>` with no browser set as default (or a broken association) | An error toast naming the failure. **The window keeps working** |
 | M9 | `<F12>` from the terminal pane (`<C-t>` first) | Nothing: `[term]` passes it to the shell, which is correct |

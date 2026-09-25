@@ -40,8 +40,31 @@ fn version_line() -> String {
 /// question worth answering on Windows on ARM: an x64 build running under
 /// emulation is the case that quietly misleads everyone, and here the program
 /// is the emulated process, so it can say so directly.
+/// Everything the PowerShell snippet in the report form prints, so that a
+/// report filled in from here needs no correcting afterwards. It used to print
+/// less, and the first person to use it went and pasted the fuller version over
+/// the top -- which the next `<F12>` then overwrote, since the value lives in
+/// the URL.
+///
+/// Both architectures, because one of them is the whole point. On Windows on
+/// ARM an x64 build runs under emulation and every ordinary check agrees it is
+/// on x64; the machine underneath is what `GetNativeSystemInfo` answers, and it
+/// is unaffected by the emulation. When the two lines disagree, the
+/// disagreement is the finding.
 #[cfg(windows)]
 fn os_line() -> String {
+    format!(
+        "OS: {}\nOS arch: {}\nProcess arch: {}",
+        windows_name(),
+        native_arch(),
+        std::env::consts::ARCH,
+    )
+}
+
+/// `Windows 11 Pro 25H2 (build 26200.9457)`, assembled from the two places
+/// Windows keeps the pieces.
+#[cfg(windows)]
+fn windows_name() -> String {
     use windows::Wdk::System::SystemServices::RtlGetVersion;
     use windows::Win32::System::SystemInformation::OSVERSIONINFOW;
 
@@ -51,19 +74,116 @@ fn os_line() -> String {
     };
     // `RtlGetVersion` rather than `GetVersionEx`, which lies about anything
     // past Windows 8 unless the binary carries a compatibility manifest.
-    let build = if unsafe { RtlGetVersion(&mut info) }.is_ok() {
-        // Windows 11 still reports itself as major version 10; the build number
-        // is what tells the two apart.
-        let name = if info.dwBuildNumber >= 22000 { "Windows 11" } else { "Windows 10" };
-        format!("{name} (build {})", info.dwBuildNumber)
-    } else {
-        "Windows (version unavailable)".to_owned()
+    if unsafe { RtlGetVersion(&mut info) }.is_err() {
+        return "Windows (version unavailable)".to_owned();
+    }
+
+    // Not `ProductName` from the registry: on Windows 11 it still reads
+    // "Windows 10 Pro", which is the single most misleading string on the
+    // machine. The build number is what actually separates the two.
+    let mut name = if info.dwBuildNumber >= 22000 { "Windows 11" } else { "Windows 10" }.to_owned();
+
+    // "Professional" is how the registry spells the edition; "Pro" is how the
+    // box, the About page and everyone else spells it.
+    if let Some(ed) = reg_string("EditionID") {
+        name.push(' ');
+        name.push_str(if ed == "Professional" { "Pro" } else { &ed });
+    }
+    // 25H2 and friends. Absent on builds old enough to use `ReleaseId`, and a
+    // missing feature update is not worth an apology in the middle of a line.
+    if let Some(display) = reg_string("DisplayVersion") {
+        name.push(' ');
+        name.push_str(&display);
+    }
+    match reg_dword("UBR") {
+        Some(ubr) => format!("{name} (build {}.{ubr})", info.dwBuildNumber),
+        None => format!("{name} (build {})", info.dwBuildNumber),
+    }
+}
+
+/// The architecture of the machine, not of this process. Emulation does not
+/// touch it, which is exactly why it is here.
+#[cfg(windows)]
+fn native_arch() -> &'static str {
+    use windows::Win32::System::SystemInformation::{
+        GetNativeSystemInfo, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_ARM64,
+        PROCESSOR_ARCHITECTURE_INTEL, SYSTEM_INFO,
     };
-    format!("OS: {build}\nProcess arch: {}", std::env::consts::ARCH)
+
+    let mut si = SYSTEM_INFO::default();
+    unsafe { GetNativeSystemInfo(&mut si) };
+    // Spelled the way Rust spells `std::env::consts::ARCH`, so the two lines
+    // can be compared without translating between them.
+    let arch = unsafe { si.Anonymous.Anonymous.wProcessorArchitecture };
+    if arch == PROCESSOR_ARCHITECTURE_AMD64 {
+        "x86_64"
+    } else if arch == PROCESSOR_ARCHITECTURE_ARM64 {
+        "aarch64"
+    } else if arch == PROCESSOR_ARCHITECTURE_INTEL {
+        "x86"
+    } else {
+        "unknown"
+    }
+}
+
+/// One string from `CurrentVersion`. `None` for anything that goes wrong: a
+/// bug report missing the edition is still a bug report.
+#[cfg(windows)]
+fn reg_string(name: &str) -> Option<String> {
+    use windows::core::{w, PCWSTR};
+    use windows::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
+
+    let name: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
+    let mut buf = [0u16; 128];
+    let mut bytes = std::mem::size_of_val(&buf) as u32;
+    unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            w!(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion"),
+            PCWSTR(name.as_ptr()),
+            RRF_RT_REG_SZ,
+            None,
+            Some(buf.as_mut_ptr().cast()),
+            Some(&mut bytes),
+        )
+    }
+    .is_ok()
+    .then_some(())?;
+    // The count comes back in bytes and includes the terminator.
+    let chars = (bytes as usize / 2).saturating_sub(1);
+    Some(String::from_utf16_lossy(&buf[..chars.min(buf.len())]))
+}
+
+/// The update build revision -- the `.9457` that `winver` shows and the version
+/// struct does not carry.
+#[cfg(windows)]
+fn reg_dword(name: &str) -> Option<u32> {
+    use windows::core::{w, PCWSTR};
+    use windows::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_DWORD};
+
+    let name: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
+    let mut value = 0u32;
+    let mut bytes = std::mem::size_of::<u32>() as u32;
+    unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            w!(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion"),
+            PCWSTR(name.as_ptr()),
+            RRF_RT_REG_DWORD,
+            None,
+            Some((&raw mut value).cast()),
+            Some(&mut bytes),
+        )
+    }
+    .is_ok()
+    .then_some(())?;
+    Some(value)
 }
 
 #[cfg(not(windows))]
 fn os_line() -> String {
+    // No emulation story to tell here, so the two arch lines would say the same
+    // thing twice.
     format!("OS: {}\nProcess arch: {}", std::env::consts::OS, std::env::consts::ARCH)
 }
 

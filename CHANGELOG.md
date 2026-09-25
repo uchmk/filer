@@ -9,6 +9,33 @@
 
 ## [未リリース]
 
+## [0.11.1] - 2026-09-25
+
+### 修正
+
+- **`<F12>` の OS 情報が、テンプレートの PowerShell より貧弱だった。**
+  実機で使った最初の一人が、PowerShell の出力を上から貼り直そうとして
+  気づいた（そして次の `<F12>` で上書きされた —— 値は URL にあるため）。
+  貼り直す必要が無い状態にした。
+  - `Windows 11 (build 26200)` → `Windows 11 Pro 25H2 (build 26200.9457)`。
+    エディションと機能更新版と UBR はレジストリの `CurrentVersion` から取る。
+    **`ProductName` は使わない** —— Windows 11 でも `Windows 10 Pro` と
+    読めてしまう、この機械で最も誤解を招く文字列なので。11 と 10 を
+    分けるのはビルド番号。
+  - **`OS arch` を追加した。これが無いと今回の目的を果たせていなかった。**
+    ARM64 機でエミュレーション下の x64 版を動かすと、`Process arch` だけでは
+    「x64 機」と見分けがつかない。`GetNativeSystemInfo` は機械そのものを答え、
+    エミュレーションの影響を受けない。**2 行が食い違っていること自体が発見になる。**
+  - 表記は Rust の `std::env::consts::ARCH` に合わせた（`x86_64` / `aarch64`）。
+    2 行を翻訳せずに見比べられるように。
+  - レジストリが読めなければその項目を落とすだけ。エディションの無い
+    不具合報告も不具合報告ではある。
+
+### 変更
+
+- テンプレートの OS 欄に「filer が起動するなら `<F12>` が早い」と明記。
+  PowerShell は**起動しないときと手書きのため**の手段だと位置づけ直した。
+
 ## [0.11.0] - 2026-09-25
 
 ### 追加
@@ -385,7 +412,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.11.0...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.11.1...HEAD
+[0.11.1]: https://github.com/uchmk/filer/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/uchmk/filer/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/uchmk/filer/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/uchmk/filer/compare/v0.9.1...v0.9.2
