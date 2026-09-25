@@ -132,7 +132,7 @@ A few plugin invocations are mapped onto built-in behavior so common setups keep
 | --- | --- |
 | `plugin toggle-pane max-preview` | Maximize / restore the preview pane |
 | `plugin toggle-pane min-parent` | Hide / show the parent pane |
-| `plugin bookmarks save` / `jump` / `delete` / `delete_all` | Bookmarks (press the key to assign or jump) |
+| `plugin bookmarks save` / `jump` / `list` / `delete` / `delete_all` | Bookmarks (press the key to assign or jump) |
 | `plugin smart-enter`, `plugin smart-filter` | `open` (a directory is entered), `filter --smart` |
 
 Anything else parses cleanly, reports itself as unsupported in the help panel, and shows a toast
@@ -646,7 +646,9 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter |
 | `s` `S` `<C-s>` | search by name / by content / stop |
 | `z` | fuzzy-jump to a bookmark or recent directory |
-| `b` (or `'`) `B` `<A-b>` | go to a bookmark / set one / delete one (then press its letter) |
+| `'` | go to a bookmark (then press its letter), as in vim |
+| `b``b` | list the bookmarks and pick one |
+| `b``s` `b``d` `b``D` | set one / delete one (then press its letter) / delete them all |
 | `.` `,…` `m…` | hidden files / sort menu / line-mode menu |
 | `t` `1`–`9` `[` `]` `{` `}` `<C-c>` | new tab / switch / previous / next / move it left / right / close it (quits on the last) |
 | `<F5>` `<C-F5>` | re-read the current directory / re-read the config files |

@@ -221,6 +221,7 @@ pub enum Act {
     TogglePaneParent,
     BookmarkSave,
     BookmarkJump,
+    BookmarkList,
     BookmarkDelete,
     BookmarkDeleteAll,
 
@@ -545,6 +546,7 @@ fn plugin(pos: &[String]) -> Act {
         ("toggle-pane", _) => Act::MaxPreview,
         ("bookmarks", "save") => Act::BookmarkSave,
         ("bookmarks", "jump") => Act::BookmarkJump,
+        ("bookmarks", "list") => Act::BookmarkList,
         ("bookmarks", "delete") => Act::BookmarkDelete,
         ("bookmarks", "delete_all") => Act::BookmarkDeleteAll,
         ("max-preview", _) => Act::MaxPreview,
@@ -593,6 +595,7 @@ mod tests {
         assert_eq!(parse("tab_switch 1 --relative"), Act::TabSwitch { n: 1, relative: true });
         assert_eq!(parse("plugin toggle-pane max-preview"), Act::MaxPreview);
         assert_eq!(parse("plugin bookmarks jump"), Act::BookmarkJump);
+        assert_eq!(parse("plugin bookmarks list"), Act::BookmarkList);
         assert_eq!(parse("palette"), Act::Palette);
         assert_eq!(parse("menu"), Act::Menu);
         assert_eq!(parse("split"), Act::Split(None));

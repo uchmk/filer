@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**63 / 193 checked.**
+**63 / 196 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 63 / 139
+## `[mgr]` — 63 / 142
 
 The file list: what is in front of you unless an overlay is.
 
@@ -111,11 +111,14 @@ The file list: what is in front of you unless an overlay is.
 - [x] `S` — Search files by content, recursively · `search --via=content`
 - [ ] `<C-s>` — Cancel the ongoing search · `escape --search`
 - [ ] `z` — Jump to a bookmark or a recently visited directory · `jump`
-- [ ] `b` — Go to the bookmark under a letter · `plugin bookmarks jump`
 - [ ] `'` — Go to the bookmark under a letter · `plugin bookmarks jump`
-- [ ] `B` — Bookmark this directory under a letter · `plugin bookmarks save`
-- [ ] `<A-b>` — Delete the bookmark under a letter · `plugin bookmarks delete`
-- [ ] `<A-B>` — Delete every bookmark · `plugin bookmarks delete_all`
+- [ ] `b b` — List the bookmarks, and go to one · `plugin bookmarks list`
+- [ ] `b s` — Bookmark this directory under a letter · `plugin bookmarks save`
+- [ ] `b d` — Delete the bookmark under a letter · `plugin bookmarks delete`
+- [ ] `b D` — Delete every bookmark · `plugin bookmarks delete_all`
+- [ ] `B` — Bookmark this directory under a letter (same as `bs`) · `plugin bookmarks save`
+- [ ] `<A-b>` — Delete the bookmark under a letter (same as `bd`) · `plugin bookmarks delete`
+- [ ] `<A-B>` — Delete every bookmark (same as `bD`) · `plugin bookmarks delete_all`
 
 ### Sorting
 

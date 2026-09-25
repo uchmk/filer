@@ -380,31 +380,47 @@ on = "z"
 run = "jump"
 desc = "Jump to a bookmark or a recently visited directory"
 
-# Bookmarks. `m` would be the vim key, but it is the line-mode prefix here as
-# it is in yazi, so these sit on `b` — a letter, which every keyboard layout
-# reaches the same way, unlike `'` and `"`.
-[[mgr.keymap]]
-on = "b"
-run = "plugin bookmarks jump"
-desc = "Go to the bookmark under a letter"
-# `'` as well: vim sets a mark with `m` and jumps to it with `'`, and half the
-# fingers that reach for a bookmark reach for that.
+# Bookmarks. `'` jumps and `b` is the prefix everything else hangs off, which
+# is what both references do: vim jumps to a mark with `'` (and lists them with
+# `:marks`), and bookmarks.yazi — yazi has no bookmarks of its own — jumps with
+# `'` and deletes with `b`+`d`.
+#
+# Saving is the one that cannot follow them. Both save with `m`, and `m` is the
+# line-mode prefix here as it is in yazi, so it sits under the same `b` as the
+# rest of the management.
 [[mgr.keymap]]
 on = "'"
 run = "plugin bookmarks jump"
 desc = "Go to the bookmark under a letter"
 [[mgr.keymap]]
-on = "B"
+on = [ "b", "b" ]
+run = "plugin bookmarks list"
+desc = "List the bookmarks, and go to one"
+[[mgr.keymap]]
+on = [ "b", "s" ]
 run = "plugin bookmarks save"
 desc = "Bookmark this directory under a letter"
 [[mgr.keymap]]
-on = "<A-b>"
+on = [ "b", "d" ]
 run = "plugin bookmarks delete"
 desc = "Delete the bookmark under a letter"
 [[mgr.keymap]]
-on = "<A-B>"
+on = [ "b", "D" ]
 run = "plugin bookmarks delete_all"
 desc = "Delete every bookmark"
+# The keys these replaced, kept so that fingers trained on them still land.
+[[mgr.keymap]]
+on = "B"
+run = "plugin bookmarks save"
+desc = "Bookmark this directory under a letter (same as `bs`)"
+[[mgr.keymap]]
+on = "<A-b>"
+run = "plugin bookmarks delete"
+desc = "Delete the bookmark under a letter (same as `bd`)"
+[[mgr.keymap]]
+on = "<A-B>"
+run = "plugin bookmarks delete_all"
+desc = "Delete every bookmark (same as `bD`)"
 
 # --- Sorting ------------------------------------------------------------------
 

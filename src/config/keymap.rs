@@ -287,12 +287,39 @@ run = "plugin bookmarks save"
         assert_eq!(bound(&km.mgr, "<C-S-r>"), vec![Act::ToggleAll { state: None }]);
     }
 
+    /// Jumping is `'`, the rest hangs off `b`. Both references agree on this
+    /// split — vim jumps to a mark with `'`, and bookmarks.yazi jumps with `'`
+    /// and deletes with `b`+`d` — and the earlier arrangement, where `b` and
+    /// `'` were the same command, read in the key list as one of them being
+    /// something else.
     #[test]
-    fn a_bookmark_answers_to_both_b_and_the_vim_mark_key() {
+    fn bookmarks_jump_with_the_vim_key_and_are_managed_under_b() {
         let (km, _) = Keymap::load(&[]);
+        let chord = |keys: &[&str]| {
+            let ks: Vec<Key> = keys.iter().map(|k| Key::parse(k).expect("key notation")).collect();
+            match resolve(&km.mgr, &ks) {
+                Match::Exact(b) => b.run.clone(),
+                _ => panic!("`{keys:?}` is not bound"),
+            }
+        };
 
-        assert_eq!(bound(&km.mgr, "b"), vec![Act::BookmarkJump]);
         assert_eq!(bound(&km.mgr, "'"), vec![Act::BookmarkJump]);
+        assert_eq!(chord(&["b", "b"]), vec![Act::BookmarkList]);
+        assert_eq!(chord(&["b", "s"]), vec![Act::BookmarkSave]);
+        assert_eq!(chord(&["b", "d"]), vec![Act::BookmarkDelete]);
+        assert_eq!(chord(&["b", "D"]), vec![Act::BookmarkDeleteAll]);
+
+        // `b` alone must stay a prefix: bound to a command of its own it would
+        // shadow every chord above, which is how it used to behave.
+        assert!(
+            matches!(resolve(&km.mgr, &[Key::parse("b").unwrap()]), Match::Pending(_)),
+            "`b` must lead somewhere, not do something",
+        );
+
+        // The keys these grew out of still work.
+        assert_eq!(bound(&km.mgr, "B"), vec![Act::BookmarkSave]);
+        assert_eq!(bound(&km.mgr, "<A-b>"), vec![Act::BookmarkDelete]);
+        assert_eq!(bound(&km.mgr, "<A-B>"), vec![Act::BookmarkDeleteAll]);
     }
 
     /// No key may mean two things in one layer, and no single key may sit in

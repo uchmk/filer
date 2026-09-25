@@ -2272,6 +2272,7 @@ impl App {
             Act::TogglePaneParent => self.hide_parent = !self.hide_parent,
             Act::BookmarkSave => self.pending_bookmark = Some(BookmarkOp::Save),
             Act::BookmarkJump => self.pending_bookmark = Some(BookmarkOp::Jump),
+            Act::BookmarkList => self.open_bookmark_list(),
             Act::BookmarkDelete => self.pending_bookmark = Some(BookmarkOp::Delete),
             Act::BookmarkDeleteAll => {
                 self.overlay = Overlay::Confirm(ConfirmOverlay {
@@ -3890,6 +3891,38 @@ impl App {
             matches: Vec::new(),
             cursor: 0,
             action: PickAction::Command { runs },
+            focused: false,
+        };
+        pick.refilter();
+        self.overlay = Overlay::Pick(pick);
+    }
+
+    /// The bookmarks on their own, as a picker.
+    ///
+    /// Separate from [`Self::open_jump`], which mixes in the visit history: a
+    /// bookmark was named on purpose, and a list of them is the one place to
+    /// see what is bound to what without holding a key down to read the hint.
+    fn open_bookmark_list(&mut self) {
+        if self.bookmarks.is_empty() {
+            self.error("No bookmarks yet — `bs` saves this directory under a letter");
+            return;
+        }
+        let mut items = Vec::new();
+        let mut details = Vec::new();
+        let mut paths = Vec::new();
+        for b in &self.bookmarks {
+            items.push(format!("[{}] {}", b.key, b.path.display()));
+            details.push(b.name.clone());
+            paths.push(b.path.clone());
+        }
+        let mut pick = PickOverlay {
+            title: "Bookmarks".into(),
+            items,
+            details,
+            query: String::new(),
+            matches: Vec::new(),
+            cursor: 0,
+            action: PickAction::Jump { paths },
             focused: false,
         };
         pick.refilter();
