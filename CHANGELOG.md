@@ -9,6 +9,23 @@
 
 ## [未リリース]
 
+## [0.11.5] - 2026-09-25
+
+### 追加
+
+- **計測器をワーカー側にも伸ばした。**UI 側の計測で
+  `sent 1 stale 0 waited 9.9s` と出た —— **応答は捨てられているのではなく、
+  そもそも返ってきていない。**UI は無実で、パイプの向こう側を見る必要がある。
+  - あわせて、要求は `box 1497x1550`、つまり**実寸で出ていた。**
+    v0.11.3 の前提（初回は既定値 `(900, 900)` で出るから捨てられる）も
+    事実に反していたことになる。
+  - ワーカーが「起動処理を抜けたか（alive）/ 受け取った数 / render を終えた数 /
+    送り返した数」を数えて表示する。
+  - 判定: **alive が 0 なら**起動処理（`shell_thumb::init_thread` の COM 初期化か
+    構文定義の読み込み）で止まっている。**got が 0 なら**要求が届いていない。
+    **got 1 / rendered 0 なら** `render()` の中で止まっている。
+    **replied 1 なら**送った後に消えている。
+
 ## [0.11.4] - 2026-09-25
 
 ### 追加
@@ -463,7 +480,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.11.4...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.11.5...HEAD
+[0.11.5]: https://github.com/uchmk/filer/compare/v0.11.4...v0.11.5
 [0.11.4]: https://github.com/uchmk/filer/compare/v0.11.3...v0.11.4
 [0.11.3]: https://github.com/uchmk/filer/compare/v0.11.2...v0.11.3
 [0.11.2]: https://github.com/uchmk/filer/compare/v0.11.1...v0.11.2

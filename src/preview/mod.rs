@@ -226,32 +226,52 @@ pub struct Previewer {
     tx: Sender<Request>,
     pub rx: Receiver<Response>,
     next_id: AtomicU64,
+    /// TEMPORARY, with the counters on the UI side: which half of the pipe the
+    /// first preview goes missing in. `alive` is set once the worker is past
+    /// its own start-up and into the receive loop.
+    pub diag: std::sync::Arc<Diag>,
+}
+
+/// TEMPORARY.
+#[derive(Default)]
+pub struct Diag {
+    pub alive: std::sync::atomic::AtomicBool,
+    pub got: AtomicU64,
+    pub rendered: AtomicU64,
+    pub replied: AtomicU64,
 }
 
 impl Previewer {
     pub fn new(wake: impl Fn() + Send + 'static) -> Self {
         let (tx, req_rx) = crossbeam_channel::unbounded::<Request>();
         let (res_tx, rx) = crossbeam_channel::unbounded::<Response>();
+        let diag = std::sync::Arc::new(Diag::default());
+        let d = diag.clone();
         std::thread::Builder::new()
             .name("preview".into())
             .spawn(move || {
+                use std::sync::atomic::Ordering::Relaxed;
                 shell_thumb::init_thread();
                 let mut syntax = text::Highlighter::default();
+                d.alive.store(true, Relaxed);
                 while let Ok(req) = req_rx.recv() {
+                    d.got.fetch_add(1, Relaxed);
                     // Skip anything already superseded while we were busy.
                     let mut req = req;
                     while let Ok(newer) = req_rx.try_recv() {
                         req = newer;
                     }
                     let payload = render(&req, &mut syntax);
+                    d.rendered.fetch_add(1, Relaxed);
                     if res_tx.send(Response { key: req.key, payload }).is_err() {
                         return;
                     }
+                    d.replied.fetch_add(1, Relaxed);
                     wake();
                 }
             })
             .expect("spawn preview worker");
-        Self { tx, rx, next_id: AtomicU64::new(1) }
+        Self { tx, rx, next_id: AtomicU64::new(1), diag }
     }
 
     pub fn request(&self, mut req: Request) -> u64 {

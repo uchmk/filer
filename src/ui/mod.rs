@@ -373,9 +373,21 @@ pub(super) fn draw_preview(
             if matches!(other, PreviewState::Loading) {
                 let waited = app.preview.diag_since.map_or(0.0, |t| t.elapsed().as_secs_f32());
                 let want = app.preview.key.as_ref().map_or("none".to_owned(), app::diag_key);
+                use std::sync::atomic::Ordering::Relaxed;
+                let d = &app.previewer.diag;
                 let text = format!(
-                    "sent {} stale {} waited {:.1}s\nwant {}\n{}",
-                    app.preview.diag_sent, app.preview.diag_stale, waited, want, app.preview.diag_last,
+                    "ui:     sent {} stale {} waited {:.1}s\n\
+                     worker: alive {} got {} rendered {} replied {}\n\
+                     want {}\n{}",
+                    app.preview.diag_sent,
+                    app.preview.diag_stale,
+                    waited,
+                    d.alive.load(Relaxed) as u8,
+                    d.got.load(Relaxed),
+                    d.rendered.load(Relaxed),
+                    d.replied.load(Relaxed),
+                    want,
+                    app.preview.diag_last,
                 );
                 ui.painter().text(
                     rect.left_top() + egui::Vec2::new(8.0, 28.0),
