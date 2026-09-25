@@ -399,19 +399,7 @@ impl eframe::App for Filer {
         }
 
         // Keep the frame loop alive only while something is actually pending.
-        //
-        // `Loading` is in here for a race that otherwise leaves the pane
-        // showing `…` until the next keystroke. The preview worker sends its
-        // answer and then calls `request_repaint`; if that lands while a frame
-        // is already being built, egui can satisfy it with the frame in
-        // progress — which has already drained the channel — and then go idle
-        // with the answer still sitting in it. Nothing else would wake it,
-        // because `request_preview` returns early once the key matches, so the
-        // request is never reissued. Startup is where this shows up, since the
-        // scan, the git status and the watcher are all waking the UI at once.
-        if self.app.preview.pending_since.is_some()
-            || matches!(self.app.preview.state, app::PreviewState::Loading)
-        {
+        if self.app.preview.pending_since.is_some() {
             ctx.request_repaint_after(Duration::from_millis(16));
         }
         if !self.app.toasts.is_empty()

@@ -298,22 +298,7 @@ pub(super) fn draw_preview(
     // `image_input` first: only it knows the pane's size, so it is what leaves
     // the fit scale behind for the decode box to be judged against.
     image_input(app, ui, rect);
-    // The pane's size is only known here, in the draw, while the request that
-    // needs it went out before the draw with whatever the last frame left
-    // behind — on the first frame, the placeholder `(900, 900)`. So the first
-    // preview of a session is asked for at the wrong size, answered, and
-    // thrown away for not matching the key, and the right one only goes out on
-    // the frame after that.
-    //
-    // Asking for a repaint when the size changes is what guarantees that frame
-    // exists. Without it the correction waits on something else happening to
-    // wake the window, and on a first launch there may be nothing: the answer
-    // that would have woken it is the one being discarded.
-    let was = app.preview.box_size;
     app.preview.box_size = app::zoom_box(pane_px, app.preview.zoom, app.preview.fit);
-    if app.preview.box_size != was {
-        ui.ctx().request_repaint();
-    }
     match &app.preview.state {
         PreviewState::Dir(folder) => {
             let st = list::ListStyle {
@@ -337,14 +322,7 @@ pub(super) fn draw_preview(
             // Rendered Markdown is laid out in the worker on a grid of
             // monospace cells, so it needs to know how many fit.
             let cell = ui.painter().layout_no_wrap("M".repeat(20), f.clone(), theme.fg).size().x / 20.0;
-            // Same story as `box_size` above: Markdown's key carries the column
-            // count, so the first request of a session is made against the
-            // placeholder 80 and discarded.
-            let was_cols = app.preview.cols;
             app.preview.cols = ((rect.width() - 24.0) / cell).max(0.0) as u16;
-            if app.preview.cols != was_cols {
-                ui.ctx().request_repaint();
-            }
             let st = preview::PreviewStyle {
                 theme: &theme,
                 font: f.clone(),
@@ -366,37 +344,6 @@ pub(super) fn draw_preview(
                 app.tabs[app.active].preview_offset,
                 &st,
             );
-            // TEMPORARY: what the stalled first preview is actually waiting
-            // for. Three rounds of reading the code produced three wrong
-            // answers; this is here so one screenshot settles it, and it comes
-            // straight back out afterwards.
-            if matches!(other, PreviewState::Loading) {
-                let waited = app.preview.diag_since.map_or(0.0, |t| t.elapsed().as_secs_f32());
-                let want = app.preview.key.as_ref().map_or("none".to_owned(), app::diag_key);
-                use std::sync::atomic::Ordering::Relaxed;
-                let d = &app.previewer.diag;
-                let text = format!(
-                    "ui:     sent {} stale {} waited {:.1}s\n\
-                     worker: alive {} got {} rendered {} replied {}\n\
-                     want {}\n{}",
-                    app.preview.diag_sent,
-                    app.preview.diag_stale,
-                    waited,
-                    d.alive.load(Relaxed) as u8,
-                    d.got.load(Relaxed),
-                    d.rendered.load(Relaxed),
-                    d.replied.load(Relaxed),
-                    want,
-                    app.preview.diag_last,
-                );
-                ui.painter().text(
-                    rect.left_top() + egui::Vec2::new(8.0, 28.0),
-                    egui::Align2::LEFT_TOP,
-                    text,
-                    f.clone(),
-                    theme.fg_dim,
-                );
-            }
             if let Some(line) = drawn.scroll_to {
                 app.tabs[app.active].preview_offset = line;
             }

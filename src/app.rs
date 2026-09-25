@@ -418,13 +418,6 @@ pub struct PreviewSlot {
     pub cache: Lru<preview::Key, CachedPreview>,
     /// Size of the preview pane in pixels, used when decoding images.
     pub box_size: (u32, u32),
-    /// TEMPORARY diagnostics for the first-preview stall. Removed once the
-    /// cause is known; they exist so one screenshot can answer what three
-    /// rounds of reading the code could not.
-    pub diag_since: Option<Instant>,
-    pub diag_sent: u32,
-    pub diag_stale: u32,
-    pub diag_last: String,
     /// Text columns across the pane, which rendered Markdown wraps to.
     pub cols: u16,
     /// The outline entry under the cursor while the keys drive the preview's
@@ -487,18 +480,6 @@ pub fn clamp_pan(pan: egui::Vec2, shown: egui::Vec2, avail: egui::Vec2) -> egui:
 /// What matters is the zoom against `fit`, not the zoom on its own: a photo that
 /// fits at 5% is already asking for twice the pane's detail at 10%, while a
 /// small icon at 2x is asking for nothing that exists.
-/// TEMPORARY: a preview key in one short line.
-pub fn diag_key(k: &preview::Key) -> String {
-    format!(
-        "[box {}x{} cols {} len {} mt {}]",
-        k.box_size.0,
-        k.box_size.1,
-        k.cols,
-        k.len,
-        k.mtime.is_some() as u8,
-    )
-}
-
 pub fn zoom_box(pane: (u32, u32), zoom: Option<f32>, fit: f32) -> (u32, u32) {
     const CAP: u32 = 4096;
     let want = match zoom {
@@ -519,10 +500,6 @@ impl Default for PreviewSlot {
             pending_since: None,
             cache: Lru::new(24),
             box_size: (900, 900),
-            diag_since: None,
-            diag_sent: 0,
-            diag_stale: 0,
-            diag_last: String::new(),
             cols: 80,
             outline: None,
             outline_wanted: None,
@@ -1420,8 +1397,6 @@ impl App {
             self.preview.texture = None;
             self.preview.state = PreviewState::Loading;
         }
-        self.preview.diag_sent += 1;
-        self.preview.diag_since = Some(Instant::now());
         self.preview.request_id = self.previewer.request(preview::Request {
             id: 0,
             key,
@@ -1435,12 +1410,6 @@ impl App {
 
     fn on_preview(&mut self, res: preview::Response, ctx: &egui::Context) {
         if self.preview.key.as_ref() != Some(&res.key) {
-            self.preview.diag_stale += 1;
-            self.preview.diag_last = format!(
-                "got {} want {}",
-                diag_key(&res.key),
-                self.preview.key.as_ref().map_or("none".into(), diag_key),
-            );
             return; // stale
         }
         self.preview.texture = match &res.payload {
@@ -1457,6 +1426,11 @@ impl App {
             res.key,
             CachedPreview { payload: res.payload.clone(), texture: self.preview.texture.clone() },
         );
+        // Restored: v0.5.0 replaced this line with the block below rather than
+        // putting the block after it, and the answer has been going nowhere but
+        // the cache ever since. The block reads `state` expecting it to be the
+        // payload that just arrived, so it was dead too.
+        self.preview.state = PreviewState::Ready(res.payload);
         if let PreviewState::Ready(Payload::Image { source, .. }) = &self.preview.state {
             // A seed until the pane draws and says exactly: the box is twice the
             // pane in pixels, so half of it is roughly the points available.
@@ -4528,5 +4502,80 @@ mod tests {
 
         assert_eq!(u.undo.len(), Undos::MAX);
         assert_eq!(u.undo[0], renamed("a10", "b10"), "the first ten are gone");
+    }
+}
+
+#[cfg(test)]
+mod preview_delivery {
+    use super::*;
+
+    /// The answer from the preview worker has to reach the screen, not just the
+    /// cache.
+    ///
+    /// This is here because it did not, for six versions. v0.5.0 added the
+    /// image-fit seeding by replacing `state = Ready(payload)` rather than
+    /// following it, so every preview of a file not already cached stayed on
+    /// `…` for ever. The cache hid it: coming back to a file worked, because
+    /// `request_preview` sets `Ready` on a cache hit, so only the *first* look
+    /// at a file was broken and that reads like a slow load.
+    ///
+    /// Asserting on `PreviewState` rather than on the cache is the whole point.
+    /// The old code passed every test there was.
+    #[test]
+    fn a_reply_puts_the_payload_on_screen() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(Config::load(), std::env::temp_dir(), ctx.clone());
+
+        let key = preview::Key {
+            path: PathBuf::from("/nowhere/readme.md"),
+            len: 7,
+            mtime: None,
+            box_size: (640, 480),
+            cols: 80,
+        };
+        // What `request_preview` leaves behind once it has dispatched.
+        app.preview.key = Some(key.clone());
+        app.preview.state = PreviewState::Loading;
+
+        app.on_preview(
+            preview::Response { key, payload: Payload::Error("x".into()) },
+            &ctx,
+        );
+
+        assert!(
+            matches!(app.preview.state, PreviewState::Ready(_)),
+            "a matching reply must leave the pane showing the payload, not `…`; \
+             got {:?}",
+            std::mem::discriminant(&app.preview.state),
+        );
+    }
+
+    /// The other half: a reply for a file the cursor has already left is still
+    /// dropped, and dropping it must not knock out the preview on screen.
+    #[test]
+    fn a_stale_reply_changes_nothing() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(Config::load(), std::env::temp_dir(), ctx.clone());
+
+        let wanted = preview::Key {
+            path: PathBuf::from("/nowhere/wanted.md"),
+            len: 1,
+            mtime: None,
+            box_size: (640, 480),
+            cols: 80,
+        };
+        let old = preview::Key { path: PathBuf::from("/nowhere/old.md"), ..wanted.clone() };
+        app.preview.key = Some(wanted);
+        app.preview.state = PreviewState::Loading;
+
+        app.on_preview(
+            preview::Response { key: old, payload: Payload::Error("x".into()) },
+            &ctx,
+        );
+
+        assert!(
+            matches!(app.preview.state, PreviewState::Loading),
+            "a reply for another file must not be shown",
+        );
     }
 }
