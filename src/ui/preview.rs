@@ -267,10 +267,10 @@ fn minimap(
         StrokeKind::Inside,
     );
 
+    // No cursor of its own. A resize cursor here promised something the
+    // minimap does not do — it jumps to a line, it does not drag an edge — and
+    // the arrow says "click me" perfectly well.
     let resp = ui.interact(rect, ui.id().with("minimap"), Sense::click_and_drag());
-    if resp.hovered() {
-        ui.ctx().set_cursor_icon(CursorIcon::ResizeVertical);
-    }
     if !resp.clicked() && !resp.dragged() {
         return None;
     }

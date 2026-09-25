@@ -115,6 +115,28 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
 
 // ---------------------------------------------------------------- header
 
+/// The two halves of the path line: the directory, dimmed, and the file under
+/// the cursor.
+///
+/// `found` is the hovered row's own path, and is only passed in a search view.
+/// There the rows come from anywhere under the root the search started from, so
+/// joining that root to the file name — which is what this used to do — spells
+/// out a path that usually does not exist, and reads as though a match three
+/// directories down were sitting in the top one.
+fn breadcrumb(
+    found: Option<&std::path::Path>,
+    dir: &std::path::Path,
+    hovered_name: Option<&str>,
+) -> (String, Option<String>) {
+    match found {
+        Some(p) => (
+            p.parent().map_or_else(String::new, |d| d.display().to_string()),
+            p.file_name().map(|n| n.to_string_lossy().into_owned()),
+        ),
+        None => (dir.display().to_string(), hovered_name.map(str::to_owned)),
+    }
+}
+
 fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let theme = &app.cfg.theme;
     let painter = ui.painter_at(rect);
@@ -174,11 +196,20 @@ fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     // Breadcrumb
     let theme = &app.cfg.theme;
     let y2 = rect.top() + row_h + 6.0;
-    let cwd = if app.in_search_view() {
-        app.tab().current.path.display().to_string()
-    } else {
-        app.tab().cwd.display().to_string()
-    };
+    // A search view's rows come from anywhere under the root it was started
+    // from, so the row's own path is the only one that is true. Joining the
+    // root to the file name — which is what this did — spells out a path that
+    // usually does not exist, and reads as if the match were in the top
+    // directory when it was three levels down.
+    let found = app
+        .in_search_view()
+        .then(|| app.tab().current.hovered().map(|e| e.path.clone()))
+        .flatten();
+    let (cwd, name) = breadcrumb(
+        found.as_deref(),
+        if app.in_search_view() { &app.tab().current.path } else { &app.tab().cwd },
+        app.tab().current.hovered_name(),
+    );
     let mut job = egui::text::LayoutJob::default();
     job.wrap.max_width = rect.width() - 20.0;
     job.wrap.max_rows = 1;
@@ -193,8 +224,8 @@ fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
             ..Default::default()
         },
     );
-    if let Some(name) = app.tab().current.hovered_name() {
-        let sep = if cwd.ends_with('\\') || cwd.ends_with('/') { "" } else { "\\" };
+    if let Some(name) = &name {
+        let sep = if cwd.is_empty() || cwd.ends_with('\\') || cwd.ends_with('/') { "" } else { "\\" };
         job.append(
             &format!("{sep}{name}"),
             0.0,
@@ -820,4 +851,60 @@ pub fn modal_frame(ui: &Ui, rect: Rect, theme: &Theme, title: &str, f: &FontId, 
 
 pub fn dim(ui: &Ui, full: Rect) {
     ui.painter().rect_filled(full, CornerRadius::ZERO, Color32::from_black_alpha(140));
+}
+
+#[cfg(test)]
+mod breadcrumb_tests {
+    use super::breadcrumb;
+    use std::path::{Path, PathBuf};
+
+    /// Built with `join` rather than written out: a literal `C:\a\b` is one
+    /// component on Linux, where `parent()` finds nothing, and the test would
+    /// fail everywhere but the platform it was written for.
+    fn p(parts: &[&str]) -> PathBuf {
+        parts.iter().collect()
+    }
+
+    /// A match found three directories down must say where it actually is.
+    /// The old code appended the file name to the directory the search started
+    /// from, so this read as though the file were in the top directory.
+    #[test]
+    fn a_search_hit_shows_its_own_directory() {
+        let hit = p(&["dev", "filer", "docs", "guide", "README.md"]);
+        let root = p(&["dev", "filer"]);
+        let (dir, name) = breadcrumb(Some(&hit), &root, Some("README.md"));
+        assert_eq!(dir, p(&["dev", "filer", "docs", "guide"]).display().to_string());
+        assert_eq!(name.as_deref(), Some("README.md"));
+    }
+
+    /// Two hits with the same name are told apart by the directory half, which
+    /// is the whole reason this matters.
+    #[test]
+    fn two_hits_of_the_same_name_differ() {
+        let root = p(&["proj"]);
+        let a = p(&["proj", "one", "README.md"]);
+        let b = p(&["proj", "two", "README.md"]);
+        assert_ne!(
+            breadcrumb(Some(&a), &root, Some("README.md")).0,
+            breadcrumb(Some(&b), &root, Some("README.md")).0,
+        );
+    }
+
+    /// Outside a search nothing changes: the tab's directory, and whatever the
+    /// cursor is on.
+    #[test]
+    fn an_ordinary_listing_uses_the_tab_directory() {
+        let dir_in = p(&["dev", "filer"]);
+        let (dir, name) = breadcrumb(None, &dir_in, Some("Cargo.toml"));
+        assert_eq!(dir, dir_in.display().to_string());
+        assert_eq!(name.as_deref(), Some("Cargo.toml"));
+    }
+
+    /// An empty listing has no file half to show.
+    #[test]
+    fn nothing_hovered_is_just_the_directory() {
+        let (dir, name) = breadcrumb(None, Path::new("anywhere"), None);
+        assert_eq!(dir, "anywhere");
+        assert_eq!(name, None);
+    }
 }
