@@ -52,7 +52,7 @@ fn main() {
     writeln!(out).unwrap();
     writeln!(
         out,
-        "A key is checked when it did what the description says *and* did nothing else —\n\
+        "A key is checked when it did what the description says _and_ did nothing else —\n\
          `<A-m>` once ran its own command and the unmodified `m` as well, and both halves\n\
          looked correct on their own. Anything surprising goes in an issue (`<F12>`)."
     )
@@ -99,6 +99,14 @@ fn main() {
         }
     }
 
+    // Written the way a Markdown formatter leaves it, so the two do not undo
+    // each other: the ticks are edited by hand in an editor that reformats on
+    // save, and a generator whose output differs cosmetically turns every
+    // regeneration into a diff nobody can read. `_and_` above is the same
+    // bargain — a formatter rewrites `*and*` to it.
+    while out.contains("\n\n\n") {
+        out = out.replace("\n\n\n", "\n\n");
+    }
     std::fs::write(OUT, out).expect("write the checklist");
     println!("{OUT}: {ticked} / {} checked", bindings.len());
 }

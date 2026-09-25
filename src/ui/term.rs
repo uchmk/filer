@@ -46,7 +46,10 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         true => ui.ctx().input(|i| i.smooth_scroll_delta.y),
         false => 0.0,
     };
-    if resp.clicked() || resp.drag_started() {
+    // Read before the terminal is borrowed, so a clipboard that will not open
+    // can still be reported through `app`.
+    let pasting = resp.secondary_clicked().then(crate::exec::get_clipboard);
+    if resp.clicked() || resp.drag_started() || resp.secondary_clicked() {
         app.term_focus = true;
     }
 
@@ -165,9 +168,25 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
             let _ = crate::exec::set_clipboard(&text);
         }
     }
+    // Select to copy, right-click to paste — the pair a terminal has always
+    // had, and the half that was missing. `<C-v>` reaches here as egui's paste
+    // event; a right-click is not one, so the clipboard was read above.
+    //
+    // What arrives is what `<C-v>` sends, `Terminal::paste` deciding both
+    // times whether the bracketed-paste markers go on. Where they do, a
+    // multi-line clipboard waits in the line editor instead of running itself.
+    if let Some(Ok(text)) = &pasting {
+        if !text.is_empty() {
+            term.paste(text);
+        }
+    }
     // The wheel walks the scrollback rather than the file list under it.
     if wheel.abs() > 0.5 {
         term.scroll(Scroll::Delta((wheel / row_h * 1.5) as i32));
+    }
+    // Said out loud because the right-click looked like it did nothing.
+    if let Some(Err(e)) = pasting {
+        app.error(format!("Could not read the clipboard: {e}"));
     }
 }
 

@@ -240,6 +240,25 @@ fn from_file_url(bytes: &[u8]) -> Option<PathBuf> {
     Some(crate::util::normalize(Path::new(trimmed)))
 }
 
+/// The bytes to send for a paste of `text`.
+///
+/// `\x1b[200~` and `\x1b[201~` are the markers xterm defined and everything
+/// since has followed. They go on only when the program asked for them: a shell
+/// that did not ask would show them as `[200~` and then run the paste anyway,
+/// which is worse than not bracketing at all.
+fn bracket(text: &str, wanted: bool) -> Vec<u8> {
+    // Nothing to paste needs no markers; a bare pair would reach a shell that
+    // does not strip them as `[200~[201~` on the command line.
+    if !wanted || text.is_empty() {
+        return text.as_bytes().to_vec();
+    }
+    let mut out = Vec::with_capacity(text.len() + 12);
+    out.extend_from_slice(b"\x1b[200~");
+    out.extend_from_slice(text.as_bytes());
+    out.extend_from_slice(b"\x1b[201~");
+    out
+}
+
 fn percent_decode(s: &str) -> String {
     let b = s.as_bytes();
     let mut out = Vec::with_capacity(b.len());
@@ -465,11 +484,25 @@ impl Terminal {
     }
 
     /// Type text in, as a paste rather than as keys.
+    ///
+    /// Wrapped in the bracketed-paste markers when the program on the other end
+    /// asked for them, which bash, zsh, fish, PSReadLine and vim all do. The
+    /// difference is not cosmetic: inside the brackets a line editor puts the
+    /// text in the buffer and leaves it there, so a clipboard holding three
+    /// lines ends up as three lines waiting to be read rather than two commands
+    /// already run. Without the brackets a newline *is* Enter and there is no
+    /// way to send one that is not.
     pub fn paste(&self, text: &str) {
         // Carriage returns are what a terminal calls Enter; a pasted `\n`
         // that stays a newline confuses a line editor.
         let text = text.replace("\r\n", "\r").replace('\n', "\r");
-        self.send(text.into_bytes());
+        self.send(bracket(&text, self.bracketed_paste()));
+    }
+
+    /// Whether the program on the other end asked for bracketed paste.
+    fn bracketed_paste(&self) -> bool {
+        use alacritty_terminal::term::TermMode;
+        self.term.lock().mode().contains(TermMode::BRACKETED_PASTE)
     }
 
     /// Follow the pane into `cwd`, by typing the `cd` a person would.
@@ -857,6 +890,24 @@ mod tests {
         // Anything that is not a file URL is not a directory.
         assert_eq!(from_file_url(b"http://example.com/"), None);
         assert_eq!(from_file_url(b"nonsense"), None);
+    }
+
+    /// A paste is bracketed only when the program on the other end asked, and
+    /// the markers go outside the text rather than into it.
+    #[test]
+    fn a_paste_is_bracketed_only_when_it_was_asked_for() {
+        assert_eq!(bracket("ls -l", false), b"ls -l".to_vec());
+        assert_eq!(bracket("ls -l", true), b"\x1b[200~ls -l\x1b[201~".to_vec());
+        // The case the brackets exist for: without them these are two commands
+        // the shell runs, with them two lines it holds.
+        assert_eq!(
+            bracket("one\rtwo", true),
+            b"\x1b[200~one\rtwo\x1b[201~".to_vec()
+        );
+        // Nothing to paste stays nothing, not a pair of bare markers going to a
+        // shell that would print them.
+        assert_eq!(bracket("", false), Vec::<u8>::new());
+        assert_eq!(bracket("", true), Vec::<u8>::new());
     }
 
     #[test]

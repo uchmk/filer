@@ -279,7 +279,14 @@ there the pane says how far back it is.
 
 The wheel walks the scrollback. Drag to select and the selection is copied when you let go —
 that is what selecting means in a terminal, there is no second step — and a double-click takes
-the word. Click the pane to take the keys back.
+the word. **Right-click pastes**, which is the other half of that pair; `<C-v>` does the same.
+Click the pane to take the keys back.
+
+A paste is wrapped in the bracketed-paste markers when the program on the other end asks for
+them — bash, zsh, fish, PSReadLine and vim all do. That is what keeps a clipboard holding three
+lines from running as two commands and a half-typed third: inside the markers a line editor puts
+the text in the buffer and waits. A shell that does not ask gets the text plain, where a newline
+is Enter and always has been.
 
 The grid is drawn with the list's own font and the theme's colors, so the 16 ANSI colors match
 the rest of the window; the 256-color cube and true-color values are used as the program asked
@@ -638,7 +645,8 @@ menu, drag onto the other pane to copy there, wheel to scroll. `Shift`+click sel
 and visual mode, so you can start a range with the mouse and finish it with the keyboard.
 
 In a prompt — `cd`, `s`, `f`, rename, `;` / `:`, the command palette — **right-click pastes**, the
-way a terminal does, and `<C-v>` does the same from the keyboard. The text lands where you clicked,
+way a terminal does (and the way the terminal pane itself does), and `<C-v>` does the same from
+the keyboard. The text lands where you clicked,
 replacing whatever was selected; line breaks become spaces, since the prompt is one line. A path
 copied out of Explorer's address bar therefore takes one click to get into `cd`, with no hand
 leaving the mouse.

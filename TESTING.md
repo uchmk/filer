@@ -324,7 +324,12 @@ instructions.
 | Q6 | With an image (not text) on the clipboard, right-click a prompt | Nothing happens, **no toast** |
 | Q7 | Same in the command palette, in `f`, and in `S-r` (bulk rename) | Each pastes; the bulk preview re-renders |
 | Q8 | Right-click in the **file list** | Still the context menu — the list is unchanged |
-| Q9 | Right-click in the **terminal** pane | Unchanged from before (the terminal keeps its own mouse handling) |
+| Q9 | Right-click in the **terminal** pane (`<C-t>`) | The clipboard is typed in, and the pane takes the keys if it did not have them |
+| Q10 | Select text in the terminal with a drag, then right-click | The selection was copied on release; the right-click pastes it back — select to copy, right-click to paste |
+| Q11 | Copy **three lines** and right-click into the terminal at a PowerShell prompt | All three sit in the buffer, **nothing runs** until `<Enter>` (PSReadLine asks for bracketed paste) |
+| Q12 | The same in a shell that does **not** ask for bracketed paste (`cmd.exe`) | The lines run, as they always have — and no stray `[200~` appears |
+| Q13 | Right-click in the terminal while `vim` is open | The text is inserted; no `[200~` on screen |
+| Q14 | `<C-v>` in the terminal | Same as the right-click, including Q11 |
 
 ---
 
