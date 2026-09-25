@@ -72,16 +72,24 @@ impl Folder {
         f
     }
 
+    /// `entries.get`, not `entries[..]`. `view` holds indices into `entries`,
+    /// and the two are only consistent between a swap of one and a rebuild of
+    /// the other — a window `rebuild` itself opens, since it asks this which
+    /// file to keep the cursor on before it has rebuilt anything. A file
+    /// deleted from outside the program shrinks `entries` under a `view` that
+    /// still points past the new end, and indexing took the window with it.
     pub fn hovered(&self) -> Option<&Entry> {
-        self.view.get(self.cursor).map(|&i| &self.entries[i as usize])
+        self.view.get(self.cursor).and_then(|&i| self.entries.get(i as usize))
     }
 
     pub fn hovered_name(&self) -> Option<&str> {
         self.hovered().map(|e| e.name.as_str())
     }
 
+    /// Total for the same reason as `hovered`, and it matters more here: this
+    /// one is called from the drawing code, once per visible row.
     pub fn at(&self, row: usize) -> Option<&Entry> {
-        self.view.get(row).map(|&i| &self.entries[i as usize])
+        self.view.get(row).and_then(|&i| self.entries.get(i as usize))
     }
 
     pub fn hit_at(&self, row: usize) -> &[usize] {
@@ -128,7 +136,7 @@ impl Folder {
     pub fn index_of(&self, name: &str) -> Option<usize> {
         self.view
             .iter()
-            .position(|&i| self.entries[i as usize].name == name)
+            .position(|&i| self.entries.get(i as usize).is_some_and(|e| e.name == name))
     }
 
     pub fn select_name(&mut self, name: &str) -> bool {
@@ -186,5 +194,80 @@ impl Folder {
         let lo = self.offset;
         let hi = (self.offset + rows).saturating_sub(1);
         self.cursor = self.cursor.clamp(lo, hi);
+    }
+}
+
+#[cfg(test)]
+mod stale_view {
+    use super::*;
+    use crate::fs::entry::{Entry, Kind};
+
+    fn listing(n: usize) -> Arc<Vec<Entry>> {
+        Arc::new(
+            (0..n)
+                .map(|i| Entry {
+                    path: PathBuf::from(format!("f{i}")),
+                    name: format!("f{i}"),
+                    ext: None,
+                    kind: Kind::File,
+                    len: 0,
+                    modified: None,
+                    created: None,
+                    accessed: None,
+                    hidden: false,
+                    readonly: false,
+                    link_to: None,
+                    dir_size: None,
+                })
+                .collect(),
+        )
+    }
+
+    /// A file deleted from outside shrinks the listing under the cursor.
+    ///
+    /// `entries` is replaced and `rebuild` is called, and `rebuild` opens by
+    /// asking `hovered()` which file to keep the cursor on — a question it
+    /// answers with the *old* `view`, whose indices now run past the end of the
+    /// new `entries`. `view.get()` succeeds, hands back index 11, and the
+    /// direct index into a ten-element `entries` took the window with it.
+    #[test]
+    fn a_listing_that_shrank_under_the_cursor_does_not_panic() {
+        let mut f = Folder::from_entries(PathBuf::from("d"), listing(12), true);
+        f.cursor = 11; // the last row
+
+        f.entries = listing(10); // something else deleted two files
+        f.rebuild(true); // panicked here: len is 10 but the index is 11
+
+        assert!(f.cursor < f.view.len(), "the cursor must land inside the new listing");
+    }
+
+    /// The same thing one row at a time, since the crash needs the stale index
+    /// to point past the new end and it is worth covering the boundary rather
+    /// than one lucky number.
+    #[test]
+    fn every_amount_of_shrinkage_is_survivable() {
+        for before in 1..=12usize {
+            for after in 0..=before {
+                let mut f = Folder::from_entries(PathBuf::from("d"), listing(before), true);
+                f.cursor = before - 1;
+                f.entries = listing(after);
+                f.rebuild(true);
+                assert!(
+                    f.view.is_empty() || f.cursor < f.view.len(),
+                    "{before} -> {after}: cursor {} is outside a view of {}",
+                    f.cursor,
+                    f.view.len(),
+                );
+            }
+        }
+    }
+
+    /// `at()` reads the same way and is called from the drawing code, where a
+    /// panic would be just as fatal.
+    #[test]
+    fn at_survives_a_stale_row() {
+        let mut f = Folder::from_entries(PathBuf::from("d"), listing(12), true);
+        f.entries = listing(3);
+        assert!(f.at(11).is_none());
     }
 }

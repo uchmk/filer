@@ -149,7 +149,12 @@ impl Tab {
 
     pub fn toggle_all(&mut self, state: Option<bool>) {
         let paths: Vec<PathBuf> =
-            self.current.view.iter().map(|&i| self.current.entries[i as usize].path.clone()).collect();
+            self.current
+                .view
+                .iter()
+                .filter_map(|&i| self.current.entries.get(i as usize))
+                .map(|e| e.path.clone())
+                .collect();
         match state {
             Some(true) => self.selected.extend(paths),
             Some(false) => {

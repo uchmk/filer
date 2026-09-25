@@ -280,6 +280,23 @@ a first launch, so reproducing it may take several cold starts.
 | N4 | Open an image never seen this session, then zoom with `+` | It steps from the picture's own fit, not from the last image's scale. **The same commit killed this and it has never been exercised** |
 | N5 | Restart, open ten different files in a row without revisiting any | All ten appear |
 
+## O. Changes made from outside (v0.12.4)
+
+The watcher's rescan replaces the listing under whatever the cursor is on. Until
+v0.12.4 that crashed the program outright when the listing shrank past the
+cursor's row, so these are worth running on a real machine rather than trusting
+the unit tests alone.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| O1 | Put the cursor on the **last** row, delete that file from Explorer | The row goes, the cursor lands on the new last row, **no crash** |
+| O2 | Cursor on the last row; delete several files at the end at once | Same |
+| O3 | Delete every file in the folder from outside | An empty listing, still responsive |
+| O4 | Cursor on the last row of a **filtered** listing (`f`), delete the file it is on | Same, and the filter still holds |
+| O5 | Same in the **other pane** (`<C-w>`) and in the **preview** of a directory | Neither crashes |
+| O6 | Cursor on the last row, delete that file with `d` | Same — this is what Issue #5 reported |
+| O7 | Rename a file from outside while the cursor is on it | The cursor follows the name or stays put; no crash |
+
 ---
 
 ## Known gaps in this checklist

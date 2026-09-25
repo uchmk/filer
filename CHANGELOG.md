@@ -9,6 +9,29 @@
 
 ## [未リリース]
 
+## [0.12.4] - 2026-09-25
+
+### 修正
+
+- **外部でファイルを消すとクラッシュしていた**（`index out of bounds: the len is
+  10 but the index is 11`、`core/folder.rs:76`）。
+  - `view` は `entries` への添字を持つ。この 2 つが食い違う窓が
+    **`rebuild()` 自身の中にある** —— 呼び出し側は `entries` を差し替えてから
+    `rebuild()` を呼び、`rebuild()` は冒頭で「どのファイルにカーソルを残すか」を
+    `hovered()` に聞く。そのとき `view` はまだ**前の一覧の添字**を持っている。
+  - `view.get()` は成功してしまう（`view` は縮んでいない）。返ってきた 11 で
+    10 件の `entries` を**直接添字して**落ちる。
+  - `hovered()` / `at()` / `index_of()` / `Tab` の選択パス収集を、
+    すべて `entries.get()` 経由にした。古い添字は panic ではなく `None` になる。
+  - カーソル維持は失われない。呼び出し側（`apply_listing`）は差し替えの**前**に
+    名前を控えていて、`rebuild()` の後に `select_name()` で戻している。
+  - 再現テストを 3 本。**修正前は報告と一字一句同じ panic で落ちる**ことを
+    確認した。1 本は縮み方を 1 件ずつ総当たりする —— 事故には「古い添字が
+    新しい末尾を越える」必要があり、たまたま通る数字 1 つでは足りない。
+  - **`d` での削除で落ちたという報告（Issue #5、再現せずクローズ）も、
+    おそらくこれ。**自前の削除でも再スキャンは同じ経路を通る。再現しなかったのは、
+    カーソルが新しい末尾の内側に収まる位置だったためと考えられる。
+
 ## [0.12.3] - 2026-09-25
 
 ### 追加
@@ -565,7 +588,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.12.3...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.12.4...HEAD
+[0.12.4]: https://github.com/uchmk/filer/compare/v0.12.3...v0.12.4
 [0.12.3]: https://github.com/uchmk/filer/compare/v0.12.2...v0.12.3
 [0.12.2]: https://github.com/uchmk/filer/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/uchmk/filer/compare/v0.12.0...v0.12.1
