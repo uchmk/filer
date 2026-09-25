@@ -9,6 +9,25 @@
 
 ## [未リリース]
 
+## [0.12.2] - 2026-09-25
+
+### 修正
+
+- **Alt 付きのキーが、修飾なしのキーも一緒に実行していた。**Windows は
+  `Alt+m` に対して**イベントを 2 つ**送る —— `Key { M, alt }` と `Text("m")`。
+  `Text` の分岐が修飾キーを見ていなかったため、**1 打鍵で `<A-m>`
+  （`send_pane --cut`）と `m`（ブックマーク保存）の両方**が走っていた。
+  Alt 付きの chord を処理した直後の `Text` は捨てる。
+  - **Ctrl+Alt は対象外。**それは AltGr で、ドイツ語配列の `@` や
+    フランス語配列の `€` はそれで打つ。そこでは文字こそが目的であり、
+    chord が食べた文字ではない。
+- **ミニマップの帯と、表示位置を示す枠がずれていた。**帯は固定高で積み上げ、
+  枠は行番号を全体長で割っていた —— **尺度が 2 つあった。**
+  `per = ceil(len/bands)` が切り上がると帯の数が枠数より減るため、
+  帯だけが途中で終わる（202 行を 100 枠なら 3 行/帯 = 68 帯 = 高さの 68%）。
+  `at_line()` に一本化して、構造的にずれないようにした。
+  - テストを 3 本。**旧実装の尺度を入れると落ちる**ことを確認済み。
+
 ## [0.12.1] - 2026-09-25
 
 ### 修正
@@ -525,7 +544,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.12.1...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.12.2...HEAD
+[0.12.2]: https://github.com/uchmk/filer/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/uchmk/filer/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/uchmk/filer/compare/v0.11.5...v0.12.0
 [0.11.5]: https://github.com/uchmk/filer/compare/v0.11.4...v0.11.5

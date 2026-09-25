@@ -212,6 +212,15 @@ fn split_minimap(rect: Rect, map: &[MapRow], st: &PreviewStyle<'_>) -> (Rect, Op
 /// The shape of the whole file in a narrow column, with the part on screen
 /// framed. Clicking or dragging it scrolls there.
 ///
+/// Where a line sits down the minimap, as a fraction of its height.
+///
+/// Both the bands and the box marking the viewport go through here, which is
+/// the point: when they had a scale each they disagreed, and the picture and
+/// the marker pointed at different parts of the same file.
+fn at_line(line: usize, lines: usize) -> f32 {
+    line.min(lines) as f32 / lines.max(1) as f32
+}
+
 /// Deliberately not text: at two pixels a line a glyph is a smudge, and laying
 /// out ten thousand of them would cost the frame. Each band is one rectangle
 /// spanning the widest line in it, so a block of code reads as a block and a
@@ -230,6 +239,15 @@ fn minimap(
 
     let bands = ((rect.height() / BAND_H).floor() as usize).max(1);
     let per = map.len().div_ceil(bands).max(1);
+    // One scale, used by the bands and by the viewport box below. They used to
+    // have one each: the bands stacked at a fixed `BAND_H` per chunk while the
+    // box divided the line number by the total. Those agree only when the
+    // chunking comes out even. Two hundred lines into a hundred slots gives
+    // three lines a band and so sixty-seven bands, which draws two thirds of a
+    // strip whose box is still measured against the whole of it — the picture
+    // and the marker pointing at different places on the same file.
+    let at = |line: usize| rect.top() + at_line(line, map.len()) * rect.height();
+    let band_h = (at_line(per, map.len()) * rect.height()).max(1.0);
     // One cell of source maps to this much width, so a line of about 80
     // columns fills the strip and anything longer is simply clamped.
     let unit = rect.width() / 80.0;
@@ -242,22 +260,19 @@ fn minimap(
         let indent = band.iter().filter(|r| r.len > 0).map(|r| r.indent).min().unwrap_or(0);
         let x0 = (rect.left() + indent as f32 * unit).min(rect.right());
         let x1 = (x0 + lead.len as f32 * unit).min(rect.right());
-        let y = rect.top() + b as f32 * BAND_H;
-        if y + BAND_H > rect.bottom() {
+        let y = at(b * per);
+        if y + band_h > rect.bottom() + 0.5 {
             break;
         }
         let color = lead.color.map_or(theme.fg, |[r, g, b]| Color32::from_rgb(r, g, b));
         painter.rect_filled(
-            Rect::from_min_max(pos2(x0, y), pos2(x1.max(x0 + 1.0), y + BAND_H - 0.5)),
+            Rect::from_min_max(pos2(x0, y), pos2(x1.max(x0 + 1.0), y + band_h - 0.5)),
             CornerRadius::ZERO,
             color.gamma_multiply(0.7),
         );
     }
 
     // --- where the pane is looking ---
-    let at = |line: usize| {
-        rect.top() + (line.min(map.len()) as f32 / map.len() as f32) * rect.height()
-    };
     let view = Rect::from_x_y_ranges(rect.x_range(), at(offset)..=at(offset + on_screen));
     painter.rect_filled(view, CornerRadius::same(2), theme.hovered_bg.gamma_multiply(0.4));
     painter.rect_stroke(
@@ -728,5 +743,47 @@ mod tests {
             pane_cols(body, &st) < SOURCE_OUTLINE_MIN_COLS,
             "and does not once the map has taken its strip"
         );
+    }
+}
+
+#[cfg(test)]
+mod minimap_scale {
+    use super::at_line;
+
+    /// The bands have to reach the bottom of the strip. They did not: sized at
+    /// a fixed height per chunk, they stopped wherever the chunking ran out,
+    /// while the viewport box kept using the full height — so on a file of the
+    /// wrong length the drawing filled two thirds of the strip and the box
+    /// floated past the end of it.
+    #[test]
+    fn the_bands_fill_the_strip() {
+        for lines in [1usize, 2, 7, 99, 100, 101, 202, 1000, 4001, 12345] {
+            for bands in [1usize, 17, 100, 377] {
+                let per = lines.div_ceil(bands).max(1);
+                let chunks = lines.div_ceil(per);
+                let last_top = at_line((chunks - 1) * per, lines);
+                let bottom = last_top + at_line(per, lines);
+                assert!(
+                    bottom >= 1.0 - f32::EPSILON,
+                    "lines {lines} bands {bands}: strip ends at {bottom}, not 1.0",
+                );
+            }
+        }
+    }
+
+    /// The ends are the ends.
+    #[test]
+    fn the_scale_spans_nought_to_one() {
+        assert_eq!(at_line(0, 500), 0.0);
+        assert_eq!(at_line(500, 500), 1.0);
+        // Past the end clamps rather than running off the strip.
+        assert_eq!(at_line(9999, 500), 1.0);
+    }
+
+    /// An empty preview must not divide by its own length.
+    #[test]
+    fn no_lines_is_not_a_division_by_zero() {
+        assert!(at_line(0, 0).is_finite());
+        assert!(at_line(5, 0).is_finite());
     }
 }

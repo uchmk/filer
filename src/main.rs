@@ -423,11 +423,23 @@ fn title_for(app: &App) -> String {
 
 fn handle_input(app: &mut App, ctx: &egui::Context) {
     let events = ctx.input(|i| i.events.clone());
+    // Windows sends a chord *and* the character it would have typed: `<A-m>`
+    // arrives as a key event with alt set and then as `Text("m")`, so one
+    // keystroke ran `send_pane --cut` and went on to open "Save bookmark as…"
+    // as well. The chord has already been dealt with by the time the text
+    // turns up, so the text is dropped.
+    //
+    // Ctrl and Alt together is left alone. That combination is AltGr, which is
+    // how a German keyboard types `@` and a French one `€`; there the
+    // character is the whole point and there is no chord to have consumed it.
+    let mut swallow_text = false;
     for ev in events {
         match ev {
             egui::Event::Key { key, pressed: true, modifiers, .. } => {
+                swallow_text = modifiers.alt && !modifiers.ctrl;
                 on_key_event(app, key, &modifiers);
             }
+            egui::Event::Text(_) if swallow_text => swallow_text = false,
             // egui-winit turns the clipboard chords into these events and never
             // emits the keypress, so `<C-c>` and friends would never reach the
             // keymap. Put the chord back while no text field is focused.
