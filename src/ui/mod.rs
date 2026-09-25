@@ -90,6 +90,7 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
         // Above the prompt, since a bulk rename is judged by what it will do
         // rather than by the rule that says it.
         overlay::bulk(app, ui, full, &f, row_h, r.top());
+        overlay::shell_hint(app, ui, full, &f, row_h, r.top());
         overlay::input(app, ui, r, &f, &mut queued);
     }
 

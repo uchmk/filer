@@ -637,6 +637,36 @@ menu, drag onto the other pane to copy there, wheel to scroll. `Shift`+click sel
 `Ctrl`+click (`Cmd` on macOS) adds or removes one row. Both share the selection with `<Space>`
 and visual mode, so you can start a range with the mouse and finish it with the keyboard.
 
+## Running a command on the selection
+
+`;` runs a shell command and returns at once; `:` waits for it and gives it a console to write to.
+Both hand the command what is selected, which is the point of them, so the prompt says so while you
+type:
+
+```
+$@ all · $0 first · $1 second · no placeholder → appended    (3 files, returns at once)
+```
+
+| In the command | What it becomes |
+| --- | --- |
+| `$@`, `%*`, `%s` | every selected path |
+| `$0`, `%1` | the first |
+| `$1`, `%2` | the second |
+| *(nothing)* | the paths are appended to the end |
+
+Paths are quoted for you, so a name with a space in it stays one argument.
+
+```
+;  git add                          adds everything selected
+;  magick mogrify -resize 50% $@    shrinks the selected images
+:  pdftk $@ cat output merged.pdf   and waits, so you can read what it said
+```
+
+`cd` in there changes nothing here, and cannot: the command runs in a child process that ends with
+it. For a shell whose directory sticks, open the terminal pane with `<C-t>` — that one lives as long
+as you leave it open, `<A-t>` sends it the hovered file's name, and `term_cd` brings its directory
+back to the list.
+
 ## Shell integration
 
 `--cwd-file FILE` writes the final directory on exit, `--chooser-file FILE` writes the selection —

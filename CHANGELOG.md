@@ -9,6 +9,29 @@
 
 ## [未リリース]
 
+## [0.13.2] - 2026-09-25
+
+### 追加
+
+- **`;` / `:`（シェル実行）のプロンプトに凡例を出すようにした。**
+  ```
+  $@ all · $0 first · $1 second · no placeholder → appended    (3 files, returns at once)
+  ```
+  - **選択したファイルがコマンドに渡ることが、画面のどこにも書いていなかった。**
+    それこそがこの機能の存在理由なのに、ただの貧弱なコマンドラインに見えていた。
+  - **件数を出す。**「いま何件に対して実行されるのか」は、実行前に答えるべき問い。
+  - `;` と `:` は**プロンプトが開いた後は見た目で区別がつかない**ので、
+    待つか待たないかも書いた。
+  - 凡例が嘘にならないテストを 2 本。`$@` / `$0` / `$1` / 省略時の追記を
+    すべて `substitute` に通し、**`$0` が 2 つ目まで拾っていないこと**まで見る。
+    空白を含む名前が 1 引数のままであることも（凡例が引用符に触れていないのは、
+    こちらでやっているため）。
+
+### 変更
+
+- README に「Running a command on the selection」節。`cd` が効かない理由も書いた
+  —— 子プロセスなので当然で、**状態の続くシェルが欲しいなら `<C-t>`** のほう。
+
 ## [0.13.1] - 2026-09-25
 
 ### 追加
@@ -703,7 +726,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.13.1...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.13.2...HEAD
+[0.13.2]: https://github.com/uchmk/filer/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/uchmk/filer/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/uchmk/filer/compare/v0.12.7...v0.13.0
 [0.12.7]: https://github.com/uchmk/filer/compare/v0.12.6...v0.12.7

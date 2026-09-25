@@ -120,6 +120,49 @@ pub fn quick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, que
     super::draw_preview(app, ui, inner, f, row_h, queued);
 }
 
+/// What the shell prompt does with the selection, above the shell prompt.
+///
+/// `;` and `:` look like a bare command line, and read as a poor one: nothing
+/// on screen says that the selected paths are handed to the command, which is
+/// the entire point of having them. The count is there for the same reason —
+/// "3 files" answers "what is this about to run on" before it runs.
+pub fn shell_hint(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bottom: f32) {
+    let theme = &app.cfg.theme;
+    let Overlay::Input(ov) = &app.overlay else { return };
+    let InputKind::Shell { block } = &ov.kind else { return };
+
+    let n = app.tab().targets().len();
+    let what = match n {
+        0 => "nothing selected".to_owned(),
+        1 => "1 file".to_owned(),
+        n => format!("{n} files"),
+    };
+    // The waiting half is worth saying here too: `;` and `:` differ by nothing
+    // visible once the prompt is open.
+    let waits = if *block { "waits for it" } else { "returns at once" };
+    let text = format!("$@ all · $0 first · $1 second · no placeholder → appended    ({what}, {waits})");
+
+    let rect = Rect::from_min_max(
+        egui::pos2(full.left() + 20.0, bottom - row_h - 16.0),
+        egui::pos2(full.left() + 20.0 + (full.width() - 40.0).min(900.0), bottom - 6.0),
+    );
+    let painter = ui.painter();
+    painter.rect_filled(rect, CornerRadius::same(6), theme.bg_alt);
+    painter.rect_stroke(
+        rect,
+        CornerRadius::same(6),
+        Stroke::new(1.0, theme.border),
+        egui::StrokeKind::Inside,
+    );
+    painter.text(
+        egui::pos2(rect.left() + 12.0, rect.center().y),
+        Align2::LEFT_CENTER,
+        text,
+        f.clone(),
+        theme.fg_dim,
+    );
+}
+
 /// The live preview under the bulk-rename prompt: what every selected file is
 /// about to be called, and what is wrong with any of it. Redrawn on every
 /// keystroke, which is why [`App::bulk_preview`] reads the directory out of the
