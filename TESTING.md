@@ -250,6 +250,19 @@ tests cover the encoding and the shape of the URL, not what GitHub does with it.
 | M8 | `<F12>` with no browser set as default (or a broken association) | An error toast naming the failure. **The window keeps working** |
 | M9 | `<F12>` from the terminal pane (`<C-t>` first) | Nothing: `[term]` passes it to the shell, which is correct |
 
+## N. The preview that would not arrive (v0.11.2)
+
+A race, not a slow load: the answer reaches the channel and the window goes to
+sleep without drawing the frame that would take it out. Only ever seen once, on
+a first launch, so reproducing it may take several cold starts.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| N1 | Start filer cold, move to a text file as soon as the listing appears | The preview arrives **without touching anything else** |
+| N2 | Repeat N1 ten times, in a folder with a git repository and plenty of files | Never a `…` that outlives the load |
+| N3 | If `…` does persist: wait 30 seconds, hands off the keyboard and mouse | **It still resolves.** If it only resolves on a keypress, the fix has missed a path — say so |
+| N4 | Watch idle CPU with a text file previewed and nothing happening | Back to idle once loaded; the 16 ms poll must not outlive `Loading` |
+
 ---
 
 ## Known gaps in this checklist

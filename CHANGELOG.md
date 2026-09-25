@@ -9,6 +9,24 @@
 
 ## [未リリース]
 
+## [0.11.2] - 2026-09-25
+
+### 修正
+
+- **起動直後、ファイルを選んでもプレビューが `…` のまま止まることがあった。**
+  プレビューのワーカーは結果を送ってから `request_repaint` を呼ぶ。これが
+  **すでに描画中のフレームに吸収される**と、そのフレームは channel の
+  `try_recv` を通過済みなので、**応答が channel に残ったまま egui が眠る。**
+  `request_preview` はキーが一致すると即 return するため再要求も起きず、
+  次にキーを押すまで `…` が残る。
+  - 起動直後に出るのは、スキャン・git・watcher が同時に UI を起こしていて、
+    repaint 要求が重なりやすいため。
+  - `Loading` の間はフレームを回し続けるようにした。デバウンス中と同じ扱い。
+  - **画面の無い環境では再現できていない。**コードから読み取った競合であり、
+    ほかに 2 つ疑った原因は計測で否定した（`Highlighter::default()` は 149ns、
+    構文定義の遅延読み込みも two_face 3.0ms + テーマ 1.5ms で、どちらも
+    「初回だけ数秒」の説明にならない）。TESTING.md の M10〜M12 で確認する。
+
 ## [0.11.1] - 2026-09-25
 
 ### 修正
@@ -412,7 +430,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.11.1...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.11.2...HEAD
+[0.11.2]: https://github.com/uchmk/filer/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/uchmk/filer/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/uchmk/filer/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/uchmk/filer/compare/v0.9.2...v0.10.0
