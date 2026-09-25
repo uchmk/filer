@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**63 / 196 checked.**
+**75 / 196 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 63 / 142
+## `[mgr]` — 75 / 142
 
 The file list: what is in front of you unless an overlay is.
 
@@ -94,7 +94,7 @@ The file list: what is in front of you unless an overlay is.
 - [ ] `<A-d>` — Compare two files side by side · `compare`
 - [ ] `;` — Run a shell command · `shell --interactive`
 - [ ] `:` — Run a shell command (block until finished) · `shell --interactive --block`
-- [ ] `.` — Toggle the visibility of hidden files · `hidden`
+- [x] `.` — Toggle the visibility of hidden files · `hidden`
 - [x] `c c` — Copy the absolute path · `copy path`
 - [x] `c d` — Copy the path of the parent directory · `copy dirname`
 - [x] `c f` — Copy the name of the file · `copy filename`
@@ -102,23 +102,23 @@ The file list: what is in front of you unless an overlay is.
 
 ### Find / filter / search
 
-- [ ] `/` — Find next file · `find --smart`
-- [ ] `?` — Find previous file · `find --previous --smart`
+- [x] `/` — Find next file · `find --smart`
+- [x] `?` — Find previous file · `find --previous --smart`
 - [x] `n` — Go to the next found file · `find_arrow`
 - [x] `N` — Go to the previous found file · `find_arrow --previous`
 - [x] `f` — Filter the files · `filter --smart`
 - [x] `s` — Search files by name, recursively · `search --via=name`
 - [x] `S` — Search files by content, recursively · `search --via=content`
 - [ ] `<C-s>` — Cancel the ongoing search · `escape --search`
-- [ ] `z` — Jump to a bookmark or a recently visited directory · `jump`
-- [ ] `'` — Go to the bookmark under a letter · `plugin bookmarks jump`
-- [ ] `b b` — List the bookmarks, and go to one · `plugin bookmarks list`
-- [ ] `b s` — Bookmark this directory under a letter · `plugin bookmarks save`
-- [ ] `b d` — Delete the bookmark under a letter · `plugin bookmarks delete`
-- [ ] `b D` — Delete every bookmark · `plugin bookmarks delete_all`
-- [ ] `B` — Bookmark this directory under a letter (same as `bs`) · `plugin bookmarks save`
-- [ ] `<A-b>` — Delete the bookmark under a letter (same as `bd`) · `plugin bookmarks delete`
-- [ ] `<A-B>` — Delete every bookmark (same as `bD`) · `plugin bookmarks delete_all`
+- [x] `z` — Jump to a bookmark or a recently visited directory · `jump`
+- [x] `'` — Go to the bookmark under a letter · `plugin bookmarks jump`
+- [x] `b b` — List the bookmarks, and go to one · `plugin bookmarks list`
+- [x] `b s` — Bookmark this directory under a letter · `plugin bookmarks save`
+- [x] `b d` — Delete the bookmark under a letter · `plugin bookmarks delete`
+- [x] `b D` — Delete every bookmark · `plugin bookmarks delete_all`
+- [x] `B` — Bookmark this directory under a letter (same as `bs`) · `plugin bookmarks save`
+- [x] `<A-b>` — Delete the bookmark under a letter (same as `bd`) · `plugin bookmarks delete`
+- [x] `<A-B>` — Delete every bookmark (same as `bD`) · `plugin bookmarks delete_all`
 
 ### Sorting
 
