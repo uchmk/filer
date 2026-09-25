@@ -185,8 +185,30 @@ fn keys(v: &str) -> String {
     }
 }
 
+/// Strip the quotes and undo TOML's escapes.
+///
+/// Trimming the quotes alone is not enough: a `desc` containing a Windows path
+/// separator is written `\\` in the file and would reach the checklist with
+/// both backslashes still on it.
 fn unquote(v: &str) -> String {
-    v.trim().trim_matches('"').to_owned()
+    let inner = v.trim().trim_matches('"');
+    let mut out = String::with_capacity(inner.len());
+    let mut chars = inner.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match chars.next() {
+            Some('n') => out.push('\n'),
+            Some('t') => out.push('\t'),
+            // `\\` and `\"` stand for themselves; anything else is left as it
+            // was rather than guessed at.
+            Some(other) => out.push(other),
+            None => out.push('\\'),
+        }
+    }
+    out
 }
 
 /// What the layer is, in one line, since "why is `j` listed nine times" is the

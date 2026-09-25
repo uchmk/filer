@@ -292,6 +292,27 @@ pub fn set_clipboard(text: &str) -> Result<(), String> {
     cb.set_text(text.to_owned()).map_err(|e| e.to_string())
 }
 
+/// What is on the clipboard, as text.
+///
+/// egui hands over clipboard contents only when the platform sends a paste
+/// event, which it does for `<C-v>` and for nothing else — a right-click is not
+/// one, so a mouse paste has to read the clipboard itself.
+///
+/// An empty clipboard, or one holding an image rather than text, is `Ok("")`
+/// rather than an error: there is nothing to paste, but nothing went wrong
+/// either, and a caller that reported it would complain every time a paste was
+/// tried on a fresh login. An `Err` is a clipboard that could not be opened at
+/// all — another program holding it, mostly — which is worth saying out loud,
+/// because the paste silently did nothing.
+pub fn get_clipboard() -> Result<String, String> {
+    let mut cb = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    match cb.get_text() {
+        Ok(text) => Ok(text),
+        Err(arboard::Error::ContentNotAvailable) => Ok(String::new()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -377,5 +398,51 @@ mod tests {
         assert!(!template_is_valid("-l {line}"));
         assert!(!template_is_valid("{path} {path}"));
         assert!(!template_is_valid(""));
+    }
+}
+
+#[cfg(test)]
+mod hint_is_true {
+    use super::substitute;
+    use std::path::PathBuf;
+
+    /// The shell prompt's hint claims four things. Each is checked here rather
+    /// than trusted, because a hint that describes syntax the substituter has
+    /// stopped honouring is worse than no hint: it is believed, and the command
+    /// runs on the wrong thing.
+    #[test]
+    fn the_prompt_honours_everything_it_advertises() {
+        let paths = vec![PathBuf::from("/one.txt"), PathBuf::from("/two.txt")];
+
+        // `$@` — all of them.
+        let all = substitute("cmd $@", &paths);
+        assert!(all.contains("one.txt") && all.contains("two.txt"), "{all}");
+
+        // `$0` — the first, and only the first.
+        let first = substitute("cmd $0", &paths);
+        assert!(first.contains("one.txt"), "{first}");
+        assert!(!first.contains("two.txt"), "$0 took more than the first: {first}");
+
+        // `$1` — the second.
+        let second = substitute("cmd $1", &paths);
+        assert!(second.contains("two.txt"), "{second}");
+        assert!(!second.contains("one.txt"), "$1 took more than the second: {second}");
+
+        // No placeholder — appended.
+        let bare = substitute("cmd", &paths);
+        assert!(
+            bare.contains("one.txt") && bare.contains("two.txt"),
+            "a command with no placeholder must still get the files: {bare}",
+        );
+    }
+
+    /// The hint shows no quoting, because the quoting is done for you. A name
+    /// with a space in it is the case that would otherwise split into two
+    /// arguments and act on something else entirely.
+    #[test]
+    fn a_name_with_a_space_stays_one_argument() {
+        let paths = vec![PathBuf::from("/a file.txt")];
+        let out = substitute("cmd $@", &paths);
+        assert!(out.contains("\"/a file.txt\""), "not quoted: {out}");
     }
 }

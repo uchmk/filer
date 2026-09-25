@@ -3631,7 +3631,16 @@ impl App {
             return;
         };
         let Some(cwd) = term.shell_cwd.clone() else {
-            self.error("The shell has not said where it is (it sends no OSC 7)");
+            // Naming the obstacle alone leaves nowhere to go: "OSC 7" is
+            // hard to search for, and most of what comes back overrides
+            // `prompt`, which breaks Starship and the other generators people
+            // actually run. The hook that does not is named here; the line to
+            // paste is in the README, because a toast does not wrap and a
+            // PowerShell one-liner is wider than any window.
+            self.error(
+                "The shell has not said where it is (no OSC 7). PowerShell: set \
+                 LocationChangedAction in $PROFILE — the line is in the README",
+            );
             return;
         };
         if cwd == self.tabs[self.active].cwd {

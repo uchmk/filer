@@ -29,6 +29,16 @@ pub enum Part {
     Num(usize),
 }
 
+/// Every form the prompt's legend advertises, for a test to hold it to.
+///
+/// The legend is drawn next to the prompt and is the only place the syntax is
+/// stated where it is being typed. A line that promises `{n:3}` after the
+/// parser stopped taking it would be worse than no legend at all, so the two
+/// are tied together here rather than by remembering.
+#[cfg(test)]
+pub const LEGEND_EXAMPLES: &[&str] =
+    &["{name}{ext}", "{n}", "shot-{n:3}{ext}", "s/a/b/", "s/a/b/g", "s/a/b/i"];
+
 /// Read the prompt. Text starting with `s/` is a substitution, as in sed and
 /// vim; anything else is a template, so the common case — typing a new name
 /// with `{n}` in it — needs no punctuation.
@@ -406,5 +416,21 @@ mod tests {
             );
         }
         assert_eq!(steps.iter().filter(|s| matches!(s, Step::Park(_))).count(), 1);
+    }
+}
+
+#[cfg(test)]
+mod legend_is_true {
+    /// Every form the legend shows has to parse. If a placeholder is renamed
+    /// or a flag dropped, this fails rather than leaving the prompt advertising
+    /// syntax that no longer works.
+    #[test]
+    fn the_prompt_accepts_everything_it_advertises() {
+        for ex in super::LEGEND_EXAMPLES {
+            assert!(
+                super::parse_rule(ex).is_ok(),
+                "the legend offers `{ex}`, which the parser refuses",
+            );
+        }
     }
 }

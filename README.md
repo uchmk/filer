@@ -637,6 +637,61 @@ menu, drag onto the other pane to copy there, wheel to scroll. `Shift`+click sel
 `Ctrl`+click (`Cmd` on macOS) adds or removes one row. Both share the selection with `<Space>`
 and visual mode, so you can start a range with the mouse and finish it with the keyboard.
 
+In a prompt — `cd`, `s`, `f`, rename, `;` / `:`, the command palette — **right-click pastes**, the
+way a terminal does, and `<C-v>` does the same from the keyboard. The text lands where you clicked,
+replacing whatever was selected; line breaks become spaces, since the prompt is one line. A path
+copied out of Explorer's address bar therefore takes one click to get into `cd`, with no hand
+leaving the mouse.
+
+## Running a command on the selection
+
+`;` runs a shell command and returns at once; `:` waits for it and gives it a console to write to.
+Both hand the command what is selected, which is the point of them, so the prompt says so while you
+type:
+
+```
+$@ all · $0 first · $1 second · no placeholder → appended    (3 files, returns at once)
+```
+
+| In the command | What it becomes |
+| --- | --- |
+| `$@`, `%*`, `%s` | every selected path |
+| `$0`, `%1` | the first |
+| `$1`, `%2` | the second |
+| *(nothing)* | the paths are appended to the end |
+
+Paths are quoted for you, so a name with a space in it stays one argument.
+
+```
+;  git add                          adds everything selected
+;  magick mogrify -resize 50% $@    shrinks the selected images
+:  pdftk $@ cat output merged.pdf   and waits, so you can read what it said
+```
+
+`cd` in there changes nothing here, and cannot: the command runs in a child process that ends with
+it. For a shell whose directory sticks, open the terminal pane with `<C-t>` — that one lives as long
+as you leave it open, and `<A-t>` sends it the hovered file's name.
+
+### Bringing the terminal's directory back
+
+`<A-Up>` in the terminal pane moves the list to wherever the shell now is. It does not guess: the
+shell has to announce itself with **OSC 7**, and filer only believes what it is told. Without it
+`<A-Up>` says so and does nothing.
+
+PowerShell sends nothing by default. Most recipes for it replace `prompt`, which breaks Starship and
+every other prompt generator; this hook runs on each `cd` instead and leaves the prompt alone. Put
+it in `$PROFILE`:
+
+```powershell
+$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
+    $p = $PWD.ProviderPath -replace '\\', '/'
+    [Console]::Write("$([char]27)]7;file:///$p$([char]27)\")
+}
+```
+
+Then `<C-t>`, `cd` somewhere, `<A-Up>`. Paths with spaces or non-ASCII characters work as they are —
+percent-escapes are undone on the way in, so escaping them first is optional rather than required.
+
 ## Shell integration
 
 `--cwd-file FILE` writes the final directory on exit, `--chooser-file FILE` writes the selection —

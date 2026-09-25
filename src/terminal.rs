@@ -870,3 +870,65 @@ mod tests {
         assert_eq!(quote(""), "''");
     }
 }
+
+#[cfg(test)]
+mod readme_snippet {
+    use super::scan_osc7;
+    use std::path::{Path, PathBuf};
+
+    /// The path the parser should arrive at, written the way the shell writes
+    /// it — with forward slashes and no drive-letter slash.
+    ///
+    /// Not a Windows literal such as `r"C:\dev\filer"`: on Linux a backslash is
+    /// an ordinary character, so that literal is one long component and the
+    /// comparison fails on the machine the tests are usually run on. Putting
+    /// the expected value through the same `normalize` the parser ends with
+    /// keeps these tests about what they are about — the OSC framing and the
+    /// escaping — and leaves separator spelling to `util::normalize`'s own
+    /// tests.
+    fn as_the_shell_names_it(path: &str) -> PathBuf {
+        crate::util::normalize(Path::new(path))
+    }
+
+    /// Exactly what the PowerShell hook in the README emits, byte for byte.
+    ///
+    /// `[Console]::Write("$([char]27)]7;file:///$p$([char]27)\")` with `$p` a
+    /// Windows path whose backslashes have been turned into forward ones. If
+    /// this stops parsing, the README is telling people to paste something that
+    /// does not work — and they will conclude the feature is broken rather than
+    /// the instructions.
+    fn as_powershell_writes_it(drive_path: &str) -> Vec<u8> {
+        format!("\x1b]7;file:///{drive_path}\x1b\\").into_bytes()
+    }
+
+    #[test]
+    fn the_readme_hook_is_understood() {
+        let mut carry = Vec::new();
+        assert_eq!(
+            scan_osc7(&mut carry, &as_powershell_writes_it("C:/dev/filer")),
+            vec![as_the_shell_names_it("C:/dev/filer")],
+        );
+    }
+
+    /// The README says spaces and non-ASCII need no escaping. That is a promise
+    /// about this parser, so it is checked here.
+    #[test]
+    fn spaces_and_japanese_need_no_escaping() {
+        let mut carry = Vec::new();
+        assert_eq!(
+            scan_osc7(&mut carry, &as_powershell_writes_it("C:/my docs/報告書")),
+            vec![as_the_shell_names_it("C:/my docs/報告書")],
+        );
+    }
+
+    /// And escaped anyway, since the README calls that optional rather than
+    /// wrong.
+    #[test]
+    fn percent_escaped_is_accepted_too() {
+        let mut carry = Vec::new();
+        assert_eq!(
+            scan_osc7(&mut carry, &as_powershell_writes_it("C:/my%20docs")),
+            vec![as_the_shell_names_it("C:/my docs")],
+        );
+    }
+}
