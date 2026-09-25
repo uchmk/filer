@@ -9,6 +9,32 @@
 
 ## [未リリース]
 
+## [0.9.0] - 2026-09-25
+
+### 追加
+
+- **`--version` / `-V`。** 不具合報告には版が要るが、問い合わせる手段が無かった
+  （未知のフラグは黙って無視されていた）。リリース資産のファイル名は版を持っているが、
+  ダウンロードしたものは改名できるので、バイナリ自身が答えられる必要がある。
+  `-v` は慣習的に verbosity なので `-V` を使う。`--help` にも OPTIONS 節を足した。
+- **`@claude` で不具合報告から Claude が動く**（`.github/workflows/claude.yml`）。
+  Issue のタイトルか本文に `@claude` と書けば起動する。**公式サンプルはコメントにしか
+  反応しないため、`issues: [opened]` を足した** — 報告そのものを起点にしたいため。
+  PR のコメントとレビューにも反応する。
+  - `if` はイベントごとに書き分けている。`issue_comment` では `github.event.issue` が
+    親 Issue を指すので、素朴に `issue.body` を見ると**最初の報告が以後すべての
+    コメントで再発火する**。1 回の `@claude` が恒久的な購読になってしまうのを防ぐため。
+  - Linux ランナーで動かす。Windows 専用コードは型検査だけ通り、実行はされない
+    （それは push 後の `ci.yml` の仕事）。Windows ランナーは分数を 2 倍消費するため。
+  - 30 分の上限と Issue / PR 単位の `concurrency` を付けた。private リポジトリでは
+    Actions の分数がアカウントの枠を食うため。
+  - 動かすにはリポジトリ側に Claude GitHub App と
+    `CLAUDE_CODE_OAUTH_TOKEN` シークレットが必要。
+
+### 変更
+
+- README に「Reporting a bug」節。報告先と、`@claude` が何をするか・何をしないかを書いた。
+
 ## [0.8.0] - 2026-09-24
 
 ### 追加
@@ -267,7 +293,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.8.0...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/uchmk/filer/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/uchmk/filer/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/uchmk/filer/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/uchmk/filer/compare/v0.6.0...v0.7.0

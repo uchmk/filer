@@ -764,6 +764,26 @@ magick, ffmpeg or pdftoppm. CI builds and tests on `windows-latest`, which is th
 code is written against; the handful of tests that assert Windows path and editor behavior only
 pass there.
 
+## Reporting a bug
+
+Open an issue: <https://github.com/uchmk/filer/issues>. What helps most is the version
+(`filer --version`), your Windows build, and the smallest sequence of keys that shows the problem —
+this is a keyboard-driven program, so the keys usually *are* the reproduction. If it involves a
+particular file or folder, say what kind: a 3000-line source file and a 40-character filename break
+different code paths.
+
+Writing `@claude` anywhere in the issue — the title or the body — hands it to Claude, which will
+look at the report, work in the repository, and answer on the issue. `.github/workflows/claude.yml`
+is what does that, and mentioning it again in a later comment brings it back. Leave the mention out
+and nothing automated happens, which is the right choice for a report you want a person to read
+first.
+
+Two limits worth knowing. Claude only answers someone with write access to the repository, so a
+mention from a reader who has none does nothing. And it runs on a Linux runner, where the
+Windows-only code compiles but does not run: it can type-check against
+`x86_64-pc-windows-msvc` and reason about the code, but the tests that assert Windows path and
+editor behavior are `ci.yml`'s job on the push that follows.
+
 ## License
 
 Dual-licensed under either of

@@ -1,0 +1,83 @@
+name: Claude
+
+# Claude answers when it is addressed by name.
+#
+# The point of this file is bug reports: opening an issue that says `@claude`
+# should be enough to get it looking, without anyone having to start a session
+# by hand. The action's own example only listens to comments, which means a
+# fresh issue -- the most natural place to report something -- would sit there
+# doing nothing until someone commented on it. `issues: [opened]` is what makes
+# the report itself the trigger.
+#
+# Runs on Ubuntu rather than Windows even though this is a Windows-first
+# project: a Linux runner costs a tenth of what the same minutes cost on
+# Windows, and CLAUDE.md already documents how to type-check the Windows-only
+# code from Linux (`cargo check --target x86_64-pc-windows-msvc`). Anything that
+# has to actually run on Windows is what ci.yml is for, and it will run on the
+# push.
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened]
+
+jobs:
+  claude:
+    # Each event keeps the mention in a different place, and the check has to be
+    # written per event rather than as one flat list of `contains`. On an
+    # `issue_comment`, `github.event.issue` is the issue the comment is on -- so
+    # a plain `contains(github.event.issue.body, ...)` would match the report
+    # that first summoned Claude and then fire again on every later comment in
+    # the thread, mention or not. Scoping each field to its own event is what
+    # keeps a single `@claude` from becoming a standing subscription.
+    if: |
+      (
+        (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment')
+        && contains(github.event.comment.body, '@claude')
+      ) || (
+        github.event_name == 'pull_request_review'
+        && contains(github.event.review.body, '@claude')
+      ) || (
+        github.event_name == 'issues'
+        && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))
+      )
+
+    runs-on: ubuntu-latest
+
+    # A runaway job on a private repository spends the account's Actions
+    # allowance, so it gets a ceiling. Generous enough for a real fix with tests.
+    timeout-minutes: 30
+
+    # One Claude per issue or PR. A second mention while the first is still
+    # working queues behind it instead of running a rival copy against the same
+    # branch.
+    concurrency:
+      group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
+
+    permissions:
+      contents: write       # commit and push fixes
+      issues: write         # reply on the issue
+      pull-requests: write  # open PRs, reply on reviews
+      id-token: write       # the action's default GitHub App authentication
+      actions: read         # read CI results, so it can see why a check failed
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          # A subscription token rather than an API key: it bills against the
+          # plan this project is already developed with instead of opening a
+          # second, metered account. Generate it with `claude setup-token`.
+          #
+          # To use a Claude API key instead, swap this line for
+          #   anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # and store that secret instead.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

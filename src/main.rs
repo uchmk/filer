@@ -42,9 +42,19 @@ fn parse_cli() -> Cli {
                 println!(
                     "filer — a yazi-flavored file manager\n\n\
                      USAGE:\n    filer [PATH] [--cwd-file FILE] [--chooser-file FILE]\n\n\
+                     OPTIONS:\n    -h, --help       this text\n    \
+                     -V, --version    the version\n\n\
                      Config is read from yazi's config directory, then from filer's own.\n\
                      Press ~ or F1 inside the app for the key list."
                 );
+                std::process::exit(0);
+            }
+            // A bug report needs to name a version, and a downloaded binary can
+            // be renamed away from the one in the release asset's filename, so
+            // the binary has to be able to say which it is. `-V` rather than
+            // `-v`, which is conventionally verbosity.
+            "--version" | "-V" => {
+                println!("filer {}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
             }
             other if !other.starts_with('-') => cli.path = Some(PathBuf::from(other)),
