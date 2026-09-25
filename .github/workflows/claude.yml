@@ -81,12 +81,3 @@ jobs:
           #   anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # and store that secret instead.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-          # TEMPORARY, for diagnosing the first failure. The action hides the
-          # SDK's output by default, which also hides the reason a run failed --
-          # the first run here died in 1.9s having used no tokens at all, and
-          # the log said only that something went wrong. This turns the reason
-          # back on. Remove it once the cause is known: the full output can
-          # carry file contents and prompt text into the run log, which anyone
-          # with read access to the repository can see.
-          show_full_output: true
