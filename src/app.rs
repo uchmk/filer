@@ -418,6 +418,10 @@ pub struct PreviewSlot {
     pub cache: Lru<preview::Key, CachedPreview>,
     /// Size of the preview pane in pixels, used when decoding images.
     pub box_size: (u32, u32),
+    /// The largest `preview_offset` the pane can usefully show, as the last
+    /// draw worked it out. `seek` stops here, so a scroll past the end never
+    /// becomes a frame drawn from beyond the content.
+    pub max_offset: usize,
     /// Text columns across the pane, which rendered Markdown wraps to.
     pub cols: u16,
     /// The outline entry under the cursor while the keys drive the preview's
@@ -500,6 +504,7 @@ impl Default for PreviewSlot {
             pending_since: None,
             cache: Lru::new(24),
             box_size: (900, 900),
+            max_offset: 0,
             cols: 80,
             outline: None,
             outline_wanted: None,
@@ -1358,6 +1363,7 @@ impl App {
             self.preview.key = Some(key);
             self.preview.texture = hit.texture;
             self.preview.state = PreviewState::Ready(hit.payload);
+            self.preview.max_offset = 0;
             self.grant_outline_wish();
             return;
         }
@@ -1431,6 +1437,7 @@ impl App {
         // the cache ever since. The block reads `state` expecting it to be the
         // payload that just arrived, so it was dead too.
         self.preview.state = PreviewState::Ready(res.payload);
+        self.preview.max_offset = 0;
         if let PreviewState::Ready(Payload::Image { source, .. }) = &self.preview.state {
             // A seed until the pane draws and says exactly: the box is twice the
             // pane in pixels, so half of it is roughly the points available.
@@ -1975,8 +1982,14 @@ impl App {
                     Step::Top => i64::MIN / 2,
                     Step::Bot => i64::MAX / 2,
                 };
+                // Clamped here rather than only after the draw. The draw used
+                // to be handed an offset past the end, paint a frame from
+                // beyond the content, and fix the number afterwards — one bad
+                // frame per keypress at the bottom of a file, which is why it
+                // took a held-down key to see.
                 let cur = self.tabs[self.active].preview_offset as i64;
-                self.tabs[self.active].preview_offset = cur.saturating_add(delta).max(0) as usize;
+                let want = cur.saturating_add(delta).max(0) as usize;
+                self.tabs[self.active].preview_offset = want.min(self.preview.max_offset);
             }
 
             Act::TabCreate { current, path } => self.create_tab(current, path),
@@ -4577,5 +4590,72 @@ mod preview_delivery {
             matches!(app.preview.state, PreviewState::Loading),
             "a reply for another file must not be shown",
         );
+    }
+}
+
+#[cfg(test)]
+mod preview_scroll {
+    use super::*;
+
+    fn app() -> (App, egui::Context) {
+        let ctx = egui::Context::default();
+        let app = App::new(Config::load(), std::env::temp_dir(), ctx.clone());
+        (app, ctx)
+    }
+
+    /// `<A-j>` at the bottom of a file used to push `preview_offset` past the
+    /// end, and the pane was drawn from there before anything corrected it —
+    /// one wrong frame per press, which is why it took a held-down key to
+    /// catch.
+    #[test]
+    fn scrolling_down_stops_at_the_end() {
+        let (mut a, _c) = app();
+        a.preview.max_offset = 40;
+        a.tabs[a.active].preview_offset = 38;
+
+        for _ in 0..20 {
+            a.act(Act::Seek(Step::Rel(5)));
+        }
+
+        assert_eq!(
+            a.tabs[a.active].preview_offset, 40,
+            "twenty presses at the bottom must leave the offset on the last line",
+        );
+    }
+
+    /// And the other end, which was already right: one press back from the
+    /// bottom has to move, or the ceiling has turned into a trap.
+    #[test]
+    fn scrolling_back_up_is_immediate() {
+        let (mut a, _c) = app();
+        a.preview.max_offset = 40;
+        a.tabs[a.active].preview_offset = 40;
+
+        a.act(Act::Seek(Step::Rel(-5)));
+
+        assert_eq!(
+            a.tabs[a.active].preview_offset, 35,
+            "leaving the bottom must take one press, not as many as were spent overshooting",
+        );
+    }
+
+    #[test]
+    fn scrolling_up_stops_at_the_top() {
+        let (mut a, _c) = app();
+        a.preview.max_offset = 40;
+        a.tabs[a.active].preview_offset = 3;
+        for _ in 0..10 {
+            a.act(Act::Seek(Step::Rel(-5)));
+        }
+        assert_eq!(a.tabs[a.active].preview_offset, 0);
+    }
+
+    /// A file with nothing to scroll does not scroll.
+    #[test]
+    fn a_short_file_does_not_move() {
+        let (mut a, _c) = app();
+        a.preview.max_offset = 0;
+        a.act(Act::Seek(Step::Rel(5)));
+        assert_eq!(a.tabs[a.active].preview_offset, 0);
     }
 }

@@ -340,7 +340,12 @@ pub(super) fn draw_preview(
                 linemode: "",
             };
             let mut p = clone_view(folder);
-            p.offset = app.tabs[app.active].preview_offset.min(p.view.len().saturating_sub(1));
+            // A directory preview scrolls with the same `preview_offset`, so it
+            // owes `seek` the same ceiling. Without it, `max_offset` would keep
+            // whatever the last file left behind and `<A-j>` would run off the
+            // end of a short listing.
+            let dir_max = p.view.len().saturating_sub(1);
+            p.offset = app.tabs[app.active].preview_offset.min(dir_max);
             // Nothing is hovered in a preview, so park the cursor off-list.
             p.cursor = usize::MAX;
             list::draw(ui, rect.shrink(2.0), &p, &st, &|_| list::RowFlags {
@@ -348,6 +353,10 @@ pub(super) fn draw_preview(
                 yanked: None,
                 git: git::State::Clean,
             }, false);
+            app.preview.max_offset = dir_max;
+            if app.tabs[app.active].preview_offset > dir_max {
+                app.tabs[app.active].preview_offset = dir_max;
+            }
         }
         other => {
             // Rendered Markdown is laid out in the worker on a grid of
@@ -384,9 +393,14 @@ pub(super) fn draw_preview(
                     app.preview.outline = Some(k);
                 }
             }
+            // What `seek` clamps against next time. The correction below stays
+            // as well: the content can shrink under a stationary offset — a
+            // narrower window re-wraps Markdown to more lines, a rescan brings
+            // a shorter file — and nothing has asked to scroll when it does.
             let lines = drawn.lines;
             let rows = ((rect.height() / row_h).floor() as usize).max(1);
             let max = lines.saturating_sub(rows / 2);
+            app.preview.max_offset = max;
             if app.tabs[app.active].preview_offset > max {
                 app.tabs[app.active].preview_offset = max;
             }
