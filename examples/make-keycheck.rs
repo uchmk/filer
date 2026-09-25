@@ -107,6 +107,17 @@ fn main() {
     while out.contains("\n\n\n") {
         out = out.replace("\n\n\n", "\n\n");
     }
+    // A row with no key on it is the parser having lost one, not the keymap
+    // having a nameless binding — and it reads as an ordinary checklist line,
+    // so nothing about the file says anything went wrong. Refuse to write it.
+    for b in &bindings {
+        assert!(
+            !b.on.trim().is_empty(),
+            "`{}` in layer `{}` came out with no key: the `on = ` parse dropped it",
+            b.run,
+            b.layer,
+        );
+    }
     std::fs::write(OUT, out).expect("write the checklist");
     println!("{OUT}: {ticked} / {} checked", bindings.len());
 }
@@ -184,13 +195,42 @@ fn parse(text: &str) -> Vec<Binding> {
 }
 
 /// `"k"` or `[ "g", "c" ]` — a chord is written the way it is pressed.
+///
+/// The split has to honour the quotes. `[ ",", "b" ]` is the sort prefix and
+/// then `b`, and cutting the array text at every comma slices that first
+/// element in half: the two halves unquote to nothing, and the chord comes out
+/// as two spaces with a key after them. That is how eleven sorting keys came
+/// to be listed with no key on them at all.
 fn keys(v: &str) -> String {
     let v = v.trim();
-    if let Some(inner) = v.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
-        inner.split(',').map(unquote).collect::<Vec<_>>().join(" ")
-    } else {
-        unquote(v)
+    let Some(inner) = v.strip_prefix('[').and_then(|s| s.strip_suffix(']')) else {
+        return unquote(v);
+    };
+    let mut parts: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    let mut quoted = false;
+    let mut escaped = false;
+    for c in inner.chars() {
+        match c {
+            _ if escaped => {
+                cur.push(c);
+                escaped = false;
+            }
+            '\\' if quoted => {
+                cur.push(c);
+                escaped = true;
+            }
+            '"' => {
+                cur.push(c);
+                quoted = !quoted;
+            }
+            ',' if !quoted => parts.push(std::mem::take(&mut cur)),
+            _ => cur.push(c),
+        }
     }
+    parts.push(cur);
+    // A trailing comma leaves an empty tail; a key itself is never blank.
+    parts.iter().filter(|p| !p.trim().is_empty()).map(|p| unquote(p)).collect::<Vec<_>>().join(" ")
 }
 
 /// Strip the quotes and undo TOML's escapes.

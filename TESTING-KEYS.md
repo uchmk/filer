@@ -122,19 +122,19 @@ The file list: what is in front of you unless an overlay is.
 
 ### Sorting
 
-- [ ] `  m` — Sort by modified time (newest first) · `sort mtime --reverse`
-- [ ] `  M` — Sort by modified time (oldest first) · `sort mtime --no-reverse`
-- [ ] `  b` — Sort by created time (newest first) · `sort btime --reverse`
-- [ ] `  B` — Sort by created time (oldest first) · `sort btime --no-reverse`
-- [ ] `  e` — Sort by extension · `sort extension --no-reverse`
-- [ ] `  E` — Sort by extension (reverse) · `sort extension --reverse`
-- [ ] `  a` — Sort alphabetically · `sort alphabetical --no-reverse`
-- [ ] `  A` — Sort alphabetically (reverse) · `sort alphabetical --reverse`
-- [ ] `  n` — Sort naturally · `sort natural --no-reverse`
-- [ ] `  N` — Sort naturally (reverse) · `sort natural --reverse`
-- [ ] `  s` — Sort by size (largest first) · `sort size --reverse`
-- [ ] `  S` — Sort by size (smallest first) · `sort size --no-reverse`
-- [ ] `  r` — Sort randomly · `sort random --no-reverse`
+- [ ] `, m` — Sort by modified time (newest first) · `sort mtime --reverse`
+- [ ] `, M` — Sort by modified time (oldest first) · `sort mtime --no-reverse`
+- [ ] `, b` — Sort by created time (newest first) · `sort btime --reverse`
+- [ ] `, B` — Sort by created time (oldest first) · `sort btime --no-reverse`
+- [ ] `, e` — Sort by extension · `sort extension --no-reverse`
+- [ ] `, E` — Sort by extension (reverse) · `sort extension --reverse`
+- [ ] `, a` — Sort alphabetically · `sort alphabetical --no-reverse`
+- [ ] `, A` — Sort alphabetically (reverse) · `sort alphabetical --reverse`
+- [ ] `, n` — Sort naturally · `sort natural --no-reverse`
+- [ ] `, N` — Sort naturally (reverse) · `sort natural --reverse`
+- [ ] `, s` — Sort by size (largest first) · `sort size --reverse`
+- [ ] `, S` — Sort by size (smallest first) · `sort size --no-reverse`
+- [ ] `, r` — Sort randomly · `sort random --no-reverse`
 
 ### Line mode
 
