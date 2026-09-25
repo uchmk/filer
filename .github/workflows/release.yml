@@ -1,11 +1,19 @@
 name: Release
 
-# A `filer.exe` anyone can download without a GitHub account.
+# A `filer.exe` that keeps its name and does not expire.
 #
-# `build.yml` already produces one on every push, but an Actions artifact needs
-# a signed-in user with access to the repository and expires after 90 days, so
-# it cannot be handed to someone who is only being asked to try the thing. A
-# release asset is a plain URL that outlives the run.
+# `build.yml` already produces one on every push, but an Actions artifact is
+# named after a commit and is deleted after 90 days, so a link to it stops
+# working and never said which version it held. A release asset is named for
+# the tag and stays.
+#
+# What it does not yet do is let someone without a GitHub account download it.
+# While this repository is private, the asset URL answers 404 to anyone not
+# signed in with access to the repo -- the same audience an Actions artifact
+# reaches. That is a property of the repository, not of this workflow: the day
+# the repository goes public, these links start working for everyone, with no
+# change here. Until then, "send someone the link" means someone who already
+# has access.
 
 on:
   push:

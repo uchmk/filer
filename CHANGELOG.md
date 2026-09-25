@@ -9,6 +9,17 @@
 
 ## [未リリース]
 
+## [0.9.2] - 2026-09-25
+
+### 変更
+
+- `release.yml` 冒頭のコメントを実態に合わせた。「GitHub アカウント無しで誰でも
+  ダウンロードできる」と書いてあったが、**リポジトリが private の間はそうならない** ——
+  資産の URL はサインインしていない相手には 404 を返し、届く範囲は Actions の
+  アーティファクトと変わらない。リリース資産が今もたらしている利点は、**90 日で
+  消えないことと、commit ではなく版で名前が付くこと**の 2 つ。public にした日から
+  この workflow を変えずにリンクが誰にでも開くようになる、という関係も書いた。
+
 ## [0.9.1] - 2026-09-25
 
 ### 追加
@@ -317,7 +328,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.9.1...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/uchmk/filer/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/uchmk/filer/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/uchmk/filer/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/uchmk/filer/compare/v0.7.1...v0.8.0
