@@ -9,6 +9,30 @@
 
 ## [未リリース]
 
+## [0.9.1] - 2026-09-25
+
+### 追加
+
+- **不具合報告のテンプレート**（`.github/ISSUE_TEMPLATE/bug_report.yml`）。
+  最初の往復で必ず聞くことになるものを先に埋めてもらう。必須は 4 つ
+  ——何が起きたか、**再現するキー操作**、filer の版、OS。
+  - キー操作を必須にしたのは、キーボードで動かすプログラムでは
+    **押したキーの並びがそのまま再現手順**になるため。
+  - バックトレースの欄には `RUST_BACKTRACE=1` の手順を書いた。
+    **PowerShell の呼び出し演算子 `&` が要ることも明記した** —— 引用符で囲んだパスを
+    そのまま書くと文字列として表示されるだけで起動せず、実際にこれで
+    「起動しない」と誤認した。
+  - 版の欄には、**v0.9.0 より前に `--version` が無い**ことを断ってある。
+  - `@claude` は**テンプレートに入れていない**。チェックボックスの label は
+    未チェックでも本文に出てしまうため、入れると全 Issue が Claude を起動する。
+    書くかどうかは報告者が決める。
+- `blank_issues_enabled: true` を明示（`config.yml`）。この tracker は不具合以外
+  （#1 のようなタスク）も扱うので、全部をフォームに通すほうが害が大きい。
+
+### 変更
+
+- README の「Reporting a bug」節を、テンプレートとバックトレースの取り方に合わせた。
+
 ## [0.9.0] - 2026-09-25
 
 ### 追加
@@ -293,7 +317,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.9.0...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/uchmk/filer/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/uchmk/filer/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/uchmk/filer/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/uchmk/filer/compare/v0.7.0...v0.7.1

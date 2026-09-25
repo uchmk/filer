@@ -1,0 +1,4 @@
+# Blank issues stay on. Not every issue here is a bug report -- the tracker also
+# holds plain tasks (see #1, which is about licensing) -- and forcing those
+# through a form that asks for a backtrace would be worse than no form at all.
+blank_issues_enabled: true

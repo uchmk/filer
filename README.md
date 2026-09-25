@@ -766,11 +766,23 @@ pass there.
 
 ## Reporting a bug
 
-Open an issue: <https://github.com/uchmk/filer/issues>. What helps most is the version
+Open an issue: <https://github.com/uchmk/filer/issues>. The bug report form asks for the version
 (`filer --version`), your Windows build, and the smallest sequence of keys that shows the problem —
-this is a keyboard-driven program, so the keys usually *are* the reproduction. If it involves a
-particular file or folder, say what kind: a 3000-line source file and a 40-character filename break
-different code paths.
+this is a keyboard-driven program, so the keys usually *are* the reproduction. It also asks what
+kind of file or folder was involved, since a 3000-line source file and a 40-character filename break
+different code paths, and for a backtrace when the program crashes, which is worth more than
+everything else on the form put together:
+
+```powershell
+$env:RUST_BACKTRACE = 1
+& "C:\path\to\filer.exe"
+```
+
+The `&` is not optional. A quoted path on its own line is a string, and PowerShell prints it rather
+than running it.
+
+The form is one template among the issue types; a plain task or question can still be opened
+without it.
 
 Writing `@claude` anywhere in the issue — the title or the body — hands it to Claude, which will
 look at the report, work in the repository, and answer on the issue. `.github/workflows/claude.yml`
