@@ -343,6 +343,7 @@ ones where it says no.
 | R3 | Walk into a share and back out with `h` | Into the share, then back to the host list |
 | R4 | `h` again, at the host | Nothing moves (the host is the top), no crash |
 | R5 | A host that is off, or does not exist (`\\10.0.0.99`) | The tab returns to where it was and a toast says why — it does not hang the window |
+| R5a | R1 and R5 again, watching for a **toast** | v0.16.0 fell back to the parent in silence, so a failure looked like nothing happening. Whatever the outcome, there is now either a listing or a message; if it is still a message, its os error number is the thing to report |
 | R6 | A host that needs a login the machine has not been given | Same: a refusal as a toast, naming it |
 | R7 | A host with **many** shares (more than a screenful) | All of them, scrolling normally |
 | R8 | A share name with a space or non-ASCII in it | Intact |
@@ -365,7 +366,10 @@ instructions are wrong, which is worse than a missing feature.
 | S5 | A file whose name has a **space**, through each of the above | One argument, opens correctly |
 | S6 | Several files selected, then `<Enter>` | All of them go to one invocation |
 | S7 | A rule written `*.{xlsx,xls,csv}` | Matches all three (this is what did not work before v0.17.0) |
-| S8 | An opener naming a program that is not installed | An error toast, no hang |
+| S8 | An opener naming a program that is not installed | An error toast within a few seconds, no hang |
+| S8a | An opener whose program is a **quoted full path** (秀丸, サクラ) | It opens. This is the v0.17.0 bug: `cmd` mangled the line and the failure was silent |
+| S8b | 秀丸 and サクラ from `<S-Enter>` **and** from `<Enter>` as the first entry | Both, since they take different code paths to the same launcher |
+| S8c | An opener with a deliberate typo in the path | A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report |
 | S9 | Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ | Lands on the line |
 
 ---

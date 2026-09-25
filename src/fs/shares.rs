@@ -24,14 +24,24 @@ pub fn list(host: &Path) -> std::io::Result<Vec<Entry>> {
     use std::os::windows::ffi::OsStrExt;
     use windows::Win32::Foundation::{ERROR_MORE_DATA, ERROR_NO_MORE_ITEMS, HANDLE, NO_ERROR};
     use windows::Win32::NetworkManagement::WNet::{
-        NETRESOURCEW, RESOURCE_GLOBALNET, RESOURCETYPE_DISK, RESOURCEUSAGE_CONTAINER,
-        WNetCloseEnum, WNetEnumResourceW, WNetOpenEnumW,
+        NETRESOURCEW, RESOURCE_GLOBALNET, RESOURCETYPE_ANY, RESOURCETYPE_DISK,
+        RESOURCEUSAGE_CONTAINER, WNET_OPEN_ENUM_USAGE, WNetCloseEnum, WNetEnumResourceW,
+        WNetOpenEnumW,
     };
+
+    // `RESOURCEDISPLAYTYPE_SERVER`. Spelled out because the `windows` crate
+    // keeps it under `Networking::WinSock`, a whole feature to enable for one
+    // number, and the field it goes in is a bare `u32` anyway.
+    const DISPLAY_SERVER: u32 = 2;
 
     let mut name: Vec<u16> = host.as_os_str().encode_wide().chain([0]).collect();
     let ask = NETRESOURCEW {
         dwScope: RESOURCE_GLOBALNET,
-        dwType: RESOURCETYPE_DISK,
+        dwType: RESOURCETYPE_ANY,
+        // What kind of container this is. Without it the provider is left to
+        // work out from the name alone that `\\10.0.0.1` is a server, and the
+        // one that handles SMB would rather be told.
+        dwDisplayType: DISPLAY_SERVER,
         dwUsage: RESOURCEUSAGE_CONTAINER.0,
         lpRemoteName: windows::core::PWSTR(name.as_mut_ptr()),
         ..Default::default()
@@ -42,7 +52,10 @@ pub fn list(host: &Path) -> std::io::Result<Vec<Entry>> {
         WNetOpenEnumW(
             RESOURCE_GLOBALNET,
             RESOURCETYPE_DISK,
-            RESOURCEUSAGE_CONTAINER,
+            // Zero, not RESOURCEUSAGE_CONTAINER: here the flag is a filter on
+            // what comes back, and asking for containers only, of a container
+            // named outright, is the combination the SMB provider rejects.
+            WNET_OPEN_ENUM_USAGE(0),
             Some(&ask),
             &mut handle,
         )

@@ -868,6 +868,9 @@ pub struct App {
 
     pub tasks: Vec<Task>,
     pub toasts: Vec<Toast>,
+    /// Openers still young enough to fail on us; drained in
+    /// [`App::drain_channels`].
+    launches: Vec<exec::Launch>,
     pub bookmarks: Vec<Bookmark>,
     /// Where `z` can jump, in visit order (newest last). Ranked by [`frecency`]
     /// when the picker opens.
@@ -957,6 +960,7 @@ impl App {
             refont: false,
             tasks: Vec::new(),
             toasts: Vec::new(),
+            launches: Vec::new(),
             bookmarks: Vec::new(),
             history: Vec::new(),
             undos: Undos::default(),
@@ -1144,6 +1148,20 @@ impl App {
         }
         while let Ok(rep) = self.git.rx.try_recv() {
             self.git_status.put(rep.dir, Arc::new(rep.status));
+        }
+        // A launch reports at most once, and its watcher lets go of the channel
+        // when it stops caring, so a disconnected one is finished with.
+        let mut failed = Vec::new();
+        self.launches.retain(|l| match l.rx.try_recv() {
+            Ok(msg) => {
+                failed.push(msg);
+                false
+            }
+            Err(crossbeam_channel::TryRecvError::Empty) => true,
+            Err(crossbeam_channel::TryRecvError::Disconnected) => false,
+        });
+        for msg in failed {
+            self.error(msg);
         }
         self.drain_search();
         self.pump_terminal();
@@ -2974,10 +2992,8 @@ impl App {
         match openers.first() {
             Some((run, block, orphan, _)) => {
                 let line = exec::command_line(run, &paths, line, &self.cfg.line_args);
-                match exec::shell(&line, &cwd, *block, *orphan) {
-                    Ok(_) => self.toast(format!("Opened with: {line}")),
-                    Err(e) => self.error(format!("Open failed: {e}")),
-                }
+                let (block, orphan) = (*block, *orphan);
+                self.launch(&line, &cwd, block, orphan, "Open failed");
             }
             None => match exec::open_default(&entry.path) {
                 Ok(()) => {}
@@ -2990,9 +3006,19 @@ impl App {
         let paths = self.tabs[self.active].targets();
         let cwd = self.tabs[self.active].cwd.clone();
         let line = exec::substitute(run, &paths);
-        match exec::shell(&line, &cwd, block, orphan) {
-            Ok(_) => self.toast(format!("$ {line}")),
-            Err(e) => self.error(format!("Shell failed: {e}")),
+        self.launch(&line, &cwd, block, orphan, "Shell failed");
+    }
+
+    /// Run `line`, say so, and keep listening in case it falls over a moment
+    /// later — which is the usual way an opener fails, the shell having
+    /// started fine and then found nothing to run. See [`exec::Launch`].
+    fn launch(&mut self, line: &str, cwd: &Path, block: bool, orphan: bool, what: &str) {
+        match exec::shell(line, cwd, block, orphan) {
+            Ok(l) => {
+                self.toast(format!("$ {line}"));
+                self.launches.push(l);
+            }
+            Err(e) => self.error(format!("{what}: {e}")),
         }
     }
 
@@ -3923,10 +3949,7 @@ impl App {
                 let Some((run, block, orphan)) = runs.get(idx).cloned() else { return };
                 let cwd = self.tabs[self.active].cwd.clone();
                 let line = exec::command_line(&run, &paths, line, &self.cfg.line_args);
-                match exec::shell(&line, &cwd, block, orphan) {
-                    Ok(_) => self.toast(format!("$ {line}")),
-                    Err(e) => self.error(format!("Open failed: {e}")),
-                }
+                self.launch(&line, &cwd, block, orphan, "Open failed");
             }
             PickAction::Jump { paths } => {
                 if let Some(p) = paths.get(idx).cloned() {

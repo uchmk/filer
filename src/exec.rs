@@ -2,7 +2,8 @@
 //! rules.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Child, Command, Stdio};
+use std::time::{Duration, Instant};
 
 use crate::config::yazi::{Opener, YaziToml};
 use crate::fs::Entry;
@@ -224,19 +225,127 @@ pub fn at_line(run: &str, paths: &[PathBuf], line: usize, custom: &LineArgs) -> 
 }
 
 /// Run a command line through the platform shell.
-pub fn shell(cmdline: &str, cwd: &Path, block: bool, orphan: bool) -> std::io::Result<()> {
+///
+/// The returned [`Launch`] carries the failures that arrive after `spawn` has
+/// already said yes; see its docs.
+pub fn shell(cmdline: &str, cwd: &Path, block: bool, orphan: bool) -> std::io::Result<Launch> {
     let mut cmd = shell_command(cmdline);
     cmd.current_dir(cwd);
     configure(&mut cmd, block, orphan);
-    cmd.spawn()?;
-    Ok(())
+    // Only worth capturing for the launches whose console is hidden; see
+    // `Launch`.
+    let watched = !block;
+    if watched {
+        cmd.stderr(Stdio::piped());
+    }
+    let child = cmd.spawn()?;
+    Ok(if watched { Launch::watch(child, cmdline) } else { Launch::none() })
+}
+
+/// A launch that can still fail after [`shell`] has returned `Ok`.
+///
+/// `spawn` succeeding means the *shell* started, nothing more. A non-blocking
+/// opener runs with its console hidden, so a shell that cannot find the
+/// program, or chokes on the command line, writes the reason to a console
+/// nobody will ever see and exits — leaving a launch that is, from here,
+/// indistinguishable from one that worked. That is why a mis-quoted opener
+/// presents as "the key does nothing": there is no error to report because
+/// nothing reported an error. `rx` carries that news across when it arrives.
+pub struct Launch {
+    pub rx: crossbeam_channel::Receiver<String>,
+}
+
+impl Launch {
+    /// A launch with nothing to wait for — the caller can already see how it
+    /// went, because it has a console of its own.
+    fn none() -> Self {
+        let (_tx, rx) = crossbeam_channel::bounded(0);
+        Self { rx }
+    }
+
+    /// Watch `child` for long enough to catch a shell that falls over at once.
+    ///
+    /// The window is short on purpose. A shell that cannot run the line is gone
+    /// in milliseconds, whereas one that *did* start the program stays for as
+    /// long as the program lives — which for an editor is the rest of the
+    /// afternoon, and watching it costs a thread per file opened. Anything
+    /// still alive at the deadline is treated as launched, and the handle is
+    /// dropped: that closes our end of the pipe, so the program's later writes
+    /// fail harmlessly instead of blocking on a buffer nobody drains.
+    fn watch(mut child: Child, cmdline: &str) -> Self {
+        let (tx, rx) = crossbeam_channel::bounded(1);
+        let cmdline = cmdline.to_owned();
+        std::thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(3);
+            loop {
+                match child.try_wait() {
+                    Ok(Some(st)) if st.success() => return,
+                    Ok(Some(st)) => {
+                        let why = match stderr_text(&mut child) {
+                            Some(msg) => msg,
+                            None => match st.code() {
+                                Some(c) => format!("exit code {c}"),
+                                None => "killed".into(),
+                            },
+                        };
+                        let _ = tx.send(format!("Open failed: {why} — {cmdline}"));
+                        return;
+                    }
+                    Ok(None) => {}
+                    Err(_) => return,
+                }
+                if Instant::now() >= deadline {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(40));
+            }
+        });
+        Self { rx }
+    }
+}
+
+/// What the shell complained about, on one line.
+///
+/// `None` unless it is text we can read: a console on a non-English Windows
+/// answers in its own code page, not UTF-8, and a toast of mojibake tells the
+/// reader less than the exit code does.
+fn stderr_text(child: &mut Child) -> Option<String> {
+    use std::io::Read;
+    let mut buf = Vec::new();
+    // Bounded: this goes into a toast, and a program that failed while
+    // producing megabytes is not going to be explained by all of them.
+    child.stderr.take()?.take(4096).read_to_end(&mut buf).ok()?;
+    let text = String::from_utf8(buf).ok()?;
+    let line = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    (!line.is_empty()).then_some(line)
+}
+
+/// The single argument `cmd /S /C` is handed.
+///
+/// `cmd` does not take the rest of its command line verbatim. Without `/S` it
+/// keeps the quotes only when the line holds *exactly two* of them; otherwise
+/// it strips the first quote and the last one and runs what is left. An opener
+/// whose program is quoted because its path has a space —
+/// `"C:\Program Files (x86)\sakura\sakura.exe" "C:\dev\x.toml"` — has four, so
+/// it is mangled into `C:\Program Files (x86)\sakura\sakura.exe" "C:\dev\x.toml`
+/// and dies on the space (or, with `(x86)` now outside the quotes, on the
+/// parentheses, which `cmd` reads as grouping). `/S` replaces that guesswork
+/// with one rule — strip the leading and trailing quote, take the rest as is —
+/// so wrapping the line in a pair of our own delivers it intact.
+///
+/// Kept off `#[cfg(windows)]` so the rule stays under test on every platform:
+/// it is the kind of quoting that is only ever noticed when it breaks.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn cmd_s_c_arg(cmdline: &str) -> String {
+    format!("\"{cmdline}\"")
 }
 
 #[cfg(windows)]
 fn shell_command(cmdline: &str) -> Command {
     let mut c = Command::new("cmd");
-    // /C with the whole line keeps quoting semantics the user expects.
-    c.arg("/C").raw_arg_compat(cmdline);
+    // `/S` strips our outer pair, leaving the inner quotes for the program to
+    // see. Written raw because Rust's own quoting would escape them again.
+    c.arg("/S").arg("/C").raw_arg_compat(&cmd_s_c_arg(cmdline));
     c
 }
 
@@ -389,6 +498,21 @@ mod tests {
         assert_eq!(at("mikan").as_deref(), Some(r#"mikan -l 123 "C:\a b\x.txt""#));
         // Editors outside both the table and the config are unchanged.
         assert_eq!(at("explorer %s"), None);
+    }
+
+    /// The case that sent this looking: an opener whose program is quoted
+    /// because its path has a space in it. Under a bare `/C` the line has four
+    /// quotes, so `cmd` drops the outer two and runs
+    /// `C:\Program Files (x86)\sakura\sakura.exe" "C:\dev\x.toml` — which is
+    /// not a program, and whose `(x86)` is now bare parentheses `cmd` reads as
+    /// grouping. Nothing opens, and with the console hidden nothing says so.
+    #[test]
+    fn a_quoted_program_survives_cmd() {
+        let line = r#""C:\Program Files (x86)\sakura\sakura.exe" "C:\dev\x.toml""#;
+        let arg = cmd_s_c_arg(line);
+        // What `/S` does: drop the first character and the last, keep the rest.
+        assert!(arg.starts_with('"') && arg.ends_with('"'));
+        assert_eq!(&arg[1..arg.len() - 1], line, "the line must arrive untouched");
     }
 
     #[test]

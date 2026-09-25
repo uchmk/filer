@@ -97,7 +97,14 @@ impl Tab {
     /// pending jump is spent either way, so a second failure cannot loop.
     pub fn cd_failed(&mut self) -> CdFallout {
         let Some(p) = self.pending_cd.take() else { return CdFallout::Keep };
-        if p.fallback {
+        // The fallback reads a failure as "that was a file, not a directory",
+        // and quietly shows the parent instead — which is right for
+        // `C:\dir\file.txt`, and wrong for anything that failed for a reason
+        // worth hearing, because reverting is the only branch that says one.
+        // `\\host` is never a file: its parent is the bare root `\`, so the
+        // fallback drops the reader somewhere they did not ask for and tells
+        // them nothing about why.
+        if p.fallback && !crate::util::host_only_unc(&self.cwd) {
             if let Some(to) = self.cwd.parent().map(Path::to_path_buf) {
                 // `cd C:\dir\file.txt` means "show me that file".
                 let name = crate::util::file_name(&self.cwd);
