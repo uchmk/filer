@@ -393,6 +393,11 @@ laid side by side without being matched up, and say so.
 keys are not taken while it is up, so `j` and `k` keep walking the list and the panel follows them
 down it; `<A-j>` / `<A-k>` scroll it. `<F3>` again or `<Esc>` closes it.
 
+Worth knowing if macOS's Quick Look is what you have in your fingers: there the up and down keys
+scroll the document and left and right step between files, and here it is the other way round.
+The panel is built for flipping through a directory at full size rather than for settling into one
+file, so the keys that move fastest are the ones that change file.
+
 ## Undo
 
 `u` takes back the last thing that can be taken back, `U` does it again. Two things qualify:

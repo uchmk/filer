@@ -9,6 +9,18 @@
 
 ## [未リリース]
 
+## [0.12.5] - 2026-09-25
+
+### 変更
+
+- README の「Quick look」節に、**macOS の Quick Look とは上下左右の意味が逆**である
+  ことを明記した。本家は上下がスクロール・左右がファイル移動、filer は
+  `j`/`k` がファイル移動・`<A-j>`/`<A-k>` がスクロール。
+  **指が本家を覚えていると必ず戸惑う**ので、書いていないほうが不親切だった。
+  挙動は変えない —— このパネルは 1 つのファイルを読み込むためではなく、
+  実寸のままディレクトリを流し見るためのものなので、**一番速いキーが
+  ファイルを変える**ほうが目的に合っている。
+
 ## [0.12.4] - 2026-09-25
 
 ### 修正
@@ -588,7 +600,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.12.4...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.12.5...HEAD
+[0.12.5]: https://github.com/uchmk/filer/compare/v0.12.4...v0.12.5
 [0.12.4]: https://github.com/uchmk/filer/compare/v0.12.3...v0.12.4
 [0.12.3]: https://github.com/uchmk/filer/compare/v0.12.2...v0.12.3
 [0.12.2]: https://github.com/uchmk/filer/compare/v0.12.1...v0.12.2
