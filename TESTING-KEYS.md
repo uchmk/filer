@@ -88,7 +88,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `u` — Undo the last rename, or put the last deleted files back · `undo`
 - [x] `U` — Redo what undo took back · `redo`
 - [x] `<C-r>` — Redo what undo took back · `redo`
-- [x] `a` — Create a file (end with / for a directory) · `create`
+- [x] `a` — Create a file; end with / or \ for a directory · `create`
 - [x] `r` — Rename the file or directory · `rename`
 - [x] `R` — Rename everything selected by one rule · `bulk_rename`
 - [ ] `<A-d>` — Compare two files side by side · `compare`
