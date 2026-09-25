@@ -297,6 +297,35 @@ the unit tests alone.
 | O6 | Cursor on the last row, delete that file with `d` | Same — this is what Issue #5 reported |
 | O7 | Rename a file from outside while the cursor is on it | The cursor follows the name or stays put; no crash |
 
+## P. The terminal's directory, brought back (v0.14.0)
+
+`<A-Up>` in the terminal pane (`term_cd`) asks the shell where it is, which only
+works if the shell says so with OSC 7. PowerShell says nothing unless the hook in
+the README is in `$PROFILE`, so what is being tested here is mostly the
+instructions.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| P1 | With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` | A toast naming OSC 7 and `LocationChangedAction`, pointing at the README — **not** silence, and not a wait |
+| P2 | Paste the README hook into `$PROFILE`, open a new terminal, `cd C:\dev`, press `<A-Up>` | The file list moves to `C:\dev` |
+| P3 | Same with a directory whose name has a **space** and one with **Japanese** in it | Both arrive intact |
+| P4 | `cd` to a UNC path (`\\server\share`) and press `<A-Up>` | Either it follows or it says why; no crash |
+| P5 | Run the hook line by hand in a shell that already has Starship | The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`) |
+
+## Q. Right-click paste in a prompt (v0.14.0)
+
+| # | Do | Expect |
+| --- | --- | --- |
+| Q1 | Copy a path in Explorer's address bar, press `c`+`d` (or whatever opens the `cd` prompt), right-click the field | The path appears; `<Enter>` goes there |
+| Q2 | Type `abc`, click between `a` and `b` with the **right** button | The paste lands there, not at the end |
+| Q3 | Select part of the text with a drag, then right-click **on the selection** | The selection is replaced |
+| Q4 | Copy two lines of text, right-click into `s` | One line, the break shown as a space — the same as `<C-v>` |
+| Q5 | Copy a Japanese path, right-click into `cd` | Intact, and the caret sits after it |
+| Q6 | With an image (not text) on the clipboard, right-click a prompt | Nothing happens, **no toast** |
+| Q7 | Same in the command palette, in `f`, and in `S-r` (bulk rename) | Each pastes; the bulk preview re-renders |
+| Q8 | Right-click in the **file list** | Still the context menu — the list is unchanged |
+| Q9 | Right-click in the **terminal** pane | Unchanged from before (the terminal keeps its own mouse handling) |
+
 ---
 
 ## Known gaps in this checklist

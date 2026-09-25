@@ -292,6 +292,27 @@ pub fn set_clipboard(text: &str) -> Result<(), String> {
     cb.set_text(text.to_owned()).map_err(|e| e.to_string())
 }
 
+/// What is on the clipboard, as text.
+///
+/// egui hands over clipboard contents only when the platform sends a paste
+/// event, which it does for `<C-v>` and for nothing else — a right-click is not
+/// one, so a mouse paste has to read the clipboard itself.
+///
+/// An empty clipboard, or one holding an image rather than text, is `Ok("")`
+/// rather than an error: there is nothing to paste, but nothing went wrong
+/// either, and a caller that reported it would complain every time a paste was
+/// tried on a fresh login. An `Err` is a clipboard that could not be opened at
+/// all — another program holding it, mostly — which is worth saying out loud,
+/// because the paste silently did nothing.
+pub fn get_clipboard() -> Result<String, String> {
+    let mut cb = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    match cb.get_text() {
+        Ok(text) => Ok(text),
+        Err(arboard::Error::ContentNotAvailable) => Ok(String::new()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

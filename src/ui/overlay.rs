@@ -39,6 +39,69 @@ pub fn which(app: &App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     }
 }
 
+/// Paste the clipboard into a prompt on a right-click, the way a terminal does.
+///
+/// `<C-v>` already works: egui's `TextEdit` handles the platform's paste event.
+/// But the prompts that most want text from somewhere else — `cd`, `s`, `;` —
+/// are usually reached with a hand still on the mouse, having just copied a path
+/// out of Explorer or a browser, and egui gives a text field neither a context
+/// menu nor any way to ask for the clipboard. So both halves are done here.
+///
+/// Where it lands: egui moves the caret on a press of *any* button, the
+/// secondary one included, so the text goes where the click was. Line breaks
+/// become spaces, which is what egui itself does with a multi-line paste into a
+/// one-line field — matching `<C-v>` matters more than any other choice here,
+/// since a mouse paste that behaved differently would be a second thing to
+/// learn.
+///
+/// `Ok(false)` means there was nothing to do. `Err` is a clipboard that could
+/// not be read, which on every platform is also how an empty one reads.
+fn right_click_paste(
+    ui: &Ui,
+    resp: &egui::Response,
+    id: egui::Id,
+    text: &mut String,
+) -> Result<bool, String> {
+    if !resp.secondary_clicked() {
+        return Ok(false);
+    }
+    let add = crate::exec::get_clipboard()?.replace(['\r', '\n'], " ");
+    if add.is_empty() {
+        return Ok(false);
+    }
+    let mut state = egui::text_edit::TextEditState::load(ui.ctx(), id).unwrap_or_default();
+    let chars = text.chars().count();
+    let at = match state.cursor.char_range() {
+        Some(r) => {
+            let r = r.as_sorted_char_range();
+            usize::from(r.start).min(chars)..usize::from(r.end).min(chars)
+        }
+        // Never clicked into: the end is where typing would have gone.
+        None => chars..chars,
+    };
+    let caret = at.start + add.chars().count();
+    *text = splice(text, at, &add);
+    let one = egui::text::CCursorRange::one(egui::text::CCursor::new(caret));
+    state.cursor.set_char_range(Some(one));
+    state.store(ui.ctx(), id);
+    Ok(true)
+}
+
+/// `text` with the character range `at` replaced by `add`.
+///
+/// Characters, not bytes. egui counts the caret in characters, while `&str`
+/// indexes in bytes, and a path holding a Japanese folder name has more of the
+/// second than the first — a caret index used as a byte offset lands inside a
+/// character and panics.
+fn splice(text: &str, at: std::ops::Range<usize>, add: &str) -> String {
+    let byte = |n: usize| text.char_indices().nth(n).map_or(text.len(), |(i, _)| i);
+    let mut out = String::with_capacity(text.len() + add.len());
+    out.push_str(&text[..byte(at.start)]);
+    out.push_str(add);
+    out.push_str(&text[byte(at.end)..]);
+    out
+}
+
 pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Vec<Act>) {
     let theme_bg = app.cfg.theme.bg_alt;
     let theme_border = app.cfg.theme.border;
@@ -81,7 +144,8 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
         resp.request_focus();
         ov.focused = true;
     }
-    if resp.changed() && ov.text != before {
+    let clip = right_click_paste(ui, &resp, id, &mut ov.text);
+    if (resp.changed() || matches!(clip, Ok(true))) && ov.text != before {
         app.input_changed();
     }
     if waiting {
@@ -91,6 +155,10 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
             g,
             theme_border,
         );
+    }
+    // Said out loud because the right-click looked like it did nothing.
+    if let Err(e) = clip {
+        app.error(format!("Could not read the clipboard: {e}"));
     }
     let _ = queued;
 }
@@ -557,10 +625,11 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
     let Overlay::Pick(p) = &mut app.overlay else { return };
 
     let before = p.query.clone();
+    let pick_id = egui::Id::new("filer-pick");
     let resp = ui.put(
         field,
         egui::TextEdit::singleline(&mut p.query)
-            .id(egui::Id::new("filer-pick"))
+            .id(pick_id)
             .font(egui::FontSelection::FontId(f.clone()))
             .frame(egui::Frame::NONE)
             .hint_text("type to filter")
@@ -571,6 +640,9 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
         resp.request_focus();
         p.focused = true;
     }
+    // The clipboard is ignored here rather than reported: a chooser has no room
+    // for a toast under it, and the query is typed far more often than pasted.
+    let _ = right_click_paste(ui, &resp, pick_id, &mut p.query);
     if p.query != before {
         p.refilter();
     }
@@ -805,5 +877,32 @@ pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::splice;
+
+    /// A paste goes where the caret is, and a selection is replaced rather than
+    /// pushed aside — the same two cases every text field has.
+    #[test]
+    fn pastes_at_the_caret() {
+        assert_eq!(splice("cd ", 3..3, "D:/work"), "cd D:/work");
+        assert_eq!(splice("cd old", 3..6, "new"), "cd new");
+        assert_eq!(splice("", 0..0, "x"), "x");
+        // A caret past the end (a stored one from longer text) clamps rather
+        // than panics; the caller clamps, so this only has to not misplace it.
+        assert_eq!(splice("ab", 2..2, "c"), "abc");
+    }
+
+    /// The reason `splice` counts characters: egui's caret is a character index,
+    /// and a prompt holding a Japanese path has more bytes than characters. A
+    /// byte offset used here would land inside a character and panic.
+    #[test]
+    fn a_multibyte_prompt_is_not_cut_in_half() {
+        assert_eq!(splice("報告書", 1..1, "X"), "報X告書");
+        assert_eq!(splice("cd 報告書", 3..6, "資料"), "cd 資料");
+        assert_eq!(splice("画像", 2..2, "です"), "画像です");
     }
 }
