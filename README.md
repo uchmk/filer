@@ -642,7 +642,7 @@ function f {
 
 ## Platform Support (Roadmap)
 
-Development currently centers on Windows (x64), but the goal is cross-platform support across the
+Development currently centers on Windows, but the goal is cross-platform support across the
 major operating systems and architectures.
 
 | OS | Architectures | Notes |
@@ -650,6 +650,16 @@ major operating systems and architectures.
 | **Windows** | x64 / ARM64 / x86 | UNC paths, integration with common editors |
 | **macOS** | Apple Silicon (ARM64) / Intel (x64) | Cmd key support, Finder integration |
 | **Linux** | x64 / ARM64 | X11 / Wayland |
+
+CI builds Windows x64 and ARM64, and a release carries both. Both are cross-compiled on an x64
+runner, so the ARM64 binary is built but never executed before it ships — the tests run on x64
+only, because an x64 runner cannot execute an ARM64 binary. The two come from one source and one
+set of `#[cfg]`s, so a passing test says a good deal about both, but anything that differs by
+architecture has to be found on a real ARM64 machine.
+
+Windows on ARM will happily run the x64 build under emulation, which makes it easy to test the
+emulator by accident. `filer --version` prints the architecture it was built for, so it can say
+which one is actually running.
 
 ## Network paths (UNC)
 

@@ -9,6 +9,40 @@
 
 ## [未リリース]
 
+## [0.10.0] - 2026-09-25
+
+### 追加
+
+- **Windows ARM64 版のビルド。** `build.yml` はアーキテクチャごとに
+  アーティファクトを出し、`release.yml` は両方をリリース資産に付ける
+  （`filer-vX.Y.Z-windows-arm64.exe`）。**どちらも x64 ランナーからの
+  クロスビルド**なので、ARM64 版は出荷前に一度も実行されていない ——
+  x64 ランナーは ARM64 バイナリを実行できないため、テストは x64 のみ。
+  アーキテクチャ固有の問題は実機でしか捕まらない。
+  - Windows on ARM は x64 版をエミュレーションで動かしてしまうので、
+    **気づかずにエミュレータをテストしている**という事故が起こりうる。
+- `--version` がアーキテクチャも出すようになった（`filer 0.10.0 (x86_64)`）。
+  不具合報告で「どちらのバイナリか」を最初に確定させるため。
+
+### 修正
+
+- **`--help` と `--version` が Windows の release ビルドで何も表示しなかった。**
+  release は `windows_subsystem = "windows"` の GUI バイナリで、Windows は
+  標準出力を渡さない。`println!` は行き先を失い、**コマンドが無反応に見えていた。**
+  起動元のコンソールに `AttachConsole` して `CONOUT$` に書くようにした。
+  - debug ビルドは既にコンソールを持つので `AttachConsole` は失敗し、
+    従来どおりの経路になる。ダブルクリック起動では繋ぐ先が無いので何も出ない
+    —— 誰も求めていない出力なので、それでよい。
+  - `--help` のほうは `--version` を足す前から同じ状態だった。
+
+### 変更
+
+- 不具合報告テンプレートの OS 欄を、**OS とアーキテクチャ**を一度に出す
+  PowerShell に差し替えた。`OSArchitecture` と `ProcessArchitecture` の両方を
+  出しているのは、**ARM64 機で x64 版 PowerShell を使っていると
+  `PROCESSOR_ARCHITECTURE` が `AMD64` を返し、ARM64 機だと分からなくなる**ため。
+  食い違い自体が手がかりになる。
+
 ## [0.9.2] - 2026-09-25
 
 ### 変更
@@ -328,7 +362,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.9.2...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/uchmk/filer/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/uchmk/filer/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/uchmk/filer/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/uchmk/filer/compare/v0.8.0...v0.9.0

@@ -31,6 +31,38 @@ struct Cli {
     chooser_file: Option<PathBuf>,
 }
 
+/// Put a line where whoever typed the command is looking.
+///
+/// A release build is a GUI-subsystem binary — see the attribute at the top of
+/// this file, which is what keeps a console from flashing up behind the window.
+/// The cost is that Windows hands it no standard output, so `println!` from
+/// `--help` or `--version` writes to nothing and the command appears to do
+/// nothing at all. Attaching to the console that launched us and writing to
+/// `CONOUT$` puts the text back on the screen.
+///
+/// Every branch here is a real case. A debug build already owns a console, so
+/// `AttachConsole` refuses and the ordinary path is correct. A release build
+/// started by double-clicking has no parent console to attach to, and the text
+/// goes nowhere — which is what should happen, since nobody asked for it.
+#[cfg(windows)]
+fn say(text: &str) {
+    use std::io::Write;
+    use windows::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
+
+    if unsafe { AttachConsole(ATTACH_PARENT_PROCESS) }.is_ok() {
+        if let Ok(mut out) = std::fs::OpenOptions::new().write(true).open("CONOUT$") {
+            let _ = writeln!(out, "{text}");
+            return;
+        }
+    }
+    println!("{text}");
+}
+
+#[cfg(not(windows))]
+fn say(text: &str) {
+    println!("{text}");
+}
+
 fn parse_cli() -> Cli {
     let mut cli = Cli { path: None, cwd_file: None, chooser_file: None };
     let mut args = std::env::args().skip(1);
@@ -39,13 +71,13 @@ fn parse_cli() -> Cli {
             "--cwd-file" => cli.cwd_file = args.next().map(PathBuf::from),
             "--chooser-file" => cli.chooser_file = args.next().map(PathBuf::from),
             "--help" | "-h" => {
-                println!(
+                say(
                     "filer — a yazi-flavored file manager\n\n\
                      USAGE:\n    filer [PATH] [--cwd-file FILE] [--chooser-file FILE]\n\n\
                      OPTIONS:\n    -h, --help       this text\n    \
-                     -V, --version    the version\n\n\
+                     -V, --version    the version and the architecture\n\n\
                      Config is read from yazi's config directory, then from filer's own.\n\
-                     Press ~ or F1 inside the app for the key list."
+                     Press ~ or F1 inside the app for the key list.",
                 );
                 std::process::exit(0);
             }
@@ -53,8 +85,17 @@ fn parse_cli() -> Cli {
             // be renamed away from the one in the release asset's filename, so
             // the binary has to be able to say which it is. `-V` rather than
             // `-v`, which is conventionally verbosity.
+            // The architecture is here because there are now two Windows
+            // builds and a bug report has to say which one is running. The
+            // release asset's filename carries it, but a file can be renamed
+            // and an emulated x64 binary on an ARM64 machine will insist it is
+            // on x64 -- which is exactly the confusion worth heading off.
             "--version" | "-V" => {
-                println!("filer {}", env!("CARGO_PKG_VERSION"));
+                say(&format!(
+                    "filer {} ({})",
+                    env!("CARGO_PKG_VERSION"),
+                    std::env::consts::ARCH
+                ));
                 std::process::exit(0);
             }
             other if !other.starts_with('-') => cli.path = Some(PathBuf::from(other)),

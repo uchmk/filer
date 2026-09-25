@@ -49,12 +49,33 @@ body:
     validations:
       required: true
 
-  - type: input
+  - type: textarea
     id: os
     attributes:
-      label: OS
-      description: Windows のエディションとビルド番号（`winver` で出ます）。
-      placeholder: Windows 11 Pro 24H2 (26100.2033)
+      label: OS とアーキテクチャ
+      description: |
+        PowerShell でこれを実行すると、クリップボードに入るので貼ってください。
+
+        ```powershell
+        $os = Get-CimInstance Win32_OperatingSystem
+        $cv = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+        $ri = [System.Runtime.InteropServices.RuntimeInformation]
+        @"
+        OS:        $($os.Caption) $($cv.DisplayVersion) (build $($os.BuildNumber).$($cv.UBR))
+        OS arch:   $($ri::OSArchitecture)
+        Shell arch: $($ri::ProcessArchitecture)
+        "@ | Set-Clipboard
+        ```
+
+        アーキテクチャを 2 つ出しているのは、ARM64 機で x64 版の PowerShell を
+        使っていると、環境変数 `PROCESSOR_ARCHITECTURE` が `AMD64` を返して
+        ARM64 機だと分からなくなるため。`OSArchitecture` は機械そのものを答える。
+        2 つが食い違っていたら、それ自体が手がかりになる。
+      render: text
+      placeholder: |
+        OS:         Microsoft Windows 11 Pro 24H2 (build 26100.2033)
+        OS arch:    X64
+        Shell arch: X64
     validations:
       required: true
 

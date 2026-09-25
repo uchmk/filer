@@ -60,21 +60,38 @@ jobs:
           fi
           echo "$tag matches Cargo.toml"
 
+      - name: Add the ARM64 target
+        run: rustup target add aarch64-pc-windows-msvc
+
       - uses: Swatinem/rust-cache@v2
 
+      # x64 only, and that is a limit rather than a choice: the runner is an x64
+      # machine and cannot execute an ARM64 binary, so there is nothing to run
+      # the ARM64 tests with. The two builds come from one source and one set of
+      # `#[cfg]`s, so a test passing here is good evidence for both -- but it is
+      # evidence, not a run. Anything architecture-specific has to be caught on
+      # a real ARM64 machine.
       - name: Test
         run: cargo test --locked
 
-      - name: Build
-        run: cargo build --release --locked
+      - name: Build x64
+        run: cargo build --release --locked --target x86_64-pc-windows-msvc
 
-      # Named for the version rather than the commit: this one is meant to be
-      # linked to and recognised, not told apart from its neighbours.
-      - name: Name the binary
+      - name: Build ARM64
+        run: cargo build --release --locked --target aarch64-pc-windows-msvc
+
+      # Named for the version and the architecture rather than the commit: these
+      # are meant to be linked to and recognised. The architecture is in the
+      # filename because it is the first thing a bug report needs to establish,
+      # and a downloaded file is otherwise silent about which one it is.
+      - name: Name the binaries
         shell: bash
         run: |
+          tag="${{ steps.tag.outputs.name }}"
           mkdir -p dist
-          cp target/release/filer.exe "dist/filer-${{ steps.tag.outputs.name }}-windows-x64.exe"
+          cp target/x86_64-pc-windows-msvc/release/filer.exe "dist/filer-$tag-windows-x64.exe"
+          cp target/aarch64-pc-windows-msvc/release/filer.exe "dist/filer-$tag-windows-arm64.exe"
+          ls -l dist
 
       - name: Pull this version's section out of the changelog
         id: notes

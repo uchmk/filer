@@ -4,6 +4,12 @@ name: Build
 # toolchain to hand. Kept apart from `ci.yml` on purpose: this one produces an
 # artifact, that one is the gate, and a failure here should not read as a
 # failing test.
+#
+# Two architectures, both built on the same x64 runner. Windows on ARM runs x64
+# binaries under emulation, so an ARM64 machine can always open the x64 build --
+# but that tests the emulator as much as the program, which is no use when the
+# question is how filer behaves on ARM64. The cross build is nearly free here,
+# and it is the only way to get a native binary onto that machine.
 
 on:
   push:
@@ -17,15 +23,39 @@ env:
 jobs:
   windows:
     runs-on: windows-latest
+
+    strategy:
+      # One architecture failing should not cancel the other: which of the two
+      # broke, and whether the other still builds, is the useful information.
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            target: x86_64-pc-windows-msvc
+          - arch: arm64
+            target: aarch64-pc-windows-msvc
+
+    name: windows-${{ matrix.arch }}
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Add the target
+        run: rustup target add ${{ matrix.target }}
+
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Without this the two jobs share one cache entry and keep evicting
+          # each other's artifacts, since they differ only by target.
+          key: ${{ matrix.target }}
+
       - name: Build
-        run: cargo build --release --locked
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           # The commit is in the name, so two downloads are never confused.
-          name: filer-windows-x64-${{ github.sha }}
-          path: target/release/filer.exe
+          name: filer-windows-${{ matrix.arch }}-${{ github.sha }}
+          path: target/${{ matrix.target }}/release/filer.exe
           if-no-files-found: error
