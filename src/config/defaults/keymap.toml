@@ -298,7 +298,7 @@ desc = "Redo what undo took back"
 [[mgr.keymap]]
 on = "a"
 run = "create"
-desc = "Create a file (end with / for a directory)"
+desc = "Create a file; end with / or \\ for a directory"
 [[mgr.keymap]]
 on = "r"
 run = "rename"

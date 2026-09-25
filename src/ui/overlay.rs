@@ -124,6 +124,14 @@ pub fn quick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, que
 /// about to be called, and what is wrong with any of it. Redrawn on every
 /// keystroke, which is why [`App::bulk_preview`] reads the directory out of the
 /// listing in memory rather than off the disk.
+/// What the prompt accepts, kept where it is being typed.
+///
+/// The rules are not guessable — `{n:3}` in particular — and the prompt is the
+/// one moment anyone needs them. `rename::LEGEND_EXAMPLES` holds the same forms
+/// for a test to parse, so this line cannot quietly outlive the syntax it
+/// describes.
+const LEGEND: &str = "{name} {ext} {n} {n:3} zero-padded  ·  s/pattern/replacement/gi";
+
 pub fn bulk(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bottom: f32) {
     const MAX_ROWS: usize = 14;
     let theme = &app.cfg.theme;
@@ -141,7 +149,10 @@ pub fn bulk(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bottom: 
     };
 
     let shown = rows.len().min(MAX_ROWS);
-    let lines = shown + usize::from(rows.len() > shown) + usize::from(trouble.is_some());
+    // +1 for the legend, which is always there: it is a reference, and hiding
+    // it once someone starts typing takes it away exactly when it is wanted.
+    let lines =
+        1 + shown + usize::from(rows.len() > shown) + usize::from(trouble.is_some());
     let h = row_h * lines as f32 + 20.0;
     // A long selection would push the top of the panel off a short window.
     let top = (bottom - h - 6.0).max(full.top() + 4.0);
@@ -167,6 +178,14 @@ pub fn bulk(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bottom: 
         .max()
         .unwrap_or(0);
     let mut y = rect.top() + 10.0;
+    painter.text(
+        egui::pos2(rect.left() + 12.0, y),
+        Align2::LEFT_TOP,
+        LEGEND,
+        f.clone(),
+        theme.fg_dim,
+    );
+    y += row_h;
     for r in rows.iter().take(shown) {
         let from = crate::util::file_name(&r.from);
         let pad = " ".repeat(widest.saturating_sub(from.chars().count()));

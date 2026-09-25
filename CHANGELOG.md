@@ -9,6 +9,30 @@
 
 ## [未リリース]
 
+## [0.13.1] - 2026-09-25
+
+### 追加
+
+- **一括リネーム（`R`）のプロンプトに凡例を出すようにした。**
+  `{name} {ext} {n} {n:3} zero-padded · s/pattern/replacement/gi`
+  - **`{n:3}` は推測できない。**そしてプロンプトこそ、それを知りたい唯一の瞬間。
+  - **凡例が嘘になるのを防ぐテスト**を付けた。凡例に載っている書式をすべて
+    パーサに通す。`{n:3}` を廃止すると落ちることを確認済み —— **使えない書式を
+    案内する凡例は、凡例が無いより悪い。**
+  - 入力を始めても消さない。参照するためのものなので、**必要になった瞬間に
+    消えては意味がない。**
+
+### 変更
+
+- `a`（作成）の説明を「末尾に `/` **または `\`**」に直した。Windows 優先の
+  プロジェクトで、プロンプトに打つ指が `\` を選ぶのは自然。実装は以前から
+  両方を受け付けていた。
+
+### 修正
+
+- `make-keycheck` が TOML のエスケープを解いていなかった。`desc` に含まれる
+  `\\` が、チェックリストに `\\` のまま出ていた。
+
 ## [0.13.0] - 2026-09-25
 
 ### 追加
@@ -679,7 +703,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.13.0...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/uchmk/filer/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/uchmk/filer/compare/v0.12.7...v0.13.0
 [0.12.7]: https://github.com/uchmk/filer/compare/v0.12.6...v0.12.7
 [0.12.6]: https://github.com/uchmk/filer/compare/v0.12.5...v0.12.6
