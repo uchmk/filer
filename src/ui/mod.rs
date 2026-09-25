@@ -298,7 +298,22 @@ pub(super) fn draw_preview(
     // `image_input` first: only it knows the pane's size, so it is what leaves
     // the fit scale behind for the decode box to be judged against.
     image_input(app, ui, rect);
+    // The pane's size is only known here, in the draw, while the request that
+    // needs it went out before the draw with whatever the last frame left
+    // behind — on the first frame, the placeholder `(900, 900)`. So the first
+    // preview of a session is asked for at the wrong size, answered, and
+    // thrown away for not matching the key, and the right one only goes out on
+    // the frame after that.
+    //
+    // Asking for a repaint when the size changes is what guarantees that frame
+    // exists. Without it the correction waits on something else happening to
+    // wake the window, and on a first launch there may be nothing: the answer
+    // that would have woken it is the one being discarded.
+    let was = app.preview.box_size;
     app.preview.box_size = app::zoom_box(pane_px, app.preview.zoom, app.preview.fit);
+    if app.preview.box_size != was {
+        ui.ctx().request_repaint();
+    }
     match &app.preview.state {
         PreviewState::Dir(folder) => {
             let st = list::ListStyle {
@@ -322,7 +337,14 @@ pub(super) fn draw_preview(
             // Rendered Markdown is laid out in the worker on a grid of
             // monospace cells, so it needs to know how many fit.
             let cell = ui.painter().layout_no_wrap("M".repeat(20), f.clone(), theme.fg).size().x / 20.0;
+            // Same story as `box_size` above: Markdown's key carries the column
+            // count, so the first request of a session is made against the
+            // placeholder 80 and discarded.
+            let was_cols = app.preview.cols;
             app.preview.cols = ((rect.width() - 24.0) / cell).max(0.0) as u16;
+            if app.preview.cols != was_cols {
+                ui.ctx().request_repaint();
+            }
             let st = preview::PreviewStyle {
                 theme: &theme,
                 font: f.clone(),
