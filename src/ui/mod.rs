@@ -366,6 +366,25 @@ pub(super) fn draw_preview(
                 app.tabs[app.active].preview_offset,
                 &st,
             );
+            // TEMPORARY: what the stalled first preview is actually waiting
+            // for. Three rounds of reading the code produced three wrong
+            // answers; this is here so one screenshot settles it, and it comes
+            // straight back out afterwards.
+            if matches!(other, PreviewState::Loading) {
+                let waited = app.preview.diag_since.map_or(0.0, |t| t.elapsed().as_secs_f32());
+                let want = app.preview.key.as_ref().map_or("none".to_owned(), app::diag_key);
+                let text = format!(
+                    "sent {} stale {} waited {:.1}s\nwant {}\n{}",
+                    app.preview.diag_sent, app.preview.diag_stale, waited, want, app.preview.diag_last,
+                );
+                ui.painter().text(
+                    rect.left_top() + egui::Vec2::new(8.0, 28.0),
+                    egui::Align2::LEFT_TOP,
+                    text,
+                    f.clone(),
+                    theme.fg_dim,
+                );
+            }
             if let Some(line) = drawn.scroll_to {
                 app.tabs[app.active].preview_offset = line;
             }

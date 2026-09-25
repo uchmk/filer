@@ -418,6 +418,13 @@ pub struct PreviewSlot {
     pub cache: Lru<preview::Key, CachedPreview>,
     /// Size of the preview pane in pixels, used when decoding images.
     pub box_size: (u32, u32),
+    /// TEMPORARY diagnostics for the first-preview stall. Removed once the
+    /// cause is known; they exist so one screenshot can answer what three
+    /// rounds of reading the code could not.
+    pub diag_since: Option<Instant>,
+    pub diag_sent: u32,
+    pub diag_stale: u32,
+    pub diag_last: String,
     /// Text columns across the pane, which rendered Markdown wraps to.
     pub cols: u16,
     /// The outline entry under the cursor while the keys drive the preview's
@@ -480,6 +487,18 @@ pub fn clamp_pan(pan: egui::Vec2, shown: egui::Vec2, avail: egui::Vec2) -> egui:
 /// What matters is the zoom against `fit`, not the zoom on its own: a photo that
 /// fits at 5% is already asking for twice the pane's detail at 10%, while a
 /// small icon at 2x is asking for nothing that exists.
+/// TEMPORARY: a preview key in one short line.
+pub fn diag_key(k: &preview::Key) -> String {
+    format!(
+        "[box {}x{} cols {} len {} mt {}]",
+        k.box_size.0,
+        k.box_size.1,
+        k.cols,
+        k.len,
+        k.mtime.is_some() as u8,
+    )
+}
+
 pub fn zoom_box(pane: (u32, u32), zoom: Option<f32>, fit: f32) -> (u32, u32) {
     const CAP: u32 = 4096;
     let want = match zoom {
@@ -500,6 +519,10 @@ impl Default for PreviewSlot {
             pending_since: None,
             cache: Lru::new(24),
             box_size: (900, 900),
+            diag_since: None,
+            diag_sent: 0,
+            diag_stale: 0,
+            diag_last: String::new(),
             cols: 80,
             outline: None,
             outline_wanted: None,
@@ -1397,6 +1420,8 @@ impl App {
             self.preview.texture = None;
             self.preview.state = PreviewState::Loading;
         }
+        self.preview.diag_sent += 1;
+        self.preview.diag_since = Some(Instant::now());
         self.preview.request_id = self.previewer.request(preview::Request {
             id: 0,
             key,
@@ -1410,6 +1435,12 @@ impl App {
 
     fn on_preview(&mut self, res: preview::Response, ctx: &egui::Context) {
         if self.preview.key.as_ref() != Some(&res.key) {
+            self.preview.diag_stale += 1;
+            self.preview.diag_last = format!(
+                "got {} want {}",
+                diag_key(&res.key),
+                self.preview.key.as_ref().map_or("none".into(), diag_key),
+            );
             return; // stale
         }
         self.preview.texture = match &res.payload {

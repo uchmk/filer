@@ -9,6 +9,21 @@
 
 ## [未リリース]
 
+## [0.11.4] - 2026-09-25
+
+### 追加
+
+- **一時的な計測器。**初回プレビューが `…` のまま止まる件が、v0.11.3 でも
+  **100% 再現する**と分かった。競合なら 100% にはならないので、
+  **v0.11.2 と v0.11.3 の見立ては両方とも外れている。**
+  コードを読んで 3 回外したので、推測をやめて内部状態を画面に出す。
+  - `…` の下に「送った要求の数 / stale として捨てた数 / 待っている秒数 /
+    待っているキー / 最後に捨てたキーとの差」を表示する。
+  - 判定: **stale が増えていれば**、応答は来ていて捨てられている。
+    **sent が 1 のまま stale が 0 なら**、要求がワーカーに届いていないか
+    ワーカーが答えていない —— まったく別の場所を見ることになる。
+  - 原因が分かり次第、丸ごと外す。
+
 ## [0.11.3] - 2026-09-25
 
 ### 修正
@@ -448,7 +463,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.11.3...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.11.4...HEAD
+[0.11.4]: https://github.com/uchmk/filer/compare/v0.11.3...v0.11.4
 [0.11.3]: https://github.com/uchmk/filer/compare/v0.11.2...v0.11.3
 [0.11.2]: https://github.com/uchmk/filer/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/uchmk/filer/compare/v0.11.0...v0.11.1
