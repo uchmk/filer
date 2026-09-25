@@ -391,6 +391,11 @@ pub struct Toast {
     pub text: String,
     pub error: bool,
     pub at: Instant,
+    /// How many times this same line has been raised. A held-down key can
+    /// produce five identical warnings, and five is the whole toast area, so
+    /// one repeated message would hide every other for six seconds — including
+    /// the header summary underneath it, which is where the reason usually is.
+    pub count: u32,
 }
 
 // ------------------------------------------------------------------ preview
@@ -693,6 +698,15 @@ pub enum UndoStep {
     /// A bulk rename: every `from` became its `to`. One step, so a single `u`
     /// takes the whole batch back.
     Bulk { pairs: Vec<(PathBuf, PathBuf)> },
+    /// Files moved by `x` then `p`. The pairs come back from the worker rather
+    /// than from what was asked for: a name already taken is resolved down
+    /// there, so the file sent to `x.pdf` may have landed as `x_1.pdf`.
+    ///
+    /// A move is here while a copy is not, and the difference is real. Undoing
+    /// a copy would mean deleting the new files to tidy up — worse to get wrong
+    /// than the thing being undone. Undoing a move puts a file back where it
+    /// came from, which is a rename across directories and deletes nothing.
+    Move { pairs: Vec<(PathBuf, PathBuf)> },
 }
 
 impl UndoStep {
@@ -705,6 +719,10 @@ impl UndoStep {
                 n => format!("Restored {n} item(s)"),
             },
             Self::Bulk { pairs } => format!("Put {} name(s) back", pairs.len()),
+            Self::Move { pairs } => match pairs.len() {
+                1 => format!("Moved {} back", util::file_name(&pairs[0].0)),
+                n => format!("Moved {n} item(s) back"),
+            },
         }
     }
 
@@ -717,6 +735,10 @@ impl UndoStep {
                 n => format!("Trashed {n} item(s)"),
             },
             Self::Bulk { pairs } => format!("Renamed {} file(s)", pairs.len()),
+            Self::Move { pairs } => match pairs.len() {
+                1 => format!("Moved {}", util::file_name(&pairs[0].0)),
+                n => format!("Moved {n} item(s)"),
+            },
         }
     }
 }
@@ -990,11 +1012,26 @@ impl App {
     }
 
     pub fn toast(&mut self, text: impl Into<String>) {
-        self.toasts.push(Toast { text: text.into(), error: false, at: Instant::now() });
+        self.raise(text.into(), false);
     }
 
     pub fn error(&mut self, text: impl Into<String>) {
-        self.toasts.push(Toast { text: text.into(), error: true, at: Instant::now() });
+        self.raise(text.into(), true);
+    }
+
+    /// Put a line up, or tick the one already saying it.
+    ///
+    /// Repeating rather than stacking: the same text arriving again is the same
+    /// news, and stacking it spends the five slots the toast area has on one
+    /// message. The timer restarts so a repeat stays up as long as a first.
+    fn raise(&mut self, text: String, error: bool) {
+        if let Some(t) = self.toasts.iter_mut().rev().find(|t| t.text == text && t.error == error)
+        {
+            t.count += 1;
+            t.at = Instant::now();
+            return;
+        }
+        self.toasts.push(Toast { text, error, at: Instant::now(), count: 1 });
     }
 
     // ------------------------------------------------------------- scanning
@@ -2611,7 +2648,10 @@ impl App {
             return;
         };
         if !format.can_write() {
-            self.error(format!("{} can be read here but not written", format.label()));
+            self.error(format!(
+                "{} can be read here but not written — use .zip, .tar or .tar.gz",
+                format.label(),
+            ));
             return;
         }
         let paths = self.tabs[self.active].targets();
@@ -2727,7 +2767,13 @@ impl App {
                     dest: Some(dest),
                 });
             }
-            ops::OpEvent::Finished { id, errors, cancelled, kind } => {
+            ops::OpEvent::Finished { id, errors, cancelled, kind, moved } => {
+                // A move that actually moved something is a step `u` can take
+                // back. A cancelled one is not: half a move is not a state
+                // worth offering to reverse in one keystroke.
+                if kind == OpKind::Move && !cancelled && !moved.is_empty() {
+                    self.undos.land(UndoStep::Move { pairs: moved }, Land::Fresh);
+                }
                 if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
                     t.state = if cancelled {
                         TaskState::Cancelled
@@ -3358,6 +3404,21 @@ impl App {
                     self.undos.keep(UndoStep::Rename { from, to }, Land::Undone);
                 }
             },
+            UndoStep::Move { pairs } => {
+                let back: Vec<(PathBuf, PathBuf)> =
+                    pairs.iter().rev().map(|(a, b)| (b.clone(), a.clone())).collect();
+                match self.run_renames(&back) {
+                    Ok(()) => {
+                        let step = UndoStep::Move { pairs };
+                        self.toast(step.undone_label());
+                        self.undos.land(step, Land::Undone);
+                    }
+                    Err(e) => {
+                        self.error(format!("Undo: {e}"));
+                        self.undos.keep(UndoStep::Move { pairs }, Land::Undone);
+                    }
+                }
+            }
             UndoStep::Bulk { pairs } => {
                 let back: Vec<(PathBuf, PathBuf)> =
                     pairs.iter().rev().map(|(a, b)| (b.clone(), a.clone())).collect();
@@ -3401,6 +3462,17 @@ impl App {
                 Err(e) => {
                     self.error(format!("Redo: {e}"));
                     self.undos.keep(UndoStep::Rename { from, to }, Land::Redone);
+                }
+            },
+            UndoStep::Move { pairs } => match self.run_renames(&pairs) {
+                Ok(()) => {
+                    let step = UndoStep::Move { pairs };
+                    self.toast(step.redone_label());
+                    self.undos.land(step, Land::Redone);
+                }
+                Err(e) => {
+                    self.error(format!("Redo: {e}"));
+                    self.undos.keep(UndoStep::Move { pairs }, Land::Redone);
                 }
             },
             UndoStep::Bulk { pairs } => match self.run_renames(&pairs) {
@@ -4732,5 +4804,82 @@ mod extract_message {
         for f in ["zip", "tar", "7z"] {
             assert!(t.contains(f), "{f} missing from: {t}");
         }
+    }
+}
+
+#[cfg(test)]
+mod move_undo {
+    use super::*;
+
+    fn app() -> App {
+        let ctx = egui::Context::default();
+        App::new(Config::load(), std::env::temp_dir(), ctx)
+    }
+
+    fn tmp(name: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("filer-move-undo-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&d);
+        d.join(name)
+    }
+
+    /// `x` then `p` is a move, and a move is undoable. It was not: only `d`,
+    /// `r` and `R` were, and the README's reason for leaving the rest out —
+    /// that undoing a copy would mean deleting files to tidy up — is about
+    /// copies. Putting a moved file back deletes nothing.
+    #[test]
+    fn a_move_goes_back_where_it_came_from() {
+        let from = tmp("origin.txt");
+        let to = tmp("landed.txt");
+        let _ = std::fs::remove_file(&from);
+        std::fs::write(&to, b"x").unwrap();
+
+        let mut a = app();
+        a.undos.land(UndoStep::Move { pairs: vec![(from.clone(), to.clone())] }, Land::Fresh);
+        a.undo_step();
+
+        assert!(from.exists(), "the file must be back at its original path");
+        assert!(!to.exists(), "and gone from where it was moved to");
+        let _ = std::fs::remove_file(&from);
+    }
+
+    /// The pair that matters. A paste onto a taken name lands as `_1`, and the
+    /// undo has to start from where the file actually is — an undo built from
+    /// the name that was *asked* for would go looking for a file that was never
+    /// created.
+    #[test]
+    fn it_starts_from_where_the_file_actually_landed() {
+        let from = tmp("report.txt");
+        let asked = tmp("dest.txt");
+        let landed = tmp("dest_1.txt");
+        let _ = std::fs::remove_file(&from);
+        std::fs::write(&asked, b"in the way").unwrap();
+        std::fs::write(&landed, b"the moved one").unwrap();
+
+        let mut a = app();
+        a.undos.land(UndoStep::Move { pairs: vec![(from.clone(), landed.clone())] }, Land::Fresh);
+        a.undo_step();
+
+        assert!(from.exists(), "back at the original name");
+        assert!(!landed.exists(), "no longer at the conflict-resolved name");
+        assert!(asked.exists(), "the file that was in the way is untouched");
+        for p in [&from, &asked] {
+            let _ = std::fs::remove_file(p);
+        }
+    }
+
+    /// And `U` puts it back again.
+    #[test]
+    fn redo_moves_it_forward_again() {
+        let from = tmp("there.txt");
+        let to = tmp("here.txt");
+        let _ = std::fs::remove_file(&to);
+        std::fs::write(&from, b"x").unwrap();
+
+        let mut a = app();
+        a.undos.land(UndoStep::Move { pairs: vec![(from.clone(), to.clone())] }, Land::Undone);
+        a.redo_step();
+
+        assert!(to.exists() && !from.exists());
+        let _ = std::fs::remove_file(&to);
     }
 }

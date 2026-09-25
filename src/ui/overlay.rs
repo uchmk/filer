@@ -402,11 +402,34 @@ pub fn tasks(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
 pub fn confirm(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queued: &mut Vec<Act>) {
     dim(ui, full);
     let Overlay::Confirm(c) = &app.overlay else { return };
-    let lines = c.body.len() as f32 + 4.0;
-    let rect = Rect::from_center_size(
-        full.center(),
-        Vec2::new((full.width() * 0.6).min(760.0), row_h * lines + 48.0),
-    );
+
+    // Measure the buttons before the frame is sized. Six of them do not fit on
+    // one row at this width, and the row used to be laid out without ever
+    // comparing against the right edge: the last one — Cancel, the only way out
+    // — was sliced in half by the modal's clip and read as `[q] Ca`.
+    let labels: Vec<String> =
+        c.options.iter().map(|(k, l)| format!(" [{k}] {l} ")).collect();
+    let fg = app.cfg.theme.fg;
+    let widths: Vec<f32> = labels
+        .iter()
+        .map(|t| ui.painter().layout_no_wrap(t.clone(), f.clone(), fg).size().x + 6.0)
+        .collect();
+
+    let width = (full.width() * 0.6).min(760.0);
+    // 14px of padding on each side, from `modal_frame`.
+    let inner_w = (width - 28.0).max(1.0);
+    let mut button_rows = 1.0f32;
+    let mut used = 0.0f32;
+    for w in &widths {
+        if used > 0.0 && used + w > inner_w {
+            button_rows += 1.0;
+            used = 0.0;
+        }
+        used += w + 8.0;
+    }
+
+    let lines = c.body.len() as f32 + 3.0 + button_rows;
+    let rect = Rect::from_center_size(full.center(), Vec2::new(width, row_h * lines + 48.0));
     let inner = modal_frame(ui, rect, &app.cfg.theme, &c.title, f, row_h);
     let theme = &app.cfg.theme;
     let painter = ui.painter_at(inner);
@@ -426,10 +449,16 @@ pub fn confirm(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, q
 
     let mut x = inner.left();
     let mut hit: Option<char> = None;
-    for (key, label) in &c.options {
-        let text = format!(" [{key}] {label} ");
-        let g = painter.layout_no_wrap(text, f.clone(), theme.fg);
-        let w = g.size().x + 6.0;
+    for (i, (key, _)) in c.options.iter().enumerate() {
+        let w = widths[i];
+        // Wrap rather than run off the edge. A button drawn past `inner` is
+        // clipped away but still answers the mouse, so an invisible target is
+        // worse than a wrapped one.
+        if x > inner.left() && x + w > inner.right() {
+            x = inner.left();
+            y += row_h + 8.0;
+        }
+        let g = painter.layout_no_wrap(labels[i].clone(), f.clone(), theme.fg);
         let r = Rect::from_min_size(egui::pos2(x, y), Vec2::new(w, row_h + 4.0));
         painter.rect_filled(r, CornerRadius::same(4), theme.status_bg);
         painter.galley(egui::pos2(x + 3.0, y + 2.0), g, theme.fg);

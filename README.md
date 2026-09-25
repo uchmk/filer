@@ -407,10 +407,16 @@ file, so the keys that move fastest are the ones that change file.
 | `d` — files sent to the recycle bin | puts them back where they were | sends them again |
 | `r` — a rename | renames it back | renames it again |
 | `R` — a bulk rename | puts every name back, in one step | renames them again |
+| `x` then `p` — a move | puts the files back where they were | moves them again |
 
-Everything else is left alone on purpose. `D` asks before it deletes and then means it, and undoing
-a copy or an unpack would mean deleting files to tidy up — a worse thing to get wrong than the
-operation it was undoing.
+A move is here and a copy is not, which is the line the rest of the list follows: putting a moved
+file back is a rename across directories and deletes nothing, while undoing a copy would mean
+deleting the new files to tidy up — a worse thing to get wrong than the operation it was undoing.
+`D` asks before it deletes and then means it, so it stays out too.
+
+Undoing a move starts from where each file actually landed, not from where it was sent: a paste onto
+a name already taken lands as `name_1`, and an undo built from the name you asked for would go
+looking for a file that was never created.
 
 Putting files back reads the recycle bin, which is a job like any other: it shows in the task panel
 and can be cancelled. Each path is matched to the newest thing trashed under that name, so deleting

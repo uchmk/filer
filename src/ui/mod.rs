@@ -810,10 +810,19 @@ fn draw_toasts(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     }
     let theme = &app.cfg.theme;
     let painter = ui.painter();
-    let mut y = full.top() + 8.0;
+    // Below the header, not on top of it. The right-hand end of the header
+    // carries the item count and, when there is one, "N selected" — and a
+    // selection left over from an earlier command is exactly what makes a
+    // message like "none of the 2 selected item(s) is an archive" worth
+    // reading. Covering the answer with the question is a poor trade.
+    let mut y = full.top() + row_h + 14.0;
     for t in app.toasts.iter().rev().take(5) {
         let color = if t.error { theme.progress_error } else { theme.fg };
-        let g = painter.layout_no_wrap(t.text.clone(), f.clone(), color);
+        let text = match t.count {
+            0 | 1 => t.text.clone(),
+            n => format!("{} ×{n}", t.text),
+        };
+        let g = painter.layout_no_wrap(text, f.clone(), color);
         let w = g.size().x + 20.0;
         let r = Rect::from_min_size(
             egui::pos2(full.right() - w - 12.0, y),

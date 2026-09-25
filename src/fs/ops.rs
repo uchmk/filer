@@ -67,7 +67,17 @@ pub enum OpEvent {
     Conflict { id: u64, src: PathBuf, dest: PathBuf, reply: Sender<Resolution> },
     /// The job has parked, or started moving again.
     Paused { id: u64, paused: bool },
-    Finished { id: u64, kind: OpKind, errors: Vec<String>, cancelled: bool },
+    Finished {
+        id: u64,
+        kind: OpKind,
+        errors: Vec<String>,
+        cancelled: bool,
+        /// For a move: what ended up where. The worker is the only one that
+        /// knows, because a name already taken is resolved here — the file the
+        /// caller asked to move to `x.pdf` can land as `x_1.pdf`, and an undo
+        /// that went looking for `x.pdf` would find nothing.
+        moved: Vec<(PathBuf, PathBuf)>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -123,6 +133,7 @@ impl Runner {
                         cancelled: false,
                         paused: false,
                         last_report: std::time::Instant::now(),
+                        moved: Vec::new(),
                     };
                     ctx.run(&req);
                     let _ = ev_tx.send(OpEvent::Finished {
@@ -130,6 +141,7 @@ impl Runner {
                         kind: req.kind,
                         errors: std::mem::take(&mut ctx.errors),
                         cancelled: ctx.cancelled,
+                        moved: std::mem::take(&mut ctx.moved),
                     });
                     wake();
                 }
@@ -215,6 +227,8 @@ struct Ctx<'a> {
     cancelled: bool,
     paused: bool,
     last_report: std::time::Instant,
+    /// Where each moved file ended up. Empty for everything but a move.
+    moved: Vec<(PathBuf, PathBuf)>,
 }
 
 impl Ctx<'_> {
@@ -284,7 +298,7 @@ impl Ctx<'_> {
                         src.clone()
                     };
                     if let Err(e) = symlink(&target, &dest, src.is_dir()) {
-                        self.errors.push(format!("{}: {e}", short(src)));
+                        self.errors.push(format!("{}: {}", short(src), explain(&e)));
                     }
                     self.files_done += 1;
                 }
@@ -310,6 +324,7 @@ impl Ctx<'_> {
                         // Copying onto itself: make a "foo copy" style sibling instead.
                         let dest = unique_name(&dest);
                         self.transfer(src, &dest, moving);
+                        self.note_move(moving, src, &dest);
                         continue;
                     }
                     if is_inside(src, &dest) {
@@ -319,6 +334,7 @@ impl Ctx<'_> {
                     }
                     let Some(dest) = self.resolve_dest(src, dest) else { continue };
                     self.transfer(src, &dest, moving);
+                    self.note_move(moving, src, &dest);
                 }
             }
             OpKind::Extract => self.extract(req),
@@ -446,6 +462,18 @@ impl Ctx<'_> {
                 self.cancelled = true;
                 None
             }
+        }
+    }
+
+    /// Remember a move that actually happened, for undo.
+    ///
+    /// Judged from the disk rather than from a return value: `transfer` falls
+    /// back from a rename to copy-and-delete and can fail part way through
+    /// either. A move is done when the destination is there and the source is
+    /// not, and that is true however it got that way.
+    fn note_move(&mut self, moving: bool, src: &Path, dest: &Path) {
+        if moving && exists(dest) && !exists(src) {
+            self.moved.push((src.to_path_buf(), dest.to_path_buf()));
         }
     }
 
@@ -689,6 +717,32 @@ fn relative_to(from_dir: &Path, target: &Path) -> Option<PathBuf> {
     } else {
         Some(out)
     }
+}
+
+/// The OS message, plus what to do about it where that is not obvious.
+///
+/// Windows refuses to create a symlink without a privilege most accounts do not
+/// hold, and says so as "the client does not hold the required privilege"
+/// (1314). That names the obstacle and not the remedy, and it is a wall every
+/// first attempt on Windows runs into — the text is not even easy to search
+/// for. Only 1314 gets the extra line: telling someone to turn on Developer
+/// Mode when the real problem was a read-only folder would be worse than
+/// saying nothing.
+#[cfg(windows)]
+fn explain(e: &std::io::Error) -> String {
+    const ERROR_PRIVILEGE_NOT_HELD: i32 = 1314;
+    if e.raw_os_error() == Some(ERROR_PRIVILEGE_NOT_HELD) {
+        return format!(
+            "{e} — Windows needs Developer Mode for symlinks \
+             (Settings > System > For developers), or run filer as administrator"
+        );
+    }
+    e.to_string()
+}
+
+#[cfg(not(windows))]
+fn explain(e: &std::io::Error) -> String {
+    e.to_string()
 }
 
 #[cfg(windows)]
