@@ -6,7 +6,7 @@ Edit the ticks, not the rows: anything else here is overwritten.
 
 **0 / 193 checked.**
 
-A key is checked when it did what the description says *and* did nothing else —
+A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
@@ -14,68 +14,68 @@ looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
 The file list: what is in front of you unless an overlay is.
 
-- [ ] `<Esc>` — Exit visual mode, clear selection, or cancel search · `escape`
-- [ ] `q` — Quit the process · `quit`
-- [ ] `<C-q>` — Quit the process · `quit`
-- [ ] `<C-c>` — Close the current tab, or quit if it is the last · `close`
+- [x] `<Esc>` — Exit visual mode, clear selection, or cancel search · `escape`
+- [x] `q` — Quit the process · `quit`
+- [x] `<C-q>` — Quit the process · `quit`
+- [x] `<C-c>` — Close the current tab, or quit if it is the last · `close`
 
 ### Navigation
 
-- [ ] `k` — Move cursor up · `arrow -1`
-- [ ] `j` — Move cursor down · `arrow 1`
-- [ ] `<Up>` — Move cursor up · `arrow -1`
-- [ ] `<Down>` — Move cursor down · `arrow 1`
-- [ ] `<C-u>` — Move cursor up half page · `arrow -50%`
-- [ ] `<C-d>` — Move cursor down half page · `arrow 50%`
-- [ ] `<C-b>` — Move cursor up one page · `arrow -100%`
-- [ ] `<C-f>` — Move cursor down one page · `arrow 100%`
-- [ ] `<PageUp>` — Move cursor up one page · `arrow -100%`
-- [ ] `<PageDown>` — Move cursor down one page · `arrow 100%`
-- [ ] `g g` — Move cursor to the top · `arrow top`
-- [ ] `G` — Move cursor to the bottom · `arrow bot`
-- [ ] `<Home>` — Move cursor to the top · `arrow top`
-- [ ] `<End>` — Move cursor to the bottom · `arrow bot`
-- [ ] `h` — Go back to the parent directory · `leave`
-- [ ] `l` — Enter the directory, or focus the file's outline · `enter`
-- [ ] `<Left>` — Go back to the parent directory · `leave`
-- [ ] `<Right>` — Enter the directory, or focus the file's outline · `enter`
-- [ ] `<Backspace>` — Go back to the parent directory · `leave`
-- [ ] `H` — Go back to the previous directory · `back`
-- [ ] `L` — Go forward to the next directory · `forward`
-- [ ] `<F5>` — Re-read the current directory · `refresh`
-- [ ] `<C-F5>` — Read the config files again (theme, icons, keys) · `config_reload`
-- [ ] `<F3>` — Quick look: the hovered file, big, over the panes · `quick`
+- [x] `k` — Move cursor up · `arrow -1`
+- [x] `j` — Move cursor down · `arrow 1`
+- [x] `<Up>` — Move cursor up · `arrow -1`
+- [x] `<Down>` — Move cursor down · `arrow 1`
+- [x] `<C-u>` — Move cursor up half page · `arrow -50%`
+- [x] `<C-d>` — Move cursor down half page · `arrow 50%`
+- [x] `<C-b>` — Move cursor up one page · `arrow -100%`
+- [x] `<C-f>` — Move cursor down one page · `arrow 100%`
+- [x] `<PageUp>` — Move cursor up one page · `arrow -100%`
+- [x] `<PageDown>` — Move cursor down one page · `arrow 100%`
+- [x] `g g` — Move cursor to the top · `arrow top`
+- [x] `G` — Move cursor to the bottom · `arrow bot`
+- [x] `<Home>` — Move cursor to the top · `arrow top`
+- [x] `<End>` — Move cursor to the bottom · `arrow bot`
+- [x] `h` — Go back to the parent directory · `leave`
+- [x] `l` — Enter the directory, or focus the file's outline · `enter`
+- [x] `<Left>` — Go back to the parent directory · `leave`
+- [x] `<Right>` — Enter the directory, or focus the file's outline · `enter`
+- [x] `<Backspace>` — Go back to the parent directory · `leave`
+- [x] `H` — Go back to the previous directory · `back`
+- [x] `L` — Go forward to the next directory · `forward`
+- [x] `<F5>` — Re-read the current directory · `refresh`
+- [x] `<C-F5>` — Read the config files again (theme, icons, keys) · `config_reload`
+- [x] `<F3>` — Quick look: the hovered file, big, over the panes · `quick`
 - [ ] `<A-k>` — Scroll the preview up · `seek -5`
 - [ ] `<A-j>` — Scroll the preview down · `seek 5`
-- [ ] `<A-i>` — Zoom into the image · `zoom in`
-- [ ] `<A-o>` — Zoom out of the image · `zoom out`
-- [ ] `<A-0>` — Fit the image to the pane · `zoom fit`
-- [ ] `<A-1>` — Show the image at 1:1 · `zoom actual`
-- [ ] `<A-n>` — Show or hide the preview's minimap · `minimap`
-- [ ] `M` — Switch Markdown preview between rendered and source · `toggle_render`
+- [x] `<A-i>` — Zoom into the image · `zoom in`
+- [x] `<A-o>` — Zoom out of the image · `zoom out`
+- [x] `<A-0>` — Fit the image to the pane · `zoom fit`
+- [x] `<A-1>` — Show the image at 1:1 · `zoom actual`
+- [x] `<A-n>` — Show or hide the preview's minimap · `minimap`
+- [x] `M` — Switch Markdown preview between rendered and source · `toggle_render`
 - [ ] `<BackTab>` — Focus the preview's outline (functions / headings) · `toggle_outline`
 - [ ] `<Tab>` — Spot hovered file · `spot`
 
 ### Selection
 
-- [ ] `<Space>` — Toggle the current selection state · `[ "toggle", "arrow 1" ]`
-- [ ] `<C-a>` — Select all files · `toggle_all --state=on`
-- [ ] `<C-S-r>` — Invert selection of all files · `toggle_all`
+- [x] `<Space>` — Toggle the current selection state · `[ "toggle", "arrow 1" ]`
+- [x] `<C-a>` — Select all files · `toggle_all --state=on`
+- [x] `<C-S-r>` — Invert selection of all files · `toggle_all`
 - [ ] `v` — Enter visual mode (selection mode) · `visual_mode`
 - [ ] `V` — Enter visual mode (unset mode) · `visual_mode --unset`
 
 ### Operations
 
-- [ ] `o` — Open the selected files · `open`
-- [ ] `O` — Open the selected files interactively · `open --interactive`
-- [ ] `<Enter>` — Open the selected files · `open`
-- [ ] `<S-Enter>` — Open the selected files interactively · `open --interactive`
-- [ ] `y` — Yank the selected files (copy) · `yank`
+- [x] `o` — Open the selected files · `open`
+- [x] `O` — Open the selected files interactively · `open --interactive`
+- [x] `<Enter>` — Open the selected files · `open`
+- [x] `<S-Enter>` — Open the selected files interactively · `open --interactive`
+- [x] `y` — Yank the selected files (copy) · `yank`
 - [ ] `x` — Yank the selected files (cut) · `yank --cut`
-- [ ] `Y` — Cancel the yank status · `unyank`
-- [ ] `X` — Cancel the yank status · `unyank`
-- [ ] `p` — Paste the files · `paste`
-- [ ] `P` — Paste the files (overwrite if the destination exists) · `paste --force`
+- [x] `Y` — Cancel the yank status · `unyank`
+- [x] `X` — Cancel the yank status · `unyank`
+- [x] `p` — Paste the files · `paste`
+- [x] `P` — Paste the files (overwrite if the destination exists) · `paste --force`
 - [ ] `-` — Symlink the absolute path of yanked files · `link`
 - [ ] `_` — Symlink the relative path of yanked files · `link --relative`
 - [ ] `<C-->` — Hardlink the yanked files · `hardlink`
@@ -83,32 +83,32 @@ The file list: what is in front of you unless an overlay is.
 - [ ] `<A-m>` — Move the selection to the other pane · `send_pane --cut`
 - [ ] `e` — Extract the selected archives · `extract`
 - [ ] `E` — Compress the selection into an archive · `compress`
-- [ ] `d` — Move the files to the recycle bin · `remove`
-- [ ] `D` — Permanently delete the files · `remove --permanently`
-- [ ] `u` — Undo the last rename, or put the last deleted files back · `undo`
-- [ ] `U` — Redo what undo took back · `redo`
-- [ ] `<C-r>` — Redo what undo took back · `redo`
-- [ ] `a` — Create a file (end with / for a directory) · `create`
-- [ ] `r` — Rename the file or directory · `rename`
-- [ ] `R` — Rename everything selected by one rule · `bulk_rename`
+- [x] `d` — Move the files to the recycle bin · `remove`
+- [x] `D` — Permanently delete the files · `remove --permanently`
+- [x] `u` — Undo the last rename, or put the last deleted files back · `undo`
+- [x] `U` — Redo what undo took back · `redo`
+- [x] `<C-r>` — Redo what undo took back · `redo`
+- [x] `a` — Create a file (end with / for a directory) · `create`
+- [x] `r` — Rename the file or directory · `rename`
+- [x] `R` — Rename everything selected by one rule · `bulk_rename`
 - [ ] `<A-d>` — Compare two files side by side · `compare`
 - [ ] `;` — Run a shell command · `shell --interactive`
 - [ ] `:` — Run a shell command (block until finished) · `shell --interactive --block`
 - [ ] `.` — Toggle the visibility of hidden files · `hidden`
-- [ ] `c c` — Copy the absolute path · `copy path`
-- [ ] `c d` — Copy the path of the parent directory · `copy dirname`
-- [ ] `c f` — Copy the name of the file · `copy filename`
-- [ ] `c n` — Copy the name of the file without extension · `copy name_without_ext`
+- [x] `c c` — Copy the absolute path · `copy path`
+- [x] `c d` — Copy the path of the parent directory · `copy dirname`
+- [x] `c f` — Copy the name of the file · `copy filename`
+- [x] `c n` — Copy the name of the file without extension · `copy name_without_ext`
 
 ### Find / filter / search
 
 - [ ] `/` — Find next file · `find --smart`
 - [ ] `?` — Find previous file · `find --previous --smart`
-- [ ] `n` — Go to the next found file · `find_arrow`
-- [ ] `N` — Go to the previous found file · `find_arrow --previous`
-- [ ] `f` — Filter the files · `filter --smart`
-- [ ] `s` — Search files by name, recursively · `search --via=name`
-- [ ] `S` — Search files by content, recursively · `search --via=content`
+- [x] `n` — Go to the next found file · `find_arrow`
+- [x] `N` — Go to the previous found file · `find_arrow --previous`
+- [x] `f` — Filter the files · `filter --smart`
+- [x] `s` — Search files by name, recursively · `search --via=name`
+- [x] `S` — Search files by content, recursively · `search --via=content`
 - [ ] `<C-s>` — Cancel the ongoing search · `escape --search`
 - [ ] `z` — Jump to a bookmark or a recently visited directory · `jump`
 - [ ] `b` — Go to the bookmark under a letter · `plugin bookmarks jump`
@@ -188,7 +188,6 @@ The file list: what is in front of you unless an overlay is.
 
 While the terminal pane holds the keys. Everything not listed here goes to the shell.
 
-
 ### Terminal pane
 
 - [ ] `<C-t>` — Give the keys back to the list (the shell keeps running) · `close`
@@ -208,7 +207,6 @@ While the terminal pane holds the keys. Everything not listed here goes to the s
 
 The one-line prompt — `cd`, rename, filter, search.
 
-
 ### Input line
 
 - [ ] `<Enter>` — Submit · `close --submit`
@@ -219,7 +217,6 @@ The one-line prompt — `cd`, rename, filter, search.
 
 A yes/no prompt.
 
-
 ### Input line
 
 - [ ] `<Enter>` — Confirm · `close --submit`
@@ -228,7 +225,6 @@ A yes/no prompt.
 ## `[pick]` — 0 / 2
 
 A chooser — the command palette, the context menu.
-
 
 ### Input line
 
@@ -239,7 +235,6 @@ A chooser — the command palette, the context menu.
 
 This panel (`~` or `<F1>`).
 
-
 ### Input line
 
 - [ ] `<Esc>` — Close help · `close`
@@ -247,7 +242,6 @@ This panel (`~` or `<F1>`).
 ## `[tasks]` — 0 / 9
 
 The task manager (`w`).
-
 
 ### Input line
 
@@ -264,7 +258,6 @@ The task manager (`w`).
 ## `[spot]` — 0 / 13
 
 The details panel (`<Tab>`).
-
 
 ### Input line
 
@@ -285,7 +278,6 @@ The details panel (`<Tab>`).
 ## `[diff]` — 0 / 12
 
 The side-by-side comparison (`<A-d>`).
-
 
 ### Compare (side by side)
 
