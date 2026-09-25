@@ -9,6 +9,23 @@
 
 ## [未リリース]
 
+## [0.12.7] - 2026-09-25
+
+### 変更
+
+- **`e`（展開）が対象を見つけられなかったときのメッセージを書き直した。**
+  旧: `Nothing here is an archive filer can read`
+  新: `None of the 2 selected item(s) is an archive filer can read (zip, tar, tar.gz, tgz, 7z)`
+  - **「here」が「このディレクトリには無い」と読める。**報告ではカーソルが
+    zip の上にあり、**その中身がプレビューに表示されている**状態でこれが出た。
+    存在を否定されたように見えて当然だった。
+  - 実際に見ているのは**選択したもの**（無ければカーソル下の 1 つ）。`e` は
+    前のコマンドで残った選択に対して働くので、**カーソル下の書庫が無視される**
+    ことがある。**件数を出すことがその発覚経路**になる —— ヘッダの「N selected」は、
+    このトースト自身の下に隠れている。
+  - 読める形式も並べた。自分のファイルがそもそも候補だったのかが分かる。
+  - テスト 3 本。**旧文言では 3 本とも落ちる**ことを確認済み。
+
 ## [0.12.6] - 2026-09-25
 
 ### 修正
@@ -622,7 +639,8 @@ yazi / lf / Neovim とのキーマップ比較レビューの反映。**既定�
 - 組み込みターミナル（`<C-t>`、alacritty_terminal + PTY / ConPTY）。
 - デュアルライセンス（MIT / Apache-2.0）、Windows の CI、`filer.exe` のアーティファクト。
 
-[未リリース]: https://github.com/uchmk/filer/compare/v0.12.6...HEAD
+[未リリース]: https://github.com/uchmk/filer/compare/v0.12.7...HEAD
+[0.12.7]: https://github.com/uchmk/filer/compare/v0.12.6...v0.12.7
 [0.12.6]: https://github.com/uchmk/filer/compare/v0.12.5...v0.12.6
 [0.12.5]: https://github.com/uchmk/filer/compare/v0.12.4...v0.12.5
 [0.12.4]: https://github.com/uchmk/filer/compare/v0.12.3...v0.12.4
