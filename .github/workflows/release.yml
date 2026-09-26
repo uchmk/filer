@@ -93,21 +93,82 @@ jobs:
           cp target/aarch64-pc-windows-msvc/release/filer.exe "dist/filer-$tag-windows-arm64.exe"
           ls -l dist
 
-      - name: Pull this version's section out of the changelog
+      # Release notes in English, from the commits.
+      #
+      # CHANGELOG.md is in Japanese and stays that way -- it is what the author
+      # reads. A release page has the opposite audience, and translating by hand
+      # means writing everything twice, which ends with the two disagreeing and
+      # no way to tell which is right.
+      #
+      # So neither is written again: commit messages here are already English
+      # (CLAUDE.md requires it) and already one per version, because the version
+      # bump and the changelog entry are committed together. That makes a commit
+      # and a release note the same unit of writing, and the English exists
+      # before the release is cut.
+      #
+      # First paragraph only. The full message argues the change through -- what
+      # was tried, what it cost, what the tests caught -- which is right in a
+      # commit and too much on a download page. The paragraph that opens a
+      # commit here says what changed and why; the rest is a click away.
+      - name: Write the notes from the commits
         id: notes
         shell: bash
         run: |
           tag="${{ steps.tag.outputs.name }}"
-          # From the heading for this version to the one before it.
-          awk -v v="## [${tag#v}]" '
-            index($0, v) == 1 { on = 1; next }
-            on && /^## \[/     { exit }
-            on                 { print }
-          ' CHANGELOG.md > notes.md
+
+          # The previous tag, not counting this one: on a tag push HEAD is
+          # already tagged, and `HEAD^` is what keeps `describe` from answering
+          # with the tag being released.
+          prev=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
+          # With no previous tag there is no range -- and the whole history is
+          # the wrong answer, so it is this version's own commit.
+          range="${prev:+$prev..}HEAD"
+          [ -n "$prev" ] || range="HEAD~1..HEAD"
+          echo "notes from $range"
+
+          # Version commits only, which here is not a filter so much as the
+          # shape of the history: the version bump and the changelog entry are
+          # committed together, so `vX.Y.Z: ...` is one released change and
+          # nothing else is. What it leaves out is the traffic in between --
+          # ticking off TESTING-KEYS.md, a regenerated checklist -- which
+          # carries no message body and would list itself as a heading with
+          # nothing underneath. Merges go too: their body is the conflict list.
+          #
+          # Falling back to every non-merge commit if that matches nothing, so
+          # a release whose commits were named some other way still says
+          # something rather than coming out blank.
+          commits=$(git log --reverse --no-merges --format='%H %s' "$range" \
+                    | grep -E '^[0-9a-f]+ v[0-9]+\.[0-9]+\.[0-9]+' | cut -d' ' -f1)
+          [ -n "$commits" ] || commits=$(git log --reverse --no-merges --format=%H "$range")
+
+          : > notes.md
+          for sha in $commits; do
+            printf '## %s\n\n' "$(git log -1 --format=%s "$sha")" >> notes.md
+            git log -1 --format=%b "$sha" | awk '
+              /^(Co-Authored-By|Co-authored-by|Claude-Session|Signed-off-by):/ { next }
+              NF == 0 { if (seen) exit; next }
+              { print; seen = 1 }
+            ' >> notes.md
+            printf '\n' >> notes.md
+          done
+
+          # Checked before the footer is appended, since the footer alone would
+          # make an empty set of notes look like a full one.
           if [ ! -s notes.md ]; then
-            echo "No section for $tag in CHANGELOG.md." > notes.md
+            printf 'No commits between %s and %s.\n\n' "${prev:-the start}" "$tag" > notes.md
           fi
+
+          # Pointing at the tag rather than at `main`, so the link keeps saying
+          # what this version said once main has moved on. Written with printf
+          # rather than a heredoc: a heredoc indented to match this block would
+          # need its indent stripped afterwards, and that strip would also eat
+          # the indentation of any code a commit message quotes.
+          printf '\n---\n\n%s\n' \
+            "詳細は [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/$tag/CHANGELOG.md) にあります（日本語）。" \
+            >> notes.md
+
           echo "wrote $(wc -l < notes.md) lines of notes"
+          cat notes.md
 
       - name: Release
         uses: softprops/action-gh-release@v2
