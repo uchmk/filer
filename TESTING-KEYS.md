@@ -138,38 +138,38 @@ The file list: what is in front of you unless an overlay is.
 
 ### Line mode
 
-- [ ] `m s` — Line mode: size · `linemode size`
-- [ ] `m t` — Line mode: modified time · `linemode mtime`
-- [ ] `m b` — Line mode: created time · `linemode btime`
-- [ ] `m p` — Line mode: permissions · `linemode permissions`
-- [ ] `m n` — Line mode: none · `linemode none`
+- [x] `m s` — Line mode: size · `linemode size`
+- [x] `m t` — Line mode: modified time · `linemode mtime`
+- [x] `m b` — Line mode: created time · `linemode btime`
+- [x] `m p` — Line mode: permissions · `linemode permissions`
+- [x] `m n` — Line mode: none · `linemode none`
 
 ### Goto
 
-- [ ] `g h` — Go to the home directory · `cd ~`
-- [ ] `g d` — Go to the downloads directory · `cd ~/Downloads`
-- [ ] `g D` — Go to the documents directory · `cd ~/Documents`
-- [ ] `g c` — Go to the config directory · `cd %APPDATA%/yazi/config`
-- [ ] `g t` — Go to the temporary directory · `cd %TEMP%`
-- [ ] `g <Space>` — Jump interactively · `cd --interactive`
+- [x] `g h` — Go to the home directory · `cd ~`
+- [x] `g d` — Go to the downloads directory · `cd ~/Downloads`
+- [x] `g D` — Go to the documents directory · `cd ~/Documents`
+- [x] `g c` — Go to the config directory · `cd %APPDATA%/yazi/config`
+- [x] `g t` — Go to the temporary directory · `cd %TEMP%`
+- [x] `g <Space>` — Jump interactively · `cd --interactive`
 - [ ] `g f` — Follow the hovered symlink · `follow`
 
 ### Tabs
 
-- [ ] `t` — Create a new tab with the current directory · `tab_create --current`
-- [ ] `1` — Switch to the first tab · `tab_switch 0`
-- [ ] `2` — Switch to the second tab · `tab_switch 1`
-- [ ] `3` — Switch to the third tab · `tab_switch 2`
-- [ ] `4` — Switch to the fourth tab · `tab_switch 3`
-- [ ] `5` — Switch to the fifth tab · `tab_switch 4`
-- [ ] `6` — Switch to the sixth tab · `tab_switch 5`
-- [ ] `7` — Switch to the seventh tab · `tab_switch 6`
-- [ ] `8` — Switch to the eighth tab · `tab_switch 7`
-- [ ] `9` — Switch to the ninth tab · `tab_switch 8`
-- [ ] `[` — Switch to the previous tab · `tab_switch -1 --relative`
-- [ ] `]` — Switch to the next tab · `tab_switch 1 --relative`
-- [ ] `{` — Swap the current tab with the previous one · `tab_swap -1`
-- [ ] `}` — Swap the current tab with the next one · `tab_swap 1`
+- [x] `t` — Create a new tab with the current directory · `tab_create --current`
+- [x] `1` — Switch to the first tab · `tab_switch 0`
+- [x] `2` — Switch to the second tab · `tab_switch 1`
+- [x] `3` — Switch to the third tab · `tab_switch 2`
+- [x] `4` — Switch to the fourth tab · `tab_switch 3`
+- [x] `5` — Switch to the fifth tab · `tab_switch 4`
+- [x] `6` — Switch to the sixth tab · `tab_switch 5`
+- [x] `7` — Switch to the seventh tab · `tab_switch 6`
+- [x] `8` — Switch to the eighth tab · `tab_switch 7`
+- [x] `9` — Switch to the ninth tab · `tab_switch 8`
+- [x] `[` — Switch to the previous tab · `tab_switch -1 --relative`
+- [x] `]` — Switch to the next tab · `tab_switch 1 --relative`
+- [x] `{` — Swap the current tab with the previous one · `tab_swap -1`
+- [x] `}` — Swap the current tab with the next one · `tab_swap 1`
 
 ### Split view
 
