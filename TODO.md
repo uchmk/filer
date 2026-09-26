@@ -411,15 +411,12 @@
   - 任意: コミット著者 29 件が `DESKTOP-7UBRVG9\yuu06 <yuu0613@gmail.com>` になっている。
     GitHub の「Keep my email addresses private」を入れても**既存コミットは書き換わらない**
     （history 書き換えが必要）。今後のぶんは push 元マシンの `git config user.*` で止まる。
-- [ ] `sevenz-rust` から `sevenz-rust2` へ移行する（要確認: Q11）
-  - `sevenz-rust` はリポジトリが削除され unmaintained（RUSTSEC-2026-0246）。
-    advisory 自身が `sevenz-rust2` への移行を勧めている。
-  - もう 1 件、**path traversal の脆弱性**がある（RUSTSEC-2026-0245、8.3 high、修正版なし）。
-    **filer は影響を受けない** — `extract_7z` は `decompress_with_extract_fn` に自前の
-    writer を渡し、ライブラリが計算した展開先を捨てて `safe_dest` の結果を使っている。
-    理由は `.cargo/audit.toml` に書いて ignore してある。
-  - 移行したら `.cargo/audit.toml` の ignore を消すこと。消し忘れても、
-    消しすぎても、`cargo audit` が教えてくれる。
+- [x] `sevenz-rust` から `sevenz-rust2` へ移行した（v0.33.2、Q11）。
+  - 旧クレートはリポジトリが削除され unmaintained（RUSTSEC-2026-0246）。
+    path traversal の脆弱性（RUSTSEC-2026-0245、8.3 high、修正版なし）もあった。
+    **filer は `safe_dest` のおかげで影響を受けていなかった**が、根本から外した。
+  - API は名前が変わっただけで、ロジックの変更はゼロ。`.cargo/audit.toml` の
+    ignore も不要になったので削除した。
 - [ ] MCP サーバーの認証・接続
   - engineering 系（GitHub、Slack、Linear、Notion、Asana、Atlassian、Datadog、PagerDuty）は未認証。claude.ai のコネクタ設定か `/mcp` で認証する。
   - obsidian の MCP サーバーに接続できない（ECONNREFUSED）。Obsidian 側でサーバーが動いているか確認する。

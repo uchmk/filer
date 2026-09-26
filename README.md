@@ -557,9 +557,9 @@ panel (`w`) with the name of each entry as it goes past.
 | `.tar.gz`, `.tgz` | ✓ | ✓ |
 | `.7z` | ✓ | ✓ |
 
-Everything is done in-process by pure-Rust crates (zip, tar, flate2, sevenz-rust): no 7-Zip
+Everything is done in-process by pure-Rust crates (zip, tar, flate2, sevenz-rust2): no 7-Zip
 installation, no C toolchain, and the same behavior on x64 and ARM64. `.7z` was read-only until
-v0.27.0 — the encoder had been in the binary the whole time, since `sevenz-rust` builds its
+v0.27.0 — the encoder had been in the binary the whole time, since the 7z crate builds its
 `compress` feature by default.
 
 `e` gives each archive a folder of its own, named after it with the extension dropped

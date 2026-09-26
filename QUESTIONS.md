@@ -144,7 +144,7 @@ Claude が判断に迷った点をここに書きます。各質問の「回答�
 
 ## Q11: `sevenz-rust` から `sevenz-rust2` へ移行するか
 
-- 状態: 未回答
+- 状態: 反映済み
 - タスク: TODO.md「`sevenz-rust` から `sevenz-rust2` へ移行する」
 - 背景: `cargo audit` を CI に入れた初回の実行で 2 件出た。
   - RUSTSEC-2026-0246: `sevenz-rust` は**リポジトリが削除され unmaintained**。
@@ -162,4 +162,11 @@ Claude が判断に迷った点をここに書きます。各質問の「回答�
   2. 今のままにする。filer は脆弱性の影響を受けず、7z は動いている。
      ただし unmaintained のままなので、次に何か出ても直る見込みが無い。
   3. 7z のサポートをやめる。圧縮率が理由で入れた機能なので、これは損。
-- 回答:
+- 回答: 1（移行する）。v0.33.2 で実施。
+  - API は名前が変わっただけだった（`SevenZReader` → `ArchiveReader`、
+    `SevenZWriter` → `ArchiveWriter`、`SevenZArchiveEntry` → `ArchiveEntry`、
+    `Error::io` → `Error::from`）。ロジックの変更はゼロ。
+  - `cargo audit` から `sevenz-rust` が消えた（脆弱性・unmaintained とも）。
+    `.cargo/audit.toml` は不要になったので削除した。
+  - 依存は 536 → 539 クレート（+3）。Windows / Apple Silicon / Linux の
+    どのターゲットでも clippy が `-D warnings` で通る。

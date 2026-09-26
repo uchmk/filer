@@ -1,6 +1,6 @@
 //! Packing and unpacking, in pure Rust.
 //!
-//! zip / tar / flate2 / sevenz-rust do the work, so nothing here shells out to
+//! zip / tar / flate2 / sevenz-rust2 do the work, so nothing here shells out to
 //! 7-Zip and nothing links a C library: a machine without 7-Zip installed
 //! behaves like one with it, and an ARM64 build needs no toolchain beyond
 //! cargo.
@@ -42,7 +42,7 @@ impl Format {
     }
 
     /// Whether [`compress`] can write this format. 7z is read-only here:
-    /// sevenz-rust packs only what it can encode, and the formats above cover
+    /// sevenz-rust2 packs only what it can encode, and the formats above cover
     /// what a file manager is asked for.
     pub fn can_write(self) -> bool {
         true
@@ -162,9 +162,13 @@ fn extract_7z(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<
     let file = File::open(archive)?;
     let mut refused = 0usize;
     let mut stop = false;
-    // sevenz-rust hands each entry to this closure with the destination it
-    // worked out itself; that one is ignored in favour of `safe_dest`.
-    let res = sevenz_rust::decompress_with_extract_fn(file, dest, |entry, reader, _their_dest| {
+    // sevenz-rust2 hands each entry to this closure with the destination it
+    // worked out itself; that one is ignored in favour of `safe_dest`. Not a
+    // precaution against this library in particular -- zip and tar are read
+    // the same way -- but it is what made RUSTSEC-2026-0245, a path traversal
+    // in the predecessor's own extraction, something this program never
+    // reached.
+    let res = sevenz_rust2::decompress_with_extract_fn(file, dest, |entry, reader, _their_dest| {
         if stop {
             return Ok(false);
         }
@@ -185,7 +189,7 @@ fn extract_7z(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<
             io::copy(reader, &mut out)?;
             out.flush()
         };
-        write().map_err(sevenz_rust::Error::io)?;
+        write().map_err(sevenz_rust2::Error::from)?;
         if !entry.is_directory() && !on_entry(&name, entry.size()) {
             stop = true;
             return Ok(false);
@@ -243,7 +247,7 @@ pub fn list(archive: &Path, limit: usize) -> io::Result<(Vec<Listed>, bool)> {
             list_tar(&mut BufReader::new(gz), limit, &mut out, &mut more)?
         }
         Format::SevenZ => {
-            let reader = sevenz_rust::SevenZReader::open(archive, sevenz_rust::Password::empty())
+            let reader = sevenz_rust2::ArchiveReader::open(archive, sevenz_rust2::Password::empty())
                 .map_err(|e| io::Error::other(e.to_string()))?;
             let files = &reader.archive().files;
             more = files.len() > limit;
@@ -384,7 +388,7 @@ fn write_zip<W: Write + io::Seek>(
 /// 7z, which compresses harder than the rest and is what people reach for when
 /// the archive has to travel.
 ///
-/// The encoder was already in the binary: `sevenz-rust` turns its `compress`
+/// The encoder was already in the binary: `sevenz-rust2` turns its `compress`
 /// feature on by default, so it was being built and never called. Reading came
 /// first and writing was left out until the writer had been looked at; it
 /// takes one entry at a time, which is what the progress callback needs.
@@ -393,10 +397,10 @@ fn write_7z<W: Write + io::Seek>(
     out: W,
     on_entry: OnEntry<'_>,
 ) -> io::Result<W> {
-    let to_io = |e: sevenz_rust::Error| io::Error::other(e.to_string());
-    let mut z = sevenz_rust::SevenZWriter::new(out).map_err(to_io)?;
+    let to_io = |e: sevenz_rust2::Error| io::Error::other(e.to_string());
+    let mut z = sevenz_rust2::ArchiveWriter::new(out).map_err(to_io)?;
     for m in members {
-        let entry = sevenz_rust::SevenZArchiveEntry::from_path(&m.path, m.name.clone());
+        let entry = sevenz_rust2::ArchiveEntry::from_path(&m.path, m.name.clone());
         // A directory is a name and nothing to read, and it is not reported:
         // the callback counts files, the way the zip and tar writers do, and
         // a progress bar that counted folders would not match its own total.

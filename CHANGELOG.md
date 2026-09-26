@@ -9,6 +9,27 @@
 
 ## [未リリース]
 
+## [0.33.2] - 2026-09-26
+
+### 変更
+
+- **`sevenz-rust` から `sevenz-rust2` へ移行した**（Q11）。
+  - 旧クレートは**リポジトリが削除され unmaintained**（RUSTSEC-2026-0246）で、
+    path traversal の脆弱性（RUSTSEC-2026-0245、8.3 high、**修正版なし**）も
+    抱えていた。0.33.1 の時点で filer は影響を受けていなかったが、
+    「影響しない脆弱性を抱えたまま」を「抱えていない」に変えた。
+  - **API は名前が変わっただけだった。**`SevenZReader` → `ArchiveReader`、
+    `SevenZWriter` → `ArchiveWriter`、`SevenZArchiveEntry` → `ArchiveEntry`、
+    `Error::io` → `Error::from`。**ロジックの変更はゼロ**で、圧縮・展開・一覧の
+    テストは 1 つも書き換えずに通った。
+  - `cargo audit` から `sevenz-rust` が消えたので、`.cargo/audit.toml` を削除した。
+    **ignore が 1 件も無い状態に戻った**のが、この変更のいちばんの成果。
+  - 依存は 536 → 539 クレート（+3）。bzip2 / PPMd / AES256 の各コーデックが
+    既定で入るので、**読める 7z が増えている**。いずれも Pure Rust なので、
+    クロスコンパイルの条件は変わらない。
+  - Windows / Apple Silicon / Linux のどのターゲットでも clippy が
+    `-D warnings` で通ることを確認した。
+
 ## [0.33.1] - 2026-09-26
 
 ### 修正
