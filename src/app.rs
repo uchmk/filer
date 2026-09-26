@@ -1629,7 +1629,16 @@ impl App {
                 let k = step.apply(cursor.min(entries.len() - 1), entries.len(), page);
                 let line = entries[k].line;
                 self.preview.outline = Some(k);
-                self.tabs[self.active].preview_offset = line;
+                // The same ceiling `seek` takes, and for the same reason: an
+                // entry near the end of a file sits past the furthest the pane
+                // can be scrolled, so jumping to it handed the draw an offset
+                // beyond the content. The draw paints that frame and corrects
+                // the number afterwards, which is one wrong frame per press --
+                // invisible on a tap, and a flicker under a held key. This
+                // path was missed when `seek` was clamped, which is why it
+                // survived: it only shows on the last entry or two, and only
+                // in a file whose last heading is near the end.
+                self.tabs[self.active].preview_offset = line.min(self.preview.max_offset);
                 true
             }
             Act::Seek(_) | Act::MaxPreview => false,
@@ -5314,5 +5323,60 @@ mod diff_scrolling {
             Overlay::Diff(ov) => assert_eq!(ov.offset, 0, "all three are already on screen"),
             _ => panic!("the overlay closed"),
         }
+    }
+}
+
+#[cfg(test)]
+mod outline_jump {
+    use super::*;
+    use crate::preview::TocEntry;
+
+    fn app() -> App {
+        let ctx = egui::Context::default();
+        App::new(Config::load(), std::env::temp_dir(), ctx)
+    }
+
+    /// An outline entry near the end of a file must not scroll past it.
+    ///
+    /// The draw paints from whatever `preview_offset` says and corrects the
+    /// number after, so an offset beyond the content costs one wrong frame.
+    /// A tap hides that; a held key turns it into a flicker. `seek` was
+    /// clamped for this exact reason and the outline's own arrow was missed,
+    /// which is why it survived: it shows only on the last entry or two, and
+    /// only in a file whose last heading sits near the end — so it reproduces
+    /// on one document and not on the next.
+    #[test]
+    fn it_stops_where_the_pane_does() {
+        let mut a = app();
+        let toc = |line: usize| TocEntry { level: 1, label: format!("h{line}"), line };
+        a.preview.state = PreviewState::Ready(Payload::Text {
+            lines: Vec::new(),
+            map: Vec::new(),
+            truncated: false,
+            total_lines: 500,
+            outline: vec![toc(0), toc(120), toc(480)],
+        });
+        // The furthest the pane can be scrolled, as the last draw worked out.
+        a.preview.max_offset = 300;
+        a.preview.outline = Some(0);
+
+        // A middle entry is inside the range and lands on its own line.
+        assert!(a.outline_act(&Act::Arrow(Step::Rel(1))));
+        assert_eq!(a.tabs[a.active].preview_offset, 120);
+
+        // The last one is past the end, and stops at the end instead.
+        assert!(a.outline_act(&Act::Arrow(Step::Rel(1))));
+        assert_eq!(a.preview.outline, Some(2), "the cursor still reaches it");
+        assert_eq!(
+            a.tabs[a.active].preview_offset, 300,
+            "but the pane is not asked to draw from beyond the content",
+        );
+
+        // Held down at the end: every extra press has to be a no-op.
+        for _ in 0..20 {
+            a.outline_act(&Act::Arrow(Step::Rel(1)));
+        }
+        assert_eq!(a.preview.outline, Some(2));
+        assert_eq!(a.tabs[a.active].preview_offset, 300, "no frame is drawn past the end");
     }
 }

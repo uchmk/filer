@@ -152,6 +152,20 @@ each pane with the view split.
 | D9 | Two directories | Refused with a reason |
 | D10 | `q` | Closes |
 
+## V. The outline at the end of a file (v0.23.1)
+
+Needs a document that **ends on a heading** with little under it — `TESTING-KEYS.md`
+is one. A document whose last heading has pages of text after it will not show this
+at all, which is what made it look intermittent.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| V1 | Focus the outline (`<C-o>` or `l` on the file), `G` or hold `↓` to the last entry | The preview stops at the end of the file. **No flicker, no half-drawn frames** |
+| V2 | Keep holding `↓` there for a few seconds | Nothing moves and nothing flashes. Until v0.23.1 this was one bad frame per repeat |
+| V3 | The same on a document whose last heading has plenty of text after it | Unchanged — it was always correct here |
+| V4 | `<A-j>` held at the bottom of a long file | Still steady; this path was fixed earlier and must stay that way |
+| V5 | Move back up the outline | Each entry lands on its own line again, not on the clamped one |
+
 ## U. The yank register, said out loud (v0.23.0)
 
 The marker bar cannot carry this on its own, which is what the section is for.
