@@ -147,28 +147,50 @@ Open `long.rs` — 4000 lines, shaped so the bands should be recognisable.
 | 3.9 | Zoom in, then `j` to the next file and back | It is fitted again — a zoom belongs to the file it was set on |
 | 3.10 | Hover `tiny.png` (48×48) | Shown at its own size, **not blown up** to fill the pane |
 
-## 4. Compare, side by side (v0.4.0)
+## 4. SVG, and the text inside it (v0.33.6)
+
+resvg 0.48 replaced usvg's text engine: rustybuzz and ttf-parser out, harfrust
+and skrifa in. Shaping is what turns characters into positioned glyphs, so this
+is the part of an SVG that could look different without anything here changing.
+Nothing in this section can be checked without a screen, and there was no SVG
+section at all before this.
+
+`scripts/make-fixtures.ps1` does not make these; any `.svg` will do, and a file
+saved from Inkscape or Illustrator is a better test than a hand-written one.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 4.1 | Hover an SVG with no text in it (an icon, a logo) | Drawn, scaled to fill the pane, sharp at any pane size |
+| 4.2 | An SVG containing **text** | The text is drawn, in the right place, at the right size — **not missing, not boxes, not overlapping** |
+| 4.3 | An SVG with **Japanese** text | Same. A font with kana and kanji is picked, rather than the text vanishing |
+| 4.4 | An SVG naming a font that is **not installed** | A fallback is used and something readable appears; it does not fail the whole render |
+| 4.5 | An SVG with **bold** or *italic* text | The weight and slant are there, not flattened to regular |
+| 4.6 | An SVG using a font **file next to it** rather than a system font | Loaded from the directory, as `resources_dir` intends |
+| 4.7 | A **malformed** SVG (truncate one) | `bad SVG: …` on the preview, and the window keeps working |
+| 4.8 | Compare 99.2 and 99.3 against v0.33.5's build | Any difference in the glyphs is the new shaper; say what changed and attach both |
+
+## 5. Compare, side by side (v0.4.0)
 
 `<A-d>` with `compare-left.txt` and `compare-right.txt` both selected, or one in
 each pane with the view split.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 4.1 | Compare the two | Two columns, a line down the middle, with line numbers on each side |
-| 4.2 | Find line 100 | The changed line sits **opposite** the line it replaced — not listed as a removal and an addition far apart |
-| 4.3 | Look at the colors | Removals tinted on the left, additions on the right, matching the git signs' colors |
-| 4.4 | Look at the line numbers after the insertion | The two sides differ by one, each counting its own file |
-| 4.5 | `n` / `N` | Between the two differences, not line by line inside one |
-| 4.6 | `j` `k` `<C-d>` `gg` `G` | Scrolling, with the footer's `x–y of z` keeping up |
-| 4.6a | **`G`, then `k` once** (v0.22.1) | Moves by one row straight away. Until v0.22.1 `G` overshot by a screenful, so `j` and `k` did nothing for about as many presses as the pane is tall |
-| 4.6b | `G`, then `j` | Stays at the bottom, with the last row visible above the footer |
-| 4.6c | `G` on a diff shorter than the pane | Nothing moves; every row was already on screen |
-| 4.7 | `same-a.txt` and `same-b.txt` | "The two files are identical." — no thousands of matching rows |
-| 4.8 | `binary.dat` against anything | Says it is not text on both sides and that the bytes differ |
-| 4.9 | Two directories | Refused with a reason |
-| 4.10 | `q` | Closes |
+| 5.1 | Compare the two | Two columns, a line down the middle, with line numbers on each side |
+| 5.2 | Find line 100 | The changed line sits **opposite** the line it replaced — not listed as a removal and an addition far apart |
+| 5.3 | Look at the colors | Removals tinted on the left, additions on the right, matching the git signs' colors |
+| 5.4 | Look at the line numbers after the insertion | The two sides differ by one, each counting its own file |
+| 5.5 | `n` / `N` | Between the two differences, not line by line inside one |
+| 5.6 | `j` `k` `<C-d>` `gg` `G` | Scrolling, with the footer's `x–y of z` keeping up |
+| 5.6a | **`G`, then `k` once** (v0.22.1) | Moves by one row straight away. Until v0.22.1 `G` overshot by a screenful, so `j` and `k` did nothing for about as many presses as the pane is tall |
+| 5.6b | `G`, then `j` | Stays at the bottom, with the last row visible above the footer |
+| 5.6c | `G` on a diff shorter than the pane | Nothing moves; every row was already on screen |
+| 5.7 | `same-a.txt` and `same-b.txt` | "The two files are identical." — no thousands of matching rows |
+| 5.8 | `binary.dat` against anything | Says it is not text on both sides and that the bytes differ |
+| 5.9 | Two directories | Refused with a reason |
+| 5.10 | `q` | Closes |
 
-## 5. Split view, and sending between the panes (v0.1.0, `<A-c>` / `<A-m>` v0.2.0)
+## 6. Split view, and sending between the panes (v0.1.0, `<A-c>` / `<A-m>` v0.2.0)
 
 Two panes and the keys that move files between them. `<A-c>` and `<A-m>` are the
 only commands in the program whose destination is a *pane* rather than the
@@ -178,51 +200,51 @@ Needs two directories with different contents — `many\` and `repo\` will do.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 5.1 | `<C-w>` once | Two panes side by side. The **parent column is gone**; the layout is pane, pane, preview, the same width as before |
-| 5.2 | `<C-w>` again, and again | The keys move between the panes. The same key both splits and switches |
-| 5.3 | Look at the two cursor rows | The pane without the keys is **dimmer**. That is the only thing saying where typing will land |
-| 5.4 | `h` `j` `k` `l`, `cd`, `/`, `s` while split | All act on the focused pane and nothing else. No command needs to know about panes |
-| 5.5 | `<A-c>` with a file under the cursor and nothing selected | It is copied to whatever directory the **other** pane is showing |
-| 5.6 | `<Space>` a few files, then `<A-c>` | All of them go, and **the selection is cleared afterwards** — unlike `y`, which keeps it |
-| 5.7 | `<A-m>` instead | The files move: gone from this pane, present in the other |
-| 5.8 | Put both panes in the **same** directory, then `<A-c>` | Refused, saying so. It would otherwise copy each file beside itself under a new name |
-| 5.9 | `<C-S-w>`, then `<A-c>` | "Open the second pane first (`<C-w>`)" — not silence |
-| 5.10 | `y`, `<C-w>`, `p` | The ordinary route works too, and is the one that can paste somewhere neither pane is |
-| 5.11 | `[` / `]` / `1`–`9` while split | Tabs still switch. Switching to the tab the other pane shows just moves the keys there |
-| 5.12 | Close the tab the **other** pane is holding (`<C-c>`) | The split ends; one pane, no stale second |
-| 5.13 | `<C-w>` with only one tab open | A second tab is made on the same directory. With several already open, the next one is borrowed instead |
-| 5.14 | `<C-S-w>` | Back to one pane, and the parent column returns |
-| 5.15 | `<A-c>` a large directory, then watch the status bar | It is a job like any other copy: progress, speed, and cancellable from `w` |
+| 6.1 | `<C-w>` once | Two panes side by side. The **parent column is gone**; the layout is pane, pane, preview, the same width as before |
+| 6.2 | `<C-w>` again, and again | The keys move between the panes. The same key both splits and switches |
+| 6.3 | Look at the two cursor rows | The pane without the keys is **dimmer**. That is the only thing saying where typing will land |
+| 6.4 | `h` `j` `k` `l`, `cd`, `/`, `s` while split | All act on the focused pane and nothing else. No command needs to know about panes |
+| 6.5 | `<A-c>` with a file under the cursor and nothing selected | It is copied to whatever directory the **other** pane is showing |
+| 6.6 | `<Space>` a few files, then `<A-c>` | All of them go, and **the selection is cleared afterwards** — unlike `y`, which keeps it |
+| 6.7 | `<A-m>` instead | The files move: gone from this pane, present in the other |
+| 6.8 | Put both panes in the **same** directory, then `<A-c>` | Refused, saying so. It would otherwise copy each file beside itself under a new name |
+| 6.9 | `<C-S-w>`, then `<A-c>` | "Open the second pane first (`<C-w>`)" — not silence |
+| 6.10 | `y`, `<C-w>`, `p` | The ordinary route works too, and is the one that can paste somewhere neither pane is |
+| 6.11 | `[` / `]` / `1`–`9` while split | Tabs still switch. Switching to the tab the other pane shows just moves the keys there |
+| 6.12 | Close the tab the **other** pane is holding (`<C-c>`) | The split ends; one pane, no stale second |
+| 6.13 | `<C-w>` with only one tab open | A second tab is made on the same directory. With several already open, the next one is borrowed instead |
+| 6.14 | `<C-S-w>` | Back to one pane, and the parent column returns |
+| 6.15 | `<A-c>` a large directory, then watch the status bar | It is a job like any other copy: progress, speed, and cancellable from `w` |
 
-## 6. The config paths in the help panel (v0.25.0)
+## 7. The config paths in the help panel (v0.25.0)
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 6.1 | `~` with no `filer.toml` anywhere | **Both** directories are listed, the empty one marked `nothing here`. Before v0.25.0 only files that existed were shown |
-| 6.2 | Hover a path | The row lights up and the pointer becomes a hand |
-| 6.3 | Hover a key row | Nothing happens — it is not a link |
-| 6.4 | Click a config **file** | The panel closes, the list opens its directory with that file under the cursor. `<Enter>` then opens it |
-| 6.5 | Click a **directory** | The panel closes and the list goes there, empty or not |
-| 6.6 | Click the empty one, then create `filer.toml` there and `<C-F5>` | It appears in the panel next time, without `nothing here` |
-| 6.7 | With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set | The listed directories follow them |
-| 6.8 | A config warning line | Still yellow, and not clickable |
+| 7.1 | `~` with no `filer.toml` anywhere | **Both** directories are listed, the empty one marked `nothing here`. Before v0.25.0 only files that existed were shown |
+| 7.2 | Hover a path | The row lights up and the pointer becomes a hand |
+| 7.3 | Hover a key row | Nothing happens — it is not a link |
+| 7.4 | Click a config **file** | The panel closes, the list opens its directory with that file under the cursor. `<Enter>` then opens it |
+| 7.5 | Click a **directory** | The panel closes and the list goes there, empty or not |
+| 7.6 | Click the empty one, then create `filer.toml` there and `<C-F5>` | It appears in the panel next time, without `nothing here` |
+| 7.7 | With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set | The listed directories follow them |
+| 7.8 | A config warning line | Still yellow, and not clickable |
 
-## 7. Which shell the pane runs (v0.24.0)
+## 8. Which shell the pane runs (v0.24.0)
 
 The setting is one line; the point of the section is that the **default** is the
 thing that surprises people.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 7.1 | `<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` | `5.1.x` — Windows PowerShell, unchanged from every earlier version |
-| 7.2 | Add `[term]` / `shell = "pwsh"`, `<C-S-t>`, `<C-t>`, ask again | `7.x` |
-| 7.3 | `$PROFILE` in each | Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7 |
-| 7.4 | With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each | Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report |
-| 7.5 | `args = ["-NoLogo"]` | The banner is gone |
-| 7.6 | A `shell` that is not installed | It fails to start and says so — no silent empty pane |
-| 7.7 | Remove `[term]` again, `<C-S-t>`, `<C-t>` | Back to the default |
+| 8.1 | `<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` | `5.1.x` — Windows PowerShell, unchanged from every earlier version |
+| 8.2 | Add `[term]` / `shell = "pwsh"`, `<C-S-t>`, `<C-t>`, ask again | `7.x` |
+| 8.3 | `$PROFILE` in each | Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7 |
+| 8.4 | With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each | Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report |
+| 8.5 | `args = ["-NoLogo"]` | The banner is gone |
+| 8.6 | A `shell` that is not installed | It fails to start and says so — no silent empty pane |
+| 8.7 | Remove `[term]` again, `<C-S-t>`, `<C-t>` | Back to the default |
 
-## 8. The outline at the end of a file (v0.23.1)
+## 9. The outline at the end of a file (v0.23.1)
 
 Needs a document that **ends on a heading** with little under it — `TESTING-KEYS.md`
 is one. A document whose last heading has pages of text after it will not show this
@@ -230,64 +252,64 @@ at all, which is what made it look intermittent.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 8.1 | Focus the outline (`<C-o>` or `l` on the file), `G` or hold `↓` to the last entry | The preview stops at the end of the file. **No flicker, no half-drawn frames** |
-| 8.2 | Keep holding `↓` there for a few seconds | Nothing moves and nothing flashes. Until v0.23.1 this was one bad frame per repeat |
-| 8.3 | The same on a document whose last heading has plenty of text after it | Unchanged — it was always correct here |
-| 8.4 | `<A-j>` held at the bottom of a long file | Still steady; this path was fixed earlier and must stay that way |
-| 8.5 | Move back up the outline | Each entry lands on its own line again, not on the clamped one |
+| 9.1 | Focus the outline (`<C-o>` or `l` on the file), `G` or hold `↓` to the last entry | The preview stops at the end of the file. **No flicker, no half-drawn frames** |
+| 9.2 | Keep holding `↓` there for a few seconds | Nothing moves and nothing flashes. Until v0.23.1 this was one bad frame per repeat |
+| 9.3 | The same on a document whose last heading has plenty of text after it | Unchanged — it was always correct here |
+| 9.4 | `<A-j>` held at the bottom of a long file | Still steady; this path was fixed earlier and must stay that way |
+| 9.5 | Move back up the outline | Each entry lands on its own line again, not on the clamped one |
 
-## 9. The yank register, said out loud (v0.23.0)
+## 10. The yank register, said out loud (v0.23.0)
 
 The marker bar cannot carry this on its own, which is what the section is for.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 9.1 | `y` on a file with nothing selected | A **green** bar on the row, and `1 copied` in the header |
-| 9.2 | `<Space>` on that same file | The bar turns **yellow** — the selection's colour wins, by design — and the header reads `1 selected · 1 copied` |
-| 9.3 | `x` instead of `y` | A **red** bar, and `1 cut` |
-| 9.4 | With something copied, `h` / `l` to another directory | `1 copied` is still in the header, with no row to show it |
-| 9.5 | `p` after a copy | The register stays: `1 copied` is still there, and `p` again pastes again |
-| 9.6 | `p` after a cut | The register empties; the count leaves the header |
-| 9.7 | `X` or `Y` | The count leaves the header |
-| 9.8 | The status line, bottom right | Says the same thing in the same words as the header |
+| 10.1 | `y` on a file with nothing selected | A **green** bar on the row, and `1 copied` in the header |
+| 10.2 | `<Space>` on that same file | The bar turns **yellow** — the selection's colour wins, by design — and the header reads `1 selected · 1 copied` |
+| 10.3 | `x` instead of `y` | A **red** bar, and `1 cut` |
+| 10.4 | With something copied, `h` / `l` to another directory | `1 copied` is still in the header, with no row to show it |
+| 10.5 | `p` after a copy | The register stays: `1 copied` is still there, and `p` again pastes again |
+| 10.6 | `p` after a cut | The register empties; the count leaves the header |
+| 10.7 | `X` or `Y` | The count leaves the header |
+| 10.8 | The status line, bottom right | Says the same thing in the same words as the header |
 
-## 10. Bulk rename (v0.4.0)
+## 11. Bulk rename (v0.4.0)
 
 In `bulk-rename\`.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 10.1 | Select the 12 `IMG_*.jpg`, press `R` | A prompt reading `{name}{ext}`, and a panel above it listing every file with `→` and its new name — unchanged, since that rule changes nothing |
-| 10.2 | Type `holiday-{n:2}{ext}` | The panel updates **as you type**, showing `holiday-01.jpg` … `holiday-12.jpg` |
-| 10.3 | Enter | All twelve renamed. A toast says how many |
-| 10.4 | `u` | **All twelve names back**, in one step |
-| 10.5 | `U` | Renamed again |
-| 10.6 | Select the twelve, `R`, type `in the way.txt` | Every row after the first is marked "two files would get this name", and Enter is refused |
-| 10.7 | Select one file, `R`, type `in the way.txt` | Marked "already in this directory", Enter refused |
-| 10.8 | Select `ab.txt` and `ba.txt`, `R`, type `s/^([ab])([ab])/$2$1/` | The panel shows `ab.txt → ba.txt` and `ba.txt → ab.txt`, **neither marked as a problem** |
-| 10.9 | Enter | **The names swap.** A loop of `mv` fails on the second rename; this moves one out of the way first. Then `u` puts both back |
-| 10.9b | Select `ab.txt` and `in the way.txt`, `R`, type `s/^ab/in the way/` | `ab.txt → in the way.txt` is marked "already in this directory": the file holding that name is selected but is **not moving**, so the name is not going spare. (Before v0.7.0 this was allowed, and failed at the last moment instead) |
-| 10.10 | `R` with `s/IMG_(\d+)/photo-$1/` | Group references work |
-| 10.11 | `R` with `{nope}` | Says the placeholder is unknown; nothing renamed |
+| 11.1 | Select the 12 `IMG_*.jpg`, press `R` | A prompt reading `{name}{ext}`, and a panel above it listing every file with `→` and its new name — unchanged, since that rule changes nothing |
+| 11.2 | Type `holiday-{n:2}{ext}` | The panel updates **as you type**, showing `holiday-01.jpg` … `holiday-12.jpg` |
+| 11.3 | Enter | All twelve renamed. A toast says how many |
+| 11.4 | `u` | **All twelve names back**, in one step |
+| 11.5 | `U` | Renamed again |
+| 11.6 | Select the twelve, `R`, type `in the way.txt` | Every row after the first is marked "two files would get this name", and Enter is refused |
+| 11.7 | Select one file, `R`, type `in the way.txt` | Marked "already in this directory", Enter refused |
+| 11.8 | Select `ab.txt` and `ba.txt`, `R`, type `s/^([ab])([ab])/$2$1/` | The panel shows `ab.txt → ba.txt` and `ba.txt → ab.txt`, **neither marked as a problem** |
+| 11.9 | Enter | **The names swap.** A loop of `mv` fails on the second rename; this moves one out of the way first. Then `u` puts both back |
+| 11.9b | Select `ab.txt` and `in the way.txt`, `R`, type `s/^ab/in the way/` | `ab.txt → in the way.txt` is marked "already in this directory": the file holding that name is selected but is **not moving**, so the name is not going spare. (Before v0.7.0 this was allowed, and failed at the last moment instead) |
+| 11.10 | `R` with `s/IMG_(\d+)/photo-$1/` | Group references work |
+| 11.11 | `R` with `{nope}` | Says the placeholder is unknown; nothing renamed |
 
-## 11. Undo and redo (v0.3.0)
+## 12. Undo and redo (v0.3.0)
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 11.1 | `d` on a file in `many\` | It goes to the recycle bin |
-| 11.2 | `u` | It comes back, in its original place. A toast says so |
-| 11.3 | Check the task panel (`w`) during F2 | A `Restore` row appears and completes |
-| 11.4 | `U` | Deleted again |
-| 11.5 | Delete two files with the same name from different folders, an interval apart, then `u` | The one just deleted comes back — not the older one |
-| 11.6 | `r` to rename, then `u` | The old name is back |
-| 11.7 | `u` with nothing to undo | "Nothing to undo" — no error |
-| 11.8 | Rename a file, undo it, then create a new file, then `U` | Redo is gone: the new action forked history |
-| 11.9 | Delete a file, `u`, but create a file with that name first | `u` says the name is taken, and pressing it again after moving that file out of the way works |
-| 11.10 | Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) | The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done |
-| 11.11 | `d` on a drive whose Recycle Bin is turned off | Same shape of message, naming the file |
-| 11.12 | `d` with nothing locked | Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path |
+| 12.1 | `d` on a file in `many\` | It goes to the recycle bin |
+| 12.2 | `u` | It comes back, in its original place. A toast says so |
+| 12.3 | Check the task panel (`w`) during F2 | A `Restore` row appears and completes |
+| 12.4 | `U` | Deleted again |
+| 12.5 | Delete two files with the same name from different folders, an interval apart, then `u` | The one just deleted comes back — not the older one |
+| 12.6 | `r` to rename, then `u` | The old name is back |
+| 12.7 | `u` with nothing to undo | "Nothing to undo" — no error |
+| 12.8 | Rename a file, undo it, then create a new file, then `U` | Redo is gone: the new action forked history |
+| 12.9 | Delete a file, `u`, but create a file with that name first | `u` says the name is taken, and pressing it again after moving that file out of the way works |
+| 12.10 | Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) | The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done |
+| 12.11 | `d` on a drive whose Recycle Bin is turned off | Same shape of message, naming the file |
+| 12.12 | `d` with nothing locked | Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path |
 
-## 12. Symlinks and `g`+`f` (v0.26.8)
+## 13. Symlinks and `g`+`f` (v0.26.8)
 
 Windows makes these awkward to create. A **junction** needs no admin rights:
 `mklink /J linktest C:\dev` from `cmd`. A symlink to a *file* needs an elevated
@@ -297,60 +319,60 @@ would rather not make any.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 12.1 | Look at a link's row | `->` after the name. With `m`+`p` the type column reads `l` |
-| 12.2 | `g`+`f` on a link to a **directory** | The list goes into the target |
-| 12.3 | `g`+`f` on a link to a **file** | The list goes to the target's directory with the file under the cursor; `<Enter>` then opens it |
-| 12.4 | `g`+`f` on a **broken** link | `Broken link: <name>` in red |
-| 12.5 | `g`+`f` on an ordinary file (v0.26.8) | `Only a symlink can be followed — a link shows -> after its name`. Until v0.26.8 nothing happened at all, which was indistinguishable from an unbound key |
-| 12.6 | `g`+`f` in an empty directory | Nothing, and no message — there is no row to say anything about |
-| 12.7 | A junction (`mklink /J`), not just a symlink | Treated the same: `->`, and `g`+`f` follows it |
+| 13.1 | Look at a link's row | `->` after the name. With `m`+`p` the type column reads `l` |
+| 13.2 | `g`+`f` on a link to a **directory** | The list goes into the target |
+| 13.3 | `g`+`f` on a link to a **file** | The list goes to the target's directory with the file under the cursor; `<Enter>` then opens it |
+| 13.4 | `g`+`f` on a **broken** link | `Broken link: <name>` in red |
+| 13.5 | `g`+`f` on an ordinary file (v0.26.8) | `Only a symlink can be followed — a link shows -> after its name`. Until v0.26.8 nothing happened at all, which was indistinguishable from an unbound key |
+| 13.6 | `g`+`f` in an empty directory | Nothing, and no message — there is no row to say anything about |
+| 13.7 | A junction (`mklink /J`), not just a symlink | Treated the same: `->`, and `g`+`f` follows it |
 
-## 13. The parent column, with the mouse (v0.26.7)
+## 14. The parent column, with the mouse (v0.26.7)
 
 The leftmost column. It draws files and directories the same way, so both have
 to answer a click.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 13.1 | Click a **directory** there | The list goes into it, as it always has |
-| 13.2 | Click a **file** there (v0.26.7) | The list goes up to where that file lives, **with the file under the cursor**. Until v0.26.7 nothing happened at all |
-| 13.3 | Then press `<Enter>` | It opens — the cursor really is on it, not merely near it |
-| 13.4 | Double-click either | The same as a single click; no second, different meaning |
-| 13.5 | Click the row for the directory you are already in | You stay there, and the cursor does not jump about |
-| 13.6 | At a drive root, where there is no parent column | Nothing to click, and nothing misbehaves |
+| 14.1 | Click a **directory** there | The list goes into it, as it always has |
+| 14.2 | Click a **file** there (v0.26.7) | The list goes up to where that file lives, **with the file under the cursor**. Until v0.26.7 nothing happened at all |
+| 14.3 | Then press `<Enter>` | It opens — the cursor really is on it, not merely near it |
+| 14.4 | Double-click either | The same as a single click; no second, different meaning |
+| 14.5 | Click the row for the directory you are already in | You stay there, and the cursor does not jump about |
+| 14.6 | At a drive root, where there is no parent column | Nothing to click, and nothing misbehaves |
 
-## 14. Window scale, and the key it took back (v0.32.0)
+## 15. Window scale, and the key it took back (v0.32.0)
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 14.1 | `<C-->` with something yanked | **Only** the window shrinks. Until v0.32.0 it also made a hardlink — one press, two actions |
-| 14.2 | `<C-+>`, and `<C-=>` without shift | Both make it bigger |
-| 14.3 | `<C-0>` | Back to 100%, and a toast says so |
-| 14.4 | Hold `<C-->` down | It shrinks smoothly and stops at 20%; `<C-+>` held stops at 500% |
-| 14.5 | `<C-S-->` with something yanked | The hardlink, in its new place |
-| 14.6 | `<A-i>` / `<A-o>` on an image | Still the **image** zoom, unaffected — `zoom` and `scale` are different commands |
-| 14.7 | `~` | `scale in` / `scale out` / `scale reset` are listed, like any other command |
+| 15.1 | `<C-->` with something yanked | **Only** the window shrinks. Until v0.32.0 it also made a hardlink — one press, two actions |
+| 15.2 | `<C-+>`, and `<C-=>` without shift | Both make it bigger |
+| 15.3 | `<C-0>` | Back to 100%, and a toast says so |
+| 15.4 | Hold `<C-->` down | It shrinks smoothly and stops at 20%; `<C-+>` held stops at 500% |
+| 15.5 | `<C-S-->` with something yanked | The hardlink, in its new place |
+| 15.6 | `<A-i>` / `<A-o>` on an image | Still the **image** zoom, unaffected — `zoom` and `scale` are different commands |
+| 15.7 | `~` | `scale in` / `scale out` / `scale reset` are listed, like any other command |
 
-## 15. Word, Excel and PowerPoint (v0.31.0)
+## 16. Word, Excel and PowerPoint (v0.31.0)
 
 **On a machine with no Office installed** — that is the case this is for.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 15.1 | Hover a `.docx` | Its text, paragraph by paragraph. Not a hex dump, not a metadata card |
-| 15.2 | A paragraph with mixed bold and plain in one sentence | **One line**, not one per run |
-| 15.3 | A document with Heading 1/2 styles, then `<S-Tab>` | The headings are the outline, and `<Enter>` on one jumps to it |
-| 15.4 | Hover a `.xlsx` | Rows as tab-separated cells, each sheet announced |
-| 15.5 | A workbook whose **first tab is not `sheet1.xml`** | The tabs come out in the workbook's order, with their real names |
-| 15.6 | A sheet holding dates | `2023-03-15`, **not** `45000` |
-| 15.7 | A sheet holding a date **and** a time | The time follows the date |
-| 15.8 | Hover a `.pptx` with ten or more slides | In order — slide 10 after slide 9, not after slide 1 |
-| 15.9 | Japanese text in any of the three | Correct, and `&amp;` `&lt;` come through as `&` `<` |
-| 15.10 | Rename an old `.doc` to `.docx` and hover it | A card saying it is not an Office XML file, naming the likely cause |
-| 15.11 | A very large workbook | Stops at 5000 lines and says it is truncated; it does not hang |
-| 15.12 | `/` and `n` inside one | Search works, because it is an ordinary text preview |
+| 16.1 | Hover a `.docx` | Its text, paragraph by paragraph. Not a hex dump, not a metadata card |
+| 16.2 | A paragraph with mixed bold and plain in one sentence | **One line**, not one per run |
+| 16.3 | A document with Heading 1/2 styles, then `<S-Tab>` | The headings are the outline, and `<Enter>` on one jumps to it |
+| 16.4 | Hover a `.xlsx` | Rows as tab-separated cells, each sheet announced |
+| 16.5 | A workbook whose **first tab is not `sheet1.xml`** | The tabs come out in the workbook's order, with their real names |
+| 16.6 | A sheet holding dates | `2023-03-15`, **not** `45000` |
+| 16.7 | A sheet holding a date **and** a time | The time follows the date |
+| 16.8 | Hover a `.pptx` with ten or more slides | In order — slide 10 after slide 9, not after slide 1 |
+| 16.9 | Japanese text in any of the three | Correct, and `&amp;` `&lt;` come through as `&` `<` |
+| 16.10 | Rename an old `.doc` to `.docx` and hover it | A card saying it is not an Office XML file, naming the likely cause |
+| 16.11 | A very large workbook | Stops at 5000 lines and says it is truncated; it does not hang |
+| 16.12 | `/` and `n` inside one | Search works, because it is an ordinary text preview |
 
-## 16. Previewers of your own (v0.30.0)
+## 17. Previewers of your own (v0.30.0)
 
 Needs `pdftoppm` and `ffmpeg` on the `PATH` (`filer env` says), and the two
 rules from the README in `filer.toml`. **The end-to-end test runs `sh`, so it is
@@ -358,43 +380,43 @@ skipped on Windows — this section is the only coverage of the `cmd` path.**
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 16.1 | Hover a multi-page PDF | Page one, with `page 1` under it |
-| 16.2 | `<A-j>` | Page two. `page 2` under it |
-| 16.3 | `<A-k>` | Back to page one |
-| 16.4 | `<A-k>` again, on page one | Stays. It does not go to page zero or below |
-| 16.5 | Hold `<A-j>` past the last page (v0.30.1) | **The last page stays on screen**, and a line says `No more: …` with the command's own words. Until v0.30.1 the page was replaced by the error |
-| 16.5a | `<A-k>` straight after that | Back a page from the last one, not from somewhere past it |
-| 16.5b | A **short** video — a few seconds — and `<A-j>` a few times | Same: it stops at the last frame it could draw. This is where it bites, since `step = 10` runs off the end almost at once |
-| 16.5c | The caption on a video (v0.30.1) | `50s`, not `s 50` |
-| 16.6 | Watch the screen while paging | **No console window flashes.** It runs once per press |
-| 16.7 | Page to 5, move to another file, come back | Back at page one: the page belongs to the file |
-| 16.8 | Page back to one you have already seen | Instant — it is cached per page |
-| 16.9 | Hover a video (v0.30.2) | **A frame appears.** Until v0.30.2 none ever did on Windows: `{out}.png` was quoted as `"…page".png`, which `cmd` hands to ffmpeg with the quotes in the filename |
-| 16.9a | The same on a path with a space | Still draws — the quoting wraps the whole word, suffix included |
-| 16.10 | `<A-j>` on it | Ten seconds in, by `step` |
-| 16.11 | A PDF with a **space** in its name, and one in a Japanese folder | Both draw. The quoting is filer's, not the rule's |
-| 16.12 | Rename `pdftoppm` away, then hover a PDF | An error naming the tool, not a hang |
-| 16.13 | Remove the `[[preview]]` rules, `<C-F5>`, hover a PDF | Back to the shell thumbnail, unchanged |
-| 16.14 | `filer env` with the rules in place | `pdftoppm` and `ffmpeg` listed under Tools, with `preview *.pdf` beside them |
+| 17.1 | Hover a multi-page PDF | Page one, with `page 1` under it |
+| 17.2 | `<A-j>` | Page two. `page 2` under it |
+| 17.3 | `<A-k>` | Back to page one |
+| 17.4 | `<A-k>` again, on page one | Stays. It does not go to page zero or below |
+| 17.5 | Hold `<A-j>` past the last page (v0.30.1) | **The last page stays on screen**, and a line says `No more: …` with the command's own words. Until v0.30.1 the page was replaced by the error |
+| 17.5a | `<A-k>` straight after that | Back a page from the last one, not from somewhere past it |
+| 17.5b | A **short** video — a few seconds — and `<A-j>` a few times | Same: it stops at the last frame it could draw. This is where it bites, since `step = 10` runs off the end almost at once |
+| 17.5c | The caption on a video (v0.30.1) | `50s`, not `s 50` |
+| 17.6 | Watch the screen while paging | **No console window flashes.** It runs once per press |
+| 17.7 | Page to 5, move to another file, come back | Back at page one: the page belongs to the file |
+| 17.8 | Page back to one you have already seen | Instant — it is cached per page |
+| 17.9 | Hover a video (v0.30.2) | **A frame appears.** Until v0.30.2 none ever did on Windows: `{out}.png` was quoted as `"…page".png`, which `cmd` hands to ffmpeg with the quotes in the filename |
+| 17.9a | The same on a path with a space | Still draws — the quoting wraps the whole word, suffix included |
+| 17.10 | `<A-j>` on it | Ten seconds in, by `step` |
+| 17.11 | A PDF with a **space** in its name, and one in a Japanese folder | Both draw. The quoting is filer's, not the rule's |
+| 17.12 | Rename `pdftoppm` away, then hover a PDF | An error naming the tool, not a hang |
+| 17.13 | Remove the `[[preview]]` rules, `<C-F5>`, hover a PDF | Back to the shell thumbnail, unchanged |
+| 17.14 | `filer env` with the rules in place | `pdftoppm` and `ffmpeg` listed under Tools, with `preview *.pdf` beside them |
 
-## 17. Quick look, minimap's neighbours, and the rest of the panes
+## 18. Quick look, minimap's neighbours, and the rest of the panes
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 17.1 | `<F3>` on any file | A large panel over the panes, with the file's name at the top and "Esc to close" |
-| 17.2 | With it open, press `j` and `k` | **The list still moves**, and the panel follows down it. This is why it is not an overlay |
-| 17.3 | `<A-j>` / `<A-k>` with it open | The panel's content scrolls |
-| 17.4 | `<F3>` or `<Esc>` | Closes |
-| 17.5 | `<C-w>` | The view splits into two panes; the one with the keys is framed, the other's cursor is dimmed |
-| 17.6 | Select files, `<A-c>` | Copied into the other pane |
-| 17.7 | Drag files onto the other pane | A frame marks the target, and a label by the pointer says "copy" — `Shift` makes it "move" — **before** you let go |
-| 17.8 | `<Tab>` on a file | The spot panel, with the file's details |
-| 17.9 | `<S-F10>` or right-click | The context menu, with the openers from your config |
-| 17.10 | `<C-S-p>` | The palette, listing every binding; typing filters it |
-| 17.11 | `b` then a letter, having saved one with `B` | Jumps there. `'` and the letter does the same |
-| 17.12 | `z` | The jump list: bookmarks first, then recent directories with "2h ago" beside them |
+| 18.1 | `<F3>` on any file | A large panel over the panes, with the file's name at the top and "Esc to close" |
+| 18.2 | With it open, press `j` and `k` | **The list still moves**, and the panel follows down it. This is why it is not an overlay |
+| 18.3 | `<A-j>` / `<A-k>` with it open | The panel's content scrolls |
+| 18.4 | `<F3>` or `<Esc>` | Closes |
+| 18.5 | `<C-w>` | The view splits into two panes; the one with the keys is framed, the other's cursor is dimmed |
+| 18.6 | Select files, `<A-c>` | Copied into the other pane |
+| 18.7 | Drag files onto the other pane | A frame marks the target, and a label by the pointer says "copy" — `Shift` makes it "move" — **before** you let go |
+| 18.8 | `<Tab>` on a file | The spot panel, with the file's details |
+| 18.9 | `<S-F10>` or right-click | The context menu, with the openers from your config |
+| 18.10 | `<C-S-p>` | The palette, listing every binding; typing filters it |
+| 18.11 | `b` then a letter, having saved one with `B` | Jumps there. `'` and the letter does the same |
+| 18.12 | `z` | The jump list: bookmarks first, then recent directories with "2h ago" beside them |
 
-## 18. The wheel, over each pane (v0.26.5)
+## 19. The wheel, over each pane (v0.26.5)
 
 The same arithmetic in three places, so all three have to be tried. A notch
 should move about three rows, and a slow turn should move *something* — the bug
@@ -402,100 +424,100 @@ was that a gentle turn moved nothing at all.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 18.1 | Wheel over the **preview** of a long text file | It scrolls, one notch at a time, without spinning hard. This is the v0.26.5 fix |
-| 18.2 | Turn the wheel as slowly as you can over the preview | It still moves. Every fraction counts; nothing is discarded |
-| 18.3 | Wheel over the **file list** | The same, and with the split open, over each pane in turn |
-| 18.4 | Wheel over the **terminal** pane | Still right — fixed earlier, in v0.20.4, and now sharing the same code |
-| 18.5 | Turn one way then straight back | It reverses at once, with no dead travel from a stranded remainder |
-| 18.6 | `Ctrl` and the wheel over an image | Zooms, and does **not** scroll the pane with the same turn |
-| 18.7 | Move the pointer between panes mid-turn | Neither jumps: each keeps its own remainder |
+| 19.1 | Wheel over the **preview** of a long text file | It scrolls, one notch at a time, without spinning hard. This is the v0.26.5 fix |
+| 19.2 | Turn the wheel as slowly as you can over the preview | It still moves. Every fraction counts; nothing is discarded |
+| 19.3 | Wheel over the **file list** | The same, and with the split open, over each pane in turn |
+| 19.4 | Wheel over the **terminal** pane | Still right — fixed earlier, in v0.20.4, and now sharing the same code |
+| 19.5 | Turn one way then straight back | It reverses at once, with no dead travel from a stranded remainder |
+| 19.6 | `Ctrl` and the wheel over an image | Zooms, and does **not** scroll the pane with the same turn |
+| 19.7 | Move the pointer between panes mid-turn | Neither jumps: each keeps its own remainder |
 
-## 19. Configuration and theming
-
-| # | Do | Expect |
-| --- | --- | --- |
-| 19.1 | With filer open, edit `theme.toml` (change `[mgr] cwd` to something loud) and press `<C-F5>` | The color changes without restarting |
-| 19.2 | Change `[ui] font_size` in `filer.toml`, `<C-F5>` | The text resizes |
-| 19.3 | Add a `keymap.toml` binding, `<C-F5>` | The new key works, and `<F1>` lists it |
-| 19.4 | Sort with `,s`, then `<C-F5>` | The sort **stays** as you set it — a reload does not undo what you changed by hand |
-| 19.5 | Put a syntax error in `filer.toml`, `<C-F5>` | An error toast naming the problem; the old config stays in force |
-| 19.6 | `[ui] minimap = false`, `<C-F5>` | No minimap |
-
-## 20. Archives (v0.2.0)
+## 20. Configuration and theming
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 20.1 | Hover `sample.zip` | The preview lists what is inside |
-| 20.2 | `e` on it | Unpacked into a `sample` folder beside it; progress in the task panel |
-| 20.3 | `e` again | The second one gets a different name; the first is not overwritten |
-| 20.4 | Select `to-pack\`, press `E`, accept `to-pack.zip` | Packed, and the result opens |
-| 20.5 | `E` and change the name to end in `.tar.gz` | A gzipped tar, not a zip |
-| 20.6 | `e` on a text file | A toast says it was skipped; nothing else happens |
-| 20.7 | `E` and change the name to end in **`.7z`** (v0.27.0) | A real 7z. Until v0.27.0 this was refused as read-only |
-| 20.8 | `e` on that `.7z` | It unpacks, and the files match what went in |
-| 20.9 | Open the same `.7z` in 7-Zip or Explorer | It opens there too — the point of the format is that it travels |
-| 20.10 | Pack a folder holding subfolders as `.7z`, watch the task panel | The count is of **files**, not folders, and it reaches the total rather than stopping short |
-| 20.11 | Compare the `.7z` and the `.zip` of the same input | The 7z is smaller; that is the reason to have it |
-| 20.12 | `E` with a name ending in something else (`.rar`) | `Name it .zip, .7z, .tar or .tar.gz to say which format` |
+| 20.1 | With filer open, edit `theme.toml` (change `[mgr] cwd` to something loud) and press `<C-F5>` | The color changes without restarting |
+| 20.2 | Change `[ui] font_size` in `filer.toml`, `<C-F5>` | The text resizes |
+| 20.3 | Add a `keymap.toml` binding, `<C-F5>` | The new key works, and `<F1>` lists it |
+| 20.4 | Sort with `,s`, then `<C-F5>` | The sort **stays** as you set it — a reload does not undo what you changed by hand |
+| 20.5 | Put a syntax error in `filer.toml`, `<C-F5>` | An error toast naming the problem; the old config stays in force |
+| 20.6 | `[ui] minimap = false`, `<C-F5>` | No minimap |
 
-## 21. Editors, at a line (needs the editors installed)
+## 21. Archives (v0.2.0)
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 21.1 | Hover `sample.zip` | The preview lists what is inside |
+| 21.2 | `e` on it | Unpacked into a `sample` folder beside it; progress in the task panel |
+| 21.3 | `e` again | The second one gets a different name; the first is not overwritten |
+| 21.4 | Select `to-pack\`, press `E`, accept `to-pack.zip` | Packed, and the result opens |
+| 21.5 | `E` and change the name to end in `.tar.gz` | A gzipped tar, not a zip |
+| 21.6 | `e` on a text file | A toast says it was skipped; nothing else happens |
+| 21.7 | `E` and change the name to end in **`.7z`** (v0.27.0) | A real 7z. Until v0.27.0 this was refused as read-only |
+| 21.8 | `e` on that `.7z` | It unpacks, and the files match what went in |
+| 21.9 | Open the same `.7z` in 7-Zip or Explorer | It opens there too — the point of the format is that it travels |
+| 21.10 | Pack a folder holding subfolders as `.7z`, watch the task panel | The count is of **files**, not folders, and it reaches the total rather than stopping short |
+| 21.11 | Compare the `.7z` and the `.zip` of the same input | The 7z is smaller; that is the reason to have it |
+| 21.12 | `E` with a name ending in something else (`.rar`) | `Name it .zip, .7z, .tar or .tar.gz to say which format` |
+
+## 22. Editors, at a line (needs the editors installed)
 
 Open a file's outline with `l` or `<S-Tab>`, put the cursor on an entry, press
 Enter. Each of these is a skip if the editor is not installed.
 
 | # | Editor | Expect |
 | --- | --- | --- |
-| 21.1 | 秀丸エディタ | Opens at the outline entry's line |
-| 21.2 | サクラエディタ | Same |
-| 21.3 | EmEditor | Same |
-| 21.4 | Notepad++ | Same |
-| 21.5 | メモ帳 | Opens, at the top — it has no line argument, and that is correct |
-| 21.6 | VS Code / nvim, if you have them | At the line |
+| 22.1 | 秀丸エディタ | Opens at the outline entry's line |
+| 22.2 | サクラエディタ | Same |
+| 22.3 | EmEditor | Same |
+| 22.4 | Notepad++ | Same |
+| 22.5 | メモ帳 | Opens, at the top — it has no line argument, and that is correct |
+| 22.6 | VS Code / nvim, if you have them | At the line |
 
-## 22. Network paths (needs a share)
+## 23. Network paths (needs a share)
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 22.1 | `g<Space>`, type `\\server\share` | It opens |
-| 22.2 | Copy a file to and from it | Works, with progress |
-| 22.3 | Unplug the network mid-listing, or point at a dead host | **The window keeps responding.** An error toast, and the tab goes back where it was |
-| 22.4 | Tab-complete a path on the share | The prompt stays responsive; a `…` shows while it waits |
+| 23.1 | `g<Space>`, type `\\server\share` | It opens |
+| 23.2 | Copy a file to and from it | Works, with progress |
+| 23.3 | Unplug the network mid-listing, or point at a dead host | **The window keeps responding.** An error toast, and the tab goes back where it was |
+| 23.4 | Tab-complete a path on the share | The prompt stays responsive; a `…` shows while it waits |
 
-## 23. Awkward names
+## 24. Awkward names
 
 In `awkward names\`.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 23.1 | The CJK names | Drawn correctly, columns lined up (they are two cells wide each) |
-| 23.2 | The very long name | Elided in the middle, with the extension still readable |
-| 23.3 | `UPPER.TXT` and `upper.txt` | Both listed, both openable |
-| 23.4 | Copy the name with a quote in it, `<A-t>` into the terminal | Quoted so the shell sees one word |
-| 23.5 | `d` then `u` on the CJK-named file | Comes back under the same name |
+| 24.1 | The CJK names | Drawn correctly, columns lined up (they are two cells wide each) |
+| 24.2 | The very long name | Elided in the middle, with the extension still readable |
+| 24.3 | `UPPER.TXT` and `upper.txt` | Both listed, both openable |
+| 24.4 | Copy the name with a quote in it, `<A-t>` into the terminal | Quoted so the shell sees one word |
+| 24.5 | `d` then `u` on the CJK-named file | Comes back under the same name |
 
-## 24. `filer env` (v0.28.0)
+## 25. `filer env` (v0.28.0)
 
 Run from a shell, not from inside the app.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 24.1 | `filer env` from PowerShell | The four sections print. A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears** |
-| 24.2 | The Config section | Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest |
-| 24.3 | With a deliberate typo in `keymap.toml` | The warning appears under `Warnings`, its several lines indented under the one key |
-| 24.4 | The Tools section | `pdftoppm`, `ffmpeg`, `ffprobe`, `pwsh`, `git` with versions where installed and `not found` where not, each naming what it is for |
-| 24.4a | With `[term] shell = "pwsh"` set (v0.29.1) | `pwsh` is the shell listed. Without it, `powershell` — the one that will actually launch, not a guess |
-| 24.4b | With openers configured | Each named program is listed with the opener kind it belongs to, found or not |
-| 24.4c | An opener naming a **quoted full path** (秀丸, サクラ) | The whole path is resolved, not just up to the first space |
-| 24.4d | Watch the screen while `filer env` runs | **No editor or viewer opens.** The programs are looked up on `PATH`, never executed |
-| 24.5 | On Windows on ARM with the x64 build | `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed |
-| 24.6 | `filer --help` | `env` is listed under COMMANDS |
-| 24.7 | Double-click `filer.exe` (no console) | Unchanged: the window opens, nothing is printed anywhere |
-| 24.8 | Open filer once, quit, then `filer env` (v0.29.0) | A **Last run** section: the adapter with its backend and device type, and every font file that was loaded |
-| 24.9 | On a fresh machine, `filer env` **before** ever opening filer | `not recorded — filer has not opened a window on this machine yet`, not an empty section |
-| 24.10 | Name a different font in `filer.toml`, `<C-F5>`, then `filer env` again | The new file is listed; the reload updates the record |
-| 24.11 | With no bold face anywhere | `none found; bold is faked by overstriking` — the bold list is separate from the regular one on purpose |
+| 25.1 | `filer env` from PowerShell | The four sections print. A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears** |
+| 25.2 | The Config section | Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest |
+| 25.3 | With a deliberate typo in `keymap.toml` | The warning appears under `Warnings`, its several lines indented under the one key |
+| 25.4 | The Tools section | `pdftoppm`, `ffmpeg`, `ffprobe`, `pwsh`, `git` with versions where installed and `not found` where not, each naming what it is for |
+| 25.4a | With `[term] shell = "pwsh"` set (v0.29.1) | `pwsh` is the shell listed. Without it, `powershell` — the one that will actually launch, not a guess |
+| 25.4b | With openers configured | Each named program is listed with the opener kind it belongs to, found or not |
+| 25.4c | An opener naming a **quoted full path** (秀丸, サクラ) | The whole path is resolved, not just up to the first space |
+| 25.4d | Watch the screen while `filer env` runs | **No editor or viewer opens.** The programs are looked up on `PATH`, never executed |
+| 25.5 | On Windows on ARM with the x64 build | `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed |
+| 25.6 | `filer --help` | `env` is listed under COMMANDS |
+| 25.7 | Double-click `filer.exe` (no console) | Unchanged: the window opens, nothing is printed anywhere |
+| 25.8 | Open filer once, quit, then `filer env` (v0.29.0) | A **Last run** section: the adapter with its backend and device type, and every font file that was loaded |
+| 25.9 | On a fresh machine, `filer env` **before** ever opening filer | `not recorded — filer has not opened a window on this machine yet`, not an empty section |
+| 25.10 | Name a different font in `filer.toml`, `<C-F5>`, then `filer env` again | The new file is listed; the reload updates the record |
+| 25.11 | With no bold face anywhere | `none found; bold is faked by overstriking` — the bold list is separate from the regular one on purpose |
 
-## 25. Bug report from inside the app (v0.11.0)
+## 26. Bug report from inside the app (v0.11.0)
 
 `<F12>` builds a URL and hands it to the browser. None of that can be exercised
 without a browser, a desktop session and the repository in front of you: the
@@ -503,18 +525,18 @@ tests cover the encoding and the shape of the URL, not what GitHub does with it.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 25.1 | `<F12>` | The default browser opens GitHub's new-issue form, and a toast says so |
-| 25.2 | Look at the form | **Version** and **OS とアーキテクチャ** are already filled in; the rest is empty |
-| 25.3 | Compare the filled version against `filer --version` in a terminal | The same string, architecture included |
-| 25.4 | Compare the filled OS line against `winver` | Edition, feature update and build all match, UBR included (`Windows 11 Pro 25H2 (build 26200.9457)`) |
-| 25.4b | Compare it against the form's own PowerShell snippet | The same facts. Nothing left worth pasting over the top |
-| 25.5 | On the ARM64 machine, with the **ARM64** build | OS arch and Process arch both read `aarch64` |
-| 25.6 | On the ARM64 machine, with the **x64** build (under emulation) | OS arch `aarch64`, Process arch `x86_64` — **the two disagree, and that is the finding** |
-| 25.7 | Submit the report | It posts, and the pre-filled fields survive |
-| 25.8 | `<F12>` with no browser set as default (or a broken association) | An error toast naming the failure. **The window keeps working** |
-| 25.9 | `<F12>` from the terminal pane (`<C-t>` first) | Nothing: `[term]` passes it to the shell, which is correct |
+| 26.1 | `<F12>` | The default browser opens GitHub's new-issue form, and a toast says so |
+| 26.2 | Look at the form | **Version** and **OS とアーキテクチャ** are already filled in; the rest is empty |
+| 26.3 | Compare the filled version against `filer --version` in a terminal | The same string, architecture included |
+| 26.4 | Compare the filled OS line against `winver` | Edition, feature update and build all match, UBR included (`Windows 11 Pro 25H2 (build 26200.9457)`) |
+| 26.4b | Compare it against the form's own PowerShell snippet | The same facts. Nothing left worth pasting over the top |
+| 26.5 | On the ARM64 machine, with the **ARM64** build | OS arch and Process arch both read `aarch64` |
+| 26.6 | On the ARM64 machine, with the **x64** build (under emulation) | OS arch `aarch64`, Process arch `x86_64` — **the two disagree, and that is the finding** |
+| 26.7 | Submit the report | It posts, and the pre-filled fields survive |
+| 26.8 | `<F12>` with no browser set as default (or a broken association) | An error toast naming the failure. **The window keeps working** |
+| 26.9 | `<F12>` from the terminal pane (`<C-t>` first) | Nothing: `[term]` passes it to the shell, which is correct |
 
-## 26. The preview that would not arrive (v0.12.0)
+## 27. The preview that would not arrive (v0.12.0)
 
 A race, not a slow load: the answer reaches the channel and the window goes to
 sleep without drawing the frame that would take it out. Only ever seen once, on
@@ -522,13 +544,13 @@ a first launch, so reproducing it may take several cold starts.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 26.1 | Start filer cold, move to a text file as soon as the listing appears | The preview arrives **without touching anything else** |
-| 26.2 | Walk onto a file never opened in this session — a fresh clone, a folder you have not browsed | It appears. **This is the case that was broken: not cold starts, but anything not already cached** |
-| 26.3 | Walk off the file and back | Still fine (this always worked — it was the cache) |
-| 26.4 | Open an image never seen this session, then zoom with `+` | It steps from the picture's own fit, not from the last image's scale. **The same commit killed this and it has never been exercised** |
-| 26.5 | Restart, open ten different files in a row without revisiting any | All ten appear |
+| 27.1 | Start filer cold, move to a text file as soon as the listing appears | The preview arrives **without touching anything else** |
+| 27.2 | Walk onto a file never opened in this session — a fresh clone, a folder you have not browsed | It appears. **This is the case that was broken: not cold starts, but anything not already cached** |
+| 27.3 | Walk off the file and back | Still fine (this always worked — it was the cache) |
+| 27.4 | Open an image never seen this session, then zoom with `+` | It steps from the picture's own fit, not from the last image's scale. **The same commit killed this and it has never been exercised** |
+| 27.5 | Restart, open ten different files in a row without revisiting any | All ten appear |
 
-## 27. Changes made from outside (v0.12.4)
+## 28. Changes made from outside (v0.12.4)
 
 The watcher's rescan replaces the listing under whatever the cursor is on. Until
 v0.12.4 that crashed the program outright when the listing shrank past the
@@ -537,15 +559,15 @@ the unit tests alone.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 27.1 | Put the cursor on the **last** row, delete that file from Explorer | The row goes, the cursor lands on the new last row, **no crash** |
-| 27.2 | Cursor on the last row; delete several files at the end at once | Same |
-| 27.3 | Delete every file in the folder from outside | An empty listing, still responsive |
-| 27.4 | Cursor on the last row of a **filtered** listing (`f`), delete the file it is on | Same, and the filter still holds |
-| 27.5 | Same in the **other pane** (`<C-w>`) and in the **preview** of a directory | Neither crashes |
-| 27.6 | Cursor on the last row, delete that file with `d` | Same — this is what Issue #5 reported |
-| 27.7 | Rename a file from outside while the cursor is on it | The cursor follows the name or stays put; no crash |
+| 28.1 | Put the cursor on the **last** row, delete that file from Explorer | The row goes, the cursor lands on the new last row, **no crash** |
+| 28.2 | Cursor on the last row; delete several files at the end at once | Same |
+| 28.3 | Delete every file in the folder from outside | An empty listing, still responsive |
+| 28.4 | Cursor on the last row of a **filtered** listing (`f`), delete the file it is on | Same, and the filter still holds |
+| 28.5 | Same in the **other pane** (`<C-w>`) and in the **preview** of a directory | Neither crashes |
+| 28.6 | Cursor on the last row, delete that file with `d` | Same — this is what Issue #5 reported |
+| 28.7 | Rename a file from outside while the cursor is on it | The cursor follows the name or stays put; no crash |
 
-## 28. The terminal's directory, brought back (v0.14.0)
+## 29. The terminal's directory, brought back (v0.14.0)
 
 `<A-Up>` in the terminal pane (`term_cd`) asks the shell where it is, which only
 works if the shell says so with OSC 7. PowerShell says nothing unless the hook in
@@ -554,75 +576,75 @@ instructions.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 28.1 | With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` | A toast naming OSC 7 and `LocationChangedAction`, pointing at the README — **not** silence, and not a wait |
-| 28.2 | Paste the README hook into `$PROFILE`, open a new terminal, `cd C:\dev`, press `<A-Up>` | The file list moves to `C:\dev` |
-| 28.3 | Same with a directory whose name has a **space** and one with **Japanese** in it | Both arrive intact |
-| 28.4 | `cd` to a UNC path (`\\server\share`) and press `<A-Up>` | Either it follows or it says why; no crash |
-| 28.5 | Run the hook line by hand in a shell that already has Starship | The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`) |
+| 29.1 | With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` | A toast naming OSC 7 and `LocationChangedAction`, pointing at the README — **not** silence, and not a wait |
+| 29.2 | Paste the README hook into `$PROFILE`, open a new terminal, `cd C:\dev`, press `<A-Up>` | The file list moves to `C:\dev` |
+| 29.3 | Same with a directory whose name has a **space** and one with **Japanese** in it | Both arrive intact |
+| 29.4 | `cd` to a UNC path (`\\server\share`) and press `<A-Up>` | Either it follows or it says why; no crash |
+| 29.5 | Run the hook line by hand in a shell that already has Starship | The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`) |
 
-## 29. Right-click paste in a prompt (v0.14.0)
+## 30. Right-click paste in a prompt (v0.14.0)
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 29.1 | Copy a path in Explorer's address bar, press `c`+`d` (or whatever opens the `cd` prompt), right-click the field | The path appears; `<Enter>` goes there |
-| 29.2 | Type `abc`, click between `a` and `b` with the **right** button | The paste lands there, not at the end |
-| 29.3 | Select part of the text with a drag, then right-click **on the selection** | The selection is replaced |
-| 29.4 | Copy two lines of text, right-click into `s` | One line, the break shown as a space — the same as `<C-v>` |
-| 29.5 | Copy a Japanese path, right-click into `cd` | Intact, and the caret sits after it |
-| 29.6 | With an image (not text) on the clipboard, right-click a prompt | Nothing happens, **no toast** |
-| 29.7 | Same in the command palette, in `f`, and in `S-r` (bulk rename) | Each pastes; the bulk preview re-renders |
-| 29.8 | Right-click in the **file list** | Still the context menu — the list is unchanged |
-| 29.9 | Right-click in the **terminal** pane (`<C-t>`) | The clipboard is typed in, and the pane takes the keys if it did not have them |
-| 29.10 | Select text in the terminal with a drag, then right-click | The selection was copied on release; the right-click pastes it back — select to copy, right-click to paste |
-| 29.11 | Copy **three lines** and right-click into the terminal at a PowerShell prompt | All three sit in the buffer, **nothing runs** until `<Enter>` (PSReadLine asks for bracketed paste) |
-| 29.12 | The same in a shell that does **not** ask for bracketed paste (`cmd.exe`) | The lines run, as they always have — and no stray `[200~` appears |
-| 29.13 | Right-click in the terminal while `vim` is open | The text is inserted; no `[200~` on screen |
-| 29.14 | `<C-v>` in the terminal | Same as the right-click, including 23.11 |
+| 30.1 | Copy a path in Explorer's address bar, press `c`+`d` (or whatever opens the `cd` prompt), right-click the field | The path appears; `<Enter>` goes there |
+| 30.2 | Type `abc`, click between `a` and `b` with the **right** button | The paste lands there, not at the end |
+| 30.3 | Select part of the text with a drag, then right-click **on the selection** | The selection is replaced |
+| 30.4 | Copy two lines of text, right-click into `s` | One line, the break shown as a space — the same as `<C-v>` |
+| 30.5 | Copy a Japanese path, right-click into `cd` | Intact, and the caret sits after it |
+| 30.6 | With an image (not text) on the clipboard, right-click a prompt | Nothing happens, **no toast** |
+| 30.7 | Same in the command palette, in `f`, and in `S-r` (bulk rename) | Each pastes; the bulk preview re-renders |
+| 30.8 | Right-click in the **file list** | Still the context menu — the list is unchanged |
+| 30.9 | Right-click in the **terminal** pane (`<C-t>`) | The clipboard is typed in, and the pane takes the keys if it did not have them |
+| 30.10 | Select text in the terminal with a drag, then right-click | The selection was copied on release; the right-click pastes it back — select to copy, right-click to paste |
+| 30.11 | Copy **three lines** and right-click into the terminal at a PowerShell prompt | All three sit in the buffer, **nothing runs** until `<Enter>` (PSReadLine asks for bracketed paste) |
+| 30.12 | The same in a shell that does **not** ask for bracketed paste (`cmd.exe`) | The lines run, as they always have — and no stray `[200~` appears |
+| 30.13 | Right-click in the terminal while `vim` is open | The text is inserted; no `[200~` on screen |
+| 30.14 | `<C-v>` in the terminal | Same as the right-click, including 23.11 |
 
-## 30. A host's shares (v0.16.0)
+## 31. A host's shares (v0.16.0)
 
 Only testable against a real file server, and the interesting cases are the
 ones where it says no.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 30.1 | `g`+`<Space>`, type `\\<your server's address>`, `<Enter>` | The shares are listed, the same ones Explorer shows |
-| 30.2 | Same with a host **name** rather than an address, and with the `//` spelling | Both arrive; the path is shown back in the `\\host` spelling |
-| 30.3 | Walk into a share and back out with `h` | Into the share, then back to the host list |
-| 30.4 | `h` again, at the host | Nothing moves (the host is the top), no crash |
-| 30.5 | A host that is off, or does not exist (an unused address on your own subnet) | The tab returns to where it was and a toast says why — it does not hang the window |
-| 30.5a | 24.1 and 24.5 again, watching for a **toast** | v0.16.0 fell back to the parent in silence, so a failure looked like nothing happening. Whatever the outcome, there is now either a listing or a message; if it is still a message, its os error number is the thing to report |
-| 30.6 | A host that needs a login the machine has not been given | Same: a refusal as a toast, naming it |
-| 30.7 | A host with **many** shares (more than a screenful) | All of them, scrolling normally |
-| 30.8 | A share name with a space or non-ASCII in it | Intact |
-| 30.9 | Hover a share and look at the size column | Empty — there is nothing to read, and it must not sit there counting |
-| 30.10 | `<C-r>` / refresh on the host listing | Re-asks the server; no crash |
-| 30.11 | Open the host in the **other pane** (`<C-w>`) and in a second tab | Both fine |
-| 30.12 | Go to a host, then change directory away | The watcher does not complain about the host it could not watch |
+| 31.1 | `g`+`<Space>`, type `\\<your server's address>`, `<Enter>` | The shares are listed, the same ones Explorer shows |
+| 31.2 | Same with a host **name** rather than an address, and with the `//` spelling | Both arrive; the path is shown back in the `\\host` spelling |
+| 31.3 | Walk into a share and back out with `h` | Into the share, then back to the host list |
+| 31.4 | `h` again, at the host | Nothing moves (the host is the top), no crash |
+| 31.5 | A host that is off, or does not exist (an unused address on your own subnet) | The tab returns to where it was and a toast says why — it does not hang the window |
+| 31.5a | 24.1 and 24.5 again, watching for a **toast** | v0.16.0 fell back to the parent in silence, so a failure looked like nothing happening. Whatever the outcome, there is now either a listing or a message; if it is still a message, its os error number is the thing to report |
+| 31.6 | A host that needs a login the machine has not been given | Same: a refusal as a toast, naming it |
+| 31.7 | A host with **many** shares (more than a screenful) | All of them, scrolling normally |
+| 31.8 | A share name with a space or non-ASCII in it | Intact |
+| 31.9 | Hover a share and look at the size column | Empty — there is nothing to read, and it must not sit there counting |
+| 31.10 | `<C-r>` / refresh on the host listing | Re-asks the server; no crash |
+| 31.11 | Open the host in the **other pane** (`<C-w>`) and in a second tab | Both fine |
+| 31.12 | Go to a host, then change directory away | The watcher does not complain about the host it could not watch |
 
-## 31. Openers (v0.17.0)
+## 32. Openers (v0.17.0)
 
 The README's example config is the thing under test: if a step here fails, the
 instructions are wrong, which is worse than a missing feature.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 31.1 | Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` | 秀丸 / サクラ / VS Code / Neovim / default — with the descriptions, not the command lines |
-| 31.2 | `<Enter>` on the same file | Opens in the first entry (秀丸), no console flash |
-| 31.3 | `<S-Enter>` on a `.pdf` | Edge and Chrome first, then the default-app entry |
-| 31.4 | `<S-Enter>` on a `.xlsx`, pick Excel | Excel opens it — this is the `start ""` case that fails without it |
-| 31.5 | A file whose name has a **space**, through each of the above | One argument, opens correctly |
-| 31.6 | Several files selected, then `<Enter>` | All of them go to one invocation |
-| 31.7 | A rule written `*.{xlsx,xls,csv}` | Matches all three (this is what did not work before v0.17.0) |
-| 31.8 | An opener naming a program that is not installed | An error toast within a few seconds, no hang |
-| 31.8a | An opener whose program is a **quoted full path** (秀丸, サクラ) | It opens. This is the v0.17.0 bug: `cmd` mangled the line and the failure was silent |
-| 31.8b | 秀丸 and サクラ from `<S-Enter>` **and** from `<Enter>` as the first entry | Both, since they take different code paths to the same launcher |
-| 31.8c | An opener with a deliberate typo in the path | A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report |
-| 31.9 | Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ | Lands on the line |
+| 32.1 | Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` | 秀丸 / サクラ / VS Code / Neovim / default — with the descriptions, not the command lines |
+| 32.2 | `<Enter>` on the same file | Opens in the first entry (秀丸), no console flash |
+| 32.3 | `<S-Enter>` on a `.pdf` | Edge and Chrome first, then the default-app entry |
+| 32.4 | `<S-Enter>` on a `.xlsx`, pick Excel | Excel opens it — this is the `start ""` case that fails without it |
+| 32.5 | A file whose name has a **space**, through each of the above | One argument, opens correctly |
+| 32.6 | Several files selected, then `<Enter>` | All of them go to one invocation |
+| 32.7 | A rule written `*.{xlsx,xls,csv}` | Matches all three (this is what did not work before v0.17.0) |
+| 32.8 | An opener naming a program that is not installed | An error toast within a few seconds, no hang |
+| 32.8a | An opener whose program is a **quoted full path** (秀丸, サクラ) | It opens. This is the v0.17.0 bug: `cmd` mangled the line and the failure was silent |
+| 32.8b | 秀丸 and サクラ from `<S-Enter>` **and** from `<Enter>` as the first entry | Both, since they take different code paths to the same launcher |
+| 32.8c | An opener with a deliberate typo in the path | A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report |
+| 32.9 | Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ | Lands on the line |
 
 ---
 
-## 32. Config warnings, and their colour (v0.20.1)
+## 33. Config warnings, and their colour (v0.20.1)
 
 A warning here means a line in your own `keymap.toml` cannot take effect. The
 colour is the thing under test: red is reserved for something that failed, and
@@ -630,12 +652,12 @@ none of these failed.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 32.1 | Start with a `keymap.toml` that binds a key the defaults also bind (e.g. `'` to `plugin bookmarks jump`) | A **yellow** toast, not red: `Config: [mgr] \`'\` is bound more than once; only ... runs` |
-| 32.2 | With three or more such lines | The toast ends `(+2 more, see \`~\`)` |
-| 32.3 | Press `~` | The loaded config files, then every warning, all in the same yellow |
-| 32.4 | Make something actually fail (an opener naming a program that is not installed, 25.8) | Still **red**, so the two are told apart at a glance |
-| 32.5 | Remove the duplicate lines, `<C-F5>` | `Reloaded N config file(s)` in the plain colour; no yellow |
-| 32.6 | A theme with a light background | The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable |
+| 33.1 | Start with a `keymap.toml` that binds a key the defaults also bind (e.g. `'` to `plugin bookmarks jump`) | A **yellow** toast, not red: `Config: [mgr] \`'\` is bound more than once; only ... runs` |
+| 33.2 | With three or more such lines | The toast ends `(+2 more, see \`~\`)` |
+| 33.3 | Press `~` | The loaded config files, then every warning, all in the same yellow |
+| 33.4 | Make something actually fail (an opener naming a program that is not installed, 25.8) | Still **red**, so the two are told apart at a glance |
+| 33.5 | Remove the duplicate lines, `<C-F5>` | `Reloaded N config file(s)` in the plain colour; no yellow |
+| 33.6 | A theme with a light background | The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable |
 
 ---
 
