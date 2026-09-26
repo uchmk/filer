@@ -1016,8 +1016,11 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
 
 ## Known limits
 
-- Windows-first. The code compiles for Unix but only Windows is tested; `block = true` openers and
-  the hidden-file attribute are Windows-specific paths.
+- Windows-first. Every release carries macOS and Linux builds for both architectures, and CI
+  compiles and links all six on every push — but only Windows is tested, and nobody has started
+  the program on the other two. The shell thumbnail (HEIC / AVIF / PDF / video) and a file
+  server's share listing are Windows-only and say so elsewhere; `block = true` openers and the
+  hidden-file attribute are Windows-specific paths too.
 - No Lua plugin runtime — see the plugin table above for what is emulated natively, and the
   [context menu](#context-menu) for how a custom action reaches the screen without one.
 - An archive's preview lists what is inside but does not browse it: no entering a folder, and

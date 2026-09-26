@@ -1,19 +1,19 @@
 name: Release
 
-# A `filer.exe` that keeps its name and does not expire.
+# A build that keeps its name, does not expire, and downloads without an
+# account.
 #
 # `build.yml` already produces one on every push, but an Actions artifact is
-# named after a commit and is deleted after 90 days, so a link to it stops
-# working and never said which version it held. A release asset is named for
-# the tag and stays.
+# named after a commit, needs a signed-in GitHub account to fetch, and is
+# deleted after 90 days -- so a link to it stops working, and never said which
+# version it held. A release asset is named for the tag, stays, and since the
+# repository went public answers an anonymous request (v0.9.2 tested the same
+# fetch while it was private and got 404).
 #
-# What it does not yet do is let someone without a GitHub account download it.
-# While this repository is private, the asset URL answers 404 to anyone not
-# signed in with access to the repo -- the same audience an Actions artifact
-# reaches. That is a property of the repository, not of this workflow: the day
-# the repository goes public, these links start working for everyone, with no
-# change here. Until then, "send someone the link" means someone who already
-# has access.
+# Six files, on two jobs. Windows builds both its architectures on one x64
+# runner because there is no ARM64 Windows runner; macOS and Linux have native
+# runners for each, so those four build where they run. The split is explained
+# where the second job starts.
 
 on:
   push:
@@ -158,6 +158,29 @@ jobs:
             printf 'No commits between %s and %s.\n\n' "${prev:-the start}" "$tag" > notes.md
           fi
 
+          # The platforms note. It is here and not in a commit message because
+          # it is true of the download rather than of the change, so it belongs
+          # on every release and in none of the history.
+          cat >> notes.md <<'NOTE'
+
+          ### Platforms
+
+          **Windows is the platform this is tested on.** The macOS and Linux builds are
+          compiled and linked by CI on every push, and that is the whole of what is known
+          about them: nobody has started the program on either. They are here so that
+          somebody can, not because they are known to work.
+
+          Two things are known to be missing there, by design rather than by accident,
+          because the Windows shell is what supplies them: the thumbnail for formats
+          filer does not decode itself (HEIC, AVIF, PDF, video) and the listing of a file
+          server's shares. Both say so rather than failing quietly. PDF and video can be
+          previewed anyway with a `[[preview]]` rule; see the README.
+
+          The macOS binaries are unsigned, so Gatekeeper will refuse them until they are
+          allowed through by hand. The macOS and Linux downloads are `.tar.gz` because a
+          release asset does not carry the executable bit and an archive does.
+          NOTE
+
           # Pointing at the tag rather than at `main`, so the link keeps saying
           # what this version said once main has moved on. Written with printf
           # rather than a heredoc: a heredoc indented to match this block would
@@ -177,4 +200,78 @@ jobs:
           name: ${{ steps.tag.outputs.name }}
           body_path: notes.md
           files: dist/*.exe
+          fail_on_unmatched_files: true
+
+  # macOS and Linux, added to the release the Windows job has already made.
+  #
+  # Ordered by `needs` rather than run alongside, and that ordering is the point:
+  # creating a release is the one step that must happen exactly once. Four jobs
+  # racing to create it would have three of them find it half-made. Here the
+  # release exists before any of these start, so each only attaches a file, and
+  # attaching different filenames in parallel is safe.
+  #
+  # The cost of the ordering is that a failure here lands on a release that is
+  # already public with its Windows assets on it. That is the right way round:
+  # Windows is the platform this is tested on, and the rest are an addition to a
+  # release rather than a condition for one.
+  unix:
+    needs: windows
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      # One platform failing should not stop the others being attached.
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-arm64
+            os: macos-14
+            target: aarch64-apple-darwin
+          - name: macos-x64
+            os: macos-13
+            target: x86_64-apple-darwin
+          - name: linux-x64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+
+    name: ${{ matrix.name }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Work out the tag
+        id: tag
+        run: echo "name=${{ inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Add the target
+        run: rustup target add ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      # `.tar.gz` rather than the bare binary: a GitHub release asset does not
+      # carry the executable bit, so a downloaded `filer` would need `chmod +x`
+      # before it would run. A tar does carry it.
+      - name: Pack
+        run: |
+          tag="${{ steps.tag.outputs.name }}"
+          mkdir -p dist
+          tar -C "target/${{ matrix.target }}/release" \
+              -czf "dist/filer-$tag-${{ matrix.name }}.tar.gz" filer
+          ls -l dist
+
+      # No `body` and no `name`: the Windows job wrote those, and passing them
+      # again from four jobs at once would have them overwrite each other with
+      # the same text for no reason.
+      - name: Attach to the release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          files: dist/*.tar.gz
           fail_on_unmatched_files: true
