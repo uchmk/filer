@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**198 / 203 checked.**
+**203 / 203 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 140 / 145
+## `[mgr]` — 145 / 145
 
 The file list: what is in front of you unless an overlay is.
 
@@ -78,9 +78,9 @@ The file list: what is in front of you unless an overlay is.
 - [x] `X` — Cancel the yank status · `unyank`
 - [x] `p` — Paste the files · `paste`
 - [x] `P` — Paste the files (overwrite if the destination exists) · `paste --force`
-- [ ] `-` — Symlink the absolute path of yanked files · `link`
-- [ ] `_` — Symlink the relative path of yanked files · `link --relative`
-- [ ] `<C-->` — Hardlink the yanked files · `hardlink`
+- [x] `-` — Symlink the absolute path of yanked files · `link`
+- [x] `_` — Symlink the relative path of yanked files · `link --relative`
+- [x] `<C-->` — Hardlink the yanked files · `hardlink`
 - [x] `<A-c>` — Copy the selection to the other pane · `send_pane`
 - [x] `<A-m>` — Move the selection to the other pane · `send_pane --cut`
 - [x] `e` — Extract the selected archives · `extract`
@@ -94,8 +94,8 @@ The file list: what is in front of you unless an overlay is.
 - [x] `r` — Rename the file or directory · `rename`
 - [x] `R` — Rename everything selected by one rule · `bulk_rename`
 - [x] `<A-d>` — Compare two files side by side · `compare`
-- [ ] `;` — Run a shell command · `shell --interactive`
-- [ ] `:` — Run a shell command (block until finished) · `shell --interactive --block`
+- [x] `;` — Run a shell command · `shell --interactive`
+- [x] `:` — Run a shell command (block until finished) · `shell --interactive --block`
 - [x] `.` — Toggle the visibility of hidden files · `hidden`
 - [x] `c c` — Copy the absolute path · `copy path`
 - [x] `c d` — Copy the path of the parent directory · `copy dirname`
