@@ -77,12 +77,17 @@ drawing has been seen. `<C-t>` opens it.
 | A7 | `<C-S-t>` | *Now* the pane closes and the shell ends |
 | A8 | Reopen, then resize the window | The grid reflows; no clipped half-columns, no stretched text |
 | A9 | `dir` in `many\` to fill the screen, then `<S-PageUp>` | **The text moves.** Until v0.20.3 only the note moved — it said "N lines back" over a screen that had not scrolled |
-| A9a | `<S-PageDown>`, `<S-Home>`, `<S-End>`, and the mouse wheel over the pane (v0.20.3) | All four move the view. `<S-Home>` reaches the oldest line held, `<S-End>` the prompt |
-| A9b | Scroll back far enough that the prompt leaves the screen | The cursor goes with it — no block left behind at its old height |
-| A9c | `<C-S-f>` for a word far up the scrollback, Enter | The view jumps to the match (this could not have worked before v0.20.3 either) |
+| A9a | `<S-PageUp>` / `<S-PageDown>` (v0.20.4) | Half a screen back / forward. Until v0.20.4 the sign was inverted, so `<S-PageUp>` aimed at the bottom and did nothing |
+| A9b | `<S-Home>`, `<S-End>` | The oldest line held, and the prompt. These worked before — no sign to get wrong |
+| A9d | The mouse wheel over the pane (v0.20.4) | Moves smoothly, a notch at a time. It used to need spinning hard for one or two lines |
+| A9e | Scroll back far enough that the prompt leaves the screen | The cursor goes with it — no block left behind at its old height |
+| A9c | `<C-S-f>` for a word far up the scrollback, Enter | The view jumps to the match **and the match is highlighted** |
+| A9f | `<C-S-f>` for a word that is on screen right now (v0.20.4) | The one on screen is found first, not an older one up in the history |
+| A9g | `<C-S-n>` / `<C-S-b>` after that | `<C-S-n>` walks further up into the history, `<C-S-b>` comes back down |
+| A9h | `<C-S-f>` for something that is not there | A red toast saying so — not silence |
 | A10 | `<S-End>`, then type a character | Back at the bottom, and typing alone would have done it |
-| A11 | Drag across some output | It highlights, and is on the clipboard when you let go — no second step |
-| A12 | Double-click a word | The word is selected |
+| A11 | Drag across some output (v0.20.4) | **It highlights as you drag**, and is on the clipboard when you let go. Before v0.20.4 the copy worked and nothing was drawn |
+| A12 | Double-click a word | The word is selected, and visibly so |
 | A13 | `<C-S-f>`, type a word from the scrollback, Enter, then `<C-S-n>` | Matches are found and stepped through; it wraps at the end |
 | A14 | `<F1>` inside the terminal | The key list opens **over** the terminal. `<Esc>` closes it and typing goes back to the shell |
 | A15 | `<C-S-p>` inside the terminal | The command palette opens, and running something from it works |

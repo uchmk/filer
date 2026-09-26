@@ -847,6 +847,14 @@ pub struct App {
     pub term: Option<crate::terminal::Terminal>,
     /// The terminal has the keys, so they go to the shell rather than here.
     pub term_focus: bool,
+    /// Wheel movement not yet worth a whole line, kept so that it becomes one.
+    ///
+    /// A frame's smoothed delta is usually a fraction of a row, and truncating
+    /// each frame on its own threw all of it away: the view moved only on the
+    /// frames that happened to clear a full line, which felt like a wheel that
+    /// had to be spun hard for one or two lines. Carrying the remainder makes
+    /// every notch arrive.
+    pub term_scroll_px: f32,
     /// What the terminal was last searched for, so the key repeats it.
     term_needle: String,
     /// A drag in flight between the panes.
@@ -953,6 +961,7 @@ impl App {
             git_status: Lru::new(8),
             term: None,
             term_focus: false,
+            term_scroll_px: 0.0,
             term_needle: String::new(),
             drag: None,
             pane_rects: Vec::new(),
@@ -2248,7 +2257,10 @@ impl App {
             Act::TermFind { prev, repeat } => {
                 let needle = self.term_needle.clone();
                 match repeat && !needle.is_empty() {
-                    true => self.term_find(&needle, prev),
+                    // `--prev` walks back towards the bottom, because the
+                    // search itself runs the other way: what you are looking
+                    // for in a terminal has scrolled off the top.
+                    true => self.term_find(&needle, !prev),
                     // Nothing to repeat, so ask what to look for.
                     false => self.open_input(InputKind::TermFind, "Find in terminal", needle),
                 }
@@ -2257,11 +2269,18 @@ impl App {
                 if let Some(t) = &self.term {
                     use alacritty_terminal::grid::Scroll;
                     let page = t.size().lines as i64;
+                    // Negated, because the two conventions run opposite ways.
+                    // `term_scroll -50%` reads like `arrow -50%` and means
+                    // half a screen back, while alacritty counts a positive
+                    // delta as older. Taking the number as it stood sent
+                    // `<S-PageUp>` towards the bottom, where there is nothing
+                    // to go to, so the one key most likely to be tried first
+                    // did nothing at all.
                     t.scroll(match step {
                         Step::Top => Scroll::Top,
                         Step::Bot => Scroll::Bottom,
-                        Step::Rel(n) => Scroll::Delta(n as i32),
-                        Step::Pct(p) => Scroll::Delta((page * p / 100) as i32),
+                        Step::Rel(n) => Scroll::Delta(-(n as i32)),
+                        Step::Pct(p) => Scroll::Delta(-((page * p / 100) as i32)),
                     });
                 }
             }
@@ -3104,7 +3123,7 @@ impl App {
         match ov.kind {
             InputKind::Create => self.do_create(&text),
             InputKind::Compress => self.do_compress(&text),
-            InputKind::TermFind => self.term_find(&text, false),
+            InputKind::TermFind => self.term_find(&text, true),
             InputKind::Rename { from } => self.do_rename(&from, &text),
             InputKind::Bulk { paths } => self.do_bulk_rename(&paths, &text),
             InputKind::Filter => { /* already applied live */ }
@@ -5003,5 +5022,51 @@ mod config_warnings {
         let t = crate::config::theme::Theme::default();
         assert_ne!(t.warning, t.progress_error);
         assert_ne!(t.warning, t.fg);
+    }
+}
+
+#[cfg(test)]
+mod term_scroll_direction {
+
+    /// `term_scroll -50%` means half a screen *back*, the way `arrow -50%`
+    /// means half a screen up. Alacritty counts the other way round: a
+    /// positive delta is older. Passing the number through as it stood aimed
+    /// `<S-PageUp>` at the bottom, which is where the view already is, so the
+    /// first key anyone tries did nothing — while `<S-Home>` and `<S-End>`,
+    /// having no sign to get wrong, worked and made it look like a key
+    /// problem rather than an arithmetic one.
+    #[test]
+    fn a_negative_step_goes_back_into_the_history() {
+        use crate::config::cmd::Step;
+        let lines = 4usize;
+        let mut t = crate::terminal::testing::term(20, lines);
+        for i in 0..40 {
+            crate::terminal::testing::feed(&mut t, &format!("line{i}\r\n"));
+        }
+
+        // The mapping under test, lifted out of `Act::TermScroll`.
+        let scroll = |t: &mut alacritty_terminal::Term<crate::terminal::Proxy>, step: Step| {
+            use alacritty_terminal::grid::Scroll;
+            let page = lines as i64;
+            let by = match step {
+                Step::Top => Scroll::Top,
+                Step::Bot => Scroll::Bottom,
+                Step::Rel(n) => Scroll::Delta(-(n as i32)),
+                Step::Pct(p) => Scroll::Delta(-((page * p / 100) as i32)),
+            };
+            t.scroll_display(by);
+        };
+
+        scroll(&mut t, Step::Pct(-50));
+        assert_eq!(t.grid().display_offset(), 2, "back half of a four-line screen");
+        scroll(&mut t, Step::Pct(50));
+        assert_eq!(t.grid().display_offset(), 0, "and forward again");
+
+        scroll(&mut t, Step::Rel(-3));
+        assert_eq!(t.grid().display_offset(), 3, "three lines back");
+        scroll(&mut t, Step::Top);
+        assert!(t.grid().display_offset() > 3, "the top is as far as it goes");
+        scroll(&mut t, Step::Bot);
+        assert_eq!(t.grid().display_offset(), 0);
     }
 }

@@ -442,10 +442,7 @@ impl Terminal {
         let mut term = self.term.lock();
         // From where the last match left off, so a repeat walks the matches
         // rather than finding the same one.
-        let origin = self.found.unwrap_or_else(|| {
-            let line = Line(-(term.grid().display_offset() as i32));
-            Point::new(line, Column(0))
-        });
+        let origin = self.found.unwrap_or_else(|| search_origin(&term, back));
         let dir = if back { Direction::Left } else { Direction::Right };
         let Some(m) = term.search_next(&mut re, origin, dir, Side::Left, None) else {
             drop(term);
@@ -711,6 +708,25 @@ pub fn control_code(c: char, alt: bool) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// Where a search with nothing to carry on from begins.
+///
+/// Backwards starts at the bottom right of what is on screen, so the visible
+/// rows are searched before the history above them. Starting at the top left
+/// instead -- which is what the view's own first line is -- steps away from
+/// every row the reader can see *and* every row above it, and `<C-S-f>` said
+/// there was no match for text that was plainly on the screen.
+pub fn search_origin<T: EventListener>(term: &Term<T>, back: bool) -> Point {
+    let grid = term.grid();
+    let offset = grid.display_offset() as i32;
+    match back {
+        true => Point::new(
+            Line(grid.screen_lines() as i32 - 1 - offset),
+            Column(grid.columns().saturating_sub(1)),
+        ),
+        false => Point::new(Line(-offset), Column(0)),
+    }
+}
+
 /// Where the cursor is, in cells, for the renderer to draw over.
 /// The row is where the cursor is *on screen*, which is not where it is in the
 /// buffer once the view has been scrolled back: the caller draws nothing when
@@ -742,12 +758,21 @@ pub fn snapshot<T: EventListener>(term: &Term<T>) -> Vec<Vec<CellView>> {
     // and the screen did not move. The same subtraction is in `point`, which
     // has always had to do this to turn a click into a buffer position.
     let offset = grid.display_offset() as i32;
+    let sel = term.selection.as_ref().and_then(|s| s.to_range(term));
     let mut out = Vec::with_capacity(lines);
     for l in 0..lines {
+        let line = Line(l as i32 - offset);
         let mut row = Vec::with_capacity(cols);
         for c in 0..cols {
-            let cell = &grid[Line(l as i32 - offset)][Column(c)];
-            row.push(CellView { c: cell.c, fg: cell.fg, bg: cell.bg, flags: cell.flags });
+            let cell = &grid[line][Column(c)];
+            let at = Point::new(line, Column(c));
+            row.push(CellView {
+                c: cell.c,
+                fg: cell.fg,
+                bg: cell.bg,
+                flags: cell.flags,
+                selected: sel.is_some_and(|r| r.contains(at)),
+            });
         }
         out.push(row);
     }
@@ -761,14 +786,20 @@ pub struct CellView {
     pub fg: alacritty_terminal::vte::ansi::Color,
     pub bg: alacritty_terminal::vte::ansi::Color,
     pub flags: alacritty_terminal::term::cell::Flags,
+    /// Inside the drag, or inside what a search just found. Both set the same
+    /// selection, so both are drawn the same way, and until v0.20.4 neither
+    /// was drawn at all -- a drag copied text with no sign of what it took,
+    /// and a search that worked was indistinguishable from one that did not.
+    pub selected: bool,
 }
 
+/// A terminal built without a PTY, for tests anywhere in the crate.
 #[cfg(test)]
-mod tests {
+pub mod testing {
     use super::*;
 
     /// A terminal with `lines` rows of screen and room to scroll back.
-    fn term(cols: usize, lines: usize) -> Term<Proxy> {
+    pub fn term(cols: usize, lines: usize) -> Term<Proxy> {
         let (tx, _rx) = crossbeam_channel::unbounded();
         let proxy = Proxy { tx, wake: Arc::new(|| {}) };
         let cfg = Config { scrolling_history: 200, ..Default::default() };
@@ -776,7 +807,7 @@ mod tests {
     }
 
     /// Feed `text` through the parser, as the PTY reader thread would.
-    fn feed(t: &mut Term<Proxy>, text: &str) {
+    pub fn feed(t: &mut Term<Proxy>, text: &str) {
         let mut parser = alacritty_terminal::vte::ansi::Processor::<
             alacritty_terminal::vte::ansi::StdSyncHandler,
         >::default();
@@ -784,6 +815,12 @@ mod tests {
             parser.advance(t, &[*b]);
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::testing::{feed, term};
+    use super::*;
 
     /// The scrollback keys moved the view and the screen did not follow.
     ///
@@ -831,6 +868,82 @@ mod tests {
         let (_, after) = cursor_cell(&t);
         assert_eq!(after, before + 3, "it moves down as older lines come in above");
         assert!(after >= 4, "and is off the screen, so the pane draws nothing");
+    }
+
+    /// A drag copied the text and showed nothing, so there was no way to see
+    /// what was about to be copied. The cells carry the flag now.
+    #[test]
+    fn a_selection_marks_the_cells_it_covers() {
+        use alacritty_terminal::index::Side;
+        use alacritty_terminal::selection::{Selection, SelectionType};
+
+        let mut t = term(20, 4);
+        feed(&mut t, "hello world\r\n");
+        let row = 0;
+        let mut sel = Selection::new(
+            SelectionType::Simple,
+            Point::new(Line(row), Column(0)),
+            Side::Left,
+        );
+        sel.update(Point::new(Line(row), Column(4)), Side::Right);
+        t.selection = Some(sel);
+
+        let rows = snapshot(&t);
+        let marked: String = rows[row as usize]
+            .iter()
+            .filter(|c| c.selected)
+            .map(|c| c.c)
+            .collect();
+        assert_eq!(marked, "hello", "exactly the dragged cells");
+        assert!(rows[1].iter().all(|c| !c.selected), "and nothing on other rows");
+    }
+
+    /// Which match a search lands on first.
+    ///
+    /// Alacritty wraps, so a backwards search finds *something* from anywhere;
+    /// the origin decides what. From the top line of the view it steps over
+    /// every row underneath and goes into the history, landing far from where
+    /// the reader is looking even when the word is on screen. From the bottom
+    /// right it finds the nearest one going up, which is what a terminal's
+    /// find does.
+    #[test]
+    fn a_backwards_search_starts_at_the_bottom_of_the_view() {
+        use alacritty_terminal::term::search::RegexSearch;
+
+        let mut t = term(20, 4);
+        feed(&mut t, "target early\r\n");
+        for i in 0..20 {
+            feed(&mut t, &format!("filler{i}\r\n"));
+        }
+        feed(&mut t, "target late\r\n");
+
+        let origin = search_origin(&t, true);
+        assert_eq!(origin.line, Line(3), "the bottom row of the view, not the top");
+
+        let mut re = RegexSearch::new("target").unwrap();
+        let near = t
+            .search_next(&mut re, origin, Direction::Left, Side::Left, None)
+            .expect("there are two of them");
+        assert_eq!(near.start().line, Line(2), "the one on screen, just above the origin");
+
+        let from_top = Point::new(Line(0), Column(0));
+        let far = t
+            .search_next(&mut re, from_top, Direction::Left, Side::Left, None)
+            .expect("wrapping means this finds one too");
+        assert!(far.start().line < Line(0), "but the old one, up in the history");
+    }
+
+    /// Forwards still starts at the top of the view.
+    #[test]
+    fn a_forwards_search_starts_at_the_top_of_the_view() {
+        let mut t = term(20, 4);
+        for i in 0..20 {
+            feed(&mut t, &format!("line{i}\r\n"));
+        }
+        assert_eq!(search_origin(&t, false).line, Line(0));
+        t.scroll_display(Scroll::Delta(2));
+        assert_eq!(t.grid().display_offset(), 2, "there is history to move into");
+        assert_eq!(search_origin(&t, false).line, Line(-2), "which moves with the view");
     }
 
     fn s(bytes: Vec<u8>) -> String {

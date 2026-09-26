@@ -20,6 +20,11 @@ pub fn fit(rect: Rect, cell_w: f32, row_h: f32) -> Size {
     Size::new((rect.width() / cell_w).floor() as usize, (rect.height() / row_h).floor() as usize)
 }
 
+/// How far the view travels for a pixel of wheel movement. One notch of a
+/// Windows wheel reaches egui as about 50 points, so at this rate a notch is
+/// close to the three lines every other terminal moves.
+const LINES_PER_PIXEL: f32 = 1.0;
+
 pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let theme = app.cfg.theme.clone();
     let focused = app.term_focus;
@@ -70,7 +75,13 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         // same color beats one per cell.
         let mut run: Option<(usize, Color32)> = None;
         for (x, cell) in row.iter().enumerate() {
-            let bg = color(cell.bg, &theme, true);
+            // A selected cell takes the same background the list gives the row
+            // under the cursor: already proven to carry text in this palette,
+            // and already the colour that means "this one" everywhere else.
+            let bg = match cell.selected {
+                true => theme.hovered_bg,
+                false => color(cell.bg, &theme, true),
+            };
             match run {
                 Some((_, c)) if c == bg => {}
                 Some((start, c)) => {
@@ -183,8 +194,17 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         }
     }
     // The wheel walks the scrollback rather than the file list under it.
-    if wheel.abs() > 0.5 {
-        term.scroll(Scroll::Delta((wheel / row_h * 1.5) as i32));
+    //
+    // Through an accumulator, because a frame's share of a notch is usually
+    // less than a row and `as i32` rounds that to nothing. What survived was
+    // the occasional frame that cleared a whole line on its own, which is why
+    // the wheel used to need spinning hard to move one or two.
+    let acc = &mut app.term_scroll_px;
+    *acc += wheel * LINES_PER_PIXEL;
+    let whole = (*acc / row_h).trunc();
+    if whole != 0.0 {
+        *acc -= whole * row_h;
+        term.scroll(Scroll::Delta(whole as i32));
     }
     // Said out loud because the right-click looked like it did nothing.
     if let Some(Err(e)) = pasting {
