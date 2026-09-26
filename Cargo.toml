@@ -14,7 +14,7 @@ build = "build.rs"
 eframe = "0.36"
 egui = "0.36"
 serde = { version = "1", features = ["derive"] }
-toml = "0.8"
+toml = "1.1"
 crossbeam-channel = "0.5"
 dirs = "7"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
@@ -26,8 +26,8 @@ notify = "8"
 ignore = "0.4"
 ab_glyph = "0.2"
 ttf-parser = "0.25"
-resvg = { version = "0.45", default-features = false, features = ["text", "system-fonts"] }
-zip = { version = "7", default-features = false, features = ["deflate"] }
+resvg = { version = "0.48", default-features = false, features = ["text", "system-fonts"] }
+zip = { version = "8", default-features = false, features = ["deflate"] }
 tar = { version = "0.4", default-features = false }
 sevenz-rust2 = "0.23"
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
@@ -35,7 +35,7 @@ alacritty_terminal = { version = "0.26", default-features = false }
 polling = "3"
 # Already in the tree: syntect's `default-fancy` builds it. Naming it here is
 # what lets bulk rename use it, and adds no crate to the build.
-fancy-regex = "0.16"
+fancy-regex = "0.19"
 
 [dependencies.image]
 version = "0.25"
