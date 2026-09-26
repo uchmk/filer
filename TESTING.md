@@ -361,6 +361,12 @@ was that a gentle turn moved nothing at all.
 | 15.4 | Select `to-pack\`, press `E`, accept `to-pack.zip` | Packed, and the result opens |
 | 15.5 | `E` and change the name to end in `.tar.gz` | A gzipped tar, not a zip |
 | 15.6 | `e` on a text file | A toast says it was skipped; nothing else happens |
+| 15.7 | `E` and change the name to end in **`.7z`** (v0.27.0) | A real 7z. Until v0.27.0 this was refused as read-only |
+| 15.8 | `e` on that `.7z` | It unpacks, and the files match what went in |
+| 15.9 | Open the same `.7z` in 7-Zip or Explorer | It opens there too — the point of the format is that it travels |
+| 15.10 | Pack a folder holding subfolders as `.7z`, watch the task panel | The count is of **files**, not folders, and it reaches the total rather than stopping short |
+| 15.11 | Compare the `.7z` and the `.zip` of the same input | The 7z is smaller; that is the reason to have it |
+| 15.12 | `E` with a name ending in something else (`.rar`) | `Name it .zip, .7z, .tar or .tar.gz to say which format` |
 
 ## 16. Editors, at a line (needs the editors installed)
 

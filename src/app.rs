@@ -2765,12 +2765,15 @@ impl App {
         let cwd = self.tabs[self.active].cwd.clone();
         let dest = util::resolve_against(&cwd, name);
         let Some(format) = archive::Format::from_path(&dest) else {
-            self.error("Name it .zip, .tar or .tar.gz to say which format");
+            self.error("Name it .zip, .7z, .tar or .tar.gz to say which format");
             return;
         };
+        // Every format that can be read can be written, since v0.27.0. The
+        // guard stays: `can_write` is what the writer asserts on, and a format
+        // added for reading alone would otherwise reach it.
         if !format.can_write() {
             self.error(format!(
-                "{} can be read here but not written — use .zip, .tar or .tar.gz",
+                "{} can be read here but not written — use .zip, .7z, .tar or .tar.gz",
                 format.label(),
             ));
             return;

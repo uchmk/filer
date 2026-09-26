@@ -45,7 +45,7 @@ impl Format {
     /// sevenz-rust packs only what it can encode, and the formats above cover
     /// what a file manager is asked for.
     pub fn can_write(self) -> bool {
-        !matches!(self, Format::SevenZ)
+        true
     }
 
     pub fn label(self) -> &'static str {
@@ -305,7 +305,7 @@ pub fn compress(
             let gz = flate2::write::GzEncoder::new(out, flate2::Compression::default());
             write_tar(&members, gz, on_entry)?.finish()?
         }
-        Format::SevenZ => unreachable!("guarded by can_write"),
+        Format::SevenZ => write_7z(&members, out, on_entry)?,
     };
     out.flush()?;
     out.into_inner().map_err(io::Error::other)?.sync_all()
@@ -381,6 +381,38 @@ fn write_zip<W: Write + io::Seek>(
     zip.finish().map_err(|e| io::Error::other(e.to_string()))
 }
 
+/// 7z, which compresses harder than the rest and is what people reach for when
+/// the archive has to travel.
+///
+/// The encoder was already in the binary: `sevenz-rust` turns its `compress`
+/// feature on by default, so it was being built and never called. Reading came
+/// first and writing was left out until the writer had been looked at; it
+/// takes one entry at a time, which is what the progress callback needs.
+fn write_7z<W: Write + io::Seek>(
+    members: &[Member],
+    out: W,
+    on_entry: OnEntry<'_>,
+) -> io::Result<W> {
+    let to_io = |e: sevenz_rust::Error| io::Error::other(e.to_string());
+    let mut z = sevenz_rust::SevenZWriter::new(out).map_err(to_io)?;
+    for m in members {
+        let entry = sevenz_rust::SevenZArchiveEntry::from_path(&m.path, m.name.clone());
+        // A directory is a name and nothing to read, and it is not reported:
+        // the callback counts files, the way the zip and tar writers do, and
+        // a progress bar that counted folders would not match its own total.
+        if m.dir {
+            z.push_archive_entry::<&[u8]>(entry, None).map_err(to_io)?;
+            continue;
+        }
+        let f = BufReader::new(File::open(&m.path)?);
+        let size = z.push_archive_entry(entry, Some(f)).map_err(to_io)?.size;
+        if !on_entry(&m.name, size) {
+            break;
+        }
+    }
+    z.finish()
+}
+
 fn write_tar<W: Write>(members: &[Member], out: W, on_entry: OnEntry<'_>) -> io::Result<W> {
     let mut tar = tar::Builder::new(out);
     for m in members {
@@ -427,9 +459,10 @@ mod tests {
         assert_eq!(Format::from_path(Path::new("notes.txt")), None);
         // A name that is nothing but the extension names no archive.
         assert_eq!(Format::from_path(Path::new(".zip")), None);
-        // 7z is read-only here; the rest round-trip.
-        assert!(!Format::SevenZ.can_write());
-        assert!(Format::Zip.can_write() && Format::TarGz.can_write());
+        // Every format read here can be written as well, since v0.27.0.
+        assert!([Format::Zip, Format::Tar, Format::TarGz, Format::SevenZ]
+            .iter()
+            .all(|f| f.can_write()));
     }
 
     /// An archive names its own entries, so the names are an attacker's to
@@ -461,7 +494,7 @@ mod tests {
     /// it back, and see the same names and bytes.
     #[test]
     fn a_tree_survives_being_packed_and_unpacked() {
-        for format in [Format::Zip, Format::Tar, Format::TarGz] {
+        for format in [Format::Zip, Format::Tar, Format::TarGz, Format::SevenZ] {
             let root = std::env::temp_dir().join(format!("filer-archive-{}", format.label()));
             let _ = std::fs::remove_dir_all(&root);
             let src = root.join("src");
