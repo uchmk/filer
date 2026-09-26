@@ -288,6 +288,22 @@ In `bulk-rename\`.
 | G11 | `b` then a letter, having saved one with `B` | Jumps there. `'` and the letter does the same |
 | G12 | `z` | The jump list: bookmarks first, then recent directories with "2h ago" beside them |
 
+## Z. The wheel, over each pane (v0.26.5)
+
+The same arithmetic in three places, so all three have to be tried. A notch
+should move about three rows, and a slow turn should move *something* — the bug
+was that a gentle turn moved nothing at all.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| Z1 | Wheel over the **preview** of a long text file | It scrolls, one notch at a time, without spinning hard. This is the v0.26.5 fix |
+| Z2 | Turn the wheel as slowly as you can over the preview | It still moves. Every fraction counts; nothing is discarded |
+| Z3 | Wheel over the **file list** | The same, and with the split open, over each pane in turn |
+| Z4 | Wheel over the **terminal** pane | Still right — fixed earlier, in v0.20.4, and now sharing the same code |
+| Z5 | Turn one way then straight back | It reverses at once, with no dead travel from a stranded remainder |
+| Z6 | `Ctrl` and the wheel over an image | Zooms, and does **not** scroll the pane with the same turn |
+| Z7 | Move the pointer between panes mid-turn | Neither jumps: each keeps its own remainder |
+
 ## H. Configuration and theming
 
 | # | Do | Expect |

@@ -36,7 +36,9 @@ pub struct ListResult {
     pub drag_started: Option<usize>,
     /// The drag that began here has been let go, wherever the pointer is now.
     pub drag_stopped: bool,
-    pub scrolled: i64,
+    /// Wheel movement over this pane, in rows; the caller keeps the
+    /// remainder, since it is the one that lives between frames.
+    pub scroll_rows: f32,
     /// Modifiers held down for the click above.
     pub mods: egui::Modifiers,
 }
@@ -57,7 +59,7 @@ pub fn draw(
         secondary_clicked: None,
         drag_started: None,
         drag_stopped: false,
-        scrolled: 0,
+        scroll_rows: 0.0,
         mods: egui::Modifiers::NONE,
     };
 
@@ -235,9 +237,7 @@ pub fn draw(
     out.drag_stopped = resp.drag_stopped();
     if ui.rect_contains_pointer(rect) {
         let scroll = ui.ctx().input(|i| i.smooth_scroll_delta.y);
-        if scroll.abs() > 0.5 {
-            out.scrolled = -(scroll / st.row_h * 1.5) as i64;
-        }
+        out.scroll_rows = -scroll / st.row_h * 1.5;
     }
     out
 }

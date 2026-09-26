@@ -21,6 +21,22 @@ pub fn font(size: f32) -> FontId {
     FontId::new(size, FontFamily::Monospace)
 }
 
+/// Turn wheel movement, measured in rows, into whole rows — keeping the part
+/// that is not yet one.
+///
+/// A frame's share of a notch is usually a fraction of a row, and truncating
+/// each frame on its own threw that away every time: only a frame that cleared
+/// a whole row on its own moved anything, which is a wheel you have to spin
+/// hard for one or two lines. Every surface that scrolls by rows needs this,
+/// and each keeps its own remainder — one shared between them would jump when
+/// the pointer crossed from one to another mid-turn.
+pub fn wheel_whole(acc: &mut f32, rows: f32) -> i64 {
+    *acc += rows;
+    let whole = acc.trunc();
+    *acc -= whole;
+    whole as i64
+}
+
 /// The listing's right-hand summary.
 ///
 /// The yank register sits next to the selection and says which of the two it
@@ -427,9 +443,12 @@ pub(super) fn draw_preview(
                 // the pane with the same turn.
                 let (scroll, ctrl) =
                     ui.ctx().input(|i| (i.smooth_scroll_delta.y, i.modifiers.command));
-                if scroll.abs() > 0.5 && !ctrl {
-                    let delta = -(scroll / row_h * 1.5) as i64;
-                    queued.push(Act::Seek(Step::Rel(delta)));
+                if !ctrl {
+                    let rows = -scroll / row_h * 1.5;
+                    let delta = wheel_whole(&mut app.preview_scroll_rows, rows);
+                    if delta != 0 {
+                        queued.push(Act::Seek(Step::Rel(delta)));
+                    }
                 }
             }
         }
@@ -577,8 +596,9 @@ fn draw_pane(
             egui::StrokeKind::Inside,
         );
     }
-    if res.scrolled != 0 {
-        app.tabs[idx].current.scroll(res.scrolled, rows);
+    let scrolled = wheel_whole(&mut app.list_scroll_rows, res.scroll_rows);
+    if scrolled != 0 {
+        app.tabs[idx].current.scroll(scrolled, rows);
         app.tabs[idx].sync_visual();
     }
     // Shift / Ctrl (Cmd on macOS) turn a click into a selection gesture, so
@@ -981,5 +1001,51 @@ mod summary_line {
         );
         assert_eq!(summary(19, 3, Some((2, true)), true),
             "3 selected · 2 cut · 19 items · hidden shown");
+    }
+}
+
+#[cfg(test)]
+mod wheel {
+    use super::*;
+
+    /// Turning the wheel has to move the view by what was turned.
+    ///
+    /// Each frame gets a fraction of a notch, and truncating each one on its
+    /// own discards it: twenty frames of "not quite a row" used to move
+    /// nothing at all. That is the whole bug — a wheel that had to be spun
+    /// hard for one or two lines — and it was in three places, so the
+    /// arithmetic lives in one.
+    #[test]
+    fn a_notch_spread_over_frames_still_arrives() {
+        let mut acc = 0.0;
+        // Three rows' worth, delivered a fifth of a row at a time.
+        let moved: i64 = (0..15).map(|_| wheel_whole(&mut acc, 0.2)).sum();
+        assert_eq!(moved, 3, "every fifth frame completes a row");
+
+        // Truncating each frame instead is what used to happen.
+        let dropped: i64 = (0..15).map(|_| 0.2_f32.trunc() as i64).sum();
+        assert_eq!(dropped, 0, "which is why nothing moved");
+    }
+
+    /// The remainder is kept, not rounded away, and works both ways.
+    #[test]
+    fn it_keeps_the_part_that_is_not_yet_a_row() {
+        let mut acc = 0.0;
+        assert_eq!(wheel_whole(&mut acc, 0.6), 0, "not a row yet");
+        assert_eq!(wheel_whole(&mut acc, 0.6), 1, "now it is");
+        assert!((acc - 0.2).abs() < 1e-5, "and 0.2 of a row is still owed: {acc}");
+
+        // Turning back the other way spends the remainder rather than
+        // stranding it, so a reversal answers at once.
+        let mut acc = 0.0;
+        assert_eq!(wheel_whole(&mut acc, -0.6), 0);
+        assert_eq!(wheel_whole(&mut acc, -0.6), -1);
+
+        // A whole row at a time is unaffected — the common case must not drift.
+        let mut acc = 0.0;
+        for _ in 0..10 {
+            assert_eq!(wheel_whole(&mut acc, 1.0), 1);
+        }
+        assert!(acc.abs() < 1e-5, "no drift after ten rows: {acc}");
     }
 }

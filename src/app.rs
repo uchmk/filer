@@ -856,14 +856,13 @@ pub struct App {
     /// The file the spot worker was last asked about, so the panel can be
     /// pointed at a new one without asking again every frame.
     pub spot_asked: Option<PathBuf>,
-    /// Wheel movement not yet worth a whole line, kept so that it becomes one.
-    ///
-    /// A frame's smoothed delta is usually a fraction of a row, and truncating
-    /// each frame on its own threw all of it away: the view moved only on the
-    /// frames that happened to clear a full line, which felt like a wheel that
-    /// had to be spun hard for one or two lines. Carrying the remainder makes
-    /// every notch arrive.
-    pub term_scroll_px: f32,
+    /// Wheel movement not yet worth a whole row, kept so that it becomes one.
+    /// One per surface that scrolls by rows: sharing a single remainder would
+    /// make the view jump when the pointer crossed between them mid-turn.
+    /// See [`crate::ui::wheel_whole`] for why the remainder has to be kept.
+    pub term_scroll_rows: f32,
+    pub preview_scroll_rows: f32,
+    pub list_scroll_rows: f32,
     /// What the terminal was last searched for, so the key repeats it.
     term_needle: String,
     /// A drag in flight between the panes.
@@ -971,7 +970,9 @@ impl App {
             term: None,
             term_focus: false,
             spot_asked: None,
-            term_scroll_px: 0.0,
+            term_scroll_rows: 0.0,
+            preview_scroll_rows: 0.0,
+            list_scroll_rows: 0.0,
             term_needle: String::new(),
             drag: None,
             pane_rects: Vec::new(),

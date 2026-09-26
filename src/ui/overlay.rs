@@ -540,10 +540,14 @@ pub fn tasks(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     let painter = ui.painter_at(inner);
 
     if app.tasks.is_empty() {
+        // Saying what puts something here, because an empty panel called a
+        // task manager reads as one you are meant to add to. Nothing is added
+        // by hand: the operations queue themselves, and this is where they are
+        // watched.
         painter.text(
             inner.left_top(),
             Align2::LEFT_TOP,
-            "No tasks",
+            "No tasks — copying, moving, deleting, extracting and compressing queue here",
             f.clone(),
             theme.fg_dim,
         );

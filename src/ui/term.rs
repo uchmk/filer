@@ -209,16 +209,9 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         }
     }
     // The wheel walks the scrollback rather than the file list under it.
-    //
-    // Through an accumulator, because a frame's share of a notch is usually
-    // less than a row and `as i32` rounds that to nothing. What survived was
-    // the occasional frame that cleared a whole line on its own, which is why
-    // the wheel used to need spinning hard to move one or two.
-    let acc = &mut app.term_scroll_px;
-    *acc += wheel * LINES_PER_PIXEL;
-    let whole = (*acc / row_h).trunc();
-    if whole != 0.0 {
-        *acc -= whole * row_h;
+    let rows = wheel * LINES_PER_PIXEL / row_h;
+    let whole = crate::ui::wheel_whole(&mut app.term_scroll_rows, rows);
+    if whole != 0 {
         term.scroll(Scroll::Delta(whole as i32));
     }
     // Said out loud because the right-click looked like it did nothing.
