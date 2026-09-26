@@ -1,15 +1,25 @@
 name: Build
 
-# A downloadable `filer.exe`, so getting one does not mean having a Rust
-# toolchain to hand. Kept apart from `ci.yml` on purpose: this one produces an
-# artifact, that one is the gate, and a failure here should not read as a
-# failing test.
+# A downloadable binary, so getting one does not mean having a Rust toolchain to
+# hand. Kept apart from `ci.yml` on purpose: this one produces an artifact, that
+# one is the gate, and a failure here should not read as a failing test.
 #
-# Two architectures, both built on the same x64 runner. Windows on ARM runs x64
-# binaries under emulation, so an ARM64 machine can always open the x64 build --
-# but that tests the emulator as much as the program, which is no use when the
-# question is how filer behaves on ARM64. The cross build is nearly free here,
-# and it is the only way to get a native binary onto that machine.
+# Six targets across three operating systems. Windows is the one that is tested
+# by hand, and the rest are here to answer whether they build at all -- a
+# question that otherwise gets answered by somebody else, after a release, in an
+# issue. Type-checking them from Linux (`cargo check --target ...`) already
+# passes, but that never links, and linking is where a platform's own frameworks
+# come in. This is the step that actually finds out.
+#
+# The two Windows builds share one x64 runner, since there is no ARM64 Windows
+# runner. Windows on ARM runs x64 binaries under emulation, so an ARM64 machine
+# can always open the x64 build -- but that tests the emulator as much as the
+# program, and the cross build is nearly free. macOS and Linux both have native
+# runners for each architecture, so those six are built where they run.
+#
+# Free because the repository is public. On a private repository this would bill
+# against the account's Actions allowance, at double for Windows and ten times
+# for macOS, which is what made two targets the sensible number before.
 
 on:
   push:
@@ -21,32 +31,51 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  windows:
-    runs-on: windows-latest
+  build:
+    runs-on: ${{ matrix.os }}
 
     strategy:
-      # One architecture failing should not cancel the other: which of the two
-      # broke, and whether the other still builds, is the useful information.
+      # One target failing should not cancel the others: which of them broke,
+      # and whether the rest still build, is the useful information -- and with
+      # platforms that nobody runs by hand, that is most of the value here.
       fail-fast: false
       matrix:
         include:
-          - arch: x64
+          - name: windows-x64
+            os: windows-latest
             target: x86_64-pc-windows-msvc
-          - arch: arm64
+          - name: windows-arm64
+            os: windows-latest
             target: aarch64-pc-windows-msvc
+          - name: macos-arm64
+            os: macos-14
+            target: aarch64-apple-darwin
+          - name: macos-x64
+            os: macos-13
+            target: x86_64-apple-darwin
+          - name: linux-x64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
 
-    name: windows-${{ matrix.arch }}
+    name: ${{ matrix.name }}
 
     steps:
       - uses: actions/checkout@v4
 
+      # A no-op where the target is the runner's own, which is every job but the
+      # two Windows ones. Left unconditional because a rustup that already has
+      # the target says so and exits, and a condition would be more to read.
       - name: Add the target
         run: rustup target add ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
         with:
-          # Without this the two jobs share one cache entry and keep evicting
-          # each other's artifacts, since they differ only by target.
+          # Without this the jobs sharing a runner image share one cache entry
+          # and keep evicting each other's artifacts, since they differ only by
+          # target.
           key: ${{ matrix.target }}
 
       - name: Build
@@ -56,6 +85,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           # The commit is in the name, so two downloads are never confused.
-          name: filer-windows-${{ matrix.arch }}-${{ github.sha }}
-          path: target/${{ matrix.target }}/release/filer.exe
+          name: filer-${{ matrix.name }}-${{ github.sha }}
+          # Windows is the only one that names the binary `filer.exe`.
+          path: target/${{ matrix.target }}/release/filer${{ runner.os == 'Windows' && '.exe' || '' }}
           if-no-files-found: error

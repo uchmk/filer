@@ -635,9 +635,14 @@ none of these failed.
 - **Nothing here has been run.** The checklist was written from the code, not
   from use; a step that does not match the program may be the checklist's
   mistake rather than the program's. Say so if a step reads wrong.
-- **macOS and Linux are unexercised.** They compile, and the undo of a delete is
-  known not to work on macOS (no API for reading the Trash back), but no one has
-  run the program there at all.
+- **macOS and Linux are unexercised.** Since v0.33.0 `build.yml` builds and
+  links all six targets on their own runners, so "it compiles" is now checked
+  rather than assumed — but building is not running, and no one has started the
+  program there. What is known without running it: the shell thumbnail
+  (HEIC / AVIF / PDF / video) and the share listing return an error saying they
+  are Windows-only, and the undo of a delete does not work on macOS (no API for
+  reading the Trash back). The artifacts are on the Actions tab if a machine
+  turns up.
 - **Automated screenshot testing was looked at and not adopted.** egui ships
   `egui_kittest`, which renders offscreen and compares against baseline images,
   and it would cover most of sections B, C, D and G. It needs a GPU adapter,

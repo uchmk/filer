@@ -19,3 +19,31 @@ jobs:
         run: cargo build --locked --all-targets
       - name: Test
         run: cargo test --locked
+
+  # CLAUDE.md says clippy is kept at zero warnings with `--all-targets`, and
+  # until now the only thing enforcing that was remembering to run it. That is
+  # the same shape of mistake that kept CI red from v0.20.0 to v0.32.0: a rule
+  # written down, and no machine reading it.
+  #
+  # On Linux, where clippy is a tenth of the price and the lints are the same
+  # ones -- this catches the code both platforms compile, which is nearly all of
+  # it. What it cannot see is `#[cfg(windows)]` code, so the Windows target is
+  # checked too; that one does not link, which is fine, because clippy never
+  # needed to.
+  #
+  # `-D warnings` means a Rust release that adds a lint can turn this red on a
+  # day nothing changed here. That is the accepted cost of the rule being real:
+  # the alternative is a warning nobody reads.
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: clippy
+      - name: Add the Windows target
+        run: rustup target add x86_64-pc-windows-msvc
+      - name: Clippy (Linux)
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Clippy (Windows-only code)
+        run: cargo clippy --locked --all-targets --target x86_64-pc-windows-msvc -- -D warnings
