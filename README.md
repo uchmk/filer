@@ -245,8 +245,11 @@ overlay only while it has the keys.
   type, a font's family / style / version / weight / glyph count, a directory's file and
   subdirectory counts.
 
-`j` / `k` / `↑` / `↓` select a row, `h` / `l` / `←` / `→` spot the previous / next file, `c` / `y`
-copy the selected value, and `<Esc>` / `q` / `<Tab>` close it. Each kind of detail is one provider
+`j` / `k` / `h` / `l` and the arrows all move to the previous / next file, spotting it as they go;
+`<A-j>` / `<A-k>` (and `<A-↑>` / `<A-↓>`) select a row of the panel; `c` / `y` copy the selected
+value; `<Esc>` / `q` / `<Tab>` close it. That is the same division `<F3>` has, where `j` moves the
+list and `<A-j>` scrolls what is on show — the plain keys walk the files, the `<A->` keys move
+inside what is open. Before v0.21.0 the spotter had it the other way round. Each kind of detail is one provider
 function in `src/spot.rs`, so more (e.g. Windows property-system values like media length or EXIF)
 can be added without touching the panel.
 
