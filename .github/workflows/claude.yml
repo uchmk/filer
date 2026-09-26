@@ -34,15 +34,29 @@ jobs:
     # that first summoned Claude and then fire again on every later comment in
     # the thread, mention or not. Scoping each field to its own event is what
     # keeps a single `@claude` from becoming a standing subscription.
+    #
+    # `author_association` is what keeps this from being a public button. Every
+    # trigger here fires in the base repository's context, so the approval
+    # GitHub asks for before running a first-time contributor's workflow does
+    # not apply: an `issues` or `issue_comment` event runs at once, from anyone
+    # who can open an issue. On a public repository that would hand a stranger
+    # both the subscription token this spends and a job holding `contents:
+    # write` -- and since the issue body is the agent's instructions, the body
+    # is the attack. Checked per event for the same reason the mention is: each
+    # one keeps the author in its own place, and `github.event.issue` on a
+    # comment event is the issue's author, not the commenter's.
     if: |
       (
         (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment')
+        && github.event.comment.author_association == 'OWNER'
         && contains(github.event.comment.body, '@claude')
       ) || (
         github.event_name == 'pull_request_review'
+        && github.event.review.author_association == 'OWNER'
         && contains(github.event.review.body, '@claude')
       ) || (
         github.event_name == 'issues'
+        && github.event.issue.author_association == 'OWNER'
         && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))
       )
 

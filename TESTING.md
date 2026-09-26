@@ -577,11 +577,11 @@ ones where it says no.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 24.1 | `g`+`<Space>`, type `\\10.0.0.1`, `<Enter>` | The shares are listed, the same ones Explorer shows |
-| 24.2 | Same with a host **name** rather than an address, and with `//10.0.0.1` | Both arrive; the path is shown back as `\\10.0.0.1` |
+| 24.1 | `g`+`<Space>`, type `\\<your server's address>`, `<Enter>` | The shares are listed, the same ones Explorer shows |
+| 24.2 | Same with a host **name** rather than an address, and with the `//` spelling | Both arrive; the path is shown back in the `\\host` spelling |
 | 24.3 | Walk into a share and back out with `h` | Into the share, then back to the host list |
 | 24.4 | `h` again, at the host | Nothing moves (the host is the top), no crash |
-| 24.5 | A host that is off, or does not exist (`\\10.0.0.99`) | The tab returns to where it was and a toast says why — it does not hang the window |
+| 24.5 | A host that is off, or does not exist (an unused address on your own subnet) | The tab returns to where it was and a toast says why — it does not hang the window |
 | 24.5a | 24.1 and 24.5 again, watching for a **toast** | v0.16.0 fell back to the parent in silence, so a failure looked like nothing happening. Whatever the outcome, there is now either a listing or a message; if it is still a message, its os error number is the thing to report |
 | 24.6 | A host that needs a login the machine has not been given | Same: a refusal as a toast, naming it |
 | 24.7 | A host with **many** shares (more than a screenful) | All of them, scrolling normally |

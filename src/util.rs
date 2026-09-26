@@ -471,14 +471,14 @@ mod tests {
     #[test]
     fn a_share_knows_which_server_it_is_on() {
         let host = |s: &str| unc_host(Path::new(s));
-        assert_eq!(host(r"\\10.0.0.1\Backup"), Some(PathBuf::from(r"\\10.0.0.1")));
-        assert_eq!(host(r"\\10.0.0.1\Backup\"), Some(PathBuf::from(r"\\10.0.0.1")));
+        assert_eq!(host(r"\\192.0.2.10\Backup"), Some(PathBuf::from(r"\\192.0.2.10")));
+        assert_eq!(host(r"\\192.0.2.10\Backup\"), Some(PathBuf::from(r"\\192.0.2.10")));
         // Forward slashes are how the same path arrives from a config or a URL.
         assert_eq!(host("//server/pub"), Some(PathBuf::from(r"\\server")));
         // Deeper than a share root: `parent()` already answers that one.
-        assert_eq!(host(r"\\10.0.0.1\Backup\2025"), None);
+        assert_eq!(host(r"\\192.0.2.10\Backup\2025"), None);
         // The host itself is the top; there is nothing above it.
-        assert_eq!(host(r"\\10.0.0.1"), None);
+        assert_eq!(host(r"\\192.0.2.10"), None);
         // Not UNC at all.
         assert_eq!(host(r"C:\dev\filer"), None);
         assert_eq!(host("/home/user"), None);
@@ -487,23 +487,23 @@ mod tests {
     /// A server answers with full addresses; the column wants names. The
     /// share root is the case `std` has no answer for, so the fallback — the
     /// whole path, which is right for `C:\` — used to stand in, and every
-    /// share on a server listed itself as `\\10.0.0.1\Backup\`. The header,
+    /// share on a server listed itself as `\\192.0.2.10\Backup\`. The header,
     /// which joins the directory to the hovered name, then read
-    /// `\\10.0.0.1\\\10.0.0.1\Backup\`.
+    /// `\\192.0.2.10\\\192.0.2.10\Backup\`.
     #[test]
     fn a_share_root_is_named_after_its_share() {
         let share = |s: &str| unc_share(Path::new(s));
 
-        assert_eq!(share(r"\\10.0.0.1\backup-user").as_deref(), Some("backup-user"));
-        assert_eq!(share(r"\\10.0.0.1\Backup\").as_deref(), Some("Backup"));
-        assert_eq!(share("//10.0.0.1/VR_Video").as_deref(), Some("VR_Video"));
+        assert_eq!(share(r"\\192.0.2.10\backup-user").as_deref(), Some("backup-user"));
+        assert_eq!(share(r"\\192.0.2.10\Backup\").as_deref(), Some("Backup"));
+        assert_eq!(share("//192.0.2.10/Media_Library").as_deref(), Some("Media_Library"));
         // An administrative share keeps its `$`; a share name may hold a space.
         assert_eq!(share(r"\\host\C$").as_deref(), Some("C$"));
         assert_eq!(share(r"\\host\My Files").as_deref(), Some("My Files"));
         // The host names no share.
-        assert_eq!(share(r"\\10.0.0.1"), None);
+        assert_eq!(share(r"\\192.0.2.10"), None);
         // Inside a share `std` has the answer, so this declines to give one.
-        assert_eq!(share(r"\\10.0.0.1\Backup\2025"), None);
+        assert_eq!(share(r"\\192.0.2.10\Backup\2025"), None);
         assert_eq!(share(r"C:\dev"), None);
     }
 
@@ -516,11 +516,11 @@ mod tests {
     fn a_share_is_listed_under_its_name_and_a_drive_root_under_its_own() {
         let name = |s: &str| file_name(Path::new(s));
 
-        assert_eq!(name(r"\\10.0.0.1\backup-user"), "backup-user");
-        assert_eq!(name(r"\\10.0.0.1\Backup\"), "Backup");
+        assert_eq!(name(r"\\192.0.2.10\backup-user"), "backup-user");
+        assert_eq!(name(r"\\192.0.2.10\Backup\"), "Backup");
         // The host is called after itself.
-        assert_eq!(name(r"\\10.0.0.1"), "10.0.0.1");
-        assert_eq!(name(r"\\10.0.0.1\Backup\2025\notes.txt"), "notes.txt");
+        assert_eq!(name(r"\\192.0.2.10"), "192.0.2.10");
+        assert_eq!(name(r"\\192.0.2.10\Backup\2025\notes.txt"), "notes.txt");
         // A drive root still shows itself, which is what it is called.
         assert_eq!(name(r"C:\"), r"C:\");
     }
@@ -536,12 +536,12 @@ mod tests {
         // The one that showed: `std` reads `\\host` as a root plus one
         // component, so its parent is the bare `\` — which resolves to this
         // machine's current drive, offered as the folder above a server.
-        assert_eq!(up(r"\\10.0.0.1"), None);
-        assert_eq!(up("//10.0.0.1"), None);
+        assert_eq!(up(r"\\192.0.2.10"), None);
+        assert_eq!(up("//192.0.2.10"), None);
         // A share root has no parent at all to `std`; the host is above it.
-        assert_eq!(up(r"\\10.0.0.1\Backup"), Some(PathBuf::from(r"\\10.0.0.1")));
+        assert_eq!(up(r"\\192.0.2.10\Backup"), Some(PathBuf::from(r"\\192.0.2.10")));
         // Deeper in, and off UNC entirely, it is `parent()`'s answer.
-        assert_eq!(up(r"\\10.0.0.1\Backup\2025"), Some(PathBuf::from(r"\\10.0.0.1\Backup")));
+        assert_eq!(up(r"\\192.0.2.10\Backup\2025"), Some(PathBuf::from(r"\\192.0.2.10\Backup")));
         assert_eq!(up(r"C:\dev\filer"), Some(PathBuf::from(r"C:\dev")));
         // A drive root is a top too.
         assert_eq!(up(r"C:\"), None);
@@ -572,20 +572,20 @@ mod tests {
     #[test]
     fn keeps_unc_paths_whole() {
         // A share root is its own parent, and it keeps its two leading slashes.
-        let share = normalize(Path::new(r"\\192.168.1.5\pub"));
-        assert_eq!(share, PathBuf::from(r"\\192.168.1.5\pub"));
+        let share = normalize(Path::new(r"\\192.0.2.10\pub"));
+        assert_eq!(share, PathBuf::from(r"\\192.0.2.10\pub"));
         assert_eq!(share.parent(), None);
         // The path is kept whole; the name shown for it is the share's own.
         assert_eq!(file_name(&share), "pub");
 
         // Forward slashes spell the same share.
-        assert_eq!(normalize(Path::new("//192.168.1.5/pub/x")), PathBuf::from(r"\\192.168.1.5\pub\x"));
+        assert_eq!(normalize(Path::new("//192.0.2.10/pub/x")), PathBuf::from(r"\\192.0.2.10\pub\x"));
 
         // A host with no share yet must not collapse to `\host`.
-        assert_eq!(normalize(Path::new(r"\\192.168.1.5")), PathBuf::from(r"\\192.168.1.5"));
+        assert_eq!(normalize(Path::new(r"\\192.0.2.10")), PathBuf::from(r"\\192.0.2.10"));
         assert_eq!(
-            resolve_against(Path::new(r"C:\work"), r"\\192.168.1.5"),
-            PathBuf::from(r"\\192.168.1.5")
+            resolve_against(Path::new(r"C:\work"), r"\\192.0.2.10"),
+            PathBuf::from(r"\\192.0.2.10")
         );
 
         // Typing a share into the prompt is absolute, not relative to the tab.

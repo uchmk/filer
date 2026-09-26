@@ -1,6 +1,6 @@
 //! What a file server offers, for the one path that is not a directory.
 //!
-//! `\\10.0.0.1` looks like a folder and is not one. There is nothing on any
+//! `\\192.0.2.10` looks like a folder and is not one. There is nothing on any
 //! disk to read: the shares behind it are names the server keeps, and asking
 //! the filesystem for them fails whatever the server holds — `read_dir` returns
 //! "The filename, directory name, or volume label syntax is incorrect" for a
@@ -18,7 +18,7 @@ use std::path::Path;
 
 use super::Entry;
 
-/// The shares `host` (`\\name` or `\\10.0.0.1`) is offering, as directories.
+/// The shares `host` (`\\name` or `\\192.0.2.10`) is offering, as directories.
 #[cfg(windows)]
 pub fn list(host: &Path) -> std::io::Result<Vec<Entry>> {
     use std::os::windows::ffi::OsStrExt;
@@ -39,7 +39,7 @@ pub fn list(host: &Path) -> std::io::Result<Vec<Entry>> {
         dwScope: RESOURCE_GLOBALNET,
         dwType: RESOURCETYPE_ANY,
         // What kind of container this is. Without it the provider is left to
-        // work out from the name alone that `\\10.0.0.1` is a server, and the
+        // work out from the name alone that `\\192.0.2.10` is a server, and the
         // one that handles SMB would rather be told.
         dwDisplayType: DISPLAY_SERVER,
         dwUsage: RESOURCEUSAGE_CONTAINER.0,

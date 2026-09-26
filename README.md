@@ -969,9 +969,9 @@ which one is actually running.
 
 ## Network paths (UNC)
 
-On Windows a UNC path is an ordinary path here — type `\\192.168.1.5\pub` (or a mapped drive
+On Windows a UNC path is an ordinary path here — type `\\192.0.2.10\pub` (or a mapped drive
 letter) into the `cd` prompt and browse it like any folder. Forward slashes work too
-(`//192.168.1.5/pub`) and are shown back in the `\\host\share` spelling.
+(`//192.0.2.10/pub`) and are shown back in the `\\host\share` spelling.
 
 - `\\host` on its own lists the shares that host is offering, the way Explorer's network view
   does. They are not files and nothing on a disk here holds them — the network provider is asked
