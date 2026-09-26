@@ -145,7 +145,7 @@ project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe` and `copy cell`; in `[term]`:
 `close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
-`close`, `arrow` and `find_arrow`.
+`close`, `arrow` and `find_arrow`; in `[help]`: `close`, `help` (which closes it too) and `arrow`.
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -705,7 +705,10 @@ on the `PATH`.
 
 ## Default keys
 
-`~` / `F1` shows the full list. The essentials:
+`~` / `F1` shows the full list. Inside that panel, `j` / `k` and the arrows move a line, `<A-j>` /
+`<A-k>` (or `<C-d>` / `<C-u>`) half a panel, `<PageDown>` / `<PageUp>` a whole one, `gg` / `G` jump
+to either end, the wheel scrolls, and `~`, `<F1>`, `q` or `<Esc>` closes it — all of it the `[help]`
+keymap layer, so it rebinds like everything else. The essentials:
 
 | | |
 | --- | --- |

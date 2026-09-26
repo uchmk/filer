@@ -70,7 +70,7 @@ fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
         // directory" lines per directory is the same fact eight times, and
         // buries the one file that is there.
         let (mut found, mut missing) = (Vec::new(), Vec::new());
-        for name in ["yazi.toml", "keymap.toml", "theme.toml", "filer.toml"] {
+        for name in crate::config::FILES {
             match std::fs::metadata(dir.join(name)) {
                 Ok(m) => found.push(format!("{name} {}", crate::util::human_size(m.len()))),
                 Err(_) => missing.push(name),

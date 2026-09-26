@@ -668,10 +668,42 @@ none of these failed.
 | 33.4 | Make something actually fail (an opener naming a program that is not installed, 25.8) | Still **red**, so the two are told apart at a glance |
 | 33.5 | Remove the duplicate lines, `<C-F5>` | `Reloaded N config file(s)` in the plain colour; no yellow |
 | 33.6 | A theme with a light background | The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable |
-| 33.7 | Put `[[preview]]` into `yazi.toml` (it belongs in `filer.toml`) and start | A **five-line** parse error, naming the line and pointing at it. **Inside its box**: nothing over the header, nothing over the file list, nothing past either edge of the window (v0.33.11) |
+| 33.7 | Put a real syntax error in `yazi.toml` (`[mgr` with no `]`) and start | A **five-line** parse error, naming the line and pointing at it. **Inside its box**: nothing over the header, nothing over the file list, nothing past either edge of the window (v0.33.11) |
 | 33.8 | Narrow the window to about a third of the screen, with 33.7 still broken | The message wraps rather than running off; the box stays against the right edge |
 | 33.9 | Break **three** config files at once | Up to five boxes stack downward, each sized to its own text, none overlapping the next |
 | 33.10 | A single error longer than eight lines | Cut at eight with `…` on its own line, rather than filling the window |
+| 33.11 | Put `[[preview]]` into `yazi.toml` (it belongs in `filer.toml`) and start | **One line**: `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13) |
+| 33.12 | Put `[term]` into `yazi.toml` as well | A second line for it, same shape. Both say the file went unread, because it did |
+| 33.13 | Put `[term]` into a `yazi.toml` that is otherwise fine (no `[[preview]]`) | `… belongs in filer.toml and was ignored` — *ignored*, not *unread*: the rest of the file did load |
+| 33.14 | Put `[opener]` into `filer.toml` | The same warning the other way round: `belongs in yazi.toml` |
+| 33.15 | Move both into the right files, `<C-F5>` | No warnings. `filer env` agrees, and the terminal pane now starts what `[term] shell` names |
+| 33.16 | With filer **already running**, create `%APPDATA%\filer\filer.toml`, then press `~` | The file is a row of its own, in the warning colour, reading `on disk, not read yet — <C-F5> re-reads config`. The directory is **not** `nothing here` (v0.34.0) |
+| 33.17 | `<C-F5>`, then `~` again | The row is now an ordinary loaded file, no marker |
+| 33.18 | Rebind `config_reload` to `<F9>` and repeat 33.16 | The row names `<F9>`, not `<C-F5>` — it is read from the keymap, not written into the message |
+
+---
+
+## 34. The help panel's own scrolling (v0.34.0)
+
+Everything here is `~` / `F1`. The list is long enough to scroll only if the
+keymap is; the defaults are.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 34.1 | `j` / `k`, then the arrows | One line each way |
+| 34.2 | `<A-j>` / `<A-k>` | Half the panel's height each way — not the file list's |
+| 34.3 | `<C-d>` / `<C-u>` | The same distance as 34.2 |
+| 34.4 | `<PageDown>` / `<PageUp>` | A whole panel each way |
+| 34.5 | `G` | The **last line sits at the bottom** of the panel, with the panel full — not one line at the top of an empty panel |
+| 34.6 | From there, one `k` | Moves immediately. Before v0.34.0 `j` ran the number off the end, so coming back took one dead press per overshoot |
+| 34.7 | `gg` | Back to the top; another `k` does nothing |
+| 34.8 | The wheel, pointer over the panel | Scrolls the panel (v0.34.0: it did nothing at all before) |
+| 34.9 | Close the panel and look at the file list's cursor | **Unmoved.** The wheel used to reach the list underneath as well, which only showed up as a jump once the panel was closed |
+| 34.10 | Open the spotter, the task list or a comparison and turn the wheel | Same: nothing underneath moves |
+| 34.11 | With a filter or rename prompt open (`Overlay::Input`), turn the wheel over the list | The list **does** scroll — the prompt is one row, and the list above it is what is being read |
+| 34.12 | `q`, then `~` again, then `<F1>`, then `<Esc>` | Each one closes the panel |
+| 34.13 | Rebind: `[[help.keymap]]` with `on = "n"`, `run = "arrow 1"`, `<C-F5>` | `n` scrolls. Before v0.34.0 the panel's keys were read off the event loop and could not be rebound at all |
+| 34.14 | Shrink the font with `<C-->` while parked at the bottom | Still parked at the bottom, panel full — more lines fit, so the stop moved |
 
 ---
 

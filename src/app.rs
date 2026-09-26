@@ -291,6 +291,19 @@ impl Overlay {
     pub fn is_none(&self) -> bool {
         matches!(self, Overlay::None)
     }
+
+    /// Whether this one is a panel drawn over the file list.
+    ///
+    /// It decides who gets the wheel. The list is still painted underneath, and
+    /// still sees the pointer over its own rect, so without this a turn of the
+    /// wheel over a panel scrolled both -- the panel visibly and the list
+    /// invisibly, which only showed up as a jumped cursor once the panel was
+    /// closed. `Input` is not one of these: the prompt is a single row at the
+    /// bottom and the list above it is being read while the filter is typed.
+    pub fn is_modal(&self) -> bool {
+        use Overlay::*;
+        matches!(self, Help | Tasks(_) | Spot(_) | Diff(_) | Pick(_) | Confirm(_))
+    }
 }
 
 // -------------------------------------------------------------------- tasks
@@ -941,7 +954,20 @@ pub struct App {
     pub quit: bool,
     pub cwd_file: Option<PathBuf>,
     pub chooser_file: Option<PathBuf>,
+    /// The first line of the help panel drawn. A scroll position, not a cursor,
+    /// so the last useful value is the one that puts the last line at the bottom
+    /// of the panel rather than at the top.
     pub help_scroll: usize,
+    /// Lines the help panel can show, and how many it has. Set by the renderer,
+    /// the way `page_rows` is for the file list and `rows` for the comparison:
+    /// without them the keys cannot tell where a page ends or where scrolling
+    /// stops, and `help_scroll` ran off past the end of the list -- every press
+    /// back up then moved a number nothing was drawing from, so the keys looked
+    /// dead for as many presses as the reader had overshot.
+    pub help_rows: usize,
+    pub help_lines: usize,
+    /// The wheel's leftover fraction of a row over the help panel.
+    pub help_scroll_rows: f32,
     pub last_action: Instant,
 }
 
@@ -1026,6 +1052,9 @@ impl App {
             cwd_file: None,
             chooser_file: None,
             help_scroll: 0,
+            help_rows: 0,
+            help_lines: 0,
+            help_scroll_rows: 0.0,
             last_action: Instant::now(),
         };
         app.load_state();
@@ -1862,6 +1891,44 @@ impl App {
         // The panel lists jobs in the order they were made, so say what
         // happened rather than leaving the row where it was.
         self.toast("Moved to the front of the queue");
+    }
+
+    /// The help panel's own keys, through the `[help]` layer like every other
+    /// overlay.
+    ///
+    /// `j`, `k` and the arrows used to be read straight off the event in
+    /// `main.rs`, which is why the panel that exists to show what the keys are
+    /// was the one place they could not be changed -- and why it had no way to
+    /// move by more than a line at a time through a list as long as the keymap.
+    pub fn feed_help_key(&mut self, k: Key) {
+        self.pending.push(k);
+        let bindings = &self.cfg.keymap.help;
+        match keymap::resolve(bindings, &self.pending) {
+            keymap::Match::Exact(b) => {
+                let acts = b.run.clone();
+                self.pending.clear();
+                for a in acts {
+                    self.help_act(a);
+                }
+            }
+            keymap::Match::Pending(_) => {}
+            keymap::Match::None => self.pending.clear(),
+        }
+    }
+
+    fn help_act(&mut self, a: Act) {
+        match a {
+            Act::Close | Act::Escape(_) | Act::Quit | Act::Help => self.overlay = Overlay::None,
+            // A page is the panel's own height, not the file list's: "half a
+            // page" has to mean half of what is on screen here. The stop is a
+            // scroll position, so it is one past `lines - rows`, not `lines - 1`.
+            Act::Arrow(step) => {
+                let page = self.help_rows.max(1);
+                let stop = self.help_lines.saturating_sub(page) + 1;
+                self.help_scroll = step.apply(self.help_scroll, stop, page);
+            }
+            _ => {}
+        }
     }
 
     pub fn feed_spot_key(&mut self, k: Key) {
@@ -5681,5 +5748,123 @@ mod window_scale {
         use crate::config::cmd::parse;
         assert_eq!(parse("scale out"), Act::Scale(ScaleTo::Out));
         assert!(matches!(parse("zoom out"), Act::Zoom(_)));
+    }
+}
+
+#[cfg(test)]
+mod help_keys {
+    use super::*;
+
+    fn app() -> App {
+        let ctx = egui::Context::default();
+        let mut a = App::new(Config::load(), std::env::temp_dir(), ctx);
+        a.overlay = Overlay::Help;
+        // What the renderer leaves behind: a panel 20 rows tall showing a list
+        // of 100.
+        a.help_rows = 20;
+        a.help_lines = 100;
+        a
+    }
+
+    /// Each token is one key, spelled the way the keymap spells it.
+    fn press(a: &mut App, tokens: &[&str]) {
+        for t in tokens {
+            a.feed_help_key(Key::parse(t).expect("notation the keymap can spell"));
+        }
+    }
+
+    /// `<A-j>` / `<A-k>` move half the panel, the way they do in every other
+    /// pane this app scrolls.
+    #[test]
+    fn alt_j_and_k_move_half_a_panel() {
+        let mut a = app();
+        press(&mut a, &["<A-j>"]);
+        assert_eq!(a.help_scroll, 10, "half of the twenty rows on screen");
+        press(&mut a, &["<A-j>"]);
+        assert_eq!(a.help_scroll, 20);
+        press(&mut a, &["<A-k>"]);
+        assert_eq!(a.help_scroll, 10);
+
+        // `<C-d>` / `<C-u>` are the same distance, for a hand coming from vim.
+        press(&mut a, &["<C-d>"]);
+        assert_eq!(a.help_scroll, 20);
+        press(&mut a, &["<C-u>"]);
+        assert_eq!(a.help_scroll, 10);
+    }
+
+    /// Scrolling stops with the last line at the bottom, not at the top.
+    ///
+    /// It used to stop nowhere at all: `help_scroll` was incremented raw, so
+    /// holding `j` ran the number far past the end of the list while the panel
+    /// sat still. Every press back up then moved a number nothing was drawing
+    /// from, and the keys looked dead for exactly as many presses as had been
+    /// wasted going down.
+    #[test]
+    fn it_stops_with_the_last_line_on_screen() {
+        let mut a = app();
+        for _ in 0..500 {
+            press(&mut a, &["j"]);
+        }
+        assert_eq!(a.help_scroll, 80, "100 lines less the 20 on screen");
+        press(&mut a, &["k"]);
+        assert_eq!(a.help_scroll, 79, "and one press comes straight back");
+
+        press(&mut a, &["G"]);
+        assert_eq!(a.help_scroll, 80);
+        press(&mut a, &["g", "g"]);
+        assert_eq!(a.help_scroll, 0);
+        press(&mut a, &["k"]);
+        assert_eq!(a.help_scroll, 0, "nor does it go above the first line");
+    }
+
+    /// A panel with room to spare does not scroll at all.
+    #[test]
+    fn a_short_list_does_not_move() {
+        let mut a = app();
+        a.help_lines = 5;
+        press(&mut a, &["<A-j>"]);
+        press(&mut a, &["G"]);
+        assert_eq!(a.help_scroll, 0);
+    }
+
+    /// The keys that opened the panel close it, and so do `q` and `<Esc>`.
+    #[test]
+    fn it_closes_on_its_own_keys() {
+        for seq in ["<Esc>", "q", "~", "<F1>"] {
+            let mut a = app();
+            press(&mut a, &[seq]);
+            assert!(a.overlay.is_none(), "{seq} should have closed the panel");
+        }
+    }
+
+    /// The panel's keys come from the keymap, so they can be rebound.
+    ///
+    /// They were read straight off the egui event before, which left the one
+    /// panel whose subject is the keymap unable to honor it.
+    #[test]
+    fn the_layer_is_the_keymap_not_the_event_loop() {
+        let text = "[[help.keymap]]\non = \"n\"\nrun = \"arrow 1\"\n";
+        let (km, _) = crate::config::Keymap::load(&[text]);
+        let mut a = app();
+        a.cfg.keymap = km;
+        press(&mut a, &["n"]);
+        assert_eq!(a.help_scroll, 1, "the added key scrolls");
+    }
+
+    /// A panel over the list owns the wheel; a one-row prompt does not.
+    #[test]
+    fn a_modal_panel_takes_the_wheel() {
+        assert!(Overlay::Help.is_modal());
+        assert!(!Overlay::None.is_modal());
+        let prompt = InputOverlay {
+            kind: InputKind::Filter,
+            title: "filter".into(),
+            text: String::new(),
+            initial_selection: None,
+            focused: true,
+            completion: Vec::new(),
+            completion_at: 0,
+        };
+        assert!(!Overlay::Input(prompt).is_modal(), "the list above it is still being read");
     }
 }

@@ -410,20 +410,57 @@ impl HelpRow {
 /// cannot answer, because the answer is a file that does not exist yet. An
 /// empty directory is the most useful row on the list for the reader who needs
 /// it, and the only one that was missing.
+/// How the keymap in force spells the key that runs `act`, if one does.
+///
+/// Looked up rather than written down: the panel whose whole job is to say what
+/// the keys are is the last place a key should be hardcoded, since a reader who
+/// has rebound one is exactly the reader being told the wrong thing.
+fn key_for(app: &App, act: &Act) -> Option<String> {
+    let one = std::slice::from_ref(act);
+    let found = app.cfg.keymap.mgr.iter().find(|b| b.run.as_slice() == one)?;
+    Some(crate::config::keys::render_seq(&found.on))
+}
+
 fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
     let mut out = vec![HelpRow::heading("config")];
     for dir in dirs {
         let here: Vec<&std::path::PathBuf> =
             app.cfg.loaded.iter().filter(|p| p.parent() == Some(dir.as_path())).collect();
+        // A file that is on disk now but was not among the ones read. Writing a
+        // config with the window already open is the ordinary way to get here,
+        // and the panel used to answer it with "nothing here" while the file sat
+        // in that very directory -- which reads as "filer cannot see it" rather
+        // than "filer has not looked since".
+        let unread: Vec<std::path::PathBuf> = crate::config::FILES
+            .iter()
+            .map(|n| dir.join(n))
+            .filter(|p| p.is_file() && !here.contains(&p))
+            .collect();
         out.push(HelpRow {
             text: format!("{}{}", dir.display(), std::path::MAIN_SEPARATOR),
-            raw: if here.is_empty() { "nothing here".into() } else { String::new() },
+            raw: match here.is_empty() && unread.is_empty() {
+                true => "nothing here".into(),
+                false => String::new(),
+            },
             goes_to: Some(Act::Cd { target: dir.display().to_string(), interactive: false }),
             ..HelpRow::blank()
         });
         for p in here {
             out.push(HelpRow {
                 text: format!("    {}", crate::util::file_name(p)),
+                goes_to: Some(Act::Reveal(p.display().to_string())),
+                ..HelpRow::blank()
+            });
+        }
+        let reread = match key_for(app, &Act::ConfigReload) {
+            Some(k) => format!("on disk, not read yet — {k} re-reads config"),
+            None => "on disk, not read yet — reload config to pick it up".into(),
+        };
+        for p in unread {
+            out.push(HelpRow {
+                text: format!("    {}", crate::util::file_name(&p)),
+                raw: reread.clone(),
+                warning: true,
                 goes_to: Some(Act::Reveal(p.display().to_string())),
                 ..HelpRow::blank()
             });
@@ -447,7 +484,8 @@ fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
 pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queued: &mut Vec<Act>) {
     dim(ui, full);
     let rect = modal_rect(full, 0.86, 0.86);
-    let title = "Keys — <Esc> to close, j/k to scroll, click a config path to go to it";
+    let title =
+        "Keys — <Esc> close, j/k scroll, <A-j>/<A-k> half a page, click a config path to go to it";
     let inner = modal_frame(ui, rect, &app.cfg.theme, title, f, row_h);
     let theme = app.cfg.theme.clone();
 
@@ -470,7 +508,25 @@ pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
     }
 
     let rows = ((inner.height() / row_h).floor() as usize).max(1);
-    let start = app.help_scroll.min(lines.len().saturating_sub(1));
+    // What the keys need to know to page and to stop; only the renderer knows
+    // how tall the panel came out.
+    app.help_rows = rows;
+    app.help_lines = lines.len();
+    // The last line at the bottom, not at the top: a panel showing one row of a
+    // list it has room for twenty of is not the end of a scroll.
+    let stop = lines.len().saturating_sub(rows);
+    // The wheel, over the panel rather than over the list it covers.
+    if ui.rect_contains_pointer(rect) {
+        let scroll = ui.ctx().input(|i| i.smooth_scroll_delta.y);
+        let moved = crate::ui::wheel_whole(&mut app.help_scroll_rows, -scroll / row_h * 1.5);
+        if moved != 0 {
+            app.help_scroll = (app.help_scroll as i64 + moved).clamp(0, stop as i64) as usize;
+        }
+    }
+    // A smaller font fits more lines, so a scroll position that was at the
+    // bottom before a `<C-+>` has to come back to it.
+    app.help_scroll = app.help_scroll.min(stop);
+    let start = app.help_scroll;
     let pointer = ui.rect_contains_pointer(inner).then(|| ui.ctx().pointer_latest_pos()).flatten();
     let clicked = ui.input(|i| i.pointer.primary_clicked());
     let mut went = None;
@@ -1048,5 +1104,55 @@ mod help_config_rows {
         assert!(heading.goes_to.is_none(), "a heading is not a link");
         let warned = rows.iter().find(|r| r.warning).unwrap();
         assert!(warned.goes_to.is_none(), "nor is a warning");
+    }
+    /// A config file written after the window opened is named, not hidden.
+    ///
+    /// `filer.toml` created while filer is running is the ordinary way to reach
+    /// this: the file is right there in the directory the panel is listing, and
+    /// the panel said "nothing here" -- which reads as filer being unable to see
+    /// it rather than not having looked since it started.
+    #[test]
+    fn a_file_on_disk_that_was_not_read_says_so() {
+        let dir = std::env::temp_dir().join("filer-help-unread");
+        std::fs::create_dir_all(&dir).expect("a temp directory");
+        let written = dir.join("filer.toml");
+        std::fs::write(&written, "[ui]\nfont_size = 16.0\n").expect("write the config");
+
+        let ctx = egui::Context::default();
+        let mut app = App::new(crate::config::Config::load(), std::env::temp_dir(), ctx);
+        // What startup read: not this file, because it did not exist yet.
+        app.cfg.loaded = vec![dir.join("keymap.toml")];
+
+        let rows = config_rows(&app, std::slice::from_ref(&dir));
+        let unread = rows
+            .iter()
+            .find(|r| r.text.trim() == "filer.toml")
+            .expect("the file on disk is a row of its own");
+        assert!(unread.warning, "and it is marked, not listed as read");
+        assert!(unread.raw.contains("not read yet"), "{:?}", unread.raw);
+        // The key comes from the keymap rather than from this string.
+        assert!(unread.raw.contains("<C-F5>"), "{:?}", unread.raw);
+        let goes = Some(Act::Reveal(written.display().to_string()));
+        assert_eq!(unread.goes_to, goes, "clicking it still goes to the file");
+        assert!(
+            !rows.iter().any(|r| r.raw == "nothing here"),
+            "a directory holding an unread file is not empty",
+        );
+
+        std::fs::remove_file(&written).ok();
+    }
+
+    /// The reload key is read out of the keymap in force.
+    #[test]
+    fn the_reload_key_is_looked_up() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(crate::config::Config::load(), std::env::temp_dir(), ctx);
+        assert_eq!(key_for(&app, &Act::ConfigReload).as_deref(), Some("<C-F5>"));
+
+        let text = "[[mgr.keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n";
+        let (km, _) = crate::config::Keymap::load(&[text]);
+        app.cfg.keymap = km;
+        let named = key_for(&app, &Act::ConfigReload);
+        assert_eq!(named.as_deref(), Some("<F9>"), "a rebound key is the one the panel names");
     }
 }

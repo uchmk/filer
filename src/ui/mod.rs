@@ -438,7 +438,8 @@ pub(super) fn draw_preview(
             if app.tabs[app.active].preview_offset > max {
                 app.tabs[app.active].preview_offset = max;
             }
-            if ui.rect_contains_pointer(rect) {
+            // A panel over the panes owns the wheel; see `Overlay::is_modal`.
+            if ui.rect_contains_pointer(rect) && !app.overlay.is_modal() {
                 // Ctrl and the wheel is the image zoom, so it must not scroll
                 // the pane with the same turn.
                 let (scroll, ctrl) =
@@ -611,7 +612,11 @@ fn draw_pane(
             egui::StrokeKind::Inside,
         );
     }
-    let scrolled = wheel_whole(&mut app.list_scroll_rows, res.scroll_rows);
+    // A panel over the list owns the wheel; see `Overlay::is_modal`.
+    let scrolled = match app.overlay.is_modal() {
+        true => 0,
+        false => wheel_whole(&mut app.list_scroll_rows, res.scroll_rows),
+    };
     if scrolled != 0 {
         app.tabs[idx].current.scroll(scrolled, rows);
         app.tabs[idx].sync_visual();

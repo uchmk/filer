@@ -531,12 +531,7 @@ fn handle_input(app: &mut App, ctx: &egui::Context) {
                 }
                 Overlay::Help => {
                     for c in text.chars() {
-                        match c {
-                            'j' => app.help_scroll += 1,
-                            'k' => app.help_scroll = app.help_scroll.saturating_sub(1),
-                            'q' => app.overlay = Overlay::None,
-                            _ => {}
-                        }
+                        app.feed_help_key(Key::char(c));
                     }
                 }
                 Overlay::Tasks(_) => {
@@ -608,14 +603,11 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
             }
             _ => {}
         },
-        Overlay::Help => match key {
-            K::Escape => app.overlay = Overlay::None,
-            K::ArrowDown => app.help_scroll += 1,
-            K::ArrowUp => app.help_scroll = app.help_scroll.saturating_sub(1),
-            K::PageDown => app.help_scroll += 20,
-            K::PageUp => app.help_scroll = app.help_scroll.saturating_sub(20),
-            _ => {}
-        },
+        Overlay::Help => {
+            if let Some(k) = keys::from_egui(key, modifiers) {
+                app.feed_help_key(k);
+            }
+        }
         Overlay::Tasks(_) => {
             if let Some(k) = keys::from_egui(key, modifiers) {
                 app.feed_tasks_key(k);

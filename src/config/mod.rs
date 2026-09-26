@@ -288,6 +288,12 @@ fn at(dir: &Path, name: &str) -> String {
     dir.join(name).display().to_string()
 }
 
+/// Every file name either config directory is searched for.
+///
+/// Shared so the help panel and `filer env` cannot come to different answers
+/// about what is on disk -- which is the confusion they exist to settle.
+pub const FILES: [&str; 4] = ["yazi.toml", "keymap.toml", "theme.toml", "filer.toml"];
+
 /// Which of the two config files is being read.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum ConfigFile {

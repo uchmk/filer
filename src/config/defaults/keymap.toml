@@ -786,6 +786,72 @@ desc = "Cancel"
 on = "<Esc>"
 run = "close"
 desc = "Close help"
+[[help.keymap]]
+on = "q"
+run = "close"
+desc = "Close help"
+# The keys that opened the panel close it again: a reader who pressed `~` to see
+# the list reaches for `~` to put it away.
+[[help.keymap]]
+on = "~"
+run = "help"
+desc = "Close help"
+[[help.keymap]]
+on = "<F1>"
+run = "help"
+desc = "Close help"
+[[help.keymap]]
+on = "k"
+run = "arrow -1"
+desc = "Up one line"
+[[help.keymap]]
+on = "j"
+run = "arrow 1"
+desc = "Down one line"
+[[help.keymap]]
+on = "<Up>"
+run = "arrow -1"
+desc = "Up one line"
+[[help.keymap]]
+on = "<Down>"
+run = "arrow 1"
+desc = "Down one line"
+# Half a page on both the Alt and the Ctrl pair. `<A-j>` is what scrolls the
+# panel next to the list -- the preview, the spotter -- so it is the key a hand
+# already in this app reaches for; `<C-u>` / `<C-d>` is what a hand coming from
+# vim reaches for, and the comparison view already answers to it.
+[[help.keymap]]
+on = "<A-k>"
+run = "arrow -50%"
+desc = "Up half a page"
+[[help.keymap]]
+on = "<A-j>"
+run = "arrow 50%"
+desc = "Down half a page"
+[[help.keymap]]
+on = "<C-u>"
+run = "arrow -50%"
+desc = "Up half a page"
+[[help.keymap]]
+on = "<C-d>"
+run = "arrow 50%"
+desc = "Down half a page"
+[[help.keymap]]
+on = "<PageUp>"
+run = "arrow -100%"
+desc = "Up a page"
+[[help.keymap]]
+on = "<PageDown>"
+run = "arrow 100%"
+desc = "Down a page"
+[[help.keymap]]
+on = [ "g", "g" ]
+run = "arrow top"
+desc = "To the top"
+[[help.keymap]]
+on = "G"
+run = "arrow bot"
+desc = "To the bottom"
 
 [[tasks.keymap]]
 on = "<Esc>"

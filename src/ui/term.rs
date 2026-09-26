@@ -49,7 +49,8 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let resp = ui.interact(rect, id, egui::Sense::click_and_drag());
     let pointer = resp.interact_pointer_pos();
     let over = ui.rect_contains_pointer(rect);
-    let wheel = match over {
+    // A panel over the pane owns the wheel; see `Overlay::is_modal`.
+    let wheel = match over && !app.overlay.is_modal() {
         true => ui.ctx().input(|i| i.smooth_scroll_delta.y),
         false => 0.0,
     };
