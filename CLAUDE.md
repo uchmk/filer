@@ -68,9 +68,16 @@ cargo build --release --manifest-path C:\dev\filer\Cargo.toml
 ```
 
 - clippy は `--all-targets` で警告ゼロを保っている。増やさないこと。
-- CI は `.github/workflows/ci.yml`（Windows）でテスト、`build.yml` が `filer.exe` を
-  アーティファクトとして残す（Actions タブからダウンロードできる）。
-- egui 0.36 は rustc 1.95 以上を要求する。`Cargo.toml` の `rust-version` はそれより低い。
+  **v0.33.0 から CI が `-D warnings` で強制している**ので、警告は即 CI 落ちになる。
+- **検証は CI と同じ stable で回すこと。**`rustup update stable` してから
+  `cargo +stable clippy`。**古い版で通っても意味がない。**
+  - 実際、手元の 1.95 で緑だったコードが、CI の 1.98 で落ちたことがある
+    （`chunks_exact_to_as_chunks` が 1.98 で追加された lint だった）。
+    **lint は rustc の更新で増えるので、版が違えば別のものを見ている。**
+  - egui 0.36 が要求するのは 1.95 以上。それは**下限**であって、検証に使う版ではない。
+- CI は `.github/workflows/ci.yml`（Windows でテスト、Linux で clippy）、
+  `audit.yml`（`cargo audit`、push と週 1 回）、`build.yml` が 6 ターゲットの
+  バイナリをアーティファクトとして残す（Actions タブからダウンロードできる）。
 
 ### Linux 上で作業する場合（クラウドセッションなど）
 

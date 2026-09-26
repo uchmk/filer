@@ -108,8 +108,11 @@ mod imp {
     /// BGRA with premultiplied alpha (what the shell hands out) to straight
     /// RGBA. Handlers that ignore alpha leave it all zero: that means opaque.
     pub(super) fn to_rgba(px: &mut [u8]) {
-        let opaque = px.chunks_exact(4).all(|p| p[3] == 0);
-        for p in px.chunks_exact_mut(4) {
+        // `as_chunks` rather than `chunks_exact`, so a pixel is a `[u8; 4]`
+        // and the indexing below is checked once by the type instead of on
+        // every access.
+        let opaque = px.as_chunks::<4>().0.iter().all(|p| p[3] == 0);
+        for p in px.as_chunks_mut::<4>().0 {
             p.swap(0, 2);
             if opaque {
                 p[3] = 255;
