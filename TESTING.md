@@ -275,6 +275,20 @@ In `bulk-rename\`.
 | 11.8 | Rename a file, undo it, then create a new file, then `U` | Redo is gone: the new action forked history |
 | 11.9 | Delete a file, `u`, but create a file with that name first | `u` says the name is taken, and pressing it again after moving that file out of the way works |
 
+## 27. The parent column, with the mouse (v0.26.7)
+
+The leftmost column. It draws files and directories the same way, so both have
+to answer a click.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 27.1 | Click a **directory** there | The list goes into it, as it always has |
+| 27.2 | Click a **file** there (v0.26.7) | The list goes up to where that file lives, **with the file under the cursor**. Until v0.26.7 nothing happened at all |
+| 27.3 | Then press `<Enter>` | It opens — the cursor really is on it, not merely near it |
+| 27.4 | Double-click either | The same as a single click; no second, different meaning |
+| 27.5 | Click the row for the directory you are already in | You stay there, and the cursor does not jump about |
+| 27.6 | At a drive root, where there is no parent column | Nothing to click, and nothing misbehaves |
+
 ## 12. Quick look, minimap's neighbours, and the rest of the panes
 
 | # | Do | Expect |

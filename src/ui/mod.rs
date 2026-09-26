@@ -510,6 +510,23 @@ struct PaneCtx<'a> {
     row_h: f32,
 }
 
+/// What a click in the parent column asks for.
+///
+/// A directory is somewhere to go. A file used to be nothing at all: the
+/// branch tested `is_dir_like` and simply had no else, so half the rows in a
+/// column that draws them identically answered the mouse and half ignored it,
+/// with nothing to say which was which. Going up to where the file lives and
+/// putting the cursor on it is the only thing a click there can reasonably
+/// mean -- and it is what the same click already does from the help panel's
+/// list of config files.
+fn parent_click(e: &crate::fs::Entry) -> Act {
+    let target = e.path.display().to_string();
+    match e.is_dir_like() {
+        true => Act::Cd { target, interactive: false },
+        false => Act::Reveal(target),
+    }
+}
+
 /// The read-only column showing the directory above the current one.
 fn draw_parent(app: &mut App, ui: &mut Ui, rect: Rect, ctx: &PaneCtx, queued: &mut Vec<Act>) {
     let PaneCtx { theme, font: f, row_h } = *ctx;
@@ -531,9 +548,7 @@ fn draw_parent(app: &mut App, ui: &mut Ui, rect: Rect, ctx: &PaneCtx, queued: &m
         }, false);
         if let Some(row) = res.clicked.or(res.double_clicked) {
             if let Some(e) = p.at(row) {
-                if e.is_dir_like() {
-                    queued.push(Act::Cd { target: e.path.display().to_string(), interactive: false });
-                }
+                queued.push(parent_click(e));
             }
         }
     }
@@ -1047,5 +1062,35 @@ mod wheel {
             assert_eq!(wheel_whole(&mut acc, 1.0), 1);
         }
         assert!(acc.abs() < 1e-5, "no drift after ten rows: {acc}");
+    }
+}
+
+#[cfg(test)]
+mod parent_column {
+    use super::*;
+
+    /// Both kinds of row answer a click, and say what they mean by it.
+    ///
+    /// The column draws files and directories the same way, so a click that
+    /// works on one and is swallowed by the other is indistinguishable from a
+    /// broken mouse. A directory is somewhere to go; a file is somewhere to go
+    /// *and* something to put the cursor on, which is what `Reveal` is.
+    #[test]
+    fn a_file_is_revealed_and_a_directory_entered() {
+        let dir = std::env::temp_dir().join("filer-parent-click");
+        let _ = std::fs::create_dir_all(dir.join("sub"));
+        let file = dir.join("a.txt");
+        std::fs::write(&file, "x").unwrap();
+
+        let as_dir = crate::fs::Entry::from_path(dir.join("sub")).unwrap();
+        let as_file = crate::fs::Entry::from_path(file.clone()).unwrap();
+
+        assert_eq!(
+            parent_click(&as_dir),
+            Act::Cd { target: dir.join("sub").display().to_string(), interactive: false },
+        );
+        assert_eq!(parent_click(&as_file), Act::Reveal(file.display().to_string()));
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
