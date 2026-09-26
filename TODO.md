@@ -421,6 +421,19 @@
     **filer は `safe_dest` のおかげで影響を受けていなかった**が、根本から外した。
   - API は名前が変わっただけで、ロジックの変更はゼロ。`.cargo/audit.toml` の
     ignore も不要になったので削除した。
+- [ ] **リリースのタグを正しいコミットに付け直す**（人がやる作業。クラウドセッションからは
+  タグを push できないため）。0.33.10 で原因は塞いだが、既存の 2 つは動かない。
+
+  ```bash
+  git fetch origin --tags
+  git tag -f v0.32.2 1ed68b4 && git push -f origin v0.32.2
+  git tag -f v0.33.7 6a962b6 && git push -f origin v0.33.7
+  ```
+
+  - リリース（アセットとノート）はタグ名に紐づくので、**消えない。**指す先が正しくなるだけ。
+  - どちらもダウンロード 0 件なので、動かして困る人はいない。
+  - **やらないと次のリリースのノートが壊れる。**「前のタグ」の位置がずれたままなので、
+    v0.32.4 以降が丸ごと重複するか、逆に飛ばされる。
 - [ ] MCP サーバーの認証・接続
   - engineering 系（GitHub、Slack、Linear、Notion、Asana、Atlassian、Datadog、PagerDuty）は未認証。claude.ai のコネクタ設定か `/mcp` で認証する。
   - obsidian の MCP サーバーに接続できない（ECONNREFUSED）。Obsidian 側でサーバーが動いているか確認する。

@@ -193,10 +193,20 @@ jobs:
           echo "wrote $(wc -l < notes.md) lines of notes"
           cat notes.md
 
+      # `target_commitish` is the commit the tag is created at, and leaving it
+      # out is not "the commit this ran on" -- it is the default branch's HEAD
+      # at the moment the release is made. A release takes twenty-five minutes,
+      # so anything pushed to main in that window moves the tag off the build.
+      # It happened twice before this line existed: v0.32.2's tag landed on the
+      # v0.32.3 commit and v0.33.7's on the v0.33.9 commit, which makes the tag
+      # lie about what was shipped and makes the next release's notes start from
+      # the wrong place -- v0.32.3 is missing from v0.33.7's notes for exactly
+      # this reason.
       - name: Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.tag.outputs.name }}
+          target_commitish: ${{ github.sha }}
           name: ${{ steps.tag.outputs.name }}
           body_path: notes.md
           files: dist/*.exe
@@ -273,5 +283,9 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.tag.outputs.name }}
+          # Same commit the Windows job pinned the tag to. The release and the
+          # tag both exist by now, so this changes nothing -- it is here so that
+          # the two jobs cannot disagree if the ordering ever does.
+          target_commitish: ${{ github.sha }}
           files: dist/*.tar.gz
           fail_on_unmatched_files: true
