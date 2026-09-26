@@ -125,6 +125,19 @@ fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
     // installed fails at the moment it is pressed and not before, which is
     // exactly the report that arrives with no other evidence.
     let mut seen: Vec<String> = Vec::new();
+
+    // What `[[preview]]` names. These are run on the preview thread every time
+    // the cursor lands on a matching file, so one that is not installed is a
+    // pane full of the same error over and over.
+    for r in &cfg.preview {
+        let Some(exe) = program(&r.run) else { continue };
+        if seen.contains(&exe) {
+            continue;
+        }
+        seen.push(exe.clone());
+        rows.push((exe.clone(), found(&exe, &format!("preview {}", r.pattern))));
+    }
+
     for (kind, openers) in &cfg.yazi.opener {
         for o in openers {
             let Some(exe) = program(&o.run) else { continue };

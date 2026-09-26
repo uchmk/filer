@@ -328,11 +328,13 @@ mod tests {
                 mtime: None,
                 box_size: (0, 0),
                 cols: 80,
+                n: 0,
             },
             mime,
             ext: Some(ext.into()),
             max_bytes: 1 << 20,
             tab_size: 4,
+            preview: None,
             syntect_theme: "base16-ocean.dark".into(),
         }
     }

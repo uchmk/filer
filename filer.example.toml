@@ -55,3 +55,31 @@ window_height = 860.0
 # there in the other. Name the one you actually use.
 # shell = "pwsh"
 # args = ["-NoLogo"]
+
+# Files filer cannot draw itself, drawn by something that can. Each rule is
+# tried in order and the first whose `match` fits wins.
+#
+#   {path}  the file            (quoted for you)
+#   {out}   where to write the picture, **without an extension** — whatever the
+#           command leaves in that directory is what gets shown, so a tool that
+#           appends its own suffix is fine
+#   {n}     which picture: a page, or a second
+#
+# `<A-j>` / `<A-k>` move `{n}` by `step`. There is no page count — the end of a
+# document arrives as the command refusing, and its own words are shown.
+#
+# Neither tool ships with filer. `filer env` says whether they are on the PATH.
+#
+# [[preview]]
+# match = "*.pdf"
+# run = 'pdftoppm -png -singlefile -r 120 -f {n} -l {n} {path} {out}'
+# first = 1
+# step = 1
+# unit = "page"
+#
+# [[preview]]
+# match = "*.{mp4,mkv,webm,mov,avi}"
+# run = 'ffmpeg -v error -ss {n} -i {path} -frames:v 1 -y {out}.png'
+# first = 0
+# step = 10
+# unit = "s"

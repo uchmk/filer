@@ -448,6 +448,11 @@ pub struct PreviewSlot {
     pub max_offset: usize,
     /// Text columns across the pane, which rendered Markdown wraps to.
     pub cols: u16,
+    /// Which picture of the file a configured previewer is showing: a PDF's
+    /// page, a video's second. Belongs to the file, so it resets on the way to
+    /// the next one — landing on page nine of a two-page document would be a
+    /// puzzle with no visible cause.
+    pub n: i64,
     /// The outline entry under the cursor while the keys drive the preview's
     /// outline rather than the file list.
     pub outline: Option<usize>,
@@ -530,6 +535,7 @@ impl Default for PreviewSlot {
             box_size: (900, 900),
             max_offset: 0,
             cols: 80,
+            n: 0,
             outline: None,
             outline_wanted: None,
             zoom: None,
@@ -1414,10 +1420,12 @@ impl App {
         };
         // The outline and the zoom belong to the file they were set on. Without
         // this, walking onto the next image shows a corner of it at 8x.
+        let rule = crate::config::PreviewRule::for_path(&self.cfg.preview, &entry.path).cloned();
         if self.preview.key.as_ref().is_none_or(|k| k.path != entry.path) {
             self.preview.outline = None;
             self.preview.zoom = None;
             self.preview.pan = egui::Vec2::ZERO;
+            self.preview.n = rule.as_ref().map_or(0, |r| r.first);
         }
         if self.preview.outline_wanted.as_ref().is_some_and(|p| *p != entry.path) {
             self.preview.outline_wanted = None;
@@ -1457,6 +1465,7 @@ impl App {
             // Only Markdown is laid out to the pane's width; nothing else
             // needs re-reading when the window is resized.
             cols: if mime == "text/markdown" { self.preview.cols } else { 0 },
+            n: self.preview.n,
         };
         if self.preview.key.as_ref() == Some(&key) && !force {
             return;
@@ -1513,6 +1522,7 @@ impl App {
             max_bytes: self.cfg.ui.max_text_bytes,
             tab_size: self.cfg.yazi.preview.tab_size,
             syntect_theme: self.cfg.theme.syntect_theme.clone(),
+            preview: rule,
         });
     }
 
@@ -2129,6 +2139,22 @@ impl App {
                     Step::Top => i64::MIN / 2,
                     Step::Bot => i64::MAX / 2,
                 };
+                // A configured previewer draws one picture at a time, so
+                // there is nothing to scroll: the keys step to the next
+                // picture instead. Same keys, because it is the same
+                // intention -- further into this file.
+                if let Some(rule) =
+                    crate::config::PreviewRule::for_path(&self.cfg.preview, &self.hovered_path())
+                {
+                    let by = match step {
+                        Step::Rel(n) => n.signum() * rule.step,
+                        Step::Pct(p) => p.signum() * rule.step,
+                        Step::Top => return self.go_to_picture(rule.first),
+                        Step::Bot => return,
+                    };
+                    let want = self.preview.n + by;
+                    return self.go_to_picture(want.max(rule.first));
+                }
                 // Clamped here rather than only after the draw. The draw used
                 // to be handed an offset past the end, paint a frame from
                 // beyond the content, and fix the number afterwards — one bad
@@ -3773,6 +3799,25 @@ impl App {
         }
     }
 
+    /// The file under the cursor, or nothing-shaped when there is none.
+    fn hovered_path(&self) -> PathBuf {
+        self.tabs[self.active].current.hovered().map_or_else(PathBuf::new, |e| e.path.clone())
+    }
+
+    /// Show picture `n` of the hovered file.
+    ///
+    /// The old picture is left up while the new one is drawn. A command takes
+    /// long enough to see, and blinking to "loading" and back on every press
+    /// of `<A-j>` is worse than a moment of the previous page.
+    fn go_to_picture(&mut self, n: i64) {
+        if self.preview.n == n {
+            return;
+        }
+        self.preview.n = n;
+        self.preview.pending_since = None;
+        self.request_preview(true);
+    }
+
     /// Follow the shell: put the pane where it says it is.
     ///
     /// The other direction, and the useful one when a command has moved the
@@ -4822,6 +4867,7 @@ mod preview_delivery {
             mtime: None,
             box_size: (640, 480),
             cols: 80,
+            n: 0,
         };
         // What `request_preview` leaves behind once it has dispatched.
         app.preview.key = Some(key.clone());
@@ -4853,6 +4899,7 @@ mod preview_delivery {
             mtime: None,
             box_size: (640, 480),
             cols: 80,
+            n: 0,
         };
         let old = preview::Key { path: PathBuf::from("/nowhere/old.md"), ..wanted.clone() };
         app.preview.key = Some(wanted);

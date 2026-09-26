@@ -627,7 +627,8 @@ follows the image's own dimensions, never the texture's.
 
 ## Other previews
 
-No external tools (magick, ffmpeg, pdftoppm) are needed:
+Nothing here needs an outside tool — see [Previewers of your own](#previewers-of-your-own) for
+what one buys you:
 
 | Files | Preview |
 | --- | --- |
@@ -640,6 +641,43 @@ Transparent images are laid over a checkerboard so dark icons stay visible on a 
 Shell thumbnails need a handler for the format: HEIC / AVIF need the HEIF / AV1 Video extensions
 from the Microsoft Store, PDF needs one from e.g. Acrobat Reader or PowerToys, and audio only shows
 embedded cover art. Without one, a metadata card says what is missing.
+
+### Previewers of your own
+
+A shell thumbnail is one picture — page one of a PDF, the poster frame of a video — and there is no
+way to ask it for a second. `[[preview]]` in `filer.toml` names a command that can be asked:
+
+```toml
+[[preview]]
+match = "*.pdf"
+run = 'pdftoppm -png -singlefile -r 120 -f {n} -l {n} {path} {out}'
+first = 1
+unit = "page"
+
+[[preview]]
+match = "*.{mp4,mkv,webm,mov,avi}"
+run = 'ffmpeg -v error -ss {n} -i {path} -frames:v 1 -y {out}.png'
+first = 0
+step = 10
+unit = "s"
+```
+
+`{n}` is which picture is wanted — a page, or a second. **`<A-j>` goes forward and `<A-k>` back**,
+by `step` each time, stopping at `first`; the same keys that scroll a text preview, because a
+single picture has nothing to scroll and the intention is the same. The number shows under the
+picture.
+
+`{path}` and `{out}` are quoted for you, so a path with a space in it works without the rule
+thinking about it. `{out}` has **no extension**: whatever the command leaves in that directory is
+what gets shown, which is what lets one mechanism serve `pdftoppm` (given a prefix, appends its
+own suffix) and `ffmpeg` (writes exactly what it is told).
+
+Nothing counts the pages. The end of a document arrives as the command refusing, and what it said
+is what you see — `Wrong page range given`, from `pdftoppm` itself. Starting a second process
+merely to learn a total is not worth it when the first one will say so anyway.
+
+Neither tool ships with filer. `filer env` lists the programs your rules name and whether they are
+on the `PATH`.
 
 ## Default keys
 

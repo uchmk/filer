@@ -102,12 +102,57 @@ pub struct TermCfg {
     pub args: Vec<String>,
 }
 
+/// `[[preview]]`: a command that draws a file filer cannot draw itself.
+///
+/// The shape is deliberately one thing, not two. A PDF's pages and a video's
+/// seconds are the same problem — "give me picture number N of this file" —
+/// and a single `{n}` covers both, so paging keys, caching and the "there is
+/// no more" case are written once rather than per format.
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct PreviewRule {
+    /// Which files this draws, as a glob over the file name: `*.pdf`,
+    /// `*.{mp4,mkv,webm}`.
+    #[serde(rename = "match")]
+    pub pattern: String,
+    /// The command line. `{path}` is the file, `{out}` a path to write a
+    /// picture to (with no extension — `pdftoppm` appends its own, and
+    /// `ffmpeg` is told `{out}.png`), and `{n}` the page or second wanted.
+    pub run: String,
+    /// What `{n}` is at the start: page 1 for a document, second 0 for a video.
+    #[serde(default = "one")]
+    pub first: i64,
+    /// How far one press of `<A-j>` moves `{n}`. One page, or ten seconds.
+    #[serde(default = "one")]
+    pub step: i64,
+    /// What the pane calls the number under the picture: `page`, `s`.
+    #[serde(default)]
+    pub unit: String,
+}
+
+fn one() -> i64 {
+    1
+}
+
+impl PreviewRule {
+    /// The first rule whose pattern matches, or nothing.
+    ///
+    /// First rather than best: the file is read top to bottom and a later
+    /// entry overriding an earlier one by being more specific would be a rule
+    /// nobody can see in the file itself.
+    pub fn for_path<'a>(rules: &'a [Self], path: &std::path::Path) -> Option<&'a Self> {
+        let name = path.file_name()?.to_string_lossy().to_ascii_lowercase();
+        rules.iter().find(|r| crate::glob::matches(&r.pattern.to_ascii_lowercase(), &name, true))
+    }
+}
+
 #[derive(Deserialize, Debug, Default)]
 struct FilerToml {
     #[serde(default)]
     ui: Ui,
     #[serde(default)]
     term: TermCfg,
+    #[serde(default)]
+    preview: Vec<PreviewRule>,
     /// `[line_args]`: editor name (`mikan`, `notepad++`) to the arguments that
     /// open a file at a line, e.g. `"-l {line} {path}"`.
     #[serde(default)]
@@ -119,6 +164,8 @@ pub struct Config {
     pub keymap: Keymap,
     /// What the terminal pane runs; empty `shell` means the platform default.
     pub term: TermCfg,
+    /// Commands that draw what filer cannot, in the order they are tried.
+    pub preview: Vec<PreviewRule>,
     pub theme: Theme,
     pub ui: Ui,
     /// Line-jump templates, keyed by [`crate::exec::editor_key`].
@@ -139,6 +186,7 @@ impl Config {
         let mut theme = Theme::default();
         let mut ui = Ui::default();
         let mut term = TermCfg::default();
+        let mut preview: Vec<PreviewRule> = Vec::new();
         let mut line_args: HashMap<String, String> = HashMap::new();
 
         for dir in &dirs {
@@ -162,6 +210,7 @@ impl Config {
                     Ok(v) => {
                         ui = v.ui;
                         term = v.term;
+                        preview = v.preview;
                         for (name, template) in v.line_args {
                             if crate::exec::template_is_valid(&template) {
                                 line_args.insert(crate::exec::editor_key(&name), template);
@@ -182,7 +231,7 @@ impl Config {
         let (keymap, mut km_warnings) = Keymap::load(&refs);
         warnings.append(&mut km_warnings);
 
-        Self { yazi: yazi_cfg, keymap, theme, ui, term, line_args, loaded, warnings }
+        Self { yazi: yazi_cfg, keymap, theme, ui, term, preview, line_args, loaded, warnings }
     }
 
     pub fn state_dir() -> PathBuf {
@@ -260,6 +309,40 @@ mod term_shell {
         let with_args: FilerToml =
             toml::from_str("[term]\nshell = \"pwsh\"\nargs = [\"-NoLogo\"]\n").unwrap();
         assert_eq!(with_args.term.args, vec!["-NoLogo".to_string()]);
+    }
+
+    /// `[[preview]]` parses, defaults sensibly, and the first match wins.
+    #[test]
+    fn a_preview_rule_is_read_and_matched() {
+        let cfg: FilerToml = toml::from_str(
+            "[[preview]]\n\
+             match = \"*.pdf\"\n\
+             run = 'pdftoppm -f {n} -l {n} {path} {out}'\n\
+             first = 1\n\
+             unit = \"page\"\n\
+             \n\
+             [[preview]]\n\
+             match = \"*.{mp4,mkv}\"\n\
+             run = 'ffmpeg -ss {n} -i {path} {out}.png'\n\
+             first = 0\n\
+             step = 10\n",
+        )
+        .unwrap();
+        assert_eq!(cfg.preview.len(), 2);
+        // `step` defaults to one page; `first` to page one.
+        assert_eq!(cfg.preview[0].step, 1);
+        assert_eq!(cfg.preview[1].step, 10);
+        assert_eq!(cfg.preview[1].first, 0);
+        assert_eq!(cfg.preview[1].unit, "", "a unit is optional");
+
+        let m = |p: &str| {
+            PreviewRule::for_path(&cfg.preview, std::path::Path::new(p)).map(|r| r.pattern.as_str())
+        };
+        assert_eq!(m("/a/report.pdf"), Some("*.pdf"));
+        // Case does not decide it: `.PDF` is how a download arrives.
+        assert_eq!(m("/a/REPORT.PDF"), Some("*.pdf"));
+        assert_eq!(m("/a/clip.mkv"), Some("*.{mp4,mkv}"));
+        assert_eq!(m("/a/notes.txt"), None, "anything else is filer's own job");
     }
 
     /// A `filer.toml` written before `[term]` existed still reads.

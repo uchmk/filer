@@ -310,6 +310,29 @@ to answer a click.
 | 27.5 | Click the row for the directory you are already in | You stay there, and the cursor does not jump about |
 | 27.6 | At a drive root, where there is no parent column | Nothing to click, and nothing misbehaves |
 
+## 30. Previewers of your own (v0.30.0)
+
+Needs `pdftoppm` and `ffmpeg` on the `PATH` (`filer env` says), and the two
+rules from the README in `filer.toml`. **The end-to-end test runs `sh`, so it is
+skipped on Windows — this section is the only coverage of the `cmd` path.**
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 30.1 | Hover a multi-page PDF | Page one, with `page 1` under it |
+| 30.2 | `<A-j>` | Page two. `page 2` under it |
+| 30.3 | `<A-k>` | Back to page one |
+| 30.4 | `<A-k>` again, on page one | Stays. It does not go to page zero or below |
+| 30.5 | Hold `<A-j>` past the last page | The command's own words — `Wrong page range given` — not silence and not a filer-shaped error |
+| 30.6 | Watch the screen while paging | **No console window flashes.** It runs once per press |
+| 30.7 | Page to 5, move to another file, come back | Back at page one: the page belongs to the file |
+| 30.8 | Page back to one you have already seen | Instant — it is cached per page |
+| 30.9 | Hover a video | The frame at 0s, captioned `s 0` |
+| 30.10 | `<A-j>` on it | Ten seconds in, by `step` |
+| 30.11 | A PDF with a **space** in its name, and one in a Japanese folder | Both draw. The quoting is filer's, not the rule's |
+| 30.12 | Rename `pdftoppm` away, then hover a PDF | An error naming the tool, not a hang |
+| 30.13 | Remove the `[[preview]]` rules, `<C-F5>`, hover a PDF | Back to the shell thumbnail, unchanged |
+| 30.14 | `filer env` with the rules in place | `pdftoppm` and `ffmpeg` listed under Tools, with `preview *.pdf` beside them |
+
 ## 12. Quick look, minimap's neighbours, and the rest of the panes
 
 | # | Do | Expect |

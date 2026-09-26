@@ -14,6 +14,7 @@ use crossbeam_channel::{Receiver, Sender};
 mod font_preview;
 mod image_preview;
 mod markdown;
+mod external;
 mod shell_thumb;
 mod svg_preview;
 mod symbols;
@@ -32,6 +33,10 @@ pub struct Key {
     pub box_size: (u32, u32),
     /// Text columns across the pane; rendered Markdown is wrapped to fit.
     pub cols: u16,
+    /// Which picture of the file: a PDF's page, a video's second. Part of the
+    /// key so that paging back to one already seen is instant, and so that two
+    /// pages of the same file are never mistaken for each other.
+    pub n: i64,
 }
 
 #[derive(Debug)]
@@ -43,6 +48,10 @@ pub struct Request {
     pub max_bytes: usize,
     pub tab_size: u8,
     pub syntect_theme: String,
+    /// The command that draws this file, when one is configured for it. Copied
+    /// in rather than looked up: the worker has no config, in the same way it
+    /// is handed `tab_size` and the theme.
+    pub preview: Option<crate::config::PreviewRule>,
 }
 
 /// A run of text sharing one style.
@@ -266,6 +275,12 @@ fn render(req: &Request, syntax: &mut text::Highlighter) -> Payload {
     let path = &req.key.path;
     let mime = req.mime;
 
+    // A configured command comes first, so that a rule for `*.pdf` is what
+    // decides, not the shell's one-page thumbnail handler underneath it.
+    if let Some(rule) = &req.preview {
+        return external_picture(rule, req);
+    }
+
     if mime == "image/svg+xml" {
         return svg_preview::render(path, req.key.box_size).unwrap_or_else(Payload::Error);
     }
@@ -362,6 +377,42 @@ fn binary(path: &std::path::Path, head: &[u8]) -> Payload {
         lines.push(s);
     }
     Payload::Binary { lines, total }
+}
+
+/// Draw a file with the command configured for it.
+///
+/// The number is in the caption rather than anywhere structural: the pane
+/// already knows how to show a picture with a line under it, and "page 3" is
+/// the same kind of fact as an image's dimensions.
+fn external_picture(rule: &crate::config::PreviewRule, req: &Request) -> Payload {
+    let n = req.key.n;
+    let drawn = match external::draw(rule, &req.key.path, n) {
+        Ok(d) => d,
+        // The end of a document arrives as a failure from the command, which
+        // is the only way it can: nothing asked how many pages there were.
+        // Saying which page was refused matters, because the reader pressed a
+        // key and has to know it was not the key that failed.
+        Err(e) => return Payload::Error(format!("{}{n}: {e}", unit(rule))),
+    };
+    match image_preview::render(&drawn.png, req.key.box_size) {
+        Ok(Payload::Image { width, height, source, rgba, .. }) => Payload::Image {
+            width,
+            height,
+            source,
+            rgba,
+            caption: format!("{}{n}", unit(rule)),
+        },
+        Ok(other) => other,
+        Err(e) => Payload::Error(e),
+    }
+}
+
+/// What the caption calls the number. `page 3`, `12s`, or just `3`.
+fn unit(rule: &crate::config::PreviewRule) -> String {
+    match rule.unit.as_str() {
+        "" => String::new(),
+        u => format!("{u} "),
+    }
 }
 
 /// The shell's thumbnail, or a metadata card saying why there is none.
