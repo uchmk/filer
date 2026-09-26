@@ -5592,6 +5592,33 @@ mod goto_and_history_keys {
         assert_eq!(run("H"), "back");
         assert_eq!(run("L"), "forward");
     }
+
+    /// `T` maximizes the preview column, and is spelled as the shifted character.
+    ///
+    /// The command had a parser and an implementation but no key, so the feature
+    /// was only reachable by writing a `prepend_keymap` line by hand. Pinned
+    /// through the keymap rather than the parser, because the two spellings of a
+    /// shifted letter parse equally well and only one of them ever matches.
+    #[test]
+    fn t_maximizes_the_preview_pane() {
+        let (km, warnings) = keymap::Keymap::load(&[]);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let binding = km
+            .mgr
+            .iter()
+            .find(|b| crate::config::keys::render_seq(&b.on) == "T")
+            .expect("`T` is not bound");
+        assert_eq!(binding.raw, "plugin toggle-pane max-preview");
+        assert_eq!(crate::config::cmd::parse(&binding.raw), crate::config::cmd::Act::MaxPreview);
+
+        // `t` is the new tab it sits next to; shifting it must not have moved it.
+        let lower = km
+            .mgr
+            .iter()
+            .find(|b| crate::config::keys::render_seq(&b.on) == "t")
+            .expect("`t` is not bound");
+        assert_eq!(lower.raw, "tab_create --current");
+    }
 }
 
 #[cfg(test)]

@@ -132,6 +132,23 @@ on = "<F3>"
 run = "quick"
 desc = "Quick look: the hovered file, big, over the panes"
 
+# yazi's `toggle-pane max-preview`, which the plugin bridge has understood since
+# it was written but nothing was bound to. `T` is the key yazi's own docs use for
+# it, and is free here -- `t` is a new tab.
+#
+# Written `T`, never `<S-t>`: a printable key arrives as typed text, so Shift is
+# already in the character by the time the keymap sees it. `<S-t>` parses without
+# complaint and then matches nothing at all.
+#
+# This is not `<F3>` with a different width. `max-preview` widens the preview
+# *column*, so the panes and the status bar stay as they are and the same key
+# puts it back. `<F3>` is a modal drawn over them: it dims the background, frames
+# the preview with the file's name, and closes on `Esc` too.
+[[mgr.keymap]]
+on = "T"
+run = "plugin toggle-pane max-preview"
+desc = "Maximize or restore the preview pane"
+
 [[mgr.keymap]]
 on = "<A-k>"
 run = "seek -5"

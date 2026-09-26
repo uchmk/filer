@@ -729,6 +729,27 @@ Windows needs confirming that nothing moved.**
 
 ---
 
+## 36. `T`, and how it differs from `<F3>` (v0.36.0)
+
+The binding and its parse are covered by tests; what needs eyes is the drawing,
+and the fact that these two are not the same thing at two sizes.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 36.1 | Hover a text file, press `T` | The preview column takes the whole body. The tab bar and status bar are **unchanged**, the background is **not** dimmed, and there is no frame or file name across the top |
+| 36.2 | `T` again | The three columns come back at the `[mgr] ratio` widths |
+| 36.3 | With `T` up, `j` / `k` | The cursor still walks the list and the preview follows, even though the list column is squeezed to nothing |
+| 36.4 | With `T` up, `<A-j>` / `<A-k>` | Scrolls the preview |
+| 36.5 | With `T` up, press `<Esc>` | **The columns do not come back** — there is no panel to close, so `<Esc>` keeps its usual meaning (clears a filter, leaves a search). Only `T` restores them |
+| 36.6 | `<F3>` for comparison | Dimmed background, a framed panel at 86% × 88% with the file's name as its title and "Esc to close". A visibly different thing from 36.1 |
+| 36.7 | `T`, then `<F3>`, then `<Esc>` | The panel closes and the **maximized column is still maximized** — the two flags are independent |
+| 36.8 | Hide the parent pane (`toggle-pane max-parent`), then `T` on and `T` off | The parent pane is **back** — turning `T` on clears `hide_parent`, and toggling off does not restore it. Deliberate, but it means `T` is not quite a round trip |
+| 36.9 | `T` on a directory, and on a file with no preview | No panic, no stuck layout; `T` still toggles back |
+| 36.10 | Bind `<S-t>` instead of `T` in `prepend_keymap`, `<C-F5>` | **Nothing happens on any key** — the lesson the tests pin. No warning is printed either, because the notation is valid |
+| 36.11 | `~` / `F1` | `T` is listed with its description, in the keymap the panel shows |
+
+---
+
 ## Known gaps in this checklist
 
 - **Nothing here has been run.** The checklist was written from the code, not

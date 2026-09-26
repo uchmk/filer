@@ -503,6 +503,13 @@ laid side by side without being matched up, and say so.
 keys are not taken while it is up, so `j` and `k` keep walking the list and the panel follows them
 down it; `<A-j>` / `<A-k>` scroll it. `<F3>` again or `<Esc>` closes it.
 
+`T` is the quieter version of the same idea, and yazi spells it
+`plugin toggle-pane max-preview`. It widens the preview *column* until it has the body to itself,
+so the tab bar, the status bar and the layout stay exactly as they were — no dimming, no frame, no
+file name across the top. `T` again puts the columns back. `<Esc>` does not: there is no panel to
+close, so `<Esc>` keeps its usual meaning. Reach for `<F3>` to look at one file and `T` to keep
+reading while you walk the list.
+
 Worth knowing if macOS's Quick Look is what you have in your fingers: there the up and down keys
 scroll the document and left and right step between files, and here it is the other way round.
 The panel is built for flipping through a directory at full size rather than for settling into one
@@ -737,6 +744,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `R` | bulk rename: one rule over everything selected, previewed as you type |
 | `<A-d>` | compare two files side by side |
 | `<F3>` | quick look: the hovered file, big, over the panes |
+| `T` | maximize the preview column, or put it back |
 | `e` `E` | extract the selected archives / compress the selection |
 | `<A-c>` `<A-m>` | copy / move the selection to the other pane |
 | `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` filer's config, `gy` yazi's config, `gt` temp, `g<Space>` type a path, `gf` follow the link |

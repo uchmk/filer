@@ -357,6 +357,28 @@ mod tests {
         assert_eq!(Key::parse("<F5>").unwrap().code, Code::Named(Named::F(5)));
     }
 
+    /// A shifted letter is spelled `T`, not `<S-t>`.
+    ///
+    /// Shift+T reaches the app as typed text, so the shift is already inside the
+    /// character and the key carries no modifier. `<S-t>` is accepted by the
+    /// parser -- it is valid notation -- and then sits in the keymap matching
+    /// nothing, which looks like a binding that was ignored rather than one that
+    /// was written wrong. Asserted so the two spellings stay visibly different.
+    #[test]
+    fn a_shifted_letter_is_the_uppercase_character() {
+        let typed = Key::char('T'); // what `Event::Text("T")` produces
+        assert_eq!(Key::parse("T"), Some(typed));
+        assert!(!typed.shift, "the shift is in the character, not the modifier");
+
+        let wrong = Key::parse("<S-t>").expect("valid notation, just never matched");
+        assert_ne!(wrong, typed);
+        assert!(wrong.shift && wrong.code == Code::Char('t'));
+
+        // With another modifier held there is no text event, so `<C-S-t>` and
+        // `<C-T>` are the same key and both do match.
+        assert_eq!(Key::parse("<C-S-t>"), Key::parse("<C-T>"));
+    }
+
     #[test]
     fn round_trips() {
         for s in ["a", "<C-a>", "<Enter>", "<Space>", "<F12>", "<A-S-Left>", "<BackTab>", "<C-BackTab>"] {
