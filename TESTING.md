@@ -664,6 +664,10 @@ none of these failed.
 | 33.4 | Make something actually fail (an opener naming a program that is not installed, 25.8) | Still **red**, so the two are told apart at a glance |
 | 33.5 | Remove the duplicate lines, `<C-F5>` | `Reloaded N config file(s)` in the plain colour; no yellow |
 | 33.6 | A theme with a light background | The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable |
+| 33.7 | Put `[[preview]]` into `yazi.toml` (it belongs in `filer.toml`) and start | A **five-line** parse error, naming the line and pointing at it. **Inside its box**: nothing over the header, nothing over the file list, nothing past either edge of the window (v0.33.11) |
+| 33.8 | Narrow the window to about a third of the screen, with 33.7 still broken | The message wraps rather than running off; the box stays against the right edge |
+| 33.9 | Break **three** config files at once | Up to five boxes stack downward, each sized to its own text, none overlapping the next |
+| 33.10 | A single error longer than eight lines | Cut at eight with `…` on its own line, rather than filling the window |
 
 ---
 

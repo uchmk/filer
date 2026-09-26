@@ -857,6 +857,19 @@ fn running_task(app: &App) -> Option<&crate::app::Task> {
 
 // ---------------------------------------------------------------- toasts
 
+/// How many lines of one message are shown. A `toml` parse error is five --
+/// the message, a bar, the offending line, a row of carets, then what was
+/// expected -- and several of those at once should not take the window.
+const TOAST_LINES: usize = 8;
+
+/// The first `max` lines, with a marker when there were more.
+fn clip_lines(s: &str, max: usize) -> String {
+    match s.lines().nth(max) {
+        None => s.to_owned(),
+        Some(_) => s.lines().take(max).chain(["…"]).collect::<Vec<_>>().join("\n"),
+    }
+}
+
 fn draw_toasts(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     if app.toasts.is_empty() {
         return;
@@ -869,6 +882,11 @@ fn draw_toasts(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     // message like "none of the 2 selected item(s) is an archive" worth
     // reading. Covering the answer with the question is a poor trade.
     let mut y = full.top() + row_h + 14.0;
+    // As wide as the message needs, up to half the window, and wrapped after
+    // that. `layout_no_wrap` was fine while every message was one short line
+    // and wrong the moment one was not: a config error carries the offending
+    // line and a row of carets under it, so it ran off both edges at once.
+    let max_w = (full.width() * 0.5).clamp(240.0, (full.width() - 24.0).max(240.0));
     for t in app.toasts.iter().rev().take(5) {
         let color = match t.level {
             crate::app::Level::Info => theme.fg,
@@ -879,11 +897,15 @@ fn draw_toasts(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
             0 | 1 => t.text.clone(),
             n => format!("{} ×{n}", t.text),
         };
-        let g = painter.layout_no_wrap(text, f.clone(), color);
+        let g = painter.layout(clip_lines(&text, TOAST_LINES), f.clone(), color, max_w - 20.0);
         let w = g.size().x + 20.0;
+        // The galley's own height, not one row. A five-line parse error drawn
+        // in a one-row box spilled out of both ends of it -- over the header
+        // above and the file list below -- because the text is centred in the
+        // box and the box was the wrong size.
         let r = Rect::from_min_size(
             egui::pos2(full.right() - w - 12.0, y),
-            Vec2::new(w, row_h + 8.0),
+            Vec2::new(w, (g.size().y + 8.0).max(row_h + 8.0)),
         );
         painter.rect_filled(r, CornerRadius::same(4), theme.bg_alt);
         painter.rect_stroke(
@@ -933,6 +955,43 @@ pub fn modal_frame(ui: &Ui, rect: Rect, theme: &Theme, title: &str, f: &FontId, 
 
 pub fn dim(ui: &Ui, full: Rect) {
     ui.painter().rect_filled(full, CornerRadius::ZERO, Color32::from_black_alpha(140));
+}
+
+#[cfg(test)]
+mod toast_tests {
+    use super::{clip_lines, TOAST_LINES};
+
+    #[test]
+    fn a_short_message_is_left_alone() {
+        assert_eq!(clip_lines("one line", TOAST_LINES), "one line");
+        assert_eq!(clip_lines("a\nb\nc", 3), "a\nb\nc");
+    }
+
+    /// The shape a `toml` error actually arrives in: the complaint, the line
+    /// it is about, and carets under it. All of it fits, and all of it is the
+    /// part that says where to look.
+    #[test]
+    fn a_parse_error_survives_whole() {
+        let err = "TOML parse error at line 23, column 1\n  |\n23 | [[preview]]\n   | ^^^^^^^^^^\ninvalid type: map, expected a string";
+        assert_eq!(clip_lines(err, TOAST_LINES), err);
+        assert_eq!(err.lines().count(), 5);
+    }
+
+    #[test]
+    fn past_the_limit_it_says_there_was_more() {
+        let many = (1..=12).map(|n| n.to_string()).collect::<Vec<_>>().join("\n");
+        let out = clip_lines(&many, 3);
+        assert_eq!(out, "1\n2\n3\n…");
+        // The marker is a line, so what is drawn is one more than asked for
+        // rather than one of the message being silently dropped for it.
+        assert_eq!(out.lines().count(), 4);
+    }
+
+    #[test]
+    fn exactly_the_limit_gets_no_marker() {
+        assert_eq!(clip_lines("a\nb", 2), "a\nb");
+        assert_eq!(clip_lines("a\nb\nc", 2), "a\nb\n…");
+    }
 }
 
 #[cfg(test)]
