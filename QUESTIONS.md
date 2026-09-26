@@ -141,3 +141,25 @@ Claude が判断に迷った点をここに書きます。各質問の「回答�
   - `R` = `bulk_rename`。`r`（1 件のリネーム）の隣で、未割り当てだった。
   - `<A-d>` = `compare`。d は diff。`d` は削除なので使えず、Alt 付きなら空いている。
   - `<C-F5>` = `config_reload`。`<F5>` が一覧の再読み込みなので、設定の再読み込みはその上位。
+
+## Q11: `sevenz-rust` から `sevenz-rust2` へ移行するか
+
+- 状態: 未回答
+- タスク: TODO.md「`sevenz-rust` から `sevenz-rust2` へ移行する」
+- 背景: `cargo audit` を CI に入れた初回の実行で 2 件出た。
+  - RUSTSEC-2026-0246: `sevenz-rust` は**リポジトリが削除され unmaintained**。
+    advisory 自身が `sevenz-rust2` への移行を勧めている。
+  - RUSTSEC-2026-0245: `decompress_impl` の **path traversal（8.3 high、修正版なし）**。
+    **filer は影響を受けない。**`extract_7z` は `decompress_with_extract_fn` に自前の
+    writer を渡し、ライブラリが計算した展開先を捨てて `safe_dest`（`..` / 絶対パス /
+    `C:` を拒否する allowlist）の結果に書いている。理由付きで `.cargo/audit.toml` に
+    ignore してあるので、**いま CI は緑**。
+  - つまり**急ぎではない**が、放っておくと直らない類のもの。
+- 選択肢:
+  1. **`sevenz-rust2` に移行する（推奨）。**フォークなので API はほぼ同じはず。
+     読み書き両方を差し替えて、既存のラウンドトリップテストで確かめる。
+     移行後は `.cargo/audit.toml` の ignore を消す。
+  2. 今のままにする。filer は脆弱性の影響を受けず、7z は動いている。
+     ただし unmaintained のままなので、次に何か出ても直る見込みが無い。
+  3. 7z のサポートをやめる。圧縮率が理由で入れた機能なので、これは損。
+- 回答:

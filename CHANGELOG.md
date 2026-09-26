@@ -9,6 +9,23 @@
 
 ## [未リリース]
 
+## [0.33.1] - 2026-09-26
+
+### 修正
+
+- **`cargo audit` を入れた初回の実行で、実際の脆弱性が 1 件出た。**
+  `sevenz-rust` の `decompress_impl` の path traversal（RUSTSEC-2026-0245、
+  **8.3 high、修正版なし**）。悪意ある .7z が展開先の外にファイルを書けるというもの。
+  - **filer は影響を受けない。**`extract_7z` は `decompress_with_extract_fn` に
+    自前の writer を渡し、**ライブラリが計算した展開先を捨てて** `safe_dest` の結果に
+    書いている。`safe_dest` は名前を component 単位で組み直し、`..`・絶対パス・
+    `C:` や UNC を拒否する。通常の名前だけを積む allowlist なので外に出られない。
+    zip と tar も同じ関門を通る。
+  - `.cargo/audit.toml` に**理由を書いたうえで** ignore した。修正版が無く
+    unmaintained なので、放置すると CI が永久に赤くなり、**次の本物の指摘が
+    誰も読まない一覧に埋もれる**ため。
+  - 根本対応（`sevenz-rust2` への移行）は TODO.md と QUESTIONS.md の Q11。
+
 ## [0.33.0] - 2026-09-26
 
 ### 追加
