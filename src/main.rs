@@ -3,6 +3,7 @@
 mod app;
 mod bugreport;
 mod envreport;
+mod runinfo;
 mod config;
 mod core;
 mod diff;
@@ -147,7 +148,20 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(move |cc| {
             let mut cfg = cfg;
-            let has_bold = apply_fonts(&cc.egui_ctx, &mut cfg);
+            // Filled as the run sets itself up, and written down at the end of
+            // it: `filer env` cannot work either of these out for itself.
+            let mut used = crate::runinfo::RunInfo {
+                version: env!("CARGO_PKG_VERSION").into(),
+                ..Default::default()
+            };
+            if let Some(rs) = cc.wgpu_render_state.as_ref() {
+                let info = rs.adapter.get_info();
+                used.adapter = info.name;
+                used.backend = format!("{:?}", info.backend);
+                used.device = format!("{:?}", info.device_type);
+            }
+            let has_bold = apply_fonts(&cc.egui_ctx, &mut cfg, &mut used);
+            crate::runinfo::save(&used);
             cc.egui_ctx.set_visuals(egui::Visuals::dark());
             cc.egui_ctx.all_styles_mut(|s| {
                 s.animation_time = 0.0;
@@ -217,8 +231,8 @@ fn app_icon(svg: &[u8], px: u32) -> Option<egui::IconData> {
 ///
 /// Startup and `config_reload` both go through here, so a reloaded config gets
 /// exactly the fonts a fresh start would have given it.
-fn apply_fonts(ctx: &egui::Context, cfg: &mut Config) -> bool {
-    let (has_nerd, has_bold) = install_fonts(ctx, cfg);
+fn apply_fonts(ctx: &egui::Context, cfg: &mut Config, used: &mut crate::runinfo::RunInfo) -> bool {
+    let (has_nerd, has_bold) = install_fonts(ctx, cfg, used);
     if (!has_nerd && cfg.ui.icons != "nerd") || cfg.ui.icons == "none" {
         cfg.theme.without_nerd_icons();
     }
@@ -229,7 +243,11 @@ fn apply_fonts(ctx: &egui::Context, cfg: &mut Config) -> bool {
 /// bold faces for the `bold` family when any can be found.
 /// Returns whether the chosen font looks like a Nerd Font, and whether the
 /// `bold` family was registered.
-fn install_fonts(ctx: &egui::Context, cfg: &Config) -> (bool, bool) {
+fn install_fonts(
+    ctx: &egui::Context,
+    cfg: &Config,
+    used: &mut crate::runinfo::RunInfo,
+) -> (bool, bool) {
     let mut candidates: Vec<PathBuf> = cfg.ui.fonts.iter().map(PathBuf::from).collect();
     if let Some(local) = dirs::data_local_dir() {
         let user_fonts = local.join("Microsoft").join("Windows").join("Fonts");
@@ -277,6 +295,8 @@ fn install_fonts(ctx: &egui::Context, cfg: &Config) -> (bool, bool) {
         }
     }
 
+    used.fonts = loaded.clone();
+
     // Bold: configured faces first, then the bold siblings of the regular
     // faces in use, then stock Windows faces.
     let mut bold_candidates: Vec<PathBuf> = cfg.ui.bold_fonts.iter().map(PathBuf::from).collect();
@@ -287,18 +307,24 @@ fn install_fonts(ctx: &egui::Context, cfg: &Config) -> (bool, bool) {
         bold_candidates.push(PathBuf::from(r"C:\Windows\Fonts").join(name));
     }
     let mut bold: Vec<String> = Vec::new();
+    let mut bold_used: Vec<PathBuf> = Vec::new();
     for path in bold_candidates {
         let name = format!("bold:{}", font_stem(&path));
         if bold.contains(&name) || !load_face(&mut fonts, &path, &name) {
             continue;
         }
         bold.push(name);
+        bold_used.push(path);
         // A Latin face and a CJK face at most; the regular faces cover the
         // rest (icons, symbols) through the fallback chain below.
         if bold.len() >= 2 {
             break;
         }
     }
+    // The paths rather than the family names, which is what a reader can go
+    // and look at: "no bold" and "bold came from a face you did not expect"
+    // are different complaints with the same symptom.
+    used.bold = bold_used;
     let has_bold = !bold.is_empty();
     if has_bold {
         let mut list = bold;
@@ -369,7 +395,16 @@ impl eframe::App for Filer {
         // loop can install a face.
         if self.app.refont {
             self.app.refont = false;
-            self.app.bold_font = apply_fonts(&ctx, &mut self.app.cfg);
+            // The record follows: a reload can name different fonts, and the
+            // whole point of writing it down is that it says what is in use
+            // now. The adapter is carried over -- it cannot change without a
+            // restart, and re-reading it here would mean holding the render
+            // state for the life of the program to answer a question nobody
+            // has yet asked.
+            let mut used = crate::runinfo::load().unwrap_or_default();
+            used.version = env!("CARGO_PKG_VERSION").into();
+            self.app.bold_font = apply_fonts(&ctx, &mut self.app.cfg, &mut used);
+            crate::runinfo::save(&used);
         }
         self.app.kick_scans();
         self.app.request_preview(false);

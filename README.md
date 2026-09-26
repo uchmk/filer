@@ -867,6 +867,13 @@ and the environment variables that change filer's behaviour. The "and where" is 
 matters: a theme that is not taking effect is nearly always a file in the other directory, or a
 name spelled differently, and a list of what was found cannot show that.
 
+It also prints what the **last run** used: the GPU adapter and backend egui ended up on, and the
+font files that were actually loaded. Neither is knowable from a command that exits before a window
+opens, so the run that does know writes it down and `filer env` reads it back — which is the right
+way round anyway, since the run worth reporting on is the one that misbehaved, not the one typing
+`filer env` afterwards. A blank or slow window is nearly always the adapter line (`Cpu` as the
+device type answers it on its own), and boxes instead of icons is nearly always the font line.
+
 None of the outside tools is required — previews and archives are handled in-process — but each
 one it finds widens what it can do, so the line saying one is missing also says what is missing
 with it.

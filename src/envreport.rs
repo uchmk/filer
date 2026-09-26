@@ -17,6 +17,7 @@ pub fn text() -> String {
     let mut out = String::new();
     section(&mut out, "Filer", &version());
     section(&mut out, "Config", &config());
+    section(&mut out, "Last run", &last_run());
     section(&mut out, "Tools", &tools());
     section(&mut out, "Variables", &variables());
     out
@@ -149,6 +150,40 @@ fn probe(exe: &str, flag: &str) -> Option<String> {
     }
 }
 
+
+/// What the window used, read back from what the last run wrote down.
+///
+/// Neither of these can be worked out from here: the adapter is wgpu's choice
+/// at startup, and the fonts are a search whose result depends on what is
+/// installed. Both are the answer to a complaint that has no other answer --
+/// a blank or slow window is the adapter, and boxes instead of icons is the
+/// font — and both are invisible to every other kind of investigation.
+fn last_run() -> Vec<(String, String)> {
+    let Some(info) = crate::runinfo::load() else {
+        return vec![(
+            "Rendering".into(),
+            "not recorded — filer has not opened a window on this machine yet".into(),
+        )];
+    };
+    let list = |paths: &[std::path::PathBuf], none: &str| match paths.is_empty() {
+        true => none.to_string(),
+        false => paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join("\n"),
+    };
+    let mut rows = vec![
+        ("Adapter".into(), match info.adapter.is_empty() {
+            true => "not recorded".into(),
+            false => format!("{}   ({}, {})", info.adapter, info.backend, info.device),
+        }),
+        ("Fonts".into(), list(&info.fonts, "none loaded — this is why icons are boxes")),
+        ("Bold".into(), list(&info.bold, "none found; bold is faked by overstriking")),
+    ];
+    // A record left by an older filer describes an older filer. Saying so
+    // costs a line and stops a stale answer being read as a current one.
+    if info.version != env!("CARGO_PKG_VERSION") {
+        rows.push(("Recorded by".into(), format!("filer {} — an earlier run", info.version)));
+    }
+    rows
+}
 
 fn variables() -> Vec<(String, String)> {
     ["EDITOR", "VISUAL", "SHELL", "TERM", "YAZI_CONFIG_HOME", "FILER_CONFIG_HOME", "FILER_STATE_HOME"]
