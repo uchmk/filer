@@ -712,9 +712,14 @@ pub fn control_code(c: char, alt: bool) -> Option<Vec<u8>> {
 }
 
 /// Where the cursor is, in cells, for the renderer to draw over.
+/// The row is where the cursor is *on screen*, which is not where it is in the
+/// buffer once the view has been scrolled back: the caller draws nothing when
+/// the row falls past the last line, so the cursor leaves with the rows it
+/// belongs to instead of hanging on the scrollback at its old height.
 pub fn cursor_cell<T: EventListener>(term: &Term<T>) -> (usize, usize) {
-    let p = term.grid().cursor.point;
-    (p.column.0, p.line.0.max(0) as usize)
+    let grid = term.grid();
+    let p = grid.cursor.point;
+    (p.column.0, (p.line.0.max(0) as usize).saturating_add(grid.display_offset()))
 }
 
 /// Whether the arrows should be sent as SS3 rather than CSI.
@@ -729,11 +734,19 @@ pub fn snapshot<T: EventListener>(term: &Term<T>) -> Vec<Vec<CellView>> {
     let grid = term.grid();
     let lines = grid.screen_lines();
     let cols = grid.columns();
+    // Indexing by `Line` is relative to the active area, where line zero is the
+    // top of the screen and the scrollback is above it at negative lines --
+    // `display_offset` is not applied for you. Copying `0..lines` therefore
+    // returned the same rows however far back the view had been scrolled: the
+    // keys moved the offset, the badge read it back and said "16 lines back",
+    // and the screen did not move. The same subtraction is in `point`, which
+    // has always had to do this to turn a click into a buffer position.
+    let offset = grid.display_offset() as i32;
     let mut out = Vec::with_capacity(lines);
     for l in 0..lines {
         let mut row = Vec::with_capacity(cols);
         for c in 0..cols {
-            let cell = &grid[Line(l as i32)][Column(c)];
+            let cell = &grid[Line(l as i32 - offset)][Column(c)];
             row.push(CellView { c: cell.c, fg: cell.fg, bg: cell.bg, flags: cell.flags });
         }
         out.push(row);
@@ -753,6 +766,72 @@ pub struct CellView {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A terminal with `lines` rows of screen and room to scroll back.
+    fn term(cols: usize, lines: usize) -> Term<Proxy> {
+        let (tx, _rx) = crossbeam_channel::unbounded();
+        let proxy = Proxy { tx, wake: Arc::new(|| {}) };
+        let cfg = Config { scrolling_history: 200, ..Default::default() };
+        Term::new(cfg, &Size::new(cols, lines), proxy)
+    }
+
+    /// Feed `text` through the parser, as the PTY reader thread would.
+    fn feed(t: &mut Term<Proxy>, text: &str) {
+        let mut parser = alacritty_terminal::vte::ansi::Processor::<
+            alacritty_terminal::vte::ansi::StdSyncHandler,
+        >::default();
+        for b in text.as_bytes() {
+            parser.advance(t, &[*b]);
+        }
+    }
+
+    /// The scrollback keys moved the view and the screen did not follow.
+    ///
+    /// `snapshot` copied `Line(0)..Line(screen_lines)`, which is the active
+    /// area whatever `display_offset` says, so `<S-PageUp>` and the wheel both
+    /// changed a number nothing was reading. The badge made it worse by being
+    /// right: it said "16 lines back" over a screen that had not moved.
+    #[test]
+    fn scrolling_back_shows_the_older_lines() {
+        let mut t = term(20, 4);
+        for i in 0..20 {
+            feed(&mut t, &format!("line{i}\r\n"));
+        }
+        let row = |t: &Term<Proxy>, n: usize| -> String {
+            snapshot(t)[n].iter().map(|c| c.c).collect::<String>().trim_end().to_string()
+        };
+
+        // The cursor sits on a fresh line below `line19`, so the top of a
+        // four-line screen is `line17`, not `line16`.
+        let bottom = row(&t, 0);
+        assert_eq!(bottom, "line17");
+
+        t.scroll_display(Scroll::Delta(3));
+        assert_eq!(t.grid().display_offset(), 3, "the offset is the easy half");
+
+        let scrolled = row(&t, 0);
+        assert_ne!(scrolled, bottom, "the screen has to follow the offset");
+        assert_eq!(scrolled, "line14", "three older than the row that was on top");
+
+        t.scroll_display(Scroll::Bottom);
+        assert_eq!(row(&t, 0), bottom, "and come back");
+    }
+
+    /// The cursor belongs to a row, so it travels with it.
+    #[test]
+    fn the_cursor_leaves_with_its_row() {
+        let mut t = term(20, 4);
+        for i in 0..20 {
+            feed(&mut t, &format!("line{i}\r\n"));
+        }
+        let (_, before) = cursor_cell(&t);
+        assert!(before < 4, "on screen to start with: {before}");
+
+        t.scroll_display(Scroll::Delta(3));
+        let (_, after) = cursor_cell(&t);
+        assert_eq!(after, before + 3, "it moves down as older lines come in above");
+        assert!(after >= 4, "and is off the screen, so the pane draws nothing");
+    }
 
     fn s(bytes: Vec<u8>) -> String {
         String::from_utf8(bytes).unwrap().replace('\x1b', "<ESC>")

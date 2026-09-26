@@ -76,7 +76,10 @@ drawing has been seen. `<C-t>` opens it.
 | A6 | `<C-t>`, `<C-t>`, `<C-t>` a few times | The same shell throughout. The scrollback never resets |
 | A7 | `<C-S-t>` | *Now* the pane closes and the shell ends |
 | A8 | Reopen, then resize the window | The grid reflows; no clipped half-columns, no stretched text |
-| A9 | `dir` in `many\` to fill the screen, then `<S-PageUp>` | The view goes back; a note says how many lines back you are |
+| A9 | `dir` in `many\` to fill the screen, then `<S-PageUp>` | **The text moves.** Until v0.20.3 only the note moved — it said "N lines back" over a screen that had not scrolled |
+| A9a | `<S-PageDown>`, `<S-Home>`, `<S-End>`, and the mouse wheel over the pane (v0.20.3) | All four move the view. `<S-Home>` reaches the oldest line held, `<S-End>` the prompt |
+| A9b | Scroll back far enough that the prompt leaves the screen | The cursor goes with it — no block left behind at its old height |
+| A9c | `<C-S-f>` for a word far up the scrollback, Enter | The view jumps to the match (this could not have worked before v0.20.3 either) |
 | A10 | `<S-End>`, then type a character | Back at the bottom, and typing alone would have done it |
 | A11 | Drag across some output | It highlights, and is on the clipboard when you let go — no second step |
 | A12 | Double-click a word | The word is selected |
