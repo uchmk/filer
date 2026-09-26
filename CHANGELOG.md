@@ -9,6 +9,35 @@
 
 ## [未リリース]
 
+## [0.35.0] - 2026-09-27
+
+### 修正
+
+- **Windows 以外で yazi の設定ファイルが読まれていなかった。**設定の探索先を
+  `config_dir()/yazi/config` と組み立てており、末尾の `config` を全 OS で無条件に付けていた。
+  この `config` は yazi の **Windows 版のレイアウト固有**のもので、Unix の yazi は
+  `~/.config/yazi/` を使う。そのため Linux では存在しない `~/.config/yazi/config/yazi.toml` を
+  探しており、**yazi 本体と設定を共有できていなかった。**Windows の探索先は変わらない。
+- macOS の探索先が `~/Library/Application Support/` だった。`dirs::config_dir()` が macOS で
+  そこを返すためだが、**yazi は macOS でも XDG に従う**ので、yazi が書き込まない場所を見ていた。
+  filer の存在理由が yazi の設定を読むことなので、yazi と同じ場所に合わせた。
+
+### 変更
+
+- **Unix での設定ファイルの探索先**（Windows は変更なし）。`XDG_CONFIG_HOME` を
+  filer 自身で読むようにした（`dirs` は Linux では見るが macOS では見ないため、両者で同じ
+  答えになるようにした）。XDG の規定どおり、**相対パスや空の値は無視して** `~/.config` に倒す。
+
+  | OS | yazi の層 | filer の層 |
+  | --- | --- | --- |
+  | Windows | `%APPDATA%\yazi\config`（変更なし） | `%APPDATA%\filer`（変更なし） |
+  | Linux | `~/.config/yazi` ← 旧 `~/.config/yazi/config` | `~/.config/filer`（変更なし） |
+  | macOS | `~/.config/yazi` ← 旧 `~/Library/…/yazi/config` | `~/.config/filer` ← 旧 `~/Library/…/filer` |
+
+  macOS で `~/Library/Application Support/filer/` に設定を置いていた場合は、
+  `~/.config/filer/` へ移すこと。状態ファイル（`last-run.toml`）の場所は変えていない。
+  現在の探索先は `filer env` で確認できる。
+
 ## [0.34.0] - 2026-09-27
 
 ### 追加

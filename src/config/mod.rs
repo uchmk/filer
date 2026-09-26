@@ -1,8 +1,12 @@
 //! Configuration: yazi's own files first, then this app's optional overrides.
 //!
 //! Search order (later wins):
-//!   1. `$YAZI_CONFIG_HOME` or `%APPDATA%/yazi/config`  — `yazi.toml`, `keymap.toml`, `theme.toml`
-//!   2. `$FILER_CONFIG_HOME` or `%APPDATA%/filer`       — the same three, plus `filer.toml`
+//!   1. `$YAZI_CONFIG_HOME`, else yazi's own directory — `yazi.toml`, `keymap.toml`, `theme.toml`
+//!   2. `$FILER_CONFIG_HOME`, else `<base>/filer`      — the same three, plus `filer.toml`
+//!
+//! `<base>` is `%APPDATA%` on Windows and `$XDG_CONFIG_HOME` (default `~/.config`)
+//! on Unix, macOS included. Layer 1 is `<base>/yazi/config` on Windows but
+//! `<base>/yazi` on Unix, because that is where yazi itself keeps them.
 
 pub mod cmd;
 pub mod keymap;
@@ -257,21 +261,62 @@ impl Config {
     }
 }
 
+/// The directory both config layers sit under, when no variable overrides them.
+///
+/// `dirs::config_dir()` is right on Windows (`%APPDATA%`) but not on macOS, where
+/// it answers `~/Library/Application Support` -- and yazi does not keep its config
+/// there. yazi uses XDG on every Unix, macOS included, so following `dirs` there
+/// had filer hunting for a `yazi.toml` in a directory yazi never writes to. Since
+/// filer's whole premise is reading yazi's own files, it has to look where yazi
+/// put them.
+#[cfg(windows)]
+fn base_config_dir() -> Option<PathBuf> {
+    dirs::config_dir()
+}
+
+#[cfg(not(windows))]
+fn base_config_dir() -> Option<PathBuf> {
+    // `dirs::config_dir()` honors `XDG_CONFIG_HOME` on Linux but not on macOS,
+    // so read it here to get the same answer on both.
+    xdg_base(std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from), dirs::home_dir())
+}
+
+/// Split out from `base_config_dir` so the rules can be tested without setting a
+/// variable the rest of the test binary shares.
+#[cfg(not(windows))]
+fn xdg_base(var: Option<PathBuf>, home: Option<PathBuf>) -> Option<PathBuf> {
+    match var {
+        // XDG says a relative value is to be ignored, as yazi's own reader does.
+        // An empty value arrives as `Some("")`, which is not absolute either.
+        Some(p) if p.is_absolute() => Some(p),
+        _ => home.map(|h| h.join(".config")),
+    }
+}
+
+/// Where yazi's own three files live: `…/yazi/config` on Windows, `…/yazi` on Unix.
+///
+/// The trailing `config` is a Windows-only quirk of yazi's layout, not part of the
+/// name, so it cannot be appended unconditionally.
+fn yazi_config_dir(base: &Path) -> PathBuf {
+    let dir = base.join("yazi");
+    if cfg!(windows) { dir.join("config") } else { dir }
+}
+
 /// Later directories override earlier ones.
 pub fn config_dirs() -> Vec<PathBuf> {
     let mut out = Vec::new();
     match std::env::var_os("YAZI_CONFIG_HOME") {
         Some(p) => out.push(PathBuf::from(p)),
         None => {
-            if let Some(c) = dirs::config_dir() {
-                out.push(c.join("yazi").join("config"));
+            if let Some(c) = base_config_dir() {
+                out.push(yazi_config_dir(&c));
             }
         }
     }
     match std::env::var_os("FILER_CONFIG_HOME") {
         Some(p) => out.push(PathBuf::from(p)),
         None => {
-            if let Some(c) = dirs::config_dir() {
+            if let Some(c) = base_config_dir() {
                 out.push(c.join("filer"));
             }
         }
@@ -387,6 +432,56 @@ fn merge_yazi(base: YaziToml, mut next: YaziToml) -> YaziToml {
         next.open.rules = base.open.rules;
     }
     next
+}
+
+/// Where the two config layers are looked for.
+#[cfg(test)]
+mod dirs_tests {
+    use super::*;
+
+    /// The trailing `config` belongs to yazi's Windows layout only. Appending it
+    /// everywhere sent filer to `~/.config/yazi/config/yazi.toml`, which yazi
+    /// never writes -- so a Linux user's existing yazi config went unread.
+    #[test]
+    fn the_yazi_layer_follows_yazis_own_layout() {
+        let got = yazi_config_dir(Path::new("/base"));
+        if cfg!(windows) {
+            assert_eq!(got, Path::new("/base").join("yazi").join("config"));
+        } else {
+            assert_eq!(got, Path::new("/base").join("yazi"));
+        }
+    }
+
+    /// filer's own layer has no such quirk: it is `<base>/filer` on every platform.
+    ///
+    /// Reads the ambient environment, so it steps aside when either variable is
+    /// set rather than making the suite depend on how it was launched.
+    #[test]
+    fn the_filer_layer_is_one_level_down_everywhere() {
+        let overridden = std::env::var_os("YAZI_CONFIG_HOME").is_some()
+            || std::env::var_os("FILER_CONFIG_HOME").is_some();
+        if overridden || base_config_dir().is_none() {
+            return;
+        }
+        let dirs = config_dirs();
+        assert_eq!(dirs.len(), 2, "both layers are always listed: {dirs:?}");
+        assert_eq!(dirs[1].file_name().unwrap(), "filer");
+        assert_ne!(dirs[0], dirs[1], "a layer that overrode itself would merge nothing");
+    }
+
+    /// `XDG_CONFIG_HOME` is only honored when absolute, and an unset or empty
+    /// value falls back to `~/.config` rather than dropping the layer entirely.
+    #[cfg(not(windows))]
+    #[test]
+    fn a_relative_xdg_config_home_is_ignored() {
+        let home = Some(PathBuf::from("/home/u"));
+        let dotconfig = Some(PathBuf::from("/home/u/.config"));
+        assert_eq!(xdg_base(Some(PathBuf::from("/xdg")), home.clone()), Some(PathBuf::from("/xdg")));
+        assert_eq!(xdg_base(Some(PathBuf::from("relative")), home.clone()), dotconfig);
+        assert_eq!(xdg_base(Some(PathBuf::from("")), home.clone()), dotconfig);
+        assert_eq!(xdg_base(None, home), dotconfig);
+        assert_eq!(xdg_base(None, None), None, "no home means no default to offer");
+    }
 }
 
 /// The two config files, and what each one is allowed to say.

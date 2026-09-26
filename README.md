@@ -28,8 +28,22 @@ Nothing that touches the disk runs on the UI thread.
 
 Files are read in this order — later ones win:
 
-1. `%YAZI_CONFIG_HOME%` or `%APPDATA%\yazi\config` — `yazi.toml`, `keymap.toml`, `theme.toml`
-2. `%FILER_CONFIG_HOME%` or `%APPDATA%\filer` — the same three, plus `filer.toml`
+1. `%YAZI_CONFIG_HOME%`, else yazi's own directory — `yazi.toml`, `keymap.toml`, `theme.toml`
+2. `%FILER_CONFIG_HOME%`, else `<base>\filer` — the same three, plus `filer.toml`
+
+`<base>` and the first layer differ by platform, because filer looks wherever yazi itself keeps
+its files:
+
+| Platform | yazi's files (layer 1) | filer's overrides (layer 2) |
+| --- | --- | --- |
+| Windows | `%APPDATA%\yazi\config` | `%APPDATA%\filer` |
+| Linux | `$XDG_CONFIG_HOME/yazi` (default `~/.config/yazi`) | `~/.config/filer` |
+| macOS | `~/.config/yazi` | `~/.config/filer` |
+
+The trailing `config` in layer 1 is a quirk of yazi's Windows layout, not part of the path
+elsewhere. macOS uses `~/.config` rather than `~/Library/Application Support` for the same
+reason: that is where yazi reads from. Run `filer env` to print the directories in effect and
+which files were actually found.
 
 Press `~` or `F1` in the app: the help panel lists which config files were actually loaded, any
 warnings, and every key binding in effect.

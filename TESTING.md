@@ -707,6 +707,28 @@ keymap is; the defaults are.
 
 ---
 
+## 35. Where the config is looked for, per platform (v0.35.0)
+
+`filer env` prints the two directories in effect and whether each file was
+found, so most of this is readable without a GUI. The Linux and `XDG_CONFIG_HOME`
+rows were verified in the development container; **the macOS rows cannot be, and
+Windows needs confirming that nothing moved.**
+
+| # | Platform | Do | Expect |
+| --- | --- | --- | --- |
+| 35.1 | Windows | `filer env` with both variables unset | `%APPDATA%\yazi\config` and `%APPDATA%\filer` — **unchanged from v0.34.0.** This is the row that must not have moved |
+| 35.2 | Windows | Put `[mgr] sort_by = "mtime"` in `%APPDATA%\yazi\config\yazi.toml` | Read. yazi's own directory still shares with filer |
+| 35.3 | macOS | `filer env` | `~/.config/yazi` and `~/.config/filer`, **not** `~/Library/Application Support/…` |
+| 35.4 | macOS | Install yazi, run `yazi` once, put a `yazi.toml` where yazi reads it | filer reads the same file. This is the whole point of the change: before v0.35.0 filer looked under `~/Library/Application Support/yazi/config/`, which yazi never writes |
+| 35.5 | macOS | Anyone upgrading with config in `~/Library/Application Support/filer/` | It is **no longer read** — `filer env` lists it as missing. Move it to `~/.config/filer/`. Called out as a 変更 in CHANGELOG |
+| 35.6 | Linux | `filer env` | `~/.config/yazi` — **not** `~/.config/yazi/config` |
+| 35.7 | Linux / macOS | `XDG_CONFIG_HOME=/tmp/x filer env` | `/tmp/x/yazi` and `/tmp/x/filer` |
+| 35.8 | Linux / macOS | `XDG_CONFIG_HOME=relative filer env`, and again with it empty | Falls back to `~/.config/…`. XDG says a relative value is ignored |
+| 35.9 | Any | `last-run.toml` | Still in the state directory (`data_dir()`), which this change did **not** touch. On Windows that is the same `%APPDATA%\filer`; on Linux `~/.local/share/filer` |
+| 35.10 | Any | Symlink `filer.toml` into the config directory from elsewhere, then `<C-F5>` | Read through the link. Re-check after editing via the **link path** with an editor that saves by rename — that replaces the symlink with a regular file |
+
+---
+
 ## Known gaps in this checklist
 
 - **Nothing here has been run.** The checklist was written from the code, not
