@@ -392,7 +392,9 @@
 
 ## 環境・その他
 
-- [ ] リポジトリを public にする（人がやる作業。Settings → General → Danger Zone）
+- [x] リポジトリを public にした（2026-09-26）。Actions の分数は無制限になり、
+  溜まっていた failure は止まった。同時に v0.8.0 のタグとリリースを削除し、
+  **v0.32.2 を初めて ARM64 込みでリリースした**（その経路は一度も走っていなかった）。
   - 動機は Actions の分数。private の無料枠は 2,000 分/月で、**Windows ランナーは 2 倍課金**
     なので実質 1,000 分。main への 1 push で Windows ジョブ 3 本（CI 1 + Build の x64/arm64 2）
     × 5〜8 分 = 約 40 分課金なので、50 push ほどで枯れる。実際 2026-09-26 02:02 に枯れ、
@@ -402,8 +404,10 @@
   - public にしたあとに確かめること:
     - [ ] 自分以外の `@claude` に反応しないこと。他人の権限が要るので、確かめるなら
       サブアカウントか、`author_association` を一時的に `CONTRIBUTOR` にして試す。
-    - [ ] Release のアセット URL が、サインインしていない人にも通ること
+    - [x] Release のアセット URL が、サインインしていない人にも通ること
       （`release.yml` の冒頭コメントがこれを予告している）。
+      x64 / arm64 とも匿名で **HTTP 206**。同じ手段で v0.8.0 のアセットが 404 を返した
+      記録が v0.9.2 のコミットにあるので、public 化の前後で比較できている。
   - 任意: コミット著者 29 件が `DESKTOP-7UBRVG9\yuu06 <yuu0613@gmail.com>` になっている。
     GitHub の「Keep my email addresses private」を入れても**既存コミットは書き換わらない**
     （history 書き換えが必要）。今後のぶんは push 元マシンの `git config user.*` で止まる。
