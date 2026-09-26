@@ -522,6 +522,10 @@ Run from a shell, not from inside the app.
 | 25.9 | On a fresh machine, `filer env` **before** ever opening filer | `not recorded — filer has not opened a window on this machine yet`, not an empty section |
 | 25.10 | Name a different font in `filer.toml`, `<C-F5>`, then `filer env` again | The new file is listed; the reload updates the record |
 | 25.11 | With no bold face anywhere | `none found; bold is faked by overstriking` — the bold list is separate from the regular one on purpose |
+| 25.12 | An opener starting with `start` (the default-app one) | **`built into cmd`**, not `not found`. It is one of `cmd`'s own commands and is never a file on the `PATH`, so the lookup every other row uses cannot see it (v0.33.12) |
+| 25.13 | `<Enter>` on a file whose rule uses that opener | It really does open — the row and the behaviour agree |
+| 25.14 | An opener naming a program that genuinely is not installed | Still **`not found`**. The exemption is for the shell's own names only |
+| 25.15 | Break `yazi.toml` and read the Warnings row | The path is written **`…\filer\yazi.toml`**, all backslashes. It used to come out `…\filer/yazi.toml`, in the one message whose job is to name the file to edit (v0.33.12) |
 
 ## 26. Bug report from inside the app (v0.11.0)
 

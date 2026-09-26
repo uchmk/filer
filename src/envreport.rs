@@ -174,10 +174,42 @@ fn row(exe: &str, flag: &str, what: &str) -> (String, String) {
 /// see if it exists would launch their editor, or their image viewer, or
 /// whatever else they have put there, every time they asked what was wrong.
 fn found(exe: &str, what: &str) -> String {
+    if shell_builtin(exe) {
+        return format!("built into {SHELL_NAME}   ({what})");
+    }
     match locate(exe) {
         Some(p) => format!("{}   ({what})", p.display()),
         None => format!("not found   ({what})"),
     }
+}
+
+#[cfg(windows)]
+const SHELL_NAME: &str = "cmd";
+#[cfg(not(windows))]
+const SHELL_NAME: &str = "sh";
+
+/// Commands the shell implements itself, which are not files and so can never
+/// be found on `PATH`.
+///
+/// `start` is the one that matters. It is how an opener reaches a GUI program
+/// that is not on `PATH` -- `excel`, `msedge`, the default handler -- which
+/// makes it the commonest first word in an opener list, and every one of them
+/// was being reported as missing. That is v0.28.1's mistake from the other
+/// side: there a working tool was asked the wrong question, here it is looked
+/// for in the wrong place. Either way a diagnostic said a working thing was
+/// broken, which is the worst thing this file can do.
+fn shell_builtin(exe: &str) -> bool {
+    #[cfg(windows)]
+    // `cmd` is case-insensitive about its own names, so `START` is `start`.
+    let (name, known) = (
+        exe.to_ascii_lowercase(),
+        ["start", "call", "echo", "type", "cd", "set", "copy", "del", "dir", "move", "rem"],
+    );
+    #[cfg(not(windows))]
+    let (name, known) =
+        (exe.to_string(), ["echo", "cd", "export", "eval", "exec", "set", "test", "printf"]);
+
+    known.contains(&name.as_str())
 }
 
 /// `which`, near enough: an absolute or relative name is taken as it stands,
@@ -293,6 +325,36 @@ fn variables() -> Vec<(String, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `start` is not a file and never will be, so the `PATH` lookup that
+    /// serves every other entry can only say "not found" about the commonest
+    /// opener there is. Reported from a real machine: every `start ""`-based
+    /// opener in the list looked broken while all of them worked.
+    #[test]
+    #[cfg(windows)]
+    fn a_cmd_builtin_is_not_missing() {
+        let said = found("start", "opener [browser]");
+        assert!(said.starts_with("built into cmd"), "{said}");
+        assert!(!said.contains("not found"), "{said}");
+        // Case follows `cmd`, which does not care.
+        assert!(found("START", "x").starts_with("built into cmd"));
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn a_sh_builtin_is_not_missing() {
+        assert!(found("echo", "opener [x]").starts_with("built into sh"));
+    }
+
+    /// The exemption is for the shell's own names only; anything else is still
+    /// looked for, so a genuinely absent program still reads as absent.
+    #[test]
+    fn a_real_program_is_still_looked_for() {
+        assert!(!shell_builtin("pdftoppm"));
+        assert!(!shell_builtin("i_view64.exe"));
+        assert!(!shell_builtin(r"C:\Program Files\IrfanView\i_view64.exe"));
+        assert!(found("definitely-not-a-program-93f2", "opener [edit]").starts_with("not found"));
+    }
 
     /// The column lines up, and an answer of several lines stays under its own
     /// key rather than starting a new column.

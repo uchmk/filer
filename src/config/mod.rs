@@ -197,7 +197,7 @@ impl Config {
             if let Some(text) = read(dir, "yazi.toml", &mut loaded) {
                 match toml::from_str::<YaziToml>(&text) {
                     Ok(v) => yazi_cfg = merge_yazi(yazi_cfg, v),
-                    Err(e) => warnings.push(format!("{}/yazi.toml: {e}", dir.display())),
+                    Err(e) => warnings.push(format!("{}: {e}", at(dir, "yazi.toml"))),
                 }
             }
             if let Some(text) = read(dir, "keymap.toml", &mut loaded) {
@@ -206,7 +206,7 @@ impl Config {
             if let Some(text) = read(dir, "theme.toml", &mut loaded) {
                 match toml::from_str::<theme::ThemeToml>(&text) {
                     Ok(v) => theme.apply(&v),
-                    Err(e) => warnings.push(format!("{}/theme.toml: {e}", dir.display())),
+                    Err(e) => warnings.push(format!("{}: {e}", at(dir, "theme.toml"))),
                 }
             }
             if let Some(text) = read(dir, "filer.toml", &mut loaded) {
@@ -220,13 +220,13 @@ impl Config {
                                 line_args.insert(crate::exec::editor_key(&name), template);
                             } else {
                                 warnings.push(format!(
-                                    "{}/filer.toml: [line_args] {name}: needs exactly one {{path}}",
-                                    dir.display()
+                                    "{}: [line_args] {name}: needs exactly one {{path}}",
+                                    at(dir, "filer.toml")
                                 ));
                             }
                         }
                     }
-                    Err(e) => warnings.push(format!("{}/filer.toml: {e}", dir.display())),
+                    Err(e) => warnings.push(format!("{}: {e}", at(dir, "filer.toml"))),
                 }
             }
         }
@@ -266,6 +266,15 @@ pub fn config_dirs() -> Vec<PathBuf> {
         }
     }
     out
+}
+
+/// A file in a config directory, written the way the platform writes a path.
+///
+/// `format!("{}/{name}", dir.display())` put a forward slash in the middle of a
+/// Windows path -- `…\\Roaming\\filer/yazi.toml` -- in the one message whose
+/// whole job is to name the file to go and edit.
+fn at(dir: &Path, name: &str) -> String {
+    dir.join(name).display().to_string()
 }
 
 fn read(dir: &Path, name: &str, loaded: &mut Vec<PathBuf>) -> Option<String> {
