@@ -274,6 +274,9 @@ In `bulk-rename\`.
 | 11.7 | `u` with nothing to undo | "Nothing to undo" — no error |
 | 11.8 | Rename a file, undo it, then create a new file, then `U` | Redo is gone: the new action forked history |
 | 11.9 | Delete a file, `u`, but create a file with that name first | `u` says the name is taken, and pressing it again after moving that file out of the way works |
+| 11.10 | Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) | The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done |
+| 11.11 | `d` on a drive whose Recycle Bin is turned off | Same shape of message, naming the file |
+| 11.12 | `d` with nothing locked | Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path |
 
 ## 28. Symlinks and `g`+`f` (v0.26.8)
 

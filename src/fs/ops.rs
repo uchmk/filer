@@ -247,12 +247,37 @@ impl Ctx<'_> {
         (self.wake)();
 
         match req.kind {
-            OpKind::Trash => {
-                if let Err(e) = trash::delete_all(&req.srcs) {
-                    self.errors.push(format!("trash: {e}"));
+            // One call for the whole selection, because the shell batches it
+            // and that is what puts a single step in the Recycle Bin's own
+            // undo. The catch is the reporting: a batch that goes wrong comes
+            // back as one error naming nothing -- "Some operations were
+            // aborted" over a selection of thirty -- and it is silent about
+            // which of them, or how many, actually went.
+            //
+            // So the failure is walked again, one path at a time. Whatever the
+            // batch did manage is already gone and is only counted; what is
+            // still there is tried on its own, and now the error can say which
+            // file it is about. Costly, but only on the path that has already
+            // failed.
+            OpKind::Trash => match trash::delete_all(&req.srcs) {
+                Ok(()) => self.files_done = req.srcs.len() as u64,
+                Err(_) => {
+                    for p in &req.srcs {
+                        // `symlink_metadata`, so a link whose target has gone
+                        // still counts as present -- it is, and it can be
+                        // trashed.
+                        if std::fs::symlink_metadata(p).is_err() {
+                            self.files_done += 1;
+                            continue;
+                        }
+                        self.report(&p.to_string_lossy());
+                        match trash::delete(p) {
+                            Ok(()) => self.files_done += 1,
+                            Err(e) => self.errors.push(format!("{}: {e}", crate::util::file_name(p))),
+                        }
+                    }
                 }
-                self.files_done = req.srcs.len() as u64;
-            }
+            },
             // Reading the trash walks all of it, so it is read once here and
             // then asked about each path in turn. Restoring one at a time keeps
             // a path that something else has taken over from stopping the rest.
