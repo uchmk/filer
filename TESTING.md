@@ -152,6 +152,32 @@ each pane with the view split.
 | D9 | Two directories | Refused with a reason |
 | D10 | `q` | Closes |
 
+## Y. Split view, and sending between the panes (v0.1.0, `<A-c>` / `<A-m>` v0.2.0)
+
+Two panes and the keys that move files between them. `<A-c>` and `<A-m>` are the
+only commands in the program whose destination is a *pane* rather than the
+clipboard or the cursor, so most of this section is about what they refuse.
+
+Needs two directories with different contents — `many\` and `repo\` will do.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| Y1 | `<C-w>` once | Two panes side by side. The **parent column is gone**; the layout is pane, pane, preview, the same width as before |
+| Y2 | `<C-w>` again, and again | The keys move between the panes. The same key both splits and switches |
+| Y3 | Look at the two cursor rows | The pane without the keys is **dimmer**. That is the only thing saying where typing will land |
+| Y4 | `h` `j` `k` `l`, `cd`, `/`, `s` while split | All act on the focused pane and nothing else. No command needs to know about panes |
+| Y5 | `<A-c>` with a file under the cursor and nothing selected | It is copied to whatever directory the **other** pane is showing |
+| Y6 | `<Space>` a few files, then `<A-c>` | All of them go, and **the selection is cleared afterwards** — unlike `y`, which keeps it |
+| Y7 | `<A-m>` instead | The files move: gone from this pane, present in the other |
+| Y8 | Put both panes in the **same** directory, then `<A-c>` | Refused, saying so. It would otherwise copy each file beside itself under a new name |
+| Y9 | `<C-S-w>`, then `<A-c>` | "Open the second pane first (`<C-w>`)" — not silence |
+| Y10 | `y`, `<C-w>`, `p` | The ordinary route works too, and is the one that can paste somewhere neither pane is |
+| Y11 | `[` / `]` / `1`–`9` while split | Tabs still switch. Switching to the tab the other pane shows just moves the keys there |
+| Y12 | Close the tab the **other** pane is holding (`<C-c>`) | The split ends; one pane, no stale second |
+| Y13 | `<C-w>` with only one tab open | A second tab is made on the same directory. With several already open, the next one is borrowed instead |
+| Y14 | `<C-S-w>` | Back to one pane, and the parent column returns |
+| Y15 | `<A-c>` a large directory, then watch the status bar | It is a job like any other copy: progress, speed, and cancellable from `w` |
+
 ## X. The config paths in the help panel (v0.25.0)
 
 | # | Do | Expect |
