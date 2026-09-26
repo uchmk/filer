@@ -684,6 +684,25 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `<F12>` | bug report, with the version, architecture and OS build filled in |
 | `w` `q` | tasks (`p` pause, `x` cancel, `t` to the front) / quit |
 
+#### Yank, copy, and sending to the other pane
+
+Three words, three different things, and the difference is what each one touches:
+
+| | Keys | Touches | Steps |
+| --- | --- | --- | --- |
+| **yank** / **cut** | `y` `x` → `p` | files, through filer's own register | two: the destination is chosen afterwards, and can be anywhere |
+| **copy** | `c``c` `c``d` `c``f` `c``n` | **text**, onto the system clipboard | one |
+| **send to the pane** | `<A-c>` `<A-m>` | files, straight into the other pane | one: the destination is the other pane, and the work starts at once |
+
+`<A-c>` is not `<A-y>` on purpose. *Yank* means "into the register", the way it does in vim, and
+`<A-c>` never goes near it — press it while holding something yanked and what `p` would paste is
+unchanged. Naming it `<A-y>` would promise a `p` that is not needed and an overwrite that does not
+happen.
+
+The one overlap to know about: `copy` as a *command* only ever means text on the clipboard —
+`copy path`, `copy filename` — while the `c` in `<A-c>` is a mnemonic, and the command behind it is
+`send_pane`. They never collide as keys, but they do share the word.
+
 ### Coming from yazi, lf or vim
 
 The defaults are yazi's wherever yazi has one, so a yazi user needs to learn almost nothing: the

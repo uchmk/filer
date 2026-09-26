@@ -265,6 +265,13 @@ desc = "Hardlink the yanked files"
 # refresh here and in every browser, so putting a file operation on it would
 # write files for someone reaching for a reload — and F6 / F7 would half-match
 # Total Commander, where F6 means move, which is worse still.
+#
+# Nor `<A-y>` / `<A-x>`, which is the likelier guess: `yank` means "into the
+# register", and these never touch it. The register survives both, so `p` still
+# pastes whatever `y` last held — a name built on `y` would promise a `p` that
+# is not wanted and an overwrite that does not happen. The letters are the
+# words for what they do, which is the whole operation, at once, into a
+# destination that is already decided.
 [[mgr.keymap]]
 on = "<A-c>"
 run = "send_pane"
