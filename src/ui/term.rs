@@ -56,6 +56,7 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     // Read before the terminal is borrowed, so a clipboard that will not open
     // can still be reported through `app`.
     let pasting = resp.secondary_clicked().then(crate::exec::get_clipboard);
+    let press = ui.ctx().input(|i| i.pointer.press_origin());
     if resp.clicked() || resp.drag_started() || resp.secondary_clicked() {
         app.term_focus = true;
     }
@@ -155,19 +156,33 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         painter.galley(at, g, theme.bg);
     }
 
-    // Which cell the pointer is over, for selecting.
+    // Which cell the pointer is over, and which half of it. The half decides
+    // whether that cell ends up inside the selection when the drag turns out
+    // to run the other way; see `terminal::select_at`.
     let cell_at = |p: egui::Pos2| {
-        let col = ((p.x - inner.left()) / cell_w).floor().max(0.0) as usize;
+        let x = (p.x - inner.left()) / cell_w;
+        let col = x.floor().max(0.0);
         let line = ((p.y - inner.top()) / row_h).floor().max(0.0) as usize;
-        (col.min(size.cols.saturating_sub(1)), line.min(size.lines.saturating_sub(1)))
+        let cell = (col as usize).min(size.cols.saturating_sub(1));
+        (cell, line.min(size.lines.saturating_sub(1)), x - col >= 0.5)
     };
     if let Some(p) = pointer {
         if resp.double_clicked() {
-            term.select_word(cell_at(p));
+            let (col, line, _) = cell_at(p);
+            term.select_word((col, line));
         } else if resp.drag_started() {
-            term.select(cell_at(p), true);
+            // Where the button went down, not where the pointer is now: egui
+            // calls a drag started only once it has moved past a threshold,
+            // and a few points of that is most of a cell this narrow. Reading
+            // the live position anchored the selection one cell along, so a
+            // drag begun on the first character dropped it -- which is why it
+            // had to be begun slightly to its left to keep it.
+            let from = press.unwrap_or(p);
+            let (col, line, right) = cell_at(from);
+            term.select((col, line), right, true);
         } else if resp.dragged() {
-            term.select(cell_at(p), false);
+            let (col, line, right) = cell_at(p);
+            term.select((col, line), right, false);
         } else if resp.clicked() {
             // A plain click puts the caret nowhere; it just clears what was
             // selected, the way a terminal does.

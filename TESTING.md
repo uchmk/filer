@@ -87,6 +87,9 @@ drawing has been seen. `<C-t>` opens it.
 | A9h | `<C-S-f>` for something that is not there | A red toast saying so — not silence |
 | A10 | `<S-End>`, then type a character | Back at the bottom, and typing alone would have done it |
 | A11 | Drag across some output (v0.20.4) | **It highlights as you drag**, and is on the clipboard when you let go. Before v0.20.4 the copy worked and nothing was drawn |
+| A11a | Drag **right to left** over the same run of text (v0.26.4) | The same text, character for character. Until v0.26.4 a backwards drag lost one at **each** end |
+| A11b | Start the drag **on** the first character, not to its left (v0.26.4) | It is included. It used to be dropped unless the drag began in the gap before it |
+| A11c | Drag from the right half of a character | That character is left out — correct, and the same rule that makes A11a work |
 | A12 | Double-click a word | The word is selected, and visibly so |
 | A13 | `<C-S-f>`, type a word from the scrollback, Enter, then `<C-S-n>` | Matches are found and stepped through; it wraps at the end |
 | A14 | `<F1>` inside the terminal | The key list opens **over** the terminal. `<Esc>` closes it and typing goes back to the shell |

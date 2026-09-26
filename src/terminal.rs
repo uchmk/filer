@@ -409,19 +409,8 @@ impl Terminal {
 
     /// Begin a selection at a cell, or carry one on to it. `start` is the
     /// press; everything after is the drag.
-    pub fn select(&self, cell: (usize, usize), start: bool) {
-        let point = self.point(cell);
-        let mut term = self.term.lock();
-        match start {
-            true => {
-                term.selection = Some(Selection::new(SelectionType::Simple, point, Side::Left));
-            }
-            false => {
-                if let Some(sel) = term.selection.as_mut() {
-                    sel.update(point, Side::Right);
-                }
-            }
-        }
+    pub fn select(&self, cell: (usize, usize), right_half: bool, start: bool) {
+        select_at(&mut self.term.lock(), cell, right_half, start);
     }
 
     /// Select the word under a cell — what a double-click means everywhere.
@@ -480,9 +469,8 @@ impl Terminal {
 
     /// A cell of the visible grid as a point in the whole buffer, which is
     /// where the scrollback lives above line zero.
-    fn point(&self, (col, line): (usize, usize)) -> Point {
-        let offset = self.term.lock().grid().display_offset() as i32;
-        Point::new(Line(line as i32 - offset), Column(col))
+    fn point(&self, cell: (usize, usize)) -> Point {
+        point_at(&self.term.lock(), cell)
     }
 
     /// Type text in, as a paste rather than as keys.
@@ -711,6 +699,44 @@ pub fn control_code(c: char, alt: bool) -> Option<Vec<u8>> {
     }
     out.push(byte);
     Some(out)
+}
+
+/// A cell of the visible grid as a point in the whole buffer, which is where
+/// the scrollback lives above line zero.
+pub fn point_at<T: EventListener>(term: &Term<T>, (col, line): (usize, usize)) -> Point {
+    let offset = term.grid().display_offset() as i32;
+    Point::new(Line(line as i32 - offset), Column(col))
+}
+
+/// Begin a drag selection at a cell, or carry one on to it.
+///
+/// `right_half` is which half of the cell the pointer is in, and it is not
+/// cosmetic: alacritty settles a range by ordering the two anchors and then
+/// dropping the first cell if that anchor says `Right` and the last if it says
+/// `Left`. Fixing the sides -- `Left` to start, `Right` to extend -- is
+/// therefore right only while the drag runs left to right. Drag the other way
+/// and the ordering swaps them, so a cell goes at each end, which reads as the
+/// first character of the line quietly refusing to be copied.
+///
+/// Taking the side from the pointer is what every terminal does, and it comes
+/// out right both ways round: the outer half of whichever cell the drag began
+/// on faces away from the selection, and so does the one it ended on.
+pub fn select_at<T: EventListener>(
+    term: &mut Term<T>,
+    cell: (usize, usize),
+    right_half: bool,
+    start: bool,
+) {
+    let point = point_at(term, cell);
+    let side = if right_half { Side::Right } else { Side::Left };
+    match start {
+        true => term.selection = Some(Selection::new(SelectionType::Simple, point, side)),
+        false => {
+            if let Some(sel) = term.selection.as_mut() {
+                sel.update(point, side);
+            }
+        }
+    }
 }
 
 /// Where a search with nothing to carry on from begins.
@@ -949,6 +975,53 @@ mod tests {
         t.scroll_display(Scroll::Delta(2));
         assert_eq!(t.grid().display_offset(), 2, "there is history to move into");
         assert_eq!(search_origin(&t, false).line, Line(-2), "which moves with the view");
+    }
+
+    /// Dragging the other way must select the same text.
+    ///
+    /// The sides used to be fixed -- `Left` to start, `Right` to extend --
+    /// which is right only while the drag runs left to right. Alacritty
+    /// settles a range by ordering the two anchors and then dropping the first
+    /// cell if that anchor reads `Right` and the last if it reads `Left`, so a
+    /// backwards drag swapped them into exactly the two cases that drop, and
+    /// lost a character at each end. Reported as the first character of the
+    /// line refusing to be copied.
+    #[test]
+    fn a_drag_selects_the_same_text_in_either_direction() {
+        let selected = |t: &Term<Proxy>| -> String {
+            snapshot(t)[0].iter().filter(|c| c.selected).map(|c| c.c).collect()
+        };
+        // The pointer is on the outer half of each end: the left half of the
+        // cell the drag starts from and the right half of the one it ends on,
+        // whichever way round those are.
+        let mut t = term(20, 4);
+        feed(&mut t, "hello world");
+
+        select_at(&mut t, (0, 0), false, true);
+        select_at(&mut t, (4, 0), true, false);
+        assert_eq!(selected(&t), "hello", "left to right");
+
+        let mut t = term(20, 4);
+        feed(&mut t, "hello world");
+        select_at(&mut t, (4, 0), true, true);
+        select_at(&mut t, (0, 0), false, false);
+        assert_eq!(selected(&t), "hello", "right to left, and the h is not dropped");
+    }
+
+    /// The half the pointer is in is what makes that work, so it has to count.
+    #[test]
+    fn the_half_of_the_cell_decides_what_is_included() {
+        let selected = |t: &Term<Proxy>| -> String {
+            snapshot(t)[0].iter().filter(|c| c.selected).map(|c| c.c).collect()
+        };
+        let mut t = term(20, 4);
+        feed(&mut t, "hello world");
+
+        // Starting on the *right* half of `h` leaves it out, which is what a
+        // terminal does and what makes a backwards drag come out right.
+        select_at(&mut t, (0, 0), true, true);
+        select_at(&mut t, (4, 0), true, false);
+        assert_eq!(selected(&t), "ello", "the cell the drag started past is not in it");
     }
 
     fn s(bytes: Vec<u8>) -> String {
