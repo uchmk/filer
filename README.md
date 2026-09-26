@@ -874,9 +874,11 @@ way round anyway, since the run worth reporting on is the one that misbehaved, n
 `filer env` afterwards. A blank or slow window is nearly always the adapter line (`Cpu` as the
 device type answers it on its own), and boxes instead of icons is nearly always the font line.
 
-None of the outside tools is required — previews and archives are handled in-process — but each
-one it finds widens what it can do, so the line saying one is missing also says what is missing
-with it.
+The tools listed are the ones filer really runs — `git` for the status column, the shell the
+terminal pane will launch (the one `[term] shell` names, or the platform's default), and the
+programs your openers name. Previews and archives are handled in-process and need nothing. They are
+**looked up rather than run**: an opener is a command line out of your own config, and asking it for
+a version to see whether it exists would launch your editor every time you asked what was wrong.
 
 ## Shell integration
 

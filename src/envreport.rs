@@ -14,11 +14,12 @@ use std::process::Command;
 
 /// The whole report.
 pub fn text() -> String {
+    let cfg = crate::config::Config::load();
     let mut out = String::new();
     section(&mut out, "Filer", &version());
-    section(&mut out, "Config", &config());
+    section(&mut out, "Config", &config(&cfg));
     section(&mut out, "Last run", &last_run());
-    section(&mut out, "Tools", &tools());
+    section(&mut out, "Tools", &tools(&cfg));
     section(&mut out, "Variables", &variables());
     out
 }
@@ -61,7 +62,7 @@ fn version() -> Vec<(String, String)> {
 /// almost always a file in the other directory, or a name spelled differently,
 /// and a list of what was found cannot show that. Saying where it looked, and
 /// that nothing was there, can.
-fn config() -> Vec<(String, String)> {
+fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
     let dirs = crate::config::config_dirs();
     let mut rows = Vec::new();
     for dir in &dirs {
@@ -88,7 +89,6 @@ fn config() -> Vec<(String, String)> {
     // the jump history and the window size are written here, and "delete this
     // and try again" is a step a report is often asked to take.
     rows.push(("State".into(), crate::config::Config::state_dir().display().to_string()));
-    let cfg = crate::config::Config::load();
     rows.push(("Warnings".into(), match cfg.warnings.len() {
         0 => "none".into(),
         _ => cfg.warnings.join("\n"),
@@ -96,32 +96,117 @@ fn config() -> Vec<(String, String)> {
     rows
 }
 
-/// The outside programs filer can use, and whether they are there.
+/// The outside programs filer actually runs, and whether they are there.
 ///
-/// None of these is required — filer previews and unpacks in-process — but
-/// each one it can find widens what it does, and "it works on my machine" is
-/// usually one of these lines differing.
-fn tools() -> Vec<(String, String)> {
-    [
-        // `-v`, not `--version`: poppler's tools take the short one, and the
-        // long one is read as a filename -- so the answer was an I/O error
-        // about a file called `--version`, which reads as a broken install of
-        // a tool that is in fact fine.
-        ("pdftoppm", "-v", "PDF pages"),
-        ("ffmpeg", "-version", "video frames"),
-        ("ffprobe", "-version", "video duration"),
-        ("pwsh", "--version", "terminal pane"),
-        ("git", "--version", "the status column"),
-    ]
-    .iter()
-    .map(|(exe, flag, what)| {
-        let said = match probe(exe, flag) {
-            Some(v) => format!("{v}   ({what})"),
-            None => format!("not found   ({what})"),
-        };
-        (exe.to_string(), said)
-    })
-    .collect()
+/// Only the ones it really does run. Listing a tool filer has no code for
+/// would be the worst kind of wrong in a diagnostic: it reads as a dependency,
+/// and "not found" next to it sends the reader off installing something that
+/// changes nothing. Previews and archives are handled in-process and need
+/// none of this.
+///
+/// The shell is the one that will actually be launched -- `[term] shell` when
+/// it is set, and the platform's own default when it is not. Probing `pwsh`
+/// regardless would report "not found" on a machine whose terminal pane works
+/// perfectly well on Windows PowerShell.
+fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
+    let mut rows = vec![row("git", "--version", "the status column")];
+
+    let shell = match cfg.term.shell.is_empty() {
+        false => cfg.term.shell.clone(),
+        true => DEFAULT_SHELL.to_string(),
+    };
+    let what = match cfg.term.shell.is_empty() {
+        false => "terminal pane, from [term] shell",
+        true => "terminal pane, the platform default",
+    };
+    rows.push((shell.clone(), found(&shell, what)));
+
+    // What `<Enter>` will try to run. An opener naming something that is not
+    // installed fails at the moment it is pressed and not before, which is
+    // exactly the report that arrives with no other evidence.
+    let mut seen: Vec<String> = Vec::new();
+    for (kind, openers) in &cfg.yazi.opener {
+        for o in openers {
+            let Some(exe) = program(&o.run) else { continue };
+            if seen.contains(&exe) {
+                continue;
+            }
+            seen.push(exe.clone());
+            rows.push((exe.clone(), found(&exe, &format!("opener [{kind}]"))));
+        }
+    }
+    rows
+}
+
+#[cfg(windows)]
+const DEFAULT_SHELL: &str = "powershell";
+#[cfg(not(windows))]
+const DEFAULT_SHELL: &str = "sh";
+
+fn row(exe: &str, flag: &str, what: &str) -> (String, String) {
+    let said = match probe(exe, flag) {
+        Some(v) => format!("{v}   ({what})"),
+        None => format!("not found   ({what})"),
+    };
+    (exe.to_string(), said)
+}
+
+/// Whether a program is there, **without running it**.
+///
+/// Shells and openers are looked up rather than asked. Two reasons, and the
+/// second is the serious one. Shells disagree about how to be asked: `pwsh`
+/// takes `--version`, Windows PowerShell does not, and `sh` answers `Illegal
+/// option --`, so a version column would be wrong more often than right. And
+/// an opener is a command line out of the user's own config -- running it to
+/// see if it exists would launch their editor, or their image viewer, or
+/// whatever else they have put there, every time they asked what was wrong.
+fn found(exe: &str, what: &str) -> String {
+    match locate(exe) {
+        Some(p) => format!("{}   ({what})", p.display()),
+        None => format!("not found   ({what})"),
+    }
+}
+
+/// `which`, near enough: an absolute or relative name is taken as it stands,
+/// and a bare one is looked for along `PATH`, trying each of `PATHEXT`'s
+/// suffixes so that `code` finds `code.cmd`.
+fn locate(exe: &str) -> Option<std::path::PathBuf> {
+    let raw = std::path::Path::new(exe);
+    if raw.components().count() > 1 {
+        return raw.is_file().then(|| raw.to_path_buf());
+    }
+    let exts: Vec<String> = match std::env::var("PATHEXT") {
+        Ok(v) => std::iter::once(String::new())
+            .chain(v.split(';').map(|e| e.to_ascii_lowercase()))
+            .collect(),
+        Err(_) => vec![String::new()],
+    };
+    for dir in std::env::split_paths(&std::env::var_os("PATH")?) {
+        for ext in &exts {
+            let p = dir.join(format!("{exe}{ext}"));
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+    }
+    None
+}
+
+/// The program an opener's command line starts with.
+///
+/// Quoted when it holds a space, which a full path usually does -- and a path
+/// is the common case here, since that is how an editor outside the `PATH` is
+/// named.
+fn program(run: &str) -> Option<String> {
+    let run = run.trim();
+    let exe = match run.strip_prefix('"') {
+        Some(rest) => rest.split('"').next()?,
+        None => run.split_whitespace().next()?,
+    };
+    match exe.is_empty() {
+        true => None,
+        false => Some(exe.to_owned()),
+    }
 }
 
 /// A program's version, or nothing when it is not on the PATH.
@@ -236,6 +321,38 @@ mod tests {
         assert_eq!(cut("PowerShell 7.6.6"), "PowerShell 7.6.6");
     }
 
+    /// An opener's command line starts with the program, quoted or not.
+    ///
+    /// Quoted is the case that matters: an editor outside the `PATH` is named
+    /// by its full path, and a full path on Windows nearly always has a space
+    /// in it, so splitting on whitespace would report `C:/Program` as missing.
+    #[test]
+    fn the_program_is_taken_off_the_front_of_an_opener() {
+        assert_eq!(program("code %s").as_deref(), Some("code"));
+        assert_eq!(program("  notepad  %s  ").as_deref(), Some("notepad"));
+        assert_eq!(
+            program(r#""C:/Program Files/Hidemaru/Hidemaru.exe" /j%l %s"#).as_deref(),
+            Some("C:/Program Files/Hidemaru/Hidemaru.exe"),
+        );
+        assert_eq!(program("").as_deref(), None);
+        assert_eq!(program("   ").as_deref(), None);
+    }
+
+    /// Looking a program up must not run it.
+    ///
+    /// An opener is a command line out of the user's own config. Asking it for
+    /// a version to see whether it is installed would launch their editor --
+    /// or whatever else is in there -- every time they asked what was wrong.
+    #[test]
+    fn a_program_is_located_not_executed() {
+        // Something that certainly exists, found by an absolute path.
+        let me = std::env::current_exe().unwrap();
+        assert_eq!(locate(me.to_str().unwrap()), Some(me));
+        // And something that certainly does not.
+        assert_eq!(locate("filer-no-such-program-anywhere"), None);
+        assert_eq!(locate("/no/such/path/at/all"), None);
+    }
+
     /// Nothing in the report may be a guess.
     #[test]
     fn it_reports_what_is_actually_there() {
@@ -245,9 +362,14 @@ mod tests {
         for title in ["Filer", "Config", "Tools", "Variables"] {
             assert!(text.contains(title), "{title} is missing:\n{text}");
         }
-        // A tool says which feature it is for, found or not, so the reader
-        // learns what they are missing rather than only that it is absent.
-        assert!(text.contains("(PDF pages)"), "{text}");
-        assert!(text.contains("(video frames)"), "{text}");
+        // A tool says what it is for, found or not, so the reader learns what
+        // they are missing rather than only that it is absent.
+        assert!(text.contains("(the status column)"), "{text}");
+        // And only tools filer really runs: naming one it has no code for
+        // reads as a dependency and sends the reader off installing something
+        // that changes nothing.
+        for never_run in ["pdftoppm", "ffmpeg", "ffprobe"] {
+            assert!(!text.contains(never_run), "{never_run} is not used yet:\n{text}");
+        }
     }
 }
