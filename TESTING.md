@@ -768,6 +768,26 @@ these — the point is that no panel is the odd one out.
 
 ---
 
+## 37. `start ""` openers actually launch (v0.36.2)
+
+Reported from a real machine: `<Enter>` on a PDF opened a command prompt whose
+title bar read `msedge C:\Users\…\x.pdf`, with no browser. Every opener beginning
+`start ""` was affected, so walk the common ones. The quoting is unit-tested; what
+needs a machine is that the program really starts.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 37.1 | `<Enter>` on a `.pdf` with `browser = [{ run = 'start "" msedge %*' }]` first | **Edge opens the PDF.** No command prompt appears |
+| 37.2 | `<Enter>` on `.xlsx` / `.docx` / `.pptx` with `start "" excel %*` and friends | The Office app opens the file |
+| 37.3 | `<Enter>` on anything routed to `open = [{ run = 'start "" %*' }]` | The file's associated app opens it |
+| 37.4 | A file whose **name contains a space**, through any of the above | Opens as one file, not two. The path keeps its quotes |
+| 37.5 | An opener written `start "" msedge "%*"` (placeholder quoted by hand) | Same result as 37.1 — the pair around the placeholder is still absorbed |
+| 37.6 | Select two PDFs, `<Enter>` | Both open as separate arguments, not one quoted blob |
+| 37.7 | Openers given as a full path (IrfanView, sakura, Hidemaru) | Unchanged — these never went through `start` |
+| 37.8 | `O` on a PDF | The picker lists Edge, Chrome, the default app, then the editors; each entry launches what it says |
+
+---
+
 ## Known gaps in this checklist
 
 - **Nothing here has been run.** The checklist was written from the code, not

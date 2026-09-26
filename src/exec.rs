@@ -89,9 +89,22 @@ fn substitute_render(template: &str, paths: &[PathBuf], render: &dyn Fn(&Path) -
         let next = bytes.get(i + 1).copied();
         match (c, next) {
             ('$', Some('@')) | ('%', Some('*')) | ('%', Some('s')) => {
-                out.push_str(&all);
+                // A config that quotes the placeholder itself -- `"$@"` -- would
+                // otherwise end up with two quotes a side, because every path is
+                // quoted on the way out. Drop the pair that is wrapping this one
+                // placeholder, rather than collapsing every `""` in the line:
+                // `start "" msedge %*` is the standard way to give `start` an
+                // empty window title, and losing one of those quotes turns the
+                // rest of the line into the title.
+                if out.ends_with('"') && bytes.get(i + 2) == Some(&'"') {
+                    out.pop();
+                    out.push_str(&all);
+                    i += 3;
+                } else {
+                    out.push_str(&all);
+                    i += 2;
+                }
                 substituted = true;
-                i += 2;
             }
             ('$', Some(d)) | ('%', Some(d)) if d.is_ascii_digit() => {
                 let idx: usize = d.to_digit(10).unwrap() as usize;
@@ -110,8 +123,7 @@ fn substitute_render(template: &str, paths: &[PathBuf], render: &dyn Fn(&Path) -
         out.push(' ');
         out.push_str(&all);
     }
-    // `"$@"` in a config leaves stray quotes behind once we quote ourselves.
-    out.replace("\"\"", "\"")
+    out
 }
 
 fn quote(p: &Path, suffix: &str) -> String {
@@ -434,6 +446,38 @@ mod tests {
         assert_eq!(substitute("mpv $0", &paths), "mpv \"C:\\a b\\x.txt\"");
         // No placeholder at all: append the paths.
         assert_eq!(substitute("explorer", &paths), "explorer \"C:\\a b\\x.txt\"");
+    }
+
+    /// `start ""` keeps both its quotes.
+    ///
+    /// `""` after `start` is how a window title is left empty, and without it
+    /// `start` reads the program as the title and opens a bare console instead.
+    /// The quotes used to be collapsed by a blanket `"" -> "` over the whole
+    /// line, which was meant for a config that quotes the placeholder itself and
+    /// caught this idiom as well: `start "" msedge %*` came out as
+    /// `start " msedge "C:\…"`, so `start` took `" msedge "C:\…"` for a title and
+    /// opened a command prompt with the browser's name across the top.
+    #[test]
+    fn an_empty_start_title_survives() {
+        let p = vec![PathBuf::from(r"C:\d\a b.pdf")];
+        let q = "\"C:\\d\\a b.pdf\"";
+        assert_eq!(substitute(r#"start "" msedge %*"#, &p), format!("start \"\" msedge {q}"));
+        assert_eq!(substitute(r#"start "" %*"#, &p), format!("start \"\" {q}"));
+        assert_eq!(substitute(r#"start "" excel %*"#, &p), format!("start \"\" excel {q}"));
+
+        // The case the collapse existed for: the config quotes the placeholder,
+        // and every path is quoted on the way out regardless.
+        assert_eq!(substitute(r#"nvim "%s""#, &p), format!("nvim {q}"));
+        assert_eq!(substitute(r#"nvim "$@""#, &p), format!("nvim {q}"));
+        assert_eq!(substitute(r#"start "" msedge "%*""#, &p), format!("start \"\" msedge {q}"));
+
+        // Two paths inside one quoted placeholder still come out as two
+        // arguments, not one quoted blob.
+        let two = vec![PathBuf::from(r"C:\x.pdf"), PathBuf::from(r"C:\y.pdf")];
+        assert_eq!(substitute(r#"code "%*""#, &two), r#"code "C:\x.pdf" "C:\y.pdf""#);
+
+        // A quote that merely sits next to the placeholder, not around it.
+        assert_eq!(substitute(r#"say "hi" %*"#, &p), format!("say \"hi\" {q}"));
     }
 
     #[test]
