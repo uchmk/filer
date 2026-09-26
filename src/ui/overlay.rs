@@ -412,7 +412,7 @@ pub fn help(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
 
     let rows = ((inner.height() / row_h).floor() as usize).max(1);
     let start = app.help_scroll.min(lines.len().saturating_sub(1));
-    for (i, (keys, desc, raw, is_error)) in lines[start..].iter().take(rows).enumerate() {
+    for (i, (keys, desc, raw, is_warning)) in lines[start..].iter().take(rows).enumerate() {
         let y = inner.top() + i as f32 * row_h;
         painter.text(
             egui::pos2(inner.left(), y),
@@ -426,7 +426,7 @@ pub fn help(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
             Align2::LEFT_TOP,
             desc,
             f.clone(),
-            if *is_error { theme.progress_error } else { theme.fg },
+            if *is_warning { theme.warning } else { theme.fg },
         );
         if !raw.is_empty() {
             painter.text(

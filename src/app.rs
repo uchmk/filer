@@ -387,9 +387,22 @@ impl Task {
     }
 }
 
+/// How loud a toast is, which is to say what colour it takes.
+///
+/// The distinction that matters is [`Level::Warn`] against [`Level::Error`]:
+/// one says the program could not do the thing, the other says it went ahead
+/// and there is something you may want to know. Painting both red leaves the
+/// reader no way to tell a broken startup from a stale line in their keymap.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Level {
+    Info,
+    Warn,
+    Error,
+}
+
 pub struct Toast {
     pub text: String,
-    pub error: bool,
+    pub level: Level,
     pub at: Instant,
     /// How many times this same line has been raised. A held-down key can
     /// produce five identical warnings, and five is the whole toast area, so
@@ -986,7 +999,7 @@ impl App {
         if let Some(w) = app.cfg.warnings.first().cloned() {
             let more = app.cfg.warnings.len() - 1;
             let tail = if more > 0 { format!(" (+{more} more, see `~`)") } else { String::new() };
-            app.error(format!("Config: {w}{tail}"));
+            app.warn(format!("Config: {w}{tail}"));
         }
         app
     }
@@ -1024,11 +1037,16 @@ impl App {
     }
 
     pub fn toast(&mut self, text: impl Into<String>) {
-        self.raise(text.into(), false);
+        self.raise(text.into(), Level::Info);
+    }
+
+    /// Something the reader should see, about work that was not stopped.
+    pub fn warn(&mut self, text: impl Into<String>) {
+        self.raise(text.into(), Level::Warn);
     }
 
     pub fn error(&mut self, text: impl Into<String>) {
-        self.raise(text.into(), true);
+        self.raise(text.into(), Level::Error);
     }
 
     /// Put a line up, or tick the one already saying it.
@@ -1036,14 +1054,14 @@ impl App {
     /// Repeating rather than stacking: the same text arriving again is the same
     /// news, and stacking it spends the five slots the toast area has on one
     /// message. The timer restarts so a repeat stays up as long as a first.
-    fn raise(&mut self, text: String, error: bool) {
-        if let Some(t) = self.toasts.iter_mut().rev().find(|t| t.text == text && t.error == error)
+    fn raise(&mut self, text: String, level: Level) {
+        if let Some(t) = self.toasts.iter_mut().rev().find(|t| t.text == text && t.level == level)
         {
             t.count += 1;
             t.at = Instant::now();
             return;
         }
-        self.toasts.push(Toast { text, error, at: Instant::now(), count: 1 });
+        self.toasts.push(Toast { text, level, at: Instant::now(), count: 1 });
     }
 
     // ------------------------------------------------------------- scanning
@@ -3413,7 +3431,7 @@ impl App {
         // holds a highlighted copy of the old one.
         self.preview = PreviewSlot::default();
         match warning {
-            Some(w) => self.error(format!("Config: {w}")),
+            Some(w) => self.warn(format!("Config: {w}")),
             None => self.toast(format!("Reloaded {files} config file(s)")),
         }
     }
@@ -4841,7 +4859,7 @@ mod extract_message {
         a.do_extract();
 
         let last = a.toasts.last().expect("an error was raised");
-        assert!(last.error, "it is an error, not a note");
+        assert_eq!(last.level, Level::Error, "it is an error, not a note");
         assert!(last.text.contains('2'), "the count is missing: {}", last.text);
         assert!(
             !last.text.contains("Nothing here"),
@@ -4953,5 +4971,37 @@ mod move_undo {
 
         assert!(to.exists() && !from.exists());
         let _ = std::fs::remove_file(&to);
+    }
+}
+
+#[cfg(test)]
+mod config_warnings {
+    use super::*;
+
+    /// A config warning is not an error, and has to stop looking like one.
+    ///
+    /// v0.20.0 put the startup line up through `error`, which paints it in the
+    /// colour of a failed operation. The first person to see it asked what had
+    /// gone wrong -- nothing had: a keymap of theirs bound `'` twice to the
+    /// same command, which changes no behaviour at all. Asserting on the level
+    /// rather than the text, because the wording is not what misled them.
+    #[test]
+    fn are_raised_as_warnings_not_errors() {
+        let ctx = egui::Context::default();
+        let cfg = Config { warnings: vec!["[mgr] `'` is bound twice".into()], ..Config::load() };
+        let app = App::new(cfg, std::env::temp_dir(), ctx);
+
+        let t = app.toasts.first().expect("the warning reaches the screen");
+        assert_eq!(t.level, Level::Warn, "a config warning is advice, not a failure");
+        assert!(t.text.starts_with("Config: "), "{}", t.text);
+    }
+
+    /// The colours have to differ, or the level above is a distinction the
+    /// reader cannot see.
+    #[test]
+    fn warning_and_error_are_different_colours() {
+        let t = crate::config::theme::Theme::default();
+        assert_ne!(t.warning, t.progress_error);
+        assert_ne!(t.warning, t.fg);
     }
 }

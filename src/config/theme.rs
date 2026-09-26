@@ -300,6 +300,12 @@ pub struct Theme {
     pub status_bg: Color32,
     pub progress_fg: Color32,
     pub progress_error: Color32,
+    /// Something worth reading that did not stop anything: a config line that
+    /// cannot take effect, most often. Red is the colour of a thing that
+    /// failed, and spending it on advice teaches the reader that the program
+    /// breaks on startup -- the first config warning shipped in red and came
+    /// straight back as "an error message appears when I open it".
+    pub warning: Color32,
 
     pub which_cols: usize,
     pub which_cand: Style,
@@ -379,6 +385,7 @@ impl Default for Theme {
             status_bg: Color32::from_rgb(0x20, 0x23, 0x2b),
             progress_fg: Color32::from_rgb(0x7a, 0xb8, 0xf5),
             progress_error: Color32::from_rgb(0xf0, 0x71, 0x78),
+            warning: Color32::from_rgb(0xe8, 0xc8, 0x7a),
 
             which_cols: 3,
             which_cand: Style {

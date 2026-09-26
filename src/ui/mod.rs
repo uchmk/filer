@@ -818,7 +818,11 @@ fn draw_toasts(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     // reading. Covering the answer with the question is a poor trade.
     let mut y = full.top() + row_h + 14.0;
     for t in app.toasts.iter().rev().take(5) {
-        let color = if t.error { theme.progress_error } else { theme.fg };
+        let color = match t.level {
+            crate::app::Level::Info => theme.fg,
+            crate::app::Level::Warn => theme.warning,
+            crate::app::Level::Error => theme.progress_error,
+        };
         let text = match t.count {
             0 | 1 => t.text.clone(),
             n => format!("{} ×{n}", t.text),
@@ -833,7 +837,9 @@ fn draw_toasts(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         painter.rect_stroke(
             r,
             CornerRadius::same(4),
-            Stroke::new(1.0, if t.error { theme.progress_error } else { theme.border }),
+            // The border follows the text, so a warning is framed in its own
+            // colour rather than borrowing the plain one and reading as chrome.
+            Stroke::new(1.0, if t.level == crate::app::Level::Info { theme.border } else { color }),
             egui::StrokeKind::Inside,
         );
         painter.galley(

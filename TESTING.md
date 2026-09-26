@@ -374,6 +374,23 @@ instructions are wrong, which is worse than a missing feature.
 
 ---
 
+## T. Config warnings, and their colour (v0.20.1)
+
+A warning here means a line in your own `keymap.toml` cannot take effect. The
+colour is the thing under test: red is reserved for something that failed, and
+none of these failed.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| T1 | Start with a `keymap.toml` that binds a key the defaults also bind (e.g. `'` to `plugin bookmarks jump`) | A **yellow** toast, not red: `Config: [mgr] \`'\` is bound more than once; only ... runs` |
+| T2 | With three or more such lines | The toast ends `(+2 more, see \`~\`)` |
+| T3 | Press `~` | The loaded config files, then every warning, all in the same yellow |
+| T4 | Make something actually fail (an opener naming a program that is not installed, S8) | Still **red**, so the two are told apart at a glance |
+| T5 | Remove the duplicate lines, `<C-F5>` | `Reloaded N config file(s)` in the plain colour; no yellow |
+| T6 | A theme with a light background | The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable |
+
+---
+
 ## Known gaps in this checklist
 
 - **Nothing here has been run.** The checklist was written from the code, not
