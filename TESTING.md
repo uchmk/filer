@@ -70,6 +70,7 @@ drawing has been seen. `<C-t>` opens it.
 | A1 | `<C-t>` from the file list | A shell opens along the bottom, already in the directory the list is showing |
 | A2 | Type `dir` and press Enter | Output in the list's own font, columns lined up, no overlapping glyphs |
 | A3 | Look at the cursor | A block where the shell's cursor is, and it moves as you type |
+| A3a | `<C-t>` to give the keys back (v0.20.2) | The cursor goes **hollow**, and the rule along the top of the pane stays the plain border colour — it no longer turns green with focus |
 | A4 | Run something colorful (`git status` in the `repo` fixture) | The 16 ANSI colors, and they match the file list's own colors rather than looking like a second palette |
 | A5 | **`<C-t>` again** | Keys go back to the list — **and the shell is still there**, with its output intact. This is the v0.6.0 fix; before it, this ended the shell |
 | A6 | `<C-t>`, `<C-t>`, `<C-t>` a few times | The same shell throughout. The scrollback never resets |

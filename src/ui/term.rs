@@ -28,10 +28,12 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     // does for the whole grid.
     let cell_w = painter.layout_no_wrap("M".into(), f.clone(), theme.fg).size().x.max(1.0);
     painter.rect_filled(rect, CornerRadius::ZERO, theme.bg_alt);
-    painter.line_segment(
-        [rect.left_top(), rect.right_top()],
-        Stroke::new(1.0, if focused { theme.cwd.fg.unwrap_or(theme.fg) } else { theme.border }),
-    );
+    // Plain chrome, in every state. This line used to turn the cwd colour
+    // while the pane held the keys, which made it a second answer to a
+    // question the cursor below already answers the way every terminal does --
+    // filled block for focused, hollow for not. Two indicators for one bit,
+    // and this was the loud one: a full-width accent rule against the list.
+    painter.line_segment([rect.left_top(), rect.right_top()], Stroke::new(1.0, theme.border));
 
     let inner = rect.shrink2(Vec2::new(6.0, 4.0));
     let size = fit(inner, cell_w, row_h);
