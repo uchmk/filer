@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**88 / 196 checked.**
+**135 / 196 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 88 / 142
+## `[mgr]` — 119 / 142
 
 The file list: what is in front of you unless an overlay is.
 
@@ -179,51 +179,51 @@ The file list: what is in front of you unless an overlay is.
 ### Panels
 
 - [ ] `w` — Show the task manager · `tasks_show`
-- [ ] `~` — Open help · `help`
-- [ ] `<F1>` — Open help · `help`
-- [ ] `<F12>` — Open a pre-filled bug report in the browser · `bug-report`
-- [ ] `<C-S-p>` — Open the command palette · `palette`
-- [ ] `<S-F10>` — Open the context menu · `menu`
-- [ ] `<C-t>` — Open the terminal pane · `terminal`
+- [x] `~` — Open help · `help`
+- [x] `<F1>` — Open help · `help`
+- [x] `<F12>` — Open a pre-filled bug report in the browser · `bug-report`
+- [x] `<C-S-p>` — Open the command palette · `palette`
+- [x] `<S-F10>` — Open the context menu · `menu`
+- [x] `<C-t>` — Open the terminal pane · `terminal`
 - [ ] `<A-t>` — Type the selected paths into the terminal · `term_send`
 
-## `[term]` — 0 / 12
+## `[term]` — 11 / 12
 
 While the terminal pane holds the keys. Everything not listed here goes to the shell.
 
 ### Terminal pane
 
-- [ ] `<C-t>` — Give the keys back to the list (the shell keeps running) · `close`
-- [ ] `<C-S-t>` — Close the terminal and end the shell · `terminal close`
-- [ ] `<F1>` — Show the key list · `help`
-- [ ] `<C-S-p>` — Command palette · `palette`
+- [x] `<C-t>` — Give the keys back to the list (the shell keeps running) · `close`
+- [x] `<C-S-t>` — Close the terminal and end the shell · `terminal close`
+- [x] `<F1>` — Show the key list · `help`
+- [x] `<C-S-p>` — Command palette · `palette`
 - [ ] `<A-Up>` — Put the pane where the shell is · `term_cd`
-- [ ] `<S-PageUp>` — Scroll back half a screen · `term_scroll -50%`
-- [ ] `<S-PageDown>` — Scroll forward half a screen · `term_scroll 50%`
-- [ ] `<S-Home>` — To the top of the scrollback · `term_scroll top`
-- [ ] `<S-End>` — Back to the bottom · `term_scroll bot`
-- [ ] `<C-S-f>` — Find in the scrollback · `term_find`
-- [ ] `<C-S-n>` — Find the next match · `term_find --repeat`
-- [ ] `<C-S-b>` — Find the previous match · `term_find --repeat --prev`
+- [x] `<S-PageUp>` — Scroll back half a screen · `term_scroll -50%`
+- [x] `<S-PageDown>` — Scroll forward half a screen · `term_scroll 50%`
+- [x] `<S-Home>` — To the top of the scrollback · `term_scroll top`
+- [x] `<S-End>` — Back to the bottom · `term_scroll bot`
+- [x] `<C-S-f>` — Find in the scrollback · `term_find`
+- [x] `<C-S-n>` — Find the next match · `term_find --repeat`
+- [x] `<C-S-b>` — Find the previous match · `term_find --repeat --prev`
 
-## `[input]` — 0 / 3
+## `[input]` — 3 / 3
 
 The one-line prompt — `cd`, rename, filter, search.
 
 ### Input line
 
-- [ ] `<Enter>` — Submit · `close --submit`
-- [ ] `<Esc>` — Cancel · `close`
-- [ ] `<Tab>` — Complete the path · `complete`
+- [x] `<Enter>` — Submit · `close --submit`
+- [x] `<Esc>` — Cancel · `close`
+- [x] `<Tab>` — Complete the path · `complete`
 
-## `[confirm]` — 0 / 2
+## `[confirm]` — 2 / 2
 
 A yes/no prompt.
 
 ### Input line
 
-- [ ] `<Enter>` — Confirm · `close --submit`
-- [ ] `<Esc>` — Cancel · `close`
+- [x] `<Enter>` — Confirm · `close --submit`
+- [x] `<Esc>` — Cancel · `close`
 
 ## `[pick]` — 0 / 2
 
