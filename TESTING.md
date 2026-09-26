@@ -275,6 +275,24 @@ In `bulk-rename\`.
 | 11.8 | Rename a file, undo it, then create a new file, then `U` | Redo is gone: the new action forked history |
 | 11.9 | Delete a file, `u`, but create a file with that name first | `u` says the name is taken, and pressing it again after moving that file out of the way works |
 
+## 28. Symlinks and `g`+`f` (v0.26.8)
+
+Windows makes these awkward to create. A **junction** needs no admin rights:
+`mklink /J linktest C:\dev` from `cmd`. A symlink to a *file* needs an elevated
+shell or developer mode: `New-Item -ItemType SymbolicLink -Path l.md -Target
+C:\dev\filer\README.md`. There are real ones under `C:\Users\<you>\` if you
+would rather not make any.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 28.1 | Look at a link's row | `->` after the name. With `m`+`p` the type column reads `l` |
+| 28.2 | `g`+`f` on a link to a **directory** | The list goes into the target |
+| 28.3 | `g`+`f` on a link to a **file** | The list goes to the target's directory with the file under the cursor; `<Enter>` then opens it |
+| 28.4 | `g`+`f` on a **broken** link | `Broken link: <name>` in red |
+| 28.5 | `g`+`f` on an ordinary file (v0.26.8) | `Only a symlink can be followed — a link shows -> after its name`. Until v0.26.8 nothing happened at all, which was indistinguishable from an unbound key |
+| 28.6 | `g`+`f` in an empty directory | Nothing, and no message — there is no row to say anything about |
+| 28.7 | A junction (`mklink /J`), not just a symlink | Treated the same: `->`, and `g`+`f` follows it |
+
 ## 27. The parent column, with the mouse (v0.26.7)
 
 The leftmost column. It draws files and directories the same way, so both have
