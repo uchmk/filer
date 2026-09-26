@@ -112,6 +112,15 @@ and the first exact match wins. That is what lets a prepended single-key `m` sha
 `on` accepts a single token (`"T"`), a sequence string (`"gg"`) or an array (`["g", "g"]`).
 Key notation is yazi's: `<C-a>`, `<A-S-Up>`, `<Enter>`, `<Space>`, `<F5>`, `<lt>`.
 
+**Line mode** is yazi's name for the right-hand column of the file list — the one value shown
+beside every name. `m`+`s` shows the size, `m`+`t` the modified time, `m`+`b` the created time,
+`m`+`p` the permissions, and `m`+`n` turns the column off. `[mgr] linemode` in `yazi.toml` sets
+the one you start with.
+
+> If `m` on its own does something — saves a bookmark, say — none of these run: the bookmark
+> plugins for yazi bind `m`, and a `prepend_keymap` line goes in front of every chord that starts
+> with it. Filer reports this on startup and lists it under `~`.
+
 Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `back`, `forward`,
 `cd`, `reveal`, `follow`, `refresh`, `seek`/`peek`, `tab_create`, `tab_close`, `tab_switch`,
 `tab_swap`, `toggle`, `toggle_all`, `visual_mode`, `open`, `yank`, `unyank`, `paste`, `link`,
@@ -649,7 +658,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `'` | go to a bookmark (then press its letter), as in vim |
 | `b``b` | list the bookmarks and pick one |
 | `b``s` `b``d` `b``D` | set one / delete one (then press its letter) / delete them all |
-| `.` `,…` `m…` | hidden files / sort menu / line-mode menu |
+| `.` `,…` `m…` | hidden files / sort menu / line mode: what the right column of each row shows |
 | `t` `1`–`9` `[` `]` `{` `}` `<C-c>` | new tab / switch / previous / next / move it left / right / close it (quits on the last) |
 | `<F5>` `<C-F5>` | re-read the current directory / re-read the config files |
 | `<C-w>` `<C-S-w>` | split the view in two panes / move between them, close the split |

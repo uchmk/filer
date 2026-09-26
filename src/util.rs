@@ -224,6 +224,26 @@ pub fn unc_host(path: &Path) -> Option<PathBuf> {
     Some(PathBuf::from(format!(r"\\{host}")))
 }
 
+/// The directory above `path`, as the view means it: what the parent pane
+/// shows, and where `h` goes.
+///
+/// `Path::parent` is wrong at both ends of a UNC path, in opposite directions.
+/// A share root `\\host\share` is one whole prefix to `std`, so it has *no*
+/// parent, though the host above it is a real place now that its shares can be
+/// listed. And `\\host` — which `std` does not recognise as a prefix at all —
+/// parses as a root and one component, so its parent comes out as the bare
+/// `\`: a different machine's drive, offered as the folder above a file
+/// server. A host is the top; nothing is above it.
+pub fn parent_dir(path: &Path) -> Option<PathBuf> {
+    if host_only_unc(path) {
+        return None;
+    }
+    match path.parent() {
+        Some(p) if !p.as_os_str().is_empty() => Some(p.to_path_buf()),
+        _ => unc_host(path),
+    }
+}
+
 /// `\\host` or `//host`: the start of a UNC path that names no share yet.
 /// `\\host` with no share after it — a server, not a directory.
 pub fn host_only_unc(path: &Path) -> bool {
@@ -280,11 +300,33 @@ fn has_windows_prefix(p: &Path) -> bool {
 }
 
 pub fn file_name(path: &Path) -> String {
-    match path.file_name() {
-        Some(n) => n.to_string_lossy().into_owned(),
-        // Root of a drive / UNC share: show the prefix itself.
-        None => path.to_string_lossy().into_owned(),
+    if let Some(n) = path.file_name() {
+        return n.to_string_lossy().into_owned();
     }
+    // A share root is named after its share. `std` has no file name for one,
+    // folding the host and the share into a single prefix, and the fallback
+    // below — the path itself, which is what a drive root wants — listed every
+    // share on a server under its full address instead of its name.
+    if let Some(n) = unc_share(path) {
+        return n;
+    }
+    // Root of a drive: `C:\` is what it is called.
+    path.to_string_lossy().into_owned()
+}
+
+/// The share out of a share root: `\\host\share` → `share`. `None` for
+/// anything else, including `\\host`, which names no share, and a path inside
+/// a share, which has an ordinary file name.
+///
+/// Written against the string rather than the components, for the same reason
+/// as [`unc_host`]: it can then be reasoned about and tested anywhere.
+fn unc_share(path: &Path) -> Option<String> {
+    let s = path.to_str()?;
+    let rest = s.strip_prefix(r"\\").or_else(|| s.strip_prefix("//"))?;
+    let mut parts = rest.split(['\\', '/']).filter(|p| !p.is_empty());
+    parts.next()?;
+    let share = parts.next()?;
+    parts.next().is_none().then(|| share.to_owned())
 }
 
 pub fn extension(name: &str) -> Option<String> {
@@ -440,6 +482,69 @@ mod tests {
         // Not UNC at all.
         assert_eq!(host(r"C:\dev\filer"), None);
         assert_eq!(host("/home/user"), None);
+    }
+
+    /// A server answers with full addresses; the column wants names. The
+    /// share root is the case `std` has no answer for, so the fallback — the
+    /// whole path, which is right for `C:\` — used to stand in, and every
+    /// share on a server listed itself as `\\10.0.0.1\Backup\`. The header,
+    /// which joins the directory to the hovered name, then read
+    /// `\\10.0.0.1\\\10.0.0.1\Backup\`.
+    #[test]
+    fn a_share_root_is_named_after_its_share() {
+        let share = |s: &str| unc_share(Path::new(s));
+
+        assert_eq!(share(r"\\10.0.0.1\backup-user").as_deref(), Some("backup-user"));
+        assert_eq!(share(r"\\10.0.0.1\Backup\").as_deref(), Some("Backup"));
+        assert_eq!(share("//10.0.0.1/VR_Video").as_deref(), Some("VR_Video"));
+        // An administrative share keeps its `$`; a share name may hold a space.
+        assert_eq!(share(r"\\host\C$").as_deref(), Some("C$"));
+        assert_eq!(share(r"\\host\My Files").as_deref(), Some("My Files"));
+        // The host names no share.
+        assert_eq!(share(r"\\10.0.0.1"), None);
+        // Inside a share `std` has the answer, so this declines to give one.
+        assert_eq!(share(r"\\10.0.0.1\Backup\2025"), None);
+        assert_eq!(share(r"C:\dev"), None);
+    }
+
+    /// The same rule through the function that uses it. Windows-only because
+    /// `\` is a separator only there: elsewhere `Path` reads the whole of
+    /// `\\host\share` as one component and `file_name` answers before the
+    /// share rule is reached.
+    #[cfg(windows)]
+    #[test]
+    fn a_share_is_listed_under_its_name_and_a_drive_root_under_its_own() {
+        let name = |s: &str| file_name(Path::new(s));
+
+        assert_eq!(name(r"\\10.0.0.1\backup-user"), "backup-user");
+        assert_eq!(name(r"\\10.0.0.1\Backup\"), "Backup");
+        // The host is called after itself.
+        assert_eq!(name(r"\\10.0.0.1"), "10.0.0.1");
+        assert_eq!(name(r"\\10.0.0.1\Backup\2025\notes.txt"), "notes.txt");
+        // A drive root still shows itself, which is what it is called.
+        assert_eq!(name(r"C:\"), r"C:\");
+    }
+
+    /// Windows-only because `Path::parent` splits these paths differently
+    /// elsewhere, and the two cases that matter are both about what `std`
+    /// makes of a UNC path.
+    #[cfg(windows)]
+    #[test]
+    fn a_file_server_is_the_top_and_a_share_sits_under_it() {
+        let up = |s: &str| parent_dir(Path::new(s));
+
+        // The one that showed: `std` reads `\\host` as a root plus one
+        // component, so its parent is the bare `\` — which resolves to this
+        // machine's current drive, offered as the folder above a server.
+        assert_eq!(up(r"\\10.0.0.1"), None);
+        assert_eq!(up("//10.0.0.1"), None);
+        // A share root has no parent at all to `std`; the host is above it.
+        assert_eq!(up(r"\\10.0.0.1\Backup"), Some(PathBuf::from(r"\\10.0.0.1")));
+        // Deeper in, and off UNC entirely, it is `parent()`'s answer.
+        assert_eq!(up(r"\\10.0.0.1\Backup\2025"), Some(PathBuf::from(r"\\10.0.0.1\Backup")));
+        assert_eq!(up(r"C:\dev\filer"), Some(PathBuf::from(r"C:\dev")));
+        // A drive root is a top too.
+        assert_eq!(up(r"C:\"), None);
     }
 
     #[test]

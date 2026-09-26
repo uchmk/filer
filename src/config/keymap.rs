@@ -208,9 +208,83 @@ impl Keymap {
             km.term = fold(std::mem::take(&mut km.term), &f.term, &mut warnings);
             let _ = &f.cmp; // parsed for compatibility; completion is native here
         }
+        for (name, bindings) in km.layers() {
+            warnings.extend(unreachable(name, bindings));
+        }
         km.unsupported = warnings.clone();
         (km, warnings)
     }
+
+    /// Every layer with the name it is written under, for the checks and tests
+    /// that have to treat them alike.
+    fn layers(&self) -> [(&'static str, &[Binding]); 9] {
+        [
+            ("mgr", &self.mgr),
+            ("input", &self.input),
+            ("confirm", &self.confirm),
+            ("pick", &self.pick),
+            ("help", &self.help),
+            ("tasks", &self.tasks),
+            ("spot", &self.spot),
+            ("term", &self.term),
+            ("diff", &self.diff),
+        ]
+    }
+}
+
+/// Bindings in `bindings` that no key press can ever reach.
+///
+/// [`resolve`] takes the first binding that matches, so order decides: a key
+/// bound on its own, before a chord that starts with it, ends the sequence
+/// where it stands and the chord never runs. A user file's `prepend_keymap`
+/// goes in front of everything, which is exactly how one line can silently
+/// retire a whole prefix — binding `m` to a command, as the bookmarks plugins
+/// for yazi do, takes `m`+`s`, `m`+`t` and the rest of the line-mode keys with
+/// it, and nothing about pressing `m` suggests that is what happened.
+///
+/// One warning per key that shadows, not per binding shadowed: a prefix with
+/// five chords under it is one mistake, and five lines would push everything
+/// else out of the panel that shows them.
+fn unreachable(layer: &str, bindings: &[Binding]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut lost = vec![false; bindings.len()];
+    for i in 0..bindings.len() {
+        // Something earlier already swallows this one, and said so.
+        if lost[i] {
+            continue;
+        }
+        let on = &bindings[i].on;
+        let mut hidden: Vec<String> = Vec::new();
+        let mut twice = false;
+        for j in i + 1..bindings.len() {
+            let other = &bindings[j].on;
+            if other == on {
+                twice = true;
+            } else if other.len() > on.len() && other[..on.len()] == on[..] {
+                hidden.push(super::keys::render_seq(other));
+            } else {
+                continue;
+            }
+            lost[j] = true;
+        }
+        let key = super::keys::render_seq(on);
+        let run = &bindings[i].raw;
+        if twice {
+            out.push(format!("[{layer}] `{key}` is bound more than once; only `{run}` runs"));
+        }
+        if !hidden.is_empty() {
+            let n = hidden.len();
+            // Three is as many as the line can carry and still be read.
+            hidden.truncate(3);
+            let shown = hidden.join("`, `");
+            let more = if n > 3 { format!(", and {} more", n - 3) } else { String::new() };
+            out.push(format!(
+                "[{layer}] `{key}` runs `{run}` on its own, so the {n} key(s) starting with it \
+                 never run: `{shown}`{more}",
+            ));
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -352,5 +426,49 @@ run = "plugin bookmarks save"
                 }
             }
         }
+    }
+
+    /// The defaults being clean is only half of it: the arrangement that
+    /// actually bites is a user file's, and it bites in silence. One
+    /// `prepend_keymap` line binding `m` — which is what the bookmark plugins
+    /// for yazi do, and what a config copied from one carries over — sits in
+    /// front of every line-mode chord and ends the sequence at `m`. Pressing
+    /// `m`+`s` then saves a bookmark under `s`, and nothing anywhere says the
+    /// line-mode keys are gone.
+    #[test]
+    fn a_user_key_that_buries_a_whole_prefix_is_reported() {
+        let user = r#"
+            [[mgr.prepend_keymap]]
+            on = "m"
+            run = "plugin bookmarks save"
+        "#;
+        let (_, warnings) = Keymap::load(&[user]);
+
+        let about_m: Vec<&String> = warnings.iter().filter(|w| w.contains("`m`")).collect();
+        assert_eq!(about_m.len(), 1, "one line per prefix, not one per key lost: {warnings:?}");
+        let w = about_m[0];
+        assert!(w.contains("plugin bookmarks save"), "must name what took the key: {w}");
+        assert!(w.contains("`ms`"), "must name a key that was lost: {w}");
+        assert!(w.contains('5'), "must count them: {w}");
+    }
+
+    /// The same key twice is the other way a line goes missing, and it reads
+    /// as the key being unbound rather than as the file disagreeing with
+    /// itself.
+    #[test]
+    fn a_key_bound_twice_is_reported() {
+        let user = r#"
+            [[mgr.prepend_keymap]]
+            on = "<F5>"
+            run = "quit"
+            [[mgr.prepend_keymap]]
+            on = "<F5>"
+            run = "close"
+        "#;
+        let (_, warnings) = Keymap::load(&[user]);
+
+        let w = warnings.iter().find(|w| w.contains("more than once"));
+        let w = w.unwrap_or_else(|| panic!("no duplicate reported: {warnings:?}"));
+        assert!(w.contains("quit"), "must name the one that wins: {w}");
     }
 }

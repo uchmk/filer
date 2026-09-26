@@ -75,7 +75,7 @@ impl Tab {
     pub fn new(cwd: PathBuf, sort: SortSpec, show_hidden: bool, linemode: String) -> Self {
         Self {
             current: Folder::loading(cwd.clone(), None),
-            parent: cwd.parent().map(|p| Folder::loading(p.to_path_buf(), None)),
+            parent: crate::util::parent_dir(&cwd).map(|p| Folder::loading(p, None)),
             cwd,
             back: Vec::new(),
             forward: Vec::new(),

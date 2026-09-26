@@ -121,3 +121,4 @@ pub fn list(host: &Path) -> std::io::Result<Vec<Entry>> {
 pub fn list(_host: &Path) -> std::io::Result<Vec<Entry>> {
     Err(std::io::Error::other("network shares are a Windows notion"))
 }
+

@@ -980,6 +980,14 @@ impl App {
         };
         app.load_state();
         app.kick_scans();
+        // A config problem that nobody is told about is one the reader spends
+        // the evening blaming the program for. The `~` panel lists them all;
+        // this is the line that says to go and look.
+        if let Some(w) = app.cfg.warnings.first().cloned() {
+            let more = app.cfg.warnings.len() - 1;
+            let tail = if more > 0 { format!(" (+{more} more, see `~`)") } else { String::new() };
+            app.error(format!("Config: {w}{tail}"));
+        }
         app
     }
 
@@ -1044,7 +1052,7 @@ impl App {
     pub fn kick_scans(&mut self) {
         let sort = self.tabs[self.active].sort;
         let cwd = self.tabs[self.active].cwd.clone();
-        let parent = cwd.parent().map(Path::to_path_buf);
+        let parent = util::parent_dir(&cwd);
 
         if self.tabs[self.active].current.scan_id.is_none()
             && self.tabs[self.active].current.state == LoadState::Loading
@@ -1854,7 +1862,7 @@ impl App {
         self.tabs[idx].preview_offset = 0;
         self.tabs[idx].recall_cursor();
 
-        let parent = target.parent().map(Path::to_path_buf);
+        let parent = util::parent_dir(&target);
         self.tabs[idx].parent = parent.map(|p| match self.cache.get(&p) {
             Some(entries) => {
                 let mut f = Folder::from_entries(p.clone(), entries.clone(), show_hidden);
@@ -1939,14 +1947,7 @@ impl App {
             return;
         }
         let cwd = self.tabs[self.active].cwd.clone();
-        // A share root has no parent to `std`, which folds `\\host\share` into
-        // a single prefix. The host above it is a real place now that its
-        // shares can be listed, so going up from a share lands there.
-        let up = match cwd.parent() {
-            Some(p) if !p.as_os_str().is_empty() => Some(p.to_path_buf()),
-            _ => util::unc_host(&cwd),
-        };
-        if let Some(p) = up {
+        if let Some(p) = util::parent_dir(&cwd) {
             let name = util::file_name(&cwd);
             self.tabs[self.active].memo.insert(p.clone(), name);
             self.cd(p, true);
