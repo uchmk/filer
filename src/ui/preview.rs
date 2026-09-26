@@ -516,7 +516,7 @@ fn outline(
     if overlay {
         painter.rect_filled(Rect::from_x_y_ranges(sep..=rect.right(), rect.y_range()), CornerRadius::ZERO, theme.bg);
     }
-    let rule = if focused { accent } else { theme.border };
+    let rule = super::focus_rule(theme, focused);
     painter.vline(sep, rect.top() + 4.0..=rect.bottom() - 4.0, Stroke::new(1.0, rule));
     let (font, color) = match (&st.bold, focused) {
         (Some(bold), true) => (bold.clone(), accent),

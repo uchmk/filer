@@ -788,6 +788,25 @@ needs a machine is that the program really starts.
 
 ---
 
+## 38. The focus rule, in both panes that draw one (v0.36.3)
+
+Colour, so it needs eyes. The point is that the two panes agree — check them
+side by side, not one at a time.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 38.1 | `<C-t>` to open the terminal and give it the keys | The rule along the **top of the terminal** is accent-coloured (`#7ab8f5` by default), not grey |
+| 38.2 | `<C-t>` again to hand the keys back to the list | The same rule goes grey (`border`) |
+| 38.3 | Open a file with an outline, focus the Contents pane | Its vertical rule is accent — **the same colour** as 38.1, not a different one |
+| 38.4 | Terminal focused **and** an outline on screen at once | Exactly one rule is accent: the terminal's. The outline's is grey |
+| 38.5 | Focus the outline with the terminal open but unfocused | The other way round — outline accent, terminal grey |
+| 38.6 | Click into the terminal with the mouse instead of `<C-t>` | The rule follows the click, same as the key |
+| 38.7 | `theme.toml` with `[mgr] tab_active = { bg = "#ff0000" }`, then `<C-F5>` | **Both** rules turn red. They read one definition |
+| 38.8 | A theme that sets no `tab_active` background | The focused rule falls back to the foreground colour and is still visibly different from the unfocused one |
+| 38.9 | The terminal's own cell cursor | Still filled when focused, hollow when not. The rule is added to that, not a replacement — v0.20.2 removed the rule on the grounds that this was enough, and it was not |
+
+---
+
 ## Known gaps in this checklist
 
 - **Nothing here has been run.** The checklist was written from the code, not

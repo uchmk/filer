@@ -21,6 +21,24 @@ pub fn font(size: f32) -> FontId {
     FontId::new(size, FontFamily::Monospace)
 }
 
+/// The colour a pane's separating rule takes, accented while that pane holds
+/// the keys.
+///
+/// Defined once because the two panes that have such a rule -- the outline and
+/// the terminal -- have to agree. The terminal's went plain in v0.20.2, on the
+/// grounds that its own cursor already says the same thing (filled when
+/// focused, hollow when not). That reads well on its own and badly beside the
+/// outline, which never stopped accenting: with both open, one pane answers
+/// "are the keys here" in colour and the other in a detail a few hundred pixels
+/// away, and the terminal looks like the one that is broken. A cell cursor is
+/// also easy to miss on a shell prompt that is already blinking something.
+pub fn focus_rule(theme: &Theme, focused: bool) -> Color32 {
+    match focused {
+        true => theme.tab_active.bg.unwrap_or(theme.fg),
+        false => theme.border,
+    }
+}
+
 /// Turn wheel movement, measured in rows, into whole rows — keeping the part
 /// that is not yet one.
 ///
@@ -960,6 +978,35 @@ pub fn modal_frame(ui: &Ui, rect: Rect, theme: &Theme, title: &str, f: &FontId, 
 
 pub fn dim(ui: &Ui, full: Rect) {
     ui.painter().rect_filled(full, CornerRadius::ZERO, Color32::from_black_alpha(140));
+}
+
+/// The focus rule is one colour, used by every pane that draws one.
+#[cfg(test)]
+mod focus_rule_tests {
+    use super::*;
+
+    /// Focused has to be visibly different from not, and has to be the accent
+    /// the outline already uses -- the terminal drawing its rule in some other
+    /// colour would be a third answer to the same question.
+    #[test]
+    fn focused_is_the_accent_and_unfocused_is_the_border() {
+        let theme = Theme::default();
+        let on = focus_rule(&theme, true);
+        let off = focus_rule(&theme, false);
+        assert_ne!(on, off, "a rule that looks the same either way says nothing");
+        assert_eq!(off, theme.border);
+        assert_eq!(on, theme.tab_active.bg.unwrap_or(theme.fg));
+    }
+
+    /// A theme that clears `tab_active.bg` still gets a visible rule rather
+    /// than falling back to the border and losing the signal entirely.
+    #[test]
+    fn a_theme_without_the_accent_still_marks_focus() {
+        let mut theme = Theme::default();
+        theme.tab_active.bg = None;
+        assert_eq!(focus_rule(&theme, true), theme.fg);
+        assert_ne!(focus_rule(&theme, true), focus_rule(&theme, false));
+    }
 }
 
 #[cfg(test)]

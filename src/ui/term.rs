@@ -33,12 +33,10 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     // does for the whole grid.
     let cell_w = painter.layout_no_wrap("M".into(), f.clone(), theme.fg).size().x.max(1.0);
     painter.rect_filled(rect, CornerRadius::ZERO, theme.bg_alt);
-    // Plain chrome, in every state. This line used to turn the cwd colour
-    // while the pane held the keys, which made it a second answer to a
-    // question the cursor below already answers the way every terminal does --
-    // filled block for focused, hollow for not. Two indicators for one bit,
-    // and this was the loud one: a full-width accent rule against the list.
-    painter.line_segment([rect.left_top(), rect.right_top()], Stroke::new(1.0, theme.border));
+    // Accented while the pane has the keys, the same as the outline's rule and
+    // in the same colour -- see `super::focus_rule` for why it is shared.
+    let rule = super::focus_rule(&theme, focused);
+    painter.line_segment([rect.left_top(), rect.right_top()], Stroke::new(1.0, rule));
 
     let inner = rect.shrink2(Vec2::new(6.0, 4.0));
     let size = fit(inner, cell_w, row_h);
