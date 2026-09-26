@@ -392,7 +392,7 @@ fn external_picture(rule: &crate::config::PreviewRule, req: &Request) -> Payload
         // is the only way it can: nothing asked how many pages there were.
         // Saying which page was refused matters, because the reader pressed a
         // key and has to know it was not the key that failed.
-        Err(e) => return Payload::Error(format!("{}{n}: {e}", unit(rule))),
+        Err(e) => return Payload::Error(format!("{}: {e}", caption(rule, n))),
     };
     match image_preview::render(&drawn.png, req.key.box_size) {
         Ok(Payload::Image { width, height, source, rgba, .. }) => Payload::Image {
@@ -400,18 +400,19 @@ fn external_picture(rule: &crate::config::PreviewRule, req: &Request) -> Payload
             height,
             source,
             rgba,
-            caption: format!("{}{n}", unit(rule)),
+            caption: caption(rule, n),
         },
         Ok(other) => other,
         Err(e) => Payload::Error(e),
     }
 }
 
-/// What the caption calls the number. `page 3`, `12s`, or just `3`.
-fn unit(rule: &crate::config::PreviewRule) -> String {
+/// What goes under the picture: `page 3`, `50s`, or just `3`.
+fn caption(rule: &crate::config::PreviewRule, n: i64) -> String {
     match rule.unit.as_str() {
-        "" => String::new(),
-        u => format!("{u} "),
+        "" => n.to_string(),
+        u if u.contains("{n}") => u.replace("{n}", &n.to_string()),
+        u => format!("{u} {n}"),
     }
 }
 
@@ -470,6 +471,28 @@ fn meta(path: &std::path::Path, _req: &Request, note: &str) -> Payload {
 
 #[cfg(test)]
 mod tests {
+    /// The caption reads as the thing it counts.
+    ///
+    /// A unit that could only go in front turned fifty seconds into `s 50`.
+    /// `{n}` says where the number belongs, which is in front for a page and
+    /// behind for a second.
+    #[test]
+    fn the_caption_puts_the_number_where_it_belongs() {
+        let rule = |unit: &str| crate::config::PreviewRule {
+            pattern: "*".into(),
+            run: String::new(),
+            first: 1,
+            step: 1,
+            unit: unit.into(),
+        };
+        assert_eq!(caption(&rule("page {n}"), 3), "page 3");
+        assert_eq!(caption(&rule("{n}s"), 50), "50s");
+        // No `{n}`: in front, which is what the older rules meant.
+        assert_eq!(caption(&rule("page"), 3), "page 3");
+        // And nothing at all is just the number.
+        assert_eq!(caption(&rule(""), 7), "7");
+    }
+
     use super::*;
 
     fn span(text: &str, color: Option<[u8; 3]>) -> Span {

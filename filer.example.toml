@@ -65,6 +65,9 @@ window_height = 860.0
 #           appends its own suffix is fine
 #   {n}     which picture: a page, or a second
 #
+# `unit` is what goes under the picture, with `{n}` where the number belongs:
+# "page {n}" reads `page 3`, "{n}s" reads `50s`.
+#
 # `<A-j>` / `<A-k>` move `{n}` by `step`. There is no page count — the end of a
 # document arrives as the command refusing, and its own words are shown.
 #
@@ -75,11 +78,11 @@ window_height = 860.0
 # run = 'pdftoppm -png -singlefile -r 120 -f {n} -l {n} {path} {out}'
 # first = 1
 # step = 1
-# unit = "page"
+# unit = "page {n}"
 #
 # [[preview]]
 # match = "*.{mp4,mkv,webm,mov,avi}"
 # run = 'ffmpeg -v error -ss {n} -i {path} -frames:v 1 -y {out}.png'
 # first = 0
 # step = 10
-# unit = "s"
+# unit = "{n}s"

@@ -322,7 +322,10 @@ skipped on Windows — this section is the only coverage of the `cmd` path.**
 | 30.2 | `<A-j>` | Page two. `page 2` under it |
 | 30.3 | `<A-k>` | Back to page one |
 | 30.4 | `<A-k>` again, on page one | Stays. It does not go to page zero or below |
-| 30.5 | Hold `<A-j>` past the last page | The command's own words — `Wrong page range given` — not silence and not a filer-shaped error |
+| 30.5 | Hold `<A-j>` past the last page (v0.30.1) | **The last page stays on screen**, and a line says `No more: …` with the command's own words. Until v0.30.1 the page was replaced by the error |
+| 30.5a | `<A-k>` straight after that | Back a page from the last one, not from somewhere past it |
+| 30.5b | A **short** video — a few seconds — and `<A-j>` a few times | Same: it stops at the last frame it could draw. This is where it bites, since `step = 10` runs off the end almost at once |
+| 30.5c | The caption on a video (v0.30.1) | `50s`, not `s 50` |
 | 30.6 | Watch the screen while paging | **No console window flashes.** It runs once per press |
 | 30.7 | Page to 5, move to another file, come back | Back at page one: the page belongs to the file |
 | 30.8 | Page back to one you have already seen | Instant — it is cached per page |

@@ -124,7 +124,11 @@ pub struct PreviewRule {
     /// How far one press of `<A-j>` moves `{n}`. One page, or ten seconds.
     #[serde(default = "one")]
     pub step: i64,
-    /// What the pane calls the number under the picture: `page`, `s`.
+    /// What the pane writes under the picture. `{n}` is where the number
+    /// goes, so `page {n}` reads "page 3" and `{n}s` reads "50s" — a unit
+    /// that only ever went in front produced "s 50", which is nobody's idea
+    /// of fifty seconds. Without `{n}` it is used as a prefix, and empty
+    /// leaves just the number.
     #[serde(default)]
     pub unit: String,
 }

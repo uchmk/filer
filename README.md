@@ -652,20 +652,23 @@ way to ask it for a second. `[[preview]]` in `filer.toml` names a command that c
 match = "*.pdf"
 run = 'pdftoppm -png -singlefile -r 120 -f {n} -l {n} {path} {out}'
 first = 1
-unit = "page"
+unit = "page {n}"
 
 [[preview]]
 match = "*.{mp4,mkv,webm,mov,avi}"
 run = 'ffmpeg -v error -ss {n} -i {path} -frames:v 1 -y {out}.png'
 first = 0
 step = 10
-unit = "s"
+unit = "{n}s"
 ```
 
 `{n}` is which picture is wanted — a page, or a second. **`<A-j>` goes forward and `<A-k>` back**,
 by `step` each time, stopping at `first`; the same keys that scroll a text preview, because a
-single picture has nothing to scroll and the intention is the same. The number shows under the
-picture.
+single picture has nothing to scroll and the intention is the same. `unit` is what goes under the
+picture, with `{n}` where the number belongs: `page {n}` reads `page 3`, `{n}s` reads `50s`.
+
+Going past the end stops rather than erroring — the picture stays up and a line says why, the same
+way `j` at the bottom of the list simply does not move.
 
 `{path}` and `{out}` are quoted for you, so a path with a space in it works without the rule
 thinking about it. `{out}` has **no extension**: whatever the command leaves in that directory is

@@ -453,6 +453,10 @@ pub struct PreviewSlot {
     /// the next one — landing on page nine of a two-page document would be a
     /// puzzle with no visible cause.
     pub n: i64,
+    /// The last `n` that produced a picture, so that stepping past the end can
+    /// step back to it. There is no page count to clamp against; the end is
+    /// only ever found by reaching it.
+    pub n_ok: Option<i64>,
     /// The outline entry under the cursor while the keys drive the preview's
     /// outline rather than the file list.
     pub outline: Option<usize>,
@@ -536,6 +540,7 @@ impl Default for PreviewSlot {
             max_offset: 0,
             cols: 80,
             n: 0,
+            n_ok: None,
             outline: None,
             outline_wanted: None,
             zoom: None,
@@ -1426,6 +1431,7 @@ impl App {
             self.preview.zoom = None;
             self.preview.pan = egui::Vec2::ZERO;
             self.preview.n = rule.as_ref().map_or(0, |r| r.first);
+            self.preview.n_ok = None;
         }
         if self.preview.outline_wanted.as_ref().is_some_and(|p| *p != entry.path) {
             self.preview.outline_wanted = None;
@@ -1540,6 +1546,22 @@ impl App {
             }
             _ => None,
         };
+        // Running off the end of a document stops, rather than replacing the
+        // page with an error. `<A-j>` past the last page is the same gesture
+        // as `j` at the bottom of the list, and that one simply does not move.
+        // Nothing knows how many pages there are -- the command refusing *is*
+        // the end -- so it is found by arriving at it, and then stepped back.
+        if let (Payload::Error(why), Some(n_ok)) = (&res.payload, self.preview.n_ok) {
+            if res.key.n != n_ok && self.is_external_preview(&res.key.path) {
+                let said = why.clone();
+                self.preview.n = n_ok;
+                self.toast(format!("No more: {said}"));
+                return;
+            }
+        }
+        if !matches!(res.payload, Payload::Error(_)) && self.is_external_preview(&res.key.path) {
+            self.preview.n_ok = Some(res.key.n);
+        }
         self.preview.cache.put(
             res.key,
             CachedPreview { payload: res.payload.clone(), texture: self.preview.texture.clone() },
@@ -3797,6 +3819,11 @@ impl App {
             true => self.toast("Wrapped"),
             false => self.error(format!("No match for {needle}")),
         }
+    }
+
+    /// Whether a configured command draws this file.
+    fn is_external_preview(&self, path: &Path) -> bool {
+        crate::config::PreviewRule::for_path(&self.cfg.preview, path).is_some()
     }
 
     /// The file under the cursor, or nothing-shaped when there is none.
