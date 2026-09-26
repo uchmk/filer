@@ -4,7 +4,7 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**135 / 200 checked.**
+**159 / 200 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
@@ -225,22 +225,22 @@ A yes/no prompt.
 - [x] `<Enter>` — Confirm · `close --submit`
 - [x] `<Esc>` — Cancel · `close`
 
-## `[pick]` — 0 / 2
+## `[pick]` — 2 / 2
 
 A chooser — the command palette, the context menu.
 
 ### Input line
 
-- [ ] `<Enter>` — Submit · `close --submit`
-- [ ] `<Esc>` — Cancel · `close`
+- [x] `<Enter>` — Submit · `close --submit`
+- [x] `<Esc>` — Cancel · `close`
 
-## `[help]` — 0 / 1
+## `[help]` — 1 / 1
 
 This panel (`~` or `<F1>`).
 
 ### Input line
 
-- [ ] `<Esc>` — Close help · `close`
+- [x] `<Esc>` — Close help · `close`
 
 ## `[tasks]` — 0 / 9
 
@@ -258,31 +258,31 @@ The task manager (`w`).
 - [ ] `x` — Cancel the task · `task_cancel`
 - [ ] `t` — Move the task to the front of the queue · `task_top`
 
-## `[spot]` — 0 / 17
+## `[spot]` — 17 / 17
 
 The details panel (`<Tab>`).
 
 ### Input line
 
-- [ ] `<Esc>` — Close the spotter · `close`
-- [ ] `<Tab>` — Close the spotter · `close`
-- [ ] `q` — Close the spotter · `close`
-- [ ] `k` — Spot the previous file · `swipe -1`
-- [ ] `j` — Spot the next file · `swipe 1`
-- [ ] `h` — Go back to the parent directory · `leave`
-- [ ] `l` — Enter the directory · `enter`
-- [ ] `<A-k>` — Previous line of the panel · `arrow -1`
-- [ ] `<A-j>` — Next line of the panel · `arrow 1`
-- [ ] `c` — Copy the selected value · `copy cell`
-- [ ] `<Up>` — Spot the previous file · `swipe -1`
-- [ ] `<Down>` — Spot the next file · `swipe 1`
-- [ ] `<A-Up>` — Previous line of the panel · `arrow -1`
-- [ ] `<A-Down>` — Next line of the panel · `arrow 1`
-- [ ] `<Left>` — Go back to the parent directory · `leave`
-- [ ] `<Right>` — Enter the directory · `enter`
-- [ ] `y` — Copy the selected value · `copy cell`
+- [x] `<Esc>` — Close the spotter · `close`
+- [x] `<Tab>` — Close the spotter · `close`
+- [x] `q` — Close the spotter · `close`
+- [x] `k` — Spot the previous file · `swipe -1`
+- [x] `j` — Spot the next file · `swipe 1`
+- [x] `h` — Go back to the parent directory · `leave`
+- [x] `l` — Enter the directory · `enter`
+- [x] `<A-k>` — Previous line of the panel · `arrow -1`
+- [x] `<A-j>` — Next line of the panel · `arrow 1`
+- [x] `c` — Copy the selected value · `copy cell`
+- [x] `<Up>` — Spot the previous file · `swipe -1`
+- [x] `<Down>` — Spot the next file · `swipe 1`
+- [x] `<A-Up>` — Previous line of the panel · `arrow -1`
+- [x] `<A-Down>` — Next line of the panel · `arrow 1`
+- [x] `<Left>` — Go back to the parent directory · `leave`
+- [x] `<Right>` — Enter the directory · `enter`
+- [x] `y` — Copy the selected value · `copy cell`
 
-## `[diff]` — 0 / 12
+## `[diff]` — 4 / 12
 
 The side-by-side comparison (`<A-d>`).
 
@@ -290,10 +290,10 @@ The side-by-side comparison (`<A-d>`).
 
 - [ ] `q` — Close the comparison · `close`
 - [ ] `<Esc>` — Close the comparison · `close`
-- [ ] `k` — Up one line · `arrow -1`
-- [ ] `j` — Down one line · `arrow 1`
-- [ ] `<Up>` — Up one line · `arrow -1`
-- [ ] `<Down>` — Down one line · `arrow 1`
+- [x] `k` — Up one line · `arrow -1`
+- [x] `j` — Down one line · `arrow 1`
+- [x] `<Up>` — Up one line · `arrow -1`
+- [x] `<Down>` — Down one line · `arrow 1`
 - [ ] `<C-u>` — Up half a page · `arrow -50%`
 - [ ] `<C-d>` — Down half a page · `arrow 50%`
 - [ ] `g g` — To the top · `arrow top`
