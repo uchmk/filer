@@ -635,7 +635,16 @@ what one buys you:
 | png, jpg, gif, bmp, ico, webp, tiff, qoi, pnm | decoded in-process, turned upright per EXIF orientation |
 | svg | rendered with resvg, scaled to fill the pane |
 | ttf, otf, ttc | a specimen sheet: name, alphabet (kana/kanji when the font has them), size waterfall; symbol fonts show a glyph grid |
+| docx, xlsx, pptx | read out as text: paragraphs, rows, slides. **No Office needed** |
 | heic, avif, jxl, psd, video, audio, pdf | the Windows shell thumbnail — the same one Explorer shows |
+
+Office files are zip archives of XML, so filer reads them itself rather than asking the shell for a
+thumbnail Office would have to be installed to provide. It does not try to draw the document — it
+takes the text out, which then behaves like any other text preview: scrolling, search, the minimap,
+and an outline of a document's headings, a workbook's sheets or a deck's slides. A workbook's sheets
+come out in the order its tabs are in, and a date reads as a date rather than the five-digit number
+it is stored as. The pre-2007 `.doc` / `.xls` / `.ppt` are a different format entirely and are not
+read; one of those renamed to `.docx` says so.
 
 Transparent images are laid over a checkerboard so dark icons stay visible on a dark theme.
 Shell thumbnails need a handler for the format: HEIC / AVIF need the HEIF / AV1 Video extensions

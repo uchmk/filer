@@ -15,6 +15,7 @@ mod font_preview;
 mod image_preview;
 mod markdown;
 mod external;
+mod office;
 mod shell_thumb;
 mod svg_preview;
 mod symbols;
@@ -303,6 +304,18 @@ fn render(req: &Request, syntax: &mut text::Highlighter) -> Payload {
         return thumbnail(path, req, "No PDF thumbnail handler (Acrobat Reader or PowerToys add one)");
     }
 
+    // Word, Excel and PowerPoint as their own text. Before the archive
+    // branch, since these are zips and would otherwise be listed as one --
+    // a table of contents full of `word/document.xml` tells nobody anything.
+    if let Some(kind) = office::Kind::of(req.ext.as_deref()) {
+        return match office::read(path, kind, req.max_bytes) {
+            Ok(doc) => office_text(doc, req, syntax),
+            // The card rather than an error: the name, size and dates are
+            // still worth having for a file that cannot be read.
+            Err(e) => meta(path, req, &e),
+        };
+    }
+
     // An archive's table of contents, rendered as lines so it scrolls and
     // truncates like any other text preview.
     if crate::fs::archive::Format::from_path(path).is_some() {
@@ -377,6 +390,33 @@ fn binary(path: &std::path::Path, head: &[u8]) -> Payload {
         lines.push(s);
     }
     Payload::Binary { lines, total }
+}
+
+/// An Office document's text as a text preview.
+///
+/// Through the same path as a plain text file, so that everything the text
+/// preview can do -- scrolling, the minimap, the outline in the side column --
+/// works here without knowing what it is looking at.
+fn office_text(
+    doc: office::Read1,
+    req: &Request,
+    syntax: &mut text::Highlighter,
+) -> Payload {
+    let _ = (req, syntax);
+    let total = doc.lines.len();
+    // Plain, not highlighted: there is no grammar for "the text that was in a
+    // spreadsheet", and guessing one by extension would colour it as XML --
+    // which is what it was stored as and not what is being shown.
+    match text::plain(&doc.lines.join("\n"), doc.truncated, total) {
+        Payload::Text { lines, map, truncated, total_lines, .. } => Payload::Text {
+            lines,
+            map,
+            truncated,
+            total_lines,
+            outline: doc.outline,
+        },
+        other => other,
+    }
 }
 
 /// Draw a file with the command configured for it.

@@ -241,7 +241,7 @@ fn plain_line(line: &str) -> Vec<Span> {
     vec![Span { text: clip(line.trim_end_matches(['\n', '\r']), MAX_LINE_CHARS), ..Default::default() }]
 }
 
-fn plain(text: &str, truncated: bool, total_lines: usize) -> Payload {
+pub fn plain(text: &str, truncated: bool, total_lines: usize) -> Payload {
     let lines: Vec<Vec<Span>> = text
         .lines()
         .take(MAX_LINES)

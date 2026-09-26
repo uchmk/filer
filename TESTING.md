@@ -310,6 +310,25 @@ to answer a click.
 | 27.5 | Click the row for the directory you are already in | You stay there, and the cursor does not jump about |
 | 27.6 | At a drive root, where there is no parent column | Nothing to click, and nothing misbehaves |
 
+## 31. Word, Excel and PowerPoint (v0.31.0)
+
+**On a machine with no Office installed** — that is the case this is for.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 31.1 | Hover a `.docx` | Its text, paragraph by paragraph. Not a hex dump, not a metadata card |
+| 31.2 | A paragraph with mixed bold and plain in one sentence | **One line**, not one per run |
+| 31.3 | A document with Heading 1/2 styles, then `<S-Tab>` | The headings are the outline, and `<Enter>` on one jumps to it |
+| 31.4 | Hover a `.xlsx` | Rows as tab-separated cells, each sheet announced |
+| 31.5 | A workbook whose **first tab is not `sheet1.xml`** | The tabs come out in the workbook's order, with their real names |
+| 31.6 | A sheet holding dates | `2023-03-15`, **not** `45000` |
+| 31.7 | A sheet holding a date **and** a time | The time follows the date |
+| 31.8 | Hover a `.pptx` with ten or more slides | In order — slide 10 after slide 9, not after slide 1 |
+| 31.9 | Japanese text in any of the three | Correct, and `&amp;` `&lt;` come through as `&` `<` |
+| 31.10 | Rename an old `.doc` to `.docx` and hover it | A card saying it is not an Office XML file, naming the likely cause |
+| 31.11 | A very large workbook | Stops at 5000 lines and says it is truncated; it does not hang |
+| 31.12 | `/` and `n` inside one | Search works, because it is an ordinary text preview |
+
 ## 30. Previewers of your own (v0.30.0)
 
 Needs `pdftoppm` and `ffmpeg` on the `PATH` (`filer env` says), and the two
