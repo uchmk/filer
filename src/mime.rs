@@ -101,9 +101,9 @@ pub fn guess(entry: &Entry) -> &'static str {
 
 fn by_name(name: &str) -> &'static str {
     match name {
-        "Makefile" | "makefile" | "Dockerfile" | "LICENSE" | "README" | "COPYING" | "CHANGELOG"
-        | "AUTHORS" | "NOTICE" | ".gitignore" | ".gitattributes" | ".editorconfig" | ".env"
-        | ".npmrc" | ".bashrc" | ".zshrc" | ".profile" => "text/plain",
+        "Makefile" | "makefile" | "Dockerfile" | "LICENSE" | "README" | "COPYING"
+        | "CHANGELOG" | "AUTHORS" | "NOTICE" | ".gitignore" | ".gitattributes"
+        | ".editorconfig" | ".env" | ".npmrc" | ".bashrc" | ".zshrc" | ".profile" => "text/plain",
         _ => "application/octet-stream",
     }
 }

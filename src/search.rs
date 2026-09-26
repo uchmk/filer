@@ -59,11 +59,7 @@ pub fn spawn(
         .spawn(move || {
             let found = Arc::new(AtomicUsize::new(0));
             let case_sensitive = fuzzy::is_case_sensitive(&query_s, true, false);
-            let needle = if case_sensitive {
-                query_s.clone()
-            } else {
-                query_s.to_lowercase()
-            };
+            let needle = if case_sensitive { query_s.clone() } else { query_s.to_lowercase() };
 
             let walker = ignore::WalkBuilder::new(&root)
                 .hidden(!show_hidden)
@@ -71,11 +67,7 @@ pub fn spawn(
                 .git_global(false)
                 .ignore(true)
                 .follow_links(false)
-                .threads(
-                    std::thread::available_parallelism()
-                        .map(|n| n.get().min(6))
-                        .unwrap_or(4),
-                )
+                .threads(std::thread::available_parallelism().map(|n| n.get().min(6)).unwrap_or(4))
                 .build_parallel();
 
             let tx_w = tx.clone();
@@ -92,9 +84,7 @@ pub fn spawn(
                     if cancel.load(Ordering::Relaxed) || found.load(Ordering::Relaxed) >= limit {
                         return ignore::WalkState::Quit;
                     }
-                    let Ok(entry) = res else {
-                        return ignore::WalkState::Continue;
-                    };
+                    let Ok(entry) = res else { return ignore::WalkState::Continue };
                     let path = entry.path();
                     let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
 
@@ -128,32 +118,18 @@ pub fn spawn(
             });
 
             let total = found.load(Ordering::Relaxed);
-            let _ = tx.send(Msg::Done {
-                total,
-                truncated: total >= limit,
-            });
+            let _ = tx.send(Msg::Done { total, truncated: total >= limit });
             wake();
         })
         .expect("spawn search worker");
 
-    Handle {
-        rx,
-        query: query.to_owned(),
-        via,
-        cancel,
-    }
+    Handle { rx, query: query.to_owned(), via, cancel }
 }
 
 fn contains(path: &Path, needle: &str, case_sensitive: bool) -> bool {
-    let Ok(mut f) = std::fs::File::open(path) else {
-        return false;
-    };
+    let Ok(mut f) = std::fs::File::open(path) else { return false };
     let mut buf = Vec::new();
-    if f.by_ref()
-        .take(MAX_CONTENT_BYTES as u64)
-        .read_to_end(&mut buf)
-        .is_err()
-    {
+    if f.by_ref().take(MAX_CONTENT_BYTES as u64).read_to_end(&mut buf).is_err() {
         return false;
     }
     if buf.contains(&0) {

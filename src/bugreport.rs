@@ -30,11 +30,7 @@ pub fn url() -> String {
 /// What `--version` prints, and for the same reason: with more than one Windows
 /// binary in circulation, which one is running is the first thing to settle.
 pub fn version_line() -> String {
-    format!(
-        "filer {} ({})",
-        env!("CARGO_PKG_VERSION"),
-        std::env::consts::ARCH
-    )
+    format!("filer {} ({})", env!("CARGO_PKG_VERSION"), std::env::consts::ARCH)
 }
 
 /// The OS line, in the shape the form's own PowerShell snippet produces, so a
@@ -85,12 +81,7 @@ fn windows_name() -> String {
     // Not `ProductName` from the registry: on Windows 11 it still reads
     // "Windows 10 Pro", which is the single most misleading string on the
     // machine. The build number is what actually separates the two.
-    let mut name = if info.dwBuildNumber >= 22000 {
-        "Windows 11"
-    } else {
-        "Windows 10"
-    }
-    .to_owned();
+    let mut name = if info.dwBuildNumber >= 22000 { "Windows 11" } else { "Windows 10" }.to_owned();
 
     // "Professional" is how the registry spells the edition; "Pro" is how the
     // box, the About page and everyone else spells it.
@@ -193,11 +184,7 @@ fn reg_dword(name: &str) -> Option<u32> {
 pub fn os_line() -> String {
     // No emulation story to tell here, so the two arch lines would say the same
     // thing twice.
-    format!(
-        "OS: {}\nProcess arch: {}",
-        std::env::consts::OS,
-        std::env::consts::ARCH
-    )
+    format!("OS: {}\nProcess arch: {}", std::env::consts::OS, std::env::consts::ARCH)
 }
 
 /// Percent-encode for a query string.
@@ -225,10 +212,7 @@ mod tests {
 
     #[test]
     fn encodes_the_characters_a_query_string_cannot_carry() {
-        assert_eq!(
-            encode("filer 0.1.0 (x86_64)"),
-            "filer%200.1.0%20%28x86_64%29"
-        );
+        assert_eq!(encode("filer 0.1.0 (x86_64)"), "filer%200.1.0%20%28x86_64%29");
         // The ones that would end the parameter or start another.
         assert_eq!(encode("a&b=c#d"), "a%26b%3Dc%23d");
         // A newline separates the OS line from the architecture line.
@@ -246,10 +230,7 @@ mod tests {
     #[test]
     fn the_url_carries_the_template_and_both_fields() {
         let u = url();
-        assert!(
-            u.starts_with("https://github.com/uchmk/filer/issues/new?"),
-            "{u}"
-        );
+        assert!(u.starts_with("https://github.com/uchmk/filer/issues/new?"), "{u}");
         assert!(u.contains("template=bug_report.yml"), "{u}");
         assert!(u.contains("&version=filer%20"), "{u}");
         assert!(u.contains("&os=OS%3A%20"), "{u}");

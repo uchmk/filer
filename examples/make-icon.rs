@@ -40,11 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let out = root.join("icon.ico");
     let file = std::fs::File::create(&out)?;
     IcoEncoder::new(std::io::BufWriter::new(file)).encode_images(&frames)?;
-    println!(
-        "wrote {} with {} sizes: {SIZES:?}",
-        out.display(),
-        SIZES.len()
-    );
+    println!("wrote {} with {} sizes: {SIZES:?}", out.display(), SIZES.len());
     Ok(())
 }
 

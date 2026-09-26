@@ -7,9 +7,7 @@
 const MAX_ALTERNATIVES: usize = 64;
 
 pub fn matches(pattern: &str, text: &str, case_insensitive: bool) -> bool {
-    expand(pattern)
-        .iter()
-        .any(|p| one(p, text, case_insensitive))
+    expand(pattern).iter().any(|p| one(p, text, case_insensitive))
 }
 
 fn one(pattern: &str, text: &str, case_insensitive: bool) -> bool {

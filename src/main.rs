@@ -2,17 +2,17 @@
 
 mod app;
 mod bugreport;
+mod envreport;
+mod runinfo;
 mod config;
 mod core;
 mod diff;
-mod envreport;
 mod exec;
 mod fs;
 mod glob;
 mod mime;
 mod preview;
 mod rename;
-mod runinfo;
 mod search;
 mod spot;
 mod terminal;
@@ -67,11 +67,7 @@ fn say(text: &str) {
 }
 
 fn parse_cli() -> Cli {
-    let mut cli = Cli {
-        path: None,
-        cwd_file: None,
-        chooser_file: None,
-    };
+    let mut cli = Cli { path: None, cwd_file: None, chooser_file: None };
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
@@ -133,11 +129,7 @@ fn main() -> eframe::Result<()> {
         .ok()
         .or_else(dirs::home_dir)
         .unwrap_or_else(|| PathBuf::from("."));
-    let start = cli
-        .path
-        .as_deref()
-        .map(util::normalize)
-        .unwrap_or_else(|| home.clone());
+    let start = cli.path.as_deref().map(util::normalize).unwrap_or_else(|| home.clone());
 
     let mut viewport = egui::ViewportBuilder::default()
         .with_inner_size([cfg.ui.window_width, cfg.ui.window_height])
@@ -149,10 +141,7 @@ fn main() -> eframe::Result<()> {
     if let Some(icon) = app_icon(ICON_SVG, 256) {
         viewport = viewport.with_icon(icon);
     }
-    let options = eframe::NativeOptions {
-        viewport,
-        ..Default::default()
-    };
+    let options = eframe::NativeOptions { viewport, ..Default::default() };
 
     eframe::run_native(
         "Filer",
@@ -239,11 +228,7 @@ fn app_icon(svg: &[u8], px: u32) -> Option<egui::IconData> {
             [c.red(), c.green(), c.blue(), c.alpha()]
         })
         .collect();
-    Some(egui::IconData {
-        rgba,
-        width: px,
-        height: px,
-    })
+    Some(egui::IconData { rgba, width: px, height: px })
 }
 
 /// Install the fonts `cfg` asks for and fold the outcome back into it: without
@@ -283,13 +268,7 @@ fn install_fonts(
             candidates.push(user_fonts.join(name));
         }
     }
-    for name in [
-        "meiryo.ttc",
-        "YuGothM.ttc",
-        "YuGothR.ttc",
-        "msgothic.ttc",
-        "consola.ttf",
-    ] {
+    for name in ["meiryo.ttc", "YuGothM.ttc", "YuGothR.ttc", "msgothic.ttc", "consola.ttf"] {
         candidates.push(PathBuf::from(r"C:\Windows\Fonts").join(name));
     }
 
@@ -356,9 +335,7 @@ fn install_fonts(
     if has_bold {
         let mut list = bold;
         list.extend(fonts.families[&egui::FontFamily::Monospace].iter().cloned());
-        fonts
-            .families
-            .insert(egui::FontFamily::Name("bold".into()), list);
+        fonts.families.insert(egui::FontFamily::Name("bold".into()), list);
     }
 
     ctx.set_fonts(fonts);
@@ -372,9 +349,7 @@ fn font_stem(path: &std::path::Path) -> String {
 }
 
 fn load_face(fonts: &mut egui::FontDefinitions, path: &std::path::Path, name: &str) -> bool {
-    let Ok(bytes) = std::fs::read(path) else {
-        return false;
-    };
+    let Ok(bytes) = std::fs::read(path) else { return false };
     let mut data = egui::FontData::from_owned(bytes);
     data.index = 0; // .ttc collections: take the first face
     fonts.font_data.insert(name.to_owned(), Arc::new(data));
@@ -383,14 +358,9 @@ fn load_face(fonts: &mut egui::FontDefinitions, path: &std::path::Path, name: &s
 
 /// Where the bold face of a regular font usually lives.
 fn bold_siblings(path: &std::path::Path) -> Vec<PathBuf> {
-    let Some(dir) = path.parent() else {
-        return Vec::new();
-    };
+    let Some(dir) = path.parent() else { return Vec::new() };
     let stem = font_stem(path);
-    let ext = path
-        .extension()
-        .map(|e| e.to_string_lossy().into_owned())
-        .unwrap_or_default();
+    let ext = path.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
     let mut out = Vec::new();
     if let Some(base) = stem.strip_suffix("-Regular") {
         out.push(dir.join(format!("{base}-Bold.{ext}")));
@@ -485,11 +455,7 @@ impl eframe::App for Filer {
         }
         if !self.app.toasts.is_empty()
             || self.app.search.is_some()
-            || self
-                .app
-                .tasks
-                .iter()
-                .any(|t| t.state == app::TaskState::Running)
+            || self.app.tasks.iter().any(|t| t.state == app::TaskState::Running)
         {
             ctx.request_repaint_after(Duration::from_millis(80));
         }
@@ -520,12 +486,7 @@ fn handle_input(app: &mut App, ctx: &egui::Context) {
     let mut swallow_text = false;
     for ev in events {
         match ev {
-            egui::Event::Key {
-                key,
-                pressed: true,
-                modifiers,
-                ..
-            } => {
+            egui::Event::Key { key, pressed: true, modifiers, .. } => {
                 swallow_text = modifiers.alt && !modifiers.ctrl;
                 on_key_event(app, key, &modifiers);
             }
@@ -673,9 +634,7 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
         // The terminal hears every key. The `[term]` layer keeps the few that
         // are the pane's own; the rest become the bytes a shell expects.
         Overlay::None if app.term_focus => {
-            let Some(k) = keys::from_egui(key, modifiers) else {
-                return;
-            };
+            let Some(k) = keys::from_egui(key, modifiers) else { return };
             let mods = terminal::Mods {
                 ctrl: modifiers.command || modifiers.ctrl,
                 alt: modifiers.alt,
@@ -683,19 +642,15 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
             };
             let bytes = match special(key, mods.shift) {
                 Some(s) => {
-                    let app_cursor = app
-                        .term
-                        .as_ref()
-                        .is_some_and(|t| t.with_grid(terminal::app_cursor));
+                    let app_cursor =
+                        app.term.as_ref().is_some_and(|t| t.with_grid(terminal::app_cursor));
                     Some(terminal::encode(s, mods, app_cursor))
                 }
                 // A letter with Ctrl held is a control code; egui sends no
                 // Text event for those, so this is where they are made.
-                None if mods.ctrl => key
-                    .name()
-                    .chars()
-                    .next()
-                    .and_then(|c| terminal::control_code(c.to_ascii_lowercase(), mods.alt)),
+                None if mods.ctrl => key.name().chars().next().and_then(|c| {
+                    terminal::control_code(c.to_ascii_lowercase(), mods.alt)
+                }),
                 None => None,
             };
             app.feed_term_key(k, bytes);
@@ -773,12 +728,7 @@ mod tests {
 
         let at = |x: usize, y: usize| {
             let i = (y * 64 + x) * 4;
-            (
-                icon.rgba[i],
-                icon.rgba[i + 1],
-                icon.rgba[i + 2],
-                icon.rgba[i + 3],
-            )
+            (icon.rgba[i], icon.rgba[i + 1], icon.rgba[i + 2], icon.rgba[i + 3])
         };
         // The middle row is the drawing, scaled to the full width.
         assert_eq!(at(32, 32), (0xff, 0x88, 0x00, 0xff));

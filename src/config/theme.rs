@@ -227,10 +227,7 @@ pub struct Style {
 
 impl Style {
     pub fn fg(c: Color32) -> Self {
-        Self {
-            fg: Some(c),
-            ..Default::default()
-        }
+        Self { fg: Some(c), ..Default::default() }
     }
 
     fn from_raw(r: &RawStyle) -> Self {
@@ -347,10 +344,7 @@ impl Default for Theme {
             hovered: Style::default(),
             hovered_bg: Color32::from_rgb(0x2f, 0x4a, 0x6b),
             inactive_hovered_bg: Color32::from_rgb(0x26, 0x2b, 0x34),
-            preview_hovered: Style {
-                underline: true,
-                ..Default::default()
-            },
+            preview_hovered: Style { underline: true, ..Default::default() },
             find_keyword: Style {
                 fg: Some(Color32::from_rgb(0x1a, 0x1a, 0x1a)),
                 bg: Some(Color32::from_rgb(0xe8, 0xc8, 0x7a)),
@@ -421,10 +415,7 @@ impl Default for Theme {
                 text: "\u{f07b}".into(),
                 fg: Some(Color32::from_rgb(0x7a, 0xb8, 0xf5)),
             },
-            icon_file_default: Icon {
-                text: "\u{f15b}".into(),
-                fg: None,
-            },
+            icon_file_default: Icon { text: "\u{f15b}".into(), fg: None },
             icon_link_default: Icon {
                 text: "\u{f0c1}".into(),
                 fg: Some(Color32::from_rgb(0x6f, 0xd0, 0xd0)),
@@ -440,18 +431,9 @@ impl Theme {
         self.icon_dirs.clear();
         self.icon_exts.clear();
         self.icon_files.clear();
-        self.icon_dir_default = Icon {
-            text: "/".into(),
-            fg: self.icon_dir_default.fg,
-        };
-        self.icon_file_default = Icon {
-            text: " ".into(),
-            fg: None,
-        };
-        self.icon_link_default = Icon {
-            text: "~".into(),
-            fg: self.icon_link_default.fg,
-        };
+        self.icon_dir_default = Icon { text: "/".into(), fg: self.icon_dir_default.fg };
+        self.icon_file_default = Icon { text: " ".into(), fg: None };
+        self.icon_link_default = Icon { text: "~".into(), fg: self.icon_link_default.fg };
     }
 
     /// The color a git sign is drawn in. `Clean` never reaches here, since it
@@ -549,10 +531,7 @@ impl Theme {
         prepend_icons(&mut self.icon_exts, &t.icon.exts);
         prepend_icons(&mut self.icon_files, &t.icon.files);
         for c in &t.icon.conds {
-            let icon = Icon {
-                text: c.text.clone(),
-                fg: c.fg.as_deref().and_then(parse_color),
-            };
+            let icon = Icon { text: c.text.clone(), fg: c.fg.as_deref().and_then(parse_color) };
             match c.cond.as_str() {
                 "dir" => self.icon_dir_default = icon,
                 "link" | "orphan" => self.icon_link_default = icon,
@@ -564,13 +543,7 @@ impl Theme {
     /// Color for an entry, from the first matching `[filetype]` rule.
     pub fn style_for(&self, entry: &Entry, mime: &str) -> Style {
         for r in &self.filetypes {
-            if rule_matches(
-                r.name.as_deref(),
-                r.mime.as_deref(),
-                r.is.as_deref(),
-                entry,
-                mime,
-            ) {
+            if rule_matches(r.name.as_deref(), r.mime.as_deref(), r.is.as_deref(), entry, mime) {
                 return r.style;
             }
         }
@@ -618,13 +591,7 @@ fn prepend_icons(dest: &mut Vec<(String, Icon)>, src: &[IconRule]) {
     let mut v: Vec<(String, Icon)> = src
         .iter()
         .map(|r| {
-            (
-                r.name.clone(),
-                Icon {
-                    text: r.text.clone(),
-                    fg: r.fg.as_deref().and_then(parse_color),
-                },
-            )
+            (r.name.clone(), Icon { text: r.text.clone(), fg: r.fg.as_deref().and_then(parse_color) })
         })
         .collect();
     v.append(dest);
@@ -679,25 +646,16 @@ fn rule_matches(
 // ------------------------------------------------------------ built-in content
 
 fn c(hex: u32) -> Option<Color32> {
-    Some(Color32::from_rgb(
-        (hex >> 16) as u8,
-        (hex >> 8) as u8,
-        hex as u8,
-    ))
+    Some(Color32::from_rgb((hex >> 16) as u8, (hex >> 8) as u8, hex as u8))
 }
 
 fn default_filetypes() -> Vec<FileRule> {
-    let mk =
-        |name: Option<&str>, mime: Option<&str>, is: Option<&str>, col: u32, bold: bool| FileRule {
-            name: name.map(str::to_owned),
-            mime: mime.map(str::to_owned),
-            is: is.map(str::to_owned),
-            style: Style {
-                fg: c(col),
-                bold,
-                ..Default::default()
-            },
-        };
+    let mk = |name: Option<&str>, mime: Option<&str>, is: Option<&str>, col: u32, bold: bool| FileRule {
+        name: name.map(str::to_owned),
+        mime: mime.map(str::to_owned),
+        is: is.map(str::to_owned),
+        style: Style { fg: c(col), bold, ..Default::default() },
+    };
     vec![
         mk(None, None, Some("orphan"), 0xf07178, false),
         mk(None, None, Some("link"), 0x6fd0d0, false),
@@ -707,25 +665,13 @@ fn default_filetypes() -> Vec<FileRule> {
         mk(None, Some("audio/*"), None, 0xe8c87a, false),
         mk(None, Some("application/zip"), None, 0xf07178, false),
         mk(None, Some("application/gzip"), None, 0xf07178, false),
-        mk(
-            None,
-            Some("application/x-7z-compressed"),
-            None,
-            0xf07178,
-            false,
-        ),
+        mk(None, Some("application/x-7z-compressed"), None, 0xf07178, false),
         mk(None, Some("application/vnd.rar"), None, 0xf07178, false),
         mk(None, Some("application/x-tar"), None, 0xf07178, false),
         mk(None, Some("application/zstd"), None, 0xf07178, false),
         mk(None, Some("application/x-xz"), None, 0xf07178, false),
         mk(None, Some("application/pdf"), None, 0xd05151, false),
-        mk(
-            None,
-            Some("application/vnd.microsoft.portable-executable"),
-            None,
-            0x8ed08e,
-            true,
-        ),
+        mk(None, Some("application/vnd.microsoft.portable-executable"), None, 0x8ed08e, true),
         mk(None, Some("application/x-sharedlib"), None, 0x798090, false),
         mk(None, Some("text/*"), None, 0xc8cdd8, false),
         mk(None, None, Some("hidden"), 0x798090, false),
@@ -733,10 +679,7 @@ fn default_filetypes() -> Vec<FileRule> {
 }
 
 fn icon(glyph: &str, col: Option<u32>) -> Icon {
-    Icon {
-        text: glyph.to_owned(),
-        fg: col.and_then(c),
-    }
+    Icon { text: glyph.to_owned(), fg: col.and_then(c) }
 }
 
 fn default_dir_icons() -> Vec<(String, Icon)> {

@@ -17,18 +17,8 @@ const MAX_LEVEL: usize = 4;
 /// A name longer than this is not one anybody reads in an outline.
 const MAX_NAME: usize = 80;
 /// Kinds shown with their kind in front; functions go bare.
-const TAGGED: [&str; 10] = [
-    "class",
-    "struct",
-    "enum",
-    "union",
-    "trait",
-    "interface",
-    "impl",
-    "namespace",
-    "macro",
-    "type",
-];
+const TAGGED: [&str; 10] =
+    ["class", "struct", "enum", "union", "trait", "interface", "impl", "namespace", "macro", "type"];
 
 /// Fed the parse of a file line by line; keeps the first declaration on each
 /// line, nested by how far it is indented.
@@ -104,11 +94,7 @@ fn scopes() -> &'static Scopes {
         Scopes {
             entity: s("entity.name"),
             call: s("meta.function-call"),
-            type_refs: [
-                s("meta.type.annotation"),
-                s("meta.return.type"),
-                s("meta.type.parameters"),
-            ],
+            type_refs: [s("meta.type.annotation"), s("meta.return.type"), s("meta.type.parameters")],
             typescript: [s("source.ts"), s("source.tsx")],
         }
     })
@@ -173,10 +159,7 @@ mod tests {
         let entries = c.finish();
         let lines = src.lines().count();
         assert!(entries.iter().all(|e| e.line < lines), "{entries:?}");
-        entries
-            .into_iter()
-            .map(|e| (e.line, e.level, e.label))
-            .collect()
+        entries.into_iter().map(|e| (e.line, e.level, e.label)).collect()
     }
 
     fn labels(ext: &str, src: &str) -> Vec<String> {
@@ -222,15 +205,10 @@ fn main() {}
 
     #[test]
     fn python_methods_sit_under_their_class() {
-        let src =
-            "class Foo(Base):\n    def method(self):\n        call()\n\ndef top():\n    pass\n";
+        let src = "class Foo(Base):\n    def method(self):\n        call()\n\ndef top():\n    pass\n";
         assert_eq!(
             outline("py", src),
-            [
-                (0, 1, "class Foo".into()),
-                (1, 2, "  method".into()),
-                (4, 1, "top".into())
-            ]
+            [(0, 1, "class Foo".into()), (1, 2, "  method".into()), (4, 1, "top".into())]
         );
     }
 
@@ -251,44 +229,24 @@ const arrow = (x) => x;
 ";
         assert_eq!(
             labels("ts", src),
-            [
-                "f",
-                "class C",
-                "  method",
-                "interface I",
-                "type T",
-                "enum E",
-                "namespace N",
-                "arrow"
-            ]
+            ["f", "class C", "  method", "interface I", "type T", "enum E", "namespace N", "arrow"]
         );
         // JSX.Element in a return type is a reference, not a namespace.
-        assert_eq!(
-            labels(
-                "tsx",
-                "export function App(): JSX.Element { return <Foo /> }\n"
-            ),
-            ["App"]
-        );
+        assert_eq!(labels("tsx", "export function App(): JSX.Element { return <Foo /> }\n"), ["App"]);
     }
 
     #[test]
     fn go_and_c() {
         let go = "package main\n\nfunc main() { f() }\nfunc (r *R) Method() {}\ntype S struct {}\n";
         assert_eq!(labels("go", go), ["main", "Method", "type S"]);
-        let c =
-            "#include <stdio.h>\nstruct s { int a; };\nint main(void) {\n    printf(\"x\");\n}\n";
+        let c = "#include <stdio.h>\nstruct s { int a; };\nint main(void) {\n    printf(\"x\");\n}\n";
         assert_eq!(labels("c", c), ["struct s", "main"]);
     }
 
     #[test]
     fn toml_tables() {
-        let src =
-            "[package]\nname = \"x\"\n\n[dependencies.serde] # pinned\nversion = \"1\"\n[[bin]]\n";
-        assert_eq!(
-            labels("toml", src),
-            ["[package]", "[dependencies.serde]", "[[bin]]"]
-        );
+        let src = "[package]\nname = \"x\"\n\n[dependencies.serde] # pinned\nversion = \"1\"\n[[bin]]\n";
+        assert_eq!(labels("toml", src), ["[package]", "[dependencies.serde]", "[[bin]]"]);
     }
 
     #[test]

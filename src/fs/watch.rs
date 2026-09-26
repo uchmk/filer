@@ -29,11 +29,7 @@ impl Watcher {
             .name("watch".into())
             .spawn(move || run(ev_tx, cmd_rx, wake))
             .is_ok();
-        Self {
-            tx: spawned.then_some(cmd_tx),
-            sent: HashSet::new(),
-            rx: ev_rx,
-        }
+        Self { tx: spawned.then_some(cmd_tx), sent: HashSet::new(), rx: ev_rx }
     }
 
     /// Ask for the watched set to become exactly `dirs`.
@@ -51,11 +47,7 @@ impl Watcher {
 
 /// The watcher thread: owns the `notify` watcher and every call that touches a
 /// directory handle.
-fn run(
-    ev_tx: Sender<PathBuf>,
-    cmd_rx: Receiver<HashSet<PathBuf>>,
-    wake: impl Fn() + Send + 'static,
-) {
+fn run(ev_tx: Sender<PathBuf>, cmd_rx: Receiver<HashSet<PathBuf>>, wake: impl Fn() + Send + 'static) {
     let Ok(mut inner) = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         let Ok(ev) = res else { return };
         if matches!(ev.kind, notify::EventKind::Access(_)) {
@@ -63,11 +55,7 @@ fn run(
         }
         let mut sent = false;
         for p in ev.paths {
-            let dir = if p.is_dir() {
-                p.clone()
-            } else {
-                p.parent().map(Path::to_path_buf).unwrap_or(p)
-            };
+            let dir = if p.is_dir() { p.clone() } else { p.parent().map(Path::to_path_buf).unwrap_or(p) };
             if ev_tx.send(dir).is_ok() {
                 sent = true;
             }
@@ -130,11 +118,7 @@ mod tests {
     fn sync_posts_only_when_the_set_changes() {
         let (cmd_tx, cmd_rx) = crossbeam_channel::unbounded::<HashSet<PathBuf>>();
         let (_ev_tx, ev_rx) = crossbeam_channel::unbounded::<PathBuf>();
-        let mut w = Watcher {
-            tx: Some(cmd_tx),
-            sent: HashSet::new(),
-            rx: ev_rx,
-        };
+        let mut w = Watcher { tx: Some(cmd_tx), sent: HashSet::new(), rx: ev_rx };
 
         let (a, b) = (Path::new("a"), Path::new("b"));
         w.sync([a, b]);
@@ -152,11 +136,7 @@ mod tests {
     fn sync_keeps_trying_after_the_thread_is_gone() {
         let (cmd_tx, cmd_rx) = crossbeam_channel::unbounded::<HashSet<PathBuf>>();
         let (_ev_tx, ev_rx) = crossbeam_channel::unbounded::<PathBuf>();
-        let mut w = Watcher {
-            tx: Some(cmd_tx),
-            sent: HashSet::new(),
-            rx: ev_rx,
-        };
+        let mut w = Watcher { tx: Some(cmd_tx), sent: HashSet::new(), rx: ev_rx };
         drop(cmd_rx);
 
         w.sync([Path::new("a")]);

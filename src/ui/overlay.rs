@@ -8,10 +8,7 @@ pub fn which(app: &App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let theme = &app.cfg.theme;
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, CornerRadius::ZERO, theme.bg_alt);
-    painter.line_segment(
-        [rect.left_top(), rect.right_top()],
-        Stroke::new(1.0, theme.border),
-    );
+    painter.line_segment([rect.left_top(), rect.right_top()], Stroke::new(1.0, theme.border));
 
     let cols = theme.which_cols;
     let col_w = (rect.width() - 20.0) / cols as f32;
@@ -31,11 +28,7 @@ pub fn which(app: &App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         );
         let kw = g.size().x;
         painter.galley(egui::pos2(x, y), g, theme.fg);
-        let text = if desc.is_empty() {
-            raw.clone()
-        } else {
-            desc.clone()
-        };
+        let text = if desc.is_empty() { raw.clone() } else { desc.clone() };
         painter.text(
             egui::pos2(x + kw + 10.0, y),
             Align2::LEFT_TOP,
@@ -116,27 +109,20 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
     let accent = app.cfg.theme.cwd.fg.unwrap_or(theme_fg);
 
     ui.painter().rect_filled(rect, CornerRadius::ZERO, theme_bg);
-    ui.painter().line_segment(
-        [rect.left_top(), rect.right_top()],
-        Stroke::new(1.0, theme_border),
-    );
+    ui.painter()
+        .line_segment([rect.left_top(), rect.right_top()], Stroke::new(1.0, theme_border));
 
     // Tab hands the listing to the scan pool, so the answer can be a moment
     // behind on a slow share. Say so rather than look like the key did nothing.
     let waiting = app.completing();
     let gutter = if waiting { 22.0 } else { 0.0 };
 
-    let Overlay::Input(ov) = &mut app.overlay else {
-        return;
-    };
+    let Overlay::Input(ov) = &mut app.overlay else { return };
     let title = format!("{}:", ov.title);
     let g = ui.painter().layout_no_wrap(title, f.clone(), accent);
     let tw = g.size().x;
-    ui.painter().galley(
-        egui::pos2(rect.left() + 10.0, rect.center().y - g.size().y / 2.0),
-        g,
-        accent,
-    );
+    ui.painter()
+        .galley(egui::pos2(rect.left() + 10.0, rect.center().y - g.size().y / 2.0), g, accent);
 
     let field = Rect::from_min_max(
         egui::pos2(rect.left() + tw + 18.0, rect.top() + 5.0),
@@ -163,14 +149,9 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
         app.input_changed();
     }
     if waiting {
-        let g = ui
-            .painter()
-            .layout_no_wrap("…".into(), f.clone(), theme_border);
+        let g = ui.painter().layout_no_wrap("…".into(), f.clone(), theme_border);
         ui.painter().galley(
-            egui::pos2(
-                rect.right() - 10.0 - g.size().x,
-                rect.center().y - g.size().y / 2.0,
-            ),
+            egui::pos2(rect.right() - 10.0 - g.size().x, rect.center().y - g.size().y / 2.0),
             g,
             theme_border,
         );
@@ -187,14 +168,7 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
 /// A panel rather than an overlay on purpose: `Act::Quick` takes no keys, so
 /// `j` and `k` keep walking the list and this follows them down it. `<A-j>` /
 /// `<A-k>` scroll it, since it shares `preview_offset` with the side column.
-pub fn quick(
-    app: &mut App,
-    ui: &mut Ui,
-    full: Rect,
-    f: &FontId,
-    row_h: f32,
-    queued: &mut Vec<Act>,
-) {
+pub fn quick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queued: &mut Vec<Act>) {
     dim(ui, full);
     let theme = app.cfg.theme.clone();
     let name = match app.tabs[app.active].current.hovered() {
@@ -222,12 +196,8 @@ pub fn quick(
 /// "3 files" answers "what is this about to run on" before it runs.
 pub fn shell_hint(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bottom: f32) {
     let theme = &app.cfg.theme;
-    let Overlay::Input(ov) = &app.overlay else {
-        return;
-    };
-    let InputKind::Shell { block } = &ov.kind else {
-        return;
-    };
+    let Overlay::Input(ov) = &app.overlay else { return };
+    let InputKind::Shell { block } = &ov.kind else { return };
 
     let n = app.tab().targets().len();
     let what = match n {
@@ -237,20 +207,12 @@ pub fn shell_hint(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bo
     };
     // The waiting half is worth saying here too: `;` and `:` differ by nothing
     // visible once the prompt is open.
-    let waits = if *block {
-        "waits for it"
-    } else {
-        "returns at once"
-    };
-    let text =
-        format!("$@ all · $0 first · $1 second · no placeholder → appended    ({what}, {waits})");
+    let waits = if *block { "waits for it" } else { "returns at once" };
+    let text = format!("$@ all · $0 first · $1 second · no placeholder → appended    ({what}, {waits})");
 
     let rect = Rect::from_min_max(
         egui::pos2(full.left() + 20.0, bottom - row_h - 16.0),
-        egui::pos2(
-            full.left() + 20.0 + (full.width() - 40.0).min(900.0),
-            bottom - 6.0,
-        ),
+        egui::pos2(full.left() + 20.0 + (full.width() - 40.0).min(900.0), bottom - 6.0),
     );
     let painter = ui.painter();
     painter.rect_filled(rect, CornerRadius::same(6), theme.bg_alt);
@@ -284,20 +246,13 @@ const LEGEND: &str = "{name} {ext} {n} {n:3} zero-padded  ·  s/pattern/replacem
 pub fn bulk(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bottom: f32) {
     const MAX_ROWS: usize = 14;
     let theme = &app.cfg.theme;
-    let Overlay::Input(ov) = &app.overlay else {
-        return;
-    };
-    let InputKind::Bulk { paths } = &ov.kind else {
-        return;
-    };
+    let Overlay::Input(ov) = &app.overlay else { return };
+    let InputKind::Bulk { paths } = &ov.kind else { return };
 
     let (rows, trouble) = match app.bulk_preview(paths, &ov.text) {
         Ok(rows) => {
             let bad = rows.iter().filter(|r| r.problem.is_some()).count();
-            (
-                rows,
-                (bad > 0).then(|| format!("{bad} name(s) cannot be used — Enter is refused")),
-            )
+            (rows, (bad > 0).then(|| format!("{bad} name(s) cannot be used — Enter is refused")))
         }
         // A rule that does not parse yet is the normal state halfway through
         // typing one, so it reads as a note rather than an error.
@@ -307,16 +262,14 @@ pub fn bulk(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bottom: 
     let shown = rows.len().min(MAX_ROWS);
     // +1 for the legend, which is always there: it is a reference, and hiding
     // it once someone starts typing takes it away exactly when it is wanted.
-    let lines = 1 + shown + usize::from(rows.len() > shown) + usize::from(trouble.is_some());
+    let lines =
+        1 + shown + usize::from(rows.len() > shown) + usize::from(trouble.is_some());
     let h = row_h * lines as f32 + 20.0;
     // A long selection would push the top of the panel off a short window.
     let top = (bottom - h - 6.0).max(full.top() + 4.0);
     let rect = Rect::from_min_max(
         egui::pos2(full.left() + 20.0, top),
-        egui::pos2(
-            full.left() + 20.0 + (full.width() - 40.0).min(900.0),
-            bottom - 6.0,
-        ),
+        egui::pos2(full.left() + 20.0 + (full.width() - 40.0).min(900.0), bottom - 6.0),
     );
     let painter = ui.painter();
     painter.rect_filled(rect, CornerRadius::same(6), theme.bg_alt);
@@ -440,25 +393,13 @@ struct HelpRow {
 
 impl HelpRow {
     fn blank() -> Self {
-        Self {
-            keys: String::new(),
-            text: String::new(),
-            raw: String::new(),
-            warning: false,
-            goes_to: None,
-        }
+        Self { keys: String::new(), text: String::new(), raw: String::new(), warning: false, goes_to: None }
     }
     fn heading(k: &str) -> Self {
-        Self {
-            keys: k.into(),
-            ..Self::blank()
-        }
+        Self { keys: k.into(), ..Self::blank() }
     }
     fn said(text: String) -> Self {
-        Self {
-            text,
-            ..Self::blank()
-        }
+        Self { text, ..Self::blank() }
     }
 }
 
@@ -472,23 +413,12 @@ impl HelpRow {
 fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
     let mut out = vec![HelpRow::heading("config")];
     for dir in dirs {
-        let here: Vec<&std::path::PathBuf> = app
-            .cfg
-            .loaded
-            .iter()
-            .filter(|p| p.parent() == Some(dir.as_path()))
-            .collect();
+        let here: Vec<&std::path::PathBuf> =
+            app.cfg.loaded.iter().filter(|p| p.parent() == Some(dir.as_path())).collect();
         out.push(HelpRow {
             text: format!("{}{}", dir.display(), std::path::MAIN_SEPARATOR),
-            raw: if here.is_empty() {
-                "nothing here".into()
-            } else {
-                String::new()
-            },
-            goes_to: Some(Act::Cd {
-                target: dir.display().to_string(),
-                interactive: false,
-            }),
+            raw: if here.is_empty() { "nothing here".into() } else { String::new() },
+            goes_to: Some(Act::Cd { target: dir.display().to_string(), interactive: false }),
             ..HelpRow::blank()
         });
         for p in here {
@@ -501,12 +431,7 @@ fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
     }
     // A file from somewhere else entirely: `FILER_CONFIG_HOME` moved after it
     // was read, or a path no longer under any searched directory.
-    for p in app
-        .cfg
-        .loaded
-        .iter()
-        .filter(|p| !p.parent().is_some_and(|d| dirs.iter().any(|x| x == d)))
-    {
+    for p in app.cfg.loaded.iter().filter(|p| !p.parent().is_some_and(|d| dirs.iter().any(|x| x == d))) {
         out.push(HelpRow {
             text: p.display().to_string(),
             goes_to: Some(Act::Reveal(p.display().to_string())),
@@ -514,11 +439,7 @@ fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
         });
     }
     for w in &app.cfg.warnings {
-        out.push(HelpRow {
-            text: w.clone(),
-            warning: true,
-            ..HelpRow::blank()
-        });
+        out.push(HelpRow { text: w.clone(), warning: true, ..HelpRow::blank() });
     }
     out
 }
@@ -534,20 +455,14 @@ pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
     // before the key list answers "what is bound to what".
     let mut lines = config_rows(app, &crate::config::config_dirs());
     if app.cfg.loaded.is_empty() {
-        lines.push(HelpRow::said(
-            "(nothing found in either; the defaults are in use)".into(),
-        ));
+        lines.push(HelpRow::said("(nothing found in either; the defaults are in use)".into()));
     }
     lines.push(HelpRow::blank());
     lines.push(HelpRow::heading("keys"));
     for b in &app.cfg.keymap.mgr {
         lines.push(HelpRow {
             keys: crate::config::keys::render_seq(&b.on),
-            text: if b.desc.is_empty() {
-                b.raw.clone()
-            } else {
-                b.desc.clone()
-            },
+            text: if b.desc.is_empty() { b.raw.clone() } else { b.desc.clone() },
             raw: b.raw.clone(),
             warning: false,
             goes_to: None,
@@ -556,17 +471,17 @@ pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
 
     let rows = ((inner.height() / row_h).floor() as usize).max(1);
     let start = app.help_scroll.min(lines.len().saturating_sub(1));
-    let pointer = ui
-        .rect_contains_pointer(inner)
-        .then(|| ui.ctx().pointer_latest_pos())
-        .flatten();
+    let pointer = ui.rect_contains_pointer(inner).then(|| ui.ctx().pointer_latest_pos()).flatten();
     let clicked = ui.input(|i| i.pointer.primary_clicked());
     let mut went = None;
 
     let painter = ui.painter_at(inner);
     for (i, row) in lines[start..].iter().take(rows).enumerate() {
         let y = inner.top() + i as f32 * row_h;
-        let at = Rect::from_min_size(egui::pos2(inner.left(), y), Vec2::new(inner.width(), row_h));
+        let at = Rect::from_min_size(
+            egui::pos2(inner.left(), y),
+            Vec2::new(inner.width(), row_h),
+        );
         // Only the config paths answer to the pointer; a key list is a key
         // list and a row that lit up under the cursor would only mislead.
         let live = row.goes_to.is_some() && pointer.is_some_and(|p| at.contains(p));
@@ -669,10 +584,7 @@ pub fn tasks(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
             color,
         );
         y += row_h;
-        let bar = Rect::from_min_size(
-            egui::pos2(inner.left(), y + 2.0),
-            Vec2::new(inner.width(), 4.0),
-        );
+        let bar = Rect::from_min_size(egui::pos2(inner.left(), y + 2.0), Vec2::new(inner.width(), 4.0));
         painter.rect_filled(bar, CornerRadius::same(2), theme.border);
         painter.rect_filled(
             Rect::from_min_size(bar.min, Vec2::new(bar.width() * t.fraction(), 4.0)),
@@ -693,13 +605,7 @@ pub fn tasks(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         if let Some(eta) = t.eta() {
             detail.push_str(&format!(" · {} left", crate::util::fmt_duration(eta)));
         }
-        painter.text(
-            egui::pos2(inner.left(), y),
-            Align2::LEFT_TOP,
-            detail,
-            f.clone(),
-            theme.fg_dim,
-        );
+        painter.text(egui::pos2(inner.left(), y), Align2::LEFT_TOP, detail, f.clone(), theme.fg_dim);
         y += row_h;
         for e in t.errors.iter().take(3) {
             painter.text(
@@ -718,38 +624,20 @@ pub fn tasks(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     }
 }
 
-pub fn confirm(
-    app: &mut App,
-    ui: &mut Ui,
-    full: Rect,
-    f: &FontId,
-    row_h: f32,
-    queued: &mut Vec<Act>,
-) {
+pub fn confirm(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queued: &mut Vec<Act>) {
     dim(ui, full);
-    let Overlay::Confirm(c) = &app.overlay else {
-        return;
-    };
+    let Overlay::Confirm(c) = &app.overlay else { return };
 
     // Measure the buttons before the frame is sized. Six of them do not fit on
     // one row at this width, and the row used to be laid out without ever
     // comparing against the right edge: the last one — Cancel, the only way out
     // — was sliced in half by the modal's clip and read as `[q] Ca`.
-    let labels: Vec<String> = c
-        .options
-        .iter()
-        .map(|(k, l)| format!(" [{k}] {l} "))
-        .collect();
+    let labels: Vec<String> =
+        c.options.iter().map(|(k, l)| format!(" [{k}] {l} ")).collect();
     let fg = app.cfg.theme.fg;
     let widths: Vec<f32> = labels
         .iter()
-        .map(|t| {
-            ui.painter()
-                .layout_no_wrap(t.clone(), f.clone(), fg)
-                .size()
-                .x
-                + 6.0
-        })
+        .map(|t| ui.painter().layout_no_wrap(t.clone(), f.clone(), fg).size().x + 6.0)
         .collect();
 
     let width = (full.width() * 0.6).min(760.0);
@@ -826,17 +714,10 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
     let hovered_bg = app.cfg.theme.hovered_bg;
     let accent = app.cfg.theme.which_cand.fg.unwrap_or(theme_fg);
     let hl_fg = app.cfg.theme.find_keyword.fg.unwrap_or(theme_fg);
-    let hl_bg = app
-        .cfg
-        .theme
-        .find_keyword
-        .bg
-        .unwrap_or(egui::Color32::TRANSPARENT);
+    let hl_bg = app.cfg.theme.find_keyword.bg.unwrap_or(egui::Color32::TRANSPARENT);
 
     let field = Rect::from_min_size(inner.min, Vec2::new(inner.width(), row_h + 4.0));
-    let Overlay::Pick(p) = &mut app.overlay else {
-        return;
-    };
+    let Overlay::Pick(p) = &mut app.overlay else { return };
 
     let before = p.query.clone();
     let pick_id = egui::Id::new("filer-pick");
@@ -867,16 +748,12 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
     );
     let painter = ui.painter_at(list);
     let rows = ((list.height() / row_h).floor() as usize).max(1);
-    let start = p
-        .cursor
-        .saturating_sub(rows / 2)
-        .min(p.matches.len().saturating_sub(rows));
+    let start = p.cursor.saturating_sub(rows / 2).min(p.matches.len().saturating_sub(rows));
 
     let mut clicked: Option<usize> = None;
     for (i, (idx, _score, positions)) in p.matches[start..].iter().take(rows).enumerate() {
         let y = list.top() + i as f32 * row_h;
-        let row_rect =
-            Rect::from_min_size(egui::pos2(list.left(), y), Vec2::new(list.width(), row_h));
+        let row_rect = Rect::from_min_size(egui::pos2(list.left(), y), Vec2::new(list.width(), row_h));
         if start + i == p.cursor {
             painter.rect_filled(row_rect, CornerRadius::same(3), hovered_bg);
         }
@@ -894,11 +771,7 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
                 egui::TextFormat {
                     font_id: f.clone(),
                     color: if hl { hl_fg } else { theme_fg },
-                    background: if hl {
-                        hl_bg
-                    } else {
-                        egui::Color32::TRANSPARENT
-                    },
+                    background: if hl { hl_bg } else { egui::Color32::TRANSPARENT },
                     ..Default::default()
                 },
             );
@@ -943,9 +816,7 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
 
     dim(ui, full);
     let theme = app.cfg.theme.clone();
-    let Overlay::Diff(ov) = &mut app.overlay else {
-        return;
-    };
+    let Overlay::Diff(ov) = &mut app.overlay else { return };
     let title = format!(
         "{}  ↔  {} — n/N differences, q to close",
         crate::util::file_name(&ov.left),
@@ -963,41 +834,25 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         Some(Outcome::Error(e)) => return note(e, theme.progress_error),
         Some(Outcome::Identical) => return note("The two files are identical.", theme.fg_dim),
         Some(Outcome::Binary { .. }) => {
-            return note(
-                "Not text on both sides, and the bytes differ.",
-                theme.fg_dim,
-            )
+            return note("Not text on both sides, and the bytes differ.", theme.fg_dim)
         }
-        Some(Outcome::Rows {
-            rows,
-            truncated,
-            rough,
-        }) => (rows, *truncated, *rough),
+        Some(Outcome::Rows { rows, truncated, rough }) => (rows, *truncated, *rough),
     };
 
     // One row is given up to the footer, but never the last one.
     let visible = ((inner.height() / row_h).floor() as usize).max(2) - 1;
     // Told to the keys, which otherwise cannot know where scrolling stops.
     ov.rows = visible;
-    ov.offset = ov
-        .offset
-        .min(rows.len().saturating_sub(visible.min(rows.len())));
+    ov.offset = ov.offset.min(rows.len().saturating_sub(visible.min(rows.len())));
     let top = ov.offset;
 
     // Two equal halves with a hairline between them.
     let mid = inner.center().x;
     painter.line_segment(
-        [
-            egui::pos2(mid, inner.top()),
-            egui::pos2(mid, inner.bottom()),
-        ],
+        [egui::pos2(mid, inner.top()), egui::pos2(mid, inner.bottom())],
         Stroke::new(1.0, theme.border),
     );
-    let cell = painter
-        .layout_no_wrap("M".repeat(20), f.clone(), theme.fg)
-        .size()
-        .x
-        / 20.0;
+    let cell = painter.layout_no_wrap("M".repeat(20), f.clone(), theme.fg).size().x / 20.0;
     let half = (mid - inner.left() - 12.0).max(0.0);
     let cols = ((half - 5.0 * cell) / cell).max(4.0) as usize;
 
@@ -1022,11 +877,7 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
             painter.text(
                 egui::pos2(x, y),
                 Align2::LEFT_TOP,
-                format!(
-                    "{:>4} {}",
-                    l.no,
-                    crate::util::ellipsize_middle(&l.text, cols)
-                ),
+                format!("{:>4} {}", l.no, crate::util::ellipsize_middle(&l.text, cols)),
                 f.clone(),
                 theme.fg,
             );
@@ -1034,12 +885,7 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         y += row_h;
     }
 
-    let mut foot = format!(
-        "{}–{} of {}",
-        top + 1,
-        (top + visible).min(rows.len()),
-        rows.len()
-    );
+    let mut foot = format!("{}–{} of {}", top + 1, (top + visible).min(rows.len()), rows.len());
     if rough {
         foot.push_str("  ·  too large to line up exactly");
     }
@@ -1058,11 +904,7 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
 pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     dim(ui, full);
     let sections = app.spot_sections();
-    let name = app.tabs[app.active]
-        .current
-        .hovered()
-        .map(|e| e.name.clone())
-        .unwrap_or_default();
+    let name = app.tabs[app.active].current.hovered().map(|e| e.name.clone()).unwrap_or_default();
     let rect = modal_rect(full, 0.7, 0.7);
     let title = format!("Spot: {name} — <Esc> to close");
     let inner = modal_frame(ui, rect, &app.cfg.theme, &title, f, row_h);
@@ -1070,13 +912,7 @@ pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     let painter = ui.painter_at(inner);
 
     if sections.is_empty() {
-        painter.text(
-            inner.left_top(),
-            Align2::LEFT_TOP,
-            "Nothing to spot",
-            f.clone(),
-            theme.fg_dim,
-        );
+        painter.text(inner.left_top(), Align2::LEFT_TOP, "Nothing to spot", f.clone(), theme.fg_dim);
         return;
     }
 
@@ -1095,21 +931,12 @@ pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         }
     }
 
-    let Overlay::Spot(ov) = &mut app.overlay else {
-        return;
-    };
+    let Overlay::Spot(ov) = &mut app.overlay else { return };
     ov.cursor = ov.cursor.min(n.saturating_sub(1));
     let visible = ((inner.height() / row_h).floor() as usize).max(1);
-    let at = lines
-        .iter()
-        .position(|l| l.0 == Some(ov.cursor))
-        .unwrap_or(0);
+    let at = lines.iter().position(|l| l.0 == Some(ov.cursor)).unwrap_or(0);
     // Keep the section header in view when the cursor is on its first row.
-    let top = if at > 0 && lines[at - 1].0.is_none() {
-        at - 1
-    } else {
-        at
-    };
+    let top = if at > 0 && lines[at - 1].0.is_none() { at - 1 } else { at };
     if top < ov.scroll {
         ov.scroll = top;
     } else if at >= ov.scroll + visible {
@@ -1124,20 +951,11 @@ pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         let y = inner.top() + i as f32 * row_h;
         match row {
             None => {
-                painter.text(
-                    egui::pos2(inner.left(), y),
-                    Align2::LEFT_TOP,
-                    *key,
-                    f.clone(),
-                    accent,
-                );
+                painter.text(egui::pos2(inner.left(), y), Align2::LEFT_TOP, *key, f.clone(), accent);
             }
             Some(r) => {
                 if *r == ov.cursor {
-                    let band = Rect::from_min_size(
-                        egui::pos2(inner.left(), y),
-                        Vec2::new(inner.width(), row_h),
-                    );
+                    let band = Rect::from_min_size(egui::pos2(inner.left(), y), Vec2::new(inner.width(), row_h));
                     painter.rect_filled(band, CornerRadius::same(3), theme.hovered_bg);
                 }
                 painter.text(
@@ -1209,14 +1027,9 @@ mod help_config_rows {
         let rows = config_rows(&app, &[yazi.clone(), mine.clone()]);
         let text: Vec<&str> = rows.iter().map(|r| r.text.as_str()).collect();
 
+        assert!(text.iter().any(|t| t.starts_with(&yazi.display().to_string())), "{text:?}");
         assert!(
-            text.iter()
-                .any(|t| t.starts_with(&yazi.display().to_string())),
-            "{text:?}"
-        );
-        assert!(
-            text.iter()
-                .any(|t| t.starts_with(&mine.display().to_string())),
+            text.iter().any(|t| t.starts_with(&mine.display().to_string())),
             "the directory nothing was found in is named anyway: {text:?}",
         );
         assert_eq!(
@@ -1227,19 +1040,10 @@ mod help_config_rows {
         assert!(text.iter().any(|t| t.trim() == "keymap.toml"), "{text:?}");
 
         // The paths go somewhere; the heading and the warning do not.
-        let file = rows
-            .iter()
-            .find(|r| r.text.trim() == "keymap.toml")
-            .unwrap();
-        assert!(
-            matches!(file.goes_to, Some(Act::Reveal(_))),
-            "a file is revealed in the list"
-        );
+        let file = rows.iter().find(|r| r.text.trim() == "keymap.toml").unwrap();
+        assert!(matches!(file.goes_to, Some(Act::Reveal(_))), "a file is revealed in the list");
         let empty = rows.iter().find(|r| r.raw == "nothing here").unwrap();
-        assert!(
-            matches!(empty.goes_to, Some(Act::Cd { .. })),
-            "a directory is opened"
-        );
+        assert!(matches!(empty.goes_to, Some(Act::Cd { .. })), "a directory is opened");
         let heading = rows.iter().find(|r| r.keys == "config").unwrap();
         assert!(heading.goes_to.is_none(), "a heading is not a link");
         let warned = rows.iter().find(|r| r.warning).unwrap();

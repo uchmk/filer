@@ -15,11 +15,7 @@ pub enum Rule {
     /// A whole new name, with `{name}`, `{ext}` and `{n}` filled in.
     Template(Vec<Part>),
     /// A regular expression over the whole name, sed's spelling.
-    Subst {
-        re: fancy_regex::Regex,
-        rep: String,
-        all: bool,
-    },
+    Subst { re: fancy_regex::Regex, rep: String, all: bool },
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -40,14 +36,8 @@ pub enum Part {
 /// parser stopped taking it would be worse than no legend at all, so the two
 /// are tied together here rather than by remembering.
 #[cfg(test)]
-pub const LEGEND_EXAMPLES: &[&str] = &[
-    "{name}{ext}",
-    "{n}",
-    "shot-{n:3}{ext}",
-    "s/a/b/",
-    "s/a/b/g",
-    "s/a/b/i",
-];
+pub const LEGEND_EXAMPLES: &[&str] =
+    &["{name}{ext}", "{n}", "shot-{n:3}{ext}", "s/a/b/", "s/a/b/g", "s/a/b/i"];
 
 /// Read the prompt. Text starting with `s/` is a substitution, as in sed and
 /// vim; anything else is a template, so the common case — typing a new name
@@ -69,11 +59,7 @@ pub fn parse_rule(text: &str) -> Result<Rule, String> {
             false => parts[0].clone(),
         };
         let re = fancy_regex::Regex::new(&pattern).map_err(|e| format!("{e}"))?;
-        return Ok(Rule::Subst {
-            re,
-            rep: parts[1].clone(),
-            all: flags.contains('g'),
-        });
+        return Ok(Rule::Subst { re, rep: parts[1].clone(), all: flags.contains('g') });
     }
     Ok(Rule::Template(parse_template(text)?))
 }
@@ -170,11 +156,8 @@ pub fn plan(paths: &[PathBuf], text: &str, taken: &BTreeSet<String>) -> Result<V
         })
         .collect();
     // The names this batch gives up. Only a file that actually moves does.
-    let vacated: BTreeSet<&str> = named
-        .iter()
-        .filter(|(from, to)| from != to)
-        .map(|(from, _)| from.as_str())
-        .collect();
+    let vacated: BTreeSet<&str> =
+        named.iter().filter(|(from, to)| from != to).map(|(from, _)| from.as_str()).collect();
 
     let mut rows: Vec<Row> = Vec::with_capacity(paths.len());
     let mut seen: BTreeSet<String> = BTreeSet::new();
@@ -194,11 +177,7 @@ pub fn plan(paths: &[PathBuf], text: &str, taken: &BTreeSet<String>) -> Result<V
         } else {
             None
         };
-        rows.push(Row {
-            from: from.clone(),
-            to,
-            problem,
-        });
+        rows.push(Row { from: from.clone(), to, problem });
     }
     Ok(rows)
 }
@@ -239,19 +218,14 @@ pub enum Step {
 /// The order to carry out `rows` in. Rows whose name does not change are left
 /// out entirely.
 pub fn order(rows: &[(String, String)]) -> Vec<Step> {
-    let mut pending: Vec<usize> = (0..rows.len())
-        .filter(|&i| rows[i].0 != rows[i].1)
-        .collect();
+    let mut pending: Vec<usize> = (0..rows.len()).filter(|&i| rows[i].0 != rows[i].1).collect();
     // The batch's own files, as long as they are still under their old names.
     let mut live: HashSet<&str> = pending.iter().map(|&i| rows[i].0.as_str()).collect();
     let mut parked: HashSet<usize> = HashSet::new();
     let mut out = Vec::new();
 
     while !pending.is_empty() {
-        match pending
-            .iter()
-            .position(|&i| !live.contains(rows[i].1.as_str()))
-        {
+        match pending.iter().position(|&i| !live.contains(rows[i].1.as_str())) {
             Some(at) => {
                 let i = pending.remove(at);
                 live.remove(rows[i].0.as_str());
@@ -327,10 +301,7 @@ mod tests {
 
         let rows = plan_of(&["a-b"], r"s/-/\//");
         assert_eq!(rows[0].to, "a/b");
-        assert!(
-            rows[0].problem.is_some(),
-            "a separator in a name is refused"
-        );
+        assert!(rows[0].problem.is_some(), "a separator in a name is refused");
     }
 
     #[test]
@@ -355,10 +326,7 @@ mod tests {
         let rows = plan_of(&["a.txt", "b.txt"], "same.txt");
 
         assert!(rows[0].problem.is_none(), "the first one can have it");
-        assert_eq!(
-            rows[1].problem.as_deref(),
-            Some("two files would get this name")
-        );
+        assert_eq!(rows[1].problem.as_deref(), Some("two files would get this name"));
     }
 
     /// A name already in the directory is in the way unless the file holding it
@@ -366,10 +334,8 @@ mod tests {
     /// does not match a file leaves that file exactly where it was.
     #[test]
     fn a_name_in_use_is_a_problem_unless_its_owner_actually_moves() {
-        let taken: BTreeSet<String> = ["a.txt", "b.txt", "bystander.txt"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+        let taken: BTreeSet<String> =
+            ["a.txt", "b.txt", "bystander.txt"].iter().map(|s| s.to_string()).collect();
 
         let rows = plan(&names(&["a.txt"]), "bystander.txt", &taken).unwrap();
         assert!(rows[0].problem.is_some(), "nothing frees bystander.txt");
@@ -379,26 +345,15 @@ mod tests {
         // preview promised a rename that failed at the last moment.
         let rows = plan(&names(&["a.txt", "b.txt"]), "s/a\\.txt/b.txt/", &taken).unwrap();
         assert_eq!(rows[0].to, "b.txt");
-        assert_eq!(
-            rows[0].problem.as_deref(),
-            Some("already in this directory")
-        );
+        assert_eq!(rows[0].problem.as_deref(), Some("already in this directory"));
 
         // Now b.txt does move, so its name is going spare and a.txt may take it.
-        let rows = plan(
-            &names(&["a.txt", "b.txt"]),
-            "s/([ab])\\.txt/{$1}.txt/",
-            &taken,
-        )
-        .unwrap();
+        let rows = plan(&names(&["a.txt", "b.txt"]), "s/([ab])\\.txt/{$1}.txt/", &taken).unwrap();
         assert_eq!(rows[0].to, "{a}.txt");
         let rows = plan(&names(&["a.txt", "b.txt"]), "s/^a/b/", &taken).unwrap();
         assert_eq!(rows[0].to, "b.txt");
         assert_eq!(rows[1].to, "b.txt");
-        assert_eq!(
-            rows[1].problem.as_deref(),
-            Some("two files would get this name")
-        );
+        assert_eq!(rows[1].problem.as_deref(), Some("two files would get this name"));
     }
 
     /// The one rule shape that produces a true swap, and the reason
@@ -407,29 +362,16 @@ mod tests {
     fn a_rule_that_swaps_two_names_is_allowed_and_ordered() {
         let taken: BTreeSet<String> = ["ab.txt", "ba.txt"].iter().map(|s| s.to_string()).collect();
 
-        let rows = plan(
-            &names(&["ab.txt", "ba.txt"]),
-            r"s/^([ab])([ab])/$2$1/",
-            &taken,
-        )
-        .unwrap();
+        let rows = plan(&names(&["ab.txt", "ba.txt"]), r"s/^([ab])([ab])/$2$1/", &taken).unwrap();
 
         assert_eq!(rows[0].to, "ba.txt");
         assert_eq!(rows[1].to, "ab.txt");
-        assert!(
-            rows.iter().all(|r| r.problem.is_none()),
-            "each frees what the other wants"
-        );
+        assert!(rows.iter().all(|r| r.problem.is_none()), "each frees what the other wants");
 
-        let pairs: Vec<(String, String)> = rows
-            .iter()
-            .map(|r| (util::file_name(&r.from), r.to.clone()))
-            .collect();
+        let pairs: Vec<(String, String)> =
+            rows.iter().map(|r| (util::file_name(&r.from), r.to.clone())).collect();
         let steps = order(&pairs);
-        assert_eq!(
-            steps.iter().filter(|s| matches!(s, Step::Park(_))).count(),
-            1
-        );
+        assert_eq!(steps.iter().filter(|s| matches!(s, Step::Park(_))).count(), 1);
     }
 
     #[test]
@@ -473,10 +415,7 @@ mod tests {
                 "row {i} renamed exactly once: {steps:?}"
             );
         }
-        assert_eq!(
-            steps.iter().filter(|s| matches!(s, Step::Park(_))).count(),
-            1
-        );
+        assert_eq!(steps.iter().filter(|s| matches!(s, Step::Park(_))).count(), 1);
     }
 }
 

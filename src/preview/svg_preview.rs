@@ -12,20 +12,14 @@ const MAX_BYTES: u64 = 32 * 1024 * 1024;
 pub fn render(path: &Path, box_size: (u32, u32)) -> Result<Payload, String> {
     let len = std::fs::metadata(path).map_err(|e| e.to_string())?.len();
     if len > MAX_BYTES {
-        return Err(format!(
-            "SVG too large to preview ({})",
-            crate::util::human_size(len)
-        ));
+        return Err(format!("SVG too large to preview ({})", crate::util::human_size(len)));
     }
     let data = std::fs::read(path).map_err(|e| e.to_string())?;
     render_bytes(&data, path.parent(), box_size)
 }
 
 fn render_bytes(data: &[u8], dir: Option<&Path>, box_size: (u32, u32)) -> Result<Payload, String> {
-    let mut opt = usvg::Options {
-        resources_dir: dir.map(Path::to_path_buf),
-        ..Default::default()
-    };
+    let mut opt = usvg::Options { resources_dir: dir.map(Path::to_path_buf), ..Default::default() };
     // Scanning the system's fonts takes a moment; only pay for it when there is text.
     if data.windows(5).any(|w| w == b"<text") {
         opt.fontdb = system_fonts();
@@ -39,11 +33,7 @@ fn render_bytes(data: &[u8], dir: Option<&Path>, box_size: (u32, u32)) -> Result
     let w = (size.width() * scale).round().clamp(1.0, bw) as u32;
     let h = (size.height() * scale).round().clamp(1.0, bh) as u32;
     let mut pixmap = tiny_skia::Pixmap::new(w, h).ok_or("SVG has no area")?;
-    resvg::render(
-        &tree,
-        tiny_skia::Transform::from_scale(scale, scale),
-        &mut pixmap.as_mut(),
-    );
+    resvg::render(&tree, tiny_skia::Transform::from_scale(scale, scale), &mut pixmap.as_mut());
 
     let straight: Vec<u8> = pixmap
         .pixels()
@@ -58,13 +48,7 @@ fn render_bytes(data: &[u8], dir: Option<&Path>, box_size: (u32, u32)) -> Result
     let caption = format!("SVG · {} × {}", size.width().round(), size.height().round());
     // Vector art is re-rendered into a bigger box as the zoom grows, so what
     // came back is the source for now.
-    Ok(Payload::Image {
-        width,
-        height,
-        source: (width, height),
-        rgba,
-        caption,
-    })
+    Ok(Payload::Image { width, height, source: (width, height), rgba, caption })
 }
 
 fn system_fonts() -> Arc<usvg::fontdb::Database> {
@@ -83,9 +67,7 @@ mod tests {
     use super::*;
 
     fn pixel(p: &Payload, x: u32, y: u32) -> [u8; 4] {
-        let Payload::Image { width, rgba, .. } = p else {
-            panic!("not an image: {p:?}")
-        };
+        let Payload::Image { width, rgba, .. } = p else { panic!("not an image: {p:?}") };
         let i = (y * width + x) as usize * 4;
         rgba[i..i + 4].try_into().unwrap()
     }
@@ -95,15 +77,7 @@ mod tests {
         let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20">
             <rect width="10" height="20" fill="red"/></svg>"#;
         let p = render_bytes(svg, None, (400, 400)).unwrap();
-        let Payload::Image {
-            width,
-            height,
-            caption,
-            ..
-        } = &p
-        else {
-            unreachable!()
-        };
+        let Payload::Image { width, height, caption, .. } = &p else { unreachable!() };
         assert_eq!((*width, *height), (200, 400));
         assert_eq!(caption, "SVG · 10 × 20");
         assert_eq!(pixel(&p, 100, 200), [255, 0, 0, 255]);

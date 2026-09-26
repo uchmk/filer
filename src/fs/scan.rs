@@ -15,30 +15,16 @@ use super::sort::SortSpec;
 #[derive(Debug)]
 pub enum Task {
     /// List a directory.
-    Scan {
-        id: u64,
-        path: PathBuf,
-        sort: SortSpec,
-    },
+    Scan { id: u64, path: PathBuf, sort: SortSpec },
     /// Count the direct children of each of these directories (for `linemode size`).
     Count { paths: Vec<PathBuf> },
 }
 
 #[derive(Debug)]
 pub enum ScanResult {
-    Listed {
-        id: u64,
-        path: PathBuf,
-        entries: Vec<Entry>,
-    },
-    Failed {
-        id: u64,
-        path: PathBuf,
-        error: String,
-    },
-    Counted {
-        counts: Vec<(PathBuf, u64)>,
-    },
+    Listed { id: u64, path: PathBuf, entries: Vec<Entry> },
+    Failed { id: u64, path: PathBuf, error: String },
+    Counted { counts: Vec<(PathBuf, u64)> },
 }
 
 pub struct Scanner {
@@ -94,12 +80,7 @@ impl Scanner {
                 .expect("spawn scan worker");
         }
 
-        Self {
-            hi: hi_tx,
-            lo: lo_tx,
-            rx: res_rx,
-            next_id: AtomicU64::new(1),
-        }
+        Self { hi: hi_tx, lo: lo_tx, rx: res_rx, next_id: AtomicU64::new(1) }
     }
 
     pub fn next_id(&self) -> u64 {
@@ -129,14 +110,12 @@ impl Scanner {
 
 fn run(task: Task) -> Option<ScanResult> {
     match task {
-        Task::Scan { id, path, sort } => match list_dir(&path, sort) {
-            Ok(entries) => Some(ScanResult::Listed { id, path, entries }),
-            Err(e) => Some(ScanResult::Failed {
-                id,
-                path,
-                error: e.to_string(),
-            }),
-        },
+        Task::Scan { id, path, sort } => {
+            match list_dir(&path, sort) {
+                Ok(entries) => Some(ScanResult::Listed { id, path, entries }),
+                Err(e) => Some(ScanResult::Failed { id, path, error: e.to_string() }),
+            }
+        }
         Task::Count { paths } => {
             let counts = paths
                 .into_iter()

@@ -63,12 +63,7 @@ pub struct SortSpec {
 
 impl Default for SortSpec {
     fn default() -> Self {
-        Self {
-            by: SortBy::Natural,
-            reverse: false,
-            dir_first: true,
-            sensitive: false,
-        }
+        Self { by: SortBy::Natural, reverse: false, dir_first: true, sensitive: false }
     }
 }
 
@@ -119,7 +114,9 @@ impl SortSpec {
                     (None, None) => Ordering::Equal,
                 },
                 SortBy::Alphabetical => util::alpha_cmp(&a.name, &b.name, sensitive),
-                SortBy::Natural | SortBy::Random => util::natural_cmp(&a.name, &b.name, sensitive),
+                SortBy::Natural | SortBy::Random => {
+                    util::natural_cmp(&a.name, &b.name, sensitive)
+                }
             };
             let ord = if rev { ord.reverse() } else { ord };
             // Stable tie-break so redraws never shuffle equal keys.

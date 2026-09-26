@@ -145,9 +145,7 @@ impl PreviewRule {
     /// nobody can see in the file itself.
     pub fn for_path<'a>(rules: &'a [Self], path: &std::path::Path) -> Option<&'a Self> {
         let name = path.file_name()?.to_string_lossy().to_ascii_lowercase();
-        rules
-            .iter()
-            .find(|r| crate::glob::matches(&r.pattern.to_ascii_lowercase(), &name, true))
+        rules.iter().find(|r| crate::glob::matches(&r.pattern.to_ascii_lowercase(), &name, true))
     }
 }
 
@@ -202,8 +200,8 @@ impl Config {
                 match toml::from_str::<YaziToml>(&text) {
                     Ok(v) => yazi_cfg = merge_yazi(yazi_cfg, v),
                     // The serde message for a `preview` in the wrong shape is
-                    // "invalid type: map, expected a string", pointing at a
-                    // line whose `[[preview]]` is spelled exactly as its own
+                    // "invalid type: map, expected a string", pointing at a line
+                    // whose `[[preview]]` is spelled exactly as its own
                     // documentation spells it. `wrong` has already said which
                     // key it is and which file it goes in.
                     Err(_) if wrong.breaks_parse => {}
@@ -248,26 +246,14 @@ impl Config {
         let (keymap, mut km_warnings) = Keymap::load(&refs);
         warnings.append(&mut km_warnings);
 
-        Self {
-            yazi: yazi_cfg,
-            keymap,
-            theme,
-            ui,
-            term,
-            preview,
-            line_args,
-            loaded,
-            warnings,
-        }
+        Self { yazi: yazi_cfg, keymap, theme, ui, term, preview, line_args, loaded, warnings }
     }
 
     pub fn state_dir() -> PathBuf {
         if let Ok(p) = std::env::var("FILER_STATE_HOME") {
             return PathBuf::from(p);
         }
-        dirs::data_dir()
-            .unwrap_or_else(std::env::temp_dir)
-            .join("filer")
+        dirs::data_dir().unwrap_or_else(std::env::temp_dir).join("filer")
     }
 }
 
@@ -336,37 +322,31 @@ struct Misplaced {
 
 impl Misplaced {
     fn in_file(text: &str, file: ConfigFile) -> Self {
-        // Only a well-formed file is worth inspecting. A syntax error is the
-        // one case where the parser's own message, with its line and column,
-        // is the better one, so leave it to say so.
-        let Ok(table) = text.parse::<toml::Table>() else {
-            return Self::default();
-        };
+        // Only a well-formed file is worth inspecting. A syntax error is the one
+        // case where the parser's own message, with its line and column, is the
+        // better one, so leave it to say so.
+        let Ok(table) = text.parse::<toml::Table>() else { return Self::default() };
 
         let foreign: &[&str] = match file {
             ConfigFile::Yazi => &["ui", "term", "line_args"],
             ConfigFile::Filer => &["mgr", "manager", "opener", "open", "tasks"],
         };
         let mut out = Self::default();
-        for key in foreign {
-            if table.contains_key(*key) {
-                out.sections.push(format!("[{key}]"));
-            }
+        for key in foreign.iter().filter(|k| table.contains_key(**k)) {
+            out.sections.push(format!("[{key}]"));
         }
         // An array of tables here, a table there; each file's own shape is the
         // one it does not complain about.
-        if let Some(v) = table.get("preview") {
-            match file {
-                ConfigFile::Yazi if v.is_array() => {
-                    out.sections.push("[[preview]]".into());
-                    out.breaks_parse = true;
-                }
-                ConfigFile::Filer if v.is_table() => {
-                    out.sections.push("[preview]".into());
-                    out.breaks_parse = true;
-                }
-                _ => {}
+        match table.get("preview") {
+            Some(v) if file == ConfigFile::Yazi && v.is_array() => {
+                out.sections.push("[[preview]]".into());
+                out.breaks_parse = true;
             }
+            Some(v) if file == ConfigFile::Filer && v.is_table() => {
+                out.sections.push("[preview]".into());
+                out.breaks_parse = true;
+            }
+            _ => {}
         }
         out
     }
@@ -374,8 +354,8 @@ impl Misplaced {
     /// One line per section: which one, where it goes, and what it cost.
     fn warn(&self, path: &str, other: &str, warnings: &mut Vec<String>) {
         let cost = match self.breaks_parse {
-            true => ", and nothing in this file was read".to_string(),
-            false => " and was ignored".to_string(),
+            true => ", and nothing in this file was read",
+            false => " and was ignored",
         };
         for s in &self.sections {
             warnings.push(format!("{path}: {s} belongs in {other}{cost}"));
@@ -420,10 +400,7 @@ mod files {
     fn it_is_absent_until_it_is_asked_for() {
         let none: FilerToml = toml::from_str("[ui]\nfont_size = 14.0\n").unwrap();
         assert_eq!(none.term, TermCfg::default());
-        assert!(
-            none.term.shell.is_empty(),
-            "nothing said means the platform default"
-        );
+        assert!(none.term.shell.is_empty(), "nothing said means the platform default");
 
         let named: FilerToml = toml::from_str("[term]\nshell = \"pwsh\"\n").unwrap();
         assert_eq!(named.term.shell, "pwsh");
@@ -477,38 +454,26 @@ mod files {
     fn a_filer_section_in_yazi_toml_is_named() {
         let m = Misplaced::in_file("[term]\nshell = \"pwsh\"\n", ConfigFile::Yazi);
         assert_eq!(m.sections, ["[term]"]);
-        assert!(
-            !m.breaks_parse,
-            "yazi.toml still parses; the section is just unread"
-        );
+        assert!(!m.breaks_parse, "yazi.toml still parses; the section is just unread");
 
         let mut w = Vec::new();
         m.warn(r"C:\x\yazi.toml", "filer.toml", &mut w);
-        assert_eq!(
-            w,
-            [r"C:\x\yazi.toml: [term] belongs in filer.toml and was ignored"]
-        );
+        assert_eq!(w, [r"C:\x\yazi.toml: [term] belongs in filer.toml and was ignored"]);
 
-        let all = Misplaced::in_file(
-            "[ui]\na = 1\n[term]\nb = 2\n[line_args]\nc = \"d\"\n",
-            ConfigFile::Yazi,
-        );
-        assert_eq!(all.sections, ["[ui]", "[term]", "[line_args]"]);
+        let text = "[ui]\na = 1\n[term]\nb = 2\n[line_args]\nc = \"d\"\n";
+        assert_eq!(Misplaced::in_file(text, ConfigFile::Yazi).sections, ["[ui]", "[term]", "[line_args]"]);
     }
 
     /// `[[preview]]` in `yazi.toml` costs the whole file, and says so.
     ///
     /// yazi's `[preview]` is a table, so serde reads the array's first entry as
-    /// the `wrap` string and reports "invalid type: map, expected a string" --
-    /// a message that sends the reader to a line they copied out of filer's own
+    /// the `wrap` string and reports "invalid type: map, expected a string" -- a
+    /// message that sends the reader to a line they copied out of filer's own
     /// README. Worse, the failure drops the file entirely, openers and all.
     #[test]
     fn a_preview_rule_in_yazi_toml_is_named_as_fatal() {
         let text = "[mgr]\nshow_hidden = true\n\n[[preview]]\nmatch = \"*.pdf\"\nrun = \"x\"\n";
-        assert!(
-            toml::from_str::<YaziToml>(text).is_err(),
-            "this is the parse that fails"
-        );
+        assert!(toml::from_str::<YaziToml>(text).is_err(), "this is the parse that fails");
 
         let m = Misplaced::in_file(text, ConfigFile::Yazi);
         assert_eq!(m.sections, ["[[preview]]"]);
@@ -516,41 +481,29 @@ mod files {
 
         let mut w = Vec::new();
         m.warn(r"C:\x\yazi.toml", "filer.toml", &mut w);
-        assert_eq!(
-            w,
-            [
-                r"C:\x\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read"
-            ]
-        );
+        let said = r"C:\x\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read";
+        assert_eq!(w, [said]);
     }
 
     /// Each file's own `preview` shape is left alone.
     #[test]
     fn the_right_preview_shape_is_not_flagged() {
         let yazi = "[preview]\nmax_width = 600\nimage_filter = \"triangle\"\n";
-        assert_eq!(
-            Misplaced::in_file(yazi, ConfigFile::Yazi),
-            Misplaced::default()
-        );
+        assert_eq!(Misplaced::in_file(yazi, ConfigFile::Yazi), Misplaced::default());
         // And the same table in filer.toml is the one that belongs elsewhere.
         let m = Misplaced::in_file(yazi, ConfigFile::Filer);
         assert_eq!(m.sections, ["[preview]"]);
         assert!(m.breaks_parse);
 
         let rules = "[[preview]]\nmatch = \"*.pdf\"\nrun = \"x\"\n";
-        assert_eq!(
-            Misplaced::in_file(rules, ConfigFile::Filer),
-            Misplaced::default()
-        );
+        assert_eq!(Misplaced::in_file(rules, ConfigFile::Filer), Misplaced::default());
     }
 
     /// The check runs both ways: yazi's tables in `filer.toml` are dead too.
     #[test]
     fn a_yazi_section_in_filer_toml_is_named() {
-        let m = Misplaced::in_file(
-            "[opener]\nedit = []\n\n[mgr]\nratio = [1, 4, 3]\n",
-            ConfigFile::Filer,
-        );
+        let text = "[opener]\nedit = []\n\n[mgr]\nratio = [1, 4, 3]\n";
+        let m = Misplaced::in_file(text, ConfigFile::Filer);
         assert_eq!(m.sections, ["[mgr]", "[opener]"]);
         assert!(!m.breaks_parse);
     }
@@ -561,20 +514,14 @@ mod files {
     /// the wrong file would only bury it.
     #[test]
     fn a_broken_file_is_left_to_the_parser() {
-        assert_eq!(
-            Misplaced::in_file("[term\nshell =", ConfigFile::Yazi),
-            Misplaced::default()
-        );
+        assert_eq!(Misplaced::in_file("[term\nshell =", ConfigFile::Yazi), Misplaced::default());
     }
 
     /// The shipped example belongs where it says to copy it.
     #[test]
     fn the_example_is_in_the_right_file() {
         let text = std::fs::read_to_string("filer.example.toml").expect("the shipped example");
-        assert_eq!(
-            Misplaced::in_file(&text, ConfigFile::Filer),
-            Misplaced::default()
-        );
+        assert_eq!(Misplaced::in_file(&text, ConfigFile::Filer), Misplaced::default());
     }
 
     /// A `filer.toml` written before `[term]` existed still reads.

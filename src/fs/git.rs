@@ -164,15 +164,7 @@ fn status(dir: &Path) -> Option<Status> {
     // walking all of it, which is both faster and what the row wants.
     let out = run(
         dir,
-        &[
-            "status",
-            "--porcelain=v1",
-            "-z",
-            "--no-renames",
-            "-unormal",
-            "--",
-            ".",
-        ],
+        &["status", "--porcelain=v1", "-z", "--no-renames", "-unormal", "--", "."],
     )?;
     let mut st = parse(&out, &prefix);
     st.branch = branch;
@@ -215,9 +207,7 @@ fn parse(out: &str, prefix: &str) -> Status {
         let (code, path) = record.split_at(3);
         let mut chars = code.chars();
         let (x, y) = (chars.next().unwrap_or(' '), chars.next().unwrap_or(' '));
-        let Some(rest) = path.strip_prefix(prefix) else {
-            continue;
-        };
+        let Some(rest) = path.strip_prefix(prefix) else { continue };
         let state = classify(x, y);
         if state == State::Clean {
             continue;
@@ -289,11 +279,7 @@ mod tests {
         assert_eq!(st.get("Cargo.toml"), State::Staged);
         // The file is inside `src`, so the row that shows is the directory.
         assert_eq!(st.get("src"), State::Modified);
-        assert_eq!(
-            st.states.get("src/app.rs"),
-            None,
-            "rows are named, not pathed"
-        );
+        assert_eq!(st.states.get("src/app.rs"), None, "rows are named, not pathed");
         // Nothing is said about what git did not mention.
         assert_eq!(st.get("README.md"), State::Clean);
     }
@@ -360,7 +346,9 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("sub")).unwrap();
 
-        let git = |args: &[&str]| Command::new("git").arg("-C").arg(&root).args(args).output();
+        let git = |args: &[&str]| {
+            Command::new("git").arg("-C").arg(&root).args(args).output()
+        };
         let Ok(out) = git(&["init", "-q"]) else {
             eprintln!("git is not installed; skipping");
             return;
@@ -394,11 +382,7 @@ mod tests {
         // one is untracked, so git names it whole and every row follows.
         let st = status(&root.join("sub")).expect("still the same repository");
         assert_eq!(st.get("deep.txt"), State::Untracked);
-        assert_eq!(
-            st.get("committed.txt"),
-            State::Untracked,
-            "the whole directory is"
-        );
+        assert_eq!(st.get("committed.txt"), State::Untracked, "the whole directory is");
 
         let _ = std::fs::remove_dir_all(&root);
     }

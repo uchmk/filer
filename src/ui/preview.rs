@@ -1,7 +1,6 @@
 use egui::text::{LayoutJob, TextFormat};
 use egui::{
-    pos2, vec2, Align2, Color32, CornerRadius, CursorIcon, FontId, Painter, Rect, Sense, Stroke,
-    StrokeKind, Ui, Vec2,
+    pos2, vec2, Align2, Color32, CornerRadius, CursorIcon, FontId, Painter, Rect, Sense, Stroke, StrokeKind, Ui, Vec2,
 };
 
 use crate::app::PreviewState;
@@ -87,72 +86,29 @@ pub fn draw(
                 );
                 0
             }
-            Payload::Text {
-                lines,
-                map,
-                truncated,
-                total_lines,
-                outline,
-            } => {
+            Payload::Text { lines, map, truncated, total_lines, outline } => {
                 let (body, strip) = split_minimap(rect, map, st);
-                let mut drawn = code(
-                    ui,
-                    &painter,
-                    body,
-                    lines,
-                    outline,
-                    *truncated,
-                    *total_lines,
-                    offset,
-                    st,
-                );
+                let mut drawn =
+                    code(ui, &painter, body, lines, outline, *truncated, *total_lines, offset, st);
                 if let Some(strip) = strip {
                     drawn.scroll_to = minimap(ui, &painter, strip, map, offset, rows(body, st), st);
                 }
                 return drawn;
             }
-            Payload::Markdown {
-                doc,
-                source,
-                map,
-                truncated,
-                total_lines,
-            } => {
+            Payload::Markdown { doc, source, map, truncated, total_lines } => {
                 // Rendered Markdown gets no minimap: `map` describes the source,
                 // and a rendered line is not the same line, so the viewport box
                 // would point at the wrong place. Its "Contents" column already
                 // answers "where am I". That is also why `preview.cols` — the
                 // width Markdown is wrapped to — needs no adjusting for this.
                 if st.render_markdown {
-                    return markdown(
-                        ui,
-                        &painter,
-                        rect,
-                        doc,
-                        *truncated,
-                        *total_lines,
-                        offset,
-                        st,
-                    );
+                    return markdown(ui, &painter, rect, doc, *truncated, *total_lines, offset, st);
                 }
                 let (body, strip) = split_minimap(rect, map, st);
-                let lines = text(
-                    ui,
-                    &painter,
-                    body,
-                    source,
-                    *truncated,
-                    *total_lines,
-                    offset,
-                    st,
-                );
-                let scroll_to =
-                    strip.and_then(|s| minimap(ui, &painter, s, map, offset, rows(body, st), st));
-                return Drawn {
-                    lines,
-                    jump: None,
-                    scroll_to,
-                };
+                let lines = text(ui, &painter, body, source, *truncated, *total_lines, offset, st);
+                let scroll_to = strip
+                    .and_then(|s| minimap(ui, &painter, s, map, offset, rows(body, st), st));
+                return Drawn { lines, jump: None, scroll_to };
             }
             Payload::Binary { lines, total } => {
                 let start = offset.min(lines.len().saturating_sub(1));
@@ -195,9 +151,7 @@ pub fn draw(
                 }
                 0
             }
-            Payload::Image {
-                source, caption, ..
-            } => {
+            Payload::Image { source, caption, .. } => {
                 if let Some(tex) = texture {
                     let avail = rect.shrink(8.0);
                     // The picture's own size decides the geometry; the texture
@@ -236,11 +190,7 @@ pub fn draw(
             }
         },
     };
-    Drawn {
-        lines,
-        jump: None,
-        scroll_to: None,
-    }
+    Drawn { lines, jump: None, scroll_to: None }
 }
 
 /// Take the minimap's strip off the right of the pane.
@@ -255,10 +205,7 @@ fn split_minimap(rect: Rect, map: &[MapRow], st: &PreviewStyle<'_>) -> (Rect, Op
     let split = rect.right() - MINIMAP_COLS as f32 * st.cell - 6.0;
     (
         Rect::from_x_y_ranges(rect.left()..=split, rect.y_range()),
-        Some(Rect::from_x_y_ranges(
-            split + 6.0..=rect.right(),
-            rect.y_range(),
-        )),
+        Some(Rect::from_x_y_ranges(split + 6.0..=rect.right(), rect.y_range())),
     )
 }
 
@@ -310,21 +257,14 @@ fn minimap(
         };
         // The shallowest indent in the band keeps the left edge of a block
         // straight instead of ragged.
-        let indent = band
-            .iter()
-            .filter(|r| r.len > 0)
-            .map(|r| r.indent)
-            .min()
-            .unwrap_or(0);
+        let indent = band.iter().filter(|r| r.len > 0).map(|r| r.indent).min().unwrap_or(0);
         let x0 = (rect.left() + indent as f32 * unit).min(rect.right());
         let x1 = (x0 + lead.len as f32 * unit).min(rect.right());
         let y = at(b * per);
         if y + band_h > rect.bottom() + 0.5 {
             break;
         }
-        let color = lead
-            .color
-            .map_or(theme.fg, |[r, g, b]| Color32::from_rgb(r, g, b));
+        let color = lead.color.map_or(theme.fg, |[r, g, b]| Color32::from_rgb(r, g, b));
         painter.rect_filled(
             Rect::from_min_max(pos2(x0, y), pos2(x1.max(x0 + 1.0), y + band_h - 0.5)),
             CornerRadius::ZERO,
@@ -334,11 +274,7 @@ fn minimap(
 
     // --- where the pane is looking ---
     let view = Rect::from_x_y_ranges(rect.x_range(), at(offset)..=at(offset + on_screen));
-    painter.rect_filled(
-        view,
-        CornerRadius::same(2),
-        theme.hovered_bg.gamma_multiply(0.4),
-    );
+    painter.rect_filled(view, CornerRadius::same(2), theme.hovered_bg.gamma_multiply(0.4));
     painter.rect_stroke(
         view,
         CornerRadius::same(2),
@@ -370,10 +306,7 @@ fn pane_cols(rect: Rect, st: &PreviewStyle<'_>) -> u16 {
 
 /// How far text sits below the top of its row, so it is centered in it.
 fn lift(painter: &Painter, st: &PreviewStyle<'_>) -> f32 {
-    let glyph_h = painter
-        .layout_no_wrap("M".into(), st.font.clone(), st.theme.fg)
-        .size()
-        .y;
+    let glyph_h = painter.layout_no_wrap("M".into(), st.font.clone(), st.theme.fg).size().y;
     ((st.row_h - glyph_h) / 2.0).max(0.0)
 }
 
@@ -408,8 +341,7 @@ fn code(
 ) -> Drawn {
     let cols = pane_cols(rect, st);
     let widest = widest(entries);
-    let column =
-        (entries.len() >= 2 && cols >= SOURCE_OUTLINE_MIN_COLS).then(|| outline_cols(widest, cols));
+    let column = (entries.len() >= 2 && cols >= SOURCE_OUTLINE_MIN_COLS).then(|| outline_cols(widest, cols));
     let body = match column {
         Some(width) => {
             let right = outline_sep(rect, width, st) - 0.5 * st.cell;
@@ -417,35 +349,15 @@ fn code(
         }
         None => rect,
     };
-    let lines = text(
-        ui,
-        &painter.with_clip_rect(body),
-        body,
-        lines,
-        truncated,
-        total_lines,
-        offset,
-        st,
-    );
+    let lines = text(ui, &painter.with_clip_rect(body), body, lines, truncated, total_lines, offset, st);
     let jump = match column {
         Some(width) => outline(ui, painter, rect, entries, width, offset, false, st),
-        None if st.outline_focus.is_some() && !entries.is_empty() => outline(
-            ui,
-            painter,
-            rect,
-            entries,
-            overlay_cols(widest, cols),
-            offset,
-            true,
-            st,
-        ),
+        None if st.outline_focus.is_some() && !entries.is_empty() => {
+            outline(ui, painter, rect, entries, overlay_cols(widest, cols), offset, true, st)
+        }
         None => None,
     };
-    Drawn {
-        lines,
-        jump,
-        scroll_to: None,
-    }
+    Drawn { lines, jump, scroll_to: None }
 }
 
 /// Highlighted source, one file line per row.
@@ -469,20 +381,12 @@ fn text(
         }
         let job_for = |bold_only: bool| {
             let mut job = LayoutJob::default();
-            job.wrap.max_width = if st.wrap {
-                rect.width() - 16.0
-            } else {
-                f32::INFINITY
-            };
+            job.wrap.max_width = if st.wrap { rect.width() - 16.0 } else { f32::INFINITY };
             job.wrap.max_rows = if st.wrap { 3 } else { 1 };
             job.wrap.break_anywhere = true;
             job.wrap.overflow_character = None;
             for span in line {
-                let color = if bold_only && !span.bold {
-                    Color32::TRANSPARENT
-                } else {
-                    span_color(span, st)
-                };
+                let color = if bold_only && !span.bold { Color32::TRANSPARENT } else { span_color(span, st) };
                 job.append(&span.text, 0.0, format(span, color, st));
             }
             job
@@ -492,11 +396,7 @@ fn text(
         // Without a bold face, bold spans are overstruck a pixel over; the
         // identical layout keeps both passes aligned.
         if st.bold.is_none() && line.iter().any(|s| s.bold) {
-            painter.galley(
-                pos + Vec2::new(bold_dx, 0.0),
-                painter.layout_job(job_for(true)),
-                st.theme.fg,
-            );
+            painter.galley(pos + Vec2::new(bold_dx, 0.0), painter.layout_job(job_for(true)), st.theme.fg);
         }
     }
     if truncated && end >= lines.len() {
@@ -528,10 +428,7 @@ fn markdown(
     let bold_dx = overstrike(ui, st);
 
     // Glyphs a little wider than their cells must not spill into the outline.
-    let body = painter.with_clip_rect(Rect::from_x_y_ranges(
-        rect.left()..=right + st.cell,
-        rect.y_range(),
-    ));
+    let body = painter.with_clip_rect(Rect::from_x_y_ranges(rect.left()..=right + st.cell, rect.y_range()));
     let start = offset.min(doc.lines.len().saturating_sub(1));
     let end = (start + rows).min(doc.lines.len());
     for (i, line) in doc.lines[start..end].iter().enumerate() {
@@ -543,18 +440,10 @@ fn markdown(
                 body.rect_filled(band, CornerRadius::ZERO, code_bg);
             }
             LineKind::Rule => {
-                body.hline(
-                    x0..=right,
-                    y + st.row_h / 2.0,
-                    Stroke::new(1.0, theme.border),
-                );
+                body.hline(x0..=right, y + st.row_h / 2.0, Stroke::new(1.0, theme.border));
             }
             LineKind::Heading(level @ 1..=2) => {
-                let color = if level == 1 {
-                    theme.fg_dim
-                } else {
-                    theme.border
-                };
+                let color = if level == 1 { theme.fg_dim } else { theme.border };
                 body.hline(x0..=right, y + st.row_h - 1.0, Stroke::new(1.0, color));
             }
             _ => {}
@@ -572,10 +461,7 @@ fn markdown(
             }
             let x = prev_end.max(x_at(col));
             let color = span_color(span, st);
-            let galley = painter.layout_job(LayoutJob::single_section(
-                span.text.clone(),
-                format(span, color, st),
-            ));
+            let galley = painter.layout_job(LayoutJob::single_section(span.text.clone(), format(span, color, st)));
             let size = galley.size();
             let pos = pos2(x, y + lift);
             if span.code {
@@ -602,11 +488,7 @@ fn markdown(
     } else {
         None
     };
-    Drawn {
-        lines: doc.lines.len(),
-        jump,
-        scroll_to: None,
-    }
+    Drawn { lines: doc.lines.len(), jump, scroll_to: None }
 }
 
 /// The outline on the right, `cols` cells wide: the entry being read (or the
@@ -632,30 +514,16 @@ fn outline(
     let focused = st.outline_focus.is_some();
     let accent = theme.tab_active.bg.unwrap_or(theme.fg);
     if overlay {
-        painter.rect_filled(
-            Rect::from_x_y_ranges(sep..=rect.right(), rect.y_range()),
-            CornerRadius::ZERO,
-            theme.bg,
-        );
+        painter.rect_filled(Rect::from_x_y_ranges(sep..=rect.right(), rect.y_range()), CornerRadius::ZERO, theme.bg);
     }
     let rule = if focused { accent } else { theme.border };
-    painter.vline(
-        sep,
-        rect.top() + 4.0..=rect.bottom() - 4.0,
-        Stroke::new(1.0, rule),
-    );
+    painter.vline(sep, rect.top() + 4.0..=rect.bottom() - 4.0, Stroke::new(1.0, rule));
     let (font, color) = match (&st.bold, focused) {
         (Some(bold), true) => (bold.clone(), accent),
         (None, true) => (st.font.clone(), accent),
         (_, false) => (st.font.clone(), theme.fg_dim),
     };
-    painter.text(
-        pos2(left, rect.top() + lift),
-        Align2::LEFT_TOP,
-        "Contents",
-        font,
-        color,
-    );
+    painter.text(pos2(left, rect.top() + lift), Align2::LEFT_TOP, "Contents", font, color);
 
     let top_level = entries.iter().map(|e| e.level).min().unwrap_or(1);
     let current = match st.outline_focus {
@@ -666,10 +534,7 @@ fn outline(
     let first = current
         .map_or(0, |c| c.saturating_sub(slots / 2))
         .min(entries.len().saturating_sub(slots));
-    let clip = painter.with_clip_rect(Rect::from_x_y_ranges(
-        sep + 1.0..=rect.right(),
-        rect.y_range(),
-    ));
+    let clip = painter.with_clip_rect(Rect::from_x_y_ranges(sep + 1.0..=rect.right(), rect.y_range()));
     let hover = mix(theme.border, theme.fg_dim, 0.4);
 
     let mut jump = None;
@@ -680,19 +545,10 @@ fn outline(
         let here = current == Some(k);
         // Like the file list's cursor: bright only where the keys are.
         if here {
-            let fill = if focused {
-                theme.hovered_bg
-            } else {
-                theme.inactive_hovered_bg
-            };
+            let fill = if focused { theme.hovered_bg } else { theme.inactive_hovered_bg };
             clip.rect_filled(row, CornerRadius::same(3), fill);
         } else if resp.hovered() {
-            clip.rect_stroke(
-                row,
-                CornerRadius::same(3),
-                Stroke::new(1.0, hover),
-                StrokeKind::Inside,
-            );
+            clip.rect_stroke(row, CornerRadius::same(3), Stroke::new(1.0, hover), StrokeKind::Inside);
         }
         if resp.hovered() {
             ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
@@ -700,23 +556,12 @@ fn outline(
         if resp.clicked() {
             jump = Some((k, entry.line));
         }
-        let color = if here || entry.level == top_level {
-            theme.fg
-        } else {
-            theme.fg_dim
-        };
+        let color = if here || entry.level == top_level { theme.fg } else { theme.fg_dim };
         let font_id = match (&st.bold, here) {
             (Some(bold), true) => bold.clone(),
             _ => st.font.clone(),
         };
-        let mut job = LayoutJob::single_section(
-            entry.label.clone(),
-            TextFormat {
-                font_id,
-                color,
-                ..Default::default()
-            },
-        );
+        let mut job = LayoutJob::single_section(entry.label.clone(), TextFormat { font_id, color, ..Default::default() });
         job.wrap.max_width = width;
         job.wrap.max_rows = 1;
         job.wrap.break_anywhere = true;
@@ -726,13 +571,7 @@ fn outline(
     jump
 }
 
-fn truncation_note(
-    painter: &Painter,
-    rect: Rect,
-    shown: usize,
-    total_lines: usize,
-    st: &PreviewStyle<'_>,
-) {
+fn truncation_note(painter: &Painter, rect: Rect, shown: usize, total_lines: usize, st: &PreviewStyle<'_>) {
     let y = rect.top() + shown as f32 * st.row_h;
     if y < rect.bottom() {
         painter.text(
@@ -851,14 +690,7 @@ mod tests {
     }
 
     fn rows_of(n: usize) -> Vec<MapRow> {
-        vec![
-            MapRow {
-                indent: 0,
-                len: 10,
-                color: None
-            };
-            n
-        ]
+        vec![MapRow { indent: 0, len: 10, color: None }; n]
     }
 
     /// The minimap takes its strip off the right, and the body keeps the rest.
@@ -873,11 +705,7 @@ mod tests {
 
         assert!(body.right() <= strip.left(), "they must not overlap");
         assert_eq!(strip.right(), rect.right(), "the map sits against the edge");
-        assert_eq!(
-            strip.width(),
-            MINIMAP_COLS as f32,
-            "one cell is one point here"
-        );
+        assert_eq!(strip.width(), MINIMAP_COLS as f32, "one cell is one point here");
         assert_eq!(body.left(), rect.left());
     }
 
@@ -888,16 +716,10 @@ mod tests {
         let theme = Theme::default();
 
         let (rect, st) = pane(120.0, &theme, false);
-        assert!(
-            split_minimap(rect, &rows_of(500), &st).1.is_none(),
-            "turned off"
-        );
+        assert!(split_minimap(rect, &rows_of(500), &st).1.is_none(), "turned off");
 
         let (rect, st) = pane(120.0, &theme, true);
-        assert!(
-            split_minimap(rect, &rows_of(1), &st).1.is_none(),
-            "one line is not a map"
-        );
+        assert!(split_minimap(rect, &rows_of(1), &st).1.is_none(), "one line is not a map");
 
         let (rect, st) = pane(MINIMAP_MIN_COLS as f32 - 1.0, &theme, true);
         let (body, strip) = split_minimap(rect, &rows_of(500), &st);
@@ -913,10 +735,7 @@ mod tests {
         let cols = SOURCE_OUTLINE_MIN_COLS as f32 + 3.0;
 
         let (rect, st) = pane(cols, &theme, false);
-        assert!(
-            pane_cols(rect, &st) >= SOURCE_OUTLINE_MIN_COLS,
-            "an outline fits on its own"
-        );
+        assert!(pane_cols(rect, &st) >= SOURCE_OUTLINE_MIN_COLS, "an outline fits on its own");
 
         let (rect, st) = pane(cols, &theme, true);
         let (body, _) = split_minimap(rect, &rows_of(500), &st);

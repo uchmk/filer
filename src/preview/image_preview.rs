@@ -28,13 +28,7 @@ pub fn render(path: &Path, box_size: (u32, u32)) -> Result<Payload, String> {
 
     let (cw, ch) = shown_size(sw, sh, orientation);
     let (width, height, rgba) = finish(fit(img, box_size).to_rgba8());
-    Ok(Payload::Image {
-        width,
-        height,
-        source: (cw, ch),
-        rgba,
-        caption: format!("{cw} × {ch}"),
-    })
+    Ok(Payload::Image { width, height, source: (cw, ch), rgba, caption: format!("{cw} × {ch}") })
 }
 
 /// Shrink into `box_size`. Never enlarge: upscaling is the renderer's job and
@@ -58,11 +52,7 @@ pub fn finish(mut img: RgbaImage) -> (u32, u32, Arc<Vec<u8>>) {
             if a == 255 {
                 continue;
             }
-            let bg = if (x / CELL + y / CELL).is_multiple_of(2) {
-                0xcc
-            } else {
-                0x99
-            };
+            let bg = if (x / CELL + y / CELL).is_multiple_of(2) { 0xcc } else { 0x99 };
             for c in &mut p.0[..3] {
                 *c = ((u32::from(*c) * a + bg * (255 - a) + 127) / 255) as u8;
             }

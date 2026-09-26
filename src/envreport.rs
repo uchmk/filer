@@ -27,11 +27,7 @@ pub fn text() -> String {
 fn section(out: &mut String, title: &str, rows: &[(String, String)]) {
     out.push_str(title);
     out.push('\n');
-    let width = rows
-        .iter()
-        .map(|(k, _)| k.chars().count())
-        .max()
-        .unwrap_or(0);
+    let width = rows.iter().map(|(k, _)| k.chars().count()).max().unwrap_or(0);
     for (k, v) in rows {
         // A value that runs to several lines is indented under its own key, so
         // the column stays readable however long the answer is.
@@ -87,25 +83,16 @@ fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
                 false => format!("{}\nnot here: {}", found.join("   "), missing.join(", ")),
             },
         };
-        rows.push((
-            format!("{}{}", dir.display(), std::path::MAIN_SEPARATOR),
-            said,
-        ));
+        rows.push((format!("{}{}", dir.display(), std::path::MAIN_SEPARATOR), said));
     }
     // Not a config file, but the other directory filer touches: bookmarks,
     // the jump history and the window size are written here, and "delete this
     // and try again" is a step a report is often asked to take.
-    rows.push((
-        "State".into(),
-        crate::config::Config::state_dir().display().to_string(),
-    ));
-    rows.push((
-        "Warnings".into(),
-        match cfg.warnings.len() {
-            0 => "none".into(),
-            _ => cfg.warnings.join("\n"),
-        },
-    ));
+    rows.push(("State".into(), crate::config::Config::state_dir().display().to_string()));
+    rows.push(("Warnings".into(), match cfg.warnings.len() {
+        0 => "none".into(),
+        _ => cfg.warnings.join("\n"),
+    }));
     rows
 }
 
@@ -216,17 +203,11 @@ fn shell_builtin(exe: &str) -> bool {
     // `cmd` is case-insensitive about its own names, so `START` is `start`.
     let (name, known) = (
         exe.to_ascii_lowercase(),
-        [
-            "start", "call", "echo", "type", "cd", "set", "copy", "del", "dir", "move", "rem",
-        ],
+        ["start", "call", "echo", "type", "cd", "set", "copy", "del", "dir", "move", "rem"],
     );
     #[cfg(not(windows))]
-    let (name, known) = (
-        exe.to_string(),
-        [
-            "echo", "cd", "export", "eval", "exec", "set", "test", "printf",
-        ],
-    );
+    let (name, known) =
+        (exe.to_string(), ["echo", "cd", "export", "eval", "exec", "set", "test", "printf"]);
 
     known.contains(&name.as_str())
 }
@@ -299,6 +280,7 @@ fn probe(exe: &str, flag: &str) -> Option<String> {
     }
 }
 
+
 /// What the window used, read back from what the last run wrote down.
 ///
 /// Neither of these can be worked out from here: the adapter is wgpu's choice
@@ -315,58 +297,29 @@ fn last_run() -> Vec<(String, String)> {
     };
     let list = |paths: &[std::path::PathBuf], none: &str| match paths.is_empty() {
         true => none.to_string(),
-        false => paths
-            .iter()
-            .map(|p| p.display().to_string())
-            .collect::<Vec<_>>()
-            .join("\n"),
+        false => paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join("\n"),
     };
     let mut rows = vec![
-        (
-            "Adapter".into(),
-            match info.adapter.is_empty() {
-                true => "not recorded".into(),
-                false => format!("{}   ({}, {})", info.adapter, info.backend, info.device),
-            },
-        ),
-        (
-            "Fonts".into(),
-            list(&info.fonts, "none loaded — this is why icons are boxes"),
-        ),
-        (
-            "Bold".into(),
-            list(&info.bold, "none found; bold is faked by overstriking"),
-        ),
+        ("Adapter".into(), match info.adapter.is_empty() {
+            true => "not recorded".into(),
+            false => format!("{}   ({}, {})", info.adapter, info.backend, info.device),
+        }),
+        ("Fonts".into(), list(&info.fonts, "none loaded — this is why icons are boxes")),
+        ("Bold".into(), list(&info.bold, "none found; bold is faked by overstriking")),
     ];
     // A record left by an older filer describes an older filer. Saying so
     // costs a line and stops a stale answer being read as a current one.
     if info.version != env!("CARGO_PKG_VERSION") {
-        rows.push((
-            "Recorded by".into(),
-            format!("filer {} — an earlier run", info.version),
-        ));
+        rows.push(("Recorded by".into(), format!("filer {} — an earlier run", info.version)));
     }
     rows
 }
 
 fn variables() -> Vec<(String, String)> {
-    [
-        "EDITOR",
-        "VISUAL",
-        "SHELL",
-        "TERM",
-        "YAZI_CONFIG_HOME",
-        "FILER_CONFIG_HOME",
-        "FILER_STATE_HOME",
-    ]
-    .iter()
-    .map(|k| {
-        (
-            k.to_string(),
-            std::env::var(k).unwrap_or_else(|_| "unset".into()),
-        )
-    })
-    .collect()
+    ["EDITOR", "VISUAL", "SHELL", "TERM", "YAZI_CONFIG_HOME", "FILER_CONFIG_HOME", "FILER_STATE_HOME"]
+        .iter()
+        .map(|k| (k.to_string(), std::env::var(k).unwrap_or_else(|_| "unset".into())))
+        .collect()
 }
 
 #[cfg(test)]
@@ -412,14 +365,10 @@ mod tests {
     #[test]
     fn a_long_answer_stays_in_its_column() {
         let mut out = String::new();
-        section(
-            &mut out,
-            "Bits",
-            &[
-                ("short".into(), "yes".into()),
-                ("a longer key".into(), "one\ntwo\nthree".into()),
-            ],
-        );
+        section(&mut out, "Bits", &[
+            ("short".into(), "yes".into()),
+            ("a longer key".into(), "one\ntwo\nthree".into()),
+        ]);
         assert_eq!(
             out,
             "Bits\n\
@@ -443,10 +392,7 @@ mod tests {
             "ffmpeg version 8.1.2-full_build",
         );
         // Lines without one are left exactly as they are.
-        assert_eq!(
-            cut("git version 2.52.0.windows.1"),
-            "git version 2.52.0.windows.1"
-        );
+        assert_eq!(cut("git version 2.52.0.windows.1"), "git version 2.52.0.windows.1");
         assert_eq!(cut("PowerShell 7.6.6"), "PowerShell 7.6.6");
     }
 
@@ -486,10 +432,7 @@ mod tests {
     #[test]
     fn it_reports_what_is_actually_there() {
         let text = text();
-        assert!(
-            text.contains(env!("CARGO_PKG_VERSION")),
-            "the version is its own"
-        );
+        assert!(text.contains(env!("CARGO_PKG_VERSION")), "the version is its own");
         // Every section is present even when a machine has none of the tools.
         for title in ["Filer", "Config", "Tools", "Variables"] {
             assert!(text.contains(title), "{title} is missing:\n{text}");
@@ -501,10 +444,7 @@ mod tests {
         // reads as a dependency and sends the reader off installing something
         // that changes nothing.
         for never_run in ["pdftoppm", "ffmpeg", "ffprobe"] {
-            assert!(
-                !text.contains(never_run),
-                "{never_run} is not used yet:\n{text}"
-            );
+            assert!(!text.contains(never_run), "{never_run} is not used yet:\n{text}");
         }
     }
 }

@@ -20,10 +20,7 @@ pub struct Section {
 
 impl Section {
     fn new(title: &str) -> Self {
-        Self {
-            title: title.into(),
-            rows: Vec::new(),
-        }
+        Self { title: title.into(), rows: Vec::new() }
     }
 
     fn row(&mut self, key: &str, value: impl Into<String>) {
@@ -41,30 +38,20 @@ pub fn base(entry: &Entry) -> Section {
     let mut s = Section::new("File");
     s.row("Name", entry.name.clone());
     s.row("Path", entry.path.display().to_string());
-    s.row(
-        "Kind",
-        match entry.kind {
-            Kind::Dir => "Directory",
-            Kind::File => "File",
-            Kind::Link { broken: true, .. } => "Link (broken)",
-            Kind::Link { to_dir: true, .. } => "Link to a directory",
-            Kind::Link { .. } => "Link to a file",
-        },
-    );
+    s.row("Kind", match entry.kind {
+        Kind::Dir => "Directory",
+        Kind::File => "File",
+        Kind::Link { broken: true, .. } => "Link (broken)",
+        Kind::Link { to_dir: true, .. } => "Link to a directory",
+        Kind::Link { .. } => "Link to a file",
+    });
     s.row("Mime", crate::mime::guess(entry));
     if entry.is_dir_like() {
         if let Some(n) = entry.dir_size {
             s.row("Items", n.to_string());
         }
     } else {
-        s.row(
-            "Size",
-            format!(
-                "{} ({} bytes)",
-                util::human_size(entry.len),
-                grouped(entry.len)
-            ),
-        );
+        s.row("Size", format!("{} ({} bytes)", util::human_size(entry.len), grouped(entry.len)));
     }
     s.row("Created", util::fmt_time(entry.created, TIME));
     s.row("Modified", util::fmt_time(entry.modified, TIME));
@@ -73,21 +60,16 @@ pub fn base(entry: &Entry) -> Section {
         .into_iter()
         .filter_map(|(on, name)| on.then_some(name))
         .collect();
-    s.row(
-        "Attributes",
-        if attrs.is_empty() {
-            "normal".into()
-        } else {
-            attrs.join(", ")
-        },
-    );
+    s.row("Attributes", if attrs.is_empty() { "normal".into() } else { attrs.join(", ") });
     s
 }
 
 /// Details that take reading the file. Runs on the spot worker.
 pub fn inspect(path: &Path) -> Vec<Section> {
     let providers: &[fn(&Path) -> Option<Section>] = &[
-        link, image, font,
+        link,
+        image,
+        font,
         directory,
         // Windows property-system values (media length, bitrate, EXIF, ...)
         // go here as one more provider reading `SHGetPropertyStoreFromParsingName`;
@@ -100,13 +82,10 @@ fn link(path: &Path) -> Option<Section> {
     let target = std::fs::read_link(path).ok()?;
     let mut s = Section::new("Link");
     s.row("Target", target.display().to_string());
-    s.row(
-        "Resolves",
-        match std::fs::canonicalize(path) {
-            Ok(real) => plain(&real),
-            Err(e) => format!("no ({e})"),
-        },
-    );
+    s.row("Resolves", match std::fs::canonicalize(path) {
+        Ok(real) => plain(&real),
+        Err(e) => format!("no ({e})"),
+    });
     Some(s)
 }
 
@@ -116,22 +95,13 @@ fn image(path: &Path) -> Option<Section> {
     if path.is_dir() {
         return None;
     }
-    let reader = image::ImageReader::open(path)
-        .ok()?
-        .with_guessed_format()
-        .ok()?;
+    let reader = image::ImageReader::open(path).ok()?.with_guessed_format().ok()?;
     let format = reader.format()?;
     let decoder = reader.into_decoder().ok()?;
     let (w, h) = decoder.dimensions();
     let mut s = Section::new("Image");
     s.row("Dimensions", format!("{w} × {h}"));
-    s.row(
-        "Format",
-        format
-            .extensions_str()
-            .first()
-            .map_or(String::new(), |x| x.to_uppercase()),
-    );
+    s.row("Format", format.extensions_str().first().map_or(String::new(), |x| x.to_uppercase()));
     s.row("Color", format!("{:?}", decoder.color_type()));
     Some(s)
 }
@@ -148,29 +118,14 @@ fn font(path: &Path) -> Option<Section> {
     }
     let data = std::fs::read(path).ok()?;
     let face = ttf_parser::Face::parse(&data, 0).ok()?;
-    use ttf_parser::name_id::{
-        FAMILY, FULL_NAME, SUBFAMILY, TYPOGRAPHIC_FAMILY, TYPOGRAPHIC_SUBFAMILY, VERSION,
-    };
+    use ttf_parser::name_id::{FAMILY, FULL_NAME, SUBFAMILY, TYPOGRAPHIC_FAMILY, TYPOGRAPHIC_SUBFAMILY, VERSION};
     let mut s = Section::new("Font");
-    s.row(
-        "Family",
-        font_name(&face, TYPOGRAPHIC_FAMILY)
-            .or_else(|| font_name(&face, FAMILY))
-            .unwrap_or_default(),
-    );
-    s.row(
-        "Style",
-        font_name(&face, TYPOGRAPHIC_SUBFAMILY)
-            .or_else(|| font_name(&face, SUBFAMILY))
-            .unwrap_or_default(),
-    );
+    s.row("Family", font_name(&face, TYPOGRAPHIC_FAMILY).or_else(|| font_name(&face, FAMILY)).unwrap_or_default());
+    s.row("Style", font_name(&face, TYPOGRAPHIC_SUBFAMILY).or_else(|| font_name(&face, SUBFAMILY)).unwrap_or_default());
     s.row("Full name", font_name(&face, FULL_NAME).unwrap_or_default());
     s.row("Version", font_name(&face, VERSION).unwrap_or_default());
     s.row("Weight", face.weight().to_number().to_string());
-    s.row(
-        "Monospaced",
-        if face.is_monospaced() { "yes" } else { "no" },
-    );
+    s.row("Monospaced", if face.is_monospaced() { "yes" } else { "no" });
     s.row("Glyphs", face.number_of_glyphs().to_string());
     if let Some(n) = ttf_parser::fonts_in_collection(&data) {
         s.row("Faces", n.to_string());
@@ -185,9 +140,7 @@ fn font_name(face: &ttf_parser::Face, id: u16) -> Option<String> {
         if n.name_id != id || !n.is_unicode() {
             continue;
         }
-        let Some(s) = n.to_string().filter(|s| !s.trim().is_empty()) else {
-            continue;
-        };
+        let Some(s) = n.to_string().filter(|s| !s.trim().is_empty()) else { continue };
         if n.language_id == 0x0409 {
             return Some(s);
         }
@@ -213,10 +166,7 @@ fn directory(path: &Path) -> Option<Section> {
     let mut s = Section::new("Directory");
     s.rows.push(("Files".into(), grouped(files)));
     s.rows.push(("Directories".into(), grouped(dirs)));
-    s.row(
-        "Files' size",
-        format!("{} ({} bytes)", util::human_size(bytes), grouped(bytes)),
-    );
+    s.row("Files' size", format!("{} ({} bytes)", util::human_size(bytes), grouped(bytes)));
     Some(s)
 }
 
@@ -292,10 +242,7 @@ mod tests {
     }
 
     fn value<'a>(s: &'a Section, key: &str) -> Option<&'a str> {
-        s.rows
-            .iter()
-            .find(|(k, _)| k == key)
-            .map(|(_, v)| v.as_str())
+        s.rows.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
     }
 
     #[test]
@@ -317,9 +264,7 @@ mod tests {
         let dir = temp_dir("image");
         // Named `.dat` on purpose: the format is sniffed, not taken from the name.
         let path = dir.join("pic.dat");
-        image::RgbaImage::new(7, 3)
-            .save_with_format(&path, image::ImageFormat::Png)
-            .unwrap();
+        image::RgbaImage::new(7, 3).save_with_format(&path, image::ImageFormat::Png).unwrap();
         let sections = inspect(&path);
         let img = sections.iter().find(|s| s.title == "Image").unwrap();
         assert_eq!(value(img, "Dimensions"), Some("7 × 3"));

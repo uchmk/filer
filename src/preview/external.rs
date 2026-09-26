@@ -90,12 +90,7 @@ fn shell(line: &str) -> std::io::Result<std::process::Output> {
     // No console window: this runs on the preview thread, many times a second
     // while a key is held, and each one would flash.
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    Command::new("cmd")
-        .arg("/S")
-        .arg("/C")
-        .raw_arg(format!("\"{line}\""))
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
+    Command::new("cmd").arg("/S").arg("/C").raw_arg(format!("\"{line}\"")).creation_flags(CREATE_NO_WINDOW).output()
 }
 
 #[cfg(not(windows))]
@@ -190,21 +185,11 @@ mod tests {
     /// the filename, which cannot contain them, and no frame was ever drawn.
     #[test]
     fn a_suffix_on_out_is_inside_the_quotes() {
-        let line = fill(
-            "ff -i {path} -y {out}.png",
-            Path::new("/v/a b.mp4"),
-            Path::new("/t/page"),
-            0,
-        );
+        let line = fill("ff -i {path} -y {out}.png", Path::new("/v/a b.mp4"), Path::new("/t/page"), 0);
         assert_eq!(line, r#"ff -i "/v/a b.mp4" -y "/t/page.png""#);
 
         // And a rule that quoted it itself is left as it is.
-        let line = fill(
-            r#"ff -y "{out}.png""#,
-            Path::new("/v/x.mp4"),
-            Path::new("/t/page"),
-            0,
-        );
+        let line = fill(r#"ff -y "{out}.png""#, Path::new("/v/x.mp4"), Path::new("/t/page"), 0);
         assert_eq!(line, r#"ff -y "/t/page.png""#);
     }
 
@@ -222,11 +207,7 @@ mod tests {
         // point: the directory is searched, not guessed at.
         let r = rule("printf '%s' {n} > {out}-page-{n}.png");
         let drawn = draw(&r, &src, 3).expect("the command ran");
-        assert_eq!(
-            std::fs::read_to_string(&drawn.png).unwrap(),
-            "3",
-            "{{n}} reached it"
-        );
+        assert_eq!(std::fs::read_to_string(&drawn.png).unwrap(), "3", "{{n}} reached it");
 
         let dir = drawn._dir.0.clone();
         assert!(dir.is_dir());

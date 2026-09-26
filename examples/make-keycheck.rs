@@ -36,10 +36,7 @@ fn main() {
     let done = previous_ticks();
 
     let mut out = String::new();
-    let ticked = bindings
-        .iter()
-        .filter(|b| done.contains(&key_of(b)))
-        .count();
+    let ticked = bindings.iter().filter(|b| done.contains(&key_of(b))).count();
 
     writeln!(out, "# Key checklist").unwrap();
     writeln!(out).unwrap();
@@ -233,12 +230,7 @@ fn keys(v: &str) -> String {
     }
     parts.push(cur);
     // A trailing comma leaves an empty tail; a key itself is never blank.
-    parts
-        .iter()
-        .filter(|p| !p.trim().is_empty())
-        .map(|p| unquote(p))
-        .collect::<Vec<_>>()
-        .join(" ")
+    parts.iter().filter(|p| !p.trim().is_empty()).map(|p| unquote(p)).collect::<Vec<_>>().join(" ")
 }
 
 /// Strip the quotes and undo TOML's escapes.
@@ -274,10 +266,8 @@ fn layer_note(layer: &str) -> &'static str {
         "mgr" => "The file list: what is in front of you unless an overlay is.",
         "input" => "The one-line prompt — `cd`, rename, filter, search.",
         "spot" => "The details panel (`<Tab>`).",
-        "term" => {
-            "While the terminal pane holds the keys. Everything not listed \
-                   here goes to the shell."
-        }
+        "term" => "While the terminal pane holds the keys. Everything not listed \
+                   here goes to the shell.",
         "diff" => "The side-by-side comparison (`<A-d>`).",
         "tasks" => "The task manager (`w`).",
         "pick" => "A chooser — the command palette, the context menu.",

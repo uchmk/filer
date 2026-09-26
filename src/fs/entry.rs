@@ -9,10 +9,7 @@ pub enum Kind {
     Dir,
     File,
     /// Symlink / junction / reparse point, with the kind of its target when known.
-    Link {
-        to_dir: bool,
-        broken: bool,
-    },
+    Link { to_dir: bool, broken: bool },
 }
 
 impl Kind {
@@ -95,37 +92,18 @@ impl Entry {
         let is_symlink = ft.map(|f| f.is_symlink()).unwrap_or(false);
         let mut kind = match ft {
             Some(f) if f.is_dir() => Kind::Dir,
-            Some(f) if f.is_symlink() => Kind::Link {
-                to_dir: false,
-                broken: true,
-            },
+            Some(f) if f.is_symlink() => Kind::Link { to_dir: false, broken: true },
             _ => Kind::File,
         };
         let mut link_to = None;
         if is_symlink {
             match std::fs::metadata(&path) {
-                Ok(target) => {
-                    kind = Kind::Link {
-                        to_dir: target.is_dir(),
-                        broken: false,
-                    }
-                }
-                Err(_) => {
-                    kind = Kind::Link {
-                        to_dir: false,
-                        broken: true,
-                    }
-                }
+                Ok(target) => kind = Kind::Link { to_dir: target.is_dir(), broken: false },
+                Err(_) => kind = Kind::Link { to_dir: false, broken: true },
             }
-            link_to = std::fs::read_link(&path)
-                .ok()
-                .map(|t| link_target(&path, t));
+            link_to = std::fs::read_link(&path).ok().map(|t| link_target(&path, t));
         }
-        let ext = if kind.is_dir_like() {
-            None
-        } else {
-            util::extension(&name)
-        };
+        let ext = if kind.is_dir_like() { None } else { util::extension(&name) };
         let (len, modified, created, accessed, hidden, readonly) = match &md {
             Some(md) => (
                 md.len(),
@@ -223,9 +201,6 @@ mod tests {
             link_target(link, PathBuf::from("../c/file.txt")),
             PathBuf::from("/a/c/file.txt")
         );
-        assert_eq!(
-            link_target(link, PathBuf::from("/d/other")),
-            PathBuf::from("/d/other")
-        );
+        assert_eq!(link_target(link, PathBuf::from("/d/other")), PathBuf::from("/d/other"));
     }
 }

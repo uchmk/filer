@@ -18,9 +18,7 @@ use super::{archive, restore};
 pub enum OpKind {
     Copy,
     Move,
-    Symlink {
-        relative: bool,
-    },
+    Symlink { relative: bool },
     Hardlink,
     Trash,
     Delete,
@@ -63,29 +61,12 @@ pub struct OpRequest {
 
 #[derive(Debug)]
 pub enum OpEvent {
-    Started {
-        id: u64,
-        files: u64,
-        bytes: u64,
-    },
-    Progress {
-        id: u64,
-        files_done: u64,
-        bytes_done: u64,
-        current: String,
-    },
+    Started { id: u64, files: u64, bytes: u64 },
+    Progress { id: u64, files_done: u64, bytes_done: u64, current: String },
     /// The worker is blocked until the UI sends a [`Resolution`].
-    Conflict {
-        id: u64,
-        src: PathBuf,
-        dest: PathBuf,
-        reply: Sender<Resolution>,
-    },
+    Conflict { id: u64, src: PathBuf, dest: PathBuf, reply: Sender<Resolution> },
     /// The job has parked, or started moving again.
-    Paused {
-        id: u64,
-        paused: bool,
-    },
+    Paused { id: u64, paused: bool },
     Finished {
         id: u64,
         kind: OpKind,
@@ -147,11 +128,7 @@ impl Runner {
                         wake: &wake,
                         files_done: 0,
                         bytes_done: 0,
-                        policy: if req.force {
-                            Policy::OverwriteAll
-                        } else {
-                            Policy::Ask
-                        },
+                        policy: if req.force { Policy::OverwriteAll } else { Policy::Ask },
                         errors: Vec::new(),
                         cancelled: false,
                         paused: false,
@@ -170,12 +147,7 @@ impl Runner {
                 }
             })
             .expect("spawn fs-ops worker");
-        Self {
-            queue,
-            stop,
-            ctl,
-            rx,
-        }
+        Self { queue, stop, ctl, rx }
     }
 
     pub fn submit(&self, req: OpRequest) {
@@ -197,9 +169,7 @@ impl Runner {
     pub fn drop_queued(&self, id: u64) -> bool {
         let (lock, _) = &*self.queue;
         let Ok(mut q) = lock.lock() else { return false };
-        let Some(at) = q.iter().position(|r| r.id == id) else {
-            return false;
-        };
+        let Some(at) = q.iter().position(|r| r.id == id) else { return false };
         q.remove(at);
         true
     }
@@ -208,12 +178,8 @@ impl Runner {
     pub fn promote(&self, id: u64) -> bool {
         let (lock, _) = &*self.queue;
         let Ok(mut q) = lock.lock() else { return false };
-        let Some(at) = q.iter().position(|r| r.id == id) else {
-            return false;
-        };
-        let Some(req) = q.remove(at) else {
-            return false;
-        };
+        let Some(at) = q.iter().position(|r| r.id == id) else { return false };
+        let Some(req) = q.remove(at) else { return false };
         q.push_front(req);
         true
     }
@@ -277,11 +243,7 @@ impl Ctx<'_> {
                 measure(&req.srcs)
             }
         };
-        let _ = self.ev.send(OpEvent::Started {
-            id: self.id,
-            files,
-            bytes,
-        });
+        let _ = self.ev.send(OpEvent::Started { id: self.id, files, bytes });
         (self.wake)();
 
         match req.kind {
@@ -311,9 +273,7 @@ impl Ctx<'_> {
                         self.report(&p.to_string_lossy());
                         match trash::delete(p) {
                             Ok(()) => self.files_done += 1,
-                            Err(e) => self
-                                .errors
-                                .push(format!("{}: {e}", crate::util::file_name(p))),
+                            Err(e) => self.errors.push(format!("{}: {e}", crate::util::file_name(p))),
                         }
                     }
                 }
@@ -356,9 +316,7 @@ impl Ctx<'_> {
             OpKind::Symlink { relative } => {
                 for src in &req.srcs {
                     let dest = req.dest_dir.join(file_name(src));
-                    let Some(dest) = self.resolve_dest(src, dest) else {
-                        continue;
-                    };
+                    let Some(dest) = self.resolve_dest(src, dest) else { continue };
                     let target = if relative {
                         relative_to(&req.dest_dir, src).unwrap_or_else(|| src.clone())
                     } else {
@@ -373,9 +331,7 @@ impl Ctx<'_> {
             OpKind::Hardlink => {
                 for src in &req.srcs {
                     let dest = req.dest_dir.join(file_name(src));
-                    let Some(dest) = self.resolve_dest(src, dest) else {
-                        continue;
-                    };
+                    let Some(dest) = self.resolve_dest(src, dest) else { continue };
                     if let Err(e) = std::fs::hard_link(src, &dest) {
                         self.errors.push(format!("{}: {e}", short(src)));
                     }
@@ -401,9 +357,7 @@ impl Ctx<'_> {
                             .push(format!("{}: cannot copy into itself", short(src)));
                         continue;
                     }
-                    let Some(dest) = self.resolve_dest(src, dest) else {
-                        continue;
-                    };
+                    let Some(dest) = self.resolve_dest(src, dest) else { continue };
                     self.transfer(src, &dest, moving);
                     self.note_move(moving, src, &dest);
                 }
@@ -465,18 +419,12 @@ impl Ctx<'_> {
                 None => return,
             },
         };
-        let r = archive::compress(
-            &req.srcs,
-            &req.dest_dir,
-            &dest,
-            format,
-            &mut |name, bytes| {
-                self.files_done += 1;
-                self.bytes_done += bytes;
-                self.report_entry(name);
-                !self.cancelled
-            },
-        );
+        let r = archive::compress(&req.srcs, &req.dest_dir, &dest, format, &mut |name, bytes| {
+            self.files_done += 1;
+            self.bytes_done += bytes;
+            self.report_entry(name);
+            !self.cancelled
+        });
         if let Err(e) = r {
             self.errors.push(format!("{}: {e}", short(&dest)));
             // A half-written archive is worse than none: it looks openable.
@@ -574,10 +522,7 @@ impl Ctx<'_> {
                 return;
             }
             let children = match std::fs::read_dir(src) {
-                Ok(rd) => rd
-                    .filter_map(|e| e.ok())
-                    .map(|e| e.path())
-                    .collect::<Vec<_>>(),
+                Ok(rd) => rd.filter_map(|e| e.ok()).map(|e| e.path()).collect::<Vec<_>>(),
                 Err(e) => {
                     self.errors.push(format!("{}: {e}", short(src)));
                     return;
@@ -688,10 +633,7 @@ impl Ctx<'_> {
     }
 
     fn announce_pause(&mut self) {
-        let _ = self.ev.send(OpEvent::Paused {
-            id: self.id,
-            paused: self.paused,
-        });
+        let _ = self.ev.send(OpEvent::Paused { id: self.id, paused: self.paused });
         (self.wake)();
     }
 
@@ -723,9 +665,7 @@ fn measure(srcs: &[PathBuf]) -> (u64, u64) {
             break;
         }
         budget -= 1;
-        let Ok(md) = std::fs::symlink_metadata(&p) else {
-            continue;
-        };
+        let Ok(md) = std::fs::symlink_metadata(&p) else { continue };
         if md.is_dir() && !md.file_type().is_symlink() {
             if let Ok(rd) = std::fs::read_dir(&p) {
                 stack.extend(rd.filter_map(|e| e.ok()).map(|e| e.path()));
@@ -743,21 +683,15 @@ pub fn exists(p: &Path) -> bool {
 }
 
 fn is_symlink(p: &Path) -> bool {
-    std::fs::symlink_metadata(p)
-        .map(|m| m.file_type().is_symlink())
-        .unwrap_or(false)
+    std::fs::symlink_metadata(p).map(|m| m.file_type().is_symlink()).unwrap_or(false)
 }
 
 fn file_name(p: &Path) -> PathBuf {
-    p.file_name()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("unnamed"))
+    p.file_name().map(PathBuf::from).unwrap_or_else(|| PathBuf::from("unnamed"))
 }
 
 fn short(p: &Path) -> String {
-    p.file_name()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|| p.display().to_string())
+    p.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| p.display().to_string())
 }
 
 fn same_path(a: &Path, b: &Path) -> bool {
@@ -776,10 +710,7 @@ pub fn unique_name(dest: &Path) -> PathBuf {
         return dest.to_path_buf();
     }
     let dir = dest.parent().unwrap_or(Path::new("."));
-    let name = dest
-        .file_name()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_default();
+    let name = dest.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
     let (stem, ext) = crate::util::stem_and_ext(&name);
     for i in 1..10_000 {
         let candidate = dir.join(format!("{stem}_{i}{ext}"));
