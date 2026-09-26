@@ -106,6 +106,16 @@ desc = "Go back to the previous directory"
 on = "L"
 run = "forward"
 desc = "Go forward to the next directory"
+# What Explorer and every browser use for the same pair, for the hand that is
+# already on the arrows rather than on `H` and `L`.
+[[mgr.keymap]]
+on = "<A-Left>"
+run = "back"
+desc = "Go back to the previous directory"
+[[mgr.keymap]]
+on = "<A-Right>"
+run = "forward"
+desc = "Go forward to the next directory"
 [[mgr.keymap]]
 on = "<F5>"
 run = "refresh"
@@ -514,10 +524,18 @@ desc = "Go to the downloads directory"
 on = [ "g", "D" ]
 run = "cd ~/Documents"
 desc = "Go to the documents directory"
+# Two directories are read, and the one you are most likely to be looking for
+# is filer's own -- `filer.toml` belongs there, and `<F1>` names both with the
+# empty one marked. `g`+`c` goes to filer's, `g`+`y` to yazi's, which is where
+# `keymap.toml`, `theme.toml` and `yazi.toml` usually live.
 [[mgr.keymap]]
 on = [ "g", "c" ]
+run = "cd %APPDATA%/filer"
+desc = "Go to filer's config directory"
+[[mgr.keymap]]
+on = [ "g", "y" ]
 run = "cd %APPDATA%/yazi/config"
-desc = "Go to the config directory"
+desc = "Go to yazi's config directory"
 [[mgr.keymap]]
 on = [ "g", "t" ]
 run = "cd %TEMP%"

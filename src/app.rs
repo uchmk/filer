@@ -5387,3 +5387,36 @@ mod outline_jump {
         assert_eq!(a.tabs[a.active].preview_offset, 300, "no frame is drawn past the end");
     }
 }
+
+#[cfg(test)]
+mod goto_and_history_keys {
+    use crate::config::keymap;
+
+    /// `g`+`c` goes to filer's own directory, not yazi's.
+    ///
+    /// Both are read, but they hold different things: `filer.toml` only ever
+    /// belongs in filer's, and that is the one a reader cannot find, because
+    /// it is often the directory that does not exist yet. yazi's keeps its own
+    /// key rather than the shared one.
+    #[test]
+    fn the_two_config_directories_have_a_key_each() {
+        let (km, warnings) = keymap::Keymap::load(&[]);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let run = |key: &str| {
+            km.mgr
+                .iter()
+                .find(|b| crate::config::keys::render_seq(&b.on) == key)
+                .unwrap_or_else(|| panic!("`{key}` is not bound"))
+                .raw
+                .clone()
+        };
+        assert_eq!(run("gc"), "cd %APPDATA%/filer");
+        assert_eq!(run("gy"), "cd %APPDATA%/yazi/config");
+
+        // The pair the arrows reach, alongside the `H`/`L` that already did.
+        assert_eq!(run("<A-Left>"), "back");
+        assert_eq!(run("<A-Right>"), "forward");
+        assert_eq!(run("H"), "back");
+        assert_eq!(run("L"), "forward");
+    }
+}

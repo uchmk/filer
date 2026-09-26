@@ -647,7 +647,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | --- | --- |
 | `h` `j` `k` `l` | parent / down / up / enter the directory or the file's outline (arrows work too) |
 | `gg` `G` `<C-u>` `<C-d>` `<C-b>` `<C-f>` | top / bottom / half page / full page |
-| `H` `L` | back / forward in history |
+| `H` `L` (or `<A-←>` `<A-→>`) | back / forward in history |
 | `<Space>` `v` `V` `<C-a>` `<C-S-r>` | toggle / visual / visual-unset / select all / invert |
 | `y` `x` `Y` `p` `P` `-` `_` `<C-->` | yank / cut / cancel the yank / paste / paste-force / symlink / relative symlink / hardlink |
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
@@ -658,7 +658,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 | `<F3>` | quick look: the hovered file, big, over the panes |
 | `e` `E` | extract the selected archives / compress the selection |
 | `<A-c>` `<A-m>` | copy / move the selection to the other pane |
-| `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` config, `gt` temp, `g<Space>` type a path, `gf` follow the link |
+| `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` filer's config, `gy` yazi's config, `gt` temp, `g<Space>` type a path, `gf` follow the link |
 | `c…` | `cc` copy the path, `cd` the parent, `cf` the file name, `cn` the name without its extension |
 | `o` `O` `<Enter>` `<S-Enter>` | open / open with… / open (at the outline's line) / open with… |
 | `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter |

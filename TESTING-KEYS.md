@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**175 / 200 checked.**
+**175 / 203 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 127 / 142
+## `[mgr]` — 127 / 145
 
 The file list: what is in front of you unless an overlay is.
 
@@ -42,6 +42,8 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<Backspace>` — Go back to the parent directory · `leave`
 - [x] `H` — Go back to the previous directory · `back`
 - [x] `L` — Go forward to the next directory · `forward`
+- [ ] `<A-Left>` — Go back to the previous directory · `back`
+- [ ] `<A-Right>` — Go forward to the next directory · `forward`
 - [x] `<F5>` — Re-read the current directory · `refresh`
 - [x] `<C-F5>` — Read the config files again (theme, icons, keys) · `config_reload`
 - [x] `<F3>` — Quick look: the hovered file, big, over the panes · `quick`
@@ -149,7 +151,8 @@ The file list: what is in front of you unless an overlay is.
 - [x] `g h` — Go to the home directory · `cd ~`
 - [x] `g d` — Go to the downloads directory · `cd ~/Downloads`
 - [x] `g D` — Go to the documents directory · `cd ~/Documents`
-- [x] `g c` — Go to the config directory · `cd %APPDATA%/yazi/config`
+- [x] `g c` — Go to filer's config directory · `cd %APPDATA%/filer`
+- [ ] `g y` — Go to yazi's config directory · `cd %APPDATA%/yazi/config`
 - [x] `g t` — Go to the temporary directory · `cd %TEMP%`
 - [x] `g <Space>` — Jump interactively · `cd --interactive`
 - [ ] `g f` — Follow the hovered symlink · `follow`
