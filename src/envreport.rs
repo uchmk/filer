@@ -102,7 +102,11 @@ fn config() -> Vec<(String, String)> {
 /// usually one of these lines differing.
 fn tools() -> Vec<(String, String)> {
     [
-        ("pdftoppm", "--version", "PDF pages"),
+        // `-v`, not `--version`: poppler's tools take the short one, and the
+        // long one is read as a filename -- so the answer was an I/O error
+        // about a file called `--version`, which reads as a broken install of
+        // a tool that is in fact fine.
+        ("pdftoppm", "-v", "PDF pages"),
         ("ffmpeg", "-version", "video frames"),
         ("ffprobe", "-version", "video duration"),
         ("pwsh", "--version", "terminal pane"),
@@ -136,11 +140,15 @@ fn probe(exe: &str, flag: &str) -> Option<String> {
         false => String::from_utf8_lossy(&out.stdout).into_owned(),
     };
     let line = text.lines().next()?.trim();
+    // ffmpeg and friends put a paragraph of copyright on the same line as the
+    // version. The version is the part a report needs.
+    let line = line.split(" Copyright").next().unwrap_or(line).trim();
     match line.is_empty() {
         true => None,
         false => Some(line.to_owned()),
     }
 }
+
 
 fn variables() -> Vec<(String, String)> {
     ["EDITOR", "VISUAL", "SHELL", "TERM", "YAZI_CONFIG_HOME", "FILER_CONFIG_HOME", "FILER_STATE_HOME"]
@@ -174,6 +182,23 @@ mod tests {
              \x20                  two\n\
              \x20                  three\n\n",
         );
+    }
+
+    /// A version line is the version, not the copyright that follows it.
+    ///
+    /// ffmpeg answers `ffmpeg version 8.1.2-full_build-… Copyright (c) 2000-…
+    /// the FFmpeg developers`, all on one line, and the half after `Copyright`
+    /// is the same for everyone.
+    #[test]
+    fn the_copyright_is_not_part_of_the_version() {
+        let cut = |s: &str| s.split(" Copyright").next().unwrap_or(s).trim().to_string();
+        assert_eq!(
+            cut("ffmpeg version 8.1.2-full_build Copyright (c) 2000-2026 the FFmpeg developers"),
+            "ffmpeg version 8.1.2-full_build",
+        );
+        // Lines without one are left exactly as they are.
+        assert_eq!(cut("git version 2.52.0.windows.1"), "git version 2.52.0.windows.1");
+        assert_eq!(cut("PowerShell 7.6.6"), "PowerShell 7.6.6");
     }
 
     /// Nothing in the report may be a guess.

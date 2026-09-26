@@ -416,6 +416,8 @@ Run from a shell, not from inside the app.
 | 29.2 | The Config section | Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest |
 | 29.3 | With a deliberate typo in `keymap.toml` | The warning appears under `Warnings`, its several lines indented under the one key |
 | 29.4 | The Tools section | `pdftoppm`, `ffmpeg`, `ffprobe`, `pwsh`, `git` with versions where installed and `not found` where not, each naming what it is for |
+| 29.4a | `pdftoppm` specifically, with poppler installed (v0.28.1) | A version. Until v0.28.1 it was asked with `--version`, which poppler reads as a **filename**, so an installed tool reported an I/O error |
+| 29.4b | `ffmpeg` | The version only — the copyright that shares the line is dropped |
 | 29.5 | On Windows on ARM with the x64 build | `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed |
 | 29.6 | `filer --help` | `env` is listed under COMMANDS |
 | 29.7 | Double-click `filer.exe` (no console) | Unchanged: the window opens, nothing is printed anywhere |
