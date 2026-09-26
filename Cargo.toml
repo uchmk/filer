@@ -1,6 +1,6 @@
 [package]
 name = "filer"
-version = "0.33.4"
+version = "0.33.5"
 edition = "2021"
 rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"
@@ -35,6 +35,12 @@ alacritty_terminal = { version = "0.26", default-features = false }
 polling = "3"
 # Already in the tree: syntect's `default-fancy` builds it. Naming it here is
 # what lets bulk rename use it, and adds no crate to the build.
+#
+# Held at syntect's version rather than the newest, which is the whole point:
+# syntect 5.3 asks for `0.16.2`, so a newer one here does not replace it, it
+# joins it -- two regex engines compiled, 272 KB on the binary, for an API
+# (`Regex::new`, `replace`, `replace_all`) that has not changed. Dependabot is
+# told to leave it alone for the same reason; when syntect moves, this moves.
 fancy-regex = "0.16"
 
 [dependencies.image]

@@ -19,6 +19,16 @@ updates:
     groups:
       cargo:
         patterns: ["*"]
+    ignore:
+      # Pinned to whatever syntect asks for, which is `0.16.2` today. A newer
+      # one does not replace syntect's copy, it is built beside it -- and the
+      # three functions bulk rename uses are the same in both. See the note in
+      # Cargo.toml. Security updates still come through: this only stops the
+      # monthly version bump, which would be proposed again every month.
+      - dependency-name: fancy-regex
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
 
   # The actions in `.github/workflows` pin major versions, so this is what moves
   # `@v4` to `@v5` rather than letting it sit until an action is deprecated and
