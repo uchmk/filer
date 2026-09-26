@@ -847,6 +847,9 @@ pub struct App {
     pub term: Option<crate::terminal::Terminal>,
     /// The terminal has the keys, so they go to the shell rather than here.
     pub term_focus: bool,
+    /// The file the spot worker was last asked about, so the panel can be
+    /// pointed at a new one without asking again every frame.
+    pub spot_asked: Option<PathBuf>,
     /// Wheel movement not yet worth a whole line, kept so that it becomes one.
     ///
     /// A frame's smoothed delta is usually a fraction of a row, and truncating
@@ -961,6 +964,7 @@ impl App {
             git_status: Lru::new(8),
             term: None,
             term_focus: false,
+            spot_asked: None,
             term_scroll_px: 0.0,
             term_needle: String::new(),
             drag: None,
@@ -1199,6 +1203,7 @@ impl App {
             self.error(msg);
         }
         self.drain_search();
+        self.sync_spot();
         self.pump_terminal();
         self.flush_dirty();
         self.toasts.retain(|t| t.at.elapsed() < Duration::from_secs(6));
@@ -1644,9 +1649,34 @@ impl App {
     // ------------------------------------------------------------------ spot
 
     fn open_spot(&mut self) {
-        let Some(entry) = self.tabs[self.active].current.hovered() else { return };
-        self.spotter.request(entry.path.clone());
+        if self.tabs[self.active].current.hovered().is_none() {
+            return;
+        }
         self.overlay = Overlay::Spot(SpotOverlay { cursor: 0, scroll: 0 });
+        self.sync_spot();
+    }
+
+    /// Keep the worker pointed at the file under the cursor.
+    ///
+    /// The panel is a page about one file, so it has to be about the hovered
+    /// one -- and the cursor moves in ways the panel does not hear directly.
+    /// `h` and `l` change directory, and what ends up hovered there is decided
+    /// by a listing that arrives frames later on a worker thread, so asking at
+    /// the moment the key is pressed would ask about nothing. Called once a
+    /// frame as well, which is what makes that case work.
+    fn sync_spot(&mut self) {
+        if !matches!(self.overlay, Overlay::Spot(_)) {
+            self.spot_asked = None;
+            return;
+        }
+        let Some(path) = self.tabs[self.active].current.hovered().map(|e| e.path.clone()) else {
+            return;
+        };
+        if self.spot_asked.as_ref() == Some(&path) {
+            return;
+        }
+        self.spot_asked = Some(path.clone());
+        self.spotter.request(path);
     }
 
     /// What the spot panel shows for the hovered file: the listing's facts,
@@ -1805,12 +1835,24 @@ impl App {
             Act::Close | Act::Escape(_) | Act::Spot | Act::Quit => self.overlay = Overlay::None,
             Act::Arrow(step) => ov.cursor = step.apply(ov.cursor, rows, page),
             Act::Swipe(n) => {
-                let before = self.tabs[self.active].current.hovered().map(|e| e.path.clone());
                 self.act(Act::Arrow(Step::Rel(n)));
-                let after = self.tabs[self.active].current.hovered().map(|e| e.path.clone());
-                if let Some(path) = after.filter(|p| Some(p) != before.as_ref()) {
-                    self.spotter.request(path);
+                self.sync_spot();
+            }
+            // `h` and `l` change directory, as they do in the list and so as
+            // they do under `<F3>`, which keeps the list's own keys live.
+            Act::Leave | Act::Enter => {
+                // In the list, `enter` on a plain file focuses the preview's
+                // outline -- another panel wanting these same keys. With the
+                // spotter open only a directory is worth moving into.
+                let into_dir =
+                    self.tabs[self.active].current.hovered().is_some_and(|e| e.is_dir_like());
+                if matches!(a, Act::Enter) && !into_dir {
+                    return;
                 }
+                self.act(a);
+                // The listing is still on its way, so the file this lands on
+                // is not known yet; the once-a-frame call catches it.
+                self.sync_spot();
             }
             Act::Copy(_) => {
                 let cursor = ov.cursor;
@@ -5097,11 +5139,17 @@ mod spot_keys {
                 .run
                 .clone()
         };
-        for key in ["j", "l", "<Down>", "<Right>"] {
+        for key in ["j", "<Down>"] {
             assert_eq!(run(key), vec![Act::Swipe(1)], "`{key}` goes to the next file");
         }
-        for key in ["k", "h", "<Up>", "<Left>"] {
+        for key in ["k", "<Up>"] {
             assert_eq!(run(key), vec![Act::Swipe(-1)], "`{key}` goes to the previous file");
+        }
+        for key in ["l", "<Right>"] {
+            assert_eq!(run(key), vec![Act::Enter], "`{key}` goes into the directory");
+        }
+        for key in ["h", "<Left>"] {
+            assert_eq!(run(key), vec![Act::Leave], "`{key}` goes up to the parent");
         }
         for key in ["<A-j>", "<A-Down>"] {
             assert_eq!(run(key), vec![Act::Arrow(Step::Rel(1))], "`{key}` moves down the panel");
@@ -5117,5 +5165,64 @@ mod spot_keys {
             matches!(mgr("<A-j>").as_deref(), Some([Act::Seek(_)])),
             "and <A-j> scrolls what is on show",
         );
+        // The horizontal pair is the list's, unchanged, in both.
+        assert_eq!(mgr("h"), Some(vec![Act::Leave]));
+        assert_eq!(mgr("l"), Some(vec![Act::Enter]));
+    }
+}
+
+#[cfg(test)]
+mod spot_follows_the_cursor {
+    use super::*;
+
+    fn app() -> App {
+        let ctx = egui::Context::default();
+        App::new(Config::load(), std::env::temp_dir(), ctx)
+    }
+
+    /// The panel describes whatever is hovered, so it has to be asked about it.
+    ///
+    /// `h` and `l` move to another directory, and which file ends up hovered
+    /// there is decided by a listing that arrives later on a worker thread —
+    /// asking at the moment the key is pressed asks about nothing at all.
+    /// `sync_spot` runs once a frame for exactly that, and the assertion is on
+    /// what the worker was asked, because the panel is silently right either
+    /// way: its first section is read from the listing live, so a stale worker
+    /// answer just leaves the per-type rows missing.
+    #[test]
+    fn a_new_hover_is_asked_about_once_it_exists() {
+        let mut a = app();
+        let dir = std::env::temp_dir().join("filer-spot-follow");
+        let _ = std::fs::create_dir_all(&dir);
+        let one = dir.join("one.txt");
+        let two = dir.join("two.txt");
+        std::fs::write(&one, "1").unwrap();
+        std::fs::write(&two, "2").unwrap();
+
+        let entries = Arc::new(vec![
+            crate::fs::Entry::from_path(one.clone()).unwrap(),
+            crate::fs::Entry::from_path(two.clone()).unwrap(),
+        ]);
+        a.tabs[a.active].current = Folder::from_entries(dir.clone(), entries, true);
+        a.overlay = Overlay::Spot(SpotOverlay { cursor: 0, scroll: 0 });
+
+        a.sync_spot();
+        assert_eq!(a.spot_asked.as_deref(), Some(one.as_path()), "the hovered one");
+
+        // Asking again for the same file does not re-ask.
+        a.spot_asked = None;
+        a.sync_spot();
+        assert_eq!(a.spot_asked.as_deref(), Some(one.as_path()));
+
+        // Moving the cursor moves the panel with it.
+        a.spot_act(Act::Swipe(1));
+        assert_eq!(a.spot_asked.as_deref(), Some(two.as_path()), "it followed the cursor");
+
+        // Closing the panel lets go, so reopening asks afresh.
+        a.overlay = Overlay::None;
+        a.sync_spot();
+        assert_eq!(a.spot_asked, None);
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

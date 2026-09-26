@@ -788,13 +788,14 @@ desc = "Close the spotter"
 on = "q"
 run = "close"
 desc = "Close the spotter"
-# `j` and `k` walk the files, not the rows of the panel, so that the spotter
-# reads like `<F3>` does: there the `[mgr]` layer is still live, `j` moves the
-# list and `<A-j>` scrolls what is being shown. Keeping the plain keys on the
-# panel's own rows made the same fingers do two different things depending on
-# which of the two was open, and the panel is the thing you are least often
-# moving around in -- it is a page of facts about one file, and the reason to
-# hold it open is to run it past several files.
+# The spotter borrows the list's own arrangement, so that it reads like `<F3>`
+# does: quick look is a flag rather than an overlay, so there the `[mgr]` layer
+# is still live and `hjkl` mean what they always mean, with `<A-j>` scrolling
+# what is on show. Keeping the plain keys on the panel's own rows instead made
+# the same fingers do two different things depending on which of the two was
+# open -- and the panel is the thing you are least often moving around in. It
+# is a page of facts about one file, and the reason to hold it open is to run
+# it past several.
 [[spot.keymap]]
 on = "k"
 run = "swipe -1"
@@ -805,12 +806,12 @@ run = "swipe 1"
 desc = "Spot the next file"
 [[spot.keymap]]
 on = "h"
-run = "swipe -1"
-desc = "Spot the previous file"
+run = "leave"
+desc = "Go back to the parent directory"
 [[spot.keymap]]
 on = "l"
-run = "swipe 1"
-desc = "Spot the next file"
+run = "enter"
+desc = "Enter the directory"
 [[spot.keymap]]
 on = "<A-k>"
 run = "arrow -1"
@@ -841,12 +842,12 @@ run = "arrow 1"
 desc = "Next line of the panel"
 [[spot.keymap]]
 on = "<Left>"
-run = "swipe -1"
-desc = "Spot the previous file"
+run = "leave"
+desc = "Go back to the parent directory"
 [[spot.keymap]]
 on = "<Right>"
-run = "swipe 1"
-desc = "Spot the next file"
+run = "enter"
+desc = "Enter the directory"
 [[spot.keymap]]
 on = "y"
 run = "copy cell"

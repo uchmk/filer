@@ -269,8 +269,8 @@ The details panel (`<Tab>`).
 - [ ] `q` — Close the spotter · `close`
 - [ ] `k` — Spot the previous file · `swipe -1`
 - [ ] `j` — Spot the next file · `swipe 1`
-- [ ] `h` — Spot the previous file · `swipe -1`
-- [ ] `l` — Spot the next file · `swipe 1`
+- [ ] `h` — Go back to the parent directory · `leave`
+- [ ] `l` — Enter the directory · `enter`
 - [ ] `<A-k>` — Previous line of the panel · `arrow -1`
 - [ ] `<A-j>` — Next line of the panel · `arrow 1`
 - [ ] `c` — Copy the selected value · `copy cell`
@@ -278,8 +278,8 @@ The details panel (`<Tab>`).
 - [ ] `<Down>` — Spot the next file · `swipe 1`
 - [ ] `<A-Up>` — Previous line of the panel · `arrow -1`
 - [ ] `<A-Down>` — Next line of the panel · `arrow 1`
-- [ ] `<Left>` — Spot the previous file · `swipe -1`
-- [ ] `<Right>` — Spot the next file · `swipe 1`
+- [ ] `<Left>` — Go back to the parent directory · `leave`
+- [ ] `<Right>` — Enter the directory · `enter`
 - [ ] `y` — Copy the selected value · `copy cell`
 
 ## `[diff]` — 0 / 12
