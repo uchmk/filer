@@ -141,9 +141,10 @@ desc = "Quick look: the hovered file, big, over the panes"
 # complaint and then matches nothing at all.
 #
 # This is not `<F3>` with a different width. `max-preview` widens the preview
-# *column*, so the panes and the status bar stay as they are and the same key
-# puts it back. `<F3>` is a modal drawn over them: it dims the background, frames
-# the preview with the file's name, and closes on `Esc` too.
+# *column*, so the panes and the status bar stay as they are and `T` puts it back.
+# `<F3>` is a modal drawn over them: it dims the background and frames the preview
+# with the file's name. `<Esc>` gets out of either one -- the list is invisible
+# under a maximized preview, and without that the next key tried was `q`.
 [[mgr.keymap]]
 on = "T"
 run = "plugin toggle-pane max-preview"
@@ -575,13 +576,19 @@ desc = "Go to the documents directory"
 # is filer's own -- `filer.toml` belongs there, and `<F1>` names both with the
 # empty one marked. `g`+`c` goes to filer's, `g`+`y` to yazi's, which is where
 # `keymap.toml`, `theme.toml` and `yazi.toml` usually live.
+#
+# The variables are what filer searched, not what the platform calls the folder,
+# and they resolve whether or not anyone set them. These used to read
+# `%APPDATA%/filer` and `%APPDATA%/yazi/config`, which named the right places on
+# Windows and nothing at all anywhere else: an unset `%VAR%` expands to the empty
+# string, so `gc` walked to `/filer` and reported it missing.
 [[mgr.keymap]]
 on = [ "g", "c" ]
-run = "cd %APPDATA%/filer"
+run = "cd %FILER_CONFIG_HOME%"
 desc = "Go to filer's config directory"
 [[mgr.keymap]]
 on = [ "g", "y" ]
-run = "cd %APPDATA%/yazi/config"
+run = "cd %YAZI_CONFIG_HOME%"
 desc = "Go to yazi's config directory"
 [[mgr.keymap]]
 on = [ "g", "t" ]

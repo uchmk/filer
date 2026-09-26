@@ -2164,7 +2164,20 @@ impl App {
                 }
             }
             Act::Escape(what) => self.escape(what),
-            Act::Quit => self.quit = true,
+            // Every panel that has a keymap layer of its own -- `help`, `tasks`,
+            // `spot` -- binds `q` to `close`. Quick look and a maximized preview
+            // deliberately have no layer, so that `j` and `k` keep walking the
+            // list underneath, which also meant `q` fell through to this arm and
+            // quit the process with a panel still on screen. Peel the front layer
+            // instead, through `escape` so the two keys cannot drift apart; a
+            // second `q` quits, as it does in every panel.
+            Act::Quit => {
+                if self.quick || self.max_preview {
+                    self.escape(EscapeWhat::default());
+                } else {
+                    self.quit = true;
+                }
+            }
             Act::Close => {
                 if self.tabs.len() > 1 {
                     self.close_tab(self.active);
@@ -2531,6 +2544,16 @@ impl App {
             return;
         }
         let all = what.everything();
+        // A maximized preview squeezes the list to nothing, so the screen reads
+        // as modal even though only a column width changed. `Esc` doing nothing
+        // there left `q` as the next thing to try, and `q` quits the app -- an
+        // expensive way to find out that this one was not a panel. Restoring the
+        // columns costs nothing if that is not what was wanted: `T` again.
+        // Only for a bare `escape`; `escape --filter` and friends stay targeted.
+        if all && self.max_preview {
+            self.max_preview = false;
+            return;
+        }
         if (all || what.search) && self.in_search_view() {
             self.exit_search_view();
             return;
@@ -5583,8 +5606,24 @@ mod goto_and_history_keys {
                 .raw
                 .clone()
         };
-        assert_eq!(run("gc"), "cd %APPDATA%/filer");
-        assert_eq!(run("gy"), "cd %APPDATA%/yazi/config");
+        // Written as the variables filer actually searches, so they resolve on
+        // every platform. `%APPDATA%` named nothing outside Windows, and an unset
+        // `%VAR%` expands to nothing, so `gc` used to walk to `/filer` there.
+        assert_eq!(run("gc"), "cd %FILER_CONFIG_HOME%");
+        assert_eq!(run("gy"), "cd %YAZI_CONFIG_HOME%");
+        for (key, var) in [("gc", "FILER_CONFIG_HOME"), ("gy", "YAZI_CONFIG_HOME")] {
+            let dir = crate::config::config_home(var).expect("a config directory");
+            assert_eq!(crate::util::expand(&format!("%{var}%")), dir, "{key}");
+            assert!(dir.is_absolute(), "{key} must not land on a relative path: {dir:?}");
+        }
+        // The pair is the same two directories the help panel and `filer env` list.
+        assert_eq!(
+            crate::config::config_dirs(),
+            vec![
+                crate::config::config_home("YAZI_CONFIG_HOME").unwrap(),
+                crate::config::config_home("FILER_CONFIG_HOME").unwrap(),
+            ]
+        );
 
         // The pair the arrows reach, alongside the `H`/`L` that already did.
         assert_eq!(run("<A-Left>"), "back");
@@ -5893,5 +5932,131 @@ mod help_keys {
             completion_at: 0,
         };
         assert!(!Overlay::Input(prompt).is_modal(), "the list above it is still being read");
+    }
+}
+
+/// `<Esc>` gets out of a maximized preview, and does it in the right order.
+#[cfg(test)]
+mod escape_and_max_preview {
+    use super::*;
+
+    fn app() -> App {
+        let ctx = egui::Context::default();
+        App::new(Config::load(), std::env::temp_dir(), ctx)
+    }
+
+    /// Reported from use: `<Esc>` did nothing under a maximized preview, so the
+    /// next key tried was `q` -- which quits. The list is squeezed to nothing
+    /// there, so the screen reads as a panel even though it is a column width.
+    #[test]
+    fn a_bare_escape_restores_the_columns() {
+        let mut a = app();
+        a.max_preview = true;
+        a.escape(EscapeWhat::default());
+        assert!(!a.max_preview, "`Esc` has to be a way out of this");
+    }
+
+    /// `escape --filter` is aimed at one thing and must stay aimed at it.
+    #[test]
+    fn a_targeted_escape_leaves_it_alone() {
+        let mut a = app();
+        a.max_preview = true;
+        a.escape(EscapeWhat { filter: true, ..Default::default() });
+        assert!(a.max_preview);
+        // `--all` is explicitly everything, so it does clear it.
+        a.escape(EscapeWhat { all: true, ..Default::default() });
+        assert!(!a.max_preview);
+    }
+
+    /// With both up, the panel is what is in front, so it goes first and the
+    /// maximized column survives that press.
+    #[test]
+    fn the_quick_panel_goes_first() {
+        let mut a = app();
+        a.max_preview = true;
+        a.quick = true;
+        a.escape(EscapeWhat::default());
+        assert!(!a.quick && a.max_preview, "one press should not undo two states");
+        a.escape(EscapeWhat::default());
+        assert!(!a.max_preview);
+    }
+
+    /// Turning it on unhides the parent pane, which means `T` twice is not a
+    /// round trip. Pinned because it is deliberate and looks like a bug.
+    #[test]
+    fn turning_it_on_unhides_the_parent() {
+        let mut a = app();
+        a.hide_parent = true;
+        a.act(Act::MaxPreview);
+        assert!(!a.hide_parent);
+        a.act(Act::MaxPreview);
+        assert!(!a.max_preview && !a.hide_parent, "the parent stays back");
+    }
+}
+
+/// `q` means the same thing over every panel: close this, do not quit.
+#[cfg(test)]
+mod q_closes_the_panel_in_front {
+    use super::*;
+
+    fn app() -> App {
+        let ctx = egui::Context::default();
+        App::new(Config::load(), std::env::temp_dir(), ctx)
+    }
+
+    /// Reported from use: `q` quit the app with quick look still up. The panels
+    /// that carry their own keymap layer all bind `q` to `close`; these two have
+    /// no layer, by design, so the key reached `mgr`'s `quit`.
+    #[test]
+    fn quick_look_closes_before_the_process_does() {
+        let mut a = app();
+        a.quick = true;
+        a.act(Act::Quit);
+        assert!(!a.quick, "`q` closed the app instead of the panel");
+        assert!(!a.quit, "and it must not have quit on the way");
+
+        a.act(Act::Quit);
+        assert!(a.quit, "a second `q` still quits");
+    }
+
+    #[test]
+    fn a_maximized_preview_closes_first_too() {
+        let mut a = app();
+        a.max_preview = true;
+        a.act(Act::Quit);
+        assert!(!a.max_preview && !a.quit);
+        a.act(Act::Quit);
+        assert!(a.quit);
+    }
+
+    /// With nothing in front, `q` is still `quit` on the first press.
+    #[test]
+    fn q_quits_when_no_panel_is_up() {
+        let mut a = app();
+        a.act(Act::Quit);
+        assert!(a.quit);
+    }
+
+    /// `q` and `<Esc>` peel in the same order, because `q` routes through the
+    /// same code. Two panels up means two presses, either key.
+    #[test]
+    fn q_and_escape_agree_on_the_order() {
+        for quit_key in [true, false] {
+            let mut a = app();
+            a.quick = true;
+            a.max_preview = true;
+            let press = |a: &mut App| {
+                if quit_key {
+                    a.act(Act::Quit);
+                } else {
+                    a.act(Act::Escape(EscapeWhat::default()));
+                }
+            };
+            press(&mut a);
+            assert!(!a.quick && a.max_preview, "the panel in front goes first");
+            press(&mut a);
+            assert!(!a.max_preview);
+            assert!(!a.quit, "neither key quits while something is still up");
+        }
     }
 }

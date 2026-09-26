@@ -302,26 +302,39 @@ fn yazi_config_dir(base: &Path) -> PathBuf {
     if cfg!(windows) { dir.join("config") } else { dir }
 }
 
+/// The two variables that name a config directory, in search order.
+pub const CONFIG_VARS: [&str; 2] = ["YAZI_CONFIG_HOME", "FILER_CONFIG_HOME"];
+
+/// Where one of [`CONFIG_VARS`] points when it is not set — which is the usual case.
+///
+/// Exposed so a path can be written `%FILER_CONFIG_HOME%` and still resolve on a
+/// machine where nobody set it. The `gc` and `gy` keys used to hardcode
+/// `%APPDATA%/filer` and `%APPDATA%/yazi/config`, which named nothing outside
+/// Windows: an unset `%VAR%` expands to the empty string, so `gc` walked to
+/// `/filer`. Returns `None` for any other name, leaving ordinary variables alone.
+pub fn config_dir_default(var: &str) -> Option<PathBuf> {
+    let base = base_config_dir()?;
+    match var {
+        "YAZI_CONFIG_HOME" => Some(yazi_config_dir(&base)),
+        "FILER_CONFIG_HOME" => Some(base.join("filer")),
+        _ => None,
+    }
+}
+
+/// The directory a config variable names, set or not.
+///
+/// An empty value counts as unset, the way an exported-but-blank variable is
+/// meant in a shell, rather than resolving to the filesystem root.
+pub fn config_home(var: &str) -> Option<PathBuf> {
+    match std::env::var_os(var) {
+        Some(p) if !p.is_empty() => Some(PathBuf::from(p)),
+        _ => config_dir_default(var),
+    }
+}
+
 /// Later directories override earlier ones.
 pub fn config_dirs() -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    match std::env::var_os("YAZI_CONFIG_HOME") {
-        Some(p) => out.push(PathBuf::from(p)),
-        None => {
-            if let Some(c) = base_config_dir() {
-                out.push(yazi_config_dir(&c));
-            }
-        }
-    }
-    match std::env::var_os("FILER_CONFIG_HOME") {
-        Some(p) => out.push(PathBuf::from(p)),
-        None => {
-            if let Some(c) = base_config_dir() {
-                out.push(c.join("filer"));
-            }
-        }
-    }
-    out
+    CONFIG_VARS.iter().filter_map(|v| config_home(v)).collect()
 }
 
 /// A file in a config directory, written the way the platform writes a path.

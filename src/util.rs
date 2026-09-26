@@ -277,7 +277,16 @@ pub fn expand(input: &str) -> PathBuf {
     while let Some(start) = s.find('%') {
         let Some(end) = s[start + 1..].find('%').map(|i| start + 1 + i) else { break };
         let name = &s[start + 1..end];
-        let val = std::env::var(name).unwrap_or_default();
+        let val = match std::env::var(name) {
+            Ok(v) if !v.is_empty() => v,
+            // `%FILER_CONFIG_HOME%` and `%YAZI_CONFIG_HOME%` are usually unset,
+            // and a path written with one still has to lead somewhere: they
+            // stand for the directory filer would search. Every other unset
+            // variable keeps expanding to nothing, as the shells do.
+            _ => crate::config::config_dir_default(name)
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+        };
         s.replace_range(start..=end, &val);
     }
     PathBuf::from(s)
@@ -438,6 +447,25 @@ impl<K: Eq + Hash + Clone, V> Lru<K, V> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An unset config variable expands to the directory filer searches, and
+    /// every other unset variable still expands to nothing.
+    ///
+    /// The distinction is the whole point: `gc` reads `cd %FILER_CONFIG_HOME%`,
+    /// and if an unset variable vanished the way the others do, the key would
+    /// walk to the filesystem root instead — which is exactly what the old
+    /// `cd %APPDATA%/filer` did on anything but Windows.
+    #[test]
+    fn config_variables_expand_even_when_unset() {
+        for var in crate::config::CONFIG_VARS {
+            let want = crate::config::config_home(var).expect("a config directory");
+            assert_eq!(expand(&format!("%{var}%")), want, "%{var}%");
+            assert_eq!(expand(&format!("%{var}%/theme.toml")), want.join("theme.toml"));
+        }
+        // Not a name with a default, and almost certainly not set.
+        assert_eq!(expand("%NO_SUCH_VARIABLE_HERE%"), PathBuf::from(""));
+        assert_eq!(expand("%NO_SUCH_VARIABLE_HERE%/x"), PathBuf::from("/x"));
+    }
 
     #[test]
     fn natural_order() {

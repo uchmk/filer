@@ -501,14 +501,21 @@ laid side by side without being matched up, and say so.
 
 `<F3>` shows the hovered file big, over the panes — the same preview, with room to read it. The
 keys are not taken while it is up, so `j` and `k` keep walking the list and the panel follows them
-down it; `<A-j>` / `<A-k>` scroll it. `<F3>` again or `<Esc>` closes it.
+down it; `<A-j>` / `<A-k>` scroll it. `<F3>` again, `<Esc>` or `q` closes it — `q` is what closes
+every other panel, and it used to reach `mgr`'s `quit` and end the process with the panel still on
+screen.
 
 `T` is the quieter version of the same idea, and yazi spells it
 `plugin toggle-pane max-preview`. It widens the preview *column* until it has the body to itself,
 so the tab bar, the status bar and the layout stay exactly as they were — no dimming, no frame, no
-file name across the top. `T` again puts the columns back. `<Esc>` does not: there is no panel to
-close, so `<Esc>` keeps its usual meaning. Reach for `<F3>` to look at one file and `T` to keep
-reading while you walk the list.
+file name across the top. It is not a panel and nothing is "open": `j` and `k` still walk the list
+that is now too narrow to see. `T`, `<Esc>` and `q` all put the columns back: with the list
+invisible the screen reads as modal, so every way out of a panel works here too. Reach for `<F3>` to
+look at one file and `T` to keep reading while you walk the list.
+
+`q` closes what is in front of you before it quits, the same in every panel — `help`, the task list,
+the spotter, a comparison, quick look, a maximized preview. Only with nothing up does the first `q`
+end the process.
 
 Worth knowing if macOS's Quick Look is what you have in your fingers: there the up and down keys
 scroll the document and left and right step between files, and here it is the other way round.

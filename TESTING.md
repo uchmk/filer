@@ -740,13 +740,31 @@ and the fact that these two are not the same thing at two sizes.
 | 36.2 | `T` again | The three columns come back at the `[mgr] ratio` widths |
 | 36.3 | With `T` up, `j` / `k` | The cursor still walks the list and the preview follows, even though the list column is squeezed to nothing |
 | 36.4 | With `T` up, `<A-j>` / `<A-k>` | Scrolls the preview |
-| 36.5 | With `T` up, press `<Esc>` | **The columns do not come back** — there is no panel to close, so `<Esc>` keeps its usual meaning (clears a filter, leaves a search). Only `T` restores them |
+| 36.5 | With `T` up, press `<Esc>` | The columns come back (v0.36.1). Before that `<Esc>` did nothing here |
+| 36.5a | With `T` up, press `q`. Then `q` again | First `q` restores the columns, second quits. Before v0.36.1 the first `q` quit the app outright |
+| 36.5b | Filter the list, then `T`, then `<Esc>` twice | First `<Esc>` restores the columns, second clears the filter. A maximized preview is the most visible state, so it goes first |
+| 36.5c | With `T` up, run `escape --filter` from the command line (`:`) | The columns **stay** maximized — a targeted escape is still targeted |
 | 36.6 | `<F3>` for comparison | Dimmed background, a framed panel at 86% × 88% with the file's name as its title and "Esc to close". A visibly different thing from 36.1 |
 | 36.7 | `T`, then `<F3>`, then `<Esc>` | The panel closes and the **maximized column is still maximized** — the two flags are independent |
 | 36.8 | Hide the parent pane (`toggle-pane max-parent`), then `T` on and `T` off | The parent pane is **back** — turning `T` on clears `hide_parent`, and toggling off does not restore it. Deliberate, but it means `T` is not quite a round trip |
 | 36.9 | `T` on a directory, and on a file with no preview | No panic, no stuck layout; `T` still toggles back |
 | 36.10 | Bind `<S-t>` instead of `T` in `prepend_keymap`, `<C-F5>` | **Nothing happens on any key** — the lesson the tests pin. No warning is printed either, because the notation is valid |
 | 36.11 | `~` / `F1` | `T` is listed with its description, in the keymap the panel shows |
+
+### `q` means the same thing everywhere (v0.36.1)
+
+One `q` closes what is in front; only with nothing up does it quit. Walk all of
+these — the point is that no panel is the odd one out.
+
+| # | Panel | Do | Expect |
+| --- | --- | --- | --- |
+| 36.12 | quick look (`<F3>`) | `q` | Closes the panel. **The app is still running** — before v0.36.1 this quit |
+| 36.13 | maximized preview (`T`) | `q` | Columns back, app still running |
+| 36.14 | `help` (`~`), task list, spotter (`Tab`), comparison (`<A-d>`) | `q` in each | Closes, app still running (unchanged — these already had their own layer) |
+| 36.15 | Nothing up | `q` | Quits on the first press |
+| 36.16 | `<F3>` **and** `T` both on | `q`, `q`, `q` | Panel, then columns, then quit. Same three presses with `<Esc>`, `<Esc>`, `q` |
+| 36.17 | A confirm prompt (delete something) or a pick list | `q` | **Nothing happens** — these want a decision, so `q` is not a way out. `<Esc>` cancels. It must not quit either |
+| 36.18 | Rebind: `[[mgr.keymap]]` with `on = "Q"`, `run = "quit"`, then `Q` with `<F3>` up | Closes the panel first, like `q` — the behaviour is on the action, not the letter |
 
 ---
 
