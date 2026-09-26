@@ -144,6 +144,9 @@ each pane with the view split.
 | D4 | Look at the line numbers after the insertion | The two sides differ by one, each counting its own file |
 | D5 | `n` / `N` | Between the two differences, not line by line inside one |
 | D6 | `j` `k` `<C-d>` `gg` `G` | Scrolling, with the footer's `x–y of z` keeping up |
+| D6a | **`G`, then `k` once** (v0.22.1) | Moves by one row straight away. Until v0.22.1 `G` overshot by a screenful, so `j` and `k` did nothing for about as many presses as the pane is tall |
+| D6b | `G`, then `j` | Stays at the bottom, with the last row visible above the footer |
+| D6c | `G` on a diff shorter than the pane | Nothing moves; every row was already on screen |
 | D7 | `same-a.txt` and `same-b.txt` | "The two files are identical." — no thousands of matching rows |
 | D8 | `binary.dat` against anything | Says it is not text on both sides and that the bytes differ |
 | D9 | Two directories | Refused with a reason |

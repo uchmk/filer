@@ -746,8 +746,10 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
 
     // One row is given up to the footer, but never the last one.
     let visible = ((inner.height() / row_h).floor() as usize).max(2) - 1;
-    ov.offset = ov.offset.min(rows.len().saturating_sub(1));
-    let top = ov.offset.min(rows.len().saturating_sub(visible.min(rows.len())));
+    // Told to the keys, which otherwise cannot know where scrolling stops.
+    ov.rows = visible;
+    ov.offset = ov.offset.min(rows.len().saturating_sub(visible.min(rows.len())));
+    let top = ov.offset;
 
     // Two equal halves with a hairline between them.
     let mid = inner.center().x;
