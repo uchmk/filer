@@ -63,7 +63,7 @@ jobs:
     name: ${{ matrix.name }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # A no-op where the target is the runner's own, which is every job but the
       # two Windows ones. Left unconditional because a rustup that already has
@@ -82,7 +82,7 @@ jobs:
         run: cargo build --release --locked --target ${{ matrix.target }}
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           # The commit is in the name, so two downloads are never confused.
           name: filer-${{ matrix.name }}-${{ github.sha }}
