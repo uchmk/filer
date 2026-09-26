@@ -158,6 +158,12 @@ section at all before this.
 `scripts/make-fixtures.ps1` does not make these; any `.svg` will do, and a file
 saved from Inkscape or Illustrator is a better test than a hand-written one.
 
+Run once on 2026-09-26 against v0.33.6: SVG and `.ico` both drew, with nothing
+reported wrong. That answers "does it render". **4.8 is still open**, and it is
+the one that would catch a regression — it needs a v0.33.5 build to hold the new
+one against, and none was kept. If one is ever wanted, `build.yml`'s artifact
+for commit `f2b30c5` is it, for as long as the 90 days last.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 4.1 | Hover an SVG with no text in it (an icon, a logo) | Drawn, scaled to fill the pane, sharp at any pane size |
@@ -167,7 +173,7 @@ saved from Inkscape or Illustrator is a better test than a hand-written one.
 | 4.5 | An SVG with **bold** or *italic* text | The weight and slant are there, not flattened to regular |
 | 4.6 | An SVG using a font **file next to it** rather than a system font | Loaded from the directory, as `resources_dir` intends |
 | 4.7 | A **malformed** SVG (truncate one) | `bad SVG: …` on the preview, and the window keeps working |
-| 4.8 | Compare 99.2 and 99.3 against v0.33.5's build | Any difference in the glyphs is the new shaper; say what changed and attach both |
+| 4.8 | Compare 4.2 and 4.3 against v0.33.5's build | Any difference in the glyphs is the new shaper; say what changed and attach both |
 
 ## 5. Compare, side by side (v0.4.0)
 
