@@ -71,16 +71,21 @@ browser = [
   { run = 'start "" chrome %*', desc = "Chrome" },
 ]
 
+# Naming the programs is only needed to override the file association — the
+# `open` list above already reaches Office through it. PowerPoint's executable
+# is `powerpnt`, not `powerpoint`.
 office = [
   { run = 'start "" excel %*', desc = "Excel" },
   { run = 'start "" winword %*', desc = "Word" },
+  { run = 'start "" powerpnt %*', desc = "PowerPoint" },
 ]
 
 [open]
 rules = [
   { name = "*.pdf", use = ["browser", "open"] },
-  { name = "*.{xlsx,xls,csv}", use = ["office", "open", "edit"] },
-  { name = "*.{docx,doc}", use = ["office", "open"] },
+  { name = "*.{xlsx,xlsm,xls,csv}", use = ["office", "open", "edit"] },
+  { name = "*.{docx,docm,doc}", use = ["office", "open"] },
+  { name = "*.{pptx,pptm,ppt}", use = ["office", "open"] },
   { name = "*.{txt,md,toml,rs,py,json,yml,yaml,ini,log}", use = ["edit", "open"] },
   { name = "*", use = ["open", "edit"] },        # the fallback, last
 ]

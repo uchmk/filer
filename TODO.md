@@ -392,6 +392,21 @@
 
 ## 環境・その他
 
+- [ ] リポジトリを public にする（人がやる作業。Settings → General → Danger Zone）
+  - 動機は Actions の分数。private の無料枠は 2,000 分/月で、**Windows ランナーは 2 倍課金**
+    なので実質 1,000 分。main への 1 push で Windows ジョブ 3 本（CI 1 + Build の x64/arm64 2）
+    × 5〜8 分 = 約 40 分課金なので、50 push ほどで枯れる。実際 2026-09-26 02:02 に枯れ、
+    それ以降のすべての run が**2 秒で failure**（ジョブが 1 ステップも始まらない）になった。
+    public なら GitHub ホストランナーは無料・無制限。
+  - 下ごしらえは 0.32.1 で済んでいる（`claude.yml` の OWNER 制限、例示アドレスの架空化）。
+  - public にしたあとに確かめること:
+    - [ ] 自分以外の `@claude` に反応しないこと。他人の権限が要るので、確かめるなら
+      サブアカウントか、`author_association` を一時的に `CONTRIBUTOR` にして試す。
+    - [ ] Release のアセット URL が、サインインしていない人にも通ること
+      （`release.yml` の冒頭コメントがこれを予告している）。
+  - 任意: コミット著者 29 件が `DESKTOP-7UBRVG9\yuu06 <yuu0613@gmail.com>` になっている。
+    GitHub の「Keep my email addresses private」を入れても**既存コミットは書き換わらない**
+    （history 書き換えが必要）。今後のぶんは push 元マシンの `git config user.*` で止まる。
 - [ ] MCP サーバーの認証・接続
   - engineering 系（GitHub、Slack、Linear、Notion、Asana、Atlassian、Datadog、PagerDuty）は未認証。claude.ai のコネクタ設定か `/mcp` で認証する。
   - obsidian の MCP サーバーに接続できない（ECONNREFUSED）。Obsidian 側でサーバーが動いているか確認する。
