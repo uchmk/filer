@@ -379,64 +379,155 @@ pub fn bookmark_hint(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32)
     }
 }
 
-pub fn help(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
+/// A row of the help panel.
+struct HelpRow {
+    keys: String,
+    text: String,
+    /// The command a key runs, shown on the right.
+    raw: String,
+    warning: bool,
+    /// Where clicking this row goes. A config file is revealed in the list
+    /// (its directory, with it under the cursor); a directory is opened.
+    goes_to: Option<Act>,
+}
+
+impl HelpRow {
+    fn blank() -> Self {
+        Self { keys: String::new(), text: String::new(), raw: String::new(), warning: false, goes_to: None }
+    }
+    fn heading(k: &str) -> Self {
+        Self { keys: k.into(), ..Self::blank() }
+    }
+    fn said(text: String) -> Self {
+        Self { text, ..Self::blank() }
+    }
+}
+
+/// What the panel says about configuration.
+///
+/// Every directory that is searched, not only the ones something was found in:
+/// "where does `filer.toml` go" is the question a panel listing loaded files
+/// cannot answer, because the answer is a file that does not exist yet. An
+/// empty directory is the most useful row on the list for the reader who needs
+/// it, and the only one that was missing.
+fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
+    let mut out = vec![HelpRow::heading("config")];
+    for dir in dirs {
+        let here: Vec<&std::path::PathBuf> =
+            app.cfg.loaded.iter().filter(|p| p.parent() == Some(dir.as_path())).collect();
+        out.push(HelpRow {
+            text: format!("{}{}", dir.display(), std::path::MAIN_SEPARATOR),
+            raw: if here.is_empty() { "nothing here".into() } else { String::new() },
+            goes_to: Some(Act::Cd { target: dir.display().to_string(), interactive: false }),
+            ..HelpRow::blank()
+        });
+        for p in here {
+            out.push(HelpRow {
+                text: format!("    {}", crate::util::file_name(p)),
+                goes_to: Some(Act::Reveal(p.display().to_string())),
+                ..HelpRow::blank()
+            });
+        }
+    }
+    // A file from somewhere else entirely: `FILER_CONFIG_HOME` moved after it
+    // was read, or a path no longer under any searched directory.
+    for p in app.cfg.loaded.iter().filter(|p| !p.parent().is_some_and(|d| dirs.iter().any(|x| x == d))) {
+        out.push(HelpRow {
+            text: p.display().to_string(),
+            goes_to: Some(Act::Reveal(p.display().to_string())),
+            ..HelpRow::blank()
+        });
+    }
+    for w in &app.cfg.warnings {
+        out.push(HelpRow { text: w.clone(), warning: true, ..HelpRow::blank() });
+    }
+    out
+}
+
+pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queued: &mut Vec<Act>) {
     dim(ui, full);
     let rect = modal_rect(full, 0.86, 0.86);
-    let inner = modal_frame(ui, rect, &app.cfg.theme, "Keys — <Esc> to close, j/k to scroll", f, row_h);
-    let theme = &app.cfg.theme;
-    let painter = ui.painter_at(inner);
+    let title = "Keys — <Esc> to close, j/k to scroll, click a config path to go to it";
+    let inner = modal_frame(ui, rect, &app.cfg.theme, title, f, row_h);
+    let theme = app.cfg.theme.clone();
 
     // Config provenance first — it answers "did it pick up my yazi config?"
     // before the key list answers "what is bound to what".
-    let mut lines: Vec<(String, String, String, bool)> = Vec::new();
-    lines.push(("config".into(), String::new(), String::new(), false));
+    let mut lines = config_rows(app, &crate::config::config_dirs());
     if app.cfg.loaded.is_empty() {
-        lines.push((String::new(), "(no config files found; using defaults)".into(), String::new(), false));
+        lines.push(HelpRow::said("(nothing found in either; the defaults are in use)".into()));
     }
-    for p in &app.cfg.loaded {
-        lines.push((String::new(), p.display().to_string(), String::new(), false));
-    }
-    for w in &app.cfg.warnings {
-        lines.push((String::new(), w.clone(), String::new(), true));
-    }
-    lines.push((String::new(), String::new(), String::new(), false));
-    lines.push(("keys".into(), String::new(), String::new(), false));
+    lines.push(HelpRow::blank());
+    lines.push(HelpRow::heading("keys"));
     for b in &app.cfg.keymap.mgr {
-        lines.push((
-            crate::config::keys::render_seq(&b.on),
-            if b.desc.is_empty() { b.raw.clone() } else { b.desc.clone() },
-            b.raw.clone(),
-            false,
-        ));
+        lines.push(HelpRow {
+            keys: crate::config::keys::render_seq(&b.on),
+            text: if b.desc.is_empty() { b.raw.clone() } else { b.desc.clone() },
+            raw: b.raw.clone(),
+            warning: false,
+            goes_to: None,
+        });
     }
 
     let rows = ((inner.height() / row_h).floor() as usize).max(1);
     let start = app.help_scroll.min(lines.len().saturating_sub(1));
-    for (i, (keys, desc, raw, is_warning)) in lines[start..].iter().take(rows).enumerate() {
+    let pointer = ui.rect_contains_pointer(inner).then(|| ui.ctx().pointer_latest_pos()).flatten();
+    let clicked = ui.input(|i| i.pointer.primary_clicked());
+    let mut went = None;
+
+    let painter = ui.painter_at(inner);
+    for (i, row) in lines[start..].iter().take(rows).enumerate() {
         let y = inner.top() + i as f32 * row_h;
+        let at = Rect::from_min_size(
+            egui::pos2(inner.left(), y),
+            Vec2::new(inner.width(), row_h),
+        );
+        // Only the config paths answer to the pointer; a key list is a key
+        // list and a row that lit up under the cursor would only mislead.
+        let live = row.goes_to.is_some() && pointer.is_some_and(|p| at.contains(p));
+        if live {
+            painter.rect_filled(at, CornerRadius::same(3), theme.hovered_bg);
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            if clicked {
+                went = row.goes_to.clone();
+            }
+        }
         painter.text(
             egui::pos2(inner.left(), y),
             Align2::LEFT_TOP,
-            keys,
+            &row.keys,
             f.clone(),
             theme.which_cand.fg.unwrap_or(theme.fg),
         );
+        let color = match (row.warning, row.goes_to.is_some()) {
+            (true, _) => theme.warning,
+            // A path reads as somewhere to go, in the colour the breadcrumb
+            // already uses for a directory.
+            (false, true) => theme.cwd.fg.unwrap_or(theme.fg),
+            (false, false) => theme.fg,
+        };
         painter.text(
             egui::pos2(inner.left() + 130.0, y),
             Align2::LEFT_TOP,
-            desc,
+            &row.text,
             f.clone(),
-            if *is_warning { theme.warning } else { theme.fg },
+            color,
         );
-        if !raw.is_empty() {
+        if !row.raw.is_empty() {
             painter.text(
                 egui::pos2(inner.right(), y),
                 Align2::RIGHT_TOP,
-                raw,
+                &row.raw,
                 f.clone(),
                 theme.fg_dim,
             );
         }
+    }
+
+    // Going somewhere means looking at it, so the panel gets out of the way.
+    if let Some(act) = went {
+        app.overlay = Overlay::None;
+        queued.push(act);
     }
 }
 
@@ -906,5 +997,52 @@ mod tests {
         assert_eq!(splice("報告書", 1..1, "X"), "報X告書");
         assert_eq!(splice("cd 報告書", 3..6, "資料"), "cd 資料");
         assert_eq!(splice("画像", 2..2, "です"), "画像です");
+    }
+}
+
+#[cfg(test)]
+mod help_config_rows {
+    use super::*;
+
+    /// Every searched directory is listed, found in or not.
+    ///
+    /// "Where does `filer.toml` go" is the one question a list of loaded files
+    /// cannot answer, because the answer is a file that does not exist yet.
+    /// The empty directory is the row that answers it, and it was the row that
+    /// was missing — the panel used to show only what it had read.
+    #[test]
+    fn an_empty_directory_is_still_a_row() {
+        let yazi = std::path::PathBuf::from("/tmp/filer-help/yazi");
+        let mine = std::path::PathBuf::from("/tmp/filer-help/filer");
+
+        let ctx = egui::Context::default();
+        let mut app = App::new(crate::config::Config::load(), std::env::temp_dir(), ctx);
+        app.cfg.loaded = vec![yazi.join("keymap.toml"), yazi.join("theme.toml")];
+        app.cfg.warnings = vec!["[mgr] `\'` is bound twice".into()];
+
+        let rows = config_rows(&app, &[yazi.clone(), mine.clone()]);
+        let text: Vec<&str> = rows.iter().map(|r| r.text.as_str()).collect();
+
+        assert!(text.iter().any(|t| t.starts_with(&yazi.display().to_string())), "{text:?}");
+        assert!(
+            text.iter().any(|t| t.starts_with(&mine.display().to_string())),
+            "the directory nothing was found in is named anyway: {text:?}",
+        );
+        assert_eq!(
+            rows.iter().filter(|r| r.raw == "nothing here").count(),
+            1,
+            "and only that one is marked empty",
+        );
+        assert!(text.iter().any(|t| t.trim() == "keymap.toml"), "{text:?}");
+
+        // The paths go somewhere; the heading and the warning do not.
+        let file = rows.iter().find(|r| r.text.trim() == "keymap.toml").unwrap();
+        assert!(matches!(file.goes_to, Some(Act::Reveal(_))), "a file is revealed in the list");
+        let empty = rows.iter().find(|r| r.raw == "nothing here").unwrap();
+        assert!(matches!(empty.goes_to, Some(Act::Cd { .. })), "a directory is opened");
+        let heading = rows.iter().find(|r| r.keys == "config").unwrap();
+        assert!(heading.goes_to.is_none(), "a heading is not a link");
+        let warned = rows.iter().find(|r| r.warning).unwrap();
+        assert!(warned.goes_to.is_none(), "nor is a warning");
     }
 }

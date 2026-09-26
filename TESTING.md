@@ -152,6 +152,19 @@ each pane with the view split.
 | D9 | Two directories | Refused with a reason |
 | D10 | `q` | Closes |
 
+## X. The config paths in the help panel (v0.25.0)
+
+| # | Do | Expect |
+| --- | --- | --- |
+| X1 | `~` with no `filer.toml` anywhere | **Both** directories are listed, the empty one marked `nothing here`. Before v0.25.0 only files that existed were shown |
+| X2 | Hover a path | The row lights up and the pointer becomes a hand |
+| X3 | Hover a key row | Nothing happens — it is not a link |
+| X4 | Click a config **file** | The panel closes, the list opens its directory with that file under the cursor. `<Enter>` then opens it |
+| X5 | Click a **directory** | The panel closes and the list goes there, empty or not |
+| X6 | Click the empty one, then create `filer.toml` there and `<C-F5>` | It appears in the panel next time, without `nothing here` |
+| X7 | With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set | The listed directories follow them |
+| X8 | A config warning line | Still yellow, and not clickable |
+
 ## W. Which shell the pane runs (v0.24.0)
 
 The setting is one line; the point of the section is that the **default** is the

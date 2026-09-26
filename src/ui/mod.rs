@@ -117,7 +117,7 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
     }
 
     match &app.overlay {
-        Overlay::Help => overlay::help(app, ui, full, &f, row_h),
+        Overlay::Help => overlay::help(app, ui, full, &f, row_h, &mut queued),
         Overlay::Tasks(_) => overlay::tasks(app, ui, full, &f, row_h),
         Overlay::Confirm(_) => overlay::confirm(app, ui, full, &f, row_h, &mut queued),
         Overlay::Pick(_) => overlay::pick(app, ui, full, &f, row_h, &mut queued),
