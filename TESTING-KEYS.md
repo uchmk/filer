@@ -4,7 +4,7 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**135 / 196 checked.**
+**135 / 200 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
@@ -258,7 +258,7 @@ The task manager (`w`).
 - [ ] `x` — Cancel the task · `task_cancel`
 - [ ] `t` — Move the task to the front of the queue · `task_top`
 
-## `[spot]` — 0 / 13
+## `[spot]` — 0 / 17
 
 The details panel (`<Tab>`).
 
@@ -267,15 +267,19 @@ The details panel (`<Tab>`).
 - [ ] `<Esc>` — Close the spotter · `close`
 - [ ] `<Tab>` — Close the spotter · `close`
 - [ ] `q` — Close the spotter · `close`
-- [ ] `k` — Previous line · `arrow -1`
-- [ ] `j` — Next line · `arrow 1`
-- [ ] `h` — Swipe to the previous file · `swipe -1`
-- [ ] `l` — Swipe to the next file · `swipe 1`
+- [ ] `k` — Spot the previous file · `swipe -1`
+- [ ] `j` — Spot the next file · `swipe 1`
+- [ ] `h` — Spot the previous file · `swipe -1`
+- [ ] `l` — Spot the next file · `swipe 1`
+- [ ] `<A-k>` — Previous line of the panel · `arrow -1`
+- [ ] `<A-j>` — Next line of the panel · `arrow 1`
 - [ ] `c` — Copy the selected value · `copy cell`
-- [ ] `<Up>` — Previous line · `arrow -1`
-- [ ] `<Down>` — Next line · `arrow 1`
-- [ ] `<Left>` — Swipe to the previous file · `swipe -1`
-- [ ] `<Right>` — Swipe to the next file · `swipe 1`
+- [ ] `<Up>` — Spot the previous file · `swipe -1`
+- [ ] `<Down>` — Spot the next file · `swipe 1`
+- [ ] `<A-Up>` — Previous line of the panel · `arrow -1`
+- [ ] `<A-Down>` — Next line of the panel · `arrow 1`
+- [ ] `<Left>` — Spot the previous file · `swipe -1`
+- [ ] `<Right>` — Spot the next file · `swipe 1`
 - [ ] `y` — Copy the selected value · `copy cell`
 
 ## `[diff]` — 0 / 12
