@@ -852,6 +852,25 @@ shell = "pwsh"
 Leaving `[term]` out keeps the platform's own default, which is the behaviour every earlier version
 had. The same setting names a shell on macOS and Linux, where the default is the login shell.
 
+## Reporting a problem
+
+`<F12>` opens a report form with the version, both architectures and the OS build already filled
+in. For everything else a report tends to need, `filer env` prints it:
+
+```
+filer env
+```
+
+It says which config files were looked for **and where**, which were found and how big they are,
+any warnings from loading them, which outside tools are on the `PATH` and what each one is for,
+and the environment variables that change filer's behaviour. The "and where" is the half that
+matters: a theme that is not taking effect is nearly always a file in the other directory, or a
+name spelled differently, and a list of what was found cannot show that.
+
+None of the outside tools is required — previews and archives are handled in-process — but each
+one it finds widens what it can do, so the line saying one is missing also says what is missing
+with it.
+
 ## Shell integration
 
 `--cwd-file FILE` writes the final directory on exit, `--chooser-file FILE` writes the selection —

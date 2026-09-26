@@ -29,7 +29,7 @@ pub fn url() -> String {
 
 /// What `--version` prints, and for the same reason: with more than one Windows
 /// binary in circulation, which one is running is the first thing to settle.
-fn version_line() -> String {
+pub fn version_line() -> String {
     format!("filer {} ({})", env!("CARGO_PKG_VERSION"), std::env::consts::ARCH)
 }
 
@@ -52,7 +52,7 @@ fn version_line() -> String {
 /// is unaffected by the emulation. When the two lines disagree, the
 /// disagreement is the finding.
 #[cfg(windows)]
-fn os_line() -> String {
+pub fn os_line() -> String {
     format!(
         "OS: {}\nOS arch: {}\nProcess arch: {}",
         windows_name(),
@@ -181,7 +181,7 @@ fn reg_dword(name: &str) -> Option<u32> {
 }
 
 #[cfg(not(windows))]
-fn os_line() -> String {
+pub fn os_line() -> String {
     // No emulation story to tell here, so the two arch lines would say the same
     // thing twice.
     format!("OS: {}\nProcess arch: {}", std::env::consts::OS, std::env::consts::ARCH)

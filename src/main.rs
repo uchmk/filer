@@ -2,6 +2,7 @@
 
 mod app;
 mod bugreport;
+mod envreport;
 mod config;
 mod core;
 mod diff;
@@ -77,6 +78,8 @@ fn parse_cli() -> Cli {
                      USAGE:\n    filer [PATH] [--cwd-file FILE] [--chooser-file FILE]\n\n\
                      OPTIONS:\n    -h, --help       this text\n    \
                      -V, --version    the version and the architecture\n\n\
+                     COMMANDS:\n    env              config files, outside tools and environment,\n                     \
+                     for pasting into a bug report\n\n\
                      Config is read from yazi's config directory, then from filer's own.\n\
                      Press ~ or F1 inside the app for the key list.",
                 );
@@ -91,6 +94,13 @@ fn parse_cli() -> Cli {
             // release asset's filename carries it, but a file can be renamed
             // and an emulated x64 binary on an ARM64 machine will insist it is
             // on x64 -- which is exactly the confusion worth heading off.
+            // Printed rather than opened in a browser, unlike `<F12>`: this
+            // is text to paste into a report that already exists, and the
+            // questions it answers are ones only the machine can.
+            "env" | "--env" => {
+                say(&crate::envreport::text());
+                std::process::exit(0);
+            }
             "--version" | "-V" => {
                 say(&format!(
                     "filer {} ({})",

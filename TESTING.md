@@ -406,6 +406,20 @@ In `awkward names\`.
 | 18.4 | Copy the name with a quote in it, `<A-t>` into the terminal | Quoted so the shell sees one word |
 | 18.5 | `d` then `u` on the CJK-named file | Comes back under the same name |
 
+## 29. `filer env` (v0.28.0)
+
+Run from a shell, not from inside the app.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 29.1 | `filer env` from PowerShell | The four sections print. A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears** |
+| 29.2 | The Config section | Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest |
+| 29.3 | With a deliberate typo in `keymap.toml` | The warning appears under `Warnings`, its several lines indented under the one key |
+| 29.4 | The Tools section | `pdftoppm`, `ffmpeg`, `ffprobe`, `pwsh`, `git` with versions where installed and `not found` where not, each naming what it is for |
+| 29.5 | On Windows on ARM with the x64 build | `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed |
+| 29.6 | `filer --help` | `env` is listed under COMMANDS |
+| 29.7 | Double-click `filer.exe` (no console) | Unchanged: the window opens, nothing is printed anywhere |
+
 ## 19. Bug report from inside the app (v0.11.0)
 
 `<F12>` builds a URL and hands it to the browser. None of that can be exercised
