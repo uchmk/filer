@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**175 / 203 checked.**
+**198 / 203 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 127 / 145
+## `[mgr]` — 140 / 145
 
 The file list: what is in front of you unless an overlay is.
 
@@ -42,8 +42,8 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<Backspace>` — Go back to the parent directory · `leave`
 - [x] `H` — Go back to the previous directory · `back`
 - [x] `L` — Go forward to the next directory · `forward`
-- [ ] `<A-Left>` — Go back to the previous directory · `back`
-- [ ] `<A-Right>` — Go forward to the next directory · `forward`
+- [x] `<A-Left>` — Go back to the previous directory · `back`
+- [x] `<A-Right>` — Go forward to the next directory · `forward`
 - [x] `<F5>` — Re-read the current directory · `refresh`
 - [x] `<C-F5>` — Read the config files again (theme, icons, keys) · `config_reload`
 - [x] `<F3>` — Quick look: the hovered file, big, over the panes · `quick`
@@ -63,8 +63,8 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<Space>` — Toggle the current selection state · `[ "toggle", "arrow 1" ]`
 - [x] `<C-a>` — Select all files · `toggle_all --state=on`
 - [x] `<C-S-r>` — Invert selection of all files · `toggle_all`
-- [ ] `v` — Enter visual mode (selection mode) · `visual_mode`
-- [ ] `V` — Enter visual mode (unset mode) · `visual_mode --unset`
+- [x] `v` — Enter visual mode (selection mode) · `visual_mode`
+- [x] `V` — Enter visual mode (unset mode) · `visual_mode --unset`
 
 ### Operations
 
@@ -81,10 +81,10 @@ The file list: what is in front of you unless an overlay is.
 - [ ] `-` — Symlink the absolute path of yanked files · `link`
 - [ ] `_` — Symlink the relative path of yanked files · `link --relative`
 - [ ] `<C-->` — Hardlink the yanked files · `hardlink`
-- [ ] `<A-c>` — Copy the selection to the other pane · `send_pane`
-- [ ] `<A-m>` — Move the selection to the other pane · `send_pane --cut`
-- [ ] `e` — Extract the selected archives · `extract`
-- [ ] `E` — Compress the selection into an archive · `compress`
+- [x] `<A-c>` — Copy the selection to the other pane · `send_pane`
+- [x] `<A-m>` — Move the selection to the other pane · `send_pane --cut`
+- [x] `e` — Extract the selected archives · `extract`
+- [x] `E` — Compress the selection into an archive · `compress`
 - [x] `d` — Move the files to the recycle bin · `remove`
 - [x] `D` — Permanently delete the files · `remove --permanently`
 - [x] `u` — Undo the last rename, or put the last deleted files back · `undo`
@@ -152,10 +152,10 @@ The file list: what is in front of you unless an overlay is.
 - [x] `g d` — Go to the downloads directory · `cd ~/Downloads`
 - [x] `g D` — Go to the documents directory · `cd ~/Documents`
 - [x] `g c` — Go to filer's config directory · `cd %APPDATA%/filer`
-- [ ] `g y` — Go to yazi's config directory · `cd %APPDATA%/yazi/config`
+- [x] `g y` — Go to yazi's config directory · `cd %APPDATA%/yazi/config`
 - [x] `g t` — Go to the temporary directory · `cd %TEMP%`
 - [x] `g <Space>` — Jump interactively · `cd --interactive`
-- [ ] `g f` — Follow the hovered symlink · `follow`
+- [x] `g f` — Follow the hovered symlink · `follow`
 
 ### Tabs
 
@@ -176,12 +176,12 @@ The file list: what is in front of you unless an overlay is.
 
 ### Split view
 
-- [ ] `<C-w>` — Split the view, or move to the other pane · `pane_focus`
-- [ ] `<C-S-w>` — Close the second pane · `split close`
+- [x] `<C-w>` — Split the view, or move to the other pane · `pane_focus`
+- [x] `<C-S-w>` — Close the second pane · `split close`
 
 ### Panels
 
-- [ ] `w` — Show the task manager · `tasks_show`
+- [x] `w` — Show the task manager · `tasks_show`
 - [x] `~` — Open help · `help`
 - [x] `<F1>` — Open help · `help`
 - [x] `<F12>` — Open a pre-filled bug report in the browser · `bug-report`
@@ -190,7 +190,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<C-t>` — Open the terminal pane · `terminal`
 - [x] `<A-t>` — Type the selected paths into the terminal · `term_send`
 
-## `[term]` — 11 / 12
+## `[term]` — 12 / 12
 
 While the terminal pane holds the keys. Everything not listed here goes to the shell.
 
@@ -200,7 +200,7 @@ While the terminal pane holds the keys. Everything not listed here goes to the s
 - [x] `<C-S-t>` — Close the terminal and end the shell · `terminal close`
 - [x] `<F1>` — Show the key list · `help`
 - [x] `<C-S-p>` — Command palette · `palette`
-- [ ] `<A-Up>` — Put the pane where the shell is · `term_cd`
+- [x] `<A-Up>` — Put the pane where the shell is · `term_cd`
 - [x] `<S-PageUp>` — Scroll back half a screen · `term_scroll -50%`
 - [x] `<S-PageDown>` — Scroll forward half a screen · `term_scroll 50%`
 - [x] `<S-Home>` — To the top of the scrollback · `term_scroll top`
@@ -245,21 +245,21 @@ This panel (`~` or `<F1>`).
 
 - [x] `<Esc>` — Close help · `close`
 
-## `[tasks]` — 0 / 9
+## `[tasks]` — 9 / 9
 
 The task manager (`w`).
 
 ### Input line
 
-- [ ] `<Esc>` — Close the task manager · `close`
-- [ ] `q` — Close the task manager · `close`
-- [ ] `j` — Next task · `arrow 1`
-- [ ] `k` — Previous task · `arrow -1`
-- [ ] `<Down>` — Next task · `arrow 1`
-- [ ] `<Up>` — Previous task · `arrow -1`
-- [ ] `p` — Pause / resume the task · `task_toggle`
-- [ ] `x` — Cancel the task · `task_cancel`
-- [ ] `t` — Move the task to the front of the queue · `task_top`
+- [x] `<Esc>` — Close the task manager · `close`
+- [x] `q` — Close the task manager · `close`
+- [x] `j` — Next task · `arrow 1`
+- [x] `k` — Previous task · `arrow -1`
+- [x] `<Down>` — Next task · `arrow 1`
+- [x] `<Up>` — Previous task · `arrow -1`
+- [x] `p` — Pause / resume the task · `task_toggle`
+- [x] `x` — Cancel the task · `task_cancel`
+- [x] `t` — Move the task to the front of the queue · `task_top`
 
 ## `[spot]` — 17 / 17
 
