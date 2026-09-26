@@ -102,7 +102,9 @@ pub fn draw(
     let end = (start + rows).min(folder.view.len());
 
     for (i, row) in (start..end).enumerate() {
-        let Some(entry) = folder.at(row) else { continue };
+        let Some(entry) = folder.at(row) else {
+            continue;
+        };
         let y = rect.top() + i as f32 * st.row_h;
         let row_rect = Rect::from_min_size(
             egui::pos2(rect.left(), y),
@@ -112,7 +114,11 @@ pub fn draw(
         let hovered = row == folder.cursor;
 
         if hovered {
-            let bg = if st.active { st.theme.hovered_bg } else { st.theme.inactive_hovered_bg };
+            let bg = if st.active {
+                st.theme.hovered_bg
+            } else {
+                st.theme.inactive_hovered_bg
+            };
             painter.rect_filled(row_rect, CornerRadius::same(3), bg);
         }
 
@@ -120,11 +126,20 @@ pub fn draw(
         let marker = if f.selected {
             Some(st.theme.marker_selected)
         } else {
-            f.yanked.map(|cut| if cut { st.theme.marker_cut } else { st.theme.marker_copied })
+            f.yanked.map(|cut| {
+                if cut {
+                    st.theme.marker_cut
+                } else {
+                    st.theme.marker_copied
+                }
+            })
         };
         if let Some(color) = marker {
             painter.rect_filled(
-                Rect::from_min_size(row_rect.left_top() + Vec2::new(1.0, 2.0), Vec2::new(3.0, st.row_h - 4.0)),
+                Rect::from_min_size(
+                    row_rect.left_top() + Vec2::new(1.0, 2.0),
+                    Vec2::new(3.0, st.row_h - 4.0),
+                ),
                 CornerRadius::same(2),
                 color,
             );
@@ -158,7 +173,10 @@ pub fn draw(
             let g = painter.layout_no_wrap(right.clone(), st.font.clone(), st.theme.fg_dim);
             right_w = g.size().x + 10.0;
             painter.galley(
-                egui::pos2(row_rect.right() - g.size().x - 6.0, y + (st.row_h - g.size().y) / 2.0),
+                egui::pos2(
+                    row_rect.right() - g.size().x - 6.0,
+                    y + (st.row_h - g.size().y) / 2.0,
+                ),
                 g,
                 st.theme.fg_dim,
             );
@@ -171,7 +189,10 @@ pub fn draw(
             let g = painter.layout_no_wrap(mark.to_string(), st.font.clone(), color);
             let w = g.size().x;
             painter.galley(
-                egui::pos2(row_rect.right() - right_w - w - 2.0, y + (st.row_h - g.size().y) / 2.0),
+                egui::pos2(
+                    row_rect.right() - right_w - w - 2.0,
+                    y + (st.row_h - g.size().y) / 2.0,
+                ),
                 g,
                 color,
             );
@@ -184,7 +205,9 @@ pub fn draw(
             name.push_str("  ->");
         }
         let positions = if hits { folder.hit_at(row) } else { &[] };
-        let job = name_job(&name, positions, &st.font, base_color, &style, st.theme, avail);
+        let job = name_job(
+            &name, positions, &st.font, base_color, &style, st.theme, avail,
+        );
         let galley = painter.layout_job(job);
         painter.galley(
             egui::pos2(x, y + (st.row_h - galley.size().y) / 2.0),
@@ -211,7 +234,9 @@ pub fn draw(
     }
 
     // Interaction
-    let id = ui.id().with(("list", rect.left() as i32, rect.top() as i32));
+    let id = ui
+        .id()
+        .with(("list", rect.left() as i32, rect.top() as i32));
     let resp = ui.interact(rect, id, egui::Sense::click_and_drag());
     // `hover_pos` is the fallback: a press that egui reports without an
     // interaction position still names the row the pointer is over.

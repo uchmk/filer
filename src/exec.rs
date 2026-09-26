@@ -77,7 +77,11 @@ fn substitute_with(template: &str, paths: &[PathBuf], suffix: &str) -> String {
 }
 
 /// [`substitute`], with `render` deciding how one path is written out.
-fn substitute_render(template: &str, paths: &[PathBuf], render: &dyn Fn(&Path) -> String) -> String {
+fn substitute_render(
+    template: &str,
+    paths: &[PathBuf],
+    render: &dyn Fn(&Path) -> String,
+) -> String {
     let quote = render;
     let all = paths.iter().map(|p| quote(p)).collect::<Vec<_>>().join(" ");
     let mut out = String::with_capacity(template.len() + all.len());
@@ -124,8 +128,14 @@ fn quote(p: &Path, suffix: &str) -> String {
 
 /// The opener's command line, at `line` when there is one and the editor
 /// takes it.
-pub fn command_line(run: &str, paths: &[PathBuf], line: Option<usize>, custom: &LineArgs) -> String {
-    line.and_then(|n| at_line(run, paths, n, custom)).unwrap_or_else(|| substitute(run, paths))
+pub fn command_line(
+    run: &str,
+    paths: &[PathBuf],
+    line: Option<usize>,
+    custom: &LineArgs,
+) -> String {
+    line.and_then(|n| at_line(run, paths, n, custom))
+        .unwrap_or_else(|| substitute(run, paths))
 }
 
 /// Line-jump argument templates from `filer.toml`'s `[line_args]`, keyed by
@@ -161,7 +171,10 @@ fn split_template(template: &str, line: usize) -> Option<(String, String)> {
         }
     }
     let n = line.to_string();
-    Some((before.join(" ").replace("{line}", &n), path?.replace("{line}", &n)))
+    Some((
+        before.join(" ").replace("{line}", &n),
+        path?.replace("{line}", &n),
+    ))
 }
 
 /// Whether a `[line_args]` template can be used at all, for the config loader
@@ -197,7 +210,11 @@ pub fn at_line(run: &str, paths: &[PathBuf], line: usize, custom: &LineArgs) -> 
     if let Some(template) = custom.get(name) {
         if let Some((before, token)) = split_template(template, line) {
             let (head, tail) = run.split_at(end);
-            let head = if before.is_empty() { head.to_owned() } else { format!("{head} {before}") };
+            let head = if before.is_empty() {
+                head.to_owned()
+            } else {
+                format!("{head} {before}")
+            };
             return Some(substitute_render(&format!("{head}{tail}"), paths, &|p| {
                 let path = p.to_string_lossy().replace('"', "\\\"");
                 format!("\"{}\"", token.replace("{path}", &path))
@@ -205,7 +222,9 @@ pub fn at_line(run: &str, paths: &[PathBuf], line: usize, custom: &LineArgs) -> 
         }
     }
     let how = match name {
-        "nvim" | "vim" | "vi" | "gvim" | "nano" | "emacs" | "emacsclient" | "micro" | "kak" => LineArg::Flag("+"),
+        "nvim" | "vim" | "vi" | "gvim" | "nano" | "emacs" | "emacsclient" | "micro" | "kak" => {
+            LineArg::Flag("+")
+        }
         // Editors common on Windows. Notepad has no line switch, so it stays out.
         "hidemaru" => LineArg::Flag("/j"),
         "sakura" => LineArg::Flag("-L="),
@@ -239,7 +258,11 @@ pub fn shell(cmdline: &str, cwd: &Path, block: bool, orphan: bool) -> std::io::R
         cmd.stderr(Stdio::piped());
     }
     let child = cmd.spawn()?;
-    Ok(if watched { Launch::watch(child, cmdline) } else { Launch::none() })
+    Ok(if watched {
+        Launch::watch(child, cmdline)
+    } else {
+        Launch::none()
+    })
 }
 
 /// A launch that can still fail after [`shell`] has returned `Ok`.
@@ -377,7 +400,11 @@ fn configure(cmd: &mut Command, block: bool, _orphan: bool) {
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     // A blocking (terminal) program needs a console of its own; a GUI program
     // should not flash one.
-    cmd.creation_flags(if block { CREATE_NEW_CONSOLE } else { CREATE_NO_WINDOW });
+    cmd.creation_flags(if block {
+        CREATE_NEW_CONSOLE
+    } else {
+        CREATE_NO_WINDOW
+    });
 }
 
 #[cfg(not(windows))]
@@ -433,7 +460,10 @@ mod tests {
         assert_eq!(substitute("code %*", &paths), "code \"C:\\a b\\x.txt\"");
         assert_eq!(substitute("mpv $0", &paths), "mpv \"C:\\a b\\x.txt\"");
         // No placeholder at all: append the paths.
-        assert_eq!(substitute("explorer", &paths), "explorer \"C:\\a b\\x.txt\"");
+        assert_eq!(
+            substitute("explorer", &paths),
+            "explorer \"C:\\a b\\x.txt\""
+        );
     }
 
     #[test]
@@ -441,9 +471,15 @@ mod tests {
         let paths = vec![PathBuf::from(r"C:\a b\x.rs")];
         let at = |run| at_line(run, &paths, 12, &LineArgs::new());
         assert_eq!(at("nvim %s").as_deref(), Some(r#"nvim +12 "C:\a b\x.rs""#));
-        assert_eq!(at("code %*").as_deref(), Some(r#"code -g "C:\a b\x.rs:12""#));
+        assert_eq!(
+            at("code %*").as_deref(),
+            Some(r#"code -g "C:\a b\x.rs:12""#)
+        );
         assert_eq!(at(r#"hx "$@""#).as_deref(), Some(r#"hx "C:\a b\x.rs:12""#));
-        assert_eq!(at("Code.CMD").as_deref(), Some(r#"Code.CMD -g "C:\a b\x.rs:12""#));
+        assert_eq!(
+            at("Code.CMD").as_deref(),
+            Some(r#"Code.CMD -g "C:\a b\x.rs:12""#)
+        );
         assert_eq!(
             at(r#""C:\Program Files\Neovim\bin\nvim.exe" -O %s"#).as_deref(),
             Some(r#""C:\Program Files\Neovim\bin\nvim.exe" +12 -O "C:\a b\x.rs""#)
@@ -456,10 +492,22 @@ mod tests {
     fn opens_windows_editors_at_a_line() {
         let paths = vec![PathBuf::from(r"C:\a b\x.txt")];
         let at = |run| at_line(run, &paths, 123, &LineArgs::new());
-        assert_eq!(at("hidemaru %s").as_deref(), Some(r#"hidemaru /j123 "C:\a b\x.txt""#));
-        assert_eq!(at("sakura %s").as_deref(), Some(r#"sakura -L=123 "C:\a b\x.txt""#));
-        assert_eq!(at("emeditor %s").as_deref(), Some(r#"emeditor /l 123 "C:\a b\x.txt""#));
-        assert_eq!(at("notepad++ %s").as_deref(), Some(r#"notepad++ -n123 "C:\a b\x.txt""#));
+        assert_eq!(
+            at("hidemaru %s").as_deref(),
+            Some(r#"hidemaru /j123 "C:\a b\x.txt""#)
+        );
+        assert_eq!(
+            at("sakura %s").as_deref(),
+            Some(r#"sakura -L=123 "C:\a b\x.txt""#)
+        );
+        assert_eq!(
+            at("emeditor %s").as_deref(),
+            Some(r#"emeditor /l 123 "C:\a b\x.txt""#)
+        );
+        assert_eq!(
+            at("notepad++ %s").as_deref(),
+            Some(r#"notepad++ -n123 "C:\a b\x.txt""#)
+        );
         // Notepad takes no line, so it is opened the plain way.
         assert_eq!(at("notepad %s"), None);
         assert_eq!(
@@ -485,17 +533,32 @@ mod tests {
         custom.insert("sakura".into(), "/LINE={line} {path}".into());
         let at = |run| at_line(run, &paths, 123, &custom);
 
-        assert_eq!(at("mikan %s").as_deref(), Some(r#"mikan -l 123 "C:\a b\x.txt""#));
-        assert_eq!(at("myedit %s").as_deref(), Some(r#"myedit "C:\a b\x.txt:123""#));
-        assert_eq!(at("goto %s").as_deref(), Some(r#"goto --goto "C:\a b\x.txt@123""#));
-        assert_eq!(at("sakura %s").as_deref(), Some(r#"sakura /LINE=123 "C:\a b\x.txt""#));
+        assert_eq!(
+            at("mikan %s").as_deref(),
+            Some(r#"mikan -l 123 "C:\a b\x.txt""#)
+        );
+        assert_eq!(
+            at("myedit %s").as_deref(),
+            Some(r#"myedit "C:\a b\x.txt:123""#)
+        );
+        assert_eq!(
+            at("goto %s").as_deref(),
+            Some(r#"goto --goto "C:\a b\x.txt@123""#)
+        );
+        assert_eq!(
+            at("sakura %s").as_deref(),
+            Some(r#"sakura /LINE=123 "C:\a b\x.txt""#)
+        );
         // Keys and programs are matched by file name, without the extension.
         assert_eq!(
             at(r#""C:\Program Files\Mikan\Mikan.exe" -w %s"#).as_deref(),
             Some(r#""C:\Program Files\Mikan\Mikan.exe" -l 123 -w "C:\a b\x.txt""#)
         );
         // An opener with no placeholder still gets the path appended.
-        assert_eq!(at("mikan").as_deref(), Some(r#"mikan -l 123 "C:\a b\x.txt""#));
+        assert_eq!(
+            at("mikan").as_deref(),
+            Some(r#"mikan -l 123 "C:\a b\x.txt""#)
+        );
         // Editors outside both the table and the config are unchanged.
         assert_eq!(at("explorer %s"), None);
     }
@@ -512,7 +575,11 @@ mod tests {
         let arg = cmd_s_c_arg(line);
         // What `/S` does: drop the first character and the last, keep the rest.
         assert!(arg.starts_with('"') && arg.ends_with('"'));
-        assert_eq!(&arg[1..arg.len() - 1], line, "the line must arrive untouched");
+        assert_eq!(
+            &arg[1..arg.len() - 1],
+            line,
+            "the line must arrive untouched"
+        );
     }
 
     #[test]
@@ -545,12 +612,18 @@ mod hint_is_true {
         // `$0` — the first, and only the first.
         let first = substitute("cmd $0", &paths);
         assert!(first.contains("one.txt"), "{first}");
-        assert!(!first.contains("two.txt"), "$0 took more than the first: {first}");
+        assert!(
+            !first.contains("two.txt"),
+            "$0 took more than the first: {first}"
+        );
 
         // `$1` — the second.
         let second = substitute("cmd $1", &paths);
         assert!(second.contains("two.txt"), "{second}");
-        assert!(!second.contains("one.txt"), "$1 took more than the second: {second}");
+        assert!(
+            !second.contains("one.txt"),
+            "$1 took more than the second: {second}"
+        );
 
         // No placeholder — appended.
         let bare = substitute("cmd", &paths);

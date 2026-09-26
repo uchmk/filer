@@ -27,7 +27,10 @@ const WATERFALL: &[f32] = &[12.0, 18.0, 24.0, 36.0, 48.0];
 pub fn render(path: &Path, box_size: (u32, u32)) -> Result<Payload, String> {
     let len = std::fs::metadata(path).map_err(|e| e.to_string())?.len();
     if len > MAX_BYTES {
-        return Err(format!("font too large to preview ({})", crate::util::human_size(len)));
+        return Err(format!(
+            "font too large to preview ({})",
+            crate::util::human_size(len)
+        ));
     }
     let data = std::fs::read(path).map_err(|e| e.to_string())?;
     render_bytes(&data, &crate::util::file_name(path), box_size)
@@ -35,7 +38,8 @@ pub fn render(path: &Path, box_size: (u32, u32)) -> Result<Payload, String> {
 
 fn render_bytes(data: &[u8], file_name: &str, box_size: (u32, u32)) -> Result<Payload, String> {
     let face = ttf_parser::Face::parse(data, 0).map_err(|e| format!("not a font: {e}"))?;
-    let font = FontRef::try_from_slice_and_index(data, 0).map_err(|e| format!("not a font: {e}"))?;
+    let font =
+        FontRef::try_from_slice_and_index(data, 0).map_err(|e| format!("not a font: {e}"))?;
     let name = full_name(&face).unwrap_or_else(|| file_name.to_owned());
 
     // Symbol and icon fonts can't spell their own name; the caption still does.
@@ -44,7 +48,12 @@ fn render_bytes(data: &[u8], file_name: &str, box_size: (u32, u32)) -> Result<Pa
     if titled {
         lines.push((24.0, name.as_str()));
     }
-    lines.extend(ALPHABET.iter().filter(|s| covers(&font, s)).map(|s| (16.0, *s)));
+    lines.extend(
+        ALPHABET
+            .iter()
+            .filter(|s| covers(&font, s))
+            .map(|s| (16.0, *s)),
+    );
     if covers(&font, PANGRAM) {
         lines.extend(WATERFALL.iter().map(|&pt| (pt, PANGRAM)));
     }
@@ -79,7 +88,13 @@ fn render_bytes(data: &[u8], file_name: &str, box_size: (u32, u32)) -> Result<Pa
     }
     let (width, height, rgba) = sheet.finish(y.ceil() as u32 + pad as u32);
     // A rendered specimen is its own source: there is nothing sharper to ask for.
-    Ok(Payload::Image { width, height, source: (width, height), rgba, caption })
+    Ok(Payload::Image {
+        width,
+        height,
+        source: (width, height),
+        rgba,
+        caption,
+    })
 }
 
 /// The English full name if there is one, else any readable full or family name.
@@ -91,7 +106,9 @@ fn full_name(face: &ttf_parser::Face) -> Option<String> {
             if n.name_id != id || !n.is_unicode() {
                 continue;
             }
-            let Some(s) = n.to_string().filter(|s| !s.trim().is_empty()) else { continue };
+            let Some(s) = n.to_string().filter(|s| !s.trim().is_empty()) else {
+                continue;
+            };
             if n.language_id == 0x0409 {
                 return Some(s);
             }
@@ -105,7 +122,10 @@ fn full_name(face: &ttf_parser::Face) -> Option<String> {
 /// Whether the font can draw most of `text`; a line of tofu tells nothing.
 fn covers(font: &FontRef, text: &str) -> bool {
     let chars: Vec<char> = text.chars().filter(|c| !c.is_whitespace()).collect();
-    let missing = chars.iter().filter(|&&c| font.glyph_id(c) == GlyphId(0)).count();
+    let missing = chars
+        .iter()
+        .filter(|&&c| font.glyph_id(c) == GlyphId(0))
+        .count();
     !chars.is_empty() && missing * 4 <= chars.len()
 }
 
@@ -118,7 +138,11 @@ struct Sheet {
 
 impl Sheet {
     fn new(w: u32, h: u32) -> Self {
-        Self { w, h, ink: vec![0.0; w as usize * h as usize] }
+        Self {
+            w,
+            h,
+            ink: vec![0.0; w as usize * h as usize],
+        }
     }
 
     fn draw(&mut self, font: &FontRef, px: f32, text: &str, x0: f32, baseline: f32) {
@@ -158,7 +182,8 @@ impl Sheet {
             let x = x0 + (n % cols) as f32 * cell + (cell - sf.h_advance(id)).max(0.0) / 2.0;
             let baseline = cy + (cell + sf.ascent() + sf.descent()) / 2.0;
             // Blank glyphs (space, control) don't take a cell.
-            let Some(outline) = font.outline_glyph(id.with_scale_and_position(px, point(x, baseline)))
+            let Some(outline) =
+                font.outline_glyph(id.with_scale_and_position(px, point(x, baseline)))
             else {
                 continue;
             };
@@ -172,7 +197,10 @@ impl Sheet {
     fn blit(&mut self, outline: &ab_glyph::OutlinedGlyph) {
         let b = outline.px_bounds();
         outline.draw(|gx, gy, cov| {
-            let (sx, sy) = (b.min.x as i64 + i64::from(gx), b.min.y as i64 + i64::from(gy));
+            let (sx, sy) = (
+                b.min.x as i64 + i64::from(gx),
+                b.min.y as i64 + i64::from(gy),
+            );
             if sx >= 0 && sy >= 0 && sx < i64::from(self.w) && sy < i64::from(self.h) {
                 let i = sy as usize * self.w as usize + sx as usize;
                 self.ink[i] = (self.ink[i] + cov).min(1.0);
@@ -203,15 +231,27 @@ mod tests {
     }
 
     fn dark_pixels(p: &Payload) -> usize {
-        let Payload::Image { rgba, .. } = p else { panic!("not an image: {p:?}") };
+        let Payload::Image { rgba, .. } = p else {
+            panic!("not an image: {p:?}")
+        };
         rgba.chunks(4).filter(|px| px[0] < 128).count()
     }
 
     #[test]
     fn draws_a_truetype_font() {
-        let Some(path) = system_font("consola.ttf") else { return };
+        let Some(path) = system_font("consola.ttf") else {
+            return;
+        };
         let p = render(&path, (1200, 1600)).unwrap();
-        let Payload::Image { width, height, caption, .. } = &p else { unreachable!() };
+        let Payload::Image {
+            width,
+            height,
+            caption,
+            ..
+        } = &p
+        else {
+            unreachable!()
+        };
         assert_eq!(*width, 1200);
         assert!(*height > 200 && *height <= 1600, "{height}");
         assert!(caption.starts_with("Consolas"), "{caption}");
@@ -220,25 +260,37 @@ mod tests {
 
     #[test]
     fn draws_the_first_face_of_a_collection() {
-        let Some(path) = system_font("meiryo.ttc") else { return };
+        let Some(path) = system_font("meiryo.ttc") else {
+            return;
+        };
         let p = render(&path, (1200, 1600)).unwrap();
-        let Payload::Image { caption, .. } = &p else { unreachable!() };
+        let Payload::Image { caption, .. } = &p else {
+            unreachable!()
+        };
         assert!(caption.contains("face 1 of"), "{caption}");
         assert!(dark_pixels(&p) > 1000);
     }
 
     #[test]
     fn stops_at_the_bottom_of_a_short_box() {
-        let Some(path) = system_font("consola.ttf") else { return };
-        let Payload::Image { height, .. } = render(&path, (400, 200)).unwrap() else { unreachable!() };
+        let Some(path) = system_font("consola.ttf") else {
+            return;
+        };
+        let Payload::Image { height, .. } = render(&path, (400, 200)).unwrap() else {
+            unreachable!()
+        };
         assert!(height <= 200, "{height}");
     }
 
     #[test]
     fn lays_out_a_symbol_font_as_a_grid() {
-        let Some(path) = system_font("wingding.ttf") else { return };
+        let Some(path) = system_font("wingding.ttf") else {
+            return;
+        };
         let p = render(&path, (1200, 1600)).unwrap();
-        let Payload::Image { caption, .. } = &p else { unreachable!() };
+        let Payload::Image { caption, .. } = &p else {
+            unreachable!()
+        };
         assert!(caption.starts_with("Wingdings"), "{caption}");
         assert!(dark_pixels(&p) > 1000);
     }

@@ -17,7 +17,10 @@ use crate::terminal::{self, Size};
 
 /// How many cells fit, given the space and the font.
 pub fn fit(rect: Rect, cell_w: f32, row_h: f32) -> Size {
-    Size::new((rect.width() / cell_w).floor() as usize, (rect.height() / row_h).floor() as usize)
+    Size::new(
+        (rect.width() / cell_w).floor() as usize,
+        (rect.height() / row_h).floor() as usize,
+    )
 }
 
 /// How far the view travels for a pixel of wheel movement. One notch of a
@@ -31,14 +34,21 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let painter = ui.painter_at(rect);
     // A monospace font gives every cell the same width, so one measurement
     // does for the whole grid.
-    let cell_w = painter.layout_no_wrap("M".into(), f.clone(), theme.fg).size().x.max(1.0);
+    let cell_w = painter
+        .layout_no_wrap("M".into(), f.clone(), theme.fg)
+        .size()
+        .x
+        .max(1.0);
     painter.rect_filled(rect, CornerRadius::ZERO, theme.bg_alt);
     // Plain chrome, in every state. This line used to turn the cwd colour
     // while the pane held the keys, which made it a second answer to a
     // question the cursor below already answers the way every terminal does --
     // filled block for focused, hollow for not. Two indicators for one bit,
     // and this was the loud one: a full-width accent rule against the list.
-    painter.line_segment([rect.left_top(), rect.right_top()], Stroke::new(1.0, theme.border));
+    painter.line_segment(
+        [rect.left_top(), rect.right_top()],
+        Stroke::new(1.0, theme.border),
+    );
 
     let inner = rect.shrink2(Vec2::new(6.0, 4.0));
     let size = fit(inner, cell_w, row_h);
@@ -64,8 +74,13 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let Some(term) = &mut app.term else { return };
     term.resize(size, (cell_w.round() as u16, row_h.round() as u16));
     // Out from under the lock before any laying out happens.
-    let (rows, cursor, _app_cursor) =
-        term.with_grid(|t| (terminal::snapshot(t), terminal::cursor_cell(t), terminal::app_cursor(t)));
+    let (rows, cursor, _app_cursor) = term.with_grid(|t| {
+        (
+            terminal::snapshot(t),
+            terminal::cursor_cell(t),
+            terminal::app_cursor(t),
+        )
+    });
 
     for (y, row) in rows.iter().enumerate() {
         let top = inner.top() + y as f32 * row_h;
@@ -93,7 +108,17 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
             }
         }
         if let Some((start, c)) = run {
-            fill(&painter, inner, start, row.len(), top, cell_w, row_h, c, &theme);
+            fill(
+                &painter,
+                inner,
+                start,
+                row.len(),
+                top,
+                cell_w,
+                row_h,
+                c,
+                &theme,
+            );
         }
 
         for (x, cell) in row.iter().enumerate() {
@@ -122,7 +147,10 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let (cx, cy) = cursor;
     if cy < size.lines && cx < size.cols {
         let at = Rect::from_min_size(
-            egui::pos2(inner.left() + cx as f32 * cell_w, inner.top() + cy as f32 * row_h),
+            egui::pos2(
+                inner.left() + cx as f32 * cell_w,
+                inner.top() + cy as f32 * row_h,
+            ),
             Vec2::new(cell_w, row_h),
         );
         if focused {
@@ -335,7 +363,10 @@ mod tests {
         let theme = Theme::default();
         // The corners of the 6x6x6 cube.
         assert_eq!(indexed(16, &theme, false), Color32::from_rgb(0, 0, 0));
-        assert_eq!(indexed(231, &theme, false), Color32::from_rgb(255, 255, 255));
+        assert_eq!(
+            indexed(231, &theme, false),
+            Color32::from_rgb(255, 255, 255)
+        );
         // Pure red is the first step of the red axis, not 0xff.
         assert_eq!(indexed(196, &theme, false), Color32::from_rgb(255, 0, 0));
         // The grey ramp at both ends.
@@ -349,7 +380,11 @@ mod tests {
     fn the_grid_is_measured_in_whole_cells() {
         let r = Rect::from_min_size(egui::pos2(0.0, 0.0), Vec2::new(101.0, 55.0));
         let size = fit(r, 10.0, 20.0);
-        assert_eq!((size.cols, size.lines), (10, 2), "a part-cell is not a cell");
+        assert_eq!(
+            (size.cols, size.lines),
+            (10, 2),
+            "a part-cell is not a cell"
+        );
         // A pane too small to hold anything still has to answer something a
         // grid can divide by.
         let tiny = Rect::from_min_size(egui::pos2(0.0, 0.0), Vec2::new(1.0, 1.0));

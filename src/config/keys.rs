@@ -65,7 +65,13 @@ pub struct Key {
 
 impl Key {
     pub fn plain(code: Code) -> Self {
-        Self { code, ctrl: false, alt: false, shift: false, sup: false }
+        Self {
+            code,
+            ctrl: false,
+            alt: false,
+            shift: false,
+            sup: false,
+        }
     }
 
     pub fn char(c: char) -> Self {
@@ -74,7 +80,13 @@ impl Key {
 
     /// A ctrl chord, for the keys egui hands over as clipboard events.
     pub fn ctrl(c: char) -> Self {
-        Self { code: Code::Char(c), ctrl: true, alt: false, shift: false, sup: false }
+        Self {
+            code: Code::Char(c),
+            ctrl: true,
+            alt: false,
+            shift: false,
+            sup: false,
+        }
     }
 
     pub fn is_bare_char(&self) -> bool {
@@ -96,7 +108,13 @@ impl Key {
             return None;
         }
         let inner = &s[1..s.len() - 1];
-        let mut key = Self { code: Code::Char(' '), ctrl: false, alt: false, shift: false, sup: false };
+        let mut key = Self {
+            code: Code::Char(' '),
+            ctrl: false,
+            alt: false,
+            shift: false,
+            sup: false,
+        };
 
         // Split on '-', but the final segment is the key itself and may be "-".
         let parts: Vec<&str> = split_mods(inner);
@@ -186,7 +204,9 @@ impl fmt::Display for Key {
         let has_mods = self.ctrl || self.alt || self.sup || (self.shift && named.is_some());
         match (named, has_mods) {
             (None, false) => {
-                let Code::Char(c) = self.code else { unreachable!() };
+                let Code::Char(c) = self.code else {
+                    unreachable!()
+                };
                 write!(f, "{c}")
             }
             (label, _) => {
@@ -207,7 +227,9 @@ impl fmt::Display for Key {
                 match label {
                     Some(l) => write!(f, "{l}>"),
                     None => {
-                        let Code::Char(c) = self.code else { unreachable!() };
+                        let Code::Char(c) = self.code else {
+                            unreachable!()
+                        };
                         write!(f, "{c}>")
                     }
                 }
@@ -231,14 +253,26 @@ pub fn from_egui(key: egui::Key, mods: &egui::Modifiers) -> Option<Key> {
     let alt = mods.alt;
     let sup = mods.mac_cmd;
     let named = |n: Named| {
-        Some(Key { code: Code::Named(n), ctrl, alt, shift: mods.shift, sup })
+        Some(Key {
+            code: Code::Named(n),
+            ctrl,
+            alt,
+            shift: mods.shift,
+            sup,
+        })
     };
     match key {
         K::Enter => named(Named::Enter),
         K::Escape => named(Named::Esc),
         K::Tab => {
             if mods.shift {
-                Some(Key { code: Code::Named(Named::BackTab), ctrl, alt, shift: true, sup })
+                Some(Key {
+                    code: Code::Named(Named::BackTab),
+                    ctrl,
+                    alt,
+                    shift: true,
+                    sup,
+                })
             } else {
                 named(Named::Tab)
             }
@@ -273,7 +307,13 @@ pub fn from_egui(key: egui::Key, mods: &egui::Modifiers) -> Option<Key> {
                 return None;
             }
             let c = printable(other)?;
-            Some(Key { code: Code::Char(c), ctrl, alt, shift: mods.shift, sup })
+            Some(Key {
+                code: Code::Char(c),
+                ctrl,
+                alt,
+                shift: mods.shift,
+                sup,
+            })
         }
     }
 }
@@ -349,7 +389,10 @@ mod tests {
         assert_eq!(Key::parse("a"), Some(Key::char('a')));
         assert_eq!(Key::parse("A"), Some(Key::char('A')));
         assert_eq!(Key::parse("<Space>"), Some(Key::char(' ')));
-        assert_eq!(Key::parse("<Enter>"), Some(Key::plain(Code::Named(Named::Enter))));
+        assert_eq!(
+            Key::parse("<Enter>"),
+            Some(Key::plain(Code::Named(Named::Enter)))
+        );
         let c = Key::parse("<C-a>").unwrap();
         assert!(c.ctrl && c.code == Code::Char('a'));
         let cs = Key::parse("<C-S-Up>").unwrap();
@@ -359,7 +402,16 @@ mod tests {
 
     #[test]
     fn round_trips() {
-        for s in ["a", "<C-a>", "<Enter>", "<Space>", "<F12>", "<A-S-Left>", "<BackTab>", "<C-BackTab>"] {
+        for s in [
+            "a",
+            "<C-a>",
+            "<Enter>",
+            "<Space>",
+            "<F12>",
+            "<A-S-Left>",
+            "<BackTab>",
+            "<C-BackTab>",
+        ] {
             let k = Key::parse(s).unwrap();
             assert_eq!(Key::parse(&k.to_string()), Some(k), "{s}");
         }
@@ -374,6 +426,9 @@ mod tests {
             assert_eq!(k.unwrap().to_string(), "<BackTab>", "{s}");
         }
         // Plain Tab stays Tab.
-        assert_eq!(Key::parse("<Tab>"), from_egui(egui::Key::Tab, &egui::Modifiers::NONE));
+        assert_eq!(
+            Key::parse("<Tab>"),
+            from_egui(egui::Key::Tab, &egui::Modifiers::NONE)
+        );
     }
 }

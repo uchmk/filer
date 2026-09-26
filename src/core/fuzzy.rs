@@ -21,7 +21,10 @@ const PENALTY_GAP_START: i32 = -5;
 const PENALTY_GAP_EXTEND: i32 = -2;
 
 fn is_sep(c: char) -> bool {
-    matches!(c, '/' | '\\' | '_' | '-' | '.' | ' ' | '(' | ')' | '[' | ']' | '@' | '#')
+    matches!(
+        c,
+        '/' | '\\' | '_' | '-' | '.' | ' ' | '(' | ')' | '[' | ']' | '@' | '#'
+    )
 }
 
 /// `smart` means: a pattern with any uppercase letter becomes case-sensitive.
@@ -34,7 +37,10 @@ pub fn is_case_sensitive(pattern: &str, smart: bool, forced_insensitive: bool) -
 
 pub fn match_str(pattern: &str, text: &str, case_sensitive: bool) -> Option<Hit> {
     if pattern.is_empty() {
-        return Some(Hit { score: 0, positions: Vec::new() });
+        return Some(Hit {
+            score: 0,
+            positions: Vec::new(),
+        });
     }
     let hay: Vec<char> = text.chars().collect();
     let pat: Vec<char> = pattern.chars().collect();
@@ -76,7 +82,10 @@ pub fn match_str(pattern: &str, text: &str, case_sensitive: bool) -> Option<Hit>
         limit = chosen;
     }
 
-    Some(Hit { score: score(&hay, &pat, &pos, case_sensitive), positions: pos })
+    Some(Hit {
+        score: score(&hay, &pat, &pos, case_sensitive),
+        positions: pos,
+    })
 }
 
 fn eq(a: char, b: char, case_sensitive: bool) -> bool {
@@ -127,7 +136,10 @@ fn score(hay: &[char], pat: &[char], pos: &[usize], case_sensitive: bool) -> i32
 /// looks literal. Returns the char positions of the first occurrence.
 pub fn find_substring(needle: &str, text: &str, case_sensitive: bool) -> Option<Hit> {
     if needle.is_empty() {
-        return Some(Hit { score: 0, positions: Vec::new() });
+        return Some(Hit {
+            score: 0,
+            positions: Vec::new(),
+        });
     }
     let hay: Vec<char> = text.chars().collect();
     let pat: Vec<char> = needle.chars().collect();

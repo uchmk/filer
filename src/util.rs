@@ -20,7 +20,11 @@ pub fn natural_cmp(a: &str, b: &str, case_sensitive: bool) -> Ordering {
                     let an = take_number(&mut ai);
                     let bn = take_number(&mut bi);
                     // Compare by value, then by written form so "01" and "1" stay stable.
-                    match an.trim_start_matches('0').len().cmp(&bn.trim_start_matches('0').len()) {
+                    match an
+                        .trim_start_matches('0')
+                        .len()
+                        .cmp(&bn.trim_start_matches('0').len())
+                    {
                         Ordering::Equal => {}
                         o => return o,
                     }
@@ -187,7 +191,9 @@ pub fn normalize(path: &Path) -> PathBuf {
 /// is not a plain prefix strip, and the verbatim form works everywhere we pass
 /// it on.
 pub fn unverbatim(path: &Path) -> PathBuf {
-    let Some(s) = path.to_str() else { return path.to_path_buf() };
+    let Some(s) = path.to_str() else {
+        return path.to_path_buf();
+    };
     match s.strip_prefix(r"\\?\") {
         Some(rest) if !rest.starts_with("UNC\\") => PathBuf::from(rest),
         _ => path.to_path_buf(),
@@ -275,7 +281,9 @@ pub fn expand(input: &str) -> PathBuf {
     }
     // %VAR%
     while let Some(start) = s.find('%') {
-        let Some(end) = s[start + 1..].find('%').map(|i| start + 1 + i) else { break };
+        let Some(end) = s[start + 1..].find('%').map(|i| start + 1 + i) else {
+            break;
+        };
         let name = &s[start + 1..end];
         let val = std::env::var(name).unwrap_or_default();
         s.replace_range(start..=end, &val);
@@ -389,7 +397,11 @@ pub struct Lru<K: Eq + Hash + Clone, V> {
 
 impl<K: Eq + Hash + Clone, V> Lru<K, V> {
     pub fn new(cap: usize) -> Self {
-        Self { map: HashMap::new(), order: Vec::new(), cap: cap.max(1) }
+        Self {
+            map: HashMap::new(),
+            order: Vec::new(),
+            cap: cap.max(1),
+        }
     }
 
     pub fn get(&mut self, k: &K) -> Option<&V> {
@@ -471,8 +483,14 @@ mod tests {
     #[test]
     fn a_share_knows_which_server_it_is_on() {
         let host = |s: &str| unc_host(Path::new(s));
-        assert_eq!(host(r"\\192.0.2.10\Backup"), Some(PathBuf::from(r"\\192.0.2.10")));
-        assert_eq!(host(r"\\192.0.2.10\Backup\"), Some(PathBuf::from(r"\\192.0.2.10")));
+        assert_eq!(
+            host(r"\\192.0.2.10\Backup"),
+            Some(PathBuf::from(r"\\192.0.2.10"))
+        );
+        assert_eq!(
+            host(r"\\192.0.2.10\Backup\"),
+            Some(PathBuf::from(r"\\192.0.2.10"))
+        );
         // Forward slashes are how the same path arrives from a config or a URL.
         assert_eq!(host("//server/pub"), Some(PathBuf::from(r"\\server")));
         // Deeper than a share root: `parent()` already answers that one.
@@ -494,9 +512,15 @@ mod tests {
     fn a_share_root_is_named_after_its_share() {
         let share = |s: &str| unc_share(Path::new(s));
 
-        assert_eq!(share(r"\\192.0.2.10\backup-user").as_deref(), Some("backup-user"));
+        assert_eq!(
+            share(r"\\192.0.2.10\backup-user").as_deref(),
+            Some("backup-user")
+        );
         assert_eq!(share(r"\\192.0.2.10\Backup\").as_deref(), Some("Backup"));
-        assert_eq!(share("//192.0.2.10/Media_Library").as_deref(), Some("Media_Library"));
+        assert_eq!(
+            share("//192.0.2.10/Media_Library").as_deref(),
+            Some("Media_Library")
+        );
         // An administrative share keeps its `$`; a share name may hold a space.
         assert_eq!(share(r"\\host\C$").as_deref(), Some("C$"));
         assert_eq!(share(r"\\host\My Files").as_deref(), Some("My Files"));
@@ -539,9 +563,15 @@ mod tests {
         assert_eq!(up(r"\\192.0.2.10"), None);
         assert_eq!(up("//192.0.2.10"), None);
         // A share root has no parent at all to `std`; the host is above it.
-        assert_eq!(up(r"\\192.0.2.10\Backup"), Some(PathBuf::from(r"\\192.0.2.10")));
+        assert_eq!(
+            up(r"\\192.0.2.10\Backup"),
+            Some(PathBuf::from(r"\\192.0.2.10"))
+        );
         // Deeper in, and off UNC entirely, it is `parent()`'s answer.
-        assert_eq!(up(r"\\192.0.2.10\Backup\2025"), Some(PathBuf::from(r"\\192.0.2.10\Backup")));
+        assert_eq!(
+            up(r"\\192.0.2.10\Backup\2025"),
+            Some(PathBuf::from(r"\\192.0.2.10\Backup"))
+        );
         assert_eq!(up(r"C:\dev\filer"), Some(PathBuf::from(r"C:\dev")));
         // A drive root is a top too.
         assert_eq!(up(r"C:\"), None);
@@ -549,10 +579,19 @@ mod tests {
 
     #[test]
     fn normalizes() {
-        assert_eq!(normalize(Path::new(r"C:\a\b\..\c")), PathBuf::from(r"C:\a\c"));
-        assert_eq!(normalize(Path::new("a/./b/../c")), PathBuf::from("a").join("c"));
+        assert_eq!(
+            normalize(Path::new(r"C:\a\b\..\c")),
+            PathBuf::from(r"C:\a\c")
+        );
+        assert_eq!(
+            normalize(Path::new("a/./b/../c")),
+            PathBuf::from("a").join("c")
+        );
         // Relative paths have nothing to pop, so `..` stays.
-        assert_eq!(normalize(Path::new("../../a")), PathBuf::from("..").join("..").join("a"));
+        assert_eq!(
+            normalize(Path::new("../../a")),
+            PathBuf::from("..").join("..").join("a")
+        );
     }
 
     #[cfg(windows)]
@@ -579,10 +618,16 @@ mod tests {
         assert_eq!(file_name(&share), "pub");
 
         // Forward slashes spell the same share.
-        assert_eq!(normalize(Path::new("//192.0.2.10/pub/x")), PathBuf::from(r"\\192.0.2.10\pub\x"));
+        assert_eq!(
+            normalize(Path::new("//192.0.2.10/pub/x")),
+            PathBuf::from(r"\\192.0.2.10\pub\x")
+        );
 
         // A host with no share yet must not collapse to `\host`.
-        assert_eq!(normalize(Path::new(r"\\192.0.2.10")), PathBuf::from(r"\\192.0.2.10"));
+        assert_eq!(
+            normalize(Path::new(r"\\192.0.2.10")),
+            PathBuf::from(r"\\192.0.2.10")
+        );
         assert_eq!(
             resolve_against(Path::new(r"C:\work"), r"\\192.0.2.10"),
             PathBuf::from(r"\\192.0.2.10")
@@ -594,7 +639,10 @@ mod tests {
             PathBuf::from(r"\\nas\media\photos")
         );
         // ...and a plain rooted path still picks up the base's drive.
-        assert_eq!(resolve_against(Path::new(r"D:\work"), r"\tmp"), PathBuf::from(r"D:\tmp"));
+        assert_eq!(
+            resolve_against(Path::new(r"D:\work"), r"\tmp"),
+            PathBuf::from(r"D:\tmp")
+        );
     }
 
     #[test]

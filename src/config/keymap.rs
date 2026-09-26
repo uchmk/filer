@@ -156,7 +156,12 @@ fn build(raw: &RawBinding, warnings: &mut Vec<String>) -> Option<Binding> {
             warnings.push(format!("unsupported command `{s}`"));
         }
     }
-    Some(Binding { on, run, desc: raw.desc.clone(), raw: raw_text })
+    Some(Binding {
+        on,
+        run,
+        desc: raw.desc.clone(),
+        raw: raw_text,
+    })
 }
 
 /// Apply one file's layers on top of what previous files produced.
@@ -185,9 +190,8 @@ impl Keymap {
     /// Fold the built-in defaults and each user keymap file in turn.
     pub fn load(user_tomls: &[&str]) -> (Self, Vec<String>) {
         let mut warnings = Vec::new();
-        let mut files = vec![
-            toml::from_str::<KeymapFile>(DEFAULT_KEYMAP).expect("built-in keymap must parse"),
-        ];
+        let mut files =
+            vec![toml::from_str::<KeymapFile>(DEFAULT_KEYMAP).expect("built-in keymap must parse")];
         for text in user_tomls {
             match toml::from_str::<KeymapFile>(text) {
                 Ok(k) => files.push(k),
@@ -270,14 +274,20 @@ fn unreachable(layer: &str, bindings: &[Binding]) -> Vec<String> {
         let key = super::keys::render_seq(on);
         let run = &bindings[i].raw;
         if twice {
-            out.push(format!("[{layer}] `{key}` is bound more than once; only `{run}` runs"));
+            out.push(format!(
+                "[{layer}] `{key}` is bound more than once; only `{run}` runs"
+            ));
         }
         if !hidden.is_empty() {
             let n = hidden.len();
             // Three is as many as the line can carry and still be read.
             hidden.truncate(3);
             let shown = hidden.join("`, `");
-            let more = if n > 3 { format!(", and {} more", n - 3) } else { String::new() };
+            let more = if n > 3 {
+                format!(", and {} more", n - 3)
+            } else {
+                String::new()
+            };
             out.push(format!(
                 "[{layer}] `{key}` runs `{run}` on its own, so the {n} key(s) starting with it \
                  never run: `{shown}`{more}",
@@ -358,7 +368,10 @@ run = "plugin bookmarks save"
 
         assert_eq!(bound(&km.mgr, "<C-r>"), vec![Act::Redo]);
         assert_eq!(bound(&km.mgr, "U"), vec![Act::Redo]);
-        assert_eq!(bound(&km.mgr, "<C-S-r>"), vec![Act::ToggleAll { state: None }]);
+        assert_eq!(
+            bound(&km.mgr, "<C-S-r>"),
+            vec![Act::ToggleAll { state: None }]
+        );
     }
 
     /// Jumping is `'`, the rest hangs off `b`. Both references agree on this
@@ -370,7 +383,10 @@ run = "plugin bookmarks save"
     fn bookmarks_jump_with_the_vim_key_and_are_managed_under_b() {
         let (km, _) = Keymap::load(&[]);
         let chord = |keys: &[&str]| {
-            let ks: Vec<Key> = keys.iter().map(|k| Key::parse(k).expect("key notation")).collect();
+            let ks: Vec<Key> = keys
+                .iter()
+                .map(|k| Key::parse(k).expect("key notation"))
+                .collect();
             match resolve(&km.mgr, &ks) {
                 Match::Exact(b) => b.run.clone(),
                 _ => panic!("`{keys:?}` is not bound"),
@@ -386,7 +402,10 @@ run = "plugin bookmarks save"
         // `b` alone must stay a prefix: bound to a command of its own it would
         // shadow every chord above, which is how it used to behave.
         assert!(
-            matches!(resolve(&km.mgr, &[Key::parse("b").unwrap()]), Match::Pending(_)),
+            matches!(
+                resolve(&km.mgr, &[Key::parse("b").unwrap()]),
+                Match::Pending(_)
+            ),
             "`b` must lead somewhere, not do something",
         );
 
@@ -445,9 +464,16 @@ run = "plugin bookmarks save"
         let (_, warnings) = Keymap::load(&[user]);
 
         let about_m: Vec<&String> = warnings.iter().filter(|w| w.contains("`m`")).collect();
-        assert_eq!(about_m.len(), 1, "one line per prefix, not one per key lost: {warnings:?}");
+        assert_eq!(
+            about_m.len(),
+            1,
+            "one line per prefix, not one per key lost: {warnings:?}"
+        );
         let w = about_m[0];
-        assert!(w.contains("plugin bookmarks save"), "must name what took the key: {w}");
+        assert!(
+            w.contains("plugin bookmarks save"),
+            "must name what took the key: {w}"
+        );
         assert!(w.contains("`ms`"), "must name a key that was lost: {w}");
         assert!(w.contains('5'), "must count them: {w}");
     }

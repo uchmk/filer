@@ -106,7 +106,10 @@ pub enum Act {
     Enter,
     Back,
     Forward,
-    Cd { target: String, interactive: bool },
+    Cd {
+        target: String,
+        interactive: bool,
+    },
     Reveal(String),
     Follow,
     Refresh,
@@ -114,9 +117,15 @@ pub enum Act {
     /// Scroll the preview pane.
     Seek(Step),
 
-    TabCreate { current: bool, path: Option<String> },
+    TabCreate {
+        current: bool,
+        path: Option<String>,
+    },
     TabClose(Option<usize>),
-    TabSwitch { n: i64, relative: bool },
+    TabSwitch {
+        n: i64,
+        relative: bool,
+    },
     TabSwap(i64),
 
     /// Open / close the second pane (a filer extra; yazi has one pane).
@@ -125,21 +134,52 @@ pub enum Act {
     /// side is named. Opens the split if it is closed.
     PaneFocus(Option<bool>),
 
-    Toggle { state: Tri },
-    ToggleAll { state: Tri },
-    VisualMode { unset: bool },
+    Toggle {
+        state: Tri,
+    },
+    ToggleAll {
+        state: Tri,
+    },
+    VisualMode {
+        unset: bool,
+    },
 
-    Open { interactive: bool, hovered: bool },
-    Yank { cut: bool },
+    Open {
+        interactive: bool,
+        hovered: bool,
+    },
+    Yank {
+        cut: bool,
+    },
     Unyank,
-    Paste { force: bool, follow: bool },
-    Link { relative: bool },
+    Paste {
+        force: bool,
+        follow: bool,
+    },
+    Link {
+        relative: bool,
+    },
     Hardlink,
-    Remove { permanently: bool, force: bool, hovered: bool },
-    Create { dir: bool, force: bool },
-    Rename { force: bool, cursor: RenameCursor },
+    Remove {
+        permanently: bool,
+        force: bool,
+        hovered: bool,
+    },
+    Create {
+        dir: bool,
+        force: bool,
+    },
+    Rename {
+        force: bool,
+        cursor: RenameCursor,
+    },
     Copy(CopyWhat),
-    Shell { run: String, block: bool, confirm: bool, orphan: bool },
+    Shell {
+        run: String,
+        block: bool,
+        confirm: bool,
+        orphan: bool,
+    },
 
     /// Unpack the selected archives, each into a folder of its own.
     Extract,
@@ -149,12 +189,28 @@ pub enum Act {
 
     Hidden(Tri),
     Linemode(String),
-    Sort { by: Option<SortBy>, reverse: Tri, dir_first: Tri },
+    Sort {
+        by: Option<SortBy>,
+        reverse: Tri,
+        dir_first: Tri,
+    },
 
-    Find { prev: bool, smart: bool, insensitive: bool },
-    FindArrow { prev: bool },
-    Filter { smart: bool, insensitive: bool },
-    Search { via: SearchVia, insensitive: bool },
+    Find {
+        prev: bool,
+        smart: bool,
+        insensitive: bool,
+    },
+    FindArrow {
+        prev: bool,
+    },
+    Filter {
+        smart: bool,
+        insensitive: bool,
+    },
+    Search {
+        via: SearchVia,
+        insensitive: bool,
+    },
     /// Confirm the pending input (yazi's `*_do` commands).
     Submit,
 
@@ -203,7 +259,9 @@ pub enum Act {
     Spot,
     /// Copy (or move) the selection straight into the other pane, without
     /// yanking and pasting to get there.
-    SendPane { cut: bool },
+    SendPane {
+        cut: bool,
+    },
 
     /// Open the terminal pane and give it the keys, or take them back.
     /// `Some(false)` closes the pane and the shell with it.
@@ -215,7 +273,10 @@ pub enum Act {
     /// Search the terminal's scrollback. `prev` walks back through the
     /// matches; with no string yet, it asks for one.
     Scale(ScaleTo),
-    TermFind { prev: bool, repeat: bool },
+    TermFind {
+        prev: bool,
+        repeat: bool,
+    },
     /// Move the terminal's view through its scrollback.
     TermScroll(Step),
 
@@ -316,7 +377,10 @@ impl Args {
     }
 
     fn val(&self, name: &str) -> Option<&str> {
-        self.flags.iter().find(|(k, _)| k == name).and_then(|(_, v)| v.as_deref())
+        self.flags
+            .iter()
+            .find(|(k, _)| k == name)
+            .and_then(|(_, v)| v.as_deref())
     }
 
     /// `--reverse`, `--reverse=true`, `--no-reverse` → Some(true/false); absent → None.
@@ -340,7 +404,9 @@ impl Args {
 
 pub fn parse(line: &str) -> Act {
     let words = lex(line);
-    let Some((name, rest)) = words.split_first() else { return Act::Noop };
+    let Some((name, rest)) = words.split_first() else {
+        return Act::Noop;
+    };
     let a = Args::new(rest);
     match name.as_str() {
         "noop" => Act::Noop,
@@ -420,9 +486,15 @@ pub fn parse(line: &str) -> Act {
             _ => None,
         }),
 
-        "toggle" => Act::Toggle { state: state_flag(&a) },
-        "toggle_all" => Act::ToggleAll { state: state_flag(&a) },
-        "visual_mode" => Act::VisualMode { unset: a.has("unset") },
+        "toggle" => Act::Toggle {
+            state: state_flag(&a),
+        },
+        "toggle_all" => Act::ToggleAll {
+            state: state_flag(&a),
+        },
+        "visual_mode" => Act::VisualMode {
+            unset: a.has("unset"),
+        },
         "select" => Act::Toggle { state: Some(true) },
         "select_all" => Act::ToggleAll { state: Some(true) },
 
@@ -432,8 +504,13 @@ pub fn parse(line: &str) -> Act {
         },
         "yank" => Act::Yank { cut: a.has("cut") },
         "unyank" => Act::Unyank,
-        "paste" => Act::Paste { force: a.has("force"), follow: a.has("follow") },
-        "link" => Act::Link { relative: a.has("relative") },
+        "paste" => Act::Paste {
+            force: a.has("force"),
+            follow: a.has("follow"),
+        },
+        "link" => Act::Link {
+            relative: a.has("relative"),
+        },
         "hardlink" => Act::Hardlink,
         "extract" => Act::Extract,
         "compress" => Act::Compress,
@@ -443,7 +520,10 @@ pub fn parse(line: &str) -> Act {
             force: a.has("force"),
             hovered: a.has("hovered"),
         },
-        "create" => Act::Create { dir: a.has("dir"), force: a.has("force") },
+        "create" => Act::Create {
+            dir: a.has("dir"),
+            force: a.has("force"),
+        },
         "rename" => Act::Rename {
             force: a.has("force"),
             cursor: match a.val("cursor") {
@@ -483,8 +563,13 @@ pub fn parse(line: &str) -> Act {
             smart: a.has("smart"),
             insensitive: a.has("insensitive"),
         },
-        "find_arrow" => Act::FindArrow { prev: a.has("previous") },
-        "filter" => Act::Filter { smart: a.has("smart"), insensitive: a.has("insensitive") },
+        "find_arrow" => Act::FindArrow {
+            prev: a.has("previous"),
+        },
+        "filter" => Act::Filter {
+            smart: a.has("smart"),
+            insensitive: a.has("insensitive"),
+        },
         "search" => Act::Search {
             via: match a.val("via").or(a.first()) {
                 Some("rg") | Some("content") => SearchVia::Content,
@@ -492,7 +577,10 @@ pub fn parse(line: &str) -> Act {
             },
             insensitive: a.has("insensitive"),
         },
-        "search_stop" => Act::Escape(EscapeWhat { search: true, ..Default::default() }),
+        "search_stop" => Act::Escape(EscapeWhat {
+            search: true,
+            ..Default::default()
+        }),
         "filter_do" | "find_do" | "search_do" | "cd_do" | "rename_do" | "create_do" => Act::Submit,
 
         "help" => Act::Help,
@@ -521,7 +609,10 @@ pub fn parse(line: &str) -> Act {
         }),
         "term_send" => Act::TermSend,
         "term_cd" => Act::TermCd,
-        "term_find" => Act::TermFind { prev: a.has("prev"), repeat: a.has("repeat") },
+        "term_find" => Act::TermFind {
+            prev: a.has("prev"),
+            repeat: a.has("repeat"),
+        },
         "term_scroll" => Act::TermScroll(parse_step(a.first().unwrap_or("-1"))),
         "toggle_render" => Act::ToggleRender,
         "toggle_outline" => Act::ToggleOutline,
@@ -574,8 +665,14 @@ fn plugin(pos: &[String]) -> Act {
         ("bookmarks", "delete_all") => Act::BookmarkDeleteAll,
         ("max-preview", _) => Act::MaxPreview,
         // Directories are entered, files opened — which is what `open` does.
-        ("smart-enter", _) => Act::Open { interactive: false, hovered: true },
-        ("smart-filter", _) => Act::Filter { smart: true, insensitive: false },
+        ("smart-enter", _) => Act::Open {
+            interactive: false,
+            hovered: true,
+        },
+        ("smart-filter", _) => Act::Filter {
+            smart: true,
+            insensitive: false,
+        },
         ("chmod", _) | ("mount", _) => Act::Unsupported(format!("plugin {name}")),
         _ => {
             let mut s = format!("plugin {name}");
@@ -598,11 +695,14 @@ mod tests {
 
     #[test]
     fn lexes_quotes() {
-        assert_eq!(lex("shell 'git log --oneline' --block"), vec![
-            "shell".to_string(),
-            "git log --oneline".to_string(),
-            "--block".to_string()
-        ]);
+        assert_eq!(
+            lex("shell 'git log --oneline' --block"),
+            vec![
+                "shell".to_string(),
+                "git log --oneline".to_string(),
+                "--block".to_string()
+            ]
+        );
     }
 
     #[test]
@@ -610,12 +710,21 @@ mod tests {
         assert_eq!(parse("arrow -1"), Act::Arrow(Step::Rel(-1)));
         assert_eq!(parse("arrow 50%"), Act::Arrow(Step::Pct(50)));
         assert_eq!(parse("arrow top"), Act::Arrow(Step::Top));
-        assert_eq!(parse("remove --permanently"), Act::Remove {
-            permanently: true,
-            force: false,
-            hovered: false
-        });
-        assert_eq!(parse("tab_switch 1 --relative"), Act::TabSwitch { n: 1, relative: true });
+        assert_eq!(
+            parse("remove --permanently"),
+            Act::Remove {
+                permanently: true,
+                force: false,
+                hovered: false
+            }
+        );
+        assert_eq!(
+            parse("tab_switch 1 --relative"),
+            Act::TabSwitch {
+                n: 1,
+                relative: true
+            }
+        );
         assert_eq!(parse("plugin toggle-pane max-preview"), Act::MaxPreview);
         assert_eq!(parse("plugin bookmarks jump"), Act::BookmarkJump);
         assert_eq!(parse("plugin bookmarks list"), Act::BookmarkList);
@@ -627,12 +736,21 @@ mod tests {
         assert_eq!(parse("pane_focus right"), Act::PaneFocus(Some(true)));
         assert_eq!(parse("toggle_render"), Act::ToggleRender);
         assert_eq!(parse("toggle_outline"), Act::ToggleOutline);
-        assert_eq!(parse("plugin smart-enter"), Act::Open { interactive: false, hovered: true });
-        assert!(matches!(parse("sort mtime --reverse"), Act::Sort {
-            by: Some(SortBy::Mtime),
-            reverse: Some(true),
-            ..
-        }));
+        assert_eq!(
+            parse("plugin smart-enter"),
+            Act::Open {
+                interactive: false,
+                hovered: true
+            }
+        );
+        assert!(matches!(
+            parse("sort mtime --reverse"),
+            Act::Sort {
+                by: Some(SortBy::Mtime),
+                reverse: Some(true),
+                ..
+            }
+        ));
     }
 
     #[test]

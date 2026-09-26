@@ -141,6 +141,9 @@ pub struct Tasks {
 
 impl Default for Tasks {
     fn default() -> Self {
-        Self { micro_workers: 10, macro_workers: 10 }
+        Self {
+            micro_workers: 10,
+            macro_workers: 10,
+        }
     }
 }

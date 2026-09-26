@@ -96,7 +96,9 @@ impl Tab {
     /// Decide what a failed listing of `cwd` means. The tab answers once: the
     /// pending jump is spent either way, so a second failure cannot loop.
     pub fn cd_failed(&mut self) -> CdFallout {
-        let Some(p) = self.pending_cd.take() else { return CdFallout::Keep };
+        let Some(p) = self.pending_cd.take() else {
+            return CdFallout::Keep;
+        };
         // The fallback reads a failure as "that was a file, not a directory",
         // and quietly shows the parent instead — which is right for
         // `C:\dir\file.txt`, and wrong for anything that failed for a reason
@@ -109,7 +111,13 @@ impl Tab {
                 // `cd C:\dir\file.txt` means "show me that file".
                 let name = crate::util::file_name(&self.cwd);
                 self.memo.insert(to.clone(), name);
-                return CdFallout::Reveal { to, pending: PendingCd { fallback: false, ..p } };
+                return CdFallout::Reveal {
+                    to,
+                    pending: PendingCd {
+                        fallback: false,
+                        ..p
+                    },
+                };
             }
         }
         if p.pushed {
@@ -140,11 +148,16 @@ impl Tab {
         if !self.selected.is_empty() {
             return self.selected.iter().cloned().collect();
         }
-        self.current.hovered().map(|e| vec![e.path.clone()]).unwrap_or_default()
+        self.current
+            .hovered()
+            .map(|e| vec![e.path.clone()])
+            .unwrap_or_default()
     }
 
     pub fn toggle(&mut self, state: Option<bool>) {
-        let Some(e) = self.current.hovered() else { return };
+        let Some(e) = self.current.hovered() else {
+            return;
+        };
         let path = e.path.clone();
         let on = state.unwrap_or(!self.selected.contains(&path));
         if on {
@@ -155,13 +168,13 @@ impl Tab {
     }
 
     pub fn toggle_all(&mut self, state: Option<bool>) {
-        let paths: Vec<PathBuf> =
-            self.current
-                .view
-                .iter()
-                .filter_map(|&i| self.current.entries.get(i as usize))
-                .map(|e| e.path.clone())
-                .collect();
+        let paths: Vec<PathBuf> = self
+            .current
+            .view
+            .iter()
+            .filter_map(|&i| self.current.entries.get(i as usize))
+            .map(|e| e.path.clone())
+            .collect();
         match state {
             Some(true) => self.selected.extend(paths),
             Some(false) => {
@@ -203,7 +216,11 @@ impl Tab {
 
     /// The selection `v` describes once its range reaches `to`.
     fn range_from(&self, v: &VisualState, to: usize) -> BTreeSet<PathBuf> {
-        let (lo, hi) = if v.anchor <= to { (v.anchor, to) } else { (to, v.anchor) };
+        let (lo, hi) = if v.anchor <= to {
+            (v.anchor, to)
+        } else {
+            (to, v.anchor)
+        };
         let mut next = v.base.clone();
         for row in lo..=hi {
             if let Some(e) = self.current.at(row) {
@@ -306,29 +323,45 @@ mod tests {
                 }
             })
             .collect();
-        let mut t = Tab::new(PathBuf::from("/t"), SortSpec::default(), true, String::new());
+        let mut t = Tab::new(
+            PathBuf::from("/t"),
+            SortSpec::default(),
+            true,
+            String::new(),
+        );
         t.current = Folder::from_entries(PathBuf::from("/t"), Arc::new(entries), true);
         t
     }
 
     /// The selection as the names it holds, in order.
     fn names(t: &Tab) -> Vec<String> {
-        t.selected.iter().map(|p| crate::util::file_name(p)).collect()
+        t.selected
+            .iter()
+            .map(|p| crate::util::file_name(p))
+            .collect()
     }
 
     /// The tab as `cd` leaves it: parked on `to`, waiting for its listing.
     fn jumped(from: &str, to: &str, fallback: bool) -> Tab {
         let mut t = Tab::new(PathBuf::from(to), SortSpec::default(), true, String::new());
         t.back.push(PathBuf::from(from));
-        t.pending_cd =
-            Some(PendingCd { from: PathBuf::from(from), pushed: true, fallback });
+        t.pending_cd = Some(PendingCd {
+            from: PathBuf::from(from),
+            pushed: true,
+            fallback,
+        });
         t
     }
 
     #[test]
     fn a_jump_that_never_listed_is_undone() {
         let mut t = jumped("/a", "//dead/share", false);
-        assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/a") });
+        assert_eq!(
+            t.cd_failed(),
+            CdFallout::Revert {
+                to: PathBuf::from("/a")
+            }
+        );
         // The history entry the jump pushed goes with it.
         assert!(t.back.is_empty());
         assert!(t.pending_cd.is_none());
@@ -336,7 +369,12 @@ mod tests {
 
     #[test]
     fn a_directory_already_listed_keeps_its_error() {
-        let mut t = Tab::new(PathBuf::from("/a"), SortSpec::default(), true, String::new());
+        let mut t = Tab::new(
+            PathBuf::from("/a"),
+            SortSpec::default(),
+            true,
+            String::new(),
+        );
         assert_eq!(t.cd_failed(), CdFallout::Keep);
     }
 
@@ -348,17 +386,31 @@ mod tests {
             fallout,
             CdFallout::Reveal {
                 to: PathBuf::from("/b"),
-                pending: PendingCd { from: PathBuf::from("/a"), pushed: true, fallback: false },
+                pending: PendingCd {
+                    from: PathBuf::from("/a"),
+                    pushed: true,
+                    fallback: false
+                },
             }
         );
         // The cursor lands on the file once `/b` answers.
-        assert_eq!(t.memo.get(&PathBuf::from("/b")).map(String::as_str), Some("note.txt"));
+        assert_eq!(
+            t.memo.get(&PathBuf::from("/b")).map(String::as_str),
+            Some("note.txt")
+        );
 
         // `/b` failing too is the end of it: the tab goes home, no third try.
-        let CdFallout::Reveal { to, pending } = fallout else { unreachable!() };
+        let CdFallout::Reveal { to, pending } = fallout else {
+            unreachable!()
+        };
         t.cwd = to;
         t.pending_cd = Some(pending);
-        assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/a") });
+        assert_eq!(
+            t.cd_failed(),
+            CdFallout::Revert {
+                to: PathBuf::from("/a")
+            }
+        );
         assert!(t.back.is_empty());
     }
 
@@ -369,16 +421,29 @@ mod tests {
     fn a_start_path_that_names_a_file_reveals_it() {
         let cwd = PathBuf::from("/b/note.txt");
         let mut t = Tab::new(cwd, SortSpec::default(), true, String::new());
-        t.pending_cd =
-            Some(PendingCd { from: PathBuf::from("/home"), pushed: false, fallback: true });
+        t.pending_cd = Some(PendingCd {
+            from: PathBuf::from("/home"),
+            pushed: false,
+            fallback: true,
+        });
         let fallout = t.cd_failed();
-        let CdFallout::Reveal { to, pending } = fallout else { panic!("want Reveal") };
+        let CdFallout::Reveal { to, pending } = fallout else {
+            panic!("want Reveal")
+        };
         assert_eq!(to, PathBuf::from("/b"));
-        assert_eq!(t.memo.get(&PathBuf::from("/b")).map(String::as_str), Some("note.txt"));
+        assert_eq!(
+            t.memo.get(&PathBuf::from("/b")).map(String::as_str),
+            Some("note.txt")
+        );
 
         t.cwd = to;
         t.pending_cd = Some(pending);
-        assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/home") });
+        assert_eq!(
+            t.cd_failed(),
+            CdFallout::Revert {
+                to: PathBuf::from("/home")
+            }
+        );
     }
 
     #[test]

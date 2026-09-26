@@ -21,8 +21,8 @@ use alacritty_terminal::event_loop::{EventLoop, EventLoopSender, Msg};
 use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::index::{Column, Direction, Line, Point, Side};
 use alacritty_terminal::selection::{Selection, SelectionType};
-use alacritty_terminal::term::search::RegexSearch;
 use alacritty_terminal::sync::FairMutex;
+use alacritty_terminal::term::search::RegexSearch;
 use alacritty_terminal::term::{Config, Term};
 use alacritty_terminal::tty::{self, EventedReadWrite};
 
@@ -39,7 +39,10 @@ impl Size {
     /// Columns and lines never usefully reach zero, and `Grid` divides by
     /// them, so the floor is one of each.
     pub fn new(cols: usize, lines: usize) -> Self {
-        Self { cols: cols.max(1), lines: lines.max(1) }
+        Self {
+            cols: cols.max(1),
+            lines: lines.max(1),
+        }
     }
 }
 
@@ -323,10 +326,17 @@ impl Terminal {
         let window = window_size(size, cell);
         let pty = tty::new(&options, window, 0)?;
         let (cwd_tx, cwd_rx) = crossbeam_channel::unbounded();
-        let pty = Tapped { inner: pty, cwd: cwd_tx, partial: Vec::new() };
+        let pty = Tapped {
+            inner: pty,
+            cwd: cwd_tx,
+            partial: Vec::new(),
+        };
 
         let (tx, rx) = crossbeam_channel::unbounded();
-        let proxy = Proxy { tx, wake: Arc::new(wake) };
+        let proxy = Proxy {
+            tx,
+            wake: Arc::new(wake),
+        };
         let term = Term::new(Config::default(), &size, proxy.clone());
         let term = Arc::new(FairMutex::new(term));
 
@@ -426,18 +436,27 @@ impl Terminal {
 
     /// The selected text, if any of it is.
     pub fn selection(&self) -> Option<String> {
-        self.term.lock().selection_to_string().filter(|s| !s.is_empty())
+        self.term
+            .lock()
+            .selection_to_string()
+            .filter(|s| !s.is_empty())
     }
 
     /// Find `needle` from the top of the view, and put the match on screen.
     /// Returns whether anything matched.
     pub fn search(&mut self, needle: &str, back: bool) -> bool {
-        let Ok(mut re) = RegexSearch::new(needle) else { return false };
+        let Ok(mut re) = RegexSearch::new(needle) else {
+            return false;
+        };
         let mut term = self.term.lock();
         // From where the last match left off, so a repeat walks the matches
         // rather than finding the same one.
         let origin = self.found.unwrap_or_else(|| search_origin(&term, back));
-        let dir = if back { Direction::Left } else { Direction::Right };
+        let dir = if back {
+            Direction::Left
+        } else {
+            Direction::Right
+        };
         let Some(m) = term.search_next(&mut re, origin, dir, Side::Left, None) else {
             drop(term);
             // Wrap: a search that runs off the end starts again.
@@ -521,7 +540,6 @@ impl Terminal {
     pub fn with_grid<R>(&self, f: impl FnOnce(&Term<Proxy>) -> R) -> R {
         f(&self.term.lock())
     }
-
 }
 
 impl Drop for Terminal {
@@ -547,7 +565,10 @@ fn window_size(size: Size, cell: (u16, u16)) -> WindowSize {
 /// reads them the same way; a single quote inside is closed, escaped and
 /// reopened, which both understand.
 pub fn quote(s: &str) -> String {
-    if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || "_-./:\\".contains(c)) {
+    if !s.is_empty()
+        && s.chars()
+            .all(|c| c.is_alphanumeric() || "_-./:\\".contains(c))
+    {
         return s.to_owned();
     }
     format!("'{}'", s.replace('\'', r"'\''"))
@@ -766,7 +787,10 @@ pub fn search_origin<T: EventListener>(term: &Term<T>, back: bool) -> Point {
 pub fn cursor_cell<T: EventListener>(term: &Term<T>) -> (usize, usize) {
     let grid = term.grid();
     let p = grid.cursor.point;
-    (p.column.0, (p.line.0.max(0) as usize).saturating_add(grid.display_offset()))
+    (
+        p.column.0,
+        (p.line.0.max(0) as usize).saturating_add(grid.display_offset()),
+    )
 }
 
 /// Whether the arrows should be sent as SS3 rather than CSI.
@@ -832,8 +856,14 @@ pub mod testing {
     /// A terminal with `lines` rows of screen and room to scroll back.
     pub fn term(cols: usize, lines: usize) -> Term<Proxy> {
         let (tx, _rx) = crossbeam_channel::unbounded();
-        let proxy = Proxy { tx, wake: Arc::new(|| {}) };
-        let cfg = Config { scrolling_history: 200, ..Default::default() };
+        let proxy = Proxy {
+            tx,
+            wake: Arc::new(|| {}),
+        };
+        let cfg = Config {
+            scrolling_history: 200,
+            ..Default::default()
+        };
         Term::new(cfg, &Size::new(cols, lines), proxy)
     }
 
@@ -866,7 +896,12 @@ mod tests {
             feed(&mut t, &format!("line{i}\r\n"));
         }
         let row = |t: &Term<Proxy>, n: usize| -> String {
-            snapshot(t)[n].iter().map(|c| c.c).collect::<String>().trim_end().to_string()
+            snapshot(t)[n]
+                .iter()
+                .map(|c| c.c)
+                .collect::<String>()
+                .trim_end()
+                .to_string()
         };
 
         // The cursor sits on a fresh line below `line19`, so the top of a
@@ -879,7 +914,10 @@ mod tests {
 
         let scrolled = row(&t, 0);
         assert_ne!(scrolled, bottom, "the screen has to follow the offset");
-        assert_eq!(scrolled, "line14", "three older than the row that was on top");
+        assert_eq!(
+            scrolled, "line14",
+            "three older than the row that was on top"
+        );
 
         t.scroll_display(Scroll::Bottom);
         assert_eq!(row(&t, 0), bottom, "and come back");
@@ -897,8 +935,15 @@ mod tests {
 
         t.scroll_display(Scroll::Delta(3));
         let (_, after) = cursor_cell(&t);
-        assert_eq!(after, before + 3, "it moves down as older lines come in above");
-        assert!(after >= 4, "and is off the screen, so the pane draws nothing");
+        assert_eq!(
+            after,
+            before + 3,
+            "it moves down as older lines come in above"
+        );
+        assert!(
+            after >= 4,
+            "and is off the screen, so the pane draws nothing"
+        );
     }
 
     /// A drag copied the text and showed nothing, so there was no way to see
@@ -926,7 +971,10 @@ mod tests {
             .map(|c| c.c)
             .collect();
         assert_eq!(marked, "hello", "exactly the dragged cells");
-        assert!(rows[1].iter().all(|c| !c.selected), "and nothing on other rows");
+        assert!(
+            rows[1].iter().all(|c| !c.selected),
+            "and nothing on other rows"
+        );
     }
 
     /// Which match a search lands on first.
@@ -949,19 +997,30 @@ mod tests {
         feed(&mut t, "target late\r\n");
 
         let origin = search_origin(&t, true);
-        assert_eq!(origin.line, Line(3), "the bottom row of the view, not the top");
+        assert_eq!(
+            origin.line,
+            Line(3),
+            "the bottom row of the view, not the top"
+        );
 
         let mut re = RegexSearch::new("target").unwrap();
         let near = t
             .search_next(&mut re, origin, Direction::Left, Side::Left, None)
             .expect("there are two of them");
-        assert_eq!(near.start().line, Line(2), "the one on screen, just above the origin");
+        assert_eq!(
+            near.start().line,
+            Line(2),
+            "the one on screen, just above the origin"
+        );
 
         let from_top = Point::new(Line(0), Column(0));
         let far = t
             .search_next(&mut re, from_top, Direction::Left, Side::Left, None)
             .expect("wrapping means this finds one too");
-        assert!(far.start().line < Line(0), "but the old one, up in the history");
+        assert!(
+            far.start().line < Line(0),
+            "but the old one, up in the history"
+        );
     }
 
     /// Forwards still starts at the top of the view.
@@ -973,8 +1032,16 @@ mod tests {
         }
         assert_eq!(search_origin(&t, false).line, Line(0));
         t.scroll_display(Scroll::Delta(2));
-        assert_eq!(t.grid().display_offset(), 2, "there is history to move into");
-        assert_eq!(search_origin(&t, false).line, Line(-2), "which moves with the view");
+        assert_eq!(
+            t.grid().display_offset(),
+            2,
+            "there is history to move into"
+        );
+        assert_eq!(
+            search_origin(&t, false).line,
+            Line(-2),
+            "which moves with the view"
+        );
     }
 
     /// Dragging the other way must select the same text.
@@ -989,7 +1056,11 @@ mod tests {
     #[test]
     fn a_drag_selects_the_same_text_in_either_direction() {
         let selected = |t: &Term<Proxy>| -> String {
-            snapshot(t)[0].iter().filter(|c| c.selected).map(|c| c.c).collect()
+            snapshot(t)[0]
+                .iter()
+                .filter(|c| c.selected)
+                .map(|c| c.c)
+                .collect()
         };
         // The pointer is on the outer half of each end: the left half of the
         // cell the drag starts from and the right half of the one it ends on,
@@ -1005,14 +1076,22 @@ mod tests {
         feed(&mut t, "hello world");
         select_at(&mut t, (4, 0), true, true);
         select_at(&mut t, (0, 0), false, false);
-        assert_eq!(selected(&t), "hello", "right to left, and the h is not dropped");
+        assert_eq!(
+            selected(&t),
+            "hello",
+            "right to left, and the h is not dropped"
+        );
     }
 
     /// The half the pointer is in is what makes that work, so it has to count.
     #[test]
     fn the_half_of_the_cell_decides_what_is_included() {
         let selected = |t: &Term<Proxy>| -> String {
-            snapshot(t)[0].iter().filter(|c| c.selected).map(|c| c.c).collect()
+            snapshot(t)[0]
+                .iter()
+                .filter(|c| c.selected)
+                .map(|c| c.c)
+                .collect()
         };
         let mut t = term(20, 4);
         feed(&mut t, "hello world");
@@ -1021,7 +1100,11 @@ mod tests {
         // terminal does and what makes a backwards drag come out right.
         select_at(&mut t, (0, 0), true, true);
         select_at(&mut t, (4, 0), true, false);
-        assert_eq!(selected(&t), "ello", "the cell the drag started past is not in it");
+        assert_eq!(
+            selected(&t),
+            "ello",
+            "the cell the drag started past is not in it"
+        );
     }
 
     fn s(bytes: Vec<u8>) -> String {
@@ -1053,14 +1136,27 @@ mod tests {
         assert_eq!(s(encode(Special::Right, n, true)), "<ESC>OC");
         assert_eq!(s(encode(Special::Left, n, true)), "<ESC>OD");
         // Only the arrows change; the rest is the same either way.
-        assert_eq!(encode(Special::Enter, n, true), encode(Special::Enter, n, false));
+        assert_eq!(
+            encode(Special::Enter, n, true),
+            encode(Special::Enter, n, false)
+        );
     }
 
     #[test]
     fn a_modifier_turns_a_key_into_its_parameterised_form() {
-        let ctrl = Mods { ctrl: true, ..Default::default() };
-        let shift = Mods { shift: true, ..Default::default() };
-        let both = Mods { ctrl: true, shift: true, ..Default::default() };
+        let ctrl = Mods {
+            ctrl: true,
+            ..Default::default()
+        };
+        let shift = Mods {
+            shift: true,
+            ..Default::default()
+        };
+        let both = Mods {
+            ctrl: true,
+            shift: true,
+            ..Default::default()
+        };
         // 1 + shift(1) + alt(2) + ctrl(4), which is xterm's numbering.
         assert_eq!(s(encode(Special::Right, ctrl, false)), "<ESC>[1;5C");
         assert_eq!(s(encode(Special::Right, shift, false)), "<ESC>[1;2C");
@@ -1068,7 +1164,10 @@ mod tests {
         // Application-cursor mode gives way to the modifier form.
         assert_eq!(s(encode(Special::Up, ctrl, true)), "<ESC>[1;5A");
         // Alt on a key with no parameterised form is the escape prefix.
-        let alt = Mods { alt: true, ..Default::default() };
+        let alt = Mods {
+            alt: true,
+            ..Default::default()
+        };
         assert_eq!(s(encode(Special::Enter, alt, false)), "<ESC>\r");
     }
 
@@ -1109,7 +1208,11 @@ mod tests {
         for _ in 0..50 {
             scan_osc7(&mut partial, &vec![b'x'; 4096]);
         }
-        assert!(partial.len() < 4, "the carry stays small: {}", partial.len());
+        assert!(
+            partial.len() < 4,
+            "the carry stays small: {}",
+            partial.len()
+        );
     }
 
     /// A read stops wherever the pipe happened to fill, which can be in the

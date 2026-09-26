@@ -79,7 +79,9 @@ impl Folder {
     /// deleted from outside the program shrinks `entries` under a `view` that
     /// still points past the new end, and indexing took the window with it.
     pub fn hovered(&self) -> Option<&Entry> {
-        self.view.get(self.cursor).and_then(|&i| self.entries.get(i as usize))
+        self.view
+            .get(self.cursor)
+            .and_then(|&i| self.entries.get(i as usize))
     }
 
     pub fn hovered_name(&self) -> Option<&str> {
@@ -89,7 +91,9 @@ impl Folder {
     /// Total for the same reason as `hovered`, and it matters more here: this
     /// one is called from the drawing code, once per visible row.
     pub fn at(&self, row: usize) -> Option<&Entry> {
-        self.view.get(row).and_then(|&i| self.entries.get(i as usize))
+        self.view
+            .get(row)
+            .and_then(|&i| self.entries.get(i as usize))
     }
 
     pub fn hit_at(&self, row: usize) -> &[usize] {
@@ -238,7 +242,10 @@ mod stale_view {
         f.entries = listing(10); // something else deleted two files
         f.rebuild(true); // panicked here: len is 10 but the index is 11
 
-        assert!(f.cursor < f.view.len(), "the cursor must land inside the new listing");
+        assert!(
+            f.cursor < f.view.len(),
+            "the cursor must land inside the new listing"
+        );
     }
 
     /// The same thing one row at a time, since the crash needs the stale index

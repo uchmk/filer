@@ -34,6 +34,13 @@ Files are read in this order — later ones win:
 Press `~` or `F1` in the app: the help panel lists which config files were actually loaded, any
 warnings, and every key binding in effect.
 
+The two files are not interchangeable: `[ui]`, `[term]`, `[[preview]]` and `[line_args]` are read
+only from `filer.toml`, and `[mgr]`, `[opener]`, `[open]`, `[tasks]` and `[preview]` only from
+`yazi.toml`. Putting one in the other is reported as a warning, since both files ignore keys they
+do not know and the setting would otherwise just quietly do nothing. `preview` is the one name
+both use — a table of sizes in `yazi.toml`, an array of commands in `filer.toml` — so the wrong
+shape fails the whole file rather than being ignored, and the warning says so.
+
 ### yazi.toml
 
 Honored: `[mgr]` (`ratio`, `sort_by`, `sort_reverse`, `sort_dir_first`, `sort_sensitive`,

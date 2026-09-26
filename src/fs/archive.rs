@@ -106,7 +106,9 @@ fn extract_zip(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result
         .map_err(|e| io::Error::other(e.to_string()))?;
     let mut refused = 0usize;
     for i in 0..zip.len() {
-        let mut entry = zip.by_index(i).map_err(|e| io::Error::other(e.to_string()))?;
+        let mut entry = zip
+            .by_index(i)
+            .map_err(|e| io::Error::other(e.to_string()))?;
         let name = entry.name().to_owned();
         let Some(path) = safe_dest(dest, &name) else {
             refused += 1;
@@ -237,18 +239,30 @@ pub fn list(archive: &Path, limit: usize) -> io::Result<(Vec<Listed>, bool)> {
                 .map_err(|e| io::Error::other(e.to_string()))?;
             more = zip.len() > limit;
             for i in 0..zip.len().min(limit) {
-                let e = zip.by_index(i).map_err(|e| io::Error::other(e.to_string()))?;
-                out.push(Listed { name: e.name().to_owned(), size: e.size(), dir: e.is_dir() });
+                let e = zip
+                    .by_index(i)
+                    .map_err(|e| io::Error::other(e.to_string()))?;
+                out.push(Listed {
+                    name: e.name().to_owned(),
+                    size: e.size(),
+                    dir: e.is_dir(),
+                });
             }
         }
-        Format::Tar => list_tar(&mut BufReader::new(File::open(archive)?), limit, &mut out, &mut more)?,
+        Format::Tar => list_tar(
+            &mut BufReader::new(File::open(archive)?),
+            limit,
+            &mut out,
+            &mut more,
+        )?,
         Format::TarGz => {
             let gz = flate2::read::GzDecoder::new(BufReader::new(File::open(archive)?));
             list_tar(&mut BufReader::new(gz), limit, &mut out, &mut more)?
         }
         Format::SevenZ => {
-            let reader = sevenz_rust2::ArchiveReader::open(archive, sevenz_rust2::Password::empty())
-                .map_err(|e| io::Error::other(e.to_string()))?;
+            let reader =
+                sevenz_rust2::ArchiveReader::open(archive, sevenz_rust2::Password::empty())
+                    .map_err(|e| io::Error::other(e.to_string()))?;
             let files = &reader.archive().files;
             more = files.len() > limit;
             for f in files.iter().take(limit) {
@@ -330,11 +344,16 @@ fn walk(srcs: &[PathBuf], base: &Path) -> Vec<Member> {
     let mut stack: Vec<PathBuf> = srcs.to_vec();
     stack.reverse();
     while let Some(p) = stack.pop() {
-        let Ok(md) = std::fs::symlink_metadata(&p) else { continue };
+        let Ok(md) = std::fs::symlink_metadata(&p) else {
+            continue;
+        };
         let name = match p.strip_prefix(base) {
             Ok(rel) => rel.to_string_lossy().replace('\\', "/"),
             // Not under `base` (a selection from elsewhere): its own name will do.
-            Err(_) => p.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default(),
+            Err(_) => p
+                .file_name()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_default(),
         };
         if name.is_empty() {
             continue;
@@ -343,19 +362,33 @@ fn walk(srcs: &[PathBuf], base: &Path) -> Vec<Member> {
             // Store what a link points at, and never walk through it: a link
             // back up the tree would pack forever.
             if std::fs::metadata(&p).map(|t| t.is_file()).unwrap_or(false) {
-                out.push(Member { path: p, name, dir: false });
+                out.push(Member {
+                    path: p,
+                    name,
+                    dir: false,
+                });
             }
             continue;
         }
         if md.is_dir() {
-            out.push(Member { path: p.clone(), name, dir: true });
-            let Ok(rd) = std::fs::read_dir(&p) else { continue };
+            out.push(Member {
+                path: p.clone(),
+                name,
+                dir: true,
+            });
+            let Ok(rd) = std::fs::read_dir(&p) else {
+                continue;
+            };
             let mut children: Vec<PathBuf> = rd.filter_map(|e| e.ok()).map(|e| e.path()).collect();
             children.sort();
             children.reverse();
             stack.extend(children);
         } else {
-            out.push(Member { path: p, name, dir: false });
+            out.push(Member {
+                path: p,
+                name,
+                dir: false,
+            });
         }
     }
     out
@@ -437,7 +470,10 @@ fn write_tar<W: Write>(members: &[Member], out: W, on_entry: OnEntry<'_>) -> io:
 /// Where an archive unpacks: a folder in `into` named after it, with the
 /// extension dropped. `report.tar.gz` gives `report`, not `report.tar`.
 pub fn extract_dir(archive: &Path, into: &Path) -> PathBuf {
-    let name = archive.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+    let name = archive
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let lower = name.to_ascii_lowercase();
     let stem = [".tar.gz", ".tgz", ".zip", ".tar", ".7z"]
         .iter()
@@ -457,7 +493,10 @@ mod tests {
         assert_eq!(Format::from_path(Path::new("B.ZIP")), Some(Format::Zip));
         assert_eq!(Format::from_path(Path::new("x.tar")), Some(Format::Tar));
         // The double extension beats the single one.
-        assert_eq!(Format::from_path(Path::new("x.tar.gz")), Some(Format::TarGz));
+        assert_eq!(
+            Format::from_path(Path::new("x.tar.gz")),
+            Some(Format::TarGz)
+        );
         assert_eq!(Format::from_path(Path::new("x.tgz")), Some(Format::TarGz));
         assert_eq!(Format::from_path(Path::new("x.7z")), Some(Format::SevenZ));
         assert_eq!(Format::from_path(Path::new("notes.txt")), None);
@@ -474,7 +513,10 @@ mod tests {
     #[test]
     fn an_entry_cannot_climb_out_of_the_destination() {
         let dest = Path::new("/out");
-        assert_eq!(safe_dest(dest, "a/b.txt"), Some(PathBuf::from("/out/a/b.txt")));
+        assert_eq!(
+            safe_dest(dest, "a/b.txt"),
+            Some(PathBuf::from("/out/a/b.txt"))
+        );
         assert_eq!(safe_dest(dest, "./a"), Some(PathBuf::from("/out/a")));
         // Climbing, rooted and drive-qualified names are refused outright.
         assert_eq!(safe_dest(dest, "../evil"), None);
@@ -488,10 +530,19 @@ mod tests {
     #[test]
     fn an_archive_unpacks_into_a_folder_named_after_it() {
         let into = Path::new("/a");
-        assert_eq!(extract_dir(Path::new("/a/report.zip"), into), PathBuf::from("/a/report"));
+        assert_eq!(
+            extract_dir(Path::new("/a/report.zip"), into),
+            PathBuf::from("/a/report")
+        );
         // The whole double extension goes, not just the `.gz`.
-        assert_eq!(extract_dir(Path::new("/a/report.tar.gz"), into), PathBuf::from("/a/report"));
-        assert_eq!(extract_dir(Path::new("/b/report.7z"), into), PathBuf::from("/a/report"));
+        assert_eq!(
+            extract_dir(Path::new("/a/report.tar.gz"), into),
+            PathBuf::from("/a/report")
+        );
+        assert_eq!(
+            extract_dir(Path::new("/b/report.7z"), into),
+            PathBuf::from("/a/report")
+        );
     }
 
     /// The round trip is the real test of the writers: pack a small tree, read
@@ -508,19 +559,36 @@ mod tests {
 
             let archive = root.join(format!("out.{}", format.label()));
             let mut packed = Vec::new();
-            compress(std::slice::from_ref(&src), &root, &archive, format, &mut |n, _| {
-                packed.push(n.to_owned());
-                true
-            })
+            compress(
+                std::slice::from_ref(&src),
+                &root,
+                &archive,
+                format,
+                &mut |n, _| {
+                    packed.push(n.to_owned());
+                    true
+                },
+            )
             .unwrap();
             assert_eq!(packed.len(), 2, "{:?}: both files are packed", format);
 
             // The table of contents names the same things, without unpacking.
             let (listed, more) = list(&archive, 100).unwrap();
             assert!(!more, "{:?}: four entries is not a hundred", format);
-            let names: Vec<&str> = listed.iter().map(|l| l.name.trim_end_matches('/')).collect();
-            assert!(names.contains(&"src/top.txt"), "{:?}: got {names:?}", format);
-            assert!(names.contains(&"src/sub/deep.txt"), "{:?}: got {names:?}", format);
+            let names: Vec<&str> = listed
+                .iter()
+                .map(|l| l.name.trim_end_matches('/'))
+                .collect();
+            assert!(
+                names.contains(&"src/top.txt"),
+                "{:?}: got {names:?}",
+                format
+            );
+            assert!(
+                names.contains(&"src/sub/deep.txt"),
+                "{:?}: got {names:?}",
+                format
+            );
             let top = listed.iter().find(|l| l.name == "src/top.txt").unwrap();
             assert_eq!(top.size, 3, "{:?}: `top` is three bytes", format);
             assert!(!top.dir);
@@ -537,7 +605,10 @@ mod tests {
 
             let out = root.join("out");
             extract(&archive, &out, &mut |_, _| true).unwrap();
-            assert_eq!(std::fs::read(out.join("src").join("top.txt")).unwrap(), b"top");
+            assert_eq!(
+                std::fs::read(out.join("src").join("top.txt")).unwrap(),
+                b"top"
+            );
             assert_eq!(
                 std::fs::read(out.join("src").join("sub").join("deep.txt")).unwrap(),
                 b"deep"

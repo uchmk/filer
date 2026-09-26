@@ -149,7 +149,11 @@ mod tests {
     #[test]
     fn keeps_the_newest_of_two_by_the_same_name() {
         let dir = if cfg!(windows) { r"C:\work" } else { "/work" };
-        let items = vec![item(dir, "a.txt", 100), item(dir, "a.txt", 200), item(dir, "b.txt", 50)];
+        let items = vec![
+            item(dir, "a.txt", 100),
+            item(dir, "a.txt", 200),
+            item(dir, "b.txt", 50),
+        ];
         let wanted = vec![PathBuf::from(dir).join("a.txt")];
 
         let found = newest_per_path(items, &wanted);

@@ -92,22 +92,36 @@ fn word(zip: &mut zip::ZipArchive<std::fs::File>) -> Result<Read1, String> {
         // only structure Word leaves behind that is worth an outline.
         if let Some(level) = heading_level(body) {
             if !text.trim().is_empty() {
-                outline.push(TocEntry { level, label: text.clone(), line: lines.len() });
+                outline.push(TocEntry {
+                    level,
+                    label: text.clone(),
+                    line: lines.len(),
+                });
             }
         }
         lines.push(text);
         if lines.len() >= MAX_LINES {
-            return Ok(Read1 { lines, outline, truncated: true });
+            return Ok(Read1 {
+                lines,
+                outline,
+                truncated: true,
+            });
         }
     }
-    Ok(Read1 { lines, outline, truncated: false })
+    Ok(Read1 {
+        lines,
+        outline,
+        truncated: false,
+    })
 }
 
 /// `<w:pStyle w:val="Heading2"/>` → 2.
 fn heading_level(para: &str) -> Option<u8> {
     let at = para.find("w:pStyle")?;
     let val = attr(&para[at..], "w:val")?;
-    let n = val.strip_prefix("Heading").or_else(|| val.strip_prefix("heading"))?;
+    let n = val
+        .strip_prefix("Heading")
+        .or_else(|| val.strip_prefix("heading"))?;
     n.parse().ok().filter(|l| (1..=9).contains(l))
 }
 
@@ -144,14 +158,25 @@ fn slides(zip: &mut zip::ZipArchive<std::fs::File>) -> Result<Read1, String> {
         }
         lines.push(String::new());
         if lines.len() >= MAX_LINES {
-            return Ok(Read1 { lines, outline, truncated: true });
+            return Ok(Read1 {
+                lines,
+                outline,
+                truncated: true,
+            });
         }
     }
-    Ok(Read1 { lines, outline, truncated: false })
+    Ok(Read1 {
+        lines,
+        outline,
+        truncated: false,
+    })
 }
 
 fn slide_number(name: &str) -> u32 {
-    name.trim_start_matches("ppt/slides/slide").trim_end_matches(".xml").parse().unwrap_or(0)
+    name.trim_start_matches("ppt/slides/slide")
+        .trim_end_matches(".xml")
+        .parse()
+        .unwrap_or(0)
 }
 
 // ----------------------------------------------------------------- text
@@ -203,9 +228,13 @@ fn attr<'a>(s: &'a str, name: &str) -> Option<&'a str> {
             continue;
         }
         let after = s[from..].trim_start();
-        let Some(v) = after.strip_prefix('=') else { continue };
+        let Some(v) = after.strip_prefix('=') else {
+            continue;
+        };
         let v = v.trim_start();
-        let Some(quote) = v.chars().next() else { continue };
+        let Some(quote) = v.chars().next() else {
+            continue;
+        };
         return v[quote.len_utf8()..].split(quote).next();
     }
 }
@@ -238,8 +267,14 @@ fn sheet(zip: &mut zip::ZipArchive<std::fs::File>) -> Result<Read1, String> {
     let mut lines = Vec::new();
     let mut outline = Vec::new();
     for (title, part_name) in &names {
-        let Some(xml) = part(zip, part_name) else { continue };
-        outline.push(TocEntry { level: 1, label: title.clone(), line: lines.len() });
+        let Some(xml) = part(zip, part_name) else {
+            continue;
+        };
+        outline.push(TocEntry {
+            level: 1,
+            label: title.clone(),
+            line: lines.len(),
+        });
         lines.push(format!("--- {title} ---"));
         for row in xml.split("<row").skip(1) {
             let row = row.split("</row>").next().unwrap_or("");
@@ -254,12 +289,20 @@ fn sheet(zip: &mut zip::ZipArchive<std::fs::File>) -> Result<Read1, String> {
             }
             lines.push(cells.join("\t"));
             if lines.len() >= MAX_LINES {
-                return Ok(Read1 { lines, outline, truncated: true });
+                return Ok(Read1 {
+                    lines,
+                    outline,
+                    truncated: true,
+                });
             }
         }
         lines.push(String::new());
     }
-    Ok(Read1 { lines, outline, truncated: false })
+    Ok(Read1 {
+        lines,
+        outline,
+        truncated: false,
+    })
 }
 
 /// One cell: `<c r="A1" s="3" t="s"><v>7</v></c>`.
@@ -273,16 +316,29 @@ fn cell_value(c: &str, shared: &[String], dates: &[bool]) -> String {
     if ty == "inlineStr" {
         return text_of(body);
     }
-    let Some(v) = body.split("<v>").nth(1).and_then(|v| v.split("</v>").next()) else {
+    let Some(v) = body
+        .split("<v>")
+        .nth(1)
+        .and_then(|v| v.split("</v>").next())
+    else {
         return String::new();
     };
     match ty {
-        "s" => v.parse::<usize>().ok().and_then(|i| shared.get(i).cloned()).unwrap_or_default(),
+        "s" => v
+            .parse::<usize>()
+            .ok()
+            .and_then(|i| shared.get(i).cloned())
+            .unwrap_or_default(),
         "str" | "e" => unescape(v),
         _ => {
-            let style: usize = attr(c, "s").and_then(|s| s.parse().ok()).unwrap_or(usize::MAX);
+            let style: usize = attr(c, "s")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(usize::MAX);
             match dates.get(style).copied().unwrap_or(false) {
-                true => v.parse::<f64>().map(serial_date).unwrap_or_else(|_| v.to_owned()),
+                true => v
+                    .parse::<f64>()
+                    .map(serial_date)
+                    .unwrap_or_else(|_| v.to_owned()),
                 false => unescape(v),
             }
         }
@@ -291,8 +347,13 @@ fn cell_value(c: &str, shared: &[String], dates: &[bool]) -> String {
 
 /// `xl/sharedStrings.xml`: every string in the workbook, once.
 fn shared_strings(zip: &mut zip::ZipArchive<std::fs::File>) -> Vec<String> {
-    let Some(xml) = part(zip, "xl/sharedStrings.xml") else { return Vec::new() };
-    xml.split("<si>").skip(1).map(|si| text_of(si.split("</si>").next().unwrap_or(""))).collect()
+    let Some(xml) = part(zip, "xl/sharedStrings.xml") else {
+        return Vec::new();
+    };
+    xml.split("<si>")
+        .skip(1)
+        .map(|si| text_of(si.split("</si>").next().unwrap_or("")))
+        .collect()
 }
 
 /// Which cell styles mean "this number is a date".
@@ -302,27 +363,36 @@ fn shared_strings(zip: &mut zip::ZipArchive<std::fs::File>) -> Vec<String> {
 /// times are 14–22 and 45–47; anything else is a date only if the workbook
 /// defined it as one, which shows in its format code.
 fn date_styles(zip: &mut zip::ZipArchive<std::fs::File>) -> Vec<bool> {
-    let Some(xml) = part(zip, "xl/styles.xml") else { return Vec::new() };
+    let Some(xml) = part(zip, "xl/styles.xml") else {
+        return Vec::new();
+    };
 
     let mut custom: Vec<(u32, bool)> = Vec::new();
     for f in xml.split("<numFmt ").skip(1) {
-        let Some(id) = attr(f, "numFmtId").and_then(|v| v.parse::<u32>().ok()) else { continue };
+        let Some(id) = attr(f, "numFmtId").and_then(|v| v.parse::<u32>().ok()) else {
+            continue;
+        };
         let code = attr(f, "formatCode").unwrap_or("");
         // A format code is a date's if it positions any date or time part.
         // The quoted literals inside one can hold anything, so they go first.
         let bare: String = code.split('"').step_by(2).collect();
-        let looks = bare.chars().any(|c| matches!(c, 'y' | 'd' | 'h' | 's' | 'Y' | 'D' | 'H' | 'S'))
+        let looks = bare
+            .chars()
+            .any(|c| matches!(c, 'y' | 'd' | 'h' | 's' | 'Y' | 'D' | 'H' | 'S'))
             || bare.contains("mm");
         custom.push((id, looks));
     }
 
-    let Some(xfs) = xml.split("<cellXfs").nth(1) else { return Vec::new() };
+    let Some(xfs) = xml.split("<cellXfs").nth(1) else {
+        return Vec::new();
+    };
     xfs.split("<xf ")
         .skip(1)
         .map(|xf| {
-            let id = attr(xf, "numFmtId").and_then(|v| v.parse::<u32>().ok()).unwrap_or(0);
-            matches!(id, 14..=22 | 45..=47)
-                || custom.iter().any(|(c, looks)| *c == id && *looks)
+            let id = attr(xf, "numFmtId")
+                .and_then(|v| v.parse::<u32>().ok())
+                .unwrap_or(0);
+            matches!(id, 14..=22 | 45..=47) || custom.iter().any(|(c, looks)| *c == id && *looks)
         })
         .collect()
 }
@@ -383,7 +453,9 @@ fn month_days(y: i64, m: i64) -> i64 {
 /// The title is what the tabs at the bottom say, and `sheet1.xml` is very
 /// often not the first tab.
 fn sheet_names(zip: &mut zip::ZipArchive<std::fs::File>) -> Vec<(String, String)> {
-    let Some(book) = part(zip, "xl/workbook.xml") else { return Vec::new() };
+    let Some(book) = part(zip, "xl/workbook.xml") else {
+        return Vec::new();
+    };
     let rels = part(zip, "xl/_rels/workbook.xml.rels").unwrap_or_default();
     book.split("<sheet ")
         .skip(1)
@@ -437,21 +509,32 @@ mod tests {
     #[test]
     fn a_word_document_reads_out_as_its_paragraphs() {
         let p = tmp("a.docx");
-        make(&p, &[(
-            "word/document.xml",
-            r#"<w:document><w:body>
+        make(
+            &p,
+            &[(
+                "word/document.xml",
+                r#"<w:document><w:body>
                <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Title</w:t></w:r></w:p>
                <w:p><w:r><w:t>Hello </w:t></w:r><w:r><w:t>world</w:t></w:r></w:p>
                <w:p><w:r><w:t>Caf&#233; &amp; bar</w:t></w:r></w:p>
                </w:body></w:document>"#,
-        )]);
+            )],
+        );
 
         let doc = read(&p, Kind::Word, 1 << 20).unwrap();
         // Runs inside one paragraph join into one line, which is what a
         // paragraph is: Word splits a sentence into runs at every change of
         // formatting, and one line per run would be shredded prose.
-        assert!(doc.lines.contains(&"Hello world".to_string()), "{:?}", doc.lines);
-        assert!(doc.lines.contains(&"Caf&#233; & bar".to_string()), "{:?}", doc.lines);
+        assert!(
+            doc.lines.contains(&"Hello world".to_string()),
+            "{:?}",
+            doc.lines
+        );
+        assert!(
+            doc.lines.contains(&"Caf&#233; & bar".to_string()),
+            "{:?}",
+            doc.lines
+        );
         assert_eq!(doc.outline.len(), 1);
         assert_eq!(doc.outline[0].label, "Title");
         assert_eq!(doc.outline[0].level, 1);
@@ -463,26 +546,47 @@ mod tests {
     #[test]
     fn a_workbook_reads_out_as_rows() {
         let p = tmp("b.xlsx");
-        make(&p, &[
-            ("xl/workbook.xml", r#"<workbook><sheets>
+        make(
+            &p,
+            &[
+                (
+                    "xl/workbook.xml",
+                    r#"<workbook><sheets>
                 <sheet name="Totals" r:id="rId9"/><sheet name="Raw" r:id="rId2"/>
-              </sheets></workbook>"#),
-            ("xl/_rels/workbook.xml.rels", r#"<Relationships>
+              </sheets></workbook>"#,
+                ),
+                (
+                    "xl/_rels/workbook.xml.rels",
+                    r#"<Relationships>
                 <Relationship Id="rId9" Target="worksheets/sheet2.xml"/>
                 <Relationship Id="rId2" Target="worksheets/sheet1.xml"/>
-              </Relationships>"#),
-            ("xl/sharedStrings.xml", r#"<sst><si><t>Name</t></si><si><t>Ada</t></si></sst>"#),
-            ("xl/worksheets/sheet2.xml", r#"<worksheet><sheetData>
+              </Relationships>"#,
+                ),
+                (
+                    "xl/sharedStrings.xml",
+                    r#"<sst><si><t>Name</t></si><si><t>Ada</t></si></sst>"#,
+                ),
+                (
+                    "xl/worksheets/sheet2.xml",
+                    r#"<worksheet><sheetData>
                 <row><c r="A1" t="s"><v>0</v></c><c r="B1"><v>42</v></c></row>
-              </sheetData></worksheet>"#),
-            ("xl/worksheets/sheet1.xml", r#"<worksheet><sheetData>
+              </sheetData></worksheet>"#,
+                ),
+                (
+                    "xl/worksheets/sheet1.xml",
+                    r#"<worksheet><sheetData>
                 <row><c r="A1" t="s"><v>1</v></c></row>
-              </sheetData></worksheet>"#),
-        ]);
+              </sheetData></worksheet>"#,
+                ),
+            ],
+        );
 
         let doc = read(&p, Kind::Sheet, 1 << 20).unwrap();
         let text = doc.lines.join("\n");
-        assert!(text.contains("Name\t42"), "shared strings resolve: {text:?}");
+        assert!(
+            text.contains("Name\t42"),
+            "shared strings resolve: {text:?}"
+        );
         assert!(text.contains("Ada"), "{text:?}");
         // The workbook's order, not the zip's: `sheet1.xml` is the second tab
         // here, and a reader that trusted the filename would swap them.
@@ -499,18 +603,27 @@ mod tests {
     #[test]
     fn a_dated_cell_reads_as_a_date() {
         let p = tmp("c.xlsx");
-        make(&p, &[
-            ("xl/styles.xml", r#"<styleSheet>
+        make(
+            &p,
+            &[
+                (
+                    "xl/styles.xml",
+                    r#"<styleSheet>
                 <numFmts><numFmt numFmtId="164" formatCode="yyyy\-mm\-dd"/></numFmts>
                 <cellXfs count="3">
                   <xf numFmtId="0"/><xf numFmtId="14"/><xf numFmtId="164"/>
-                </cellXfs></styleSheet>"#),
-            ("xl/worksheets/sheet1.xml", r#"<worksheet><sheetData><row>
+                </cellXfs></styleSheet>"#,
+                ),
+                (
+                    "xl/worksheets/sheet1.xml",
+                    r#"<worksheet><sheetData><row>
                 <c r="A1" s="0"><v>45000</v></c>
                 <c r="B1" s="1"><v>45000</v></c>
                 <c r="C1" s="2"><v>45000.5</v></c>
-              </row></sheetData></worksheet>"#),
-        ]);
+              </row></sheetData></worksheet>"#,
+                ),
+            ],
+        );
 
         let doc = read(&p, Kind::Sheet, 1 << 20).unwrap();
         let row = doc.lines.iter().find(|l| l.contains('\t')).expect("a row");
@@ -536,11 +649,14 @@ mod tests {
     fn a_deck_reads_out_slide_by_slide() {
         let p = tmp("d.pptx");
         let slide = |t: &str| format!(r#"<p:sld><a:p><a:r><a:t>{t}</a:t></a:r></a:p></p:sld>"#);
-        make(&p, &[
-            ("ppt/slides/slide10.xml", &slide("Tenth")),
-            ("ppt/slides/slide2.xml", &slide("Second")),
-            ("ppt/slides/slide1.xml", &slide("First")),
-        ]);
+        make(
+            &p,
+            &[
+                ("ppt/slides/slide10.xml", &slide("Tenth")),
+                ("ppt/slides/slide2.xml", &slide("Second")),
+                ("ppt/slides/slide1.xml", &slide("First")),
+            ],
+        );
 
         let doc = read(&p, Kind::Slides, 1 << 20).unwrap();
         let text = doc.lines.join("\n");
@@ -548,9 +664,15 @@ mod tests {
         // string, and a deck read in that order is nonsense.
         let order: Vec<usize> = ["First", "Second", "Tenth"]
             .iter()
-            .map(|w| text.find(w).unwrap_or_else(|| panic!("{w} missing in {text:?}")))
+            .map(|w| {
+                text.find(w)
+                    .unwrap_or_else(|| panic!("{w} missing in {text:?}"))
+            })
             .collect();
-        assert!(order.windows(2).all(|w| w[0] < w[1]), "out of order: {text:?}");
+        assert!(
+            order.windows(2).all(|w| w[0] < w[1]),
+            "out of order: {text:?}"
+        );
         assert_eq!(doc.outline.len(), 3);
 
         let _ = std::fs::remove_file(&p);

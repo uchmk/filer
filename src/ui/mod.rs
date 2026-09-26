@@ -10,11 +10,11 @@ mod term;
 use egui::{Align2, Color32, CornerRadius, FontFamily, FontId, Rect, Stroke, Ui, Vec2};
 
 use crate::app::{self, App, Overlay, PreviewState};
-use crate::preview::Payload;
 use crate::config::cmd::{Act, Step};
 use crate::config::theme::{Style, Theme};
 use crate::core::folder::Folder;
 use crate::fs::git;
+use crate::preview::Payload;
 use crate::util;
 
 pub fn font(size: f32) -> FontId {
@@ -66,7 +66,8 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
     let row_h = (size * 1.35 + app.cfg.ui.row_padding).round();
 
     let full = ui.max_rect();
-    ui.painter().rect_filled(full, CornerRadius::ZERO, app.cfg.theme.bg);
+    ui.painter()
+        .rect_filled(full, CornerRadius::ZERO, app.cfg.theme.bg);
     // Rebuilt every frame as the panes are laid out.
     app.pane_rects.clear();
 
@@ -77,7 +78,11 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
     } else {
         (row_h * ((app.which.len() as f32 / 3.0).ceil().min(8.0)) + 14.0).min(full.height() * 0.4)
     };
-    let input_h = if matches!(app.overlay, Overlay::Input(_)) { row_h + 14.0 } else { 0.0 };
+    let input_h = if matches!(app.overlay, Overlay::Input(_)) {
+        row_h + 14.0
+    } else {
+        0.0
+    };
 
     let header = Rect::from_min_size(full.left_top(), Vec2::new(full.width(), header_h));
     let status = Rect::from_min_size(
@@ -169,7 +174,8 @@ fn breadcrumb(
 ) -> (String, Option<String>) {
     match found {
         Some(p) => (
-            p.parent().map_or_else(String::new, |d| d.display().to_string()),
+            p.parent()
+                .map_or_else(String::new, |d| d.display().to_string()),
             p.file_name().map(|n| n.to_string_lossy().into_owned()),
         ),
         None => (dir.display().to_string(), hovered_name.map(str::to_owned)),
@@ -194,7 +200,11 @@ fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         let g = painter.layout_no_wrap(label, f.clone(), theme.fg);
         let w = g.size().x + 8.0;
         let chip = Rect::from_min_size(egui::pos2(x, y), Vec2::new(w, row_h));
-        let st = if i == app.active { theme.tab_active } else { theme.tab_inactive };
+        let st = if i == app.active {
+            theme.tab_active
+        } else {
+            theme.tab_inactive
+        };
         if let Some(bg) = st.bg {
             painter.rect_filled(chip, CornerRadius::same(4), bg);
         }
@@ -210,7 +220,10 @@ fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         x += w + 4.0;
     }
     if let Some(i) = clicked {
-        app.act(Act::TabSwitch { n: i as i64, relative: false });
+        app.act(Act::TabSwitch {
+            n: i as i64,
+            relative: false,
+        });
     }
 
     // Right-hand summary
@@ -241,7 +254,11 @@ fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         .flatten();
     let (cwd, name) = breadcrumb(
         found.as_deref(),
-        if app.in_search_view() { &app.tab().current.path } else { &app.tab().cwd },
+        if app.in_search_view() {
+            &app.tab().current.path
+        } else {
+            &app.tab().cwd
+        },
         app.tab().current.hovered_name(),
     );
     let mut job = egui::text::LayoutJob::default();
@@ -259,11 +276,19 @@ fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         },
     );
     if let Some(name) = &name {
-        let sep = if cwd.is_empty() || cwd.ends_with('\\') || cwd.ends_with('/') { "" } else { "\\" };
+        let sep = if cwd.is_empty() || cwd.ends_with('\\') || cwd.ends_with('/') {
+            ""
+        } else {
+            "\\"
+        };
         job.append(
             &format!("{sep}{name}"),
             0.0,
-            egui::TextFormat { font_id: f.clone(), color: theme.fg, ..Default::default() },
+            egui::TextFormat {
+                font_id: f.clone(),
+                color: theme.fg,
+                ..Default::default()
+            },
         );
     }
     let g = painter.layout_job(job);
@@ -272,7 +297,14 @@ fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
 
 // ------------------------------------------------------------------ body
 
-fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, queued: &mut Vec<Act>) {
+fn draw_body(
+    app: &mut App,
+    ui: &mut Ui,
+    body: Rect,
+    f: &FontId,
+    row_h: f32,
+    queued: &mut Vec<Act>,
+) {
     let mut ratio = {
         let r = &app.cfg.yazi.mgr.ratio;
         [
@@ -314,7 +346,11 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
     let theme = app.cfg.theme.clone();
 
     // --- the other pane, or the parent directory in its place ---
-    let ctx = PaneCtx { theme: &theme, font: f, row_h };
+    let ctx = PaneCtx {
+        theme: &theme,
+        font: f,
+        row_h,
+    };
     if let Some(sp) = app.split {
         let left = if sp.right { sp.other } else { app.active };
         if widths[0] > 24.0 {
@@ -335,7 +371,8 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
     // would have it rendering the same picture back and forth.
     if widths[2] > 24.0 && !app.quick {
         let rect = rects[2];
-        ui.painter().rect_filled(rect, CornerRadius::same(4), theme.bg_alt);
+        ui.painter()
+            .rect_filled(rect, CornerRadius::same(4), theme.bg_alt);
         draw_preview(app, ui, rect, f, row_h, queued);
     }
 }
@@ -382,11 +419,18 @@ pub(super) fn draw_preview(
             p.offset = app.tabs[app.active].preview_offset.min(dir_max);
             // Nothing is hovered in a preview, so park the cursor off-list.
             p.cursor = usize::MAX;
-            list::draw(ui, rect.shrink(2.0), &p, &st, &|_| list::RowFlags {
-                selected: false,
-                yanked: None,
-                git: git::State::Clean,
-            }, false);
+            list::draw(
+                ui,
+                rect.shrink(2.0),
+                &p,
+                &st,
+                &|_| list::RowFlags {
+                    selected: false,
+                    yanked: None,
+                    git: git::State::Clean,
+                },
+                false,
+            );
             app.preview.max_offset = dir_max;
             if app.tabs[app.active].preview_offset > dir_max {
                 app.tabs[app.active].preview_offset = dir_max;
@@ -395,12 +439,19 @@ pub(super) fn draw_preview(
         other => {
             // Rendered Markdown is laid out in the worker on a grid of
             // monospace cells, so it needs to know how many fit.
-            let cell = ui.painter().layout_no_wrap("M".repeat(20), f.clone(), theme.fg).size().x / 20.0;
+            let cell = ui
+                .painter()
+                .layout_no_wrap("M".repeat(20), f.clone(), theme.fg)
+                .size()
+                .x
+                / 20.0;
             app.preview.cols = ((rect.width() - 24.0) / cell).max(0.0) as u16;
             let st = preview::PreviewStyle {
                 theme: &theme,
                 font: f.clone(),
-                bold: app.bold_font.then(|| FontId::new(f.size, FontFamily::Name("bold".into()))),
+                bold: app
+                    .bold_font
+                    .then(|| FontId::new(f.size, FontFamily::Name("bold".into()))),
                 cell,
                 row_h,
                 wrap: app.cfg.yazi.preview.wrap == "yes",
@@ -441,8 +492,9 @@ pub(super) fn draw_preview(
             if ui.rect_contains_pointer(rect) {
                 // Ctrl and the wheel is the image zoom, so it must not scroll
                 // the pane with the same turn.
-                let (scroll, ctrl) =
-                    ui.ctx().input(|i| (i.smooth_scroll_delta.y, i.modifiers.command));
+                let (scroll, ctrl) = ui
+                    .ctx()
+                    .input(|i| (i.smooth_scroll_delta.y, i.modifiers.command));
                 if !ctrl {
                     let rows = -scroll / row_h * 1.5;
                     let delta = wheel_whole(&mut app.preview_scroll_rows, rows);
@@ -480,13 +532,20 @@ fn image_input(app: &mut App, ui: &mut Ui, rect: Rect) {
         app.preview.pan += resp.drag_delta();
     }
     if let Some(p) = resp.hover_pos() {
-        let (scroll, ctrl) = ui.ctx().input(|i| (i.smooth_scroll_delta.y, i.modifiers.command));
+        let (scroll, ctrl) = ui
+            .ctx()
+            .input(|i| (i.smooth_scroll_delta.y, i.modifiers.command));
         // A plain wheel keeps scrolling the pane, as it does over text; `Ctrl`
         // is the zoom, the way it is everywhere else.
         if ctrl && scroll.abs() > 0.5 {
             let zoom = *app.preview.zoom.get_or_insert(fit);
-            let (next, pan) =
-                app::zoom_at(zoom, app.preview.pan, avail.center(), p, 1.0 + scroll * 0.004);
+            let (next, pan) = app::zoom_at(
+                zoom,
+                app.preview.pan,
+                avail.center(),
+                p,
+                1.0 + scroll * 0.004,
+            );
             app.preview.zoom = Some(next);
             app.preview.pan = pan;
         }
@@ -522,14 +581,21 @@ struct PaneCtx<'a> {
 fn parent_click(e: &crate::fs::Entry) -> Act {
     let target = e.path.display().to_string();
     match e.is_dir_like() {
-        true => Act::Cd { target, interactive: false },
+        true => Act::Cd {
+            target,
+            interactive: false,
+        },
         false => Act::Reveal(target),
     }
 }
 
 /// The read-only column showing the directory above the current one.
 fn draw_parent(app: &mut App, ui: &mut Ui, rect: Rect, ctx: &PaneCtx, queued: &mut Vec<Act>) {
-    let PaneCtx { theme, font: f, row_h } = *ctx;
+    let PaneCtx {
+        theme,
+        font: f,
+        row_h,
+    } = *ctx;
     if let Some(parent) = &app.tabs[app.active].parent {
         let st = list::ListStyle {
             theme,
@@ -541,11 +607,18 @@ fn draw_parent(app: &mut App, ui: &mut Ui, rect: Rect, ctx: &PaneCtx, queued: &m
         let mut p = clone_view(parent);
         let rows = ((rect.height() / row_h).floor() as usize).max(1);
         p.clamp_offset(rows, app.cfg.yazi.mgr.scrolloff as usize);
-        let res = list::draw(ui, rect, &p, &st, &|_e| list::RowFlags {
-            selected: false,
-            yanked: None,
-            git: git::State::Clean,
-        }, false);
+        let res = list::draw(
+            ui,
+            rect,
+            &p,
+            &st,
+            &|_e| list::RowFlags {
+                selected: false,
+                yanked: None,
+                git: git::State::Clean,
+            },
+            false,
+        );
         if let Some(row) = res.clicked.or(res.double_clicked) {
             if let Some(e) = p.at(row) {
                 queued.push(parent_click(e));
@@ -565,7 +638,11 @@ fn draw_pane(
     ctx: &PaneCtx,
     queued: &mut Vec<Act>,
 ) {
-    let PaneCtx { theme, font: f, row_h } = *ctx;
+    let PaneCtx {
+        theme,
+        font: f,
+        row_h,
+    } = *ctx;
     let focused = idx == app.active;
     let rows = ((rect.height() / row_h).floor() as usize).max(1);
     app.set_page_rows(idx, rows);
@@ -596,14 +673,25 @@ fn draw_pane(
         &st,
         &|e| list::RowFlags {
             selected: selected.contains(&e.path),
-            yanked: if yank_paths.contains(&e.path) { Some(yank_cut) } else { None },
-            git: git.as_ref().map(|g| g.get(&e.name)).unwrap_or(git::State::Clean),
+            yanked: if yank_paths.contains(&e.path) {
+                Some(yank_cut)
+            } else {
+                None
+            },
+            git: git
+                .as_ref()
+                .map(|g| g.get(&e.name))
+                .unwrap_or(git::State::Clean),
         },
         has_filter,
     );
     // Which side has the keys should be clear at a glance.
     if app.split.is_some() {
-        let color = if focused { theme.cwd.fg.unwrap_or(theme.fg) } else { theme.border };
+        let color = if focused {
+            theme.cwd.fg.unwrap_or(theme.fg)
+        } else {
+            theme.border
+        };
         ui.painter().rect_stroke(
             rect,
             CornerRadius::same(4),
@@ -620,7 +708,10 @@ fn draw_pane(
     // it never counts as a double-click to open with.
     let multi = res.mods.shift || res.mods.command;
     // Clicking the list takes the keys back from the outline.
-    if let Some(row) = res.clicked.or(if multi { res.double_clicked } else { None }) {
+    if let Some(row) = res
+        .clicked
+        .or(if multi { res.double_clicked } else { None })
+    {
         app.focus_pane(idx);
         app.preview.outline = None;
         let tab = &mut app.tabs[idx];
@@ -637,7 +728,10 @@ fn draw_pane(
         app.preview.outline = None;
         app.tabs[idx].current.cursor = row;
         // `enter` on a file moves into its outline; a double-click opens.
-        queued.push(Act::Open { interactive: false, hovered: true });
+        queued.push(Act::Open {
+            interactive: false,
+            hovered: true,
+        });
     }
     // Right-click asks what can be done with the row it landed on, so the pane
     // and the cursor move there first.
@@ -657,7 +751,10 @@ fn draw_pane(
     if res.drag_stopped && app.drag.is_some() {
         let pos = ui.ctx().input(|i| i.pointer.interact_pos());
         let onto = pos.and_then(|p| {
-            app.pane_rects.iter().find(|(_, r)| r.contains(p)).map(|(i, _)| *i)
+            app.pane_rects
+                .iter()
+                .find(|(_, r)| r.contains(p))
+                .map(|(i, _)| *i)
         });
         // Shift is the move modifier, as it is in Explorer; a plain drag copies.
         let cut = ui.ctx().input(|i| i.modifiers.shift);
@@ -669,12 +766,17 @@ fn draw_pane(
 /// what is being carried named under the pointer.
 fn draw_drag(app: &App, ui: &mut Ui, f: &FontId) {
     let Some(drag) = &app.drag else { return };
-    let Some(pos) = ui.ctx().input(|i| i.pointer.interact_pos()) else { return };
+    let Some(pos) = ui.ctx().input(|i| i.pointer.interact_pos()) else {
+        return;
+    };
     let theme = &app.cfg.theme;
     let accent = theme.cwd.fg.unwrap_or(theme.fg);
     let painter = ui.painter();
 
-    let over = app.pane_rects.iter().find(|(i, r)| *i != drag.from && r.contains(pos));
+    let over = app
+        .pane_rects
+        .iter()
+        .find(|(i, r)| *i != drag.from && r.contains(pos));
     if let Some((_, r)) = over {
         painter.rect_stroke(
             *r,
@@ -727,7 +829,10 @@ fn draw_status(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId) {
     let theme = &app.cfg.theme;
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, CornerRadius::ZERO, theme.status_bg);
-    painter.line_segment([rect.left_top(), rect.right_top()], Stroke::new(1.0, theme.border));
+    painter.line_segment(
+        [rect.left_top(), rect.right_top()],
+        Stroke::new(1.0, theme.border),
+    );
 
     let tab = &app.tabs[app.active];
     let (mode_label, mode_style): (&str, Style) = match &tab.visual {
@@ -760,7 +865,13 @@ fn draw_status(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId) {
         }
         left.push_str(&util::fmt_time(e.modified, "%Y-%m-%d %H:%M"));
     }
-    painter.text(egui::pos2(x, cy), Align2::LEFT_CENTER, left, f.clone(), theme.fg_dim);
+    painter.text(
+        egui::pos2(x, cy),
+        Align2::LEFT_CENTER,
+        left,
+        f.clone(),
+        theme.fg_dim,
+    );
 
     // Right side: task progress, filter/find state, position.
     let mut right: Vec<String> = Vec::new();
@@ -866,7 +977,12 @@ const TOAST_LINES: usize = 8;
 fn clip_lines(s: &str, max: usize) -> String {
     match s.lines().nth(max) {
         None => s.to_owned(),
-        Some(_) => s.lines().take(max).chain(["…"]).collect::<Vec<_>>().join("\n"),
+        Some(_) => s
+            .lines()
+            .take(max)
+            .chain(["…"])
+            .collect::<Vec<_>>()
+            .join("\n"),
     }
 }
 
@@ -897,7 +1013,12 @@ fn draw_toasts(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
             0 | 1 => t.text.clone(),
             n => format!("{} ×{n}", t.text),
         };
-        let g = painter.layout(clip_lines(&text, TOAST_LINES), f.clone(), color, max_w - 20.0);
+        let g = painter.layout(
+            clip_lines(&text, TOAST_LINES),
+            f.clone(),
+            color,
+            max_w - 20.0,
+        );
         let w = g.size().x + 20.0;
         // The galley's own height, not one row. A five-line parse error drawn
         // in a one-row box spilled out of both ends of it -- over the header
@@ -913,7 +1034,14 @@ fn draw_toasts(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
             CornerRadius::same(4),
             // The border follows the text, so a warning is framed in its own
             // colour rather than borrowing the plain one and reading as chrome.
-            Stroke::new(1.0, if t.level == crate::app::Level::Info { theme.border } else { color }),
+            Stroke::new(
+                1.0,
+                if t.level == crate::app::Level::Info {
+                    theme.border
+                } else {
+                    color
+                },
+            ),
             egui::StrokeKind::Inside,
         );
         painter.galley(
@@ -931,7 +1059,14 @@ pub fn modal_rect(full: Rect, w_frac: f32, h_frac: f32) -> Rect {
     Rect::from_center_size(full.center(), Vec2::new(w, h))
 }
 
-pub fn modal_frame(ui: &Ui, rect: Rect, theme: &Theme, title: &str, f: &FontId, row_h: f32) -> Rect {
+pub fn modal_frame(
+    ui: &Ui,
+    rect: Rect,
+    theme: &Theme,
+    title: &str,
+    f: &FontId,
+    row_h: f32,
+) -> Rect {
     let painter = ui.painter();
     painter.rect_filled(rect, CornerRadius::same(6), theme.bg_alt);
     painter.rect_stroke(
@@ -954,7 +1089,8 @@ pub fn modal_frame(ui: &Ui, rect: Rect, theme: &Theme, title: &str, f: &FontId, 
 }
 
 pub fn dim(ui: &Ui, full: Rect) {
-    ui.painter().rect_filled(full, CornerRadius::ZERO, Color32::from_black_alpha(140));
+    ui.painter()
+        .rect_filled(full, CornerRadius::ZERO, Color32::from_black_alpha(140));
 }
 
 #[cfg(test)]
@@ -979,7 +1115,10 @@ mod toast_tests {
 
     #[test]
     fn past_the_limit_it_says_there_was_more() {
-        let many = (1..=12).map(|n| n.to_string()).collect::<Vec<_>>().join("\n");
+        let many = (1..=12)
+            .map(|n| n.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
         let out = clip_lines(&many, 3);
         assert_eq!(out, "1\n2\n3\n…");
         // The marker is a line, so what is drawn is one more than asked for
@@ -1014,7 +1153,10 @@ mod breadcrumb_tests {
         let hit = p(&["dev", "filer", "docs", "guide", "README.md"]);
         let root = p(&["dev", "filer"]);
         let (dir, name) = breadcrumb(Some(&hit), &root, Some("README.md"));
-        assert_eq!(dir, p(&["dev", "filer", "docs", "guide"]).display().to_string());
+        assert_eq!(
+            dir,
+            p(&["dev", "filer", "docs", "guide"]).display().to_string()
+        );
         assert_eq!(name.as_deref(), Some("README.md"));
     }
 
@@ -1065,7 +1207,10 @@ mod summary_line {
     fn it_names_the_register_and_the_selection_apart() {
         assert_eq!(summary(19, 0, None, false), "19 items");
         assert_eq!(summary(19, 1, None, false), "1 selected · 19 items");
-        assert_eq!(summary(19, 0, Some((1, false)), false), "1 copied · 19 items");
+        assert_eq!(
+            summary(19, 0, Some((1, false)), false),
+            "1 copied · 19 items"
+        );
         assert_eq!(summary(19, 0, Some((2, true)), false), "2 cut · 19 items");
 
         // Both at once is the case the colours cannot show.
@@ -1073,8 +1218,10 @@ mod summary_line {
             summary(19, 1, Some((1, false)), false),
             "1 selected · 1 copied · 19 items",
         );
-        assert_eq!(summary(19, 3, Some((2, true)), true),
-            "3 selected · 2 cut · 19 items · hidden shown");
+        assert_eq!(
+            summary(19, 3, Some((2, true)), true),
+            "3 selected · 2 cut · 19 items · hidden shown"
+        );
     }
 }
 
@@ -1107,7 +1254,10 @@ mod wheel {
         let mut acc = 0.0;
         assert_eq!(wheel_whole(&mut acc, 0.6), 0, "not a row yet");
         assert_eq!(wheel_whole(&mut acc, 0.6), 1, "now it is");
-        assert!((acc - 0.2).abs() < 1e-5, "and 0.2 of a row is still owed: {acc}");
+        assert!(
+            (acc - 0.2).abs() < 1e-5,
+            "and 0.2 of a row is still owed: {acc}"
+        );
 
         // Turning back the other way spends the remainder rather than
         // stranding it, so a reversal answers at once.
@@ -1146,9 +1296,15 @@ mod parent_column {
 
         assert_eq!(
             parent_click(&as_dir),
-            Act::Cd { target: dir.join("sub").display().to_string(), interactive: false },
+            Act::Cd {
+                target: dir.join("sub").display().to_string(),
+                interactive: false
+            },
         );
-        assert_eq!(parent_click(&as_file), Act::Reveal(file.display().to_string()));
+        assert_eq!(
+            parent_click(&as_file),
+            Act::Reveal(file.display().to_string())
+        );
 
         let _ = std::fs::remove_dir_all(&dir);
     }

@@ -31,7 +31,9 @@ pub enum Outcome {
     Identical,
     /// At least one side is not text. Lining up bytes is nobody's idea of a
     /// diff, so this says only whether they match.
-    Binary { same: bool },
+    Binary {
+        same: bool,
+    },
     Rows {
         rows: Vec<Row>,
         /// The view stops here: there were more rows than [`MAX_ROWS`].
@@ -71,7 +73,11 @@ pub fn compare_files(left: &Path, right: &Path, max_bytes: usize) -> Outcome {
     let (rows, rough) = compare(&a, &b, MAX_CELLS);
     let truncated = rows.len() > MAX_ROWS;
     let rows = rows.into_iter().take(MAX_ROWS).collect();
-    Outcome::Rows { rows, truncated, rough }
+    Outcome::Rows {
+        rows,
+        truncated,
+        rough,
+    }
 }
 
 /// Split into lines, or decline: a NUL byte or invalid UTF-8 means this is not
@@ -132,11 +138,18 @@ pub fn compare(a: &[String], b: &[String], max_cells: usize) -> (Vec<Row>, bool)
 }
 
 fn line(i: usize, text: &str) -> Line {
-    Line { no: i + 1, text: text.to_owned() }
+    Line {
+        no: i + 1,
+        text: text.to_owned(),
+    }
 }
 
 fn both(i: usize, x: &str, j: usize, y: &str) -> Row {
-    Row { left: Some(line(i, x)), right: Some(line(j, y)), same: true }
+    Row {
+        left: Some(line(i, x)),
+        right: Some(line(j, y)),
+        same: true,
+    }
 }
 
 /// The table walk. `off` is how many lines were peeled off the top, so the line
@@ -205,8 +218,7 @@ fn flush(
 pub fn next_change(rows: &[Row], from: usize, back: bool) -> Option<usize> {
     // Only the first row of a block counts, so holding `n` walks from one
     // difference to the next rather than down the lines of one of them.
-    let starts_a_block =
-        |i: usize| !rows[i].same && (i == 0 || rows[i - 1].same);
+    let starts_a_block = |i: usize| !rows[i].same && (i == 0 || rows[i - 1].same);
     match back {
         true => (0..from.min(rows.len())).rev().find(|&i| starts_a_block(i)),
         false => (from + 1..rows.len()).find(|&i| starts_a_block(i)),
@@ -247,7 +259,13 @@ impl Differ {
                         req = newer;
                     }
                     let outcome = compare_files(&req.left, &req.right, req.max_bytes);
-                    if res_tx.send(Response { left: req.left, right: req.right, outcome }).is_err()
+                    if res_tx
+                        .send(Response {
+                            left: req.left,
+                            right: req.right,
+                            outcome,
+                        })
+                        .is_err()
                     {
                         return;
                     }
@@ -314,7 +332,11 @@ mod tests {
         let (rows, _) = compare(&a, &b, MAX_CELLS);
 
         assert_eq!(shape(&rows), "=-=");
-        assert_eq!(rows[1].left.as_ref().unwrap().no, 2, "`b` is line 2 on the left");
+        assert_eq!(
+            rows[1].left.as_ref().unwrap().no,
+            2,
+            "`b` is line 2 on the left"
+        );
         // `c` is line 3 on the left and line 2 on the right.
         assert_eq!(rows[2].left.as_ref().unwrap().no, 3);
         assert_eq!(rows[2].right.as_ref().unwrap().no, 2);
@@ -346,7 +368,9 @@ mod tests {
 
         // Two files with nothing in common cannot be peeled, and are shown
         // roughly rather than filling memory with a table.
-        a.iter_mut().enumerate().for_each(|(i, l)| *l = format!("a{i}"));
+        a.iter_mut()
+            .enumerate()
+            .for_each(|(i, l)| *l = format!("a{i}"));
         b = (0..4_000).map(|i| format!("b{i}")).collect();
         let (rows, rough) = compare(&a, &b, 16);
         assert!(rough);
@@ -372,7 +396,11 @@ mod tests {
 
         assert_eq!(next_change(&rows, 0, false), Some(1));
         assert_eq!(next_change(&rows, 1, false), Some(4));
-        assert_eq!(next_change(&rows, 4, false), None, "nothing after the last one");
+        assert_eq!(
+            next_change(&rows, 4, false),
+            None,
+            "nothing after the last one"
+        );
         assert_eq!(next_change(&rows, 5, true), Some(4));
         assert_eq!(next_change(&rows, 4, true), Some(1));
         assert_eq!(next_change(&rows, 1, true), None);
@@ -381,15 +409,26 @@ mod tests {
         // next line.
         let (rows, _) = compare(&lines("k\na\nb"), &lines("k\nx\ny"), MAX_CELLS);
         assert_eq!(shape(&rows), "=~~");
-        assert_eq!(next_change(&rows, 1, false), None, "rows 1 and 2 are one difference");
-        assert_eq!(next_change(&rows, 2, true), Some(1), "and its first row is where `N` lands");
+        assert_eq!(
+            next_change(&rows, 1, false),
+            None,
+            "rows 1 and 2 are one difference"
+        );
+        assert_eq!(
+            next_change(&rows, 2, true),
+            Some(1),
+            "and its first row is where `N` lands"
+        );
     }
 
     #[test]
     fn a_file_with_a_nul_byte_is_not_read_as_text() {
         assert!(as_text(b"ok\ntext", 1024).is_some());
         assert!(as_text(b"bin\0ary", 1024).is_none());
-        assert!(as_text(&[0xff, 0xfe, 0xfd], 1024).is_none(), "not UTF-8 either");
+        assert!(
+            as_text(&[0xff, 0xfe, 0xfd], 1024).is_none(),
+            "not UTF-8 either"
+        );
     }
 
     #[test]
@@ -410,9 +449,15 @@ mod tests {
         assert_eq!(shape(&rows), "=~");
 
         std::fs::write(&r, [0u8, 1, 2]).unwrap();
-        assert_eq!(compare_files(&l, &r, 1 << 20), Outcome::Binary { same: false });
+        assert_eq!(
+            compare_files(&l, &r, 1 << 20),
+            Outcome::Binary { same: false }
+        );
 
-        assert!(matches!(compare_files(&l, &dir.join("gone"), 1 << 20), Outcome::Error(_)));
+        assert!(matches!(
+            compare_files(&l, &dir.join("gone"), 1 << 20),
+            Outcome::Error(_)
+        ));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

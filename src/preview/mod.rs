@@ -11,10 +11,10 @@ use std::time::SystemTime;
 
 use crossbeam_channel::{Receiver, Sender};
 
+mod external;
 mod font_preview;
 mod image_preview;
 mod markdown;
-mod external;
 mod office;
 mod shell_thumb;
 mod svg_preview;
@@ -83,15 +83,23 @@ pub struct Doc {
 impl Doc {
     /// The source line a rendered line came from.
     pub fn src_for_line(&self, line: usize) -> usize {
-        self.lines.get(line).or(self.lines.last()).map_or(0, |l| l.src)
+        self.lines
+            .get(line)
+            .or(self.lines.last())
+            .map_or(0, |l| l.src)
     }
 
     /// The first rendered line of the block holding a source line (or of the
     /// nearest one above it, for blank source lines).
     pub fn line_for_src(&self, src: usize) -> usize {
-        let Some(last) = self.lines.iter().rposition(|l| l.src <= src) else { return 0 };
+        let Some(last) = self.lines.iter().rposition(|l| l.src <= src) else {
+            return 0;
+        };
         let at = self.lines[last].src;
-        self.lines[..last].iter().rposition(|l| l.src != at).map_or(0, |i| i + 1)
+        self.lines[..last]
+            .iter()
+            .rposition(|l| l.src != at)
+            .map_or(0, |i| i + 1)
     }
 }
 
@@ -205,7 +213,13 @@ pub enum Payload {
     /// Markdown carries both views so switching between them needs no reload.
     /// `map` describes `source`, which is why the minimap is only shown for the
     /// source view: a rendered line and a source line are not the same line.
-    Markdown { doc: Doc, source: Vec<Vec<Span>>, map: Vec<MapRow>, truncated: bool, total_lines: usize },
+    Markdown {
+        doc: Doc,
+        source: Vec<Vec<Span>>,
+        map: Vec<MapRow>,
+        truncated: bool,
+        total_lines: usize,
+    },
     /// Raw RGBA plus its dimensions; the UI turns this into a texture. The
     /// caption goes under it (the source size, a font's name, ...).
     ///
@@ -221,8 +235,13 @@ pub enum Payload {
         rgba: Arc<Vec<u8>>,
         caption: String,
     },
-    Binary { lines: Vec<String>, total: u64 },
-    Meta { rows: Vec<(String, String)> },
+    Binary {
+        lines: Vec<String>,
+        total: u64,
+    },
+    Meta {
+        rows: Vec<(String, String)>,
+    },
     Error(String),
 }
 
@@ -254,14 +273,24 @@ impl Previewer {
                         req = newer;
                     }
                     let payload = render(&req, &mut syntax);
-                    if res_tx.send(Response { key: req.key, payload }).is_err() {
+                    if res_tx
+                        .send(Response {
+                            key: req.key,
+                            payload,
+                        })
+                        .is_err()
+                    {
                         return;
                     }
                     wake();
                 }
             })
             .expect("spawn preview worker");
-        Self { tx, rx, next_id: AtomicU64::new(1) }
+        Self {
+            tx,
+            rx,
+            next_id: AtomicU64::new(1),
+        }
     }
 
     pub fn request(&self, mut req: Request) -> u64 {
@@ -292,7 +321,11 @@ fn render(req: &Request, syntax: &mut text::Highlighter) -> Payload {
                 Err(e) => Payload::Error(e),
             };
         }
-        return thumbnail(path, req, "No thumbnail handler (HEIC / AVIF need the HEIF / AV1 extensions)");
+        return thumbnail(
+            path,
+            req,
+            "No thumbnail handler (HEIC / AVIF need the HEIF / AV1 extensions)",
+        );
     }
     if mime.starts_with("video/") {
         return thumbnail(path, req, "No video thumbnail (codec not installed?)");
@@ -301,7 +334,11 @@ fn render(req: &Request, syntax: &mut text::Highlighter) -> Payload {
         return thumbnail(path, req, "No cover art");
     }
     if mime == "application/pdf" {
-        return thumbnail(path, req, "No PDF thumbnail handler (Acrobat Reader or PowerToys add one)");
+        return thumbnail(
+            path,
+            req,
+            "No PDF thumbnail handler (Acrobat Reader or PowerToys add one)",
+        );
     }
 
     // Word, Excel and PowerPoint as their own text. Before the archive
@@ -348,7 +385,9 @@ fn read_head(path: &std::path::Path, max: usize) -> Result<Vec<u8>, String> {
     use std::io::Read;
     let f = std::fs::File::open(path).map_err(|e| e.to_string())?;
     let mut buf = Vec::with_capacity(max.min(64 * 1024));
-    f.take(max as u64).read_to_end(&mut buf).map_err(|e| e.to_string())?;
+    f.take(max as u64)
+        .read_to_end(&mut buf)
+        .map_err(|e| e.to_string())?;
     Ok(buf)
 }
 
@@ -384,7 +423,11 @@ fn binary(path: &std::path::Path, head: &[u8]) -> Payload {
         }
         s.push_str(" |");
         for b in chunk {
-            s.push(if (0x20..0x7f).contains(b) { *b as char } else { '.' });
+            s.push(if (0x20..0x7f).contains(b) {
+                *b as char
+            } else {
+                '.'
+            });
         }
         s.push('|');
         lines.push(s);
@@ -397,18 +440,20 @@ fn binary(path: &std::path::Path, head: &[u8]) -> Payload {
 /// Through the same path as a plain text file, so that everything the text
 /// preview can do -- scrolling, the minimap, the outline in the side column --
 /// works here without knowing what it is looking at.
-fn office_text(
-    doc: office::Read1,
-    req: &Request,
-    syntax: &mut text::Highlighter,
-) -> Payload {
+fn office_text(doc: office::Read1, req: &Request, syntax: &mut text::Highlighter) -> Payload {
     let _ = (req, syntax);
     let total = doc.lines.len();
     // Plain, not highlighted: there is no grammar for "the text that was in a
     // spreadsheet", and guessing one by extension would colour it as XML --
     // which is what it was stored as and not what is being shown.
     match text::plain(&doc.lines.join("\n"), doc.truncated, total) {
-        Payload::Text { lines, map, truncated, total_lines, .. } => Payload::Text {
+        Payload::Text {
+            lines,
+            map,
+            truncated,
+            total_lines,
+            ..
+        } => Payload::Text {
             lines,
             map,
             truncated,
@@ -435,7 +480,13 @@ fn external_picture(rule: &crate::config::PreviewRule, req: &Request) -> Payload
         Err(e) => return Payload::Error(format!("{}: {e}", caption(rule, n))),
     };
     match image_preview::render(&drawn.png, req.key.box_size) {
-        Ok(Payload::Image { width, height, source, rgba, .. }) => Payload::Image {
+        Ok(Payload::Image {
+            width,
+            height,
+            source,
+            rgba,
+            ..
+        }) => Payload::Image {
             width,
             height,
             source,
@@ -473,12 +524,14 @@ fn archive_listing(path: &std::path::Path) -> Payload {
         Ok(v) => v,
         // A password-protected or damaged archive still has a name and a size
         // worth showing, so it falls back to the card rather than an error.
-        Err(e) => return Payload::Meta {
-            rows: vec![
-                ("Name".into(), crate::util::file_name(path)),
-                ("Note".into(), format!("Cannot list: {e}")),
-            ],
-        },
+        Err(e) => {
+            return Payload::Meta {
+                rows: vec![
+                    ("Name".into(), crate::util::file_name(path)),
+                    ("Note".into(), format!("Cannot list: {e}")),
+                ],
+            }
+        }
     };
     let total = entries.len();
     let dim = Some([0x79, 0x80, 0x90]);
@@ -490,20 +543,37 @@ fn archive_listing(path: &std::path::Path) -> Payload {
                 false => format!("{:>9}  ", crate::util::human_size(e.size)),
             };
             vec![
-                Span { text: size, color: dim, ..Default::default() },
-                Span { text: e.name, color: None, ..Default::default() },
+                Span {
+                    text: size,
+                    color: dim,
+                    ..Default::default()
+                },
+                Span {
+                    text: e.name,
+                    color: None,
+                    ..Default::default()
+                },
             ]
         })
         .collect();
     let map = minimap(&lines);
-    Payload::Text { lines, map, truncated: more, total_lines: total, outline: Vec::new() }
+    Payload::Text {
+        lines,
+        map,
+        truncated: more,
+        total_lines: total,
+        outline: Vec::new(),
+    }
 }
 
 fn meta(path: &std::path::Path, _req: &Request, note: &str) -> Payload {
     let mut rows = vec![("Name".into(), crate::util::file_name(path))];
     if let Ok(md) = std::fs::metadata(path) {
         rows.push(("Size".into(), crate::util::human_size(md.len())));
-        rows.push(("Modified".into(), crate::util::fmt_time(md.modified().ok(), "%Y-%m-%d %H:%M:%S")));
+        rows.push((
+            "Modified".into(),
+            crate::util::fmt_time(md.modified().ok(), "%Y-%m-%d %H:%M:%S"),
+        ));
     }
     rows.push(("Note".into(), note.to_owned()));
     Payload::Meta { rows }
@@ -536,7 +606,11 @@ mod tests {
     use super::*;
 
     fn span(text: &str, color: Option<[u8; 3]>) -> Span {
-        Span { text: text.into(), color, ..Default::default() }
+        Span {
+            text: text.into(),
+            color,
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -547,7 +621,14 @@ mod tests {
             vec![span("fn main() {", None)],
         ]);
 
-        assert_eq!(rows[0], MapRow { indent: 4, len: 10, color: None });
+        assert_eq!(
+            rows[0],
+            MapRow {
+                indent: 4,
+                len: 10,
+                color: None
+            }
+        );
         assert_eq!(rows[1], MapRow::default(), "a blank line leaves a gap");
         assert_eq!(rows[2].indent, 0);
     }
@@ -565,7 +646,10 @@ mod tests {
         ]]);
         assert_eq!(long_code[0].color, Some(CODE));
 
-        let all_comment = minimap(&[vec![span("x;", Some(CODE)), span(" // a long explanation", Some(NOTE))]]);
+        let all_comment = minimap(&[vec![
+            span("x;", Some(CODE)),
+            span(" // a long explanation", Some(NOTE)),
+        ]]);
         assert_eq!(all_comment[0].color, Some(NOTE));
     }
 

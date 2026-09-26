@@ -3,7 +3,8 @@
 
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{
-    FontStyle, HighlightIterator, HighlightState, Highlighter as ThemeHighlighter, Style, Theme, ThemeSet,
+    FontStyle, HighlightIterator, HighlightState, Highlighter as ThemeHighlighter, Style, Theme,
+    ThemeSet,
 };
 use syntect::parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet};
 use syntect::util::LinesWithEndings;
@@ -25,7 +26,10 @@ impl Highlighter {
         if self.sets.is_none() {
             // bat's collection: syntect's own bundle has no TOML, TypeScript,
             // Dockerfile, Kotlin and so on.
-            self.sets = Some((two_face::syntax::extra_newlines(), ThemeSet::load_defaults()));
+            self.sets = Some((
+                two_face::syntax::extra_newlines(),
+                ThemeSet::load_defaults(),
+            ));
         }
         if self.theme.is_none() || self.theme_name != theme_name {
             let (_, themes) = self.sets.as_ref().unwrap();
@@ -90,7 +94,10 @@ pub fn render(bytes: &[u8], req: &Request, hl: &mut Highlighter) -> Payload {
     let mut symbols = Collector::default();
     let mut fence: Option<Fence<'_>> = None;
     let mut lines: Vec<Vec<Span>> = Vec::with_capacity(total_lines.min(MAX_LINES));
-    for (i, line) in LinesWithEndings::from(&expanded).take(MAX_LINES).enumerate() {
+    for (i, line) in LinesWithEndings::from(&expanded)
+        .take(MAX_LINES)
+        .enumerate()
+    {
         // Always fed, even when its output is discarded, to keep its state in sync.
         let md = parse.parse_line(line, syntaxes).map(|ops| {
             if !is_markdown {
@@ -135,10 +142,22 @@ pub fn render(bytes: &[u8], req: &Request, hl: &mut Highlighter) -> Payload {
     if is_markdown {
         let (doc, clipped) = super::markdown::render(&expanded, req.key.cols, theme, syntaxes);
         let map = super::minimap(&lines);
-        return Payload::Markdown { doc, source: lines, map, truncated: truncated || clipped, total_lines };
+        return Payload::Markdown {
+            doc,
+            source: lines,
+            map,
+            truncated: truncated || clipped,
+            total_lines,
+        };
     }
     let map = super::minimap(&lines);
-    Payload::Text { lines, map, truncated, total_lines, outline: symbols.finish() }
+    Payload::Text {
+        lines,
+        map,
+        truncated,
+        total_lines,
+        outline: symbols.finish(),
+    }
 }
 
 /// Resolve a language name as people write it after a fence or in a hint.
@@ -238,17 +257,31 @@ pub(super) fn spans_from(regions: Vec<(Style, &str)>) -> Vec<Span> {
 }
 
 fn plain_line(line: &str) -> Vec<Span> {
-    vec![Span { text: clip(line.trim_end_matches(['\n', '\r']), MAX_LINE_CHARS), ..Default::default() }]
+    vec![Span {
+        text: clip(line.trim_end_matches(['\n', '\r']), MAX_LINE_CHARS),
+        ..Default::default()
+    }]
 }
 
 pub fn plain(text: &str, truncated: bool, total_lines: usize) -> Payload {
     let lines: Vec<Vec<Span>> = text
         .lines()
         .take(MAX_LINES)
-        .map(|l| vec![Span { text: clip(l, MAX_LINE_CHARS), ..Default::default() }])
+        .map(|l| {
+            vec![Span {
+                text: clip(l, MAX_LINE_CHARS),
+                ..Default::default()
+            }]
+        })
         .collect();
     let map = super::minimap(&lines);
-    Payload::Text { lines, map, truncated, total_lines, outline: Vec::new() }
+    Payload::Text {
+        lines,
+        map,
+        truncated,
+        total_lines,
+        outline: Vec::new(),
+    }
 }
 
 fn clip(s: &str, max: usize) -> String {
@@ -342,7 +375,8 @@ mod tests {
     #[test]
     fn source_files_carry_an_outline() {
         let src = "use std::fmt;\n\nstruct A;\n\nimpl A {\n\tfn go(&self) {}\n}\n";
-        let Payload::Text { lines, outline, .. } = render(src.as_bytes(), &request("rs"), &mut Highlighter::default())
+        let Payload::Text { lines, outline, .. } =
+            render(src.as_bytes(), &request("rs"), &mut Highlighter::default())
         else {
             panic!("not text")
         };
@@ -351,8 +385,11 @@ mod tests {
         // Parsing once for both did not cost the colors.
         assert!(colors(&lines[5]).len() > 1, "{:?}", lines[5]);
 
-        let Payload::Text { outline, .. } = render(b"plain words\n", &request("txt"), &mut Highlighter::default())
-        else {
+        let Payload::Text { outline, .. } = render(
+            b"plain words\n",
+            &request("txt"),
+            &mut Highlighter::default(),
+        ) else {
             panic!("not text")
         };
         assert!(outline.is_empty());
@@ -402,7 +439,11 @@ mod tests {
     #[test]
     fn fenced_code_uses_its_language() {
         let lines = render_md("# t\n\n```rust\nfn main() { let x = \"s\"; }\n```\n\ntext\n");
-        assert!(colors(&lines[3]).len() > 1, "rust body should be multi-colored: {:?}", lines[3]);
+        assert!(
+            colors(&lines[3]).len() > 1,
+            "rust body should be multi-colored: {:?}",
+            lines[3]
+        );
         // Unknown languages keep the markdown grammar's flat raw-block color.
         let lines = render_md("```nosuchlang\nfn main() { let x = \"s\"; }\n```\n");
         assert_eq!(colors(&lines[1]).len(), 1);
@@ -425,7 +466,10 @@ mod tests {
     #[test]
     fn fence_markers() {
         assert_eq!(fence_marker("```rust\n"), Some(('`', 3, "rust")));
-        assert_eq!(fence_marker("   ~~~~ toml {x}\n"), Some(('~', 4, "toml {x}")));
+        assert_eq!(
+            fence_marker("   ~~~~ toml {x}\n"),
+            Some(('~', 4, "toml {x}"))
+        );
         assert_eq!(fence_marker("    ```\n"), None);
         assert_eq!(fence_marker("``\n"), None);
         assert_eq!(fence_marker("``` a`b\n"), None);

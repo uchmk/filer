@@ -8,7 +8,8 @@
 use std::ops::Range;
 
 use pulldown_cmark::{
-    Alignment, BlockQuoteKind, CodeBlockKind, Event, MetadataBlockKind, Options, Parser, Tag, TagEnd,
+    Alignment, BlockQuoteKind, CodeBlockKind, Event, MetadataBlockKind, Options, Parser, Tag,
+    TagEnd,
 };
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Highlighter, Theme};
@@ -54,7 +55,12 @@ pub fn render(text: &str, cols: u16, theme: &Theme, syntaxes: &SyntaxSet) -> (Do
     } else {
         0
     };
-    let body_cols = if toc_cols > 0 { cols - toc_cols - 3 } else { cols }.min(MAX_BODY);
+    let body_cols = if toc_cols > 0 {
+        cols - toc_cols - 3
+    } else {
+        cols
+    }
+    .min(MAX_BODY);
 
     let mut b = Builder::new(text, theme, syntaxes, body_cols as usize);
     b.run(text, opts);
@@ -66,10 +72,22 @@ pub fn render(text: &str, cols: u16, theme: &Theme, syntaxes: &SyntaxSet) -> (Do
         .iter()
         .zip(headings.iter().zip(&labels))
         .filter(|(_, ((_, title), _))| !title.is_empty())
-        .map(|(&line, ((level, _), label))| TocEntry { level: *level, label: clip_width(label, MAX_TOC_LABEL), line })
+        .map(|(&line, ((level, _), label))| TocEntry {
+            level: *level,
+            label: clip_width(label, MAX_TOC_LABEL),
+            line,
+        })
         .collect();
     let clipped = b.clipped;
-    (Doc { lines: b.lines, toc, toc_cols, body_cols }, clipped)
+    (
+        Doc {
+            lines: b.lines,
+            toc,
+            toc_cols,
+            body_cols,
+        },
+        clipped,
+    )
 }
 
 fn options() -> Options {
@@ -91,7 +109,10 @@ fn outline(text: &str, opts: Options) -> Vec<(u8, String)> {
             Event::Start(Tag::Heading { level, .. }) => open = Some((level as u8, String::new())),
             Event::End(TagEnd::Heading(_)) => {
                 if let Some((level, title)) = open.take().filter(|h| h.0 <= TOC_LEVELS) {
-                    out.push((level, title.split_whitespace().collect::<Vec<_>>().join(" ")));
+                    out.push((
+                        level,
+                        title.split_whitespace().collect::<Vec<_>>().join(" "),
+                    ));
                 }
             }
             Event::Text(t) | Event::Code(t) => {
@@ -138,7 +159,11 @@ impl Palette {
         Self {
             heading: pick(&["markup.heading", "entity.name.function"]),
             code: pick(&["markup.raw.inline", "markup.raw", "string"]),
-            link: pick(&["markup.underline.link", "support.function", "entity.name.function"]),
+            link: pick(&[
+                "markup.underline.link",
+                "support.function",
+                "entity.name.function",
+            ]),
             quote: pick(&["markup.quote", "comment"]),
             marker: pick(&["punctuation.definition.list_item", "markup.list", "keyword"]),
             dim: pick(&["comment"]),
@@ -176,7 +201,10 @@ enum Container {
     /// A bar in this color.
     Quote(Option<[u8; 3]>),
     /// A list marker on the first line, blanks of the same width after.
-    Item { marker: Option<Vec<Span>>, width: usize },
+    Item {
+        marker: Option<Vec<Span>>,
+        width: usize,
+    },
 }
 
 impl Container {
@@ -251,7 +279,9 @@ impl<'a> Builder<'a> {
             syntaxes,
             pal: Palette::new(theme),
             body,
-            line_starts: std::iter::once(0).chain(text.match_indices('\n').map(|(i, _)| i + 1)).collect(),
+            line_starts: std::iter::once(0)
+                .chain(text.match_indices('\n').map(|(i, _)| i + 1))
+                .collect(),
             lines: Vec::new(),
             toc_lines: Vec::new(),
             clipped: false,
@@ -277,7 +307,9 @@ impl<'a> Builder<'a> {
     }
 
     fn src_line(&self, offset: usize) -> usize {
-        self.line_starts.partition_point(|&s| s <= offset).saturating_sub(1)
+        self.line_starts
+            .partition_point(|&s| s <= offset)
+            .saturating_sub(1)
     }
 
     fn run(&mut self, text: &str, opts: Options) {
@@ -290,21 +322,33 @@ impl<'a> Builder<'a> {
                 Event::Start(tag) => self.start(tag, src),
                 Event::End(tag) => self.end(tag, src),
                 Event::Text(t) => self.text(&t, src),
-                Event::Code(t) | Event::InlineMath(t) | Event::DisplayMath(t) => self.inline_code(&t, src),
+                Event::Code(t) | Event::InlineMath(t) | Event::DisplayMath(t) => {
+                    self.inline_code(&t, src)
+                }
                 Event::Html(t) => match self.html.as_mut() {
                     Some((buf, _)) => buf.push_str(&t),
                     None => self.inline_html(&t, src),
                 },
                 Event::InlineHtml(t) => self.inline_html(&t, src),
                 Event::FootnoteReference(label) => {
-                    let span = Span { text: format!("[{label}]"), color: self.pal.link, ..Default::default() };
+                    let span = Span {
+                        text: format!("[{label}]"),
+                        color: self.pal.link,
+                        ..Default::default()
+                    };
                     self.push(span, src);
                 }
                 Event::SoftBreak => match self.image.as_mut() {
                     Some((alt, _)) => alt.push(' '),
                     None => self.soft = !self.pending.is_empty(),
                 },
-                Event::HardBreak => self.push(Span { text: "\n".into(), ..Default::default() }, src),
+                Event::HardBreak => self.push(
+                    Span {
+                        text: "\n".into(),
+                        ..Default::default()
+                    },
+                    src,
+                ),
                 Event::Rule => {
                     self.flush(LineKind::Text);
                     self.push_line(Vec::new(), LineKind::Rule, src);
@@ -328,8 +372,14 @@ impl<'a> Builder<'a> {
                 let color = kind.map_or(self.pal.quote, |k| self.pal.alert(k));
                 self.containers.push(Container::Quote(color));
                 if let Some(kind) = kind {
-                    let label = ["Note", "Tip", "Important", "Warning", "Caution"][alert_index(kind)];
-                    let span = Span { text: label.into(), color, bold: true, ..Default::default() };
+                    let label =
+                        ["Note", "Tip", "Important", "Warning", "Caution"][alert_index(kind)];
+                    let span = Span {
+                        text: label.into(),
+                        color,
+                        bold: true,
+                        ..Default::default()
+                    };
                     self.push_line(vec![span], LineKind::Text, src);
                 }
             }
@@ -339,7 +389,11 @@ impl<'a> Builder<'a> {
                     CodeBlockKind::Fenced(info) => (fence_syntax(self.syntaxes, &info), src + 1),
                     CodeBlockKind::Indented => (None, src),
                 };
-                self.code = Some(Code { text: String::new(), syntax, src: first });
+                self.code = Some(Code {
+                    text: String::new(),
+                    syntax,
+                    src: first,
+                });
             }
             Tag::MetadataBlock(kind) => {
                 self.flush(LineKind::Text);
@@ -348,7 +402,11 @@ impl<'a> Builder<'a> {
                     MetadataBlockKind::PlusesStyle => "toml",
                 };
                 let syntax = find_token(self.syntaxes, lang);
-                self.code = Some(Code { text: String::new(), syntax, src: src + 1 });
+                self.code = Some(Code {
+                    text: String::new(),
+                    syntax,
+                    src: src + 1,
+                });
             }
             Tag::HtmlBlock => {
                 self.flush(LineKind::Text);
@@ -377,7 +435,10 @@ impl<'a> Builder<'a> {
             }
             Tag::Table(aligns) => {
                 self.flush(LineKind::Text);
-                self.table = Some(Table { aligns, rows: Vec::new() });
+                self.table = Some(Table {
+                    aligns,
+                    rows: Vec::new(),
+                });
             }
             Tag::TableHead => self.open_row(true, src),
             Tag::TableRow => self.open_row(false, src),
@@ -386,7 +447,9 @@ impl<'a> Builder<'a> {
             Tag::Strong => self.strong += 1,
             Tag::Strikethrough => self.strike += 1,
             Tag::Link { .. } => self.link += 1,
-            Tag::Image { dest_url, .. } => self.image = Some((String::new(), dest_url.into_string())),
+            Tag::Image { dest_url, .. } => {
+                self.image = Some((String::new(), dest_url.into_string()))
+            }
             _ => {}
         }
     }
@@ -428,14 +491,21 @@ impl<'a> Builder<'a> {
                 self.flush(LineKind::Text);
                 self.lists.pop();
                 // Nested lists run on into their parent item.
-                if !self.containers.iter().any(|c| matches!(c, Container::Item { .. })) {
+                if !self
+                    .containers
+                    .iter()
+                    .any(|c| matches!(c, Container::Item { .. }))
+                {
                     self.need_blank = true;
                 }
             }
             TagEnd::Item | TagEnd::FootnoteDefinition => {
                 self.flush(LineKind::Text);
                 // An empty item still shows its marker.
-                if let Some(Container::Item { marker: Some(_), .. }) = self.containers.last() {
+                if let Some(Container::Item {
+                    marker: Some(_), ..
+                }) = self.containers.last()
+                {
                     self.push_line(Vec::new(), LineKind::Text, src);
                 }
                 self.containers.pop();
@@ -463,8 +533,16 @@ impl<'a> Builder<'a> {
             TagEnd::Image => {
                 if let Some((alt, url)) = self.image.take() {
                     let alt = alt.trim();
-                    let name = if alt.is_empty() { url.rsplit(['/', '\\']).next().unwrap_or("") } else { alt };
-                    let span = Span { text: format!("[image: {name}]"), color: self.pal.dim, ..self.style() };
+                    let name = if alt.is_empty() {
+                        url.rsplit(['/', '\\']).next().unwrap_or("")
+                    } else {
+                        alt
+                    };
+                    let span = Span {
+                        text: format!("[image: {name}]"),
+                        color: self.pal.dim,
+                        ..self.style()
+                    };
                     self.push(span, src);
                 }
             }
@@ -474,13 +552,21 @@ impl<'a> Builder<'a> {
 
     fn open_item(&mut self, marker: String, color: Option<[u8; 3]>) {
         let width = str_width(&marker);
-        let marker = Some(vec![Span { text: marker, color, ..Default::default() }]);
+        let marker = Some(vec![Span {
+            text: marker,
+            color,
+            ..Default::default()
+        }]);
         self.containers.push(Container::Item { marker, width });
     }
 
     fn open_row(&mut self, head: bool, src: usize) {
         if let Some(table) = self.table.as_mut() {
-            table.rows.push(Row { cells: Vec::new(), head, src });
+            table.rows.push(Row {
+                cells: Vec::new(),
+                head,
+                src,
+            });
         }
     }
 
@@ -513,7 +599,10 @@ impl<'a> Builder<'a> {
             alt.push_str(t);
             return;
         }
-        let span = Span { text: t.replace('\r', ""), ..self.style() };
+        let span = Span {
+            text: t.replace('\r', ""),
+            ..self.style()
+        };
         self.push(span, src);
     }
 
@@ -523,8 +612,20 @@ impl<'a> Builder<'a> {
             return;
         }
         let style = self.style();
-        let color = if self.link > 0 { style.color } else { self.pal.code };
-        self.push(Span { text: t.replace('\r', ""), color, code: true, ..style }, src);
+        let color = if self.link > 0 {
+            style.color
+        } else {
+            self.pal.code
+        };
+        self.push(
+            Span {
+                text: t.replace('\r', ""),
+                color,
+                code: true,
+                ..style
+            },
+            src,
+        );
     }
 
     fn inline_html(&mut self, html: &str, src: usize) {
@@ -540,9 +641,19 @@ impl<'a> Builder<'a> {
             }
         };
         match tag_name(inner).as_str() {
-            "br" => self.push(Span { text: "\n".into(), ..Default::default() }, src),
+            "br" => self.push(
+                Span {
+                    text: "\n".into(),
+                    ..Default::default()
+                },
+                src,
+            ),
             "img" => {
-                let span = Span { text: image_label(inner), color: self.pal.dim, ..self.style() };
+                let span = Span {
+                    text: image_label(inner),
+                    color: self.pal.dim,
+                    ..self.style()
+                };
                 self.push(span, src);
             }
             "b" | "strong" => count(&mut self.html_bold),
@@ -555,13 +666,21 @@ impl<'a> Builder<'a> {
     fn task(&mut self, done: bool, src: usize) {
         let span = Span {
             text: if done { "[x] " } else { "[ ] " }.into(),
-            color: if done { self.pal.alerts[1] } else { self.pal.dim },
+            color: if done {
+                self.pal.alerts[1]
+            } else {
+                self.pal.dim
+            },
             bold: done,
             ..Default::default()
         };
         // The checkbox takes the bullet's place.
         if self.pending.is_empty() {
-            if let Some(Container::Item { marker: marker @ Some(_), width }) = self.containers.last_mut() {
+            if let Some(Container::Item {
+                marker: marker @ Some(_),
+                width,
+            }) = self.containers.last_mut()
+            {
                 *width = 4;
                 *marker = Some(vec![span]);
                 return;
@@ -580,7 +699,13 @@ impl<'a> Builder<'a> {
             // Japanese is written without spaces, so a source line break
             // between two wide characters joins them directly.
             if !(prev.is_some_and(is_wide) && next.is_some_and(is_wide)) {
-                self.pending.push((Span { text: " ".into(), ..self.style() }, src));
+                self.pending.push((
+                    Span {
+                        text: " ".into(),
+                        ..self.style()
+                    },
+                    src,
+                ));
             }
         }
         self.pending.push((span, src));
@@ -622,11 +747,20 @@ impl<'a> Builder<'a> {
         for c in &mut self.containers {
             match c {
                 Container::Quote(color) => {
-                    spans.push(Span { text: "│ ".into(), color: *color, ..Default::default() });
+                    spans.push(Span {
+                        text: "│ ".into(),
+                        color: *color,
+                        ..Default::default()
+                    });
                 }
                 Container::Item { marker, width } => {
                     let m = if consume { marker.take() } else { None };
-                    spans.extend(m.unwrap_or_else(|| vec![Span { text: " ".repeat(*width), ..Default::default() }]));
+                    spans.extend(m.unwrap_or_else(|| {
+                        vec![Span {
+                            text: " ".repeat(*width),
+                            ..Default::default()
+                        }]
+                    }));
                 }
             }
             width += c.width();
@@ -646,7 +780,12 @@ impl<'a> Builder<'a> {
         // Blank lines belong to what precedes them, so jumping to a source
         // line lands on its content rather than the gap above it.
         let src = self.lines.last().map_or(src, |l| l.src);
-        self.lines.push(DocLine { spans, kind: LineKind::Text, indent: 0, src });
+        self.lines.push(DocLine {
+            spans,
+            kind: LineKind::Text,
+            indent: 0,
+            src,
+        });
         self.last_blank = true;
     }
 
@@ -658,7 +797,12 @@ impl<'a> Builder<'a> {
         self.settle(src);
         let (mut spans, indent) = self.prefix(true);
         spans.extend(content);
-        self.lines.push(DocLine { spans, kind, indent, src });
+        self.lines.push(DocLine {
+            spans,
+            kind,
+            indent,
+            src,
+        });
         self.last_blank = false;
     }
 
@@ -674,12 +818,23 @@ impl<'a> Builder<'a> {
                 Some(Ok(regions)) => spans_from(regions),
                 _ => {
                     let text = line.trim_end_matches(['\n', '\r']);
-                    let span = Span { text: text.into(), color: self.pal.code, ..Default::default() };
-                    if text.is_empty() { Vec::new() } else { vec![span] }
+                    let span = Span {
+                        text: text.into(),
+                        color: self.pal.code,
+                        ..Default::default()
+                    };
+                    if text.is_empty() {
+                        Vec::new()
+                    } else {
+                        vec![span]
+                    }
                 }
             };
             for piece in hard_wrap(&spans, width) {
-                let mut row = vec![Span { text: " ".into(), ..Default::default() }];
+                let mut row = vec![Span {
+                    text: " ".into(),
+                    ..Default::default()
+                }];
                 row.extend(piece);
                 self.push_line(row, LineKind::Code, code.src + i);
             }
@@ -687,7 +842,10 @@ impl<'a> Builder<'a> {
     }
 
     fn html_block(&mut self, html: &str, src: usize) {
-        let pieces: Vec<(Span, usize)> = html_pieces(html, self.pal.dim).into_iter().map(|s| (s, src)).collect();
+        let pieces: Vec<(Span, usize)> = html_pieces(html, self.pal.dim)
+            .into_iter()
+            .map(|s| (s, src))
+            .collect();
         let mut shown = false;
         for (spans, _) in wrap(&pieces, self.avail()) {
             if spans.iter().all(|s| s.text.trim().is_empty()) {
@@ -702,7 +860,13 @@ impl<'a> Builder<'a> {
     }
 
     fn table_block(&mut self, table: Table) {
-        let ncols = table.rows.iter().map(|r| r.cells.len()).max().unwrap_or(0).max(table.aligns.len());
+        let ncols = table
+            .rows
+            .iter()
+            .map(|r| r.cells.len())
+            .max()
+            .unwrap_or(0)
+            .max(table.aligns.len());
         if ncols == 0 {
             return;
         }
@@ -716,14 +880,23 @@ impl<'a> Builder<'a> {
         let seps = 3 * (ncols - 1);
         let avail = self.avail();
         while widths.iter().sum::<usize>() + seps > avail {
-            let (j, w) = widths.iter().copied().enumerate().max_by_key(|&(_, w)| w).unwrap_or((0, 0));
+            let (j, w) = widths
+                .iter()
+                .copied()
+                .enumerate()
+                .max_by_key(|&(_, w)| w)
+                .unwrap_or((0, 0));
             if w <= 4 {
                 break;
             }
             widths[j] = w - 1;
         }
 
-        let sep = Span { text: " │ ".into(), color: self.pal.dim, ..Default::default() };
+        let sep = Span {
+            text: " │ ".into(),
+            color: self.pal.dim,
+            ..Default::default()
+        };
         for row in table.rows {
             let cells: Vec<Vec<Vec<Span>>> = (0..ncols)
                 .map(|j| {
@@ -731,7 +904,10 @@ impl<'a> Builder<'a> {
                     if row.head {
                         cell.iter_mut().for_each(|(s, _)| s.bold = true);
                     }
-                    wrap(&cell, widths[j]).into_iter().map(|(spans, _)| spans).collect()
+                    wrap(&cell, widths[j])
+                        .into_iter()
+                        .map(|(spans, _)| spans)
+                        .collect()
                 })
                 .collect();
             let height = cells.iter().map(Vec::len).max().unwrap_or(0).max(1);
@@ -742,25 +918,44 @@ impl<'a> Builder<'a> {
                         line.push(sep.clone());
                     }
                     let content = cells[j].get(k).cloned().unwrap_or_default();
-                    let pad = widths[j].saturating_sub(content.iter().map(|s| str_width(&s.text)).sum());
+                    let pad =
+                        widths[j].saturating_sub(content.iter().map(|s| str_width(&s.text)).sum());
                     let (left, right) = match table.aligns.get(j) {
                         Some(Alignment::Right) => (pad, 0),
                         Some(Alignment::Center) => (pad / 2, pad - pad / 2),
                         _ => (0, pad),
                     };
                     if left > 0 {
-                        line.push(Span { text: " ".repeat(left), ..Default::default() });
+                        line.push(Span {
+                            text: " ".repeat(left),
+                            ..Default::default()
+                        });
                     }
                     line.extend(content);
                     if right > 0 && j + 1 < ncols {
-                        line.push(Span { text: " ".repeat(right), ..Default::default() });
+                        line.push(Span {
+                            text: " ".repeat(right),
+                            ..Default::default()
+                        });
                     }
                 }
                 self.push_line(line, LineKind::Text, row.src);
             }
             if row.head {
-                let rule = widths.iter().map(|&w| "─".repeat(w)).collect::<Vec<_>>().join("─┼─");
-                self.push_line(vec![Span { text: rule, color: self.pal.dim, ..Default::default() }], LineKind::Text, row.src);
+                let rule = widths
+                    .iter()
+                    .map(|&w| "─".repeat(w))
+                    .collect::<Vec<_>>()
+                    .join("─┼─");
+                self.push_line(
+                    vec![Span {
+                        text: rule,
+                        color: self.pal.dim,
+                        ..Default::default()
+                    }],
+                    LineKind::Text,
+                    row.src,
+                );
             }
         }
     }
@@ -865,7 +1060,10 @@ fn wrap(pieces: &[(Span, usize)], width: usize) -> Vec<(Vec<Span>, usize)> {
     break_lines(&plain, width)
         .into_iter()
         .map(|r| {
-            let src = chars.get(r.start).or(chars.last()).map_or(0, |&(_, p)| pieces[p].1);
+            let src = chars
+                .get(r.start)
+                .or(chars.last())
+                .map_or(0, |&(_, p)| pieces[p].1);
             (regroup(&chars[r], &styles), src)
         })
         .collect()
@@ -891,7 +1089,11 @@ fn hard_wrap(spans: &[Span], width: usize) -> Vec<Vec<Span>> {
 
 /// Every character with the index of the span it came from.
 fn flatten(spans: &[&Span]) -> Vec<(char, usize)> {
-    spans.iter().enumerate().flat_map(|(i, s)| s.text.chars().map(move |c| (c, i))).collect()
+    spans
+        .iter()
+        .enumerate()
+        .flat_map(|(i, s)| s.text.chars().map(move |c| (c, i)))
+        .collect()
 }
 
 fn regroup(chars: &[(char, usize)], styles: &[&Span]) -> Vec<Span> {
@@ -949,18 +1151,42 @@ fn html_pieces(html: &str, dim: Option<[u8; 3]>) -> Vec<Span> {
         let name = tag_name(inner);
         let heading = matches!(name.as_str(), "h1" | "h2" | "h3" | "h4" | "h5" | "h6");
         if heading || matches!(name.as_str(), "b" | "strong" | "th") {
-            bold = if closing { bold.saturating_sub(1) } else { bold + 1 };
+            bold = if closing {
+                bold.saturating_sub(1)
+            } else {
+                bold + 1
+            };
         }
         let block = matches!(
             name.as_str(),
-            "br" | "p" | "div" | "li" | "tr" | "table" | "ul" | "ol" | "summary" | "details" | "hr" | "pre"
-                | "blockquote" | "center" | "picture" | "section"
+            "br" | "p"
+                | "div"
+                | "li"
+                | "tr"
+                | "table"
+                | "ul"
+                | "ol"
+                | "summary"
+                | "details"
+                | "hr"
+                | "pre"
+                | "blockquote"
+                | "center"
+                | "picture"
+                | "section"
         );
         if heading || block {
-            out.push(Span { text: "\n".into(), ..Default::default() });
+            out.push(Span {
+                text: "\n".into(),
+                ..Default::default()
+            });
         }
         if name == "img" && !closing {
-            out.push(Span { text: image_label(inner), color: dim, ..Default::default() });
+            out.push(Span {
+                text: image_label(inner),
+                color: dim,
+                ..Default::default()
+            });
         }
         rest = &tail[gt + 1..];
     }
@@ -983,7 +1209,11 @@ fn html_text(out: &mut Vec<Span>, text: &str, bold: bool) {
         }
     }
     if !s.is_empty() {
-        out.push(Span { text: decode_entities(&s), bold, ..Default::default() });
+        out.push(Span {
+            text: decode_entities(&s),
+            bold,
+            ..Default::default()
+        });
     }
 }
 
@@ -997,9 +1227,11 @@ fn tag_name(inner: &str) -> String {
 }
 
 fn image_label(tag: &str) -> String {
-    let name = attr(tag, "alt").filter(|a| !a.trim().is_empty()).or_else(|| {
-        attr(tag, "src").map(|s| s.rsplit(['/', '\\']).next().unwrap_or("").to_owned())
-    });
+    let name = attr(tag, "alt")
+        .filter(|a| !a.trim().is_empty())
+        .or_else(|| {
+            attr(tag, "src").map(|s| s.rsplit(['/', '\\']).next().unwrap_or("").to_owned())
+        });
     format!("[image: {}]", name.unwrap_or_default().trim())
 }
 
@@ -1018,7 +1250,10 @@ fn attr(tag: &str, name: &str) -> Option<String> {
         let v = tag[lower.len() - rest.len() + 1..].trim_start();
         let value = match v.chars().next() {
             Some(q @ ('"' | '\'')) => v[1..].split(q).next().unwrap_or(""),
-            _ => v.split(|c: char| c.is_whitespace() || c == '>').next().unwrap_or(""),
+            _ => v
+                .split(|c: char| c.is_whitespace() || c == '>')
+                .next()
+                .unwrap_or(""),
         };
         return Some(decode_entities(value));
     }
@@ -1034,7 +1269,11 @@ fn decode_entities(s: &str) -> String {
     while let Some(i) = rest.find('&') {
         out.push_str(&rest[..i]);
         let tail = &rest[i..];
-        let end = tail.char_indices().take(12).find(|&(_, c)| c == ';').map(|(j, _)| j);
+        let end = tail
+            .char_indices()
+            .take(12)
+            .find(|&(_, c)| c == ';')
+            .map(|(j, _)| j);
         match end.and_then(|e| entity(&tail[1..e]).map(|c| (e, c))) {
             Some((e, c)) => {
                 out.push(c);
@@ -1090,7 +1329,12 @@ mod tests {
 
     fn doc(src: &str, cols: u16) -> Doc {
         static SETS: OnceLock<(SyntaxSet, ThemeSet)> = OnceLock::new();
-        let (syntaxes, themes) = SETS.get_or_init(|| (two_face::syntax::extra_newlines(), ThemeSet::load_defaults()));
+        let (syntaxes, themes) = SETS.get_or_init(|| {
+            (
+                two_face::syntax::extra_newlines(),
+                ThemeSet::load_defaults(),
+            )
+        });
         render(src, cols, &themes.themes["base16-ocean.dark"], syntaxes).0
     }
 
@@ -1104,7 +1348,10 @@ mod tests {
 
     fn lines_of(s: &str, width: usize) -> Vec<String> {
         let chars: Vec<char> = s.chars().collect();
-        break_lines(&chars, width).into_iter().map(|r| chars[r].iter().collect()).collect()
+        break_lines(&chars, width)
+            .into_iter()
+            .map(|r| chars[r].iter().collect())
+            .collect()
     }
 
     #[test]
@@ -1117,7 +1364,10 @@ mod tests {
     #[test]
     fn wraps_japanese_with_kinsoku() {
         // 。 may not start a line, so す comes down with it.
-        assert_eq!(lines_of("日本語の文章です。", 8), ["日本語の", "文章で", "す。"]);
+        assert_eq!(
+            lines_of("日本語の文章です。", 8),
+            ["日本語の", "文章で", "す。"]
+        );
         // 「 may not end one.
         assert_eq!(lines_of("あ「い", 4), ["あ", "「い"]);
         // Latin runs and CJK may break against each other.
@@ -1127,12 +1377,18 @@ mod tests {
 
     #[test]
     fn soft_breaks_join_japanese_without_a_space() {
-        assert_eq!(texts(&doc("日本\n語\n\nab\ncd\n", 80)), ["日本語", "", "ab cd"]);
+        assert_eq!(
+            texts(&doc("日本\n語\n\nab\ncd\n", 80)),
+            ["日本語", "", "ab cd"]
+        );
     }
 
     #[test]
     fn headings_feed_the_outline() {
-        let d = doc("# Title\n\nintro\n\n## Part one\n\ntext\n\n### Deep\n\n##### Too deep\n", 100);
+        let d = doc(
+            "# Title\n\nintro\n\n## Part one\n\ntext\n\n### Deep\n\n##### Too deep\n",
+            100,
+        );
         assert!(d.toc_cols > 0);
         let labels: Vec<&str> = d.toc.iter().map(|e| e.label.as_str()).collect();
         assert_eq!(labels, ["Title", "  Part one", "    Deep"]);
@@ -1149,21 +1405,49 @@ mod tests {
 
     #[test]
     fn lists_and_tasks() {
-        let d = doc("- one\n- [ ] todo\n- [x] done\n  - nested\n\n1. first\n2. second\n", 80);
-        assert_eq!(texts(&d), ["• one", "[ ] todo", "[x] done", "    ◦ nested", "", "1. first", "2. second"]);
+        let d = doc(
+            "- one\n- [ ] todo\n- [x] done\n  - nested\n\n1. first\n2. second\n",
+            80,
+        );
+        assert_eq!(
+            texts(&d),
+            [
+                "• one",
+                "[ ] todo",
+                "[x] done",
+                "    ◦ nested",
+                "",
+                "1. first",
+                "2. second"
+            ]
+        );
     }
 
     #[test]
     fn tables_align_columns() {
         let d = doc("| name | n |\n|------|--:|\n| a | 10 |\n| bb | 2 |\n", 80);
-        assert_eq!(texts(&d), ["name │  n", "─────┼───", "a    │ 10", "bb   │  2"]);
-        assert!(d.lines[0].spans.iter().filter(|s| s.text.trim() == "name").all(|s| s.bold));
+        assert_eq!(
+            texts(&d),
+            ["name │  n", "─────┼───", "a    │ 10", "bb   │  2"]
+        );
+        assert!(d.lines[0]
+            .spans
+            .iter()
+            .filter(|s| s.text.trim() == "name")
+            .all(|s| s.bold));
     }
 
     #[test]
     fn code_blocks_are_highlighted() {
-        let d = doc("---\ntitle: x\n---\n\ntext\n\n```rust\nfn main() { let x = 1; }\n```\n", 80);
-        let code: Vec<&DocLine> = d.lines.iter().filter(|l| l.kind == LineKind::Code).collect();
+        let d = doc(
+            "---\ntitle: x\n---\n\ntext\n\n```rust\nfn main() { let x = 1; }\n```\n",
+            80,
+        );
+        let code: Vec<&DocLine> = d
+            .lines
+            .iter()
+            .filter(|l| l.kind == LineKind::Code)
+            .collect();
         assert_eq!(code.len(), 2, "{:?}", texts(&d));
         assert_eq!(code[0].src, 1);
         assert_eq!(code[1].src, 7);
@@ -1175,7 +1459,18 @@ mod tests {
     fn quotes_alerts_and_html() {
         let src = "> [!NOTE]\n> read this\n\n<p align=\"center\"><img alt=\"logo\" src=\"x.png\"> <b>filer</b></p>\n\n<!-- hidden -->\n\nA &amp; B<br>C\n";
         let d = doc(src, 80);
-        assert_eq!(texts(&d), ["│ Note", "│ read this", "", "[image: logo] filer", "", "A & B", "C"]);
+        assert_eq!(
+            texts(&d),
+            [
+                "│ Note",
+                "│ read this",
+                "",
+                "[image: logo] filer",
+                "",
+                "A & B",
+                "C"
+            ]
+        );
     }
 
     #[test]

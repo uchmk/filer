@@ -37,19 +37,31 @@ pub const MAX_TABS: usize = 9;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InputKind {
     Create,
-    Rename { from: PathBuf },
+    Rename {
+        from: PathBuf,
+    },
     /// A rule to rename all of these at once, previewed as it is typed.
-    Bulk { paths: Vec<PathBuf> },
+    Bulk {
+        paths: Vec<PathBuf>,
+    },
     Filter,
-    Find { prev: bool },
+    Find {
+        prev: bool,
+    },
     Cd,
     /// A string to find in the terminal's scrollback.
     TermFind,
     /// The name of the archive to pack the selection into.
     Compress,
-    Shell { block: bool },
-    Search { via: SearchVia },
-    ConflictRename { job: u64 },
+    Shell {
+        block: bool,
+    },
+    Search {
+        via: SearchVia,
+    },
+    ConflictRename {
+        job: u64,
+    },
 }
 
 pub struct InputOverlay {
@@ -82,10 +94,18 @@ pub struct ConfirmOverlay {
 #[derive(Clone, Debug)]
 pub enum PickAction {
     /// `line` (1-based) is handed to editors that take one.
-    OpenWith { paths: Vec<PathBuf>, runs: Vec<(String, bool, bool)>, line: Option<usize> },
-    Jump { paths: Vec<PathBuf> },
+    OpenWith {
+        paths: Vec<PathBuf>,
+        runs: Vec<(String, bool, bool)>,
+        line: Option<usize>,
+    },
+    Jump {
+        paths: Vec<PathBuf>,
+    },
     /// One keymap binding's command list per item.
-    Command { runs: Vec<Vec<Act>> },
+    Command {
+        runs: Vec<Vec<Act>>,
+    },
 }
 
 pub struct PickOverlay {
@@ -320,7 +340,10 @@ impl TaskState {
 
     /// Whether the job still has somewhere to go, and so is worth a key.
     pub fn is_live(&self) -> bool {
-        matches!(self, TaskState::Queued | TaskState::Running | TaskState::Paused)
+        matches!(
+            self,
+            TaskState::Queued | TaskState::Running | TaskState::Paused
+        )
     }
 }
 
@@ -488,7 +511,13 @@ const ZOOM_MAX: f32 = 32.0;
 
 /// Zoom about `pointer`, so whatever is under the cursor stays under it.
 /// Without this the image slides out from under the eye as it grows.
-pub fn zoom_at(zoom: f32, pan: egui::Vec2, center: egui::Pos2, pointer: egui::Pos2, factor: f32) -> (f32, egui::Vec2) {
+pub fn zoom_at(
+    zoom: f32,
+    pan: egui::Vec2,
+    center: egui::Pos2,
+    pointer: egui::Pos2,
+    factor: f32,
+) -> (f32, egui::Vec2) {
     let next = (zoom * factor).clamp(ZOOM_MIN, ZOOM_MAX);
     if zoom <= 0.0 {
         return (next, pan);
@@ -502,7 +531,10 @@ pub fn zoom_at(zoom: f32, pan: egui::Vec2, center: egui::Pos2, pointer: egui::Po
 /// nowhere to go and stays centred.
 pub fn clamp_pan(pan: egui::Vec2, shown: egui::Vec2, avail: egui::Vec2) -> egui::Vec2 {
     let slack = ((shown - avail) * 0.5).max(egui::Vec2::ZERO);
-    egui::Vec2::new(pan.x.clamp(-slack.x, slack.x), pan.y.clamp(-slack.y, slack.y))
+    egui::Vec2::new(
+        pan.x.clamp(-slack.x, slack.x),
+        pan.y.clamp(-slack.y, slack.y),
+    )
 }
 
 /// The box the preview worker should decode an image into for the zoom in
@@ -524,7 +556,10 @@ pub fn zoom_box(pane: (u32, u32), zoom: Option<f32>, fit: f32) -> (u32, u32) {
         _ => 1.0,
     };
     let step = want.log2().ceil().exp2();
-    (((pane.0 as f32 * step) as u32).min(CAP), ((pane.1 as f32 * step) as u32).min(CAP))
+    (
+        ((pane.0 as f32 * step) as u32).min(CAP),
+        ((pane.1 as f32 * step) as u32).min(CAP),
+    )
 }
 
 impl Default for PreviewSlot {
@@ -710,7 +745,11 @@ fn write_visit(v: &Visit) -> String {
 fn parse_visit(line: &str) -> Visit {
     let mut fields = line.split('\t');
     let path = PathBuf::from(fields.next().unwrap_or_default());
-    let hits = fields.next().and_then(|s| s.parse().ok()).unwrap_or(1).max(1);
+    let hits = fields
+        .next()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1)
+        .max(1);
     let at = fields.next().and_then(|s| s.parse().ok()).unwrap_or(0);
     Visit { path, hits, at }
 }
@@ -967,7 +1006,12 @@ impl App {
             dir_first: cfg.yazi.mgr.sort_dir_first,
             sensitive: cfg.yazi.mgr.sort_sensitive,
         };
-        let tab = Tab::new(start, sort, cfg.yazi.mgr.show_hidden, cfg.yazi.mgr.linemode.clone());
+        let tab = Tab::new(
+            start,
+            sort,
+            cfg.yazi.mgr.show_hidden,
+            cfg.yazi.mgr.linemode.clone(),
+        );
         let render_markdown = cfg.ui.render_markdown;
 
         let mut app = Self {
@@ -999,7 +1043,10 @@ impl App {
             which: Vec::new(),
             overlay: Overlay::None,
             pending_bookmark: None,
-            yank: Yank { paths: Vec::new(), cut: false },
+            yank: Yank {
+                paths: Vec::new(),
+                cut: false,
+            },
             preview: PreviewSlot::default(),
             max_preview: false,
             quick: false,
@@ -1035,7 +1082,11 @@ impl App {
         // this is the line that says to go and look.
         if let Some(w) = app.cfg.warnings.first().cloned() {
             let more = app.cfg.warnings.len() - 1;
-            let tail = if more > 0 { format!(" (+{more} more, see `~`)") } else { String::new() };
+            let tail = if more > 0 {
+                format!(" (+{more} more, see `~`)")
+            } else {
+                String::new()
+            };
             app.warn(format!("Config: {w}{tail}"));
         }
         app
@@ -1050,8 +1101,11 @@ impl App {
         if self.tabs[self.active].cwd == home {
             return;
         }
-        self.tabs[self.active].pending_cd =
-            Some(PendingCd { from: home, pushed: false, fallback: true });
+        self.tabs[self.active].pending_cd = Some(PendingCd {
+            from: home,
+            pushed: false,
+            fallback: true,
+        });
     }
 
     // ------------------------------------------------------------- accessors
@@ -1092,13 +1146,22 @@ impl App {
     /// news, and stacking it spends the five slots the toast area has on one
     /// message. The timer restarts so a repeat stays up as long as a first.
     fn raise(&mut self, text: String, level: Level) {
-        if let Some(t) = self.toasts.iter_mut().rev().find(|t| t.text == text && t.level == level)
+        if let Some(t) = self
+            .toasts
+            .iter_mut()
+            .rev()
+            .find(|t| t.text == text && t.level == level)
         {
             t.count += 1;
             t.at = Instant::now();
             return;
         }
-        self.toasts.push(Toast { text, level, at: Instant::now(), count: 1 });
+        self.toasts.push(Toast {
+            text,
+            level,
+            at: Instant::now(),
+            count: 1,
+        });
     }
 
     // ------------------------------------------------------------- scanning
@@ -1131,7 +1194,10 @@ impl App {
         }
         // The other pane is not what the keys drive, so it waits in the low
         // priority queue behind the directory the cursor is in.
-        if let Some(idx) = self.other_pane().filter(|&i| i < self.tabs.len() && i != self.active) {
+        if let Some(idx) = self
+            .other_pane()
+            .filter(|&i| i < self.tabs.len() && i != self.active)
+        {
             let f = &self.tabs[idx].current;
             if f.scan_id.is_none() && f.state == LoadState::Loading {
                 let (path, sort) = (self.tabs[idx].cwd.clone(), self.tabs[idx].sort);
@@ -1155,7 +1221,9 @@ impl App {
         let end = (start + tab.page_rows + 1).min(tab.current.view.len());
         let mut want = Vec::new();
         for row in start..end {
-            let Some(e) = tab.current.at(row) else { continue };
+            let Some(e) = tab.current.at(row) else {
+                continue;
+            };
             if e.is_dir_like() && e.dir_size.is_none() && !self.counted.contains(&e.path) {
                 want.push(e.path.clone());
             }
@@ -1230,7 +1298,8 @@ impl App {
         self.sync_spot();
         self.pump_terminal();
         self.flush_dirty();
-        self.toasts.retain(|t| t.at.elapsed() < Duration::from_secs(6));
+        self.toasts
+            .retain(|t| t.at.elapsed() < Duration::from_secs(6));
         self.tasks.retain(|t| match t.finished {
             Some(at) => at.elapsed() < Duration::from_secs(20) || !t.errors.is_empty(),
             None => true,
@@ -1347,7 +1416,11 @@ impl App {
         // A directory a pane is showing gets its git status asked for. Every
         // rescan comes through here, so a file operation or a change the
         // watcher caught refreshes the marks along with the listing.
-        if self.pane_tabs().into_iter().any(|i| self.tabs[i].cwd == path) {
+        if self
+            .pane_tabs()
+            .into_iter()
+            .any(|i| self.tabs[i].cwd == path)
+        {
             self.git.request(path.to_path_buf());
         }
         let show_hidden = self.tabs[self.active].show_hidden;
@@ -1356,7 +1429,10 @@ impl App {
         if self.tabs[self.active].cwd == path {
             // The directory answered, so the jump that led here stands.
             self.tabs[self.active].pending_cd = None;
-            let keep = self.tabs[self.active].current.hovered_name().map(str::to_owned);
+            let keep = self.tabs[self.active]
+                .current
+                .hovered_name()
+                .map(str::to_owned);
             let filter = self.tabs[self.active].current.filter.clone();
             let cursor = self.tabs[self.active].current.cursor;
             let offset = self.tabs[self.active].current.offset;
@@ -1373,8 +1449,7 @@ impl App {
             }
         }
 
-        let parent_hit = self
-            .tabs[self.active]
+        let parent_hit = self.tabs[self.active]
             .parent
             .as_ref()
             .map(|p| p.path == path)
@@ -1432,14 +1507,24 @@ impl App {
         // The outline and the zoom belong to the file they were set on. Without
         // this, walking onto the next image shows a corner of it at 8x.
         let rule = crate::config::PreviewRule::for_path(&self.cfg.preview, &entry.path).cloned();
-        if self.preview.key.as_ref().is_none_or(|k| k.path != entry.path) {
+        if self
+            .preview
+            .key
+            .as_ref()
+            .is_none_or(|k| k.path != entry.path)
+        {
             self.preview.outline = None;
             self.preview.zoom = None;
             self.preview.pan = egui::Vec2::ZERO;
             self.preview.n = rule.as_ref().map_or(0, |r| r.first);
             self.preview.n_ok = None;
         }
-        if self.preview.outline_wanted.as_ref().is_some_and(|p| *p != entry.path) {
+        if self
+            .preview
+            .outline_wanted
+            .as_ref()
+            .is_some_and(|p| *p != entry.path)
+        {
             self.preview.outline_wanted = None;
         }
 
@@ -1452,7 +1537,9 @@ impl App {
                 let show_hidden = self.tabs[self.active].show_hidden;
                 let sort = self.tabs[self.active].sort;
                 let folder = match self.cache.get(&entry.path) {
-                    Some(entries) => Folder::from_entries(entry.path.clone(), entries.clone(), show_hidden),
+                    Some(entries) => {
+                        Folder::from_entries(entry.path.clone(), entries.clone(), show_hidden)
+                    }
                     None => {
                         let id = self.scanner.scan_low(entry.path.clone(), sort);
                         self.inflight.insert(id, entry.path.clone());
@@ -1476,7 +1563,11 @@ impl App {
             box_size: self.preview.box_size,
             // Only Markdown is laid out to the pane's width; nothing else
             // needs re-reading when the window is resized.
-            cols: if mime == "text/markdown" { self.preview.cols } else { 0 },
+            cols: if mime == "text/markdown" {
+                self.preview.cols
+            } else {
+                0
+            },
             n: self.preview.n,
         };
         if self.preview.key.as_ref() == Some(&key) && !force {
@@ -1543,7 +1634,12 @@ impl App {
             return; // stale
         }
         self.preview.texture = match &res.payload {
-            Payload::Image { width, height, rgba, .. } => {
+            Payload::Image {
+                width,
+                height,
+                rgba,
+                ..
+            } => {
                 let img = egui::ColorImage::from_rgba_unmultiplied(
                     [*width as usize, *height as usize],
                     rgba,
@@ -1570,7 +1666,10 @@ impl App {
         }
         self.preview.cache.put(
             res.key,
-            CachedPreview { payload: res.payload.clone(), texture: self.preview.texture.clone() },
+            CachedPreview {
+                payload: res.payload.clone(),
+                texture: self.preview.texture.clone(),
+            },
         );
         // Restored: v0.5.0 replaced this line with the block below rather than
         // putting the block after it, and the answer has been going nowhere but
@@ -1656,7 +1755,9 @@ impl App {
     /// them back and then runs as usual. Returns whether the action was used
     /// up.
     fn outline_act(&mut self, a: &Act) -> bool {
-        let Some(cursor) = self.preview.outline else { return false };
+        let Some(cursor) = self.preview.outline else {
+            return false;
+        };
         let entries = self.outline_entries();
         if entries.is_empty() {
             self.preview.outline = None;
@@ -1706,7 +1807,10 @@ impl App {
         if self.tabs[self.active].current.hovered().is_none() {
             return;
         }
-        self.overlay = Overlay::Spot(SpotOverlay { cursor: 0, scroll: 0 });
+        self.overlay = Overlay::Spot(SpotOverlay {
+            cursor: 0,
+            scroll: 0,
+        });
         self.sync_spot();
     }
 
@@ -1723,7 +1827,11 @@ impl App {
             self.spot_asked = None;
             return;
         }
-        let Some(path) = self.tabs[self.active].current.hovered().map(|e| e.path.clone()) else {
+        let Some(path) = self.tabs[self.active]
+            .current
+            .hovered()
+            .map(|e| e.path.clone())
+        else {
             return;
         };
         if self.spot_asked.as_ref() == Some(&path) {
@@ -1736,7 +1844,9 @@ impl App {
     /// What the spot panel shows for the hovered file: the listing's facts,
     /// what its preview found, then the worker's findings once they are in.
     pub fn spot_sections(&self) -> Vec<Section> {
-        let Some(entry) = self.tabs[self.active].current.hovered() else { return Vec::new() };
+        let Some(entry) = self.tabs[self.active].current.hovered() else {
+            return Vec::new();
+        };
         let mut out = vec![spot::base(entry)];
         if self.preview_ready() {
             if let PreviewState::Ready(p) = &self.preview.state {
@@ -1755,10 +1865,20 @@ impl App {
         let mut rows: Vec<(String, String)> = Vec::new();
         let mut row = |k: &str, v: String| rows.push((k.into(), v));
         let read = |truncated: bool| {
-            truncated.then(|| format!("first {} only", util::human_size(self.cfg.ui.max_text_bytes as u64)))
+            truncated.then(|| {
+                format!(
+                    "first {} only",
+                    util::human_size(self.cfg.ui.max_text_bytes as u64)
+                )
+            })
         };
         match payload {
-            Payload::Text { total_lines, truncated, outline, .. } => {
+            Payload::Text {
+                total_lines,
+                truncated,
+                outline,
+                ..
+            } => {
                 row("Lines", total_lines.to_string());
                 if !outline.is_empty() {
                     row("Outline", format!("{} entries", outline.len()));
@@ -1767,7 +1887,12 @@ impl App {
                     row("Read", r);
                 }
             }
-            Payload::Markdown { doc, total_lines, truncated, .. } => {
+            Payload::Markdown {
+                doc,
+                total_lines,
+                truncated,
+                ..
+            } => {
                 row("Lines", total_lines.to_string());
                 row("Headings", doc.toc.len().to_string());
                 if let Some(r) = read(*truncated) {
@@ -1779,7 +1904,10 @@ impl App {
             Payload::Error(e) => row("Error", e.clone()),
             _ => {}
         }
-        (!rows.is_empty()).then(|| Section { title: "Preview".into(), rows })
+        (!rows.is_empty()).then(|| Section {
+            title: "Preview".into(),
+            rows,
+        })
     }
 
     pub fn feed_tasks_key(&mut self, k: Key) {
@@ -1802,7 +1930,9 @@ impl App {
     fn tasks_act(&mut self, a: Act) {
         let len = self.tasks.len();
         let page = self.tabs[self.active].page_rows.max(1);
-        let Overlay::Tasks(ov) = &mut self.overlay else { return };
+        let Overlay::Tasks(ov) = &mut self.overlay else {
+            return;
+        };
         match a {
             Act::Close | Act::Escape(_) | Act::TasksShow | Act::Quit => {
                 self.overlay = Overlay::None;
@@ -1817,12 +1947,16 @@ impl App {
 
     /// The job the panel's cursor is on, when there is one.
     fn selected_task(&self) -> Option<(u64, TaskState)> {
-        let Overlay::Tasks(ov) = &self.overlay else { return None };
+        let Overlay::Tasks(ov) = &self.overlay else {
+            return None;
+        };
         self.tasks.get(ov.cursor).map(|t| (t.id, t.state.clone()))
     }
 
     fn toggle_task(&mut self) {
-        let Some((id, state)) = self.selected_task() else { return };
+        let Some((id, state)) = self.selected_task() else {
+            return;
+        };
         match state {
             // A queued job has not started, so there is nothing to park.
             TaskState::Queued => self.toast("That job has not started yet"),
@@ -1833,7 +1967,9 @@ impl App {
     }
 
     fn cancel_task(&mut self) {
-        let Some((id, state)) = self.selected_task() else { return };
+        let Some((id, state)) = self.selected_task() else {
+            return;
+        };
         if !state.is_live() {
             return;
         }
@@ -1851,7 +1987,9 @@ impl App {
     }
 
     fn promote_task(&mut self) {
-        let Some((id, state)) = self.selected_task() else { return };
+        let Some((id, state)) = self.selected_task() else {
+            return;
+        };
         if state != TaskState::Queued {
             self.toast("Only a queued job can be moved up");
             return;
@@ -1884,7 +2022,9 @@ impl App {
     fn spot_act(&mut self, a: Act) {
         let rows: usize = self.spot_sections().iter().map(|s| s.rows.len()).sum();
         let page = self.tabs[self.active].page_rows.max(1);
-        let Overlay::Spot(ov) = &mut self.overlay else { return };
+        let Overlay::Spot(ov) = &mut self.overlay else {
+            return;
+        };
         match a {
             Act::Close | Act::Escape(_) | Act::Spot | Act::Quit => self.overlay = Overlay::None,
             Act::Arrow(step) => ov.cursor = step.apply(ov.cursor, rows, page),
@@ -1898,8 +2038,10 @@ impl App {
                 // In the list, `enter` on a plain file focuses the preview's
                 // outline -- another panel wanting these same keys. With the
                 // spotter open only a directory is worth moving into.
-                let into_dir =
-                    self.tabs[self.active].current.hovered().is_some_and(|e| e.is_dir_like());
+                let into_dir = self.tabs[self.active]
+                    .current
+                    .hovered()
+                    .is_some_and(|e| e.is_dir_like());
                 if matches!(a, Act::Enter) && !into_dir {
                     return;
                 }
@@ -1911,7 +2053,9 @@ impl App {
             Act::Copy(_) => {
                 let cursor = ov.cursor;
                 let sections = self.spot_sections();
-                let Some((key, value)) = sections.iter().flat_map(|s| &s.rows).nth(cursor) else { return };
+                let Some((key, value)) = sections.iter().flat_map(|s| &s.rows).nth(cursor) else {
+                    return;
+                };
                 match exec::set_clipboard(value) {
                     Ok(()) => self.toast(format!("Copied {key}: {value}")),
                     Err(err) => self.error(format!("Clipboard: {err}")),
@@ -1958,7 +2102,11 @@ impl App {
         }
 
         let active = self.active;
-        let pending = PendingCd { from, pushed: push_history, fallback };
+        let pending = PendingCd {
+            from,
+            pushed: push_history,
+            fallback,
+        };
         self.arrive(active, target.clone(), Some(pending));
 
         self.remember_history(&target);
@@ -2031,7 +2179,11 @@ impl App {
             Some(i) => self.history.remove(i).hits.saturating_add(1),
             None => 1,
         };
-        self.history.push(Visit { path: path.to_path_buf(), hits, at: epoch_secs() });
+        self.history.push(Visit {
+            path: path.to_path_buf(),
+            hits,
+            at: epoch_secs(),
+        });
         let max = self.cfg.ui.max_history;
         if self.history.len() > max {
             let cut = self.history.len() - max;
@@ -2054,7 +2206,9 @@ impl App {
     }
 
     fn enter(&mut self) {
-        let Some(entry) = self.tabs[self.active].current.hovered().cloned() else { return };
+        let Some(entry) = self.tabs[self.active].current.hovered().cloned() else {
+            return;
+        };
         if entry.is_dir_like() {
             self.cd(entry.path, true);
         } else if !self.focus_outline() && !self.preview_ready() {
@@ -2129,10 +2283,17 @@ impl App {
                     self.cd(p, false);
                 }
             }
-            Act::Cd { target, interactive } => {
+            Act::Cd {
+                target,
+                interactive,
+            } => {
                 if interactive || target.is_empty() {
                     let cwd = self.tabs[self.active].cwd.clone();
-                    self.open_input(InputKind::Cd, "Change directory", format!("{}\\", cwd.display()));
+                    self.open_input(
+                        InputKind::Cd,
+                        "Change directory",
+                        format!("{}\\", cwd.display()),
+                    );
                 } else {
                     let base = self.tabs[self.active].cwd.clone();
                     self.cd(util::resolve_against(&base, &target), true);
@@ -2219,8 +2380,10 @@ impl App {
                 self.tabs.swap(from, to);
                 self.active = to;
                 if let Some(sp) = self.split {
-                    self.split =
-                        Some(Split { other: split_after_swap(sp.other, from, to), ..sp });
+                    self.split = Some(Split {
+                        other: split_after_swap(sp.other, from, to),
+                        ..sp
+                    });
                 }
                 self.check_split();
             }
@@ -2254,7 +2417,10 @@ impl App {
                 }
             }
 
-            Act::Open { interactive, hovered } => {
+            Act::Open {
+                interactive,
+                hovered,
+            } => {
                 let _ = hovered;
                 self.open(interactive, None);
             }
@@ -2266,12 +2432,18 @@ impl App {
             Act::Paste { force, follow } => self.paste(force, follow),
             Act::Link { relative } => self.link(OpKind::Symlink { relative }),
             Act::Hardlink => self.link(OpKind::Hardlink),
-            Act::Remove { permanently, force, hovered } => {
-                self.remove(permanently, force, hovered)
-            }
+            Act::Remove {
+                permanently,
+                force,
+                hovered,
+            } => self.remove(permanently, force, hovered),
             Act::Create { dir, force } => {
                 let _ = force;
-                let title = if dir { "Create directory" } else { "Create (end with / for a directory)" };
+                let title = if dir {
+                    "Create directory"
+                } else {
+                    "Create (end with / for a directory)"
+                };
                 self.open_input(InputKind::Create, title, String::new());
             }
             Act::Rename { force, cursor } => {
@@ -2279,7 +2451,12 @@ impl App {
                 self.start_rename(cursor);
             }
             Act::Copy(what) => self.copy_text(what),
-            Act::Shell { run, block, confirm, orphan } => {
+            Act::Shell {
+                run,
+                block,
+                confirm,
+                orphan,
+            } => {
                 if run.is_empty() || confirm {
                     self.open_input(InputKind::Shell { block }, "Shell", run);
                 } else {
@@ -2300,17 +2477,28 @@ impl App {
                 }
             }
             Act::Linemode(m) => self.tabs[self.active].linemode = m,
-            Act::Sort { by, reverse, dir_first } => self.sort(by, reverse, dir_first),
+            Act::Sort {
+                by,
+                reverse,
+                dir_first,
+            } => self.sort(by, reverse, dir_first),
 
-            Act::Find { prev, smart, insensitive } => {
+            Act::Find {
+                prev,
+                smart,
+                insensitive,
+            } => {
                 let _ = (smart, insensitive);
-                self.open_input(InputKind::Find { prev }, if prev { "Find previous" } else { "Find next" }, String::new());
+                self.open_input(
+                    InputKind::Find { prev },
+                    if prev { "Find previous" } else { "Find next" },
+                    String::new(),
+                );
             }
             Act::FindArrow { prev } => self.find_arrow(prev),
             Act::Filter { smart, insensitive } => {
                 let _ = (smart, insensitive);
-                let current = self
-                    .tabs[self.active]
+                let current = self.tabs[self.active]
                     .current
                     .filter
                     .as_ref()
@@ -2319,10 +2507,14 @@ impl App {
                 self.open_input(InputKind::Filter, "Filter", current);
             }
             Act::Search { via, .. } => {
-                self.open_input(InputKind::Search { via }, match via {
-                    SearchVia::Name => "Search by name",
-                    SearchVia::Content => "Search by content",
-                }, String::new());
+                self.open_input(
+                    InputKind::Search { via },
+                    match via {
+                        SearchVia::Name => "Search by name",
+                        SearchVia::Content => "Search by content",
+                    },
+                    String::new(),
+                );
             }
             Act::Submit => self.submit_input(),
             Act::Complete => self.complete_input(),
@@ -2441,7 +2633,10 @@ impl App {
             Act::BookmarkDeleteAll => {
                 self.overlay = Overlay::Confirm(ConfirmOverlay {
                     title: "Delete all bookmarks?".into(),
-                    body: vec![format!("{} bookmarks will be removed.", self.bookmarks.len())],
+                    body: vec![format!(
+                        "{} bookmarks will be removed.",
+                        self.bookmarks.len()
+                    )],
                     options: vec![('y', "Yes".into()), ('n', "No".into())],
                     action: ConfirmAction::BookmarkDeleteAll,
                     dest: None,
@@ -2518,14 +2713,21 @@ impl App {
         if let Some(sp) = self.split {
             // The other pane keeps its tab, which the insert may have moved.
             if sp.other >= at {
-                self.split = Some(Split { other: sp.other + 1, ..sp });
+                self.split = Some(Split {
+                    other: sp.other + 1,
+                    ..sp
+                });
             }
         }
         self.switch_tab(at);
         // `switch_tab` fills the tab from the cache when the directory has been
         // listed before; one that is still loading has yet to prove it exists.
         if target != base && self.tabs[at].current.state == LoadState::Loading {
-            self.tabs[at].pending_cd = Some(PendingCd { from: base, pushed: false, fallback });
+            self.tabs[at].pending_cd = Some(PendingCd {
+                from: base,
+                pushed: false,
+                fallback,
+            });
         }
     }
 
@@ -2562,8 +2764,12 @@ impl App {
         } else {
             let src = &self.tabs[self.active];
             let name = src.current.hovered_name().map(str::to_owned);
-            let mut tab =
-                Tab::new(src.cwd.clone(), src.sort, src.show_hidden, src.linemode.clone());
+            let mut tab = Tab::new(
+                src.cwd.clone(),
+                src.sort,
+                src.show_hidden,
+                src.linemode.clone(),
+            );
             // The listing is already in hand, so the new pane starts filled.
             if let Some(entries) = self.cache.get(&tab.cwd).cloned() {
                 let show = tab.show_hidden;
@@ -2576,7 +2782,10 @@ impl App {
             self.tabs.insert(at, tab);
             at
         };
-        self.split = Some(Split { other, right: false });
+        self.split = Some(Split {
+            other,
+            right: false,
+        });
         self.kick_scans();
         true
     }
@@ -2592,7 +2801,10 @@ impl App {
         if sp.other != idx || idx == self.active || idx >= self.tabs.len() {
             return;
         }
-        self.split = Some(Split { other: self.active, right: !sp.right });
+        self.split = Some(Split {
+            other: self.active,
+            right: !sp.right,
+        });
         self.switch_tab(idx);
     }
 
@@ -2623,8 +2835,7 @@ impl App {
             }
         }
         if let Some(p) = cwd.parent().map(Path::to_path_buf) {
-            let needs = self
-                .tabs[self.active]
+            let needs = self.tabs[self.active]
                 .parent
                 .as_ref()
                 .map(|f| f.state == LoadState::Loading)
@@ -2652,7 +2863,10 @@ impl App {
         }
         let n = paths.len();
         self.yank = Yank { paths, cut };
-        self.toast(format!("Yanked {n} item(s){}", if cut { " (cut)" } else { "" }));
+        self.toast(format!(
+            "Yanked {n} item(s){}",
+            if cut { " (cut)" } else { "" }
+        ));
     }
 
     fn paste(&mut self, force: bool, _follow: bool) {
@@ -2661,7 +2875,11 @@ impl App {
             return;
         }
         let dest = self.tabs[self.active].cwd.clone();
-        let kind = if self.yank.cut { OpKind::Move } else { OpKind::Copy };
+        let kind = if self.yank.cut {
+            OpKind::Move
+        } else {
+            OpKind::Copy
+        };
         let srcs = self.yank.paths.clone();
         self.submit_op(kind, srcs, dest, force);
         if self.yank.cut {
@@ -2678,7 +2896,9 @@ impl App {
     /// should be the no-op it looks like.
     pub fn drop_drag(&mut self, onto: Option<usize>, cut: bool) {
         let Some(drag) = self.drag.take() else { return };
-        let Some(onto) = onto.filter(|&i| i != drag.from && i < self.tabs.len()) else { return };
+        let Some(onto) = onto.filter(|&i| i != drag.from && i < self.tabs.len()) else {
+            return;
+        };
         let dest = self.tabs[onto].cwd.clone();
         if dest == self.tabs[drag.from].cwd {
             return;
@@ -2691,7 +2911,9 @@ impl App {
     /// Start a drag on `row` in `tab`. The selection travels when the row is
     /// part of it; otherwise it is that one file, the way a drag usually works.
     pub fn start_drag(&mut self, tab: usize, row: usize) {
-        let Some(entry) = self.tabs[tab].current.at(row).cloned() else { return };
+        let Some(entry) = self.tabs[tab].current.at(row).cloned() else {
+            return;
+        };
         let selected = self.tabs[tab].selected.contains(&entry.path);
         let paths: Vec<PathBuf> = match selected {
             true => self.tabs[tab].selected.iter().cloned().collect(),
@@ -2701,7 +2923,11 @@ impl App {
             1 => entry.name.clone(),
             n => format!("{n} items"),
         };
-        self.drag = Some(Drag { from: tab, paths, label });
+        self.drag = Some(Drag {
+            from: tab,
+            paths,
+            label,
+        });
     }
 
     /// Copy or move the selection into the other pane in one keypress.
@@ -2743,7 +2969,11 @@ impl App {
 
     fn remove(&mut self, permanently: bool, force: bool, hovered: bool) {
         let paths = if hovered {
-            self.tabs[self.active].current.hovered().map(|e| vec![e.path.clone()]).unwrap_or_default()
+            self.tabs[self.active]
+                .current
+                .hovered()
+                .map(|e| vec![e.path.clone()])
+                .unwrap_or_default()
         } else {
             self.tabs[self.active].targets()
         };
@@ -2760,7 +2990,11 @@ impl App {
             });
             return;
         }
-        let kind = if permanently { OpKind::Delete } else { OpKind::Trash };
+        let kind = if permanently {
+            OpKind::Delete
+        } else {
+            OpKind::Trash
+        };
         let dest = self.tabs[self.active].cwd.clone();
         let id = self.submit_op(kind, paths.clone(), dest.clone(), true);
         // Only the trash can be undone. `D` is asked for twice and then means it.
@@ -2778,8 +3012,9 @@ impl App {
         if paths.is_empty() {
             return;
         }
-        let (archives, rest): (Vec<PathBuf>, Vec<PathBuf>) =
-            paths.into_iter().partition(|p| archive::Format::from_path(p).is_some());
+        let (archives, rest): (Vec<PathBuf>, Vec<PathBuf>) = paths
+            .into_iter()
+            .partition(|p| archive::Format::from_path(p).is_some());
         if archives.is_empty() {
             // Name what was actually looked at. "Nothing here" reads as "this
             // directory has none", which is wrong often enough to matter: a
@@ -2794,7 +3029,9 @@ impl App {
             } else {
                 format!("None of the {n} selected item(s) is")
             };
-            self.error(format!("{what} an archive filer can read (zip, tar, tar.gz, tgz, 7z)"));
+            self.error(format!(
+                "{what} an archive filer can read (zip, tar, tar.gz, tgz, 7z)"
+            ));
             return;
         }
         if !rest.is_empty() {
@@ -2876,7 +3113,12 @@ impl App {
     ) -> u64 {
         let id = self.scanner.next_id();
         let label = match &dest_file {
-            Some(f) => format!("{} {} item(s) into {}", kind.verb(), srcs.len(), util::file_name(f)),
+            Some(f) => format!(
+                "{} {} item(s) into {}",
+                kind.verb(),
+                srcs.len(),
+                util::file_name(f)
+            ),
             None => format!("{} {} item(s)", kind.verb(), srcs.len()),
         };
         self.tasks.push(Task {
@@ -2897,7 +3139,14 @@ impl App {
             sampled_at: Instant::now(),
             sampled_bytes: 0,
         });
-        self.ops.submit(OpRequest { id, kind, srcs, dest_dir, dest_file, force });
+        self.ops.submit(OpRequest {
+            id,
+            kind,
+            srcs,
+            dest_dir,
+            dest_file,
+            force,
+        });
         id
     }
 
@@ -2920,7 +3169,12 @@ impl App {
                     t.sampled_bytes = 0;
                 }
             }
-            ops::OpEvent::Progress { id, files_done, bytes_done, current } => {
+            ops::OpEvent::Progress {
+                id,
+                files_done,
+                bytes_done,
+                current,
+            } => {
                 if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
                     t.files_done = files_done;
                     t.sample(bytes_done);
@@ -2932,7 +3186,11 @@ impl App {
             }
             ops::OpEvent::Paused { id, paused } => {
                 if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
-                    t.state = if paused { TaskState::Paused } else { TaskState::Running };
+                    t.state = if paused {
+                        TaskState::Paused
+                    } else {
+                        TaskState::Running
+                    };
                     // Nothing moved while it was parked, so the old speed is
                     // not a measurement of anything.
                     t.speed = 0.0;
@@ -2940,7 +3198,12 @@ impl App {
                     t.sampled_bytes = t.bytes_done;
                 }
             }
-            ops::OpEvent::Conflict { id, src, dest, reply } => {
+            ops::OpEvent::Conflict {
+                id,
+                src,
+                dest,
+                reply,
+            } => {
                 self.overlay = Overlay::Confirm(ConfirmOverlay {
                     title: "File already exists".into(),
                     body: vec![
@@ -2959,12 +3222,19 @@ impl App {
                     dest: Some(dest),
                 });
             }
-            ops::OpEvent::Finished { id, errors, cancelled, kind, moved } => {
+            ops::OpEvent::Finished {
+                id,
+                errors,
+                cancelled,
+                kind,
+                moved,
+            } => {
                 // A move that actually moved something is a step `u` can take
                 // back. A cancelled one is not: half a move is not a state
                 // worth offering to reverse in one keystroke.
                 if kind == OpKind::Move && !cancelled && !moved.is_empty() {
-                    self.undos.land(UndoStep::Move { pairs: moved }, Land::Fresh);
+                    self.undos
+                        .land(UndoStep::Move { pairs: moved }, Land::Fresh);
                 }
                 if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
                     t.state = if cancelled {
@@ -3003,7 +3273,9 @@ impl App {
     }
 
     fn start_rename(&mut self, cursor: RenameCursor) {
-        let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
+        let Some(e) = self.tabs[self.active].current.hovered().cloned() else {
+            return;
+        };
         let name = e.name.clone();
         let (stem, _ext) = util::stem_and_ext(&name);
         let sel = match cursor {
@@ -3012,7 +3284,9 @@ impl App {
             RenameCursor::BeforeExt => (0, stem.chars().count()),
         };
         let mut ov = InputOverlay {
-            kind: InputKind::Rename { from: e.path.clone() },
+            kind: InputKind::Rename {
+                from: e.path.clone(),
+            },
             title: "Rename".into(),
             text: name,
             initial_selection: Some(sel),
@@ -3025,7 +3299,9 @@ impl App {
     }
 
     fn copy_text(&mut self, what: CopyWhat) {
-        let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
+        let Some(e) = self.tabs[self.active].current.hovered().cloned() else {
+            return;
+        };
         let text = match what {
             // Outside the spot panel the hovered path is the only cell.
             CopyWhat::Path | CopyWhat::Cell => e.path.display().to_string(),
@@ -3050,7 +3326,9 @@ impl App {
     fn follow_link(&mut self) {
         // An empty directory has nothing to say something about, so that one
         // stays quiet; a row that is simply not a link does not.
-        let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
+        let Some(e) = self.tabs[self.active].current.hovered().cloned() else {
+            return;
+        };
         let Kind::Link { to_dir, broken } = e.kind else {
             // Naming the kind of thing the key is for, and how to spot one:
             // pressed on an ordinary file it did nothing at all, which is the
@@ -3099,11 +3377,16 @@ impl App {
             f.resort(&sort, show);
         }
         let label = sort.by.label().to_owned();
-        self.toast(format!("Sort: {label}{}", if sort.reverse { " (reverse)" } else { "" }));
+        self.toast(format!(
+            "Sort: {label}{}",
+            if sort.reverse { " (reverse)" } else { "" }
+        ));
     }
 
     fn find_arrow(&mut self, prev: bool) {
-        let Some(finder) = self.tabs[self.active].finder.clone() else { return };
+        let Some(finder) = self.tabs[self.active].finder.clone() else {
+            return;
+        };
         let tab = &mut self.tabs[self.active];
         let len = tab.current.view.len();
         if len == 0 {
@@ -3112,7 +3395,9 @@ impl App {
         let dir: i64 = if prev != finder.prev { -1 } else { 1 };
         for step in 1..=len as i64 {
             let idx = (tab.current.cursor as i64 + dir * step).rem_euclid(len as i64) as usize;
-            let Some(e) = tab.current.at(idx) else { continue };
+            let Some(e) = tab.current.at(idx) else {
+                continue;
+            };
             if fuzzy::find_substring(&finder.query, &e.name, finder.case_sensitive).is_some() {
                 tab.current.cursor = idx;
                 tab.sync_visual();
@@ -3128,17 +3413,20 @@ impl App {
         if paths.is_empty() {
             return;
         }
-        let Some(entry) = self.tabs[self.active].current.hovered().cloned() else { return };
+        let Some(entry) = self.tabs[self.active].current.hovered().cloned() else {
+            return;
+        };
         if entry.is_dir_like() && !interactive {
             self.cd(entry.path, true);
             return;
         }
         let line = line.filter(|_| paths.len() == 1 && paths[0] == entry.path);
         let mime = crate::mime::guess(&entry);
-        let openers: Vec<(String, bool, bool, String)> = exec::openers_for(&self.cfg.yazi, &entry, mime)
-            .into_iter()
-            .map(|o| (o.run.clone(), o.block, o.orphan, o.label()))
-            .collect();
+        let openers: Vec<(String, bool, bool, String)> =
+            exec::openers_for(&self.cfg.yazi, &entry, mime)
+                .into_iter()
+                .map(|o| (o.run.clone(), o.block, o.orphan, o.label()))
+                .collect();
 
         if interactive {
             if openers.is_empty() {
@@ -3215,12 +3503,18 @@ impl App {
 
     /// Called on every keystroke for the live-updating inputs.
     pub fn input_changed(&mut self) {
-        let Overlay::Input(ov) = &self.overlay else { return };
+        let Overlay::Input(ov) = &self.overlay else {
+            return;
+        };
         match ov.kind.clone() {
             InputKind::Filter => {
                 let query = ov.text.clone();
                 let tab = &mut self.tabs[self.active];
-                tab.current.filter = Some(Filter { query, smart: true, insensitive: false });
+                tab.current.filter = Some(Filter {
+                    query,
+                    smart: true,
+                    insensitive: false,
+                });
                 let show = tab.show_hidden;
                 tab.current.rebuild(show);
             }
@@ -3228,7 +3522,11 @@ impl App {
                 let query = ov.text.clone();
                 let cs = fuzzy::is_case_sensitive(&query, true, false);
                 let tab = &mut self.tabs[self.active];
-                tab.finder = Some(Finder { query: query.clone(), case_sensitive: cs, prev });
+                tab.finder = Some(Finder {
+                    query: query.clone(),
+                    case_sensitive: cs,
+                    prev,
+                });
                 if query.is_empty() {
                     return;
                 }
@@ -3240,7 +3538,9 @@ impl App {
                     } else {
                         (start + step) % len
                     };
-                    let Some(e) = tab.current.at(idx) else { continue };
+                    let Some(e) = tab.current.at(idx) else {
+                        continue;
+                    };
                     if fuzzy::find_substring(&query, &e.name, cs).is_some() {
                         tab.current.cursor = idx;
                         break;
@@ -3340,9 +3640,13 @@ impl App {
             return;
         }
         match self.apply_rename(from, &to) {
-            Ok(()) => self
-                .undos
-                .land(UndoStep::Rename { from: from.to_path_buf(), to }, Land::Fresh),
+            Ok(()) => self.undos.land(
+                UndoStep::Rename {
+                    from: from.to_path_buf(),
+                    to,
+                },
+                Land::Fresh,
+            ),
             Err(e) => self.error(format!("Rename failed: {e}")),
         }
     }
@@ -3351,7 +3655,12 @@ impl App {
     /// standing on, which is the whole reason the split exists; otherwise it is
     /// the two that are selected.
     fn compare_pair(&self) -> Result<(PathBuf, PathBuf), String> {
-        let hovered = |t: usize| self.tabs[t].current.hovered().map(|e| (e.path.clone(), e.kind));
+        let hovered = |t: usize| {
+            self.tabs[t]
+                .current
+                .hovered()
+                .map(|e| (e.path.clone(), e.kind))
+        };
         let (a, b) = match self.split {
             Some(sp) => {
                 let (l, r) = match sp.right {
@@ -3399,7 +3708,13 @@ impl App {
             right: right.clone(),
             max_bytes: self.cfg.ui.max_text_bytes,
         });
-        self.overlay = Overlay::Diff(DiffOverlay { left, right, outcome: None, offset: 0, rows: 1 });
+        self.overlay = Overlay::Diff(DiffOverlay {
+            left,
+            right,
+            outcome: None,
+            offset: 0,
+            rows: 1,
+        });
     }
 
     pub fn feed_diff_key(&mut self, k: Key) {
@@ -3421,7 +3736,9 @@ impl App {
     /// The compare view's own commands: scroll, jump between differences, close.
     fn diff_act(&mut self, a: Act) {
         let page = self.tabs[self.active].page_rows.max(1);
-        let Overlay::Diff(ov) = &mut self.overlay else { return };
+        let Overlay::Diff(ov) = &mut self.overlay else {
+            return;
+        };
         let rows: &[diff::Row] = match &ov.outcome {
             Some(diff::Outcome::Rows { rows, .. }) => rows,
             _ => &[],
@@ -3474,8 +3791,12 @@ impl App {
     /// works from. Both read the directory out of the listing already in
     /// memory, so typing a rule never touches the disk.
     pub fn bulk_preview(&self, paths: &[PathBuf], text: &str) -> Result<Vec<rename::Row>, String> {
-        let taken: BTreeSet<String> =
-            self.tabs[self.active].current.entries.iter().map(|e| e.name.clone()).collect();
+        let taken: BTreeSet<String> = self.tabs[self.active]
+            .current
+            .entries
+            .iter()
+            .map(|e| e.name.clone())
+            .collect();
         rename::plan(paths, text.trim(), &taken)
     }
 
@@ -3514,8 +3835,10 @@ impl App {
     /// moved keeps its new name, which is at least a state the listing shows
     /// honestly.
     fn run_renames(&mut self, pairs: &[(PathBuf, PathBuf)]) -> Result<(), String> {
-        let names: Vec<(String, String)> =
-            pairs.iter().map(|(a, b)| (util::file_name(a), util::file_name(b))).collect();
+        let names: Vec<(String, String)> = pairs
+            .iter()
+            .map(|(a, b)| (util::file_name(a), util::file_name(b)))
+            .collect();
         // Where each file is right now; parking moves one aside for a moment.
         let mut at: Vec<PathBuf> = pairs.iter().map(|(a, _)| a.clone()).collect();
 
@@ -3561,7 +3884,10 @@ impl App {
     /// Scale the image preview. Stepping in or out from *fit* starts from the
     /// scale on screen, so the first press does not jump.
     fn zoom_preview(&mut self, to: ZoomTo) {
-        if !matches!(self.preview.state, PreviewState::Ready(Payload::Image { .. })) {
+        if !matches!(
+            self.preview.state,
+            PreviewState::Ready(Payload::Image { .. })
+        ) {
             return;
         }
         let from = self.preview.zoom.unwrap_or(self.preview.fit);
@@ -3620,8 +3946,11 @@ impl App {
                 }
             },
             UndoStep::Move { pairs } => {
-                let back: Vec<(PathBuf, PathBuf)> =
-                    pairs.iter().rev().map(|(a, b)| (b.clone(), a.clone())).collect();
+                let back: Vec<(PathBuf, PathBuf)> = pairs
+                    .iter()
+                    .rev()
+                    .map(|(a, b)| (b.clone(), a.clone()))
+                    .collect();
                 match self.run_renames(&back) {
                     Ok(()) => {
                         let step = UndoStep::Move { pairs };
@@ -3635,8 +3964,11 @@ impl App {
                 }
             }
             UndoStep::Bulk { pairs } => {
-                let back: Vec<(PathBuf, PathBuf)> =
-                    pairs.iter().rev().map(|(a, b)| (b.clone(), a.clone())).collect();
+                let back: Vec<(PathBuf, PathBuf)> = pairs
+                    .iter()
+                    .rev()
+                    .map(|(a, b)| (b.clone(), a.clone()))
+                    .collect();
                 match self.run_renames(&back) {
                     Ok(()) => {
                         let step = UndoStep::Bulk { pairs };
@@ -3652,7 +3984,8 @@ impl App {
             UndoStep::Trash { paths, dir } => {
                 if !restore::SUPPORTED {
                     self.error(format!("Undo: {}", restore::UNSUPPORTED));
-                    self.undos.keep(UndoStep::Trash { paths, dir }, Land::Undone);
+                    self.undos
+                        .keep(UndoStep::Trash { paths, dir }, Land::Undone);
                     return;
                 }
                 let id = self.submit_op(OpKind::Restore, paths.clone(), dir.clone(), true);
@@ -3709,7 +4042,9 @@ impl App {
     }
 
     fn complete_input(&mut self) {
-        let Overlay::Input(ov) = &self.overlay else { return };
+        let Overlay::Input(ov) = &self.overlay else {
+            return;
+        };
         if !matches!(ov.kind, InputKind::Cd) {
             return;
         }
@@ -3732,12 +4067,16 @@ impl App {
     /// Answer a completion whose listing has just arrived. What the user typed
     /// in the meantime wins: an answer to an older question is dropped.
     fn complete_from(&mut self, id: u64, path: &Path, entries: &[Entry]) {
-        let Some(p) = self.pending_completion.take() else { return };
+        let Some(p) = self.pending_completion.take() else {
+            return;
+        };
         if p.id != id || p.dir != path {
             self.pending_completion = Some(p);
             return;
         }
-        let Overlay::Input(ov) = &self.overlay else { return };
+        let Overlay::Input(ov) = &self.overlay else {
+            return;
+        };
         if !matches!(ov.kind, InputKind::Cd) {
             return;
         }
@@ -3752,7 +4091,9 @@ impl App {
     /// Put the next match on the input line. Repeated presses walk the list,
     /// and `completion_at` remembers how far they got.
     fn apply_completion(&mut self, dir: &Path, hits: Vec<String>) {
-        let Overlay::Input(ov) = &mut self.overlay else { return };
+        let Overlay::Input(ov) = &mut self.overlay else {
+            return;
+        };
         if hits.is_empty() {
             return;
         }
@@ -3815,8 +4156,10 @@ impl App {
             self.error("The terminal is not open");
             return;
         };
-        let line: Vec<String> =
-            paths.iter().map(|p| crate::terminal::quote(&p.to_string_lossy())).collect();
+        let line: Vec<String> = paths
+            .iter()
+            .map(|p| crate::terminal::quote(&p.to_string_lossy()))
+            .collect();
         term.send(format!(" {}", line.join(" ")).into_bytes());
         self.term_focus = true;
     }
@@ -3848,7 +4191,10 @@ impl App {
 
     /// The file under the cursor, or nothing-shaped when there is none.
     fn hovered_path(&self) -> PathBuf {
-        self.tabs[self.active].current.hovered().map_or_else(PathBuf::new, |e| e.path.clone())
+        self.tabs[self.active]
+            .current
+            .hovered()
+            .map_or_else(PathBuf::new, |e| e.path.clone())
     }
 
     /// Show picture `n` of the hovered file.
@@ -3967,7 +4313,11 @@ impl App {
         let mut folder = Folder::loading(search_path(query, &root), None);
         folder.state = LoadState::Ready;
         tab.current = folder;
-        tab.finder = Some(Finder { query: query.to_owned(), case_sensitive: false, prev: false });
+        tab.finder = Some(Finder {
+            query: query.to_owned(),
+            case_sensitive: false,
+            prev: false,
+        });
         self.search = Some(handle);
         self.preview.state = PreviewState::Empty;
         self.preview.key = None;
@@ -4019,14 +4369,20 @@ impl App {
     // ------------------------------------------------------------ bookmarks
 
     pub fn bookmark_key(&mut self, ch: char) {
-        let Some(op) = self.pending_bookmark.take() else { return };
+        let Some(op) = self.pending_bookmark.take() else {
+            return;
+        };
         let key = ch.to_string();
         match op {
             BookmarkOp::Save => {
                 let path = self.tabs[self.active].cwd.clone();
                 let name = util::file_name(&path);
                 self.bookmarks.retain(|b| b.key != key);
-                self.bookmarks.push(Bookmark { key: key.clone(), path, name });
+                self.bookmarks.push(Bookmark {
+                    key: key.clone(),
+                    path,
+                    name,
+                });
                 self.bookmarks.sort_by(|a, b| a.key.cmp(&b.key));
                 self.save_state();
                 self.toast(format!("Bookmark `{key}` saved"));
@@ -4060,7 +4416,11 @@ impl App {
     /// The context menu for the file under the cursor. Right-click opens it;
     /// so does the `menu` command.
     fn open_menu(&mut self) {
-        let Some(name) = self.tabs[self.active].current.hovered_name().map(str::to_owned) else {
+        let Some(name) = self.tabs[self.active]
+            .current
+            .hovered_name()
+            .map(str::to_owned)
+        else {
             self.error("Nothing under the cursor");
             return;
         };
@@ -4081,7 +4441,9 @@ impl App {
 
     /// What `yazi.toml` offers to open the file under the cursor with.
     fn hovered_openers(&self) -> Vec<OpenerRow> {
-        let Some(entry) = self.tabs[self.active].current.hovered() else { return Vec::new() };
+        let Some(entry) = self.tabs[self.active].current.hovered() else {
+            return Vec::new();
+        };
         let mime = crate::mime::guess(entry);
         exec::openers_for(&self.cfg.yazi, entry, mime)
             .into_iter()
@@ -4192,7 +4554,9 @@ impl App {
         let Some(idx) = p.selected() else { return };
         match p.action {
             PickAction::OpenWith { paths, runs, line } => {
-                let Some((run, block, orphan)) = runs.get(idx).cloned() else { return };
+                let Some((run, block, orphan)) = runs.get(idx).cloned() else {
+                    return;
+                };
                 let cwd = self.tabs[self.active].cwd.clone();
                 let line = exec::command_line(&run, &paths, line, &self.cfg.line_args);
                 self.launch(&line, &cwd, block, orphan, "Open failed");
@@ -4205,7 +4569,9 @@ impl App {
             PickAction::Command { runs } => {
                 // The overlay is already closed, so a command that opens one of
                 // its own (input, confirm, help) lands on a clean slate.
-                let Some(acts) = runs.get(idx).cloned() else { return };
+                let Some(acts) = runs.get(idx).cloned() else {
+                    return;
+                };
                 for a in acts {
                     self.act(a);
                 }
@@ -4232,11 +4598,7 @@ impl App {
                             Some(d) => crate::util::file_name(&ops::unique_name(d)),
                             None => String::new(),
                         };
-                        self.open_input(
-                            InputKind::ConflictRename { job },
-                            "New name",
-                            suggestion,
-                        );
+                        self.open_input(InputKind::ConflictRename { job }, "New name", suggestion);
                         return;
                     }
                     _ => Resolution::Cancel,
@@ -4282,7 +4644,9 @@ impl App {
         if std::fs::create_dir_all(&dir).is_err() {
             return;
         }
-        let f = BookmarkFile { bookmark: self.bookmarks.clone() };
+        let f = BookmarkFile {
+            bookmark: self.bookmarks.clone(),
+        };
         if let Ok(text) = toml::to_string_pretty(&f) {
             let _ = std::fs::write(dir.join("bookmarks.toml"), text);
         }
@@ -4399,11 +4763,7 @@ fn completed_text(dir: &Path, name: &str) -> String {
 }
 
 fn preview_paths(paths: &[PathBuf]) -> Vec<String> {
-    let mut out: Vec<String> = paths
-        .iter()
-        .take(8)
-        .map(|p| util::file_name(p))
-        .collect();
+    let mut out: Vec<String> = paths.iter().take(8).map(|p| util::file_name(p)).collect();
     if paths.len() > 8 {
         out.push(format!("… and {} more", paths.len() - 8));
     }
@@ -4505,7 +4865,11 @@ mod tests {
         let mut t = task(3_000_000);
         // Too soon to measure: the sample is ignored and there is no answer.
         t.sample(500_000);
-        assert_eq!(t.speed(), None, "a fraction of a second is not a measurement");
+        assert_eq!(
+            t.speed(),
+            None,
+            "a fraction of a second is not a measurement"
+        );
 
         // A second's worth of work, a megabyte of it.
         t.sampled_at = Instant::now() - Duration::from_secs(1);
@@ -4543,14 +4907,26 @@ mod tests {
     #[test]
     fn a_completion_asks_about_one_directory_and_one_prefix() {
         let cwd = Path::new("/here");
-        assert_eq!(completion_target("/a/b/sr", cwd), (PathBuf::from("/a/b"), "sr".into()));
+        assert_eq!(
+            completion_target("/a/b/sr", cwd),
+            (PathBuf::from("/a/b"), "sr".into())
+        );
         // A trailing separator asks about the directory itself.
-        assert_eq!(completion_target("/a/b/", cwd), (PathBuf::from("/a/b"), String::new()));
+        assert_eq!(
+            completion_target("/a/b/", cwd),
+            (PathBuf::from("/a/b"), String::new())
+        );
         // Another keystroke is another question, so an answer to the old one
         // can be told apart and dropped.
-        assert_ne!(completion_target("/a/b/src", cwd), completion_target("/a/b/sr", cwd));
+        assert_ne!(
+            completion_target("/a/b/src", cwd),
+            completion_target("/a/b/sr", cwd)
+        );
         // A relative name completes where it was typed, as `cd` would take it.
-        assert_eq!(completion_target("sr", cwd), (PathBuf::from("/here"), "sr".into()));
+        assert_eq!(
+            completion_target("sr", cwd),
+            (PathBuf::from("/here"), "sr".into())
+        );
     }
 
     #[test]
@@ -4564,7 +4940,10 @@ mod tests {
         // Case is ignored on the way in, and the order is the listing's own.
         assert_eq!(completion_hits(&entries, "sr"), vec!["Src2", "src10"]);
         // An empty prefix offers every directory, files still left out.
-        assert_eq!(completion_hits(&entries, ""), vec!["Src2", "src10", "target"]);
+        assert_eq!(
+            completion_hits(&entries, ""),
+            vec!["Src2", "src10", "target"]
+        );
         assert!(completion_hits(&entries, "zz").is_empty());
         // The chosen name comes back ready for the next component to be typed,
         // with the separator this platform spells paths with.
@@ -4581,7 +4960,10 @@ mod tests {
 
         let (to, fallback) = new_tab_target(base, true, None, Some(&dir), None);
         assert_eq!(to, PathBuf::from("/a/sub"));
-        assert!(!fallback, "the entry came from a listing, so the parent is no help");
+        assert!(
+            !fallback,
+            "the entry came from a listing, so the parent is no help"
+        );
 
         // The cursor on a file opens a second view of the directory instead.
         let (to, _) = new_tab_target(base, true, None, Some(&file), None);
@@ -4602,8 +4984,14 @@ mod tests {
     fn the_default_keymap_splits_the_view() {
         let (km, _) = keymap::Keymap::load(&[]);
         let runs: Vec<&Act> = km.mgr.iter().flat_map(|b| b.run.iter()).collect();
-        assert!(runs.contains(&&Act::PaneFocus(None)), "<C-w> moves between panes");
-        assert!(runs.contains(&&Act::Split(Some(false))), "a key closes the split");
+        assert!(
+            runs.contains(&&Act::PaneFocus(None)),
+            "<C-w> moves between panes"
+        );
+        assert!(
+            runs.contains(&&Act::Split(Some(false))),
+            "a key closes the split"
+        );
     }
 
     #[test]
@@ -4619,10 +5007,16 @@ mod tests {
         let (items, details, runs) = palette_items(&bindings, &[]);
         assert_eq!(
             items,
-            vec!["Move cursor up  ·  arrow -1".to_string(), "tasks_show".to_string()]
+            vec![
+                "Move cursor up  ·  arrow -1".to_string(),
+                "tasks_show".to_string()
+            ]
         );
         assert_eq!(details, vec!["k".to_string(), "w".to_string()]);
-        assert_eq!(runs, vec![vec![Act::Arrow(Step::Rel(-1))], vec![Act::TasksShow]]);
+        assert_eq!(
+            runs,
+            vec![vec![Act::Arrow(Step::Rel(-1))], vec![Act::TasksShow]]
+        );
 
         // The openers for the hovered file ride along at the end, named so it
         // is clear what picking one does.
@@ -4665,22 +5059,45 @@ mod tests {
             ],
             "moving the cursor is not a thing to do to a file"
         );
-        assert_eq!(details[0], "notepad %s", "the opener shows the command it runs");
+        assert_eq!(
+            details[0], "notepad %s",
+            "the opener shows the command it runs"
+        );
         assert_eq!(details[2], "d", "a binding shows the key that also runs it");
-        assert_eq!(runs[2], vec![Act::Remove { permanently: false, force: false, hovered: false }]);
+        assert_eq!(
+            runs[2],
+            vec![Act::Remove {
+                permanently: false,
+                force: false,
+                hovered: false
+            }]
+        );
         // An opener is run as the shell command it is, `block` and all.
-        assert!(matches!(runs[0][0], Act::Shell { block: true, orphan: false, .. }));
+        assert!(matches!(
+            runs[0][0],
+            Act::Shell {
+                block: true,
+                orphan: false,
+                ..
+            }
+        ));
     }
 
     #[test]
     fn palette_filters_on_both_the_description_and_the_command() {
         let (km, warnings) = keymap::Keymap::load(&[]);
-        assert!(warnings.is_empty(), "the built-in keymap must load clean: {warnings:?}");
+        assert!(
+            warnings.is_empty(),
+            "the built-in keymap must load clean: {warnings:?}"
+        );
         let (items, details, runs) = palette_items(&km.mgr, &[]);
         assert!(items.len() > 30, "got {} commands", items.len());
         // The context menu has a key of its own, so it is reachable without a
         // mouse and the palette lists it like any other command.
-        assert!(runs.iter().any(|r| r == &[Act::Menu]), "the palette lists the context menu");
+        assert!(
+            runs.iter().any(|r| r == &[Act::Menu]),
+            "the palette lists the context menu"
+        );
 
         // The terminal layer is loaded, and holds only the few keys the pane
         // keeps for itself — everything else has to reach the shell.
@@ -4690,16 +5107,23 @@ mod tests {
             "only single keys are consulted there, so only single keys belong"
         );
         assert!(
-            km.term.iter().any(|b| b.run == vec![Act::Terminal(Some(false))]),
+            km.term
+                .iter()
+                .any(|b| b.run == vec![Act::Terminal(Some(false))]),
             "there is a way to close it"
         );
         assert!(
-            km.term.iter().any(|b| matches!(b.run.first(), Some(Act::TermScroll(_)))),
+            km.term
+                .iter()
+                .any(|b| matches!(b.run.first(), Some(Act::TermScroll(_)))),
             "and a way into the scrollback"
         );
         assert_eq!(items.len(), details.len());
         assert_eq!(items.len(), runs.len());
-        assert!(runs.iter().any(|r| r == &[Act::Palette]), "the palette lists itself");
+        assert!(
+            runs.iter().any(|r| r == &[Act::Palette]),
+            "the palette lists itself"
+        );
 
         let mut pick = PickOverlay {
             title: "Commands".into(),
@@ -4716,7 +5140,11 @@ mod tests {
 
         pick.query = "task manager".into();
         pick.refilter();
-        assert_eq!(pick.selected(), Some(by_command), "the description finds the same row");
+        assert_eq!(
+            pick.selected(),
+            Some(by_command),
+            "the description finds the same row"
+        );
     }
 
     /// The point of zooming about the pointer: the pixel under the cursor is
@@ -4759,9 +5187,21 @@ mod tests {
     #[test]
     fn fit_never_magnifies_a_small_image() {
         let avail = egui::vec2(400.0, 400.0);
-        assert_eq!(image_fit(avail, 40.0, 40.0), 1.0, "a small image sits at its own size");
-        assert_eq!(image_fit(avail, 800.0, 400.0), 0.5, "the wider side decides");
-        assert_eq!(image_fit(avail, 0.0, 0.0), 1.0, "a zero-sized image cannot divide");
+        assert_eq!(
+            image_fit(avail, 40.0, 40.0),
+            1.0,
+            "a small image sits at its own size"
+        );
+        assert_eq!(
+            image_fit(avail, 800.0, 400.0),
+            0.5,
+            "the wider side decides"
+        );
+        assert_eq!(
+            image_fit(avail, 0.0, 0.0),
+            1.0,
+            "a zero-sized image cannot divide"
+        );
     }
 
     /// The decode box steps in powers of two, so dragging the zoom about costs
@@ -4770,16 +5210,32 @@ mod tests {
     #[test]
     fn the_decode_box_grows_in_steps_and_stops() {
         assert_eq!(zoom_box((800, 600), None, 1.0), (800, 600));
-        assert_eq!(zoom_box((800, 600), Some(0.4), 1.0), (800, 600), "fitting needs no more");
+        assert_eq!(
+            zoom_box((800, 600), Some(0.4), 1.0),
+            (800, 600),
+            "fitting needs no more"
+        );
         assert_eq!(zoom_box((800, 600), Some(1.5), 1.0), (1600, 1200));
-        assert_eq!(zoom_box((800, 600), Some(2.0), 1.0), (1600, 1200), "same step as 1.5");
+        assert_eq!(
+            zoom_box((800, 600), Some(2.0), 1.0),
+            (1600, 1200),
+            "same step as 1.5"
+        );
         assert_eq!(zoom_box((800, 600), Some(3.0), 1.0), (3200, 2400));
-        assert_eq!(zoom_box((800, 600), Some(32.0), 1.0), (4096, 4096), "capped");
+        assert_eq!(
+            zoom_box((800, 600), Some(32.0), 1.0),
+            (4096, 4096),
+            "capped"
+        );
 
         // A big photo fits at 5%, so a tenth of full size is already twice the
         // detail the pane holds.
         assert_eq!(zoom_box((800, 600), Some(0.1), 0.05), (1600, 1200));
-        assert_eq!(zoom_box((800, 600), Some(0.05), 0.05), (800, 600), "still fitting");
+        assert_eq!(
+            zoom_box((800, 600), Some(0.05), 0.05),
+            (800, 600),
+            "still fitting"
+        );
     }
 
     /// The whole point of weighting by age: the directory being worked in today
@@ -4815,14 +5271,32 @@ mod tests {
     #[test]
     fn a_history_line_without_counts_still_reads_as_a_visit() {
         let old = parse_visit(r"C:\work\filer");
-        assert_eq!(old, Visit { path: PathBuf::from(r"C:\work\filer"), hits: 1, at: 0 });
+        assert_eq!(
+            old,
+            Visit {
+                path: PathBuf::from(r"C:\work\filer"),
+                hits: 1,
+                at: 0
+            }
+        );
 
-        let new = Visit { path: PathBuf::from(r"C:\work\filer"), hits: 7, at: 1_700_000_000 };
-        assert_eq!(parse_visit(&write_visit(&new)), new, "a round trip keeps everything");
+        let new = Visit {
+            path: PathBuf::from(r"C:\work\filer"),
+            hits: 7,
+            at: 1_700_000_000,
+        };
+        assert_eq!(
+            parse_visit(&write_visit(&new)),
+            new,
+            "a round trip keeps everything"
+        );
     }
 
     fn renamed(from: &str, to: &str) -> UndoStep {
-        UndoStep::Rename { from: PathBuf::from(from), to: PathBuf::from(to) }
+        UndoStep::Rename {
+            from: PathBuf::from(from),
+            to: PathBuf::from(to),
+        }
     }
 
     #[test]
@@ -4855,7 +5329,10 @@ mod tests {
         u.land(renamed("c", "d"), Land::Fresh);
 
         assert_eq!(u.undo, vec![renamed("c", "d")]);
-        assert!(u.redo.is_empty(), "history forked, so there is no way forward");
+        assert!(
+            u.redo.is_empty(),
+            "history forked, so there is no way forward"
+        );
     }
 
     /// Work that did not go through leaves the stacks as they were, so the key
@@ -4921,7 +5398,10 @@ mod preview_delivery {
         app.preview.state = PreviewState::Loading;
 
         app.on_preview(
-            preview::Response { key, payload: Payload::Error("x".into()) },
+            preview::Response {
+                key,
+                payload: Payload::Error("x".into()),
+            },
             &ctx,
         );
 
@@ -4948,12 +5428,18 @@ mod preview_delivery {
             cols: 80,
             n: 0,
         };
-        let old = preview::Key { path: PathBuf::from("/nowhere/old.md"), ..wanted.clone() };
+        let old = preview::Key {
+            path: PathBuf::from("/nowhere/old.md"),
+            ..wanted.clone()
+        };
         app.preview.key = Some(wanted);
         app.preview.state = PreviewState::Loading;
 
         app.on_preview(
-            preview::Response { key: old, payload: Payload::Error("x".into()) },
+            preview::Response {
+                key: old,
+                payload: Payload::Error("x".into()),
+            },
             &ctx,
         );
 
@@ -5056,7 +5542,11 @@ mod extract_message {
 
         let last = a.toasts.last().expect("an error was raised");
         assert_eq!(last.level, Level::Error, "it is an error, not a note");
-        assert!(last.text.contains('2'), "the count is missing: {}", last.text);
+        assert!(
+            last.text.contains('2'),
+            "the count is missing: {}",
+            last.text
+        );
         assert!(
             !last.text.contains("Nothing here"),
             "\"here\" reads as the directory: {}",
@@ -5120,7 +5610,12 @@ mod move_undo {
         std::fs::write(&to, b"x").unwrap();
 
         let mut a = app();
-        a.undos.land(UndoStep::Move { pairs: vec![(from.clone(), to.clone())] }, Land::Fresh);
+        a.undos.land(
+            UndoStep::Move {
+                pairs: vec![(from.clone(), to.clone())],
+            },
+            Land::Fresh,
+        );
         a.undo_step();
 
         assert!(from.exists(), "the file must be back at its original path");
@@ -5142,7 +5637,12 @@ mod move_undo {
         std::fs::write(&landed, b"the moved one").unwrap();
 
         let mut a = app();
-        a.undos.land(UndoStep::Move { pairs: vec![(from.clone(), landed.clone())] }, Land::Fresh);
+        a.undos.land(
+            UndoStep::Move {
+                pairs: vec![(from.clone(), landed.clone())],
+            },
+            Land::Fresh,
+        );
         a.undo_step();
 
         assert!(from.exists(), "back at the original name");
@@ -5162,7 +5662,12 @@ mod move_undo {
         std::fs::write(&from, b"x").unwrap();
 
         let mut a = app();
-        a.undos.land(UndoStep::Move { pairs: vec![(from.clone(), to.clone())] }, Land::Undone);
+        a.undos.land(
+            UndoStep::Move {
+                pairs: vec![(from.clone(), to.clone())],
+            },
+            Land::Undone,
+        );
         a.redo_step();
 
         assert!(to.exists() && !from.exists());
@@ -5184,11 +5689,18 @@ mod config_warnings {
     #[test]
     fn are_raised_as_warnings_not_errors() {
         let ctx = egui::Context::default();
-        let cfg = Config { warnings: vec!["[mgr] `'` is bound twice".into()], ..Config::load() };
+        let cfg = Config {
+            warnings: vec!["[mgr] `'` is bound twice".into()],
+            ..Config::load()
+        };
         let app = App::new(cfg, std::env::temp_dir(), ctx);
 
         let t = app.toasts.first().expect("the warning reaches the screen");
-        assert_eq!(t.level, Level::Warn, "a config warning is advice, not a failure");
+        assert_eq!(
+            t.level,
+            Level::Warn,
+            "a config warning is advice, not a failure"
+        );
         assert!(t.text.starts_with("Config: "), "{}", t.text);
     }
 
@@ -5235,14 +5747,21 @@ mod term_scroll_direction {
         };
 
         scroll(&mut t, Step::Pct(-50));
-        assert_eq!(t.grid().display_offset(), 2, "back half of a four-line screen");
+        assert_eq!(
+            t.grid().display_offset(),
+            2,
+            "back half of a four-line screen"
+        );
         scroll(&mut t, Step::Pct(50));
         assert_eq!(t.grid().display_offset(), 0, "and forward again");
 
         scroll(&mut t, Step::Rel(-3));
         assert_eq!(t.grid().display_offset(), 3, "three lines back");
         scroll(&mut t, Step::Top);
-        assert!(t.grid().display_offset() > 3, "the top is as far as it goes");
+        assert!(
+            t.grid().display_offset() > 3,
+            "the top is as far as it goes"
+        );
         scroll(&mut t, Step::Bot);
         assert_eq!(t.grid().display_offset(), 0);
     }
@@ -5275,27 +5794,56 @@ mod spot_keys {
                 .clone()
         };
         for key in ["j", "<Down>"] {
-            assert_eq!(run(key), vec![Act::Swipe(1)], "`{key}` goes to the next file");
+            assert_eq!(
+                run(key),
+                vec![Act::Swipe(1)],
+                "`{key}` goes to the next file"
+            );
         }
         for key in ["k", "<Up>"] {
-            assert_eq!(run(key), vec![Act::Swipe(-1)], "`{key}` goes to the previous file");
+            assert_eq!(
+                run(key),
+                vec![Act::Swipe(-1)],
+                "`{key}` goes to the previous file"
+            );
         }
         for key in ["l", "<Right>"] {
-            assert_eq!(run(key), vec![Act::Enter], "`{key}` goes into the directory");
+            assert_eq!(
+                run(key),
+                vec![Act::Enter],
+                "`{key}` goes into the directory"
+            );
         }
         for key in ["h", "<Left>"] {
             assert_eq!(run(key), vec![Act::Leave], "`{key}` goes up to the parent");
         }
         for key in ["<A-j>", "<A-Down>"] {
-            assert_eq!(run(key), vec![Act::Arrow(Step::Rel(1))], "`{key}` moves down the panel");
+            assert_eq!(
+                run(key),
+                vec![Act::Arrow(Step::Rel(1))],
+                "`{key}` moves down the panel"
+            );
         }
         for key in ["<A-k>", "<A-Up>"] {
-            assert_eq!(run(key), vec![Act::Arrow(Step::Rel(-1))], "`{key}` moves up the panel");
+            assert_eq!(
+                run(key),
+                vec![Act::Arrow(Step::Rel(-1))],
+                "`{key}` moves up the panel"
+            );
         }
 
         // The same split the mgr layer has, which is the point of the change.
-        let mgr = |key: &str| km.mgr.iter().find(|b| named(b) == key).map(|b| b.run.clone());
-        assert_eq!(mgr("j"), Some(vec![Act::Arrow(Step::Rel(1))]), "`j` moves the list under F3");
+        let mgr = |key: &str| {
+            km.mgr
+                .iter()
+                .find(|b| named(b) == key)
+                .map(|b| b.run.clone())
+        };
+        assert_eq!(
+            mgr("j"),
+            Some(vec![Act::Arrow(Step::Rel(1))]),
+            "`j` moves the list under F3"
+        );
         assert!(
             matches!(mgr("<A-j>").as_deref(), Some([Act::Seek(_)])),
             "and <A-j> scrolls what is on show",
@@ -5339,10 +5887,17 @@ mod spot_follows_the_cursor {
             crate::fs::Entry::from_path(two.clone()).unwrap(),
         ]);
         a.tabs[a.active].current = Folder::from_entries(dir.clone(), entries, true);
-        a.overlay = Overlay::Spot(SpotOverlay { cursor: 0, scroll: 0 });
+        a.overlay = Overlay::Spot(SpotOverlay {
+            cursor: 0,
+            scroll: 0,
+        });
 
         a.sync_spot();
-        assert_eq!(a.spot_asked.as_deref(), Some(one.as_path()), "the hovered one");
+        assert_eq!(
+            a.spot_asked.as_deref(),
+            Some(one.as_path()),
+            "the hovered one"
+        );
 
         // Asking again for the same file does not re-ask.
         a.spot_asked = None;
@@ -5351,7 +5906,11 @@ mod spot_follows_the_cursor {
 
         // Moving the cursor moves the panel with it.
         a.spot_act(Act::Swipe(1));
-        assert_eq!(a.spot_asked.as_deref(), Some(two.as_path()), "it followed the cursor");
+        assert_eq!(
+            a.spot_asked.as_deref(),
+            Some(two.as_path()),
+            "it followed the cursor"
+        );
 
         // Closing the panel lets go, so reopening asks afresh.
         a.overlay = Overlay::None;
@@ -5385,8 +5944,14 @@ mod diff_scrolling {
         let mut a = app();
         let rows: Vec<diff::Row> = (0..100)
             .map(|n| diff::Row {
-                left: Some(diff::Line { no: n, text: format!("line {n}") }),
-                right: Some(diff::Line { no: n, text: format!("line {n}") }),
+                left: Some(diff::Line {
+                    no: n,
+                    text: format!("line {n}"),
+                }),
+                right: Some(diff::Line {
+                    no: n,
+                    text: format!("line {n}"),
+                }),
                 same: true,
             })
             .collect();
@@ -5394,7 +5959,11 @@ mod diff_scrolling {
         a.overlay = Overlay::Diff(DiffOverlay {
             left: PathBuf::from("a"),
             right: PathBuf::from("b"),
-            outcome: Some(diff::Outcome::Rows { rows, truncated: false, rough: false }),
+            outcome: Some(diff::Outcome::Rows {
+                rows,
+                truncated: false,
+                rough: false,
+            }),
             offset: 0,
             rows: 20,
         });
@@ -5404,7 +5973,11 @@ mod diff_scrolling {
         };
 
         a.diff_act(Act::Arrow(Step::Bot));
-        assert_eq!(at(&a), 80, "the last row sits at the bottom, not at the top");
+        assert_eq!(
+            at(&a),
+            80,
+            "the last row sits at the bottom, not at the top"
+        );
 
         a.diff_act(Act::Arrow(Step::Rel(-1)));
         assert_eq!(at(&a), 79, "and one back is one row, not a dead press");
@@ -5422,12 +5995,21 @@ mod diff_scrolling {
     #[test]
     fn a_short_diff_does_not_move() {
         let mut a = app();
-        let rows: Vec<diff::Row> =
-            (0..3).map(|n| diff::Row { left: None, right: None, same: n % 2 == 0 }).collect();
+        let rows: Vec<diff::Row> = (0..3)
+            .map(|n| diff::Row {
+                left: None,
+                right: None,
+                same: n % 2 == 0,
+            })
+            .collect();
         a.overlay = Overlay::Diff(DiffOverlay {
             left: PathBuf::from("a"),
             right: PathBuf::from("b"),
-            outcome: Some(diff::Outcome::Rows { rows, truncated: false, rough: false }),
+            outcome: Some(diff::Outcome::Rows {
+                rows,
+                truncated: false,
+                rough: false,
+            }),
             offset: 0,
             rows: 20,
         });
@@ -5461,7 +6043,11 @@ mod outline_jump {
     #[test]
     fn it_stops_where_the_pane_does() {
         let mut a = app();
-        let toc = |line: usize| TocEntry { level: 1, label: format!("h{line}"), line };
+        let toc = |line: usize| TocEntry {
+            level: 1,
+            label: format!("h{line}"),
+            line,
+        };
         a.preview.state = PreviewState::Ready(Payload::Text {
             lines: Vec::new(),
             map: Vec::new(),
@@ -5490,7 +6076,10 @@ mod outline_jump {
             a.outline_act(&Act::Arrow(Step::Rel(1)));
         }
         assert_eq!(a.preview.outline, Some(2));
-        assert_eq!(a.tabs[a.active].preview_offset, 300, "no frame is drawn past the end");
+        assert_eq!(
+            a.tabs[a.active].preview_offset, 300,
+            "no frame is drawn past the end"
+        );
     }
 }
 
@@ -5561,11 +6150,17 @@ mod send_pane_and_the_register {
         let mut other = crate::core::tab::Tab::new(right.clone(), sort, false, String::new());
         other.cwd = right.clone();
         a.tabs.push(other);
-        a.split = Some(Split { other: 1, right: false });
+        a.split = Some(Split {
+            other: 1,
+            right: false,
+        });
 
         // Something else is held in the register.
         let held = PathBuf::from("held.txt");
-        a.yank = Yank { paths: vec![held.clone()], cut: false };
+        a.yank = Yank {
+            paths: vec![held.clone()],
+            cut: false,
+        };
 
         a.act(Act::SendPane { cut: false });
 
@@ -5579,7 +6174,11 @@ mod send_pane_and_the_register {
         );
         assert!(!a.tasks.is_empty(), "a copy was actually queued");
 
-        assert_eq!(a.yank.paths, vec![held], "the register is untouched by a send");
+        assert_eq!(
+            a.yank.paths,
+            vec![held],
+            "the register is untouched by a send"
+        );
         assert!(!a.yank.cut, "and so is what it is holding it for");
 
         let _ = std::fs::remove_dir_all(&root);
@@ -5617,8 +6216,16 @@ mod follow_says_what_it_is_for {
 
         let said = a.toasts.last().expect("it says something now");
         assert_eq!(said.level, Level::Error, "the key could not do its job");
-        assert!(said.text.contains("symlink"), "it names what the key is for: {}", said.text);
-        assert!(said.text.contains("->"), "and how to spot one: {}", said.text);
+        assert!(
+            said.text.contains("symlink"),
+            "it names what the key is for: {}",
+            said.text
+        );
+        assert!(
+            said.text.contains("->"),
+            "and how to spot one: {}",
+            said.text
+        );
 
         // Nothing under the cursor at all stays quiet: there is no row to
         // describe, and every other key is silent there too.

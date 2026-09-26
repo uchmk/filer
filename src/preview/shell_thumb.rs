@@ -9,7 +9,9 @@ use super::{image_preview, Payload};
 /// Shell extensions expect a single-threaded apartment on the calling thread.
 #[cfg(windows)]
 pub fn init_thread() {
-    use windows::Win32::System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE};
+    use windows::Win32::System::Com::{
+        CoInitializeEx, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE,
+    };
     // Already initialized is fine; the thread keeps COM until it exits.
     let _ = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) };
 }
@@ -19,8 +21,15 @@ pub fn init_thread() {}
 
 pub fn render(path: &Path, box_size: (u32, u32)) -> Result<Payload, String> {
     let img = imp::thumbnail(path, box_size)?;
-    let (width, height, rgba) = image_preview::finish(image_preview::fit(img.into(), box_size).to_rgba8());
-    Ok(Payload::Image { width, height, source: (width, height), rgba, caption: "thumbnail".into() })
+    let (width, height, rgba) =
+        image_preview::finish(image_preview::fit(img.into(), box_size).to_rgba8());
+    Ok(Payload::Image {
+        width,
+        height,
+        source: (width, height),
+        rgba,
+        caption: "thumbnail".into(),
+    })
 }
 
 #[cfg(windows)]
@@ -31,18 +40,22 @@ mod imp {
     use windows::core::HSTRING;
     use windows::Win32::Foundation::SIZE;
     use windows::Win32::Graphics::Gdi::{
-        DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO, BITMAPINFOHEADER,
-        BI_RGB, DIB_RGB_COLORS, HBITMAP,
+        DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO,
+        BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HBITMAP,
     };
     use windows::Win32::UI::Shell::{
-        IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_BIGGERSIZEOK, SIIGBF_THUMBNAILONLY,
+        IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_BIGGERSIZEOK,
+        SIIGBF_THUMBNAILONLY,
     };
 
     pub fn thumbnail(path: &Path, box_size: (u32, u32)) -> Result<RgbaImage, String> {
         let name = HSTRING::from(plain(path));
         let factory: IShellItemImageFactory =
             unsafe { SHCreateItemFromParsingName(&name, None) }.map_err(|e| e.message())?;
-        let size = SIZE { cx: box_size.0.max(32) as i32, cy: box_size.1.max(32) as i32 };
+        let size = SIZE {
+            cx: box_size.0.max(32) as i32,
+            cy: box_size.1.max(32) as i32,
+        };
         // THUMBNAILONLY: a file-type icon says nothing the file list doesn't.
         let bitmap = unsafe { factory.GetImage(size, SIIGBF_THUMBNAILONLY | SIIGBF_BIGGERSIZEOK) }
             .map_err(|e| e.message())?;
@@ -72,7 +85,11 @@ mod imp {
     fn read(bitmap: HBITMAP) -> Result<RgbaImage, String> {
         let mut bm = BITMAP::default();
         let got = unsafe {
-            GetObjectW(bitmap.into(), size_of::<BITMAP>() as i32, Some((&raw mut bm).cast()))
+            GetObjectW(
+                bitmap.into(),
+                size_of::<BITMAP>() as i32,
+                Some((&raw mut bm).cast()),
+            )
         };
         if got == 0 || bm.bmWidth <= 0 || bm.bmHeight == 0 {
             return Err("the shell returned an empty thumbnail".into());
@@ -94,7 +111,15 @@ mod imp {
         let mut px = vec![0u8; w as usize * h as usize * 4];
         let rows = unsafe {
             let dc = GetDC(None);
-            let rows = GetDIBits(dc, bitmap, 0, h, Some(px.as_mut_ptr().cast()), &mut info, DIB_RGB_COLORS);
+            let rows = GetDIBits(
+                dc,
+                bitmap,
+                0,
+                h,
+                Some(px.as_mut_ptr().cast()),
+                &mut info,
+                DIB_RGB_COLORS,
+            );
             ReleaseDC(None, dc);
             rows
         };
@@ -141,14 +166,29 @@ mod tests {
     fn reads_a_jpeg_thumbnail() {
         let dir = Path::new(r"C:\Windows\Web\Wallpaper\Windows");
         let Some(jpg) = std::fs::read_dir(dir).ok().and_then(|mut d| {
-            d.find_map(|e| e.ok().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "jpg")))
+            d.find_map(|e| {
+                e.ok()
+                    .map(|e| e.path())
+                    .filter(|p| p.extension().is_some_and(|x| x == "jpg"))
+            })
         }) else {
             return;
         };
         init_thread();
         let p = render(&jpg, (256, 256)).unwrap();
-        let Payload::Image { width, height, rgba, .. } = &p else { panic!("not an image: {p:?}") };
-        assert!(*width <= 256 && *height <= 256 && *width > 0 && *height > 0, "{width}x{height}");
+        let Payload::Image {
+            width,
+            height,
+            rgba,
+            ..
+        } = &p
+        else {
+            panic!("not an image: {p:?}")
+        };
+        assert!(
+            *width <= 256 && *height <= 256 && *width > 0 && *height > 0,
+            "{width}x{height}"
+        );
         // A photo, not a blank: some variety in the pixels.
         let first = &rgba[..4];
         assert!(rgba.chunks(4).any(|px| px != first));
