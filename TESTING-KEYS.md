@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**159 / 200 checked.**
+**175 / 200 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 119 / 142
+## `[mgr]` — 127 / 142
 
 The file list: what is in front of you unless an overlay is.
 
@@ -45,16 +45,16 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<F5>` — Re-read the current directory · `refresh`
 - [x] `<C-F5>` — Read the config files again (theme, icons, keys) · `config_reload`
 - [x] `<F3>` — Quick look: the hovered file, big, over the panes · `quick`
-- [ ] `<A-k>` — Scroll the preview up · `seek -5`
-- [ ] `<A-j>` — Scroll the preview down · `seek 5`
+- [x] `<A-k>` — Scroll the preview up · `seek -5`
+- [x] `<A-j>` — Scroll the preview down · `seek 5`
 - [x] `<A-i>` — Zoom into the image · `zoom in`
 - [x] `<A-o>` — Zoom out of the image · `zoom out`
 - [x] `<A-0>` — Fit the image to the pane · `zoom fit`
 - [x] `<A-1>` — Show the image at 1:1 · `zoom actual`
 - [x] `<A-n>` — Show or hide the preview's minimap · `minimap`
 - [x] `M` — Switch Markdown preview between rendered and source · `toggle_render`
-- [ ] `<BackTab>` — Focus the preview's outline (functions / headings) · `toggle_outline`
-- [ ] `<Tab>` — Spot hovered file · `spot`
+- [x] `<BackTab>` — Focus the preview's outline (functions / headings) · `toggle_outline`
+- [x] `<Tab>` — Spot hovered file · `spot`
 
 ### Selection
 
@@ -71,7 +71,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<Enter>` — Open the selected files · `open`
 - [x] `<S-Enter>` — Open the selected files interactively · `open --interactive`
 - [x] `y` — Yank the selected files (copy) · `yank`
-- [ ] `x` — Yank the selected files (cut) · `yank --cut`
+- [x] `x` — Yank the selected files (cut) · `yank --cut`
 - [x] `Y` — Cancel the yank status · `unyank`
 - [x] `X` — Cancel the yank status · `unyank`
 - [x] `p` — Paste the files · `paste`
@@ -91,7 +91,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `a` — Create a file; end with / or \ for a directory · `create`
 - [x] `r` — Rename the file or directory · `rename`
 - [x] `R` — Rename everything selected by one rule · `bulk_rename`
-- [ ] `<A-d>` — Compare two files side by side · `compare`
+- [x] `<A-d>` — Compare two files side by side · `compare`
 - [ ] `;` — Run a shell command · `shell --interactive`
 - [ ] `:` — Run a shell command (block until finished) · `shell --interactive --block`
 - [x] `.` — Toggle the visibility of hidden files · `hidden`
@@ -109,7 +109,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `f` — Filter the files · `filter --smart`
 - [x] `s` — Search files by name, recursively · `search --via=name`
 - [x] `S` — Search files by content, recursively · `search --via=content`
-- [ ] `<C-s>` — Cancel the ongoing search · `escape --search`
+- [x] `<C-s>` — Cancel the ongoing search · `escape --search`
 - [x] `z` — Jump to a bookmark or a recently visited directory · `jump`
 - [x] `'` — Go to the bookmark under a letter · `plugin bookmarks jump`
 - [x] `b b` — List the bookmarks, and go to one · `plugin bookmarks list`
@@ -185,7 +185,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<C-S-p>` — Open the command palette · `palette`
 - [x] `<S-F10>` — Open the context menu · `menu`
 - [x] `<C-t>` — Open the terminal pane · `terminal`
-- [ ] `<A-t>` — Type the selected paths into the terminal · `term_send`
+- [x] `<A-t>` — Type the selected paths into the terminal · `term_send`
 
 ## `[term]` — 11 / 12
 
@@ -282,21 +282,21 @@ The details panel (`<Tab>`).
 - [x] `<Right>` — Enter the directory · `enter`
 - [x] `y` — Copy the selected value · `copy cell`
 
-## `[diff]` — 4 / 12
+## `[diff]` — 12 / 12
 
 The side-by-side comparison (`<A-d>`).
 
 ### Compare (side by side)
 
-- [ ] `q` — Close the comparison · `close`
-- [ ] `<Esc>` — Close the comparison · `close`
+- [x] `q` — Close the comparison · `close`
+- [x] `<Esc>` — Close the comparison · `close`
 - [x] `k` — Up one line · `arrow -1`
 - [x] `j` — Down one line · `arrow 1`
 - [x] `<Up>` — Up one line · `arrow -1`
 - [x] `<Down>` — Down one line · `arrow 1`
-- [ ] `<C-u>` — Up half a page · `arrow -50%`
-- [ ] `<C-d>` — Down half a page · `arrow 50%`
-- [ ] `g g` — To the top · `arrow top`
-- [ ] `G` — To the bottom · `arrow bot`
-- [ ] `n` — To the next difference · `find_arrow`
-- [ ] `N` — To the previous difference · `find_arrow --previous`
+- [x] `<C-u>` — Up half a page · `arrow -50%`
+- [x] `<C-d>` — Down half a page · `arrow 50%`
+- [x] `g g` — To the top · `arrow top`
+- [x] `G` — To the bottom · `arrow bot`
+- [x] `n` — To the next difference · `find_arrow`
+- [x] `N` — To the previous difference · `find_arrow --previous`
