@@ -163,6 +163,12 @@ fn main() -> eframe::Result<()> {
             let has_bold = apply_fonts(&cc.egui_ctx, &mut cfg, &mut used);
             crate::runinfo::save(&used);
             cc.egui_ctx.set_visuals(egui::Visuals::dark());
+            // egui zooms on Ctrl +/-/0 of its own accord, at the end of the
+            // frame, without consuming the key first. Every one of those is a
+            // key filer binds, so both would run -- `<C-->` hardlinked *and*
+            // shrank the window. Zoom is a filer command now, in the keymap
+            // with everything else.
+            cc.egui_ctx.options_mut(|o| o.zoom_with_keyboard = false);
             cc.egui_ctx.all_styles_mut(|s| {
                 s.animation_time = 0.0;
                 s.interaction.tooltip_delay = 0.4;

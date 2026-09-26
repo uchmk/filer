@@ -575,7 +575,8 @@ mod tests {
         let share = normalize(Path::new(r"\\192.168.1.5\pub"));
         assert_eq!(share, PathBuf::from(r"\\192.168.1.5\pub"));
         assert_eq!(share.parent(), None);
-        assert_eq!(file_name(&share), r"\\192.168.1.5\pub\");
+        // The path is kept whole; the name shown for it is the share's own.
+        assert_eq!(file_name(&share), "pub");
 
         // Forward slashes spell the same share.
         assert_eq!(normalize(Path::new("//192.168.1.5/pub/x")), PathBuf::from(r"\\192.168.1.5\pub\x"));

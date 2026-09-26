@@ -922,6 +922,11 @@ pub struct App {
 
     pub search: Option<crate::search::Handle>,
     pub ctx: egui::Context,
+    /// How much bigger everything is drawn. Held here rather than read back
+    /// from egui: `set_zoom_factor` only takes effect at the start of the next
+    /// frame, so stepping from what egui currently reports would lose every
+    /// press after the first in any one frame.
+    pub scale: f32,
     /// A copy job is blocked waiting for the new name being typed.
     pending_conflict: Option<Sender<Resolution>>,
 
@@ -1011,6 +1016,7 @@ impl App {
             op_undo: HashMap::new(),
             search: None,
             ctx,
+            scale: 1.0,
             pending_conflict: None,
             dirty: HashMap::new(),
             counted: std::collections::HashSet::new(),
@@ -2341,6 +2347,20 @@ impl App {
             // Opening a browser is a visible thing to do to someone's machine,
             // so it says what it did rather than leaving a window to appear
             // from nowhere.
+            // The same steps and bounds egui's own zoom used, so turning
+            // that off and doing it here is not a change in feel.
+            Act::Scale(to) => {
+                let now = self.scale;
+                let next = match to {
+                    crate::config::cmd::ScaleTo::In => now + 0.1,
+                    crate::config::cmd::ScaleTo::Out => now - 0.1,
+                    crate::config::cmd::ScaleTo::Reset => 1.0,
+                };
+                let next = (next.clamp(0.2, 5.0) * 10.0).round() / 10.0;
+                self.scale = next;
+                self.ctx.set_zoom_factor(next);
+                self.toast(format!("Scale {}%", (next * 100.0).round() as i32));
+            }
             Act::BugReport => match exec::open_url(&crate::bugreport::url()) {
                 Ok(()) => self.toast("Opened a bug report in your browser"),
                 Err(e) => self.error(format!("could not open the browser: {e}")),
@@ -5608,5 +5628,58 @@ mod follow_says_what_it_is_for {
         assert!(a.toasts.is_empty(), "an empty directory says nothing");
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod window_scale {
+    use super::*;
+    use crate::config::cmd::ScaleTo;
+
+    fn app() -> App {
+        let ctx = egui::Context::default();
+        App::new(Config::load(), std::env::temp_dir(), ctx)
+    }
+
+    /// Scaling steps and stops where egui's own did.
+    ///
+    /// egui zooms on Ctrl +/-/0 at the end of every frame, and does not
+    /// consume the key on the way: each of those three is a key filer binds,
+    /// so both ran. `<C-->` made a hardlink *and* shrank the window, which is
+    /// the sort of thing that reads as the program being possessed.
+    #[test]
+    fn it_steps_and_stops_where_egui_did() {
+        let mut a = app();
+        assert_eq!(a.scale, 1.0);
+
+        a.act(Act::Scale(ScaleTo::In));
+        assert!((a.scale - 1.1).abs() < 1e-6, "{}", a.scale);
+        a.act(Act::Scale(ScaleTo::Out));
+        a.act(Act::Scale(ScaleTo::Out));
+        assert!((a.scale - 0.9).abs() < 1e-6, "{}", a.scale);
+
+        a.act(Act::Scale(ScaleTo::Reset));
+        assert_eq!(a.scale, 1.0);
+
+        // The same bounds, so a held key cannot shrink it to nothing.
+        for _ in 0..40 {
+            a.act(Act::Scale(ScaleTo::Out));
+        }
+        assert_eq!(a.scale, 0.2);
+        for _ in 0..80 {
+            a.act(Act::Scale(ScaleTo::In));
+        }
+        assert_eq!(a.scale, 5.0);
+    }
+
+    /// The two zooms are different commands, and stay that way.
+    ///
+    /// `zoom` was already taken by the image preview. Naming this one the same
+    /// would have made the keymap ambiguous in a way only the parser could see.
+    #[test]
+    fn the_image_zoom_is_a_different_command() {
+        use crate::config::cmd::parse;
+        assert_eq!(parse("scale out"), Act::Scale(ScaleTo::Out));
+        assert!(matches!(parse("zoom out"), Act::Zoom(_)));
     }
 }

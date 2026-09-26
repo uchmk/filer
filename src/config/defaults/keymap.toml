@@ -257,9 +257,32 @@ on = "_"
 run = "link --relative"
 desc = "Symlink the relative path of yanked files"
 [[mgr.keymap]]
-on = "<C-->"
+on = "<C-S-->"
 run = "hardlink"
 desc = "Hardlink the yanked files"
+
+# Window scale. egui does this itself on the same three chords, at the end of
+# the frame and without consuming the key, so both it and the binding under
+# `<C-->` used to run: one hardlink and one shrink from a single press. It is
+# switched off there and done here, where `~` lists it and the keymap can move
+# it. `<C-=>` as well as `<C-+>`, since the plus is a shifted equals on most
+# keyboards and `<C-+>` alone would need the shift held to reach it.
+[[mgr.keymap]]
+on = "<C-+>"
+run = "scale in"
+desc = "Make everything bigger"
+[[mgr.keymap]]
+on = "<C-=>"
+run = "scale in"
+desc = "Make everything bigger"
+[[mgr.keymap]]
+on = "<C-->"
+run = "scale out"
+desc = "Make everything smaller"
+[[mgr.keymap]]
+on = "<C-0>"
+run = "scale reset"
+desc = "Back to the original size"
 
 # Copy / move straight into the other pane. Deliberately not F5 / F6: F5 is
 # refresh here and in every browser, so putting a file operation on it would

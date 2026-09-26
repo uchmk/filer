@@ -29,6 +29,18 @@ impl Step {
     }
 }
 
+/// Which way `scale` goes.
+///
+/// Not `zoom`: that one is already taken, by the image preview, and the two
+/// are genuinely different things — one resizes a picture inside the pane,
+/// this one resizes the whole window's text and chrome.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ScaleTo {
+    In,
+    Out,
+    Reset,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct EscapeWhat {
     pub visual: bool,
@@ -202,6 +214,7 @@ pub enum Act {
     TermCd,
     /// Search the terminal's scrollback. `prev` walks back through the
     /// matches; with no string yet, it asks for one.
+    Scale(ScaleTo),
     TermFind { prev: bool, repeat: bool },
     /// Move the terminal's view through its scrollback.
     TermScroll(Step),
@@ -483,6 +496,16 @@ pub fn parse(line: &str) -> Act {
         "filter_do" | "find_do" | "search_do" | "cd_do" | "rename_do" | "create_do" => Act::Submit,
 
         "help" => Act::Help,
+        // `scale in` / `scale out` / `scale reset`. egui has this built in and
+        // takes the same three chords for itself; filer turns that off and
+        // runs it through the keymap instead, so it is listed under `~` and
+        // can be moved like anything else. Leaving it to egui meant `<C-->`
+        // both hardlinked and shrank the window.
+        "scale" => Act::Scale(match a.first() {
+            Some("out") => ScaleTo::Out,
+            Some("reset") => ScaleTo::Reset,
+            _ => ScaleTo::In,
+        }),
         "bug-report" => Act::BugReport,
         "tasks_show" => Act::TasksShow,
         "task_toggle" => Act::TaskToggle,

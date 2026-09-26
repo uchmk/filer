@@ -310,6 +310,18 @@ to answer a click.
 | 27.5 | Click the row for the directory you are already in | You stay there, and the cursor does not jump about |
 | 27.6 | At a drive root, where there is no parent column | Nothing to click, and nothing misbehaves |
 
+## 32. Window scale, and the key it took back (v0.32.0)
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 32.1 | `<C-->` with something yanked | **Only** the window shrinks. Until v0.32.0 it also made a hardlink — one press, two actions |
+| 32.2 | `<C-+>`, and `<C-=>` without shift | Both make it bigger |
+| 32.3 | `<C-0>` | Back to 100%, and a toast says so |
+| 32.4 | Hold `<C-->` down | It shrinks smoothly and stops at 20%; `<C-+>` held stops at 500% |
+| 32.5 | `<C-S-->` with something yanked | The hardlink, in its new place |
+| 32.6 | `<A-i>` / `<A-o>` on an image | Still the **image** zoom, unaffected — `zoom` and `scale` are different commands |
+| 32.7 | `~` | `scale in` / `scale out` / `scale reset` are listed, like any other command |
+
 ## 31. Word, Excel and PowerPoint (v0.31.0)
 
 **On a machine with no Office installed** — that is the case this is for.

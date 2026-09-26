@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**203 / 203 checked.**
+**202 / 207 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 145 / 145
+## `[mgr]` — 144 / 149
 
 The file list: what is in front of you unless an overlay is.
 
@@ -80,7 +80,11 @@ The file list: what is in front of you unless an overlay is.
 - [x] `P` — Paste the files (overwrite if the destination exists) · `paste --force`
 - [x] `-` — Symlink the absolute path of yanked files · `link`
 - [x] `_` — Symlink the relative path of yanked files · `link --relative`
-- [x] `<C-->` — Hardlink the yanked files · `hardlink`
+- [ ] `<C-S-->` — Hardlink the yanked files · `hardlink`
+- [ ] `<C-+>` — Make everything bigger · `scale in`
+- [ ] `<C-=>` — Make everything bigger · `scale in`
+- [ ] `<C-->` — Make everything smaller · `scale out`
+- [ ] `<C-0>` — Back to the original size · `scale reset`
 - [x] `<A-c>` — Copy the selection to the other pane · `send_pane`
 - [x] `<A-m>` — Move the selection to the other pane · `send_pane --cut`
 - [x] `e` — Extract the selected archives · `extract`

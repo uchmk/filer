@@ -701,7 +701,7 @@ on the `PATH`.
 | `gg` `G` `<C-u>` `<C-d>` `<C-b>` `<C-f>` | top / bottom / half page / full page |
 | `H` `L` (or `<A-←>` `<A-→>`) | back / forward in history |
 | `<Space>` `v` `V` `<C-a>` `<C-S-r>` | toggle / visual / visual-unset / select all / invert |
-| `y` `x` `Y` `p` `P` `-` `_` `<C-->` | yank / cut / cancel the yank / paste / paste-force / symlink / relative symlink / hardlink |
+| `y` `x` `Y` `p` `P` `-` `_` `<C-S-->` | yank / cut / cancel the yank / paste / paste-force / symlink / relative symlink / hardlink |
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
 | `u` `U` (or `<C-r>`) | undo the last rename or delete / do it again |
 | `a` `r` | create (trailing `/` makes a directory) / rename |
@@ -721,6 +721,7 @@ on the `PATH`.
 | `b``s` `b``d` `b``D` | set one / delete one (then press its letter) / delete them all |
 | `.` `,…` `m…` | hidden files / sort menu / line mode: what the right column of each row shows |
 | `t` `1`–`9` `[` `]` `{` `}` `<C-c>` | new tab / switch / previous / next / move it left / right / close it (quits on the last) |
+| `<C-+>` `<C-->` `<C-0>` | make everything bigger / smaller / back to normal |
 | `<F5>` `<C-F5>` | re-read the current directory / re-read the config files |
 | `<C-w>` `<C-S-w>` | split the view in two panes / move between them, close the split |
 | `;` `:` | shell command / blocking shell command |
