@@ -766,8 +766,9 @@ shell has to announce itself with **OSC 7**, and filer only believes what it is 
 `<A-Up>` says so and does nothing.
 
 PowerShell sends nothing by default. Most recipes for it replace `prompt`, which breaks Starship and
-every other prompt generator; this hook runs on each `cd` instead and leaves the prompt alone. Put
-it in `$PROFILE`:
+every other prompt generator; this hook runs on each `cd` instead and leaves the prompt alone.
+
+**These four lines go in `$PROFILE`**, and nothing else does:
 
 ```powershell
 $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
@@ -776,8 +777,10 @@ $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
 }
 ```
 
-Then `<C-t>`, `cd` somewhere, `<A-Up>`. Paths with spaces or non-ASCII characters work as they are —
-percent-escapes are undone on the way in, so escaping them first is optional rather than required.
+Then `<C-S-t>` and `<C-t>` — a profile is read when the shell starts, and plain `<C-t>` hands the
+keys back without ending it. `cd` somewhere and press `<A-Up>`. Paths with spaces or non-ASCII
+characters work as they are: percent-escapes are undone on the way in, so escaping them first is
+optional rather than required.
 
 **Which PowerShell, and therefore which `$PROFILE`.** With nothing configured the pane starts
 `powershell`, and that is Windows PowerShell 5.1 rather than PowerShell 7. They read different files:
@@ -797,8 +800,11 @@ $PROFILE
 $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
 ```
 
-An empty third line means the hook is not loaded here. Appending through `$PROFILE` puts it in
-whichever file *this* shell reads, so there is nothing to get wrong:
+An empty third line means the hook is not loaded here.
+
+To append it without opening an editor, **run this in the pane** — it is a command, not something to
+put in the profile. Pasting it into the file leaves `@'` and `'@ | Add-Content …` in there, and the
+shell then fails to parse its own profile:
 
 ```powershell
 @'
@@ -810,8 +816,9 @@ $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
 '@ | Add-Content -Path $PROFILE -Encoding UTF8
 ```
 
-Then `<C-S-t>` and `<C-t>` — a profile is read when the shell starts, and plain `<C-t>` only hands
-the keys back without ending it.
+Writing through `$PROFILE` rather than a typed path is the point of it: whichever file *this* shell
+reads is the one that gets the hook, so the 5.1-or-7 question above cannot be answered wrongly.
+Then `<C-S-t>` and `<C-t>` as before.
 
 To run PowerShell 7 in the pane instead, name it in `filer.toml`:
 
