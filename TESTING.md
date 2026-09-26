@@ -152,6 +152,21 @@ each pane with the view split.
 | D9 | Two directories | Refused with a reason |
 | D10 | `q` | Closes |
 
+## U. The yank register, said out loud (v0.23.0)
+
+The marker bar cannot carry this on its own, which is what the section is for.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| U1 | `y` on a file with nothing selected | A **green** bar on the row, and `1 copied` in the header |
+| U2 | `<Space>` on that same file | The bar turns **yellow** — the selection's colour wins, by design — and the header reads `1 selected · 1 copied` |
+| U3 | `x` instead of `y` | A **red** bar, and `1 cut` |
+| U4 | With something copied, `h` / `l` to another directory | `1 copied` is still in the header, with no row to show it |
+| U5 | `p` after a copy | The register stays: `1 copied` is still there, and `p` again pastes again |
+| U6 | `p` after a cut | The register empties; the count leaves the header |
+| U7 | `X` or `Y` | The count leaves the header |
+| U8 | The status line, bottom right | Says the same thing in the same words as the header |
+
 ## E. Bulk rename (v0.4.0)
 
 In `bulk-rename\`.

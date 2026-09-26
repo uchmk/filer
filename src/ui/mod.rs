@@ -21,6 +21,28 @@ pub fn font(size: f32) -> FontId {
     FontId::new(size, FontFamily::Monospace)
 }
 
+/// The listing's right-hand summary.
+///
+/// The yank register sits next to the selection and says which of the two it
+/// is, because otherwise the states are told apart only by the colour of a 3px
+/// bar -- and not even that while a file is both, since the selection's colour
+/// wins there and the yank goes invisible under it. The register also carries
+/// across directories, which is where it matters most: what `p` would paste
+/// here is a fact about the register, not about anything on screen.
+fn summary(total: usize, selected: usize, yank: Option<(usize, bool)>, hidden: bool) -> String {
+    let mut out = format!("{total} items");
+    if let Some((n, cut)) = yank {
+        out = format!("{n} {} · {out}", if cut { "cut" } else { "copied" });
+    }
+    if selected > 0 {
+        out = format!("{selected} selected · {out}");
+    }
+    if hidden {
+        out.push_str(" · hidden shown");
+    }
+    out
+}
+
 pub fn draw(app: &mut App, ui: &mut Ui) {
     let mut queued: Vec<Act> = Vec::new();
     let size = app.cfg.ui.font_size;
@@ -179,13 +201,8 @@ fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let tab = app.tab();
     let total = tab.current.view.len();
     let sel = tab.selected.len();
-    let mut right = format!("{} items", total);
-    if sel > 0 {
-        right = format!("{sel} selected · {right}");
-    }
-    if tab.show_hidden {
-        right.push_str(" · hidden shown");
-    }
+    let yank = (!app.yank.paths.is_empty()).then_some((app.yank.paths.len(), app.yank.cut));
+    let right = summary(total, sel, yank, tab.show_hidden);
     painter.text(
         egui::pos2(rect.right() - 10.0, y + row_h / 2.0),
         Align2::RIGHT_CENTER,
@@ -759,8 +776,8 @@ fn draw_status(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId) {
     if !app.yank.paths.is_empty() {
         right.push(format!(
             "{} {}",
-            if app.yank.cut { "cut" } else { "yank" },
-            app.yank.paths.len()
+            app.yank.paths.len(),
+            if app.yank.cut { "cut" } else { "copied" },
         ));
     }
     let pos = if tab.current.view.is_empty() {
@@ -936,5 +953,33 @@ mod breadcrumb_tests {
         let (dir, name) = breadcrumb(None, Path::new("anywhere"), None);
         assert_eq!(dir, "anywhere");
         assert_eq!(name, None);
+    }
+}
+
+#[cfg(test)]
+mod summary_line {
+    use super::*;
+
+    /// The register says which of the two it is, and is there at all.
+    ///
+    /// The marker bar cannot answer either question: a file that is selected
+    /// *and* yanked draws in the selection's colour, so `y` then `<Space>`
+    /// turns green to yellow and the register stops being visible anywhere on
+    /// the row — and once the cursor is in another directory there is no row
+    /// to look at in the first place.
+    #[test]
+    fn it_names_the_register_and_the_selection_apart() {
+        assert_eq!(summary(19, 0, None, false), "19 items");
+        assert_eq!(summary(19, 1, None, false), "1 selected · 19 items");
+        assert_eq!(summary(19, 0, Some((1, false)), false), "1 copied · 19 items");
+        assert_eq!(summary(19, 0, Some((2, true)), false), "2 cut · 19 items");
+
+        // Both at once is the case the colours cannot show.
+        assert_eq!(
+            summary(19, 1, Some((1, false)), false),
+            "1 selected · 1 copied · 19 items",
+        );
+        assert_eq!(summary(19, 3, Some((2, true)), true),
+            "3 selected · 2 cut · 19 items · hidden shown");
     }
 }
