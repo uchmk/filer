@@ -85,10 +85,29 @@ impl Default for Ui {
     }
 }
 
+/// `[term]`: what the terminal pane runs.
+///
+/// Empty means the platform's own default, which is what alacritty picks when
+/// it is told nothing: `powershell` on Windows -- Windows PowerShell 5.1, not
+/// `pwsh` -- and the login shell elsewhere. Those are different programs
+/// reading different profiles, so a hook that works in one is simply absent in
+/// the other, and there was no way to say which one to start.
+#[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq)]
+pub struct TermCfg {
+    /// The program, e.g. `pwsh`. Looked up on `PATH`, or an absolute path.
+    #[serde(default)]
+    pub shell: String,
+    /// Arguments for it, e.g. `["-NoLogo"]`. Ignored without a `shell`.
+    #[serde(default)]
+    pub args: Vec<String>,
+}
+
 #[derive(Deserialize, Debug, Default)]
 struct FilerToml {
     #[serde(default)]
     ui: Ui,
+    #[serde(default)]
+    term: TermCfg,
     /// `[line_args]`: editor name (`mikan`, `notepad++`) to the arguments that
     /// open a file at a line, e.g. `"-l {line} {path}"`.
     #[serde(default)]
@@ -98,6 +117,8 @@ struct FilerToml {
 pub struct Config {
     pub yazi: YaziToml,
     pub keymap: Keymap,
+    /// What the terminal pane runs; empty `shell` means the platform default.
+    pub term: TermCfg,
     pub theme: Theme,
     pub ui: Ui,
     /// Line-jump templates, keyed by [`crate::exec::editor_key`].
@@ -117,6 +138,7 @@ impl Config {
         let mut keymap_texts: Vec<String> = Vec::new();
         let mut theme = Theme::default();
         let mut ui = Ui::default();
+        let mut term = TermCfg::default();
         let mut line_args: HashMap<String, String> = HashMap::new();
 
         for dir in &dirs {
@@ -139,6 +161,7 @@ impl Config {
                 match toml::from_str::<FilerToml>(&text) {
                     Ok(v) => {
                         ui = v.ui;
+                        term = v.term;
                         for (name, template) in v.line_args {
                             if crate::exec::template_is_valid(&template) {
                                 line_args.insert(crate::exec::editor_key(&name), template);
@@ -159,7 +182,7 @@ impl Config {
         let (keymap, mut km_warnings) = Keymap::load(&refs);
         warnings.append(&mut km_warnings);
 
-        Self { yazi: yazi_cfg, keymap, theme, ui, line_args, loaded, warnings }
+        Self { yazi: yazi_cfg, keymap, theme, ui, term, line_args, loaded, warnings }
     }
 
     pub fn state_dir() -> PathBuf {
@@ -210,4 +233,40 @@ fn merge_yazi(base: YaziToml, mut next: YaziToml) -> YaziToml {
         next.open.rules = base.open.rules;
     }
     next
+}
+
+#[cfg(test)]
+mod term_shell {
+    use super::*;
+
+    /// `[term]` decides what the pane starts, and says nothing by default.
+    ///
+    /// The default matters as much as the setting. On Windows, telling
+    /// alacritty nothing gets `powershell` — Windows PowerShell 5.1, whose
+    /// `$PROFILE` is a different file from `pwsh`'s, so a shell hook put in
+    /// one is absent in the other with nothing on screen to say why. An empty
+    /// `shell` has to keep meaning "the platform's own", because that is what
+    /// every existing install already gets.
+    #[test]
+    fn it_is_absent_until_it_is_asked_for() {
+        let none: FilerToml = toml::from_str("[ui]\nfont_size = 14.0\n").unwrap();
+        assert_eq!(none.term, TermCfg::default());
+        assert!(none.term.shell.is_empty(), "nothing said means the platform default");
+
+        let named: FilerToml = toml::from_str("[term]\nshell = \"pwsh\"\n").unwrap();
+        assert_eq!(named.term.shell, "pwsh");
+        assert!(named.term.args.is_empty(), "args are optional");
+
+        let with_args: FilerToml =
+            toml::from_str("[term]\nshell = \"pwsh\"\nargs = [\"-NoLogo\"]\n").unwrap();
+        assert_eq!(with_args.term.args, vec!["-NoLogo".to_string()]);
+    }
+
+    /// A `filer.toml` written before `[term]` existed still reads.
+    #[test]
+    fn an_older_config_is_unaffected() {
+        let text = std::fs::read_to_string("filer.example.toml").expect("the shipped example");
+        let cfg: FilerToml = toml::from_str(&text).expect("the example has to parse");
+        assert_eq!(cfg.ui.font_size, 14.0);
+    }
 }

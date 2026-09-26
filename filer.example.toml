@@ -42,3 +42,16 @@ max_history = 200
 
 window_width = 1360.0
 window_height = 860.0
+
+[term]
+# What `<C-t>` starts. Leave it out for the platform's own default, which on
+# Windows is `powershell` — that is Windows PowerShell 5.1, not PowerShell 7.
+# The two read different profiles:
+#
+#   pwsh   Documents\PowerShell\Microsoft.PowerShell_profile.ps1
+#   5.1    Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1
+#
+# so a hook set up in one (the OSC 7 line `<A-Up>` needs, say) is simply not
+# there in the other. Name the one you actually use.
+# shell = "pwsh"
+# args = ["-NoLogo"]

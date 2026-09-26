@@ -305,10 +305,15 @@ impl Terminal {
         cwd: &Path,
         size: Size,
         cell: (u16, u16),
+        shell: Option<(String, Vec<String>)>,
         wake: impl Fn() + Send + Sync + 'static,
     ) -> io::Result<Self> {
         let options = tty::Options {
-            shell: None,
+            // `None` is the platform default, which on Windows is
+            // `powershell` -- Windows PowerShell 5.1, not `pwsh`. They read
+            // different profiles, so a shell hook set up for one is simply not
+            // there in the other; `[term] shell` is how you say which.
+            shell: shell.map(|(program, args)| tty::Shell::new(program, args)),
             working_directory: Some(cwd.to_path_buf()),
             drain_on_exit: false,
             env: Default::default(),

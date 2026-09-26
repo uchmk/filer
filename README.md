@@ -177,6 +177,10 @@ max_text_bytes = 262144
 max_history = 200
 window_width = 1360.0
 window_height = 860.0
+
+[term]                     # what `<C-t>` starts; omit for the platform default
+# shell = "pwsh"           # Windows without this is PowerShell 5.1, not 7
+# args = ["-NoLogo"]
 ```
 
 Fonts are auto-detected: a Nerd Font from your user font directory (HackGen, FiraCode,
@@ -774,6 +778,51 @@ $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
 
 Then `<C-t>`, `cd` somewhere, `<A-Up>`. Paths with spaces or non-ASCII characters work as they are —
 percent-escapes are undone on the way in, so escaping them first is optional rather than required.
+
+**Which PowerShell, and therefore which `$PROFILE`.** With nothing configured the pane starts
+`powershell`, and that is Windows PowerShell 5.1 rather than PowerShell 7. They read different files:
+
+| Shell | `$PROFILE` |
+| --- | --- |
+| `pwsh` (7) | `Documents\PowerShell\Microsoft.PowerShell_profile.ps1` |
+| `powershell` (5.1) | `Documents\`**`WindowsPowerShell`**`\Microsoft.PowerShell_profile.ps1` |
+
+A hook put in one is simply not there in the other, and nothing on screen says so — the pane looks
+like the shell you know, prompt generator and all, because both profiles usually set that up. If
+`<A-Up>` still says nothing was announced, ask the pane itself rather than guessing:
+
+```powershell
+$PSVersionTable.PSVersion
+$PROFILE
+$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
+```
+
+An empty third line means the hook is not loaded here. Appending through `$PROFILE` puts it in
+whichever file *this* shell reads, so there is nothing to get wrong:
+
+```powershell
+@'
+
+$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
+    $p = $PWD.ProviderPath -replace '\\', '/'
+    [Console]::Write("$([char]27)]7;file:///$p$([char]27)\")
+}
+'@ | Add-Content -Path $PROFILE -Encoding UTF8
+```
+
+Then `<C-S-t>` and `<C-t>` — a profile is read when the shell starts, and plain `<C-t>` only hands
+the keys back without ending it.
+
+To run PowerShell 7 in the pane instead, name it in `filer.toml`:
+
+```toml
+[term]
+shell = "pwsh"
+# args = ["-NoLogo"]
+```
+
+Leaving `[term]` out keeps the platform's own default, which is the behaviour every earlier version
+had. The same setting names a shell on macOS and Linux, where the default is the login shell.
 
 ## Shell integration
 

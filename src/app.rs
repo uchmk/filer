@@ -3707,7 +3707,14 @@ impl App {
         // The real shape arrives with the first frame that draws it; this is
         // only what the shell starts life believing.
         let size = crate::terminal::Size::new(80, 24);
-        match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), move || ctx.request_repaint()) {
+        // Empty means "whatever the platform starts", which is what it has
+        // always been; a name here is the way to ask for `pwsh` rather than
+        // the Windows PowerShell the default resolves to.
+        let shell = (!self.cfg.term.shell.is_empty())
+            .then(|| (self.cfg.term.shell.clone(), self.cfg.term.args.clone()));
+        match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), shell, move || {
+            ctx.request_repaint()
+        }) {
             Ok(t) => {
                 self.term = Some(t);
                 self.term_focus = true;

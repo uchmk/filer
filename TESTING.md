@@ -152,6 +152,21 @@ each pane with the view split.
 | D9 | Two directories | Refused with a reason |
 | D10 | `q` | Closes |
 
+## W. Which shell the pane runs (v0.24.0)
+
+The setting is one line; the point of the section is that the **default** is the
+thing that surprises people.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| W1 | `<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` | `5.1.x` — Windows PowerShell, unchanged from every earlier version |
+| W2 | Add `[term]` / `shell = "pwsh"`, `<C-S-t>`, `<C-t>`, ask again | `7.x` |
+| W3 | `$PROFILE` in each | Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7 |
+| W4 | With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each | Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report |
+| W5 | `args = ["-NoLogo"]` | The banner is gone |
+| W6 | A `shell` that is not installed | It fails to start and says so — no silent empty pane |
+| W7 | Remove `[term]` again, `<C-S-t>`, `<C-t>` | Back to the default |
+
 ## V. The outline at the end of a file (v0.23.1)
 
 Needs a document that **ends on a heading** with little under it — `TESTING-KEYS.md`
