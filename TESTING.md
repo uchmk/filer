@@ -329,7 +329,8 @@ skipped on Windows — this section is the only coverage of the `cmd` path.**
 | 30.6 | Watch the screen while paging | **No console window flashes.** It runs once per press |
 | 30.7 | Page to 5, move to another file, come back | Back at page one: the page belongs to the file |
 | 30.8 | Page back to one you have already seen | Instant — it is cached per page |
-| 30.9 | Hover a video | The frame at 0s, captioned `s 0` |
+| 30.9 | Hover a video (v0.30.2) | **A frame appears.** Until v0.30.2 none ever did on Windows: `{out}.png` was quoted as `"…page".png`, which `cmd` hands to ffmpeg with the quotes in the filename |
+| 30.9a | The same on a path with a space | Still draws — the quoting wraps the whole word, suffix included |
 | 30.10 | `<A-j>` on it | Ten seconds in, by `step` |
 | 30.11 | A PDF with a **space** in its name, and one in a Japanese folder | Both draw. The quoting is filer's, not the rule's |
 | 30.12 | Rename `pdftoppm` away, then hover a PDF | An error naming the tool, not a hang |

@@ -50,13 +50,34 @@ pub fn draw(rule: &PreviewRule, path: &Path, n: i64) -> Result<Drawn, String> {
 
 /// Substitute into the command line.
 ///
-/// `{path}` and `{out}` are wrapped in quotes here rather than in the config:
-/// a rule that had to quote them itself would be wrong on the first path with
-/// a space in it, and that is most of them on Windows.
+/// A placeholder is expanded and then the **whole word around it** is quoted,
+/// not the placeholder alone. `{out}.png` has to come out as `"…\page.png"`,
+/// and quoting only the placeholder gives `"…\page".png` — which `sh` happens
+/// to glue back together and `cmd` does not, so it passed every test here and
+/// failed on Windows, where the quotes end up inside the filename and the file
+/// cannot be created. `pdftoppm` was unaffected because its `{out}` stands
+/// alone; `ffmpeg`, which is told `{out}.png`, never drew a single frame.
+///
+/// Quoting is filer's job either way: a rule that had to quote `{path}` itself
+/// would be wrong on the first name with a space in it.
 fn fill(run: &str, path: &Path, out: &Path, n: i64) -> String {
-    run.replace("{path}", &format!("\"{}\"", path.display()))
-        .replace("{out}", &format!("\"{}\"", out.display()))
-        .replace("{n}", &n.to_string())
+    run.split_whitespace()
+        .map(|word| {
+            let has_path = word.contains("{path}") || word.contains("{out}");
+            let filled = word
+                .replace("{path}", &path.display().to_string())
+                .replace("{out}", &out.display().to_string())
+                .replace("{n}", &n.to_string());
+            // Left alone when the rule quoted it already, so a config written
+            // the careful way is not broken by the careful thing being done
+            // for it.
+            match has_path && !filled.starts_with('"') {
+                true => format!("\"{filled}\""),
+                false => filled,
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn first_word(run: &str) -> &str {
@@ -154,6 +175,22 @@ mod tests {
             7,
         );
         assert_eq!(line, r#"tool -f 7 -l 7 "/my docs/a b.pdf" "/tmp/x/page""#);
+    }
+
+    /// A suffix on `{out}` goes **inside** the quotes.
+    ///
+    /// `ffmpeg` is told `{out}.png`, and quoting the placeholder alone gives
+    /// `"…\page".png`. `sh` glues that back together, so it worked here and
+    /// nowhere else: on Windows `cmd` hands the quotes to ffmpeg as part of
+    /// the filename, which cannot contain them, and no frame was ever drawn.
+    #[test]
+    fn a_suffix_on_out_is_inside_the_quotes() {
+        let line = fill("ff -i {path} -y {out}.png", Path::new("/v/a b.mp4"), Path::new("/t/page"), 0);
+        assert_eq!(line, r#"ff -i "/v/a b.mp4" -y "/t/page.png""#);
+
+        // And a rule that quoted it itself is left as it is.
+        let line = fill(r#"ff -y "{out}.png""#, Path::new("/v/x.mp4"), Path::new("/t/page"), 0);
+        assert_eq!(line, r#"ff -y "/t/page.png""#);
     }
 
     /// The whole way through, with a command that really runs.
