@@ -24,6 +24,12 @@ Reply in Japanese. Code, comments and commit messages in English.
 **Only inside `#[cfg(test)]` modules, plus `QA-REPORT.md` and TODO.md.**
 Never `Cargo.toml`, and never `CHANGELOG.md` -- see "Branch and hand-off" for why.
 
+**In TESTING.md, the note under a section heading is yours; the numbers are not.**
+When you automate rows, say so there in the form sections 2, 10 and 45 already use
+-- which ids are covered, the test module's name, and what is left for an eye. A
+reader of that section otherwise re-runs by hand what `cargo test` already holds.
+Do not touch a section number, a check id, or the wording of a row.
+
 There is no `tests/` directory in this repository: 81 test modules live inside
 the `src/` files they test. So "do not touch `src/`" is not the rule and cannot
 be — the rule is about *where in a file* you write:
@@ -44,9 +50,13 @@ If a change you want is outside one, it is not yours to make — write it in
   `pub(crate)` so a test could enter through the same door the window does. A
   visibility change is still a change to the program: propose it, with the test
   you would write once it lands.
-- **Anything in TESTING.md's own numbering.** Renumbering a section renumbers
-  every section after it, and every check id inside them. TESTING.md says so
-  itself. Report the problem; do not fix it.
+- **Anything in TESTING.md's own numbering, and any row whose wording is wrong.**
+  Renumbering a section renumbers every section after it, and every check id
+  inside them. TESTING.md says so itself. The note under the heading is the one
+  part of that file you may write; everything else in it is a report. A stale
+  number in the prose counts -- v0.45.1 regenerated TESTING-KEYS.md to 226 keys
+  and left "193 of them" standing in TESTING.md, which is exactly the kind of
+  thing to report rather than quietly correct.
 
 ## Branch and hand-off
 
