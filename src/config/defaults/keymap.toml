@@ -275,16 +275,25 @@ on = "_"
 run = "link --relative"
 desc = "Symlink the relative path of yanked files"
 [[mgr.keymap]]
-on = "<C-S-->"
+on = "="
 run = "hardlink"
 desc = "Hardlink the yanked files"
 
 # Window scale. egui does this itself on the same three chords, at the end of
 # the frame and without consuming the key, so both it and the binding under
-# `<C-->` used to run: one hardlink and one shrink from a single press. It is
-# switched off there and done here, where `~` lists it and the keymap can move
-# it. `<C-=>` as well as `<C-+>`, since the plus is a shifted equals on most
-# keyboards and `<C-+>` alone would need the shift held to reach it.
+# `<C-->` used to run: one shrink from egui and one from the keymap on a single
+# press. It is switched off there and done here, where `~` lists it and the
+# keymap can move it.
+#
+# Both `<C-+>` and `<C-=>`, because "bigger" is a different physical key per
+# layout: on US `+` is shift+equals, on JIS it is shift+semicolon while `=` is
+# shift+minus. Either spelling reaches the same command. This needs `from_egui`
+# to keep the shift out of a symbol's `Key` -- see `src/config/keys.rs`; while
+# it did not, neither of these two ever fired.
+#
+# Not `<C-^>`, tempting as it looks beside `<C-->` on a JIS board: egui 0.36 has
+# no caret in `egui::Key` and `Key::from_name` does not accept "^", so the press
+# never becomes a key event and the binding would be dead on arrival.
 [[mgr.keymap]]
 on = "<C-+>"
 run = "scale in"
