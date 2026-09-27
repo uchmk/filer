@@ -61,8 +61,12 @@ Report format — one row per finding, so it can be worked through:
 ## Job 2 — TESTING-KEYS.md against the keymap
 
 TESTING-KEYS.md is generated from `src/config/defaults/keymap.toml` by
-`examples/make-keycheck.rs`. It carries 207 keys and a human's ticks, and a
+`examples/make-keycheck.rs`. It carries 226 keys and a human's ticks, and a
 checklist that has drifted is worse than none: it certifies keys nobody tried.
+
+**The file belongs to its owner and you never write it**, not even by regenerating
+it. A tick there means someone pressed the key on a real machine; a run of the
+generator is not that, and cannot be. Your part is `--check` and a report.
 
 ```bash
 cargo run --example make-keycheck -- --check
@@ -70,16 +74,12 @@ cargo run --example make-keycheck -- --check
 
 - **exit 0** — in sync. Nothing to do; say so.
 - **exit 1** — it prints the keys that were added, removed, or whose description
-  changed. Regenerate and commit:
+  changed. **Put that list in `QA-REPORT.md` verbatim** and stop. Running the
+  generator without `--check` writes the file, so do not run it that way at all.
 
-```bash
-cargo run --example make-keycheck      # no argument: writes the file
-git diff TESTING-KEYS.md               # read it before committing
-```
-
-`--check` ignores the `[x]` ticks, because those are the human's and regeneration
-preserves them. If the diff shows a tick moving, something is wrong with the
-generator — report it, do not commit it.
+`--check` ignores the `[x]` ticks, because those are the owner's. Name in the report
+which keys drifted and what the keymap says now, so the regeneration is a one-liner
+for whoever owns the file.
 
 CI runs `--check` on every push, so a drift found by hand means CI was not run on
 the commit that caused it. Worth a line in the report.
