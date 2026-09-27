@@ -444,9 +444,74 @@ impl<K: Eq + Hash + Clone, V> Lru<K, V> {
     }
 }
 
+/// A fresh, empty directory for one test to scribble in, removed and recreated
+/// so a previous run leaves nothing behind.
+///
+/// The name is the test's own, taken from its thread: the harness names each
+/// test thread after its full path, so two tests cannot be handed the same
+/// directory however carelessly this is called. That matters because the tests
+/// run in parallel in one process, and a path built from the process id alone
+/// has them deleting each other's fixtures mid-run -- which is exactly what
+/// happened while the disk-usage walk was being written, where three tests
+/// shared one name and failed on the first run and passed on the second. The
+/// process id is in there as well, so two `cargo test` invocations at once do
+/// not collide either.
+///
+/// `what` is only a label, to make the directory recognisable while debugging.
+#[cfg(test)]
+pub fn test_dir(what: &str) -> std::path::PathBuf {
+    let who = std::thread::current()
+        .name()
+        .unwrap_or("main")
+        .replace("::", "-")
+        .replace(|c: char| !c.is_ascii_alphanumeric() && c != '-', "_");
+    let dir = std::env::temp_dir()
+        .join(format!("filer-{what}-{who}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("a temp directory for the test");
+    dir
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The property the helper exists for: two tests never share a directory,
+    /// however carelessly it is called. These two ask for the same label and
+    /// must still get different answers -- they run in parallel, and the bug
+    /// this replaced was three tests wiping each other's fixtures mid-run.
+    #[test]
+    fn two_tests_asking_for_the_same_label_get_different_directories() {
+        let mine = test_dir("same-label");
+        assert!(mine.is_dir(), "it exists when handed over: {mine:?}");
+        assert_eq!(std::fs::read_dir(&mine).unwrap().count(), 0, "and it is empty");
+        // The other test below asks for this very label. If the name did not
+        // carry the test's own identity, one of us would delete the other's.
+        std::fs::write(mine.join("mine"), b"x").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(30));
+        assert!(mine.join("mine").exists(), "nobody wiped it while we waited");
+        assert!(!mine.join("theirs").exists(), "and it is not shared");
+    }
+
+    #[test]
+    fn the_other_test_asking_for_the_same_label() {
+        let mine = test_dir("same-label");
+        std::fs::write(mine.join("theirs"), b"x").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(30));
+        assert!(mine.join("theirs").exists());
+        assert!(!mine.join("mine").exists());
+    }
+
+    /// Called twice in one test it is the same directory, wiped -- so a test can
+    /// use it to start over without inventing a second name.
+    #[test]
+    fn the_same_test_calling_twice_starts_over() {
+        let first = test_dir("twice");
+        std::fs::write(first.join("stale"), b"x").unwrap();
+        let second = test_dir("twice");
+        assert_eq!(first, second);
+        assert!(!second.join("stale").exists(), "the second call wiped the first");
+    }
 
     /// An unset config variable expands to the directory filer searches, and
     /// every other unset variable still expands to nothing.
@@ -577,16 +642,21 @@ mod tests {
 
     #[test]
     fn normalizes() {
-        assert_eq!(normalize(Path::new(r"C:\a\b\..\c")), PathBuf::from(r"C:\a\c"));
         assert_eq!(normalize(Path::new("a/./b/../c")), PathBuf::from("a").join("c"));
         // Relative paths have nothing to pop, so `..` stays.
         assert_eq!(normalize(Path::new("../../a")), PathBuf::from("..").join("..").join("a"));
     }
 
+    // The drive-letter cases belong here rather than above: off Windows a
+    // `C:\a\b` string is one path component -- a backslash is an ordinary
+    // character -- so there is nothing to normalise and the assertion could
+    // never hold. It was unguarded, which is why `cargo test` was red on Linux
+    // by default.
     #[cfg(windows)]
     #[test]
     fn dot_dot_stops_at_a_root() {
         for (input, want) in [
+            (r"C:\a\b\..\c", r"C:\a\c"),
             (r"C:\a\..\..", r"C:\"),
             (r"C:\..\..\x", r"C:\x"),
             (r"\\host\share\a\..\..", r"\\host\share\"),

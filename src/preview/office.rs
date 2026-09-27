@@ -509,10 +509,10 @@ mod tests {
         z.finish().unwrap();
     }
 
+    /// A file path inside this test's own directory. `name` carries the extension
+    /// the reader dispatches on, so it has to survive into the path.
     fn tmp(name: &str) -> std::path::PathBuf {
-        let p = std::env::temp_dir().join(format!("filer-office-{name}"));
-        let _ = std::fs::remove_file(&p);
-        p
+        crate::util::test_dir("office").join(name)
     }
 
     #[test]

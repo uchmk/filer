@@ -200,7 +200,7 @@ mod tests {
     #[cfg(not(windows))]
     #[test]
     fn it_runs_the_command_and_finds_what_it_wrote() {
-        let src = std::env::temp_dir().join("filer-ext-src.txt");
+        let src = crate::util::test_dir("ext").join("src.txt");
         std::fs::write(&src, "x").unwrap();
 
         // Writes a file whose *name* nobody could have predicted, which is the
@@ -224,7 +224,7 @@ mod tests {
     #[cfg(not(windows))]
     #[test]
     fn nothing_written_is_reported_in_the_commands_own_words() {
-        let src = std::env::temp_dir().join("filer-ext-none.txt");
+        let src = crate::util::test_dir("ext-none").join("src.txt");
         std::fs::write(&src, "x").unwrap();
 
         let r = rule("echo 'Wrong page range given' >&2");

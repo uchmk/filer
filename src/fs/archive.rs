@@ -618,9 +618,11 @@ mod tests {
     /// it back, and see the same names and bytes.
     #[test]
     fn a_tree_survives_being_packed_and_unpacked() {
+        let base = crate::util::test_dir("archive");
         for format in [Format::Zip, Format::Tar, Format::TarGz, Format::SevenZ] {
-            let root = std::env::temp_dir().join(format!("filer-archive-{}", format.label()));
-            let _ = std::fs::remove_dir_all(&root);
+            // One subdirectory per format, so the four runs cannot see each
+            // other's files.
+            let root = base.join(format.label());
             let src = root.join("src");
             std::fs::create_dir_all(src.join("sub")).unwrap();
             std::fs::write(src.join("top.txt"), b"top").unwrap();

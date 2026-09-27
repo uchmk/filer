@@ -5370,6 +5370,12 @@ mod move_undo {
         App::new(Config::load(), std::env::temp_dir(), ctx)
     }
 
+    /// A file path inside a directory shared by this test.
+    ///
+    /// Deliberately **not** `util::test_dir`: this is called several times in one
+    /// test for several file names, and `test_dir` wipes what it hands back, so
+    /// the second call would delete the first file. The three tests here use
+    /// distinct names, so the process id is uniqueness enough.
     fn tmp(name: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("filer-move-undo-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&d);
@@ -5711,10 +5717,8 @@ mod usage_view {
 
     /// One directory per test. They run in parallel in one process, so a name
     /// built from the pid alone has them wiping each other's trees mid-walk.
-    fn tree(name: &str) -> PathBuf {
-        let dir =
-            std::env::temp_dir().join(format!("filer-usage-view-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+    fn tree() -> PathBuf {
+        let dir = crate::util::test_dir("usage-view");
         std::fs::create_dir_all(dir.join("fat").join("inner")).unwrap();
         std::fs::create_dir_all(dir.join("thin")).unwrap();
         std::fs::write(dir.join("fat").join("inner").join("a"), vec![b'x'; 900]).unwrap();
@@ -5734,7 +5738,7 @@ mod usage_view {
     /// scale taken from the biggest row.
     #[test]
     fn the_biggest_thing_comes_first() {
-        let dir = tree("order");
+        let dir = tree();
         let mut a = app_in(&dir);
         a.start_usage();
         assert!(a.usage.is_some(), "a walk is running");
@@ -5761,7 +5765,7 @@ mod usage_view {
     /// dropping the handle stops the walk.
     #[test]
     fn leaving_the_view_stops_the_walk() {
-        let dir = tree("leave");
+        let dir = tree();
         let mut a = app_in(&dir);
         a.start_usage();
         assert!(a.in_search_view(), "the usage view is not a real directory");
@@ -5776,7 +5780,7 @@ mod usage_view {
     /// no directory to go back to.
     #[test]
     fn it_refuses_to_start_from_another_synthetic_view() {
-        let dir = tree("refuse");
+        let dir = tree();
         let mut a = app_in(&dir);
         a.start_usage();
         let path = a.tabs[a.active].current.path.clone();

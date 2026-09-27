@@ -480,45 +480,110 @@ mod tests {
         assert_eq!(substitute(r#"say "hi" %*"#, &p), format!("say \"hi\" {q}"));
     }
 
+    /// A path with a space in it, and the program path of an editor installed
+    /// somewhere with one -- spelled for the platform the test is running on.
+    ///
+    /// The rules under test here are about where the line number goes and which
+    /// flag carries it, not about which character separates directories. Writing
+    /// the paths Windows-only made three tests fail on Linux, where a `C:\…`
+    /// string is one path component and so matches no editor at all, and the
+    /// answer to that was not to stop testing the rules off Windows -- it is the
+    /// same reasoning `cmd_s_c_arg` above is kept unguarded for.
+    struct Sample {
+        paths: Vec<PathBuf>,
+        /// The path as it appears between the quotes.
+        raw: &'static str,
+        /// A full path to an editor's executable, with a space in a directory.
+        nvim: &'static str,
+        sakura: &'static str,
+        notepadpp: &'static str,
+        mikan: &'static str,
+    }
+
+    fn sample(name: &str) -> Sample {
+        #[cfg(windows)]
+        {
+            let raw: &'static str = match name {
+                "txt" => r"C:\a b\x.txt",
+                _ => r"C:\a b\x.rs",
+            };
+            Sample {
+                paths: vec![PathBuf::from(raw)],
+                raw,
+                nvim: r"C:\Program Files\Neovim\bin\nvim.exe",
+                sakura: r"C:\Program Files\sakura\sakura.exe",
+                notepadpp: r"C:\Program Files\Notepad++\notepad++.exe",
+                mikan: r"C:\Program Files\Mikan\Mikan.exe",
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            let raw: &'static str = match name {
+                "txt" => "/a b/x.txt",
+                _ => "/a b/x.rs",
+            };
+            Sample {
+                paths: vec![PathBuf::from(raw)],
+                raw,
+                nvim: "/opt/n vim/bin/nvim",
+                sakura: "/opt/s akura/sakura",
+                notepadpp: "/opt/n pp/notepad++",
+                mikan: "/opt/m ikan/Mikan",
+            }
+        }
+    }
+
     #[test]
     fn opens_editors_at_a_line() {
-        let paths = vec![PathBuf::from(r"C:\a b\x.rs")];
-        let at = |run| at_line(run, &paths, 12, &LineArgs::new());
-        assert_eq!(at("nvim %s").as_deref(), Some(r#"nvim +12 "C:\a b\x.rs""#));
-        assert_eq!(at("code %*").as_deref(), Some(r#"code -g "C:\a b\x.rs:12""#));
-        assert_eq!(at(r#"hx "$@""#).as_deref(), Some(r#"hx "C:\a b\x.rs:12""#));
-        assert_eq!(at("Code.CMD").as_deref(), Some(r#"Code.CMD -g "C:\a b\x.rs:12""#));
+        let s = sample("rs");
+        let (p, pn) = (s.raw, format!("{}:12", s.raw));
+        let at = |run: &str| at_line(run, &s.paths, 12, &LineArgs::new());
+        assert_eq!(at("nvim %s").as_deref(), Some(format!(r#"nvim +12 "{p}""#).as_str()));
+        assert_eq!(at("code %*").as_deref(), Some(format!(r#"code -g "{pn}""#).as_str()));
+        assert_eq!(at(r#"hx "$@""#).as_deref(), Some(format!(r#"hx "{pn}""#).as_str()));
+        assert_eq!(at("Code.CMD").as_deref(), Some(format!(r#"Code.CMD -g "{pn}""#).as_str()));
+        // An editor named by its full path, with a space in a directory: the key
+        // is matched on the file name without its extension.
         assert_eq!(
-            at(r#""C:\Program Files\Neovim\bin\nvim.exe" -O %s"#).as_deref(),
-            Some(r#""C:\Program Files\Neovim\bin\nvim.exe" +12 -O "C:\a b\x.rs""#)
+            at(&format!(r#""{}" -O %s"#, s.nvim)).as_deref(),
+            Some(format!(r#""{}" +12 -O "{p}""#, s.nvim).as_str())
         );
+        // A program that takes no line number is opened the plain way.
         assert_eq!(at("explorer %s"), None);
         assert_eq!(at(""), None);
     }
 
+    /// The Windows editors' own flags. The programs only exist there, but the
+    /// table that maps a name to a flag is plain data and is worth checking
+    /// wherever the tests run.
     #[test]
     fn opens_windows_editors_at_a_line() {
-        let paths = vec![PathBuf::from(r"C:\a b\x.txt")];
-        let at = |run| at_line(run, &paths, 123, &LineArgs::new());
-        assert_eq!(at("hidemaru %s").as_deref(), Some(r#"hidemaru /j123 "C:\a b\x.txt""#));
-        assert_eq!(at("sakura %s").as_deref(), Some(r#"sakura -L=123 "C:\a b\x.txt""#));
-        assert_eq!(at("emeditor %s").as_deref(), Some(r#"emeditor /l 123 "C:\a b\x.txt""#));
-        assert_eq!(at("notepad++ %s").as_deref(), Some(r#"notepad++ -n123 "C:\a b\x.txt""#));
+        let s = sample("txt");
+        let p = s.raw;
+        let at = |run: &str| at_line(run, &s.paths, 123, &LineArgs::new());
+        assert_eq!(at("hidemaru %s").as_deref(), Some(format!(r#"hidemaru /j123 "{p}""#).as_str()));
+        assert_eq!(at("sakura %s").as_deref(), Some(format!(r#"sakura -L=123 "{p}""#).as_str()));
+        assert_eq!(at("emeditor %s").as_deref(), Some(format!(r#"emeditor /l 123 "{p}""#).as_str()));
+        assert_eq!(at("notepad++ %s").as_deref(), Some(format!(r#"notepad++ -n123 "{p}""#).as_str()));
         // Notepad takes no line, so it is opened the plain way.
         assert_eq!(at("notepad %s"), None);
         assert_eq!(
-            at(r#""C:\Program Files\sakura\sakura.exe" %s"#).as_deref(),
-            Some(r#""C:\Program Files\sakura\sakura.exe" -L=123 "C:\a b\x.txt""#)
+            at(&format!(r#""{}" %s"#, s.sakura)).as_deref(),
+            Some(format!(r#""{}" -L=123 "{p}""#, s.sakura).as_str())
         );
+        // `++` in the file name must not stop the key being found.
         assert_eq!(
-            at(r#""C:\Program Files\Notepad++\notepad++.exe" %s"#).as_deref(),
-            Some(r#""C:\Program Files\Notepad++\notepad++.exe" -n123 "C:\a b\x.txt""#)
+            at(&format!(r#""{}" %s"#, s.notepadpp)).as_deref(),
+            Some(format!(r#""{}" -n123 "{p}""#, s.notepadpp).as_str())
         );
     }
 
+    /// The `[line_args]` config: an editor the built-in table does not know, the
+    /// three template shapes, and a configured entry winning over a built-in one.
     #[test]
-    fn line_args_from_the_config_win() {
-        let paths = vec![PathBuf::from(r"C:\a b\x.txt")];
+    fn line_args_from_the_config() {
+        let s = sample("txt");
+        let p = s.raw;
         let mut custom = LineArgs::new();
         // An editor the built-in table knows nothing about.
         custom.insert("mikan".into(), "-l {line} {path}".into());
@@ -527,19 +592,19 @@ mod tests {
         custom.insert("goto".into(), "--goto {path}@{line}".into());
         // A configured editor overrides the built-in table.
         custom.insert("sakura".into(), "/LINE={line} {path}".into());
-        let at = |run| at_line(run, &paths, 123, &custom);
+        let at = |run: &str| at_line(run, &s.paths, 123, &custom);
 
-        assert_eq!(at("mikan %s").as_deref(), Some(r#"mikan -l 123 "C:\a b\x.txt""#));
-        assert_eq!(at("myedit %s").as_deref(), Some(r#"myedit "C:\a b\x.txt:123""#));
-        assert_eq!(at("goto %s").as_deref(), Some(r#"goto --goto "C:\a b\x.txt@123""#));
-        assert_eq!(at("sakura %s").as_deref(), Some(r#"sakura /LINE=123 "C:\a b\x.txt""#));
+        assert_eq!(at("mikan %s").as_deref(), Some(format!(r#"mikan -l 123 "{p}""#).as_str()));
+        assert_eq!(at("myedit %s").as_deref(), Some(format!(r#"myedit "{p}:123""#).as_str()));
+        assert_eq!(at("goto %s").as_deref(), Some(format!(r#"goto --goto "{p}@123""#).as_str()));
+        assert_eq!(at("sakura %s").as_deref(), Some(format!(r#"sakura /LINE=123 "{p}""#).as_str()));
         // Keys and programs are matched by file name, without the extension.
         assert_eq!(
-            at(r#""C:\Program Files\Mikan\Mikan.exe" -w %s"#).as_deref(),
-            Some(r#""C:\Program Files\Mikan\Mikan.exe" -l 123 -w "C:\a b\x.txt""#)
+            at(&format!(r#""{}" -w %s"#, s.mikan)).as_deref(),
+            Some(format!(r#""{}" -l 123 -w "{p}""#, s.mikan).as_str())
         );
         // An opener with no placeholder still gets the path appended.
-        assert_eq!(at("mikan").as_deref(), Some(r#"mikan -l 123 "C:\a b\x.txt""#));
+        assert_eq!(at("mikan").as_deref(), Some(format!(r#"mikan -l 123 "{p}""#).as_str()));
         // Editors outside both the table and the config are unchanged.
         assert_eq!(at("explorer %s"), None);
     }
@@ -614,3 +679,4 @@ mod hint_is_true {
         assert!(out.contains("\"/a file.txt\""), "not quoted: {out}");
     }
 }
+

@@ -127,9 +127,8 @@ fn measure(path: &Path, budget: &mut usize, stop: &AtomicBool) -> (u64, u64) {
 mod tests {
     use super::*;
 
-    fn tree(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("filer-usage-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+    fn tree() -> PathBuf {
+        let dir = crate::util::test_dir("usage");
         std::fs::create_dir_all(dir.join("big").join("deep")).unwrap();
         std::fs::create_dir_all(dir.join("small")).unwrap();
         std::fs::write(dir.join("big").join("a"), vec![b'x'; 300]).unwrap();
@@ -160,7 +159,7 @@ mod tests {
     /// size of its own directory entry.
     #[test]
     fn a_folder_is_worth_what_is_under_it() {
-        let dir = tree("sizes");
+        let dir = tree();
         let (all, total, capped) = collect(&dir);
         assert!(!capped);
         let by = |name: &str| all.iter().find(|(p, ..)| p.ends_with(name)).map_or(0, |t| t.1);
@@ -175,7 +174,7 @@ mod tests {
 
     #[test]
     fn the_file_counts_come_back_too() {
-        let dir = tree("counts");
+        let dir = tree();
         let (all, ..) = collect(&dir);
         let files = |name: &str| all.iter().find(|(p, ..)| p.ends_with(name)).map(|t| t.2);
         assert_eq!(files("big"), Some(2));
@@ -187,9 +186,7 @@ mod tests {
     /// An empty or unreadable directory answers rather than hanging.
     #[test]
     fn an_empty_directory_finishes_at_zero() {
-        let dir = std::env::temp_dir().join(format!("filer-usage-empty-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::util::test_dir("usage-empty");
         let (all, total, capped) = collect(&dir);
         assert!(all.is_empty());
         assert_eq!(total, 0);

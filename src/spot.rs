@@ -591,12 +591,7 @@ impl Spotter {
 mod tests {
     use super::*;
 
-    fn temp_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("filer-spot-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
-    }
+
 
     fn value<'a>(s: &'a Section, key: &str) -> Option<&'a str> {
         s.rows.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
@@ -642,7 +637,7 @@ mod tests {
 
     #[test]
     fn an_archive_is_counted_without_being_unpacked() {
-        let dir = temp_dir("archive");
+        let dir = crate::util::test_dir("archive");
         let src = dir.join("src");
         std::fs::create_dir_all(&src).unwrap();
         std::fs::write(src.join("a.txt"), b"aaa").unwrap();
@@ -668,7 +663,7 @@ mod tests {
 
     #[test]
     fn line_endings_and_the_bom_are_reported() {
-        let dir = temp_dir("text");
+        let dir = crate::util::test_dir("text");
         let lf = spotted(&dir, "lf.txt", b"a\nb\nc\n");
         assert_eq!(value(section(&lf, "Text").unwrap(), "Line endings"), Some("LF (3)"));
         assert_eq!(value(section(&lf, "Text").unwrap(), "BOM"), Some("none"));
@@ -694,7 +689,7 @@ mod tests {
     /// run before the BOM test would make this section unreachable forever.
     #[test]
     fn utf16_is_text_even_though_it_is_full_of_nul_bytes() {
-        let dir = temp_dir("utf16");
+        let dir = crate::util::test_dir("utf16");
         let mut le = vec![0xff, 0xfe];
         for u in "hi\n".encode_utf16() {
             le.extend_from_slice(&u.to_le_bytes());
@@ -715,14 +710,14 @@ mod tests {
 
     #[test]
     fn a_binary_file_has_no_text_section() {
-        let dir = temp_dir("binary");
+        let dir = crate::util::test_dir("binary");
         let all = spotted(&dir, "blob.bin", &[0x00, 0x01, 0x02, 0xff, 0xfd, 0x00, 0x7f]);
         assert!(section(&all, "Text").is_none(), "{all:?}");
     }
 
     #[test]
     fn the_longest_line_and_the_indent_step_are_found() {
-        let dir = temp_dir("indent");
+        let dir = crate::util::test_dir("indent");
         let all = spotted(&dir, "src.rs", b"a\n    four\n        eight\n            twelve!!\n");
         let s = section(&all, "Text").unwrap();
         assert_eq!(value(s, "Indentation"), Some("spaces, 4"));
@@ -738,7 +733,7 @@ mod tests {
 
     #[test]
     fn a_pe_is_named_by_its_coff_machine() {
-        let dir = temp_dir("pe");
+        let dir = crate::util::test_dir("pe");
         let all = spotted(&dir, "x64.exe", &pe(0x8664, 0x20b, 0, 3));
         let s = section(&all, "Executable").expect("{all:?}");
         assert_eq!(value(s, "Format"), Some("PE32+"));
@@ -767,7 +762,7 @@ mod tests {
 
     #[test]
     fn an_elf_is_named_by_its_machine_and_its_byte_order() {
-        let dir = temp_dir("elf");
+        let dir = crate::util::test_dir("elf");
         let all = spotted(&dir, "a.out", &elf(2, false, 0x3e, 2));
         let s = section(&all, "Executable").unwrap();
         assert_eq!(value(s, "Format"), Some("ELF 64-bit"));
@@ -790,7 +785,7 @@ mod tests {
 
     #[test]
     fn a_universal_binary_lists_its_slices_and_a_java_class_does_not() {
-        let dir = temp_dir("fat");
+        let dir = crate::util::test_dir("fat");
         let mut fat = Vec::new();
         fat.extend_from_slice(&0xcafe_babeu32.to_be_bytes());
         fat.extend_from_slice(&2u32.to_be_bytes());
@@ -832,7 +827,7 @@ mod tests {
 
     #[test]
     fn a_document_names_its_author_and_an_old_one_says_nothing() {
-        let dir = temp_dir("office");
+        let dir = crate::util::test_dir("office");
         let core = r#"<?xml version="1.0"?><cp:coreProperties>
 <dc:title/><dc:creator>Ada &amp; Co</dc:creator><cp:revision>12</cp:revision>
 <dcterms:created>2026-08-14T09:12:00Z</dcterms:created></cp:coreProperties>"#;
@@ -866,7 +861,7 @@ mod tests {
 
     #[test]
     fn base_describes_a_text_file() {
-        let dir = temp_dir("base");
+        let dir = crate::util::test_dir("base");
         let path = dir.join("notes.txt");
         std::fs::write(&path, "x".repeat(1234)).unwrap();
         let s = base(&Entry::from_path(path).unwrap());
@@ -884,7 +879,7 @@ mod tests {
 
     #[test]
     fn reads_image_dimensions() {
-        let dir = temp_dir("image");
+        let dir = crate::util::test_dir("image");
         // Named `.dat` on purpose: the format is sniffed, not taken from the name.
         let path = dir.join("pic.dat");
         image::RgbaImage::new(7, 3).save_with_format(&path, image::ImageFormat::Png).unwrap();
@@ -897,7 +892,7 @@ mod tests {
 
     #[test]
     fn counts_a_directory() {
-        let dir = temp_dir("dir");
+        let dir = crate::util::test_dir("dir");
         std::fs::write(dir.join("a"), "12").unwrap();
         std::fs::write(dir.join("b"), "345").unwrap();
         std::fs::create_dir(dir.join("sub")).unwrap();
