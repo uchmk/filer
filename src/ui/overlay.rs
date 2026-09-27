@@ -892,6 +892,9 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         Some(Outcome::Binary { .. }) => {
             return note("Not text on both sides, and the bytes differ.", theme.fg_dim)
         }
+        Some(Outcome::Tree { .. }) => {
+            return diff_tree(ov, &theme, &painter, inner, f, row_h);
+        }
         Some(Outcome::Rows { rows, truncated, rough }) => (rows, *truncated, *rough),
     };
 
@@ -944,6 +947,120 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     let mut foot = format!("{}–{} of {}", top + 1, (top + visible).min(rows.len()), rows.len());
     if rough {
         foot.push_str("  ·  too large to line up exactly");
+    }
+    if truncated {
+        foot.push_str("  ·  cut short");
+    }
+    painter.text(
+        egui::pos2(inner.left(), inner.bottom() - row_h),
+        Align2::LEFT_TOP,
+        foot,
+        f.clone(),
+        theme.fg_dim,
+    );
+}
+
+/// Two trees as one list of the paths inside them, each marked with what was
+/// found. A sibling of [`diff`] rather than a branch of it: that view is two
+/// columns of numbered lines, and this is a list with a cursor, so they agree on
+/// the frame and nothing else.
+fn diff_tree(
+    ov: &mut crate::app::DiffOverlay,
+    theme: &crate::config::theme::Theme,
+    painter: &egui::Painter,
+    inner: Rect,
+    f: &FontId,
+    row_h: f32,
+) {
+    use crate::diff::{Outcome, TreeState};
+    let Some(Outcome::Tree { rows, truncated }) = &ov.outcome else { return };
+    let truncated = *truncated;
+    if rows.is_empty() {
+        painter.text(
+            inner.left_top(),
+            Align2::LEFT_TOP,
+            "The two folders hold the same paths, and every file matches.",
+            f.clone(),
+            theme.fg_dim,
+        );
+        return;
+    }
+
+    let visible = ((inner.height() / row_h).floor() as usize).max(2) - 1;
+    ov.rows = visible;
+    ov.cursor = ov.cursor.min(rows.len() - 1);
+    // Keep the cursor on screen, the way the spot panel does.
+    if ov.cursor < ov.offset {
+        ov.offset = ov.cursor;
+    } else if ov.cursor >= ov.offset + visible {
+        ov.offset = ov.cursor + 1 - visible;
+    }
+    ov.offset = ov.offset.min(rows.len().saturating_sub(visible.min(rows.len())));
+    let top = ov.offset;
+
+    let cell = painter.layout_no_wrap("M".repeat(20), f.clone(), theme.fg).size().x / 20.0;
+    let mut y = inner.top();
+    let mut counts = [0usize; 5];
+    for row in rows {
+        counts[match row.state {
+            TreeState::LeftOnly => 0,
+            TreeState::RightOnly => 1,
+            TreeState::Differ => 2,
+            TreeState::Same => 3,
+            TreeState::Unread => 4,
+        }] += 1;
+    }
+
+    for (i, row) in rows.iter().enumerate().skip(top).take(visible) {
+        if i == ov.cursor {
+            painter.rect_filled(
+                Rect::from_min_size(inner.left_top() + Vec2::new(0.0, y - inner.top()), Vec2::new(inner.width(), row_h)),
+                CornerRadius::same(3),
+                theme.hovered_bg,
+            );
+        }
+        // The sign says which side, so the list reads without a legend: `<` and
+        // `>` point at the tree that has it, `~` is both-but-different.
+        let (sign, color) = match row.state {
+            TreeState::LeftOnly => ("<", theme.git_deleted),
+            TreeState::RightOnly => (">", theme.git_added),
+            TreeState::Differ => ("~", theme.git_modified),
+            TreeState::Same => ("=", theme.fg_dim),
+            TreeState::Unread => ("?", theme.fg_dim),
+        };
+        painter.text(inner.left_top() + Vec2::new(0.0, y - inner.top()), Align2::LEFT_TOP, sign, f.clone(), color);
+
+        let size = match row.state {
+            TreeState::Differ if !row.dir => format!(
+                "  {} → {}",
+                crate::util::human_size(row.left),
+                crate::util::human_size(row.right)
+            ),
+            TreeState::LeftOnly if !row.dir => format!("  {}", crate::util::human_size(row.left)),
+            TreeState::RightOnly if !row.dir => format!("  {}", crate::util::human_size(row.right)),
+            _ => String::new(),
+        };
+        let mut name = row.rel.display().to_string();
+        if row.dir {
+            name.push('/');
+        }
+        let cols = ((inner.width() / cell) as usize).saturating_sub(4 + size.chars().count());
+        painter.text(
+            inner.left_top() + Vec2::new(2.0 * cell, y - inner.top()),
+            Align2::LEFT_TOP,
+            format!("{}{size}", crate::util::ellipsize_middle(&name, cols.max(4))),
+            f.clone(),
+            if matches!(row.state, TreeState::Same) { theme.fg_dim } else { theme.fg },
+        );
+        y += row_h;
+    }
+
+    let mut foot = format!(
+        "{} only left  ·  {} only right  ·  {} differ  ·  {} match",
+        counts[0], counts[1], counts[2], counts[3]
+    );
+    if counts[4] > 0 {
+        foot.push_str(&format!("  ·  {} too big to read", counts[4]));
     }
     if truncated {
         foot.push_str("  ·  cut short");

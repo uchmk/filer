@@ -515,7 +515,7 @@ is not.
 
 | Key | |
 | --- | --- |
-| `j` `k` `<C-d>` `<C-u>` `gg` `G` | scroll |
+| `j` `k` `<C-d>` `<C-u>` `gg` `G` | scroll (move the selection, comparing folders) |
 | `n` `N` | to the next / previous difference |
 | `q` `<Esc>` | close |
 
@@ -529,6 +529,31 @@ that are not both text report only whether the bytes match — lining up bytes i
 diff. The matching top and bottom are peeled off before the work starts, which is what makes a
 one-line change in a four-thousand-line file cost nothing; files with nothing in common at all are
 laid side by side without being matched up, and say so.
+
+### Two folders
+
+`<A-d>` on **two folders** compares the trees instead, as one list of every path inside them:
+
+```
+  =  Cargo.toml
+  ~  src/main.rs          12 K → 13 K
+  <  src/old.rs            2 K
+  >  src/new.rs            4 K
+  =  src/ui/
+```
+
+`<` and `>` point at the tree that has it, `~` is in both and differs, `=` matches, and `?` is a pair
+the same size that was too big to read. `n` / `N` walk between the paths that are not matches, and the
+footer counts each kind. One of each — a file against a folder — is refused, since there is nothing
+sensible to show for it.
+
+Sizes decide almost every row without anything being read: two files of different lengths differ, and
+that is most of them. Only same-sized pairs are opened, compared in blocks and stopped at the first
+one that differs, so a file that changed early costs nothing however large it is. Past 64 MB a
+same-sized pair is left as `?` rather than read — and it is **not** reported as matching, because
+saying two files are the same is a claim and that is the absence of one. Symlinks are compared as
+themselves rather than followed, so two trees that differ only in where a link points read as
+differing. Very large trees stop after 100,000 paths and say so.
 
 ## Quick look
 
@@ -1150,8 +1175,9 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   branch name are shown — there is no staging, diffing or committing here.
 - Undo covers renames (single and bulk) and trips to the recycle bin, nothing else, and on macOS
   only renames — see [Undo](#undo). It is not written to disk, so closing the window forgets it.
-- Comparing is line-level and read-only: no word-level highlighting inside a changed line, no
-  editing from the view, and no comparing directories.
+- Comparing files is line-level and read-only: no word-level highlighting inside a changed line and
+  no editing from the view. Comparing folders lists the paths and says which differ; it does not open
+  a pair from a row, and it has no filter for showing only the differences.
 - The minimap stops where the file was cut off at `max_text_bytes` rather than describing the rest,
   so on a truncated file the strip describes only the head and silently rescales it to the full
   height.

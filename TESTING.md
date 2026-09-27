@@ -940,6 +940,27 @@ The walk and the ordering are unit-tested on a small tree. What needs a machine 
 | 44.12 | `gu`, then `,` to re-sort | The order changes (as asked); `gu` again restores largest-first |
 | 44.13 | Compare a folder's total against Explorer's own properties | Within rounding. **Hard links read high — that is documented, not a bug** |
 
+## 45. Comparing two folders (v0.43.0)
+
+The pairing and the size/byte rules are unit-tested on small trees. What needs a machine is two real
+trees, and the keys in the actual view.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 45.1 | Select two folders, `<A-d>` | A list of paths with `<` `>` `~` `=` signs and a footer counting each |
+| 45.2 | `j` / `k` in that view | The **selection** moves (a highlighted row), not the scroll |
+| 45.3 | `n` / `N` | Walks between the rows that are not `=`, skipping matches. At the end it says so |
+| 45.4 | `gg` / `G` | First and last row |
+| 45.5 | Two identical copies of a tree | Every row `=`, or the "same paths, every file matches" line if empty |
+| 45.6 | A tree where one file differs in its last byte only | That row is `~`, not `=` |
+| 45.7 | A pair of same-sized files **over 64 MB** | `?`, and the footer counts it as "too big to read" — **not** reported as matching |
+| 45.8 | A folder on one side where the other has a file of that name | `~` |
+| 45.9 | Select one file and one folder, `<A-d>` | Refused with "compare two files, or two folders — not one of each" |
+| 45.10 | Two `node_modules` (100k+ paths) | Answers, or says it was cut short; the window does not freeze |
+| 45.11 | Two trees differing only in where a symlink points | The link row reads as differing |
+| 45.12 | Split the view, stand on a folder in each pane, `<A-d>` | Compares those two |
+| 45.13 | `q` / `<Esc>` | Closes, and two **files** still compare line by line as before |
+
 ## Known gaps in this checklist
 
 - **Nothing here has been run.** The checklist was written from the code, not
