@@ -79,6 +79,98 @@ fn part(zip: &mut zip::ZipArchive<std::fs::File>, name: &str) -> Option<String> 
     Some(s)
 }
 
+/// How much of a property part is read. These run to a few hundred bytes in
+/// practice; the cap is only so a hand-built file cannot ask for a gigabyte.
+const MAX_PROP_BYTES: u64 = 64 << 10;
+
+/// `docProps/core.xml` and `docProps/app.xml`, in the order a property sheet
+/// wants them. Empty when the file carries no properties, or is not OOXML.
+///
+/// The XML is scanned rather than parsed, for the reason this module's own
+/// header gives. (`roxmltree` is in fact reachable, as `resvg::usvg::roxmltree`
+/// -- but through the SVG renderer's private dependency tree, with no version
+/// of its own in `Cargo.toml`, which is a worse bargain than the scanner below.)
+pub fn properties(path: &Path) -> Vec<(&'static str, String)> {
+    // The same gate `read` uses, kept here so the caller needs to know nothing
+    // about which extensions are OOXML: `.doc` and `.xls` decline themselves.
+    let ext = path.extension().and_then(|e| e.to_str());
+    if Kind::of(ext).is_none() {
+        return Vec::new();
+    }
+    let Ok(file) = std::fs::File::open(path) else { return Vec::new() };
+    let Ok(mut zip) = zip::ZipArchive::new(file) else { return Vec::new() };
+    let core = part_capped(&mut zip, "docProps/core.xml", MAX_PROP_BYTES).unwrap_or_default();
+    let app = part_capped(&mut zip, "docProps/app.xml", MAX_PROP_BYTES).unwrap_or_default();
+    let mut out: Vec<(&'static str, String)> = Vec::new();
+    let mut put = |key: &'static str, v: Option<String>| {
+        if let Some(v) = v.filter(|v| !v.trim().is_empty()) {
+            out.push((key, v));
+        }
+    };
+    put("Title", tag_text(&core, "dc:title"));
+    put("Author", tag_text(&core, "dc:creator"));
+    put("Last saved by", tag_text(&core, "cp:lastModifiedBy"));
+    put("Created", tag_text(&core, "dcterms:created").map(stamp));
+    put("Modified", tag_text(&core, "dcterms:modified").map(stamp));
+    put("Revision", tag_text(&core, "cp:revision"));
+    let app_name = match (tag_text(&app, "Application"), tag_text(&app, "AppVersion")) {
+        (Some(a), Some(v)) => Some(format!("{a} {v}")),
+        (a, _) => a,
+    };
+    put("Application", app_name);
+    put("Pages", tag_text(&app, "Pages"));
+    put("Words", tag_text(&app, "Words"));
+    put("Slides", tag_text(&app, "Slides"));
+    out
+}
+
+fn part_capped(zip: &mut zip::ZipArchive<std::fs::File>, name: &str, max: u64) -> Option<String> {
+    let f = zip.by_name(name).ok()?;
+    let mut s = String::new();
+    f.take(max).read_to_string(&mut s).ok()?;
+    Some(s)
+}
+
+/// The text of the first `<tag>` … `</tag>`.
+///
+/// Three things this has to get right. The name must end at the tag: a search
+/// for `<dc:t` must not find `<dc:title>`, so the byte after it has to be `>`
+/// or whitespace. `<tag/>` is an empty element, not an opening one -- reading
+/// past it to the next `</` would swallow the rest of the document. And the
+/// body stops at the next `<` rather than at `</tag>`, which fails safe on a
+/// part that unexpectedly has children.
+fn tag_text(xml: &str, tag: &str) -> Option<String> {
+    let open = format!("<{tag}");
+    let mut from = 0;
+    loop {
+        let at = from + xml.get(from..)?.find(&open)?;
+        let after = at + open.len();
+        let next = xml.as_bytes().get(after)?;
+        if !matches!(next, b'>' | b' ' | b'\t' | b'\r' | b'\n' | b'/') {
+            from = after; // `<dc:titlepage`, not `<dc:title`
+            continue;
+        }
+        let close = after + xml.get(after..)?.find('>')?;
+        if xml.as_bytes().get(close.wrapping_sub(1)) == Some(&b'/') {
+            return None; // `<tag/>`: present and empty
+        }
+        let body = xml.get(close + 1..)?;
+        let end = body.find('<').unwrap_or(body.len());
+        return Some(unescape(&body[..end]));
+    }
+}
+
+/// `2026-09-01T12:34:56Z` as `2026-09-01 12:34:56 UTC`. OOXML stores these in
+/// UTC while every other time in the panel is local, so the suffix is not
+/// decoration.
+fn stamp(s: String) -> String {
+    if s.len() == 20 && s.ends_with('Z') && s.as_bytes()[10] == b'T' {
+        format!("{} {} UTC", &s[..10], &s[11..19])
+    } else {
+        s
+    }
+}
+
 // ----------------------------------------------------------------- Word
 
 fn word(zip: &mut zip::ZipArchive<std::fs::File>) -> Result<Read1, String> {

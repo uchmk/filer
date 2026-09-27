@@ -855,6 +855,28 @@ What needs a machine is the handover, in a real `nvim` and a real pager.
 
 ---
 
+## 41. The spot panel's four new providers (v0.39.0)
+
+The parsing is unit-tested from bytes built by hand, so it reads the same on every target. What
+needs a machine is real files, and the panel's own geometry.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 41.1 | `<Tab>` on a `.zip` from the fixtures | An **Archive** section: format, entry and folder counts, unpacked size, ratio, `Encrypted: no` |
+| 41.2 | `<Tab>` on a zip made **encrypted by 7-Zip** | `Encrypted: yes (entries need a password)`, and the counts are still there. **Cannot be unit-tested — this build of `zip` has no AES writer, so no encrypted fixture can be made in-tree** |
+| 41.3 | `<Tab>` on a 7z made with "encrypt file names" | `Encrypted: yes (the listing itself)` and **no counts at all** (nothing below is known) |
+| 41.4 | `<Tab>` on an archive with more than 20,000 entries | The panel arrives without the window stalling, and says `Scanned: first 20,000 entries` |
+| 41.5 | `<Tab>` on a CRLF file saved by Notepad, then on an LF one | The `Line endings` row tells them apart, with counts |
+| 41.6 | `<Tab>` on a Notepad "UTF-16 LE" save | `Encoding: UTF-16 LE`, `BOM: UTF-16 LE (FF FE)` — **not** treated as binary |
+| 41.7 | `<Tab>` on a 2 GB log | Rows arrive promptly, `Scanned: first 1.0 M of …`, and **no `Final newline` row** (the end was never read) |
+| 41.8 | `<Tab>` on each of the six release binaries | `Architecture` matches the triple the artifact is named for — `x86_64` / `aarch64` |
+| 41.9 | `<Tab>` on `C:\Windows\explorer.exe`, then on a `.dll` | `Windows GUI` / `DLL` |
+| 41.10 | `<Tab>` on a real `.docx` / `.xlsx` / `.pptx` saved by Office | Author, revision, times marked **UTC**, word / page / slide counts |
+| 41.11 | `<Tab>` on an old `.doc` | **No Document section, and no error** |
+| 41.12 | Look at the key column on every new section | No key runs into the value column (`overlay.rs` hard-codes `key_w = 130.0`) |
+| 41.13 | `<A-j>` down into a new section's rows, then `y` | The right value is copied. **`Act::Copy` counts rows across every section, so the new sections shift the indices** |
+| 41.14 | `<Tab>` on a folder on a slow network drive | The panel still follows the cursor; the spot worker is newest-wins |
+
 ## Known gaps in this checklist
 
 - **Nothing here has been run.** The checklist was written from the code, not

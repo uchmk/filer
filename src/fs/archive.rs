@@ -263,6 +263,126 @@ pub fn list(archive: &Path, limit: usize) -> io::Result<(Vec<Listed>, bool)> {
     Ok((out, more))
 }
 
+/// How locked an archive is, as far as its table of contents shows.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Encryption {
+    No,
+    /// The names are readable; the contents need a password.
+    Entries,
+    /// The table of contents is itself encrypted, so nothing below is known.
+    Header,
+}
+
+/// What an archive holds, without its names.
+///
+/// [`list`] is for the preview pane, which wants the entries themselves. This
+/// is for a summary, and keeps no name at all, so a 200k-entry archive costs a
+/// few words rather than a few megabytes.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Summary {
+    pub format: Format,
+    pub files: u64,
+    pub dirs: u64,
+    /// Uncompressed bytes of the files counted.
+    pub bytes: u64,
+    pub encryption: Encryption,
+    /// Whether the scan stopped at `limit` rather than at the end.
+    pub more: bool,
+}
+
+/// Count what is inside `archive`, reading at most `limit` entries.
+///
+/// Only the table of contents is touched, the same way [`list`] does it, so
+/// nothing is inflated however large the archive is.
+pub fn summarize(archive: &Path, limit: usize) -> io::Result<Summary> {
+    let Some(format) = Format::from_path(archive) else {
+        return Err(io::Error::other("not an archive this build can read"));
+    };
+    let mut s = Summary {
+        format,
+        files: 0,
+        dirs: 0,
+        bytes: 0,
+        encryption: Encryption::No,
+        more: false,
+    };
+    match format {
+        Format::Zip => {
+            let mut zip = zip::ZipArchive::new(BufReader::new(File::open(archive)?))
+                .map_err(|e| io::Error::other(e.to_string()))?;
+            s.more = zip.len() > limit;
+            for i in 0..zip.len().min(limit) {
+                // `by_index` refuses an encrypted entry with `Password required`
+                // before it hands one back, which is why the preview pane cannot
+                // list an encrypted zip at all. `by_index_raw` skips that check
+                // and still answers `encrypted()` -- and it builds no
+                // decompressor, so it is the cheaper call here either way.
+                let e = zip.by_index_raw(i).map_err(|e| io::Error::other(e.to_string()))?;
+                if e.encrypted() {
+                    s.encryption = Encryption::Entries;
+                }
+                if e.is_dir() {
+                    s.dirs += 1;
+                } else {
+                    s.files += 1;
+                    s.bytes += e.size();
+                }
+            }
+        }
+        Format::Tar => summarize_tar(&mut BufReader::new(File::open(archive)?), limit, &mut s)?,
+        Format::TarGz => {
+            let gz = flate2::read::GzDecoder::new(BufReader::new(File::open(archive)?));
+            summarize_tar(&mut BufReader::new(gz), limit, &mut s)?
+        }
+        Format::SevenZ => {
+            // An encrypted header is a state worth reporting, not a failure:
+            // the archive is fine, it just cannot be read without a password.
+            let a = match sevenz_rust2::Archive::open(archive) {
+                Ok(a) => a,
+                Err(sevenz_rust2::Error::PasswordRequired) => {
+                    s.encryption = Encryption::Header;
+                    return Ok(s);
+                }
+                Err(e) => return Err(io::Error::other(e.to_string())),
+            };
+            let aes = a.blocks.iter().flat_map(|b| b.coders.iter()).any(|c| {
+                c.encoder_method_id() == sevenz_rust2::EncoderMethod::ID_AES256_SHA256
+            });
+            if aes {
+                s.encryption = Encryption::Entries;
+            }
+            s.more = a.files.len() > limit;
+            for f in a.files.iter().take(limit) {
+                if f.is_directory() {
+                    s.dirs += 1;
+                } else {
+                    s.files += 1;
+                    s.bytes += f.size();
+                }
+            }
+        }
+    }
+    Ok(s)
+}
+
+fn summarize_tar<R: Read>(reader: &mut R, limit: usize, s: &mut Summary) -> io::Result<()> {
+    let mut tar = tar::Archive::new(reader);
+    for (seen, entry) in tar.entries()?.enumerate() {
+        let entry = entry?;
+        if seen == limit {
+            s.more = true;
+            break;
+        }
+        if entry.header().entry_type().is_dir() {
+            s.dirs += 1;
+        } else {
+            s.files += 1;
+            s.bytes += entry.size();
+        }
+    }
+    Ok(())
+}
+
 fn list_tar<R: Read>(
     reader: &mut R,
     limit: usize,
@@ -534,6 +654,16 @@ mod tests {
             let (few, more) = list(&archive, 1).unwrap();
             assert_eq!(few.len(), 1);
             assert!(more, "{:?}: a limit that cuts the listing says so", format);
+
+            // The summary counts the same tree without keeping a name.
+            let sum = summarize(&archive, 100).unwrap();
+            assert_eq!(sum.format, format);
+            assert_eq!(sum.files, 2, "{:?}: two files", format);
+            assert!(sum.dirs >= 1, "{:?}: at least `src` itself: {sum:?}", format);
+            assert_eq!(sum.bytes, 7, "{:?}: `top` plus `deep`", format);
+            assert_eq!(sum.encryption, Encryption::No, "{:?}: nothing was locked", format);
+            assert!(!sum.more, "{:?}: four entries is not a hundred", format);
+            assert!(summarize(&archive, 1).unwrap().more, "{:?}: a cut scan says so", format);
 
             let out = root.join("out");
             extract(&archive, &out, &mut |_, _| true).unwrap();

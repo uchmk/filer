@@ -23,6 +23,8 @@ mod text;
 
 /// COM for a worker thread that talks to the Windows shell.
 pub use shell_thumb::init_thread as init_com_thread;
+/// OOXML document properties, for the spot panel.
+pub use office::properties as office_properties;
 
 /// Identity of a preview: re-reading is only needed when one of these changes.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -352,7 +354,7 @@ fn read_head(path: &std::path::Path, max: usize) -> Result<Vec<u8>, String> {
     Ok(buf)
 }
 
-fn looks_binary(bytes: &[u8]) -> bool {
+pub(crate) fn looks_binary(bytes: &[u8]) -> bool {
     let probe = &bytes[..bytes.len().min(8192)];
     if probe.is_empty() {
         return false;
