@@ -951,6 +951,625 @@ mod minimap_scale {
     }
 }
 
+/// Fixtures shared by TESTING.md sections 38 and 42.
+///
+/// Both are about what is drawn beside the preview -- the outline's rule, the
+/// minimap's strip and the card against it -- so both need the same window: one
+/// wide enough that the pane can spare a column for the outline *and* seven for
+/// the map, with a payload already delivered because the harness runs no
+/// workers.
+#[cfg(test)]
+mod chrome {
+    use crate::preview::{Extent, MapRow, Payload, Span, TocEntry};
+    use crate::ui::harness::{Painted, Screen};
+    use egui::Rect;
+
+    /// Wide enough for the outline column. The preview pane has to clear
+    /// `SOURCE_OUTLINE_MIN_COLS` *after* the map has taken its seven, which
+    /// 1920 does not: the column appears between 2200 and 2560.
+    pub(super) const WIDE: f32 = 2560.0;
+
+    /// A window on one long file, with its preview already in place.
+    ///
+    /// `preview.key` is set as well as `preview.state`, because `<BackTab>`
+    /// asks `preview_ready()` first -- a payload whose key names no file looks
+    /// to the app like somebody else's preview, and the key does nothing.
+    pub(super) fn screen(label: &str, state: crate::app::PreviewState) -> Screen {
+        let dir = crate::util::test_dir(label);
+        let file = dir.join("long.rs");
+        std::fs::write(&file, "x").unwrap();
+        let entries = std::sync::Arc::new(vec![crate::fs::Entry::from_path(file.clone()).unwrap()]);
+        let mut s = Screen::open(dir.clone()).sized(WIDE, 1080.0);
+        s.app.tabs[s.app.active].current =
+            crate::core::folder::Folder::from_entries(dir.clone(), entries, true);
+        s.app.preview.key = Some(crate::preview::Key {
+            path: file,
+            len: 1,
+            mtime: None,
+            box_size: (0, 0),
+            cols: 0,
+            n: 0,
+        });
+        s.app.preview.state = state;
+        s
+    }
+
+    /// `n` numbered lines, one span each.
+    pub(super) fn plain(n: usize) -> Vec<Vec<Span>> {
+        (0..n).map(|i| vec![Span { text: format!("line {i}"), ..Default::default() }]).collect()
+    }
+
+    /// Rows for the map: a shape that varies, so the bands are not one block.
+    pub(super) fn rows(n: usize) -> Vec<MapRow> {
+        (0..n).map(|i| MapRow { indent: (i % 8) as u16, len: 40, color: None }).collect()
+    }
+
+    /// A text payload of `lines`, mapped and with `outline` as its contents.
+    pub(super) fn source(
+        lines: Vec<Vec<Span>>,
+        outline: Vec<TocEntry>,
+        total: usize,
+    ) -> crate::app::PreviewState {
+        let n = lines.len();
+        crate::app::PreviewState::Ready(Payload::Text {
+            map: rows(n),
+            lines,
+            extent: Extent { truncated: total != n, total },
+            outline,
+        })
+    }
+
+    /// Six entries, which is two more than the column needs to appear.
+    pub(super) fn toc() -> Vec<TocEntry> {
+        (0..6).map(|i| TocEntry { level: 1, line: i * 40, label: format!("fn item{i}") }).collect()
+    }
+
+    /// A chord, the way the window delivers one.
+    pub(super) fn key(k: egui::Key, modifiers: egui::Modifiers) -> egui::Event {
+        egui::Event::Key { key: k, physical_key: None, pressed: true, repeat: false, modifiers }
+    }
+
+    pub(super) fn ctrl() -> egui::Modifiers {
+        egui::Modifiers { ctrl: true, ..Default::default() }
+    }
+
+    /// `<BackTab>`, which is how Shift and Tab reach the keymap.
+    pub(super) fn back_tab() -> egui::Event {
+        key(egui::Key::Tab, egui::Modifiers { shift: true, ..Default::default() })
+    }
+
+    pub(super) fn moved(to: egui::Pos2) -> egui::Event {
+        egui::Event::PointerMoved(to)
+    }
+
+    pub(super) fn button(at: egui::Pos2, pressed: bool) -> egui::Event {
+        egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        }
+    }
+
+    /// Where the minimap's strip was drawn.
+    ///
+    /// Found rather than computed, because the arithmetic that puts it there is
+    /// what the frame is being asked about. The viewport box is the one
+    /// rectangle in `hovered_bg` at four tenths, and it spans the strip's width
+    /// exactly, so it names the column; the strip itself is the `bg` rectangle
+    /// in that column.
+    pub(super) fn strip(f: &Painted, theme: &crate::config::Theme) -> Rect {
+        let tint = theme.hovered_bg.gamma_multiply(0.4);
+        let x = f.filled(tint).first().expect("the minimap's viewport box").x_range();
+        f.filled(theme.bg).into_iter().find(|r| r.x_range() == x).expect("the strip behind it")
+    }
+
+    /// The colour the hover card is filled with, which is what makes it
+    /// findable: a card is one rectangle and nothing else in the frame is that
+    /// shade.
+    pub(super) fn card_fill(theme: &crate::config::Theme) -> egui::Color32 {
+        theme.preview_hovered.bg.unwrap_or_else(|| super::mix(theme.bg, theme.fg, 0.06))
+    }
+
+    /// Hover `y` on the strip and hold still until the card is due.
+    ///
+    /// Two frames: one that delivers the pointer, and one a second later, since
+    /// the card waits `tooltip_delay` from the moment the pointer arrived.
+    pub(super) fn hover(s: &mut Screen, at: egui::Pos2) -> Painted {
+        s.feed(vec![moved(at)]);
+        s.wait(1.0).draw()
+    }
+
+    /// The card's own text: the only string starting with the line number, which
+    /// the card draws right-aligned ahead of the line itself.
+    pub(super) fn card_text(f: &Painted, line: usize, of: usize) -> Option<&String> {
+        let lead = format!("{:>width$} ", line, width = of.to_string().len().max(2));
+        f.texts.iter().find(|t| t.starts_with(&lead))
+    }
+}
+
+/// TESTING.md section 38: the rule that says which pane has the keys.
+///
+/// "Colour, so it needs eyes" is what the section says, and it was right until
+/// the harness learned to read a stroke: a rule is a one-pixel line, which
+/// carries no fill at all. What the frame can now answer is the part the
+/// section is actually about -- that the two panes give *one* answer, in one
+/// colour, and that exactly one of them is lit at a time.
+#[cfg(test)]
+mod focus_rule_frame {
+    use super::chrome::*;
+
+    /// 38.3 and 38.8: the outline's rule is the accent while it has the keys
+    /// and the border when it has not, and a theme with no accent still tells
+    /// the two apart.
+    #[test]
+    fn the_outlines_rule_is_accent_only_while_it_has_the_keys() {
+        let mut s = screen("focus-outline", source(plain(400), toc(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let accent = crate::ui::focus_rule(&theme, true);
+        let border = crate::ui::focus_rule(&theme, false);
+        assert_ne!(accent, border, "a theme drawing both alike would say nothing");
+
+        let f = s.draw();
+        assert!(f.says("Contents"), "the column is on screen to begin with: {:?}", f.texts);
+        assert!(f.stroked(accent).is_empty(), "and its rule is not lit: {:?}", f.stroked(accent));
+        // The rule is vertical and as tall as the pane, which is what tells it
+        // from the borders every panel draws.
+        let rule = |c| -> Vec<egui::Rect> {
+            let mut v: Vec<egui::Rect> = f.stroked(c);
+            v.retain(|r| r.width() < 1.0 && r.height() > 500.0);
+            v
+        };
+        assert_eq!(rule(border).len(), 1, "one vertical rule, in the border colour");
+
+        s.feed(vec![back_tab()]);
+        assert!(s.app.preview.outline.is_some(), "`<BackTab>` handed it the keys");
+        let f = s.draw();
+        let lit: Vec<egui::Rect> =
+            f.stroked(accent).into_iter().filter(|r| r.width() < 1.0).collect();
+        assert_eq!(lit.len(), 1, "now exactly one rule is accent: {lit:?}");
+        assert!(lit[0].height() > 500.0, "and it is the outline's, down the pane: {:?}", lit[0]);
+
+        // 38.8: a theme that sets no `tab_active` background falls back to the
+        // foreground rather than to the border, so the signal survives it.
+        std::sync::Arc::make_mut(&mut s.app.cfg.theme).tab_active.bg = None;
+        let theme = s.app.cfg.theme.clone();
+        let f = s.draw();
+        assert_eq!(crate::ui::focus_rule(&theme, true), theme.fg);
+        let lit: Vec<egui::Rect> = f
+            .stroked(theme.fg)
+            .into_iter()
+            .filter(|r| r.width() < 1.0 && r.height() > 500.0)
+            .collect();
+        assert_eq!(lit.len(), 1, "still lit, in the foreground colour: {lit:?}");
+    }
+
+    /// 38.1, 38.2, 38.6 and 38.9: the terminal's rule follows the keys, and the
+    /// mouse moves them as well as `<C-t>` does.
+    ///
+    /// This one starts a real shell, because the pane is not drawn at all
+    /// without one -- `app.term` is what the layout measures. That is what
+    /// `<C-t>` does on a real machine too, so it is the same door; the shell is
+    /// never typed at and the PTY is shut down when the `Terminal` is dropped.
+    #[test]
+    fn the_terminals_rule_follows_the_keys_and_the_mouse() {
+        let mut s = screen("focus-term", source(plain(400), Vec::new(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let accent = crate::ui::focus_rule(&theme, true);
+        let border = crate::ui::focus_rule(&theme, false);
+        let cursor = theme.cwd.fg.unwrap_or(theme.fg);
+        let full = s.rect();
+
+        let f = s.feed(vec![key(egui::Key::T, ctrl())]);
+        assert!(s.app.term.is_some(), "`<C-t>` opened the pane and started a shell");
+        assert!(s.app.term_focus, "and gave it the keys");
+        // The pane's rule runs along its top, the full width of the window.
+        // Which y that is has to come out of the frame rather than be assumed:
+        // the header and the status bar draw full-width rules of their own in
+        // the border colour, so "a horizontal rule" is not enough to name this
+        // one by.
+        let top = |f: &crate::ui::harness::Painted, c| -> Vec<egui::Rect> {
+            let mut v: Vec<egui::Rect> = f.stroked(c);
+            v.retain(|r| r.height() < 1.0 && r.width() > full.width() - 1.0);
+            v
+        };
+        let lit = top(&f, accent);
+        assert_eq!(lit.len(), 1, "38.1: the rule along the top is accent: {lit:?}");
+        let rule_y = lit[0].top();
+        assert!(rule_y > full.center().y, "the pane is the bottom third: {rule_y}");
+        let at_pane = |f: &crate::ui::harness::Painted, c| -> Vec<egui::Rect> {
+            top(f, c).into_iter().filter(|r| (r.top() - rule_y).abs() < 0.5).collect()
+        };
+        // 38.9: the cell cursor is filled while the pane has the keys. One cell,
+        // so it is told from every other rectangle by being cell-sized.
+        let cell = |f: &crate::ui::harness::Painted| -> usize {
+            f.filled(cursor).iter().filter(|r| r.width() < 20.0 && r.height() < 30.0).count()
+        };
+        assert_eq!(cell(&f), 1, "the cursor is a filled cell");
+
+        // 38.2: the keys go back to the list and the rule goes grey with them.
+        let f = s.feed(vec![key(egui::Key::T, ctrl())]);
+        assert!(!s.app.term_focus, "the second press handed them back");
+        assert!(s.app.term.is_some(), "without closing the pane");
+        assert!(top(&f, accent).is_empty(), "38.2: nothing is accent now");
+        assert_eq!(at_pane(&f, border).len(), 1, "the same rule, in the border colour");
+        assert_eq!(cell(&f), 0, "and the cell cursor is hollow");
+        let hollow: Vec<egui::Rect> = f
+            .stroked(theme.fg_dim)
+            .into_iter()
+            .filter(|r| r.width() < 20.0 && r.height() < 30.0)
+            .collect();
+        assert_eq!(hollow.len(), 1, "38.9: outlined rather than gone: {hollow:?}");
+
+        // 38.6: a click inside the pane does what the key does. Well below the
+        // rule, so it cannot be landing on the list above it.
+        let inside = egui::pos2(full.center().x, rule_y + 40.0);
+        s.feed(vec![moved(inside), button(inside, true)]);
+        s.feed(vec![button(inside, false)]);
+        assert!(s.app.term_focus, "38.6: the click took the keys");
+        // The next frame, not that one: the pane reads `term_focus` to colour
+        // its rule and only then asks whether it was clicked, so the click is
+        // answered on the repaint it asks for. Nobody sees the frame in
+        // between; a test drawing only the one would see nothing else.
+        let f = s.draw();
+        assert_eq!(at_pane(&f, accent).len(), 1, "and the rule followed it");
+    }
+
+    /// 38.4, 38.5 and 38.7: with both panes on screen exactly one rule is lit,
+    /// and the two read one definition of what "lit" means.
+    #[test]
+    fn with_both_panes_open_exactly_one_rule_is_accent() {
+        let mut s = screen("focus-both", source(plain(400), toc(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let accent = crate::ui::focus_rule(&theme, true);
+        let border = crate::ui::focus_rule(&theme, false);
+        let full = s.rect();
+        // The outline's rule is vertical and as tall as the pane; the
+        // terminal's is horizontal and as wide as the window. The header and
+        // the status bar draw wide rules of their own in the border colour, so
+        // the terminal's is picked out by the y the accent case reports.
+        let down = |f: &crate::ui::harness::Painted, c| -> Vec<egui::Rect> {
+            f.stroked(c).into_iter().filter(|r| r.width() < 1.0 && r.height() > 500.0).collect()
+        };
+        let across = |f: &crate::ui::harness::Painted, c| -> Vec<egui::Rect> {
+            f.stroked(c)
+                .into_iter()
+                .filter(|r| r.height() < 1.0 && r.width() > full.width() - 1.0)
+                .collect()
+        };
+
+        s.feed(vec![back_tab()]);
+        assert!(s.app.preview.outline.is_some(), "the outline has the keys");
+        s.feed(vec![key(egui::Key::T, ctrl())]);
+        // Opening the terminal takes the keys off the outline, which is what
+        // keeps 38.4 true: nothing has to choose between two lit rules,
+        // because only one pane is ever focused.
+        assert!(s.app.term_focus && s.app.preview.outline.is_none(), "the keys moved over");
+        let f = s.draw();
+        assert!(f.says("Contents"), "38.4: the outline is still on screen: {:?}", f.texts);
+        let lit = across(&f, accent);
+        assert_eq!(lit.len(), 1, "the terminal's rule is accent: {lit:?}");
+        let rule_y = lit[0].top();
+        let at_pane = |f: &crate::ui::harness::Painted, c| -> Vec<egui::Rect> {
+            across(f, c).into_iter().filter(|r| (r.top() - rule_y).abs() < 0.5).collect()
+        };
+        assert!(down(&f, accent).is_empty(), "and it is the only one: {:?}", down(&f, accent));
+        assert_eq!(down(&f, border).len(), 1, "the outline's is grey");
+
+        // 38.5: the other way round.
+        s.feed(vec![key(egui::Key::T, ctrl())]);
+        s.feed(vec![back_tab()]);
+        assert!(!s.app.term_focus && s.app.preview.outline.is_some(), "the keys moved back");
+        let f = s.draw();
+        assert_eq!(down(&f, accent).len(), 1, "now the outline's is accent");
+        assert!(at_pane(&f, accent).is_empty(), "and the terminal's is not");
+        assert_eq!(at_pane(&f, border).len(), 1, "the terminal's is grey");
+
+        // 38.7, in the part that does not need a file on disk: both rules read
+        // `tab_active`, so changing it once changes both. A `theme.toml` and a
+        // `<C-F5>` would arrive at the same `Theme`; this sets it there.
+        let red = egui::Color32::from_rgb(255, 0, 0);
+        std::sync::Arc::make_mut(&mut s.app.cfg.theme).tab_active.bg = Some(red);
+        let f = s.draw();
+        assert_eq!(down(&f, red).len(), 1, "the outline's rule turned red: {:?}", f.strokes);
+        s.feed(vec![key(egui::Key::T, ctrl())]);
+        let f = s.draw();
+        assert_eq!(at_pane(&f, red).len(), 1, "and so does the terminal's, from the same entry");
+    }
+}
+
+/// TESTING.md section 42: the card against the minimap's strip.
+///
+/// The geometry and the clamp had unit tests from the start; what had nobody was
+/// the wiring -- that a pointer held on the strip really does produce a card,
+/// where, after how long, and carrying which line. All of that is reachable
+/// because the harness can deliver egui's own pointer events and move the clock
+/// the delay is measured against.
+#[cfg(test)]
+mod minimap_hover_frame {
+    use super::chrome::*;
+
+    /// 42.1 and 42.2: a pointer held on the strip gets a card naming the line,
+    /// and the card keeps off the strip and inside the pane.
+    ///
+    /// The delay is egui's `tooltip_delay`, which is half a second by default --
+    /// not the "about 0.4 s" the row says. The check is that the card is *not*
+    /// there a fifth of a second in and *is* there after the delay, rather than
+    /// a number of its own, so a themed delay does not break it.
+    #[test]
+    fn a_held_pointer_gets_a_card_naming_the_line_under_it() {
+        let mut s = screen("hover-card", source(plain(400), Vec::new(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let fill = card_fill(&theme);
+        let f = s.draw();
+        let st = strip(&f, &theme);
+
+        let at = egui::pos2(st.center().x, st.center().y);
+        let f = s.feed(vec![moved(at)]);
+        assert!(f.filled(fill).is_empty(), "no card the instant the pointer arrives");
+        let f = s.wait(0.2).draw();
+        assert!(f.filled(fill).is_empty(), "nor a fifth of a second in");
+
+        let f = s.wait(1.0).draw();
+        let card = f.filled(fill);
+        assert_eq!(card.len(), 1, "the card is up once the delay is out: {card:?}");
+        let card = card[0];
+        // Halfway down four hundred lines.
+        let text = card_text(&f, 201, 400).unwrap_or_else(|| panic!("{:?}", f.texts));
+        assert!(text.ends_with("line 200"), "the line itself follows the number: {text:?}");
+
+        // 42.2: left of the strip, never over it, and inside the pane.
+        assert!(card.right() <= st.left(), "clear of the strip: {card:?} against {st:?}");
+        assert!(card.top() >= st.top() && card.bottom() <= st.bottom(), "inside: {card:?}");
+    }
+
+    /// 42.4: the bottom pixel of the strip is the last line, not one past it.
+    ///
+    /// The clamp `line_at_y` grew in v0.40.0, tested there on its own. This is
+    /// the same bug asked of the frame: a card reading `401` of 400, or no card
+    /// at all, is what it looked like.
+    #[test]
+    fn the_bottom_pixel_names_the_last_line() {
+        let mut s = screen("hover-bottom", source(plain(400), Vec::new(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let fill = card_fill(&theme);
+        let f = s.draw();
+        let st = strip(&f, &theme);
+
+        let f = hover(&mut s, egui::pos2(st.center().x, st.bottom() - 0.5));
+        assert_eq!(f.filled(fill).len(), 1, "a card, not a blank");
+        let text = card_text(&f, 400, 400).unwrap_or_else(|| panic!("{:?}", f.texts));
+        assert!(text.ends_with("line 399"), "the last line: {text:?}");
+        assert!(card_text(&f, 401, 400).is_none(), "and never one past the end");
+    }
+
+    /// 42.3: clicking where the card points goes there, with the line centred.
+    #[test]
+    fn a_click_lands_on_the_line_the_card_named() {
+        let mut s = screen("hover-click", source(plain(400), Vec::new(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let f = s.draw();
+        let st = strip(&f, &theme);
+        assert_eq!(s.app.tabs[s.app.active].preview_offset, 0, "at the top to begin with");
+
+        // Three quarters down: line 300 of 400.
+        let at = egui::pos2(st.center().x, st.top() + st.height() * 0.75);
+        let f = hover(&mut s, at);
+        let named = card_text(&f, 301, 400).unwrap_or_else(|| panic!("{:?}", f.texts));
+        assert!(named.ends_with("line 300"), "the card points at it: {named:?}");
+
+        s.feed(vec![button(at, true)]);
+        s.feed(vec![button(at, false)]);
+        let offset = s.app.tabs[s.app.active].preview_offset;
+        assert!(offset > 0, "the click moved the preview");
+        // Centred, not put at the top: the line is somewhere in the middle of
+        // what is now on screen.
+        assert!(offset < 300, "the line named is below the first one drawn: {offset}");
+        let f = s.draw();
+        let first = f.texts.iter().find(|t| t.starts_with("line ")).expect("the body is drawn");
+        assert_eq!(first, &format!("line {offset}"), "and the body starts there");
+    }
+
+    /// 42.8: the pointer leaving the strip takes the card with it, and the
+    /// delay starts again when it comes back.
+    #[test]
+    fn leaving_the_strip_takes_the_card_and_restarts_the_delay() {
+        let mut s = screen("hover-leave", source(plain(400), Vec::new(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let fill = card_fill(&theme);
+        let f = s.draw();
+        let st = strip(&f, &theme);
+
+        let at = egui::pos2(st.center().x, st.center().y);
+        let f = hover(&mut s, at);
+        assert_eq!(f.filled(fill).len(), 1, "a card to begin with");
+
+        let f = s.feed(vec![moved(egui::pos2(st.left() - 200.0, st.center().y))]);
+        assert!(f.filled(fill).is_empty(), "nothing left behind off the strip");
+
+        let f = s.feed(vec![moved(at)]);
+        assert!(f.filled(fill).is_empty(), "and the delay starts again, not where it left off");
+        let f = s.wait(1.0).draw();
+        assert_eq!(f.filled(fill).len(), 1, "then the card is back");
+    }
+
+    /// 42.5: a drag keeps the card up, so the place can be found before the
+    /// button is let go -- even once the pointer has left the strip.
+    #[test]
+    fn a_drag_keeps_the_card_following() {
+        let mut s = screen("hover-drag", source(plain(400), Vec::new(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let fill = card_fill(&theme);
+        let f = s.draw();
+        let st = strip(&f, &theme);
+
+        let at = egui::pos2(st.center().x, st.center().y);
+        s.feed(vec![moved(at), button(at, true)]);
+        // Off the strip entirely, which without the drag would end the card.
+        let away = egui::pos2(st.left() - 300.0, st.center().y - 200.0);
+        let f = s.wait(1.0).feed(vec![moved(away)]);
+        assert_eq!(f.filled(fill).len(), 1, "the card is still up mid-drag: {:?}", f.texts);
+        assert!(s.app.tabs[s.app.active].preview_offset > 0, "and the drag is scrolling");
+
+        let f = s.feed(vec![button(away, false)]);
+        assert!(f.filled(fill).is_empty(), "letting go off the strip ends it");
+    }
+
+    /// 42.6 and 42.7: a blank line is the number on its own, and a very long
+    /// one is cut rather than laid out in full.
+    #[test]
+    fn a_blank_line_is_the_number_alone_and_a_long_one_is_cut() {
+        let mut lines = plain(400);
+        lines[100] = Vec::new();
+        lines[200] = vec![crate::preview::Span { text: "x".repeat(2000), ..Default::default() }];
+        let mut s = screen("hover-shapes", source(lines, Vec::new(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let fill = card_fill(&theme);
+        let f = s.draw();
+        let st = strip(&f, &theme);
+
+        let y = |k: usize| st.top() + (k as f32 + 0.5) / 400.0 * st.height();
+
+        let f = hover(&mut s, egui::pos2(st.center().x, y(100)));
+        let blank = card_text(&f, 101, 400).unwrap_or_else(|| panic!("{:?}", f.texts));
+        assert_eq!(blank.trim(), "101", "the number and nothing else: {blank:?}");
+        let narrow = f.filled(fill)[0].width();
+
+        // A fresh hover, so the delay is measured from arriving here.
+        s.feed(vec![moved(egui::pos2(10.0, 10.0))]);
+        let f = hover(&mut s, egui::pos2(st.center().x, y(200)));
+        let long = card_text(&f, 201, 400).unwrap_or_else(|| panic!("{:?}", f.texts));
+        assert_eq!(long.chars().count(), 204, "two hundred characters and the number: {}", long.len());
+        assert_eq!(long.lines().count(), 1, "on one row");
+        assert!(f.filled(fill)[0].width() > narrow, "and a wider card than the blank one's");
+    }
+
+    /// 42.9: `[mgr] preview_hovered` reaches the card -- the key that did
+    /// nothing at all before v0.40.0.
+    #[test]
+    fn the_card_follows_the_themes_preview_hovered() {
+        let mut s = screen("hover-theme", source(plain(400), Vec::new(), 400));
+        let red = egui::Color32::from_rgb(255, 0, 0);
+        let plainly = card_fill(&s.app.cfg.theme);
+        assert_ne!(plainly, red, "the default is not what the theme will ask for");
+        std::sync::Arc::make_mut(&mut s.app.cfg.theme).preview_hovered.bg = Some(red);
+        let theme = s.app.cfg.theme.clone();
+        let f = s.draw();
+        let st = strip(&f, &theme);
+
+        let f = hover(&mut s, egui::pos2(st.center().x, st.center().y));
+        assert_eq!(f.filled(red).len(), 1, "the card took the theme's background");
+        assert!(f.filled(plainly).is_empty(), "and not the built-in one");
+    }
+
+    /// 42.13: `<A-n>` takes the strip away, and so there is nothing to hover.
+    #[test]
+    fn no_strip_means_no_card() {
+        let mut s = screen("hover-off", source(plain(400), Vec::new(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let fill = card_fill(&theme);
+        let f = s.draw();
+        let st = strip(&f, &theme);
+
+        let at = egui::pos2(st.center().x, st.center().y);
+        assert_eq!(hover(&mut s, at).filled(fill).len(), 1, "a card while the map is on");
+
+        let f = s.feed(vec![key(egui::Key::N, egui::Modifiers { alt: true, ..Default::default() })]);
+        assert!(!s.app.cfg.ui.minimap, "`<A-n>` turned it off");
+        assert!(f.filled(fill).is_empty(), "the card went with the strip");
+        let tint = theme.hovered_bg.gamma_multiply(0.4);
+        assert!(f.filled(tint).is_empty(), "and so did the viewport box");
+        let f = s.wait(1.0).draw();
+        assert!(f.filled(fill).is_empty(), "and waiting does not bring it back");
+    }
+
+    /// 42.11: the strip is the source view's. Rendered Markdown has none, so
+    /// `M` is what puts it there.
+    #[test]
+    fn markdown_gets_a_strip_in_the_source_view_only() {
+        use crate::preview::{Doc, DocLine, Extent, LineKind, Payload};
+        let n = 400;
+        let doc = Doc {
+            lines: (0..n)
+                .map(|i| DocLine {
+                    spans: vec![crate::preview::Span {
+                        text: format!("rendered {i}"),
+                        ..Default::default()
+                    }],
+                    kind: LineKind::Text,
+                    indent: 0,
+                    src: i,
+                })
+                .collect(),
+            toc: Vec::new(),
+            toc_cols: 0,
+            body_cols: 80,
+        };
+        let state = crate::app::PreviewState::Ready(Payload::Markdown {
+            doc,
+            source: plain(n),
+            map: rows(n),
+            extent: Extent { truncated: false, total: n },
+        });
+        let mut s = screen("hover-md", state);
+        let theme = s.app.cfg.theme.clone();
+        let tint = theme.hovered_bg.gamma_multiply(0.4);
+        assert!(s.app.render_markdown, "rendered to begin with, which is the default");
+
+        let f = s.draw();
+        assert!(f.says("rendered 0"), "the rendered body is drawn: {:?}", f.texts);
+        assert!(f.filled(tint).is_empty(), "and there is no strip beside it");
+
+        let f = s.typed("M");
+        assert!(!s.app.render_markdown, "`M` switched to the source");
+        assert!(f.says("line 0"), "the source is drawn: {:?}", f.texts);
+        let st = strip(&f, &theme);
+        let f = hover(&mut s, egui::pos2(st.center().x, st.center().y));
+        assert_eq!(f.filled(card_fill(&theme)).len(), 1, "and the card works there");
+    }
+
+    /// 42.10: the card is drawn over the outline column and leaves it intact.
+    #[test]
+    fn the_card_covers_the_outline_and_leaves_nothing_behind() {
+        let mut s = screen("hover-outline", source(plain(400), toc(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let fill = card_fill(&theme);
+        let f = s.draw();
+        assert!(f.says("Contents"), "the column is up: {:?}", f.texts);
+        let st = strip(&f, &theme);
+
+        let at = egui::pos2(st.center().x, st.center().y);
+        let f = hover(&mut s, at);
+        let card = f.filled(fill);
+        assert_eq!(card.len(), 1, "a card over the column");
+        assert!(f.says("fn item0"), "with the column still drawn under it: {:?}", f.texts);
+
+        let f = s.feed(vec![moved(egui::pos2(10.0, 10.0))]);
+        assert!(f.filled(fill).is_empty(), "and nothing left behind when it goes");
+        assert!(f.says("Contents"), "the column is as it was: {:?}", f.texts);
+    }
+
+    /// 42.12: a truncated file is numbered by the lines that were read, so the
+    /// card and the body agree about which line is which.
+    ///
+    /// Thirty lines of four hundred, few enough that the whole of what was read
+    /// fits in the pane -- which is when the body draws its own note saying how
+    /// much it has not got, so the two numbers can be compared in one frame.
+    #[test]
+    fn a_truncated_file_numbers_the_lines_it_has() {
+        let mut s = screen("hover-cut", source(plain(30), Vec::new(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let f = s.draw();
+        assert!(f.says("400 lines total (truncated)"), "the body says so: {:?}", f.texts);
+        let st = strip(&f, &theme);
+
+        let f = hover(&mut s, egui::pos2(st.center().x, st.bottom() - 0.5));
+        let last = card_text(&f, 30, 30).unwrap_or_else(|| panic!("{:?}", f.texts));
+        assert!(last.ends_with("line 29"), "the last line that was read: {last:?}");
+        assert!(card_text(&f, 400, 30).is_none(), "not the file's own last line");
+    }
+}
+
 /// TESTING.md section 21: archives.
 ///
 /// Most of that section needs a job to run -- `e` and `E` both go through

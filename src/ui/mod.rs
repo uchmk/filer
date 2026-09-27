@@ -1244,10 +1244,23 @@ pub(crate) mod harness {
     pub(crate) struct Painted {
         /// Every string drawn, in paint order.
         pub texts: Vec<String>,
+        /// Every drawn string and the colour it was drawn in, in paint order.
+        ///
+        /// The same strings as [`Self::texts`], which stays because most
+        /// assertions do not care what colour a word was. This one exists for
+        /// the ones that are *only* about the colour: a config warning has to
+        /// be the theme's `warning` and not `progress_error`, and the two say
+        /// exactly the same words.
+        pub inked: Vec<(String, Color32)>,
         /// Every filled rectangle and the colour it was filled with, in paint
         /// order. The colour is what makes a highlight findable: a cursor row is
         /// the theme's `hovered_bg` and nothing else in the frame is.
         pub rects: Vec<(Rect, Color32)>,
+        /// Every outline and every rule, with the colour of the stroke rather
+        /// than of any fill. A focus rule is a one-pixel line and a toast's
+        /// level is in its border, so neither reaches [`Self::rects`], whose
+        /// colour is the fill -- `bg_alt` for every toast alike.
+        pub strokes: Vec<(Rect, Color32)>,
     }
 
     impl Painted {
@@ -1266,6 +1279,20 @@ pub(crate) mod harness {
         pub fn filled(&self, fill: Color32) -> Vec<Rect> {
             self.rects.iter().filter(|(_, c)| *c == fill).map(|(r, _)| *r).collect()
         }
+
+        /// The colours every drawn string containing `needle` was drawn in.
+        ///
+        /// Empty when the words are not on screen at all, which is a different
+        /// answer from "on screen in the wrong colour" -- so a test asserts on
+        /// both the length and the contents.
+        pub fn ink(&self, needle: &str) -> Vec<Color32> {
+            self.inked.iter().filter(|(t, _)| t.contains(needle)).map(|(_, c)| *c).collect()
+        }
+
+        /// Every outline or rule stroked in exactly this colour.
+        pub fn stroked(&self, color: Color32) -> Vec<Rect> {
+            self.strokes.iter().filter(|(_, c)| *c == color).map(|(r, _)| *r).collect()
+        }
     }
 
     /// An [`App`] and the [`egui::Context`] its frames run in.
@@ -1278,14 +1305,31 @@ pub(crate) mod harness {
         pub app: App,
         ctx: egui::Context,
         size: Vec2,
+        /// The clock the frames are drawn on, in seconds. egui takes it from
+        /// the raw input, and the UI measures its own delays against it.
+        time: f64,
     }
 
     impl Screen {
         /// filer's own defaults, listing `at`, in a 1280x800 window.
         pub(crate) fn open(at: impl Into<std::path::PathBuf>) -> Self {
+            Self::with_config(crate::config::Config::load(), at)
+        }
+
+        /// The same, on a config a test built rather than the machine's.
+        ///
+        /// `App::new` is where a config warning becomes the toast that says to
+        /// go and look, so a test about that toast has to be holding the
+        /// config *before* the app is made. Nothing here reads the disk: the
+        /// warnings come out of the same `Keymap::load` a real `keymap.toml`
+        /// goes through, from its text.
+        pub(crate) fn with_config(
+            cfg: crate::config::Config,
+            at: impl Into<std::path::PathBuf>,
+        ) -> Self {
             let ctx = egui::Context::default();
-            let app = App::new(crate::config::Config::load(), at.into(), ctx.clone());
-            Self { app, ctx, size: Vec2::new(1280.0, 800.0) }
+            let app = App::new(cfg, at.into(), ctx.clone());
+            Self { app, ctx, size: Vec2::new(1280.0, 800.0), time: 0.0 }
         }
 
         /// A different window size -- narrow enough to drop the minimap, short
@@ -1359,6 +1403,18 @@ pub(crate) mod harness {
             self.feed(Vec::new())
         }
 
+        /// Let `secs` pass before the next frame.
+        ///
+        /// Some of the UI waits on a clock rather than on an event -- the
+        /// minimap's hover card holds back for `tooltip_delay` after the
+        /// pointer arrives -- and that clock is the one egui reads out of the
+        /// raw input. Skipping the wait forward beats drawing the eighteen
+        /// frames a sixtieth of a second apart that would otherwise cover it.
+        pub(crate) fn wait(&mut self, secs: f64) -> &mut Self {
+            self.time += secs;
+            self
+        }
+
         /// One frame, after `text` arrives as egui delivers typing: one
         /// [`egui::Event::Text`] per character.
         pub(crate) fn typed(&mut self, text: &str) -> Painted {
@@ -1367,8 +1423,12 @@ pub(crate) mod harness {
 
         /// One frame, after `events` arrive the way the window sees them.
         pub(crate) fn feed(&mut self, events: Vec<egui::Event>) -> Painted {
+            // A frame's worth of clock, the same step egui would have guessed
+            // for itself had the raw input left `time` unset.
+            self.time += 1.0 / 60.0;
             let input = egui::RawInput {
                 screen_rect: Some(Rect::from_min_size(egui::Pos2::ZERO, self.size)),
+                time: Some(self.time),
                 events,
                 ..Default::default()
             };
@@ -1387,7 +1447,12 @@ pub(crate) mod harness {
             let mut textures = out.textures_delta;
             textures.clear();
 
-            let mut painted = Painted { texts: Vec::new(), rects: Vec::new() };
+            let mut painted = Painted {
+                texts: Vec::new(),
+                inked: Vec::new(),
+                rects: Vec::new(),
+                strokes: Vec::new(),
+            };
             for clipped in &out.shapes {
                 collect(&clipped.shape, &mut painted);
             }
@@ -1400,8 +1465,29 @@ pub(crate) mod harness {
     fn collect(shape: &egui::epaint::Shape, into: &mut Painted) {
         use egui::epaint::Shape;
         match shape {
-            Shape::Text(t) => into.texts.push(t.galley.text().to_owned()),
-            Shape::Rect(r) => into.rects.push((r.rect, r.fill)),
+            Shape::Text(t) => {
+                let text = t.galley.text().to_owned();
+                into.texts.push(text.clone());
+                // `Painter::text` lays the galley out in the colour it is given
+                // and passes the same colour as the fallback, so for a string
+                // drawn in one colour this is that colour. A galley built from
+                // a `LayoutJob` of several colours -- a preview line, a hover
+                // card -- reports only the fallback, which is why the checks
+                // that care read a rule or a fill instead.
+                into.inked.push((text, t.override_text_color.unwrap_or(t.fallback_color)));
+            }
+            Shape::Rect(r) => {
+                into.rects.push((r.rect, r.fill));
+                if r.stroke.width > 0.0 {
+                    into.strokes.push((r.rect, r.stroke.color));
+                }
+            }
+            // A rule: `Painter::vline` and `Painter::line_segment` both land
+            // here, and a zero-area `Rect` is still the right answer for where
+            // it was drawn.
+            Shape::LineSegment { points, stroke } => {
+                into.strokes.push((Rect::from_two_pos(points[0], points[1]), stroke.color));
+            }
             Shape::Vec(v) => v.iter().for_each(|s| collect(s, into)),
             _ => {}
         }
@@ -2688,6 +2774,220 @@ mod max_preview_frame {
         s.typed("q");
         assert!(matches!(s.app.overlay, crate::app::Overlay::Pick(_)), "the list is still up");
         assert!(!s.app.quit, "and `q` went into the filter");
+    }
+}
+
+/// TESTING.md section 33: a config warning, and the colour that says it is one.
+///
+/// The whole section is about a distinction the reader makes with their eyes --
+/// yellow for "a line of yours cannot take effect", red for "something failed"
+/// -- so until v0.47 it was out of reach of `cargo test` twice over: the colour
+/// lives in a stroke and in a galley rather than in a fill, and the state needs
+/// a `keymap.toml` of one's own. The second half is what `Screen::with_config`
+/// is for: the warnings come out of the same `Keymap::load` that a real
+/// `keymap.toml` goes through, from its text, so nothing here reads the disk.
+#[cfg(test)]
+mod config_warning_frame {
+    use super::harness::Screen;
+    use crate::config::{keymap::Keymap, Config};
+
+    /// A `keymap.toml` binding `'` to something the defaults already bind it
+    /// to, which is 33.1's own example.
+    const ONE_DUPLICATE: &str = "[[mgr.prepend_keymap]]\non = [\"'\"]\nrun = \"plugin bookmarks jump\"\n";
+
+    /// Three lines the loader complains about, for 33.2's count.
+    const THREE_COMPLAINTS: &str = "[[mgr.prepend_keymap]]\non = [\"'\"]\nrun = \"plugin bookmarks jump\"\n\
+         [[mgr.prepend_keymap]]\non = [\"z\"]\nrun = \"quit\"\n\
+         [[mgr.prepend_keymap]]\non = [\"g\"]\nrun = \"quit\"\n";
+
+    /// A window whose config carries exactly the warnings `user` provokes.
+    fn screen(label: &str, user: &str) -> (Vec<String>, Screen) {
+        let (_km, warnings) = Keymap::load(&[user]);
+        assert!(!warnings.is_empty(), "the keymap under test has to provoke one: {user}");
+        let cfg = Config { warnings: warnings.clone(), ..Config::load() };
+        (warnings, Screen::with_config(cfg, crate::util::test_dir(label)))
+    }
+
+    /// A window whose config carries `warnings` verbatim, for the rows that are
+    /// about the box rather than about what put the text in it.
+    fn saying(label: &str, warnings: Vec<String>) -> Screen {
+        let cfg = Config { warnings, ..Config::load() };
+        Screen::with_config(cfg, crate::util::test_dir(label))
+    }
+
+    /// 33.1: the toast says what cannot take effect, and says it in yellow.
+    ///
+    /// Red is the whole point of the row -- v0.20.0 put this line up through
+    /// `error` and the first person to see it went looking for the failure --
+    /// so the check is that nothing in the frame is stroked in the failure
+    /// colour, not merely that the warning colour turns up somewhere.
+    #[test]
+    fn a_duplicate_binding_is_yellow_and_never_red() {
+        let (warnings, mut s) = screen("cfg-warn-one", ONE_DUPLICATE);
+        let theme = s.app.cfg.theme.clone();
+        assert_ne!(theme.warning, theme.progress_error, "a theme drawing both alike says nothing");
+
+        let f = s.draw();
+        assert_eq!(
+            warnings[0], "[mgr] `'` is bound more than once; only `plugin bookmarks jump` runs",
+            "the wording TESTING.md 33.1 quotes",
+        );
+        assert!(f.says(&format!("Config: {}", warnings[0])), "on screen: {:?}", f.texts);
+        assert_eq!(f.ink("Config: "), [theme.warning], "drawn in the warning colour");
+        // The border follows the text, so the box says the same thing as the
+        // words inside it.
+        assert_eq!(f.stroked(theme.warning).len(), 1, "one box, framed in its own colour");
+        assert!(
+            f.stroked(theme.progress_error).is_empty(),
+            "and nothing in the frame is framed as a failure",
+        );
+    }
+
+    /// 33.2: with more than one, the toast says how many are waiting in `~`.
+    #[test]
+    fn three_warnings_say_how_many_more_there_are() {
+        let (warnings, mut s) = screen("cfg-warn-three", THREE_COMPLAINTS);
+        assert_eq!(warnings.len(), 3, "three lines, three complaints: {warnings:?}");
+
+        let f = s.draw();
+        let tail = format!("(+{} more, see `~`)", warnings.len() - 1);
+        assert_eq!(tail, "(+2 more, see `~`)", "the wording TESTING.md 33.2 quotes");
+        assert!(f.says(&tail), "the toast points at the panel: {:?}", f.texts);
+        assert_eq!(
+            f.texts.iter().filter(|t| t.starts_with("Config: ")).count(),
+            1,
+            "one toast for the lot, which is why it has to carry a count: {:?}",
+            f.texts,
+        );
+    }
+
+    /// 33.3: `~` lists the config files first and then every warning, all of
+    /// them in the same yellow the toast used.
+    #[test]
+    fn the_panel_lists_the_files_and_then_the_warnings_in_the_same_yellow() {
+        let (warnings, mut s) = screen("cfg-warn-panel", THREE_COMPLAINTS);
+        let theme = s.app.cfg.theme.clone();
+        let dirs = crate::config::config_dirs();
+        let first_dir = dirs.first().expect("a config directory is searched").display().to_string();
+
+        let f = s.typed("~");
+        // Every warning is a row of its own here, unlike the toast.
+        for w in &warnings {
+            assert_eq!(
+                f.inked.iter().filter(|(t, c)| t == w && *c == theme.warning).count(),
+                1,
+                "`{w}` is a row in the warning colour: {:?}",
+                f.texts,
+            );
+        }
+        // Provenance before complaint: "did it read my config" is answered
+        // above "and what did it make of it".
+        let dir_at = f.inked.iter().position(|(t, _)| t.starts_with(&first_dir));
+        let warn_at = f.inked.iter().position(|(t, _)| t == &warnings[0]);
+        let (dir_at, warn_at) = (dir_at.expect("the directory is named"), warn_at.unwrap());
+        assert!(dir_at < warn_at, "the files come first: {dir_at} then {warn_at}");
+    }
+
+    /// 33.5, in the part that does not depend on the machine: a warning that
+    /// the config no longer has leaves the panel when the config is re-read.
+    ///
+    /// What the reload's *toast* says cannot be asserted here, because
+    /// `<C-F5>` reads the real machine's config files: on CI there are none and
+    /// the line is `Reloaded 0 config file(s)`, on a machine with a `yazi.toml`
+    /// of its own it is whatever that file provokes. The panel is a different
+    /// matter -- it lists `cfg.warnings`, and the warning this test put there
+    /// is one no config file could produce.
+    #[test]
+    fn a_reload_takes_the_stale_warning_off_the_panel() {
+        let mut s = saying("cfg-warn-reload", vec!["[mgr] a warning no file wrote".into()]);
+        let theme = s.app.cfg.theme.clone();
+        let stale = "[mgr] a warning no file wrote".to_owned();
+
+        let f = s.typed("~");
+        assert!(f.inked.iter().any(|(t, c)| *t == stale && *c == theme.warning), "on the panel");
+        // Out of the panel first: `config_reload` is a `[mgr]` binding, and the
+        // help layer has one of its own that this is not.
+        s.feed(vec![egui::Event::Key {
+            key: egui::Key::Escape,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        }]);
+        assert!(matches!(s.app.overlay, crate::app::Overlay::None), "the panel is closed");
+
+        let f5 = egui::Event::Key {
+            key: egui::Key::F5,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers { ctrl: true, ..Default::default() },
+        };
+        s.feed(vec![f5]);
+        assert!(!s.app.cfg.warnings.contains(&stale), "the re-read config has not got it");
+
+        let f = s.typed("~");
+        assert!(
+            !f.inked.iter().any(|(t, _)| *t == stale),
+            "and the panel no longer lists it: {:?}",
+            f.texts,
+        );
+    }
+
+    /// 33.7, 33.8 and 33.10: the box is the size of its text, stays inside the
+    /// window, and stops at eight lines.
+    ///
+    /// The five-line shape is `toml`'s, so the test provokes a real one rather
+    /// than writing five lines of its own: `[mgr` with no `]` is the row's own
+    /// example, and what came out of the parser is asserted before it is put on
+    /// screen. v0.33.11 is the release this is about -- the box was one row
+    /// high and the text was not wrapped, so a five-line error covered the
+    /// header and ran off both edges at once.
+    #[test]
+    fn a_parse_error_keeps_to_a_box_inside_the_window() {
+        let err = toml::from_str::<crate::config::YaziToml>("[mgr\nratio = [1, 3, 4]\n")
+            .expect_err("`[mgr` with no `]` does not parse")
+            .to_string();
+        assert_eq!(err.lines().count(), 5, "the five lines TESTING.md 33.7 counts: {err}");
+        assert!(err.contains("line 1"), "naming the line: {err}");
+        assert!(err.contains('^'), "and pointing at it: {err}");
+
+        let mut s = saying("cfg-warn-box", vec![err.clone()]);
+        let theme = s.app.cfg.theme.clone();
+        let full = s.rect();
+        let f = s.draw();
+        let boxes = f.stroked(theme.warning);
+        assert_eq!(boxes.len(), 1, "one box");
+        let b = boxes[0];
+        assert!(full.contains_rect(b), "inside the window: {b:?} in {full:?}");
+        assert!(b.top() > 20.0, "below the header rather than over it: {b:?}");
+        assert!(b.height() > 100.0, "as tall as five lines of text, not one: {b:?}");
+        assert!(b.width() <= full.width() * 0.5 + 1.0, "no wider than half the window: {b:?}");
+
+        // 33.8: a third of the screen, with the same error still broken. The
+        // box wraps rather than running off, and keeps to the right edge.
+        let narrow = saying("cfg-warn-narrow", vec![err.clone()]);
+        let thin = narrow.rect().width() / 3.0;
+        let mut narrow = narrow.sized(thin, 800.0);
+        let window = narrow.rect();
+        let f = narrow.draw();
+        let b = f.stroked(theme.warning);
+        assert_eq!(b.len(), 1, "still one box at {thin} wide");
+        let b = b[0];
+        assert!(window.contains_rect(b), "still inside: {b:?} in {window:?}");
+        assert!(window.right() - b.right() < 20.0, "and still against the right edge: {b:?}");
+
+        // 33.10: longer than eight lines is cut, with `…` on a line of its own.
+        let long: String = (1..=12).map(|i| format!("error line {i}\n")).collect();
+        let mut s = saying("cfg-warn-clip", vec![long]);
+        let f = s.draw();
+        let drawn = f
+            .texts
+            .iter()
+            .find(|t| t.starts_with("Config: error line 1"))
+            .expect("the toast is on screen");
+        assert_eq!(drawn.lines().count(), 9, "eight lines and the marker: {drawn:?}");
+        assert_eq!(drawn.lines().last(), Some("…"), "the marker is its own line: {drawn:?}");
     }
 }
 
