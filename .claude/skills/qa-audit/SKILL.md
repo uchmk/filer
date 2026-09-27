@@ -221,3 +221,27 @@ PATCH.
 If verification does not pass and you cannot fix it inside a `#[cfg(test)]`
 module, `git restore` / `git clean` and write why in `QA-REPORT.md`. A red commit
 is worse than no commit.
+
+---
+
+## If you are the one launching a QA session, not running as one
+
+The rest of this file is written for the session doing the work. This last part
+is for whoever sends it: the role ends at an open pull request, so **from that
+point nobody is on it but you.**
+
+- **Arrange the watch when you launch, not when you remember.** One session per
+  watch. CLAUDE.md's QA section has the rule and the two ways it has already gone
+  wrong -- including a poller that ran for twenty minutes printing `[$i] $R`
+  because the variables never expanded inside a backgrounded subshell. A monitor
+  that is quietly broken is worse than none: it looks like coverage.
+- **Run the whole suite yourself before merging, green CI or not.** CI runs the
+  tests on a Windows runner with an empty temp directory. That is one machine's
+  luck, and #25 passed it while holding a test that fails wherever `/tmp` has a
+  few thousand files in it.
+- **Expect the tail of every shared file to conflict**, because each session
+  appends its module there. Do not resolve it by deleting the markers and keeping
+  both sides: the closing braces can sit *outside* the conflict, shared, and the
+  result will not compile. `git checkout --conflict=merge <file>` puts the markers
+  back so the boundaries can be read.
+
