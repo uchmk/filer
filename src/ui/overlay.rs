@@ -205,10 +205,12 @@ pub fn shell_hint(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bo
         1 => "1 file".to_owned(),
         n => format!("{n} files"),
     };
-    // The waiting half is worth saying here too: `;` and `:` differ by nothing
-    // visible once the prompt is open.
-    let waits = if *block { "waits for it" } else { "returns at once" };
-    let text = format!("$@ all · $0 first · $1 second · no placeholder → appended    ({what}, {waits})");
+    // `;` and `:` differ by nothing visible once the prompt is open, so say
+    // which one this is. The difference is the console, not the waiting:
+    // `--block` only asks Windows for `CREATE_NEW_CONSOLE` (see
+    // `exec::configure`), and neither key makes filer wait for the command.
+    let console = if *block { "new console" } else { "no console" };
+    let text = format!("$@ all · $0 first · $1 second · no placeholder → appended    ({what}, {console})");
 
     let rect = Rect::from_min_max(
         egui::pos2(full.left() + 20.0, bottom - row_h - 16.0),
@@ -2560,5 +2562,37 @@ mod bulk_frame {
         let before = on_disk(&dir);
         s.feed(vec![enter()]);
         assert_eq!(on_disk(&dir), before, "Enter renamed nothing");
+    }
+}
+
+#[cfg(test)]
+mod shell_hint_frame {
+    use super::overlays::{chord, showing};
+
+    /// The hint under the shell prompt says which of `;` and `:` is open.
+    ///
+    /// It is the only thing that does: the prompt itself is the same widget
+    /// either way. This is pinned because the line used to say `;` "returns at
+    /// once" and `:` "waits for it", and **neither key waits** --
+    /// `exec::configure` spends `--block` on `CREATE_NEW_CONSOLE`, and nothing
+    /// in `exec::shell` calls `wait`. Someone reading "waits for it" runs
+    /// `git log -5` under `:`, watches the console open and close inside a
+    /// millisecond, and concludes the key is broken.
+    #[test]
+    fn the_shell_hint_says_which_key_opened_it() {
+        let (_dir, mut s) = showing("frame-shell-hint", &["a.txt"]);
+
+        let f = s.typed(";");
+        assert!(f.says("no console"), "`;` hides the console: {:?}", f.texts);
+        assert!(!f.says("new console"), "and does not claim a new one: {:?}", f.texts);
+
+        s.feed(vec![chord(egui::Key::Escape, egui::Modifiers::NONE)]);
+        let f = s.typed(":");
+        assert!(f.says("new console"), "`:` gives it one: {:?}", f.texts);
+
+        // Whichever key it was, the placeholders are the same, and neither line
+        // promises a wait.
+        assert!(f.says("$@ all"), "the placeholder legend stays: {:?}", f.texts);
+        assert!(!f.says("waits"), "nothing says filer waits: {:?}", f.texts);
     }
 }

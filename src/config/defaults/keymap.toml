@@ -385,7 +385,7 @@ desc = "Run a shell command"
 [[mgr.keymap]]
 on = ":"
 run = "shell --interactive --block"
-desc = "Run a shell command (block until finished)"
+desc = "Run a shell command in a new console"
 [[mgr.keymap]]
 on = "."
 run = "hidden"

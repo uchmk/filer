@@ -9,6 +9,22 @@
 
 ## [未リリース]
 
+## [0.47.9] - 2026-09-27
+
+### 修正
+
+- **`;` と `:` の説明が嘘だった。**キーの `desc` は "block until finished"、プロンプト下の
+  ヒントは "waits for it" と言っていたが、**どちらのキーも待たない。**`--block` が変えるのは
+  `exec::configure` の 1 行だけで、Windows なら `CREATE_NEW_CONSOLE`（コンソールを別に開く）、
+  Windows 以外では**何もしない**。`exec::shell` は `wait` を呼んでいない。
+  待つと読んで `:` で `git log -5` を走らせると、コンソールが開いて一瞬で閉じるので、
+  キーが壊れているように見える。ヒントは `no console` / `new console` に、`desc` は
+  "Run a shell command in a new console" に直した。README にも、`;` が失敗を toast で
+  報告できる（stderr を 3 秒見張る）のに対し `:` は報告しない、という本当の差と、
+  出力を読みたいときの `cmd /k ...` を書いた。
+- 上のヒント 2 種を `ui::overlay::shell_hint_frame` で固定した。文言が事実と違っていても
+  テストは通っていたので、直した文言そのものを assert している。
+
 ## [0.47.8] - 2026-09-27
 
 ### 変更

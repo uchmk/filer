@@ -890,7 +890,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `<C-+>` `<C-->` `<C-0>` | make everything bigger / smaller / back to normal |
 | `<F5>` `<C-F5>` | re-read the current directory / re-read the config files |
 | `<C-w>` `<C-S-w>` | split the view in two panes / move between them, close the split |
-| `;` `:` | shell command / blocking shell command |
+| `;` `:` | shell command, hidden / shell command in a console of its own |
 | `<C-t>` `<C-S-t>` `<A-t>` | terminal: keys in and back out / end the shell / type the selection into it |
 | `<A-k>` `<A-j>` | scroll the preview, without moving the list's cursor |
 | `M` | Markdown rendered ↔ source |
@@ -970,12 +970,25 @@ leaving the mouse.
 
 ## Running a command on the selection
 
-`;` runs a shell command and returns at once; `:` waits for it and gives it a console to write to.
+`;` and `:` both run a shell command on the selection. They differ in one thing: the console. `;`
+hides it (`CREATE_NO_WINDOW`), so a GUI program does not flash a black box on the way up, and
+because nothing would be readable there anyway filer captures the shell's stderr for three seconds
+and reports a failure as a toast. `:` gives the command a console of its own
+(`CREATE_NEW_CONSOLE`), which is how you read a command's output — at the cost of that error
+reporting, since the output is yours to look at now.
+
+**Neither waits.** filer never blocks on the command; `--block` on `:` is the flag name yazi uses
+for the same key, and here it buys the console rather than the wait. That matters for a command
+that finishes instantly: `git log -5` prints into its new console and the console closes with it,
+so you see a flash and nothing else. Keep it open by keeping the shell alive —
+`cmd /k git log -5 --oneline -- %1`, or `… & pause`. Off Windows there is no console to create, so
+`;` and `:` are the same key but for the error reporting.
+
 Both hand the command what is selected, which is the point of them, so the prompt says so while you
 type:
 
 ```
-$@ all · $0 first · $1 second · no placeholder → appended    (3 files, returns at once)
+$@ all · $0 first · $1 second · no placeholder → appended    (3 files, no console)
 ```
 
 | In the command | What it becomes |
