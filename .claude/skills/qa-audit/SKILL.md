@@ -88,7 +88,12 @@ the commit that caused it. Worth a line in the report.
 
 ## Job 3 — turn a section into `ui::harness::Screen` tests
 
-This is the job with the most left in it. **One section per run.**
+This is the job with the most left in it. **One section per run, or up to three
+when they are neighbours in the same source file** -- section 10 took 168k of a
+1M-token budget, so three related sections fit with room to spare, and three
+modules appended to one file in one commit is one merge instead of three
+conflicting ones. Do not mix a list section with an overlay section in the same
+run: they land in different files and share nothing to reuse.
 
 ### The harness
 
