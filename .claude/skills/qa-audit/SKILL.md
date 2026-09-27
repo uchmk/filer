@@ -38,6 +38,25 @@ Then the file's own structure:
    `<its section>.<n>`. A check numbered `13.2` inside section 12 is the failure
    mode the file warns about.
 5. **No duplicate ids** within a section, counting the `1.9a` suffix form.
+6. **Can the row actually be run, by someone holding only this file?** This is the
+   check that found the most on 2026-09-27, when the whole checklist met a real
+   machine for the first time. Four rows failed it in four different ways:
+   - **15.5** named `<C-S-->`, a chord v0.45.6 had moved -- and said only "the
+     hardlink, in its new place", with no way to tell whether a hardlink had been
+     made. A hardlink has no marker anywhere; the answer is `fsutil hardlink list`,
+     and the row did not say so.
+   - **15.2** said `<C-=>` is the one "without shift". True on a US keyboard; on
+     JIS `=` is shift+minus. A row that assumes a layout sends half its readers
+     looking for a key that is not there.
+   - **13** explained how to make a symlink by hand with `mklink`, and never said
+     that filer's own `-` and `_` need Developer Mode too. The section had no row
+     for either key at all.
+   - **18.11** and **36.17** simply disagreed with the code.
+
+   So: does the row name a key that still exists, under the layout the reader has?
+   Does it say what state the machine must be in first? And **when it says
+   something happened, does it say how to see that it happened?** A row that
+   cannot be checked is not a check.
 6. **The "what is covered automatically" paragraph** at the top matches what
    `cargo test` actually covers now.
 
@@ -94,6 +113,28 @@ when they are neighbours in the same source file** -- section 10 took 168k of a
 modules appended to one file in one commit is one merge instead of three
 conflicting ones. Do not mix a list section with an overlay section in the same
 run: they land in different files and share nothing to reuse.
+
+### First, read the section and decide what is reachable
+
+Before writing anything. A section can look automatable in a list of section
+numbers and turn out not to be, and finding that out after the tests are written
+is the expensive order. Three things put a row out of reach:
+
+- **It needs a real disk, a real machine, or a real program.** Section 44 says so
+  in its own preamble -- "what needs a machine is a real disk" -- and a 300k-file
+  tree, a junction and a network share are not things a test builds.
+- **It needs the terminal.** ConPTY is `#[cfg(windows)]`, so on Linux it is not
+  compiled at all, and five of section 38's six rows are about it.
+- **It needs a worker.** The harness draws frames; it does not run the scan,
+  preview, archive or usage workers. A row whose expectation only appears after a
+  worker answers cannot be driven without building that state by hand first.
+
+**Say what you found in `QA-REPORT.md` either way.** A section that turns out to
+be two rows deep rather than ten is a finding: it moves the rest back to the
+person at the machine honestly, instead of leaving them on a list labelled
+"automatable" that nobody has checked. Do not stretch a test to cover a row it
+cannot really reach -- a test that asserts something weaker than the row says is
+worse than no test, because the row then looks covered.
 
 ### The harness
 
