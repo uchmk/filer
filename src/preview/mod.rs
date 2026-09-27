@@ -607,3 +607,29 @@ mod tests {
         assert_eq!(rows[0].len, 6);
     }
 }
+
+#[cfg(test)]
+pub(crate) mod for_tests {
+    /// What the preview worker would answer for `path`, run on this thread.
+    pub(crate) fn render(path: &std::path::Path) -> super::Payload {
+        let entry = crate::fs::Entry::from_path(path.to_path_buf()).unwrap();
+        let req = super::Request {
+            id: 0,
+            key: super::Key {
+                path: entry.path.clone(),
+                len: entry.len,
+                mtime: None,
+                box_size: (800, 600),
+                cols: 80,
+                n: 0,
+            },
+            mime: crate::mime::guess(&entry),
+            ext: entry.ext.clone(),
+            max_bytes: 1 << 20,
+            tab_size: 4,
+            syntect_theme: "base16-ocean.dark".into(),
+            preview: None,
+        };
+        super::render(&req, &mut super::text::Highlighter::default())
+    }
+}

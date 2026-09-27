@@ -197,6 +197,36 @@ fall through しないので、`<C-+>` / `<C-=>` / `<C-->` / `<C-0>` が `[mgr]`
 | 13（一覧） | `ui::link_rows`（`src/ui/mod.rs`、6 件） | 13.1 / 13.2 / 13.3 / 13.4 / 13.5 / 13.6 |
 | 13（spot） | `ui::overlay::spot_link_section`（`src/ui/overlay.rs`、5 件） | 13.10 / 13.11 / 13.12 / 13.13 / 13.15 |
 | 24 | `ui::awkward_names`（`src/ui/mod.rs`、2 件） | 24.1（一部）/ 24.3（一部） |
+## TESTING.md sections 9 / 27 / 43 — audited against 97dec91
+
+3 節をまとめて `ui::harness::Screen` のテストにした（`src/ui/mod.rs`、テストモジュール
+`preview_panes` / `outline_end_frame` / `preview_arrival_frame` / `csv_table_frame`、14 件）。
+どれもプレビューの話なので、下準備を `preview_panes` で共有している。
+
+### ハーネスに足したもの（`#[cfg(test)]` の内側）
+
+プレビューは「ワーカーが答えた」ことで初めて存在するので、状態を手で組んでも
+**それは「届いた」ことにならない。**そこで `harness::Screen` に実際のフレームループの
+残り半分を足した。`Filer::ui` と同じ順（`drain_channels` → `kick_scans` →
+`request_preview` → draw）で 1 周する `turn()` と、届くまで回す `settle()` /
+`preview_arrived()` の 3 つ。**プログラムは 1 行も変えていない** ——
+`drain_channels` / `kick_scans` / `request_preview` / `previewer` はすべて既に `pub` で、
+本物のプレビュースレッドと本物のチャネルをそのまま通している。
+
+- テストが自前で組んだ一覧をスキャンが上書きする危険は、この 3 節では逆に都合がよい:
+  fixture は実ファイルなので、`Folder::from_entries` を使わず**実スキャンに任せた**。
+- デバウンス（既定 40ms）は `cfg.ui.preview_debounce_ms = 0` にして待たない。
+  27.5 は 10 ファイル連続なので、そのままだと待ち時間だけで 400ms 増える。
+## TESTING.md sections 5 / 11 / 21 — audited against 97dec91
+
+3 節を `ui::harness::Screen` のテストにした（25 件）。どれもオーバーレイの話なので、
+下準備は `ui::overlay::overlays` に置いて 3 つのモジュールで共有している。
+
+| 節 | テストモジュール | 置き場所 | 自動化した項目 |
+| --- | --- | --- | --- |
+| 5 | `ui::overlay::compare_frame` | `src/ui/overlay.rs` | 5.1〜5.8、5.10（**5.9 を除く全部**） |
+| 11 | `ui::overlay::bulk_frame` | `src/ui/overlay.rs` | 11.1〜11.11（11.9b 含む、**全部**） |
+| 21 | `ui::preview::archive_frame` | `src/ui/preview.rs` | 21.1、21.6、21.12 の 3 件のみ |
 
 ### プログラムと食い違う項目
 
@@ -274,8 +304,172 @@ egui の**末尾切り**で、真ん中を抜く処理はどこにも無い。�
 使っていて、そのユニットテストは `ends_with(".txt")` まで assert している）ので、
 項目の言う挙動にするなら手は足りている。どちらを直すかは人の判断。実機で 1 度
 見てもらうのが早い（ハーネスでは前述のとおり見えない）。
+| 9.1 | `<C-o>` が keymap に無い。アウトラインへキーを渡すのは `<BackTab>`（Shift+Tab） | `src/config/defaults/keymap.toml` に `C-o` の項が 1 つも無い。`run = "toggle_outline"` の `on` は `<BackTab>`。行の後半（`l` on the file）は正しい | TESTING.md（`<C-o>` はどの版の keymap にも見当たらない） |
+| 27.4 | `+` で拡大できない。ズームは `<A-i>` / `<A-o>`、等倍が `<A-1>`、フィットが `<A-0>` | 同じファイルのコメントが理由まで書いている ——「JIS 配列では `=` が Shift + マイナスキーで、別のキーとして届くので、`+` / `-` は片方のキーボードでしか動かない」 | TESTING.md（キーは最初からこの形。行が `+` と書いたのは由来不明） |
+| 43.11 | **テーブルを出している間はミニマップが 1 本も描かれない。**「ファイルをマップする」以前に、マップ自体が無い | `src/ui/preview.rs` の `Payload::Markdown` 分岐が `st.render_markdown` のとき `markdown(...)` で **early return** し、`split_minimap` / `minimap` に届かない。CSV のテーブルは `Payload::Markdown` 形（`src/preview/csv.rs` の冒頭コメントがそう決めている）。実測（1920px・82 桁・`ui.minimap` は on）: テーブル表示で右端 120px の矩形が **0 個**、`M` でソース表示にすると **6 個** | **どちらとも言える。**下の 2 択 |
+
+### 43.11 をどう倒すか（人の判断が要る）
+
+`src/preview/csv.rs` の冒頭は、ペイロードを `Payload::Markdown` 形にした理由の 1 つとして
+**「ミニマップは行の見た目の幅からバンドを作るので、パディングだらけのテーブル行を
+`Payload::Text` で渡すと一様なブロックになり、ビューポート枠がファイルの行ではなく
+描画行を指してしまう」**と書いている。つまり `source` と `map` を持たせたのは、
+**テーブルを出したままファイルをマップできるようにするため**と読める。ところが描画側は
+レンダリング済み Markdown をまとめて early return しているので、その `map` は
+ソース表示のときしか使われない。
+
+1. **項目の文言を直す** — 「テーブル表示にミニマップは出ない。`M` でソースにすると出て、
+   そちらはファイルの行をマップする」。レンダリング済み Markdown に地図を出さないのは
+   `ui/preview.rs` が明示している設計判断（描画行とファイルの行が違う）で、CSV も同じ扱いに
+   なっているだけ、という立場。
+2. **描画を直す** — `Payload::Markdown` のうち **CSV 由来のものだけ**（`doc.toc` が空で
+   `map` が非空、など見分けが要る）ミニマップを出す。`map` は既に `source` から作られて
+   いるので枠の位置も正しくなるが、`markdown()` の early return を割ることになる。
+   **プログラムの変更なので QA では触らない。**
+
+推奨は **1**。Markdown のレンダリング表示に地図を出さない規則は先にあって、CSV は
+その規則に素直に従っている。43.11 は csv.rs のコメントから書かれた項目に見える
+（コメントは「なぜ `Payload::Markdown` を選んだか」の説明で、「テーブル表示に地図が出る」
+とは言っていない）。なお `ui::csv_table_frame::the_minimap_arrives_with_the_text_and_not_with_the_table`
+は**現状の挙動を assert している**ので、2 を選ぶならそのテストが落ちる —— 落ちたときに
+何が変わったのかが分かる形にしてある。
+
+### 項目の文言として気になったが、間違いではないもの
+
+| # | 見つけたこと |
+| --- | --- |
+| 27.1 / 27.2 | 27.1 は「cold start」、27.2 は「このセッションで開いていないファイル」だが、v0.12.0 のバグに必要だった条件は**キャッシュに無いこと**だけで、起動が cold かどうかは関係がない。27.2 の「**This is the case that was broken: not cold starts**」がそう書いているので、行としては正しい。自動化できたのは 27.2 の側で、27.1（本当に起動直後のプロセス）だけが残った |
+| 43.1 / 43.7 | 「Excel が保存した `.csv`」「Excel が CSV UTF-8 で保存した（BOM 付き）」。テストは同じ中身のファイルを自分で書いているので、**Excel が実際に何を書くか**は確かめていない（行区切り、引用の付け方、BOM の有無）。実機で 1 度見る価値は残っている |
+| 43.8 | 「short rows are padded」は数値列だと**左に**寄る。`ragged.csv`（`a,b,c` / `1` / `2,3`）では a 列も b 列も数値列と判定されて右寄せになるので、パディングは空欄の左側に入る。行の言う「padded」は満たしている |
+
+### ワーカーを回すテストは「親カラム」に足を取られる（PR #25 のレビューで判明）
+
+`turn()` / `settle()` を入れた初回に踏んだ罠。次に同じ形のテストを書くときのために残す。
+**プログラムの問題ではなく、テストの側の問題。**
+
+- **スキャン中のペインは、プレビューの待ちと同じ `…` を描く。**フレーム全体で `…` を
+  数えていたので、親（`env::temp_dir()`）のスキャンが 1 フレーム目に間に合わないと
+  2 個目が出て条件が崩れた。空の `/tmp` では通り、**4000 件入った `/tmp` では落ちる。**
+  CI が緑だったのは Windows ランナーの一時ディレクトリが空だったから。
+- **領域で絞ることはできない。**`Painted` は矩形の位置と文字列の中身しか持たないので、
+  「プレビュー枠の中の `…`」は `rects_in` では聞けない。
+- 倒したやり方: **一覧するディレクトリを `test_dir(label).join("room")` にして、親を
+  テスト側が持つ。**親が 1 エントリなら 1 フレーム目に間に合い、かつ**他のテストが
+  書き込まないので watcher が dirty を立てて `Loading` に戻すこともない**
+  （一時ディレクトリを親にしていると、並列で走る他のテストが `test_dir` を作るたびに
+  それが起きうる）。
+- もう 1 つ: 一覧が出るまでループを回すと、**速いマシンではその間にプレビューも届く。**
+  「要求は出たが何も返っていない」は待って作るものではなく、`preview.cache.clear()` と
+  `key = None` で**言って作る**もの（`preview_panes::forget`）。
+| 5.9 | 「Two directories → Refused with a reason」は**もう成り立たない**。v0.43.0（45 節）でフォルダ 2 つはツリー比較になった。いま拒否されるのは**片方だけがフォルダ**のときで、文言は `compare two files, or two folders — not one of each` | `src/app.rs` の `compare_pair()`: 拒否条件は `a.1.is_dir_like() != b.1.is_dir_like()` だけ。同じ内容が 45.9 にある | TESTING.md（45 節が入ったときに 5.9 が取り残された）。**5.9 の言う拒否はもう起きない**し、いま起きる拒否は 45.9 が見ている。落とすのが素直だが番号を動かす話になるので提案にとどめる |
+| 21.6 | 「A toast says it was **skipped**」は、選択にアーカイブが 1 つも無いときの文言ではない。テキストファイルだけを対象に `e` を押すと出るのは `The file under the cursor is not an archive filer can read (zip, tar, tar.gz, tgz, 7z)` | `src/app.rs` の `do_extract()`。`Skipping N non-archive item(s)` は**アーカイブと非アーカイブが混ざっている**ときの別のトーストで、そちらはジョブも走る | TESTING.md（2 つのトーストが 1 項目に混ざっている）。「アーカイブでないと言う」に直すか、混在の場合を別項目に分けるかの 2 択 |
+
+### プログラム側の指摘（QA では直さない）
+
+#### `InputOverlay::initial_selection` はどこからも読まれていない
+
+フィールドのコメントは「最初にフォーカスを得たときにキャレットを置く場所」と書いてあり、
+`start_bulk_rename()` は `Some((0, "{name}{ext}".chars().count()))`（= 全選択）を入れている。
+**が、`src/ui/` のどこも読んでいない。**`grep -rn initial_selection src/` の結果は
+代入 5 か所とフィールド宣言だけで、`TextEditState` に書き戻す経路が無い。
+
+- 実測: `R` → `holiday-{n:2}{ext}` と打つと、フィールドは
+  `{name}{ext}holiday-{n:2}{ext}` になる（置き換わらない）。
+- 影響する項目: **11.2**（「Type `holiday-{n:2}{ext}`」が、そのままでは意図した規則にならない）。
+  11.6 / 11.7 / 11.8 / 11.9b / 11.10 / 11.11 も規則を打つので同じ。
+  ほかに `rename`（`src/app.rs:3203`、拡張子を除いた部分だけ選ぶ指定）と
+  補完後のキャレット末尾寄せ（`src/app.rs:3964`）も効いていない。
+- テストは `<C-a>` で全選択してから打つ形で書いた（`bulk_frame::rule()` のコメントに理由あり）。
+  **直ったらその 1 行を消せばよい。**直った後に書きたいテストはこれ:
+
+  ```rust
+  // The prompt opens with its rule selected, so the first keystroke replaces it.
+  selecting(&mut s, &dir, &photos);
+  let f = { s.typed("holiday-{n:2}{ext}"); s.draw() };
+  assert_eq!(rows(&f)[0], "IMG_0001.jpg  →  holiday-01.jpg");
+  ```
+
+  `overlay::input` で `!ov.focused` のときに `ov.initial_selection` を
+  `TextEditState::load` → `cursor.set_char_range` → `store` する 5 行で足りる
+  （`right_click_paste` が同じことをやっているので、書き方はそこにある）。
+
+#### バルクリネームのプレビューは 1 フレーム遅れる
+
+`ui::draw` は `overlay::bulk` を `overlay::input` より先に呼ぶので、パネルは
+**その時点の `ov.text`**（= 前のフレームの内容）から作られる。`TextEdit` が文字を
+受け取るのはそのあと。
+
+- 60fps では誰も気付かないので**バグとして直す必要はない**が、フレーム単位で見るテストは
+  「打った次のフレーム」を読む必要がある（`bulk_frame::rule()` がそうしている）。
+- 記録として残す: 将来 `bulk` を `input` の後ろに動かすと、このテストの `s.draw()` が
+  1 回余計になるだけで落ちはしない。
+
+### 21 節の届かない 9 件 — なぜ届かないか
+
+ハーネスはワーカーを回さない（`ui::harness` の設計。スキャンが途中で届くとテストが
+組んだ状態を上書きするので、意図的にそうなっている）。`e` / `E` はどちらも
+`submit_op` / `submit_op_to` でジョブキューに渡すので、**展開も圧縮もフレームの中では
+起きない。**
+
+| # | 要るもの | 理由 |
+| --- | --- | --- |
+| 21.2 | 展開ジョブ | `do_extract()` → `submit_op(OpKind::Extract, …)`。フォルダができるのはワーカーの中 |
+| 21.3 | 展開ジョブ 2 回 | 2 回目の名前を決めるのは `extract_dir()` だが、衝突を見るのは展開そのもの |
+| 21.4 | 圧縮ジョブ | プロンプトの既定名（`to-pack.zip`）までは 21.12 のテストが見ている。「Packed, and the result opens」はジョブ完了後の `open` |
+| 21.5 | 圧縮ジョブ | 形式が tar.gz になったことは**できた書庫を読まないと分からない** |
+| 21.7 | 圧縮ジョブ | 同上（7z） |
+| 21.8 | 展開ジョブ | 同上 |
+| 21.9 | **7-Zip か Explorer** | 他のプログラムが開けることを言っている項目なので、原理的にこのリポジトリのテストの外 |
+| 21.10 | 圧縮ジョブ＋タスクパネル | 数えているのは `on_entry` コールバックの呼ばれ方で、ワーカーの中 |
+| 21.11 | 圧縮ジョブ 2 回 | 圧縮率の比較。書庫を 2 つ作らないと始まらない |
+
+- **`fs::archive` 自体の往復は `fs::archive::tests::a_tree_survives_being_packed_and_unpacked`
+  が 4 形式すべてで見ている。**届かないのは「キーを押すとジョブが走り、タスクパネルが数え、
+  結果が開く」という配線のほうで、そこはワーカーを回すハーネス（`ops::Pool` を回して
+  `OpEvent` を待つもの）が要る。**要否は人の判断**なので提案にとどめる:
+  - 案 A（推奨）: 21 節はこのまま実機に残す。ジョブは進捗・速度・キャンセルまで含めて
+    「見て確かめる」ものなので、6.15 と同じ扱いにする。
+  - 案 B: `ops::Pool` を回してイベントを待つテスト用ヘルパを足す。**プログラム側の変更**
+    （公開範囲か、完了を待つ手段）が要る。
+
+### テスト用に足した 1 か所 — `preview::for_tests`
+
+21.1 は「本物の zip → 本物のプレビュー → 本物の描画」で見たかったが、
+`preview::render()` は `preview` モジュール内の private で、`src/ui/` からは呼べない。
+**`src/preview/mod.rs` の末尾に `#[cfg(test)] pub(crate) mod for_tests` を足し、
+その中から `render()` を呼ぶ形にした**（`Request` の組み立てもその中）。
+
+- `#[cfg(test)]` の内側なので release ビルドには 1 行も入らず、プログラムの挙動は変わらない。
+  役割の規則（「diff の追加行がすべて `#[cfg(test)]` の内側」）も満たしている。
+- とはいえ**テスト用の入口を本番モジュールの木に足した**ことは事実なので、
+  気に入らなければ `render` を `pub(crate)` にする（= プログラムの変更）か、
+  21.1 を `src/preview/mod.rs` の中のユニットテストに落とすかの 2 択。判断は人に委ねる。
+
+### TESTING.md の「The keys」の件数が**また**古い
+
+冒頭は **226 of them across nine layers** だが、`--check` は **242** と答える
+（v0.46.0 が `[help]` `[spot]` `[tasks]` `[diff]` の 4 層に倒度キー 4 つずつを足した分）。
+層の数 9 は合っている。
+
+- 根拠: `cargo +stable run --example make-keycheck -- --check` →
+  `in sync with src/config/defaults/keymap.toml (242 / 242 checked)`（exit 0）
+- どちらの間違いか: TESTING.md。`226` → `242` の 1 語だけで済む。
+  v0.45.1 で `193` が残ったのと同じ形で、**キーを増やすたびに再発している。**
+  `make-keycheck` が TESTING.md のこの数字も書き換える（あるいは `--check` で照合する）
+  ようにすれば、次からは CI が捕まえる。
 
 ### TESTING-KEYS.md は同期している
 
 `cargo +stable run --example make-keycheck -- --check` は exit 0
 （`in sync with src/config/defaults/keymap.toml (242 / 242 checked)`）。再生成の必要なし。
+（`242 / 242 checked`）。再生成の必要なし。
+
+### 番号の並び
+
+1..46 に欠番・重複は無く、各 id は `<節>.<n>` になっている。ただし
+**46 節（v0.47.0、spot パネルの Git セクション）が `## Known gaps in this checklist` の
+後ろに置かれている。**「A new section goes wherever it reads best」に従えば 41 節の隣だが、
+移すと 42 以降が全部繰り上がるので、末尾に足したのは本文の方針どおり。
+ただ「Known gaps」は**文書のまとめ**なので、節はその手前に来るほうが読める。
+番号を動かさずに直せる（46 節のブロックを Known gaps の直前へ移すだけ）ので、
+そこだけ人の判断で。
