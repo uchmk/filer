@@ -1367,3 +1367,411 @@ mod diff_frame {
         assert!(now > first, "the highlight moved down: {first} then {now}");
     }
 }
+
+/// TESTING.md section 34: the help panel's own scrolling.
+///
+/// `app::help_keys` already drives the `[help]` layer with `help_rows` and
+/// `help_lines` written in by hand, which is the arithmetic. What it cannot
+/// answer is where those two numbers come from: only the renderer knows how
+/// tall the panel came out, and a panel that measured itself wrong would pass
+/// every one of those tests while paging by the wrong distance on screen. These
+/// drive the real frame, so the distances are the panel's own height, and the
+/// lines asserted on are the lines that were painted.
+#[cfg(test)]
+mod help_frame {
+    use crate::app::{InputKind, InputOverlay, Overlay, SpotOverlay, TasksOverlay};
+    use crate::ui::harness::Screen;
+    use egui::{Event, Key, Modifiers, Pos2};
+
+    fn alt() -> Modifiers {
+        Modifiers { alt: true, ..Default::default() }
+    }
+
+    /// Ctrl as a window sends it: egui sets `command` alongside `ctrl` on every
+    /// platform but macOS, and `keys::from_egui` reads either.
+    fn ctrl() -> Modifiers {
+        Modifiers { ctrl: true, command: true, ..Default::default() }
+    }
+
+    fn chord(key: Key, modifiers: Modifiers) -> Event {
+        Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers }
+    }
+
+    /// One notch of the wheel with the pointer at `at`.
+    ///
+    /// The pointer has to move in the same frame: `rect_contains_pointer` is
+    /// what decides which surface a turn belongs to, and a context that has
+    /// never seen a pointer position answers no to all of them.
+    fn wheel(s: &mut Screen, at: Pos2) {
+        s.feed(vec![
+            Event::PointerMoved(at),
+            Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Point,
+                delta: egui::vec2(0.0, -120.0),
+                phase: egui::TouchPhase::Move,
+                modifiers: Modifiers::NONE,
+            },
+        ]);
+    }
+
+    /// A point over the left-hand file list, where a turn of the wheel belongs
+    /// to the list unless a panel has claimed it.
+    fn over_the_list(s: &Screen) -> Pos2 {
+        Pos2::new(s.rect().width() * 0.45, s.rect().height() * 0.5)
+    }
+
+    /// The panel open on filer's own defaults, having measured itself once.
+    fn showing_help(label: &str) -> Screen {
+        let mut s = Screen::open(crate::util::test_dir(label));
+        s.typed("~");
+        assert!(matches!(s.app.overlay, Overlay::Help), "`~` opened the panel");
+        s
+    }
+
+    /// A directory of `n` files, listed. Long enough that the list underneath
+    /// has somewhere to scroll to, which is what makes 34.9 assertable.
+    fn listing(label: &str, n: usize) -> Screen {
+        let dir = crate::util::test_dir(label);
+        let mut entries = Vec::new();
+        for i in 0..n {
+            let p = dir.join(format!("f{i:03}.txt"));
+            std::fs::write(&p, "x").unwrap();
+            entries.push(crate::fs::Entry::from_path(p).unwrap());
+        }
+        let mut s = Screen::open(dir.clone());
+        s.app.tabs[s.app.active].current =
+            crate::core::folder::Folder::from_entries(dir, std::sync::Arc::new(entries), true);
+        s
+    }
+
+    /// The `[mgr]` bindings start this far down the list; everything above them
+    /// is the config section the panel opens with.
+    fn head(s: &Screen) -> usize {
+        s.app.help_lines - s.app.cfg.keymap.mgr.len()
+    }
+
+    /// The text the panel draws in the middle column for line `line`, which has
+    /// to be one of the `[mgr]` bindings.
+    fn text_of(s: &Screen, line: usize) -> String {
+        let b = &s.app.cfg.keymap.mgr[line - head(s)];
+        match b.desc.is_empty() {
+            true => b.raw.clone(),
+            false => b.desc.clone(),
+        }
+    }
+
+    /// The panel measures itself from the frame, and the defaults are long
+    /// enough for the rest of the section to mean anything.
+    ///
+    /// The section says so in its own words -- "the list is long enough to
+    /// scroll only if the keymap is; the defaults are" -- and every check below
+    /// rests on it, so it is asserted once rather than assumed nine times.
+    #[test]
+    fn the_panel_measures_itself_against_its_own_height() {
+        let mut s = showing_help("frame-help-open");
+        let f = s.draw();
+        assert!(
+            f.says("Keys — <Esc> close"),
+            "the panel names its own keys along the top: {:?}",
+            f.texts,
+        );
+        assert!(s.app.help_rows > 0, "the renderer counted the rows that fit");
+        assert!(
+            s.app.help_lines > s.app.help_rows,
+            "{} lines in a panel {} rows tall, so there is a scroll to test",
+            s.app.help_lines,
+            s.app.help_rows,
+        );
+        // The config section comes first, and its heading is the first line --
+        // which is what the checks below watch leave the top of the panel.
+        assert!(f.texts.contains(&"config".to_owned()), "line 0 is on screen: {:?}", f.texts);
+    }
+
+    /// 34.1: `j` / `k` and the arrows move one line, and the panel redraws from
+    /// it.
+    #[test]
+    fn one_line_on_j_k_and_on_the_arrows() {
+        let mut s = showing_help("frame-help-line");
+        let heading = "config".to_owned();
+
+        let f = s.typed("j");
+        assert_eq!(s.app.help_scroll, 1);
+        assert!(!f.texts.contains(&heading), "the first line has gone off the top: {:?}", f.texts);
+        let f = s.typed("k");
+        assert_eq!(s.app.help_scroll, 0);
+        assert!(f.texts.contains(&heading), "and come back: {:?}", f.texts);
+
+        s.feed(vec![chord(Key::ArrowDown, Modifiers::NONE)]);
+        assert_eq!(s.app.help_scroll, 1, "<Down> is the same one line");
+        s.feed(vec![chord(Key::ArrowUp, Modifiers::NONE)]);
+        assert_eq!(s.app.help_scroll, 0, "<Up> likewise");
+    }
+
+    /// 34.2, 34.3 and 34.4: half a panel on the Alt and the Ctrl pair, a whole
+    /// one on the page keys.
+    #[test]
+    fn half_a_panel_on_both_pairs_and_a_whole_one_on_the_page_keys() {
+        let mut s = showing_help("frame-help-page");
+        let rows = s.app.help_rows;
+        let half = rows / 2;
+        assert!(half > 0, "the panel is more than one row tall");
+
+        for (down, up, step, name) in [
+            (chord(Key::J, alt()), chord(Key::K, alt()), half, "<A-j>/<A-k>"),
+            (chord(Key::D, ctrl()), chord(Key::U, ctrl()), half, "<C-d>/<C-u>"),
+            (
+                chord(Key::PageDown, Modifiers::NONE),
+                chord(Key::PageUp, Modifiers::NONE),
+                rows,
+                "<PageDown>/<PageUp>",
+            ),
+        ] {
+            s.feed(vec![down]);
+            assert_eq!(s.app.help_scroll, step, "{name} moved by {step}");
+            s.feed(vec![up]);
+            assert_eq!(s.app.help_scroll, 0, "{name} came back");
+        }
+    }
+
+    /// 34.2 again, the part the arithmetic cannot state: "half the panel's
+    /// height -- not the file list's".
+    ///
+    /// `<C-d>` is half a page on both surfaces, so the bug this rules out is the
+    /// panel paging by the height of the list it is drawn over. The two are
+    /// different numbers only because the panel is inset and spends a row on its
+    /// title, which is a fact about the frame: nothing but a drawn window has
+    /// both heights to compare.
+    #[test]
+    fn half_a_panel_is_not_half_the_list_underneath() {
+        let mut s = listing("frame-help-not-list", 200);
+        s.draw();
+        // The list first, with no panel over it.
+        s.feed(vec![chord(Key::D, ctrl())]);
+        let in_the_list = s.app.tab().current.cursor;
+        let list_rows = s.app.tab().page_rows;
+        assert_eq!(in_the_list, list_rows / 2, "the list moved by half of its own page");
+
+        let mut s = listing("frame-help-not-list-2", 200);
+        s.typed("~");
+        s.feed(vec![chord(Key::D, ctrl())]);
+        assert_eq!(s.app.help_scroll, s.app.help_rows / 2, "the panel used its own height");
+        assert_ne!(
+            s.app.help_rows, list_rows,
+            "the panel is {} rows and the list {list_rows}, so the two distances can be told apart",
+            s.app.help_rows,
+        );
+        assert_ne!(
+            s.app.help_scroll, in_the_list,
+            "a panel that moved {in_the_list} would have paged by the list's height",
+        );
+    }
+
+    /// 34.5, 34.6 and 34.7: the scroll stops with the last line at the bottom
+    /// of a full panel, and one press comes straight back.
+    ///
+    /// The regression this guards is worth spelling out: `help_scroll` was
+    /// incremented raw, so `j` held down ran the number hundreds past the end
+    /// while the panel sat still, and every press back up moved a number
+    /// nothing was drawing from. The keys looked dead for exactly as many
+    /// presses as had been wasted.
+    #[test]
+    fn it_stops_with_the_last_line_at_the_bottom_of_a_full_panel() {
+        let mut s = showing_help("frame-help-bottom");
+        let full = s.draw().texts.len();
+        let rows = s.app.help_rows;
+        let stop = s.app.help_lines - rows;
+        let last = s.app.help_lines - 1;
+
+        let f = s.typed("G");
+        assert_eq!(s.app.help_scroll, stop, "the last line is the bottom one, not the top one");
+        assert!(
+            f.texts.contains(&text_of(&s, last)),
+            "the last line is on screen: {:?}",
+            f.texts.last(),
+        );
+        assert!(
+            f.texts.contains(&text_of(&s, stop)),
+            "and so is the line {rows} above it, which is what makes the panel full",
+        );
+        // Two strings per line at least -- the keys column and the description
+        // -- so a panel showing one line could not come near this.
+        assert!(
+            f.texts.len() + 2 >= full,
+            "the panel is as full at the end of the scroll as at its start: {} against {full}",
+            f.texts.len(),
+        );
+
+        // 34.6: one `k` moves, rather than spending a press undoing an
+        // overshoot that was never drawn.
+        let f = s.typed("k");
+        assert_eq!(s.app.help_scroll, stop - 1);
+        assert!(
+            f.texts.contains(&text_of(&s, stop - 1)),
+            "the line above has come into view: {:?}",
+            f.texts,
+        );
+
+        // 34.7: `gg` is the top, and there is nothing above it.
+        let f = s.typed("gg");
+        assert_eq!(s.app.help_scroll, 0);
+        assert!(f.texts.contains(&"config".to_owned()), "back to the first line: {:?}", f.texts);
+        s.typed("k");
+        assert_eq!(s.app.help_scroll, 0, "`k` at the top does nothing");
+    }
+
+    /// 34.8 and 34.9: the wheel turns the panel, and the list underneath stays
+    /// exactly where it was.
+    ///
+    /// The control comes first on purpose. The same events over the same window
+    /// with no panel open *do* scroll the list, so this cannot pass by the
+    /// wheel never having arrived -- which is the way a test like this goes
+    /// quietly wrong.
+    #[test]
+    fn the_wheel_turns_the_panel_and_leaves_the_list_alone() {
+        let mut s = listing("frame-help-wheel", 200);
+        s.draw();
+        let at = over_the_list(&s);
+
+        wheel(&mut s, at);
+        assert!(
+            s.app.tab().current.offset > 0,
+            "the control: with nothing over it, the list answers the wheel",
+        );
+
+        s.typed("~");
+        s.draw();
+        let before = (s.app.tab().current.offset, s.app.tab().current.cursor);
+        let middle = s.rect().center();
+        wheel(&mut s, middle);
+        assert!(s.app.help_scroll > 0, "the panel took the turn");
+        assert_eq!(
+            (s.app.tab().current.offset, s.app.tab().current.cursor), before,
+            "and the list did not move under it -- which only shows once the panel closes",
+        );
+    }
+
+    /// 34.10 and 34.11: a panel over the list owns the wheel; a one-row prompt
+    /// does not.
+    ///
+    /// The prompt is the case that must keep working: it is one row at the
+    /// bottom and the list above it is exactly what is being read while it is
+    /// open, so taking the wheel away there would be the fix overshooting.
+    #[test]
+    fn a_panel_owns_the_wheel_and_a_prompt_leaves_it() {
+        for (label, overlay) in [
+            ("tasks", Overlay::Tasks(TasksOverlay { cursor: 0 })),
+            ("spot", Overlay::Spot(SpotOverlay { cursor: 0, scroll: 0 })),
+        ] {
+            let mut s = listing(&format!("frame-help-modal-{label}"), 200);
+            s.app.overlay = overlay;
+            s.draw();
+            let before = (s.app.tab().current.offset, s.app.tab().current.cursor);
+            let at = over_the_list(&s);
+            wheel(&mut s, at);
+            assert_eq!(
+                (s.app.tab().current.offset, s.app.tab().current.cursor), before,
+                "nothing moves under the {label} panel",
+            );
+        }
+
+        let mut s = listing("frame-help-prompt", 200);
+        s.app.overlay = Overlay::Input(InputOverlay {
+            kind: InputKind::Filter,
+            title: "filter".into(),
+            text: String::new(),
+            initial_selection: None,
+            focused: true,
+            completion: Vec::new(),
+            completion_at: 0,
+        });
+        s.draw();
+        let at = over_the_list(&s);
+        wheel(&mut s, at);
+        assert!(
+            s.app.tab().current.offset > 0,
+            "a filter prompt is one row; the list above it still scrolls",
+        );
+    }
+
+    /// 34.12: each of the four keys closes the panel, through the same event
+    /// path the window uses.
+    #[test]
+    fn four_keys_close_it() {
+        for text in ["q", "~"] {
+            let mut s = showing_help(&format!("frame-help-close-{text}"));
+            s.typed(text);
+            assert!(s.app.overlay.is_none(), "`{text}` closed the panel");
+        }
+        for (name, key) in [("<F1>", Key::F1), ("<Esc>", Key::Escape)] {
+            let mut s = showing_help(&format!("frame-help-close-{}", key.name()));
+            s.feed(vec![chord(key, Modifiers::NONE)]);
+            assert!(s.app.overlay.is_none(), "`{name}` closed the panel");
+        }
+    }
+
+    /// 34.13: a key added to the `[help]` layer scrolls the drawn panel.
+    ///
+    /// The panel whose subject is the keymap is the one that used to read its
+    /// keys off the event loop, where no rebinding could reach them. That the
+    /// layer is consulted is `app::help_keys`'s check; that the panel then
+    /// draws from somewhere else is this one.
+    #[test]
+    fn a_rebound_key_scrolls_the_drawn_panel() {
+        let mut s = Screen::open(crate::util::test_dir("frame-help-rebind"));
+        let (km, _) = crate::config::Keymap::load(&["[[help.keymap]]\non = \"n\"\nrun = \"arrow 1\"\n"]);
+        s.app.cfg.keymap = km;
+        s.typed("~");
+        assert!(s.draw().texts.contains(&"config".to_owned()), "the first line is on screen");
+
+        let f = s.typed("n");
+        assert_eq!(s.app.help_scroll, 1, "the added key scrolls");
+        assert!(!f.texts.contains(&"config".to_owned()), "and the panel redrew from line 1");
+    }
+
+    /// 34.14, the half of it the program actually reaches: a panel that grew
+    /// taller comes back to the new bottom without a key being pressed.
+    ///
+    /// More lines fit, so the last line is reached from further up the list, and
+    /// a scroll position saved against the old height is now past the end of the
+    /// new one. The renderer re-clamps for exactly that.
+    ///
+    /// `Act::Scale` is run directly rather than pressed, because **`<C-->` does
+    /// not reach it while the panel is open** -- the `[help]` layer has no scale
+    /// binding and does not fall through to `[mgr]`. That is reported in
+    /// QA-REPORT.md rather than asserted here; what is asserted is the clamp,
+    /// which is what the row is about and what regressed before v0.34.0.
+    ///
+    /// Pressing the chord here instead would look like it worked and prove
+    /// nothing: `main` switches egui's own `zoom_with_keyboard` off on the real
+    /// context and the harness does not, so in a test egui resizes the window
+    /// itself, at `end_pass`, whether or not any binding ran. QA-REPORT.md
+    /// proposes closing that gap.
+    #[test]
+    fn a_taller_panel_comes_back_to_the_new_bottom() {
+        let mut s = showing_help("frame-help-scale");
+        s.typed("G");
+        let rows = s.app.help_rows;
+        let lines = s.app.help_lines;
+        assert_eq!(s.app.help_scroll, lines - rows, "parked at the bottom to begin with");
+
+        s.app.act(crate::config::cmd::Act::Scale(crate::config::cmd::ScaleTo::Out));
+        // `set_zoom_factor` lands at the start of the next frame, so the panel
+        // is only taller one frame later -- which is the frame this asserts on.
+        let f = s.draw();
+        assert!(
+            s.app.help_rows > rows,
+            "a smaller font fits more lines: {rows} then {}",
+            s.app.help_rows,
+        );
+        assert_eq!(s.app.help_lines, lines, "the list itself is the same length");
+        assert_eq!(
+            s.app.help_scroll, lines - s.app.help_rows,
+            "still parked at the bottom, at the stop the new height put there",
+        );
+        assert!(
+            f.texts.contains(&text_of(&s, lines - 1)),
+            "and the last line is still on screen: {:?}",
+            f.texts.last(),
+        );
+    }
+}

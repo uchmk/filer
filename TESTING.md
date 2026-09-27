@@ -727,6 +727,18 @@ none of these failed.
 Everything here is `~` / `F1`. The list is long enough to scroll only if the
 keymap is; the defaults are.
 
+34.1–34.9 and 34.11–34.13 are automated (`ui::overlay::help_frame`), 34.10 for the task panel and
+the spotter, and 34.14 in part. The panel measures its own height from the frame, so the distances
+here are that height and not the file list's — in one 1280x800 window `<C-d>` moves the panel 13
+lines and the list 15, which is the difference 34.2 is about. The stop with the last line at the
+bottom, the immediate return from it, the wheel reaching the panel and not the list under it, the
+one-row prompt that still lets the list scroll, the four closing keys and a rebound key are all in
+`cargo test`. **34.14 is only half covered**: that a taller panel comes back to the new bottom is
+asserted, but `<C-->` itself is not — the `[help]` layer has no scale binding, so the key does
+nothing while the panel is open. See QA-REPORT.md. What is left for an eye is the pointer feel —
+wheel speed, and the pointing-hand cursor over a config path — and that the text is legible at the
+size the panel comes out.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 34.1 | `j` / `k`, then the arrows | One line each way |
