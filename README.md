@@ -716,6 +716,7 @@ what one buys you:
 | png, jpg, gif, bmp, ico, webp, tiff, qoi, pnm | decoded in-process, turned upright per EXIF orientation |
 | svg | rendered with resvg, scaled to fill the pane |
 | ttf, otf, ttc | a specimen sheet: name, alphabet (kana/kanji when the font has them), size waterfall; symbol fonts show a glyph grid |
+| csv, tsv | an aligned table, with `M` switching to the raw text |
 | docx, xlsx, pptx | read out as text: paragraphs, rows, slides. **No Office needed** |
 | heic, avif, jxl, psd, video, audio, pdf | the Windows shell thumbnail — the same one Explorer shows |
 
@@ -726,6 +727,13 @@ and an outline of a document's headings, a workbook's sheets or a deck's slides.
 come out in the order its tabs are in, and a date reads as a date rather than the five-digit number
 it is stored as. The pre-2007 `.doc` / `.xls` / `.ppt` are a different format entirely and are not
 read; one of those renamed to `.docx` says so.
+
+A **csv** or **tsv** is laid out as a table: columns measured and padded, numeric columns
+right-aligned, a rule under the header row, and the widest columns squeezed and wrapped where the
+table is too wide for the pane — the same layout rendered Markdown uses for its tables, because it is
+the same code. Quoted fields are read properly, so a comma or a newline inside `"…"` stays part of
+its field. `M` switches to the raw text and back, exactly as it does for Markdown, and the minimap
+maps the file rather than the table. A `.tsv` splits on tabs; everything else on commas.
 
 Transparent images are laid over a checkerboard so dark icons stay visible on a dark theme.
 Shell thumbnails need a handler for the format: HEIC / AVIF need the HEIF / AV1 Video extensions

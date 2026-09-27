@@ -39,6 +39,13 @@ impl Highlighter {
             self.theme = theme;
         }
     }
+
+    /// The syntect theme, loaded if it is not already. For a previewer that does
+    /// no highlighting of its own but still wants the theme's own colours.
+    pub(super) fn theme(&mut self, theme_name: &str) -> Option<&Theme> {
+        self.ensure(theme_name);
+        self.theme.as_ref()
+    }
 }
 
 const MAX_LINES: usize = 4000;
@@ -241,12 +248,18 @@ fn plain_line(line: &str) -> Vec<Span> {
     vec![Span { text: clip(line.trim_end_matches(['\n', '\r']), MAX_LINE_CHARS), ..Default::default() }]
 }
 
-pub fn plain(text: &str, truncated: bool, total_lines: usize) -> Payload {
-    let lines: Vec<Vec<Span>> = text
-        .lines()
+/// Unstyled lines, capped and clipped the same way every other payload's are, so
+/// a previewer that has its own rendering can still offer the raw text beside it
+/// with a working minimap.
+pub fn plain_lines(text: &str) -> Vec<Vec<Span>> {
+    text.lines()
         .take(MAX_LINES)
         .map(|l| vec![Span { text: clip(l, MAX_LINE_CHARS), ..Default::default() }])
-        .collect();
+        .collect()
+}
+
+pub fn plain(text: &str, truncated: bool, total_lines: usize) -> Payload {
+    let lines = plain_lines(text);
     let map = super::minimap(&lines);
     Payload::Text { lines, map, truncated, total_lines, outline: Vec::new() }
 }

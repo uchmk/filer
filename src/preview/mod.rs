@@ -13,6 +13,7 @@ use crossbeam_channel::{Receiver, Sender};
 
 mod font_preview;
 mod image_preview;
+mod csv;
 mod markdown;
 mod external;
 mod office;
@@ -34,7 +35,8 @@ pub struct Key {
     pub mtime: Option<SystemTime>,
     /// Images are decoded for a specific box size.
     pub box_size: (u32, u32),
-    /// Text columns across the pane; rendered Markdown is wrapped to fit.
+    /// Text columns across the pane; rendered Markdown and a CSV table are laid
+    /// out to fit it, so for those the width is part of what was read.
     pub cols: u16,
     /// Which picture of the file: a PDF's page, a video's second. Part of the
     /// key so that paging back to one already seen is instant, and so that two
@@ -343,6 +345,13 @@ fn render(req: &Request, syntax: &mut text::Highlighter) -> Payload {
         return binary(path, &head);
     }
 
+    // Before the text fallback, and after `looks_binary` above: a binary blob
+    // named `.csv` still hex-dumps, and `max_bytes` has already done its cutting.
+    if mime == "text/csv" {
+        let delim = csv::delimiter(req.ext.as_deref());
+        let dim = syntax.theme(&req.syntect_theme).map(markdown::dim_of).unwrap_or_default();
+        return csv::render(&head, delim, req.key.cols, dim, req.max_bytes);
+    }
     text::render(&head, req, syntax)
 }
 
