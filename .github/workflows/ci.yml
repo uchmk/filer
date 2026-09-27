@@ -60,7 +60,14 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
+      # Restore on every run, but only `main` writes. A cache saved during a
+      # pull request is scoped to `refs/pull/N/merge` and no later run can read
+      # it, so every pull request was filling the repository's 10GB allowance
+      # with entries that would only ever be evicted. Pull requests read
+      # `main`'s, which is the one that is actually warm.
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Build
         run: cargo build --locked --all-targets
       - name: Test
@@ -87,6 +94,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: clippy
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Add the Windows target
         run: rustup target add x86_64-pc-windows-msvc
       - name: Clippy (Linux)
