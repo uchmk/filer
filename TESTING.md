@@ -286,6 +286,12 @@ at all, which is what made it look intermittent.
 
 The marker bar cannot carry this on its own, which is what the section is for.
 
+All eight are automated (`ui::yank_frame`): the words in the header and in the status line, and
+which of the three marker colours the row's bar is filled with — including the selection's winning
+over the yank, the register surviving a move to another directory, and `p` spending a cut but not a
+copy. What is left for an eye is that the colours read as green / yellow / red and that a 3px bar
+beside a row is noticeable at all, which is not something a frame can be asked.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 10.1 | `y` on a file with nothing selected | A **green** bar on the row, and `1 copied` in the header |
