@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**222 / 226 checked.**
+**226 / 226 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 147 / 151
+## `[mgr]` — 151 / 151
 
 The file list: what is in front of you unless an overlay is.
 
@@ -81,9 +81,9 @@ The file list: what is in front of you unless an overlay is.
 - [x] `P` — Paste the files (overwrite if the destination exists) · `paste --force`
 - [x] `-` — Symlink the absolute path of yanked files · `link`
 - [x] `_` — Symlink the relative path of yanked files · `link --relative`
-- [ ] `=` — Hardlink the yanked files · `hardlink`
-- [ ] `<C-+>` — Make everything bigger · `scale in`
-- [ ] `<C-=>` — Make everything bigger · `scale in`
+- [x] `=` — Hardlink the yanked files · `hardlink`
+- [x] `<C-+>` — Make everything bigger · `scale in`
+- [x] `<C-=>` — Make everything bigger · `scale in`
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 - [x] `<A-c>` — Copy the selection to the other pane · `send_pane`
@@ -161,7 +161,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `g t` — Go to the temporary directory · `cd %TEMP%`
 - [x] `g <Space>` — Jump interactively · `cd --interactive`
 - [x] `g f` — Follow the hovered symlink · `follow`
-- [ ] `g u` — Measure what is taking up the space here · `usage`
+- [x] `g u` — Measure what is taking up the space here · `usage`
 
 ### Tabs
 
