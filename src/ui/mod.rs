@@ -2722,25 +2722,63 @@ mod preview_panes {
         sized(label, files, 1920.0, 1080.0)
     }
 
+    /// The directory these tests list: a `room` *inside* the test directory,
+    /// not the test directory itself.
+    ///
+    /// The extra level is what keeps the parent column out of the way, and that
+    /// matters more than it looks. A pane whose folder is still being scanned
+    /// draws `…`, exactly as the preview does while it waits, so a parent the
+    /// scanner has not finished with puts a second `…` on the frame and
+    /// `waiting` counts it. `test_dir`'s own parent is the system temp
+    /// directory, which is as big as the machine happens to have made it -- 4000
+    /// files is a slow enough scan to lose the race, and that is a test that
+    /// passes on an empty `/tmp` and fails on a working one.
+    ///
+    /// Owning the parent fixes both halves: it holds one entry, so the scan is
+    /// over before the first frame, and nothing else writes into it, so the
+    /// watcher cannot flag it dirty and send it back to `Loading` halfway
+    /// through a test. Every other test in the file shares the temp directory as
+    /// a parent, so that last one is not hypothetical.
+    pub(super) fn room(label: &str) -> std::path::PathBuf {
+        let room = crate::util::test_dir(label).join("room");
+        std::fs::create_dir_all(&room).unwrap();
+        room
+    }
+
     pub(super) fn sized(label: &str, files: &[(&str, &str)], w: f32, h: f32) -> Screen {
-        let dir = crate::util::test_dir(label);
+        let dir = room(label);
         for (name, body) in files {
             std::fs::write(dir.join(name), body).unwrap();
         }
-        let mut s = Screen::open(dir).sized(w, h);
-        s.app.cfg.ui.preview_debounce_ms = 0;
-        for _ in 0..1000 {
-            s.turn();
-            if s.app.tab().current.entries.len() == files.len() {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
-        assert_eq!(
-            s.app.tab().current.entries.len(), files.len(),
-            "the scanner listed the fixtures",
-        );
+        let mut s = open(dir).sized(w, h);
+        listed(&mut s, files.len());
         s
+    }
+
+    /// A `Screen` on `dir` with the debounce off.
+    pub(super) fn open(dir: std::path::PathBuf) -> Screen {
+        let mut s = Screen::open(dir);
+        s.app.cfg.ui.preview_debounce_ms = 0;
+        s
+    }
+
+    /// Turn the loop until the listing holds `n` entries *and* the parent column
+    /// has been scanned, so that the only `…` a later frame can draw is the
+    /// preview's.
+    pub(super) fn listed(s: &mut Screen, n: usize) {
+        until(s, |s| {
+            s.app.tab().current.entries.len() == n
+                && s.app.tab().parent.as_ref().is_some_and(|p| {
+                    p.state != crate::core::folder::LoadState::Loading
+                })
+        });
+        assert_eq!(s.app.tab().current.entries.len(), n, "the scanner listed the fixtures");
+        assert!(
+            s.app.tab().parent.as_ref().is_some_and(|p| {
+                p.state != crate::core::folder::LoadState::Loading
+            }),
+            "and the parent column, which draws `…` of its own while it waits",
+        );
     }
 
     /// The table as it was laid out: each line of the payload's `doc`, spans
@@ -2771,6 +2809,17 @@ mod preview_panes {
         f
     }
 
+    /// Put the preview slot back to "this session has never looked at anything".
+    ///
+    /// Both halves are needed and for different reasons: the slot, so the pane is
+    /// not still showing a payload, and the cache, because `request_preview`
+    /// answers a hit itself and would go straight to `Ready` without the worker.
+    pub(super) fn forget(s: &mut Screen) {
+        s.app.preview.cache.clear();
+        s.app.preview.key = None;
+        s.app.preview.state = crate::app::PreviewState::Empty;
+    }
+
     /// Turn the loop until `done`, or ten seconds.
     ///
     /// `Screen::settle` stops at "the hovered file's preview is up", which is
@@ -2795,6 +2844,12 @@ mod preview_panes {
     /// `…` on its own, counted exactly: the tab bar elides a long directory name
     /// with the same character, so `Painted::says` answers yes on every frame
     /// these tests draw and would make the assertion vacuous.
+    ///
+    /// Counting the whole frame is only sound because `room` owns the parent
+    /// column -- a pane still being scanned draws this same placeholder. There is
+    /// no narrowing it by area: `Painted` keeps where a *rectangle* was drawn and
+    /// only what a string said, so "`…` inside the preview pane" is not a
+    /// question it can answer.
     pub(super) fn waiting(f: &Painted) -> bool {
         f.texts.iter().filter(|t| *t == "\u{2026}").count() == 1
     }
@@ -3004,6 +3059,14 @@ mod preview_arrival_frame {
         let body = "the quick brown fox\n".repeat(300);
         let mut s = on("arrive-first", &[("cold.txt", &body)]);
 
+        // Asked, nothing back -- said rather than waited for. Getting the
+        // listing up takes turns of the loop, and on a quick machine the
+        // preview answers during them, so "has it arrived yet" at this point is
+        // a race and not a fact. Emptying the slot and the cache is the state a
+        // session that has never seen this file is in, which is 27.2's whole
+        // condition; the read itself is still the worker's, through the channel,
+        // which is what the frames below are about.
+        forget(&mut s);
         s.app.request_preview(false);
         let f = s.draw();
         assert!(
@@ -3052,16 +3115,18 @@ mod preview_arrival_frame {
     /// keymap's own comment says why. See QA-REPORT.md.
     #[test]
     fn an_image_never_seen_zooms_from_its_own_fit() {
-        let dir = crate::util::test_dir("arrive-image");
+        // `room` rather than the test directory itself, for the reason its own
+        // note gives: the parent column draws the same placeholder this test
+        // reads, so the tests own the parent.
+        let dir = room("arrive-image");
         image::RgbaImage::from_pixel(32, 24, image::Rgba([1u8, 2, 3, 255]))
             .save(dir.join("small.png"))
             .unwrap();
         image::RgbaImage::from_pixel(1600, 1200, image::Rgba([9u8, 8, 7, 255]))
             .save(dir.join("big.png"))
             .unwrap();
-        let mut s = Screen::open(dir);
-        s.app.cfg.ui.preview_debounce_ms = 0;
-        until(&mut s, |s| s.app.tab().current.entries.len() == 2);
+        let mut s = open(dir);
+        listed(&mut s, 2);
 
         let f = look_at(&mut s, "small.png");
         assert!(f.says("32 × 24"), "the small one is up: {:?}", f.texts);
@@ -3094,6 +3159,9 @@ mod preview_arrival_frame {
         let files: Vec<(&str, &str)> =
             bodies.iter().map(|(n, b)| (n.as_str(), b.as_str())).collect();
         let mut s = on("arrive-ten", &files);
+        // Getting the listing up previews whatever the cursor landed on, so the
+        // first of the ten would otherwise be a hit and this would be nine.
+        forget(&mut s);
 
         for (name, body) in &bodies {
             let f = look_at(&mut s, name);
