@@ -35,6 +35,11 @@ Ticks survive regeneration, so a keymap change does not cost the afternoon
 already spent. Keys that have left the keymap are listed at the end rather than
 dropped, since one that vanished is worth noticing.
 
+**CI checks that it is in sync** (`make-keycheck -- --check`, since v0.45.1), so
+the list can be trusted to name the keys the program actually has. It could not
+before: when that check went in it found nine keys missing and two descriptions
+stale, the `[help]` layer still listing one binding after v0.34.0 gave it five.
+
 The sections below are the other half: behaviour that no single key exercises.
 
 ## What you need
