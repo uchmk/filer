@@ -1,0 +1,498 @@
+//! Write `TESTING-CHECKS.md`: the manual half of TESTING.md, in Japanese, with
+//! a box to tick per check and the commands each section needs.
+//!
+//! TESTING.md is the source of truth and stays so. It is written in English,
+//! from the code, as 46 tables of "Do / Expect" -- excellent for auditing
+//! against the source, and awkward to *work through*: there is nowhere to
+//! record that a row was done, no way to see how much is left, and the setup a
+//! section needs is buried in its prose. This file is the other shape of the
+//! same content: one tickable line per check, Japanese first, and each
+//! section's preparation lifted out into a block you can paste.
+//!
+//! **Generated, for the reason TESTING-KEYS.md is generated.** A hand-kept
+//! second copy of 516 checks drifts from the first within a week, and the
+//! direction it drifts is the dangerous one -- rows that quietly vanish look
+//! like rows that were done. So the ids, the section list and the English text
+//! all come from TESTING.md on every run; only the Japanese comes from
+//! `scripts/testcheck-ja.toml`, and the English is printed beside it so the two
+//! can be compared without leaving the line.
+//!
+//! **Rows `cargo test` already covers are not listed as work.** A test names
+//! the check it stands in for in its doc comment (`TESTING.md 45.2`, or
+//! `/// 13.4:` at the start of one), and this walks `src/` for those. So the
+//! count at the top is what is actually left for a person -- which is the
+//! number the checklist exists to make visible, and the one TESTING.md cannot
+//! give you.
+//!
+//! **Ticks survive regeneration**, carried over by check id.
+//!
+//!     cargo run --example make-testcheck
+//!
+//! With `--check` it writes nothing and reports whether the file still matches
+//! TESTING.md and the tests, exiting 1 if not. That is what CI runs: a check
+//! added to TESTING.md and never regenerated here is a check nobody will see.
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
+use std::path::Path;
+
+const SRC: &str = "TESTING.md";
+const JA: &str = "scripts/testcheck-ja.toml";
+const SRC_DIR: &str = "src";
+const OUT: &str = "TESTING-CHECKS.md";
+
+/// One row of one of TESTING.md's tables.
+struct Check {
+    section: u32,
+    id: String,
+    /// The cells after the id, in order. Two normally (`Do`, `Expect`); three
+    /// where the table qualifies them first, as sections 35 and 36 do.
+    cells: Vec<String>,
+}
+
+struct Section {
+    n: u32,
+    /// The heading as TESTING.md writes it, version tag and all.
+    title: String,
+    checks: Vec<Check>,
+}
+
+/// What `scripts/testcheck-ja.toml` adds, and the only hand-written input here.
+/// A key in the wrong place is silent otherwise: TOML reads a bare key written
+/// after the first `[table]` as belonging to that table, so `manual` placed at
+/// the foot of this file became `section.46.manual` and did nothing at all.
+#[derive(serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct Notes {
+    #[serde(default)]
+    section: BTreeMap<String, SectionNote>,
+    /// Japanese for one check, by id.
+    #[serde(default)]
+    row: BTreeMap<String, String>,
+    /// Ids to keep on the human's list even though a test names them.
+    ///
+    /// For a test that covers the row on one platform only: `spot_link_section`
+    /// is `#[cfg(unix)]`, because making a symlink on Windows is 13.8's
+    /// privilege problem, so on the machine this checklist is *for* 13.10 to
+    /// 13.12 are not covered at all. Deriving coverage from the tests cannot see
+    /// that, and the error is in the direction that matters -- a row taken off
+    /// the list is a row nobody runs.
+    #[serde(default)]
+    manual: Vec<String>,
+}
+
+#[derive(serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct SectionNote {
+    /// The Japanese heading. Falls back to TESTING.md's English.
+    #[serde(default)]
+    title: String,
+    /// What to set up first, as a block to paste. Usually PowerShell.
+    #[serde(default)]
+    setup: String,
+    /// A sentence of Japanese context, where the section needs one.
+    #[serde(default)]
+    note: String,
+}
+
+fn main() {
+    let check = std::env::args().skip(1).any(|a| a == "--check");
+    let sections = parse(&std::fs::read_to_string(SRC).expect("read TESTING.md"));
+    let notes: Notes = match std::fs::read_to_string(JA) {
+        Ok(t) => toml::from_str(&t).expect("parse the Japanese annotations"),
+        // Not an error: without the file this is TESTING.md rearranged, which is
+        // still a working checklist. The count of untranslated rows says so.
+        Err(_) => Notes::default(),
+    };
+    let mut automated = automated_ids();
+    for id in &notes.manual {
+        automated.remove(id);
+    }
+    let done = previous_ticks();
+
+    let all: Vec<&Check> = sections.iter().flat_map(|s| s.checks.iter()).collect();
+    let manual: Vec<&&Check> = all.iter().filter(|c| !automated.contains(&c.id)).collect();
+    let ticked = manual.iter().filter(|c| done.contains(&c.id)).count();
+    let untranslated = manual.iter().filter(|c| !notes.row.contains_key(&c.id)).count();
+
+    let mut out = String::new();
+    preamble(&mut out, &all, &manual, ticked, untranslated);
+
+    for s in &sections {
+        let mine: Vec<&Check> = s.checks.iter().filter(|c| !automated.contains(&c.id)).collect();
+        let auto: Vec<&str> =
+            s.checks.iter().filter(|c| automated.contains(&c.id)).map(|c| c.id.as_str()).collect();
+        let n = notes.section.get(&s.n.to_string());
+        let title = match n.map(|n| n.title.as_str()).unwrap_or_default() {
+            "" => s.title.clone(),
+            ja => ja.to_owned(),
+        };
+        let d = mine.iter().filter(|c| done.contains(&c.id)).count();
+
+        if mine.is_empty() {
+            // Every row automated. Say so and move on: a heading with nothing
+            // under it reads like a section someone forgot to fill in.
+            writeln!(out, "\n## {}. {title} — 全 {} 件が自動\n", s.n, s.checks.len()).unwrap();
+            writeln!(out, "`cargo test` が全部見ているので、押すものはありません。").unwrap();
+            continue;
+        }
+        writeln!(out, "\n## {}. {title} — {d} / {}\n", s.n, mine.len()).unwrap();
+        if let Some(note) = n.map(|n| n.note.trim()).filter(|s| !s.is_empty()) {
+            writeln!(out, "{note}\n").unwrap();
+        }
+        if !auto.is_empty() {
+            writeln!(out, "自動テスト済みなので下には出していない: {}\n", auto.join(", ")).unwrap();
+        }
+        if let Some(setup) = n.map(|n| n.setup.trim()).filter(|s| !s.is_empty()) {
+            writeln!(out, "準備:\n\n{setup}\n").unwrap();
+        }
+        for c in mine {
+            let mark = if done.contains(&c.id) { "x" } else { " " };
+            let en = c.cells.join(" → ");
+            match notes.row.get(&c.id) {
+                Some(ja) => writeln!(out, "- [{mark}] **{}** {ja} — *{en}*", c.id).unwrap(),
+                None => writeln!(out, "- [{mark}] **{}** {en} 〔未訳〕", c.id).unwrap(),
+            }
+        }
+    }
+
+    // A tick against an id TESTING.md no longer has is worth seeing: the row may
+    // have been removed on purpose, or renumbered, and renumbering silently
+    // moves a tick onto a different check -- which is the one failure this file
+    // must not have.
+    let live: BTreeSet<&str> = all.iter().map(|c| c.id.as_str()).collect();
+    let orphans: Vec<&String> = done.iter().filter(|id| !live.contains(id.as_str())).collect();
+    if !orphans.is_empty() {
+        writeln!(out, "\n## 済みだが TESTING.md に無い項目\n").unwrap();
+        writeln!(
+            out,
+            "消えたか、番号が振り直されたか。**番号が動いた場合、上のチェックは別の項目に\n\
+             付いている**ので、その節はもう一度通すこと。\n"
+        )
+        .unwrap();
+        for o in orphans {
+            writeln!(out, "- `{o}`").unwrap();
+        }
+    }
+
+    while out.contains("\n\n\n") {
+        out = out.replace("\n\n\n", "\n\n");
+    }
+    // The separator between the Japanese and the English is how a later
+    // `--check` tells them apart, so a gloss containing it would make that row
+    // read as drifted forever.
+    for (id, ja) in &notes.row {
+        assert!(
+            !ja.contains(" — *"),
+            "the Japanese for {id} contains ` — *`, which separates it from the English",
+        );
+    }
+    // An empty cell reads as an ordinary row with a short description, so
+    // nothing about the file would say the parse lost one. Refuse to write it.
+    for c in &all {
+        assert!(
+            c.cells.iter().all(|cell| !cell.trim().is_empty()),
+            "check {} came out with an empty cell: the table parse dropped one",
+            c.id,
+        );
+    }
+
+    if check {
+        // Byte comparison, and tick-insensitive for free: `out` carried the
+        // existing ticks forward, so a tick can never be what differs.
+        let old = std::fs::read_to_string(OUT).unwrap_or_default();
+        if old == out {
+            println!(
+                "{OUT}: in sync with {SRC} ({ticked} / {} checked, {untranslated} untranslated)",
+                manual.len(),
+            );
+            return;
+        }
+        report_drift(&all, &automated, &old);
+        eprintln!(
+            "\n{OUT} is out of date. Regenerate it, read the diff, and commit it:\n\n    \
+             cargo run --example make-testcheck\n"
+        );
+        std::process::exit(1);
+    }
+    std::fs::write(OUT, out).expect("write the checklist");
+    println!(
+        "{OUT}: {ticked} / {} checked ({} automated, {untranslated} untranslated)",
+        manual.len(),
+        all.len() - manual.len(),
+    );
+}
+
+fn preamble(out: &mut String, all: &[&Check], manual: &[&&Check], ticked: usize, untranslated: usize) {
+    writeln!(out, "# 実機チェックリスト").unwrap();
+    writeln!(out).unwrap();
+    writeln!(
+        out,
+        "`{SRC}` から `cargo run --example make-testcheck` で生成している。\
+         **正は {SRC}**（英語）で、\nこのファイルはそれを日本語で並べ替えたもの。\
+         食い違ったら {SRC} を信じること。各行の\n末尾の *斜体* が {SRC} の原文で、\
+         訳はその手前にある。\n\n\
+         **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**\
+         それ以外を書き換えても次の\n生成で消える。"
+    )
+    .unwrap();
+    writeln!(out).unwrap();
+    writeln!(
+        out,
+        "**{ticked} / {} 済み。**（{SRC} の全 {} 件のうち、`cargo test` が見ている {} 件は\n\
+         「押すもの」から外してある）",
+        manual.len(),
+        all.len(),
+        all.len() - manual.len(),
+    )
+    .unwrap();
+    if untranslated > 0 {
+        writeln!(out, "\n未訳 {untranslated} 件は原文のまま `〔未訳〕` を付けて出している。").unwrap();
+    }
+    writeln!(
+        out,
+        "\n## 使い方\n\n\
+         1. `filer.exe` と、`scripts\\make-fixtures.ps1` が作るテスト用ファイルを用意する\
+         （詳しくは {SRC} の\n   「What you need」）。\n\
+         2. 節ごとに「準備」を走らせてから、上から押していく。\n\
+         3. 期待どおりなら `[ ]` を `[x]` にする。違ったら `<F12>` で issue を出すか、\
+         そのまま書き留める。\n\
+         4. 節の見出しの `3 / 12` は、その節で人が押す分の進捗。\n\n\
+         キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、\
+         こちらは「1 つのキーでは\n確かめられない振る舞い」の側。"
+    )
+    .unwrap();
+}
+
+/// TESTING.md's sections and the rows of their tables.
+///
+/// Only two shapes matter: `## N. Title` starts a section, and a line whose
+/// first cell is `N.M` is a check. Everything else is prose, which this steps
+/// over -- the prose is where the section's context lives, and it is carried
+/// into the output by hand, through `scripts/testcheck-ja.toml`, because it is
+/// the part that needs judgement rather than transcription.
+fn parse(text: &str) -> Vec<Section> {
+    let mut out: Vec<Section> = Vec::new();
+    for line in text.lines() {
+        if let Some(rest) = line.strip_prefix("## ") {
+            if let Some((num, title)) = rest.split_once(". ") {
+                if let Ok(n) = num.parse::<u32>() {
+                    out.push(Section { n, title: title.trim().to_owned(), checks: Vec::new() });
+                    continue;
+                }
+            }
+            continue;
+        }
+        let Some(row) = line.strip_prefix("| ") else { continue };
+        let mut cells = row.trim_end().trim_end_matches('|').split(" | ").map(str::trim);
+        let Some(id) = cells.next() else { continue };
+        if !is_check_id(id) {
+            continue; // the `| # | Do | Expect |` header, or the `| --- |` rule
+        }
+        let cells: Vec<String> = cells.map(str::to_owned).collect();
+        // A section heading always precedes a table in this file; a row without
+        // one would mean the heading did not parse, and silently dropping it is
+        // how a whole section goes missing.
+        let s = out.last_mut().unwrap_or_else(|| panic!("check {id} sits before any `## N.` heading"));
+        s.checks.push(Check { section: s.n, id: id.to_owned(), cells });
+    }
+    // The id must name its own section. TESTING.md warns about this itself: a
+    // row numbered `13.2` inside section 12 is the failure mode, and it would
+    // land here as a tick on the wrong line.
+    for s in &out {
+        for c in &s.checks {
+            let (sec, _) = c.id.split_once('.').expect("an id has a dot");
+            assert_eq!(
+                sec.parse::<u32>().ok(),
+                Some(c.section),
+                "check {} is inside section {} ({}): one of the two is wrong in {SRC}",
+                c.id,
+                s.n,
+                s.title,
+            );
+        }
+    }
+    out
+}
+
+/// `13.4`, or `11.9b` -- a section number, a dot, a count, and an optional
+/// letter for a row inserted after the fact.
+fn is_check_id(s: &str) -> bool {
+    let Some((sec, rest)) = s.split_once('.') else { return false };
+    if sec.is_empty() || !sec.bytes().all(|b| b.is_ascii_digit()) {
+        return false;
+    }
+    let digits = rest.trim_end_matches(|c: char| c.is_ascii_lowercase());
+    !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// The check ids some test claims to stand in for.
+///
+/// Read from the tests rather than from TESTING.md's own prose, which says
+/// things like "all eight are automated" and "the footer half of 45.7" -- true,
+/// and not something to parse. A test naming its id is a fact about the code,
+/// so this number can only be wrong in the safe direction: a test that forgot
+/// to say leaves its row on the human's list, which costs one redundant check.
+/// The reverse -- a row marked done because prose said so -- is the one that
+/// certifies something nobody ran.
+///
+/// Two spellings are accepted because both are in the tree: `TESTING.md 45.2`
+/// inside a sentence, and `/// 13.4:` opening the comment.
+///
+/// **Only a doc comment that actually precedes a `#[test]` counts.** Production
+/// code cites TESTING.md too -- `src/spot.rs` explains a `read_link` branch by
+/// naming 13.7, a row that is emphatically *not* automated -- and counting that
+/// as coverage takes a row off the human's list on the strength of a comment
+/// about why the code is shaped the way it is.
+fn automated_ids() -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    let mut files = Vec::new();
+    collect_rs(Path::new(SRC_DIR), &mut files);
+    for f in files {
+        let Ok(text) = std::fs::read_to_string(&f) else { continue };
+        let mut pending = BTreeSet::new();
+        let mut is_test = false;
+        for line in text.lines() {
+            let t = line.trim_start();
+            if let Some(comment) = t.strip_prefix("///") {
+                if let Some(at) = comment.find("TESTING.md ") {
+                    ids_in(&comment[at + "TESTING.md ".len()..], &mut pending);
+                }
+                // `/// 13.4: …` and `/// 6.1, 6.2, …` -- ids only up to the
+                // first colon or dash, so a sentence that happens to mention a
+                // version number later does not join in.
+                let head = comment.trim_start();
+                if head.starts_with(|c: char| c.is_ascii_digit()) {
+                    let end = head.find([':', '-', '—']).unwrap_or(head.len());
+                    ids_in(&head[..end], &mut pending);
+                }
+                continue;
+            }
+            if t.starts_with("#[") {
+                is_test |= t.contains("test]") || t.contains("test)");
+                continue;
+            }
+            if t.is_empty() || t.starts_with("//") {
+                continue; // a blank line or a `//` aside inside the block
+            }
+            // Anything else ends the run of comments and attributes. What they
+            // were attached to is now known.
+            if is_test {
+                out.append(&mut pending);
+            }
+            pending.clear();
+            is_test = false;
+        }
+    }
+    out
+}
+
+/// Every check id in `s`, stopping at the first word that is not one, a
+/// separator, or a word joining two ("and", "to", "through").
+fn ids_in(s: &str, out: &mut BTreeSet<String>) {
+    for word in s.split([' ', ',', '/', '(', ')', '–', '—']).map(|w| w.trim_end_matches('.')) {
+        if word.is_empty() || matches!(word, "and" | "to" | "through" | "&") {
+            continue;
+        }
+        if is_check_id(word) {
+            out.insert(word.to_owned());
+        } else {
+            return; // the prose has started
+        }
+    }
+}
+
+fn collect_rs(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for e in entries.flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            collect_rs(&p, out);
+        } else if p.extension().is_some_and(|x| x == "rs") {
+            out.push(p);
+        }
+    }
+}
+
+/// The ids already ticked in the file on disk.
+fn previous_ticks() -> BTreeSet<String> {
+    let Ok(text) = std::fs::read_to_string(OUT) else { return BTreeSet::new() };
+    let mut out = BTreeSet::new();
+    for line in text.lines() {
+        let Some(rest) = line.strip_prefix("- [x] **") else { continue };
+        if let Some(end) = rest.find("**") {
+            out.insert(rest[..end].to_owned());
+        }
+    }
+    out
+}
+
+/// Name what makes the file stale: which checks arrived, left, changed wording,
+/// or became automated. The exit code alone says "regenerate", which anyone can
+/// guess; what is worth printing is which rows moved, because a row that
+/// vanished may have been removed on purpose or lost in an edit, and from here
+/// the two look identical.
+fn report_drift(all: &[&Check], automated: &BTreeSet<String>, old: &str) {
+    let now: BTreeMap<&str, String> =
+        all.iter().map(|c| (c.id.as_str(), c.cells.join(" → "))).collect();
+    let was = rows_of_file(old);
+    let mut quiet = true;
+
+    for (id, en) in &now {
+        let auto = automated.contains(*id);
+        match was.get(*id) {
+            None if auto => {}  // automated rows are not listed, so absence is right
+            None => {
+                println!("+ {id} — {en}");
+                quiet = false;
+            }
+            Some(_) if auto => {
+                println!("* {id} — 自動テストが覆ったので一覧から外れる");
+                quiet = false;
+            }
+            Some(before) if before != en => {
+                println!("~ {id}\n    was: {before}\n    now: {en}");
+                quiet = false;
+            }
+            Some(_) => {}
+        }
+    }
+    for id in was.keys().filter(|id| !now.contains_key(**id)) {
+        println!("- {id} (gone from {SRC})");
+        quiet = false;
+    }
+    if quiet {
+        // Every row matches, so what differs is the prose, a count in a
+        // heading, or a Japanese gloss -- this file or the annotations, not
+        // TESTING.md.
+        println!("The checks all match; the difference is in the surrounding text or the Japanese.");
+    }
+}
+
+/// The rows read back out of the generated file: id to the English that follows
+/// it, which is the part [`report_drift`] can compare against TESTING.md.
+fn rows_of_file(text: &str) -> BTreeMap<&str, String> {
+    let mut out = BTreeMap::new();
+    for line in text.lines() {
+        let Some(rest) = line.strip_prefix("- [x] **").or_else(|| line.strip_prefix("- [ ] **"))
+        else {
+            continue;
+        };
+        let Some((id, body)) = rest.split_once("** ") else { continue };
+        // The marker is checked first, and the split is from the *front*.
+        // Splitting from the back found ` — *` inside an untranslated row's own
+        // English -- 1.5 reads "list — **and the shell is still there**" -- and
+        // reported a drift on a row nobody had touched. `main` refuses to write
+        // a gloss containing the separator, which is what makes the front split
+        // safe.
+        let en = match body.strip_suffix(" 〔未訳〕") {
+            Some(en) => en.to_owned(),
+            None => match body.split_once(" — *") {
+                Some((_, en)) => en.trim_end_matches('*').to_owned(),
+                None => continue, // not a row this generator wrote
+            },
+        };
+        out.insert(id, en);
+    }
+    out
+}

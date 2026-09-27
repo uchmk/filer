@@ -100,7 +100,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `R` — Rename everything selected by one rule · `bulk_rename`
 - [x] `<A-d>` — Compare two files side by side · `compare`
 - [x] `;` — Run a shell command · `shell --interactive`
-- [x] `:` — Run a shell command (block until finished) · `shell --interactive --block`
+- [x] `:` — Run a shell command in a new console · `shell --interactive --block`
 - [x] `.` — Toggle the visibility of hidden files · `hidden`
 - [x] `c c` — Copy the absolute path · `copy path`
 - [x] `c d` — Copy the path of the parent directory · `copy dirname`

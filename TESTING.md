@@ -42,6 +42,27 @@ stale, the `[help]` layer still listing one binding after v0.34.0 gave it five.
 
 The sections below are the other half: behaviour that no single key exercises.
 
+## Working through it
+
+[TESTING-CHECKS.md](TESTING-CHECKS.md) is this file turned into something you can
+tick: one line per check, in Japanese, with each section's setup lifted out of its
+prose into a block to paste.
+
+```powershell
+cargo run --example make-testcheck
+```
+
+**This file stays the source of truth** — the generator takes the ids, the section
+list and the English from here on every run, and the English is printed beside the
+Japanese on every line, so the two cannot drift apart unnoticed. Ticks survive
+regeneration, and CI runs `--check` for the same reason it does for the keys.
+
+What it adds is the subtraction: a check that `cargo test` already covers is not
+listed as work. A test says which check it stands in for in its doc comment
+(`TESTING.md 45.2`), and the generator reads those, so the count at the top is what
+is actually left for a person. That is **359 of the 516 below** — the number this
+file cannot give you, because from in here every row looks equally undone.
+
 ## What you need
 
 1. **A `filer.exe`.** Either:
@@ -399,6 +420,22 @@ provider: `Kind` / `Target` / `Resolves`, the relative form's two rows disagreei
 `#[cfg(unix)]` -- creating one on Windows is 13.8's privilege problem -- so **on Windows 13.10 to
 13.12 still need a hand.** 13.14 (`Also at`) is Windows-only and 13.16 needs another program.
 
+For 13.16, that other program can be PowerShell. In one window, take an exclusive write lock and
+leave it held -- `FileShare.None` means nothing else may so much as open the file:
+
+```powershell
+cd $HOME\Desktop\filer-fixtures
+"x" | Out-File locked.txt
+fsutil hardlink create locked-2.txt locked.txt
+$fs = [IO.File]::Open("$PWD\locked.txt", 'Open', 'Write', 'None')
+```
+
+Leave that window alone, press `<Tab>` on `locked.txt` in filer, then come back and run `$fs.Close()`.
+While the lock is held, `Get-Content locked.txt` fails -- worth running once, so you know the lock is
+real and the section answering anyway is the finding. The previous wording named `hiberfil.sys`,
+which has one link and therefore draws no Link section at all (13.15): nothing to see, on a file most
+machines do not have.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 13.1 | Look at a link's row | `->` after the name. With `m`+`p` the type column reads `l` |
@@ -416,7 +453,7 @@ provider: `Kind` / `Target` / `Resolves`, the relative form's two rows disagreei
 | 13.13 | `<Tab>` on a hardlink (make one with `=`, or `fsutil hardlink create`) | `Kind` reads `Hardlink` and `Links` reads `2`. **This is the only place in the app a hardlink is visible** |
 | 13.14 | The same, on Windows | `Also at` lists the other path. Check it against `fsutil hardlink list` — the same set, with the file's own path left out |
 | 13.15 | `<Tab>` on an ordinary file with one name | **No Link section at all** — not a section saying "1", which would be noise on every file |
-| 13.16 | `<Tab>` on a file another program holds open for writing (a log being appended to, `hiberfil.sys`) | The count still answers: the handle asks for no access rights, so a write lock does not hide it |
+| 13.16 | Hardlink a file, then have another program hold it open for writing with no sharing, and `<Tab>` it (commands in the preamble above) | `Links` still reads `2` and `Also at` still lists the other name. The handle asks for **no** access rights, so an exclusive write lock does not hide the count |
 
 ## 14. The parent column, with the mouse (v0.26.7)
 
