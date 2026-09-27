@@ -1503,9 +1503,12 @@ impl App {
             len: entry.len,
             mtime: entry.modified,
             box_size: self.preview.box_size,
-            // Only Markdown is laid out to the pane's width; nothing else
-            // needs re-reading when the window is resized.
-            cols: if mime == "text/markdown" { self.preview.cols } else { 0 },
+            // Markdown and CSV are laid out to the pane's width, so both have to
+            // be re-read when the window is resized; nothing else does. Leaving
+            // CSV out here is not a small bug: `cols == 0` reads as 80 further
+            // down, so the table would sit at a fixed 80 columns for ever and
+            // never reflow.
+            cols: if matches!(mime, "text/markdown" | "text/csv") { self.preview.cols } else { 0 },
             n: self.preview.n,
         };
         if self.preview.key.as_ref() == Some(&key) && !force {

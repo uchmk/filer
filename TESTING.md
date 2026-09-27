@@ -898,6 +898,27 @@ it is legible against a real theme.
 | 42.12 | Hover on a file truncated at `max_text_bytes` | The number matches the body's own numbering for that line |
 | 42.13 | `<A-n>` to turn the minimap off | No strip, and so no card |
 
+## 43. CSV / TSV as a table (v0.41.0)
+
+The parsing and the layout are unit-tested from strings. What needs a machine is real files, from
+real tools, at a real pane width.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 43.1 | Hover a `.csv` saved by Excel | An aligned table: header, rule, rows. Numeric columns right-aligned |
+| 43.2 | Hover a `.tsv` | Split on tabs, not commas |
+| 43.3 | `M` on a `.csv` | The raw text, with syntax-free plain lines; `M` again goes back to the table |
+| 43.4 | **Resize the window** with a table up | The table **re-lays out** to the new width. Before v0.41.0's fix it would have stayed at 80 columns for ever |
+| 43.5 | Narrow the pane until the table cannot fit | The widest columns squeeze and their cells wrap; nothing runs off the side |
+| 43.6 | A file with a quoted field holding a comma and a newline | One cell, on one row — not split |
+| 43.7 | A CSV saved by Excel as "CSV UTF-8" (has a BOM) | The first column's header is not prefixed with a stray character |
+| 43.8 | A ragged file (rows with different column counts) | Lays out; short rows are padded, no panic |
+| 43.9 | A 50 MB CSV | Opens promptly, cut at `max_text_bytes`, footer says truncated |
+| 43.10 | A one-line CSV | One row and **no rule** under it |
+| 43.11 | The minimap with a table up | It maps **the file**, not the table, and its hover card shows raw CSV lines |
+| 43.12 | A `.csv` that is actually binary | Still a hex dump, as before |
+| 43.13 | A CJK-heavy CSV | Columns line up (widths are measured in cells, not chars) |
+
 ## Known gaps in this checklist
 
 - **Nothing here has been run.** The checklist was written from the code, not

@@ -200,10 +200,13 @@ struct Table {
     rows: Vec<Row>,
 }
 
-struct Row {
-    cells: Vec<Vec<(Span, usize)>>,
-    head: bool,
-    src: usize,
+/// One row of a table. `pub(super)` so a sibling previewer can lay a table of
+/// its own out through [`table_lines`] -- see `csv.rs`.
+pub(super) struct Row {
+    /// One cell per column; each is styled spans paired with their source line.
+    pub cells: Vec<Vec<(Span, usize)>>,
+    pub head: bool,
+    pub src: usize,
 }
 
 struct Builder<'a> {
@@ -702,66 +705,9 @@ impl<'a> Builder<'a> {
     }
 
     fn table_block(&mut self, table: Table) {
-        let ncols = table.rows.iter().map(|r| r.cells.len()).max().unwrap_or(0).max(table.aligns.len());
-        if ncols == 0 {
-            return;
-        }
-        let mut widths = vec![0; ncols];
-        for row in &table.rows {
-            for (j, cell) in row.cells.iter().enumerate() {
-                widths[j] = widths[j].max(cell.iter().map(|(s, _)| str_width(&s.text)).sum());
-            }
-        }
-        // Squeeze the widest columns until the table fits; their cells wrap.
-        let seps = 3 * (ncols - 1);
-        let avail = self.avail();
-        while widths.iter().sum::<usize>() + seps > avail {
-            let (j, w) = widths.iter().copied().enumerate().max_by_key(|&(_, w)| w).unwrap_or((0, 0));
-            if w <= 4 {
-                break;
-            }
-            widths[j] = w - 1;
-        }
-
-        let sep = Span { text: " │ ".into(), color: self.pal.dim, ..Default::default() };
-        for row in table.rows {
-            let cells: Vec<Vec<Vec<Span>>> = (0..ncols)
-                .map(|j| {
-                    let mut cell = row.cells.get(j).cloned().unwrap_or_default();
-                    if row.head {
-                        cell.iter_mut().for_each(|(s, _)| s.bold = true);
-                    }
-                    wrap(&cell, widths[j]).into_iter().map(|(spans, _)| spans).collect()
-                })
-                .collect();
-            let height = cells.iter().map(Vec::len).max().unwrap_or(0).max(1);
-            for k in 0..height {
-                let mut line = Vec::new();
-                for j in 0..ncols {
-                    if j > 0 {
-                        line.push(sep.clone());
-                    }
-                    let content = cells[j].get(k).cloned().unwrap_or_default();
-                    let pad = widths[j].saturating_sub(content.iter().map(|s| str_width(&s.text)).sum());
-                    let (left, right) = match table.aligns.get(j) {
-                        Some(Alignment::Right) => (pad, 0),
-                        Some(Alignment::Center) => (pad / 2, pad - pad / 2),
-                        _ => (0, pad),
-                    };
-                    if left > 0 {
-                        line.push(Span { text: " ".repeat(left), ..Default::default() });
-                    }
-                    line.extend(content);
-                    if right > 0 && j + 1 < ncols {
-                        line.push(Span { text: " ".repeat(right), ..Default::default() });
-                    }
-                }
-                self.push_line(line, LineKind::Text, row.src);
-            }
-            if row.head {
-                let rule = widths.iter().map(|&w| "─".repeat(w)).collect::<Vec<_>>().join("─┼─");
-                self.push_line(vec![Span { text: rule, color: self.pal.dim, ..Default::default() }], LineKind::Text, row.src);
-            }
+        let (avail, dim) = (self.avail(), self.pal.dim);
+        for (spans, src) in table_lines(&table.rows, &table.aligns, avail, dim) {
+            self.push_line(spans, LineKind::Text, src);
         }
     }
 }
@@ -772,6 +718,91 @@ fn cw(c: char) -> usize {
 
 fn is_wide(c: char) -> bool {
     cw(c) >= 2
+}
+
+/// The separator colour a table is drawn with, from the theme's own foreground.
+/// Exposed so a sibling previewer's table looks like Markdown's.
+pub(super) fn dim_of(theme: &Theme) -> Option<[u8; 3]> {
+    Palette::new(theme).dim
+}
+
+/// Lay a table out as lines: columns measured, padded to their alignment, joined
+/// by a dim separator, with a rule under any header row.
+///
+/// Free rather than a method so a previewer that is not Markdown can use it.
+/// `aligns` is `pulldown_cmark`'s type because that is this module's existing
+/// vocabulary; a parallel enum plus a conversion would be more code for the same
+/// result. Returns each line with the source line it came from, which the caller
+/// pushes -- `DocLine.src` has to stay monotonically non-decreasing for
+/// `Doc::line_for_src` to work.
+pub(super) fn table_lines(
+    rows: &[Row],
+    aligns: &[Alignment],
+    avail: usize,
+    dim: Option<[u8; 3]>,
+) -> Vec<(Vec<Span>, usize)> {
+    let ncols = rows.iter().map(|r| r.cells.len()).max().unwrap_or(0).max(aligns.len());
+    let mut out = Vec::new();
+    if ncols == 0 {
+        return out;
+    }
+    let mut widths = vec![0; ncols];
+    for row in rows {
+        for (j, cell) in row.cells.iter().enumerate() {
+            widths[j] = widths[j].max(cell.iter().map(|(s, _)| str_width(&s.text)).sum());
+        }
+    }
+    // Squeeze the widest columns until the table fits; their cells wrap.
+    let seps = 3 * (ncols - 1);
+    while widths.iter().sum::<usize>() + seps > avail {
+        let (j, w) = widths.iter().copied().enumerate().max_by_key(|&(_, w)| w).unwrap_or((0, 0));
+        if w <= 4 {
+            break;
+        }
+        widths[j] = w - 1;
+    }
+
+    let sep = Span { text: " │ ".into(), color: dim, ..Default::default() };
+    for row in rows {
+        let cells: Vec<Vec<Vec<Span>>> = (0..ncols)
+            .map(|j| {
+                let mut cell = row.cells.get(j).cloned().unwrap_or_default();
+                if row.head {
+                    cell.iter_mut().for_each(|(s, _)| s.bold = true);
+                }
+                wrap(&cell, widths[j]).into_iter().map(|(spans, _)| spans).collect()
+            })
+            .collect();
+        let height = cells.iter().map(Vec::len).max().unwrap_or(0).max(1);
+        for k in 0..height {
+            let mut line = Vec::new();
+            for j in 0..ncols {
+                if j > 0 {
+                    line.push(sep.clone());
+                }
+                let content = cells[j].get(k).cloned().unwrap_or_default();
+                let pad = widths[j].saturating_sub(content.iter().map(|s| str_width(&s.text)).sum());
+                let (left, right) = match aligns.get(j) {
+                    Some(Alignment::Right) => (pad, 0),
+                    Some(Alignment::Center) => (pad / 2, pad - pad / 2),
+                    _ => (0, pad),
+                };
+                if left > 0 {
+                    line.push(Span { text: " ".repeat(left), ..Default::default() });
+                }
+                line.extend(content);
+                if right > 0 && j + 1 < ncols {
+                    line.push(Span { text: " ".repeat(right), ..Default::default() });
+                }
+            }
+            out.push((line, row.src));
+        }
+        if row.head {
+            let rule = widths.iter().map(|&w| "─".repeat(w)).collect::<Vec<_>>().join("─┼─");
+            out.push((vec![Span { text: rule, color: dim, ..Default::default() }], row.src));
+        }
+    }
+    out
 }
 
 fn str_width(s: &str) -> usize {
