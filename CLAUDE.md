@@ -171,6 +171,10 @@ claude "$(cat .claude/qa-role.md)"
   v0.45.0 でハーネスが見つけたヘッダの `\` 固定、および `handle_input` を `pub(crate)` に
   した変更が、それぞれの例。
 - **`main` へ push しない。PR を立てるところまでがロール**で、マージはしない。
+- **QA の PR は版を上げずに来る。**`Cargo.toml` と `CHANGELOG.md` を触る PR は他の
+  どの PR とも衝突するので、並行して走る側には触らせていない。代わりに CHANGELOG に
+  入れる 1 行が PR 本文に英語で書かれているので、**マージする側が PATCH を上げて
+  その行を CHANGELOG.md に移す。**
 
 ## 確認事項（QUESTIONS.md）
 

@@ -21,8 +21,8 @@ Reply in Japanese. Code, comments and commit messages in English.
 
 ## What you may write
 
-**Only inside `#[cfg(test)]` modules, plus `QA-REPORT.md`, TODO.md and
-CHANGELOG.md.**
+**Only inside `#[cfg(test)]` modules, plus `QA-REPORT.md` and TODO.md.**
+Never `Cargo.toml`, and never `CHANGELOG.md` -- see "Branch and hand-off" for why.
 
 There is no `tests/` directory in this repository: 81 test modules live inside
 the `src/` files they test. So "do not touch `src/`" is not the rule and cannot
@@ -54,9 +54,14 @@ If a change you want is outside one, it is not yours to make — write it in
   `origin/main`.
 - **Never push to `main`**, and never `--force`.
 - **Your role ends at an open pull request.** Do not merge it, and do not ask to.
-- Bump the **PATCH** version and write the CHANGELOG entry in the same commit, per
-  CLAUDE.md. Tests and documentation are a PATCH. If `main` moved while you
-  worked, rebase and re-bump.
+- **Do not bump the version, and do not write the CHANGELOG entry.** CLAUDE.md
+  asks for both on a push to `main`; you are not pushing to `main`, and a PR that
+  touches `Cargo.toml` and `CHANGELOG.md` conflicts with every other PR that does
+  -- which is every one of them. The point of this role is to run beside the main
+  work, so it must not collide with it by construction.
+- Instead, **put the CHANGELOG line in the pull request body**, in English, under
+  a `### 追加` (or `### 修正`) heading, ready to paste. Whoever merges bumps the
+  PATCH and moves that line into CHANGELOG.md.
 
 ## Four rules that are easy to break while writing tests
 
