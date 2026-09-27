@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**202 / 226 checked.**
+**222 / 226 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 144 / 151
+## `[mgr]` — 147 / 151
 
 The file list: what is in front of you unless an overlay is.
 
@@ -196,7 +196,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<C-t>` — Open the terminal pane · `terminal`
 - [x] `<A-t>` — Type the selected paths into the terminal · `term_send`
 
-## `[term]` — 12 / 14
+## `[term]` — 14 / 14
 
 While the terminal pane holds the keys. Everything not listed here goes to the shell.
 
@@ -245,7 +245,7 @@ A chooser — the command palette, the context menu.
 - [x] `<Enter>` — Submit · `close --submit`
 - [x] `<Esc>` — Cancel · `close`
 
-## `[help]` — 1 / 16
+## `[help]` — 16 / 16
 
 This panel (`~` or `<F1>`).
 
