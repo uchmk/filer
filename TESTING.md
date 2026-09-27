@@ -708,6 +708,18 @@ A warning here means a line in your own `keymap.toml` cannot take effect. The
 colour is the thing under test: red is reserved for something that failed, and
 none of these failed.
 
+33.1, 33.2, 33.3, 33.7 (the box half), 33.8 and 33.10 are automated
+(`ui::config_warning_frame`): the wording, that the toast and the `~` rows are drawn in the
+warning colour and that nothing in the frame is framed as a failure, the count the toast carries
+when there are more, the files coming before the complaints in `~`, and the box staying inside
+the window at full width and at a third of it, cut at eight lines. 33.5 is automated only in the
+part that does not depend on the machine — a warning the config no longer has leaves the panel —
+because `<C-F5>` re-reads the real config files, so what its toast says depends on what is on the
+machine. 33.11 to 33.14 have unit tests of their own in `config::files`. What is left for an
+eye: that the yellow reads as advice next to a real failure (33.4), that it is legible on a light
+theme (33.6), the parse error's own wording (33.7), and everything from 33.15 on, which needs the
+files really on disk.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 33.1 | Start with a `keymap.toml` that binds a key the defaults also bind (e.g. `'` to `plugin bookmarks jump`) | A **yellow** toast, not red: `Config: [mgr] \`'\` is bound more than once; only ... runs` |
@@ -861,6 +873,17 @@ needs a machine is that the program really starts.
 Colour, so it needs eyes. The point is that the two panes agree — check them
 side by side, not one at a time.
 
+38.1 to 38.6, 38.9, and 38.7 and 38.8 in part are automated (`ui::preview::focus_rule_frame`):
+the harness reads a stroke's colour from v0.47, so a one-pixel rule is findable, and the terminal
+pane really is opened — `<C-t>` starts a shell in the test as it does on a machine, because the
+pane is not laid out at all without one. What it checks is that exactly one rule is accent with
+both panes on screen, either way round, that the mouse moves it as the key does, and that the cell
+cursor is filled while the pane has the keys and outlined when it does not. 38.7 and 38.8 are
+covered where they are about the *theme* — both rules read one `tab_active` entry, and clearing it
+falls back to the foreground rather than to the border — but the entry is set in memory, not read
+from a `theme.toml` and reloaded. What is left for an eye: that `#7ab8f5` and `border` are
+distinguishable at one pixel, and that a `theme.toml` really reaches them through `<C-F5>`.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 38.1 | `<C-t>` to open the terminal and give it the keys | The rule along the **top of the terminal** is accent-coloured (`#7ab8f5` by default), not grey |
@@ -949,6 +972,14 @@ needs a machine is real files, and the panel's own geometry.
 
 The geometry and the clamp are unit-tested. What needs a machine is the timing, the drag, and whether
 it is legible against a real theme.
+
+All of 42.1 to 42.13 except 42.6's "shrinks to the gutter" and 42.7's "no frame hitch" are automated
+(`ui::preview::minimap_hover_frame`): the harness delivers egui's own pointer events and moves the
+clock the delay is measured against, so the card can be hovered, dragged, clicked, themed and turned
+off from a test. Note that the delay is egui's `tooltip_delay`, half a second by default rather than
+the 0.4 s 42.1 says; the tests assert that there is no card a fifth of a second in and one after the
+delay, not a number. What is left for an eye: that the card is legible where it lands, and that a
+2000-character line costs no visible hitch.
 
 | # | Do | Expect |
 | --- | --- | --- |
