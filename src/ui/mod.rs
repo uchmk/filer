@@ -1523,3 +1523,161 @@ mod whole_frame {
         s
     }
 }
+
+/// TESTING.md section 10: the yank register, said out loud.
+///
+/// The register is told apart from the selection by a 3px bar, and the bar
+/// loses: a file that is both draws in the selection's colour, so `y` then
+/// `<Space>` leaves nothing on the row to say what `p` would paste. A cursor
+/// in another directory has no row to look at in the first place. The words in
+/// the header are the one reading that survives both, which is what these
+/// check -- with the bar's colour alongside, since the harness sees exactly
+/// which theme colour a rectangle was filled with.
+#[cfg(test)]
+mod yank_frame {
+    use super::harness::{Painted, Screen};
+    use std::path::PathBuf;
+
+    /// `one.txt` under the cursor and a `dst` directory below it to paste
+    /// into. The listing is built here rather than scanned: the harness does
+    /// not run the workers, and a scan landing mid-test would replace it.
+    fn screen(label: &str) -> (PathBuf, Screen) {
+        let dir = crate::util::test_dir(label);
+        std::fs::write(dir.join("one.txt"), "1").unwrap();
+        std::fs::create_dir_all(dir.join("dst")).unwrap();
+        let entries = std::sync::Arc::new(vec![
+            crate::fs::Entry::from_path(dir.join("one.txt")).unwrap(),
+            crate::fs::Entry::from_path(dir.join("dst")).unwrap(),
+        ]);
+        let mut s = Screen::open(dir.clone());
+        s.app.tabs[s.app.active].current =
+            crate::core::folder::Folder::from_entries(dir.clone(), entries, true);
+        (dir, s)
+    }
+
+    /// How many of the frame's strings carry `needle`.
+    fn saying(f: &Painted, needle: &str) -> usize {
+        f.texts.iter().filter(|t| t.contains(needle)).count()
+    }
+
+    /// 10.1 and 10.8: `y` puts a green bar on the row, and both the header and
+    /// the status line say `1 copied` in those words.
+    #[test]
+    fn a_copy_is_green_on_the_row_and_named_twice_in_the_chrome() {
+        let (_dir, mut s) = screen("frame-yank-copy");
+        let copied = s.app.cfg.theme.marker_copied;
+        let cut = s.app.cfg.theme.marker_cut;
+
+        let before = s.draw();
+        assert!(!before.says("copied"), "nothing is in the register yet: {:?}", before.texts);
+        assert!(before.filled(copied).is_empty(), "and no bar is drawn for it");
+
+        let f = s.typed("y");
+        assert!(f.says("1 copied"), "the register is named: {:?}", f.texts);
+        assert_eq!(f.filled(copied).len(), 1, "one row carries the copied bar");
+        assert!(f.filled(cut).is_empty(), "a copy is not a cut");
+        // 10.8: the status line says the same thing in the same words, which
+        // is the point of them sharing the phrasing at all.
+        assert_eq!(
+            saying(&f, "1 copied"), 2,
+            "the header's summary and the status line both say it: {:?}", f.texts,
+        );
+    }
+
+    /// 10.2: `<Space>` on the file that was just yanked turns the bar yellow.
+    ///
+    /// The selection's colour winning is by design, and it is exactly why the
+    /// header has to carry both counts: at this point the row says `selected`
+    /// and nothing at all says `copied`.
+    #[test]
+    fn the_selection_colour_wins_and_the_header_carries_both() {
+        let (_dir, mut s) = screen("frame-yank-both");
+        let copied = s.app.cfg.theme.marker_copied;
+        let selected = s.app.cfg.theme.marker_selected;
+
+        s.typed("y");
+        let f = s.typed(" ");
+        assert!(
+            f.says("1 selected · 1 copied"),
+            "the header spells out both states: {:?}", f.texts,
+        );
+        assert_eq!(f.filled(selected).len(), 1, "the row's bar is the selection's colour");
+        assert!(
+            f.filled(copied).is_empty(),
+            "and the yank has gone invisible under it, which is the whole reason for the words",
+        );
+    }
+
+    /// 10.3: `x` is the same in red, and says `cut`.
+    #[test]
+    fn a_cut_is_red_and_says_so() {
+        let (_dir, mut s) = screen("frame-yank-cut");
+        let copied = s.app.cfg.theme.marker_copied;
+        let cut = s.app.cfg.theme.marker_cut;
+
+        let f = s.typed("x");
+        assert!(f.says("1 cut"), "the register says which of the two it is: {:?}", f.texts);
+        assert!(!f.says("1 copied"), "and not the other one: {:?}", f.texts);
+        assert_eq!(f.filled(cut).len(), 1, "one row carries the cut bar");
+        assert!(f.filled(copied).is_empty());
+        assert_eq!(saying(&f, "1 cut"), 2, "header and status line again: {:?}", f.texts);
+    }
+
+    /// 10.4: the register crosses a directory boundary, where no row can.
+    ///
+    /// What `p` would paste is a fact about the register, not about anything
+    /// on screen, so leaving the directory the files came from must not take
+    /// the count away with it.
+    #[test]
+    fn the_register_outlives_the_directory_it_came_from() {
+        let (dir, mut s) = screen("frame-yank-away");
+        let copied = s.app.cfg.theme.marker_copied;
+
+        s.typed("y");
+        // `j` onto `dst`, `l` into it. The listing there is empty because the
+        // scan is a worker's job and no worker runs here -- which is the case
+        // this check is about.
+        let f = s.typed("jl");
+        assert_ne!(s.app.tab().cwd, dir, "the tab moved");
+        assert!(f.says("1 copied"), "the register came along: {:?}", f.texts);
+        assert!(f.filled(copied).is_empty(), "with no row here to show it");
+    }
+
+    /// 10.5 and 10.6: a copy can be pasted again, a cut cannot.
+    ///
+    /// `p` empties the register only when it was a cut, because the files it
+    /// names have moved and a second paste would be looking for them where
+    /// they no longer are.
+    #[test]
+    fn a_copy_outlives_the_paste_and_a_cut_does_not() {
+        let (_dir, mut s) = screen("frame-yank-paste");
+        s.typed("y");
+        let f = s.typed("jlp");
+        assert!(f.says("1 copied"), "the register stays, so `p` pastes again: {:?}", f.texts);
+        assert_eq!(s.app.yank.paths.len(), 1);
+
+        let (_dir, mut s) = screen("frame-cut-paste");
+        s.typed("x");
+        assert!(s.draw().says("1 cut"), "in the register to begin with");
+        // `1 cut` rather than `cut`: the yank's own toast says "(cut)" and is
+        // still on screen, so the loose word would never go away.
+        let f = s.typed("jlp");
+        assert!(!f.says("1 cut"), "the cut is spent and the count is gone: {:?}", f.texts);
+        assert!(s.app.yank.paths.is_empty(), "the register emptied");
+    }
+
+    /// 10.7: `X` and `Y` both put the register back, and the count leaves the
+    /// header with it.
+    #[test]
+    fn unyank_takes_the_count_away() {
+        for (key, yank, count) in [("Y", "y", "1 copied"), ("X", "x", "1 cut")] {
+            let (_dir, mut s) = screen(&format!("frame-unyank-{key}"));
+            let f = s.typed(yank);
+            assert!(f.says(count), "`{count}` is in the register: {:?}", f.texts);
+
+            let f = s.typed(key);
+            assert!(!f.says(count), "`{key}` cleared it: {:?}", f.texts);
+            assert!(s.app.yank.paths.is_empty(), "`{key}` emptied the register");
+        }
+    }
+}
