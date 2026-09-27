@@ -81,7 +81,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `P` — Paste the files (overwrite if the destination exists) · `paste --force`
 - [x] `-` — Symlink the absolute path of yanked files · `link`
 - [x] `_` — Symlink the relative path of yanked files · `link --relative`
-- [ ] `<C-S-->` — Hardlink the yanked files · `hardlink`
+- [ ] `=` — Hardlink the yanked files · `hardlink`
 - [ ] `<C-+>` — Make everything bigger · `scale in`
 - [ ] `<C-=>` — Make everything bigger · `scale in`
 - [x] `<C-->` — Make everything smaller · `scale out`

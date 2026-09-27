@@ -1409,10 +1409,19 @@ impl App {
                     if let PreviewState::Dir(f) = &mut self.preview.state {
                         if f.path == path {
                             f.state = LoadState::Error(error.clone());
+                            hit = true;
                         }
                     }
                 }
-                self.error(format!("{}: {error}", util::file_name(&path)));
+                // Only when nothing on screen carries it. A pane or the preview
+                // that just took `LoadState::Error` is already showing this, in
+                // place and in the same words; a toast on top says it twice, and
+                // opening `C:\` says it three times at once -- one per system
+                // folder Windows refuses -- with the toasts stacked over the
+                // pane that already explained itself.
+                if !hit {
+                    self.error(format!("{}: {error}", util::file_name(&path)));
+                }
             }
             ScanResult::Counted { counts, .. } => {
                 let map: HashMap<&PathBuf, u64> = counts.iter().map(|(p, n)| (p, *n)).collect();
