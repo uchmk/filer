@@ -1681,3 +1681,958 @@ mod yank_frame {
         }
     }
 }
+
+/// Fixtures shared by TESTING.md sections 6, 18 and 36.
+///
+/// All three are about how the body is divided into columns -- a second pane
+/// taking the parent's place, a panel drawn over the lot, a preview column
+/// widened until the list is gone -- so they need the same two things: a window
+/// with a listing already in it, and a way to press a chord. Kept in one place
+/// because a second pane built slightly differently in each module would make
+/// the three sections disagree about what "split" means.
+#[cfg(test)]
+mod panes {
+    use super::harness::Screen;
+    use crate::core::folder::Folder;
+    use crate::preview::{Extent, Payload, Span};
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    /// A chord, the way the window delivers one.
+    pub(super) fn key(k: egui::Key, modifiers: egui::Modifiers) -> egui::Event {
+        egui::Event::Key { key: k, physical_key: None, pressed: true, repeat: false, modifiers }
+    }
+
+    pub(super) fn ctrl() -> egui::Modifiers {
+        egui::Modifiers { ctrl: true, ..Default::default() }
+    }
+
+    pub(super) fn ctrl_shift() -> egui::Modifiers {
+        egui::Modifiers { ctrl: true, shift: true, ..Default::default() }
+    }
+
+    pub(super) fn alt() -> egui::Modifiers {
+        egui::Modifiers { alt: true, ..Default::default() }
+    }
+
+    pub(super) fn esc() -> egui::Event {
+        key(egui::Key::Escape, egui::Modifiers::NONE)
+    }
+
+    /// The listing `paths` would scan to, built here because the harness runs
+    /// no workers: a scan landing mid-test would replace whatever was set up.
+    pub(super) fn listing(dir: &std::path::Path, paths: &[&str]) -> Arc<Vec<crate::fs::Entry>> {
+        Arc::new(
+            paths
+                .iter()
+                .map(|n| crate::fs::Entry::from_path(dir.join(n)).unwrap())
+                .collect(),
+        )
+    }
+
+    /// One directory holding `a.txt`, `b.txt` and `sub/`, with the cursor on
+    /// `a.txt`. The directory is third so that a test can put the cursor on one
+    /// by moving to the end of the list.
+    pub(super) fn one(label: &str) -> Screen {
+        let dir = crate::util::test_dir(label);
+        std::fs::write(dir.join("a.txt"), "a").unwrap();
+        std::fs::write(dir.join("b.txt"), "b").unwrap();
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        let entries = listing(&dir, &["a.txt", "b.txt", "sub"]);
+        let mut s = Screen::open(dir.clone());
+        s.app.tabs[0].current = Folder::from_entries(dir.clone(), entries, true);
+        s
+    }
+
+    /// Two tabs on two directories, so that `<C-w>` borrows the second rather
+    /// than making one -- and so that the panes have different contents, which
+    /// is what every send between them needs.
+    ///
+    /// `left` holds `one.txt` and `two.txt`; `right` holds `far.txt`. The keys
+    /// start in `left`.
+    pub(super) fn two(label: &str) -> (PathBuf, PathBuf, Screen) {
+        let root = crate::util::test_dir(label);
+        let (left, right) = (root.join("left"), root.join("right"));
+        std::fs::create_dir_all(&left).unwrap();
+        std::fs::create_dir_all(&right).unwrap();
+        std::fs::write(left.join("one.txt"), "1").unwrap();
+        std::fs::write(left.join("two.txt"), "2").unwrap();
+        std::fs::write(right.join("far.txt"), "f").unwrap();
+
+        let mut s = Screen::open(left.clone());
+        s.app.tabs[0].cwd = left.clone();
+        s.app.tabs[0].current =
+            Folder::from_entries(left.clone(), listing(&left, &["one.txt", "two.txt"]), true);
+
+        let sort = s.app.tabs[0].sort;
+        let mut tab = crate::core::tab::Tab::new(
+            right.clone(),
+            sort,
+            false,
+            crate::fs::entry::Linemode::None,
+        );
+        tab.cwd = right.clone();
+        tab.current = Folder::from_entries(right.clone(), listing(&right, &["far.txt"]), true);
+        s.app.tabs.push(tab);
+
+        (left, right, s)
+    }
+
+    /// A 200-line text payload, so that `seek` has somewhere to go.
+    ///
+    /// `preview.max_offset` is written by whichever pane drew last, and with no
+    /// payload it stays 0 -- an `<A-j>` against an empty preview moves nothing
+    /// and would look like the key was not wired up.
+    pub(super) fn long_text() -> crate::app::PreviewState {
+        crate::app::PreviewState::Ready(Payload::Text {
+            lines: (0..200)
+                .map(|i| vec![Span { text: format!("line {i}"), ..Default::default() }])
+                .collect(),
+            map: Vec::new(),
+            extent: Extent { truncated: false, total: 200 },
+            outline: Vec::new(),
+        })
+    }
+
+    /// The first preview line the frame drew, which is how far `seek` has got.
+    pub(super) fn first_preview_line(f: &super::harness::Painted) -> Option<&String> {
+        f.texts.iter().find(|t| t.starts_with("line "))
+    }
+
+    /// How many of the frame's strings are exactly `needle`.
+    ///
+    /// Exactly, not `contains`: a file name also turns up inside the header's
+    /// path, so "is the name drawn on its own" -- as a row, or as a panel's
+    /// title -- is a question `Painted::says` cannot answer.
+    pub(super) fn drawn_alone(f: &super::harness::Painted, needle: &str) -> usize {
+        f.texts.iter().filter(|t| *t == needle).count()
+    }
+
+    /// Wait for a file operation to land, up to ten seconds.
+    ///
+    /// The ops worker is a real thread and really copies, so a send between the
+    /// panes can be checked where it counts: in the other pane's directory. Ten
+    /// seconds is far more than a one-byte copy needs; it is there so that a
+    /// loaded machine cannot turn this into a flake.
+    pub(super) fn lands(path: &std::path::Path) -> bool {
+        for _ in 0..1000 {
+            if path.exists() {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        false
+    }
+
+    /// Every pane the last frame laid out, left to right.
+    pub(super) fn pane_rects(s: &Screen) -> Vec<egui::Rect> {
+        let mut rects: Vec<egui::Rect> = s.app.pane_rects.iter().map(|(_, r)| *r).collect();
+        rects.sort_by(|a, b| a.left().total_cmp(&b.left()));
+        rects
+    }
+}
+
+/// TESTING.md section 6: split view, and sending between the panes.
+///
+/// `<A-c>` and `<A-m>` are the only commands whose destination is a *pane*, so
+/// most of the section is about what they refuse -- and both refusals are a
+/// sentence on screen, which is exactly what a frame can read. The layout half
+/// is arithmetic the renderer does every frame and nothing else asserts: that
+/// the second pane takes the parent column's place at the list's own width, and
+/// that the parent comes back when the split closes.
+#[cfg(test)]
+mod split_panes_frame {
+    use super::panes::*;
+
+    /// 6.1, 6.2, 6.3 and 6.14: one press splits, the next moves the keys, the
+    /// pane without them is dimmer, and `<C-S-w>` puts the parent column back.
+    ///
+    /// The cursor colour is the whole of 6.3: `hovered_bg` and
+    /// `inactive_hovered_bg` are two different theme entries and exactly one
+    /// row is drawn in each, so "which side has the keys" is readable from the
+    /// frame rather than only from `app.active`.
+    #[test]
+    fn one_press_splits_the_view_and_the_next_moves_the_keys() {
+        let (_left, _right, mut s) = two("panes-split");
+        let hovered = s.app.cfg.theme.hovered_bg;
+        let dimmed = s.app.cfg.theme.inactive_hovered_bg;
+        assert_ne!(hovered, dimmed, "a theme that drew both the same would say nothing");
+
+        // Unsplit: one pane, with the parent column to the left of it.
+        let f = s.draw();
+        let before = pane_rects(&s);
+        assert_eq!(before.len(), 1, "one pane to begin with");
+        assert!(before[0].left() > 24.0, "the parent column is there, at {}", before[0].left());
+        assert_eq!(f.filled(dimmed).len(), 0, "and nothing is dimmed with no other pane");
+
+        let f = s.feed(vec![key(egui::Key::W, ctrl())]);
+        assert!(s.app.split.is_some(), "the view split");
+        let split = pane_rects(&s);
+        assert_eq!(split.len(), 2, "two panes side by side");
+        // 6.1: the parent column is gone and the second pane stands in its
+        // place, "at the same width as the list it sits next to".
+        assert!(split[0].left() < 1.0, "the left pane starts at the body's edge");
+        assert!(
+            (split[0].width() - split[1].width()).abs() < 1.0,
+            "the two panes are the same width: {} and {}",
+            split[0].width(),
+            split[1].width(),
+        );
+        assert!(split[0].right() < split[1].left(), "side by side, not overlapping");
+        // The preview keeps its column: its background is the one `bg_alt`
+        // rectangle to the right of both panes.
+        let preview = f
+            .rects
+            .iter()
+            .filter(|(r, c)| *c == s.app.cfg.theme.bg_alt && r.left() > split[1].right())
+            .count();
+        assert_eq!(preview, 1, "the layout is pane, pane, preview");
+
+        // 6.3: one cursor row in each colour, and the dim one is the pane the
+        // keys are not in.
+        assert_eq!(f.filled(hovered).len(), 1, "the focused pane's cursor: {:?}", f.texts);
+        assert_eq!(f.filled(dimmed).len(), 1, "and the other pane's, dimmer");
+        let lit = f.filled(hovered)[0];
+        let other = s.app.other_pane().expect("the split names the other tab");
+        let others = s.app.pane_rects.iter().find(|(i, _)| *i == other).unwrap().1;
+        assert!(!others.contains_rect(lit), "the lit row is not in the pane without the keys");
+
+        // 6.2: the same key moves the keys, and keeps moving them.
+        let was = s.app.active;
+        let f = s.feed(vec![key(egui::Key::W, ctrl())]);
+        assert_ne!(s.app.active, was, "`<C-w>` again moved the keys");
+        assert!(s.app.split.is_some(), "without closing the split");
+        assert_eq!(f.filled(hovered).len(), 1, "still exactly one lit cursor");
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        assert_eq!(s.app.active, was, "and again, back where it started");
+
+        // 6.14: back to one pane, with the parent column returned.
+        let f = s.feed(vec![key(egui::Key::W, ctrl_shift())]);
+        assert!(s.app.split.is_none(), "`<C-S-w>` closed the second pane");
+        let after = pane_rects(&s);
+        assert_eq!(after.len(), 1, "one pane again");
+        assert!(after[0].left() > 24.0, "and the parent column is back at {}", after[0].left());
+        assert_eq!(f.filled(dimmed).len(), 0, "nothing left to dim");
+    }
+
+    /// 6.13: the second pane is made when there is nothing to borrow, and
+    /// borrowed when there is.
+    ///
+    /// Two tabs is the case that would go unnoticed: making a third would leave
+    /// a tab nobody asked for behind every `<C-w>`.
+    #[test]
+    fn a_second_pane_is_made_or_borrowed() {
+        let mut s = one("panes-borrow");
+        assert_eq!(s.app.tabs.len(), 1, "one tab to begin with");
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        assert_eq!(s.app.tabs.len(), 2, "a second tab was made on the same directory");
+        assert_eq!(s.app.tabs[0].cwd, s.app.tabs[1].cwd, "showing where the first one is");
+
+        let (_left, _right, mut s) = two("panes-borrow-two");
+        assert_eq!(s.app.tabs.len(), 2);
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        assert_eq!(s.app.tabs.len(), 2, "with one already open, the next is borrowed");
+    }
+
+    /// 6.4: the ordinary keys act on the focused pane and nothing else.
+    ///
+    /// `j` and `h` stand for the lot: no command knows about panes, they all go
+    /// through `app.active`, so a cursor or a directory changing in the other
+    /// pane would mean one of them had learned.
+    #[test]
+    fn the_ordinary_keys_move_one_pane_only() {
+        let (_left, _right, mut s) = two("panes-focused-only");
+        // Two presses: the first hands the keys to the pane that was borrowed,
+        // and `left` is the pane with two rows for `j` to move between.
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        let other = s.app.other_pane().unwrap();
+        let (cursor, cwd) = (s.app.tabs[other].current.cursor, s.app.tabs[other].cwd.clone());
+
+        s.typed("j");
+        assert_eq!(s.app.tabs[other].current.cursor, cursor, "`j` left the other pane alone");
+        assert_ne!(s.app.tab().current.cursor, cursor, "and moved the focused one");
+
+        s.typed("h");
+        assert_eq!(s.app.tabs[other].cwd, cwd, "`h` left the other pane where it was");
+        assert_ne!(s.app.tab().cwd, cwd, "and walked the focused one out");
+    }
+
+    /// 6.5 and 6.6: `<A-c>` copies into the other pane's directory, and clears
+    /// the selection afterwards.
+    ///
+    /// The destination is checked where it lands rather than in the task's
+    /// label, which never names it: "whatever directory the other pane is
+    /// showing" is the whole promise of the key, and a job submitted with the
+    /// wrong `dest` would queue and read exactly the same.
+    #[test]
+    fn a_send_lands_in_the_other_pane_and_spends_the_selection() {
+        let (_left, right, mut s) = two("panes-send-copy");
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        // The keys start in `left`; the first `<C-w>` hands them to the pane
+        // that was just borrowed, so take them back.
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        assert_eq!(s.app.tab().current.view.len(), 2, "standing in `left`, on `one.txt`");
+
+        s.typed("  ");
+        assert_eq!(s.app.tab().selected.len(), 2, "both files selected");
+
+        s.feed(vec![key(egui::Key::C, alt())]);
+        assert!(
+            !s.app.toasts.iter().any(|t| t.level == crate::app::Level::Error),
+            "the send went through: {:?}",
+            s.app.toasts.iter().map(|t| &t.text).collect::<Vec<_>>(),
+        );
+        // 6.6: unlike `y`, which keeps it.
+        assert!(s.app.tab().selected.is_empty(), "the selection is spent");
+        assert!(s.app.yank.paths.is_empty(), "and the register was never involved");
+
+        assert!(lands(&right.join("one.txt")), "the first file reached the other pane");
+        assert!(lands(&right.join("two.txt")), "and so did the second");
+    }
+
+    /// 6.7: `<A-m>` moves -- gone from this pane, present in the other.
+    ///
+    /// The chord is fed with the character it would also have typed, the way
+    /// Windows sends it, because `m` is the line-mode prefix: a send that let
+    /// the letter through would move the file *and* open a menu.
+    #[test]
+    fn a_cut_send_leaves_nothing_behind() {
+        let (left, right, mut s) = two("panes-send-move");
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+
+        let f = s.feed(vec![key(egui::Key::M, alt()), egui::Event::Text("m".into())]);
+        assert!(!f.says("Line mode"), "the letter did not leak into the menu: {:?}", f.texts);
+        assert!(lands(&right.join("one.txt")), "the file arrived in the other pane");
+        assert!(!left.join("one.txt").exists(), "and left this one");
+    }
+
+    /// 6.8 and 6.9: both refusals are sentences on screen, not silence.
+    ///
+    /// Silence is the failure this pins. A send into the directory the files
+    /// are already in would copy each one beside itself under a new name, and a
+    /// send with no second pane has nowhere to go -- neither is something to
+    /// work out from nothing happening.
+    #[test]
+    fn the_two_refusals_say_why_on_screen() {
+        // 6.9: no second pane. The keymap's own notation is quoted back, which
+        // is what makes the message actionable.
+        let mut s = one("panes-refuse-unsplit");
+        let f = s.feed(vec![key(egui::Key::C, alt())]);
+        assert!(f.says("Open the second pane first (<C-w>)"), "{:?}", f.texts);
+        assert!(s.app.tasks.is_empty(), "and nothing was queued");
+
+        // 6.8: both panes in the same directory. `<C-w>` with one tab opens the
+        // second pane on this very directory, which is the state the row asks
+        // for -- the listing has to be in the cache for the new tab to fill.
+        let mut s = one("panes-refuse-same");
+        let dir = s.app.tab().cwd.clone();
+        s.app.cache.put(dir.clone(), listing(&dir, &["a.txt", "b.txt", "sub"]));
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        let other = s.app.other_pane().unwrap();
+        assert_eq!(s.app.tabs[other].cwd, s.app.tab().cwd, "both panes are in one directory");
+
+        let f = s.feed(vec![key(egui::Key::C, alt())]);
+        assert!(f.says("Both panes are in the same directory"), "{:?}", f.texts);
+        assert!(s.app.tasks.is_empty(), "and nothing was queued");
+    }
+
+    /// 6.10: the yank register still crosses the panes, and can paste where
+    /// neither of them is looking.
+    ///
+    /// `y` `<C-w>` `p` is the route `<A-c>` is a shortcut for, and it is the
+    /// one that survives the refusals above: the register does not care which
+    /// directory the cursor was in when it was filled.
+    #[test]
+    fn the_register_still_pastes_across_the_panes() {
+        let (_left, right, mut s) = two("panes-yank-route");
+        s.typed("y");
+        assert_eq!(s.app.yank.paths.len(), 1, "one file in the register");
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        assert_eq!(s.app.tab().cwd, right, "the keys are in the other pane");
+        s.typed("p");
+        assert!(lands(&right.join("one.txt")), "and `p` pasted there");
+    }
+
+    /// 6.11: tabs still switch while the view is split, and switching to the
+    /// tab the other pane shows moves the keys instead of showing it twice.
+    #[test]
+    fn tabs_still_switch_while_the_view_is_split() {
+        let mut s = one("panes-tabs");
+        let dir = s.app.tab().cwd.clone();
+        let sort = s.app.tabs[0].sort;
+        for _ in 0..2 {
+            let mut t =
+                crate::core::tab::Tab::new(dir.clone(), sort, false, crate::fs::entry::Linemode::None);
+            t.cwd = dir.clone();
+            s.app.tabs.push(t);
+        }
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        let (before, tabs) = (s.app.active, s.app.tabs.len());
+
+        s.typed("]");
+        assert_ne!(s.app.active, before, "`]` still switches tabs");
+        assert!(s.app.split.is_some(), "and the split survives it");
+        s.typed("[");
+        assert_eq!(s.app.active, before, "`[` comes back");
+        assert_eq!(s.app.tabs.len(), tabs, "no tab was made or lost");
+
+        // `1`-`9` onto the tab the other pane is showing: the keys move there,
+        // rather than both panes ending up on one tab.
+        let other = s.app.other_pane().unwrap();
+        s.typed(&format!("{}", other + 1));
+        assert_eq!(s.app.active, other, "the keys went to that pane");
+        assert_eq!(s.app.other_pane(), Some(before), "and the pane they left holds the old tab");
+        assert!(s.app.split.is_some(), "still two panes");
+    }
+
+    /// 6.12: closing one of the two tabs on screen ends the split rather than
+    /// leaving a pane pointing at a tab that is gone.
+    #[test]
+    fn closing_a_pane_s_tab_ends_the_split() {
+        let mut s = one("panes-close-tab");
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        assert_eq!(s.app.tabs.len(), 2);
+        assert!(s.app.split.is_some());
+
+        // egui-winit turns `<C-c>` into a clipboard event and never emits the
+        // keypress, so this is the door the window actually uses.
+        s.feed(vec![egui::Event::Copy]);
+        assert_eq!(s.app.tabs.len(), 1, "the tab closed");
+        assert!(s.app.split.is_none(), "and the split ended with it");
+        assert!(!s.app.quit, "closing one of two tabs is not quitting");
+
+        let after = pane_rects(&s);
+        assert_eq!(after.len(), 1, "one pane, no stale second: {after:?}");
+    }
+}
+
+/// TESTING.md section 18: quick look, and the rest of the panels.
+///
+/// Quick look is a panel rather than an overlay on purpose -- it takes no keys,
+/// so the list keeps walking underneath and the panel follows it down. That is
+/// the half of the section a frame can answer: which file the panel is naming
+/// after a `j`, and whether `<A-j>` moved the text inside it.
+#[cfg(test)]
+mod quick_look_frame {
+    use super::panes::*;
+
+    /// 18.1 and 18.4: the panel names the hovered file, says how to leave, and
+    /// both `<F3>` and `<Esc>` close it.
+    #[test]
+    fn the_panel_names_the_file_and_says_how_to_leave() {
+        let mut s = one("quick-open");
+        let f = s.draw();
+        assert!(!f.says("Esc to close"), "nothing is up yet: {:?}", f.texts);
+
+        let f = s.feed(vec![key(egui::Key::F3, egui::Modifiers::NONE)]);
+        assert!(s.app.quick, "`<F3>` put the panel up");
+        assert!(f.says("Esc to close"), "and it says how to get out: {:?}", f.texts);
+        // Twice: once as the list row underneath, once as the panel's title.
+        // The header's path holds the name too, which is why this counts exact
+        // matches rather than asking `says`.
+        assert_eq!(drawn_alone(&f, "a.txt"), 2, "the name is the title as well: {:?}", f.texts);
+        // Over the panes, not beside them.
+        assert_eq!(
+            f.filled(egui::Color32::from_black_alpha(140)).len(), 1,
+            "the background is dimmed behind it",
+        );
+
+        let f = s.feed(vec![key(egui::Key::F3, egui::Modifiers::NONE)]);
+        assert!(!s.app.quick, "`<F3>` again closed it");
+        assert!(!f.says("Esc to close"), "{:?}", f.texts);
+
+        s.feed(vec![key(egui::Key::F3, egui::Modifiers::NONE)]);
+        let f = s.feed(vec![esc()]);
+        assert!(!s.app.quick, "`<Esc>` closes it too");
+        assert!(!f.says("Esc to close"), "{:?}", f.texts);
+    }
+
+    /// 18.2: the list still moves under the panel, and the panel follows it.
+    ///
+    /// This is why it is a panel and not an overlay, and the title is the only
+    /// thing on screen that shows it: a `j` that moved the cursor and left the
+    /// panel on the old file would look identical everywhere else.
+    #[test]
+    fn the_list_still_walks_under_the_panel() {
+        let mut s = one("quick-follow");
+        s.feed(vec![key(egui::Key::F3, egui::Modifiers::NONE)]);
+        assert_eq!(s.app.tab().current.cursor, 0);
+
+        let f = s.typed("j");
+        assert_eq!(s.app.tab().current.cursor, 1, "the list moved");
+        assert_eq!(drawn_alone(&f, "b.txt"), 2, "and the panel followed it: {:?}", f.texts);
+        assert_eq!(drawn_alone(&f, "a.txt"), 1, "leaving only the row behind: {:?}", f.texts);
+
+        let f = s.typed("k");
+        assert_eq!(s.app.tab().current.cursor, 0, "and `k` walks back");
+        assert_eq!(drawn_alone(&f, "a.txt"), 2, "{:?}", f.texts);
+    }
+
+    /// 18.3: `<A-j>` and `<A-k>` scroll what is inside the panel.
+    ///
+    /// Read off the text rather than off `preview_offset`, because the panel
+    /// and the side column share that field: what this asks is whether the
+    /// panel is the thing being drawn from it.
+    #[test]
+    fn alt_j_and_alt_k_scroll_the_panel_itself() {
+        let mut s = one("quick-scroll");
+        s.app.preview.state = long_text();
+        s.feed(vec![key(egui::Key::F3, egui::Modifiers::NONE)]);
+        let f = s.draw();
+        assert_eq!(first_preview_line(&f).map(String::as_str), Some("line 0"), "at the top");
+
+        let f = s.feed(vec![key(egui::Key::J, alt())]);
+        assert_eq!(
+            first_preview_line(&f).map(String::as_str), Some("line 5"),
+            "`<A-j>` moved the panel's text down: {:?}", f.texts,
+        );
+        let f = s.feed(vec![key(egui::Key::K, alt())]);
+        assert_eq!(
+            first_preview_line(&f).map(String::as_str), Some("line 0"),
+            "and `<A-k>` brought it back",
+        );
+    }
+
+    /// 18.8: `<Tab>` puts the spot panel up, about the hovered file.
+    ///
+    /// The rows come from the listing's own facts, so they are on screen
+    /// without a worker having answered -- which is what makes this checkable
+    /// here at all.
+    #[test]
+    fn the_spot_panel_answers_tab() {
+        let mut s = one("quick-spot");
+        let f = s.feed(vec![key(egui::Key::Tab, egui::Modifiers::NONE)]);
+        assert!(matches!(s.app.overlay, crate::app::Overlay::Spot(_)), "the panel is up");
+        assert!(f.says("Spot: a.txt"), "titled with the file: {:?}", f.texts);
+        assert!(f.says("<Esc> to close"), "and says how to leave: {:?}", f.texts);
+        for row in ["Name", "Path", "Kind", "Size", "Modified"] {
+            assert!(f.says(row), "the panel lists `{row}`: {:?}", f.texts);
+        }
+    }
+
+    /// 18.9 and 18.10: the context menu and the command palette.
+    ///
+    /// Both are pick lists built from the config, and both answer a chord no
+    /// other check in this section presses. The palette's filter is the half
+    /// worth a frame: it is a text field, so a key typed into it has to end up
+    /// narrowing the list rather than running a command.
+    #[test]
+    fn the_context_menu_and_the_palette_both_open() {
+        let mut s = one("quick-menus");
+
+        let shift_f10 = egui::Modifiers { shift: true, ..Default::default() };
+        let f = s.feed(vec![key(egui::Key::F10, shift_f10)]);
+        assert!(matches!(s.app.overlay, crate::app::Overlay::Pick(_)), "the menu is up");
+        assert!(f.says("Actions: a.txt"), "about the hovered file: {:?}", f.texts);
+        assert!(f.says("Run a shell command"), "with the openers listed: {:?}", f.texts);
+        s.feed(vec![esc()]);
+
+        let f = s.feed(vec![key(egui::Key::P, ctrl_shift())]);
+        assert!(matches!(s.app.overlay, crate::app::Overlay::Pick(_)), "the palette is up");
+        assert!(f.says("Commands"), "{:?}", f.texts);
+        assert!(f.says("type to filter"), "{:?}", f.texts);
+        let listed = f.texts.len();
+        // A letter no command's description holds, so the list has to shrink.
+        let f = s.typed("zzzz");
+        assert!(
+            f.texts.len() < listed,
+            "typing filtered the list: {} strings, was {listed}", f.texts.len(),
+        );
+        assert!(!s.app.quit, "and the letters went into the field, not the keymap");
+    }
+
+    /// 18.11's second half, and 18.12: `'` and a letter jumps to the bookmark,
+    /// and `z` lists the bookmarks above the recent directories.
+    ///
+    /// 18.11's first half -- `b` and a letter -- is reported rather than
+    /// asserted: `b` is the management prefix in the default keymap, so the
+    /// jump is `'` alone. See QA-REPORT.md.
+    #[test]
+    fn a_bookmark_is_reached_by_quote_and_listed_by_z() {
+        let mut s = one("quick-jump");
+        let dir = s.app.tab().cwd.clone();
+        std::fs::create_dir_all(dir.join("marked")).unwrap();
+        std::fs::create_dir_all(dir.join("seen")).unwrap();
+        s.app.bookmarks.push(crate::app::Bookmark {
+            key: "m".into(),
+            path: dir.join("marked"),
+            name: "marked".into(),
+        });
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        s.app.history.push(crate::app::Visit {
+            path: dir.join("seen"),
+            hits: 3,
+            at: now - 2 * 60 * 60,
+        });
+
+        // 18.12: named bookmarks first, then the history with its age.
+        let f = s.typed("z");
+        assert!(matches!(s.app.overlay, crate::app::Overlay::Pick(_)), "the jump list is up");
+        assert!(f.says("[m] "), "the bookmark carries its letter: {:?}", f.texts);
+        assert!(f.says("marked"), "and its name: {:?}", f.texts);
+        assert!(f.says("2h ago"), "the recent directory says how long ago: {:?}", f.texts);
+        let bookmark = f.texts.iter().position(|t| t.starts_with("[m] ")).unwrap();
+        let recent = f.texts.iter().position(|t| t == "2h ago").unwrap();
+        assert!(bookmark < recent, "bookmarks are drawn above the history: {:?}", f.texts);
+        s.feed(vec![esc()]);
+
+        // 18.11: `'` then the letter.
+        let f = s.typed("'");
+        assert!(f.says("Jump to bookmark"), "`'` asks for a letter: {:?}", f.texts);
+        s.typed("m");
+        assert_eq!(s.app.tab().cwd, dir.join("marked"), "and the letter goes there");
+    }
+}
+
+/// TESTING.md section 36: `T`, and how it differs from `<F3>`.
+///
+/// The two are easy to confuse and are not the same thing: `T` widens the
+/// preview *column*, leaving the tab bar, the status bar and the background as
+/// they are, while `<F3>` is a modal drawn over them at a measured size. Both
+/// halves of that are geometry and colour, which is what this harness reads --
+/// so the section's own point, that these are visibly different, is the one
+/// thing here that no unit test could have made.
+#[cfg(test)]
+mod max_preview_frame {
+    use super::panes::*;
+
+    /// 36.1 and 36.2: `T` gives the body to the preview and puts it back, and
+    /// takes nothing else with it.
+    #[test]
+    fn t_widens_the_preview_column_and_leaves_the_chrome_alone() {
+        let mut s = one("max-columns");
+        s.app.preview.state = long_text();
+
+        let f = s.draw();
+        let before = pane_rects(&s);
+        assert_eq!(before.len(), 1);
+        assert!(before[0].width() > 400.0, "the list has a column: {}", before[0].width());
+        assert!(f.says("3 items") && f.says("1/3"), "the status bar: {:?}", f.texts);
+
+        let f = s.typed("T");
+        assert!(s.app.max_preview, "`T` maximized the preview");
+        let after = pane_rects(&s);
+        assert!(
+            after.iter().all(|r| r.width() < 24.0),
+            "the list column is squeezed to nothing: {after:?}",
+        );
+        // The preview took it: its background now spans nearly the whole body.
+        let widest = f
+            .rects
+            .iter()
+            .filter(|(_, c)| *c == s.app.cfg.theme.bg_alt)
+            .map(|(r, _)| r.width())
+            .fold(0.0f32, f32::max);
+        assert!(widest > s.rect().width() * 0.9, "the preview has the body: {widest}");
+        // 36.1: unchanged, undimmed, unframed.
+        assert!(f.says("3 items") && f.says("1/3"), "the status bar is untouched: {:?}", f.texts);
+        assert!(f.says(" 1 "), "and so is the tab bar: {:?}", f.texts);
+        assert!(
+            f.filled(egui::Color32::from_black_alpha(140)).is_empty(),
+            "the background is not dimmed -- that is what `<F3>` does",
+        );
+        assert!(!f.says("Esc to close"), "no frame across the top: {:?}", f.texts);
+        // The row itself, and nothing else: `<F3>` would add the name again as
+        // a panel title, which is the contrast the next test measures.
+        assert_eq!(drawn_alone(&f, "a.txt"), 1, "no file name as a title: {:?}", f.texts);
+
+        s.typed("T");
+        assert!(!s.app.max_preview);
+        let restored = pane_rects(&s);
+        assert_eq!(restored.len(), before.len(), "the columns came back");
+        assert!(
+            (restored[0].width() - before[0].width()).abs() < 1.0,
+            "at the `[mgr] ratio` widths: {} was {}",
+            restored[0].width(),
+            before[0].width(),
+        );
+    }
+
+    /// 36.3 and 36.4: both halves still answer keys while the list is invisible.
+    ///
+    /// The cursor walking a column nobody can see is the odd part of this
+    /// state, and it is deliberate: the preview follows the cursor, so the list
+    /// has to keep moving for `T` to be useful at all.
+    #[test]
+    fn the_list_and_the_preview_both_still_answer_keys() {
+        let mut s = one("max-keys");
+        s.app.preview.state = long_text();
+        s.typed("T");
+
+        let f = s.draw();
+        assert!(f.says("1/3"), "on the first row: {:?}", f.texts);
+        let f = s.typed("j");
+        assert_eq!(s.app.tab().current.cursor, 1, "`j` walked the squeezed list");
+        assert!(f.says("2/3"), "and the position says so: {:?}", f.texts);
+
+        // 36.4: `<A-j>` moves the preview, not the cursor.
+        let f = s.draw();
+        assert_eq!(first_preview_line(&f).map(String::as_str), Some("line 0"));
+        let f = s.feed(vec![key(egui::Key::J, alt())]);
+        assert_eq!(
+            first_preview_line(&f).map(String::as_str), Some("line 5"),
+            "`<A-j>` scrolled the preview: {:?}", f.texts,
+        );
+        assert_eq!(s.app.tab().current.cursor, 1, "and left the cursor where it was");
+    }
+
+    /// 36.5 and 36.5a: `<Esc>` and `q` each put the columns back, and `q` only
+    /// quits once nothing is in front.
+    ///
+    /// Both were reported from use. Before v0.36.1 `<Esc>` did nothing here and
+    /// the first `q` quit the app outright -- with the list invisible, those
+    /// are the two keys anyone reaches for.
+    #[test]
+    fn escape_and_q_each_restore_the_columns() {
+        let mut s = one("max-escape");
+        s.typed("T");
+        s.feed(vec![esc()]);
+        assert!(!s.app.max_preview, "`<Esc>` is a way out of this");
+        assert!(!s.app.quit);
+
+        s.typed("T");
+        s.typed("q");
+        assert!(!s.app.max_preview, "the first `q` restored the columns");
+        assert!(!s.app.quit, "and did not quit");
+        s.typed("q");
+        assert!(s.app.quit, "the second `q` quits");
+    }
+
+    /// 36.5b and 36.5c: a bare `<Esc>` takes the most visible state first, and
+    /// a targeted escape stays targeted.
+    ///
+    /// A maximized preview hides the list, so it goes before the filter. But
+    /// `escape --filter` names what it is for, and a command that also undid
+    /// the layout would be doing something it was not asked to.
+    #[test]
+    fn the_maximized_column_goes_before_the_filter_unless_asked_otherwise() {
+        let filter = || crate::core::folder::Filter {
+            query: "a".into(),
+            smart: true,
+            insensitive: false,
+        };
+
+        let mut s = one("max-escape-filter");
+        s.app.tabs[0].current.filter = Some(filter());
+        s.typed("T");
+        s.feed(vec![esc()]);
+        assert!(!s.app.max_preview, "the first `<Esc>` restored the columns");
+        assert!(s.app.tab().current.filter.is_some(), "and left the filter alone");
+        s.feed(vec![esc()]);
+        assert!(s.app.tab().current.filter.is_none(), "the second one cleared it");
+
+        let mut s = one("max-escape-targeted");
+        s.app.tabs[0].current.filter = Some(filter());
+        s.typed("T");
+        // What the command line would have run.
+        s.app.act(crate::config::cmd::parse("escape --filter"));
+        assert!(s.app.max_preview, "a targeted escape left the columns maximized");
+        assert!(s.app.tab().current.filter.is_none(), "and cleared what it named");
+    }
+
+    /// 36.6 and 36.7: `<F3>` is a measurably different thing, and the two
+    /// flags are independent.
+    ///
+    /// The size is the part worth pinning: 86% by 88% of the window, centred,
+    /// with the file's name as its title. `T` draws no such rectangle at all,
+    /// which is how a frame tells these two apart.
+    #[test]
+    fn quick_look_is_a_framed_panel_at_a_measured_size() {
+        let mut s = one("max-versus-quick");
+        let want = super::modal_rect(s.rect(), 0.86, 0.88);
+
+        // The same rectangle, asked for by size and position rather than by
+        // what encloses it: the window's own background contains the panel's
+        // area without being the panel.
+        let that_size = |r: &egui::Rect| {
+            (r.width() - want.width()).abs() < 1.0
+                && (r.height() - want.height()).abs() < 1.0
+                && (r.center() - want.center()).length() < 1.0
+        };
+
+        let f = s.typed("T");
+        assert!(
+            !f.rects.iter().any(|(r, _)| that_size(r)),
+            "a maximized column draws nothing that size",
+        );
+
+        let f = s.feed(vec![key(egui::Key::F3, egui::Modifiers::NONE)]);
+        assert!(
+            f.rects.iter().any(|(r, c)| *c == s.app.cfg.theme.bg_alt && that_size(r)),
+            "the panel is 86% x 88% of the window, centred: wanted {want:?}",
+        );
+        assert_eq!(
+            f.filled(egui::Color32::from_black_alpha(140)).len(), 1,
+            "with the background dimmed behind it",
+        );
+        assert!(f.says("Esc to close"), "{:?}", f.texts);
+        assert_eq!(
+            drawn_alone(&f, "a.txt"), 2,
+            "and the name as its title, above the row: {:?}", f.texts,
+        );
+
+        // 36.7: the panel closes and the column stays maximized.
+        let f = s.feed(vec![esc()]);
+        assert!(!s.app.quick, "`<Esc>` took the panel");
+        assert!(s.app.max_preview, "and left the column maximized -- two flags, not one");
+        assert!(!f.says("Esc to close"), "{:?}", f.texts);
+    }
+
+    /// 36.8: turning `T` on clears `hide_parent`, and turning it off does not
+    /// put it back.
+    ///
+    /// Deliberate, and it means `T` is not quite a round trip -- which is the
+    /// reason the row exists. A reader who did not know would report the
+    /// reappearing parent column as the bug.
+    #[test]
+    fn turning_t_on_brings_the_parent_pane_back_for_good() {
+        let mut s = one("max-hide-parent");
+        s.app.hide_parent = true;
+        s.draw();
+        let hidden = pane_rects(&s);
+        assert!(hidden[0].left() < 24.0, "the parent column is gone: {hidden:?}");
+
+        s.typed("T");
+        assert!(!s.app.hide_parent, "`T` cleared it");
+        s.typed("T");
+        assert!(!s.app.max_preview);
+        assert!(!s.app.hide_parent, "and toggling off does not hide it again");
+        let back = pane_rects(&s);
+        assert!(back[0].left() > 24.0, "so the parent column is back: {back:?}");
+    }
+
+    /// 36.9: a directory and a file with no preview both toggle without
+    /// getting stuck.
+    ///
+    /// Nothing to draw in the widened column is the case that would panic if
+    /// the layout assumed a payload, and "no stuck layout" is the half that
+    /// matters: the key has to still put the columns back.
+    #[test]
+    fn a_directory_and_an_empty_preview_both_toggle() {
+        let mut s = one("max-nothing");
+        // The cursor onto `sub`, with no payload for it.
+        s.typed("G");
+        let on_dir = s
+            .app
+            .tab()
+            .current
+            .hovered()
+            .is_some_and(|e| e.kind == crate::fs::entry::Kind::Dir);
+        assert!(on_dir, "standing on `sub`");
+        let f = s.typed("T");
+        assert!(s.app.max_preview);
+        assert!(f.says("3/3"), "the frame still drew: {:?}", f.texts);
+        s.typed("T");
+        assert!(!s.app.max_preview, "and `T` still puts it back");
+
+        let mut s = one("max-no-payload");
+        s.app.preview.state = crate::app::PreviewState::Empty;
+        let f = s.typed("T");
+        assert!(s.app.max_preview);
+        assert!(f.says("1/3"), "{:?}", f.texts);
+        s.typed("T");
+        assert!(!s.app.max_preview);
+    }
+
+    /// 36.11: the help panel lists `T` with its description.
+    ///
+    /// A tall window because the panel draws only the lines that fit, and `T`
+    /// sits a long way down the `[mgr]` layer.
+    #[test]
+    fn the_help_panel_lists_t_with_its_description() {
+        let mut s = one("max-help").sized(1600.0, 2000.0);
+        let f = s.typed("~");
+        assert_eq!(drawn_alone(&f, "T"), 1, "the key is listed once: {:?}", f.texts);
+        assert!(f.says("Maximize or restore the preview pane"), "with its own words");
+        assert!(f.says("plugin toggle-pane max-preview"), "and what it runs");
+    }
+
+    /// 36.12 through 36.16: `q` closes what is in front, one layer at a time,
+    /// and only quits with nothing up.
+    ///
+    /// The point of the table is that no panel is the odd one out, so they are
+    /// walked together: a panel that quit the app instead of closing would be
+    /// the v0.36.1 bug again, in a different place.
+    #[test]
+    fn q_closes_what_is_in_front_and_only_then_quits() {
+        // 36.14: the panels with a keymap layer of their own.
+        for open in ["~", "w"] {
+            let mut s = one(&format!("max-q-{open}"));
+            s.typed(open);
+            assert!(!matches!(s.app.overlay, crate::app::Overlay::None), "`{open}` opened a panel");
+            s.typed("q");
+            assert!(matches!(s.app.overlay, crate::app::Overlay::None), "`q` closed it");
+            assert!(!s.app.quit, "`q` on a panel must not quit");
+        }
+        let mut s = one("max-q-spot");
+        s.feed(vec![key(egui::Key::Tab, egui::Modifiers::NONE)]);
+        assert!(matches!(s.app.overlay, crate::app::Overlay::Spot(_)));
+        s.typed("q");
+        assert!(matches!(s.app.overlay, crate::app::Overlay::None), "the spotter closes too");
+        assert!(!s.app.quit);
+
+        // 36.15: with nothing up, the first press quits.
+        let mut s = one("max-q-bare");
+        s.typed("q");
+        assert!(s.app.quit, "`q` with nothing in front quits");
+
+        // 36.16: both on, three presses -- panel, then columns, then quit.
+        let mut s = one("max-q-both");
+        s.feed(vec![key(egui::Key::F3, egui::Modifiers::NONE)]);
+        s.typed("T");
+        assert!(s.app.quick && s.app.max_preview, "both are up");
+        s.typed("q");
+        assert!(!s.app.quick, "the panel in front went first");
+        assert!(s.app.max_preview, "one press does not undo two states");
+        assert!(!s.app.quit);
+        s.typed("q");
+        assert!(!s.app.max_preview, "then the columns");
+        assert!(!s.app.quit);
+        s.typed("q");
+        assert!(s.app.quit, "and then the process");
+
+        // The same three states, walked with `<Esc>`, `<Esc>`, `q`.
+        let mut s = one("max-q-escapes");
+        s.feed(vec![key(egui::Key::F3, egui::Modifiers::NONE)]);
+        s.typed("T");
+        s.feed(vec![esc()]);
+        assert!(!s.app.quick && s.app.max_preview);
+        s.feed(vec![esc()]);
+        assert!(!s.app.max_preview);
+        assert!(!s.app.quit, "`<Esc>` never quits");
+        s.typed("q");
+        assert!(s.app.quit);
+    }
+
+    /// 36.17, in the half the code and the checklist agree on: `q` in front of
+    /// a decision must not quit the app.
+    ///
+    /// The row also says nothing happens. It does -- any character dismisses a
+    /// confirm prompt, `q` included -- so that half is reported rather than
+    /// asserted here. See QA-REPORT.md.
+    #[test]
+    fn a_decision_prompt_is_not_a_way_out_of_the_process() {
+        let mut s = one("max-q-confirm");
+        s.typed("D");
+        assert!(
+            matches!(s.app.overlay, crate::app::Overlay::Confirm(_)),
+            "a delete asks first",
+        );
+        s.typed("q");
+        assert!(!s.app.quit, "`q` in front of a decision must not quit");
+
+        // A pick list is a text field, so the letter narrows it and the keymap
+        // never sees it.
+        let mut s = one("max-q-pick");
+        s.feed(vec![key(egui::Key::P, ctrl_shift())]);
+        assert!(matches!(s.app.overlay, crate::app::Overlay::Pick(_)));
+        s.typed("q");
+        assert!(matches!(s.app.overlay, crate::app::Overlay::Pick(_)), "the list is still up");
+        assert!(!s.app.quit, "and `q` went into the filter");
+    }
+}

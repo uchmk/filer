@@ -222,6 +222,13 @@ clipboard or the cursor, so most of this section is about what they refuse.
 
 Needs two directories with different contents — `many\` and `repo\` will do.
 
+6.1 through 6.14 are automated (`ui::split_panes_frame`): that the two panes come out the same
+width with the parent column gone, and that it is back after `<C-S-w>`; that the pane without the
+keys draws its cursor in the other of two theme colours; that `<A-c>` and `<A-m>` really land in
+the directory the other pane is showing and spend the selection doing it; the wording of both
+refusals; and what becomes of the split when a tab is switched or closed. What is left is 6.15 — a
+job's progress, its speed, and cancelling it from `w` all need a copy big enough to watch happen.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 6.1 | `<C-w>` once | Two panes side by side. The **parent column is gone**; the layout is pane, pane, preview, the same width as before |
@@ -431,6 +438,13 @@ skipped on Windows — this section is the only coverage of the `cmd` path.**
 | 17.14 | `filer env` with the rules in place | `pdftoppm` and `ffmpeg` listed under Tools, with `preview *.pdf` beside them |
 
 ## 18. Quick look, minimap's neighbours, and the rest of the panes
+
+18.1 to 18.4, 18.8 to 18.10, 18.12 and the second half of 18.11 — `'` and a letter — are automated
+(`ui::quick_look_frame`). 18.5 and 18.6 are the same ground as section 6, so
+`ui::split_panes_frame` covers those. What is left is 18.7, where the drag and the label beside the
+pointer both need a hand on a mouse, and the first half of 18.11, which does not match the keymap:
+`b` is the prefix the bookmark *management* hangs off, so `b` and a letter jumps nowhere. See
+QA-REPORT.md.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -770,6 +784,13 @@ Windows needs confirming that nothing moved.**
 
 The binding and its parse are covered by tests; what needs eyes is the drawing,
 and the fact that these two are not the same thing at two sizes.
+
+36.1 to 36.9, 36.11, and 36.12 to 36.16 of the `q` table are automated
+(`ui::max_preview_frame`) — down to `<F3>`'s panel measuring 86% × 88% of the window and `T`
+drawing no rectangle of that size at all, which is this section's own point put as an assertion.
+What is left is 36.10 and 36.18, both of which need a rewritten `prepend_keymap` and a `<C-F5>`,
+and half of 36.17: that `q` does not end the process is covered, but "Nothing happens" disagrees
+with the code. See QA-REPORT.md.
 
 | # | Do | Expect |
 | --- | --- | --- |
