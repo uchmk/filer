@@ -6,6 +6,7 @@ pub mod restore;
 pub mod scan;
 pub mod shares;
 pub mod sort;
+pub mod usage;
 pub mod watch;
 
 pub use entry::{Entry, Kind};

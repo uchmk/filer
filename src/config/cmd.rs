@@ -155,6 +155,9 @@ pub enum Act {
     FindArrow { prev: bool },
     Filter { smart: bool, insensitive: bool },
     Search { via: SearchVia, insensitive: bool },
+    /// Measure what is under each child of the current directory and list them
+    /// largest first. Not a yazi command: see the README.
+    Usage,
     /// Confirm the pending input (yazi's `*_do` commands).
     Submit,
 
@@ -485,6 +488,7 @@ pub fn parse(line: &str) -> Act {
         },
         "find_arrow" => Act::FindArrow { prev: a.has("previous") },
         "filter" => Act::Filter { smart: a.has("smart"), insensitive: a.has("insensitive") },
+        "usage" => Act::Usage,
         "search" => Act::Search {
             via: match a.val("via").or(a.first()) {
                 Some("rg") | Some("content") => SearchVia::Content,

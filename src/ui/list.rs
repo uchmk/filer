@@ -19,6 +19,9 @@ pub struct ListStyle<'a> {
     /// Dimmed columns (parent / preview) get a quieter cursor.
     pub active: bool,
     pub linemode: &'a str,
+    /// The largest total in the disk-usage view, which every row's bar is drawn
+    /// against. Zero everywhere else, and no bar is drawn.
+    pub usage_max: u64,
 }
 
 pub struct RowFlags {
@@ -154,14 +157,35 @@ pub fn draw(
         // Right-hand line mode text is laid out first so the name knows its budget.
         let right = linemode_text(entry, st.linemode);
         let mut right_w = 0.0;
+        // The usage view's bar: the row's share of the biggest row, so the
+        // largest folder fills it and the rest are read against that. Two
+        // rectangles, the same pair the tasks panel draws its progress with.
+        if st.usage_max > 0 {
+            let frac = entry.usage_bytes() as f32 / st.usage_max as f32;
+            let w = 44.0;
+            let track = egui::Rect::from_min_size(
+                egui::pos2(row_rect.right() - w - 6.0, y + (st.row_h - 4.0) / 2.0),
+                egui::Vec2::new(w, 4.0),
+            );
+            painter.rect_filled(track, egui::CornerRadius::same(2), st.theme.border);
+            if frac > 0.0 {
+                painter.rect_filled(
+                    egui::Rect::from_min_size(track.min, egui::Vec2::new(w * frac.min(1.0), 4.0)),
+                    egui::CornerRadius::same(2),
+                    st.theme.progress_fg,
+                );
+            }
+            right_w = w + 12.0;
+        }
         if !right.is_empty() {
             let g = painter.layout_no_wrap(right.clone(), st.font.clone(), st.theme.fg_dim);
-            right_w = g.size().x + 10.0;
+            let g_w = g.size().x + 10.0;
             painter.galley(
-                egui::pos2(row_rect.right() - g.size().x - 6.0, y + (st.row_h - g.size().y) / 2.0),
+                egui::pos2(row_rect.right() - right_w - g.size().x - 6.0, y + (st.row_h - g.size().y) / 2.0),
                 g,
                 st.theme.fg_dim,
             );
+            right_w += g_w;
         }
 
         // The git sign sits between the name and the line mode, so it stays
@@ -307,6 +331,9 @@ fn name_job(
 pub fn linemode_text(entry: &Entry, mode: &str) -> String {
     match mode {
         "size" => entry.display_size().unwrap_or_default(),
+        // The usage view's own mode: the measured total, files included, so a
+        // folder and a file read on the same scale.
+        "usage" => crate::util::human_size(entry.usage_bytes()),
         "mtime" | "modified" => util::fmt_time(entry.modified, "%Y-%m-%d %H:%M"),
         "btime" | "created" => util::fmt_time(entry.created, "%Y-%m-%d %H:%M"),
         "permissions" => permissions(entry),

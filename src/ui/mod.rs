@@ -390,6 +390,7 @@ pub(super) fn draw_preview(
                 row_h,
                 active: false,
                 linemode: "",
+                usage_max: 0,
             };
             let mut p = clone_view(folder);
             // A directory preview scrolls with the same `preview_offset`, so it
@@ -556,6 +557,7 @@ fn draw_parent(app: &mut App, ui: &mut Ui, rect: Rect, ctx: &PaneCtx, queued: &m
             row_h,
             active: false,
             linemode: "",
+            usage_max: 0,
         };
         let mut p = clone_view(parent);
         let rows = ((rect.height() / row_h).floor() as usize).max(1);
@@ -603,6 +605,7 @@ fn draw_pane(
         // pane without the keys is dimmed for the same reason.
         active: focused && app.preview.outline.is_none(),
         linemode: &linemode,
+        usage_max: app.usage_max,
     };
     // Where this pane is, so a drop let go anywhere can find its target.
     app.pane_rects.push((idx, rect));
