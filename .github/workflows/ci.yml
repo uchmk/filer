@@ -47,3 +47,10 @@ jobs:
         run: cargo clippy --locked --all-targets -- -D warnings
       - name: Clippy (Windows-only code)
         run: cargo clippy --locked --all-targets --target x86_64-pc-windows-msvc -- -D warnings
+      # TESTING-KEYS.md is generated from the default keymap, and a checklist that
+      # has drifted is worse than none: it certifies keys nobody tried. When this
+      # went in it found the file nine keys and two descriptions out of date --
+      # the help layer had gained its scrolling keys in v0.34.0 and the checklist
+      # still listed one binding for it.
+      - name: The key checklist matches the keymap
+        run: cargo run --locked --example make-keycheck -- --check

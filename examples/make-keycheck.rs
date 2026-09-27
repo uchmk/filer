@@ -15,8 +15,13 @@
 //! is worth noticing.
 //!
 //!     cargo run --example make-keycheck
+//!
+//! With `--check` it writes nothing and instead reports whether the file still
+//! matches the keymap, exiting 1 if it does not. That is what CI runs: a keymap
+//! change with no regeneration leaves a checklist that certifies keys nobody
+//! tried, which is worse than having none.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write as _;
 
 const KEYMAP: &str = "src/config/defaults/keymap.toml";
@@ -31,6 +36,7 @@ struct Binding {
 }
 
 fn main() {
+    let check = std::env::args().skip(1).any(|a| a == "--check");
     let text = std::fs::read_to_string(KEYMAP).expect("read the default keymap");
     let bindings = parse(&text);
     let done = previous_ticks();
@@ -118,8 +124,91 @@ fn main() {
             b.layer,
         );
     }
+    if check {
+        // A byte comparison is the whole test, and it is tick-insensitive for
+        // free: `out` carried the existing ticks forward, so a tick can never
+        // be what differs. Anything that does differ came from the keymap.
+        let old = std::fs::read_to_string(OUT).unwrap_or_default();
+        if old == out {
+            println!("{OUT}: in sync with {KEYMAP} ({ticked} / {} checked)", bindings.len());
+            return;
+        }
+        report_drift(&bindings, &old);
+        eprintln!(
+            "\n{OUT} is out of date. Regenerate it, read the diff, and commit it:\n\n    \
+             cargo run --example make-keycheck\n"
+        );
+        std::process::exit(1);
+    }
     std::fs::write(OUT, out).expect("write the checklist");
     println!("{OUT}: {ticked} / {} checked", bindings.len());
+}
+
+/// Name the keys behind an out-of-date checklist: added, gone, or re-described.
+///
+/// The exit code alone would say "regenerate", which anyone can guess. What is
+/// worth printing is *which* bindings moved, because that is the review: a key
+/// that vanished may have been removed on purpose or lost by accident, and the
+/// two look identical from here.
+fn report_drift(bindings: &[Binding], old: &str) {
+    let now = rows_of_generated(bindings);
+    let was = rows_of_file(old);
+
+    let mut quiet = true;
+    for (key, (desc, run)) in &now {
+        match was.get(key) {
+            None => {
+                println!("+ {key} — {desc} · {run}");
+                quiet = false;
+            }
+            Some((d, r)) if (d, r) != (desc, run) => {
+                println!("~ {key}\n    was: {d} · {r}\n    now: {desc} · {run}");
+                quiet = false;
+            }
+            Some(_) => {}
+        }
+    }
+    for key in was.keys().filter(|k| !now.contains_key(*k)) {
+        println!("- {key} (gone from the keymap)");
+        quiet = false;
+    }
+    if quiet {
+        // Every binding matches, so what differs is the prose or the counts in
+        // the headings -- a wording change in this file, not a keymap change.
+        println!("The bindings all match; the difference is in the surrounding text.");
+    }
+}
+
+/// The rows this run would write, keyed the way [`key_of`] keys them.
+fn rows_of_generated(bindings: &[Binding]) -> BTreeMap<String, (String, String)> {
+    bindings.iter().map(|b| (key_of(b), (b.desc.clone(), b.run.clone()))).collect()
+}
+
+/// The same rows read back out of the file, parsed from the line `main` writes.
+fn rows_of_file(text: &str) -> BTreeMap<String, (String, String)> {
+    let mut out = BTreeMap::new();
+    let mut layer = String::new();
+    for line in text.lines() {
+        if let Some(rest) = line.strip_prefix("## `[") {
+            if let Some(end) = rest.find("]`") {
+                layer = rest[..end].to_owned();
+            }
+            continue;
+        }
+        let Some(rest) = line.strip_prefix("- [x] `").or_else(|| line.strip_prefix("- [ ] `"))
+        else {
+            continue; // prose, a heading, or the orphan list
+        };
+        let Some((on, rest)) = rest.split_once("` \u{2014} ") else { continue };
+        // The command is the last backquoted word, so a description holding a
+        // ` \u{b7} ` of its own does not steal the split.
+        let Some((desc, run)) = rest.rsplit_once(" \u{b7} `") else { continue };
+        out.insert(
+            format!("{layer}/{on}"),
+            (desc.to_owned(), run.trim_end_matches('`').to_owned()),
+        );
+    }
+    out
 }
 
 fn key_of(b: &Binding) -> String {

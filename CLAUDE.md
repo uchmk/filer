@@ -145,6 +145,33 @@ cargo check --release --target x86_64-pc-windows-msvc --all-targets
 - 自動で進められるタスクが残っていなければ、何も変更しない。自動で進められるタスクとは、`要確認` の付いていない未完了タスクと、質問が回答済みになったタスクのこと。
   - そのときは「未回答の確認事項 N 件（QUESTIONS.md）」と出力し、最後の行に `ALL_DONE` とだけ出力する。
 
+## QA セッション（テスト専任）
+
+テストを書く仕事は本流の機能開発と性質が違うので、**別セッションで並行運用する**ための
+定義をリポジトリに置いてある。役割の定義は 1 か所だけ（重複するとずれる）。
+
+| ファイル | 役割 |
+| --- | --- |
+| `.claude/qa-role.md` | **役割の唯一の定義。**書いてよい場所、報告に回すもの、ブランチの規則 |
+| `.claude/agents/qa-tester.md` | subagent 定義。`Agent(subagent_type: "qa-tester")` で呼べる |
+| `.claude/skills/qa-audit/SKILL.md` | 手順書。`/qa-audit` で呼ぶ |
+
+別のターミナルから並行運用するとき:
+
+```bash
+git fetch origin main && git checkout -B test/harness-e2e origin/main
+claude "$(cat .claude/qa-role.md)"
+```
+
+- **QA セッションが書いてよいのは `#[cfg(test)]` の中だけ。**このリポジトリに `tests/` は
+  無く、テストモジュールは `src/` の中に同居しているので、「`src/` を触るな」では規則に
+  ならない。規則は「**diff の追加行がすべて `#[cfg(test)]` の内側**」で、`cargo test` の
+  前に `git diff` で自分で確かめる。
+- **機能コードのバグもテスト容易性のための変更も、直さず `QA-REPORT.md` に報告する。**
+  v0.45.0 でハーネスが見つけたヘッダの `\` 固定、および `handle_input` を `pub(crate)` に
+  した変更が、それぞれの例。
+- **`main` へ push しない。PR を立てるところまでがロール**で、マージはしない。
+
 ## 確認事項（QUESTIONS.md）
 
 人の判断が要るときは、作業を止めて QUESTIONS.md に質問を書く。自動実行モードでも、対話中でも同じ。TODO.md には、どのタスクがどの質問で止まっているかだけを書く。

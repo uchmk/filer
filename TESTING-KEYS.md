@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**202 / 207 checked.**
+**202 / 226 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 144 / 149
+## `[mgr]` — 144 / 151
 
 The file list: what is in front of you unless an overlay is.
 
@@ -47,6 +47,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<F5>` — Re-read the current directory · `refresh`
 - [x] `<C-F5>` — Read the config files again (theme, icons, keys) · `config_reload`
 - [x] `<F3>` — Quick look: the hovered file, big, over the panes · `quick`
+- [ ] `T` — Maximize or restore the preview pane · `plugin toggle-pane max-preview`
 - [x] `<A-k>` — Scroll the preview up · `seek -5`
 - [x] `<A-j>` — Scroll the preview down · `seek 5`
 - [x] `<A-i>` — Zoom into the image · `zoom in`
@@ -155,11 +156,12 @@ The file list: what is in front of you unless an overlay is.
 - [x] `g h` — Go to the home directory · `cd ~`
 - [x] `g d` — Go to the downloads directory · `cd ~/Downloads`
 - [x] `g D` — Go to the documents directory · `cd ~/Documents`
-- [x] `g c` — Go to filer's config directory · `cd %APPDATA%/filer`
-- [x] `g y` — Go to yazi's config directory · `cd %APPDATA%/yazi/config`
+- [x] `g c` — Go to filer's config directory · `cd %FILER_CONFIG_HOME%`
+- [x] `g y` — Go to yazi's config directory · `cd %YAZI_CONFIG_HOME%`
 - [x] `g t` — Go to the temporary directory · `cd %TEMP%`
 - [x] `g <Space>` — Jump interactively · `cd --interactive`
 - [x] `g f` — Follow the hovered symlink · `follow`
+- [ ] `g u` — Measure what is taking up the space here · `usage`
 
 ### Tabs
 
@@ -194,7 +196,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<C-t>` — Open the terminal pane · `terminal`
 - [x] `<A-t>` — Type the selected paths into the terminal · `term_send`
 
-## `[term]` — 12 / 12
+## `[term]` — 12 / 14
 
 While the terminal pane holds the keys. Everything not listed here goes to the shell.
 
@@ -209,6 +211,8 @@ While the terminal pane holds the keys. Everything not listed here goes to the s
 - [x] `<S-PageDown>` — Scroll forward half a screen · `term_scroll 50%`
 - [x] `<S-Home>` — To the top of the scrollback · `term_scroll top`
 - [x] `<S-End>` — Back to the bottom · `term_scroll bot`
+- [ ] `<A-k>` — Scroll the terminal up · `term_scroll -5`
+- [ ] `<A-j>` — Scroll the terminal down · `term_scroll 5`
 - [x] `<C-S-f>` — Find in the scrollback · `term_find`
 - [x] `<C-S-n>` — Find the next match · `term_find --repeat`
 - [x] `<C-S-b>` — Find the previous match · `term_find --repeat --prev`
@@ -241,13 +245,28 @@ A chooser — the command palette, the context menu.
 - [x] `<Enter>` — Submit · `close --submit`
 - [x] `<Esc>` — Cancel · `close`
 
-## `[help]` — 1 / 1
+## `[help]` — 1 / 16
 
 This panel (`~` or `<F1>`).
 
 ### Input line
 
 - [x] `<Esc>` — Close help · `close`
+- [ ] `q` — Close help · `close`
+- [ ] `~` — Close help · `help`
+- [ ] `<F1>` — Close help · `help`
+- [ ] `k` — Up one line · `arrow -1`
+- [ ] `j` — Down one line · `arrow 1`
+- [ ] `<Up>` — Up one line · `arrow -1`
+- [ ] `<Down>` — Down one line · `arrow 1`
+- [ ] `<A-k>` — Up half a page · `arrow -50%`
+- [ ] `<A-j>` — Down half a page · `arrow 50%`
+- [ ] `<C-u>` — Up half a page · `arrow -50%`
+- [ ] `<C-d>` — Down half a page · `arrow 50%`
+- [ ] `<PageUp>` — Up a page · `arrow -100%`
+- [ ] `<PageDown>` — Down a page · `arrow 100%`
+- [ ] `g g` — To the top · `arrow top`
+- [ ] `G` — To the bottom · `arrow bot`
 
 ## `[tasks]` — 9 / 9
 
