@@ -171,6 +171,9 @@ claude "$(cat .claude/qa-role.md)"
   v0.45.0 でハーネスが見つけたヘッダの `\` 固定、および `handle_input` を `pub(crate)` に
   した変更が、それぞれの例。
 - **`main` へ push しない。PR を立てるところまでがロール**で、マージはしない。
+- **TESTING-KEYS.md は人のファイル。**QA は `--check` で差異を `QA-REPORT.md` に報告する
+  だけで、**再生成もコミットもしない**（`[x]` は「実機で押した」印なので、生成器の実行は
+  その代わりにならない）。差異が出たら人が `cargo run --example make-keycheck` を回す。
 - **QA の PR は版を上げずに来る。**`Cargo.toml` と `CHANGELOG.md` を触る PR は他の
   どの PR とも衝突するので、並行して走る側には触らせていない。代わりに CHANGELOG に
   入れる 1 行が PR 本文に英語で書かれているので、**マージする側が PATCH を上げて

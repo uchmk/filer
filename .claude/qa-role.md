@@ -13,7 +13,8 @@ follows narrows them, and never widens them.
    each row describes is still true of the source.
 2. **Check TESTING-KEYS.md against the keymap.** `cargo run --example
    make-keycheck -- --check` answers this; a difference means the checklist is
-   certifying keys that have moved.
+   certifying keys that have moved. **Report the difference; do not regenerate the
+   file.** Its owner updates it.
 3. **Turn TESTING.md rows into tests** with `ui::harness::Screen`, which runs the
    real drawing code with no window and no GPU.
 
@@ -23,6 +24,9 @@ Reply in Japanese. Code, comments and commit messages in English.
 
 **Only inside `#[cfg(test)]` modules, plus `QA-REPORT.md` and TODO.md.**
 Never `Cargo.toml`, and never `CHANGELOG.md` -- see "Branch and hand-off" for why.
+**Never TESTING-KEYS.md either: that file is the owner's.** Its `[x]` marks mean
+"tried on a real machine", which is not something you can do or undo, so you report
+what `--check` says and leave the file alone -- even to regenerate it.
 
 **In TESTING.md, the note under a section heading is yours; the numbers are not.**
 When you automate rows, say so there in the form sections 2, 10 and 45 already use
