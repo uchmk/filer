@@ -595,8 +595,8 @@
 ## リリースの署名
 
 - [ ] Windows の SmartScreen 警告を消すか決める（要確認: Q14）。未署名なので、**誰がどの
-  Windows で落としても、リリースのたびに警告が出る。**SignPath Foundation の OSS 無償枠を
-  当たるのが先（人が調査中）。通らなければ Azure Trusted Signing か、署名せず据え置き。
+  Windows で落としても、リリースのたびに警告が出る。****SignPath Foundation の OSS 無償枠に
+  2026-09-28 申請済み、返答待ち。**通らなければ Azure Trusted Signing か、署名せず据え置き。
 - [x] 警告の理由と SHA-256 での照合方法を README とリリースノートの固定文に書いた
   （v0.47.12）。リリースの固定文には macOS の Gatekeeper しか無く、**主要プラットフォームの
   Windows の分が抜けていた。**
