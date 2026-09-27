@@ -1,0 +1,206 @@
+# The Japanese half of TESTING-CHECKS.md.
+#
+# `examples/make-testcheck.rs` reads this and TESTING.md, and writes
+# TESTING-CHECKS.md from the two. TESTING.md owns the check ids, the section
+# list and the English text; this file owns nothing but the Japanese, so a row
+# that leaves TESTING.md leaves the checklist whatever is written here, and a
+# row that arrives shows up untranslated rather than not at all.
+#
+# `[section."N"]` takes `title` (Japanese heading), `setup` (a block to paste
+# before working the section) and `note` (a sentence of context). `[row]` maps
+# a check id to its Japanese. Every one of them is optional: what is missing
+# falls back to TESTING.md's own English, marked 〔未訳〕.
+#
+# The English is printed beside the Japanese on every row, so the two can be
+# compared without opening TESTING.md. That is deliberate -- a translation kept
+# in a separate file drifts from its source, and the only defence that costs
+# nothing is putting them on the same line.
+
+# テストが id を名乗っていても、人の一覧に残すもの。
+# 13.10〜13.12 は `spot_link_section` が覆っているが、あのモジュールは `#[cfg(unix)]`
+# ——Windows でシンボリックリンクを作るのが 13.8 の権限問題だから。つまり**このチェック
+# リストを使う当の Windows では 1 行も走っていない。**
+#
+# ここは表より前に置くこと。TOML では、最初の `[table]` より後ろに書いた素のキーは
+# その表の中身になる。
+manual = ["13.10", "13.11", "13.12"]
+
+[section.1]
+title = "ターミナルペイン"
+setup = """
+```powershell
+# `many\\` と `repo` は make-fixtures.ps1 が作る
+cd $HOME\\Desktop\\filer-fixtures
+```
+"""
+
+[section.2]
+title = "ミニマップ"
+note = "`long.rs`（4000 行）を開く。帯の形が元のファイルに見えるかどうかが本題。"
+
+[section.3]
+title = "画像の拡大と移動"
+note = "`zoom-me.png` は 3200×2400 で 8px のグリッド入り。ぼけたらすぐ分かる。"
+
+[section.4]
+title = "SVG と、その中の文字"
+
+[section.5]
+title = "2 ファイルの差分表示"
+
+[section.6]
+title = "2 分割ペインと、ペイン間の受け渡し"
+
+[section.7]
+title = "ヘルプパネルの設定ファイルパス"
+
+[section.8]
+title = "ターミナルペインが起動するシェル"
+
+[section.9]
+title = "ファイル末尾のアウトライン"
+
+[section.10]
+title = "ヤンクレジスタ（コピー・カット）の表示"
+note = "残っているのは色そのものの見え方。緑 / 黄 / 赤に読めるか、3px の帯が気づける太さかどうか。"
+
+[section.11]
+title = "一括リネーム"
+
+[section.12]
+title = "undo と redo"
+
+[section.13]
+title = "シンボリックリンクと `g`+`f`"
+note = """
+Windows ではリンクを作るのが面倒。**ジャンクション**は管理者権限が要らない
+（`mklink /J linktest C:\\dev`）。**ファイルへのシンボリックリンクは開発者モードか管理者権限**が要る
+（設定 > システム > 開発者向け）。
+"""
+setup = """
+```powershell
+cd $HOME\\Desktop\\filer-fixtures
+# ハードリンク（13.13, 13.14, 13.16 用）
+"x" | Out-File locked.txt
+fsutil hardlink create locked-2.txt locked.txt
+fsutil hardlink list locked.txt        # 期待値の答え合わせ用
+```
+"""
+
+[section.14]
+title = "親ディレクトリの列を、マウスで"
+
+[section.15]
+title = "ウィンドウの拡大縮小と、取り返したキー"
+note = "JIS 配列では `=` は shift+`-` にある。`<C-=>`／`<C-+>` はどちらの配列でも同じ文字が届く。"
+
+[section.16]
+title = "Word / Excel / PowerPoint"
+
+[section.17]
+title = "自前のプレビューア"
+
+[section.18]
+title = "クイックルックと、ミニマップの隣、その他のペイン"
+
+[section.19]
+title = "ホイール、ペインごとの挙動"
+
+[section.20]
+title = "設定とテーマ"
+
+[section.21]
+title = "書庫（zip / tar / 7z）"
+
+[section.22]
+title = "エディタを行番号付きで開く（エディタのインストールが要る）"
+
+[section.23]
+title = "ネットワークパス（共有が要る）"
+
+[section.24]
+title = "扱いにくい名前"
+
+[section.25]
+title = "`filer env`"
+
+[section.26]
+title = "アプリの中からのバグ報告"
+
+[section.27]
+title = "届かなかったプレビュー"
+
+[section.28]
+title = "外から加えられた変更"
+
+[section.29]
+title = "ターミナルのカレントディレクトリを持ち帰る"
+
+[section.30]
+title = "プロンプトでの右クリック貼り付け"
+
+[section.31]
+title = "ホストの共有一覧"
+
+[section.32]
+title = "オープナー"
+
+[section.33]
+title = "設定の警告と、その色"
+
+[section.34]
+title = "ヘルプパネル自身のスクロール"
+
+[section.35]
+title = "設定ファイルの探索場所（OS ごと）"
+
+[section.36]
+title = "`T` と、`<F3>` との違い"
+
+[section.37]
+title = "`start \"\"` 形式のオープナーが実際に起動するか"
+
+[section.38]
+title = "フォーカスの規則、それを描く 2 つのペインで"
+
+[section.39]
+title = "ターミナルペインでの `<A-j>` / `<A-k>`"
+
+[section.40]
+title = "全画面プログラムにスクロールのジェスチャーを渡す"
+
+[section.41]
+title = "spot パネルの 4 つの provider"
+
+[section.42]
+title = "ミニマップのホバーカード"
+
+[section.43]
+title = "CSV / TSV を表として見る"
+
+[section.44]
+title = "ディスク使用量"
+
+[section.45]
+title = "2 つのフォルダを比べる"
+
+[section.46]
+title = "spot パネルの Git セクション"
+setup = """
+```powershell
+# git リポジトリの中で実行すること。fixtures の `repo` がそれ
+cd $HOME\\Desktop\\filer-fixtures\\repo
+git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
+```
+"""
+
+[row]
+"13.7" = "ジャンクション（`mklink /J`）を、ただのシンボリックリンクではなく"
+"13.8" = "`y` してから、別のディレクトリで `-`"
+"13.9" = "`y` してから、**隣の**ディレクトリで `_`"
+"13.10" = "シンボリックリンクの上で `<Tab>`"
+"13.11" = "`_` で作ったリンクの上で `<Tab>`"
+"13.12" = "**壊れた**リンクの上で `<Tab>`"
+"13.13" = "ハードリンクの上で `<Tab>`（`=` か `fsutil hardlink create` で作る）"
+"13.14" = "同じものを Windows で"
+"13.16" = "ハードリンクを作り、別のプログラムに共有なしの書き込みロックを握らせた状態で `<Tab>`（コマンドは上の「準備」）"

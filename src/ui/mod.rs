@@ -1610,6 +1610,9 @@ mod whole_frame {
     /// this adds is that the decision is reached from a frame, with the pane
     /// widths the real layout hands it. The strip is bands, not text, so this is
     /// the one check here that reads rectangles.
+    ///
+    /// TESTING.md 2.1 and 2.8. Named here because that is where the manual
+    /// checklist reads coverage from -- see `examples/make-testcheck.rs`.
     #[test]
     fn a_long_file_gets_a_strip_and_a_narrow_window_does_not() {
         // Wide enough for the preview pane to clear `MINIMAP_MIN_COLS`. At

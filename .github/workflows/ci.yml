@@ -1,10 +1,10 @@
 name: CI
 
-# Files that cannot change what the build does. TESTING-KEYS.md is deliberately
-# not here -- it is what `make-keycheck --check` compares against, so a change to
-# it is exactly when that step has to run. Neither is `Cargo.toml`, which carries
-# the version `--locked` checks, nor `.github/**`, since a change to CI should be
-# run by CI.
+# Files that cannot change what the build does. TESTING-KEYS.md and TESTING.md are
+# deliberately not here -- they are what `make-keycheck --check` and
+# `make-testcheck --check` compare against, so a change to either is exactly when
+# those steps have to run. Neither is `Cargo.toml`, which carries the version
+# `--locked` checks, nor `.github/**`, since a change to CI should be run by CI.
 on:
   push:
     branches: [main]
@@ -14,7 +14,6 @@ on:
       - 'TODO.md'
       - 'QUESTIONS.md'
       - 'QA-REPORT.md'
-      - 'TESTING.md'
       - '.claude/**'
       - 'LICENSE'
   pull_request:
@@ -27,7 +26,6 @@ on:
       - 'TODO.md'
       - 'QUESTIONS.md'
       - 'QA-REPORT.md'
-      - 'TESTING.md'
       - '.claude/**'
       - 'LICENSE'
 
@@ -108,3 +106,10 @@ jobs:
       # still listed one binding for it.
       - name: The key checklist matches the keymap
         run: cargo run --locked --example make-keycheck -- --check
+      # TESTING-CHECKS.md is the same bargain for TESTING.md: it is generated, it
+      # carries a human's ticks, and a check added to TESTING.md and never
+      # regenerated here is a check that never reaches the person working through
+      # the list. Renumbering is the sharp edge -- a tick stays on its id, so an
+      # id that moves to a different row silently certifies the wrong thing.
+      - name: The manual checklist matches TESTING.md
+        run: cargo run --locked --example make-testcheck -- --check
