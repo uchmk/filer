@@ -384,10 +384,10 @@ to answer a click.
 | # | Do | Expect |
 | --- | --- | --- |
 | 15.1 | `<C-->` with something yanked | **Only** the window shrinks. Until v0.32.0 it also made a hardlink — one press, two actions |
-| 15.2 | `<C-+>`, and `<C-=>` without shift | Both make it bigger |
+| 15.2 | `<C-+>`, and `<C-=>` | Both make it bigger. Which of the two needs shift depends on the layout — on US `+` is shift+equals, on JIS `+` is shift+semicolon and `=` is shift+minus — and both spellings are bound so either reaches it (v0.45.6) |
 | 15.3 | `<C-0>` | Back to 100%, and a toast says so |
 | 15.4 | Hold `<C-->` down | It shrinks smoothly and stops at 20%; `<C-+>` held stops at 500% |
-| 15.5 | `<C-S-->` with something yanked | The hardlink, in its new place |
+| 15.5 | `=` with something yanked, in a directory **on the same drive** | The hardlink, in its new place. Nothing in the app says so — a hardlink is another entry pointing at the same data, so it has no marker and the spot panel's Link section is for symlinks only. Confirm with `fsutil hardlink list <the new path>`, which lists every path sharing the data; or write to one and read the other. Across drives it must fail: NTFS hardlinks cannot leave their volume. Was `<C-S-->` until v0.45.6, a chord no keyboard can produce |
 | 15.6 | `<A-i>` / `<A-o>` on an image | Still the **image** zoom, unaffected — `zoom` and `scale` are different commands |
 | 15.7 | `~` | `scale in` / `scale out` / `scale reset` are listed, like any other command |
 
