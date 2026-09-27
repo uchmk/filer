@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn no_thumbnail_for_a_plain_file() {
         init_thread();
-        let path = std::env::temp_dir().join("filer-shell-thumb-test.bin");
+        let path = crate::util::test_dir("shell-thumb").join("probe.bin");
         std::fs::write(&path, b"nothing to see").unwrap();
         let r = render(&path, (256, 256));
         let _ = std::fs::remove_file(&path);

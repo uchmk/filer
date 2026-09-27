@@ -77,8 +77,7 @@ mod tests {
     /// found no fonts" are different answers and must not look alike.
     #[test]
     fn it_is_written_and_read_back() {
-        let dir = std::env::temp_dir().join("filer-runinfo-test");
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = crate::util::test_dir("runinfo");
         let p = dir.join("last-run.toml");
 
         assert_eq!(load_from(&p), None, "nothing written yet");

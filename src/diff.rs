@@ -596,9 +596,7 @@ mod tests {
 
     #[test]
     fn two_files_are_read_off_disk_and_compared() {
-        let dir = std::env::temp_dir().join(format!("filer-diff-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::util::test_dir("diff");
         let (l, r) = (dir.join("l.txt"), dir.join("r.txt"));
 
         std::fs::write(&l, "a\nb\n").unwrap();
@@ -624,9 +622,8 @@ mod tests {
 mod tree_tests {
     use super::*;
 
-    fn dirs(name: &str) -> (PathBuf, PathBuf) {
-        let root = std::env::temp_dir().join(format!("filer-tree-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+    fn dirs() -> (PathBuf, PathBuf) {
+        let root = crate::util::test_dir("tree");
         let (l, r) = (root.join("l"), root.join("r"));
         std::fs::create_dir_all(l.join("sub")).unwrap();
         std::fs::create_dir_all(r.join("sub")).unwrap();
@@ -666,7 +663,7 @@ mod tree_tests {
     /// walks the rows to check, which is the point.
     #[test]
     fn the_counts_agree_with_the_rows() {
-        let (l, r) = dirs("counts");
+        let (l, r) = dirs();
         std::fs::write(l.join("only-left"), b"x").unwrap();
         std::fs::write(r.join("only-right"), b"x").unwrap();
         std::fs::write(l.join("same"), b"ab").unwrap();
@@ -689,7 +686,7 @@ mod tree_tests {
 
     #[test]
     fn each_side_reports_what_only_it_has() {
-        let (l, r) = dirs("sides");
+        let (l, r) = dirs();
         std::fs::write(l.join("only-left"), b"x").unwrap();
         std::fs::write(r.join("only-right"), b"x").unwrap();
         std::fs::write(l.join("both"), b"same").unwrap();
@@ -707,7 +704,7 @@ mod tree_tests {
     /// differ, and nothing is read to know it.
     #[test]
     fn a_different_length_is_a_difference_without_reading() {
-        let (l, r) = dirs("len");
+        let (l, r) = dirs();
         std::fs::write(l.join("f"), b"short").unwrap();
         std::fs::write(r.join("f"), b"much longer").unwrap();
         assert_eq!(named(&rows(&l, &r), "f"), TreeState::Differ);
@@ -717,7 +714,7 @@ mod tree_tests {
     /// "same" just because the sizes match.
     #[test]
     fn the_same_length_is_settled_by_reading() {
-        let (l, r) = dirs("bytes");
+        let (l, r) = dirs();
         std::fs::write(l.join("same"), b"abcdef").unwrap();
         std::fs::write(r.join("same"), b"abcdef").unwrap();
         std::fs::write(l.join("diff"), b"abcdef").unwrap();
@@ -729,7 +726,7 @@ mod tree_tests {
 
     #[test]
     fn nested_paths_are_paired_by_what_they_are_inside_the_roots() {
-        let (l, r) = dirs("nested");
+        let (l, r) = dirs();
         std::fs::write(l.join("sub").join("deep"), b"one").unwrap();
         std::fs::write(r.join("sub").join("deep"), b"two").unwrap();
         let rows = rows(&l, &r);
@@ -743,7 +740,7 @@ mod tree_tests {
     /// not be read as one.
     #[test]
     fn a_folder_against_a_file_is_a_difference() {
-        let (l, r) = dirs("kind");
+        let (l, r) = dirs();
         std::fs::create_dir_all(l.join("x")).unwrap();
         std::fs::write(r.join("x"), b"file").unwrap();
         assert_eq!(named(&rows(&l, &r), "x"), TreeState::Differ);
@@ -751,7 +748,7 @@ mod tree_tests {
 
     #[test]
     fn two_copies_of_one_tree_are_all_matches() {
-        let (l, r) = dirs("equal");
+        let (l, r) = dirs();
         for d in [&l, &r] {
             std::fs::write(d.join("a"), b"aa").unwrap();
             std::fs::write(d.join("sub").join("b"), b"bb").unwrap();
@@ -763,7 +760,7 @@ mod tree_tests {
 
     #[test]
     fn a_missing_root_is_an_error_rather_than_an_empty_answer() {
-        let (l, _) = dirs("missing");
+        let (l, _) = dirs();
         let gone = l.parent().unwrap().join("never-made");
         assert!(matches!(compare_trees(&l, &gone), Outcome::Error(_)));
     }
@@ -772,7 +769,7 @@ mod tree_tests {
     /// that it compares content rather than just lengths.
     #[test]
     fn the_byte_comparison_finds_a_difference_anywhere() {
-        let (l, r) = dirs("blocks");
+        let (l, r) = dirs();
         let mut a = vec![b'x'; 200_000];
         let mut b = a.clone();
         b[199_999] = b'y';

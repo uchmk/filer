@@ -342,8 +342,7 @@ mod tests {
     fn a_real_repository_reports_what_was_done_to_it() {
         // Plain characters only: `"` and `:` are legal in a Unix path and not
         // in a Windows one, and CI is where that difference shows up.
-        let root = std::env::temp_dir().join(format!("filer-git-status-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
+        let root = crate::util::test_dir("git-status");
         std::fs::create_dir_all(root.join("sub")).unwrap();
 
         let git = |args: &[&str]| {
@@ -389,8 +388,7 @@ mod tests {
 
     #[test]
     fn somewhere_that_is_not_a_repository_says_nothing() {
-        let dir = std::env::temp_dir().join(format!("filer-git-bare-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = crate::util::test_dir("git-bare");
         std::fs::create_dir_all(&dir).unwrap();
         // `status` gives `None` whether git refused or is not installed, and
         // the caller draws nothing either way.
