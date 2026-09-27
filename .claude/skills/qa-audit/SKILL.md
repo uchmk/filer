@@ -209,7 +209,9 @@ git diff                # every added line inside a `#[cfg(test)]` module?
 ```
 
 Then commit, push to `test/<topic>`, and open a pull request. **Stop there.** Do
-not merge.
+not merge, and do not watch it -- `.claude/qa-role.md` says what "stop there"
+covers and why. The short of it: the session goes idle at the open pull request,
+and everything after that is the merger's.
 
 **Leave `Cargo.toml` and `CHANGELOG.md` alone** -- a PR that bumps the version
 conflicts with every other PR that does. Write the CHANGELOG line in the pull
