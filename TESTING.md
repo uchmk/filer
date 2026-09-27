@@ -877,6 +877,27 @@ needs a machine is real files, and the panel's own geometry.
 | 41.13 | `<A-j>` down into a new section's rows, then `y` | The right value is copied. **`Act::Copy` counts rows across every section, so the new sections shift the indices** |
 | 41.14 | `<Tab>` on a folder on a slow network drive | The panel still follows the cursor; the spot worker is newest-wins |
 
+## 42. The minimap's hover card (v0.40.0)
+
+The geometry and the clamp are unit-tested. What needs a machine is the timing, the drag, and whether
+it is legible against a real theme.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 42.1 | Hover the strip on a long source file and **hold still** | After about 0.4 s, a one-row card left of the strip: the line number, then that line in the body's own colours |
+| 42.2 | Sweep the pointer along the strip | The card follows. It never crosses into the strip, and never leaves the pane at either end |
+| 42.3 | Click where the card points | The preview jumps to **that** line, centred — the card was a preview of the click |
+| 42.4 | Hover the very **bottom pixel** of the strip | The last line, not a blank card (the clamp this release fixed) |
+| 42.5 | Press and **drag** up and down | The card **stays up and keeps following**, so you can find the place before letting go |
+| 42.6 | Hover a blank run | The number alone, in a card that shrinks to the gutter |
+| 42.7 | Hover a 2000-character line | Ellipsized on one row, no frame hitch |
+| 42.8 | Move the pointer off the strip and back | The delay starts again; no card left behind |
+| 42.9 | With a yazi `theme.toml` setting `[mgr] preview_hovered` (try `fg` and `bg`) | The card follows it. **This key never did anything before this release** |
+| 42.10 | Hover with the outline column up | The card covers the outline briefly and leaves nothing behind |
+| 42.11 | `M` on a Markdown file to get the source view, then hover | The card works there; in the rendered view there is no strip at all |
+| 42.12 | Hover on a file truncated at `max_text_bytes` | The number matches the body's own numbering for that line |
+| 42.13 | `<A-n>` to turn the minimap off | No strip, and so no card |
+
 ## Known gaps in this checklist
 
 - **Nothing here has been run.** The checklist was written from the code, not

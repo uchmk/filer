@@ -92,6 +92,7 @@ pub fn draw(
                     code(ui, &painter, body, lines, outline, *truncated, *total_lines, offset, st);
                 if let Some(strip) = strip {
                     drawn.scroll_to = minimap(ui, &painter, strip, map, offset, rows(body, st), st);
+                    minimap_hover(ui, &painter, strip, body, lines, st);
                 }
                 return drawn;
             }
@@ -106,8 +107,11 @@ pub fn draw(
                 }
                 let (body, strip) = split_minimap(rect, map, st);
                 let lines = text(ui, &painter, body, source, *truncated, *total_lines, offset, st);
-                let scroll_to = strip
-                    .and_then(|s| minimap(ui, &painter, s, map, offset, rows(body, st), st));
+                let mut scroll_to = None;
+                if let Some(strip) = strip {
+                    scroll_to = minimap(ui, &painter, strip, map, offset, rows(body, st), st);
+                    minimap_hover(ui, &painter, strip, body, source, st);
+                }
                 return Drawn { lines, jump: None, scroll_to };
             }
             Payload::Binary { lines, total } => {
@@ -221,6 +225,107 @@ fn at_line(line: usize, lines: usize) -> f32 {
     line.min(lines) as f32 / lines.max(1) as f32
 }
 
+/// The line the minimap points at, for a pointer at `y`.
+///
+/// The inverse of [`at_line`], and clamped at both ends. The bottom pixel of the
+/// strip used to come out as `lines` -- one past the end -- which nothing
+/// noticed while the only caller fed it straight into `saturating_sub` and had
+/// the result re-clamped downstream. A hover card indexes `lines` with it.
+fn line_at_y(y: f32, rect: Rect, lines: usize) -> usize {
+    if lines == 0 {
+        return 0;
+    }
+    let t = ((y - rect.top()) / rect.height().max(1.0)).clamp(0.0, 1.0);
+    ((t * lines as f32) as usize).min(lines - 1)
+}
+
+/// Where the hover card goes: against the strip, beside the pointer, inside the
+/// pane. Apart from the painting so the geometry can be tested without a window.
+fn hover_card(pointer_y: f32, pane: Rect, strip: Rect, w: f32, h: f32) -> Rect {
+    let w = w.min(pane.width() * 0.6);
+    let right = strip.left() - 4.0;
+    let top = (pointer_y - h / 2.0).clamp(pane.top(), (pane.bottom() - h).max(pane.top()));
+    Rect::from_min_size(pos2(right - w, top), Vec2::new(w, h))
+}
+
+/// How much of a line the card lays out. `MAX_LINE_CHARS` already bounds the
+/// worst case at 2000, but laying out 2000 glyphs on a hover frame is the cost
+/// the minimap exists to avoid.
+const HOVER_MAX_CHARS: usize = 200;
+
+/// The line under the pointer, painted beside the strip: what a click here would
+/// jump to.
+///
+/// Not part of [`minimap`], which is already at clippy's seven-argument limit
+/// and is doing a different job. Nothing is kept between frames except the
+/// moment the pointer arrived, and that lives in egui's own scratch space rather
+/// than in app state: when a pointer entered a strip is not something the app
+/// knows about the file, and holding it in `PreviewSlot` would mean invalidating
+/// it on a file change, a payload swap, a resize and a minimap toggle -- four
+/// ways to leave a stale card on the screen.
+fn minimap_hover(
+    ui: &Ui,
+    painter: &Painter,
+    strip: Rect,
+    body: Rect,
+    lines: &[Vec<Span>],
+    st: &PreviewStyle<'_>,
+) {
+    let id = ui.id().with("minimap-hover");
+    let over = ui.rect_contains_pointer(strip);
+    let dragging = ui.ctx().dragged_id() == Some(ui.id().with("minimap"));
+    if !over && !dragging {
+        ui.data_mut(|d| d.remove_temp::<f64>(id));
+        return;
+    }
+    let Some(p) = ui.ctx().pointer_latest_pos() else { return };
+    let now = ui.input(|i| i.time);
+    // When the pointer arrived. Measured from entering the strip rather than
+    // from the pointer going still, because the card is wanted during a drag
+    // too, and a dragging pointer never goes still.
+    let since = ui.data_mut(|d| *d.get_temp_mut_or(id, now));
+    let delay = f64::from(ui.style().interaction.tooltip_delay);
+    if now - since < delay {
+        // This app does not repaint continuously, so without this the card would
+        // arrive on the next unrelated event instead of when the delay is up.
+        ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64(delay - (now - since)));
+        return;
+    }
+
+    let k = line_at_y(p.y, strip, lines.len());
+    let Some(spans) = lines.get(k) else { return };
+    let hov = st.theme.preview_hovered;
+    let mut job = LayoutJob::default();
+    // The number first: a band carries no text by design, so "which line is
+    // this" is the question the strip cannot answer on its own.
+    job.append(
+        &format!("{:>width$} ", k + 1, width = (lines.len().to_string().len()).max(2)),
+        0.0,
+        format(&Span::default(), st.theme.fg_dim, st),
+    );
+    let mut budget = HOVER_MAX_CHARS;
+    for span in spans {
+        if budget == 0 {
+            break;
+        }
+        let text: String = span.text.chars().take(budget).collect();
+        budget -= text.chars().count();
+        let mut span = span.clone();
+        span.underline |= hov.underline;
+        span.bold |= hov.bold;
+        span.italic |= hov.italic;
+        let color = hov.fg.unwrap_or_else(|| span_color(&span, st));
+        job.append(&text, 0.0, format(&span, color, st));
+    }
+    job.wrap.max_width = f32::INFINITY;
+    let galley = painter.layout_job(job);
+
+    let card = hover_card(p.y, body, strip, galley.size().x + 12.0, st.row_h + 4.0);
+    painter.rect_filled(card, CornerRadius::same(3), hov.bg.unwrap_or_else(|| mix(st.theme.bg, st.theme.fg, 0.06)));
+    painter.rect_stroke(card, CornerRadius::same(3), Stroke::new(1.0, st.theme.border), StrokeKind::Inside);
+    painter.galley(card.left_top() + Vec2::new(6.0, 2.0), galley, st.theme.fg);
+}
+
 /// Deliberately not text: at two pixels a line a glyph is a smudge, and laying
 /// out ten thousand of them would cost the frame. Each band is one rectangle
 /// spanning the widest line in it, so a block of code reads as a block and a
@@ -284,13 +389,14 @@ fn minimap(
 
     // No cursor of its own. A resize cursor here promised something the
     // minimap does not do — it jumps to a line, it does not drag an edge — and
-    // the arrow says "click me" perfectly well.
+    // the arrow says "click me" perfectly well. Re-examined when the hover card
+    // went in and kept: a card that fades in says "there is something here"
+    // without the cursor promising a handle to drag.
     let resp = ui.interact(rect, ui.id().with("minimap"), Sense::click_and_drag());
     if !resp.clicked() && !resp.dragged() {
         return None;
     }
-    let y = resp.interact_pointer_pos()?.y - rect.top();
-    let want = (y / rect.height().max(1.0) * map.len() as f32).max(0.0) as usize;
+    let want = line_at_y(resp.interact_pointer_pos()?.y, rect, map.len());
     // Land with the line pointed at in the middle of the pane, not at its top.
     Some(want.saturating_sub(on_screen / 2))
 }
@@ -748,7 +854,70 @@ mod tests {
 
 #[cfg(test)]
 mod minimap_scale {
-    use super::at_line;
+    use super::{at_line, hover_card, line_at_y};
+    use egui::{pos2, Rect};
+
+    fn strip(top: f32, h: f32) -> Rect {
+        Rect::from_min_max(pos2(200.0, top), pos2(220.0, top + h))
+    }
+
+    /// The bug the hover card would have tripped over: the bottom pixel of the
+    /// strip mapped to `lines`, one past the end. Nothing noticed while the only
+    /// caller fed the answer into `saturating_sub` and had it re-clamped further
+    /// down; `lines[k]` would have been out of bounds on the first frame.
+    #[test]
+    fn the_pointer_never_indexes_past_the_end() {
+        for lines in [1usize, 2, 7, 99, 100, 101, 4001] {
+            for h in [1.0f32, 13.0, 200.0, 999.5] {
+                let r = strip(50.0, h);
+                assert_eq!(line_at_y(r.bottom(), r, lines), lines - 1, "{lines} lines, {h} tall");
+                // Past either end, and exactly on the top edge.
+                assert_eq!(line_at_y(r.bottom() + 500.0, r, lines), lines - 1);
+                assert_eq!(line_at_y(r.top(), r, lines), 0);
+                assert_eq!(line_at_y(r.top() - 500.0, r, lines), 0);
+            }
+        }
+        // An empty file is not a division by zero, and not a panic.
+        let r = strip(0.0, 100.0);
+        assert_eq!(line_at_y(50.0, r, 0), 0);
+    }
+
+    /// The card and the click have to name the same line, for ever: one reads
+    /// the pointer through `line_at_y`, the other draws the bands through
+    /// `at_line`, and if they ever disagree the card points somewhere the click
+    /// does not go.
+    #[test]
+    fn the_scale_round_trips() {
+        let r = strip(10.0, 400.0);
+        for n in [1usize, 2, 50, 400, 1000, 4001] {
+            for l in [0, 1, n / 3, n / 2, n - 1] {
+                let y = r.top() + at_line(l, n) * r.height();
+                let back = line_at_y(y, r, n);
+                assert!(
+                    back.abs_diff(l) <= 1,
+                    "{n} lines: line {l} drawn at {y} reads back as {back}"
+                );
+            }
+        }
+    }
+
+    /// The card is painted with the pane's own painter, so a mistake here would
+    /// be clipped rather than visible — which is exactly why it is asserted.
+    #[test]
+    fn the_hover_card_stays_in_the_pane() {
+        let pane = Rect::from_min_max(pos2(0.0, 100.0), pos2(200.0, 500.0));
+        let strip = Rect::from_min_max(pos2(200.0, 100.0), pos2(220.0, 500.0));
+        for y in [-100.0f32, 100.0, 101.0, 300.0, 499.0, 500.0, 900.0] {
+            let card = hover_card(y, pane, strip, 80.0, 18.0);
+            assert!(card.right() <= strip.left(), "y={y}: {card:?} runs into the strip");
+            assert!(card.top() >= pane.top() - 0.01, "y={y}: {card:?} above the pane");
+            assert!(card.bottom() <= pane.bottom() + 0.01, "y={y}: {card:?} below the pane");
+        }
+        // A line too long for the pane is capped rather than drawn off the side.
+        let wide = hover_card(300.0, pane, strip, 10_000.0, 18.0);
+        assert!(wide.width() <= pane.width() * 0.6 + 0.01, "{wide:?}");
+        assert!(wide.left() >= pane.left() - 0.01, "{wide:?}");
+    }
 
     /// The bands have to reach the bottom of the strip. They did not: sized at
     /// a fixed height per chunk, they stopped wherever the chunking ran out,
