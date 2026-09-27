@@ -222,6 +222,12 @@ clipboard or the cursor, so most of this section is about what they refuse.
 
 Needs two directories with different contents — `many\` and `repo\` will do.
 
+6.1 から 6.14 までは自動化されている（`ui::split_panes_frame`）。ペインの幅が揃うこと、
+親カラムが消えて `<C-S-w>` で戻ること、キーを持たないペインのカーソルが別の色で塗られる
+こと、`<A-c>` / `<A-m>` が本当に相手のペインのディレクトリに着地して選択を消すこと、
+2 つの拒否の文言、分割中のタブ切り替えとタブを閉じたときの後始末。**残るのは 6.15** —
+ジョブの進捗・速度と `w` からの取り消しは、動いているコピーを目で見るしかない。
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 6.1 | `<C-w>` once | Two panes side by side. The **parent column is gone**; the layout is pane, pane, preview, the same width as before |
@@ -431,6 +437,12 @@ skipped on Windows — this section is the only coverage of the `cmd` path.**
 | 17.14 | `filer env` with the rules in place | `pdftoppm` and `ffmpeg` listed under Tools, with `preview *.pdf` beside them |
 
 ## 18. Quick look, minimap's neighbours, and the rest of the panes
+
+18.1 から 18.4、18.8 から 18.10、18.12、および 18.11 の後半（`'` と文字）は自動化されて
+いる（`ui::quick_look_frame`）。18.5 と 18.6 は 6 節と同じことなので `ui::split_panes_frame`
+が見ている。**残るのは 18.7**（ドラッグとポインタ脇のラベルはマウスの手が要る）と、
+**18.11 の前半** — `b` と文字ではジャンプしない（`b` は管理のプレフィックス）。QA-REPORT.md
+を参照。
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -758,6 +770,13 @@ Windows needs confirming that nothing moved.**
 
 The binding and its parse are covered by tests; what needs eyes is the drawing,
 and the fact that these two are not the same thing at two sizes.
+
+36.1 から 36.9、36.11、および `q` の表の 36.12 から 36.16 は自動化されている
+（`ui::max_preview_frame`）。`<F3>` のパネルが窓の 86% × 88% にちょうど収まることと、
+`T` がそのサイズの矩形を一切描かないこと（＝この 2 つが別物であること）まで測っている。
+**残るのは 36.10**（`prepend_keymap` を書き換えて `<C-F5>` で読み直す手順は設定ファイルが
+要る）、**36.18**（同じく再バインド）、そして **36.17 の半分** — `q` がプロセスを終わらせ
+ないことは見ているが、「Nothing happens」のほうはコードと食い違う。QA-REPORT.md を参照。
 
 | # | Do | Expect |
 | --- | --- | --- |
