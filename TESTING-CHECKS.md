@@ -10,7 +10,7 @@
 **0 / 359 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 157 件は
 「押すもの」から外してある）
 
-未訳 351 件は原文のまま `〔未訳〕` を付けて出している。
+未訳 265 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -32,36 +32,36 @@
 cd $HOME\Desktop\filer-fixtures
 ```
 
-- [ ] **1.1** `<C-t>` from the file list → A shell opens along the bottom, already in the directory the list is showing 〔未訳〕
-- [ ] **1.2** Type `dir` and press Enter → Output in the list's own font, columns lined up, no overlapping glyphs 〔未訳〕
-- [ ] **1.3** Look at the cursor → A block where the shell's cursor is, and it moves as you type 〔未訳〕
-- [ ] **1.3a** `<C-t>` to give the keys back (v0.20.2) → The cursor goes **hollow**, and the rule along the top of the pane stays the plain border colour — it no longer turns green with focus 〔未訳〕
-- [ ] **1.4** Run something colorful (`git status` in the `repo` fixture) → The 16 ANSI colors, and they match the file list's own colors rather than looking like a second palette 〔未訳〕
-- [ ] **1.5** **`<C-t>` again** → Keys go back to the list — **and the shell is still there**, with its output intact. This is the v0.6.0 fix; before it, this ended the shell 〔未訳〕
-- [ ] **1.6** `<C-t>`, `<C-t>`, `<C-t>` a few times → The same shell throughout. The scrollback never resets 〔未訳〕
-- [ ] **1.7** `<C-S-t>` → *Now* the pane closes and the shell ends 〔未訳〕
-- [ ] **1.8** Reopen, then resize the window → The grid reflows; no clipped half-columns, no stretched text 〔未訳〕
-- [ ] **1.9** `dir` in `many\` to fill the screen, then `<S-PageUp>` → **The text moves.** Until v0.20.3 only the note moved — it said "N lines back" over a screen that had not scrolled 〔未訳〕
-- [ ] **1.9a** `<S-PageUp>` / `<S-PageDown>` (v0.20.4) → Half a screen back / forward. Until v0.20.4 the sign was inverted, so `<S-PageUp>` aimed at the bottom and did nothing 〔未訳〕
-- [ ] **1.9b** `<S-Home>`, `<S-End>` → The oldest line held, and the prompt. These worked before — no sign to get wrong 〔未訳〕
-- [ ] **1.9d** The mouse wheel over the pane (v0.20.4) → Moves smoothly, a notch at a time. It used to need spinning hard for one or two lines 〔未訳〕
-- [ ] **1.9e** Scroll back far enough that the prompt leaves the screen → The cursor goes with it — no block left behind at its old height 〔未訳〕
-- [ ] **1.9c** `<C-S-f>` for a word far up the scrollback, Enter → The view jumps to the match **and the match is highlighted** 〔未訳〕
-- [ ] **1.9f** `<C-S-f>` for a word that is on screen right now (v0.20.4) → The one on screen is found first, not an older one up in the history 〔未訳〕
-- [ ] **1.9g** `<C-S-n>` / `<C-S-b>` after that → `<C-S-n>` walks further up into the history, `<C-S-b>` comes back down 〔未訳〕
-- [ ] **1.9h** `<C-S-f>` for something that is not there → A red toast saying so — not silence 〔未訳〕
-- [ ] **1.10** `<S-End>`, then type a character → Back at the bottom, and typing alone would have done it 〔未訳〕
-- [ ] **1.11** Drag across some output (v0.20.4) → **It highlights as you drag**, and is on the clipboard when you let go. Before v0.20.4 the copy worked and nothing was drawn 〔未訳〕
-- [ ] **1.11a** Drag **right to left** over the same run of text (v0.26.4) → The same text, character for character. Until v0.26.4 a backwards drag lost one at **each** end 〔未訳〕
-- [ ] **1.11b** Start the drag **on** the first character, not to its left (v0.26.4) → It is included. It used to be dropped unless the drag began in the gap before it 〔未訳〕
-- [ ] **1.11c** Drag from the right half of a character → That character is left out — correct, and the same rule that makes 1.11a work 〔未訳〕
-- [ ] **1.12** Double-click a word → The word is selected, and visibly so 〔未訳〕
-- [ ] **1.13** `<C-S-f>`, type a word from the scrollback, Enter, then `<C-S-n>` → Matches are found and stepped through; it wraps at the end 〔未訳〕
-- [ ] **1.14** `<F1>` inside the terminal → The key list opens **over** the terminal. `<Esc>` closes it and typing goes back to the shell 〔未訳〕
-- [ ] **1.15** `<C-S-p>` inside the terminal → The command palette opens, and running something from it works 〔未訳〕
-- [ ] **1.16** `cd` somewhere in the shell, then `<A-Up>` → The file list follows to where the shell is 〔未訳〕
-- [ ] **1.17** Select two files, `<A-t>` → Their paths are typed onto the shell's line, quoted, **not run** 〔未訳〕
-- [ ] **1.18** With a shell that reports OSC 7 (PowerShell 7, or bash with a `PROMPT_COMMAND`), change directory in the list → No stray `cd` is typed into the shell 〔未訳〕
+- [ ] **1.1** `<C-t>` を一覧から押す → 下部にシェルが開き、一覧が表示しているディレクトリに既にいる — *`<C-t>` from the file list → A shell opens along the bottom, already in the directory the list is showing*
+- [ ] **1.2** `dir` と打って Enter → 出力が一覧と同じフォントで、桁が揃い、字が重ならない — *Type `dir` and press Enter → Output in the list's own font, columns lined up, no overlapping glyphs*
+- [ ] **1.3** カーソルを見る → シェルのカーソル位置が四角く塗られ、打つと動く — *Look at the cursor → A block where the shell's cursor is, and it moves as you type*
+- [ ] **1.3a** `<C-t>` でキーを一覧に戻す → カーソルが**中抜き**になり、ペイン上端の線は枠の色のまま（フォーカスで緑にならない） — *`<C-t>` to give the keys back (v0.20.2) → The cursor goes **hollow**, and the rule along the top of the pane stays the plain border colour — it no longer turns green with focus*
+- [ ] **1.4** 色の出るものを実行（`repo` の中で `git status`）→ ANSI 16 色が出て、**一覧自身の配色と一致**する（別パレットに見えない） — *Run something colorful (`git status` in the `repo` fixture) → The 16 ANSI colors, and they match the file list's own colors rather than looking like a second palette*
+- [ ] **1.5** **もう一度 `<C-t>`** → キーが一覧に戻り、**シェルは生きたまま**出力も残っている（v0.6.0 の修正。以前はここでシェルが終了していた） — ***`<C-t>` again** → Keys go back to the list — **and the shell is still there**, with its output intact. This is the v0.6.0 fix; before it, this ended the shell*
+- [ ] **1.6** `<C-t>` を何度か往復 → 同じシェルのまま。スクロールバックが消えない — *`<C-t>`, `<C-t>`, `<C-t>` a few times → The same shell throughout. The scrollback never resets*
+- [ ] **1.7** `<C-S-t>` → **ここで**ペインが閉じ、シェルが終了する — *`<C-S-t>` → *Now* the pane closes and the shell ends*
+- [ ] **1.8** 開き直してウィンドウをリサイズ → 桁が組み直される。半端に切れた列も、引き伸ばされた字も無い — *Reopen, then resize the window → The grid reflows; no clipped half-columns, no stretched text*
+- [ ] **1.9** `many\` で `dir` して画面を埋め、`<S-PageUp>` → **本文が動く**（v0.20.3 まで注記だけが動き、スクロールしていない画面に「N 行前」と出ていた） — *`dir` in `many\` to fill the screen, then `<S-PageUp>` → **The text moves.** Until v0.20.3 only the note moved — it said "N lines back" over a screen that had not scrolled*
+- [ ] **1.9a** `<S-PageUp>` / `<S-PageDown>` → 半画面ずつ戻る / 進む（v0.20.4 まで符号が逆で、`<S-PageUp>` が下を向いて何も起きなかった） — *`<S-PageUp>` / `<S-PageDown>` (v0.20.4) → Half a screen back / forward. Until v0.20.4 the sign was inverted, so `<S-PageUp>` aimed at the bottom and did nothing*
+- [ ] **1.9b** `<S-Home>`、`<S-End>` → 最古の行と、プロンプト — *`<S-Home>`, `<S-End>` → The oldest line held, and the prompt. These worked before — no sign to get wrong*
+- [ ] **1.9d** ペインの上でホイール → 1 ノッチずつ滑らかに動く（以前は 1〜2 行動かすのに強く回す必要があった） — *The mouse wheel over the pane (v0.20.4) → Moves smoothly, a notch at a time. It used to need spinning hard for one or two lines*
+- [ ] **1.9e** プロンプトが画面から出るまで戻る → カーソルも一緒に消える（元の高さに四角が取り残されない） — *Scroll back far enough that the prompt leaves the screen → The cursor goes with it — no block left behind at its old height*
+- [ ] **1.9c** `<C-S-f>` でスクロールバックのずっと上にある語を検索、Enter → そこへ飛び、**一致箇所が強調される** — *`<C-S-f>` for a word far up the scrollback, Enter → The view jumps to the match **and the match is highlighted***
+- [ ] **1.9f** `<C-S-f>` で**いま画面に出ている**語を検索 → 履歴の古いほうではなく、画面のものが先に見つかる — *`<C-S-f>` for a word that is on screen right now (v0.20.4) → The one on screen is found first, not an older one up in the history*
+- [ ] **1.9g** そのあと `<C-S-n>` / `<C-S-b>` → `<C-S-n>` で履歴の上へ、`<C-S-b>` で下へ戻る — *`<C-S-n>` / `<C-S-b>` after that → `<C-S-n>` walks further up into the history, `<C-S-b>` comes back down*
+- [ ] **1.9h** `<C-S-f>` で存在しない語を検索 → 赤いトーストで「無い」と言う（無反応ではない） — *`<C-S-f>` for something that is not there → A red toast saying so — not silence*
+- [ ] **1.10** `<S-End>` のあと何か 1 文字打つ → 最下部に戻る。打つだけでも戻ることの確認 — *`<S-End>`, then type a character → Back at the bottom, and typing alone would have done it*
+- [ ] **1.11** 出力の上をドラッグ → **ドラッグ中から選択が描かれ**、離すとクリップボードに入る（v0.20.4 まではコピーは効くのに何も描かれなかった） — *Drag across some output (v0.20.4) → **It highlights as you drag**, and is on the clipboard when you let go. Before v0.20.4 the copy worked and nothing was drawn*
+- [ ] **1.11a** 同じ範囲を**右から左へ**ドラッグ → 1 文字も違わず同じ文字列（v0.26.4 まで逆向きは**両端で 1 文字ずつ**落ちていた） — *Drag **right to left** over the same run of text (v0.26.4) → The same text, character for character. Until v0.26.4 a backwards drag lost one at **each** end*
+- [ ] **1.11b** 最初の文字の**左の隙間ではなく、文字の上から**ドラッグを始める → その文字が含まれる（以前は隙間から始めないと落ちた） — *Start the drag **on** the first character, not to its left (v0.26.4) → It is included. It used to be dropped unless the drag began in the gap before it*
+- [ ] **1.11c** 文字の**右半分**からドラッグを始める → その文字は含まれない（これが正しく、1.11a が成り立つのと同じ規則） — *Drag from the right half of a character → That character is left out — correct, and the same rule that makes 1.11a work*
+- [ ] **1.12** 単語をダブルクリック → 単語が選択され、それが目に見える — *Double-click a word → The word is selected, and visibly so*
+- [ ] **1.13** `<C-S-f>` でスクロールバックの語を検索、Enter、そのあと `<C-S-n>` → 次々に移動でき、末尾で先頭に回り込む — *`<C-S-f>`, type a word from the scrollback, Enter, then `<C-S-n>` → Matches are found and stepped through; it wraps at the end*
+- [ ] **1.14** ターミナルの中で `<F1>` → キー一覧がターミナルの**上に**開く。`<Esc>` で閉じ、入力がシェルに戻る — *`<F1>` inside the terminal → The key list opens **over** the terminal. `<Esc>` closes it and typing goes back to the shell*
+- [ ] **1.15** ターミナルの中で `<C-S-p>` → コマンドパレットが開き、そこから実行できる — *`<C-S-p>` inside the terminal → The command palette opens, and running something from it works*
+- [ ] **1.16** シェルで `cd` してから `<A-Up>` → 一覧がシェルのいる場所へ追従する — *`cd` somewhere in the shell, then `<A-Up>` → The file list follows to where the shell is*
+- [ ] **1.17** 2 つ選んで `<A-t>` → パスが引用符付きでシェルの行に打ち込まれる。**実行はされない** — *Select two files, `<A-t>` → Their paths are typed onto the shell's line, quoted, **not run***
+- [ ] **1.18** OSC 7 を報告するシェル（PowerShell 7、または `PROMPT_COMMAND` を設定した bash）で、一覧側のディレクトリを変える → シェルに余計な `cd` が打ち込まれない — *With a shell that reports OSC 7 (PowerShell 7, or bash with a `PROMPT_COMMAND`), change directory in the list → No stray `cd` is typed into the shell*
 
 ## 2. ミニマップ — 0 / 10
 
@@ -69,42 +69,60 @@ cd $HOME\Desktop\filer-fixtures
 
 自動テスト済みなので下には出していない: 2.1, 2.8
 
-- [ ] **2.2** Look at the shape → Comment headers read as long bars, indented blocks as bars starting further right, the blank line every 40 as a gap. It should look like the file 〔未訳〕
-- [ ] **2.3** Look at the colors → The bars carry syntax colors — strings and comments differ from code — not one flat color 〔未訳〕
-- [ ] **2.4** Find the viewport box → A lighter box with a border, covering the part of the file on screen 〔未訳〕
-- [ ] **2.5** `<A-j>` a few times → The box moves down in step with the text 〔未訳〕
-- [ ] **2.6** Click halfway down the strip → The preview jumps there, with the clicked line in the **middle** of the pane, not at its top 〔未訳〕
-- [ ] **2.7** Drag up and down the strip → The preview follows continuously 〔未訳〕
-- [ ] **2.9** `<A-n>` → The map toggles off and on 〔未訳〕
-- [ ] **2.10** Open `notes.md` (rendered) → **No map** — this is deliberate, the rendered lines are not the file's lines 〔未訳〕
-- [ ] **2.11** Press `M` for source → The map appears 〔未訳〕
-- [ ] **2.12** A short file (`same-a.txt`) → No map: two lines are not worth mapping 〔未訳〕
+準備:
+
+```powershell
+cd $HOME\Desktop\filer-fixtures
+# long.rs は 4000 行。コメント見出し・インデント・40 行ごとの空行で形が出るように作ってある
+```
+
+- [ ] **2.2** 形を見る → コメント見出しが長い帯、インデントされた塊は右から始まる帯、40 行ごとの空行が隙間。**元のファイルの形に見えること** — *Look at the shape → Comment headers read as long bars, indented blocks as bars starting further right, the blank line every 40 as a gap. It should look like the file*
+- [ ] **2.3** 色を見る → 帯に構文色が乗っている（文字列とコメントがコードと違う色）。単色の塗りつぶしではない — *Look at the colors → The bars carry syntax colors — strings and comments differ from code — not one flat color*
+- [ ] **2.4** ビューポートの枠を探す → 画面に出ている範囲を覆う、明るめの枠線付きの箱がある — *Find the viewport box → A lighter box with a border, covering the part of the file on screen*
+- [ ] **2.5** `<A-j>` を数回 → 箱が本文と同じだけ下がる — *`<A-j>` a few times → The box moves down in step with the text*
+- [ ] **2.6** 帯の中ほどをクリック → プレビューがそこへ飛び、**クリックした行がペインの中央**に来る（上端ではない） — *Click halfway down the strip → The preview jumps there, with the clicked line in the **middle** of the pane, not at its top*
+- [ ] **2.7** 帯の上を上下にドラッグ → プレビューが連続して追従する — *Drag up and down the strip → The preview follows continuously*
+- [ ] **2.9** `<A-n>` → ミニマップが消え、もう一度で戻る — *`<A-n>` → The map toggles off and on*
+- [ ] **2.10** `notes.md` を（レンダリング表示で）開く → **ミニマップは出ない。**これは意図的で、描画された行はファイルの行と一致しないため — *Open `notes.md` (rendered) → **No map** — this is deliberate, the rendered lines are not the file's lines*
+- [ ] **2.11** `M` でソース表示にする → ミニマップが出る — *Press `M` for source → The map appears*
+- [ ] **2.12** 短いファイル（`same-a.txt`）→ 出ない。2 行を地図にしても意味がない — *A short file (`same-a.txt`) → No map: two lines are not worth mapping*
 
 ## 3. 画像の拡大と移動 — 0 / 10
 
 `zoom-me.png` は 3200×2400 で 8px のグリッド入り。ぼけたらすぐ分かる。
 
-- [ ] **3.1** Hover `zoom-me.png` → It fits the pane. The caption reads `3200 × 2400 · fit NN%` 〔未訳〕
-- [ ] **3.2** `<A-1>` (1:1) → It fills far more than the pane, showing the middle. **The grid lines are crisp** — this is the re-decode working; if it is a blurred enlargement of the fitted copy, that is the bug this was built to avoid 〔未訳〕
-- [ ] **3.3** Watch the moment it sharpens → The picture must **not jump or change size** when the sharper copy arrives. Only its sharpness changes 〔未訳〕
-- [ ] **3.4** Drag it → It pans, and stops when its edge reaches the pane's edge — it cannot be thrown off screen 〔未訳〕
-- [ ] **3.5** `Ctrl` and the wheel, pointer on a grid intersection → It zooms **about the pointer**: the intersection under the cursor stays under it 〔未訳〕
-- [ ] **3.6** Plain wheel (no Ctrl) → Scrolls the pane, does not zoom 〔未訳〕
-- [ ] **3.7** Double-click → Back to fitting, centred 〔未訳〕
-- [ ] **3.8** `<A-i>` / `<A-o>` → In and out in steps. The caption's percentage follows 〔未訳〕
-- [ ] **3.9** Zoom in, then `j` to the next file and back → It is fitted again — a zoom belongs to the file it was set on 〔未訳〕
-- [ ] **3.10** Hover `tiny.png` (48×48) → Shown at its own size, **not blown up** to fill the pane 〔未訳〕
+準備:
+
+```powershell
+cd $HOME\Desktop\filer-fixtures
+# zoom-me.png（3200x2400、グリッド入り）と tiny.png（48x48）を使う
+```
+
+- [ ] **3.1** `zoom-me.png` をホバー → ペインに収まる。説明に `3200 × 2400 · fit NN%` と出る — *Hover `zoom-me.png` → It fits the pane. The caption reads `3200 × 2400 · fit NN%`*
+- [ ] **3.2** `<A-1>`（等倍）→ ペインよりはるかに大きくなり、中央部分が見える。**グリッド線がくっきりしている**こと（再デコードが効いている証拠。収めた画像を引き伸ばしたぼけた絵なら、それがこの機能の避けたかったバグ） — *`<A-1>` (1:1) → It fills far more than the pane, showing the middle. **The grid lines are crisp** — this is the re-decode working; if it is a blurred enlargement of the fitted copy, that is the bug this was built to avoid*
+- [ ] **3.3** くっきりする瞬間を見る → **画像が飛んだり大きさが変わったりしてはいけない。**変わるのは鮮明さだけ — *Watch the moment it sharpens → The picture must **not jump or change size** when the sharper copy arrives. Only its sharpness changes*
+- [ ] **3.4** ドラッグする → 移動でき、端がペインの端に来たら止まる。画面外へ放り出せない — *Drag it → It pans, and stops when its edge reaches the pane's edge — it cannot be thrown off screen*
+- [ ] **3.5** グリッドの交点にポインタを置いて `Ctrl`+ホイール → **ポインタを中心に**拡大縮小し、カーソル下の交点がその位置に留まる — *`Ctrl` and the wheel, pointer on a grid intersection → It zooms **about the pointer**: the intersection under the cursor stays under it*
+- [ ] **3.6** Ctrl 無しのホイール → ペインがスクロールする。拡大はしない — *Plain wheel (no Ctrl) → Scrolls the pane, does not zoom*
+- [ ] **3.7** ダブルクリック → 収まる大きさに戻り、中央に来る — *Double-click → Back to fitting, centred*
+- [ ] **3.8** `<A-i>` / `<A-o>` → 段階的に拡大縮小。説明のパーセント表示も追従する — *`<A-i>` / `<A-o>` → In and out in steps. The caption's percentage follows*
+- [ ] **3.9** 拡大してから `j` で次のファイルへ行き、戻る → また収まった状態になっている（拡大率はファイルごとのもの） — *Zoom in, then `j` to the next file and back → It is fitted again — a zoom belongs to the file it was set on*
+- [ ] **3.10** `tiny.png`（48×48）をホバー → 元の大きさのまま表示される。**ペインを埋めるように引き伸ばされない** — *Hover `tiny.png` (48×48) → Shown at its own size, **not blown up** to fill the pane*
 
 ## 4. SVG と、その中の文字 — 0 / 8
 
-- [ ] **4.1** Hover an SVG with no text in it (an icon, a logo) → Drawn, scaled to fill the pane, sharp at any pane size 〔未訳〕
-- [ ] **4.2** An SVG containing **text** → The text is drawn, in the right place, at the right size — **not missing, not boxes, not overlapping** 〔未訳〕
-- [ ] **4.3** An SVG with **Japanese** text → Same. A font with kana and kanji is picked, rather than the text vanishing 〔未訳〕
-- [ ] **4.4** An SVG naming a font that is **not installed** → A fallback is used and something readable appears; it does not fail the whole render 〔未訳〕
-- [ ] **4.5** An SVG with **bold** or *italic* text → The weight and slant are there, not flattened to regular 〔未訳〕
-- [ ] **4.6** An SVG using a font **file next to it** rather than a system font → Loaded from the directory, as `resources_dir` intends 〔未訳〕
-- [ ] **4.7** A **malformed** SVG (truncate one) → `bad SVG: …` on the preview, and the window keeps working 〔未訳〕
-- [ ] **4.8** Compare 4.2 and 4.3 against v0.33.5's build → Any difference in the glyphs is the new shaper; say what changed and attach both 〔未訳〕
+**fixtures には SVG が入っていない。**手持ちの `.svg` で構わないが、Inkscape や Illustrator で
+保存したものが良い（手書きの単純なものより、実際に使う形に近い）。文字入り・日本語入り・
+太字斜体入りの 3 つが要る。**4.8 だけは v0.33.5 のビルドが要るので、今は飛ばしてよい。**
+
+- [ ] **4.1** 文字の入っていない SVG（アイコンやロゴ）をホバー → 描画され、ペインに合わせて拡大され、どの大きさでもくっきりしている — *Hover an SVG with no text in it (an icon, a logo) → Drawn, scaled to fill the pane, sharp at any pane size*
+- [ ] **4.2** **文字の入った** SVG → 文字が正しい位置に正しい大きさで描かれる。**消えていない・豆腐になっていない・重なっていない** — *An SVG containing **text** → The text is drawn, in the right place, at the right size — **not missing, not boxes, not overlapping***
+- [ ] **4.3** **日本語**の入った SVG → 同じ。かなと漢字のあるフォントが選ばれる（文字が消えない） — *An SVG with **Japanese** text → Same. A font with kana and kanji is picked, rather than the text vanishing*
+- [ ] **4.4** **インストールされていない**フォントを指定した SVG → 代替フォントが使われて読める形で出る。描画全体が失敗しない — *An SVG naming a font that is **not installed** → A fallback is used and something readable appears; it does not fail the whole render*
+- [ ] **4.5** **太字**や*斜体*の文字が入った SVG → 太さと傾きが反映される（普通の字に潰れない） — *An SVG with **bold** or *italic* text → The weight and slant are there, not flattened to regular*
+- [ ] **4.6** システムフォントではなく**隣に置いたフォントファイル**を使う SVG → そのディレクトリから読まれる（`resources_dir` の意図どおり） — *An SVG using a font **file next to it** rather than a system font → Loaded from the directory, as `resources_dir` intends*
+- [ ] **4.7** **壊れた** SVG（途中で切ったもの）→ プレビューに `bad SVG: …` と出て、ウィンドウは動き続ける — *A **malformed** SVG (truncate one) → `bad SVG: …` on the preview, and the window keeps working*
+- [ ] **4.8** 4.2 と 4.3 を v0.33.5 のビルドと見比べる → 字形の違いがあれば新しいシェイパーの影響。何が変わったかを書いて両方添える（**v0.33.5 のビルドが要るので、無ければ飛ばす**） — *Compare 4.2 and 4.3 against v0.33.5's build → Any difference in the glyphs is the new shaper; say what changed and attach both*
 
 ## 5. 2 ファイルの差分表示 — 0 / 1
 
@@ -120,24 +138,30 @@ cd $HOME\Desktop\filer-fixtures
 
 ## 7. ヘルプパネルの設定ファイルパス — 0 / 8
 
-- [ ] **7.1** `~` with no `filer.toml` anywhere → **Both** directories are listed, the empty one marked `nothing here`. Before v0.25.0 only files that existed were shown 〔未訳〕
-- [ ] **7.2** Hover a path → The row lights up and the pointer becomes a hand 〔未訳〕
-- [ ] **7.3** Hover a key row → Nothing happens — it is not a link 〔未訳〕
-- [ ] **7.4** Click a config **file** → The panel closes, the list opens its directory with that file under the cursor. `<Enter>` then opens it 〔未訳〕
-- [ ] **7.5** Click a **directory** → The panel closes and the list goes there, empty or not 〔未訳〕
-- [ ] **7.6** Click the empty one, then create `filer.toml` there and `<C-F5>` → It appears in the panel next time, without `nothing here` 〔未訳〕
-- [ ] **7.7** With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set → The listed directories follow them 〔未訳〕
-- [ ] **7.8** A config warning line → Still yellow, and not clickable 〔未訳〕
+`~` か `<F1>` でヘルプを開く。上部の設定パスの並びが対象。
+
+- [ ] **7.1** どこにも `filer.toml` が無い状態で `~` → **両方の**ディレクトリが並び、空のほうに `nothing here` が付く（v0.25.0 までは存在するファイルしか出なかった） — *`~` with no `filer.toml` anywhere → **Both** directories are listed, the empty one marked `nothing here`. Before v0.25.0 only files that existed were shown*
+- [ ] **7.2** パスの行をホバー → 行が光り、ポインタが手の形になる — *Hover a path → The row lights up and the pointer becomes a hand*
+- [ ] **7.3** キーの行をホバー → 何も起きない。そこはリンクではない — *Hover a key row → Nothing happens — it is not a link*
+- [ ] **7.4** 設定**ファイル**をクリック → パネルが閉じ、そのファイルにカーソルを置いた状態でディレクトリが開く。`<Enter>` でそのまま開ける — *Click a config **file** → The panel closes, the list opens its directory with that file under the cursor. `<Enter>` then opens it*
+- [ ] **7.5** **ディレクトリ**をクリック → パネルが閉じ、空でもそこへ移動する — *Click a **directory** → The panel closes and the list goes there, empty or not*
+- [ ] **7.6** 空のほうをクリックし、そこに `filer.toml` を作って `<C-F5>` → 次に開いたとき `nothing here` が消えている — *Click the empty one, then create `filer.toml` there and `<C-F5>` → It appears in the panel next time, without `nothing here`*
+- [ ] **7.7** `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う — *With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set → The listed directories follow them*
+- [ ] **7.8** 設定の警告行 → 黄色のまま。クリックできない — *A config warning line → Still yellow, and not clickable*
 
 ## 8. ターミナルペインが起動するシェル — 0 / 7
 
-- [ ] **8.1** `<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` → `5.1.x` — Windows PowerShell, unchanged from every earlier version 〔未訳〕
-- [ ] **8.2** Add `[term]` / `shell = "pwsh"`, `<C-S-t>`, `<C-t>`, ask again → `7.x` 〔未訳〕
-- [ ] **8.3** `$PROFILE` in each → Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7 〔未訳〕
-- [ ] **8.4** With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each → Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report 〔未訳〕
-- [ ] **8.5** `args = ["-NoLogo"]` → The banner is gone 〔未訳〕
-- [ ] **8.6** A `shell` that is not installed → It fails to start and says so — no silent empty pane 〔未訳〕
-- [ ] **8.7** Remove `[term]` again, `<C-S-t>`, `<C-t>` → Back to the default 〔未訳〕
+**`[term]` は `filer.toml` に書く。**`yazi.toml` に書いても黙って無視される
+（v0.33.13 でそれを警告するようにした）。設定を変えたら `<C-S-t>` でシェルを終わらせてから
+`<C-t>` で開き直すこと。`<C-t>` の往復では同じシェルが生き続ける（1.5 / 1.6）。
+
+- [ ] **8.1** `filer.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `5.1.x`（Windows PowerShell。以前の版から変わっていない） — *`<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` → `5.1.x` — Windows PowerShell, unchanged from every earlier version*
+- [ ] **8.2** `[term]` / `shell = "pwsh"` を足して `<C-S-t>` → `<C-t>` → もう一度聞く → `7.x` — *Add `[term]` / `shell = "pwsh"`, `<C-S-t>`, `<C-t>`, ask again → `7.x`*
+- [ ] **8.3** それぞれで `$PROFILE` → 別のパスが出る（5.1 は `WindowsPowerShell\`、7 は `PowerShell\`） — *`$PROFILE` in each → Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7*
+- [ ] **8.4** OSC 7 のフックを pwsh のプロファイルにだけ入れて、それぞれで `cd` して `<A-Up>` → pwsh では追従し、5.1 ではその旨が出る。**この非対称そのものが報告の中身** — *With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each → Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report*
+- [ ] **8.5** `args = ["-NoLogo"]` → 起動時のバナーが消える — *`args = ["-NoLogo"]` → The banner is gone*
+- [ ] **8.6** インストールされていない `shell` を指定 → 起動に失敗し、その旨が出る（無言の空ペインにならない） — *A `shell` that is not installed → It fails to start and says so — no silent empty pane*
+- [ ] **8.7** `[term]` を消して `<C-S-t>` → `<C-t>` → 既定に戻る — *Remove `[term]` again, `<C-S-t>`, `<C-t>` → Back to the default*
 
 ## 9. ファイル末尾のアウトライン — 全 5 件が自動
 
@@ -186,35 +210,46 @@ fsutil hardlink create locked-2.txt locked.txt
 fsutil hardlink list locked.txt        # 期待値の答え合わせ用
 ```
 
-- [ ] **13.7** ジャンクション（`mklink /J`）を、ただのシンボリックリンクではなく — *A junction (`mklink /J`), not just a symlink → Treated the same: `->`, and `g`+`f` follows it*
-- [ ] **13.8** `y` してから、別のディレクトリで `-` — *`y`, then `-` in another directory → The symlink appears. **On Windows this needs Developer Mode on** (Settings > System > For developers) — without it, and without running filer elevated, it fails with `os error 1314` and the toast says which two remedies there are. The privilege is the OS's, not the app's: `std` already passes `SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, which is what makes Developer Mode enough*
-- [ ] **13.9** `y` してから、**隣の**ディレクトリで `_` — *`y`, then `_` in a **sibling** directory → The same link, written relative (`..\other\file`). `g`+`f` follows it, and it survives moving both directories together — which is the point of `_` over `-`*
-- [ ] **13.10** シンボリックリンクの上で `<Tab>` — *`<Tab>` on a symlink (v0.46.0) → A **Link** section: `Kind` reads `Symlink`, `Target` the stored path, `Resolves` where it lands*
-- [ ] **13.11** `_` で作ったリンクの上で `<Tab>` — *`<Tab>` on a link made with `_` → `Kind` reads `Symlink (relative)`, and `Target` is the relative path while `Resolves` is absolute — the two rows differ, which is the whole point of the pair*
-- [ ] **13.12** **壊れた**リンクの上で `<Tab>` — *`<Tab>` on a **broken** link → `Resolves` reads `no (…)` with the OS's reason, and the section still appears*
-- [ ] **13.14** 同じものを Windows で — *The same, on Windows → `Also at` lists the other path. Check it against `fsutil hardlink list` — the same set, with the file's own path left out*
-- [ ] **13.16** ハードリンクを作り、別のプログラムに共有なしの書き込みロックを握らせた状態で `<Tab>`（コマンドは上の「準備」） — *Hardlink a file, then have another program hold it open for writing with no sharing, and `<Tab>` it (commands in the preamble above) → `Links` still reads `2` and `Also at` still lists the other name. The handle asks for **no** access rights, so an exclusive write lock does not hide the count*
+- [ ] **13.7** ジャンクション（`mklink /J`）で試す → シンボリックリンクと同じ扱い（名前の後ろに `->` が付き、`g`+`f` で追える） — *A junction (`mklink /J`), not just a symlink → Treated the same: `->`, and `g`+`f` follows it*
+- [ ] **13.8** `y` してから、別のディレクトリで `-` → シンボリックリンクができる。**Windows では開発者モードが要る**（設定 > システム > 開発者向け）。無いと `os error 1314` で失敗し、トーストが対処法を 2 つ示す — *`y`, then `-` in another directory → The symlink appears. **On Windows this needs Developer Mode on** (Settings > System > For developers) — without it, and without running filer elevated, it fails with `os error 1314` and the toast says which two remedies there are. The privilege is the OS's, not the app's: `std` already passes `SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, which is what makes Developer Mode enough*
+- [ ] **13.9** `y` してから、**隣の**ディレクトリで `_` → 同じリンクが相対パス（`..\other\file`）で作られる。`g`+`f` で追え、両方のディレクトリを一緒に移動しても壊れない（これが `-` に対する `_` の利点） — *`y`, then `_` in a **sibling** directory → The same link, written relative (`..\other\file`). `g`+`f` follows it, and it survives moving both directories together — which is the point of `_` over `-`*
+- [ ] **13.10** シンボリックリンクの上で `<Tab>` → **Link** セクションが出る。`Kind` が `Symlink`、`Target` が保存されたパス、`Resolves` が実際の着地点 — *`<Tab>` on a symlink (v0.46.0) → A **Link** section: `Kind` reads `Symlink`, `Target` the stored path, `Resolves` where it lands*
+- [ ] **13.11** `_` で作ったリンクの上で `<Tab>` → `Kind` が `Symlink (relative)`。`Target` は相対パス、`Resolves` は絶対パスで、**2 行が食い違うことがこの対の要点** — *`<Tab>` on a link made with `_` → `Kind` reads `Symlink (relative)`, and `Target` is the relative path while `Resolves` is absolute — the two rows differ, which is the whole point of the pair*
+- [ ] **13.12** **壊れた**リンクの上で `<Tab>` → `Resolves` が `no (…)` と OS の理由を出し、セクション自体は表示される — *`<Tab>` on a **broken** link → `Resolves` reads `no (…)` with the OS's reason, and the section still appears*
+- [ ] **13.14** 同じものを Windows で → `Also at` に別名のパスが並ぶ。`fsutil hardlink list` と突き合わせる（自分自身のパスを除いた同じ集合になる） — *The same, on Windows → `Also at` lists the other path. Check it against `fsutil hardlink list` — the same set, with the file's own path left out*
+- [ ] **13.16** ハードリンクを作り、別のプログラムに共有なしの書き込みロックを握らせた状態で `<Tab>`（コマンドは上の「準備」）→ `Links` は `2` のまま、`Also at` も出る。ハンドルがアクセス権を一切要求しないので、排他ロックでも数えられる — *Hardlink a file, then have another program hold it open for writing with no sharing, and `<Tab>` it (commands in the preamble above) → `Links` still reads `2` and `Also at` still lists the other name. The handle asks for **no** access rights, so an exclusive write lock does not hide the count*
 
 ## 14. 親ディレクトリの列を、マウスで — 0 / 6
 
-- [ ] **14.1** Click a **directory** there → The list goes into it, as it always has 〔未訳〕
-- [ ] **14.2** Click a **file** there (v0.26.7) → The list goes up to where that file lives, **with the file under the cursor**. Until v0.26.7 nothing happened at all 〔未訳〕
-- [ ] **14.3** Then press `<Enter>` → It opens — the cursor really is on it, not merely near it 〔未訳〕
-- [ ] **14.4** Double-click either → The same as a single click; no second, different meaning 〔未訳〕
-- [ ] **14.5** Click the row for the directory you are already in → You stay there, and the cursor does not jump about 〔未訳〕
-- [ ] **14.6** At a drive root, where there is no parent column → Nothing to click, and nothing misbehaves 〔未訳〕
+左端の列（いまいるディレクトリの親）をマウスで操作する節。キーボードでは触らない。
+
+- [ ] **14.1** そこの**ディレクトリ**をクリック → 従来どおり中へ入る — *Click a **directory** there → The list goes into it, as it always has*
+- [ ] **14.2** そこの**ファイル**をクリック → そのファイルのある階層まで上がり、**カーソルがそのファイルに乗る**（v0.26.7 までは何も起きなかった） — *Click a **file** there (v0.26.7) → The list goes up to where that file lives, **with the file under the cursor**. Until v0.26.7 nothing happened at all*
+- [ ] **14.3** そのあと `<Enter>` → 開く。カーソルが「近く」ではなく本当にそのファイルに乗っている確認 — *Then press `<Enter>` → It opens — the cursor really is on it, not merely near it*
+- [ ] **14.4** どちらかをダブルクリック → シングルクリックと同じ。2 つ目の別の意味は無い — *Double-click either → The same as a single click; no second, different meaning*
+- [ ] **14.5** いま自分がいるディレクトリの行をクリック → その場に留まり、カーソルが飛び回らない — *Click the row for the directory you are already in → You stay there, and the cursor does not jump about*
+- [ ] **14.6** ドライブ直下（親の列が無い場所）で → クリックするものが無く、何もおかしくならない — *At a drive root, where there is no parent column → Nothing to click, and nothing misbehaves*
 
 ## 15. ウィンドウの拡大縮小と、取り返したキー — 0 / 7
 
-JIS 配列では `=` は shift+`-` にある。`<C-=>`／`<C-+>` はどちらの配列でも同じ文字が届く。
+**v0.32.0 まで `<C-->` はウィンドウ縮小とハードリンク作成を同時にやっていた** —— 1 打で 2 動作。
+それを分けたのがこの節。ハードリンク作成は `=` に移った（v0.45.6 まで `<C-S-->` だったが、
+**あの和音はどのキーボードでも打てなかった**）。
 
-- [ ] **15.1** `<C-->` with something yanked → **Only** the window shrinks. Until v0.32.0 it also made a hardlink — one press, two actions 〔未訳〕
-- [ ] **15.2** `<C-+>`, and `<C-=>` → Both make it bigger. Which of the two needs shift depends on the layout — on US `+` is shift+equals, on JIS `+` is shift+semicolon and `=` is shift+minus — and both spellings are bound so either reaches it (v0.45.6) 〔未訳〕
-- [ ] **15.3** `<C-0>` → Back to 100%, and a toast says so 〔未訳〕
-- [ ] **15.4** Hold `<C-->` down → It shrinks smoothly and stops at 20%; `<C-+>` held stops at 500% 〔未訳〕
-- [ ] **15.5** `=` with something yanked, in a directory **on the same drive** → The hardlink, in its new place. Nothing in the app says so — a hardlink is another entry pointing at the same data, so it has no marker and the spot panel's Link section is for symlinks only. Confirm with `fsutil hardlink list <the new path>`, which lists every path sharing the data; or write to one and read the other. Across drives it must fail: NTFS hardlinks cannot leave their volume. Was `<C-S-->` until v0.45.6, a chord no keyboard can produce 〔未訳〕
-- [ ] **15.6** `<A-i>` / `<A-o>` on an image → Still the **image** zoom, unaffected — `zoom` and `scale` are different commands 〔未訳〕
-- [ ] **15.7** `~` → `scale in` / `scale out` / `scale reset` are listed, like any other command 〔未訳〕
+準備:
+
+```powershell
+# 15.5 の答え合わせ用。同じドライブの中で試すこと（NTFS のハードリンクはボリュームを跨げない）
+fsutil hardlink list <新しくできたパス>
+```
+
+- [ ] **15.1** 何かヤンクした状態で `<C-->` → **ウィンドウが縮むだけ。**v0.32.0 まではハードリンクも同時に作っていた（1 打で 2 動作） — *`<C-->` with something yanked → **Only** the window shrinks. Until v0.32.0 it also made a hardlink — one press, two actions*
+- [ ] **15.2** `<C-+>` と `<C-=>` → どちらでも大きくなる。どちらに shift が要るかは配列次第（US は `+` が shift+equals、JIS は `+` が shift+semicolon で `=` が shift+minus）。**両方の綴りが割り当ててあるのでどちらからでも届く**（v0.45.6） — *`<C-+>`, and `<C-=>` → Both make it bigger. Which of the two needs shift depends on the layout — on US `+` is shift+equals, on JIS `+` is shift+semicolon and `=` is shift+minus — and both spellings are bound so either reaches it (v0.45.6)*
+- [ ] **15.3** `<C-0>` → 100% に戻り、トーストがそう言う — *`<C-0>` → Back to 100%, and a toast says so*
+- [ ] **15.4** `<C-->` を押しっぱなし → 滑らかに縮んで 20% で止まる。`<C-+>` の押しっぱなしは 500% で止まる — *Hold `<C-->` down → It shrinks smoothly and stops at 20%; `<C-+>` held stops at 500%*
+- [ ] **15.5** 何かヤンクした状態で、**同じドライブ内の**ディレクトリで `=` → ハードリンクができる。**一覧の行には印が出ない**（ハードリンクは同じ実体を指す別のエントリなので、区別する印が無い）。v0.46.0 以降は **`<Tab>` の spot パネルに出る**（`Kind: Hardlink` / `Links: 2`。それが 13.13）。外から確かめるなら `fsutil hardlink list <新しいパス>`。**ドライブを跨ぐと失敗するのが正しい**（NTFS のハードリンクはボリュームを跨げない） — *`=` with something yanked, in a directory **on the same drive** → The hardlink, in its new place. No *row* says so — a hardlink is another entry pointing at the same data, so the listing has no marker for it. Since v0.46.0 the spot panel does: `<Tab>` on it reads `Kind: Hardlink` and `Links: 2`, which is 13.13. Confirm from outside with `fsutil hardlink list <the new path>`, which lists every path sharing the data; or write to one and read the other. Across drives it must fail: NTFS hardlinks cannot leave their volume. Was `<C-S-->` until v0.45.6, a chord no keyboard can produce*
+- [ ] **15.6** 画像の上で `<A-i>` / `<A-o>` → **画像の**拡大縮小のまま影響を受けない（`zoom` と `scale` は別のコマンド） — *`<A-i>` / `<A-o>` on an image → Still the **image** zoom, unaffected — `zoom` and `scale` are different commands*
+- [ ] **15.7** `~` → `scale in` / `scale out` / `scale reset` が他のコマンドと同じように並んでいる — *`~` → `scale in` / `scale out` / `scale reset` are listed, like any other command*
 
 ## 16. Word / Excel / PowerPoint — 0 / 12
 
