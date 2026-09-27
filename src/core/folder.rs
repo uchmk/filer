@@ -210,15 +210,7 @@ mod stale_view {
                     name: format!("f{i}"),
                     ext: None,
                     kind: Kind::File,
-                    len: 0,
-                    modified: None,
-                    created: None,
-                    accessed: None,
-                    hidden: false,
-                    readonly: false,
-                    link_to: None,
-                    dir_size: None,
-                    usage: None,
+                    ..Default::default()
                 })
                 .collect(),
         )

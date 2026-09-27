@@ -973,8 +973,8 @@ fn diff_tree(
     row_h: f32,
 ) {
     use crate::diff::{Outcome, TreeState};
-    let Some(Outcome::Tree { rows, truncated }) = &ov.outcome else { return };
-    let truncated = *truncated;
+    let Some(Outcome::Tree { rows, counts, truncated }) = &ov.outcome else { return };
+    let (counts, truncated) = (*counts, *truncated);
     if rows.is_empty() {
         painter.text(
             inner.left_top(),
@@ -1000,16 +1000,6 @@ fn diff_tree(
 
     let cell = painter.layout_no_wrap("M".repeat(20), f.clone(), theme.fg).size().x / 20.0;
     let mut y = inner.top();
-    let mut counts = [0usize; 5];
-    for row in rows {
-        counts[match row.state {
-            TreeState::LeftOnly => 0,
-            TreeState::RightOnly => 1,
-            TreeState::Differ => 2,
-            TreeState::Same => 3,
-            TreeState::Unread => 4,
-        }] += 1;
-    }
 
     for (i, row) in rows.iter().enumerate().skip(top).take(visible) {
         if i == ov.cursor {
@@ -1057,10 +1047,10 @@ fn diff_tree(
 
     let mut foot = format!(
         "{} only left  ·  {} only right  ·  {} differ  ·  {} match",
-        counts[0], counts[1], counts[2], counts[3]
+        counts.left_only, counts.right_only, counts.differ, counts.same
     );
-    if counts[4] > 0 {
-        foot.push_str(&format!("  ·  {} too big to read", counts[4]));
+    if counts.unread > 0 {
+        foot.push_str(&format!("  ·  {} too big to read", counts.unread));
     }
     if truncated {
         foot.push_str("  ·  cut short");

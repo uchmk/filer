@@ -4,9 +4,10 @@ use std::time::SystemTime;
 
 use crate::util;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 pub enum Kind {
     Dir,
+    #[default]
     File,
     /// Symlink / junction / reparse point, with the kind of its target when known.
     Link { to_dir: bool, broken: bool },
@@ -23,7 +24,11 @@ impl Kind {
     }
 }
 
-#[derive(Clone, Debug)]
+/// `Default` so the places that build one can name only the fields they know
+/// and let `..Default::default()` carry the rest -- the same shape `Span` uses.
+/// Before this, adding a field meant the compiler pointing at four separate
+/// constructors, two of them test helpers.
+#[derive(Clone, Debug, Default)]
 pub struct Entry {
     pub path: PathBuf,
     pub name: String,
@@ -65,21 +70,7 @@ impl Entry {
     // Only the share listing builds one, and that is Windows-only.
     #[cfg_attr(not(windows), allow(dead_code))]
     pub fn directory(path: PathBuf, name: String) -> Self {
-        Self {
-            path,
-            name,
-            ext: None,
-            kind: Kind::Dir,
-            len: 0,
-            modified: None,
-            created: None,
-            accessed: None,
-            hidden: false,
-            readonly: false,
-            link_to: None,
-            dir_size: None,
-            usage: None,
-        }
+        Self { path, name, kind: Kind::Dir, ..Default::default() }
     }
 
     pub fn from_path(path: PathBuf) -> std::io::Result<Self> {
@@ -133,8 +124,7 @@ impl Entry {
             hidden,
             readonly,
             link_to,
-            dir_size: None,
-            usage: None,
+            ..Default::default()
         }
     }
 

@@ -13,7 +13,7 @@
 //! text it came from, which is the same gesture Markdown already uses.
 
 use super::markdown::{self, Row};
-use super::{Doc, DocLine, LineKind, Payload, Span};
+use super::{Doc, DocLine, Extent, LineKind, Payload, Span};
 
 /// Records read before stopping. Matches `text`'s own line cap: nobody reads a
 /// million rows in a preview pane.
@@ -165,7 +165,7 @@ pub fn render(
     let doc = Doc { lines, toc: Vec::new(), toc_cols: 0, body_cols: avail as u16 };
     let source = super::text::plain_lines(text);
     let map = super::minimap(&source);
-    Payload::Markdown { doc, source, map, truncated, total_lines }
+    Payload::Markdown { doc, source, map, extent: Extent { truncated, total: total_lines } }
 }
 
 #[cfg(test)]
