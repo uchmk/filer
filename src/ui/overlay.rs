@@ -1775,3 +1775,638 @@ mod help_frame {
         );
     }
 }
+
+/// Fixtures shared by TESTING.md sections 5, 11 and 21.
+///
+/// All three are a panel drawn over the listing and driven from the keyboard, so
+/// all three need the same two things: a directory that is already listed -- the
+/// harness runs no scan, so a listing nobody built by hand is empty -- and a way
+/// to press what is not a printable character. Kept in one place so the three
+/// sections cannot end up disagreeing about what "a listing" is.
+#[cfg(test)]
+pub(crate) mod overlays {
+    use crate::core::folder::Folder;
+    use crate::ui::harness::{Painted, Screen};
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    /// A chord, the way the window delivers one.
+    pub(crate) fn chord(key: egui::Key, modifiers: egui::Modifiers) -> egui::Event {
+        egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers }
+    }
+
+    /// Ctrl as egui reports it: `command` is set alongside `ctrl` on every
+    /// platform but macOS, and `keys::from_egui` reads either.
+    pub(crate) fn ctrl() -> egui::Modifiers {
+        egui::Modifiers { ctrl: true, command: true, ..Default::default() }
+    }
+
+    /// `<Enter>`, which is a key event and not text: a prompt's `submit_input`
+    /// hangs off `on_key_event`, where the keymap never sees it.
+    pub(crate) fn enter() -> egui::Event {
+        chord(egui::Key::Enter, egui::Modifiers::NONE)
+    }
+
+    /// A directory holding `files`, listed, with the cursor on the first of
+    /// them. Every file gets one byte, which is enough for a name to exist and
+    /// for a size column to have something to print.
+    pub(crate) fn showing(label: &str, files: &[&str]) -> (PathBuf, Screen) {
+        let dir = crate::util::test_dir(label);
+        let mut entries = Vec::new();
+        for name in files {
+            let p = dir.join(name);
+            std::fs::write(&p, "x").unwrap();
+            entries.push(crate::fs::Entry::from_path(p).unwrap());
+        }
+        let mut s = Screen::open(dir.clone());
+        s.app.tabs[0].current = Folder::from_entries(dir.clone(), Arc::new(entries), true);
+        (dir, s)
+    }
+
+    /// Every drawn string holding `needle`, which is how a view with two columns
+    /// is asked whether *both* of them said something.
+    pub(crate) fn saying<'a>(f: &'a Painted, needle: &str) -> Vec<&'a String> {
+        f.texts.iter().filter(|t| t.contains(needle)).collect()
+    }
+}
+
+/// TESTING.md section 5: two files, side by side.
+///
+/// `diff::compare` is pure and `diff::tests` covers the pairing. What no test
+/// there can answer is whether the pairing reaches the screen: the two columns
+/// are laid out by the renderer, the tint saying which side a line left is
+/// painted there, and `ov.rows` -- how far one press of `G` or `<C-d>` goes --
+/// is a number only the renderer knows, measured from the panel's own height.
+/// `app::diff_scrolling` drives the same keys with that number written in by
+/// hand; these drive them against the number a frame worked out.
+#[cfg(test)]
+mod compare_frame {
+    use super::overlays::{chord, ctrl, saying};
+    use crate::app::{DiffOverlay, Overlay};
+    use crate::ui::harness::{Painted, Screen};
+
+    /// The comparison of two files holding `left` and `right`, already open.
+    ///
+    /// `compare_files` is the worker's own work done on this thread, so the rows
+    /// are the real pairing rather than a fixture written to agree with the
+    /// assertion below it.
+    fn comparing(label: &str, left: &str, right: &str) -> Screen {
+        let dir = crate::util::test_dir(label);
+        let (l, r) = (dir.join("compare-left.txt"), dir.join("compare-right.txt"));
+        std::fs::write(&l, left).unwrap();
+        std::fs::write(&r, right).unwrap();
+        let outcome = crate::diff::compare_files(&l, &r, 1 << 20);
+        let mut s = Screen::open(dir);
+        s.app.overlay = Overlay::Diff(DiffOverlay {
+            left: l,
+            right: r,
+            outcome: Some(outcome),
+            offset: 0,
+            // What `start_compare` opens with. The renderer replaces it with the
+            // number of rows that fit, which is what these tests are here for.
+            rows: 1,
+            cursor: 0,
+        });
+        s
+    }
+
+    /// `n` lines reading `line 0`, `line 1`, ... as one file's text.
+    fn numbered(n: usize) -> String {
+        let body: Vec<String> = (0..n).map(|i| format!("line {i}")).collect();
+        format!("{}\n", body.join("\n"))
+    }
+
+    /// The footer's `x–y of z`: the only reading on screen of where the view is
+    /// parked, and therefore the only way to ask a frame what a key did.
+    fn footer(f: &Painted) -> String {
+        f.texts
+            .iter()
+            .find(|t| t.contains('–') && t.contains(" of "))
+            .unwrap_or_else(|| panic!("no `x–y of z` footer was drawn: {:?}", f.texts))
+            .clone()
+    }
+
+    /// The `x` of that footer: the first row on screen, counting from 1.
+    fn top(f: &Painted) -> usize {
+        let foot = footer(f);
+        let head = foot.split('–').next().unwrap_or_default().trim().to_owned();
+        head.parse().unwrap_or_else(|_| panic!("footer does not start with a row: {foot}"))
+    }
+
+    /// The `z`: how many rows the comparison came out as.
+    fn total(f: &Painted) -> usize {
+        let foot = footer(f);
+        let tail = foot.rsplit(" of ").next().unwrap_or_default();
+        let tail = tail.split("  ·").next().unwrap_or_default().trim().to_owned();
+        tail.parse().unwrap_or_else(|_| panic!("footer does not end in a total: {foot}"))
+    }
+
+    /// 5.1 and 5.4: two gutters, each counting its own file.
+    ///
+    /// The insertion is what makes the second half worth asserting. From `delta`
+    /// on, the same content is line 4 on the left and line 5 on the right, so a
+    /// gutter that numbered the *rows* would print one number for both and read
+    /// as if nothing had been inserted at all.
+    #[test]
+    fn each_side_is_numbered_from_its_own_file() {
+        let mut s = comparing(
+            "frame-compare-numbers",
+            "alpha\nbeta\ngamma\ndelta\nepsilon\n",
+            "alpha\nbeta\nGAMMA\nextra\ndelta\nepsilon\n",
+        );
+        let f = s.draw();
+
+        // The head is the same line on both sides, so it is drawn twice with the
+        // same number -- once per column. That is 5.1's "line numbers on each
+        // side" put as something a frame can answer.
+        assert_eq!(
+            saying(&f, "1 alpha").len(),
+            2,
+            "the first line is numbered in both gutters: {:?}",
+            f.texts,
+        );
+        assert!(f.says("   3 gamma") && f.says("   3 GAMMA"), "the edit: {:?}", f.texts);
+        // 5.4: past the insertion the two sides differ by one.
+        assert!(f.says("   4 delta"), "the left is still counting 4: {:?}", f.texts);
+        assert!(f.says("   5 delta"), "the right has reached 5: {:?}", f.texts);
+        assert!(f.says("   4 extra"), "and the inserted line is numbered too: {:?}", f.texts);
+        assert_eq!(total(&f), 6, "six rows for five lines and an insertion: {}", footer(&f));
+    }
+
+    /// 5.2 and 5.3: the edited line sits opposite the line it replaced, and each
+    /// side carries the colour its git sign does.
+    ///
+    /// Both readings come out of the same two rectangles. A row that differs is
+    /// tinted on whichever sides it has, so the tints say which rows changed,
+    /// which half of the panel each belongs to, and -- by sharing a `y` -- that
+    /// the replacement was paired with what it replaced rather than listed as a
+    /// removal and an addition a screen apart.
+    #[test]
+    fn a_replacement_is_tinted_on_both_sides_of_one_row() {
+        let mut s = comparing(
+            "frame-compare-tint",
+            "alpha\nbeta\ngamma\ndelta\n",
+            "alpha\nbeta\nGAMMA\ndelta\n",
+        );
+        let theme = s.app.cfg.theme.clone();
+        let mid = s.rect().center().x;
+        let f = s.draw();
+
+        // The tint is the git colour at 22%: the same theme entry the signs in
+        // the listing use, which is what 5.3 is asking about. What shade that
+        // comes out as is still an eye's job.
+        let removed = f.filled(theme.git_deleted.gamma_multiply(0.22));
+        let added = f.filled(theme.git_added.gamma_multiply(0.22));
+        assert_eq!(removed.len(), 1, "one line was replaced: {removed:?}");
+        assert_eq!(added.len(), 1, "and one line replaced it: {added:?}");
+        assert!(removed[0].center().x < mid, "the removal is in the left column");
+        assert!(added[0].center().x > mid, "the addition is in the right one");
+        assert_eq!(
+            removed[0].top(),
+            added[0].top(),
+            "and both are the same row, which is the whole point of the view",
+        );
+    }
+
+    /// 5.6: the scrolling keys move the view and the footer keeps up.
+    ///
+    /// The distances are the renderer's own, so what is asserted is their order:
+    /// `j` is a row, `<C-d>` is a page, `G` is the end. A panel that measured
+    /// itself wrong is a panel where those three collapse into each other.
+    #[test]
+    fn the_footer_counts_along_with_the_scrolling_keys() {
+        let text = numbered(400);
+        let mut s =
+            comparing("frame-compare-scroll", &text, &text.replace("line 199", "LINE 199"));
+        let f = s.draw();
+        assert_eq!(top(&f), 1, "it opens at the top: {}", footer(&f));
+        assert_eq!(total(&f), 400, "and counts every row: {}", footer(&f));
+
+        assert_eq!(top(&s.typed("j")), 2, "`j` is one row: {}", footer(&s.draw()));
+        assert_eq!(top(&s.typed("k")), 1, "`k` is one row back");
+
+        let half = top(&s.feed(vec![chord(egui::Key::D, ctrl())]));
+        assert!(half > 2, "`<C-d>` is a page rather than a row: {half}");
+        assert_eq!(top(&s.feed(vec![chord(egui::Key::U, ctrl())])), 1, "`<C-u>` comes back");
+
+        let bot = top(&s.typed("G"));
+        assert!(bot > half, "`G` goes further than a page: {bot} against {half}");
+        assert_eq!(top(&s.typed("gg")), 1, "and `gg` is the top again");
+    }
+
+    /// 5.6a, 5.6b and 5.6c: what the bottom of the view means.
+    ///
+    /// Until v0.22.1 `G` parked the offset a screenful past the last row, so `k`
+    /// spent a pane's worth of presses climbing back into the part that is drawn
+    /// and looked like a dead key. `app::diff_scrolling` covers the arithmetic
+    /// with `ov.rows` written in by hand; this is the same three checks against
+    /// the height the panel actually came out as.
+    #[test]
+    fn the_bottom_is_where_the_last_row_is() {
+        let text = numbered(400);
+        let mut s =
+            comparing("frame-compare-bottom", &text, &text.replace("line 199", "LINE 199"));
+
+        let bot = top(&s.typed("G"));
+        assert!(bot > 1, "`G` moved at all: {bot}");
+        // 5.6a: one press of `k` moves one row, straight away.
+        assert_eq!(top(&s.typed("k")), bot - 1, "`k` after `G` moves exactly one row");
+
+        s.typed("G");
+        // 5.6b: and `j` at the bottom stays there, with the last row on screen.
+        let f = s.typed("j");
+        assert_eq!(top(&f), bot, "`j` at the bottom does not walk off it");
+        assert!(f.says("400 line 399"), "the last row is still drawn: {:?}", f.texts);
+
+        // 5.6c: a comparison shorter than the pane has nowhere to go.
+        let mut s = comparing("frame-compare-short", "a\nb\nc\n", "a\nB\nc\n");
+        let f = s.typed("G");
+        assert_eq!(top(&f), 1, "nothing moved: {}", footer(&f));
+        assert_eq!(total(&f), 3, "every row was on screen already: {}", footer(&f));
+    }
+
+    /// 5.5: `n` and `N` walk between the differences, not down the lines of one.
+    ///
+    /// The first difference is five lines long on purpose. A `n` that stepped one
+    /// row at a time would land on row 52 instead of the second block, which is
+    /// exactly the distinction the row is asking about.
+    #[test]
+    fn n_walks_between_the_blocks_and_says_when_it_runs_out() {
+        let left: Vec<String> = (0..400).map(|i| format!("line {i}")).collect();
+        let mut right = left.clone();
+        for line in right.iter_mut().take(55).skip(50) {
+            *line = line.to_uppercase();
+        }
+        right[150] = right[150].to_uppercase();
+        let mut s = comparing(
+            "frame-compare-find",
+            &format!("{}\n", left.join("\n")),
+            &format!("{}\n", right.join("\n")),
+        );
+        assert_eq!(top(&s.draw()), 1, "it starts at the top");
+
+        assert_eq!(top(&s.typed("n")), 51, "`n` parks on the first difference");
+        assert_eq!(
+            top(&s.typed("n")),
+            151,
+            "and the next skips the rest of that five-line block",
+        );
+        let f = s.typed("n");
+        assert_eq!(top(&f), 151, "there is no third, so nothing moves");
+        assert!(f.says("At the last difference"), "and it says so: {:?}", f.texts);
+
+        assert_eq!(top(&s.typed("N")), 51, "`N` walks back the same way");
+        let f = s.typed("N");
+        assert_eq!(top(&f), 51, "and stops at the first");
+        assert!(f.says("At the first difference"), "saying which end: {:?}", f.texts);
+    }
+
+    /// 5.7 and 5.8: the two answers that are a sentence rather than a view.
+    ///
+    /// Both exist so that "nothing was drawn" is never what a comparison looks
+    /// like. Identical files would otherwise be thousands of matching rows, and
+    /// two binaries a pane of mojibake.
+    #[test]
+    fn identical_and_binary_each_say_so_in_words() {
+        let same = "one\ntwo\n";
+        let mut s = comparing("frame-compare-same", same, same);
+        let f = s.draw();
+        assert!(f.says("The two files are identical."), "{:?}", f.texts);
+        assert!(!f.says(" of "), "and no footer counting rows: {:?}", f.texts);
+
+        // A NUL byte is what `as_text` declines on, and the two differ in length
+        // so the bytes are not equal either.
+        let mut s = comparing("frame-compare-binary", "a\0b\n", "a\0bc\n");
+        let f = s.draw();
+        assert!(f.says("Not text on both sides, and the bytes differ."), "{:?}", f.texts);
+    }
+
+    /// 5.10: `q` closes it, and the title says so before it is pressed.
+    #[test]
+    fn q_closes_it_and_the_title_said_it_would() {
+        let mut s = comparing("frame-compare-close", "a\n", "b\n");
+        let f = s.draw();
+        assert!(
+            f.says("compare-left.txt  ↔  compare-right.txt"),
+            "the title names both files: {:?}",
+            f.texts,
+        );
+        assert!(f.says("q to close"), "and the key that closes it: {:?}", f.texts);
+
+        s.typed("q");
+        assert!(matches!(s.app.overlay, Overlay::None), "`q` closed the comparison");
+        assert!(!s.draw().says("q to close"), "and the panel is gone");
+    }
+}
+
+/// TESTING.md section 11: bulk rename.
+///
+/// `rename::plan` decides every new name and every refusal, and `rename::tests`
+/// covers it. What those cannot see is the panel: the preview is redrawn from
+/// `bulk_preview` on every frame, `→` and the reason in brackets are the only
+/// place a refusal is said before Enter, and the batch is applied from a key
+/// rather than from a call. All of that is on this side of the renderer, and all
+/// of it runs on the UI thread -- a rename is not a job, so a frame is enough to
+/// watch one happen.
+#[cfg(test)]
+mod bulk_frame {
+    use super::overlays::{chord, ctrl, enter, showing};
+    use crate::app::{InputKind, Overlay};
+    use crate::ui::harness::{Painted, Screen};
+    use std::path::{Path, PathBuf};
+
+    /// The twelve photographs of 11.1, plus the three files the clash and the
+    /// swap checks need.
+    fn fixture(label: &str) -> (PathBuf, Vec<String>, Screen) {
+        let photos: Vec<String> = (1..=12).map(|i| format!("IMG_{i:04}.jpg")).collect();
+        let mut files: Vec<&str> = photos.iter().map(String::as_str).collect();
+        files.extend(["ab.txt", "ba.txt", "in the way.txt"]);
+        let (dir, s) = showing(label, &files);
+        (dir, photos, s)
+    }
+
+    /// Select `names` and open the prompt on them.
+    fn selecting(s: &mut Screen, dir: &Path, names: &[String]) {
+        for n in names {
+            s.app.tabs[0].selected.insert(dir.join(n));
+        }
+        s.typed("R");
+        assert!(
+            matches!(&s.app.overlay, Overlay::Input(ov) if matches!(ov.kind, InputKind::Bulk { .. })),
+            "`R` opened the bulk prompt",
+        );
+    }
+
+    /// Replace the rule in the field with `rule`, the way a person does it:
+    /// select the whole field, then type.
+    ///
+    /// `<C-a>` is egui's, not the keymap's -- `Overlay::Input` hands text
+    /// straight to the field. It is here because the prompt opens on
+    /// `{name}{ext}` and typing lands after it, so a rule typed without this
+    /// reads `{name}{ext}s/a/b/`. The prompt is *supposed* to open with that
+    /// rule selected (`InputOverlay::initial_selection`); it does not, which is
+    /// in QA-REPORT.md rather than fixed here.
+    fn rule(s: &mut Screen, rule: &str) -> Painted {
+        s.feed(vec![chord(egui::Key::A, ctrl())]);
+        s.typed(rule);
+        // The preview panel is drawn before the field takes the keystroke, so it
+        // is one frame behind what has been typed. At sixty frames a second
+        // nobody sees that; a test that asserted on the same frame would be
+        // reading the rule before last.
+        s.draw()
+    }
+
+    /// The panel's `from  →  to` rows, in the order they were drawn.
+    fn rows(f: &Painted) -> Vec<&String> {
+        f.texts.iter().filter(|t| t.contains("  →  ")).collect()
+    }
+
+    /// What is on disk now, sorted, so a rename can be checked without a rescan
+    /// -- the listing is the scan worker's to refresh and no worker runs here.
+    fn on_disk(dir: &Path) -> Vec<String> {
+        let mut names: Vec<String> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        names
+    }
+
+    /// 11.1: the prompt opens on the rule that changes nothing, with every
+    /// selected file listed under it.
+    ///
+    /// The identity rule is what makes the panel readable the moment it opens:
+    /// twelve rows of `IMG_0001.jpg → IMG_0001.jpg` say what the columns mean
+    /// before anything has been typed into them.
+    #[test]
+    fn the_prompt_opens_on_the_rule_that_changes_nothing() {
+        let (dir, photos, mut s) = fixture("frame-bulk-open");
+        selecting(&mut s, &dir, &photos);
+        let f = s.draw();
+
+        assert!(f.says("Bulk rename:"), "the prompt is titled: {:?}", f.texts);
+        assert!(f.texts.contains(&"{name}{ext}".to_owned()), "on the identity rule");
+        assert!(
+            f.says("{name} {ext} {n} {n:3} zero-padded"),
+            "with the legend above it: {:?}",
+            f.texts,
+        );
+        let drawn = rows(&f);
+        assert_eq!(drawn.len(), 12, "one row per selected file: {drawn:?}");
+        assert_eq!(drawn[0], "IMG_0001.jpg  →  IMG_0001.jpg", "and nothing changes yet");
+        assert!(!f.says("cannot be used"), "nothing is wrong with it: {:?}", f.texts);
+    }
+
+    /// 11.2: the panel follows the rule as it is typed.
+    #[test]
+    fn the_panel_follows_the_rule_being_typed() {
+        let (dir, photos, mut s) = fixture("frame-bulk-typing");
+        selecting(&mut s, &dir, &photos);
+
+        let f = rule(&mut s, "holiday-{n:2}{ext}");
+        let drawn = rows(&f);
+        assert_eq!(drawn.len(), 12, "still one row per file: {drawn:?}");
+        assert_eq!(drawn[0], "IMG_0001.jpg  →  holiday-01.jpg", "zero-padded from one");
+        assert_eq!(drawn[11], "IMG_0012.jpg  →  holiday-12.jpg", "through to twelve");
+    }
+
+    /// 11.3, 11.4 and 11.5: Enter renames them all, `u` puts every name back in
+    /// one step, and `U` renames them again.
+    ///
+    /// One undo for the whole batch is the point: twelve separate steps would
+    /// mean twelve presses of `u`, and half a rename is not a state anyone asked
+    /// for.
+    #[test]
+    fn enter_renames_them_all_and_one_undo_puts_them_back() {
+        let (dir, photos, mut s) = fixture("frame-bulk-apply");
+        selecting(&mut s, &dir, &photos);
+        rule(&mut s, "holiday-{n:2}{ext}");
+
+        let f = s.feed(vec![enter()]);
+        assert!(f.says("Renamed 12 file(s)"), "the toast counts them: {:?}", f.texts);
+        assert!(matches!(s.app.overlay, Overlay::None), "and the prompt closed");
+        let after = on_disk(&dir);
+        assert!(after.contains(&"holiday-01.jpg".to_owned()), "renamed: {after:?}");
+        assert!(after.contains(&"holiday-12.jpg".to_owned()), "all twelve: {after:?}");
+        assert!(!after.iter().any(|n| n.starts_with("IMG_")), "none left over: {after:?}");
+
+        let f = s.typed("u");
+        assert!(f.says("Put 12 name(s) back"), "one step, and it says so: {:?}", f.texts);
+        let back = on_disk(&dir);
+        assert!(back.contains(&"IMG_0001.jpg".to_owned()), "the old names: {back:?}");
+        assert!(back.contains(&"IMG_0012.jpg".to_owned()), "all of them: {back:?}");
+        assert!(!back.iter().any(|n| n.starts_with("holiday-")), "and only those: {back:?}");
+
+        let f = s.typed("U");
+        assert!(f.says("Renamed 12 file(s)"), "`U` does it again: {:?}", f.texts);
+        assert!(
+            on_disk(&dir).contains(&"holiday-07.jpg".to_owned()),
+            "and the new names are back",
+        );
+    }
+
+    /// 11.6: two files headed for one name is said on the rows and refused at
+    /// Enter.
+    ///
+    /// A plain name with no placeholder in it gives every file the same one,
+    /// which is the easiest way to reach the check and the one a person reaches
+    /// by accident. The first row is refused for a different reason -- the name
+    /// belongs to a file that is not moving -- and the rest for colliding with
+    /// it, so both wordings are on screen at once.
+    #[test]
+    fn two_files_headed_for_one_name_are_refused_before_and_at_enter() {
+        let (dir, photos, mut s) = fixture("frame-bulk-clash");
+        selecting(&mut s, &dir, &photos);
+        let f = rule(&mut s, "in the way.txt");
+
+        let drawn = rows(&f);
+        assert_eq!(drawn.len(), 12, "every row is still shown: {drawn:?}");
+        assert!(
+            drawn[0].contains("(already in this directory)"),
+            "the first row wants a name that is taken: {}",
+            drawn[0],
+        );
+        assert!(
+            drawn[1..].iter().all(|r| r.contains("(two files would get this name)")),
+            "and every row after it collides with the first: {drawn:?}",
+        );
+        assert!(
+            f.says("12 name(s) cannot be used — Enter is refused"),
+            "the panel counts them and says Enter will not go: {:?}",
+            f.texts,
+        );
+
+        let before = on_disk(&dir);
+        let f = s.feed(vec![enter()]);
+        assert!(
+            f.says("IMG_0001.jpg: already in this directory"),
+            "Enter names the row it stopped on: {:?}",
+            f.texts,
+        );
+        assert_eq!(on_disk(&dir), before, "and renamed nothing at all");
+    }
+
+    /// 11.7: one file onto a name that is already in the directory.
+    ///
+    /// The same refusal as 11.6's first row, reached with nothing to collide
+    /// with, so it cannot be the duplicate check answering by accident.
+    #[test]
+    fn one_file_onto_a_name_already_there_is_refused() {
+        let (dir, _, mut s) = fixture("frame-bulk-taken");
+        selecting(&mut s, &dir, &["IMG_0001.jpg".to_owned()]);
+        let f = rule(&mut s, "in the way.txt");
+
+        let drawn = rows(&f);
+        assert_eq!(drawn.len(), 1, "one file, one row: {drawn:?}");
+        assert!(drawn[0].contains("(already in this directory)"), "{}", drawn[0]);
+        assert!(f.says("1 name(s) cannot be used"), "counted: {:?}", f.texts);
+
+        let before = on_disk(&dir);
+        s.feed(vec![enter()]);
+        assert_eq!(on_disk(&dir), before, "nothing moved");
+    }
+
+    /// 11.8 and 11.9: two files swapping names is neither row's problem, and it
+    /// goes through.
+    ///
+    /// A loop of renames cannot do this -- the second one lands on a name the
+    /// first just took -- so `rename::order` parks one file aside first. The
+    /// contents are what prove it happened: two files that swapped names still
+    /// have the bytes they started with.
+    #[test]
+    fn a_swap_is_no_row_s_problem_and_the_names_really_change_places() {
+        let (dir, _, mut s) = fixture("frame-bulk-swap");
+        std::fs::write(dir.join("ab.txt"), "A").unwrap();
+        std::fs::write(dir.join("ba.txt"), "B").unwrap();
+        selecting(&mut s, &dir, &["ab.txt".to_owned(), "ba.txt".to_owned()]);
+
+        let f = rule(&mut s, "s/^([ab])([ab])/$2$1/");
+        let drawn = rows(&f);
+        assert_eq!(drawn, ["ab.txt  →  ba.txt", "ba.txt  →  ab.txt"], "the two rows");
+        assert!(!f.says("cannot be used"), "and neither is a problem: {:?}", f.texts);
+
+        let f = s.feed(vec![enter()]);
+        assert!(f.says("Renamed 2 file(s)"), "both went: {:?}", f.texts);
+        assert_eq!(
+            std::fs::read_to_string(dir.join("ab.txt")).unwrap(),
+            "B",
+            "`ab.txt` now holds what `ba.txt` did",
+        );
+        assert_eq!(
+            std::fs::read_to_string(dir.join("ba.txt")).unwrap(),
+            "A",
+            "and the other way about",
+        );
+
+        s.typed("u");
+        assert_eq!(std::fs::read_to_string(dir.join("ab.txt")).unwrap(), "A", "`u` swaps back");
+        assert_eq!(std::fs::read_to_string(dir.join("ba.txt")).unwrap(), "B");
+    }
+
+    /// 11.9b: a name is only going spare when the file holding it is moving.
+    ///
+    /// Before v0.7.0 being in the selection was enough, and a rule that left one
+    /// file's name alone was allowed to rename another onto it -- which failed at
+    /// the last moment, with half the batch applied.
+    #[test]
+    fn a_name_its_owner_is_keeping_is_not_going_spare() {
+        let (dir, _, mut s) = fixture("frame-bulk-not-vacated");
+        selecting(&mut s, &dir, &["ab.txt".to_owned(), "in the way.txt".to_owned()]);
+        let f = rule(&mut s, "s/^ab/in the way/");
+
+        let drawn = rows(&f);
+        assert_eq!(drawn.len(), 2, "both selected files are listed: {drawn:?}");
+        assert!(
+            drawn[0].starts_with("ab.txt") && drawn[0].contains("in the way.txt"),
+            "the rule renames `ab.txt` onto the other one: {}",
+            drawn[0],
+        );
+        assert!(
+            drawn[0].contains("(already in this directory)"),
+            "and that is refused, because the other file is not moving: {}",
+            drawn[0],
+        );
+
+        let before = on_disk(&dir);
+        s.feed(vec![enter()]);
+        assert_eq!(on_disk(&dir), before, "so nothing moved");
+    }
+
+    /// 11.10: a substitution's group references reach the new name.
+    #[test]
+    fn group_references_reach_the_new_name() {
+        let (dir, photos, mut s) = fixture("frame-bulk-groups");
+        selecting(&mut s, &dir, &photos);
+        let f = rule(&mut s, r"s/IMG_(\d+)/photo-$1/");
+
+        let drawn = rows(&f);
+        assert_eq!(drawn[0], "IMG_0001.jpg  →  photo-0001.jpg", "the digits came through");
+        assert!(!f.says("cannot be used"), "and nothing is wrong: {:?}", f.texts);
+
+        s.feed(vec![enter()]);
+        assert!(on_disk(&dir).contains(&"photo-0001.jpg".to_owned()), "and it applied");
+    }
+
+    /// 11.11: a placeholder nobody knows is named, and nothing is renamed.
+    ///
+    /// A rule half-typed does not parse either, so this reads as a note rather
+    /// than an error -- but it still has to say *which* placeholder, since
+    /// `{nane}` for `{name}` is the whole reason anyone is looking.
+    #[test]
+    fn an_unknown_placeholder_is_named_and_nothing_moves() {
+        let (dir, photos, mut s) = fixture("frame-bulk-unknown");
+        selecting(&mut s, &dir, &photos);
+        let f = rule(&mut s, "{nope}");
+
+        assert!(
+            f.says("unknown `{nope}`; use name, ext or n"),
+            "the note names the placeholder and the ones that exist: {:?}",
+            f.texts,
+        );
+        assert!(rows(&f).is_empty(), "and no row is offered: {:?}", f.texts);
+
+        let before = on_disk(&dir);
+        s.feed(vec![enter()]);
+        assert_eq!(on_disk(&dir), before, "Enter renamed nothing");
+    }
+}

@@ -198,6 +198,15 @@ for commit `f2b30c5` is it, for as long as the 90 days last.
 `<A-d>` with `compare-left.txt` and `compare-right.txt` both selected, or one in
 each pane with the view split.
 
+5.1 through 5.8 and 5.10 are automated (`ui::overlay::compare_frame`): both gutters numbering
+their own file across an insertion, a replacement drawn opposite what it replaced and tinted in
+the git signs' own theme colours, the footer's `x–y of z` keeping up with `j` `k` `<C-d>` `<C-u>`
+`gg` `G` — including the three ways the bottom can be got wrong — `n` and `N` stepping over a
+five-line block rather than through it, both sentences that stand in for a view, and `q`. What is
+left for an eye is that the tints read as red and green, that the hairline down the middle is
+drawn at all (a line is not a rectangle, so the harness cannot see it), and the real pair of
+files. 5.9 does not match the program any more; it is written up in QA-REPORT.md.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 5.1 | Compare the two | Two columns, a line down the middle, with line numbers on each side |
@@ -314,6 +323,14 @@ beside a row is noticeable at all, which is not something a frame can be asked.
 ## 11. Bulk rename (v0.4.0)
 
 In `bulk-rename\`.
+
+All of it is automated (`ui::overlay::bulk_frame`), 11.9b included: the panel the prompt opens
+with, the rows following the rule as it is typed, both refusals with the reason in brackets and
+the count that says Enter will not go, the swap going through and coming back, group references,
+an unknown placeholder, and the whole batch applied and undone in one step — a rename runs on the
+UI thread, so a frame can watch one happen. What is left for an eye is that the panel is readable
+where it sits, and that the prompt opens with its rule **selected**: it does not, so every rule
+below has to be typed over a field the person clears first. That is in QA-REPORT.md.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -498,6 +515,13 @@ was that a gentle turn moved nothing at all.
 | 20.6 | `[ui] minimap = false`, `<C-F5>` | No minimap |
 
 ## 21. Archives (v0.2.0)
+
+Three of these are automated (`ui::preview::archive_frame`): 21.1, on a zip the test packs itself,
+down to the size column and the `—` a folder inside an archive gets; 21.6; and 21.12. The other
+nine are out of reach and will stay there — `e` and `E` both hand the work to the job queue, and
+the harness runs no workers, so unpacking, packing, the task panel's counts and the sizes two
+formats come out at all need the program running. 21.9 needs 7-Zip besides. QA-REPORT.md says which
+row needs which. 21.6 says something other than what it says here, which is written up there too.
 
 | # | Do | Expect |
 | --- | --- | --- |
