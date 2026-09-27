@@ -154,8 +154,8 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `undo`, `redo`, `jump`,
 `bulk_rename`, `compare`, `quick`, `zoom`, `minimap`, `config_reload`, `palette`,
 `menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `term_cd`, `term_find`, `term_scroll`, `task_toggle`, `task_cancel`, `task_top`,
-`split`, `pane_focus`, `toggle_render`, `toggle_outline` and `bug-report` (this
-project's own). `select` and `select_all` are accepted as `toggle --state=on` /
+`split`, `pane_focus`, `toggle_render`, `toggle_outline`, `usage` and `bug-report` (the last two
+this project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe` and `copy cell`; in `[term]`:
 `close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
@@ -611,6 +611,36 @@ big repository never holds up the window and whatever version of git is installe
 decides. Nothing is linked in, so this costs no C dependency and no build step. Where there is no
 repository — or no git — the rows simply carry no signs. The status refreshes with the listing, so
 a file operation or a change the watcher catches updates the signs with it.
+
+## Disk usage
+
+`gu` measures what is taking up the room here: every child of the current directory with the total of
+everything underneath it, biggest first, each with a bar for its share of the largest.
+
+```
+  fat/            ████████████   1.2 G
+  node_modules/   ██████          611 M
+  notes.txt       ▏                12 K
+```
+
+The list already answers "how big is this file". What it could not answer is "how big is this
+folder", because a directory's own length is the size of its entry on disk and the count in the
+`size` line mode is its children one level down — so sorting by size could never find the folder that
+is full.
+
+This is the file list, not a panel: `j` / `k`, the wheel, selection, `y`, `d` and the rest work as
+they always do, and `<Esc>` (or `h`) leaves and goes back to the directory. Leaving cancels the walk.
+It is one level deep — entering a folder is ordinary navigation and leaves the view, so `gu` again
+measures from there.
+
+Hidden files and anything `.gitignore` covers are **counted**: a folder does not stop taking up room
+because git was told to overlook it. Symlinks are not followed, so a link to a directory is one entry
+rather than a second copy of a tree. Hard links are counted once per name, so a tree that uses them
+reads high — telling them apart needs bookkeeping this does not do. Very large trees stop after
+200,000 entries and say so, in which case the totals are floors rather than answers.
+
+The order is set when the results arrive, so re-sorting with `,` replaces it; `gu` again puts it
+back.
 
 ## Archives
 

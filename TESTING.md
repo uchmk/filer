@@ -919,6 +919,27 @@ real tools, at a real pane width.
 | 43.12 | A `.csv` that is actually binary | Still a hex dump, as before |
 | 43.13 | A CJK-heavy CSV | Columns line up (widths are measured in cells, not chars) |
 
+## 44. Disk usage (v0.42.0)
+
+The walk and the ordering are unit-tested on a small tree. What needs a machine is a real disk: a
+`node_modules`, a Windows drive root, a network share.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 44.1 | `gu` in a project with a `node_modules` | Children largest first, with bars; `node_modules` near the top with a total far bigger than its own entry |
+| 44.2 | `gu`, then `<Esc>` | Back in the directory, cursor where it was. The walk stops (no CPU after leaving) |
+| 44.3 | `gu` on a tree with 300k+ files | Finishes, and says the walk was cut short and the totals are floors |
+| 44.4 | `gu` in a folder holding a `.gitignore`d `target/` or `build/` | It is **counted**, not skipped |
+| 44.5 | `gu` where a hidden folder holds most of the space | It is counted, and visible |
+| 44.6 | `gu` on a folder with a symlink/junction to a big tree | The link is one entry, not a second copy of the tree, and no hang |
+| 44.7 | `gu` at `C:\` | Answers; the biggest folders are plausible against WizTree or Explorer's own |
+| 44.8 | `gu` on a network share (UNC) | Answers or fails gracefully; `<Esc>` still gets out mid-walk |
+| 44.9 | `gu`, then `j`/`k`, `y`, `d`, space to select | All the ordinary list keys work — this is the list, not a panel |
+| 44.10 | `gu`, then `Enter` on a folder | Ordinary navigation: it leaves the view and enters the folder. `gu` again measures from there |
+| 44.11 | `gu` while a usage view is already up | Refused with a message, not a view with no way back |
+| 44.12 | `gu`, then `,` to re-sort | The order changes (as asked); `gu` again restores largest-first |
+| 44.13 | Compare a folder's total against Explorer's own properties | Within rounding. **Hard links read high — that is documented, not a bug** |
+
 ## Known gaps in this checklist
 
 - **Nothing here has been run.** The checklist was written from the code, not

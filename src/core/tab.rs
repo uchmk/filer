@@ -303,6 +303,7 @@ mod tests {
                     readonly: false,
                     link_to: None,
                     dir_size: None,
+                    usage: None,
                 }
             })
             .collect();

@@ -602,6 +602,11 @@ desc = "Jump interactively"
 on = [ "g", "f" ]
 run = "follow"
 desc = "Follow the hovered symlink"
+[[mgr.keymap]]
+# Not a yazi command. The `g` chord is where views live, and `u` alone is undo.
+on = [ "g", "u" ]
+run = "usage"
+desc = "Measure what is taking up the space here"
 
 # --- Tabs ---------------------------------------------------------------------
 

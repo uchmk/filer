@@ -40,6 +40,11 @@ pub struct Entry {
     pub link_to: Option<PathBuf>,
     /// Directory child count, filled in lazily by the size/count worker.
     pub dir_size: Option<u64>,
+    /// Everything underneath, in bytes, as the usage walk counted it. Only the
+    /// disk-usage view sets this: a directory's own `len` is the size of its
+    /// entry on disk and `dir_size` counts children one level down, so neither
+    /// can answer "how much room does this folder take".
+    pub usage: Option<u64>,
 }
 
 impl Entry {
@@ -73,6 +78,7 @@ impl Entry {
             readonly: false,
             link_to: None,
             dir_size: None,
+            usage: None,
         }
     }
 
@@ -128,6 +134,7 @@ impl Entry {
             readonly,
             link_to,
             dir_size: None,
+            usage: None,
         }
     }
 
@@ -142,6 +149,12 @@ impl Entry {
         } else {
             Some(util::human_size(self.len))
         }
+    }
+
+    /// What the usage view shows: the measured total where there is one, and the
+    /// file's own length otherwise, so a file needs no walk to be counted.
+    pub fn usage_bytes(&self) -> u64 {
+        self.usage.unwrap_or(if self.is_dir_like() { 0 } else { self.len })
     }
 }
 

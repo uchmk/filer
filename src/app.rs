@@ -934,6 +934,12 @@ pub struct App {
     op_undo: HashMap<u64, (UndoStep, Land)>,
 
     pub search: Option<crate::search::Handle>,
+    /// The disk-usage walk, while one is running. Dropping it stops the walk, so
+    /// leaving the view is all it takes to end one.
+    pub usage: Option<crate::fs::usage::Handle>,
+    /// The biggest total in the usage view, which the rows' bars are drawn
+    /// against. Zero when the view is not up.
+    pub usage_max: u64,
     pub ctx: egui::Context,
     /// How much bigger everything is drawn. Held here rather than read back
     /// from egui: `set_zoom_factor` only takes effect at the start of the next
@@ -1041,6 +1047,8 @@ impl App {
             undos: Undos::default(),
             op_undo: HashMap::new(),
             search: None,
+            usage: None,
+            usage_max: 0,
             ctx,
             scale: 1.0,
             pending_conflict: None,
@@ -1256,6 +1264,7 @@ impl App {
             self.error(msg);
         }
         self.drain_search();
+        self.drain_usage();
         self.sync_spot();
         self.pump_terminal();
         self.flush_dirty();
@@ -2111,6 +2120,9 @@ impl App {
 
     pub fn exit_search_view(&mut self) {
         self.search = None;
+        // Dropping the handle cancels the walk, so leaving is all it takes.
+        self.usage = None;
+        self.usage_max = 0;
         let cwd = self.tabs[self.active].cwd.clone();
         let show_hidden = self.tabs[self.active].show_hidden;
         let folder = match self.cache.get(&cwd) {
@@ -2401,6 +2413,7 @@ impl App {
                     .unwrap_or_default();
                 self.open_input(InputKind::Filter, "Filter", current);
             }
+            Act::Usage => self.start_usage(),
             Act::Search { via, .. } => {
                 self.open_input(InputKind::Search { via }, match via {
                     SearchVia::Name => "Search by name",
@@ -4084,6 +4097,75 @@ impl App {
         self.preview.key = None;
     }
 
+    /// Measure what is under each child of the current directory and show them
+    /// largest first.
+    ///
+    /// The same trick the search view uses: a `Folder` whose path is not a real
+    /// directory, filled in as the worker answers. That is the whole reason this
+    /// needs no overlay, no keymap layer and no `is_modal` entry -- `j`/`k`, the
+    /// wheel, selection, `y`, `d` and `<Esc>` all work because this is the file
+    /// list, not a panel pretending to be one.
+    fn start_usage(&mut self) {
+        if self.in_search_view() {
+            self.error("Usage: leave this view first");
+            return;
+        }
+        let root = self.tabs[self.active].cwd.clone();
+        let ctx = self.ctx.clone();
+        let handle = crate::fs::usage::spawn(&root, move || ctx.request_repaint());
+
+        let tab = &mut self.tabs[self.active];
+        tab.remember_cursor();
+        let mut folder = Folder::loading(usage_path(&root), None);
+        folder.state = LoadState::Ready;
+        tab.current = folder;
+        self.usage = Some(handle);
+        self.usage_max = 0;
+        self.preview.state = PreviewState::Empty;
+        self.preview.key = None;
+        self.toast("Measuring… <Esc> to leave");
+    }
+
+    fn drain_usage(&mut self) {
+        let Some(handle) = &self.usage else { return };
+        let mut batch: Vec<(PathBuf, u64, u64)> = Vec::new();
+        let mut done: Option<(u64, bool)> = None;
+        while let Ok(msg) = handle.rx.try_recv() {
+            match msg {
+                crate::fs::usage::Msg::Sized(mut v) => batch.append(&mut v),
+                crate::fs::usage::Msg::Done { total, capped } => {
+                    done = Some((total, capped));
+                    break;
+                }
+            }
+        }
+        if !batch.is_empty() {
+            let f = &mut self.tabs[self.active].current;
+            let entries = Arc::make_mut(&mut f.entries);
+            for (path, bytes, _files) in batch {
+                if let Ok(mut e) = Entry::from_path(path) {
+                    e.usage = Some(bytes);
+                    entries.push(e);
+                }
+            }
+            // Biggest first, which is the question being asked. Sorted here
+            // rather than through `SortSpec` because the tab's own sort puts
+            // every directory above every file, and a usage list that does that
+            // cannot be read.
+            entries.sort_by(|a, b| b.usage_bytes().cmp(&a.usage_bytes()).then(a.name.cmp(&b.name)));
+            self.usage_max = entries.first().map_or(0, Entry::usage_bytes);
+            f.rebuild(true);
+        }
+        if let Some((total, capped)) = done {
+            self.usage = None;
+            self.toast(format!(
+                "{} in total{} — <Esc> to leave",
+                crate::util::human_size(total),
+                if capped { " (walk cut short; totals are floors)" } else { "" }
+            ));
+        }
+    }
+
     /// True while the current view is a search result list rather than a real
     /// directory; `leave`/`Esc` returns to the directory it started from.
     pub fn in_search_view(&self) -> bool {
@@ -4467,6 +4549,12 @@ impl App {
     }
 }
 
+/// The usage view's synthetic path. Not a real directory, which is exactly what
+/// `in_search_view` tests for, so `<Esc>` leaves this view too.
+fn usage_path(root: &Path) -> PathBuf {
+    PathBuf::from(format!("usage:  {}", root.display()))
+}
+
 fn search_path(query: &str, root: &Path) -> PathBuf {
     PathBuf::from(format!("search: {query}  in  {}", root.display()))
 }
@@ -4543,6 +4631,7 @@ mod tests {
             readonly: false,
             link_to: None,
             dir_size: None,
+            usage: None,
         }
     }
 
@@ -5415,6 +5504,89 @@ mod spot_keys {
         // The horizontal pair is the list's, unchanged, in both.
         assert_eq!(mgr("h"), Some(vec![Act::Leave]));
         assert_eq!(mgr("l"), Some(vec![Act::Enter]));
+    }
+}
+
+/// The usage view rides on the same machinery the search view does: a `Folder`
+/// whose path is not a real directory. These pin the parts that make that work.
+#[cfg(test)]
+mod usage_view {
+    use super::*;
+
+    /// One directory per test. They run in parallel in one process, so a name
+    /// built from the pid alone has them wiping each other's trees mid-walk.
+    fn tree(name: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("filer-usage-view-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("fat").join("inner")).unwrap();
+        std::fs::create_dir_all(dir.join("thin")).unwrap();
+        std::fs::write(dir.join("fat").join("inner").join("a"), vec![b'x'; 900]).unwrap();
+        std::fs::write(dir.join("thin").join("b"), vec![b'x'; 20]).unwrap();
+        std::fs::write(dir.join("loose"), vec![b'x'; 100]).unwrap();
+        dir
+    }
+
+    fn app_in(dir: &Path) -> App {
+        let mut a = App::new(Config::load(), dir.to_path_buf(), egui::Context::default());
+        a.tabs[a.active].cwd = dir.to_path_buf();
+        a.tabs[a.active].current = Folder::loading(dir.to_path_buf(), None);
+        a
+    }
+
+    /// Largest first, folders measured through their children, and the bars'
+    /// scale taken from the biggest row.
+    #[test]
+    fn the_biggest_thing_comes_first() {
+        let dir = tree("order");
+        let mut a = app_in(&dir);
+        a.start_usage();
+        assert!(a.usage.is_some(), "a walk is running");
+        // Drain until the worker says it is done.
+        for _ in 0..2000 {
+            a.drain_usage();
+            if a.usage.is_none() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        assert!(a.usage.is_none(), "the walk finished");
+        let names: Vec<&str> =
+            a.tabs[a.active].current.entries.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, ["fat", "loose", "thin"], "largest first: {names:?}");
+        assert_eq!(a.usage_max, 900, "the bars are drawn against the biggest row");
+        let fat = a.tabs[a.active].current.entries.iter().find(|e| e.name == "fat").unwrap();
+        assert_eq!(fat.usage_bytes(), 900, "a folder is worth what is under it");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The view is a `Folder` with a path that is not a directory, which is what
+    /// `in_search_view` tests -- so `<Esc>` and `leave` already handle it, and
+    /// dropping the handle stops the walk.
+    #[test]
+    fn leaving_the_view_stops_the_walk() {
+        let dir = tree("leave");
+        let mut a = app_in(&dir);
+        a.start_usage();
+        assert!(a.in_search_view(), "the usage view is not a real directory");
+        a.exit_search_view();
+        assert!(a.usage.is_none(), "the handle is dropped, so the walk is cancelled");
+        assert_eq!(a.usage_max, 0);
+        assert!(!a.in_search_view(), "and we are back in the directory");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Starting a usage walk from a view that is already synthetic would leave
+    /// no directory to go back to.
+    #[test]
+    fn it_refuses_to_start_from_another_synthetic_view() {
+        let dir = tree("refuse");
+        let mut a = app_in(&dir);
+        a.start_usage();
+        let path = a.tabs[a.active].current.path.clone();
+        a.start_usage();
+        assert_eq!(a.tabs[a.active].current.path, path, "the view did not change");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 
