@@ -89,14 +89,117 @@ pub fn inspect(path: &Path) -> Vec<Section> {
 }
 
 fn link(path: &Path) -> Option<Section> {
-    let target = std::fs::read_link(path).ok()?;
+    let target = std::fs::read_link(path).ok();
+    let (links, others) = hard_links(path);
+    // A plain file with one name is not a link of any sort and gets no section.
+    if target.is_none() && links < 2 {
+        return None;
+    }
     let mut s = Section::new("Link");
-    s.row("Target", target.display().to_string());
-    s.row("Resolves", match std::fs::canonicalize(path) {
-        Ok(real) => plain(&real),
-        Err(e) => format!("no ({e})"),
-    });
+    match &target {
+        Some(t) => {
+            // A junction reads as a symlink here, as it does everywhere else in
+            // the app (TESTING.md 13.7): `read_link` resolves both, and telling
+            // them apart needs the reparse tag. What is worth saying is whether
+            // the link survives being moved, which is the absolute/relative
+            // split -- `-` writes one, `_` the other.
+            s.row("Kind", if t.is_relative() { "Symlink (relative)" } else { "Symlink" });
+            s.row("Target", t.display().to_string());
+            s.row("Resolves", match std::fs::canonicalize(path) {
+                Ok(real) => plain(&real),
+                Err(e) => format!("no ({e})"),
+            });
+        }
+        // The only place in the app a hardlink is visible. It *is* an ordinary
+        // entry -- same bytes, no marker, nothing in the row to see -- so
+        // without this the only way to know was `fsutil hardlink list`.
+        None => s.row("Kind", "Hardlink"),
+    }
+    if links > 1 {
+        s.row("Links", links.to_string());
+        for other in others {
+            s.row("Also at", other);
+        }
+    }
     Some(s)
+}
+
+/// How many names point at these bytes, and (on Windows) what the others are.
+///
+/// `(1, vec![])` whenever the answer cannot be had -- an unreadable file says
+/// "one name" rather than making the section lie about a second.
+#[cfg(not(windows))]
+fn hard_links(path: &Path) -> (u64, Vec<String>) {
+    use std::os::unix::fs::MetadataExt;
+    // Unix counts them but cannot name them: finding the other entries would
+    // mean walking the filesystem for a matching inode.
+    (std::fs::symlink_metadata(path).map_or(1, |m| m.nlink()), Vec::new())
+}
+
+#[cfg(windows)]
+fn hard_links(path: &Path) -> (u64, Vec<String>) {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PWSTR;
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::Storage::FileSystem::{
+        CreateFileW, FindClose, FindFirstFileNameW, FindNextFileNameW, GetFileInformationByHandle,
+        BY_HANDLE_FILE_INFORMATION, FILE_FLAG_BACKUP_SEMANTICS, FILE_SHARE_DELETE, FILE_SHARE_READ,
+        FILE_SHARE_WRITE, OPEN_EXISTING,
+    };
+
+    let wide: Vec<u16> = path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    // No access rights asked for: the count is metadata, and a file another
+    // process holds open for writing still answers.
+    let handle = unsafe {
+        CreateFileW(
+            PWSTR(wide.as_ptr() as *mut u16),
+            0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            None,
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS, // so a directory opens too
+            None,
+        )
+    };
+    let Ok(handle) = handle else { return (1, Vec::new()) };
+    let mut info = BY_HANDLE_FILE_INFORMATION::default();
+    let count = match unsafe { GetFileInformationByHandle(handle, &mut info) } {
+        Ok(()) => u64::from(info.nNumberOfLinks),
+        Err(_) => 1,
+    };
+    let _ = unsafe { CloseHandle(handle) };
+    if count < 2 {
+        return (count, Vec::new());
+    }
+
+    // The names come back relative to the volume root (`\dev\filer\x.md`), so the
+    // drive the file is on goes back in front of each one.
+    let root: String = path
+        .components()
+        .next()
+        .map(|c| c.as_os_str().to_string_lossy().trim_end_matches(['\\', '/']).to_string())
+        .unwrap_or_default();
+    let mut names = Vec::new();
+    let mut buf = vec![0u16; 32768];
+    let mut len = buf.len() as u32;
+    let find = unsafe {
+        FindFirstFileNameW(PWSTR(wide.as_ptr() as *mut u16), 0, &mut len, PWSTR(buf.as_mut_ptr()))
+    };
+    let Ok(find) = find else { return (count, Vec::new()) };
+    loop {
+        let name = String::from_utf16_lossy(&buf[..buf.iter().position(|&c| c == 0).unwrap_or(0)]);
+        let full = format!("{root}{name}");
+        // The file's own path is not one of its "other" names.
+        if !full.eq_ignore_ascii_case(&path.display().to_string()) {
+            names.push(full);
+        }
+        len = buf.len() as u32;
+        if unsafe { FindNextFileNameW(find, &mut len, PWSTR(buf.as_mut_ptr())) }.is_err() {
+            break;
+        }
+    }
+    let _ = unsafe { FindClose(find) };
+    (count, names)
 }
 
 /// The image's own size and format, read from its header.

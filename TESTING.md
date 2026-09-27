@@ -364,6 +364,15 @@ would rather not make any.
 | 13.5 | `g`+`f` on an ordinary file (v0.26.8) | `Only a symlink can be followed — a link shows -> after its name`. Until v0.26.8 nothing happened at all, which was indistinguishable from an unbound key |
 | 13.6 | `g`+`f` in an empty directory | Nothing, and no message — there is no row to say anything about |
 | 13.7 | A junction (`mklink /J`), not just a symlink | Treated the same: `->`, and `g`+`f` follows it |
+| 13.8 | `y`, then `-` in another directory | The symlink appears. **On Windows this needs Developer Mode on** (Settings > System > For developers) — without it, and without running filer elevated, it fails with `os error 1314` and the toast says which two remedies there are. The privilege is the OS's, not the app's: `std` already passes `SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, which is what makes Developer Mode enough |
+| 13.9 | `y`, then `_` in a **sibling** directory | The same link, written relative (`..\other\file`). `g`+`f` follows it, and it survives moving both directories together — which is the point of `_` over `-` |
+| 13.10 | `<Tab>` on a symlink (v0.46.0) | A **Link** section: `Kind` reads `Symlink`, `Target` the stored path, `Resolves` where it lands |
+| 13.11 | `<Tab>` on a link made with `_` | `Kind` reads `Symlink (relative)`, and `Target` is the relative path while `Resolves` is absolute — the two rows differ, which is the whole point of the pair |
+| 13.12 | `<Tab>` on a **broken** link | `Resolves` reads `no (…)` with the OS's reason, and the section still appears |
+| 13.13 | `<Tab>` on a hardlink (make one with `=`, or `fsutil hardlink create`) | `Kind` reads `Hardlink` and `Links` reads `2`. **This is the only place in the app a hardlink is visible** |
+| 13.14 | The same, on Windows | `Also at` lists the other path. Check it against `fsutil hardlink list` — the same set, with the file's own path left out |
+| 13.15 | `<Tab>` on an ordinary file with one name | **No Link section at all** — not a section saying "1", which would be noise on every file |
+| 13.16 | `<Tab>` on a file another program holds open for writing (a log being appended to, `hiberfil.sys`) | The count still answers: the handle asks for no access rights, so a write lock does not hide it |
 
 ## 14. The parent column, with the mouse (v0.26.7)
 
@@ -384,10 +393,10 @@ to answer a click.
 | # | Do | Expect |
 | --- | --- | --- |
 | 15.1 | `<C-->` with something yanked | **Only** the window shrinks. Until v0.32.0 it also made a hardlink — one press, two actions |
-| 15.2 | `<C-+>`, and `<C-=>` without shift | Both make it bigger |
+| 15.2 | `<C-+>`, and `<C-=>` | Both make it bigger. Which of the two needs shift depends on the layout — on US `+` is shift+equals, on JIS `+` is shift+semicolon and `=` is shift+minus — and both spellings are bound so either reaches it (v0.45.6) |
 | 15.3 | `<C-0>` | Back to 100%, and a toast says so |
 | 15.4 | Hold `<C-->` down | It shrinks smoothly and stops at 20%; `<C-+>` held stops at 500% |
-| 15.5 | `<C-S-->` with something yanked | The hardlink, in its new place |
+| 15.5 | `=` with something yanked, in a directory **on the same drive** | The hardlink, in its new place. Nothing in the app says so — a hardlink is another entry pointing at the same data, so it has no marker and the spot panel's Link section is for symlinks only. Confirm with `fsutil hardlink list <the new path>`, which lists every path sharing the data; or write to one and read the other. Across drives it must fail: NTFS hardlinks cannot leave their volume. Was `<C-S-->` until v0.45.6, a chord no keyboard can produce |
 | 15.6 | `<A-i>` / `<A-o>` on an image | Still the **image** zoom, unaffected — `zoom` and `scale` are different commands |
 | 15.7 | `~` | `scale in` / `scale out` / `scale reset` are listed, like any other command |
 
@@ -458,7 +467,7 @@ QA-REPORT.md.
 | 18.8 | `<Tab>` on a file | The spot panel, with the file's details |
 | 18.9 | `<S-F10>` or right-click | The context menu, with the openers from your config |
 | 18.10 | `<C-S-p>` | The palette, listing every binding; typing filters it |
-| 18.11 | `b` then a letter, having saved one with `B` | Jumps there. `'` and the letter does the same |
+| 18.11 | `'` then a letter, having saved one with `B` | Jumps there. **`b` is the prefix bookmark *management* hangs off** (`bb` lists, `bs` saves, `bd` deletes), so `b` and a letter reaches nothing |
 | 18.12 | `z` | The jump list: bookmarks first, then recent directories with "2h ago" beside them |
 
 ## 19. The wheel, over each pane (v0.26.5)
@@ -734,8 +743,9 @@ lines and the list 15, which is the difference 34.2 is about. The stop with the 
 bottom, the immediate return from it, the wheel reaching the panel and not the list under it, the
 one-row prompt that still lets the list scroll, the four closing keys and a rebound key are all in
 `cargo test`. **34.14 is only half covered**: that a taller panel comes back to the new bottom is
-asserted, but `<C-->` itself is not — the `[help]` layer has no scale binding, so the key does
-nothing while the panel is open. See QA-REPORT.md. What is left for an eye is the pointer feel —
+asserted, but `<C-->` itself is not yet driven from a test. The `[help]` layer had no scale binding
+at all until v0.45.9, which is why the key did nothing while the panel was open; it works now, and
+the second half of 34.14 is there to be automated. See QA-REPORT.md. What is left for an eye is the pointer feel —
 wheel speed, and the pointing-hand cursor over a config path — and that the text is legible at the
 size the panel comes out.
 
@@ -821,7 +831,7 @@ these — the point is that no panel is the odd one out.
 | 36.14 | `help` (`~`), task list, spotter (`Tab`), comparison (`<A-d>`) | `q` in each | Closes, app still running (unchanged — these already had their own layer) |
 | 36.15 | Nothing up | `q` | Quits on the first press |
 | 36.16 | `<F3>` **and** `T` both on | `q`, `q`, `q` | Panel, then columns, then quit. Same three presses with `<Esc>`, `<Esc>`, `q` |
-| 36.17 | A confirm prompt (delete something) or a pick list | `q` | **Nothing happens** — these want a decision, so `q` is not a way out. `<Esc>` cancels. It must not quit either |
+| 36.17 | A confirm prompt (delete something) or a pick list | `q` | **Cancels, exactly as `<Esc>` does** — `answer_confirm` takes any key it does not recognise as a cancel. The app must not quit, and does not: the prompt swallows the `q` |
 | 36.18 | Rebind: `[[mgr.keymap]]` with `on = "Q"`, `run = "quit"`, then `Q` with `<F3>` up | Closes the panel first, like `q` — the behaviour is on the action, not the letter |
 
 ---

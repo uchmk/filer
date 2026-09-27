@@ -4,7 +4,7 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**226 / 226 checked.**
+**226 / 242 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
@@ -245,7 +245,7 @@ A chooser — the command palette, the context menu.
 - [x] `<Enter>` — Submit · `close --submit`
 - [x] `<Esc>` — Cancel · `close`
 
-## `[help]` — 16 / 16
+## `[help]` — 16 / 20
 
 This panel (`~` or `<F1>`).
 
@@ -267,8 +267,12 @@ This panel (`~` or `<F1>`).
 - [x] `<PageDown>` — Down a page · `arrow 100%`
 - [x] `g g` — To the top · `arrow top`
 - [x] `G` — To the bottom · `arrow bot`
+- [ ] `<C-+>` — Make everything bigger · `scale in`
+- [ ] `<C-=>` — Make everything bigger · `scale in`
+- [ ] `<C-->` — Make everything smaller · `scale out`
+- [ ] `<C-0>` — Back to the original size · `scale reset`
 
-## `[tasks]` — 9 / 9
+## `[tasks]` — 9 / 13
 
 The task manager (`w`).
 
@@ -283,8 +287,12 @@ The task manager (`w`).
 - [x] `p` — Pause / resume the task · `task_toggle`
 - [x] `x` — Cancel the task · `task_cancel`
 - [x] `t` — Move the task to the front of the queue · `task_top`
+- [ ] `<C-+>` — Make everything bigger · `scale in`
+- [ ] `<C-=>` — Make everything bigger · `scale in`
+- [ ] `<C-->` — Make everything smaller · `scale out`
+- [ ] `<C-0>` — Back to the original size · `scale reset`
 
-## `[spot]` — 17 / 17
+## `[spot]` — 17 / 21
 
 The details panel (`<Tab>`).
 
@@ -307,8 +315,12 @@ The details panel (`<Tab>`).
 - [x] `<Left>` — Go back to the parent directory · `leave`
 - [x] `<Right>` — Enter the directory · `enter`
 - [x] `y` — Copy the selected value · `copy cell`
+- [ ] `<C-+>` — Make everything bigger · `scale in`
+- [ ] `<C-=>` — Make everything bigger · `scale in`
+- [ ] `<C-->` — Make everything smaller · `scale out`
+- [ ] `<C-0>` — Back to the original size · `scale reset`
 
-## `[diff]` — 12 / 12
+## `[diff]` — 12 / 16
 
 The side-by-side comparison (`<A-d>`).
 
@@ -326,3 +338,7 @@ The side-by-side comparison (`<A-d>`).
 - [x] `G` — To the bottom · `arrow bot`
 - [x] `n` — To the next difference · `find_arrow`
 - [x] `N` — To the previous difference · `find_arrow --previous`
+- [ ] `<C-+>` — Make everything bigger · `scale in`
+- [ ] `<C-=>` — Make everything bigger · `scale in`
+- [ ] `<C-->` — Make everything smaller · `scale out`
+- [ ] `<C-0>` — Back to the original size · `scale reset`
