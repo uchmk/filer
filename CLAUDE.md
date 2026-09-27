@@ -94,6 +94,13 @@ cargo build --release --manifest-path C:\dev\filer\Cargo.toml
     （`chunks_exact_to_as_chunks` が 1.98 で追加された lint だった）。
     **lint は rustc の更新で増えるので、版が違えば別のものを見ている。**
   - egui 0.36 が要求するのは 1.95 以上。それは**下限**であって、検証に使う版ではない。
+- **CI の待ちを増やさない運用。**1 本 5 分、今日は 40 本 209 分だった日がある。
+  - **CI を待って止まらない。**回っている間に次を進め、緑になった時点でマージする。
+  - **1 つの PR に何度も push しない。**検証は手元で済ませ、まとめて 1 回上げる
+    （`concurrency` が古い run を打ち切るので事故にはならないが、回数自体を減らす）。
+  - **版の桁で CI を切り替えない。**PATCH こそバグ修正そのもので、一番検証が要る。
+    版は人が手で決めるラベルなので、打ち間違いで検証が黙って無効になる。
+    切るなら**変わったファイル**で切る（`ci.yml` の `paths-ignore`）。
 - CI は `.github/workflows/ci.yml`（Windows でテスト、Linux で clippy）、
   `audit.yml`（`cargo audit`、push と週 1 回）、`build.yml` が 6 ターゲットの
   バイナリをアーティファクトとして残す（Actions タブからダウンロードできる）。

@@ -1,9 +1,42 @@
 name: CI
 
+# Files that cannot change what the build does. TESTING-KEYS.md is deliberately
+# not here -- it is what `make-keycheck --check` compares against, so a change to
+# it is exactly when that step has to run. Neither is `Cargo.toml`, which carries
+# the version `--locked` checks, nor `.github/**`, since a change to CI should be
+# run by CI.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'CHANGELOG.md'
+      - 'README.md'
+      - 'TODO.md'
+      - 'QUESTIONS.md'
+      - 'QA-REPORT.md'
+      - 'TESTING.md'
+      - '.claude/**'
+      - 'LICENSE'
   pull_request:
+    # Repeated rather than anchored: GitHub's own parser handles YAML anchors,
+    # but every tool that reads this file has to, and a silently-ignored alias
+    # here would mean CI quietly stops running on pull requests.
+    paths-ignore:
+      - 'CHANGELOG.md'
+      - 'README.md'
+      - 'TODO.md'
+      - 'QUESTIONS.md'
+      - 'QA-REPORT.md'
+      - 'TESTING.md'
+      - '.claude/**'
+      - 'LICENSE'
+
+# A second push to the same branch makes the first run's answer worthless before
+# it arrives. Without this they queue, and the newest -- the only one anyone is
+# waiting for -- starts last.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -11,6 +44,19 @@ env:
 jobs:
   test:
     # Windows is the target platform, so that is where the build has to hold.
+    #
+    # Pull requests only. A pull request's checks run on the *merged* tree, so a
+    # green one has already been built and tested here; running it again on the
+    # push that merges it measures the same thing a second time, and it is the
+    # slowest thing in this file by far (a Windows build is ~160s, the whole
+    # Linux job is under a minute).
+    #
+    # The gap this leaves: a commit pushed straight to `main`, which skips pull
+    # requests entirely, is never built on Windows -- so `#[cfg(windows)]` code
+    # and tests are not checked for it. That is survivable while direct commits
+    # are ticks in TESTING-KEYS.md. **Put this back the moment code starts going
+    # to `main` directly.**
+    if: github.event_name == 'pull_request'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
