@@ -970,6 +970,25 @@ on = "t"
 run = "task_top"
 desc = "Move the task to the front of the queue"
 
+# Window scale, as in `[mgr]` and `[help]`: the size of the window is not a
+# property of what the task list happens to be showing.
+[[tasks.keymap]]
+on = "<C-+>"
+run = "scale in"
+desc = "Make everything bigger"
+[[tasks.keymap]]
+on = "<C-=>"
+run = "scale in"
+desc = "Make everything bigger"
+[[tasks.keymap]]
+on = "<C-->"
+run = "scale out"
+desc = "Make everything smaller"
+[[tasks.keymap]]
+on = "<C-0>"
+run = "scale reset"
+desc = "Back to the original size"
+
 [[spot.keymap]]
 on = "<Esc>"
 run = "close"
@@ -1047,6 +1066,25 @@ on = "y"
 run = "copy cell"
 desc = "Copy the selected value"
 
+# Window scale, as in `[mgr]` and `[help]`: the size of the window is not a
+# property of which cell of the spot panel is selected.
+[[spot.keymap]]
+on = "<C-+>"
+run = "scale in"
+desc = "Make everything bigger"
+[[spot.keymap]]
+on = "<C-=>"
+run = "scale in"
+desc = "Make everything bigger"
+[[spot.keymap]]
+on = "<C-->"
+run = "scale out"
+desc = "Make everything smaller"
+[[spot.keymap]]
+on = "<C-0>"
+run = "scale reset"
+desc = "Back to the original size"
+
 # --- Compare (side by side) ---------------------------------------------------
 
 [[diff.keymap]]
@@ -1097,3 +1135,22 @@ desc = "To the next difference"
 on = "N"
 run = "find_arrow --previous"
 desc = "To the previous difference"
+
+# Window scale, as in `[mgr]` and `[help]`: the size of the window is not a
+# property of which difference the comparison is parked on.
+[[diff.keymap]]
+on = "<C-+>"
+run = "scale in"
+desc = "Make everything bigger"
+[[diff.keymap]]
+on = "<C-=>"
+run = "scale in"
+desc = "Make everything bigger"
+[[diff.keymap]]
+on = "<C-->"
+run = "scale out"
+desc = "Make everything smaller"
+[[diff.keymap]]
+on = "<C-0>"
+run = "scale reset"
+desc = "Back to the original size"
