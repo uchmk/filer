@@ -1263,3 +1263,107 @@ mod help_config_rows {
         assert_eq!(named.as_deref(), Some("<F9>"), "a rebound key is the one the panel names");
     }
 }
+
+/// The folder comparison, on screen.
+///
+/// `compare_trees` and the keys already have tests of their own; what these add
+/// is that the result reaches the frame -- the signs, the footer's tally and the
+/// message an identical pair gets. TESTING.md 45.1, 45.5 and 45.7.
+#[cfg(test)]
+mod diff_frame {
+    use crate::app::{DiffOverlay, Overlay};
+    use crate::diff::{Outcome, TreeCounts, TreeRow, TreeState};
+    use crate::ui::harness::Screen;
+    use std::path::PathBuf;
+
+    fn row(rel: &str, state: TreeState) -> TreeRow {
+        TreeRow { rel: PathBuf::from(rel), state, dir: false, left: 1, right: 2 }
+    }
+
+    /// A window with the comparison of `rows` open.
+    fn showing(rows: Vec<TreeRow>) -> Screen {
+        let mut s = Screen::open(crate::util::test_dir("frame-diff"));
+        s.app.overlay = Overlay::Diff(DiffOverlay {
+            left: PathBuf::from("l"),
+            right: PathBuf::from("r"),
+            outcome: Some(Outcome::Tree {
+                counts: TreeCounts::of(&rows),
+                rows,
+                truncated: false,
+            }),
+            offset: 0,
+            rows: 10,
+            cursor: 0,
+        });
+        s
+    }
+
+    /// Every sign is drawn, and the footer counts each kind.
+    #[test]
+    fn the_signs_and_the_tally_are_on_screen() {
+        let mut s = showing(vec![
+            row("only-left.txt", TreeState::LeftOnly),
+            row("only-right.txt", TreeState::RightOnly),
+            row("changed.txt", TreeState::Differ),
+            row("same.txt", TreeState::Same),
+            row("huge.bin", TreeState::Unread),
+        ]);
+        let f = s.draw();
+
+        for name in ["only-left.txt", "only-right.txt", "changed.txt", "same.txt", "huge.bin"] {
+            assert!(f.says(name), "the row for {name} is drawn: {:?}", f.texts);
+        }
+        for sign in ["<", ">", "~", "=", "?"] {
+            assert!(
+                f.texts.iter().any(|t| t == sign),
+                "the sign {sign} is drawn on its own: {:?}",
+                f.texts,
+            );
+        }
+        assert!(
+            f.says("1 only left") && f.says("1 only right") && f.says("1 differ"),
+            "the footer counts each kind: {:?}",
+            f.texts,
+        );
+        // TESTING.md 45.7: a pair too big to read is its own count, not a match.
+        assert!(f.says("1 match"), "and the matches: {:?}", f.texts);
+        assert!(f.says("1 too big to read"), "separately from the unread: {:?}", f.texts);
+    }
+
+    /// Two identical trees say so rather than drawing an empty pane.
+    ///
+    /// TESTING.md 45.5. `compare_trees` drops the rows that match when nothing
+    /// differs, so "no rows" and "nothing to compare" look the same from here --
+    /// which is why the message exists and why it is worth asserting.
+    #[test]
+    fn an_identical_pair_says_so() {
+        let f = showing(Vec::new()).draw();
+        assert!(f.says("every file matches"), "{:?}", f.texts);
+    }
+
+    /// The cursor is drawn on the row it is on, and follows `j`.
+    ///
+    /// The keys are tested in `app::diff_tree_keys`; this is that the selection
+    /// is *visible*, which is the difference between a list you can navigate and
+    /// one that only looks static. TESTING.md 45.2.
+    #[test]
+    fn the_selection_is_drawn_and_moves() {
+        let mut s = showing(vec![
+            row("a.txt", TreeState::Differ),
+            row("b.txt", TreeState::Differ),
+            row("c.txt", TreeState::Differ),
+        ]);
+        let hl = s.app.cfg.theme.hovered_bg;
+        let top_of_highlight = |s: &mut Screen| {
+            let f = s.draw();
+            let rects = f.filled(hl);
+            assert_eq!(rects.len(), 1, "one row is highlighted, got {rects:?}");
+            rects[0].top()
+        };
+
+        let first = top_of_highlight(&mut s);
+        s.typed("jj");
+        let now = top_of_highlight(&mut s);
+        assert!(now > first, "the highlight moved down: {first} then {now}");
+    }
+}

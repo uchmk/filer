@@ -12,6 +12,15 @@ zoom arithmetic, minimap row summaries, pane geometry), the keymap's
 consistency, and that the whole thing compiles for Windows, macOS and Linux.
 `cargo test` on Windows CI runs all of it on every push.
 
+Since v0.45.0 that also includes **whole frames**: `ui::harness::Screen` runs the
+real drawing code with no window, feeding events through the same `handle_input`
+the window uses, and reads back every string and rectangle the frame painted. So
+"the status bar counts the files", "the chord did not also type its letter" and
+"the comparison drew its signs" are checked by `cargo test` now, and a check
+below that reads like one of those is a check that ran. What it cannot see is
+colour and glyph shape — a layout that is present but wrong still needs an eye,
+which is the last note at the bottom of this file.
+
 ## The keys
 
 [TESTING-KEYS.md](TESTING-KEYS.md) is a tickable line per key binding — 193 of them
@@ -114,6 +123,10 @@ drawing has been seen. `<C-t>` opens it.
 ## 2. The minimap (v0.5.0)
 
 Open `long.rs` — 4000 lines, shaped so the bands should be recognisable.
+
+2.1 and 2.8 are automated (`ui::whole_frame`): that a long file puts bands down
+the strip, and that a pane too narrow for them draws none. What is left below is
+everything about how the picture *looks* and how it answers the mouse.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -945,6 +958,10 @@ The walk and the ordering are unit-tested on a small tree. What needs a machine 
 The pairing and the size/byte rules are unit-tested on small trees. What needs a machine is two real
 trees, and the keys in the actual view.
 
+45.1, 45.2, 45.5 and the footer half of 45.7 are automated (`ui::overlay::diff_frame`): the five signs
+reach the screen, the footer counts each kind with "too big to read" separate from "match", an
+identical pair says so, and the highlight follows `j`. What is left is the real trees.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 45.1 | Select two folders, `<A-d>` | A list of paths with `<` `>` `~` `=` signs and a footer counting each |
@@ -974,10 +991,28 @@ trees, and the keys in the actual view.
   are Windows-only, and the undo of a delete does not work on macOS (no API for
   reading the Trash back). The artifacts are on the Actions tab if a machine
   turns up.
-- **Automated screenshot testing was looked at and not adopted.** egui ships
-  `egui_kittest`, which renders offscreen and compares against baseline images,
-  and it would cover most of sections B, C, D and G. It needs a GPU adapter,
-  which the development container has none of (no Vulkan driver, no EGL), so the
-  baselines cannot be produced there — they would have to be generated on
-  Windows and committed. It is worth doing; it is not something that can be set
-  up blind.
+- **The frame itself is now checked, without a screen.** This note used to say
+  that automating the drawing needed a GPU and so could not be set up here. That
+  was true of comparing *pixels* and wrong about everything else: egui's frame is
+  laid out and tessellated on the CPU, and only turning the resulting meshes into
+  pixels needs a driver. `ui::harness::Screen` (v0.45.0) stops after the first
+  half — it feeds `egui::Event`s through the same `handle_input` the window uses,
+  runs `ui::draw`, and hands back every string and rectangle the frame painted.
+  One frame costs 0.01s and no new dependency.
+
+  It found a bug on its first run: the header joined the hovered file's name to
+  the directory with a literal `\`, so off Windows it read `/home/you\notes.md`.
+
+  What it covers so far: the chrome (path, count, mode, rows), `SELECT`, that an
+  `<A-m>` chord does not also type its letter (the v0.38.0 bug), that the minimap
+  appears and that a narrow pane drops it, and the folder comparison's signs,
+  tally and cursor. The sections it could still reach — the ones whose checks are
+  about what is on screen rather than about the OS — are 5, 6, 9, 10, 11, 12, 13,
+  18, 20, 21, 24, 27, 33, 34, 36, 38, 42, 43 and 44.
+
+- **Pixel comparison is still not set up.** `egui_kittest`'s snapshots would
+  catch what the harness above cannot: colours, glyph shapes, a layout that is
+  present but wrong. That does need a wgpu adapter. `mesa-vulkan-drivers`
+  (lavapipe) is installable even here, so it is no longer impossible — but font
+  rasterisation differs per platform, so the baselines would split three ways.
+  Lower value than filling in the sections above, and it should come second.

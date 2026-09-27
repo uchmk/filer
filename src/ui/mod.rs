@@ -277,7 +277,16 @@ fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         },
     );
     if let Some(name) = &name {
-        let sep = if cwd.is_empty() || cwd.ends_with('\\') || cwd.ends_with('/') { "" } else { "\\" };
+        // The platform's own separator. This was a literal `\` until v0.45.0,
+        // which reads as a path on Windows and as an escape everywhere else:
+        // the header on Linux said `/home/you\notes.md`. The test for it is in
+        // `whole_frame`, which is how it turned up -- nothing had drawn a
+        // header off Windows before.
+        let sep = if cwd.is_empty() || cwd.ends_with('\\') || cwd.ends_with('/') {
+            String::new()
+        } else {
+            std::path::MAIN_SEPARATOR.to_string()
+        };
         job.append(
             &format!("{sep}{name}"),
             0.0,
@@ -1206,5 +1215,311 @@ mod parent_column {
         assert_eq!(parent_click(&as_file), Act::Reveal(file.display().to_string()));
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+/// Running the real drawing code with no window and no GPU.
+///
+/// egui's frame is two halves, and only the second one needs an adapter:
+/// laying out and tessellating is pure CPU, and what needs a driver is turning
+/// the resulting meshes into pixels. A test can stop after the first half --
+/// and every `Shape::Text` in what comes back carries its galley, so the
+/// strings that would have been on screen come back as strings.
+///
+/// That is enough to assert on the chrome, the overlays and the panes without a
+/// baseline image, which matters because [TESTING.md] had ruled the whole
+/// category out along with screenshot comparison. Screenshots do need a GPU;
+/// asking what the frame *said* does not.
+///
+/// What this deliberately does not do is run the worker threads. The real frame
+/// loop opens with `drain_channels` and `kick_scans`, and a scan landing
+/// mid-test would replace the listing the test had just set up. Tests here fill
+/// the state in and assert on the drawing; the workers are covered where they
+/// live.
+#[cfg(test)]
+pub(crate) mod harness {
+    use super::*;
+
+    /// What one frame put on screen.
+    pub(crate) struct Painted {
+        /// Every string drawn, in paint order.
+        pub texts: Vec<String>,
+        /// Every filled rectangle and the colour it was filled with, in paint
+        /// order. The colour is what makes a highlight findable: a cursor row is
+        /// the theme's `hovered_bg` and nothing else in the frame is.
+        pub rects: Vec<(Rect, Color32)>,
+    }
+
+    impl Painted {
+        /// Whether any drawn string contains `needle`.
+        pub fn says(&self, needle: &str) -> bool {
+            self.texts.iter().any(|t| t.contains(needle))
+        }
+
+        /// Every rectangle that falls inside `area`, for asking where something
+        /// was drawn rather than only whether it was.
+        pub fn rects_in(&self, area: Rect) -> Vec<Rect> {
+            self.rects.iter().filter(|(r, _)| area.contains_rect(*r)).map(|(r, _)| *r).collect()
+        }
+
+        /// Every rectangle filled with exactly `fill`, topmost first.
+        pub fn filled(&self, fill: Color32) -> Vec<Rect> {
+            self.rects.iter().filter(|(_, c)| *c == fill).map(|(r, _)| *r).collect()
+        }
+    }
+
+    /// An [`App`] and the [`egui::Context`] its frames run in.
+    ///
+    /// The two have to be the same `Context` the whole way: `App::new` keeps a
+    /// clone to wake the window with, and `handle_input` reads the events back
+    /// out of it. Handing a test two would look like it worked and deliver no
+    /// keys.
+    pub(crate) struct Screen {
+        pub app: App,
+        ctx: egui::Context,
+        size: Vec2,
+    }
+
+    impl Screen {
+        /// filer's own defaults, listing `at`, in a 1280x800 window.
+        pub(crate) fn open(at: impl Into<std::path::PathBuf>) -> Self {
+            let ctx = egui::Context::default();
+            let app = App::new(crate::config::Config::load(), at.into(), ctx.clone());
+            Self { app, ctx, size: Vec2::new(1280.0, 800.0) }
+        }
+
+        /// A different window size -- narrow enough to drop the minimap, short
+        /// enough to scroll.
+        pub(crate) fn sized(mut self, w: f32, h: f32) -> Self {
+            self.size = Vec2::new(w, h);
+            self
+        }
+
+        /// The window frames are drawn into.
+        pub(crate) fn rect(&self) -> Rect {
+            Rect::from_min_size(egui::Pos2::ZERO, self.size)
+        }
+
+        /// One frame, with nothing typed.
+        pub(crate) fn draw(&mut self) -> Painted {
+            self.feed(Vec::new())
+        }
+
+        /// One frame, after `text` arrives as egui delivers typing: one
+        /// [`egui::Event::Text`] per character.
+        pub(crate) fn typed(&mut self, text: &str) -> Painted {
+            self.feed(text.chars().map(|c| egui::Event::Text(c.to_string())).collect())
+        }
+
+        /// One frame, after `events` arrive the way the window sees them.
+        pub(crate) fn feed(&mut self, events: Vec<egui::Event>) -> Painted {
+            let input = egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(egui::Pos2::ZERO, self.size)),
+                events,
+                ..Default::default()
+            };
+            // Cloned out of `self` so the closure can hold `self.app` mutably.
+            let ctx = self.ctx.clone();
+            let app = &mut self.app;
+            let out = ctx.run_ui(input, |ui| {
+                let ctx = ui.ctx().clone();
+                crate::handle_input(app, &ctx);
+                egui::CentralPanel::default()
+                    .frame(egui::Frame::NONE.fill(app.cfg.theme.bg))
+                    .show(ui, |ui| draw(app, ui));
+            });
+            // epaint panics if a delta is dropped with no renderer having taken
+            // it, which is exactly what this is: there is nothing to upload to.
+            let mut textures = out.textures_delta;
+            textures.clear();
+
+            let mut painted = Painted { texts: Vec::new(), rects: Vec::new() };
+            for clipped in &out.shapes {
+                collect(&clipped.shape, &mut painted);
+            }
+            painted
+        }
+    }
+
+    /// `Shape::Vec` nests, so the walk has to recurse: a pane's contents arrive
+    /// as one shape holding the rest.
+    fn collect(shape: &egui::epaint::Shape, into: &mut Painted) {
+        use egui::epaint::Shape;
+        match shape {
+            Shape::Text(t) => into.texts.push(t.galley.text().to_owned()),
+            Shape::Rect(r) => into.rects.push((r.rect, r.fill)),
+            Shape::Vec(v) => v.iter().for_each(|s| collect(s, into)),
+            _ => {}
+        }
+    }
+}
+
+/// The whole frame, drawn with no window: what [`harness`] is for.
+///
+/// These are the checks that no unit test could reach, because what they are
+/// about is the wiring rather than any one function. The pieces below all had
+/// their own tests already and still could not answer "is this on screen".
+#[cfg(test)]
+mod whole_frame {
+    use super::harness::Screen;
+    use crate::preview::{Extent, MapRow};
+    use egui::Rect;
+
+    /// The chrome names the directory and counts what is in it.
+    ///
+    /// Three separate readings of the same state -- the header's path, the
+    /// status bar's count, and the position -- which is what makes it worth
+    /// asserting together: a listing that reached one of them and not the
+    /// others is the shape of bug this catches.
+    #[test]
+    fn the_chrome_says_where_you_are() {
+        let dir = crate::util::test_dir("frame-chrome");
+        std::fs::write(dir.join("one.txt"), "1").unwrap();
+        std::fs::write(dir.join("two.txt"), "2").unwrap();
+        let entries = std::sync::Arc::new(vec![
+            crate::fs::Entry::from_path(dir.join("one.txt")).unwrap(),
+            crate::fs::Entry::from_path(dir.join("two.txt")).unwrap(),
+        ]);
+
+        let mut s = Screen::open(dir.clone());
+        s.app.tabs[s.app.active].current =
+            crate::core::folder::Folder::from_entries(dir.clone(), entries, true);
+
+        let f = s.draw();
+        assert!(f.says(&dir.display().to_string()), "the path is in the header: {:?}", f.texts);
+        assert!(f.says("2 items"), "the status bar counts them: {:?}", f.texts);
+        assert!(f.says("1/2"), "and says which one the cursor is on: {:?}", f.texts);
+        assert!(f.says("NORMAL"), "the mode is drawn: {:?}", f.texts);
+        assert!(f.says("one.txt") && f.says("two.txt"), "the rows: {:?}", f.texts);
+        // The hovered name is joined to the directory with the platform's own
+        // separator, which was a literal `\` until v0.45.0.
+        assert!(
+            f.says(&dir.join("one.txt").display().to_string()),
+            "the header spells a path this platform would accept: {:?}",
+            f.texts,
+        );
+    }
+
+    /// Visual mode says so, rather than only behaving differently.
+    ///
+    /// The word on screen is `SELECT`, not `VISUAL`: `v` is yazi's visual mode
+    /// and the indicator names what it does rather than what the key is called.
+    #[test]
+    fn visual_mode_is_visible() {
+        let dir = crate::util::test_dir("frame-visual");
+        std::fs::write(dir.join("a.txt"), "a").unwrap();
+        let entries =
+            std::sync::Arc::new(vec![crate::fs::Entry::from_path(dir.join("a.txt")).unwrap()]);
+
+        let mut s = Screen::open(dir.clone());
+        s.app.tabs[s.app.active].current =
+            crate::core::folder::Folder::from_entries(dir.clone(), entries, true);
+        assert!(s.draw().says("NORMAL"), "before");
+
+        let f = s.typed("v");
+        assert!(f.says("SELECT"), "after `v`: {:?}", f.texts);
+        assert!(f.says("1 selected"), "and the status bar counts it: {:?}", f.texts);
+    }
+
+    /// A chord and the character it would have typed arrive together, and only
+    /// the chord runs.
+    ///
+    /// This is the v0.38.0 bug, which shipped: Windows sends `<A-m>` as a key
+    /// event *and* then as `Text("m")`, so one keystroke ran `send_pane --cut`
+    /// and went on to offer the line-mode menu as well. `m` is a prefix in the
+    /// default keymap (`m s`, `m t`, ...), so a leaked character is not a
+    /// silent state change -- it puts the which-key panel on screen listing
+    /// `m s`, `m t` and the rest, which is what makes this assertable from a
+    /// frame at all.
+    #[test]
+    fn an_alt_chord_does_not_also_type_its_letter() {
+        let dir = crate::util::test_dir("frame-chord");
+        let mut s = Screen::open(dir);
+
+        // The control: the character on its own does open the menu, so a test
+        // that stopped catching the leak would fail here rather than pass
+        // quietly.
+        let bare = s.typed("m");
+        assert!(bare.says("Line mode"), "`m` alone offers the menu: {:?}", bare.texts);
+        s.app.pending.clear();
+        s.app.which.clear();
+
+        let alt = egui::Modifiers { alt: true, ..Default::default() };
+        let chord = s.feed(vec![
+            egui::Event::Key {
+                key: egui::Key::M,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: alt,
+            },
+            egui::Event::Text("m".into()),
+        ]);
+        assert!(
+            !chord.says("Line mode"),
+            "the chord was handled and the text dropped: {:?}",
+            chord.texts,
+        );
+        assert!(s.app.pending.is_empty(), "no half-typed chord is left over");
+    }
+
+    /// A long file puts a minimap down the right of the preview; the flag and a
+    /// narrow window each take it away.
+    ///
+    /// `split_minimap` decides the geometry and is unit-tested on its own; what
+    /// this adds is that the decision is reached from a frame, with the pane
+    /// widths the real layout hands it. The strip is bands, not text, so this is
+    /// the one check here that reads rectangles.
+    #[test]
+    fn a_long_file_gets_a_strip_and_a_narrow_window_does_not() {
+        // Wide enough for the preview pane to clear `MINIMAP_MIN_COLS`. At
+        // 1280 it does not -- the pane comes out at 54 columns against the 56
+        // the map asks for -- which is the check two windows down.
+        let mut s = screen_showing_a_long_file().sized(1920.0, 1080.0);
+        let full = s.rect();
+        // The strip is the last few columns of the window, since the preview is
+        // the rightmost pane. Counting the same area with the minimap on and off
+        // is what makes this a check rather than a guess at a threshold: the
+        // bands are one rectangle per chunk of lines and nothing else there is.
+        let strip = Rect::from_x_y_ranges(full.right() - 70.0..=full.right(), full.y_range());
+
+        let on = s.draw().rects_in(strip).len();
+        assert!(on > 100, "400 lines put bands down the strip, got {on}");
+
+        s.app.cfg.ui.minimap = false;
+        let off = s.draw().rects_in(strip).len();
+        assert!(off < 10, "the flag takes them away: {off} left");
+
+        // TESTING.md 2.8: the map goes before the text becomes unreadable.
+        let mut narrow = screen_showing_a_long_file().sized(1000.0, 800.0);
+        let thin = narrow.rect();
+        let thin = Rect::from_x_y_ranges(thin.right() - 70.0..=thin.right(), thin.y_range());
+        assert!(
+            narrow.draw().rects_in(thin).len() < 10,
+            "a pane too narrow for the map draws none of it",
+        );
+    }
+
+    /// A window with one long file hovered and its preview already delivered.
+    ///
+    /// The payload is built here rather than scanned, because the harness does
+    /// not run the workers: what is under test is the drawing.
+    fn screen_showing_a_long_file() -> Screen {
+        let dir = crate::util::test_dir("frame-minimap");
+        std::fs::write(dir.join("long.rs"), "x").unwrap();
+        let entries =
+            std::sync::Arc::new(vec![crate::fs::Entry::from_path(dir.join("long.rs")).unwrap()]);
+        let mut s = Screen::open(dir.clone());
+        s.app.tabs[s.app.active].current =
+            crate::core::folder::Folder::from_entries(dir.clone(), entries, true);
+        s.app.preview.state = crate::app::PreviewState::Ready(crate::preview::Payload::Text {
+            lines: Vec::new(),
+            map: (0..400)
+                .map(|i| MapRow { indent: (i % 8) as u16, len: 40, color: None })
+                .collect(),
+            extent: Extent { truncated: false, total: 400 },
+            outline: Vec::new(),
+        });
+        s
     }
 }
