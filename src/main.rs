@@ -475,7 +475,12 @@ fn title_for(app: &App) -> String {
     }
 }
 
-fn handle_input(app: &mut App, ctx: &egui::Context) {
+/// `pub(crate)` for [`crate::ui::harness`]: a test that drives the program with
+/// `egui::Event`s has to enter through the same door the window does. The chord
+/// rules below -- Windows sending a keypress *and* the character it would have
+/// typed -- are only correct as a pair, and asserting on them from anywhere
+/// else would be asserting on a copy.
+pub(crate) fn handle_input(app: &mut App, ctx: &egui::Context) {
     let events = ctx.input(|i| i.events.clone());
     // Windows sends a chord *and* the character it would have typed: `<A-m>`
     // arrives as a key event with alt set and then as `Text("m")`, so one
