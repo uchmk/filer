@@ -1775,3 +1775,155 @@ mod help_frame {
         );
     }
 }
+
+/// TESTING.md 13.10 to 13.16: the spot panel's Link section.
+///
+/// The section is `spot::link`'s, and the worker is what normally runs it.
+/// Called here on the test's own thread and put where the worker would have put
+/// it, so the provider stays in the picture: a section written out by hand would
+/// assert only that the renderer can draw rows.
+///
+/// The symlink rows are `#[cfg(unix)]`. Creating one on Windows needs Developer
+/// Mode or an elevated shell -- which is what 13.8 is about -- so a test that
+/// made one would fail on the runner the checklist is written for. The hardlink
+/// rows need no privilege anywhere and so run on both. What is left for a
+/// machine is 13.14 (`Also at` is Windows-only: Unix counts the names but cannot
+/// list them), 13.16 (another program holding the file open), and 13.10 to 13.12
+/// on Windows.
+#[cfg(test)]
+mod spot_link_section {
+    use crate::app::{Overlay, SpotOverlay};
+    use crate::ui::harness::{Painted, Screen};
+    use std::path::Path;
+    use std::sync::Arc;
+
+    /// The spot panel open on `names[0]`, with the worker's findings already in.
+    fn showing(dir: &Path, names: &[&str]) -> Screen {
+        let entries: Vec<crate::fs::Entry> =
+            names.iter().map(|n| crate::fs::Entry::from_path(dir.join(n)).unwrap()).collect();
+        let mut s = Screen::open(dir.to_path_buf());
+        s.app.tabs[0].current =
+            crate::core::folder::Folder::from_entries(dir.to_path_buf(), Arc::new(entries), true);
+        s.app.overlay = Overlay::Spot(SpotOverlay { cursor: 0, scroll: 0 });
+        let on = dir.join(names[0]);
+        s.app.spotted = Some((on.clone(), crate::spot::inspect(&on)));
+        s
+    }
+
+    /// Whether the section was drawn at all, by its title.
+    ///
+    /// `Link` exactly: `Link to a file` is the `File` section's own `Kind` and
+    /// is on screen for every symlink whether this section appears or not.
+    fn has_link_section(f: &Painted) -> bool {
+        f.texts.iter().any(|t| t == "Link")
+    }
+
+    /// The value drawn beside `key` in the Link section.
+    ///
+    /// A section is drawn as its title and then key, value, key, value in paint
+    /// order, so the row is found by walking forward from the title -- from the
+    /// title because `Kind` is a row in the `File` section as well.
+    ///
+    /// Read as a whole string rather than searched for, because the panel elides
+    /// a value too wide for its column *itself*, with a `…` in the middle: a
+    /// long path is not on screen in full and `says` would never find it.
+    fn row(f: &Painted, key: &str) -> Option<String> {
+        let title = f.texts.iter().position(|t| t == "Link")?;
+        let at = f.texts[title..].iter().position(|t| t == key)? + title;
+        f.texts.get(at + 1).cloned()
+    }
+
+    /// 13.10: an absolute symlink says what it is, where it points and where
+    /// that lands.
+    #[cfg(unix)]
+    #[test]
+    fn a_symlink_says_where_it_points_and_where_that_lands() {
+        let dir = crate::util::test_dir("spot-link-abs");
+        std::fs::write(dir.join("t.txt"), "x").unwrap();
+        std::os::unix::fs::symlink(dir.join("t.txt"), dir.join("abs")).unwrap();
+
+        let f = showing(&dir, &["abs", "t.txt"]).draw();
+        assert!(has_link_section(&f), "the section is drawn: {:?}", f.texts);
+        assert_eq!(
+            row(&f, "Kind").as_deref(), Some("Symlink"),
+            "Kind says which sort of link: {:?}", f.texts,
+        );
+        let target = row(&f, "Target").expect("a Target row");
+        let resolves = row(&f, "Resolves").expect("a Resolves row");
+        // Written absolute, so the stored path already is where it lands: the
+        // two rows agreeing is what makes 13.11's disagreeing mean something.
+        assert_eq!(target, resolves, "both rows name the target: {:?}", f.texts);
+        assert!(target.ends_with("t.txt"), "which is the file: {target}");
+    }
+
+    /// 13.11: a relative link's two rows differ, which is the point of the pair.
+    ///
+    /// `_` writes this form and `-` the other, so the two rows reading the same
+    /// would hide the one difference that decides whether the link survives
+    /// being moved.
+    #[cfg(unix)]
+    #[test]
+    fn a_relative_link_stores_one_path_and_resolves_to_another() {
+        let dir = crate::util::test_dir("spot-link-rel");
+        std::fs::write(dir.join("t.txt"), "x").unwrap();
+        std::os::unix::fs::symlink("t.txt", dir.join("rel")).unwrap();
+
+        let f = showing(&dir, &["rel", "t.txt"]).draw();
+        assert_eq!(
+            row(&f, "Kind").as_deref(), Some("Symlink (relative)"),
+            "Kind says relative, not just Symlink: {:?}", f.texts,
+        );
+        let target = row(&f, "Target").expect("a Target row");
+        let resolves = row(&f, "Resolves").expect("a Resolves row");
+        assert_eq!(target, "t.txt", "Target is the path as stored: {:?}", f.texts);
+        assert_ne!(target, resolves, "and Resolves is not: {:?}", f.texts);
+        assert!(resolves.starts_with('/'), "it is absolute: {resolves}");
+        assert!(resolves.ends_with("t.txt"), "and still the same file: {resolves}");
+    }
+
+    /// 13.12: a broken link still gets its section, and Resolves carries the
+    /// reason.
+    #[cfg(unix)]
+    #[test]
+    fn a_broken_link_still_gets_a_section_and_says_why() {
+        let dir = crate::util::test_dir("spot-link-dead");
+        std::os::unix::fs::symlink(dir.join("gone.txt"), dir.join("dead")).unwrap();
+
+        let f = showing(&dir, &["dead"]).draw();
+        assert!(has_link_section(&f), "the section is there anyway: {:?}", f.texts);
+        let resolves = row(&f, "Resolves").expect("a Resolves row");
+        assert!(resolves.starts_with("no ("), "it says it did not: {resolves}");
+        assert!(resolves.ends_with(')'), "with the OS's own reason inside: {resolves}");
+    }
+
+    /// 13.13: a hardlink is named and counted -- the only place in the app one
+    /// is visible at all.
+    #[test]
+    fn a_hardlink_is_named_and_counted() {
+        let dir = crate::util::test_dir("spot-link-hard");
+        std::fs::write(dir.join("a.txt"), "x").unwrap();
+        std::fs::hard_link(dir.join("a.txt"), dir.join("b.txt")).unwrap();
+
+        let f = showing(&dir, &["a.txt", "b.txt"]).draw();
+        assert!(has_link_section(&f), "the section is drawn: {:?}", f.texts);
+        assert_eq!(row(&f, "Kind").as_deref(), Some("Hardlink"), "Kind: {:?}", f.texts);
+        assert_eq!(row(&f, "Links").as_deref(), Some("2"), "and the count: {:?}", f.texts);
+        assert!(row(&f, "Target").is_none(), "a hardlink has no target to name");
+    }
+
+    /// 13.15: an ordinary file with one name gets no section, rather than one
+    /// saying `1`.
+    #[test]
+    fn an_ordinary_file_gets_no_link_section() {
+        let dir = crate::util::test_dir("spot-link-none");
+        std::fs::write(dir.join("lone.txt"), "x").unwrap();
+
+        let f = showing(&dir, &["lone.txt"]).draw();
+        assert!(f.says("Spot:"), "the panel is open: {:?}", f.texts);
+        assert!(!has_link_section(&f), "and says nothing about links: {:?}", f.texts);
+        assert!(
+            !f.texts.iter().any(|t| t == "Links"),
+            "no count either, which would be noise on every file: {:?}", f.texts,
+        );
+    }
+}

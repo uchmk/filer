@@ -2636,3 +2636,321 @@ mod max_preview_frame {
         assert!(!s.app.quit, "and `q` went into the filter");
     }
 }
+
+/// TESTING.md section 13's list half: the `->` marker, the type column, and
+/// what `g` `f` does with each kind of row.
+///
+/// The link rows are built here rather than made on disk. A real symlink needs
+/// Developer Mode or an elevated shell on Windows -- 13.8 is about exactly that
+/// -- so a test that created one would be a test that fails on the runner that
+/// matters most. Everything the list and `follow` read is in the entry
+/// (`kind` and `link_to`), and filling those in from a `read_link` is the scan
+/// worker's job, which is the part of the section these cannot reach.
+///
+/// The toast's colour is not here either: 13.4 asks for red and the harness
+/// records a string, not the ink it was drawn in.
+#[cfg(test)]
+mod link_rows {
+    use super::harness::{Painted, Screen};
+    use crate::core::folder::Folder;
+    use crate::fs::{Entry, Kind};
+    use std::path::{Path, PathBuf};
+    use std::sync::Arc;
+
+    /// One link row, pointing at `to`.
+    fn link(dir: &Path, name: &str, to: PathBuf, to_dir: bool, broken: bool) -> Entry {
+        Entry {
+            path: dir.join(name),
+            name: name.to_owned(),
+            kind: Kind::Link { to_dir, broken },
+            link_to: Some(to),
+            ..Default::default()
+        }
+    }
+
+    /// A window listing exactly `entries`, with the cursor on the first.
+    fn showing(dir: &Path, entries: Vec<Entry>) -> Screen {
+        let mut s = Screen::open(dir.to_path_buf());
+        s.app.tabs[0].current = Folder::from_entries(dir.to_path_buf(), Arc::new(entries), true);
+        s
+    }
+
+    /// How many of the frame's strings are exactly `text`.
+    ///
+    /// Exactly, not `says`: the status line draws the hovered row's type column
+    /// too, padded, and `Symlink` is a prefix of `Symlink (relative)` over in
+    /// the spot panel. A column of three characters wants the strict form.
+    fn drawn(f: &Painted, text: &str) -> usize {
+        f.texts.iter().filter(|t| *t == text).count()
+    }
+
+    /// `sub/deep.txt` and three links beside it: to that directory, to that
+    /// file, and to a name that is not there. A plain file last, as the control.
+    ///
+    /// The target of the file link is one directory down so that following it
+    /// is a real move; a link beside its own target would land where it started
+    /// and pass whatever `cd` did.
+    fn four(label: &str) -> (PathBuf, Screen) {
+        let dir = crate::util::test_dir(label);
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        std::fs::write(dir.join("sub").join("deep.txt"), "deep").unwrap();
+        std::fs::write(dir.join("plain.txt"), "x").unwrap();
+        let entries = vec![
+            link(&dir, "to-dir", dir.join("sub"), true, false),
+            link(&dir, "to-file", dir.join("sub").join("deep.txt"), false, false),
+            link(&dir, "dead", dir.join("gone.txt"), false, true),
+            Entry::from_path(dir.join("plain.txt")).unwrap(),
+        ];
+        let s = showing(&dir, entries);
+        (dir, s)
+    }
+
+    /// 13.1: the name carries `->`, and `m` `p` turns the type column to `l`.
+    #[test]
+    fn a_link_is_marked_in_the_row_and_in_the_type_column() {
+        let (_dir, mut s) = four("frame-link-mark");
+
+        let f = s.draw();
+        for name in ["to-dir", "to-file", "dead"] {
+            assert_eq!(drawn(&f, &format!("{name}  ->")), 1, "{name} is marked: {:?}", f.texts);
+        }
+        assert_eq!(drawn(&f, "plain.txt"), 1, "and the ordinary file is not: {:?}", f.texts);
+
+        // `m` is the line-mode prefix and `p` its permissions column, where the
+        // first character is the kind.
+        let f = s.typed("mp");
+        assert_eq!(drawn(&f, "lrw"), 3, "three rows read as links: {:?}", f.texts);
+        assert_eq!(drawn(&f, "-rw"), 1, "and one as a file: {:?}", f.texts);
+    }
+
+    /// 13.2: `g` `f` on a link to a directory opens it.
+    #[test]
+    fn g_f_on_a_link_to_a_directory_goes_into_it() {
+        let (dir, mut s) = four("frame-link-dir");
+        let f = s.typed("gf");
+        assert_eq!(s.app.tab().cwd, dir.join("sub"), "the tab went to the target");
+        assert!(f.says(" 1 sub "), "and the tab chip is named after it: {:?}", f.texts);
+    }
+
+    /// 13.3: `g` `f` on a link to a file lands on the file's directory, with the
+    /// name left for the cursor.
+    ///
+    /// The cursor itself arrives with the listing, and no worker runs here, so
+    /// what is assertable is the half that does not wait: the tab moved, and the
+    /// name is in `memo`, which is where `Tab` restores the cursor from.
+    #[test]
+    fn g_f_on_a_link_to_a_file_lands_on_its_directory_with_the_name_remembered() {
+        let (dir, mut s) = four("frame-link-file");
+        s.typed("jgf");
+        let sub = dir.join("sub");
+        assert_eq!(s.app.tab().cwd, sub, "the tab went to the target's directory");
+        assert_eq!(
+            s.app.tab().memo.get(&sub).map(String::as_str), Some("deep.txt"),
+            "with the file named for the cursor to land on",
+        );
+    }
+
+    /// 13.4: a broken link names itself rather than going anywhere.
+    #[test]
+    fn g_f_on_a_broken_link_says_which_one() {
+        let (dir, mut s) = four("frame-link-dead");
+        let f = s.typed("jjgf");
+        assert!(f.says("Broken link: dead"), "the name is in the message: {:?}", f.texts);
+        assert_eq!(s.app.tab().cwd, dir, "and the tab stayed where it was");
+    }
+
+    /// 13.5: on an ordinary file the key says what it is for.
+    ///
+    /// Until v0.26.8 it did nothing at all, which from the outside is a key that
+    /// is not bound -- so the message is the whole check.
+    #[test]
+    fn g_f_on_an_ordinary_file_says_what_the_key_is_for() {
+        let (dir, mut s) = four("frame-link-plain");
+        let f = s.typed("jjjgf");
+        assert!(
+            f.says("Only a symlink can be followed — a link shows -> after its name"),
+            "{:?}", f.texts,
+        );
+        assert_eq!(s.app.tab().cwd, dir, "and nothing moved");
+    }
+
+    /// 13.6: in an empty directory the key says nothing at all.
+    ///
+    /// Asserted as "the frame did not change", because the check is the absence
+    /// of a message and a test naming the message it does not expect would pass
+    /// on a different wrong message.
+    #[test]
+    fn g_f_in_an_empty_directory_says_nothing() {
+        let dir = crate::util::test_dir("frame-link-empty");
+        let mut s = showing(&dir, Vec::new());
+        let before = s.draw().texts;
+        let after = s.typed("gf");
+        assert_eq!(after.texts, before, "no row, so nothing to say about one");
+        assert_eq!(s.app.tab().cwd, dir, "and nowhere to go");
+    }
+}
+
+/// TESTING.md section 24: names the list has to draw without help.
+///
+/// Two of the five rows are here. 24.2 (a long name elided in the middle) is not
+/// reachable through the harness: eliding is egui's, done inside the galley, and
+/// `Galley::text` hands back the string that was laid out rather than the
+/// characters that fit -- so a frame cannot tell a truncated row from a whole
+/// one. 24.4 wants the terminal pane, which is `#[cfg(windows)]`, and 24.5 wants
+/// the recycle bin. See QA-REPORT.md.
+#[cfg(test)]
+mod awkward_names {
+    use super::harness::Screen;
+    use crate::core::folder::Folder;
+    use std::path::Path;
+
+    /// A window listing `names`, which are created in the directory first.
+    fn showing(dir: &Path, names: &[&str]) -> Screen {
+        for n in names {
+            std::fs::write(dir.join(n), "x").unwrap();
+        }
+        let entries = super::panes::listing(dir, names);
+        let mut s = Screen::open(dir.to_path_buf());
+        s.app.tabs[0].current = Folder::from_entries(dir.to_path_buf(), entries, true);
+        s
+    }
+
+    /// 24.1: a CJK name reaches the row whole.
+    ///
+    /// The column arithmetic behind it is not assertable -- that the glyphs are
+    /// two cells wide and that the rows line up is what an eye is for -- but a
+    /// name mangled on its way to the layout would show up here, and a name
+    /// truncated at a byte boundary rather than a character one would not be a
+    /// string the assertion could find at all.
+    #[test]
+    fn cjk_names_are_drawn_whole() {
+        let dir = crate::util::test_dir("frame-names-cjk");
+        let names = ["日本語のファイル名.txt", "中文文件名.md", "한국어.txt"];
+        let f = showing(&dir, &names).draw();
+        for n in names {
+            assert!(f.texts.iter().any(|t| t == n), "{n} is drawn as itself: {:?}", f.texts);
+        }
+    }
+
+    /// 24.3: two names differing only in case are two rows.
+    ///
+    /// On a case-insensitive filesystem -- which is the one the checklist is
+    /// written for -- those two paths are one file, so what this can check is
+    /// the half that is filer's either way: the list draws back the case it was
+    /// handed and does not fold the pair into one row. That both are openable
+    /// is still a row for a machine.
+    #[test]
+    fn two_names_differing_only_in_case_are_two_rows() {
+        let dir = crate::util::test_dir("frame-names-case");
+        let f = showing(&dir, &["UPPER.TXT", "upper.txt"]).draw();
+        assert!(f.says("2 items"), "both are counted: {:?}", f.texts);
+        assert_eq!(
+            f.texts.iter().filter(|t| t.eq_ignore_ascii_case("upper.txt")).count(), 2,
+            "and both are drawn: {:?}", f.texts,
+        );
+        for n in ["UPPER.TXT", "upper.txt"] {
+            assert!(f.texts.iter().any(|t| t == n), "{n} keeps its case: {:?}", f.texts);
+        }
+    }
+}
+
+/// TESTING.md section 12, as far as a frame reaches: the two messages and the
+/// fork.
+///
+/// Most of the section is about `d`, and `d` is a job on the ops worker put back
+/// by reading the trash. The harness runs no workers and never drains their
+/// channels, so nothing a delete would produce ever arrives -- 12.1 to 12.5 and
+/// 12.9 to 12.12 stay with the machine. A rename is the one undoable action that
+/// happens on the spot, in `apply_rename`, which is what makes 12.6 assertable
+/// at all. See QA-REPORT.md, which also has what 12.8 says versus what the code
+/// does.
+#[cfg(test)]
+mod undo_frame {
+    use super::harness::Screen;
+    use super::panes::{key, listing};
+    use crate::app::{InputKind, InputOverlay, Overlay};
+    use crate::core::folder::Folder;
+    use std::path::{Path, PathBuf};
+
+    /// One file, listed, with the cursor on it.
+    fn one_file(label: &str) -> (PathBuf, Screen) {
+        let dir = crate::util::test_dir(label);
+        std::fs::write(dir.join("one.txt"), "1").unwrap();
+        let mut s = Screen::open(dir.clone());
+        s.app.tabs[0].current =
+            Folder::from_entries(dir.clone(), listing(&dir, &["one.txt"]), true);
+        (dir, s)
+    }
+
+    /// `r`'s prompt, answered with `to` and `<Enter>`.
+    ///
+    /// The prompt is filled in here rather than typed into: it is a native
+    /// `TextEdit` whose contents come from egui's focus handling, so typing at
+    /// it from a test would be a test of egui. What this does drive is the half
+    /// that is filer's -- `confirm_input`, the rename itself, and the undo step
+    /// it records.
+    fn rename(s: &mut Screen, from: &Path, to: &str) {
+        s.app.overlay = Overlay::Input(InputOverlay {
+            kind: InputKind::Rename { from: from.to_path_buf() },
+            title: "Rename".into(),
+            text: to.to_owned(),
+            initial_selection: None,
+            focused: true,
+            completion: Vec::new(),
+            completion_at: 0,
+        });
+        s.feed(vec![key(egui::Key::Enter, egui::Modifiers::NONE)]);
+    }
+
+    /// 12.7: `u` on an empty stack says so instead of erring, and `U` has a
+    /// message of its own.
+    #[test]
+    fn nothing_to_undo_is_said_rather_than_failed() {
+        let (_dir, mut s) = one_file("frame-undo-empty");
+        let f = s.typed("u");
+        assert!(f.says("Nothing to undo"), "{:?}", f.texts);
+
+        let (_dir, mut s) = one_file("frame-redo-empty");
+        let f = s.typed("U");
+        assert!(f.says("Nothing to redo"), "{:?}", f.texts);
+        assert!(!f.says("Nothing to undo"), "the two are told apart: {:?}", f.texts);
+    }
+
+    /// 12.6: `r` then `u` puts the old name back, and the toast names it.
+    #[test]
+    fn a_rename_goes_back_under_the_old_name() {
+        let (dir, mut s) = one_file("frame-undo-rename");
+        rename(&mut s, &dir.join("one.txt"), "two.txt");
+        assert!(dir.join("two.txt").exists(), "the rename happened");
+        assert_eq!(s.app.undos.undo.len(), 1, "and left a step to take back");
+
+        let f = s.typed("u");
+        assert!(dir.join("one.txt").exists(), "the old name is back");
+        assert!(!dir.join("two.txt").exists(), "and the new one is gone");
+        assert!(f.says("Renamed back to one.txt"), "the toast names it: {:?}", f.texts);
+    }
+
+    /// The rule 12.8 is about: a fresh action drops what `u` had put on the way
+    /// forward.
+    ///
+    /// Not 12.8 itself. That row reaches for the fork by creating a file, and
+    /// `a` records no undo step, so the redo survives it and `U` still runs --
+    /// reported rather than asserted. What the fork does answer to is any action
+    /// that lands `Land::Fresh`, and a second rename is the one of those a frame
+    /// can reach.
+    #[test]
+    fn a_fresh_action_forks_history() {
+        let (dir, mut s) = one_file("frame-undo-fork");
+        rename(&mut s, &dir.join("one.txt"), "two.txt");
+        s.typed("u");
+        assert_eq!(s.app.undos.redo.len(), 1, "the undone step is on the way forward");
+
+        rename(&mut s, &dir.join("one.txt"), "three.txt");
+        assert!(s.app.undos.redo.is_empty(), "the new action took that away");
+
+        let f = s.typed("U");
+        assert!(f.says("Nothing to redo"), "so there is nothing to do again: {:?}", f.texts);
+        assert!(dir.join("three.txt").exists(), "and the newest name stands");
+        assert!(!dir.join("two.txt").exists(), "the forked one did not come back");
+    }
+}

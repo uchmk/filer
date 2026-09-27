@@ -183,3 +183,99 @@ fall through しないので、`<C-+>` / `<C-=>` / `<C-->` / `<C-0>` が `[mgr]`
 足すと TESTING-KEYS.md が 1 層あたり 4 行増える（4 層で 226 → 242 になった）。
 チェック印は人が実機で付けるものなので、**足した分だけ未チェックが増える**ことを
 承知のうえで決めること。
+
+---
+
+## TESTING.md sections 12 / 13 / 24 — audited against 97dec91
+
+3 節をまとめて `ui::harness::Screen` のテストにした。どれもファイル一覧まわりで、
+下準備は既存の `panes::listing` を使い回している。
+
+| 節 | テストモジュール | 自動化した項目 |
+| --- | --- | --- |
+| 12 | `ui::undo_frame`（`src/ui/mod.rs`、3 件） | 12.6 / 12.7 |
+| 13（一覧） | `ui::link_rows`（`src/ui/mod.rs`、6 件） | 13.1 / 13.2 / 13.3 / 13.4 / 13.5 / 13.6 |
+| 13（spot） | `ui::overlay::spot_link_section`（`src/ui/overlay.rs`、5 件） | 13.10 / 13.11 / 13.12 / 13.13 / 13.15 |
+| 24 | `ui::awkward_names`（`src/ui/mod.rs`、2 件） | 24.1（一部）/ 24.3（一部） |
+
+### プログラムと食い違う項目
+
+| # | 見つけたこと | 根拠 | どちらの間違いか |
+| --- | --- | --- | --- |
+| 12.8 | 「ファイルを新規作成すると redo が消える」は**成り立たない。**`a`（create）は undo ステップを積まないので、リネーム → `u` → `a` のあとでも `U` はリネームをやり直す（実測: `after create: undo=0 redo=1`、`U` で `Renamed to two.txt`） | `src/app.rs` の `do_create()` は `undos.land(..)` を呼ばない。`Land::Fresh` を積むのは trash / move / rename / bulk rename の 4 つだけ（`grep -n "Land::Fresh" src/app.rs`） | **どちらとも言える。**「新しい操作で履歴が分岐する」という規則そのものは正しく、例に挙がっている操作が規則の対象外。倒し方は下の 2 択 |
+| 13.10 | 見出しに `(v0.46.0)` と書いてあるが、13.13 の「hardlink がアプリで見える唯一の場所」を含む Link 節は **v0.46.0 で入っている**。CHANGELOG と一致しているので**版は正しい**（作業指示にあった v0.47.0 は Git 節＝46 節のほう） | CHANGELOG.md の v0.46.0 に Link 節、v0.47.0 に Git 節 | どちらの間違いでもない（記録のため） |
+| 本文 | 冒頭「The keys」節が **226 of them** と書いているが、`make-keycheck --check` は **242** と答える（v0.46.0 で 4 層 × 4 キー足したぶん） | `cargo +stable run --example make-keycheck -- --check` → `in sync with src/config/defaults/keymap.toml (242 / 242 checked)` | TESTING.md（前回 `193` → `226` に直したのと同じ箇所が、また置いていかれている） |
+
+12.8 の倒し方（人の判断が要る）:
+
+1. **項目の文言を直す（推奨）** — 例をリネームに替える。「リネームして `u`、そのあと
+   **別のファイルをリネーム**、それから `U`」。規則は変えずに、規則が当てはまる操作を
+   例に出すだけで済む。`ui::undo_frame::a_fresh_action_forks_history` がその形で
+   すでに通っている。
+2. **`do_create()` に `undos.redo.clear()` を足す** — 「何か操作をしたら分岐」を
+   文字どおりにする。ただし `a` は取り消せない操作なので、`u` で戻せないものが
+   redo を捨てるのは筋が通らない。**プログラムの変更なので QA では触らない。**
+
+### 届かなかった項目と、その理由
+
+| # | なぜ届かないか |
+| --- | --- |
+| 12.1–12.5, 12.9–12.12 | `d` はゴミ箱送りで、**ops ワーカーのジョブ**として走り、戻すほうは `restore::found()` がゴミ箱を読む。ハーネスはワーカーを回さず、`App::drain_channels` も呼ばないので、ジョブの結果が届くことがない。12.3 は「タスクパネルに `Restore` 行が出る」で、その行はジョブが動いていることが前提 |
+| 12.10–12.12 | 加えて、ファイルをロックする別プロセスと、ゴミ箱を切ったドライブが要る |
+| 13.7 | junction を作るには `mklink /J`（Windows）。アプリ側から見れば junction も symlink も同じ `Kind::Link` なので、**この項目が確かめているのはスキャンの側**で、実体を作らないと意味がない |
+| 13.8, 13.9 | `y` → `-` / `_` はリンクを**作る**。Windows では開発者モードか昇格が要る（項目自身がそう書いている）ので、CI の Windows ランナーで通す当てがない |
+| 13.14 | `Also at` は Windows 限定（Unix の `hard_links()` は本数だけ数えて名前は返さない）。**`#[cfg(windows)]` で書けるが、Linux から検証できないコードを CI に置くことになるので書かなかった** |
+| 13.16 | 書き込みでファイルを掴んでいる別プログラムが要る |
+| 24.2 | 名前の中略は **egui の galley の中**で起きていて、`Galley::text()` が返すのは「並べた文字列」＝元の名前そのもの。ハーネスの `Painted.texts` はそれを集めているので、**中略された行と無傷の行が区別できない**（実測: 107 文字の名前が丸ごと 1 要素として出てくる）。下の提案を参照 |
+| 24.4 | `<A-t>` はターミナルペイン送り。ConPTY は `#[cfg(windows)]` で Linux では 1 行もコンパイルされない。引用そのものは `src/exec.rs` の `quote()` の話で、フレームからは届かない |
+| 24.5 | 12 節と同じ理由（ゴミ箱） |
+| 13.4 の「in red」 | `Painted` は塗った矩形の色と文字列を持つが、**文字の色は持たない。**メッセージが出ることは assert したが、赤いことは目の仕事 |
+
+### 提案: ハーネスが galley の「見えている文字」も拾えるようにする
+
+24.2 のような**中略・省略の項目が現状すべて届かない。**同じ理由で、タブの見出し
+（` 1 filer-explo…e-8697 `）や spot パネルの値が縮んでいるかどうかも分からない。
+なお spot パネルは**自前で真ん中を `…` にする**ので、そちらは今のままでも見える
+（`spot_link_section::row` がそれを前提に、値を丸ごと読む形で書いてある）。
+
+`harness::collect` は `#[cfg(test)]` の内側なので QA が触れる場所ではあるが、
+**`Painted` は 13 のテストモジュールが共有している型**で、並行する QA セッションも
+同じファイルの末尾に足している。ここで足すと衝突の当たりが増えるだけなので、
+提案にとどめる。形はこれで足りる:
+
+```rust
+// harness::Painted に 1 フィールド、collect に 1 行。
+/// 実際に画面に並んだ字だけ。`texts` は並べるよう渡された文字列で、
+/// egui が 1 行に収めるために落とした分は入っていない。
+pub glyphs: Vec<String>,
+
+// collect() の Shape::Text の腕:
+Shape::Text(t) => {
+    into.texts.push(t.galley.text().to_owned());
+    into.glyphs.push(t.galley.rows.iter().flat_map(|r| r.glyphs.iter()).map(|g| g.chr).collect());
+}
+```
+
+これが入れば 24.2 は次の形で書ける（末尾に `…`、拡張子が残らないことまで見える）:
+
+```rust
+// 24.2: 長い名前は縮む。今の `overflow_character` は行の**末尾**を `…` にする
+// ので、**項目の言う「真ん中で中略、拡張子は読める」にはなっていない**。
+// どちらを直すかは人の判断（項目の文言か、`name_job` の組み立てか）。
+let drawn = f.glyphs.iter().find(|g| g.starts_with("a-very-long")).unwrap();
+assert!(drawn.ends_with('…'));
+assert!(!drawn.ends_with(".txt"));
+```
+
+**24.2 は文言と実装が食い違っている可能性が高い。**`src/ui/list.rs` の `name_job()` は
+`wrap.max_rows = 1` と `overflow_character = Some('…')` を置いているだけで、これは
+egui の**末尾切り**で、真ん中を抜く処理はどこにも無い。真ん中で抜く関数は
+`util::ellipsize_middle()` として**すでにある**（`ui/mod.rs:211` でタブの見出しに
+使っていて、そのユニットテストは `ends_with(".txt")` まで assert している）ので、
+項目の言う挙動にするなら手は足りている。どちらを直すかは人の判断。実機で 1 度
+見てもらうのが早い（ハーネスでは前述のとおり見えない）。
+
+### TESTING-KEYS.md は同期している
+
+`cargo +stable run --example make-keycheck -- --check` は exit 0
+（`in sync with src/config/defaults/keymap.toml (242 / 242 checked)`）。再生成の必要なし。

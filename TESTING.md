@@ -332,6 +332,13 @@ In `bulk-rename\`.
 
 ## 12. Undo and redo (v0.3.0)
 
+12.6 and 12.7 are automated (`ui::undo_frame`): `r` then `u` puts the old name back and the toast
+names it, and `u` / `U` on an empty stack each say so in their own words. Everything else in this
+section starts with `d`, and a delete is a job on the ops worker put back by reading the trash --
+the harness runs no workers, so 12.1 to 12.5 and 12.9 to 12.12 stay here. 12.8's own example is
+wrong: creating a file records no undo step, so the redo survives it (see QA-REPORT.md); a second
+rename does fork history, and that is what the module's third test drives.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 12.1 | `d` on a file in `many\` | It goes to the recycle bin |
@@ -354,6 +361,18 @@ Windows makes these awkward to create. A **junction** needs no admin rights:
 shell or developer mode: `New-Item -ItemType SymbolicLink -Path l.md -Target
 C:\dev\filer\README.md`. There are real ones under `C:\Users\<you>\` if you
 would rather not make any.
+
+13.1 to 13.6 are automated (`ui::link_rows`): the `->` after the name, the `l` in `m`+`p`'s column,
+and what `g`+`f` does with a link to a directory, a link to a file, a broken link, an ordinary file
+and an empty directory. Those rows are built in the test rather than made on disk, so what they do
+not cover is the scan worker reading a real `read_link` -- which is all 13.7 (a junction), 13.8 and
+13.9 (`-` and `_` writing one) are about.
+
+13.10 to 13.13 and 13.15 are automated (`ui::overlay::spot_link_section`), running the real
+provider: `Kind` / `Target` / `Resolves`, the relative form's two rows disagreeing, a broken link's
+`no (…)`, the hardlink's count, and no section at all on a file with one name. The symlink three are
+`#[cfg(unix)]` -- creating one on Windows is 13.8's privilege problem -- so **on Windows 13.10 to
+13.12 still need a hand.** 13.14 (`Also at`) is Windows-only and 13.16 needs another program.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -540,6 +559,13 @@ Enter. Each of these is a skip if the editor is not installed.
 ## 24. Awkward names
 
 In `awkward names\`.
+
+24.1 and 24.3 are automated (`ui::awkward_names`): a CJK name reaches the row as itself, and two
+names differing only in case stay two rows with their case kept. What is left for an eye in 24.1 is
+the column arithmetic -- that the glyphs are two cells wide and the rows line up. 24.2 is not
+reachable: eliding happens inside egui's galley and the harness reads back the string that was laid
+out, not the characters that fit (see QA-REPORT.md). 24.4 needs the terminal pane, which is
+`#[cfg(windows)]`, and 24.5 needs the recycle bin.
 
 | # | Do | Expect |
 | --- | --- | --- |
