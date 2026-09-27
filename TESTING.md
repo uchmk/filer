@@ -23,7 +23,7 @@ which is the last note at the bottom of this file.
 
 ## The keys
 
-[TESTING-KEYS.md](TESTING-KEYS.md) is a tickable line per key binding — 193 of them
+[TESTING-KEYS.md](TESTING-KEYS.md) is a tickable line per key binding — 226 of them
 across nine layers, which is more than anyone tracks in their head while working
 through them one at a time. It is generated from the default keymap:
 
@@ -302,6 +302,7 @@ beside a row is noticeable at all, which is not something a frame can be asked.
 | 10.6 | `p` after a cut | The register empties; the count leaves the header |
 | 10.7 | `X` or `Y` | The count leaves the header |
 | 10.8 | The status line, bottom right | Says the same thing in the same words as the header |
+| 10.9 | Cut a file, then `p` into a directory that already holds that name, and answer **no** to the overwrite | The count still leaves the header — `paste()` empties a cut register when it *submits* the job, not when the job succeeds, so the files are neither moved nor still in the register |
 
 ## 11. Bulk rename (v0.4.0)
 

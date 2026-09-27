@@ -41,10 +41,10 @@ Then the file's own structure:
 6. **The "what is covered automatically" paragraph** at the top matches what
    `cargo test` actually covers now.
 
-**Write the findings to `QA-REPORT.md`; do not edit TESTING.md.** Renumbering a
-section renumbers everything after it — TESTING.md says so, and it is why 11 is
-followed by 28. Adding a *note* to a section (as v0.45.0 did for sections 2 and
-45, recording which checks are now automated) is fine; moving a number is not.
+**Write the findings to `QA-REPORT.md`.** What you may change in TESTING.md is in
+`.claude/qa-role.md` and only there: the note under a section heading, never a
+number or a row. Renumbering a section renumbers everything after it — TESTING.md
+says so, and it is why 11 is followed by 28.
 
 Report format — one row per finding, so it can be worked through:
 
@@ -146,8 +146,9 @@ Not reachable, because they need the OS, a process, or a hand on a mouse:
 ### When the section is done
 
 Add a note under the section heading in TESTING.md naming which checks are now
-automated and where the test lives — the form sections 2 and 45 already use. That
-is the one edit to TESTING.md this role makes, and it moves no numbers.
+automated and where the test lives — the form sections 2, 10 and 45 already use.
+`.claude/qa-role.md` says why this one edit is yours and nothing else in the file
+is.
 
 ---
 
