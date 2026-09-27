@@ -506,6 +506,29 @@ mod dirs_tests {
 
 /// The two config files, and what each one is allowed to say.
 #[cfg(test)]
+mod line_mode_from_the_config {
+    use super::*;
+
+    /// `[mgr] linemode` is a known set of names now, so a typo in `yazi.toml` is
+    /// rejected with a warning rather than quietly leaving the column blank.
+    #[test]
+    fn a_known_name_parses_and_a_typo_does_not() {
+        use crate::fs::entry::Linemode as L;
+        let ok: yazi::YaziToml =
+            toml::from_str("[mgr]\nlinemode = \"permissions\"\n").expect("a known name");
+        assert_eq!(ok.mgr.linemode, L::Permissions);
+
+        // yazi's alias, which `SortBy` keeps for the same reason.
+        let alias: yazi::YaziToml =
+            toml::from_str("[mgr]\nlinemode = \"modified\"\n").expect("an alias");
+        assert_eq!(alias.mgr.linemode, L::Mtime);
+
+        let bad = toml::from_str::<yazi::YaziToml>("[mgr]\nlinemode = \"mtiem\"\n");
+        assert!(bad.is_err(), "a typo is an error, which the loader reports as a warning");
+    }
+}
+
+#[cfg(test)]
 mod shared_theme {
     use super::*;
 

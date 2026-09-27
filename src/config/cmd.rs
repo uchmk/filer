@@ -148,7 +148,7 @@ pub enum Act {
     Compress,
 
     Hidden(Tri),
-    Linemode(String),
+    Linemode(crate::fs::entry::Linemode),
     Sort { by: Option<SortBy>, reverse: Tri, dir_first: Tri },
 
     Find { prev: bool, smart: bool, insensitive: bool },
@@ -474,7 +474,17 @@ pub fn parse(line: &str) -> Act {
             Some("hide") => Some(false),
             _ => None,
         }),
-        "linemode" => Act::Linemode(a.first().unwrap_or("none").to_owned()),
+        // No argument means `none`, as it always has. A spelling nothing knows
+        // becomes an unsupported command rather than a blank column: the keymap
+        // loader warns about those at load, the help panel lists them, and
+        // pressing the key says so.
+        "linemode" => match a.first() {
+            None => Act::Linemode(crate::fs::entry::Linemode::None),
+            Some(s) => match crate::fs::entry::Linemode::parse(s) {
+                Some(m) => Act::Linemode(m),
+                None => Act::Unsupported(format!("linemode {s}")),
+            },
+        },
         "sort" => Act::Sort {
             by: a.first().and_then(SortBy::parse),
             reverse: a.tri("reverse"),
@@ -599,6 +609,27 @@ fn plugin(pos: &[String]) -> Act {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The point of spelling the line mode as a type: a misspelling becomes an
+    /// unsupported command, which the keymap loader warns about at load and the
+    /// help panel lists. It used to parse cleanly into a `String` nothing
+    /// matched, so `linemode mtiem` produced a blank column and said nothing.
+    #[test]
+    fn a_misspelled_line_mode_is_not_silently_accepted() {
+        use crate::fs::entry::Linemode as L;
+        assert_eq!(parse("linemode size"), Act::Linemode(L::Size));
+        assert_eq!(parse("linemode permissions"), Act::Linemode(L::Permissions));
+        // yazi's own aliases.
+        assert_eq!(parse("linemode modified"), Act::Linemode(L::Mtime));
+        assert_eq!(parse("linemode created"), Act::Linemode(L::Btime));
+        // No argument has always meant `none`, and still does.
+        assert_eq!(parse("linemode"), Act::Linemode(L::None));
+        assert_eq!(parse("linemode none"), Act::Linemode(L::None));
+
+        // The whole reason for the change.
+        assert_eq!(parse("linemode mtiem"), Act::Unsupported("linemode mtiem".into()));
+        assert_eq!(parse("linemode SIZE"), Act::Unsupported("linemode SIZE".into()));
+    }
 
     #[test]
     fn lexes_quotes() {

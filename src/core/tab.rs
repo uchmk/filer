@@ -63,7 +63,7 @@ pub struct Tab {
     pub finder: Option<Finder>,
     pub sort: SortSpec,
     pub show_hidden: bool,
-    pub linemode: String,
+    pub linemode: crate::fs::entry::Linemode,
     pub preview_offset: usize,
     /// Rows that fit in the list, measured by the renderer each frame.
     pub page_rows: usize,
@@ -72,7 +72,12 @@ pub struct Tab {
 }
 
 impl Tab {
-    pub fn new(cwd: PathBuf, sort: SortSpec, show_hidden: bool, linemode: String) -> Self {
+    pub fn new(
+        cwd: PathBuf,
+        sort: SortSpec,
+        show_hidden: bool,
+        linemode: crate::fs::entry::Linemode,
+    ) -> Self {
         Self {
             current: Folder::loading(cwd.clone(), None),
             parent: crate::util::parent_dir(&cwd).map(|p| Folder::loading(p, None)),
@@ -299,7 +304,7 @@ mod tests {
                 }
             })
             .collect();
-        let mut t = Tab::new(PathBuf::from("/t"), SortSpec::default(), true, String::new());
+        let mut t = Tab::new(PathBuf::from("/t"), SortSpec::default(), true, crate::fs::entry::Linemode::None);
         t.current = Folder::from_entries(PathBuf::from("/t"), Arc::new(entries), true);
         t
     }
@@ -311,7 +316,7 @@ mod tests {
 
     /// The tab as `cd` leaves it: parked on `to`, waiting for its listing.
     fn jumped(from: &str, to: &str, fallback: bool) -> Tab {
-        let mut t = Tab::new(PathBuf::from(to), SortSpec::default(), true, String::new());
+        let mut t = Tab::new(PathBuf::from(to), SortSpec::default(), true, crate::fs::entry::Linemode::None);
         t.back.push(PathBuf::from(from));
         t.pending_cd =
             Some(PendingCd { from: PathBuf::from(from), pushed: true, fallback });
@@ -329,7 +334,7 @@ mod tests {
 
     #[test]
     fn a_directory_already_listed_keeps_its_error() {
-        let mut t = Tab::new(PathBuf::from("/a"), SortSpec::default(), true, String::new());
+        let mut t = Tab::new(PathBuf::from("/a"), SortSpec::default(), true, crate::fs::entry::Linemode::None);
         assert_eq!(t.cd_failed(), CdFallout::Keep);
     }
 
@@ -361,7 +366,7 @@ mod tests {
     #[test]
     fn a_start_path_that_names_a_file_reveals_it() {
         let cwd = PathBuf::from("/b/note.txt");
-        let mut t = Tab::new(cwd, SortSpec::default(), true, String::new());
+        let mut t = Tab::new(cwd, SortSpec::default(), true, crate::fs::entry::Linemode::None);
         t.pending_cd =
             Some(PendingCd { from: PathBuf::from("/home"), pushed: false, fallback: true });
         let fallout = t.cd_failed();

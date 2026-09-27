@@ -389,7 +389,7 @@ pub(super) fn draw_preview(
                 font: f.clone(),
                 row_h,
                 active: false,
-                linemode: "",
+                linemode: crate::fs::entry::Linemode::None,
                 usage_max: 0,
             };
             let mut p = clone_view(folder);
@@ -556,7 +556,7 @@ fn draw_parent(app: &mut App, ui: &mut Ui, rect: Rect, ctx: &PaneCtx, queued: &m
             font: f.clone(),
             row_h,
             active: false,
-            linemode: "",
+            linemode: crate::fs::entry::Linemode::None,
             usage_max: 0,
         };
         let mut p = clone_view(parent);
@@ -596,7 +596,7 @@ fn draw_pane(
     let selected: std::collections::BTreeSet<std::path::PathBuf> = app.tabs[idx].selected.clone();
     let yank_paths = app.yank.paths.clone();
     let yank_cut = app.yank.cut;
-    let linemode = app.tabs[idx].linemode.clone();
+    let linemode = app.tabs[idx].linemode;
     let st = list::ListStyle {
         theme,
         font: f.clone(),
@@ -604,7 +604,7 @@ fn draw_pane(
         // The outline has the keys while it is focused; dim the cursor. The
         // pane without the keys is dimmed for the same reason.
         active: focused && app.preview.outline.is_none(),
-        linemode: &linemode,
+        linemode,
         usage_max: app.usage_max,
     };
     // Where this pane is, so a drop let go anywhere can find its target.
