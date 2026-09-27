@@ -819,10 +819,39 @@ scrollback really moves, and that the keys no longer reach the shell.
 | 39.3 | Hold `<A-k>` to the top, then `<A-j>` back | Stops at each end without overshooting — no dead presses coming back |
 | 39.4 | `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>`, and the wheel | Unchanged |
 | 39.5 | With the terminal **unfocused** (`<C-t>` back to the list), `<A-j>` | Scrolls the **preview**, not the terminal. The layer decides, not the key |
-| 39.6 | In the pane, run a program that reads Alt+j — `nvim` with `nnoremap <A-j> :m+1<CR>` | **It does not see the key.** This is the accepted cost, called out in the CHANGELOG |
+| 39.6 | In the pane, run a program that reads Alt+j — `nvim` with `nnoremap <A-j> :m+1<CR>` | **It does see the key** from v0.38.0 — see section 40. Before that it did not |
 | 39.7 | `[[term.prepend_keymap]]` binding `<A-j>` to `noop`, then `<C-F5>` | The key does nothing **and still does not reach the shell** — anything bound here is consumed. Handing it back needs a full `[term] keymap = [...]` replacement |
 | 39.8 | Alt+b / Alt+f / Alt+d at the shell prompt | Still reach readline. Only j and k were taken |
 | 39.9 | `<F1>` from inside the pane | The term layer's list shows `<A-j>` / `<A-k>` with their descriptions |
+
+---
+
+## 40. Full-screen programs get the scrolling gestures (v0.38.0)
+
+The alternate-screen flag and the meta encoding are unit-tested, including the
+premise the whole thing rests on — that screen really does have no scrollback.
+What needs a machine is the handover, in a real `nvim` and a real pager.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 40.1 | `<C-t>`, `nvim` a long file, `<A-j>` / `<A-k>` with `nnoremap <A-j> :m+1<CR>` bound | **nvim sees the key.** The v0.37.0 collision is gone |
+| 40.2 | In the same nvim, `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` | All reach nvim. Every `term_scroll` key is handed over, not just the two |
+| 40.3 | In the same nvim, `<C-t>` | **Still filer's** — it leaves the pane, with nvim left running. Non-scrolling keys are never handed over |
+| 40.4 | Quit nvim, then `<A-j>` / `<A-k>` at the shell prompt | Back to scrolling filer's scrollback. The handover follows the program, not a setting |
+| 40.5 | The wheel inside nvim, and inside `less` | Scrolls the document. Before v0.38.0 it tried to walk a scrollback that does not exist, so nothing moved |
+| 40.6 | The wheel at the shell prompt | Still walks the scrollback, unchanged |
+| 40.7 | `less` a long file, `<S-PageUp>`, then `q` to quit, then `<S-PageUp>` again | Inside `less` it pages the document; after quitting it scrolls the pane's scrollback |
+| 40.8 | In nvim with `set nonumber`, wheel up then down | Lands back where it started — one notch is a fixed number of arrows each way |
+| 40.9 | A program using the alternate screen **and** application-cursor mode | The wheel's arrows arrive as SS3 (`ESC O A`), not CSI. nvim in insert mode is the easy check |
+
+### `Alt`+letter reaches the shell at all (v0.38.0)
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 40.10 | At a `bash`/`zsh` prompt in the pane, type a few words, then `Alt-b` / `Alt-f` | The cursor moves **by word**. Before v0.38.0 nothing happened — the key was dropped with no bytes behind it |
+| 40.11 | `Alt-d` at the same prompt | Deletes the word ahead |
+| 40.12 | PowerShell (PSReadLine) in the pane, `Alt-b` / `Alt-f` | Same word motions |
+| 40.13 | `Alt-j` / `Alt-k` at an ordinary prompt | **Still filer's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen |
 
 ---
 

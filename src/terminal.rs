@@ -775,6 +775,36 @@ pub fn app_cursor<T: EventListener>(term: &Term<T>) -> bool {
     term.mode().contains(TermMode::APP_CURSOR)
 }
 
+/// Whether a full-screen program is drawing: `nvim`, `less`, `htop` and the
+/// rest switch to the alternate screen on the way in and back out on the way
+/// out.
+///
+/// The alternate grid is built with a scrollback of zero lines — see
+/// `Grid::new(num_lines, num_cols, 0)` in alacritty — so while this is true
+/// there is nothing above the viewport to scroll to. That makes it the right
+/// question to ask before the pane keeps a scrolling key or a wheel turn for
+/// itself: the answer decides between moving a scrollback that exists and
+/// handing the gesture to the program that owns the screen.
+pub fn alt_screen<T: EventListener>(term: &Term<T>) -> bool {
+    use alacritty_terminal::term::TermMode;
+    term.mode().contains(TermMode::ALT_SCREEN)
+}
+
+/// `Alt` held with an ordinary character, in the meta-prefix form every shell
+/// and readline expects: `ESC` then the character.
+///
+/// The same convention [`control_code`] already uses for `Alt` with a control
+/// chord. Without this, `Alt`+letter reached the pane as a key with no bytes
+/// behind it and was dropped on the floor, so `Alt-b` and `Alt-f` never moved
+/// readline's cursor.
+pub fn meta_char(c: char) -> Vec<u8> {
+    let mut out = Vec::with_capacity(1 + c.len_utf8());
+    out.push(0x1b);
+    let mut buf = [0u8; 4];
+    out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
+    out
+}
+
 /// The visible grid as rows of cells, for a renderer that cannot hold the
 /// lock while it paints.
 pub fn snapshot<T: EventListener>(term: &Term<T>) -> Vec<Vec<CellView>> {
@@ -1251,5 +1281,56 @@ mod readme_snippet {
             scan_osc7(&mut carry, &as_powershell_writes_it("C:/my%20docs")),
             vec![as_the_shell_names_it("C:/my docs")],
         );
+    }
+}
+
+/// The alternate screen, and the meta prefix — the two things the pane needs
+/// in order to know when a key is its own and when it belongs to a program.
+#[cfg(test)]
+mod alt_screen_tests {
+    use super::testing::{feed, term};
+    use super::*;
+
+    /// `nvim` and `less` switch with DECSET 1049 and back with DECRST.
+    #[test]
+    fn the_flag_follows_the_escape_sequence() {
+        let mut t = term(20, 5);
+        assert!(!alt_screen(&t), "a fresh terminal is on the primary screen");
+
+        feed(&mut t, "\x1b[?1049h");
+        assert!(alt_screen(&t), "a full-screen program has taken the screen");
+
+        feed(&mut t, "\x1b[?1049l");
+        assert!(!alt_screen(&t), "and given it back on the way out");
+    }
+
+    /// The reason the flag is the right question: there is nothing to scroll
+    /// to up there, so a scrolling key spent on the alternate screen is spent
+    /// on nothing.
+    #[test]
+    fn the_alternate_screen_has_no_scrollback() {
+        let mut t = term(20, 3);
+        for i in 0..40 {
+            feed(&mut t, &format!("line {i}\r\n"));
+        }
+        t.scroll_display(alacritty_terminal::grid::Scroll::Top);
+        assert!(t.grid().display_offset() > 0, "the primary screen scrolls back");
+
+        feed(&mut t, "\x1b[?1049h");
+        t.scroll_display(alacritty_terminal::grid::Scroll::Top);
+        assert_eq!(t.grid().display_offset(), 0, "the alternate screen does not");
+    }
+
+    /// `Alt`+letter is `ESC` then the letter, the same prefix `control_code`
+    /// puts in front of a control chord.
+    #[test]
+    fn meta_is_escape_then_the_character() {
+        assert_eq!(meta_char('b'), vec![0x1b, b'b']);
+        assert_eq!(meta_char('f'), vec![0x1b, b'f']);
+        assert_eq!(meta_char('J'), vec![0x1b, b'J']);
+        // Whatever the character costs in UTF-8, the prefix is one byte.
+        assert_eq!(meta_char('あ'), [vec![0x1b], "あ".as_bytes().to_vec()].concat());
+        // The same shape `control_code` produces for Alt with Ctrl.
+        assert_eq!(control_code('b', true).unwrap()[0], 0x1b);
     }
 }

@@ -278,7 +278,7 @@ pub fn from_egui(key: egui::Key, mods: &egui::Modifiers) -> Option<Key> {
     }
 }
 
-fn printable(key: egui::Key) -> Option<char> {
+pub(crate) fn printable(key: egui::Key) -> Option<char> {
     use egui::Key as K;
     Some(match key {
         K::Space => ' ',

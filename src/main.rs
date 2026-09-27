@@ -643,6 +643,14 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
                 None if mods.ctrl => key.name().chars().next().and_then(|c| {
                     terminal::control_code(c.to_ascii_lowercase(), mods.alt)
                 }),
+                // The same goes for Alt without Ctrl: no Text event arrives for
+                // it, so a key that the `[term]` layer does not claim used to
+                // reach the shell as nothing at all. `Alt-b` and `Alt-f` are
+                // readline's word motions, and they never moved.
+                None if mods.alt => keys::printable(key).map(|c| {
+                    let c = if mods.shift { c.to_ascii_uppercase() } else { c };
+                    terminal::meta_char(c)
+                }),
                 None => None,
             };
             app.feed_term_key(k, bytes);

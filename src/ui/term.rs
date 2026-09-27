@@ -13,7 +13,7 @@ use egui::{Align2, Color32, CornerRadius, FontId, Rect, Stroke, Ui, Vec2};
 
 use crate::app::App;
 use crate::config::theme::Theme;
-use crate::terminal::{self, Size};
+use crate::terminal::{self, Mods, Size, Special};
 
 /// How many cells fit, given the space and the font.
 pub fn fit(rect: Rect, cell_w: f32, row_h: f32) -> Size {
@@ -63,8 +63,14 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let Some(term) = &mut app.term else { return };
     term.resize(size, (cell_w.round() as u16, row_h.round() as u16));
     // Out from under the lock before any laying out happens.
-    let (rows, cursor, _app_cursor) =
-        term.with_grid(|t| (terminal::snapshot(t), terminal::cursor_cell(t), terminal::app_cursor(t)));
+    let (rows, cursor, app_cursor, alt_screen) = term.with_grid(|t| {
+        (
+            terminal::snapshot(t),
+            terminal::cursor_cell(t),
+            terminal::app_cursor(t),
+            terminal::alt_screen(t),
+        )
+    });
 
     for (y, row) in rows.iter().enumerate() {
         let top = inner.top() + y as f32 * row_h;
@@ -207,11 +213,25 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
             term.paste(text);
         }
     }
-    // The wheel walks the scrollback rather than the file list under it.
+    // The wheel walks the scrollback rather than the file list under it --
+    // except on the alternate screen, where there is no scrollback and the
+    // program drawing it is the thing being scrolled. Sending arrows there is
+    // what every terminal does, and it is the only way a pager or an editor in
+    // this pane can be scrolled with the wheel at all.
     let rows = wheel * LINES_PER_PIXEL / row_h;
     let whole = crate::ui::wheel_whole(&mut app.term_scroll_rows, rows);
     if whole != 0 {
-        term.scroll(Scroll::Delta(whole as i32));
+        if alt_screen {
+            let key = if whole > 0 { Special::Up } else { Special::Down };
+            let bytes = crate::terminal::encode(key, Mods::default(), app_cursor);
+            let mut out = Vec::with_capacity(bytes.len() * whole.unsigned_abs() as usize);
+            for _ in 0..whole.unsigned_abs() {
+                out.extend_from_slice(&bytes);
+            }
+            term.send(out);
+        } else {
+            term.scroll(Scroll::Delta(whole as i32));
+        }
     }
     // Said out loud because the right-click looked like it did nothing.
     if let Some(Err(e)) = pasting {

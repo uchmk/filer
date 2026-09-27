@@ -4017,6 +4017,19 @@ impl App {
             .find(|b| b.on.len() == 1 && b.on[0] == k)
             .map(|b| b.run.clone());
         if let Some(acts) = hit {
+            // A full-screen program -- `nvim`, `less`, `htop` -- runs on the
+            // alternate screen, which has no scrollback at all. Keeping a
+            // scrolling key there would spend it on a scroll that cannot move
+            // anything, and the program that owns the screen would never see
+            // it, so hand it over instead. Only the scrolling ones: `<C-t>` has
+            // to get you out of a full-screen program as much as out of a shell.
+            let scrolls = !acts.is_empty() && acts.iter().all(|a| matches!(a, Act::TermScroll(_)));
+            if scrolls && self.term_alt_screen() {
+                if let (Some(term), Some(bytes)) = (&self.term, bytes) {
+                    term.send(bytes);
+                }
+                return;
+            }
             for a in acts {
                 match a {
                     Act::Close | Act::Escape(_) => self.term_focus = false,
@@ -4028,6 +4041,11 @@ impl App {
         if let (Some(term), Some(bytes)) = (&self.term, bytes) {
             term.send(bytes);
         }
+    }
+
+    /// True while a full-screen program is drawing in the terminal pane.
+    pub fn term_alt_screen(&self) -> bool {
+        self.term.as_ref().is_some_and(|t| t.with_grid(crate::terminal::alt_screen))
     }
 
     /// What git says about the rows of `dir`, or nothing while the answer is
