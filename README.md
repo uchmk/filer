@@ -9,6 +9,30 @@ works as-is.
 cargo run --release -- C:\some\path
 ```
 
+## Getting a build
+
+A [release](https://github.com/uchmk/filer/releases) carries a `.exe` for Windows x64 and ARM64, and
+a `.tar.gz` for macOS and Linux. No account needed.
+
+**Windows will warn you about the download, and it is right to.** The binaries are not code-signed,
+so the publisher shows as unknown; SmartScreen adds its own warning because a file published today
+has no download history to weigh. This happens on every machine and every release, personal or
+managed — it is not a judgement about your computer.
+
+What that warning asks you to confirm, you can actually check. Every release asset's SHA-256 is
+published on the release page, so comparing it tells you the file is the one CI built from that
+tag's commit, unaltered in transit:
+
+```powershell
+Get-FileHash .\filer-v0.0.0-windows-x64.exe -Algorithm SHA256 | Format-List Hash
+```
+
+A matching hash does not remove the warning — only a signing certificate does, and there isn't one.
+See QUESTIONS.md Q14 for what that would take.
+
+macOS is the same story with a different name: the binaries are unsigned, so Gatekeeper refuses them
+until they are allowed through by hand.
+
 ## Why it feels fast
 
 Nothing that touches the disk runs on the UI thread.

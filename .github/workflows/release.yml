@@ -176,9 +176,28 @@ jobs:
           server's shares. Both say so rather than failing quietly. PDF and video can be
           previewed anyway with a `[[preview]]` rule; see the README.
 
-          The macOS binaries are unsigned, so Gatekeeper will refuse them until they are
-          allowed through by hand. The macOS and Linux downloads are `.tar.gz` because a
-          release asset does not carry the executable bit and an archive does.
+          ### Signing
+
+          **Nothing here is code-signed**, so every platform will say so in its own way and
+          you should expect it rather than be alarmed by it. Windows shows the publisher as
+          unknown, and SmartScreen adds a second warning because a file published today has
+          no download history to weigh; this happens on every machine, personal or managed.
+          macOS is the same with a different name -- Gatekeeper refuses the binaries until
+          they are allowed through by hand.
+
+          What those warnings ask you to confirm, you can check. Every asset's SHA-256 is
+          listed on this page, and comparing it tells you the file is the one CI built from
+          this tag's commit and that nothing altered it on the way:
+
+          ```powershell
+          Get-FileHash .\filer-...-windows-x64.exe -Algorithm SHA256 | Format-List Hash
+          ```
+
+          A matching hash does not remove the warning. Only a certificate does, and there
+          is not one.
+
+          The macOS and Linux downloads are `.tar.gz` because a release asset does not carry
+          the executable bit and an archive does.
           NOTE
 
           # Pointing at the tag rather than at `main`, so the link keeps saying
