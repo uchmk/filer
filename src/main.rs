@@ -240,7 +240,10 @@ fn app_icon(svg: &[u8], px: u32) -> Option<egui::IconData> {
 fn apply_fonts(ctx: &egui::Context, cfg: &mut Config, used: &mut crate::runinfo::RunInfo) -> bool {
     let (has_nerd, has_bold) = install_fonts(ctx, cfg, used);
     if (!has_nerd && cfg.ui.icons != "nerd") || cfg.ui.icons == "none" {
-        cfg.theme.without_nerd_icons();
+        // The one place the theme is changed after `Config::load` built it, and
+        // it runs once at startup or on a reload -- so paying for a copy here is
+        // what keeps every frame from paying for one.
+        std::sync::Arc::make_mut(&mut cfg.theme).without_nerd_icons();
     }
     has_bold
 }
@@ -529,24 +532,11 @@ fn handle_input(app: &mut App, ctx: &egui::Context) {
                         app.answer_confirm(c);
                     }
                 }
-                Overlay::Help => {
+                // The four panels with a keymap layer of their own. Which layer
+                // is the overlay's own business, so they share one arm.
+                Overlay::Help | Overlay::Tasks(_) | Overlay::Spot(_) | Overlay::Diff(_) => {
                     for c in text.chars() {
-                        app.feed_help_key(Key::char(c));
-                    }
-                }
-                Overlay::Tasks(_) => {
-                    for c in text.chars() {
-                        app.feed_tasks_key(Key::char(c));
-                    }
-                }
-                Overlay::Spot(_) => {
-                    for c in text.chars() {
-                        app.feed_spot_key(Key::char(c));
-                    }
-                }
-                Overlay::Diff(_) => {
-                    for c in text.chars() {
-                        app.feed_diff_key(Key::char(c));
+                        app.feed_overlay_key(Key::char(c));
                     }
                 }
                 _ => {}
@@ -603,24 +593,9 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
             }
             _ => {}
         },
-        Overlay::Help => {
+        Overlay::Help | Overlay::Tasks(_) | Overlay::Spot(_) | Overlay::Diff(_) => {
             if let Some(k) = keys::from_egui(key, modifiers) {
-                app.feed_help_key(k);
-            }
-        }
-        Overlay::Tasks(_) => {
-            if let Some(k) = keys::from_egui(key, modifiers) {
-                app.feed_tasks_key(k);
-            }
-        }
-        Overlay::Spot(_) => {
-            if let Some(k) = keys::from_egui(key, modifiers) {
-                app.feed_spot_key(k);
-            }
-        }
-        Overlay::Diff(_) => {
-            if let Some(k) = keys::from_egui(key, modifiers) {
-                app.feed_diff_key(k);
+                app.feed_overlay_key(k);
             }
         }
         // The terminal hears every key. The `[term]` layer keeps the few that

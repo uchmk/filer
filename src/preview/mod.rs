@@ -195,6 +195,19 @@ pub fn outline_cols(widest: usize, cols: u16) -> u16 {
     (widest.min(100) as u16 + 1).clamp(16.min(max), max)
 }
 
+/// How much of a file a payload holds.
+///
+/// The two always travel together -- nothing reads one without the other, and
+/// the only thing either is for is the note under the last line -- so they were
+/// two fields on two payload variants and two arguments on four draw functions.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+pub struct Extent {
+    /// Whether what is held stops short of the whole file.
+    pub truncated: bool,
+    /// Lines the whole file has, counted before any cap was applied.
+    pub total: usize,
+}
+
 #[derive(Clone, Debug)]
 pub enum Payload {
     /// `outline` lists the declarations of source code, if its grammar marks any.
@@ -202,14 +215,13 @@ pub enum Payload {
         lines: Vec<Vec<Span>>,
         /// One entry per line, for the minimap.
         map: Vec<MapRow>,
-        truncated: bool,
-        total_lines: usize,
+        extent: Extent,
         outline: Vec<TocEntry>,
     },
     /// Markdown carries both views so switching between them needs no reload.
     /// `map` describes `source`, which is why the minimap is only shown for the
     /// source view: a rendered line and a source line are not the same line.
-    Markdown { doc: Doc, source: Vec<Vec<Span>>, map: Vec<MapRow>, truncated: bool, total_lines: usize },
+    Markdown { doc: Doc, source: Vec<Vec<Span>>, map: Vec<MapRow>, extent: Extent },
     /// Raw RGBA plus its dimensions; the UI turns this into a texture. The
     /// caption goes under it (the source size, a font's name, ...).
     ///
@@ -419,13 +431,11 @@ fn office_text(
     // spreadsheet", and guessing one by extension would colour it as XML --
     // which is what it was stored as and not what is being shown.
     match text::plain(&doc.lines.join("\n"), doc.truncated, total) {
-        Payload::Text { lines, map, truncated, total_lines, .. } => Payload::Text {
-            lines,
-            map,
-            truncated,
-            total_lines,
-            outline: doc.outline,
-        },
+        // The extent `plain` worked out is the one to keep -- it counted the
+        // lines it was actually handed.
+        Payload::Text { lines, map, extent, .. } => {
+            Payload::Text { lines, map, extent, outline: doc.outline }
+        }
         other => other,
     }
 }
@@ -507,7 +517,7 @@ fn archive_listing(path: &std::path::Path) -> Payload {
         })
         .collect();
     let map = minimap(&lines);
-    Payload::Text { lines, map, truncated: more, total_lines: total, outline: Vec::new() }
+    Payload::Text { lines, map, extent: Extent { truncated: more, total }, outline: Vec::new() }
 }
 
 fn meta(path: &std::path::Path, _req: &Request, note: &str) -> Payload {

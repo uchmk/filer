@@ -174,7 +174,13 @@ pub struct Config {
     pub term: TermCfg,
     /// Commands that draw what filer cannot, in the order they are tried.
     pub preview: Vec<PreviewRule>,
-    pub theme: Theme,
+    /// Behind an `Arc` because every draw function starts by taking a copy to
+    /// get out of the borrow checker's way, and the theme carries the icon and
+    /// filetype tables -- a hundred-odd `String`s by default, more from a real
+    /// `theme.toml`. Cloning that six times a frame was several hundred heap
+    /// allocations per frame to read some colours. Nothing mutates it after
+    /// `load` builds it, so sharing costs nothing.
+    pub theme: std::sync::Arc<Theme>,
     pub ui: Ui,
     /// Line-jump templates, keyed by [`crate::exec::editor_key`].
     pub line_args: HashMap<String, String>,
@@ -250,6 +256,7 @@ impl Config {
         let (keymap, mut km_warnings) = Keymap::load(&refs);
         warnings.append(&mut km_warnings);
 
+        let theme = std::sync::Arc::new(theme);
         Self { yazi: yazi_cfg, keymap, theme, ui, term, preview, line_args, loaded, warnings }
     }
 
@@ -498,6 +505,36 @@ mod dirs_tests {
 }
 
 /// The two config files, and what each one is allowed to say.
+#[cfg(test)]
+mod shared_theme {
+    use super::*;
+
+    /// Every draw function opens with `app.cfg.theme.clone()` to get out of the
+    /// borrow checker's way, six times a frame. The theme carries the icon and
+    /// filetype tables, so while it was a plain `Theme` each of those copies
+    /// re-allocated every `String` in them -- several hundred allocations a
+    /// frame, to read some colours. Behind an `Arc` the copy is a refcount bump.
+    ///
+    /// This fails to compile rather than fails to assert if the `Arc` is taken
+    /// away again, which is the point of writing it.
+    #[test]
+    fn a_draw_function_shares_the_theme_rather_than_copying_it() {
+        let cfg = Config::load();
+        let one = cfg.theme.clone();
+        let two = cfg.theme.clone();
+        assert!(std::sync::Arc::ptr_eq(&one, &two), "both copies are the same theme");
+
+        // And the tables are large enough for the difference to matter -- this
+        // is the default, before anyone's own `theme.toml` adds to them.
+        let entries = one.filetypes.len()
+            + one.icon_dirs.len()
+            + one.icon_exts.len()
+            + one.icon_files.len()
+            + one.icon_globs.len();
+        assert!(entries > 50, "the default theme carries {entries} entries, each with a String");
+    }
+}
+
 #[cfg(test)]
 mod files {
     use super::*;

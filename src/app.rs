@@ -272,6 +272,49 @@ pub enum Overlay {
     Diff(DiffOverlay),
 }
 
+/// Which keymap layer a panel reads, and which dispatcher runs what it names.
+///
+/// Exists so [`App::feed_overlay_key`] can be one function rather than one per
+/// panel. Overlays absent from `of` have no layer of their own: `Input`,
+/// `Confirm` and `Pick` are native widgets, and `None` is the file list.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum PanelLayer {
+    Help,
+    Tasks,
+    Spot,
+    Diff,
+}
+
+impl PanelLayer {
+    fn of(ov: &Overlay) -> Option<Self> {
+        match ov {
+            Overlay::Help => Some(Self::Help),
+            Overlay::Tasks(_) => Some(Self::Tasks),
+            Overlay::Spot(_) => Some(Self::Spot),
+            Overlay::Diff(_) => Some(Self::Diff),
+            Overlay::None | Overlay::Input(_) | Overlay::Confirm(_) | Overlay::Pick(_) => None,
+        }
+    }
+
+    fn bindings(self, km: &crate::config::keymap::Keymap) -> &[crate::config::keymap::Binding] {
+        match self {
+            Self::Help => &km.help,
+            Self::Tasks => &km.tasks,
+            Self::Spot => &km.spot,
+            Self::Diff => &km.diff,
+        }
+    }
+
+    fn act(self, app: &mut App, a: Act) {
+        match self {
+            Self::Help => app.help_act(a),
+            Self::Tasks => app.tasks_act(a),
+            Self::Spot => app.spot_act(a),
+            Self::Diff => app.diff_act(a),
+        }
+    }
+}
+
 /// Two files side by side. `outcome` is `None` until the diff worker answers,
 /// which is what the view shows as *Comparing…*.
 pub struct DiffOverlay {
@@ -1803,19 +1846,19 @@ impl App {
             truncated.then(|| format!("first {} only", util::human_size(self.cfg.ui.max_text_bytes as u64)))
         };
         match payload {
-            Payload::Text { total_lines, truncated, outline, .. } => {
-                row("Lines", total_lines.to_string());
+            Payload::Text { extent, outline, .. } => {
+                row("Lines", extent.total.to_string());
                 if !outline.is_empty() {
                     row("Outline", format!("{} entries", outline.len()));
                 }
-                if let Some(r) = read(*truncated) {
+                if let Some(r) = read(extent.truncated) {
                     row("Read", r);
                 }
             }
-            Payload::Markdown { doc, total_lines, truncated, .. } => {
-                row("Lines", total_lines.to_string());
+            Payload::Markdown { doc, extent, .. } => {
+                row("Lines", extent.total.to_string());
                 row("Headings", doc.toc.len().to_string());
-                if let Some(r) = read(*truncated) {
+                if let Some(r) = read(extent.truncated) {
                     row("Read", r);
                 }
             }
@@ -1827,23 +1870,33 @@ impl App {
         (!rows.is_empty()).then(|| Section { title: "Preview".into(), rows })
     }
 
-    pub fn feed_tasks_key(&mut self, k: Key) {
+    /// The task panel's own commands: move, pause, cancel, reorder.
+    /// Feed a key to the panel in front, through its own keymap layer.
+    ///
+    /// The four panels resolve keys identically -- push onto `pending`, resolve
+    /// against the layer, run what a hit names, clear on a miss -- and differed
+    /// only in which layer and which dispatcher. They were four copies of this,
+    /// and adding a panel meant writing a fifth. The terminal and the file list
+    /// are genuinely different (bytes for the shell, the `which` panel and a
+    /// pending bookmark) and keep their own.
+    pub fn feed_overlay_key(&mut self, k: Key) {
+        let Some(layer) = PanelLayer::of(&self.overlay) else { return };
         self.pending.push(k);
-        let bindings = &self.cfg.keymap.tasks;
-        match keymap::resolve(bindings, &self.pending) {
-            keymap::Match::Exact(b) => {
-                let acts = b.run.clone();
+        let acts = match keymap::resolve(layer.bindings(&self.cfg.keymap), &self.pending) {
+            keymap::Match::Exact(b) => b.run.clone(),
+            // More keys may still follow, so what has been pressed stays.
+            keymap::Match::Pending(_) => return,
+            keymap::Match::None => {
                 self.pending.clear();
-                for a in acts {
-                    self.tasks_act(a);
-                }
+                return;
             }
-            keymap::Match::Pending(_) => {}
-            keymap::Match::None => self.pending.clear(),
+        };
+        self.pending.clear();
+        for a in acts {
+            layer.act(self, a);
         }
     }
 
-    /// The task panel's own commands: move, pause, cancel, reorder.
     fn tasks_act(&mut self, a: Act) {
         let len = self.tasks.len();
         let page = self.tabs[self.active].page_rows.max(1);
@@ -1916,22 +1969,6 @@ impl App {
     /// `main.rs`, which is why the panel that exists to show what the keys are
     /// was the one place they could not be changed -- and why it had no way to
     /// move by more than a line at a time through a list as long as the keymap.
-    pub fn feed_help_key(&mut self, k: Key) {
-        self.pending.push(k);
-        let bindings = &self.cfg.keymap.help;
-        match keymap::resolve(bindings, &self.pending) {
-            keymap::Match::Exact(b) => {
-                let acts = b.run.clone();
-                self.pending.clear();
-                for a in acts {
-                    self.help_act(a);
-                }
-            }
-            keymap::Match::Pending(_) => {}
-            keymap::Match::None => self.pending.clear(),
-        }
-    }
-
     fn help_act(&mut self, a: Act) {
         match a {
             Act::Close | Act::Escape(_) | Act::Quit | Act::Help => self.overlay = Overlay::None,
@@ -1944,22 +1981,6 @@ impl App {
                 self.help_scroll = step.apply(self.help_scroll, stop, page);
             }
             _ => {}
-        }
-    }
-
-    pub fn feed_spot_key(&mut self, k: Key) {
-        self.pending.push(k);
-        let bindings = &self.cfg.keymap.spot;
-        match keymap::resolve(bindings, &self.pending) {
-            keymap::Match::Exact(b) => {
-                let acts = b.run.clone();
-                self.pending.clear();
-                for a in acts {
-                    self.spot_act(a);
-                }
-            }
-            keymap::Match::Pending(_) => {}
-            keymap::Match::None => self.pending.clear(),
         }
     }
 
@@ -2237,17 +2258,7 @@ impl App {
                     self.cd(util::resolve_against(&base, &target), true);
                 }
             }
-            Act::Reveal(target) => {
-                let base = self.tabs[self.active].cwd.clone();
-                let p = util::resolve_against(&base, &target);
-                let name = util::file_name(&p);
-                if let Some(dir) = p.parent() {
-                    self.cd(dir.to_path_buf(), true);
-                    let cwd = self.tabs[self.active].cwd.clone();
-                    self.tabs[self.active].memo.insert(cwd, name.clone());
-                    self.tabs[self.active].current.select_name(&name);
-                }
-            }
+            Act::Reveal(target) => self.reveal(target),
             Act::Follow => self.follow_link(),
             Act::Refresh => {
                 let cwd = self.tabs[self.active].cwd.clone();
@@ -2258,71 +2269,15 @@ impl App {
                 self.request_preview(true);
             }
 
-            Act::Seek(step) => {
-                let page = self.tabs[self.active].page_rows.max(1) as i64;
-                let delta = match step {
-                    Step::Rel(n) => n,
-                    Step::Pct(p) => page * p / 100,
-                    Step::Top => i64::MIN / 2,
-                    Step::Bot => i64::MAX / 2,
-                };
-                // A configured previewer draws one picture at a time, so
-                // there is nothing to scroll: the keys step to the next
-                // picture instead. Same keys, because it is the same
-                // intention -- further into this file.
-                if let Some(rule) =
-                    crate::config::PreviewRule::for_path(&self.cfg.preview, &self.hovered_path())
-                {
-                    let by = match step {
-                        Step::Rel(n) => n.signum() * rule.step,
-                        Step::Pct(p) => p.signum() * rule.step,
-                        Step::Top => return self.go_to_picture(rule.first),
-                        Step::Bot => return,
-                    };
-                    let want = self.preview.n + by;
-                    return self.go_to_picture(want.max(rule.first));
-                }
-                // Clamped here rather than only after the draw. The draw used
-                // to be handed an offset past the end, paint a frame from
-                // beyond the content, and fix the number afterwards — one bad
-                // frame per keypress at the bottom of a file, which is why it
-                // took a held-down key to see.
-                let cur = self.tabs[self.active].preview_offset as i64;
-                let want = cur.saturating_add(delta).max(0) as usize;
-                self.tabs[self.active].preview_offset = want.min(self.preview.max_offset);
-            }
+            Act::Seek(step) => self.seek(step),
 
             Act::TabCreate { current, path } => self.create_tab(current, path),
             Act::TabClose(n) => {
                 let idx = n.unwrap_or(self.active);
                 self.close_tab(idx);
             }
-            Act::TabSwitch { n, relative } => {
-                let len = self.tabs.len() as i64;
-                let idx = if relative {
-                    (self.active as i64 + n).rem_euclid(len)
-                } else {
-                    n.clamp(0, len - 1)
-                } as usize;
-                if self.other_pane() == Some(idx) {
-                    // It is already on screen: move the keys to its pane.
-                    self.focus_pane(idx);
-                } else {
-                    self.switch_tab(idx);
-                }
-            }
-            Act::TabSwap(n) => {
-                let len = self.tabs.len() as i64;
-                let from = self.active;
-                let to = (self.active as i64 + n).rem_euclid(len) as usize;
-                self.tabs.swap(from, to);
-                self.active = to;
-                if let Some(sp) = self.split {
-                    self.split =
-                        Some(Split { other: split_after_swap(sp.other, from, to), ..sp });
-                }
-                self.check_split();
-            }
+            Act::TabSwitch { n, relative } => self.tab_switch(n, relative),
+            Act::TabSwap(n) => self.tab_swap(n),
 
             Act::Split(state) => {
                 if state.unwrap_or(self.split.is_none()) {
@@ -2331,15 +2286,7 @@ impl App {
                     self.close_split();
                 }
             }
-            Act::PaneFocus(side) => {
-                // The first press splits the view; the next moves the keys.
-                self.open_split();
-                if let Some(sp) = self.split {
-                    if side.unwrap_or(!sp.right) != sp.right {
-                        self.focus_pane(sp.other);
-                    }
-                }
-            }
+            Act::PaneFocus(side) => self.pane_focus(side),
 
             Act::Toggle { state } => {
                 self.tabs[self.active].toggle(state);
@@ -2386,18 +2333,7 @@ impl App {
                 }
             }
 
-            Act::Hidden(state) => {
-                let tab = &mut self.tabs[self.active];
-                tab.show_hidden = state.unwrap_or(!tab.show_hidden);
-                let show = tab.show_hidden;
-                tab.current.rebuild(show);
-                if let Some(p) = tab.parent.as_mut() {
-                    p.rebuild(show);
-                }
-                if let PreviewState::Dir(f) = &mut self.preview.state {
-                    f.rebuild(show);
-                }
-            }
+            Act::Hidden(state) => self.hidden(state),
             Act::Linemode(m) => self.tabs[self.active].linemode = m,
             Act::Sort { by, reverse, dir_first } => self.sort(by, reverse, dir_first),
 
@@ -2406,17 +2342,7 @@ impl App {
                 self.open_input(InputKind::Find { prev }, if prev { "Find previous" } else { "Find next" }, String::new());
             }
             Act::FindArrow { prev } => self.find_arrow(prev),
-            Act::Filter { smart, insensitive } => {
-                let _ = (smart, insensitive);
-                let current = self
-                    .tabs[self.active]
-                    .current
-                    .filter
-                    .as_ref()
-                    .map(|f| f.query.clone())
-                    .unwrap_or_default();
-                self.open_input(InputKind::Filter, "Filter", current);
-            }
+            Act::Filter { smart, insensitive } => self.filter(smart, insensitive),
             Act::Usage => self.start_usage(),
             Act::Search { via, .. } => {
                 self.open_input(InputKind::Search { via }, match via {
@@ -2449,18 +2375,7 @@ impl App {
             // from nowhere.
             // The same steps and bounds egui's own zoom used, so turning
             // that off and doing it here is not a change in feel.
-            Act::Scale(to) => {
-                let now = self.scale;
-                let next = match to {
-                    crate::config::cmd::ScaleTo::In => now + 0.1,
-                    crate::config::cmd::ScaleTo::Out => now - 0.1,
-                    crate::config::cmd::ScaleTo::Reset => 1.0,
-                };
-                let next = (next.clamp(0.2, 5.0) * 10.0).round() / 10.0;
-                self.scale = next;
-                self.ctx.set_zoom_factor(next);
-                self.toast(format!("Scale {}%", (next * 100.0).round() as i32));
-            }
+            Act::Scale(to) => self.scale(to),
             Act::BugReport => match exec::open_url(&crate::bugreport::url()) {
                 Ok(()) => self.toast("Opened a bug report in your browser"),
                 Err(e) => self.error(format!("could not open the browser: {e}")),
@@ -2480,52 +2395,13 @@ impl App {
             Act::Terminal(what) => self.terminal(what),
             Act::TermSend => self.term_send_paths(),
             Act::TermCd => self.term_pull_cwd(),
-            Act::TermFind { prev, repeat } => {
-                let needle = self.term_needle.clone();
-                match repeat && !needle.is_empty() {
-                    // `--prev` walks back towards the bottom, because the
-                    // search itself runs the other way: what you are looking
-                    // for in a terminal has scrolled off the top.
-                    true => self.term_find(&needle, !prev),
-                    // Nothing to repeat, so ask what to look for.
-                    false => self.open_input(InputKind::TermFind, "Find in terminal", needle),
-                }
-            }
-            Act::TermScroll(step) => {
-                if let Some(t) = &self.term {
-                    use alacritty_terminal::grid::Scroll;
-                    let page = t.size().lines as i64;
-                    // Negated, because the two conventions run opposite ways.
-                    // `term_scroll -50%` reads like `arrow -50%` and means
-                    // half a screen back, while alacritty counts a positive
-                    // delta as older. Taking the number as it stood sent
-                    // `<S-PageUp>` towards the bottom, where there is nothing
-                    // to go to, so the one key most likely to be tried first
-                    // did nothing at all.
-                    t.scroll(match step {
-                        Step::Top => Scroll::Top,
-                        Step::Bot => Scroll::Bottom,
-                        Step::Rel(n) => Scroll::Delta(-(n as i32)),
-                        Step::Pct(p) => Scroll::Delta(-((page * p / 100) as i32)),
-                    });
-                }
-            }
+            Act::TermFind { prev, repeat } => self.term_search(prev, repeat),
+            Act::TermScroll(step) => self.term_scroll(step),
             Act::Extract => self.do_extract(),
             Act::Compress => self.ask_compress(),
             Act::SendPane { cut } => self.send_to_pane(cut),
             Act::ToggleOutline => self.toggle_outline(),
-            Act::ToggleRender => {
-                self.render_markdown = !self.render_markdown;
-                // Stay on the same part of the document across the switch.
-                if let PreviewState::Ready(Payload::Markdown { doc, .. }) = &self.preview.state {
-                    let tab = &mut self.tabs[self.active];
-                    tab.preview_offset = if self.render_markdown {
-                        doc.line_for_src(tab.preview_offset)
-                    } else {
-                        doc.src_for_line(tab.preview_offset)
-                    };
-                }
-            }
+            Act::ToggleRender => self.toggle_render(),
 
             Act::MaxPreview => {
                 self.max_preview = !self.max_preview;
@@ -2548,6 +2424,186 @@ impl App {
                 });
             }
         }
+    }
+
+    /// Move the keys to the other pane of a split.
+    fn pane_focus(&mut self, side: Option<bool>) {
+            // The first press splits the view; the next moves the keys.
+            self.open_split();
+            if let Some(sp) = self.split {
+                if side.unwrap_or(!sp.right) != sp.right {
+                    self.focus_pane(sp.other);
+                }
+            }
+    }
+
+    /// Narrow the listing to what matches as it is typed.
+    fn filter(&mut self, smart: bool, insensitive: bool) {
+            let _ = (smart, insensitive);
+            let current = self
+                .tabs[self.active]
+                .current
+                .filter
+                .as_ref()
+                .map(|f| f.query.clone())
+                .unwrap_or_default();
+            self.open_input(InputKind::Filter, "Filter", current);
+    }
+
+    /// Go to a path and put the cursor on it, rather than merely into its folder.
+    fn reveal(&mut self, target: String) {
+            let base = self.tabs[self.active].cwd.clone();
+            let p = util::resolve_against(&base, &target);
+            let name = util::file_name(&p);
+            if let Some(dir) = p.parent() {
+                self.cd(dir.to_path_buf(), true);
+                let cwd = self.tabs[self.active].cwd.clone();
+                self.tabs[self.active].memo.insert(cwd, name.clone());
+                self.tabs[self.active].current.select_name(&name);
+            }
+    }
+
+    /// Search the terminal's scrollback, or step to the next match.
+    fn term_search(&mut self, prev: bool, repeat: bool) {
+            let needle = self.term_needle.clone();
+            match repeat && !needle.is_empty() {
+                // `--prev` walks back towards the bottom, because the
+                // search itself runs the other way: what you are looking
+                // for in a terminal has scrolled off the top.
+                true => self.term_find(&needle, !prev),
+                // Nothing to repeat, so ask what to look for.
+                false => self.open_input(InputKind::TermFind, "Find in terminal", needle),
+            }
+    }
+
+    /// Show or hide the dotfiles, in every pane at once.
+    fn hidden(&mut self, state: crate::config::cmd::Tri) {
+            let tab = &mut self.tabs[self.active];
+            tab.show_hidden = state.unwrap_or(!tab.show_hidden);
+            let show = tab.show_hidden;
+            tab.current.rebuild(show);
+            if let Some(p) = tab.parent.as_mut() {
+                p.rebuild(show);
+            }
+            if let PreviewState::Dir(f) = &mut self.preview.state {
+                f.rebuild(show);
+            }
+    }
+
+    /// Zoom an image preview, which asks for a sharper decode as it grows.
+    fn scale(&mut self, to: crate::config::cmd::ScaleTo) {
+            let now = self.scale;
+            let next = match to {
+                crate::config::cmd::ScaleTo::In => now + 0.1,
+                crate::config::cmd::ScaleTo::Out => now - 0.1,
+                crate::config::cmd::ScaleTo::Reset => 1.0,
+            };
+            let next = (next.clamp(0.2, 5.0) * 10.0).round() / 10.0;
+            self.scale = next;
+            self.ctx.set_zoom_factor(next);
+            self.toast(format!("Scale {}%", (next * 100.0).round() as i32));
+    }
+
+    /// Move the current tab along the bar.
+    fn tab_swap(&mut self, n: i64) {
+            let len = self.tabs.len() as i64;
+            let from = self.active;
+            let to = (self.active as i64 + n).rem_euclid(len) as usize;
+            self.tabs.swap(from, to);
+            self.active = to;
+            if let Some(sp) = self.split {
+                self.split =
+                    Some(Split { other: split_after_swap(sp.other, from, to), ..sp });
+            }
+            self.check_split();
+    }
+
+    /// Switch Markdown between the rendered view and its source, keeping the
+    /// place: the two have different line numbers for the same content.
+    fn toggle_render(&mut self) {
+            self.render_markdown = !self.render_markdown;
+            // Stay on the same part of the document across the switch.
+            if let PreviewState::Ready(Payload::Markdown { doc, .. }) = &self.preview.state {
+                let tab = &mut self.tabs[self.active];
+                tab.preview_offset = if self.render_markdown {
+                    doc.line_for_src(tab.preview_offset)
+                } else {
+                    doc.src_for_line(tab.preview_offset)
+                };
+            }
+    }
+
+    /// Go to a tab by number, or step between them.
+    fn tab_switch(&mut self, n: i64, relative: bool) {
+            let len = self.tabs.len() as i64;
+            let idx = if relative {
+                (self.active as i64 + n).rem_euclid(len)
+            } else {
+                n.clamp(0, len - 1)
+            } as usize;
+            if self.other_pane() == Some(idx) {
+                // It is already on screen: move the keys to its pane.
+                self.focus_pane(idx);
+            } else {
+                self.switch_tab(idx);
+            }
+    }
+
+    /// Walk the terminal's scrollback.
+    fn term_scroll(&mut self, step: Step) {
+            if let Some(t) = &self.term {
+                use alacritty_terminal::grid::Scroll;
+                let page = t.size().lines as i64;
+                // Negated, because the two conventions run opposite ways.
+                // `term_scroll -50%` reads like `arrow -50%` and means
+                // half a screen back, while alacritty counts a positive
+                // delta as older. Taking the number as it stood sent
+                // `<S-PageUp>` towards the bottom, where there is nothing
+                // to go to, so the one key most likely to be tried first
+                // did nothing at all.
+                t.scroll(match step {
+                    Step::Top => Scroll::Top,
+                    Step::Bot => Scroll::Bottom,
+                    Step::Rel(n) => Scroll::Delta(-(n as i32)),
+                    Step::Pct(p) => Scroll::Delta(-((page * p / 100) as i32)),
+                });
+            }
+    }
+
+    /// Scroll the preview, or step to the next picture where a configured
+    /// previewer draws one at a time.
+    fn seek(&mut self, step: Step) {
+            let page = self.tabs[self.active].page_rows.max(1) as i64;
+            let delta = match step {
+                Step::Rel(n) => n,
+                Step::Pct(p) => page * p / 100,
+                Step::Top => i64::MIN / 2,
+                Step::Bot => i64::MAX / 2,
+            };
+            // A configured previewer draws one picture at a time, so
+            // there is nothing to scroll: the keys step to the next
+            // picture instead. Same keys, because it is the same
+            // intention -- further into this file.
+            if let Some(rule) =
+                crate::config::PreviewRule::for_path(&self.cfg.preview, &self.hovered_path())
+            {
+                let by = match step {
+                    Step::Rel(n) => n.signum() * rule.step,
+                    Step::Pct(p) => p.signum() * rule.step,
+                    Step::Top => return self.go_to_picture(rule.first),
+                    Step::Bot => return,
+                };
+                let want = self.preview.n + by;
+                return self.go_to_picture(want.max(rule.first));
+            }
+            // Clamped here rather than only after the draw. The draw used
+            // to be handed an offset past the end, paint a frame from
+            // beyond the content, and fix the number afterwards — one bad
+            // frame per keypress at the bottom of a file, which is why it
+            // took a held-down key to see.
+            let cur = self.tabs[self.active].preview_offset as i64;
+            let want = cur.saturating_add(delta).max(0) as usize;
+            self.tabs[self.active].preview_offset = want.min(self.preview.max_offset);
     }
 
     fn escape(&mut self, what: EscapeWhat) {
@@ -3513,22 +3569,6 @@ impl App {
         });
         self.overlay =
             Overlay::Diff(DiffOverlay { left, right, outcome: None, offset: 0, rows: 1, cursor: 0 });
-    }
-
-    pub fn feed_diff_key(&mut self, k: Key) {
-        self.pending.push(k);
-        let bindings = &self.cfg.keymap.diff;
-        match keymap::resolve(bindings, &self.pending) {
-            keymap::Match::Exact(b) => {
-                let acts = b.run.clone();
-                self.pending.clear();
-                for a in acts {
-                    self.diff_act(a);
-                }
-            }
-            keymap::Match::Pending(_) => {}
-            keymap::Match::None => self.pending.clear(),
-        }
     }
 
     /// The compare view's own commands: scroll, jump between differences, close.
@@ -4657,17 +4697,8 @@ mod tests {
         Entry {
             name: util::file_name(&path),
             path,
-            ext: None,
             kind: if dir { Kind::Dir } else { Kind::File },
-            len: 0,
-            modified: None,
-            created: None,
-            accessed: None,
-            hidden: false,
-            readonly: false,
-            link_to: None,
-            dir_size: None,
-            usage: None,
+            ..Default::default()
         }
     }
 
@@ -5543,6 +5574,41 @@ mod spot_keys {
     }
 }
 
+/// The one thing a copy-paste could get wrong in `PanelLayer` and no other test
+/// would notice: a layer wired to somebody else's keymap section. Pointer
+/// equality, so it is the section itself and not a section that happens to look
+/// like it.
+#[cfg(test)]
+mod panel_layers {
+    use super::*;
+
+    #[test]
+    fn each_panel_reads_its_own_section() {
+        let km = &Config::load().keymap;
+        for (layer, want, name) in [
+            (PanelLayer::Help, &km.help, "help"),
+            (PanelLayer::Tasks, &km.tasks, "tasks"),
+            (PanelLayer::Spot, &km.spot, "spot"),
+            (PanelLayer::Diff, &km.diff, "diff"),
+        ] {
+            let got = layer.bindings(km);
+            assert!(
+                std::ptr::eq(got, want.as_slice()),
+                "{layer:?} should read `[{name}]`"
+            );
+            assert!(!got.is_empty(), "`[{name}]` has default bindings, so this is wired up");
+        }
+    }
+
+    /// The overlays that are native widgets, or no overlay at all, have no layer
+    /// -- so a key pressed there must not be resolved against somebody else's.
+    #[test]
+    fn the_widget_overlays_have_no_layer() {
+        assert_eq!(PanelLayer::of(&Overlay::None), None);
+        assert_eq!(PanelLayer::of(&Overlay::Help), Some(PanelLayer::Help));
+    }
+}
+
 /// A tree comparison reuses `Overlay::Diff` and the `[diff]` keymap, so the same
 /// keys have to mean the right thing for a list with a cursor rather than for two
 /// columns of lines.
@@ -5560,7 +5626,11 @@ mod diff_tree_keys {
         a.overlay = Overlay::Diff(DiffOverlay {
             left: PathBuf::from("l"),
             right: PathBuf::from("r"),
-            outcome: Some(Outcome::Tree { rows, truncated: false }),
+            outcome: Some(Outcome::Tree {
+                counts: crate::diff::TreeCounts::of(&rows),
+                rows,
+                truncated: false,
+            }),
             offset: 0,
             rows: 10,
             cursor: 0,
@@ -5877,8 +5947,7 @@ mod outline_jump {
         a.preview.state = PreviewState::Ready(Payload::Text {
             lines: Vec::new(),
             map: Vec::new(),
-            truncated: false,
-            total_lines: 500,
+            extent: crate::preview::Extent { truncated: false, total: 500 },
             outline: vec![toc(0), toc(120), toc(480)],
         });
         // The furthest the pane can be scrolled, as the last draw worked out.
@@ -6157,7 +6226,7 @@ mod help_keys {
     /// Each token is one key, spelled the way the keymap spells it.
     fn press(a: &mut App, tokens: &[&str]) {
         for t in tokens {
-            a.feed_help_key(Key::parse(t).expect("notation the keymap can spell"));
+            a.feed_overlay_key(Key::parse(t).expect("notation the keymap can spell"));
         }
     }
 

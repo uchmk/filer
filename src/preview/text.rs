@@ -9,7 +9,7 @@ use syntect::parsing::{ParseState, ScopeStack, SyntaxReference, SyntaxSet};
 use syntect::util::LinesWithEndings;
 
 use super::symbols::Collector;
-use super::{Payload, Request, Span};
+use super::{Extent, Payload, Request, Span};
 
 /// Syntax and theme sets are loaded on first use — a few hundred milliseconds
 /// that would be wasted for someone who only ever previews images.
@@ -142,10 +142,11 @@ pub fn render(bytes: &[u8], req: &Request, hl: &mut Highlighter) -> Payload {
     if is_markdown {
         let (doc, clipped) = super::markdown::render(&expanded, req.key.cols, theme, syntaxes);
         let map = super::minimap(&lines);
-        return Payload::Markdown { doc, source: lines, map, truncated: truncated || clipped, total_lines };
+        let extent = Extent { truncated: truncated || clipped, total: total_lines };
+        return Payload::Markdown { doc, source: lines, map, extent };
     }
     let map = super::minimap(&lines);
-    Payload::Text { lines, map, truncated, total_lines, outline: symbols.finish() }
+    Payload::Text { lines, map, extent: Extent { truncated, total: total_lines }, outline: symbols.finish() }
 }
 
 /// Resolve a language name as people write it after a fence or in a hint.
@@ -261,7 +262,7 @@ pub fn plain_lines(text: &str) -> Vec<Vec<Span>> {
 pub fn plain(text: &str, truncated: bool, total_lines: usize) -> Payload {
     let lines = plain_lines(text);
     let map = super::minimap(&lines);
-    Payload::Text { lines, map, truncated, total_lines, outline: Vec::new() }
+    Payload::Text { lines, map, extent: Extent { truncated, total: total_lines }, outline: Vec::new() }
 }
 
 fn clip(s: &str, max: usize) -> String {

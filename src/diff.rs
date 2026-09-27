@@ -41,6 +41,35 @@ pub enum TreeState {
 }
 
 /// One path, relative to both roots.
+/// How many rows are in each state. Summed when the comparison is built.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+pub struct TreeCounts {
+    pub left_only: usize,
+    pub right_only: usize,
+    pub differ: usize,
+    pub same: usize,
+    pub unread: usize,
+}
+
+impl TreeCounts {
+    /// Public so anything building an [`Outcome::Tree`] counts the rows it
+    /// actually has, rather than writing numbers that can drift from them.
+    pub fn of(rows: &[TreeRow]) -> Self {
+        let mut c = Self::default();
+        for row in rows {
+            let n = match row.state {
+                TreeState::LeftOnly => &mut c.left_only,
+                TreeState::RightOnly => &mut c.right_only,
+                TreeState::Differ => &mut c.differ,
+                TreeState::Same => &mut c.same,
+                TreeState::Unread => &mut c.unread,
+            };
+            *n += 1;
+        }
+        c
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TreeRow {
     pub rel: PathBuf,
@@ -70,6 +99,11 @@ pub enum Outcome {
     /// Two directory trees, paired by the path each entry has inside them.
     Tree {
         rows: Vec<TreeRow>,
+        /// How many of each state there are, counted once here rather than in
+        /// the renderer: the footer wants totals over every row, and the view
+        /// draws only the rows on screen, so counting there would walk a
+        /// hundred thousand paths every frame to print four numbers.
+        counts: TreeCounts,
         /// The walk stopped at [`MAX_TREE_ENTRIES`].
         truncated: bool,
     },
@@ -304,10 +338,12 @@ pub fn compare_trees(left: &Path, right: &Path) -> Outcome {
         };
         rows.push(TreeRow { rel, state, dir, left: ls, right: rs });
         if rows.len() >= MAX_ROWS {
-            return Outcome::Tree { rows, truncated: true };
+            let counts = TreeCounts::of(&rows);
+            return Outcome::Tree { rows, counts, truncated: true };
         }
     }
-    Outcome::Tree { rows, truncated: budget == 0 }
+    let counts = TreeCounts::of(&rows);
+    Outcome::Tree { rows, counts, truncated: budget == 0 }
 }
 
 /// Every path under `root`, relative to it, as (is a directory, length).
@@ -623,6 +659,32 @@ mod tree_tests {
             .find(|r| r.rel == Path::new(rel))
             .unwrap_or_else(|| panic!("no row for {rel}: {rows:?}"))
             .state
+    }
+
+    /// The footer's numbers are counted once, when the comparison is built, so
+    /// they have to agree with the rows they came from -- the renderer no longer
+    /// walks the rows to check, which is the point.
+    #[test]
+    fn the_counts_agree_with_the_rows() {
+        let (l, r) = dirs("counts");
+        std::fs::write(l.join("only-left"), b"x").unwrap();
+        std::fs::write(r.join("only-right"), b"x").unwrap();
+        std::fs::write(l.join("same"), b"ab").unwrap();
+        std::fs::write(r.join("same"), b"ab").unwrap();
+        std::fs::write(l.join("differ"), b"ab").unwrap();
+        std::fs::write(r.join("differ"), b"cd").unwrap();
+        let Outcome::Tree { rows, counts, .. } = compare_trees(&l, &r) else {
+            panic!("two folders compare as a tree")
+        };
+        assert_eq!(counts, TreeCounts::of(&rows), "the carried counts are the rows' own");
+        assert_eq!(counts.left_only, 1);
+        assert_eq!(counts.right_only, 1);
+        assert_eq!(counts.differ, 1);
+        assert_eq!(counts.same, 2, "`same`, plus the `sub` both sides have");
+        assert_eq!(counts.unread, 0);
+        // And they add up to every row, so the footer accounts for all of them.
+        let total = counts.left_only + counts.right_only + counts.differ + counts.same + counts.unread;
+        assert_eq!(total, rows.len());
     }
 
     #[test]

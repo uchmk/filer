@@ -5,7 +5,7 @@ use egui::{
 
 use crate::app::PreviewState;
 use crate::config::theme::Theme;
-use crate::preview::{cells, outline_cols, Doc, LineKind, MapRow, Payload, Span, TocEntry};
+use crate::preview::{cells, outline_cols, Doc, Extent, LineKind, MapRow, Payload, Span, TocEntry};
 
 pub struct PreviewStyle<'a> {
     pub theme: &'a Theme,
@@ -86,27 +86,26 @@ pub fn draw(
                 );
                 0
             }
-            Payload::Text { lines, map, truncated, total_lines, outline } => {
+            Payload::Text { lines, map, extent, outline } => {
                 let (body, strip) = split_minimap(rect, map, st);
-                let mut drawn =
-                    code(ui, &painter, body, lines, outline, *truncated, *total_lines, offset, st);
+                let mut drawn = code(ui, &painter, body, lines, outline, *extent, offset, st);
                 if let Some(strip) = strip {
                     drawn.scroll_to = minimap(ui, &painter, strip, map, offset, rows(body, st), st);
                     minimap_hover(ui, &painter, strip, body, lines, st);
                 }
                 return drawn;
             }
-            Payload::Markdown { doc, source, map, truncated, total_lines } => {
+            Payload::Markdown { doc, source, map, extent } => {
                 // Rendered Markdown gets no minimap: `map` describes the source,
                 // and a rendered line is not the same line, so the viewport box
                 // would point at the wrong place. Its "Contents" column already
                 // answers "where am I". That is also why `preview.cols` — the
                 // width Markdown is wrapped to — needs no adjusting for this.
                 if st.render_markdown {
-                    return markdown(ui, &painter, rect, doc, *truncated, *total_lines, offset, st);
+                    return markdown(ui, &painter, rect, doc, *extent, offset, st);
                 }
                 let (body, strip) = split_minimap(rect, map, st);
-                let lines = text(ui, &painter, body, source, *truncated, *total_lines, offset, st);
+                let lines = text(ui, &painter, body, source, *extent, offset, st);
                 let mut scroll_to = None;
                 if let Some(strip) = strip {
                     scroll_to = minimap(ui, &painter, strip, map, offset, rows(body, st), st);
@@ -440,8 +439,7 @@ fn code(
     rect: Rect,
     lines: &[Vec<Span>],
     entries: &[TocEntry],
-    truncated: bool,
-    total_lines: usize,
+    extent: Extent,
     offset: usize,
     st: &PreviewStyle<'_>,
 ) -> Drawn {
@@ -455,7 +453,7 @@ fn code(
         }
         None => rect,
     };
-    let lines = text(ui, &painter.with_clip_rect(body), body, lines, truncated, total_lines, offset, st);
+    let lines = text(ui, &painter.with_clip_rect(body), body, lines, extent, offset, st);
     let jump = match column {
         Some(width) => outline(ui, painter, rect, entries, width, offset, false, st),
         None if st.outline_focus.is_some() && !entries.is_empty() => {
@@ -467,14 +465,12 @@ fn code(
 }
 
 /// Highlighted source, one file line per row.
-#[allow(clippy::too_many_arguments)]
 fn text(
     ui: &Ui,
     painter: &Painter,
     rect: Rect,
     lines: &[Vec<Span>],
-    truncated: bool,
-    total_lines: usize,
+    extent: Extent,
     offset: usize,
     st: &PreviewStyle<'_>,
 ) -> usize {
@@ -505,21 +501,19 @@ fn text(
             painter.galley(pos + Vec2::new(bold_dx, 0.0), painter.layout_job(job_for(true)), st.theme.fg);
         }
     }
-    if truncated && end >= lines.len() {
-        truncation_note(painter, rect, end - start, total_lines, st);
+    if extent.truncated && end >= lines.len() {
+        truncation_note(painter, rect, end - start, extent.total, st);
     }
     lines.len()
 }
 
 /// Markdown laid out for reading, with the outline in a column on the right.
-#[allow(clippy::too_many_arguments)]
 fn markdown(
     ui: &Ui,
     painter: &Painter,
     rect: Rect,
     doc: &Doc,
-    truncated: bool,
-    total_lines: usize,
+    extent: Extent,
     offset: usize,
     st: &PreviewStyle<'_>,
 ) -> Drawn {
@@ -582,8 +576,8 @@ fn markdown(
             col += w;
         }
     }
-    if truncated && end >= doc.lines.len() {
-        truncation_note(painter, rect, end - start, total_lines, st);
+    if extent.truncated && end >= doc.lines.len() {
+        truncation_note(painter, rect, end - start, extent.total, st);
     }
 
     let jump = if doc.toc_cols > 0 && !doc.toc.is_empty() {
