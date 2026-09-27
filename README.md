@@ -367,9 +367,18 @@ rather than another set of bindings. Only what the `[term]` keymap section binds
 | `<C-S-t>` | close the pane and end the shell |
 | `<F1>` `<C-S-p>` | the key list / the command palette |
 | `<A-Up>` | put the file list where the shell is |
+| `<A-j>` `<A-k>` | five lines down / up the scrollback — the keys that scroll the preview from the list |
 | `<S-PageUp>` `<S-PageDown>` | half a screen back / forward through the scrollback |
 | `<S-Home>` `<S-End>` | to the top of the scrollback / back to the bottom |
 | `<C-S-f>` `<C-S-n>` `<C-S-b>` | find in the scrollback / next match / previous |
+
+Shift is what keeps most of those out of the shell's way: a program reading the keyboard sees
+`PageUp`, never `<S-PageUp>`. `<A-j>` and `<A-k>` are the exception, and they cost something — a
+plain Alt+letter *does* reach the program, so a `nvim` run inside this pane no longer sees them.
+That is deliberate: these two mean "scroll what I am reading" in every other pane, and the one
+place they did nothing was the one you noticed. Handing them back to the shell means replacing the
+whole section with a `[term] keymap = [...]` of your own, minus these two — `prepend_keymap` cannot
+do it, because a key bound to anything here, `noop` included, is consumed rather than forwarded.
 
 `<C-t>` is the way in and the way back out, and it leaves the shell alone: going to and fro is
 something you do all day, while ending a shell is something you do a few times, so the destructive

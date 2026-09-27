@@ -807,6 +807,25 @@ side by side, not one at a time.
 
 ---
 
+## 39. `<A-j>` / `<A-k>` in the terminal pane (v0.37.0)
+
+The binding and its direction are unit-tested; what needs a machine is that the
+scrollback really moves, and that the keys no longer reach the shell.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 39.1 | `<C-t>`, run something long (`dir /s` or `ls -R`), then `<A-k>` | The scrollback goes **up** five lines per press |
+| 39.2 | `<A-j>` | Back **down** five lines. Same direction as in the file list, where these scroll the preview |
+| 39.3 | Hold `<A-k>` to the top, then `<A-j>` back | Stops at each end without overshooting — no dead presses coming back |
+| 39.4 | `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>`, and the wheel | Unchanged |
+| 39.5 | With the terminal **unfocused** (`<C-t>` back to the list), `<A-j>` | Scrolls the **preview**, not the terminal. The layer decides, not the key |
+| 39.6 | In the pane, run a program that reads Alt+j — `nvim` with `nnoremap <A-j> :m+1<CR>` | **It does not see the key.** This is the accepted cost, called out in the CHANGELOG |
+| 39.7 | `[[term.prepend_keymap]]` binding `<A-j>` to `noop`, then `<C-F5>` | The key does nothing **and still does not reach the shell** — anything bound here is consumed. Handing it back needs a full `[term] keymap = [...]` replacement |
+| 39.8 | Alt+b / Alt+f / Alt+d at the shell prompt | Still reach readline. Only j and k were taken |
+| 39.9 | `<F1>` from inside the pane | The term layer's list shows `<A-j>` / `<A-k>` with their descriptions |
+
+---
+
 ## Known gaps in this checklist
 
 - **Nothing here has been run.** The checklist was written from the code, not

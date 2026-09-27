@@ -758,6 +758,27 @@ desc = "To the top of the scrollback"
 on = "<S-End>"
 run = "term_scroll bot"
 desc = "Back to the bottom"
+
+# The same keys that scroll the preview from the list and the help panel from
+# itself: `<A-j>` and `<A-k>` mean "move the thing I am reading" everywhere in
+# this app, and the pane it does not work in is the one you notice.
+#
+# These are the exception to the Shift rule above, and the one that costs
+# something: a plain Alt+letter does reach a program reading the keyboard, so a
+# `nvim` run inside this pane no longer sees Alt+j or Alt+k. Deliberate --
+# consistency across the panes was worth more here.
+#
+# Handing them back means replacing this whole section with `[term] keymap =
+# [...]` minus these two. `prepend_keymap` cannot do it: a key bound to anything
+# at all, `noop` included, is consumed here and never reaches the shell.
+[[term.keymap]]
+on = "<A-k>"
+run = "term_scroll -5"
+desc = "Scroll the terminal up"
+[[term.keymap]]
+on = "<A-j>"
+run = "term_scroll 5"
+desc = "Scroll the terminal down"
 [[term.keymap]]
 on = "<C-S-f>"
 run = "term_find"
