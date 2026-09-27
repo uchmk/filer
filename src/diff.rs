@@ -25,6 +25,33 @@ pub struct Row {
     pub same: bool,
 }
 
+/// What a comparison found about one path present in one tree or both.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TreeState {
+    LeftOnly,
+    RightOnly,
+    /// The contents differ, or one side is a file where the other is a folder.
+    Differ,
+    /// Byte for byte the same.
+    Same,
+    /// The same size, but too big to read inside the budget, so this is as much
+    /// as was established. Not reported as `Same`: saying two files match is a
+    /// claim, and this is the absence of one.
+    Unread,
+}
+
+/// One path, relative to both roots.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TreeRow {
+    pub rel: PathBuf,
+    pub state: TreeState,
+    /// Whether it is a directory on the side it exists on.
+    pub dir: bool,
+    /// Sizes, where the side has the file. A folder's is zero.
+    pub left: u64,
+    pub right: u64,
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Outcome {
     /// Byte for byte the same file.
@@ -40,8 +67,23 @@ pub enum Outcome {
         /// is shown side by side without being matched up.
         rough: bool,
     },
+    /// Two directory trees, paired by the path each entry has inside them.
+    Tree {
+        rows: Vec<TreeRow>,
+        /// The walk stopped at [`MAX_TREE_ENTRIES`].
+        truncated: bool,
+    },
     Error(String),
 }
+
+/// Paths compared before a tree walk gives up.
+pub const MAX_TREE_ENTRIES: usize = 100_000;
+
+/// The largest pair of same-sized files that gets read to settle whether they
+/// match. Past this the row says `Unread` rather than guessing: a comparison
+/// that reads two 4 GB files to answer one row is not a comparison anyone asked
+/// for.
+pub const MAX_COMPARE_BYTES: u64 = 64 << 20;
 
 /// Rows past this are dropped. Long past the point where anyone is reading.
 pub const MAX_ROWS: usize = 5_000;
@@ -215,6 +257,126 @@ pub fn next_change(rows: &[Row], from: usize, back: bool) -> Option<usize> {
 
 // ------------------------------------------------------------------- worker
 
+/// Walk both trees and pair their entries by the path each has inside its root.
+///
+/// The cheap test first: two files of different lengths differ, and nothing has
+/// to be read to know it -- which settles almost every row in practice. Only
+/// same-sized pairs are read, and only up to [`MAX_COMPARE_BYTES`].
+pub fn compare_trees(left: &Path, right: &Path) -> Outcome {
+    let mut budget = MAX_TREE_ENTRIES;
+    let a = match walk(left, &mut budget) {
+        Ok(m) => m,
+        Err(e) => return Outcome::Error(format!("{}: {e}", crate::util::file_name(left))),
+    };
+    let b = match walk(right, &mut budget) {
+        Ok(m) => m,
+        Err(e) => return Outcome::Error(format!("{}: {e}", crate::util::file_name(right))),
+    };
+    let mut rels: Vec<PathBuf> = a.keys().chain(b.keys()).cloned().collect();
+    rels.sort();
+    rels.dedup();
+
+    let mut rows = Vec::with_capacity(rels.len());
+    for rel in rels {
+        let (l, r) = (a.get(&rel), b.get(&rel));
+        let (state, dir, ls, rs) = match (l, r) {
+            (Some(&(dir, len)), None) => (TreeState::LeftOnly, dir, len, 0),
+            (None, Some(&(dir, len))) => (TreeState::RightOnly, dir, 0, len),
+            (Some(&(ld, ll)), Some(&(rd, rl))) => {
+                if ld != rd {
+                    // A folder on one side and a file on the other is a
+                    // difference, not something to read.
+                    (TreeState::Differ, ld, ll, rl)
+                } else if ld {
+                    (TreeState::Same, true, 0, 0)
+                } else if ll != rl {
+                    (TreeState::Differ, false, ll, rl)
+                } else {
+                    let state = match same_bytes(&left.join(&rel), &right.join(&rel), ll) {
+                        Some(true) => TreeState::Same,
+                        Some(false) => TreeState::Differ,
+                        None => TreeState::Unread,
+                    };
+                    (state, false, ll, rl)
+                }
+            }
+            (None, None) => continue,
+        };
+        rows.push(TreeRow { rel, state, dir, left: ls, right: rs });
+        if rows.len() >= MAX_ROWS {
+            return Outcome::Tree { rows, truncated: true };
+        }
+    }
+    Outcome::Tree { rows, truncated: budget == 0 }
+}
+
+/// Every path under `root`, relative to it, as (is a directory, length).
+///
+/// `symlink_metadata`, so a link is itself rather than what it points at: two
+/// trees that differ only in where a link goes should read as differing, and a
+/// link into a parent must not turn the walk into a loop.
+fn walk(
+    root: &Path,
+    budget: &mut usize,
+) -> std::io::Result<std::collections::HashMap<PathBuf, (bool, u64)>> {
+    let mut out = std::collections::HashMap::new();
+    let mut stack = vec![root.to_path_buf()];
+    // Fail on the root only: a directory further down that cannot be read is one
+    // unreadable row, not a reason to abandon the comparison.
+    std::fs::metadata(root)?;
+    while let Some(p) = stack.pop() {
+        if *budget == 0 {
+            break;
+        }
+        let Ok(rd) = std::fs::read_dir(&p) else { continue };
+        for e in rd.filter_map(|e| e.ok()) {
+            if *budget == 0 {
+                break;
+            }
+            *budget -= 1;
+            let path = e.path();
+            let Ok(md) = std::fs::symlink_metadata(&path) else { continue };
+            let dir = md.is_dir() && !md.file_type().is_symlink();
+            if let Ok(rel) = path.strip_prefix(root) {
+                out.insert(rel.to_path_buf(), (dir, if dir { 0 } else { md.len() }));
+            }
+            if dir {
+                stack.push(path);
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Whether two files of the same length hold the same bytes. `None` when they
+/// are longer than [`MAX_COMPARE_BYTES`], so nothing was established.
+///
+/// Read in blocks and stopped at the first difference, so two files that differ
+/// early cost almost nothing however large they are.
+fn same_bytes(a: &Path, b: &Path, len: u64) -> Option<bool> {
+    use std::io::Read;
+    if len > MAX_COMPARE_BYTES {
+        return None;
+    }
+    let mut fa = std::io::BufReader::new(std::fs::File::open(a).ok()?);
+    let mut fb = std::io::BufReader::new(std::fs::File::open(b).ok()?);
+    let mut ba = [0u8; 64 << 10];
+    let mut bb = [0u8; 64 << 10];
+    loop {
+        let na = fa.read(&mut ba).ok()?;
+        let nb = fb.read(&mut bb).ok()?;
+        if na != nb {
+            return Some(false);
+        }
+        if na == 0 {
+            return Some(true);
+        }
+        if ba[..na] != bb[..nb] {
+            return Some(false);
+        }
+    }
+}
+
 pub struct Request {
     pub left: PathBuf,
     pub right: PathBuf,
@@ -246,7 +408,11 @@ impl Differ {
                     while let Ok(newer) = req_rx.try_recv() {
                         req = newer;
                     }
-                    let outcome = compare_files(&req.left, &req.right, req.max_bytes);
+                    let outcome = if req.left.is_dir() && req.right.is_dir() {
+                        compare_trees(&req.left, &req.right)
+                    } else {
+                        compare_files(&req.left, &req.right, req.max_bytes)
+                    };
                     if res_tx.send(Response { left: req.left, right: req.right, outcome }).is_err()
                     {
                         return;
@@ -414,5 +580,145 @@ mod tests {
 
         assert!(matches!(compare_files(&l, &dir.join("gone"), 1 << 20), Outcome::Error(_)));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+/// Comparing two directory trees rather than two files.
+#[cfg(test)]
+mod tree_tests {
+    use super::*;
+
+    fn dirs(name: &str) -> (PathBuf, PathBuf) {
+        let root = std::env::temp_dir().join(format!("filer-tree-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let (l, r) = (root.join("l"), root.join("r"));
+        std::fs::create_dir_all(l.join("sub")).unwrap();
+        std::fs::create_dir_all(r.join("sub")).unwrap();
+        (l, r)
+    }
+
+    fn rows(l: &Path, r: &Path) -> Vec<TreeRow> {
+        match compare_trees(l, r) {
+            Outcome::Tree { rows, .. } => rows,
+            other => panic!("two folders compare as a tree, got {other:?}"),
+        }
+    }
+
+    /// The same trick `shape` plays for lines: fold each row to one character so
+    /// a whole comparison is one string to read.
+    fn shape(rows: &[TreeRow]) -> String {
+        rows.iter()
+            .map(|r| match r.state {
+                TreeState::LeftOnly => '<',
+                TreeState::RightOnly => '>',
+                TreeState::Differ => '~',
+                TreeState::Same => '=',
+                TreeState::Unread => '?',
+            })
+            .collect()
+    }
+
+    fn named(rows: &[TreeRow], rel: &str) -> TreeState {
+        rows.iter()
+            .find(|r| r.rel == Path::new(rel))
+            .unwrap_or_else(|| panic!("no row for {rel}: {rows:?}"))
+            .state
+    }
+
+    #[test]
+    fn each_side_reports_what_only_it_has() {
+        let (l, r) = dirs("sides");
+        std::fs::write(l.join("only-left"), b"x").unwrap();
+        std::fs::write(r.join("only-right"), b"x").unwrap();
+        std::fs::write(l.join("both"), b"same").unwrap();
+        std::fs::write(r.join("both"), b"same").unwrap();
+        let rows = rows(&l, &r);
+        assert_eq!(named(&rows, "only-left"), TreeState::LeftOnly);
+        assert_eq!(named(&rows, "only-right"), TreeState::RightOnly);
+        assert_eq!(named(&rows, "both"), TreeState::Same);
+        assert_eq!(named(&rows, "sub"), TreeState::Same, "a folder both sides have matches");
+        // Sorted by path, so the shape is stable: both, only-left, only-right, sub.
+        assert_eq!(shape(&rows), "=<>=");
+    }
+
+    /// The cheap test carries almost every row: two files of different lengths
+    /// differ, and nothing is read to know it.
+    #[test]
+    fn a_different_length_is_a_difference_without_reading() {
+        let (l, r) = dirs("len");
+        std::fs::write(l.join("f"), b"short").unwrap();
+        std::fs::write(r.join("f"), b"much longer").unwrap();
+        assert_eq!(named(&rows(&l, &r), "f"), TreeState::Differ);
+    }
+
+    /// Same length is the case that has to be read, and the answer must not be
+    /// "same" just because the sizes match.
+    #[test]
+    fn the_same_length_is_settled_by_reading() {
+        let (l, r) = dirs("bytes");
+        std::fs::write(l.join("same"), b"abcdef").unwrap();
+        std::fs::write(r.join("same"), b"abcdef").unwrap();
+        std::fs::write(l.join("diff"), b"abcdef").unwrap();
+        std::fs::write(r.join("diff"), b"abcdeX").unwrap();
+        let rows = rows(&l, &r);
+        assert_eq!(named(&rows, "same"), TreeState::Same);
+        assert_eq!(named(&rows, "diff"), TreeState::Differ, "same size, different bytes");
+    }
+
+    #[test]
+    fn nested_paths_are_paired_by_what_they_are_inside_the_roots() {
+        let (l, r) = dirs("nested");
+        std::fs::write(l.join("sub").join("deep"), b"one").unwrap();
+        std::fs::write(r.join("sub").join("deep"), b"two").unwrap();
+        let rows = rows(&l, &r);
+        let rel = std::path::Path::new("sub").join("deep");
+        let got = rows.iter().find(|x| x.rel == rel).expect("the nested file is paired");
+        assert_eq!(got.state, TreeState::Differ);
+        assert!(!got.dir);
+    }
+
+    /// A folder on one side where the other has a file is a difference, and must
+    /// not be read as one.
+    #[test]
+    fn a_folder_against_a_file_is_a_difference() {
+        let (l, r) = dirs("kind");
+        std::fs::create_dir_all(l.join("x")).unwrap();
+        std::fs::write(r.join("x"), b"file").unwrap();
+        assert_eq!(named(&rows(&l, &r), "x"), TreeState::Differ);
+    }
+
+    #[test]
+    fn two_copies_of_one_tree_are_all_matches() {
+        let (l, r) = dirs("equal");
+        for d in [&l, &r] {
+            std::fs::write(d.join("a"), b"aa").unwrap();
+            std::fs::write(d.join("sub").join("b"), b"bb").unwrap();
+        }
+        let rows = rows(&l, &r);
+        assert_eq!(shape(&rows), "===", "a, sub, sub/b");
+        assert!(rows.iter().all(|r| matches!(r.state, TreeState::Same)));
+    }
+
+    #[test]
+    fn a_missing_root_is_an_error_rather_than_an_empty_answer() {
+        let (l, _) = dirs("missing");
+        let gone = l.parent().unwrap().join("never-made");
+        assert!(matches!(compare_trees(&l, &gone), Outcome::Error(_)));
+    }
+
+    /// `same_bytes` stops at the first block that differs, so this is the test
+    /// that it compares content rather than just lengths.
+    #[test]
+    fn the_byte_comparison_finds_a_difference_anywhere() {
+        let (l, r) = dirs("blocks");
+        let mut a = vec![b'x'; 200_000];
+        let mut b = a.clone();
+        b[199_999] = b'y';
+        std::fs::write(l.join("big"), &a).unwrap();
+        std::fs::write(r.join("big"), &b).unwrap();
+        assert_eq!(named(&rows(&l, &r), "big"), TreeState::Differ, "differs in the last byte");
+        a[0] = b'z';
+        std::fs::write(l.join("big"), &a).unwrap();
+        assert_eq!(named(&rows(&l, &r), "big"), TreeState::Differ, "and in the first");
     }
 }

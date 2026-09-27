@@ -285,6 +285,10 @@ pub struct DiffOverlay {
     /// Rows the pane can show; set by the renderer, as `page_rows` is for the
     /// file list. Without it the keys cannot tell where the scrolling stops.
     pub rows: usize,
+    /// The selected row, for a tree comparison. A file comparison has nothing to
+    /// select -- the rows are lines, not things you act on -- so it leaves this
+    /// where it is and shows no cursor.
+    pub cursor: usize,
 }
 
 impl Overlay {
@@ -3486,8 +3490,10 @@ impl App {
                 (of(&sel[0]), of(&sel[1]))
             }
         };
-        if a.1.is_dir_like() || b.1.is_dir_like() {
-            return Err("directories cannot be compared".into());
+        // Two folders are compared as trees; two files line by line. One of each
+        // is neither, and there is nothing sensible to show for it.
+        if a.1.is_dir_like() != b.1.is_dir_like() {
+            return Err("compare two files, or two folders — not one of each".into());
         }
         if a.0 == b.0 {
             return Err("that is the same file on both sides".into());
@@ -3505,7 +3511,8 @@ impl App {
             right: right.clone(),
             max_bytes: self.cfg.ui.max_text_bytes,
         });
-        self.overlay = Overlay::Diff(DiffOverlay { left, right, outcome: None, offset: 0, rows: 1 });
+        self.overlay =
+            Overlay::Diff(DiffOverlay { left, right, outcome: None, offset: 0, rows: 1, cursor: 0 });
     }
 
     pub fn feed_diff_key(&mut self, k: Key) {
@@ -3528,6 +3535,35 @@ impl App {
     fn diff_act(&mut self, a: Act) {
         let page = self.tabs[self.active].page_rows.max(1);
         let Overlay::Diff(ov) = &mut self.overlay else { return };
+        // A tree comparison is a list with a cursor, so the same keys mean
+        // something different there: `j` moves the selection rather than the
+        // scroll, and `n`/`N` walk to the next path that is not a match.
+        if let Some(diff::Outcome::Tree { rows, .. }) = &ov.outcome {
+            let len = rows.len();
+            match a {
+                Act::Close | Act::Escape(_) | Act::Quit | Act::Compare => {
+                    self.overlay = Overlay::None
+                }
+                Act::Arrow(step) if len > 0 => ov.cursor = step.apply(ov.cursor, len, page),
+                Act::FindArrow { prev } if len > 0 => {
+                    let differs = |r: &diff::TreeRow| !matches!(r.state, diff::TreeState::Same);
+                    let found = if prev {
+                        rows[..ov.cursor].iter().rposition(differs)
+                    } else {
+                        rows[ov.cursor + 1..].iter().position(differs).map(|i| i + ov.cursor + 1)
+                    };
+                    match found {
+                        Some(at) => ov.cursor = at,
+                        None => {
+                            let word = if prev { "first" } else { "last" };
+                            self.toast(format!("At the {word} difference"));
+                        }
+                    }
+                }
+                _ => {}
+            }
+            return;
+        }
         let rows: &[diff::Row] = match &ov.outcome {
             Some(diff::Outcome::Rows { rows, .. }) => rows,
             _ => &[],
@@ -5507,6 +5543,96 @@ mod spot_keys {
     }
 }
 
+/// A tree comparison reuses `Overlay::Diff` and the `[diff]` keymap, so the same
+/// keys have to mean the right thing for a list with a cursor rather than for two
+/// columns of lines.
+#[cfg(test)]
+mod diff_tree_keys {
+    use super::*;
+    use crate::diff::{Outcome, TreeRow, TreeState};
+
+    fn row(rel: &str, state: TreeState) -> TreeRow {
+        TreeRow { rel: PathBuf::from(rel), state, dir: false, left: 0, right: 0 }
+    }
+
+    fn app_with(rows: Vec<TreeRow>) -> App {
+        let mut a = App::new(Config::load(), std::env::temp_dir(), egui::Context::default());
+        a.overlay = Overlay::Diff(DiffOverlay {
+            left: PathBuf::from("l"),
+            right: PathBuf::from("r"),
+            outcome: Some(Outcome::Tree { rows, truncated: false }),
+            offset: 0,
+            rows: 10,
+            cursor: 0,
+        });
+        a
+    }
+
+    fn cursor(a: &App) -> usize {
+        match &a.overlay {
+            Overlay::Diff(ov) => ov.cursor,
+            _ => panic!("the overlay closed"),
+        }
+    }
+
+    /// `j`/`k` move the selection, not the scroll -- the rows are things you pick,
+    /// unlike the lines of a file comparison.
+    #[test]
+    fn the_arrows_move_the_cursor() {
+        let mut a = app_with(vec![
+            row("a", TreeState::Same),
+            row("b", TreeState::Differ),
+            row("c", TreeState::Same),
+        ]);
+        a.diff_act(Act::Arrow(crate::config::cmd::Step::Rel(1)));
+        assert_eq!(cursor(&a), 1);
+        a.diff_act(Act::Arrow(crate::config::cmd::Step::Bot));
+        assert_eq!(cursor(&a), 2);
+        a.diff_act(Act::Arrow(crate::config::cmd::Step::Rel(1)));
+        assert_eq!(cursor(&a), 2, "the last row is the last row");
+        a.diff_act(Act::Arrow(crate::config::cmd::Step::Top));
+        assert_eq!(cursor(&a), 0);
+    }
+
+    /// `n`/`N` walk to the next path that is not a match, skipping the rows there
+    /// is nothing to look at.
+    #[test]
+    fn n_walks_between_the_paths_that_are_not_matches() {
+        let mut a = app_with(vec![
+            row("a", TreeState::Same),
+            row("b", TreeState::Same),
+            row("c", TreeState::LeftOnly),
+            row("d", TreeState::Same),
+            row("e", TreeState::Differ),
+        ]);
+        a.diff_act(Act::FindArrow { prev: false });
+        assert_eq!(cursor(&a), 2, "past the two matches");
+        a.diff_act(Act::FindArrow { prev: false });
+        assert_eq!(cursor(&a), 4);
+        // Nothing further: the cursor stays and the view says so.
+        a.diff_act(Act::FindArrow { prev: false });
+        assert_eq!(cursor(&a), 4);
+        a.diff_act(Act::FindArrow { prev: true });
+        assert_eq!(cursor(&a), 2, "and back");
+    }
+
+    #[test]
+    fn close_still_closes() {
+        let mut a = app_with(vec![row("a", TreeState::Same)]);
+        a.diff_act(Act::Close);
+        assert!(matches!(a.overlay, Overlay::None));
+    }
+
+    /// An empty comparison must not index anything.
+    #[test]
+    fn no_rows_is_not_a_panic() {
+        let mut a = app_with(Vec::new());
+        a.diff_act(Act::Arrow(crate::config::cmd::Step::Rel(1)));
+        a.diff_act(Act::FindArrow { prev: false });
+        assert_eq!(cursor(&a), 0);
+    }
+}
+
 /// The usage view rides on the same machinery the search view does: a `Folder`
 /// whose path is not a real directory. These pin the parts that make that work.
 #[cfg(test)]
@@ -5681,6 +5807,7 @@ mod diff_scrolling {
             outcome: Some(diff::Outcome::Rows { rows, truncated: false, rough: false }),
             offset: 0,
             rows: 20,
+            cursor: 0,
         });
         let at = |a: &App| match &a.overlay {
             Overlay::Diff(ov) => ov.offset,
@@ -5714,6 +5841,7 @@ mod diff_scrolling {
             outcome: Some(diff::Outcome::Rows { rows, truncated: false, rough: false }),
             offset: 0,
             rows: 20,
+            cursor: 0,
         });
         a.diff_act(Act::Arrow(Step::Bot));
         match &a.overlay {
