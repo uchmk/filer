@@ -198,6 +198,15 @@ for commit `f2b30c5` is it, for as long as the 90 days last.
 `<A-d>` with `compare-left.txt` and `compare-right.txt` both selected, or one in
 each pane with the view split.
 
+5.1 through 5.8 and 5.10 are automated (`ui::overlay::compare_frame`): both gutters numbering
+their own file across an insertion, a replacement drawn opposite what it replaced and tinted in
+the git signs' own theme colours, the footer's `x–y of z` keeping up with `j` `k` `<C-d>` `<C-u>`
+`gg` `G` — including the three ways the bottom can be got wrong — `n` and `N` stepping over a
+five-line block rather than through it, both sentences that stand in for a view, and `q`. What is
+left for an eye is that the tints read as red and green, that the hairline down the middle is
+drawn at all (a line is not a rectangle, so the harness cannot see it), and the real pair of
+files. 5.9 does not match the program any more; it is written up in QA-REPORT.md.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 5.1 | Compare the two | Two columns, a line down the middle, with line numbers on each side |
@@ -281,6 +290,14 @@ Needs a document that **ends on a heading** with little under it — `TESTING-KE
 is one. A document whose last heading has pages of text after it will not show this
 at all, which is what made it look intermittent.
 
+All five are automated (`ui::outline_end_frame`): the clamp itself, on a fixture whose
+last heading is on line 52 in a pane that stops at 40, and the frame not changing on
+repeat — which is what "no flicker" is, one frame at a time. 9.3 is there as the
+control (a heading with the file still under it goes to its own line) and 9.4 asks the
+same ceiling through `seek`. What is left for an eye is a held key at speed: the tests
+press once per frame, and a repeat rate no test sets is exactly what made this visible.
+The key is `<BackTab>`, not the `<C-o>` 9.1 names — see QA-REPORT.md.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 9.1 | Focus the outline (`<C-o>` or `l` on the file), `G` or hold `↓` to the last entry | The preview stops at the end of the file. **No flicker, no half-drawn frames** |
@@ -315,6 +332,14 @@ beside a row is noticeable at all, which is not something a frame can be asked.
 
 In `bulk-rename\`.
 
+All of it is automated (`ui::overlay::bulk_frame`), 11.9b included: the panel the prompt opens
+with, the rows following the rule as it is typed, both refusals with the reason in brackets and
+the count that says Enter will not go, the swap going through and coming back, group references,
+an unknown placeholder, and the whole batch applied and undone in one step — a rename runs on the
+UI thread, so a frame can watch one happen. What is left for an eye is that the panel is readable
+where it sits, and that the prompt opens with its rule **selected**: it does not, so every rule
+below has to be typed over a field the person clears first. That is in QA-REPORT.md.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 11.1 | Select the 12 `IMG_*.jpg`, press `R` | A prompt reading `{name}{ext}`, and a panel above it listing every file with `→` and its new name — unchanged, since that rule changes nothing |
@@ -331,6 +356,13 @@ In `bulk-rename\`.
 | 11.11 | `R` with `{nope}` | Says the placeholder is unknown; nothing renamed |
 
 ## 12. Undo and redo (v0.3.0)
+
+12.6 and 12.7 are automated (`ui::undo_frame`): `r` then `u` puts the old name back and the toast
+names it, and `u` / `U` on an empty stack each say so in their own words. Everything else in this
+section starts with `d`, and a delete is a job on the ops worker put back by reading the trash --
+the harness runs no workers, so 12.1 to 12.5 and 12.9 to 12.12 stay here. 12.8's own example is
+wrong: creating a file records no undo step, so the redo survives it (see QA-REPORT.md); a second
+rename does fork history, and that is what the module's third test drives.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -354,6 +386,18 @@ Windows makes these awkward to create. A **junction** needs no admin rights:
 shell or developer mode: `New-Item -ItemType SymbolicLink -Path l.md -Target
 C:\dev\filer\README.md`. There are real ones under `C:\Users\<you>\` if you
 would rather not make any.
+
+13.1 to 13.6 are automated (`ui::link_rows`): the `->` after the name, the `l` in `m`+`p`'s column,
+and what `g`+`f` does with a link to a directory, a link to a file, a broken link, an ordinary file
+and an empty directory. Those rows are built in the test rather than made on disk, so what they do
+not cover is the scan worker reading a real `read_link` -- which is all 13.7 (a junction), 13.8 and
+13.9 (`-` and `_` writing one) are about.
+
+13.10 to 13.13 and 13.15 are automated (`ui::overlay::spot_link_section`), running the real
+provider: `Kind` / `Target` / `Resolves`, the relative form's two rows disagreeing, a broken link's
+`no (…)`, the hardlink's count, and no section at all on a file with one name. The symlink three are
+`#[cfg(unix)]` -- creating one on Windows is 13.8's privilege problem -- so **on Windows 13.10 to
+13.12 still need a hand.** 13.14 (`Also at`) is Windows-only and 13.16 needs another program.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -499,6 +543,13 @@ was that a gentle turn moved nothing at all.
 
 ## 21. Archives (v0.2.0)
 
+Three of these are automated (`ui::preview::archive_frame`): 21.1, on a zip the test packs itself,
+down to the size column and the `—` a folder inside an archive gets; 21.6; and 21.12. The other
+nine are out of reach and will stay there — `e` and `E` both hand the work to the job queue, and
+the harness runs no workers, so unpacking, packing, the task panel's counts and the sizes two
+formats come out at all need the program running. 21.9 needs 7-Zip besides. QA-REPORT.md says which
+row needs which. 21.6 says something other than what it says here, which is written up there too.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 21.1 | Hover `sample.zip` | The preview lists what is inside |
@@ -540,6 +591,13 @@ Enter. Each of these is a skip if the editor is not installed.
 ## 24. Awkward names
 
 In `awkward names\`.
+
+24.1 and 24.3 are automated (`ui::awkward_names`): a CJK name reaches the row as itself, and two
+names differing only in case stay two rows with their case kept. What is left for an eye in 24.1 is
+the column arithmetic -- that the glyphs are two cells wide and the rows line up. 24.2 is not
+reachable: eliding happens inside egui's galley and the harness reads back the string that was laid
+out, not the characters that fit (see QA-REPORT.md). 24.4 needs the terminal pane, which is
+`#[cfg(windows)]`, and 24.5 needs the recycle bin.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -599,6 +657,15 @@ tests cover the encoding and the shape of the URL, not what GitHub does with it.
 A race, not a slow load: the answer reaches the channel and the window goes to
 sleep without drawing the frame that would take it out. Only ever seen once, on
 a first launch, so reproducing it may take several cold starts.
+
+27.2, 27.3, 27.4 and 27.5 are automated (`ui::preview_arrival_frame`): a file the cache
+has never held shows `…` and then its own text, a revisit needs no worker at all, ten
+first looks in a row all land, and an image walked onto for the first time zooms from
+its own fit rather than the last picture's scale. These run the real preview thread and
+take its answer through the real channel, which is why they can be about arriving.
+What is left is 27.1 — a genuinely cold process, where the race the section is named
+after would live. The zoom keys are `<A-i>` / `<A-o>`, not the `+` 27.4 names; see
+QA-REPORT.md.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -1001,6 +1068,14 @@ delay, not a number. What is left for an eye: that the card is legible where it 
 
 The parsing and the layout are unit-tested from strings. What needs a machine is real files, from
 real tools, at a real pane width.
+
+43.1, 43.2, 43.3, 43.4, 43.5, 43.6, 43.7, 43.8, 43.10, 43.12 and 43.13 are automated
+(`ui::csv_table_frame`): real files on disk, read by the real worker, laid out to the width the
+frame measured — and 43.4 resizes the window between two frames and watches the table come back
+at the new width, which is the fix v0.41.0 shipped and the one thing here no test from a string
+could have. What is left is a file from Excel itself (43.1 and 43.7 use files written here, not
+by Excel) and 43.9's 50 MB. 43.11 does not match the program: with the table up there is no
+minimap at all — see QA-REPORT.md.
 
 | # | Do | Expect |
 | --- | --- | --- |

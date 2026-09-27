@@ -1344,6 +1344,60 @@ pub(crate) mod harness {
             Rect::from_min_size(egui::Pos2::ZERO, self.size)
         }
 
+        /// The frame loop's other half, once: take what the workers have
+        /// answered, ask again, and draw.
+        ///
+        /// [`Screen::draw`] leaves the workers out on purpose (see the module's
+        /// own note), and for a listing set up by hand that is the only safe
+        /// thing to do. But the preview *arriving* is what several of
+        /// TESTING.md's sections are about, and it cannot be set up by hand and
+        /// still be that: the payload has to come back through the real channel.
+        /// So this mirrors `Filer::ui`'s order exactly -- drain, then
+        /// `kick_scans`, then `request_preview`, then draw -- and leaves the
+        /// deciding to the caller.
+        pub(crate) fn turn(&mut self) -> Painted {
+            // The same context the frame draws in, because `drain_channels`
+            // uploads an image's texture into it: a second one would register
+            // the texture where nothing looks for it.
+            let ctx = self.ctx.clone();
+            self.app.drain_channels(&ctx);
+            self.app.kick_scans();
+            self.app.request_preview(false);
+            self.draw()
+        }
+
+        /// Turns until the hovered file's preview is on screen, or ten seconds
+        /// have gone by.
+        ///
+        /// The debounce goes to zero first. It is there so that a cursor still
+        /// moving does not touch the disk, and a test whose cursor is not moving
+        /// only waits on it -- 40ms per look at a file, and section 27 asks for
+        /// ten files in a row.
+        pub(crate) fn settle(&mut self) -> Painted {
+            self.app.cfg.ui.preview_debounce_ms = 0;
+            let mut f = self.turn();
+            for _ in 0..1000 {
+                if self.preview_arrived() {
+                    return f;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                f = self.turn();
+            }
+            f
+        }
+
+        /// Whether the preview on screen is the hovered file's, fully loaded.
+        ///
+        /// `App::preview_ready` says exactly this and is private, so this is the
+        /// same two questions asked from outside: a `Ready` payload, and a key
+        /// naming the file the cursor is on. Either alone would pass while the
+        /// pane showed the file before it.
+        pub(crate) fn preview_arrived(&self) -> bool {
+            matches!(self.app.preview.state, crate::app::PreviewState::Ready(_))
+                && self.app.preview.key.as_ref().map(|k| &k.path)
+                    == self.app.tab().current.hovered().map(|e| &e.path)
+        }
+
         /// One frame, with nothing typed.
         pub(crate) fn draw(&mut self) -> Painted {
             self.feed(Vec::new())
@@ -2934,5 +2988,1021 @@ mod config_warning_frame {
             .expect("the toast is on screen");
         assert_eq!(drawn.lines().count(), 9, "eight lines and the marker: {drawn:?}");
         assert_eq!(drawn.lines().last(), Some("…"), "the marker is its own line: {drawn:?}");
+    }
+}
+
+/// TESTING.md section 13's list half: the `->` marker, the type column, and
+/// what `g` `f` does with each kind of row.
+///
+/// The link rows are built here rather than made on disk. A real symlink needs
+/// Developer Mode or an elevated shell on Windows -- 13.8 is about exactly that
+/// -- so a test that created one would be a test that fails on the runner that
+/// matters most. Everything the list and `follow` read is in the entry
+/// (`kind` and `link_to`), and filling those in from a `read_link` is the scan
+/// worker's job, which is the part of the section these cannot reach.
+///
+/// The toast's colour is not here either: 13.4 asks for red and the harness
+/// records a string, not the ink it was drawn in.
+#[cfg(test)]
+mod link_rows {
+    use super::harness::{Painted, Screen};
+    use crate::core::folder::Folder;
+    use crate::fs::{Entry, Kind};
+    use std::path::{Path, PathBuf};
+    use std::sync::Arc;
+
+    /// One link row, pointing at `to`.
+    fn link(dir: &Path, name: &str, to: PathBuf, to_dir: bool, broken: bool) -> Entry {
+        Entry {
+            path: dir.join(name),
+            name: name.to_owned(),
+            kind: Kind::Link { to_dir, broken },
+            link_to: Some(to),
+            ..Default::default()
+        }
+    }
+
+    /// A window listing exactly `entries`, with the cursor on the first.
+    fn showing(dir: &Path, entries: Vec<Entry>) -> Screen {
+        let mut s = Screen::open(dir.to_path_buf());
+        s.app.tabs[0].current = Folder::from_entries(dir.to_path_buf(), Arc::new(entries), true);
+        s
+    }
+
+    /// How many of the frame's strings are exactly `text`.
+    ///
+    /// Exactly, not `says`: the status line draws the hovered row's type column
+    /// too, padded, and `Symlink` is a prefix of `Symlink (relative)` over in
+    /// the spot panel. A column of three characters wants the strict form.
+    fn drawn(f: &Painted, text: &str) -> usize {
+        f.texts.iter().filter(|t| *t == text).count()
+    }
+
+    /// `sub/deep.txt` and three links beside it: to that directory, to that
+    /// file, and to a name that is not there. A plain file last, as the control.
+    ///
+    /// The target of the file link is one directory down so that following it
+    /// is a real move; a link beside its own target would land where it started
+    /// and pass whatever `cd` did.
+    fn four(label: &str) -> (PathBuf, Screen) {
+        let dir = crate::util::test_dir(label);
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        std::fs::write(dir.join("sub").join("deep.txt"), "deep").unwrap();
+        std::fs::write(dir.join("plain.txt"), "x").unwrap();
+        let entries = vec![
+            link(&dir, "to-dir", dir.join("sub"), true, false),
+            link(&dir, "to-file", dir.join("sub").join("deep.txt"), false, false),
+            link(&dir, "dead", dir.join("gone.txt"), false, true),
+            Entry::from_path(dir.join("plain.txt")).unwrap(),
+        ];
+        let s = showing(&dir, entries);
+        (dir, s)
+    }
+
+    /// 13.1: the name carries `->`, and `m` `p` turns the type column to `l`.
+    #[test]
+    fn a_link_is_marked_in_the_row_and_in_the_type_column() {
+        let (_dir, mut s) = four("frame-link-mark");
+
+        let f = s.draw();
+        for name in ["to-dir", "to-file", "dead"] {
+            assert_eq!(drawn(&f, &format!("{name}  ->")), 1, "{name} is marked: {:?}", f.texts);
+        }
+        assert_eq!(drawn(&f, "plain.txt"), 1, "and the ordinary file is not: {:?}", f.texts);
+
+        // `m` is the line-mode prefix and `p` its permissions column, where the
+        // first character is the kind.
+        let f = s.typed("mp");
+        assert_eq!(drawn(&f, "lrw"), 3, "three rows read as links: {:?}", f.texts);
+        assert_eq!(drawn(&f, "-rw"), 1, "and one as a file: {:?}", f.texts);
+    }
+
+    /// 13.2: `g` `f` on a link to a directory opens it.
+    #[test]
+    fn g_f_on_a_link_to_a_directory_goes_into_it() {
+        let (dir, mut s) = four("frame-link-dir");
+        let f = s.typed("gf");
+        assert_eq!(s.app.tab().cwd, dir.join("sub"), "the tab went to the target");
+        assert!(f.says(" 1 sub "), "and the tab chip is named after it: {:?}", f.texts);
+    }
+
+    /// 13.3: `g` `f` on a link to a file lands on the file's directory, with the
+    /// name left for the cursor.
+    ///
+    /// The cursor itself arrives with the listing, and no worker runs here, so
+    /// what is assertable is the half that does not wait: the tab moved, and the
+    /// name is in `memo`, which is where `Tab` restores the cursor from.
+    #[test]
+    fn g_f_on_a_link_to_a_file_lands_on_its_directory_with_the_name_remembered() {
+        let (dir, mut s) = four("frame-link-file");
+        s.typed("jgf");
+        let sub = dir.join("sub");
+        assert_eq!(s.app.tab().cwd, sub, "the tab went to the target's directory");
+        assert_eq!(
+            s.app.tab().memo.get(&sub).map(String::as_str), Some("deep.txt"),
+            "with the file named for the cursor to land on",
+        );
+    }
+
+    /// 13.4: a broken link names itself rather than going anywhere.
+    #[test]
+    fn g_f_on_a_broken_link_says_which_one() {
+        let (dir, mut s) = four("frame-link-dead");
+        let f = s.typed("jjgf");
+        assert!(f.says("Broken link: dead"), "the name is in the message: {:?}", f.texts);
+        assert_eq!(s.app.tab().cwd, dir, "and the tab stayed where it was");
+    }
+
+    /// 13.5: on an ordinary file the key says what it is for.
+    ///
+    /// Until v0.26.8 it did nothing at all, which from the outside is a key that
+    /// is not bound -- so the message is the whole check.
+    #[test]
+    fn g_f_on_an_ordinary_file_says_what_the_key_is_for() {
+        let (dir, mut s) = four("frame-link-plain");
+        let f = s.typed("jjjgf");
+        assert!(
+            f.says("Only a symlink can be followed — a link shows -> after its name"),
+            "{:?}", f.texts,
+        );
+        assert_eq!(s.app.tab().cwd, dir, "and nothing moved");
+    }
+
+    /// 13.6: in an empty directory the key says nothing at all.
+    ///
+    /// Asserted as "the frame did not change", because the check is the absence
+    /// of a message and a test naming the message it does not expect would pass
+    /// on a different wrong message.
+    #[test]
+    fn g_f_in_an_empty_directory_says_nothing() {
+        let dir = crate::util::test_dir("frame-link-empty");
+        let mut s = showing(&dir, Vec::new());
+        let before = s.draw().texts;
+        let after = s.typed("gf");
+        assert_eq!(after.texts, before, "no row, so nothing to say about one");
+        assert_eq!(s.app.tab().cwd, dir, "and nowhere to go");
+    }
+}
+
+/// TESTING.md section 24: names the list has to draw without help.
+///
+/// Two of the five rows are here. 24.2 (a long name elided in the middle) is not
+/// reachable through the harness: eliding is egui's, done inside the galley, and
+/// `Galley::text` hands back the string that was laid out rather than the
+/// characters that fit -- so a frame cannot tell a truncated row from a whole
+/// one. 24.4 wants the terminal pane, which is `#[cfg(windows)]`, and 24.5 wants
+/// the recycle bin. See QA-REPORT.md.
+#[cfg(test)]
+mod awkward_names {
+    use super::harness::Screen;
+    use crate::core::folder::Folder;
+    use std::path::Path;
+
+    /// A window listing `names`, which are created in the directory first.
+    fn showing(dir: &Path, names: &[&str]) -> Screen {
+        for n in names {
+            std::fs::write(dir.join(n), "x").unwrap();
+        }
+        let entries = super::panes::listing(dir, names);
+        let mut s = Screen::open(dir.to_path_buf());
+        s.app.tabs[0].current = Folder::from_entries(dir.to_path_buf(), entries, true);
+        s
+    }
+
+    /// 24.1: a CJK name reaches the row whole.
+    ///
+    /// The column arithmetic behind it is not assertable -- that the glyphs are
+    /// two cells wide and that the rows line up is what an eye is for -- but a
+    /// name mangled on its way to the layout would show up here, and a name
+    /// truncated at a byte boundary rather than a character one would not be a
+    /// string the assertion could find at all.
+    #[test]
+    fn cjk_names_are_drawn_whole() {
+        let dir = crate::util::test_dir("frame-names-cjk");
+        let names = ["日本語のファイル名.txt", "中文文件名.md", "한국어.txt"];
+        let f = showing(&dir, &names).draw();
+        for n in names {
+            assert!(f.texts.iter().any(|t| t == n), "{n} is drawn as itself: {:?}", f.texts);
+        }
+    }
+
+    /// 24.3: two names differing only in case are two rows.
+    ///
+    /// On a case-insensitive filesystem -- which is the one the checklist is
+    /// written for -- those two paths are one file, so what this can check is
+    /// the half that is filer's either way: the list draws back the case it was
+    /// handed and does not fold the pair into one row. That both are openable
+    /// is still a row for a machine.
+    #[test]
+    fn two_names_differing_only_in_case_are_two_rows() {
+        let dir = crate::util::test_dir("frame-names-case");
+        let f = showing(&dir, &["UPPER.TXT", "upper.txt"]).draw();
+        assert!(f.says("2 items"), "both are counted: {:?}", f.texts);
+        assert_eq!(
+            f.texts.iter().filter(|t| t.eq_ignore_ascii_case("upper.txt")).count(), 2,
+            "and both are drawn: {:?}", f.texts,
+        );
+        for n in ["UPPER.TXT", "upper.txt"] {
+            assert!(f.texts.iter().any(|t| t == n), "{n} keeps its case: {:?}", f.texts);
+        }
+    }
+}
+
+/// Shared groundwork for TESTING.md sections 9, 27 and 43.
+///
+/// All three are about the *preview*, and a preview is the one thing on screen
+/// that no test can simply set up and draw: it exists because a worker answered.
+/// So these tests use real files, the real preview thread, and the real channel,
+/// and `Screen::settle` turns the frame loop until the answer lands. What that
+/// buys over the payload tests in `preview::` is the pane's own width: `cols`
+/// and `box_size` are measured by the draw, so a table laid out to the pane and
+/// an outline column that only fits at some widths cannot be asked about any
+/// other way.
+#[cfg(test)]
+mod preview_panes {
+    pub(super) use super::harness::{Painted, Screen};
+
+    /// A directory holding `files`, with the listing scanned and the cursor on
+    /// the first name given.
+    ///
+    /// The listing comes from the real scanner rather than `from_entries`,
+    /// because these tests already have to run the loop for the preview and a
+    /// scan landing mid-test is only a hazard for a listing that was faked.
+    pub(super) fn on(label: &str, files: &[(&str, &str)]) -> Screen {
+        sized(label, files, 1280.0, 800.0)
+    }
+
+    /// Wide enough that the preview pane clears `MINIMAP_MIN_COLS`: at 1280 it
+    /// is 53 columns and no map is drawn at all, which would make "is the map
+    /// mapping the file" unanswerable rather than answered.
+    pub(super) fn wide(label: &str, files: &[(&str, &str)]) -> Screen {
+        sized(label, files, 1920.0, 1080.0)
+    }
+
+    /// The directory these tests list: a `room` *inside* the test directory,
+    /// not the test directory itself.
+    ///
+    /// The extra level is what keeps the parent column out of the way, and that
+    /// matters more than it looks. A pane whose folder is still being scanned
+    /// draws `…`, exactly as the preview does while it waits, so a parent the
+    /// scanner has not finished with puts a second `…` on the frame and
+    /// `waiting` counts it. `test_dir`'s own parent is the system temp
+    /// directory, which is as big as the machine happens to have made it -- 4000
+    /// files is a slow enough scan to lose the race, and that is a test that
+    /// passes on an empty `/tmp` and fails on a working one.
+    ///
+    /// Owning the parent fixes both halves: it holds one entry, so the scan is
+    /// over before the first frame, and nothing else writes into it, so the
+    /// watcher cannot flag it dirty and send it back to `Loading` halfway
+    /// through a test. Every other test in the file shares the temp directory as
+    /// a parent, so that last one is not hypothetical.
+    pub(super) fn room(label: &str) -> std::path::PathBuf {
+        let room = crate::util::test_dir(label).join("room");
+        std::fs::create_dir_all(&room).unwrap();
+        room
+    }
+
+    pub(super) fn sized(label: &str, files: &[(&str, &str)], w: f32, h: f32) -> Screen {
+        let dir = room(label);
+        for (name, body) in files {
+            std::fs::write(dir.join(name), body).unwrap();
+        }
+        let mut s = open(dir).sized(w, h);
+        listed(&mut s, files.len());
+        s
+    }
+
+    /// A `Screen` on `dir` with the debounce off.
+    pub(super) fn open(dir: std::path::PathBuf) -> Screen {
+        let mut s = Screen::open(dir);
+        s.app.cfg.ui.preview_debounce_ms = 0;
+        s
+    }
+
+    /// Turn the loop until the listing holds `n` entries *and* the parent column
+    /// has been scanned, so that the only `…` a later frame can draw is the
+    /// preview's.
+    pub(super) fn listed(s: &mut Screen, n: usize) {
+        until(s, |s| {
+            s.app.tab().current.entries.len() == n
+                && s.app.tab().parent.as_ref().is_some_and(|p| {
+                    p.state != crate::core::folder::LoadState::Loading
+                })
+        });
+        assert_eq!(s.app.tab().current.entries.len(), n, "the scanner listed the fixtures");
+        assert!(
+            s.app.tab().parent.as_ref().is_some_and(|p| {
+                p.state != crate::core::folder::LoadState::Loading
+            }),
+            "and the parent column, which draws `…` of its own while it waits",
+        );
+    }
+
+    /// The table as it was laid out: each line of the payload's `doc`, spans
+    /// joined.
+    ///
+    /// The padding that right-aligns a numeric column is its own span of
+    /// spaces, and epaint draws no glyph for one, so `Painted::texts` cannot see
+    /// it. The lines here are the ones the frame drew, at the width the frame
+    /// measured -- which is the half of section 43 that no test from a string
+    /// could reach.
+    pub(super) fn table(s: &Screen) -> Vec<String> {
+        match &s.app.preview.state {
+            crate::app::PreviewState::Ready(crate::preview::Payload::Markdown { doc, .. }) => doc
+                .lines
+                .iter()
+                .map(|l| l.spans.iter().map(|sp| sp.text.as_str()).collect())
+                .collect(),
+            other => panic!("a table is a Markdown-shaped payload, got {:?}", std::mem::discriminant(other)),
+        }
+    }
+
+    /// Put the cursor on `name` and turn the loop until its preview is up.
+    pub(super) fn look_at(s: &mut Screen, name: &str) -> Painted {
+        let at = s.app.active;
+        assert!(s.app.tabs[at].current.select_name(name), "`{name}` is in the listing");
+        let f = s.settle();
+        assert!(s.preview_arrived(), "`{name}`'s preview arrived: {:?}", f.texts);
+        f
+    }
+
+    /// Put the preview slot back to "this session has never looked at anything".
+    ///
+    /// Both halves are needed and for different reasons: the slot, so the pane is
+    /// not still showing a payload, and the cache, because `request_preview`
+    /// answers a hit itself and would go straight to `Ready` without the worker.
+    pub(super) fn forget(s: &mut Screen) {
+        s.app.preview.cache.clear();
+        s.app.preview.key = None;
+        s.app.preview.state = crate::app::PreviewState::Empty;
+    }
+
+    /// Turn the loop until `done`, or ten seconds.
+    ///
+    /// `Screen::settle` stops at "the hovered file's preview is up", which is
+    /// already true of a re-layout: the pane keeps the old table on screen while
+    /// the new one is read, deliberately, so that a resize does not blink
+    /// through `…`. A test about the re-layout therefore has to say what it is
+    /// waiting for itself.
+    pub(super) fn until(s: &mut Screen, mut done: impl FnMut(&Screen) -> bool) -> Painted {
+        let mut f = s.turn();
+        for _ in 0..1000 {
+            if done(s) {
+                return f;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            f = s.turn();
+        }
+        f
+    }
+
+    /// Whether the pane is showing the "nothing has arrived yet" placeholder.
+    ///
+    /// `…` on its own, counted exactly: the tab bar elides a long directory name
+    /// with the same character, so `Painted::says` answers yes on every frame
+    /// these tests draw and would make the assertion vacuous.
+    ///
+    /// Counting the whole frame is only sound because `room` owns the parent
+    /// column -- a pane still being scanned draws this same placeholder. There is
+    /// no narrowing it by area: `Painted` keeps where a *rectangle* was drawn and
+    /// only what a string said, so "`…` inside the preview pane" is not a
+    /// question it can answer.
+    pub(super) fn waiting(f: &Painted) -> bool {
+        f.texts.iter().filter(|t| *t == "\u{2026}").count() == 1
+    }
+}
+
+/// TESTING.md section 9: the outline at the end of a file.
+///
+/// The section exists because the bug looked intermittent, and the reason it
+/// looked that way is the whole of it: an entry only misbehaves when its line
+/// sits past the furthest the pane can be scrolled, which needs a document whose
+/// *last* heading is near its end. A pane's furthest scroll is `max_offset`, and
+/// `max_offset` is written by the draw -- so this is a section that cannot be
+/// tested without drawing, which is why it was left to a person with a real
+/// window until now.
+#[cfg(test)]
+mod outline_end_frame {
+    use super::panes::{alt, key};
+    use super::preview_panes::*;
+
+    /// A document that ends on a heading with one line under it -- the shape
+    /// `TESTING-KEYS.md` has, and the one the section asks for.
+    fn ends_on_a_heading() -> String {
+        let mut t = String::from("# Title\n\nintro\n\n");
+        for i in 0..8 {
+            t.push_str(&format!("## Chapter {i}\n\n"));
+            for j in 0..12 {
+                t.push_str(&format!("body {i}-{j}\n"));
+            }
+            t.push('\n');
+        }
+        t.push_str("## The last heading\n\none line under it\n");
+        t
+    }
+
+    /// `<BackTab>`, the key the outline actually answers.
+    ///
+    /// 9.1 names `<C-o>`, which is in no keymap -- see QA-REPORT.md. The command
+    /// is `toggle_outline` and the default binding is Shift+Tab.
+    fn focus() -> egui::Event {
+        key(egui::Key::Tab, egui::Modifiers { shift: true, ..Default::default() })
+    }
+
+    fn down() -> egui::Event {
+        key(egui::Key::ArrowDown, egui::Modifiers::NONE)
+    }
+
+    /// 9.1 and 9.2: the last entry stops at the end of the file, and holding the
+    /// key there changes nothing at all.
+    ///
+    /// The numbers are the point. The last heading is on line 52 and the pane
+    /// can only be scrolled to 40, so an unclamped jump would hand the draw an
+    /// offset twelve lines past the content -- one frame drawn from beyond the
+    /// end, per repeat, which is exactly what "one bad frame per repeat" was.
+    #[test]
+    fn the_last_entry_stops_at_the_end_of_the_file() {
+        let mut s = on("outline-end", &[("notes.md", &ends_on_a_heading())]);
+        look_at(&mut s, "notes.md");
+
+        let entries: Vec<usize> = s.app.outline_entries().iter().map(|e| e.line).collect();
+        let max = s.app.preview.max_offset;
+        let last = *entries.last().expect("the headings became an outline");
+        assert!(
+            last > max,
+            "the fixture puts its last heading past the furthest scroll ({last} > {max}), \
+             which is the only case this section is about",
+        );
+
+        s.feed(vec![focus()]);
+        assert_eq!(s.app.preview.outline, Some(0), "`<BackTab>` handed the keys over");
+
+        let f = s.typed("G");
+        assert_eq!(
+            s.app.preview.outline, Some(entries.len() - 1),
+            "`G` went to the last entry",
+        );
+        assert_eq!(
+            s.app.tab().preview_offset, max,
+            "and the preview stopped at the end of the file rather than at line {last}",
+        );
+        assert!(f.says("one line under it"), "the last line is on screen: {:?}", f.texts);
+
+        // 9.2: the same frame, over and over. A held key is a repeat of this,
+        // and "nothing flashes" is "the next frame is the same frame".
+        let steady = f.texts.clone();
+        for i in 0..5 {
+            let f = s.feed(vec![down()]);
+            assert_eq!(s.app.tab().preview_offset, max, "still at the end after {i} more");
+            assert_eq!(f.texts, steady, "nothing moved on repeat {i}");
+        }
+    }
+
+    /// 9.5: walking back up lands on each entry's own line again.
+    ///
+    /// The clamp is a ceiling, not a new home for the cursor: the two entries
+    /// above the last one are also past `max_offset` and also clamp to it, and
+    /// the first one that is not has to go to its own line. A fix that had left
+    /// the offset pinned would pass the test above and fail here.
+    #[test]
+    fn walking_back_up_lands_on_each_entry_own_line() {
+        let mut s = on("outline-back", &[("notes.md", &ends_on_a_heading())]);
+        look_at(&mut s, "notes.md");
+        let entries: Vec<usize> = s.app.outline_entries().iter().map(|e| e.line).collect();
+        let max = s.app.preview.max_offset;
+
+        s.feed(vec![focus()]);
+        s.typed("G");
+        for k in (0..entries.len() - 1).rev() {
+            s.typed("k");
+            assert_eq!(s.app.preview.outline, Some(k), "walked up to entry {k}");
+            assert_eq!(
+                s.app.tab().preview_offset, entries[k].min(max),
+                "entry {k} is on line {}, and the pane stops at {max}", entries[k],
+            );
+        }
+        // The one that matters: an entry well inside the file is on its own line,
+        // not on the clamped one.
+        let first_inside = entries.iter().position(|&l| l <= max).expect("some entry fits");
+        assert!(entries[first_inside] < max, "and that line is not the ceiling");
+    }
+
+    /// 9.3: a document whose last heading has plenty of text after it is
+    /// unchanged -- it was always correct here.
+    ///
+    /// Worth its own test rather than a note, because it is the control: if the
+    /// clamp ever grew into "always stop at `max_offset`", every jump in a normal
+    /// document would land in the wrong place and the test above would not notice.
+    #[test]
+    fn a_heading_with_the_file_still_below_it_goes_to_its_own_line() {
+        let mut t = String::from("# Title\n\n");
+        for i in 0..4 {
+            t.push_str(&format!("## Chapter {i}\n\n"));
+            for j in 0..12 {
+                t.push_str(&format!("body {i}-{j}\n"));
+            }
+            t.push('\n');
+        }
+        for j in 0..80 {
+            t.push_str(&format!("tail {j}\n"));
+        }
+
+        let mut s = on("outline-tail", &[("long.md", &t)]);
+        look_at(&mut s, "long.md");
+        let entries: Vec<usize> = s.app.outline_entries().iter().map(|e| e.line).collect();
+        let last = *entries.last().unwrap();
+        assert!(
+            last < s.app.preview.max_offset,
+            "this fixture's last heading has the rest of the file under it",
+        );
+
+        s.feed(vec![focus()]);
+        let f = s.typed("G");
+        assert_eq!(
+            s.app.tab().preview_offset, last,
+            "so the jump lands on the heading's own line, untouched by the clamp",
+        );
+        assert!(f.says("tail 0"), "and the text under it is what is on screen: {:?}", f.texts);
+    }
+
+    /// 9.4: `<A-j>` at the bottom of a long file is still steady.
+    ///
+    /// The same ceiling, reached by the other door. `seek` was clamped first and
+    /// the outline's jump was missed, so the two paths are worth asserting
+    /// together: they are one rule with two callers.
+    #[test]
+    fn alt_j_at_the_bottom_of_a_long_file_stays_put() {
+        let mut s = on("outline-seek", &[("notes.md", &ends_on_a_heading())]);
+        look_at(&mut s, "notes.md");
+        let max = s.app.preview.max_offset;
+
+        let mut f = s.draw();
+        for _ in 0..40 {
+            f = s.feed(vec![key(egui::Key::J, alt())]);
+        }
+        assert_eq!(s.app.tab().preview_offset, max, "`<A-j>` stopped at the end");
+
+        let steady = f.texts.clone();
+        for i in 0..5 {
+            let f = s.feed(vec![key(egui::Key::J, alt())]);
+            assert_eq!(s.app.tab().preview_offset, max, "still there after {i} more");
+            assert_eq!(f.texts, steady, "and the frame did not change on repeat {i}");
+        }
+    }
+}
+
+/// TESTING.md section 27: the preview that would not arrive.
+///
+/// The section reads as a race and is written as one -- "only ever seen once, on
+/// a first launch" -- but v0.12.0 found it was not: `on_preview` put the payload
+/// in the cache and never on screen, so *every* first look at a file stayed on
+/// `…` for ever and only a revisit worked. `preview_delivery` in `app.rs` guards
+/// the state machine; what is left, and what these do, is the frame: that the
+/// placeholder is what a pane shows while nothing has arrived, and that the
+/// file's own text is what it shows once something has.
+#[cfg(test)]
+mod preview_arrival_frame {
+    use super::panes::{alt, key};
+    use super::preview_panes::*;
+
+    /// 27.1 and 27.2: a file never opened in this session reaches the screen.
+    ///
+    /// 27.2 is the case that was broken, and it is not about cold starts: the
+    /// cache is empty for this file either way, which is the only condition the
+    /// bug needed. So the placeholder frame is asserted first -- otherwise a test
+    /// that never saw `…` at all would pass for the wrong reason.
+    #[test]
+    fn a_file_never_seen_this_session_reaches_the_screen() {
+        let body = "the quick brown fox\n".repeat(300);
+        let mut s = on("arrive-first", &[("cold.txt", &body)]);
+
+        // Asked, nothing back -- said rather than waited for. Getting the
+        // listing up takes turns of the loop, and on a quick machine the
+        // preview answers during them, so "has it arrived yet" at this point is
+        // a race and not a fact. Emptying the slot and the cache is the state a
+        // session that has never seen this file is in, which is 27.2's whole
+        // condition; the read itself is still the worker's, through the channel,
+        // which is what the frames below are about.
+        forget(&mut s);
+        s.app.request_preview(false);
+        let f = s.draw();
+        assert!(
+            matches!(s.app.preview.state, crate::app::PreviewState::Loading),
+            "the request is out and nothing has come back",
+        );
+        assert!(waiting(&f), "so the pane is showing the placeholder: {:?}", f.texts);
+        assert!(!f.says("quick brown fox"), "and none of the file: {:?}", f.texts);
+
+        let f = s.settle();
+        assert!(!waiting(&f), "the placeholder is gone: {:?}", f.texts);
+        assert!(f.says("the quick brown fox"), "and the file is on screen: {:?}", f.texts);
+    }
+
+    /// 27.3: walking off the file and back is still fine -- it was the cache.
+    ///
+    /// Asserted as "no worker was needed": one turn of the loop, and the text is
+    /// there with no placeholder in between, because `request_preview` sets
+    /// `Ready` from the cache itself. That is the path that always worked, and
+    /// the one that hid the bug for six versions.
+    #[test]
+    fn walking_off_the_file_and_back_needs_no_worker() {
+        let mut s = on("arrive-cache", &[("alpha.txt", "alpha lives here\n"), ("beta.txt", "beta\n")]);
+        look_at(&mut s, "alpha.txt");
+        s.typed("j");
+        look_at(&mut s, "beta.txt");
+
+        s.typed("k");
+        assert_eq!(s.app.tab().current.hovered_name(), Some("alpha.txt"), "walked back");
+        let f = s.turn();
+        assert!(s.preview_arrived(), "one turn was enough: the cache answered");
+        assert!(!waiting(&f), "with no `…` on the way: {:?}", f.texts);
+        assert!(f.says("alpha lives here"), "and the right file: {:?}", f.texts);
+    }
+
+    /// 27.4: an image never seen this session zooms from its own fit.
+    ///
+    /// The same commit killed this and the section says it has never been
+    /// exercised. `zoom in` steps from `preview.zoom.unwrap_or(preview.fit)`, and
+    /// `fit` is seeded where the payload arrives -- inside the block that was
+    /// dead -- so with the bug in place the step came from whatever the last
+    /// image had been scaled to. Hence two images: a small one that fits at 100%,
+    /// then a large one that does not.
+    ///
+    /// 27.4 says `+`; the keys are `<A-i>` and `<A-o>`, deliberately, and the
+    /// keymap's own comment says why. See QA-REPORT.md.
+    #[test]
+    fn an_image_never_seen_zooms_from_its_own_fit() {
+        // `room` rather than the test directory itself, for the reason its own
+        // note gives: the parent column draws the same placeholder this test
+        // reads, so the tests own the parent.
+        let dir = room("arrive-image");
+        image::RgbaImage::from_pixel(32, 24, image::Rgba([1u8, 2, 3, 255]))
+            .save(dir.join("small.png"))
+            .unwrap();
+        image::RgbaImage::from_pixel(1600, 1200, image::Rgba([9u8, 8, 7, 255]))
+            .save(dir.join("big.png"))
+            .unwrap();
+        let mut s = open(dir);
+        listed(&mut s, 2);
+
+        let f = look_at(&mut s, "small.png");
+        assert!(f.says("32 × 24"), "the small one is up: {:?}", f.texts);
+        assert_eq!(s.app.preview.fit, 1.0, "and a picture smaller than the pane is not blown up");
+
+        let f = look_at(&mut s, "big.png");
+        assert!(f.says("1600 × 1200"), "the large one is up: {:?}", f.texts);
+        assert_eq!(s.app.preview.zoom, None, "walking onto it dropped the last zoom");
+        let fit = s.app.preview.fit;
+        assert!(fit < 1.0, "it does not fit the pane at 100%: {fit}");
+
+        s.feed(vec![key(egui::Key::I, alt())]);
+        let step = s.app.preview.zoom.expect("`<A-i>` set a zoom");
+        assert!(
+            (step - fit * 1.25).abs() < 1e-4,
+            "one step up from *this* picture's fit ({fit}), not from the last one's 100%: {step}",
+        );
+    }
+
+    /// 27.5: ten different files in a row, none revisited, all arrive.
+    ///
+    /// The cache holds 24, so nothing here is evicted and nothing is a hit
+    /// either: ten first looks in a row, which is the run the section asks for
+    /// after a restart.
+    #[test]
+    fn ten_files_in_a_row_all_arrive() {
+        let bodies: Vec<(String, String)> = (0..10)
+            .map(|i| (format!("f{i}.txt"), format!("this is file number {i}\n")))
+            .collect();
+        let files: Vec<(&str, &str)> =
+            bodies.iter().map(|(n, b)| (n.as_str(), b.as_str())).collect();
+        let mut s = on("arrive-ten", &files);
+        // Getting the listing up previews whatever the cursor landed on, so the
+        // first of the ten would otherwise be a hit and this would be nine.
+        forget(&mut s);
+
+        for (name, body) in &bodies {
+            let f = look_at(&mut s, name);
+            assert!(!waiting(&f), "{name} is not still waiting: {:?}", f.texts);
+            assert!(f.says(body.trim_end()), "{name} put its own text up: {:?}", f.texts);
+        }
+    }
+}
+
+/// TESTING.md section 12, as far as a frame reaches: the two messages and the
+/// fork.
+///
+/// Most of the section is about `d`, and `d` is a job on the ops worker put back
+/// by reading the trash. The harness runs no workers and never drains their
+/// channels, so nothing a delete would produce ever arrives -- 12.1 to 12.5 and
+/// 12.9 to 12.12 stay with the machine. A rename is the one undoable action that
+/// happens on the spot, in `apply_rename`, which is what makes 12.6 assertable
+/// at all. See QA-REPORT.md, which also has what 12.8 says versus what the code
+/// does.
+#[cfg(test)]
+mod undo_frame {
+    use super::harness::Screen;
+    use super::panes::{key, listing};
+    use crate::app::{InputKind, InputOverlay, Overlay};
+    use crate::core::folder::Folder;
+    use std::path::{Path, PathBuf};
+
+    /// One file, listed, with the cursor on it.
+    fn one_file(label: &str) -> (PathBuf, Screen) {
+        let dir = crate::util::test_dir(label);
+        std::fs::write(dir.join("one.txt"), "1").unwrap();
+        let mut s = Screen::open(dir.clone());
+        s.app.tabs[0].current =
+            Folder::from_entries(dir.clone(), listing(&dir, &["one.txt"]), true);
+        (dir, s)
+    }
+
+    /// `r`'s prompt, answered with `to` and `<Enter>`.
+    ///
+    /// The prompt is filled in here rather than typed into: it is a native
+    /// `TextEdit` whose contents come from egui's focus handling, so typing at
+    /// it from a test would be a test of egui. What this does drive is the half
+    /// that is filer's -- `confirm_input`, the rename itself, and the undo step
+    /// it records.
+    fn rename(s: &mut Screen, from: &Path, to: &str) {
+        s.app.overlay = Overlay::Input(InputOverlay {
+            kind: InputKind::Rename { from: from.to_path_buf() },
+            title: "Rename".into(),
+            text: to.to_owned(),
+            initial_selection: None,
+            focused: true,
+            completion: Vec::new(),
+            completion_at: 0,
+        });
+        s.feed(vec![key(egui::Key::Enter, egui::Modifiers::NONE)]);
+    }
+
+    /// 12.7: `u` on an empty stack says so instead of erring, and `U` has a
+    /// message of its own.
+    #[test]
+    fn nothing_to_undo_is_said_rather_than_failed() {
+        let (_dir, mut s) = one_file("frame-undo-empty");
+        let f = s.typed("u");
+        assert!(f.says("Nothing to undo"), "{:?}", f.texts);
+
+        let (_dir, mut s) = one_file("frame-redo-empty");
+        let f = s.typed("U");
+        assert!(f.says("Nothing to redo"), "{:?}", f.texts);
+        assert!(!f.says("Nothing to undo"), "the two are told apart: {:?}", f.texts);
+    }
+
+    /// 12.6: `r` then `u` puts the old name back, and the toast names it.
+    #[test]
+    fn a_rename_goes_back_under_the_old_name() {
+        let (dir, mut s) = one_file("frame-undo-rename");
+        rename(&mut s, &dir.join("one.txt"), "two.txt");
+        assert!(dir.join("two.txt").exists(), "the rename happened");
+        assert_eq!(s.app.undos.undo.len(), 1, "and left a step to take back");
+
+        let f = s.typed("u");
+        assert!(dir.join("one.txt").exists(), "the old name is back");
+        assert!(!dir.join("two.txt").exists(), "and the new one is gone");
+        assert!(f.says("Renamed back to one.txt"), "the toast names it: {:?}", f.texts);
+    }
+
+    /// The rule 12.8 is about: a fresh action drops what `u` had put on the way
+    /// forward.
+    ///
+    /// Not 12.8 itself. That row reaches for the fork by creating a file, and
+    /// `a` records no undo step, so the redo survives it and `U` still runs --
+    /// reported rather than asserted. What the fork does answer to is any action
+    /// that lands `Land::Fresh`, and a second rename is the one of those a frame
+    /// can reach.
+    #[test]
+    fn a_fresh_action_forks_history() {
+        let (dir, mut s) = one_file("frame-undo-fork");
+        rename(&mut s, &dir.join("one.txt"), "two.txt");
+        s.typed("u");
+        assert_eq!(s.app.undos.redo.len(), 1, "the undone step is on the way forward");
+
+        rename(&mut s, &dir.join("one.txt"), "three.txt");
+        assert!(s.app.undos.redo.is_empty(), "the new action took that away");
+
+        let f = s.typed("U");
+        assert!(f.says("Nothing to redo"), "so there is nothing to do again: {:?}", f.texts);
+        assert!(dir.join("three.txt").exists(), "and the newest name stands");
+        assert!(!dir.join("two.txt").exists(), "the forked one did not come back");
+    }
+}
+
+/// TESTING.md section 43: CSV / TSV as a table.
+///
+/// The section's own note says what is left after `preview::csv`'s unit tests:
+/// "real files, from real tools, at a real pane width." The width is the half
+/// that matters, and it is the half that had the bug -- `cols == 0` reads as 80
+/// further down, so a table whose key left `cols` out sat at 80 columns for ever.
+/// A pane's width is measured by the draw, so these run the real worker at the
+/// real measured width and then resize the window and watch the table move.
+#[cfg(test)]
+mod csv_table_frame {
+    use super::preview_panes::*;
+
+    const SALES: &str = "region,units,price\nEast,12,3.50\nWest,7,11.25\nNorth,103,0.99\n";
+
+    /// 43.1 and 43.2: an aligned table with a rule, numeric columns to the right,
+    /// and a `.tsv` split on tabs rather than commas.
+    ///
+    /// The alignment is read off the laid-out lines rather than off the frame's
+    /// strings: the padding is its own span of spaces and epaint draws no glyph
+    /// for one. The rule and the header *are* asserted against the frame, which
+    /// is what says the table reached the screen and not merely the payload.
+    #[test]
+    fn a_csv_is_an_aligned_table_and_a_tsv_splits_on_tabs() {
+        let mut s = on("csv-table", &[("sales.csv", SALES), ("tabs.tsv", "a\tb\n1,5\t2\n")]);
+
+        let f = look_at(&mut s, "sales.csv");
+        assert_eq!(
+            table(&s),
+            vec![
+                "region │ units │ price",
+                "───────┼───────┼──────",
+                "East   │    12 │  3.50",
+                "West   │     7 │ 11.25",
+                "North  │   103 │  0.99",
+            ],
+            "header, rule, rows -- and `units` and `price` are numeric, so they \
+             are padded on the left while `region` is padded on the right",
+        );
+        assert!(f.says("───────┼───────┼──────"), "the rule is drawn: {:?}", f.texts);
+        for cell in ["region", "units", "price", "North", "103", "0.99"] {
+            assert!(f.says(cell), "`{cell}` is drawn: {:?}", f.texts);
+        }
+        assert!(!f.says("region,units,price"), "and not as raw text: {:?}", f.texts);
+
+        // 43.2: the comma inside `1,5` is a character in a field, not a split.
+        look_at(&mut s, "tabs.tsv");
+        assert_eq!(table(&s), vec!["  a │ b", "────┼──", "1,5 │ 2"]);
+    }
+
+    /// 43.3: `M` shows the raw text, and `M` again goes back to the table.
+    ///
+    /// Through the keymap, because that is the half a unit test cannot have:
+    /// `toggle_render` is one command shared with Markdown, and the two views
+    /// come out of one payload, so "did the key reach it" and "is the other view
+    /// still there" are the same question.
+    #[test]
+    fn m_switches_between_the_table_and_the_text_it_came_from() {
+        let mut s = on("csv-toggle", &[("sales.csv", SALES)]);
+        // The rule, not the whole row: a line is drawn one span at a time, so
+        // no single string on screen holds a cell and its separator together.
+        // The rule is one span, and nothing but a table draws one.
+        const RULE: &str = "───────┼───────┼──────";
+
+        let f = look_at(&mut s, "sales.csv");
+        assert!(f.says(RULE), "the table is up: {:?}", f.texts);
+        assert!(!f.says("region,units,price"), "{:?}", f.texts);
+
+        let f = s.typed("M");
+        assert!(!s.app.render_markdown, "`M` asked for the source");
+        assert!(f.says("region,units,price"), "which is the file's own line: {:?}", f.texts);
+        assert!(!f.says(RULE), "and not the table: {:?}", f.texts);
+
+        let f = s.typed("M");
+        assert!(s.app.render_markdown, "`M` again went back");
+        assert!(f.says(RULE), "to the table: {:?}", f.texts);
+        assert!(!f.says("region,units,price"), "{:?}", f.texts);
+    }
+
+    /// 43.4 and 43.5: the table re-lays out when the window is resized, and a
+    /// pane too narrow for it squeezes the widest column and wraps the cells.
+    ///
+    /// This is the fix v0.41.0 shipped, and the only way to see it is to draw
+    /// twice at two widths: `cols` is measured by the draw and goes into the
+    /// preview's key, so a resize has to produce a *different key* and a second
+    /// answer from the worker. A table that had stayed at 80 columns for ever
+    /// would give the same lines both times.
+    #[test]
+    fn the_table_relays_out_when_the_window_is_resized() {
+        let wide_row = "description,note\nan extremely long first column value here,short\n";
+        let mut s = sized("csv-reflow", &[("wide.csv", wide_row)], 700.0, 800.0);
+        look_at(&mut s, "wide.csv");
+
+        let narrow = table(&s);
+        let cols = s.app.preview.cols;
+        assert!(cols < 40, "the pane really is narrow: {cols} columns");
+        // 43.5: squeezed and wrapped, and no line wider than the pane.
+        assert!(narrow.len() > 3, "the long cell wrapped over rows: {narrow:?}");
+        for line in &narrow {
+            assert!(
+                crate::preview::cells(line) <= usize::from(cols),
+                "`{line}` is {} cells wide in a pane of {cols}",
+                crate::preview::cells(line),
+            );
+        }
+
+        // 43.4: the same file, a wider window.
+        let mut s = s.sized(1600.0, 800.0);
+        let f = until(&mut s, |s| s.app.preview.cols > cols && table(s) != narrow);
+        let wider = table(&s);
+        assert!(
+            s.app.preview.cols > cols,
+            "the draw measured the new width: {} was {cols}", s.app.preview.cols,
+        );
+        assert_ne!(wider, narrow, "and the table was read again at it");
+        assert_eq!(wider.len(), 3, "the long cell fits on one row now: {wider:?}");
+        assert!(
+            f.says("an extremely long first column value here"),
+            "in one piece, on screen: {:?}", f.texts,
+        );
+    }
+
+    /// 43.6, 43.7, 43.8, 43.10 and 43.13: the files that are awkward rather than
+    /// wide.
+    ///
+    /// All five are parsing, and `preview::csv` tests each from a string. What is
+    /// new here is that they are files -- a BOM written to disk and read back, a
+    /// record with a newline inside it surviving `\n` on the way through -- and
+    /// that the widths are measured against the pane the frame drew.
+    #[test]
+    fn quoted_fields_a_bom_ragged_rows_and_cjk_all_lay_out() {
+        let mut s = wide("csv-odd", &[
+            ("quoted.csv", "name,note\nx,\"a, and\nmore\"\n"),
+            ("bom.csv", "\u{feff}id,name\n1,a\n"),
+            ("ragged.csv", "a,b,c\n1\n2,3\n"),
+            ("one.csv", "solo,row\n"),
+            ("cjk.csv", "名前,備考\n山田,あい\n"),
+        ]);
+
+        // 43.6: one cell, on one row -- the newline inside the quotes is a space.
+        look_at(&mut s, "quoted.csv");
+        assert_eq!(table(&s), vec!["name │ note", "─────┼────────────", "x    │ a, and more"]);
+
+        // 43.7: the BOM is not a character of the first header.
+        let f = look_at(&mut s, "bom.csv");
+        // `id` holds a number, so it is a numeric column too and pads on the left.
+        assert_eq!(table(&s), vec!["id │ name", "───┼─────", " 1 │ a"]);
+        assert!(!f.says("\u{feff}"), "and nothing stray reached the screen: {:?}", f.texts);
+
+        // 43.8: short rows are padded out rather than panicking.
+        look_at(&mut s, "ragged.csv");
+        assert_eq!(table(&s), vec!["a │ b │ c", "──┼───┼──", "1 │   │ ", "2 │ 3 │ "]);
+
+        // 43.10: one record is a row, and a rule under it would say something
+        // untrue about the file.
+        look_at(&mut s, "one.csv");
+        assert_eq!(table(&s), vec!["solo │ row"]);
+
+        // 43.13: widths in cells, not chars -- four columns of rule per heading.
+        let f = look_at(&mut s, "cjk.csv");
+        assert_eq!(table(&s), vec!["名前 │ 備考", "─────┼─────", "山田 │ あい"]);
+        assert!(f.says("─────┼─────"), "drawn: {:?}", f.texts);
+    }
+
+    /// 43.12: a `.csv` that is actually binary is still a hex dump.
+    ///
+    /// The extension decides the *previewer*, so this is the one row of the
+    /// section about what happens when that guess is wrong.
+    #[test]
+    fn a_csv_that_is_actually_binary_is_still_a_hex_dump() {
+        let mut s = on("csv-binary", &[("bin.csv", "x,y\n\u{0}\u{1}\u{2}\u{3}\n")]);
+        let f = look_at(&mut s, "bin.csv");
+        assert!(
+            matches!(
+                s.app.preview.state,
+                crate::app::PreviewState::Ready(crate::preview::Payload::Binary { .. }),
+            ),
+            "not a table",
+        );
+        assert!(f.says("binary · "), "the footer says so: {:?}", f.texts);
+        assert!(f.says("78 2c 79 0a"), "and the bytes are on screen: {:?}", f.texts);
+    }
+
+    /// 43.11: the minimap, with a table up and with the text up.
+    ///
+    /// Half of this row does not match the program, and the half that does is the
+    /// half worth having. With the table up there is **no minimap at all**:
+    /// `ui::preview::draw` returns from the rendered-Markdown branch before any
+    /// map is drawn, and a CSV table is a Markdown-shaped payload. `M` brings the
+    /// source view, and there the map is of the file's own lines. Reported rather
+    /// than called a pass -- see QA-REPORT.md -- and asserted here as what is
+    /// drawn today, so that a change either way is visible.
+    #[test]
+    fn the_minimap_arrives_with_the_text_and_not_with_the_table() {
+        let mut s = wide("csv-minimap", &[("sales.csv", &SALES.repeat(40))]);
+        let strip = egui::Rect::from_min_max(
+            egui::pos2(s.rect().width() - 120.0, 0.0),
+            egui::pos2(s.rect().width(), s.rect().height()),
+        );
+        let f = look_at(&mut s, "sales.csv");
+        assert!(s.app.cfg.ui.minimap, "the map is not switched off");
+        assert!(
+            s.app.preview.cols >= 56,
+            "and the pane is wide enough for one: {} columns", s.app.preview.cols,
+        );
+        assert!(
+            f.rects_in(strip).is_empty(),
+            "yet no strip is drawn beside the table: {:?}", f.rects_in(strip),
+        );
+
+        let f = s.typed("M");
+        assert!(!f.rects_in(strip).is_empty(), "the source view has a map");
+        assert!(
+            f.says("region,units,price"),
+            "of the file's own lines, which are what it is beside: {:?}", f.texts,
+        );
     }
 }
