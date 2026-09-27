@@ -24,6 +24,63 @@ impl Kind {
     }
 }
 
+/// What the right-hand column of the list says about each entry.
+///
+/// A `String` until v0.44.2, which meant a misspelling in `yazi.toml` or in a
+/// `linemode` binding produced a blank column and no complaint: there was no
+/// difference between "show nothing here", "show something nobody has
+/// implemented" and "you typed `mtiem`". Spelled as a type, the config loader
+/// rejects the first, the keymap loader warns about the second, and the third is
+/// impossible.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Linemode {
+    #[default]
+    None,
+    /// A file's length, and a directory's child count.
+    Size,
+    /// Everything under a folder, as the disk-usage view measured it.
+    Usage,
+    #[serde(alias = "modified")]
+    Mtime,
+    #[serde(alias = "created")]
+    Btime,
+    Permissions,
+    /// yazi shows a file's owner here; nothing reads it yet, so the column is
+    /// blank. Kept as a variant all the same -- a blank column that was asked
+    /// for is not the same thing as a typo, and this is what lets the loader
+    /// tell them apart.
+    Owner,
+}
+
+impl Linemode {
+    /// The spellings a config file or a `linemode` command may use. `modified`
+    /// and `created` are yazi's own aliases, kept for the same reason
+    /// [`super::sort::SortBy::parse`] keeps them.
+    pub fn parse(s: &str) -> Option<Self> {
+        Some(match s {
+            "none" => Self::None,
+            "size" => Self::Size,
+            "usage" => Self::Usage,
+            "mtime" | "modified" => Self::Mtime,
+            "btime" | "created" => Self::Btime,
+            "permissions" => Self::Permissions,
+            "owner" => Self::Owner,
+            _ => return None,
+        })
+    }
+
+    /// Whether the scan worker has to count directory children for this.
+    ///
+    /// Only `size` shows that count, and counting is a `read_dir` per visible
+    /// folder -- so this being wrong is a listing that does needless work, or one
+    /// that shows nothing where a number belongs. It was a string comparison
+    /// against `"size"` sitting a long way from the mode's own definition.
+    pub fn wants_dir_size(self) -> bool {
+        matches!(self, Self::Size)
+    }
+}
+
 /// `Default` so the places that build one can name only the fields they know
 /// and let `..Default::default()` carry the rest -- the same shape `Span` uses.
 /// Before this, adding a field meant the compiler pointing at four separate

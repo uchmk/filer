@@ -1046,7 +1046,7 @@ impl App {
             dir_first: cfg.yazi.mgr.sort_dir_first,
             sensitive: cfg.yazi.mgr.sort_sensitive,
         };
-        let tab = Tab::new(start, sort, cfg.yazi.mgr.show_hidden, cfg.yazi.mgr.linemode.clone());
+        let tab = Tab::new(start, sort, cfg.yazi.mgr.show_hidden, cfg.yazi.mgr.linemode);
         let render_markdown = cfg.ui.render_markdown;
 
         let mut app = Self {
@@ -1231,7 +1231,7 @@ impl App {
     /// `linemode size` shows a child count for directories; compute it only for
     /// the rows actually on screen, and only once per directory.
     fn ensure_dir_sizes(&mut self) {
-        if self.tabs[self.active].linemode != "size" {
+        if !self.tabs[self.active].linemode.wants_dir_size() {
             return;
         }
         let tab = &self.tabs[self.active];
@@ -2677,7 +2677,7 @@ impl App {
             target.clone(),
             self.tabs[self.active].sort,
             self.tabs[self.active].show_hidden,
-            self.tabs[self.active].linemode.clone(),
+            self.tabs[self.active].linemode,
         );
         let at = self.active + 1;
         self.tabs.insert(at, tab);
@@ -2729,7 +2729,7 @@ impl App {
             let src = &self.tabs[self.active];
             let name = src.current.hovered_name().map(str::to_owned);
             let mut tab =
-                Tab::new(src.cwd.clone(), src.sort, src.show_hidden, src.linemode.clone());
+                Tab::new(src.cwd.clone(), src.sort, src.show_hidden, src.linemode);
             // The listing is already in hand, so the new pane starts filled.
             if let Some(entries) = self.cache.get(&tab.cwd).cloned() {
                 let show = tab.show_hidden;
@@ -6086,7 +6086,7 @@ mod send_pane_and_the_register {
         );
         // A second tab, shown in the other pane.
         let sort = a.tabs[a.active].sort;
-        let mut other = crate::core::tab::Tab::new(right.clone(), sort, false, String::new());
+        let mut other = crate::core::tab::Tab::new(right.clone(), sort, false, crate::fs::entry::Linemode::None);
         other.cwd = right.clone();
         a.tabs.push(other);
         a.split = Some(Split { other: 1, right: false });

@@ -143,6 +143,13 @@ beside every name. `m`+`s` shows the size, `m`+`t` the modified time, `m`+`b` th
 `m`+`p` the permissions, and `m`+`n` turns the column off. `[mgr] linemode` in `yazi.toml` sets
 the one you start with.
 
+The names are `none`, `size`, `usage`, `mtime` (or `modified`), `btime` (or `created`),
+`permissions` and `owner` — `owner` is accepted and shows nothing, because filer does not read it
+yet. Anything else is **refused rather than ignored**: a misspelling in `yazi.toml` is a warning
+about that file, and one in a `linemode` binding is listed as an unsupported command in the help
+panel and says so when the key is pressed. It used to leave the column silently blank, which looked
+the same as asking for no column at all.
+
 > If `m` on its own does something — saves a bookmark, say — none of these run: the bookmark
 > plugins for yazi bind `m`, and a `prepend_keymap` line goes in front of every chord that starts
 > with it. Filer reports this on startup and lists it under `~`.

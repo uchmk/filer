@@ -18,7 +18,7 @@ pub struct ListStyle<'a> {
     pub row_h: f32,
     /// Dimmed columns (parent / preview) get a quieter cursor.
     pub active: bool,
-    pub linemode: &'a str,
+    pub linemode: crate::fs::entry::Linemode,
     /// The largest total in the disk-usage view, which every row's bar is drawn
     /// against. Zero everywhere else, and no bar is drawn.
     pub usage_max: u64,
@@ -328,17 +328,18 @@ fn name_job(
     job
 }
 
-pub fn linemode_text(entry: &Entry, mode: &str) -> String {
+pub fn linemode_text(entry: &Entry, mode: crate::fs::entry::Linemode) -> String {
+    use crate::fs::entry::Linemode as L;
     match mode {
-        "size" => entry.display_size().unwrap_or_default(),
+        L::Size => entry.display_size().unwrap_or_default(),
         // The usage view's own mode: the measured total, files included, so a
         // folder and a file read on the same scale.
-        "usage" => crate::util::human_size(entry.usage_bytes()),
-        "mtime" | "modified" => util::fmt_time(entry.modified, "%Y-%m-%d %H:%M"),
-        "btime" | "created" => util::fmt_time(entry.created, "%Y-%m-%d %H:%M"),
-        "permissions" => permissions(entry),
-        "owner" => String::new(),
-        _ => String::new(),
+        L::Usage => crate::util::human_size(entry.usage_bytes()),
+        L::Mtime => util::fmt_time(entry.modified, "%Y-%m-%d %H:%M"),
+        L::Btime => util::fmt_time(entry.created, "%Y-%m-%d %H:%M"),
+        L::Permissions => permissions(entry),
+        // Asked for and not implemented -- see `Linemode::Owner`.
+        L::Owner | L::None => String::new(),
     }
 }
 
