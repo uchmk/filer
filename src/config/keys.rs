@@ -273,7 +273,14 @@ pub fn from_egui(key: egui::Key, mods: &egui::Modifiers) -> Option<Key> {
                 return None;
             }
             let c = printable(other)?;
-            Some(Key { code: Code::Char(c), ctrl, alt, shift: mods.shift, sup })
+            // A shifted symbol arrives as its own character: egui reports `Plus`
+            // for shift+equals and `Colon` for shift+semicolon, so the shift is
+            // already inside `c`. Carrying `mods.shift` as well counts it twice,
+            // and then no binding spelled `<C-+>` can ever match, on any layout.
+            // Letters are the exception -- `printable` lowercases them, so the
+            // shift is the only thing telling `<C-A>` from `<C-a>`.
+            let shift = mods.shift && c.is_ascii_alphabetic();
+            Some(Key { code: Code::Char(c), ctrl, alt, shift, sup })
         }
     }
 }
@@ -355,6 +362,38 @@ mod tests {
         let cs = Key::parse("<C-S-Up>").unwrap();
         assert!(cs.ctrl && cs.shift && cs.code == Code::Named(Named::Up));
         assert_eq!(Key::parse("<F5>").unwrap().code, Code::Named(Named::F(5)));
+    }
+
+    /// A symbol reached with shift still matches a binding written without it.
+    ///
+    /// `<C-+>` and `<C-=>` both mean "bigger", because which physical key that
+    /// is depends on the layout: on US `+` is shift+equals, on JIS it is
+    /// shift+semicolon and `=` is shift+minus. Whichever one is pressed, egui
+    /// reports the *character* -- `Plus` or `Equals` -- and `shift: true`
+    /// beside it. While `from_egui` kept that shift in the `Key`, neither
+    /// binding could ever match, on any keyboard: `<C-+>` was dead on US too.
+    #[test]
+    fn a_shifted_symbol_matches_the_binding_without_the_shift() {
+        let shifted = egui::Modifiers { ctrl: true, shift: true, ..Default::default() };
+
+        // JIS: `+` is shift+`;`, `=` is shift+`-`. US: `+` is shift+`=`.
+        for (key, spelling) in
+            [(egui::Key::Plus, "<C-+>"), (egui::Key::Equals, "<C-=>")]
+        {
+            let pressed = from_egui(key, &shifted).expect("a chord, so it is a key event");
+            assert_eq!(
+                Some(pressed), Key::parse(spelling),
+                "`{spelling}` must match however the layout reaches that character",
+            );
+            assert!(!pressed.shift, "the shift is inside the character already");
+        }
+
+        // A letter is the exception: `printable` lowercases it, so the shift is
+        // the only thing left saying `<C-A>` apart from `<C-a>`.
+        let upper = from_egui(egui::Key::A, &shifted).unwrap();
+        assert!(upper.shift, "a letter keeps its shift");
+        assert_eq!(Some(upper), Key::parse("<C-A>"));
+        assert_ne!(Some(upper), Key::parse("<C-a>"));
     }
 
     /// A shifted letter is spelled `T`, not `<S-t>`.
