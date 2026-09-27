@@ -950,3 +950,120 @@ mod minimap_scale {
         assert!(at_line(5, 0).is_finite());
     }
 }
+
+/// TESTING.md section 21: archives.
+///
+/// Most of that section needs a job to run -- `e` and `E` both go through
+/// `submit_op`, and the harness runs no workers -- so what is here is the three
+/// rows that finish on the UI thread: the table of contents in the preview pane,
+/// and the two refusals that never reach the queue. Why the rest is out of reach
+/// is written up in QA-REPORT.md rather than approximated with a test that only
+/// looks like one.
+///
+/// The payload for 21.1 is the preview worker's own answer, produced by
+/// `preview::for_tests::render` on a zip this test packs with `fs::archive`. The
+/// point of the check is the hand-off: `archive_listing` builds lines that any
+/// text preview would draw, and nothing else asserts that they arrive.
+#[cfg(test)]
+mod archive_frame {
+    use crate::app::PreviewState;
+    use crate::fs::archive::Format;
+    use crate::ui::harness::Screen;
+    use crate::ui::overlay::overlays::{chord, ctrl, enter, showing};
+    use std::path::{Path, PathBuf};
+
+    /// A zip holding `payload/top.txt`, `payload/sub/` and a 2 KB file inside it,
+    /// packed the way `do_compress` packs one: names relative to the directory
+    /// the selection was in.
+    fn packed(label: &str) -> (PathBuf, PathBuf) {
+        let root = crate::util::test_dir(label);
+        let src = root.join("payload");
+        std::fs::create_dir_all(src.join("sub")).unwrap();
+        std::fs::write(src.join("top.txt"), b"top").unwrap();
+        std::fs::write(src.join("sub").join("deep.txt"), vec![b'd'; 2048]).unwrap();
+
+        let zip = root.join("sample.zip");
+        let mut every = |_: &str, _: u64| true;
+        crate::fs::archive::compress(&[src], &root, &zip, Format::Zip, &mut every).unwrap();
+        (root, zip)
+    }
+
+    /// A window with `zip` hovered and its preview already delivered.
+    fn hovering(dir: &Path, zip: &Path) -> Screen {
+        let entries = std::sync::Arc::new(vec![crate::fs::Entry::from_path(zip.to_owned()).unwrap()]);
+        let mut s = Screen::open(dir.to_owned());
+        s.app.tabs[0].current =
+            crate::core::folder::Folder::from_entries(dir.to_owned(), entries, true);
+        s.app.preview.state = PreviewState::Ready(crate::preview::for_tests::render(zip));
+        s
+    }
+
+    /// 21.1: hovering an archive lists what is inside it.
+    ///
+    /// A size column and the name, with a folder drawn as `—` rather than `0 B`:
+    /// a directory inside an archive has no size, and printing one would invite
+    /// the reader to add the column up.
+    #[test]
+    fn the_preview_lists_what_is_inside_an_archive() {
+        let (dir, zip) = packed("frame-archive-list");
+        let mut s = hovering(&dir, &zip);
+        let f = s.draw();
+
+        assert!(f.says("payload/top.txt"), "the file inside is listed: {:?}", f.texts);
+        assert!(f.says("payload/sub/deep.txt"), "including a nested one: {:?}", f.texts);
+        assert!(f.says("      3 B  payload/top.txt"), "with its size: {:?}", f.texts);
+        assert!(f.says("    2.0 K  payload/sub/deep.txt"), "in human units: {:?}", f.texts);
+        assert!(f.says("        —  payload/sub/"), "and a folder has no size: {:?}", f.texts);
+        // Nothing was inflated to say any of that: the zip's central directory
+        // carries every number above.
+        assert!(!f.says("dddd"), "no entry's contents were read: {:?}", f.texts);
+    }
+
+    /// 21.6: `e` on something that is not an archive says so and does nothing.
+    ///
+    /// The wording is not "skipped" when the selection holds no archive at all --
+    /// that message belongs to the mixed case. This one names what was looked at,
+    /// which is the difference between "this is not an archive" and "this
+    /// directory has none". See QA-REPORT.md: the row says the other thing.
+    #[test]
+    fn e_on_a_text_file_says_what_it_looked_at() {
+        let (dir, mut s) = showing("frame-archive-not-one", &["notes.txt"]);
+        let f = s.typed("e");
+        assert!(
+            f.says("The file under the cursor is not an archive filer can read (zip, tar, tar.gz, tgz, 7z)"),
+            "the toast names the file it looked at and the formats: {:?}",
+            f.texts,
+        );
+        assert!(s.app.tasks.is_empty(), "and no job was queued");
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1, "nothing was written");
+    }
+
+    /// 21.12: `E` with an extension nobody writes is refused, naming the four
+    /// that work.
+    ///
+    /// The extension is the whole format picker, so the refusal has to list the
+    /// alternatives: there is no second menu to go back to.
+    #[test]
+    fn a_name_no_format_answers_to_is_refused_by_name() {
+        let (dir, mut s) = showing("frame-archive-rar", &["to-pack"]);
+        let f = s.typed("E");
+        assert!(f.says("Compress to:"), "the prompt opens: {:?}", f.texts);
+        assert!(
+            f.texts.contains(&"to-pack.zip".to_owned()),
+            "named after what is selected, defaulting to zip: {:?}",
+            f.texts,
+        );
+
+        s.feed(vec![chord(egui::Key::A, ctrl())]);
+        s.typed("out.rar");
+        s.draw();
+        let f = s.feed(vec![enter()]);
+        assert!(
+            f.says("Name it .zip, .7z, .tar or .tar.gz to say which format"),
+            "the refusal lists every format that can be written: {:?}",
+            f.texts,
+        );
+        assert!(s.app.tasks.is_empty(), "and nothing was queued");
+        assert!(!dir.join("out.rar").exists(), "nor written");
+    }
+}
