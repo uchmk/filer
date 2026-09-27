@@ -161,9 +161,13 @@ cargo +stable clippy --all-targets --target x86_64-pc-windows-msvc -- -D warning
 git diff                # every added line inside a `#[cfg(test)]` module?
 ```
 
-Then bump the PATCH version in `Cargo.toml`, run `cargo build` so `Cargo.lock`
-follows, write the CHANGELOG entry, commit, push to `test/<topic>`, and open a
-pull request. **Stop there.** Do not merge.
+Then commit, push to `test/<topic>`, and open a pull request. **Stop there.** Do
+not merge.
+
+**Leave `Cargo.toml` and `CHANGELOG.md` alone** -- a PR that bumps the version
+conflicts with every other PR that does. Write the CHANGELOG line in the pull
+request body instead, in English and ready to paste; whoever merges bumps the
+PATCH.
 
 If verification does not pass and you cannot fix it inside a `#[cfg(test)]`
 module, `git restore` / `git clean` and write why in `QA-REPORT.md`. A red commit
