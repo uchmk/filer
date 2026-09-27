@@ -293,8 +293,14 @@ overlay only while it has the keys.
   - **Document**: an OOXML file's own properties — title, author, who saved it last, created and
     modified times (in UTC, as the file stores them), revision, the application that wrote it, and
     the word / page / slide count. The pre-2007 `.doc` / `.xls` / `.ppt` are not read.
-  - A link's target, an image's real dimensions, format and color type, a font's family / style /
-    version / weight / glyph count, a directory's file and subdirectory counts.
+  - **Link**: what kind (`Symlink`, `Symlink (relative)`, `Hardlink`), the target as it is stored,
+    and where it actually resolves — a relative link shows both, which is the difference between
+    `-` and `_`. A **hardlink** is the one the rest of the app cannot show: it is an ordinary
+    directory entry over the same bytes, so no row marks it, and the panel is the only place the
+    link count appears. On Windows the other names are listed too (`Also at`); Unix can count them
+    but not find them, since that would mean walking the filesystem for a matching inode.
+  - An image's real dimensions, format and color type, a font's family / style / version / weight /
+    glyph count, a directory's file and subdirectory counts.
 
 The keys are the list's own, so that the panel reads the way `<F3>` does — quick look is a flag
 rather than an overlay, so there the `[mgr]` layer stays live and `hjkl` keep their usual meanings.
