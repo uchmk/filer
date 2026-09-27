@@ -1902,6 +1902,16 @@ impl App {
         };
         self.pending.clear();
         for a in acts {
+            // The size of the window belongs to the window, not to whichever
+            // panel happens to be over it. Handled here rather than in each
+            // layer because all four `act`s end in a `_ => {}`: v0.46.0 bound
+            // these chords in every panel and shipped them doing nothing, the
+            // binding resolving and the action then being dropped in silence.
+            // A fifth panel inherits this instead of repeating the mistake.
+            if let Act::Scale(to) = a {
+                self.scale(to);
+                continue;
+            }
             layer.act(self, a);
         }
     }
@@ -6207,6 +6217,48 @@ mod window_scale {
             a.act(Act::Scale(ScaleTo::In));
         }
         assert_eq!(a.scale, 5.0);
+    }
+
+    /// A panel does not get to swallow the window's own size.
+    ///
+    /// v0.46.0 bound the scale chords in `[help]`, `[spot]`, `[tasks]` and
+    /// `[diff]` and shipped them doing nothing: the binding resolved, and then
+    /// every layer's `act` dropped the `Act` on its closing `_ => {}`. Nothing
+    /// in the build caught it, because a binding that resolves to an ignored
+    /// action is indistinguishable from a working one until a person presses
+    /// the key. This goes through `feed_overlay_key`, the same door the window
+    /// uses, so a fifth panel added later fails here rather than in someone's
+    /// hands.
+    #[test]
+    fn every_panel_lets_the_window_be_resized() {
+        use crate::app::{DiffOverlay, SpotOverlay, TasksOverlay};
+        let mut a = app();
+        let panels: Vec<(&str, Overlay)> = vec![
+            ("help", Overlay::Help),
+            ("tasks", Overlay::Tasks(TasksOverlay { cursor: 0 })),
+            ("spot", Overlay::Spot(SpotOverlay { cursor: 0, scroll: 0 })),
+            ("diff", Overlay::Diff(DiffOverlay {
+                left: std::path::PathBuf::from("a"),
+                right: std::path::PathBuf::from("b"),
+                outcome: None,
+                offset: 0,
+                rows: 10,
+                cursor: 0,
+            })),
+        ];
+        for (name, overlay) in panels {
+            a.scale = 1.0;
+            a.overlay = overlay;
+            a.feed_overlay_key(Key::parse("<C-+>").unwrap());
+            assert!((a.scale - 1.1).abs() < 1e-6, "`<C-+>` with {name} open: {}", a.scale);
+            a.feed_overlay_key(Key::parse("<C-->").unwrap());
+            a.feed_overlay_key(Key::parse("<C-->").unwrap());
+            assert!((a.scale - 0.9).abs() < 1e-6, "`<C-->` with {name} open: {}", a.scale);
+            a.feed_overlay_key(Key::parse("<C-0>").unwrap());
+            assert_eq!(a.scale, 1.0, "`<C-0>` with {name} open");
+            // The panel is still up: resizing is not a way out of it.
+            assert!(!matches!(a.overlay, Overlay::None), "{name} closed itself");
+        }
     }
 
     /// The two zooms are different commands, and stay that way.

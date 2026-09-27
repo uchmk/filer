@@ -299,6 +299,11 @@ overlay only while it has the keys.
     directory entry over the same bytes, so no row marks it, and the panel is the only place the
     link count appears. On Windows the other names are listed too (`Also at`); Unix can count them
     but not find them, since that would mean walking the filesystem for a matching inode.
+  - **Git**: the last commit that touched the hovered path — short hash, date, subject, author —
+    and how many commits have, counted to 50 and then reported as `50+`. The listing already
+    carries git's *state* per row; this is its history, for the one row under the cursor, so
+    "when did this change, and why" does not need a terminal. `git` on `PATH` answers, as it does
+    for the status marks; outside a repository, or for a file never committed, no section appears.
   - An image's real dimensions, format and color type, a font's family / style / version / weight /
     glyph count, a directory's file and subdirectory counts.
 

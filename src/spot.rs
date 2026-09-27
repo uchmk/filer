@@ -74,6 +74,7 @@ pub fn inspect(path: &Path) -> Vec<Section> {
         // copying belong near the top. `text` follows them: it has the most rows
         // and the least identity. The last three keep their old relative order.
         link,
+        git,
         archive,
         document,
         executable,
@@ -200,6 +201,34 @@ fn hard_links(path: &Path) -> (u64, Vec<String>) {
     }
     let _ = unsafe { FindClose(find) };
     (count, names)
+}
+
+/// When this file last changed, and how often.
+///
+/// The question a file manager raises and cannot answer without a terminal:
+/// you are looking at the file, so "when did this change, and why" is one key
+/// away rather than a `cd` and a `git log`. The listing already carries git's
+/// *state* per row; this is its history, for the one row under the cursor.
+fn git(path: &Path) -> Option<Section> {
+    let c = crate::fs::git::last_commit(path)?;
+    let mut s = Section::new("Git");
+    s.row("Last change", format!("{}  {}", c.hash, friendly(&c.when)));
+    s.row("Subject", c.subject);
+    s.row("Author", c.author);
+    // One commit is the file's own arrival and says nothing a date does not.
+    if c.count > 1 {
+        s.row("Commits", if c.capped { format!("{}+", c.count) } else { c.count.to_string() });
+    }
+    Some(s)
+}
+
+/// `2026-09-27T18:46:03+09:00` as `2026-09-27 18:46`, and anything else as it
+/// came -- a date git wrote in a shape this does not expect is still a date.
+fn friendly(iso: &str) -> String {
+    match (iso.split_once('T'), iso.len() >= 16) {
+        (Some((date, rest)), true) if rest.len() >= 5 => format!("{date} {}", &rest[..5]),
+        _ => iso.to_string(),
+    }
 }
 
 /// The image's own size and format, read from its header.
@@ -698,6 +727,23 @@ mod tests {
 
     fn value<'a>(s: &'a Section, key: &str) -> Option<&'a str> {
         s.rows.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
+    }
+
+    /// The date git wrote, cut to the minute -- and left alone when it is not
+    /// the shape this expects.
+    ///
+    /// `%aI` is ISO-8601 today, but the row is decoration: a format that
+    /// changes should put an odd-looking date on screen, never panic or an
+    /// empty cell, so the fallback matters more than the happy path.
+    #[test]
+    fn a_commit_date_is_cut_to_the_minute_or_left_as_it_came() {
+        assert_eq!(friendly("2026-09-27T18:46:03+09:00"), "2026-09-27 18:46");
+        assert_eq!(friendly("2026-09-27T09:51:06+00:00"), "2026-09-27 09:51");
+        // Not ISO-8601, no `T`, too short: each comes back untouched.
+        assert_eq!(friendly("yesterday"), "yesterday");
+        assert_eq!(friendly("2026-09-27"), "2026-09-27");
+        assert_eq!(friendly("2026-09-27T18"), "2026-09-27T18");
+        assert_eq!(friendly(""), "");
     }
 
     /// A little PE / ELF / Mach-O front, built by hand. Nothing is read off the
