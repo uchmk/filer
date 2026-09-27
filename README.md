@@ -671,8 +671,16 @@ of code reads as a block, a comment header as a lighter band, and a blank run as
 are drawn: at two pixels a line a letter is a smudge, and laying out ten thousand of them is exactly
 the cost being avoided. The rows are summarised on the preview worker, six bytes a line.
 
-Click or drag the minimap to go there — the line pointed at lands in the middle of the pane. It
-appears where the pane is wide enough to spare seven columns, and `<A-n>` (or `[ui] minimap = false`
+Click or drag the minimap to go there — the line pointed at lands in the middle of the pane.
+
+Rest the pointer on it for a moment and the line under it appears beside the strip, with its number:
+the line a click would jump to, in the colours the body uses. A band carries no text by design, so
+this is the question the strip cannot answer on its own. It waits out the same delay as any tooltip
+(`interaction.tooltip_delay`, 0.4 s), and it keeps up during a drag, so you can look for a place
+before letting go. Style it with `[mgr] preview_hovered` in a yazi `theme.toml`; the default
+underlines it.
+
+It appears where the pane is wide enough to spare seven columns, and `<A-n>` (or `[ui] minimap = false`
 in `filer.toml`) turns it off. Rendered Markdown gets none: its lines are not the file's lines, so
 the box would point at the wrong place, and its [Contents](#outline-contents) column already answers
 "where am I". Switch it to source with `M` and the map comes back.
@@ -1106,8 +1114,9 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   only renames — see [Undo](#undo). It is not written to disk, so closing the window forgets it.
 - Comparing is line-level and read-only: no word-level highlighting inside a changed line, no
   editing from the view, and no comparing directories.
-- The minimap is a map, not a second view: no hover preview of the line under the pointer, and it
-  stops where the file was cut off at `max_text_bytes` rather than describing the rest.
+- The minimap stops where the file was cut off at `max_text_bytes` rather than describing the rest,
+  so on a truncated file the strip describes only the head and silently rescales it to the full
+  height.
 - Zooming an image asks for a sharper decode, but a small image has nothing sharper to give and a
   font specimen or a shell thumbnail is its own source, so those go soft past 1:1.
 - `<C-F5>` re-reads the config, including fonts and the theme, but leaves what you have changed by
