@@ -458,7 +458,7 @@ QA-REPORT.md.
 | 18.8 | `<Tab>` on a file | The spot panel, with the file's details |
 | 18.9 | `<S-F10>` or right-click | The context menu, with the openers from your config |
 | 18.10 | `<C-S-p>` | The palette, listing every binding; typing filters it |
-| 18.11 | `b` then a letter, having saved one with `B` | Jumps there. `'` and the letter does the same |
+| 18.11 | `'` then a letter, having saved one with `B` | Jumps there. **`b` is the prefix bookmark *management* hangs off** (`bb` lists, `bs` saves, `bd` deletes), so `b` and a letter reaches nothing |
 | 18.12 | `z` | The jump list: bookmarks first, then recent directories with "2h ago" beside them |
 
 ## 19. The wheel, over each pane (v0.26.5)
@@ -734,8 +734,9 @@ lines and the list 15, which is the difference 34.2 is about. The stop with the 
 bottom, the immediate return from it, the wheel reaching the panel and not the list under it, the
 one-row prompt that still lets the list scroll, the four closing keys and a rebound key are all in
 `cargo test`. **34.14 is only half covered**: that a taller panel comes back to the new bottom is
-asserted, but `<C-->` itself is not — the `[help]` layer has no scale binding, so the key does
-nothing while the panel is open. See QA-REPORT.md. What is left for an eye is the pointer feel —
+asserted, but `<C-->` itself is not yet driven from a test. The `[help]` layer had no scale binding
+at all until v0.45.9, which is why the key did nothing while the panel was open; it works now, and
+the second half of 34.14 is there to be automated. See QA-REPORT.md. What is left for an eye is the pointer feel —
 wheel speed, and the pointing-hand cursor over a config path — and that the text is legible at the
 size the panel comes out.
 
@@ -821,7 +822,7 @@ these — the point is that no panel is the odd one out.
 | 36.14 | `help` (`~`), task list, spotter (`Tab`), comparison (`<A-d>`) | `q` in each | Closes, app still running (unchanged — these already had their own layer) |
 | 36.15 | Nothing up | `q` | Quits on the first press |
 | 36.16 | `<F3>` **and** `T` both on | `q`, `q`, `q` | Panel, then columns, then quit. Same three presses with `<Esc>`, `<Esc>`, `q` |
-| 36.17 | A confirm prompt (delete something) or a pick list | `q` | **Nothing happens** — these want a decision, so `q` is not a way out. `<Esc>` cancels. It must not quit either |
+| 36.17 | A confirm prompt (delete something) or a pick list | `q` | **Cancels, exactly as `<Esc>` does** — `answer_confirm` takes any key it does not recognise as a cancel. The app must not quit, and does not: the prompt swallows the `q` |
 | 36.18 | Rebind: `[[mgr.keymap]]` with `on = "Q"`, `run = "quit"`, then `Q` with `<F3>` up | Closes the panel first, like `q` — the behaviour is on the action, not the letter |
 
 ---

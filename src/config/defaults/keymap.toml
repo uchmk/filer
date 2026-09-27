@@ -912,6 +912,27 @@ on = "G"
 run = "arrow bot"
 desc = "To the bottom"
 
+# Window scale, again. The layers do not fall through to `[mgr]`, so a binding
+# that is only there stops working the moment any overlay opens -- and the scale
+# is a property of the window, not of what happens to be on top of it. Every
+# other layer still lacks these; see QA-REPORT.md.
+[[help.keymap]]
+on = "<C-+>"
+run = "scale in"
+desc = "Make everything bigger"
+[[help.keymap]]
+on = "<C-=>"
+run = "scale in"
+desc = "Make everything bigger"
+[[help.keymap]]
+on = "<C-->"
+run = "scale out"
+desc = "Make everything smaller"
+[[help.keymap]]
+on = "<C-0>"
+run = "scale reset"
+desc = "Back to the original size"
+
 [[tasks.keymap]]
 on = "<Esc>"
 run = "close"
