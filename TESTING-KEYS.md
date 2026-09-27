@@ -47,7 +47,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<F5>` — Re-read the current directory · `refresh`
 - [x] `<C-F5>` — Read the config files again (theme, icons, keys) · `config_reload`
 - [x] `<F3>` — Quick look: the hovered file, big, over the panes · `quick`
-- [ ] `T` — Maximize or restore the preview pane · `plugin toggle-pane max-preview`
+- [x] `T` — Maximize or restore the preview pane · `plugin toggle-pane max-preview`
 - [x] `<A-k>` — Scroll the preview up · `seek -5`
 - [x] `<A-j>` — Scroll the preview down · `seek 5`
 - [x] `<A-i>` — Zoom into the image · `zoom in`
@@ -84,8 +84,8 @@ The file list: what is in front of you unless an overlay is.
 - [ ] `<C-S-->` — Hardlink the yanked files · `hardlink`
 - [ ] `<C-+>` — Make everything bigger · `scale in`
 - [ ] `<C-=>` — Make everything bigger · `scale in`
-- [ ] `<C-->` — Make everything smaller · `scale out`
-- [ ] `<C-0>` — Back to the original size · `scale reset`
+- [x] `<C-->` — Make everything smaller · `scale out`
+- [x] `<C-0>` — Back to the original size · `scale reset`
 - [x] `<A-c>` — Copy the selection to the other pane · `send_pane`
 - [x] `<A-m>` — Move the selection to the other pane · `send_pane --cut`
 - [x] `e` — Extract the selected archives · `extract`
@@ -211,8 +211,8 @@ While the terminal pane holds the keys. Everything not listed here goes to the s
 - [x] `<S-PageDown>` — Scroll forward half a screen · `term_scroll 50%`
 - [x] `<S-Home>` — To the top of the scrollback · `term_scroll top`
 - [x] `<S-End>` — Back to the bottom · `term_scroll bot`
-- [ ] `<A-k>` — Scroll the terminal up · `term_scroll -5`
-- [ ] `<A-j>` — Scroll the terminal down · `term_scroll 5`
+- [x] `<A-k>` — Scroll the terminal up · `term_scroll -5`
+- [x] `<A-j>` — Scroll the terminal down · `term_scroll 5`
 - [x] `<C-S-f>` — Find in the scrollback · `term_find`
 - [x] `<C-S-n>` — Find the next match · `term_find --repeat`
 - [x] `<C-S-b>` — Find the previous match · `term_find --repeat --prev`
@@ -252,21 +252,21 @@ This panel (`~` or `<F1>`).
 ### Input line
 
 - [x] `<Esc>` — Close help · `close`
-- [ ] `q` — Close help · `close`
-- [ ] `~` — Close help · `help`
-- [ ] `<F1>` — Close help · `help`
-- [ ] `k` — Up one line · `arrow -1`
-- [ ] `j` — Down one line · `arrow 1`
-- [ ] `<Up>` — Up one line · `arrow -1`
-- [ ] `<Down>` — Down one line · `arrow 1`
-- [ ] `<A-k>` — Up half a page · `arrow -50%`
-- [ ] `<A-j>` — Down half a page · `arrow 50%`
-- [ ] `<C-u>` — Up half a page · `arrow -50%`
-- [ ] `<C-d>` — Down half a page · `arrow 50%`
-- [ ] `<PageUp>` — Up a page · `arrow -100%`
-- [ ] `<PageDown>` — Down a page · `arrow 100%`
-- [ ] `g g` — To the top · `arrow top`
-- [ ] `G` — To the bottom · `arrow bot`
+- [x] `q` — Close help · `close`
+- [x] `~` — Close help · `help`
+- [x] `<F1>` — Close help · `help`
+- [x] `k` — Up one line · `arrow -1`
+- [x] `j` — Down one line · `arrow 1`
+- [x] `<Up>` — Up one line · `arrow -1`
+- [x] `<Down>` — Down one line · `arrow 1`
+- [x] `<A-k>` — Up half a page · `arrow -50%`
+- [x] `<A-j>` — Down half a page · `arrow 50%`
+- [x] `<C-u>` — Up half a page · `arrow -50%`
+- [x] `<C-d>` — Down half a page · `arrow 50%`
+- [x] `<PageUp>` — Up a page · `arrow -100%`
+- [x] `<PageDown>` — Down a page · `arrow 100%`
+- [x] `g g` — To the top · `arrow top`
+- [x] `G` — To the bottom · `arrow bot`
 
 ## `[tasks]` — 9 / 9
 
