@@ -68,6 +68,17 @@ If a change you want is outside one, it is not yours to make — write it in
   `origin/main`.
 - **Never push to `main`**, and never `--force`.
 - **Your role ends at an open pull request.** Do not merge it, and do not ask to.
+  - **Do not watch it either.** Not `subscribe_pr_activity`, not a poll, not a
+    check-in: once the pull request is open you are done, and the session should
+    go idle. CI, review comments, a base branch that moved, the version bump and
+    the merge all belong to whoever merges. Two sessions fixing one pull request
+    is worse than one, and a watcher that wakes on every CI result is a session
+    that never ends and keeps costing.
+  - What this means when CI fails on your pull request: **nothing, by you.** In
+    the first wave both QA pull requests went red on a step neither had touched --
+    they had branched before a checklist regeneration landed on `main` -- and the
+    person merging fixed it by merging `main` in. You would have had no way to
+    know that from inside the branch.
 - **Do not bump the version, and do not write the CHANGELOG entry.** CLAUDE.md
   asks for both on a push to `main`; you are not pushing to `main`, and a PR that
   touches `Cargo.toml` and `CHANGELOG.md` conflicts with every other PR that does
