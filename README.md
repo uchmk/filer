@@ -271,9 +271,23 @@ overlay only while it has the keys.
 - **File**: name, path, kind, MIME type, size (or item count), created / modified / accessed
   times and attributes, straight from the listing.
 - **Preview**: what the preview found (line count, outline entries, whether only the head was read).
-- Per type, read on a worker thread: a link's target, an image's real dimensions, format and color
-  type, a font's family / style / version / weight / glyph count, a directory's file and
-  subdirectory counts.
+- Per type, read on a worker thread:
+  - **Archive**: entry and folder counts, unpacked size, compression ratio, and whether it is
+    encrypted — the entries, or the table of contents itself. Only the index is read, so nothing is
+    unpacked however large it is, and no entry name is kept.
+  - **Text**: encoding and BOM, line endings (with counts, and `mixed` where a file has both),
+    whether the last line ends with a newline, the longest line, and whether it is indented with
+    tabs or with spaces of some width.
+  - **Executable**: format, architecture and kind for PE, ELF and Mach-O, read from the file's own
+    header — a universal binary lists its slices. Architectures are named as Rust names its targets
+    (`x86_64`, `aarch64`), so the answer can be held against the triple a build was made for, and a
+    machine value this build does not know is shown as the number rather than guessed at. Nothing
+    here is gated on the host: a PE reads on Linux and an ELF on Windows.
+  - **Document**: an OOXML file's own properties — title, author, who saved it last, created and
+    modified times (in UTC, as the file stores them), revision, the application that wrote it, and
+    the word / page / slide count. The pre-2007 `.doc` / `.xls` / `.ppt` are not read.
+  - A link's target, an image's real dimensions, format and color type, a font's family / style /
+    version / weight / glyph count, a directory's file and subdirectory counts.
 
 The keys are the list's own, so that the panel reads the way `<F3>` does — quick look is a flag
 rather than an overlay, so there the `[mgr]` layer stays live and `hjkl` keep their usual meanings.
@@ -282,8 +296,9 @@ the panel following the cursor wherever it lands; `<A-j>` / `<A-k>` (and `<A-↑
 row of the panel; `c` / `y` copy the selected value; `<Esc>` / `q` / `<Tab>` close it. The plain
 keys move around, the `<A->` keys move inside what is open. Before v0.21.0 it was the other way
 round, with `j` on the panel's rows and `h` / `l` on the files. Each kind of detail is one provider
-function in `src/spot.rs`, so more (e.g. Windows property-system values like media length or EXIF)
-can be added without touching the panel.
+function in `src/spot.rs` — a `fn(&Path) -> Option<Section>` in a list, which is how the four above
+were added — so more (e.g. Windows property-system values like media length or EXIF) can be added
+without touching the panel.
 
 ## Split view (two panes)
 
