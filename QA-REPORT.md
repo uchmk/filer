@@ -206,6 +206,16 @@ fall through しないので、`<C-+>` / `<C-=>` / `<C-->` / `<C-0>` が `[mgr]`
   fixture は実ファイルなので、`Folder::from_entries` を使わず**実スキャンに任せた**。
 - デバウンス（既定 40ms）は `cfg.ui.preview_debounce_ms = 0` にして待たない。
   27.5 は 10 ファイル連続なので、そのままだと待ち時間だけで 400ms 増える。
+## TESTING.md sections 5 / 11 / 21 — audited against 97dec91
+
+3 節を `ui::harness::Screen` のテストにした（25 件）。どれもオーバーレイの話なので、
+下準備は `ui::overlay::overlays` に置いて 3 つのモジュールで共有している。
+
+| 節 | テストモジュール | 置き場所 | 自動化した項目 |
+| --- | --- | --- | --- |
+| 5 | `ui::overlay::compare_frame` | `src/ui/overlay.rs` | 5.1〜5.8、5.10（**5.9 を除く全部**） |
+| 11 | `ui::overlay::bulk_frame` | `src/ui/overlay.rs` | 11.1〜11.11（11.9b 含む、**全部**） |
+| 21 | `ui::preview::archive_frame` | `src/ui/preview.rs` | 21.1、21.6、21.12 の 3 件のみ |
 
 ### プログラムと食い違う項目
 
@@ -268,3 +278,114 @@ fall through しないので、`<C-+>` / `<C-=>` / `<C-->` / `<C-0>` が `[mgr]`
 - もう 1 つ: 一覧が出るまでループを回すと、**速いマシンではその間にプレビューも届く。**
   「要求は出たが何も返っていない」は待って作るものではなく、`preview.cache.clear()` と
   `key = None` で**言って作る**もの（`preview_panes::forget`）。
+| 5.9 | 「Two directories → Refused with a reason」は**もう成り立たない**。v0.43.0（45 節）でフォルダ 2 つはツリー比較になった。いま拒否されるのは**片方だけがフォルダ**のときで、文言は `compare two files, or two folders — not one of each` | `src/app.rs` の `compare_pair()`: 拒否条件は `a.1.is_dir_like() != b.1.is_dir_like()` だけ。同じ内容が 45.9 にある | TESTING.md（45 節が入ったときに 5.9 が取り残された）。**5.9 の言う拒否はもう起きない**し、いま起きる拒否は 45.9 が見ている。落とすのが素直だが番号を動かす話になるので提案にとどめる |
+| 21.6 | 「A toast says it was **skipped**」は、選択にアーカイブが 1 つも無いときの文言ではない。テキストファイルだけを対象に `e` を押すと出るのは `The file under the cursor is not an archive filer can read (zip, tar, tar.gz, tgz, 7z)` | `src/app.rs` の `do_extract()`。`Skipping N non-archive item(s)` は**アーカイブと非アーカイブが混ざっている**ときの別のトーストで、そちらはジョブも走る | TESTING.md（2 つのトーストが 1 項目に混ざっている）。「アーカイブでないと言う」に直すか、混在の場合を別項目に分けるかの 2 択 |
+
+### プログラム側の指摘（QA では直さない）
+
+#### `InputOverlay::initial_selection` はどこからも読まれていない
+
+フィールドのコメントは「最初にフォーカスを得たときにキャレットを置く場所」と書いてあり、
+`start_bulk_rename()` は `Some((0, "{name}{ext}".chars().count()))`（= 全選択）を入れている。
+**が、`src/ui/` のどこも読んでいない。**`grep -rn initial_selection src/` の結果は
+代入 5 か所とフィールド宣言だけで、`TextEditState` に書き戻す経路が無い。
+
+- 実測: `R` → `holiday-{n:2}{ext}` と打つと、フィールドは
+  `{name}{ext}holiday-{n:2}{ext}` になる（置き換わらない）。
+- 影響する項目: **11.2**（「Type `holiday-{n:2}{ext}`」が、そのままでは意図した規則にならない）。
+  11.6 / 11.7 / 11.8 / 11.9b / 11.10 / 11.11 も規則を打つので同じ。
+  ほかに `rename`（`src/app.rs:3203`、拡張子を除いた部分だけ選ぶ指定）と
+  補完後のキャレット末尾寄せ（`src/app.rs:3964`）も効いていない。
+- テストは `<C-a>` で全選択してから打つ形で書いた（`bulk_frame::rule()` のコメントに理由あり）。
+  **直ったらその 1 行を消せばよい。**直った後に書きたいテストはこれ:
+
+  ```rust
+  // The prompt opens with its rule selected, so the first keystroke replaces it.
+  selecting(&mut s, &dir, &photos);
+  let f = { s.typed("holiday-{n:2}{ext}"); s.draw() };
+  assert_eq!(rows(&f)[0], "IMG_0001.jpg  →  holiday-01.jpg");
+  ```
+
+  `overlay::input` で `!ov.focused` のときに `ov.initial_selection` を
+  `TextEditState::load` → `cursor.set_char_range` → `store` する 5 行で足りる
+  （`right_click_paste` が同じことをやっているので、書き方はそこにある）。
+
+#### バルクリネームのプレビューは 1 フレーム遅れる
+
+`ui::draw` は `overlay::bulk` を `overlay::input` より先に呼ぶので、パネルは
+**その時点の `ov.text`**（= 前のフレームの内容）から作られる。`TextEdit` が文字を
+受け取るのはそのあと。
+
+- 60fps では誰も気付かないので**バグとして直す必要はない**が、フレーム単位で見るテストは
+  「打った次のフレーム」を読む必要がある（`bulk_frame::rule()` がそうしている）。
+- 記録として残す: 将来 `bulk` を `input` の後ろに動かすと、このテストの `s.draw()` が
+  1 回余計になるだけで落ちはしない。
+
+### 21 節の届かない 9 件 — なぜ届かないか
+
+ハーネスはワーカーを回さない（`ui::harness` の設計。スキャンが途中で届くとテストが
+組んだ状態を上書きするので、意図的にそうなっている）。`e` / `E` はどちらも
+`submit_op` / `submit_op_to` でジョブキューに渡すので、**展開も圧縮もフレームの中では
+起きない。**
+
+| # | 要るもの | 理由 |
+| --- | --- | --- |
+| 21.2 | 展開ジョブ | `do_extract()` → `submit_op(OpKind::Extract, …)`。フォルダができるのはワーカーの中 |
+| 21.3 | 展開ジョブ 2 回 | 2 回目の名前を決めるのは `extract_dir()` だが、衝突を見るのは展開そのもの |
+| 21.4 | 圧縮ジョブ | プロンプトの既定名（`to-pack.zip`）までは 21.12 のテストが見ている。「Packed, and the result opens」はジョブ完了後の `open` |
+| 21.5 | 圧縮ジョブ | 形式が tar.gz になったことは**できた書庫を読まないと分からない** |
+| 21.7 | 圧縮ジョブ | 同上（7z） |
+| 21.8 | 展開ジョブ | 同上 |
+| 21.9 | **7-Zip か Explorer** | 他のプログラムが開けることを言っている項目なので、原理的にこのリポジトリのテストの外 |
+| 21.10 | 圧縮ジョブ＋タスクパネル | 数えているのは `on_entry` コールバックの呼ばれ方で、ワーカーの中 |
+| 21.11 | 圧縮ジョブ 2 回 | 圧縮率の比較。書庫を 2 つ作らないと始まらない |
+
+- **`fs::archive` 自体の往復は `fs::archive::tests::a_tree_survives_being_packed_and_unpacked`
+  が 4 形式すべてで見ている。**届かないのは「キーを押すとジョブが走り、タスクパネルが数え、
+  結果が開く」という配線のほうで、そこはワーカーを回すハーネス（`ops::Pool` を回して
+  `OpEvent` を待つもの）が要る。**要否は人の判断**なので提案にとどめる:
+  - 案 A（推奨）: 21 節はこのまま実機に残す。ジョブは進捗・速度・キャンセルまで含めて
+    「見て確かめる」ものなので、6.15 と同じ扱いにする。
+  - 案 B: `ops::Pool` を回してイベントを待つテスト用ヘルパを足す。**プログラム側の変更**
+    （公開範囲か、完了を待つ手段）が要る。
+
+### テスト用に足した 1 か所 — `preview::for_tests`
+
+21.1 は「本物の zip → 本物のプレビュー → 本物の描画」で見たかったが、
+`preview::render()` は `preview` モジュール内の private で、`src/ui/` からは呼べない。
+**`src/preview/mod.rs` の末尾に `#[cfg(test)] pub(crate) mod for_tests` を足し、
+その中から `render()` を呼ぶ形にした**（`Request` の組み立てもその中）。
+
+- `#[cfg(test)]` の内側なので release ビルドには 1 行も入らず、プログラムの挙動は変わらない。
+  役割の規則（「diff の追加行がすべて `#[cfg(test)]` の内側」）も満たしている。
+- とはいえ**テスト用の入口を本番モジュールの木に足した**ことは事実なので、
+  気に入らなければ `render` を `pub(crate)` にする（= プログラムの変更）か、
+  21.1 を `src/preview/mod.rs` の中のユニットテストに落とすかの 2 択。判断は人に委ねる。
+
+### TESTING.md の「The keys」の件数が**また**古い
+
+冒頭は **226 of them across nine layers** だが、`--check` は **242** と答える
+（v0.46.0 が `[help]` `[spot]` `[tasks]` `[diff]` の 4 層に倒度キー 4 つずつを足した分）。
+層の数 9 は合っている。
+
+- 根拠: `cargo +stable run --example make-keycheck -- --check` →
+  `in sync with src/config/defaults/keymap.toml (242 / 242 checked)`（exit 0）
+- どちらの間違いか: TESTING.md。`226` → `242` の 1 語だけで済む。
+  v0.45.1 で `193` が残ったのと同じ形で、**キーを増やすたびに再発している。**
+  `make-keycheck` が TESTING.md のこの数字も書き換える（あるいは `--check` で照合する）
+  ようにすれば、次からは CI が捕まえる。
+
+### TESTING-KEYS.md は同期している
+
+`cargo +stable run --example make-keycheck -- --check` は exit 0
+（`242 / 242 checked`）。再生成の必要なし。
+
+### 番号の並び
+
+1..46 に欠番・重複は無く、各 id は `<節>.<n>` になっている。ただし
+**46 節（v0.47.0、spot パネルの Git セクション）が `## Known gaps in this checklist` の
+後ろに置かれている。**「A new section goes wherever it reads best」に従えば 41 節の隣だが、
+移すと 42 以降が全部繰り上がるので、末尾に足したのは本文の方針どおり。
+ただ「Known gaps」は**文書のまとめ**なので、節はその手前に来るほうが読める。
+番号を動かさずに直せる（46 節のブロックを Known gaps の直前へ移すだけ）ので、
+そこだけ人の判断で。
