@@ -364,6 +364,8 @@ would rather not make any.
 | 13.5 | `g`+`f` on an ordinary file (v0.26.8) | `Only a symlink can be followed — a link shows -> after its name`. Until v0.26.8 nothing happened at all, which was indistinguishable from an unbound key |
 | 13.6 | `g`+`f` in an empty directory | Nothing, and no message — there is no row to say anything about |
 | 13.7 | A junction (`mklink /J`), not just a symlink | Treated the same: `->`, and `g`+`f` follows it |
+| 13.8 | `y`, then `-` in another directory | The symlink appears. **On Windows this needs Developer Mode on** (Settings > System > For developers) — without it, and without running filer elevated, it fails with `os error 1314` and the toast says which two remedies there are. The privilege is the OS's, not the app's: `std` already passes `SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, which is what makes Developer Mode enough |
+| 13.9 | `y`, then `_` in a **sibling** directory | The same link, written relative (`..\other\file`). `g`+`f` follows it, and it survives moving both directories together — which is the point of `_` over `-` |
 
 ## 14. The parent column, with the mouse (v0.26.7)
 
