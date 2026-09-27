@@ -171,6 +171,59 @@ fn status(dir: &Path) -> Option<Status> {
     Some(st)
 }
 
+/// The last commit that touched `path`, and how many did.
+///
+/// One `git log` for both: the first line is the newest commit, and the number
+/// of lines is the count. It is capped at [`LOG_CAP`] so that asking about a
+/// directory near the root of a long history reads a page rather than all of
+/// it -- a count past the cap is reported as "and more" rather than a lie.
+///
+/// `None` when git is absent, the path is outside a repository, or nothing in
+/// the history touches it (a file that has never been committed).
+pub(crate) fn last_commit(path: &Path) -> Option<Commit> {
+    let dir = if path.is_dir() { path } else { path.parent()? };
+    let name = path.file_name().map(|n| n.to_string_lossy().into_owned());
+    let mut args = vec![
+        "log".to_string(),
+        format!("-n{LOG_CAP}"),
+        // NUL cannot appear in any of the four, so nothing here needs quoting.
+        "--format=%h%x00%aI%x00%an%x00%s".to_string(),
+    ];
+    if let Some(name) = name.filter(|_| !path.is_dir()) {
+        args.push("--".to_string());
+        args.push(name);
+    }
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    let out = run(dir, &args)?;
+    let mut lines = out.lines().filter(|l| !l.is_empty());
+    let first = lines.next()?;
+    let count = 1 + lines.count();
+    let mut f = first.split('\0');
+    Some(Commit {
+        hash: f.next()?.to_string(),
+        when: f.next()?.to_string(),
+        author: f.next()?.to_string(),
+        subject: f.next().unwrap_or_default().to_string(),
+        count,
+        capped: count >= LOG_CAP,
+    })
+}
+
+/// How far back [`last_commit`] counts before it stops and says "and more".
+const LOG_CAP: usize = 50;
+
+/// What `git log` had to say about one path.
+pub(crate) struct Commit {
+    pub hash: String,
+    /// ISO-8601 with the author's own offset, as `%aI` writes it.
+    pub when: String,
+    pub author: String,
+    pub subject: String,
+    pub count: usize,
+    /// The count hit [`LOG_CAP`] and is a floor, not a total.
+    pub capped: bool,
+}
+
 fn run(dir: &Path, args: &[&str]) -> Option<String> {
     let mut cmd = Command::new("git");
     cmd.arg("-C").arg(dir).args(args);
@@ -382,6 +435,51 @@ mod tests {
         let st = status(&root.join("sub")).expect("still the same repository");
         assert_eq!(st.get("deep.txt"), State::Untracked);
         assert_eq!(st.get("committed.txt"), State::Untracked, "the whole directory is");
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The four fields survive the round trip, and the count is the count.
+    ///
+    /// The format string is the part that breaks silently: a `%h%x00%aI...`
+    /// that loses a field still parses into a `Commit` with the wrong things
+    /// in the wrong rows, so the assertions name what each one should hold
+    /// rather than only that four arrived.
+    #[test]
+    fn the_last_commit_on_a_path_is_read_back_whole() {
+        let root = crate::util::test_dir("git-log");
+        std::fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| Command::new("git").arg("-C").arg(&root).args(args).output();
+        let Ok(out) = git(&["init", "-q"]) else {
+            eprintln!("git is not installed; skipping");
+            return;
+        };
+        if !out.status.success() {
+            eprintln!("git init failed; skipping");
+            return;
+        }
+        let _ = git(&["config", "user.email", "t@example.com"]);
+        let _ = git(&["config", "user.name", "Ada"]);
+
+        let file = root.join("a.txt");
+        std::fs::write(&file, b"one").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "the first one"]);
+        std::fs::write(&file, b"two").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "the second one"]);
+
+        let c = last_commit(&file).expect("a committed file has a last commit");
+        assert_eq!(c.subject, "the second one", "the newest is first, not the oldest");
+        assert_eq!(c.author, "Ada");
+        assert_eq!(c.count, 2, "both commits touched it");
+        assert!(!c.capped, "two is not the cap");
+        assert!(!c.hash.is_empty() && c.hash.len() <= 40, "an abbreviated hash: {:?}", c.hash);
+        assert!(c.when.starts_with("20") && c.when.contains('T'), "ISO-8601: {:?}", c.when);
+
+        // A file git has never seen is not a commit with empty fields.
+        std::fs::write(root.join("b.txt"), b"never committed").unwrap();
+        assert!(last_commit(&root.join("b.txt")).is_none(), "nothing in the history touches it");
 
         let _ = std::fs::remove_dir_all(&root);
     }

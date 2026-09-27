@@ -1071,3 +1071,23 @@ identical pair says so, and the highlight follows `j`. What is left is the real 
   (lavapipe) is installable even here, so it is no longer impossible — but font
   rasterisation differs per platform, so the baselines would split three ways.
   Lower value than filling in the sections above, and it should come second.
+
+## 46. The spot panel's Git section (v0.47.0)
+
+The listing's marks say what git *thinks of* a file now; this says what happened to it. Needs a
+real repository with a history — this one will do.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 46.1 | `<Tab>` on a committed file | A **Git** section: `Last change` is a short hash and `YYYY-MM-DD HH:MM`, then `Subject` and `Author` |
+| 46.2 | Check it against `git log -1 -- <that file>` | The same commit. Not the repository's newest — **the newest that touched this path** |
+| 46.3 | `<Tab>` on a file changed by more than one commit | `Commits` appears with the count |
+| 46.4 | `<Tab>` on a file added by exactly one commit | **No `Commits` row** — one says nothing the date has not |
+| 46.5 | `<Tab>` on a file in a history of 50+ commits touching it | `Commits` reads `50+`, not a wrong total. The cap is there so a directory near the root reads a page, not the whole history |
+| 46.6 | `<Tab>` on a **directory** | The last commit that touched anything inside it |
+| 46.7 | `<Tab>` on a file that is new and never committed (`git status` shows `?`) | **No Git section at all** — nothing in the history touches it |
+| 46.8 | `<Tab>` somewhere that is not a repository | No Git section, and no pause before the panel draws |
+| 46.9 | The same on a machine with no `git` on `PATH` | No Git section, no error, and the rest of the panel is unaffected |
+| 46.10 | `<Tab>` on a file whose last subject has Japanese in it, or an emoji | Drawn intact, not mojibake — the format is NUL-separated so nothing needs quoting |
+| 46.11 | Watch for a console window | **None flashes.** `git` is spawned with `CREATE_NO_WINDOW`, the same as the status worker |
+
