@@ -281,6 +281,14 @@ Needs a document that **ends on a heading** with little under it — `TESTING-KE
 is one. A document whose last heading has pages of text after it will not show this
 at all, which is what made it look intermittent.
 
+All five are automated (`ui::outline_end_frame`): the clamp itself, on a fixture whose
+last heading is on line 52 in a pane that stops at 40, and the frame not changing on
+repeat — which is what "no flicker" is, one frame at a time. 9.3 is there as the
+control (a heading with the file still under it goes to its own line) and 9.4 asks the
+same ceiling through `seek`. What is left for an eye is a held key at speed: the tests
+press once per frame, and a repeat rate no test sets is exactly what made this visible.
+The key is `<BackTab>`, not the `<C-o>` 9.1 names — see QA-REPORT.md.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 9.1 | Focus the outline (`<C-o>` or `l` on the file), `G` or hold `↓` to the last entry | The preview stops at the end of the file. **No flicker, no half-drawn frames** |
@@ -599,6 +607,15 @@ tests cover the encoding and the shape of the URL, not what GitHub does with it.
 A race, not a slow load: the answer reaches the channel and the window goes to
 sleep without drawing the frame that would take it out. Only ever seen once, on
 a first launch, so reproducing it may take several cold starts.
+
+27.2, 27.3, 27.4 and 27.5 are automated (`ui::preview_arrival_frame`): a file the cache
+has never held shows `…` and then its own text, a revisit needs no worker at all, ten
+first looks in a row all land, and an image walked onto for the first time zooms from
+its own fit rather than the last picture's scale. These run the real preview thread and
+take its answer through the real channel, which is why they can be about arriving.
+What is left is 27.1 — a genuinely cold process, where the race the section is named
+after would live. The zoom keys are `<A-i>` / `<A-o>`, not the `+` 27.4 names; see
+QA-REPORT.md.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -970,6 +987,14 @@ it is legible against a real theme.
 
 The parsing and the layout are unit-tested from strings. What needs a machine is real files, from
 real tools, at a real pane width.
+
+43.1, 43.2, 43.3, 43.4, 43.5, 43.6, 43.7, 43.8, 43.10, 43.12 and 43.13 are automated
+(`ui::csv_table_frame`): real files on disk, read by the real worker, laid out to the width the
+frame measured — and 43.4 resizes the window between two frames and watches the table come back
+at the new width, which is the fix v0.41.0 shipped and the one thing here no test from a string
+could have. What is left is a file from Excel itself (43.1 and 43.7 use files written here, not
+by Excel) and 43.9's 50 MB. 43.11 does not match the program: with the table up there is no
+minimap at all — see QA-REPORT.md.
 
 | # | Do | Expect |
 | --- | --- | --- |
