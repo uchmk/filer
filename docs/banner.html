@@ -21,6 +21,11 @@
   - **The colours are filer's own**, read out of src/config/theme.rs, so the
     banner and the program cannot disagree about what colour the thing is. If
     the default theme changes, change them here too.
+  - **The headline is the README's own claim**, from "Why it feels fast": only
+    the visible rows are laid out and painted, so a 200k-entry directory costs
+    the same to draw as a 20-entry one. It is about drawing, not about the scan
+    finishing -- that runs on a worker and the window stays responsive while it
+    does. Do not stretch it into a claim about load time.
   - **The window chrome is Windows**, and the file listing is the real contents
     of src/. This is a banner whose whole claim is "Windows GUI"; macOS traffic
     lights over an invented directory is the detail that tells a reader nobody
@@ -64,7 +69,8 @@
     margin-top:30px; font-size:26px; line-height:1.45; color:var(--fg);
   }
   .tag b{color:var(--cyan);font-weight:700}
-  .chips{margin-top:38px;display:flex;gap:10px;flex-wrap:wrap}
+  .sub{margin-top:18px;font-size:19px;color:var(--dim)}
+  .chips{margin-top:30px;display:flex;gap:10px;flex-wrap:wrap}
   .chip{
     font-size:17px; color:var(--dim); border:1px solid var(--border);
     border-radius:999px; padding:7px 16px; background:var(--bg-alt);
@@ -115,7 +121,8 @@
   <div class="wrap">
     <div class="left">
       <div class="mark">filer<span class="caret"></span></div>
-      <div class="tag">yazi's config files,<br>in a <b>Windows GUI</b>.</div>
+      <div class="tag"><b>200,000 files.</b><br>Same speed as twenty.</div>
+      <div class="sub">A keyboard-driven file manager for Windows.</div>
       <div class="chips">
         <span class="chip">Rust</span><span class="chip">egui</span>
         <span class="chip">vim keys</span><span class="chip">MIT / Apache-2.0</span>
