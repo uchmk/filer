@@ -1466,3 +1466,85 @@ Windows のセッション（`.claude/windows-role.md`）から。32 節 12 行�
   1 引数で受け取った）で付けた。
 - **32.8c の文言**: 日本語版 Windows では期待どおり `exit code 1` になった
   （`Open failed: exit code 1 — "C:\Program Files (x86)\sakura\sakurra.exe" "…\probe32.txt"`）。
+
+## TESTING.md section 46 — Windows 実機で確かめた（71f09e1 / 0.47.29）
+
+Windows のセッション（`.claude/windows-role.md`）から。46 節で残っていた 8 行のうち 7 行（46.2 /
+46.4 / 46.7〜46.11）を TESTING-CHECKS.md でチェックした。証拠は PR 本文に 1 行ずつある。
+走らせたのは `71f09e1` から作った release の `filer.exe`、git は 2.52.0（`C:\Program Files\Git`）。
+**46.6 はバグのためチェックしていない**（下）。
+
+**どう読んだか**: 41 節と同じハーネス（キーは filer の窓にだけ `PostMessage`、`y` で行を 1 つずつ
+クリップボードに写してセンチネルと比べる、行の移動は隔離した keymap で `n` に割り当てた
+`arrow 1`）。ファイルの選択は `f` のフィルタで行った。fixtures の repo は 1 コミットしか無いので、
+作業ツリーの状態（`D` / `M` / `A` / `??`）を壊さないよう pathspec 付きで 4 コミット足した:
+
+| hash | author | date | subject | 触ったファイル |
+| --- | --- | --- | --- | --- |
+| `42e9175` | Fixtures | 2026-09-29 07:39 | fixtures | clean.txt ほか（元からの 1 つ） |
+| `5513305` | Alice | 2026-09-20 10:00 | sub: add second | sub/second.txt |
+| `0450b3f` | Bob | 2026-09-21 11:00 | history: first | history.txt |
+| `14a47bb` | Bob | 2026-09-22 12:30 | history: second | history.txt |
+| `2e0a020` | 山田 太郎 | 2026-09-23 13:45 | 日本語の件名 🎉 絵文字つき | jp.txt |
+
+日付を過去にずらしてあるので、repo の最新（`2e0a020`）と「そのパスを触った最新」が必ず違う。
+期待値は毎回 `git log -1 --format="%h %an %ad %s" -- <path>` で取った。ハーネスの出力と
+スクリーンショット、スクリプト（`spot46.ps1` / `winwatch.ps1`）は `C:\dev\filer-evidence\46` に置いた。
+
+### 見つけたもの（どれも直していない）
+
+#### 46.6: ディレクトリには、そこを触った最新ではなく repo 全体の最新が出る
+
+- **実測**: fixtures の `sub` ディレクトリで `<Tab>`。Git 節は
+  `2e0a020  2026-09-23 13:45` / `日本語の件名 🎉 絵文字つき` / `山田 太郎` / Commits `5`。
+- **期待**: `git log -1 -- sub` は `5513305 Alice … sub: add second`、`sub` を触ったコミットは 2 つ。
+  出たのは `sub` の外（jp.txt）しか触っていないコミットで、数は repo 全体の 5。
+- **原因**: `src/fs/git.rs:192` の `if let Some(name) = name.filter(|_| !path.is_dir())`。
+  ディレクトリのときは pathspec を付けずに `git -C <dir> log` を走らせる。`-C` は作業場所を
+  変えるだけで履歴を絞らないので、**どのディレクトリでも repo 全体の履歴になる**。
+  - 実機で確かめた: `git -C sub log -1` → `2e0a020`、`git -C sub log -1 -- .` → `5513305`。
+  - repo の直下（worktree の根）だけは、たまたま正しい。
+- **提案**: ディレクトリのときも pathspec に `.` を渡す（`git -C <dir> log … -- .`）。
+  テストは `the_last_commit_on_a_path_is_read_back_whole`（ファイルだけ）の隣に、
+  「サブディレクトリの外だけを触る新しいコミットがあっても、サブディレクトリはそれを返さない」
+  を足すと固定できる。
+- **46.5 について**: 46.5（`50+`）は前のセッションでチェック済み。行の文言はファイルだが、
+  もしディレクトリで確かめていたなら、このバグ（repo 全体を数える）で `50+` になっていた
+  可能性がある。このセッションでは 46.5 を確かめ直していない。
+
+#### CP932 の化けは、この経路では起きなかった（仮説を否定、バグではない）
+
+- 25 節の CP932 の化けを受けて、`encoding` ヘッダ無しで件名を CP932 の生バイトにした
+  コミットを作った（`R:\Temp\sjis46b`、その上に UTF-8 の件名のコミットを 1 つ）。
+- git 2.52 は、そのバイト列を Latin-1 とみなして UTF-8 に変換して出す（`c2 8c c3 82 …`）。
+  **出力は常に正しい UTF-8 になる**ので、`String::from_utf8(...).ok()` が `None` になって
+  Git 節ごと消える、ということは起きない。実際パネルには `f2ebc35` / `new subject in UTF-8` /
+  `Ada` / Commits `2` が出た。
+- 古いコミットの件名が CP932 のままなら、そこが表示されるときは Latin-1 として化ける
+  （git 自身の `git log` と同じ化け方）。filer 側で直せる話ではないので 1 行だけ残す。
+
+#### 46.10 の絵文字は単色で描かれる（見た目、持ち主に）
+
+- `Subject` の行をクリップボードに写した値は `日本語の件名 🎉 絵文字つき` とバイト単位で一致、
+  `Author` は `山田 太郎`。**文字としては無傷**なので 46.10 はチェックした。
+- スクリーンショット（`jp-open.png`）では、日本語は正しく描かれ、🎉 は豆腐でも化けでもなく
+  egui の単色のグリフで出ている。カラーで出ないことを許すかは見た目の判断なので持ち主に。
+
+### チェックの方法（46.8 / 46.9 / 46.11）
+
+- **46.8**: repo でない `R:\Temp\nonrepo46`（`git log` は 31 ms で exit 128）。ファイルでも
+  ディレクトリでも File / Preview / Text（またはディレクトリの節）だけで Git 節は無い。
+  `<Tab>` のあと 2 秒間、20 ms ごとに `SendMessageTimeout(WM_NULL)` を投げ、最長の返事は
+  5 ms（ファイル）/ 2 ms（ディレクトリ）。
+- **46.9**: ハーネスが `PATH` から `git.exe` を含むディレクトリをすべて外し、`git` が
+  見つからないことを確かめてから filer を起動した。clean.txt と history.txt の行は、git が
+  あるときの行から Git 節の行だけを抜いたものと一致。2 秒後のスクリーンショットにエラーの
+  トーストは無い。UI の最長の返事は 5 ms / 1 ms。
+- **46.11**: `SetWinEventHook(EVENT_OBJECT_SHOW)` で、表示されたウィンドウをすべて記録し、
+  あわせて git / conhost / OpenConsole / WindowsTerminal の新しいプロセスを 100 ms ごとに拾った。
+  - **陽性対照**: 普通に `Start-Process git --version` すると、`WindowsTerminal` の
+    `CASCADIA_HOSTING_WINDOW_CLASS` と `git` の `PseudoConsoleWindow` の SHOW が記録された
+    （`winwatch-control.log`）。つまりこの方法は、コンソールの窓が出れば捕まえる。
+  - filer で clean.txt を開いた 25 秒間（`clean-watch.log`）: git のプロセスが 3 つ、conhost が
+    2 つ起動した（Git 節が出たので git は確かに走っている）が、SHOW は filer 自身の窓と
+    無関係な窓だけで、コンソールの窓は 1 つも出なかった。
