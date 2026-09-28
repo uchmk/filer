@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**0 / 359 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 157 件は
+**9 / 359 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 157 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -190,7 +190,7 @@ cd $HOME\Desktop\filer-fixtures
 - [ ] **12.10** 別のプログラムで開いてロックされたファイルを、**他の数件と一緒に**選んで `d` → 他は消える。メッセージが**消えなかったファイルの名前を挙げ**、タスクパネルの件数も実際に消えた数と合う（v0.27.1 まで `Trash: trash: Error … Some operations were aborted` と名前を挙げずに言い、全件成功として数えていた） — *Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) → The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done*
 - [ ] **12.11** ごみ箱を無効にしたドライブで `d` → 同じ形のメッセージが、ファイル名を挙げて出る — *`d` on a drive whose Recycle Bin is turned off → Same shape of message, naming the file*
 
-## 13. シンボリックリンクと `g`+`f` — 0 / 8
+## 13. シンボリックリンクと `g`+`f` — 6 / 8
 
 Windows ではリンクを作るのが面倒。**ジャンクション**は管理者権限が要らない
 （`mklink /J linktest C:\dev`）。**ファイルへのシンボリックリンクは開発者モードか管理者権限**が要る
@@ -209,12 +209,12 @@ fsutil hardlink list locked.txt        # 期待値の答え合わせ用
 ```
 
 - [ ] **13.7** ジャンクション（`mklink /J`）で試す → シンボリックリンクと同じ扱い（名前の後ろに `->` が付き、`g`+`f` で追える） — *A junction (`mklink /J`), not just a symlink → Treated the same: `->`, and `g`+`f` follows it*
-- [ ] **13.8** `y` してから、別のディレクトリで `-` → シンボリックリンクができる。**Windows では開発者モードが要る**（設定 > システム > 開発者向け）。無いと `os error 1314` で失敗し、トーストが対処法を 2 つ示す — *`y`, then `-` in another directory → The symlink appears. **On Windows this needs Developer Mode on** (Settings > System > For developers) — without it, and without running filer elevated, it fails with `os error 1314` and the toast says which two remedies there are. The privilege is the OS's, not the app's: `std` already passes `SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, which is what makes Developer Mode enough*
-- [ ] **13.9** `y` してから、**隣の**ディレクトリで `_` → 同じリンクが相対パス（`..\other\file`）で作られる。`g`+`f` で追え、両方のディレクトリを一緒に移動しても壊れない（これが `-` に対する `_` の利点） — *`y`, then `_` in a **sibling** directory → The same link, written relative (`..\other\file`). `g`+`f` follows it, and it survives moving both directories together — which is the point of `_` over `-`*
-- [ ] **13.10** シンボリックリンクの上で `<Tab>` → **Link** セクションが出る。`Kind` が `Symlink`、`Target` が保存されたパス、`Resolves` が実際の着地点 — *`<Tab>` on a symlink (v0.46.0) → A **Link** section: `Kind` reads `Symlink`, `Target` the stored path, `Resolves` where it lands*
-- [ ] **13.11** `_` で作ったリンクの上で `<Tab>` → `Kind` が `Symlink (relative)`。`Target` は相対パス、`Resolves` は絶対パスで、**2 行が食い違うことがこの対の要点** — *`<Tab>` on a link made with `_` → `Kind` reads `Symlink (relative)`, and `Target` is the relative path while `Resolves` is absolute — the two rows differ, which is the whole point of the pair*
-- [ ] **13.12** **壊れた**リンクの上で `<Tab>` → `Resolves` が `no (…)` と OS の理由を出し、セクション自体は表示される — *`<Tab>` on a **broken** link → `Resolves` reads `no (…)` with the OS's reason, and the section still appears*
-- [ ] **13.14** 同じものを Windows で → `Also at` に別名のパスが並ぶ。`fsutil hardlink list` と突き合わせる（自分自身のパスを除いた同じ集合になる） — *The same, on Windows → `Also at` lists the other path. Check it against `fsutil hardlink list` — the same set, with the file's own path left out*
+- [x] **13.8** `y` してから、別のディレクトリで `-` → シンボリックリンクができる。**Windows では開発者モードが要る**（設定 > システム > 開発者向け）。無いと `os error 1314` で失敗し、トーストが対処法を 2 つ示す — *`y`, then `-` in another directory → The symlink appears. **On Windows this needs Developer Mode on** (Settings > System > For developers) — without it, and without running filer elevated, it fails with `os error 1314` and the toast says which two remedies there are. The privilege is the OS's, not the app's: `std` already passes `SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, which is what makes Developer Mode enough*
+- [x] **13.9** `y` してから、**隣の**ディレクトリで `_` → 同じリンクが相対パス（`..\other\file`）で作られる。`g`+`f` で追え、両方のディレクトリを一緒に移動しても壊れない（これが `-` に対する `_` の利点） — *`y`, then `_` in a **sibling** directory → The same link, written relative (`..\other\file`). `g`+`f` follows it, and it survives moving both directories together — which is the point of `_` over `-`*
+- [x] **13.10** シンボリックリンクの上で `<Tab>` → **Link** セクションが出る。`Kind` が `Symlink`、`Target` が保存されたパス、`Resolves` が実際の着地点 — *`<Tab>` on a symlink (v0.46.0) → A **Link** section: `Kind` reads `Symlink`, `Target` the stored path, `Resolves` where it lands*
+- [x] **13.11** `_` で作ったリンクの上で `<Tab>` → `Kind` が `Symlink (relative)`。`Target` は相対パス、`Resolves` は絶対パスで、**2 行が食い違うことがこの対の要点** — *`<Tab>` on a link made with `_` → `Kind` reads `Symlink (relative)`, and `Target` is the relative path while `Resolves` is absolute — the two rows differ, which is the whole point of the pair*
+- [x] **13.12** **壊れた**リンクの上で `<Tab>` → `Resolves` が `no (…)` と OS の理由を出し、セクション自体は表示される — *`<Tab>` on a **broken** link → `Resolves` reads `no (…)` with the OS's reason, and the section still appears*
+- [x] **13.14** 同じものを Windows で → `Also at` に別名のパスが並ぶ。`fsutil hardlink list` と突き合わせる（自分自身のパスを除いた同じ集合になる） — *The same, on Windows → `Also at` lists the other path. Check it against `fsutil hardlink list` — the same set, with the file's own path left out*
 - [ ] **13.16** ハードリンクを作り、別のプログラムに共有なしの書き込みロックを握らせた状態で `<Tab>`（コマンドは上の「準備」）→ `Links` は `2` のまま、`Also at` も出る。ハンドルがアクセス権を一切要求しないので、排他ロックでも数えられる — *Hardlink a file, then have another program hold it open for writing with no sharing, and `<Tab>` it (commands in the preamble above) → `Links` still reads `2` and `Also at` still lists the other name. The handle asks for **no** access rights, so an exclusive write lock does not hide the count*
 
 ## 14. 親ディレクトリの列を、マウスで — 0 / 6
@@ -600,7 +600,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **45.12** 2 分割して各ペインでフォルダの上に立ち、`<A-d>` → その 2 つが比較される — *Split the view, stand on a folder in each pane, `<A-d>` → Compares those two*
 - [ ] **45.13** `q` / `<Esc>` → 閉じる。そして 2 つの**ファイル**はこれまでどおり行単位で比較できる — *`q` / `<Esc>` → Closes, and two **files** still compare line by line as before*
 
-## 46. spot パネルの Git セクション — 0 / 11
+## 46. spot パネルの Git セクション — 3 / 11
 
 準備:
 
@@ -610,11 +610,11 @@ cd $HOME\Desktop\filer-fixtures\repo
 git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 ```
 
-- [ ] **46.1** コミット済みのファイルで `<Tab>` → **Git** セクションが出る。`Last change` が短いハッシュと `YYYY-MM-DD HH:MM`、続いて `Subject` と `Author` — *`<Tab>` on a committed file → A **Git** section: `Last change` is a short hash and `YYYY-MM-DD HH:MM`, then `Subject` and `Author`*
+- [x] **46.1** コミット済みのファイルで `<Tab>` → **Git** セクションが出る。`Last change` が短いハッシュと `YYYY-MM-DD HH:MM`、続いて `Subject` と `Author` — *`<Tab>` on a committed file → A **Git** section: `Last change` is a short hash and `YYYY-MM-DD HH:MM`, then `Subject` and `Author`*
 - [ ] **46.2** `git log -1 -- <そのファイル>` と突き合わせる → 同じコミット。リポジトリの最新ではなく、**そのパスに触れた最新のもの** — *Check it against `git log -1 -- <that file>` → The same commit. Not the repository's newest — **the newest that touched this path***
-- [ ] **46.3** 複数のコミットが触れたファイルで `<Tab>` → `Commits` が件数付きで出る — *`<Tab>` on a file changed by more than one commit → `Commits` appears with the count*
+- [x] **46.3** 複数のコミットが触れたファイルで `<Tab>` → `Commits` が件数付きで出る — *`<Tab>` on a file changed by more than one commit → `Commits` appears with the count*
 - [ ] **46.4** ちょうど 1 つのコミットで追加されたファイルで `<Tab>` → **`Commits` の行が出ない。**1 件では日付以上のことを言っていないため — *`<Tab>` on a file added by exactly one commit → **No `Commits` row** — one says nothing the date has not*
-- [ ] **46.5** そのパスに触れたコミットが 50 件以上ある履歴のファイルで `<Tab>` → `Commits` が `50+` と出る（間違った合計ではない）。ルート近くのディレクトリで履歴全部ではなく 1 ページ分だけ読むための上限 — *`<Tab>` on a file in a history of 50+ commits touching it → `Commits` reads `50+`, not a wrong total. The cap is there so a directory near the root reads a page, not the whole history*
+- [x] **46.5** そのパスに触れたコミットが 50 件以上ある履歴のファイルで `<Tab>` → `Commits` が `50+` と出る（間違った合計ではない）。ルート近くのディレクトリで履歴全部ではなく 1 ページ分だけ読むための上限 — *`<Tab>` on a file in a history of 50+ commits touching it → `Commits` reads `50+`, not a wrong total. The cap is there so a directory near the root reads a page, not the whole history*
 - [ ] **46.6** **ディレクトリ**で `<Tab>` → その中の何かに触れた最後のコミット — *`<Tab>` on a **directory** → The last commit that touched anything inside it*
 - [ ] **46.7** 新規で未コミットのファイル（`git status` で `?`）で `<Tab>` → **Git セクションが出ない。**履歴の中に触れたものが無いため — *`<Tab>` on a file that is new and never committed (`git status` shows `?`) → **No Git section at all** — nothing in the history touches it*
 - [ ] **46.8** リポジトリでない場所で `<Tab>` → Git セクションが出ず、パネルの描画前に待ちも発生しない — *`<Tab>` somewhere that is not a repository → No Git section, and no pause before the panel draws*

@@ -71,6 +71,51 @@ jobs:
       - name: Test
         run: cargo test --locked
 
+  # Does the Linux binary actually start?
+  #
+  # Until this job existed, CI knew one thing about the Linux and macOS builds:
+  # that they compile and link. The release notes said exactly that -- "nobody
+  # has started the program on either" -- so a binary that panicked on launch,
+  # or opened a window and painted nothing, would have shipped green. This does
+  # not test what filer *does*; it tests the thing every other check assumes.
+  #
+  # It found something on its first run: with no Nerd Font present the icon
+  # column still reserved a full em for a one-character ASCII fallback, so every
+  # directory row read `/      name`. Nobody had seen it because nobody had run
+  # the program without that font.
+  #
+  # Linux only. macOS runners have no software Vulkan and the same trick does
+  # not transfer, so that half of the gap stays open -- see TODO.md.
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: smoke
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      # lavapipe is Mesa's software Vulkan. eframe draws through wgpu, which
+      # wants an adapter, and a runner has no GPU -- so this stands in. Slow and
+      # correct, and correctness is the whole ask.
+      - name: Install a display and a software GPU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb imagemagick x11-utils \
+            mesa-vulkan-drivers libxkbcommon-x11-0
+      - name: Build
+        run: cargo build --locked
+      - name: Start it and photograph it
+        run: scripts/smoke-linux.sh --out smoke.png
+      # Kept whether or not the step passed: a failure here is a picture of
+      # something, and the picture is the report.
+      - name: Keep the screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-smoke
+          path: smoke.png
+          if-no-files-found: warn
+
   # CLAUDE.md says clippy is kept at zero warnings with `--all-targets`, and
   # until now the only thing enforcing that was remembering to run it. That is
   # the same shape of mistake that kept CI red from v0.20.0 to v0.32.0: a rule

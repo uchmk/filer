@@ -165,10 +165,12 @@ jobs:
 
           ### Platforms
 
-          **Windows is the platform this is tested on.** The macOS and Linux builds are
-          compiled and linked by CI on every push, and that is the whole of what is known
-          about them: nobody has started the program on either. They are here so that
-          somebody can, not because they are known to work.
+          **Windows is the platform this is tested on.** The Linux build is started on
+          every push -- CI opens it on a virtual display and checks that a frame was
+          actually painted -- but that is a proof of life, not of correctness: nobody
+          works through the checklist on it. **The macOS builds are only compiled and
+          linked**, and that is the whole of what is known about them. They are here so
+          that somebody can start them, not because they are known to work.
 
           Two things are known to be missing there, by design rather than by accident,
           because the Windows shell is what supplies them: the thumbnail for formats
