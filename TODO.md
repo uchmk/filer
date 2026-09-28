@@ -582,6 +582,39 @@
 - [ ] TESTING.md が 983 行・45 節・**463 項目**で、一度も実行されていない。
   間引くか、「リリース前に必ず通す」部分集合を決めるかの判断が必要。
 
+## spot の Git セクションが、ディレクトリだとリポジトリ全体の最新を出す
+
+- [ ] `src/fs/git.rs` の `last_commit()` が、**ディレクトリのとき pathspec を 1 つも
+  付けない。**`git -C <dir> log` になるので、返るのは履歴全体の最新コミット。
+  46 節の実機確認が見つけた（46.6、チェックせず報告）。
+
+  ```rust
+  // いま: ディレクトリだと filter が name を落とし、`--` ごと付かない
+  if let Some(name) = name.filter(|_| !path.is_dir()) {
+      args.push("--".to_string());
+      args.push(name);
+  }
+  ```
+
+  - **実測**: `sub` ディレクトリが `2e0a020` / `Commits 5`（リポジトリ全体の最新）を
+    出したが、`git log -1 -- sub` は `5513305` で 2 件。
+  - **意図はスコープするほうにある。**すぐ上の doc コメントが「ルート近くの
+    ディレクトリで、履歴全部ではなく 1 ページ分だけ読むための上限」と書いていて、
+    ディレクトリが自分の配下だけを見る前提で `LOG_CAP` を説明している。
+  - **直し方**: `dir` は既にそのディレクトリなので、`-C dir` に対して `-- .` を
+    渡せばよい。
+
+    ```rust
+    let spec = if path.is_dir() { Some(".".to_string()) } else { name };
+    if let Some(spec) = spec {
+        args.push("--".to_string());
+        args.push(spec);
+    }
+    ```
+
+  - 46.6 はこれを直してからでないとチェックできない。**Commits の件数も同時に
+    変わる**ので、46.3 と 46.5 の期待値が動かないかも一緒に見ること。
+
 ## README の opener 例で、Word / PowerPoint に Excel が先に当たる
 
 - [ ] README の `[opener]` の例をそのまま貼ると、`.docx` / `.pptx` に対して Excel の
