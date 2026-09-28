@@ -378,12 +378,16 @@ below has to be typed over a field the person clears first. That is in QA-REPORT
 
 ## 12. Undo and redo (v0.3.0)
 
-12.6 and 12.7 are automated (`ui::undo_frame`): `r` then `u` puts the old name back and the toast
-names it, and `u` / `U` on an empty stack each say so in their own words. Everything else in this
-section starts with `d`, and a delete is a job on the ops worker put back by reading the trash --
-the harness runs no workers, so 12.1 to 12.5 and 12.9 to 12.12 stay here. 12.8's own example is
-wrong: creating a file records no undo step, so the redo survives it (see QA-REPORT.md); a second
-rename does fork history, and that is what the module's third test drives.
+12.6 and 12.7 are automated (`ui::undo_frame`, five tests): `r` then `u` puts the old name back and
+the toast names it, and `u` / `U` on an empty stack each say so in their own words. Everything else
+in this section starts with `d`, and a delete is a job on the ops worker put back by reading the
+trash, so 12.1 to 12.5 and 12.9 to 12.12 stay here. Three of those rows state a rule a **rename**
+obeys as well, and the module drives each in that form: history forking on a fresh action (12.8),
+`U` walking the step forward again under its own sentence (12.4), and an undo blocked by a name
+taken in the meantime keeping the step, so a second press works (12.9). **The rows themselves are
+still unchecked** — nothing here has been through the recycle bin. 12.5's newest-of-two rule is
+`fs::restore`'s own unit test. 12.8's example is wrong: creating a file records no undo step, so
+the redo survives it (see QA-REPORT.md).
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -629,12 +633,16 @@ Enter. Each of these is a skip if the editor is not installed.
 
 In `awkward names\`.
 
-24.1 and 24.3 are automated (`ui::awkward_names`): a CJK name reaches the row as itself, and two
-names differing only in case stay two rows with their case kept. What is left for an eye in 24.1 is
-the column arithmetic -- that the glyphs are two cells wide and the rows line up. 24.2 is not
-reachable: eliding happens inside egui's galley and the harness reads back the string that was laid
-out, not the characters that fit (see QA-REPORT.md). 24.4 needs the terminal pane, which is
-`#[cfg(windows)]`, and 24.5 needs the recycle bin.
+24.1 and 24.3 are automated (`ui::awkward_names`, three tests): a CJK name reaches the row as
+itself and every character of it gets a glyph, and two names differing only in case stay two rows
+with their case kept. What is left for an eye in 24.1 is the column arithmetic -- that the glyphs
+are two cells wide and the rows line up. **24.2 is half checked**: the harness now reads the
+characters that were drawn rather than the ones handed to the layout, so "the long name is cut down
+to its column" is asserted — but *where* the `…` lands is not, because the code cuts the **end** and
+loses the extension, which is not what this row asks for. The row stays until that is settled
+(QA-REPORT.md). 24.4 needs the terminal pane, which is `#[cfg(windows)]`; the quoting it is really
+about is `terminal::tests::a_path_reaches_the_shell_as_one_word`, over the same `'` the fixture
+has. 24.5 needs the recycle bin.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -816,13 +824,26 @@ none of these failed.
 (`ui::config_warning_frame`): the wording, that the toast and the `~` rows are drawn in the
 warning colour and that nothing in the frame is framed as a failure, the count the toast carries
 when there are more, the files coming before the complaints in `~`, and the box staying inside
-the window at full width and at a third of it, cut at eight lines. 33.5 is automated only in the
+the window at full width and at a third of it, cut at eight lines. **33.4** is in the same module:
+a real failure is raised beside the config warning and the two boxes come out in the two colours,
+one each. 33.5 is automated only in the
 part that does not depend on the machine — a warning the config no longer has leaves the panel —
 because `<C-F5>` re-reads the real config files, so what its toast says depends on what is on the
-machine. 33.11 to 33.14 have unit tests of their own in `config::files`. What is left for an
-eye: that the yellow reads as advice next to a real failure (33.4), that it is legible on a light
-theme (33.6), the parse error's own wording (33.7), and everything from 33.15 on, which needs the
-files really on disk.
+machine. **33.9's expectation** is automated there too — five boxes at most, stacking downward,
+each the height of its own text, none over the next — but **its recipe is not, because it cannot
+be**: three broken config files raise one toast, not three (that is 33.2). The row needs rewording;
+see QA-REPORT.md.
+
+33.11 to 33.14 have unit tests of their own in `config::files`, including the two lines a file
+holding both misplaced sections gets and the `belongs in yazi.toml` direction. **33.16, 33.17 and
+33.18** are unit-tested in `ui::overlay::help_config_rows`, against `config_rows` with a real file
+written into a temp directory: the marked row and its note, the marker coming off once the file is
+among the ones read, and the note naming a rebound `<F9>`.
+
+What is left for an eye: that the yellow *reads* as advice rather than as a failure at a glance
+(33.4 — a test can say the two colours differ and which is which, not that a person tells them
+apart), that it is legible on a light theme (33.6), the parse error's own wording (33.7), and
+33.15, which needs the files really on disk, `filer env`, and a terminal pane that starts.
 
 | # | Do | Expect |
 | --- | --- | --- |
