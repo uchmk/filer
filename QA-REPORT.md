@@ -978,6 +978,154 @@ v0.29.0 で足された節で、行の数字だけが古い。チェックは「
 - **なぜ書くか**: 再実行して緑になったので、このまま黙っていると記録が残らない。
   **通った回数を数えて判断し始めると、5 回目の失敗が黙って通る。**
 
+## TESTING.md section 8 — Windows 実機で確かめた（eb80fc9 / 0.47.25）
+
+Windows のセッション（`.claude/windows-role.md`）から。ConPTY のペインを実機で初めて
+起動した。試したシェルは `powershell`（5.1.26100）、`pwsh`（7.6.6）、`cmd`。**どのシェルでも
+落ちず、固まらず、文字化けもなかった**（`cmd` のペインに `dir /b` で出した `日本語テスト.txt`
+もそのまま読めた）。7 行のうち 5 行（8.1 / 8.3 / 8.4 / 8.5 / 8.6）を TESTING-CHECKS.md で
+チェックし、証拠は PR 本文に 1 行ずつ書いた。8.2 と 8.7 は、**書いてある手順どおりに
+やると期待どおりにならない**のでチェックしていない（下の 1 件目）。
+
+試したバイナリは 0.47.24 のソースから作った release ビルド。`src/` は eb80fc9 と同じ。
+設定は `FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` / `FILER_STATE_HOME` で一時ディレクトリに
+隔離した（人の設定には `[term] shell = "pwsh"` が入っていて、8.1 の前提を満たさないため）。
+
+### 8.2 / 8.7 と 8 節の注記: `<C-S-t>` → `<C-t>` では `[term]` を読み直さない
+
+- **書いてあること**: 8.2 は「`shell = "pwsh"` を足して `<C-S-t>`、`<C-t>`」、8.7 は
+  「`[term]` を消して `<C-S-t>`、`<C-t>`」。TESTING-CHECKS.md の 8 節の注記も
+  「設定を変えたら `<C-S-t>` でシェルを終わらせてから `<C-t>` で開き直すこと」と書いている。
+- **実際**: その手順では**前のシェルがまた起動する**。
+  - 8.2: `shell = "pwsh"` を書いて `<C-S-t>` → `<C-t>` のあとのフィラーの子は
+    `powershell.exe  cmd=[powershell]`（5.1 のまま）。
+  - 8.7: `filer.toml` を消して `<C-S-t>` → `<C-t>` のあとの子は
+    `cmd.exe  cmd=[cmd /k R:\Temp\w8\probe.cmd]`（消す前の設定のまま）。
+  - どちらも `<C-S-t>` → `<C-F5>` → `<C-t>` にすると期待どおりになる
+    （`pwsh.exe cmd=[pwsh]` / `powershell.exe cmd=[powershell]`）。
+- **なぜ**: シェルは `self.cfg.term.shell` から取っていて（`src/app.rs:3994`）、`self.cfg` が
+  変わるのは `reload_config`（`<C-F5>`）だけ。`<C-S-t>` はシェルを終わらせるだけで、
+  設定を読み直さない。**プログラムはこの設計どおりに動いているので、直すのは行の文言。**
+- **提案（直していない）**: 8.2 / 8.7 の Do を「`<C-S-t>`, `<C-F5>`, `<C-t>`」にし、
+  注記も同じにする。順番に意味がある: **ペインにフォーカスがあるあいだは `<C-F5>` が
+  シェルに渡る**（`[term]` 層は `<C-F5>` を持っていない）ので、`<C-S-t>` でリストに
+  戻ってから押すこと。この「ペインにいると `<C-F5>` が効かない」も設計どおりだと思うが、
+  知らないと「読み直したのに変わらない」に見えるので、注記に一言あるとよい。
+
+### シェルの起動に失敗するたびに `OpenConsole.exe` が 1 つ残る
+
+- **再現**: `[term] shell = "nosuchshell-w8"`、`<C-F5>`、`<C-t>`。8.6 の期待どおり
+  トーストが出てペインは開かない。**そのたびに**フィラーの子として
+  `OpenConsole.exe --headless --width 80 --height 24 --signal 0x… --server 0x…` が 1 つ増え、
+  5 秒以上たっても消えない。3 回やって 3 つ（pid 52832 / 44300 / 40916、どれも
+  ppid = フィラー）。フィラーを閉じると 3 つとも消えた。
+- **原因**: `alacritty_terminal` 0.26.0 の `src/tty/windows/conpty.rs`。
+  `new()` は `CreatePseudoConsole` が成功したあと（122 行）、`CreateProcessW` の失敗
+  （233 行）などで `return Err(Error::last_os_error())` する。そのとき `Conpty { handle, api }`
+  （241 行）はまだ作られていないので、`ClosePseudoConsole` を呼ぶ `Drop for Conpty` が
+  走らない。**疑似コンソールの HPCON が閉じられず、そのホスト（OpenConsole）が残る。**
+  157 / 183 / 200 行の早期 return も同じ形。
+- **影響**: フィラーが生きているあいだだけ、失敗 1 回につきプロセス 1 つ。設定を
+  書き間違えて何度か `<C-t>` を押す、という普通の操作で溜まる。
+- **提案（直していない）**: 根はクレート側なので上流への報告が本筋。フィラー側でできる
+  手当ては、spawn の前にシェルを `PATH` で解決して、見つからなければ ConPTY を作らずに
+  エラーにすること（`envreport.rs` がすでに同じ解決をしている）。これで「インストール
+  されていない」場合は漏れなくなる。見つかったが起動できない場合は残る。
+
+### 8.6 のメッセージがシェルの名前を言わない
+
+- 出たトーストは `Terminal failed: 指定されたファイルが見つかりません。 (os error 2)`。
+  何が見つからないのかが書いていない。8.6 の期待（「その旨が出る」）は満たしているので
+  チェックは付けた。
+- **提案（直していない）**: `Terminal failed: nosuchshell-w8: …` のように `[term] shell` の
+  値を入れる。設定を書いた本人が読むメッセージなので、自分が書いた文字列が見えれば
+  綴りの間違いにすぐ気づける。
+
+### ConPTY が WezTerm の `conpty.dll` / `OpenConsole.exe` から来ている
+
+- 上の `OpenConsole.exe` は `C:\Program Files\WezTerm\OpenConsole.exe`。
+  `ConptyApi::load_conpty` が `LoadLibraryW("conpty.dll")` を**名前だけで**呼ぶので、
+  `PATH` 上にある WezTerm の `conpty.dll` が選ばれ、それが隣の `OpenConsole.exe` を起動する。
+  WezTerm が無い機械では `kernel32` の `CreatePseudoConsole`（conhost）に落ちるはず。
+- **バグではない**が、**機械によって別の ConPTY 実装が動く**ことになる。この機械の結果は
+  WezTerm 同梱版のもの。「この機械では出ない／出る」が起きたら、まず `PATH` に
+  `conpty.dll` があるかを見ること。
+
+### `cargo test` が開発者本人の設定を読んで 5 件落ちる
+
+- **再現**: この機械で、環境変数を何も立てずに `cargo test`（eb80fc9）。
+  `472 passed; 5 failed`。`FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` / `FILER_STATE_HOME` を
+  空のディレクトリに向けると `477 passed`。
+- **落ちるもの**:
+  - `envreport::tests::it_reports_what_is_actually_there`（`src/envreport.rs:447`）:
+    `pdftoppm is not used yet`。人の `yazi.toml` に `pdftoppm` / `ffmpeg` を使う previewer が
+    あるので、Tools 節に出る。**テストの主張（コードに無いツールを名指ししない）は、
+    設定がツールを名指ししている場合には成り立たない。**
+  - `ui::csv_table_frame::the_table_relays_out_when_the_window_is_resized`（`src/ui/mod.rs:4140`）、
+    `ui::whole_frame::a_long_file_gets_a_strip_and_a_narrow_window_does_not`（`src/ui/mod.rs:1693`）、
+    `ui::overlay::help_frame::the_wheel_turns_the_panel_and_leaves_the_list_alone`（`src/ui/overlay.rs:1705`）、
+    `ui::overlay::help_frame::a_panel_owns_the_wheel_and_a_prompt_leaves_it`（`src/ui/overlay.rs:1759`）:
+    列数や行数を数えるフレームのテスト。人の設定のフォント（HackGen35 Console NF）や
+    レイアウトの設定で、テストが前提にしている幅・高さが変わる。
+- **なぜ書くか**: CI は設定の無いランナーなので緑になり、**手元でだけ赤い**。
+  CLAUDE.md の「CI が緑でもマージ前に手元で全部回す」は、この機械では 5 件の既知の失敗を
+  抱えた状態になる。それは CLAUDE.md が戻すなと言っている「既知の N 件」の形そのもの。
+- **提案（直していない）**: `Config::load()` を通るテストが、設定の場所を隔離した
+  ディレクトリに向けるようにする（`util::test_dir` と同じ考え方で、テスト全体で 1 回）。
+  環境変数はプロセス全体に効くので、テストごとではなく**テストバイナリの始めに 1 回**
+  立てる形になる（246 行・661 行で書いた並列実行の問題を避けるため）。
+
+## TESTING.md section 35 — Windows 実機で確かめた（084fa53 / 0.47.24）
+
+Windows のセッション（`.claude/windows-role.md`）から。35 節の 10 行のうち Windows で
+確かめられるのは 35.1 / 35.2 / 35.9 / 35.10 の 4 行で、そのうち 3 行（35.1 / 35.9 /
+35.10）を TESTING-CHECKS.md でチェックした。証拠は PR 本文に 1 行ずつある。
+35.3〜35.8 は macOS / Linux の行なので触っていない。プログラムのバグは見つからなかった。
+
+### 35.1 の突き合わせ — v0.34.0 を実際にビルドして比べた
+
+「v0.34.0 から動いていない」を読むために、`356241c`（v0.34.0）を `git archive` で
+取り出して release ビルドし、3 つの変数を未設定にした新しいコンソールで両方の
+`filer env` を走らせた。Config 節の 7 行は**1 文字も違わなかった**（`Compare-Object`
+で差分 0）。
+
+```text
+Config
+    C:\Users\yuu06\AppData\Roaming\yazi\config\ : yazi.toml 2.6 K   keymap.toml 0 B
+                                                  not here: theme.toml, filer.toml
+    C:\Users\yuu06\AppData\Roaming\filer\       : filer.toml 1.9 K
+                                                  not here: yazi.toml, keymap.toml, theme.toml
+    State                                       : C:\Users\yuu06\AppData\Roaming\filer
+    Warnings                                    : none
+```
+
+### 35.10 の「確かめ直す」には、期待する結果が書かれていない
+
+- **行の文言**: 「リンクのパス経由で、保存時に改名するエディタで編集したあと
+  もう一度確かめること（それをするとシンボリックリンクが普通のファイルに置き換わる）」。
+  置き換わることは書いてあるが、**そのあと何が起きれば合格なのか**が書かれていない。
+- **実測**: filer を開いたまま、`nvim --headless --clean -c 'set backupcopy=no'` で
+  **リンクのパス**を編集した（`backupcopy=no` は改名で保存する設定）。
+  - リンクのパスは `LinkType` が空の普通のファイルになり、新しい内容を持つ。
+  - **元のリンク先は古い内容のまま**残る。
+  - `<C-F5>` のあと `last-run.toml` のフォントは新しい内容（`georgia.ttf`）になった。
+    つまり filer は置き換わった普通のファイルを読む。2 回とも同じ（3 回目は前面が
+    取れずキーを送っていない）。
+- **提案（直していない）**: Expect に「`<C-F5>` で新しい内容が読まれる。ただし
+  リンク先のファイルはもう更新されない — リンク先で設定を管理している人は、
+  編集がそちらに届かなくなったことに気付かない」と書く。後半が、この行が注意を
+  促したい本当の点だと思う。
+
+### 実機に残るもの
+
+- **35.2** は、`%APPDATA%\yazi\config\yazi.toml` に `sort_by = "mtime"` を書く行で、
+  持ち主の設定そのものを書き換えることになるのでしていない（この機械ではその
+  ファイルが `C:\dev\obsidian-notes\…` へのシンボリックリンクで、書けばノートの
+  リポジトリまで変わる）。**読まれていること自体は文字で確かめられた**:
+  変数を未設定にした `filer env` の Tools 節に、`yazi.toml` の `[opener]` にだけある
+  `sakura.exe` / `Hidemaru.exe` / `i_view64.exe` が並んだ（`filer.toml` にはコメント行が
+  1 行あるだけ）。並び順が mtime になるかは画面を見る行なので、持ち主が確かめる。
+
 ## TESTING.md section 21 — Windows 実機で確かめた（eb80fc9 / 0.47.24）
 
 Windows のセッション（`.claude/windows-role.md`）から。21 節の 9 行のうち 8 行を

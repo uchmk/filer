@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**38 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
+**46 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -147,18 +147,18 @@ cd $HOME\Desktop\filer-fixtures
 - [ ] **7.7** `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う — *With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set → The listed directories follow them*
 - [ ] **7.8** 設定の警告行 → 黄色のまま。クリックできない — *A config warning line → Still yellow, and not clickable*
 
-## 8. ターミナルペインが起動するシェル — 0 / 7
+## 8. ターミナルペインが起動するシェル — 5 / 7
 
 **`[term]` は `filer.toml` に書く。**`yazi.toml` に書いても黙って無視される
 （v0.33.13 でそれを警告するようにした）。設定を変えたら `<C-S-t>` でシェルを終わらせてから
 `<C-t>` で開き直すこと。`<C-t>` の往復では同じシェルが生き続ける（1.5 / 1.6）。
 
-- [ ] **8.1** `filer.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `5.1.x`（Windows PowerShell。以前の版から変わっていない） — *`<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` → `5.1.x` — Windows PowerShell, unchanged from every earlier version*
+- [x] **8.1** `filer.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `5.1.x`（Windows PowerShell。以前の版から変わっていない） — *`<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` → `5.1.x` — Windows PowerShell, unchanged from every earlier version*
 - [ ] **8.2** `[term]` / `shell = "pwsh"` を足して `<C-S-t>` → `<C-t>` → もう一度聞く → `7.x` — *Add `[term]` / `shell = "pwsh"`, `<C-S-t>`, `<C-t>`, ask again → `7.x`*
-- [ ] **8.3** それぞれで `$PROFILE` → 別のパスが出る（5.1 は `WindowsPowerShell\`、7 は `PowerShell\`） — *`$PROFILE` in each → Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7*
-- [ ] **8.4** OSC 7 のフックを pwsh のプロファイルにだけ入れて、それぞれで `cd` して `<A-Up>` → pwsh では追従し、5.1 ではその旨が出る。**この非対称そのものが報告の中身** — *With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each → Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report*
-- [ ] **8.5** `args = ["-NoLogo"]` → 起動時のバナーが消える — *`args = ["-NoLogo"]` → The banner is gone*
-- [ ] **8.6** インストールされていない `shell` を指定 → 起動に失敗し、その旨が出る（無言の空ペインにならない） — *A `shell` that is not installed → It fails to start and says so — no silent empty pane*
+- [x] **8.3** それぞれで `$PROFILE` → 別のパスが出る（5.1 は `WindowsPowerShell\`、7 は `PowerShell\`） — *`$PROFILE` in each → Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7*
+- [x] **8.4** OSC 7 のフックを pwsh のプロファイルにだけ入れて、それぞれで `cd` して `<A-Up>` → pwsh では追従し、5.1 ではその旨が出る。**この非対称そのものが報告の中身** — *With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each → Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report*
+- [x] **8.5** `args = ["-NoLogo"]` → 起動時のバナーが消える — *`args = ["-NoLogo"]` → The banner is gone*
+- [x] **8.6** インストールされていない `shell` を指定 → 起動に失敗し、その旨が出る（無言の空ペインにならない） — *A `shell` that is not installed → It fails to start and says so — no silent empty pane*
 - [ ] **8.7** `[term]` を消して `<C-S-t>` → `<C-t>` → 既定に戻る — *Remove `[term]` again, `<C-S-t>`, `<C-t>` → Back to the default*
 
 ## 9. ファイル末尾のアウトライン — 全 5 件が自動
@@ -478,9 +478,9 @@ fsutil hardlink list <新しくできたパス>
 
 `cargo test` が全部見ているので、押すものはありません。
 
-## 35. 設定ファイルの探索場所（OS ごと） — 0 / 10
+## 35. 設定ファイルの探索場所（OS ごと） — 3 / 10
 
-- [ ] **35.1** [Windows] 両方の環境変数を未設定にして `filer env` → `%APPDATA%\yazi\config` と `%APPDATA%\filer`。**v0.34.0 から変わっていないこと。**動いていてはいけない行 — *Windows → `filer env` with both variables unset → `%APPDATA%\yazi\config` and `%APPDATA%\filer` — **unchanged from v0.34.0.** This is the row that must not have moved*
+- [x] **35.1** [Windows] 両方の環境変数を未設定にして `filer env` → `%APPDATA%\yazi\config` と `%APPDATA%\filer`。**v0.34.0 から変わっていないこと。**動いていてはいけない行 — *Windows → `filer env` with both variables unset → `%APPDATA%\yazi\config` and `%APPDATA%\filer` — **unchanged from v0.34.0.** This is the row that must not have moved*
 - [ ] **35.2** [Windows] `%APPDATA%\yazi\config\yazi.toml` に `[mgr] sort_by = "mtime"` を置く → 読まれる。yazi 自身のディレクトリを filer と共有したまま — *Windows → Put `[mgr] sort_by = "mtime"` in `%APPDATA%\yazi\config\yazi.toml` → Read. yazi's own directory still shares with filer*
 - [ ] **35.3** [macOS] `filer env` → `~/.config/yazi` と `~/.config/filer`。`~/Library/Application Support/…` では**ない** — *macOS → `filer env` → `~/.config/yazi` and `~/.config/filer`, **not** `~/Library/Application Support/…`*
 - [ ] **35.4** [macOS] yazi を入れて一度 `yazi` を起動し、yazi が読む場所に `yazi.toml` を置く → filer が同じファイルを読む。**これがこの変更の目的。**v0.35.0 以前は `~/Library/Application Support/yazi/config/` を見ていて、yazi はそこに書かない — *macOS → Install yazi, run `yazi` once, put a `yazi.toml` where yazi reads it → filer reads the same file. This is the whole point of the change: before v0.35.0 filer looked under `~/Library/Application Support/yazi/config/`, which yazi never writes*
@@ -488,8 +488,8 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **35.6** [Linux] `filer env` → `~/.config/yazi`。`~/.config/yazi/config` では**ない** — *Linux → `filer env` → `~/.config/yazi` — **not** `~/.config/yazi/config`*
 - [ ] **35.7** [Linux / macOS] `XDG_CONFIG_HOME=/tmp/x filer env` → `/tmp/x/yazi` と `/tmp/x/filer` — *Linux / macOS → `XDG_CONFIG_HOME=/tmp/x filer env` → `/tmp/x/yazi` and `/tmp/x/filer`*
 - [ ] **35.8** [Linux / macOS] `XDG_CONFIG_HOME=relative filer env` と、空にした場合 → どちらも `~/.config/…` に戻る。XDG の仕様では相対値は無視する — *Linux / macOS → `XDG_CONFIG_HOME=relative filer env`, and again with it empty → Falls back to `~/.config/…`. XDG says a relative value is ignored*
-- [ ] **35.9** [共通] `last-run.toml` → 状態ディレクトリ（`data_dir()`）のまま。この変更では**触っていない**。Windows では同じ `%APPDATA%\filer`、Linux では `~/.local/share/filer` — *Any → `last-run.toml` → Still in the state directory (`data_dir()`), which this change did **not** touch. On Windows that is the same `%APPDATA%\filer`; on Linux `~/.local/share/filer`*
-- [ ] **35.10** [共通] 別の場所から設定ディレクトリへ `filer.toml` をシンボリックリンクして `<C-F5>` → リンク越しに読まれる。**リンクのパス経由で、保存時に改名するエディタで編集したあと**もう一度確かめること（それをするとシンボリックリンクが普通のファイルに置き換わる） — *Any → Symlink `filer.toml` into the config directory from elsewhere, then `<C-F5>` → Read through the link. Re-check after editing via the **link path** with an editor that saves by rename — that replaces the symlink with a regular file*
+- [x] **35.9** [共通] `last-run.toml` → 状態ディレクトリ（`data_dir()`）のまま。この変更では**触っていない**。Windows では同じ `%APPDATA%\filer`、Linux では `~/.local/share/filer` — *Any → `last-run.toml` → Still in the state directory (`data_dir()`), which this change did **not** touch. On Windows that is the same `%APPDATA%\filer`; on Linux `~/.local/share/filer`*
+- [x] **35.10** [共通] 別の場所から設定ディレクトリへ `filer.toml` をシンボリックリンクして `<C-F5>` → リンク越しに読まれる。**リンクのパス経由で、保存時に改名するエディタで編集したあと**もう一度確かめること（それをするとシンボリックリンクが普通のファイルに置き換わる） — *Any → Symlink `filer.toml` into the config directory from elsewhere, then `<C-F5>` → Read through the link. Re-check after editing via the **link path** with an editor that saves by rename — that replaces the symlink with a regular file*
 
 ## 36. `T` と、`<F3>` との違い — 0 / 5
 
