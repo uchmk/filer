@@ -1,0 +1,21 @@
+{
+  "$comment": [
+    "Project settings, committed on purpose -- unlike settings.local.json, which a",
+    "global ignore rule keeps out of the repository and which therefore never",
+    "reaches another machine.",
+    "",
+    "`R:\\Temp` is the RAM disk .claude/windows-role.md tells the Windows sessions to",
+    "do their scratch work on. That put every screenshot and capture they take",
+    "outside the working directory, so reading their own evidence back asked for",
+    "permission every time -- 56 times in the section 32 / 37 run. Telling them to",
+    "work there and not granting it was half an instruction.",
+    "",
+    "It does nothing on a machine with no R: drive: a path that does not exist",
+    "simply never matches, so this is inert on Linux and macOS."
+  ],
+  "permissions": {
+    "additionalDirectories": [
+      "R:\\Temp"
+    ]
+  }
+}
