@@ -9,32 +9,20 @@ works as-is.
 cargo run --release -- C:\some\path
 ```
 
-<!-- SCREENSHOTS GO HERE.
-
-     Put the three files in `docs/` under these names, then delete this line and
-     the comment-closing line at the foot of the block. Everything between is
-     ready as it stands; nothing else in the README needs changing. What to
-     capture, and why each one earns its place, is in docs/SCREENSHOTS.md.
-
-     (Kept commented so the README never renders three broken images. Note that
-     the closing marker cannot be written out in here, for the reason this line
-     exists at all.)
-
 ## What it looks like
 
-![Three columns: the parent, the listing with a file under the cursor, and its preview](docs/screenshot-main.png)
+![Three columns — the parent, the listing with a file under the cursor, and its preview — with the file's outline down the right](docs/screenshot-main.png)
 
-Everything is a keystroke. `j` and `k` walk the list, `l` goes in, `h` comes back, and
-a chord that is half-typed brings up the panel that says what the other half could be:
+Everything is a keystroke. `j` and `k` walk the list, `l` goes in, `h` comes back, and a
+chord left half-typed brings up the panel that says what the other half could be:
 
-![The which-key panel, open on a half-typed chord](docs/screenshot-keys.gif)
+![Moving through a directory from the keyboard: the preview follows the cursor, and a half-typed chord raises the which-key panel](docs/screenshot-keys.gif)
 
-Previews are read off the disk by a worker, never on the UI thread, so they keep up
-with the cursor no matter how fast it moves:
+`<Tab>` asks about whatever is under the cursor. The answer is assembled from whichever of
+the panel's providers has something to say about that file — its own details, what the
+previewer found inside it, the commit that last touched it, how it is encoded:
 
-![A CSV drawn as an aligned table, with the minimap down the right of the pane](docs/screenshot-preview.png)
-
--->
+![The spot panel over a source file, listing its size and timestamps, its line and outline counts, the last commit to change it, and its encoding and line endings](docs/screenshot-preview.png)
 
 ## Getting a build
 
