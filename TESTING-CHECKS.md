@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**30 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
+**35 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -147,18 +147,18 @@ cd $HOME\Desktop\filer-fixtures
 - [ ] **7.7** `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う — *With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set → The listed directories follow them*
 - [ ] **7.8** 設定の警告行 → 黄色のまま。クリックできない — *A config warning line → Still yellow, and not clickable*
 
-## 8. ターミナルペインが起動するシェル — 0 / 7
+## 8. ターミナルペインが起動するシェル — 5 / 7
 
 **`[term]` は `filer.toml` に書く。**`yazi.toml` に書いても黙って無視される
 （v0.33.13 でそれを警告するようにした）。設定を変えたら `<C-S-t>` でシェルを終わらせてから
 `<C-t>` で開き直すこと。`<C-t>` の往復では同じシェルが生き続ける（1.5 / 1.6）。
 
-- [ ] **8.1** `filer.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `5.1.x`（Windows PowerShell。以前の版から変わっていない） — *`<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` → `5.1.x` — Windows PowerShell, unchanged from every earlier version*
+- [x] **8.1** `filer.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `5.1.x`（Windows PowerShell。以前の版から変わっていない） — *`<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` → `5.1.x` — Windows PowerShell, unchanged from every earlier version*
 - [ ] **8.2** `[term]` / `shell = "pwsh"` を足して `<C-S-t>` → `<C-t>` → もう一度聞く → `7.x` — *Add `[term]` / `shell = "pwsh"`, `<C-S-t>`, `<C-t>`, ask again → `7.x`*
-- [ ] **8.3** それぞれで `$PROFILE` → 別のパスが出る（5.1 は `WindowsPowerShell\`、7 は `PowerShell\`） — *`$PROFILE` in each → Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7*
-- [ ] **8.4** OSC 7 のフックを pwsh のプロファイルにだけ入れて、それぞれで `cd` して `<A-Up>` → pwsh では追従し、5.1 ではその旨が出る。**この非対称そのものが報告の中身** — *With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each → Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report*
-- [ ] **8.5** `args = ["-NoLogo"]` → 起動時のバナーが消える — *`args = ["-NoLogo"]` → The banner is gone*
-- [ ] **8.6** インストールされていない `shell` を指定 → 起動に失敗し、その旨が出る（無言の空ペインにならない） — *A `shell` that is not installed → It fails to start and says so — no silent empty pane*
+- [x] **8.3** それぞれで `$PROFILE` → 別のパスが出る（5.1 は `WindowsPowerShell\`、7 は `PowerShell\`） — *`$PROFILE` in each → Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7*
+- [x] **8.4** OSC 7 のフックを pwsh のプロファイルにだけ入れて、それぞれで `cd` して `<A-Up>` → pwsh では追従し、5.1 ではその旨が出る。**この非対称そのものが報告の中身** — *With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each → Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report*
+- [x] **8.5** `args = ["-NoLogo"]` → 起動時のバナーが消える — *`args = ["-NoLogo"]` → The banner is gone*
+- [x] **8.6** インストールされていない `shell` を指定 → 起動に失敗し、その旨が出る（無言の空ペインにならない） — *A `shell` that is not installed → It fails to start and says so — no silent empty pane*
 - [ ] **8.7** `[term]` を消して `<C-S-t>` → `<C-t>` → 既定に戻る — *Remove `[term]` again, `<C-S-t>`, `<C-t>` → Back to the default*
 
 ## 9. ファイル末尾のアウトライン — 全 5 件が自動
