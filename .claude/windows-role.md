@@ -72,19 +72,26 @@ with `cargo run --example make-keycheck -- --check`; do not write the file.
 
 ## Where the work is
 
-Ordered by how much of it you can actually settle. Each names its section in
-TESTING.md, and the count is rows still on the human's list.
+**This is a queue, not a menu.** It is ordered by how much of each section you
+can actually settle, so unless you were told which one to take, take the first
+that is not done. Each names its section in TESTING.md, and the count is rows
+still on the human's list when it was written.
 
 | Section | Rows | Why it suits you |
 | --- | --- | --- |
-| **25. `filer env`** | 19 | Almost pure text output. The one section written to be diffed |
-| **41. spot panel providers** | 14 | Archive counts, encodings, architectures -- all values, not looks |
-| **32 / 37. openers** | 20 | Did the right program start, with the path intact as one argument |
-| **8. which shell the pane runs** | 7 | `$PSVersionTable`, `$PROFILE` -- strings |
-| **35. config paths per platform** | 10 | The Windows rows are `filer env` output |
+| ~~**25. `filer env`**~~ | ~~19~~ | **Done** (v0.47.25): 15 ticked, 4 left that need ARM, no bold face anywhere, or eyes |
+| **41. spot panel providers** | 14 | Archive counts, encodings, architectures -- all values, not looks. 41.8 is the six release binaries, which is the only check the cross-builds have ever had. Skip 41.12 (appearance) |
+| **35. config paths per platform** | 10 | Same tools as 25, already proven. Other platforms' rows are not yours |
+| **32 / 37. openers** | 20 | Did the right program start, with the path intact as one argument. 25.13's window-title check is the pattern. Close what you open |
+| **21. archives** | 9 | Pack, unpack, then look at what is on disk -- `Get-ChildItem -Recurse` is the evidence |
+| **8. which shell the pane runs** | 7 | `$PSVersionTable`, `$PROFILE` -- strings. Small, but **ConPTY is code a cloud session cannot run a line of** |
 | **26. bug report** | 10 | Compare filer's version and OS lines against `filer --version` and `winver` |
-| **21. archives** | 9 | Pack, unpack, then look at what is on disk |
 | **13 / 15. links** | ~8 | `fsutil hardlink list`, `New-Item -ItemType SymbolicLink` |
+
+**One section per run, and one session at a time.** On 2026-09-28 two sessions
+ran section 25 in the same working directory at once. It came out as an
+independent re-test and found two more bugs, so nothing was lost -- but that was
+luck, not the design, and they were a commit away from fighting over the index.
 
 The rest -- the terminal pane's drawing, the minimap's shape, the wheel's feel,
 the image zoom's sharpness -- is the owner's, and saying so plainly is more
