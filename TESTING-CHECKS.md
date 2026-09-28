@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**59 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
+**68 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -544,21 +544,21 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **40.12** ペインの PowerShell（PSReadLine）で `Alt-b` / `Alt-f` → 同じ単語移動 — *PowerShell (PSReadLine) in the pane, `Alt-b` / `Alt-f` → Same word motions*
 - [ ] **40.13** 普通のプロンプトで `Alt-j` / `Alt-k` → **これは filer のスクロールのまま。**この 2 つは `[term]` レイヤーに割り当てられていて、プロンプトは代替画面ではないため — *`Alt-j` / `Alt-k` at an ordinary prompt → **Still filer's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen*
 
-## 41. spot パネルの 4 つの provider — 0 / 14
+## 41. spot パネルの 4 つの provider — 9 / 14
 
-- [ ] **41.1** fixtures の `.zip` で `<Tab>` → **Archive** セクション（形式、エントリ数とフォルダ数、展開後サイズ、圧縮率、`Encrypted: no`） — *`<Tab>` on a `.zip` from the fixtures → An **Archive** section: format, entry and folder counts, unpacked size, ratio, `Encrypted: no`*
-- [ ] **41.2** **7-Zip で暗号化した** zip で `<Tab>` → `Encrypted: yes (entries need a password)` と出て、件数も出ている。**単体テストにできない**（この `zip` のビルドに AES 書き込みが無く、暗号化した fixture をツリー内で作れない） — *`<Tab>` on a zip made **encrypted by 7-Zip** → `Encrypted: yes (entries need a password)`, and the counts are still there. **Cannot be unit-tested — this build of `zip` has no AES writer, so no encrypted fixture can be made in-tree***
-- [ ] **41.3** 「ファイル名も暗号化」で作った 7z で `<Tab>` → `Encrypted: yes (the listing itself)` と出て、**件数は一切出ない**（その先が分からないため） — *`<Tab>` on a 7z made with "encrypt file names" → `Encrypted: yes (the listing itself)` and **no counts at all** (nothing below is known)*
-- [ ] **41.4** エントリが 2 万を超える書庫で `<Tab>` → ウィンドウが止まらずにパネルが出て、`Scanned: first 20,000 entries` と述べる — *`<Tab>` on an archive with more than 20,000 entries → The panel arrives without the window stalling, and says `Scanned: first 20,000 entries`*
+- [x] **41.1** fixtures の `.zip` で `<Tab>` → **Archive** セクション（形式、エントリ数とフォルダ数、展開後サイズ、圧縮率、`Encrypted: no`） — *`<Tab>` on a `.zip` from the fixtures → An **Archive** section: format, entry and folder counts, unpacked size, ratio, `Encrypted: no`*
+- [x] **41.2** **7-Zip で暗号化した** zip で `<Tab>` → `Encrypted: yes (entries need a password)` と出て、件数も出ている。**単体テストにできない**（この `zip` のビルドに AES 書き込みが無く、暗号化した fixture をツリー内で作れない） — *`<Tab>` on a zip made **encrypted by 7-Zip** → `Encrypted: yes (entries need a password)`, and the counts are still there. **Cannot be unit-tested — this build of `zip` has no AES writer, so no encrypted fixture can be made in-tree***
+- [x] **41.3** 「ファイル名も暗号化」で作った 7z で `<Tab>` → `Encrypted: yes (the listing itself)` と出て、**件数は一切出ない**（その先が分からないため） — *`<Tab>` on a 7z made with "encrypt file names" → `Encrypted: yes (the listing itself)` and **no counts at all** (nothing below is known)*
+- [x] **41.4** エントリが 2 万を超える書庫で `<Tab>` → ウィンドウが止まらずにパネルが出て、`Scanned: first 20,000 entries` と述べる — *`<Tab>` on an archive with more than 20,000 entries → The panel arrives without the window stalling, and says `Scanned: first 20,000 entries`*
 - [ ] **41.5** メモ帳で CRLF 保存したファイルと LF のファイルで `<Tab>` → `Line endings` の行が件数付きで区別する — *`<Tab>` on a CRLF file saved by Notepad, then on an LF one → The `Line endings` row tells them apart, with counts*
 - [ ] **41.6** メモ帳の「UTF-16 LE」保存で `<Tab>` → `Encoding: UTF-16 LE`、`BOM: UTF-16 LE (FF FE)`。バイナリ扱いに**ならない** — *`<Tab>` on a Notepad "UTF-16 LE" save → `Encoding: UTF-16 LE`, `BOM: UTF-16 LE (FF FE)` — **not** treated as binary*
-- [ ] **41.7** 2GB のログで `<Tab>` → 行がすぐ出て `Scanned: first 1.0 M of …` となり、**`Final newline` の行は出ない**（末尾を読んでいないため） — *`<Tab>` on a 2 GB log → Rows arrive promptly, `Scanned: first 1.0 M of …`, and **no `Final newline` row** (the end was never read)*
+- [x] **41.7** 2GB のログで `<Tab>` → 行がすぐ出て `Scanned: first 1.0 M of …` となり、**`Final newline` の行は出ない**（末尾を読んでいないため） — *`<Tab>` on a 2 GB log → Rows arrive promptly, `Scanned: first 1.0 M of …`, and **no `Final newline` row** (the end was never read)*
 - [ ] **41.8** リリースの 6 つのバイナリそれぞれで `<Tab>` → `Architecture` が成果物の名前のトリプルと一致する（`x86_64` / `aarch64`） — *`<Tab>` on each of the six release binaries → `Architecture` matches the triple the artifact is named for — `x86_64` / `aarch64`*
-- [ ] **41.9** `C:\Windows\explorer.exe` と、`.dll` で `<Tab>` → `Windows GUI` / `DLL` — *`<Tab>` on `C:\Windows\explorer.exe`, then on a `.dll` → `Windows GUI` / `DLL`*
-- [ ] **41.10** Office で保存した本物の `.docx` / `.xlsx` / `.pptx` で `<Tab>` → 作成者、リビジョン、**UTC** と明記された時刻、語数 / ページ数 / スライド数 — *`<Tab>` on a real `.docx` / `.xlsx` / `.pptx` saved by Office → Author, revision, times marked **UTC**, word / page / slide counts*
-- [ ] **41.11** 古い `.doc` で `<Tab>` → **Document セクションが出ず、エラーも出ない** — *`<Tab>` on an old `.doc` → **No Document section, and no error***
+- [x] **41.9** `C:\Windows\explorer.exe` と、`.dll` で `<Tab>` → `Windows GUI` / `DLL` — *`<Tab>` on `C:\Windows\explorer.exe`, then on a `.dll` → `Windows GUI` / `DLL`*
+- [x] **41.10** Office で保存した本物の `.docx` / `.xlsx` / `.pptx` で `<Tab>` → 作成者、リビジョン、**UTC** と明記された時刻、語数 / ページ数 / スライド数 — *`<Tab>` on a real `.docx` / `.xlsx` / `.pptx` saved by Office → Author, revision, times marked **UTC**, word / page / slide counts*
+- [x] **41.11** 古い `.doc` で `<Tab>` → **Document セクションが出ず、エラーも出ない** — *`<Tab>` on an old `.doc` → **No Document section, and no error***
 - [ ] **41.12** 新しい各セクションのキーの列を見る → キーが値の列にはみ出していない（`overlay.rs` が `key_w = 130.0` で固定している） — *Look at the key column on every new section → No key runs into the value column (`overlay.rs` hard-codes `key_w = 130.0`)*
-- [ ] **41.13** 新しいセクションの行まで `<A-j>` で下り、`y` → 正しい値がコピーされる。**`Act::Copy` は全セクションを通して行を数えるので、セクションが増えると添字がずれる** — *`<A-j>` down into a new section's rows, then `y` → The right value is copied. **`Act::Copy` counts rows across every section, so the new sections shift the indices***
+- [x] **41.13** 新しいセクションの行まで `<A-j>` で下り、`y` → 正しい値がコピーされる。**`Act::Copy` は全セクションを通して行を数えるので、セクションが増えると添字がずれる** — *`<A-j>` down into a new section's rows, then `y` → The right value is copied. **`Act::Copy` counts rows across every section, so the new sections shift the indices***
 - [ ] **41.14** 遅いネットワークドライブ上のフォルダで `<Tab>` → パネルはカーソルに追従し続ける（spot ワーカーは newest-wins） — *`<Tab>` on a folder on a slow network drive → The panel still follows the cursor; the spot worker is newest-wins*
 
 ## 42. ミニマップのホバーカード — 全 13 件が自動
