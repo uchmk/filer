@@ -843,3 +843,62 @@ ops ワーカーのジョブも完了まで回せる。ゴミ箱の往復も Lin
 3. `~` が 14 件 — 行末の `**` が落ちた状態で TESTING-CHECKS.md に入っている
    （`was:` 側が途中で切れている）。**今回の作業とは無関係**で、パーサが直ったあと
    再生成されていないだけに見える。
+
+---
+
+## TESTING.md section 25 — Windows 実機で確かめた（b9daf8a / 0.47.22）
+
+Windows のセッション（`.claude/windows-role.md`）から。25 節の 19 行のうち 15 行を
+TESTING-CHECKS.md でチェックした。証拠は PR 本文に 1 行ずつある。ここにはプログラムの
+バグ 1 件と、TESTING.md の行の食い違い 2 件を書く。どれも直していない。
+
+### `filer env` / `--help` の非 ASCII 文字が、日本語 Windows の既定のコンソールで化ける
+
+- **どこ**: `src/main.rs` の `say()`。`CONOUT$` を `std::fs::File` として開き、
+  `writeln!` で **UTF-8 のバイト列を `WriteFile` している。**コンソールはそのバイト列を
+  **現在のコードページで**解釈するので、日本語 Windows の既定（CP932）では UTF-8 として
+  読まれない。
+- **実測**（release の `filer.exe` を新しい `powershell` のコンソールで起動し、
+  コンソールバッファを読み戻した。コンソールバッファは画面に出ている文字そのもの）:
+
+  | 出力のどこ | CP932（既定） | `chcp 65001` のあと |
+  | --- | --- | --- |
+  | `Recorded by : filer 0.47.19 — an earlier run` | `filer 0.47.19 窶・an earlier run` | `—` のまま出る |
+  | `--help` 1 行目 `filer — a yazi-flavored file manager` | `filer 窶・a yazi-flavored file manager` | 正しい |
+  | `FILER_CONFIG_HOME=C:\tmp\f25\日本語` の Config 行 | `C:\tmp\f25\譌･譛ｬ隱杤  : nothing here` | 正しい |
+  | 同じく Variables 行 | `FILER_CONFIG_HOME : C:\tmp\f25\譌･譛ｬ隱・    FILER_STATE_HOME  : …`（**改行まで食われて次の行と 1 行になる**） | 正しい |
+
+- **なぜ重いか**: `filer env` は「バグ報告に貼るためのもの」で、仕事は**パスを正しく
+  見せること**。日本語のユーザー名（`C:\Users\山田\…`）や日本語のフォルダにある設定は、
+  まさにその報告を書く人の環境で**読めない形で**出る。最後の 1 バイトが次の `\r\n` と
+  組になって 1 文字に化けるので、行の区切りまで壊れる。
+- **提案（直していない）**: `CONOUT$` へは `WriteConsoleW` で UTF-16 を書く。
+  `std::io::Stdout` がコンソールに対してやっているのと同じ経路で、コードページに
+  依存しない。`AttachConsole` のあと `GetStdHandle` が無効なのは変わらないので、
+  `CONOUT$` のハンドルを `CreateFileW` で開いて `WriteConsoleW` に渡す形になる。
+  `SetConsoleOutputCP(65001)` で逃げる手もあるが、**親のコンソールの設定を書き換えて
+  そのまま返す**ことになるので勧めない。
+- 実機の行を足すなら 25 節に「CP932 のコンソールで `filer env` → `—` と日本語のパスが
+  そのまま出る」。いまの 25.1 は「文字が出ること」しか見ていないので、この化け方でも通る。
+
+### 25.4 の行が、いまの Tools 節と合っていない
+
+- **行の文言**: `pdftoppm` `ffmpeg` `ffprobe` `pwsh` `git` が並び、入っていれば版、
+  無ければ `not found`。
+- **プログラム**（`src/envreport.rs` の `tools()`）: 固定で出すのは `git` と
+  **実際に起動するシェル 1 つ**だけ。あとは `filer.toml` の `[[preview]]` と
+  `yazi.toml` の opener が名指ししたプログラムを、**実行せずに探して**パスを出す
+  （版は出さない）。doc コメントが「filer が実際に走らせるものだけ」と理由まで書いている。
+- **実測**: 空の設定では Tools は `git` と `powershell` の 2 行だけ。
+  持ち主の設定では `pdftoppm` と `ffmpeg` がパス付きで `(preview *.pdf)` のように出るが、
+  それは `[[preview]]` に書いてあるから。**`ffprobe` はどの構成でも出てこない。**
+- **どちらの間違いか**: 行のほう（コードは意図どおりで、理由も書いてある）。
+  行を「`git` と実際のシェルが並ぶ。`[[preview]]` と opener が名指ししたプログラムが、
+  何のためのものか付きで並ぶ。見つからなければ `not found`」に直す提案。
+  **25.4 はチェックしていない。**
+
+### 25.1 の「4 つの節」は 5 つ
+
+`Filer` / `Config` / `Last run` / `Tools` / `Variables` の 5 つが出る。`Last run` は
+v0.29.0 で足された節で、行の数字だけが古い。チェックは「文字が実際に出る」ことに対して
+付けた。
