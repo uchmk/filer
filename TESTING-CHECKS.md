@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**35 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
+**38 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -478,9 +478,9 @@ fsutil hardlink list <新しくできたパス>
 
 `cargo test` が全部見ているので、押すものはありません。
 
-## 35. 設定ファイルの探索場所（OS ごと） — 0 / 10
+## 35. 設定ファイルの探索場所（OS ごと） — 3 / 10
 
-- [ ] **35.1** [Windows] 両方の環境変数を未設定にして `filer env` → `%APPDATA%\yazi\config` と `%APPDATA%\filer`。**v0.34.0 から変わっていないこと。**動いていてはいけない行 — *Windows → `filer env` with both variables unset → `%APPDATA%\yazi\config` and `%APPDATA%\filer` — **unchanged from v0.34.0.** This is the row that must not have moved*
+- [x] **35.1** [Windows] 両方の環境変数を未設定にして `filer env` → `%APPDATA%\yazi\config` と `%APPDATA%\filer`。**v0.34.0 から変わっていないこと。**動いていてはいけない行 — *Windows → `filer env` with both variables unset → `%APPDATA%\yazi\config` and `%APPDATA%\filer` — **unchanged from v0.34.0.** This is the row that must not have moved*
 - [ ] **35.2** [Windows] `%APPDATA%\yazi\config\yazi.toml` に `[mgr] sort_by = "mtime"` を置く → 読まれる。yazi 自身のディレクトリを filer と共有したまま — *Windows → Put `[mgr] sort_by = "mtime"` in `%APPDATA%\yazi\config\yazi.toml` → Read. yazi's own directory still shares with filer*
 - [ ] **35.3** [macOS] `filer env` → `~/.config/yazi` と `~/.config/filer`。`~/Library/Application Support/…` では**ない** — *macOS → `filer env` → `~/.config/yazi` and `~/.config/filer`, **not** `~/Library/Application Support/…`*
 - [ ] **35.4** [macOS] yazi を入れて一度 `yazi` を起動し、yazi が読む場所に `yazi.toml` を置く → filer が同じファイルを読む。**これがこの変更の目的。**v0.35.0 以前は `~/Library/Application Support/yazi/config/` を見ていて、yazi はそこに書かない — *macOS → Install yazi, run `yazi` once, put a `yazi.toml` where yazi reads it → filer reads the same file. This is the whole point of the change: before v0.35.0 filer looked under `~/Library/Application Support/yazi/config/`, which yazi never writes*
@@ -488,8 +488,8 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **35.6** [Linux] `filer env` → `~/.config/yazi`。`~/.config/yazi/config` では**ない** — *Linux → `filer env` → `~/.config/yazi` — **not** `~/.config/yazi/config`*
 - [ ] **35.7** [Linux / macOS] `XDG_CONFIG_HOME=/tmp/x filer env` → `/tmp/x/yazi` と `/tmp/x/filer` — *Linux / macOS → `XDG_CONFIG_HOME=/tmp/x filer env` → `/tmp/x/yazi` and `/tmp/x/filer`*
 - [ ] **35.8** [Linux / macOS] `XDG_CONFIG_HOME=relative filer env` と、空にした場合 → どちらも `~/.config/…` に戻る。XDG の仕様では相対値は無視する — *Linux / macOS → `XDG_CONFIG_HOME=relative filer env`, and again with it empty → Falls back to `~/.config/…`. XDG says a relative value is ignored*
-- [ ] **35.9** [共通] `last-run.toml` → 状態ディレクトリ（`data_dir()`）のまま。この変更では**触っていない**。Windows では同じ `%APPDATA%\filer`、Linux では `~/.local/share/filer` — *Any → `last-run.toml` → Still in the state directory (`data_dir()`), which this change did **not** touch. On Windows that is the same `%APPDATA%\filer`; on Linux `~/.local/share/filer`*
-- [ ] **35.10** [共通] 別の場所から設定ディレクトリへ `filer.toml` をシンボリックリンクして `<C-F5>` → リンク越しに読まれる。**リンクのパス経由で、保存時に改名するエディタで編集したあと**もう一度確かめること（それをするとシンボリックリンクが普通のファイルに置き換わる） — *Any → Symlink `filer.toml` into the config directory from elsewhere, then `<C-F5>` → Read through the link. Re-check after editing via the **link path** with an editor that saves by rename — that replaces the symlink with a regular file*
+- [x] **35.9** [共通] `last-run.toml` → 状態ディレクトリ（`data_dir()`）のまま。この変更では**触っていない**。Windows では同じ `%APPDATA%\filer`、Linux では `~/.local/share/filer` — *Any → `last-run.toml` → Still in the state directory (`data_dir()`), which this change did **not** touch. On Windows that is the same `%APPDATA%\filer`; on Linux `~/.local/share/filer`*
+- [x] **35.10** [共通] 別の場所から設定ディレクトリへ `filer.toml` をシンボリックリンクして `<C-F5>` → リンク越しに読まれる。**リンクのパス経由で、保存時に改名するエディタで編集したあと**もう一度確かめること（それをするとシンボリックリンクが普通のファイルに置き換わる） — *Any → Symlink `filer.toml` into the config directory from elsewhere, then `<C-F5>` → Read through the link. Re-check after editing via the **link path** with an editor that saves by rename — that replaces the symlink with a regular file*
 
 ## 36. `T` と、`<F3>` との違い — 0 / 5
 
