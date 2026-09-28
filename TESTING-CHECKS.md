@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**68 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
+**75 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -601,7 +601,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **45.12** 2 分割して各ペインでフォルダの上に立ち、`<A-d>` → その 2 つが比較される — *Split the view, stand on a folder in each pane, `<A-d>` → Compares those two*
 - [ ] **45.13** `q` / `<Esc>` → 閉じる。そして 2 つの**ファイル**はこれまでどおり行単位で比較できる — *`q` / `<Esc>` → Closes, and two **files** still compare line by line as before*
 
-## 46. spot パネルの Git セクション — 3 / 11
+## 46. spot パネルの Git セクション — 10 / 11
 
 準備:
 
@@ -612,13 +612,13 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 ```
 
 - [x] **46.1** コミット済みのファイルで `<Tab>` → **Git** セクションが出る。`Last change` が短いハッシュと `YYYY-MM-DD HH:MM`、続いて `Subject` と `Author` — *`<Tab>` on a committed file → A **Git** section: `Last change` is a short hash and `YYYY-MM-DD HH:MM`, then `Subject` and `Author`*
-- [ ] **46.2** `git log -1 -- <そのファイル>` と突き合わせる → 同じコミット。リポジトリの最新ではなく、**そのパスに触れた最新のもの** — *Check it against `git log -1 -- <that file>` → The same commit. Not the repository's newest — **the newest that touched this path***
+- [x] **46.2** `git log -1 -- <そのファイル>` と突き合わせる → 同じコミット。リポジトリの最新ではなく、**そのパスに触れた最新のもの** — *Check it against `git log -1 -- <that file>` → The same commit. Not the repository's newest — **the newest that touched this path***
 - [x] **46.3** 複数のコミットが触れたファイルで `<Tab>` → `Commits` が件数付きで出る — *`<Tab>` on a file changed by more than one commit → `Commits` appears with the count*
-- [ ] **46.4** ちょうど 1 つのコミットで追加されたファイルで `<Tab>` → **`Commits` の行が出ない。**1 件では日付以上のことを言っていないため — *`<Tab>` on a file added by exactly one commit → **No `Commits` row** — one says nothing the date has not*
+- [x] **46.4** ちょうど 1 つのコミットで追加されたファイルで `<Tab>` → **`Commits` の行が出ない。**1 件では日付以上のことを言っていないため — *`<Tab>` on a file added by exactly one commit → **No `Commits` row** — one says nothing the date has not*
 - [x] **46.5** そのパスに触れたコミットが 50 件以上ある履歴のファイルで `<Tab>` → `Commits` が `50+` と出る（間違った合計ではない）。ルート近くのディレクトリで履歴全部ではなく 1 ページ分だけ読むための上限 — *`<Tab>` on a file in a history of 50+ commits touching it → `Commits` reads `50+`, not a wrong total. The cap is there so a directory near the root reads a page, not the whole history*
 - [ ] **46.6** **ディレクトリ**で `<Tab>` → その中の何かに触れた最後のコミット — *`<Tab>` on a **directory** → The last commit that touched anything inside it*
-- [ ] **46.7** 新規で未コミットのファイル（`git status` で `?`）で `<Tab>` → **Git セクションが出ない。**履歴の中に触れたものが無いため — *`<Tab>` on a file that is new and never committed (`git status` shows `?`) → **No Git section at all** — nothing in the history touches it*
-- [ ] **46.8** リポジトリでない場所で `<Tab>` → Git セクションが出ず、パネルの描画前に待ちも発生しない — *`<Tab>` somewhere that is not a repository → No Git section, and no pause before the panel draws*
-- [ ] **46.9** `git` が `PATH` に無い機械で同じこと → Git セクションが出ず、エラーも出ず、パネルの他の部分にも影響しない — *The same on a machine with no `git` on `PATH` → No Git section, no error, and the rest of the panel is unaffected*
-- [ ] **46.10** 最後のコミットの件名に日本語や絵文字が入っているファイルで `<Tab>` → 文字化けせずそのまま描かれる（書式が NUL 区切りなので引用が要らない） — *`<Tab>` on a file whose last subject has Japanese in it, or an emoji → Drawn intact, not mojibake — the format is NUL-separated so nothing needs quoting*
-- [ ] **46.11** コンソールの窓が出ないか見張る → **一瞬も出ない。**`git` は status ワーカーと同じく `CREATE_NO_WINDOW` で起動される — *Watch for a console window → **None flashes.** `git` is spawned with `CREATE_NO_WINDOW`, the same as the status worker*
+- [x] **46.7** 新規で未コミットのファイル（`git status` で `?`）で `<Tab>` → **Git セクションが出ない。**履歴の中に触れたものが無いため — *`<Tab>` on a file that is new and never committed (`git status` shows `?`) → **No Git section at all** — nothing in the history touches it*
+- [x] **46.8** リポジトリでない場所で `<Tab>` → Git セクションが出ず、パネルの描画前に待ちも発生しない — *`<Tab>` somewhere that is not a repository → No Git section, and no pause before the panel draws*
+- [x] **46.9** `git` が `PATH` に無い機械で同じこと → Git セクションが出ず、エラーも出ず、パネルの他の部分にも影響しない — *The same on a machine with no `git` on `PATH` → No Git section, no error, and the rest of the panel is unaffected*
+- [x] **46.10** 最後のコミットの件名に日本語や絵文字が入っているファイルで `<Tab>` → 文字化けせずそのまま描かれる（書式が NUL 区切りなので引用が要らない） — *`<Tab>` on a file whose last subject has Japanese in it, or an emoji → Drawn intact, not mojibake — the format is NUL-separated so nothing needs quoting*
+- [x] **46.11** コンソールの窓が出ないか見張る → **一瞬も出ない。**`git` は status ワーカーと同じく `CREATE_NO_WINDOW` で起動される — *Watch for a console window → **None flashes.** `git` is spawned with `CREATE_NO_WINDOW`, the same as the status worker*
