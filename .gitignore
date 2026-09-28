@@ -1,1 +1,4 @@
 /target
+
+# What `scripts/smoke-linux.sh` grabs off the Xvfb display.
+/shot.png
