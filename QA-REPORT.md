@@ -850,7 +850,8 @@ ops ワーカーのジョブも完了まで回せる。ゴミ箱の往復も Lin
 
 Windows のセッション（`.claude/windows-role.md`）から。25 節の 19 行のうち 15 行を
 TESTING-CHECKS.md でチェックした。証拠は PR 本文に 1 行ずつある。ここにはプログラムの
-バグ 1 件と、TESTING.md の行の食い違い 2 件を書く。どれも直していない。
+バグ 3 件（末尾の 2 件は、同じ節を実機で確かめ直したときに見つけた）と、TESTING.md の
+行の食い違い 2 件を書く。どれも直していない。
 
 ### `filer env` / `--help` の非 ASCII 文字が、日本語 Windows の既定のコンソールで化ける
 
@@ -902,3 +903,50 @@ TESTING-CHECKS.md でチェックした。証拠は PR 本文に 1 行ずつあ�
 `Filer` / `Config` / `Last run` / `Tools` / `Variables` の 5 つが出る。`Last run` は
 v0.29.0 で足された節で、行の数字だけが古い。チェックは「文字が実際に出る」ことに対して
 付けた。
+
+### `keymap.toml` の警告にだけディレクトリが付かない
+
+- **どこ**: `src/config/keymap.rs` の `Keymap::load()`。`config::load` は各ディレクトリの
+  `keymap.toml` を**テキストだけ** `keymap_texts` に積んで渡す（`src/config/mod.rs` の
+  `read(dir, "keymap.toml", …)`）ので、パースに失敗したとき `load()` の手元には
+  どのファイルだったかが無く、`format!("keymap.toml: {e}")` と**名前だけ**を出す。
+  `yazi.toml` / `theme.toml` / `filer.toml` は `at(dir, …)` でフルパスを付けている。
+- **実測**（`FILER_CONFIG_HOME=C:\tmp\t25\filer` に壊した `yazi.toml` と
+  壊した `keymap.toml` を置いて `filer env`）:
+
+  ```text
+  Warnings    : C:\tmp\t25\filer\yazi.toml: TOML parse error at line 3, column 1
+                keymap.toml: TOML parse error at line 4, column 1
+  ```
+
+  `keymap.toml` を yazi 側のディレクトリ（`YAZI_CONFIG_HOME=C:\tmp\t25\typo`）に
+  置いても、出るのは同じ `keymap.toml:` だけだった。
+- **なぜ困るか**: `keymap.toml` は **yazi 側と filer 側のどちらにも置ける**
+  （両方あれば両方読む）。どちらが壊れているかは、この行からは分からない。
+  25.15 が「直すファイルを名指すのが仕事の唯一のメッセージ」と書いているのと同じ話で、
+  同じ Warnings 欄の中で 1 行だけその仕事をしていない。
+- **提案（直していない）**: `keymap_texts` をパスと組にして渡し（`Vec<(String, String)>`
+  など）、`load()` は `at(dir, "keymap.toml")` で作った文字列を前に付ける。
+  実機の行を足すなら 25 節に「yazi 側の `keymap.toml` を壊して `filer env` →
+  Warnings の行がそのファイルのフルパスで始まる」。
+
+### ボールドの兄弟フォントのパスが `/` と `\` の混在になる
+
+- **どこ**: `src/main.rs` の `bold_siblings()`。ユーザーが書いたフォントのパスの
+  `parent()` に `dir.join("consolab.ttf")` などで**ファイル名を `\` で継ぐ。**
+  `[ui] fonts` を `/` で書いていると、ディレクトリ部分は `/` のまま残る。
+- **実測**（`filer.toml` に `[ui] fonts = ["C:/Windows/Fonts/consola.ttf"]`、
+  `FILER_STATE_HOME=C:\tmp\t25\run\st` で filer を開いて閉じ、`filer env`）:
+  - `last-run.toml` に `'C:/Windows/Fonts\consolab.ttf'` が記録された。
+  - `filer env` の Last run 節は `Fonts : C:/Windows/Fonts/consola.ttf`（書いたとおり）、
+    `Bold : C:/Windows/Fonts\consolab.ttf`（混在）。
+  - フォント自体は読めている（Windows は両方の区切りを受け付ける）。
+    壊れているのは**見せ方**だけ。
+- **なぜ書くか**: 25.15 で直したのと同じ種類の混在で、場所も同じ `filer env` の出力。
+  Last run 節の仕事は「どのファイルからボールドが来たか」を読み手が見に行ける形で
+  見せることなので、25.15 と同じ基準で見れば直す対象になる。
+- **提案（直していない）**: Windows では設定から来たフォントのパスの `/` を `\` に
+  揃えてから `bold_siblings()` に渡す（または `used.fonts` / `used.bold` に入れる前に揃える）。
+  `Fonts` 行も書いたとおりの `/` で出ているので、揃えるならそちらも同時に。
+  実機の行を足すなら 25 節に「`[ui] fonts` を `/` で書いて開閉 → `filer env` の
+  Bold 行に `/` と `\` が混ざらない」。
