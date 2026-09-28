@@ -1244,6 +1244,21 @@ pub(crate) mod harness {
     pub(crate) struct Painted {
         /// Every string drawn, in paint order.
         pub texts: Vec<String>,
+        /// Only the characters that actually got a glyph, in the same order as
+        /// [`Self::texts`].
+        ///
+        /// The two differ wherever egui had to make a string fit: a galley's
+        /// `text()` is what it was *asked* to lay out, so a name cut short to
+        /// one row comes back through [`Self::texts`] whole and there is no way
+        /// to tell it from one that fitted. The rows hold what was drawn, `…`
+        /// included, which is the only way to ask whether something was elided
+        /// and where.
+        ///
+        /// A wrapped string arrives here as its rows run together, with no
+        /// separator: nothing in this crate wraps a string whose elision is
+        /// worth asking about, so joining keeps the index aligned with
+        /// [`Self::texts`] rather than inventing a character that was not drawn.
+        pub glyphs: Vec<String>,
         /// Every drawn string and the colour it was drawn in, in paint order.
         ///
         /// The same strings as [`Self::texts`], which stays because most
@@ -1267,6 +1282,19 @@ pub(crate) mod harness {
         /// Whether any drawn string contains `needle`.
         pub fn says(&self, needle: &str) -> bool {
             self.texts.iter().any(|t| t.contains(needle))
+        }
+
+        /// How much of `text` actually reached the screen, for the galley that
+        /// was laid out from exactly that string.
+        ///
+        /// Exactly, not `contains`: a file's name is also inside the path the
+        /// header draws for it, and that path is elided on its own account, so a
+        /// needle would find the header first and answer about the wrong galley.
+        /// The answer is a shorter string ending in `…` when it was elided, and
+        /// `text` back again when it fitted.
+        pub fn drawn(&self, text: &str) -> Option<&str> {
+            let i = self.texts.iter().position(|t| t == text)?;
+            self.glyphs.get(i).map(String::as_str)
         }
 
         /// Every rectangle that falls inside `area`, for asking where something
@@ -1449,6 +1477,7 @@ pub(crate) mod harness {
 
             let mut painted = Painted {
                 texts: Vec::new(),
+                glyphs: Vec::new(),
                 inked: Vec::new(),
                 rects: Vec::new(),
                 strokes: Vec::new(),
@@ -1468,6 +1497,9 @@ pub(crate) mod harness {
             Shape::Text(t) => {
                 let text = t.galley.text().to_owned();
                 into.texts.push(text.clone());
+                into.glyphs.push(
+                    t.galley.rows.iter().flat_map(|r| r.glyphs.iter()).map(|g| g.chr).collect(),
+                );
                 // `Painter::text` lays the galley out in the colour it is given
                 // and passes the same colour as the fallback, so for a string
                 // drawn in one colour this is that colour. A galley built from
@@ -2992,6 +3024,95 @@ mod config_warning_frame {
         assert_eq!(drawn.lines().count(), 9, "eight lines and the marker: {drawn:?}");
         assert_eq!(drawn.lines().last(), Some("…"), "the marker is its own line: {drawn:?}");
     }
+
+    /// 33.4: a real failure standing beside a config warning, in the other
+    /// colour.
+    ///
+    /// The row's own recipe is an opener naming a program that is not
+    /// installed, and that failure cannot be provoked here: `exec::shell`
+    /// starts a shell, which starts fine, and the "no such program" arrives
+    /// later out of the process's own exit -- which is why `launch` keeps
+    /// listening for it. So the failure this raises is a different one, chosen
+    /// for being synchronous and needing neither a disk nor a `PATH`: `follow`
+    /// on a row that is not a link. What the row is actually about is reachable
+    /// either way, because the colour is not the failure's, it is the level's.
+    ///
+    /// Both toasts at once, on purpose. A test for the warning alone passes
+    /// while everything in the program is yellow, and it is the *pair* that a
+    /// reader tells apart at a glance.
+    #[test]
+    fn a_failure_beside_the_warning_is_the_other_colour() {
+        let (warnings, mut s) = screen("cfg-warn-red", ONE_DUPLICATE);
+        let theme = s.app.cfg.theme.clone();
+        assert_eq!(warnings.len(), 1, "one warning, so one yellow box: {warnings:?}");
+        assert_ne!(theme.warning, theme.progress_error, "a theme drawing both alike says nothing");
+
+        // Something for the cursor to be on that is not a link, so `follow` has
+        // a row to refuse rather than an empty listing to ignore.
+        let dir = s.app.tab().cwd.clone();
+        let plain = crate::fs::Entry {
+            path: dir.join("notes.txt"),
+            name: "notes.txt".into(),
+            ..Default::default()
+        };
+        s.app.tabs[0].current = crate::core::folder::Folder::from_entries(
+            dir,
+            std::sync::Arc::new(vec![plain]),
+            true,
+        );
+        s.app.act(crate::config::cmd::Act::Follow);
+
+        let f = s.draw();
+        let failed = "Only a symlink can be followed";
+        assert!(f.says(failed), "the failure is on screen too: {:?}", f.texts);
+        assert_eq!(f.ink(failed), [theme.progress_error], "the failure is red");
+        assert_eq!(f.ink("Config: "), [theme.warning], "and the config line is still not");
+        // One box framed each way. Either colour alone would pass a test for
+        // "the warning colour appears somewhere" while the other had taken it.
+        assert_eq!(f.stroked(theme.progress_error).len(), 1, "one box framed as a failure");
+        assert_eq!(f.stroked(theme.warning).len(), 1, "and one framed as advice");
+    }
+
+    /// 33.9's expectation: the boxes stack downward, each as tall as its own
+    /// text, none over the next, and five at most.
+    ///
+    /// **Not 33.9's recipe.** Breaking three config files does not produce
+    /// three boxes: `App::new` raises the first warning and a count of the rest
+    /// (33.2), so any number of config problems is one toast. What the row
+    /// describes is the toast area's own behaviour, and the messages here are
+    /// raised the way a run of failures would raise them. The mismatch is in
+    /// `QA-REPORT.md`; nothing about it is fixable from a test.
+    ///
+    /// Six, so the cap is tested by something being dropped rather than by
+    /// counting to five. The oldest is the one to go: the newest message is the
+    /// one the reader just caused.
+    #[test]
+    fn the_boxes_stack_downward_each_its_own_size() {
+        let mut s = saying("cfg-warn-stack", Vec::new());
+        let theme = s.app.cfg.theme.clone();
+        assert!(s.app.toasts.is_empty(), "no config toast, so the count below is the test's own");
+        for n in 1..=6 {
+            s.app.warn((1..=n).map(|i| format!("error {n} line {i}\n")).collect::<String>());
+        }
+
+        let window = s.rect();
+        let f = s.draw();
+        let boxes = f.stroked(theme.warning);
+        assert_eq!(boxes.len(), 5, "five slots for six messages: {:?}", f.texts);
+        assert!(!f.says("error 1 line 1"), "and the oldest is the one dropped: {:?}", f.texts);
+
+        // Paint order is newest first, so the tallest is at the top and each
+        // box is shorter than the one above it -- which is "sized to its own
+        // text" stated as something the frame can be asked.
+        for pair in boxes.windows(2) {
+            let (upper, lower) = (pair[0], pair[1]);
+            assert!(lower.top() >= upper.bottom(), "{lower:?} starts below {upper:?}");
+            assert!(lower.height() < upper.height(), "each its own height: {boxes:?}");
+        }
+        for b in &boxes {
+            assert!(window.contains_rect(*b), "all five inside the window: {b:?} in {window:?}");
+        }
+    }
 }
 
 /// TESTING.md section 13's list half: the `->` marker, the type column, and
@@ -3149,12 +3270,13 @@ mod link_rows {
 
 /// TESTING.md section 24: names the list has to draw without help.
 ///
-/// Two of the five rows are here. 24.2 (a long name elided in the middle) is not
-/// reachable through the harness: eliding is egui's, done inside the galley, and
-/// `Galley::text` hands back the string that was laid out rather than the
-/// characters that fit -- so a frame cannot tell a truncated row from a whole
-/// one. 24.4 wants the terminal pane, which is `#[cfg(windows)]`, and 24.5 wants
-/// the recycle bin. See QA-REPORT.md.
+/// Three of the five rows are here, one of them by half. Eliding is egui's,
+/// done inside the galley, and `Galley::text` hands back the string that was
+/// laid out rather than the characters that fit -- so `Painted::glyphs` reads
+/// the rows instead, and 24.2 can at least ask whether the long name was cut
+/// down. Where the `…` lands it cannot ask, because the row and the code
+/// disagree about that; see QA-REPORT.md. 24.4 wants the terminal pane, which is
+/// `#[cfg(windows)]`, and 24.5 wants the recycle bin.
 #[cfg(test)]
 mod awkward_names {
     use super::harness::Screen;
@@ -3179,6 +3301,11 @@ mod awkward_names {
     /// name mangled on its way to the layout would show up here, and a name
     /// truncated at a byte boundary rather than a character one would not be a
     /// string the assertion could find at all.
+    ///
+    /// The second assertion is the one that needs the glyphs: `texts` is what
+    /// the galley was *asked* for, so a name the column had to cut short is
+    /// still in there whole. `drawn` is what came out the other end, which is
+    /// what "drawn correctly" means.
     #[test]
     fn cjk_names_are_drawn_whole() {
         let dir = crate::util::test_dir("frame-names-cjk");
@@ -3186,7 +3313,36 @@ mod awkward_names {
         let f = showing(&dir, &names).draw();
         for n in names {
             assert!(f.texts.iter().any(|t| t == n), "{n} is drawn as itself: {:?}", f.texts);
+            assert_eq!(f.drawn(n), Some(n), "and every character of it got a glyph");
         }
+    }
+
+    /// Half of 24.2: the very long name is cut down to fit its column, and the
+    /// row it was cut from is still the whole name.
+    ///
+    /// **Where the `…` lands is deliberately not asserted.** 24.2 asks for the
+    /// middle, with the extension still readable; `list.rs`'s `name_job` sets
+    /// egui's `overflow_character`, which cuts the *end*, so what is drawn today
+    /// is `very-long-…` with `.txt` gone. Which of the two is wrong is not a
+    /// question a test can settle -- it is in QA-REPORT.md for the owner -- so
+    /// this asserts only what holds either way: the name was elided, and it was
+    /// elided from the name itself rather than from something mangled on the way
+    /// in. The row stays in TESTING.md until the ellipsis is decided.
+    #[test]
+    fn a_very_long_name_is_cut_down_to_its_column() {
+        let dir = crate::util::test_dir("frame-names-long");
+        // The fixture's own name, from `scripts/make-fixtures.ps1`: 163
+        // characters, which overflows the column at any window this draws at.
+        let long = format!("very-{}name.txt", "long-".repeat(30));
+        let f = showing(&dir, &[&long]).draw();
+
+        assert!(f.texts.iter().any(|t| t == &long), "the row is laid out from the whole name");
+        let row = f.drawn(&long).unwrap_or_else(|| panic!("the name is drawn: {:?}", f.glyphs));
+        assert!(row.contains('…'), "and drawn elided: {row:?}");
+        assert!(
+            row.chars().count() < long.chars().count(),
+            "which is fewer characters than the name has: {row:?}",
+        );
     }
 
     /// 24.3: two names differing only in case are two rows.
@@ -3691,16 +3847,27 @@ mod preview_arrival_frame {
     }
 }
 
-/// TESTING.md section 12, as far as a frame reaches: the two messages and the
-/// fork.
+/// TESTING.md section 12, as far as a frame reaches: the two messages, the fork,
+/// and the rules three of the delete rows share with a rename.
 ///
 /// Most of the section is about `d`, and `d` is a job on the ops worker put back
-/// by reading the trash. The harness runs no workers and never drains their
-/// channels, so nothing a delete would produce ever arrives -- 12.1 to 12.5 and
-/// 12.9 to 12.12 stay with the machine. A rename is the one undoable action that
-/// happens on the spot, in `apply_rename`, which is what makes 12.6 assertable
-/// at all. See QA-REPORT.md, which also has what 12.8 says versus what the code
-/// does.
+/// by reading the trash -- the person's real trash, on whichever platform it is,
+/// and on macOS one that cannot be read back at all. So 12.1 to 12.5 and 12.9 to 12.12
+/// stay with the machine, and not because a frame cannot reach a worker:
+/// `Screen::turn` drains the same channels the real loop does, which is how the
+/// preview tests run. What it must not do is empty into someone's Recycle Bin,
+/// and that is in QA-REPORT.md with what it would take.
+///
+/// Every id above is mid-line on purpose: `make-testcheck` reads a doc comment
+/// that *begins* with one as a claim to have automated it, so a line wrapping
+/// onto `12.12` would take that row off the human's list. The comment this
+/// replaced did exactly that to 12.9 -- see QA-REPORT.md.
+///
+/// A rename is the one undoable action that happens on the spot, in
+/// `apply_rename`. That is what makes 12.6 assertable at all -- and what lets
+/// the rules behind 12.4, 12.8 and 12.9 be driven here, each over a rename
+/// rather than a delete, with the rows themselves left standing. QA-REPORT.md
+/// also has what 12.8 says versus what the code does.
 #[cfg(test)]
 mod undo_frame {
     use super::harness::Screen;
@@ -3789,6 +3956,69 @@ mod undo_frame {
         assert!(f.says("Nothing to redo"), "so there is nothing to do again: {:?}", f.texts);
         assert!(dir.join("three.txt").exists(), "and the newest name stands");
         assert!(!dir.join("two.txt").exists(), "the forked one did not come back");
+    }
+
+    /// The rule 12.4 states, in the form a frame reaches: `U` does again what
+    /// `u` took back, and the toast says which way it went.
+    ///
+    /// Not 12.4 itself, which is the `U` after a delete and goes back through
+    /// the ops worker. Which stack a step lands on is `app::tests`' own ground;
+    /// what only a frame can say is that the key, the file on disk and the toast
+    /// agree. `undone_label` and `redone_label` are two different sentences over
+    /// the same step, so a redo that walked the rename the wrong way would still
+    /// produce one of them.
+    #[test]
+    fn capital_u_does_the_rename_again_and_says_which_way_it_went() {
+        let (dir, mut s) = one_file("frame-redo-rename");
+        rename(&mut s, &dir.join("one.txt"), "two.txt");
+        s.typed("u");
+        assert!(dir.join("one.txt").exists(), "`u` put it back");
+
+        let f = s.typed("U");
+        assert!(f.says("Renamed to two.txt"), "`U` names where it went: {:?}", f.texts);
+        assert!(dir.join("two.txt").exists(), "which is where the file is");
+        assert!(!dir.join("one.txt").exists(), "and it is not under the old name");
+        assert_eq!(s.app.undos.undo.len(), 1, "the step is back on the way out");
+        assert!(s.app.undos.redo.is_empty(), "and off the way forward");
+
+        // So the pair is walkable rather than one-way: `u` takes it back again.
+        let f = s.typed("u");
+        assert!(f.says("Renamed back to one.txt"), "{:?}", f.texts);
+        assert_eq!(std::fs::read_to_string(dir.join("one.txt")).unwrap(), "1");
+    }
+
+    /// The rule 12.9 states, in the form a frame reaches: an undo with nowhere
+    /// to put the file back says which name is in the way, keeps the step, and
+    /// goes through when the way is clear.
+    ///
+    /// Not 12.9 itself -- that row deletes and restores, and both halves are ops
+    /// worker jobs. The guard is the same one either way: `apply_rename` refuses
+    /// to write over anything that exists, so `u` blocked by a name taken in the
+    /// meantime is the rename half of the same rule. What makes it worth a frame
+    /// is the second press: a step dropped on the failed attempt would leave
+    /// "Nothing to undo" here, and the file stranded under its new name.
+    #[test]
+    fn an_undo_blocked_by_a_taken_name_can_be_pressed_again() {
+        let (dir, mut s) = one_file("frame-undo-blocked");
+        rename(&mut s, &dir.join("one.txt"), "two.txt");
+        // Something else takes the old name while the undo is still on offer.
+        std::fs::write(dir.join("one.txt"), "in the way").unwrap();
+
+        let f = s.typed("u");
+        assert!(f.says("Undo: Already exists: one.txt"), "which name it is: {:?}", f.texts);
+        assert_eq!(s.app.undos.undo.len(), 1, "the step stays, to be tried again");
+        assert!(s.app.undos.redo.is_empty(), "nothing went forward");
+        assert_eq!(
+            std::fs::read_to_string(dir.join("one.txt")).unwrap(), "in the way",
+            "and the file standing in the way was not written over",
+        );
+        assert!(dir.join("two.txt").exists(), "so the renamed file has not moved");
+
+        std::fs::remove_file(dir.join("one.txt")).unwrap();
+        let f = s.typed("u");
+        assert!(f.says("Renamed back to one.txt"), "the second press works: {:?}", f.texts);
+        assert_eq!(std::fs::read_to_string(dir.join("one.txt")).unwrap(), "1");
+        assert!(!dir.join("two.txt").exists(), "the new name is gone");
     }
 }
 

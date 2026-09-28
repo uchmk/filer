@@ -1222,13 +1222,12 @@ mod help_config_rows {
     /// it rather than not having looked since it started.
     #[test]
     fn a_file_on_disk_that_was_not_read_says_so() {
-        let dir = std::env::temp_dir().join("filer-help-unread");
-        std::fs::create_dir_all(&dir).expect("a temp directory");
+        let dir = crate::util::test_dir("help-unread");
         let written = dir.join("filer.toml");
         std::fs::write(&written, "[ui]\nfont_size = 16.0\n").expect("write the config");
 
         let ctx = egui::Context::default();
-        let mut app = App::new(crate::config::Config::load(), std::env::temp_dir(), ctx);
+        let mut app = App::new(crate::config::Config::load(), dir.clone(), ctx);
         // What startup read: not this file, because it did not exist yet.
         app.cfg.loaded = vec![dir.join("keymap.toml")];
 
@@ -1249,6 +1248,74 @@ mod help_config_rows {
         );
 
         std::fs::remove_file(&written).ok();
+    }
+
+    /// A directory holding one config file, and an app that has not read it.
+    ///
+    /// Written to disk rather than faked, because `config_rows` decides what is
+    /// unread by asking the filesystem (`p.is_file()`) and comparing that with
+    /// `cfg.loaded`. A test that only set `loaded` would be testing nothing:
+    /// the row exists because the file does.
+    fn unread(label: &str) -> (std::path::PathBuf, std::path::PathBuf, App) {
+        let dir = crate::util::test_dir(label);
+        let written = dir.join("filer.toml");
+        std::fs::write(&written, "[ui]\nfont_size = 16.0\n").expect("write the config");
+        let ctx = egui::Context::default();
+        let mut app = App::new(crate::config::Config::load(), dir.clone(), ctx);
+        app.cfg.loaded = Vec::new();
+        (dir, written, app)
+    }
+
+    /// TESTING.md 33.17: once the config has been re-read, the row is an
+    /// ordinary one.
+    ///
+    /// The marker has to come off, not merely be joined by a second row. It
+    /// says "filer has not looked since it started", and after `<C-F5>` that is
+    /// no longer true -- a row still carrying it would send the reader to press
+    /// the key again, which is the one thing that cannot help. `loaded` is what
+    /// `Config::load` fills in, so putting the path there is what a reload
+    /// leaves behind; the panel is not told about the reload any other way.
+    #[test]
+    fn a_file_that_has_since_been_read_loses_its_marker() {
+        let (dir, written, mut app) = unread("help-reread");
+
+        let before = config_rows(&app, std::slice::from_ref(&dir));
+        let row = before.iter().find(|r| r.text.trim() == "filer.toml").expect("a row before");
+        assert!(row.warning, "unread to begin with, or the test proves nothing");
+
+        // What the reload changed: the file is now among the ones that were read.
+        app.cfg.loaded = vec![written.clone()];
+        let after = config_rows(&app, std::slice::from_ref(&dir));
+        let rows: Vec<&HelpRow> = after.iter().filter(|r| r.text.trim() == "filer.toml").collect();
+        assert_eq!(rows.len(), 1, "one row for one file, not the read one and the unread one");
+        assert!(!rows[0].warning, "and it is no longer marked");
+        assert_eq!(rows[0].raw, "", "nor does it carry the note: {:?}", rows[0].raw);
+        assert!(
+            !after.iter().any(|r| r.raw.contains("not read yet")),
+            "nothing in the panel still says so: {:?}",
+            after.iter().map(|r| r.raw.as_str()).collect::<Vec<_>>(),
+        );
+    }
+
+    /// TESTING.md 33.18: the note on the row names the key that is bound now.
+    ///
+    /// `the_reload_key_is_looked_up` covers the lookup; this covers the row,
+    /// which is the part the reader sees. The two are worth separating because
+    /// the note is a `format!` and the bug this guards against is a default
+    /// written back into the string -- something a passing `key_for` would not
+    /// notice at all.
+    #[test]
+    fn a_rebound_reload_key_is_the_one_the_unread_row_names() {
+        let (dir, _written, mut app) = unread("help-rebound");
+        let text = "[[mgr.keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n";
+        let (km, warnings) = crate::config::Keymap::load(&[text]);
+        assert!(warnings.is_empty(), "the rebinding has to load clean: {warnings:?}");
+        app.cfg.keymap = km;
+
+        let rows = config_rows(&app, std::slice::from_ref(&dir));
+        let row = rows.iter().find(|r| r.text.trim() == "filer.toml").expect("the unread row");
+        assert_eq!(row.raw, "on disk, not read yet — <F9> re-reads config");
+        assert!(!row.raw.contains("<C-F5>"), "the default is not written into it: {:?}", row.raw);
     }
 
     /// The reload key is read out of the keymap in force.

@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**9 / 359 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 157 件は
+**9 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -177,9 +177,9 @@ cd $HOME\Desktop\filer-fixtures
 
 `cargo test` が全部見ているので、押すものはありません。
 
-## 12. undo と redo — 0 / 8
+## 12. undo と redo — 0 / 10
 
-自動テスト済みなので下には出していない: 12.6, 12.7, 12.9, 12.12
+自動テスト済みなので下には出していない: 12.6, 12.7
 
 - [ ] **12.1** `many\` の中のファイルで `d` → ごみ箱に入る — *`d` on a file in `many\` → It goes to the recycle bin*
 - [ ] **12.2** `u` → 元の場所に戻る。トーストがそう言う — *`u` → It comes back, in its original place. A toast says so*
@@ -187,8 +187,10 @@ cd $HOME\Desktop\filer-fixtures
 - [ ] **12.4** `U` → もう一度削除される — *`U` → Deleted again*
 - [ ] **12.5** 別々のフォルダにある同名のファイルを、時間を空けて 2 つ削除してから `u` → **直前に消したほう**が戻る（古いほうではない） — *Delete two files with the same name from different folders, an interval apart, then `u` → The one just deleted comes back — not the older one*
 - [ ] **12.8** ファイルを `r` で改名 → `u` で戻す → 新しいファイルを作る → `U` → **redo は消えている。**新しい操作が履歴を分岐させたため — *Rename a file, undo it, then create a new file, then `U` → Redo is gone: the new action forked history*
+- [ ] **12.9** ファイルを `d` で消し、**同じ名前のファイルを先に作ってから** `u` → `u` が「その名前は使われている」と名前を挙げて断り、**取り消しの手順は残る。**邪魔なファイルをどけてもう一度押すと通る — *Delete a file, `u`, but create a file with that name first → `u` says the name is taken, and pressing it again after moving that file out of the way works*
 - [ ] **12.10** 別のプログラムで開いてロックされたファイルを、**他の数件と一緒に**選んで `d` → 他は消える。メッセージが**消えなかったファイルの名前を挙げ**、タスクパネルの件数も実際に消えた数と合う（v0.27.1 まで `Trash: trash: Error … Some operations were aborted` と名前を挙げずに言い、全件成功として数えていた） — *Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) → The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done*
 - [ ] **12.11** ごみ箱を無効にしたドライブで `d` → 同じ形のメッセージが、ファイル名を挙げて出る — *`d` on a drive whose Recycle Bin is turned off → Same shape of message, naming the file*
+- [ ] **12.12** ロックされたファイルが無い状態で `d` → 以前のまま。そしてエクスプローラー自身の取り消し履歴に**項目が 1 つだけ**残る（まとめて渡す呼び出しが通常の経路であることの確認） — *`d` with nothing locked → Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path*
 
 ## 13. シンボリックリンクと `g`+`f` — 6 / 8
 
@@ -457,11 +459,10 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **32.8c** パスにわざと打ち間違いを入れたオープナー → 失敗を述べるトースト。日本語版 Windows では `cmd` の文言ではなく終了コードが出るはずで、**それは仕様であって報告すべきバグではない** — *An opener with a deliberate typo in the path → A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report*
 - [ ] **32.9** アウトラインから（行の上で `<C-o>`）秀丸とサクラで開く → その行に着地する — *Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ → Lands on the line*
 
-## 33. 設定の警告と、その色 — 0 / 11
+## 33. 設定の警告と、その色 — 0 / 10
 
-自動テスト済みなので下には出していない: 33.1, 33.2, 33.3, 33.5, 33.7, 33.8, 33.10
+自動テスト済みなので下には出していない: 33.1, 33.2, 33.3, 33.4, 33.5, 33.7, 33.8, 33.10
 
-- [ ] **33.4** 実際に失敗するものを作る（入っていないプログラムを指定したオープナー、25.8）→ こちらは**赤**のまま。一目で区別が付くこと — *Make something actually fail (an opener naming a program that is not installed, 25.8) → Still **red**, so the two are told apart at a glance*
 - [ ] **33.6** 背景の明るいテーマ → 黄色がそれでも読める。読めなければそう報告すること（いまは固定の既定値で、テーマから変えられない） — *A theme with a light background → The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable*
 - [ ] **33.9** 設定ファイルを**3 つ同時に**壊す → 箱が最大 5 つまで下へ積まれ、それぞれ自分の文章の大きさになり、重ならない — *Break **three** config files at once → Up to five boxes stack downward, each sized to its own text, none overlapping the next*
 - [ ] **33.11** `[[preview]]` を `yazi.toml` に入れて（本来は `filer.toml`）起動 → **1 行で** `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`。以前の `invalid type: map, expected a string` ではない（v0.33.13） — *Put `[[preview]]` into `yazi.toml` (it belongs in `filer.toml`) and start → **One line**: `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13)*

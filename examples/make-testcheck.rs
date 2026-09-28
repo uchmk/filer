@@ -358,17 +358,25 @@ fn automated_ids() -> BTreeSet<String> {
                 if let Some(at) = comment.find("TESTING.md ") {
                     ids_in(&comment[at + "TESTING.md ".len()..], &mut pending);
                 }
-                // `/// 13.4: …` and `/// 6.1, 6.2, …` -- ids only up to the
-                // first colon or dash, so a sentence that happens to mention a
-                // version number later does not join in.
+                // `/// 13.4: …` and `/// 6.1, 6.2, …`: ids up to the first
+                // colon or dash, which also has to be *present*. Without that
+                // requirement a doc comment that merely wraps onto an id reads
+                // as a claim about it -- and the sentence it wrapped from said
+                // "12.9 to 12.12 stay with the machine", so the rows were taken
+                // off the human's list by the words putting them on it.
                 let head = comment.trim_start();
                 if head.starts_with(|c: char| c.is_ascii_digit()) {
-                    let end = head.find([':', '-', '—']).unwrap_or(head.len());
-                    ids_in(&head[..end], &mut pending);
+                    if let Some(end) = head.find([':', '-', '—']) {
+                        ids_in(&head[..end], &mut pending);
+                    }
                 }
                 continue;
             }
             if t.starts_with("#[") {
+                // `#[cfg(test)]` counts as well as `#[test]`, on purpose: a
+                // module's own doc comment is where a claim over several rows
+                // belongs, and `diff_frame` makes one ("TESTING.md 45.1, 45.5
+                // and 45.7") that no single test inside it could.
                 is_test |= t.contains("test]") || t.contains("test)");
                 continue;
             }

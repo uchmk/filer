@@ -698,6 +698,51 @@ mod files {
         assert_eq!(Misplaced::in_file(&text, ConfigFile::Filer), Misplaced::default());
     }
 
+    /// TESTING.md 33.12: two misplaced sections in one file, and the cost is
+    /// the file's rather than each section's.
+    ///
+    /// `[term]` alone is merely ignored (33.13) and `[[preview]]` alone takes
+    /// the file down (33.11), so a file holding both has a `[term]` that would
+    /// have been ignored in any case -- except that nothing in the file was
+    /// read, which is what the row asks both lines to say. The cost lives on
+    /// `Misplaced` and not on each section for exactly this reason, and a
+    /// per-section cost would have read "`[term]` … was ignored" under a
+    /// `[[preview]]` line saying the file went unread: two answers to "did my
+    /// shell setting load", one of them wrong.
+    #[test]
+    fn two_misplaced_sections_both_report_the_files_cost() {
+        let text = "[mgr]\nshow_hidden = true\n\n[term]\nshell = \"pwsh\"\n\n\
+                    [[preview]]\nmatch = \"*.pdf\"\nrun = \"x\"\n";
+        let m = Misplaced::in_file(text, ConfigFile::Yazi);
+        assert_eq!(m.sections, ["[term]", "[[preview]]"], "the foreign ones, in the file's order");
+        assert!(m.breaks_parse, "one of them is fatal, so the file is");
+
+        let mut w = Vec::new();
+        m.warn(r"C:\x\yazi.toml", "filer.toml", &mut w);
+        assert_eq!(
+            w,
+            [
+                r"C:\x\yazi.toml: [term] belongs in filer.toml, and nothing in this file was read",
+                r"C:\x\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read",
+            ],
+            "a line each, and both name the file's cost rather than the section's",
+        );
+    }
+
+    /// TESTING.md 33.14: the sentence the other way round names `yazi.toml`.
+    ///
+    /// The same shape read from the other side, because "which file does this
+    /// go in" is the only thing either warning is for and half of them point
+    /// the other way. `[opener]` is the row's own example and it is the
+    /// expensive one to get wrong: every opener in the file is dead.
+    #[test]
+    fn a_yazi_section_in_filer_toml_is_told_where_to_go() {
+        let m = Misplaced::in_file("[opener]\nedit = []\n", ConfigFile::Filer);
+        let mut w = Vec::new();
+        m.warn(r"C:\x\filer.toml", "yazi.toml", &mut w);
+        assert_eq!(w, [r"C:\x\filer.toml: [opener] belongs in yazi.toml and was ignored"]);
+    }
+
     /// A `filer.toml` written before `[term]` existed still reads.
     #[test]
     fn an_older_config_is_unaffected() {
