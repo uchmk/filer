@@ -10,8 +10,6 @@
 **0 / 359 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 157 件は
 「押すもの」から外してある）
 
-未訳 265 件は原文のまま `〔未訳〕` を付けて出している。
-
 ## 使い方
 
 1. `filer.exe` と、`scripts\make-fixtures.ps1` が作るテスト用ファイルを用意する（詳しくは TESTING.md の
@@ -128,13 +126,13 @@ cd $HOME\Desktop\filer-fixtures
 
 自動テスト済みなので下には出していない: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.6a, 5.6b, 5.6c, 5.7, 5.8, 5.10
 
-- [ ] **5.9** Two directories → Refused with a reason 〔未訳〕
+- [ ] **5.9** 2 つの**ディレクトリ**を選んで実行 → 理由を添えて断られる — *Two directories → Refused with a reason*
 
 ## 6. 2 分割ペインと、ペイン間の受け渡し — 0 / 1
 
 自動テスト済みなので下には出していない: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10, 6.11, 6.12, 6.13, 6.14
 
-- [ ] **6.15** `<A-c>` a large directory, then watch the status bar → It is a job like any other copy: progress, speed, and cancellable from `w` 〔未訳〕
+- [ ] **6.15** 大きなディレクトリを `<A-c>` して、ステータスバーを見る → 他のコピーと同じジョブ扱い。進捗と速度が出て、`w` から中止できる — *`<A-c>` a large directory, then watch the status bar → It is a job like any other copy: progress, speed, and cancellable from `w`*
 
 ## 7. ヘルプパネルの設定ファイルパス — 0 / 8
 
@@ -173,7 +171,7 @@ cd $HOME\Desktop\filer-fixtures
 
 自動テスト済みなので下には出していない: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8
 
-- [ ] **10.9** Cut a file, then `p` into a directory that already holds that name, and answer **no** to the overwrite → The count still leaves the header — `paste()` empties a cut register when it *submits* the job, not when the job succeeds, so the files are neither moved nor still in the register 〔未訳〕
+- [ ] **10.9** ファイルを `x` で切り取り、同名のファイルが既にあるディレクトリで `p` して、上書きに**いいえ**と答える → **それでもヘッダから件数が消える。**`paste()` はジョブを**投入した時点で**切り取りレジスタを空にしていて、成功した時点ではないため。結果、ファイルは移動もされず、レジスタにも残らない — *Cut a file, then `p` into a directory that already holds that name, and answer **no** to the overwrite → The count still leaves the header — `paste()` empties a cut register when it *submits* the job, not when the job succeeds, so the files are neither moved nor still in the register*
 
 ## 11. 一括リネーム — 全 12 件が自動
 
@@ -183,14 +181,14 @@ cd $HOME\Desktop\filer-fixtures
 
 自動テスト済みなので下には出していない: 12.6, 12.7, 12.9, 12.12
 
-- [ ] **12.1** `d` on a file in `many\` → It goes to the recycle bin 〔未訳〕
-- [ ] **12.2** `u` → It comes back, in its original place. A toast says so 〔未訳〕
-- [ ] **12.3** Check the task panel (`w`) during F2 → A `Restore` row appears and completes 〔未訳〕
-- [ ] **12.4** `U` → Deleted again 〔未訳〕
-- [ ] **12.5** Delete two files with the same name from different folders, an interval apart, then `u` → The one just deleted comes back — not the older one 〔未訳〕
-- [ ] **12.8** Rename a file, undo it, then create a new file, then `U` → Redo is gone: the new action forked history 〔未訳〕
-- [ ] **12.10** Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) → The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done 〔未訳〕
-- [ ] **12.11** `d` on a drive whose Recycle Bin is turned off → Same shape of message, naming the file 〔未訳〕
+- [ ] **12.1** `many\` の中のファイルで `d` → ごみ箱に入る — *`d` on a file in `many\` → It goes to the recycle bin*
+- [ ] **12.2** `u` → 元の場所に戻る。トーストがそう言う — *`u` → It comes back, in its original place. A toast says so*
+- [ ] **12.3** （F2 の最中に）タスクパネル `w` を見る → `Restore` の行が現れて完了する — *Check the task panel (`w`) during F2 → A `Restore` row appears and completes*
+- [ ] **12.4** `U` → もう一度削除される — *`U` → Deleted again*
+- [ ] **12.5** 別々のフォルダにある同名のファイルを、時間を空けて 2 つ削除してから `u` → **直前に消したほう**が戻る（古いほうではない） — *Delete two files with the same name from different folders, an interval apart, then `u` → The one just deleted comes back — not the older one*
+- [ ] **12.8** ファイルを `r` で改名 → `u` で戻す → 新しいファイルを作る → `U` → **redo は消えている。**新しい操作が履歴を分岐させたため — *Rename a file, undo it, then create a new file, then `U` → Redo is gone: the new action forked history*
+- [ ] **12.10** 別のプログラムで開いてロックされたファイルを、**他の数件と一緒に**選んで `d` → 他は消える。メッセージが**消えなかったファイルの名前を挙げ**、タスクパネルの件数も実際に消えた数と合う（v0.27.1 まで `Trash: trash: Error … Some operations were aborted` と名前を挙げずに言い、全件成功として数えていた） — *Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) → The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done*
+- [ ] **12.11** ごみ箱を無効にしたドライブで `d` → 同じ形のメッセージが、ファイル名を挙げて出る — *`d` on a drive whose Recycle Bin is turned off → Same shape of message, naming the file*
 
 ## 13. シンボリックリンクと `g`+`f` — 0 / 8
 
@@ -253,141 +251,141 @@ fsutil hardlink list <新しくできたパス>
 
 ## 16. Word / Excel / PowerPoint — 0 / 12
 
-- [ ] **16.1** Hover a `.docx` → Its text, paragraph by paragraph. Not a hex dump, not a metadata card 〔未訳〕
-- [ ] **16.2** A paragraph with mixed bold and plain in one sentence → **One line**, not one per run 〔未訳〕
-- [ ] **16.3** A document with Heading 1/2 styles, then `<S-Tab>` → The headings are the outline, and `<Enter>` on one jumps to it 〔未訳〕
-- [ ] **16.4** Hover a `.xlsx` → Rows as tab-separated cells, each sheet announced 〔未訳〕
-- [ ] **16.5** A workbook whose **first tab is not `sheet1.xml`** → The tabs come out in the workbook's order, with their real names 〔未訳〕
-- [ ] **16.6** A sheet holding dates → `2023-03-15`, **not** `45000` 〔未訳〕
-- [ ] **16.7** A sheet holding a date **and** a time → The time follows the date 〔未訳〕
-- [ ] **16.8** Hover a `.pptx` with ten or more slides → In order — slide 10 after slide 9, not after slide 1 〔未訳〕
-- [ ] **16.9** Japanese text in any of the three → Correct, and `&amp;` `&lt;` come through as `&` `<` 〔未訳〕
-- [ ] **16.10** Rename an old `.doc` to `.docx` and hover it → A card saying it is not an Office XML file, naming the likely cause 〔未訳〕
-- [ ] **16.11** A very large workbook → Stops at 5000 lines and says it is truncated; it does not hang 〔未訳〕
-- [ ] **16.12** `/` and `n` inside one → Search works, because it is an ordinary text preview 〔未訳〕
+- [ ] **16.1** `.docx` をホバー → 段落ごとの本文が出る。16 進ダンプでもメタデータの一覧でもない — *Hover a `.docx` → Its text, paragraph by paragraph. Not a hex dump, not a metadata card*
+- [ ] **16.2** 1 文の中で太字と通常が混ざった段落 → **1 行になる**（書式の切れ目ごとに改行されない） — *A paragraph with mixed bold and plain in one sentence → **One line**, not one per run*
+- [ ] **16.3** 見出し 1 / 2 のスタイルを使った文書で `<S-Tab>` → 見出しがアウトラインになり、`<Enter>` でその位置へ飛ぶ — *A document with Heading 1/2 styles, then `<S-Tab>` → The headings are the outline, and `<Enter>` on one jumps to it*
+- [ ] **16.4** `.xlsx` をホバー → 行がタブ区切りのセルとして出て、シートごとに名前が示される — *Hover a `.xlsx` → Rows as tab-separated cells, each sheet announced*
+- [ ] **16.5** **最初のタブが `sheet1.xml` ではない**ブック → タブがブック上の順番どおりに、本当の名前で出る — *A workbook whose **first tab is not `sheet1.xml`** → The tabs come out in the workbook's order, with their real names*
+- [ ] **16.6** 日付の入ったシート → `2023-03-15` と出る（`45000` ではない） — *A sheet holding dates → `2023-03-15`, **not** `45000`*
+- [ ] **16.7** 日付**と時刻**の入ったシート → 日付の後ろに時刻が続く — *A sheet holding a date **and** a time → The time follows the date*
+- [ ] **16.8** スライドが 10 枚以上ある `.pptx` をホバー → 順番どおり（9 の次が 10。1 の次ではない） — *Hover a `.pptx` with ten or more slides → In order — slide 10 after slide 9, not after slide 1*
+- [ ] **16.9** 3 種類のどれかに日本語 → 正しく出る。`&amp;` `&lt;` は `&` `<` に戻っている — *Japanese text in any of the three → Correct, and `&amp;` `&lt;` come through as `&` `<`*
+- [ ] **16.10** 古い `.doc` を `.docx` に改名してホバー → Office XML ではないと述べるカードが出て、考えられる原因も示す — *Rename an old `.doc` to `.docx` and hover it → A card saying it is not an Office XML file, naming the likely cause*
+- [ ] **16.11** 非常に大きなブック → 5000 行で打ち切り、省略したと述べる。固まらない — *A very large workbook → Stops at 5000 lines and says it is truncated; it does not hang*
+- [ ] **16.12** その中で `/` と `n` → 検索が効く（ただのテキストプレビューなので） — *`/` and `n` inside one → Search works, because it is an ordinary text preview*
 
 ## 17. 自前のプレビューア — 0 / 18
 
-- [ ] **17.1** Hover a multi-page PDF → Page one, with `page 1` under it 〔未訳〕
-- [ ] **17.2** `<A-j>` → Page two. `page 2` under it 〔未訳〕
-- [ ] **17.3** `<A-k>` → Back to page one 〔未訳〕
-- [ ] **17.4** `<A-k>` again, on page one → Stays. It does not go to page zero or below 〔未訳〕
-- [ ] **17.5** Hold `<A-j>` past the last page (v0.30.1) → **The last page stays on screen**, and a line says `No more: …` with the command's own words. Until v0.30.1 the page was replaced by the error 〔未訳〕
-- [ ] **17.5a** `<A-k>` straight after that → Back a page from the last one, not from somewhere past it 〔未訳〕
-- [ ] **17.5b** A **short** video — a few seconds — and `<A-j>` a few times → Same: it stops at the last frame it could draw. This is where it bites, since `step = 10` runs off the end almost at once 〔未訳〕
-- [ ] **17.5c** The caption on a video (v0.30.1) → `50s`, not `s 50` 〔未訳〕
-- [ ] **17.6** Watch the screen while paging → **No console window flashes.** It runs once per press 〔未訳〕
-- [ ] **17.7** Page to 5, move to another file, come back → Back at page one: the page belongs to the file 〔未訳〕
-- [ ] **17.8** Page back to one you have already seen → Instant — it is cached per page 〔未訳〕
-- [ ] **17.9** Hover a video (v0.30.2) → **A frame appears.** Until v0.30.2 none ever did on Windows: `{out}.png` was quoted as `"…page".png`, which `cmd` hands to ffmpeg with the quotes in the filename 〔未訳〕
-- [ ] **17.9a** The same on a path with a space → Still draws — the quoting wraps the whole word, suffix included 〔未訳〕
-- [ ] **17.10** `<A-j>` on it → Ten seconds in, by `step` 〔未訳〕
-- [ ] **17.11** A PDF with a **space** in its name, and one in a Japanese folder → Both draw. The quoting is filer's, not the rule's 〔未訳〕
-- [ ] **17.12** Rename `pdftoppm` away, then hover a PDF → An error naming the tool, not a hang 〔未訳〕
-- [ ] **17.13** Remove the `[[preview]]` rules, `<C-F5>`, hover a PDF → Back to the shell thumbnail, unchanged 〔未訳〕
-- [ ] **17.14** `filer env` with the rules in place → `pdftoppm` and `ffmpeg` listed under Tools, with `preview *.pdf` beside them 〔未訳〕
+- [ ] **17.1** 複数ページの PDF をホバー → 1 ページ目と、その下に `page 1` — *Hover a multi-page PDF → Page one, with `page 1` under it*
+- [ ] **17.2** `<A-j>` → 2 ページ目。下に `page 2` — *`<A-j>` → Page two. `page 2` under it*
+- [ ] **17.3** `<A-k>` → 1 ページ目に戻る — *`<A-k>` → Back to page one*
+- [ ] **17.4** 1 ページ目でもう一度 `<A-k>` → そのまま。0 ページや負にはならない — *`<A-k>` again, on page one → Stays. It does not go to page zero or below*
+- [ ] **17.5** `<A-j>` を最終ページより先まで押し続ける → **最終ページが画面に残ったまま**、`No more: …` とコマンド自身の文言が出る（v0.30.1 まではページがエラーに置き換わっていた） — *Hold `<A-j>` past the last page (v0.30.1) → **The last page stays on screen**, and a line says `No more: …` with the command's own words. Until v0.30.1 the page was replaced by the error*
+- [ ] **17.5a** その直後に `<A-k>` → 最終ページの 1 つ前へ戻る（行き過ぎた先からではない） — *`<A-k>` straight after that → Back a page from the last one, not from somewhere past it*
+- [ ] **17.5b** **数秒の短い動画**で `<A-j>` を数回 → 同じく、描けた最後のフレームで止まる。`step = 10` なのですぐ末尾を越えるため、ここが一番効く — *A **short** video — a few seconds — and `<A-j>` a few times → Same: it stops at the last frame it could draw. This is where it bites, since `step = 10` runs off the end almost at once*
+- [ ] **17.5c** 動画の説明表示 → `50s` と出る（`s 50` ではない） — *The caption on a video (v0.30.1) → `50s`, not `s 50`*
+- [ ] **17.6** ページを送りながら画面を見る → **コンソールの窓が一瞬も出ない。**1 回の押下につき 1 回だけ実行される — *Watch the screen while paging → **No console window flashes.** It runs once per press*
+- [ ] **17.7** 5 ページまで送り、別のファイルへ行って戻る → 1 ページ目に戻っている（ページはファイルごとのもの） — *Page to 5, move to another file, come back → Back at page one: the page belongs to the file*
+- [ ] **17.8** 一度見たページへ戻る → 即座に出る（ページ単位でキャッシュされている） — *Page back to one you have already seen → Instant — it is cached per page*
+- [ ] **17.9** 動画をホバー → **フレームが出る。**v0.30.2 まで Windows では一度も出なかった（`{out}.png` が `"…page".png` と引用され、`cmd` がファイル名に引用符ごと渡していた） — *Hover a video (v0.30.2) → **A frame appears.** Until v0.30.2 none ever did on Windows: `{out}.png` was quoted as `"…page".png`, which `cmd` hands to ffmpeg with the quotes in the filename*
+- [ ] **17.9a** 空白を含むパスで同じこと → やはり描ける。引用が拡張子まで含めて単語全体を包むため — *The same on a path with a space → Still draws — the quoting wraps the whole word, suffix included*
+- [ ] **17.10** その上で `<A-j>` → `step` に従って 10 秒先へ — *`<A-j>` on it → Ten seconds in, by `step`*
+- [ ] **17.11** 名前に**空白**を含む PDF と、日本語フォルダの中の PDF → どちらも描ける。引用はルール側ではなく filer 側がやっている — *A PDF with a **space** in its name, and one in a Japanese folder → Both draw. The quoting is filer's, not the rule's*
+- [ ] **17.12** `pdftoppm` の名前を変えてから PDF をホバー → ツール名を挙げたエラーが出る（固まらない） — *Rename `pdftoppm` away, then hover a PDF → An error naming the tool, not a hang*
+- [ ] **17.13** `[[preview]]` のルールを消して `<C-F5>`、PDF をホバー → シェルのサムネイルに戻る（以前のまま） — *Remove the `[[preview]]` rules, `<C-F5>`, hover a PDF → Back to the shell thumbnail, unchanged*
+- [ ] **17.14** ルールを入れた状態で `filer env` → Tools の下に `pdftoppm` と `ffmpeg` が並び、横に `preview *.pdf` が出る — *`filer env` with the rules in place → `pdftoppm` and `ffmpeg` listed under Tools, with `preview *.pdf` beside them*
 
 ## 18. クイックルックと、ミニマップの隣、その他のペイン — 0 / 5
 
 自動テスト済みなので下には出していない: 18.1, 18.2, 18.3, 18.4, 18.8, 18.9, 18.10
 
-- [ ] **18.5** `<C-w>` → The view splits into two panes; the one with the keys is framed, the other's cursor is dimmed 〔未訳〕
-- [ ] **18.6** Select files, `<A-c>` → Copied into the other pane 〔未訳〕
-- [ ] **18.7** Drag files onto the other pane → A frame marks the target, and a label by the pointer says "copy" — `Shift` makes it "move" — **before** you let go 〔未訳〕
-- [ ] **18.11** `'` then a letter, having saved one with `B` → Jumps there. **`b` is the prefix bookmark *management* hangs off** (`bb` lists, `bs` saves, `bd` deletes), so `b` and a letter reaches nothing 〔未訳〕
-- [ ] **18.12** `z` → The jump list: bookmarks first, then recent directories with "2h ago" beside them 〔未訳〕
+- [ ] **18.5** `<C-w>` → 2 分割になり、キーのあるほうが枠で囲まれ、もう一方のカーソルは淡くなる — *`<C-w>` → The view splits into two panes; the one with the keys is framed, the other's cursor is dimmed*
+- [ ] **18.6** ファイルを選んで `<A-c>` → もう一方のペインへコピーされる — *Select files, `<A-c>` → Copied into the other pane*
+- [ ] **18.7** ファイルをもう一方のペインへドラッグ → 対象が枠で示され、ポインタの横に「copy」と出る（`Shift` で「move」）。**離す前に**出ること — *Drag files onto the other pane → A frame marks the target, and a label by the pointer says "copy" — `Shift` makes it "move" — **before** you let go*
+- [ ] **18.11** `B` で保存しておいた場所へ、`'` に続けて文字を押す → そこへ飛ぶ。**`b` はブックマークの*管理*の前置キー**（`bb` 一覧、`bs` 保存、`bd` 削除）なので、`b` + 文字では何にも届かない — *`'` then a letter, having saved one with `B` → Jumps there. **`b` is the prefix bookmark *management* hangs off** (`bb` lists, `bs` saves, `bd` deletes), so `b` and a letter reaches nothing*
+- [ ] **18.12** `z` → ジャンプ一覧が出る。ブックマークが先、そのあと最近のディレクトリが「2h ago」付きで並ぶ — *`z` → The jump list: bookmarks first, then recent directories with "2h ago" beside them*
 
 ## 19. ホイール、ペインごとの挙動 — 0 / 7
 
-- [ ] **19.1** Wheel over the **preview** of a long text file → It scrolls, one notch at a time, without spinning hard. This is the v0.26.5 fix 〔未訳〕
-- [ ] **19.2** Turn the wheel as slowly as you can over the preview → It still moves. Every fraction counts; nothing is discarded 〔未訳〕
-- [ ] **19.3** Wheel over the **file list** → The same, and with the split open, over each pane in turn 〔未訳〕
-- [ ] **19.4** Wheel over the **terminal** pane → Still right — fixed earlier, in v0.20.4, and now sharing the same code 〔未訳〕
-- [ ] **19.5** Turn one way then straight back → It reverses at once, with no dead travel from a stranded remainder 〔未訳〕
-- [ ] **19.6** `Ctrl` and the wheel over an image → Zooms, and does **not** scroll the pane with the same turn 〔未訳〕
-- [ ] **19.7** Move the pointer between panes mid-turn → Neither jumps: each keeps its own remainder 〔未訳〕
+- [ ] **19.1** 長いテキストの**プレビュー**の上でホイール → 強く回さなくても 1 ノッチずつスクロールする（v0.26.5 の修正） — *Wheel over the **preview** of a long text file → It scrolls, one notch at a time, without spinning hard. This is the v0.26.5 fix*
+- [ ] **19.2** プレビューの上でできる限りゆっくり回す → それでも動く。端数も捨てずに積算される — *Turn the wheel as slowly as you can over the preview → It still moves. Every fraction counts; nothing is discarded*
+- [ ] **19.3** **ファイル一覧**の上でホイール → 同じ。分割しているときは、それぞれのペインの上で — *Wheel over the **file list** → The same, and with the split open, over each pane in turn*
+- [ ] **19.4** **ターミナル**ペインの上でホイール → 同じく正しい（v0.20.4 で先に直してあり、いまは同じコードを共有している） — *Wheel over the **terminal** pane → Still right — fixed earlier, in v0.20.4, and now sharing the same code*
+- [ ] **19.5** 一方に回してすぐ逆に回す → 即座に反転する。取り残された端数による空走りが無い — *Turn one way then straight back → It reverses at once, with no dead travel from a stranded remainder*
+- [ ] **19.6** 画像の上で `Ctrl`+ホイール → 拡大縮小し、同じ操作でペインが**スクロールしない** — *`Ctrl` and the wheel over an image → Zooms, and does **not** scroll the pane with the same turn*
+- [ ] **19.7** 回している途中でポインタを別のペインへ移す → どちらも飛ばない。端数はペインごとに別々に持っている — *Move the pointer between panes mid-turn → Neither jumps: each keeps its own remainder*
 
 ## 20. 設定とテーマ — 0 / 6
 
-- [ ] **20.1** With filer open, edit `theme.toml` (change `[mgr] cwd` to something loud) and press `<C-F5>` → The color changes without restarting 〔未訳〕
-- [ ] **20.2** Change `[ui] font_size` in `filer.toml`, `<C-F5>` → The text resizes 〔未訳〕
-- [ ] **20.3** Add a `keymap.toml` binding, `<C-F5>` → The new key works, and `<F1>` lists it 〔未訳〕
-- [ ] **20.4** Sort with `,s`, then `<C-F5>` → The sort **stays** as you set it — a reload does not undo what you changed by hand 〔未訳〕
-- [ ] **20.5** Put a syntax error in `filer.toml`, `<C-F5>` → An error toast naming the problem; the old config stays in force 〔未訳〕
-- [ ] **20.6** `[ui] minimap = false`, `<C-F5>` → No minimap 〔未訳〕
+- [ ] **20.1** filer を開いたまま `theme.toml` を編集し（`[mgr] cwd` を目立つ色に）、`<C-F5>` → 再起動せずに色が変わる — *With filer open, edit `theme.toml` (change `[mgr] cwd` to something loud) and press `<C-F5>` → The color changes without restarting*
+- [ ] **20.2** `filer.toml` の `[ui] font_size` を変えて `<C-F5>` → 文字の大きさが変わる — *Change `[ui] font_size` in `filer.toml`, `<C-F5>` → The text resizes*
+- [ ] **20.3** `keymap.toml` に割り当てを足して `<C-F5>` → 新しいキーが効き、`<F1>` の一覧にも出る — *Add a `keymap.toml` binding, `<C-F5>` → The new key works, and `<F1>` lists it*
+- [ ] **20.4** `,s` で並べ替えてから `<C-F5>` → **並び順は自分で設定したまま残る。**再読み込みが手で変えたものを元に戻さないこと — *Sort with `,s`, then `<C-F5>` → The sort **stays** as you set it — a reload does not undo what you changed by hand*
+- [ ] **20.5** `filer.toml` に構文エラーを入れて `<C-F5>` → 問題を挙げたエラーのトーストが出て、**以前の設定がそのまま効き続ける** — *Put a syntax error in `filer.toml`, `<C-F5>` → An error toast naming the problem; the old config stays in force*
+- [ ] **20.6** `[ui] minimap = false` にして `<C-F5>` → ミニマップが出なくなる — *`[ui] minimap = false`, `<C-F5>` → No minimap*
 
 ## 21. 書庫（zip / tar / 7z） — 0 / 9
 
 自動テスト済みなので下には出していない: 21.1, 21.6, 21.12
 
-- [ ] **21.2** `e` on it → Unpacked into a `sample` folder beside it; progress in the task panel 〔未訳〕
-- [ ] **21.3** `e` again → The second one gets a different name; the first is not overwritten 〔未訳〕
-- [ ] **21.4** Select `to-pack\`, press `E`, accept `to-pack.zip` → Packed, and the result opens 〔未訳〕
-- [ ] **21.5** `E` and change the name to end in `.tar.gz` → A gzipped tar, not a zip 〔未訳〕
-- [ ] **21.7** `E` and change the name to end in **`.7z`** (v0.27.0) → A real 7z. Until v0.27.0 this was refused as read-only 〔未訳〕
-- [ ] **21.8** `e` on that `.7z` → It unpacks, and the files match what went in 〔未訳〕
-- [ ] **21.9** Open the same `.7z` in 7-Zip or Explorer → It opens there too — the point of the format is that it travels 〔未訳〕
-- [ ] **21.10** Pack a folder holding subfolders as `.7z`, watch the task panel → The count is of **files**, not folders, and it reaches the total rather than stopping short 〔未訳〕
-- [ ] **21.11** Compare the `.7z` and the `.zip` of the same input → The 7z is smaller; that is the reason to have it 〔未訳〕
+- [ ] **21.2** `sample.zip` で `e` → 隣に `sample` フォルダとして展開され、タスクパネルに進捗が出る — *`e` on it → Unpacked into a `sample` folder beside it; progress in the task panel*
+- [ ] **21.3** もう一度 `e` → 2 つ目は別の名前になる。1 つ目は上書きされない — *`e` again → The second one gets a different name; the first is not overwritten*
+- [ ] **21.4** `to-pack\` を選んで `E`、`to-pack.zip` をそのまま受け入れる → 圧縮され、結果が開く — *Select `to-pack\`, press `E`, accept `to-pack.zip` → Packed, and the result opens*
+- [ ] **21.5** `E` で名前を `.tar.gz` で終わるように変える → zip ではなく gzip 圧縮した tar になる — *`E` and change the name to end in `.tar.gz` → A gzipped tar, not a zip*
+- [ ] **21.7** `E` で名前を **`.7z`** で終わるように変える → 本物の 7z ができる（v0.27.0 まで読み取り専用として断られていた） — *`E` and change the name to end in **`.7z`** (v0.27.0) → A real 7z. Until v0.27.0 this was refused as read-only*
+- [ ] **21.8** その `.7z` で `e` → 展開でき、中身が入れたものと一致する — *`e` on that `.7z` → It unpacks, and the files match what went in*
+- [ ] **21.9** 同じ `.7z` を 7-Zip や エクスプローラーで開く → そちらでも開ける。他所へ持って行けることが、この形式を入れた理由 — *Open the same `.7z` in 7-Zip or Explorer → It opens there too — the point of the format is that it travels*
+- [ ] **21.10** サブフォルダを含むフォルダを `.7z` に固めて、タスクパネルを見る → 件数は**ファイル**の数（フォルダではない）で、途中で止まらず総数まで届く — *Pack a folder holding subfolders as `.7z`, watch the task panel → The count is of **files**, not folders, and it reaches the total rather than stopping short*
+- [ ] **21.11** 同じ入力の `.7z` と `.zip` を比べる → 7z のほうが小さい。それが持っている理由 — *Compare the `.7z` and the `.zip` of the same input → The 7z is smaller; that is the reason to have it*
 
 ## 22. エディタを行番号付きで開く（エディタのインストールが要る） — 0 / 6
 
-- [ ] **22.1** 秀丸エディタ → Opens at the outline entry's line 〔未訳〕
-- [ ] **22.2** サクラエディタ → Same 〔未訳〕
-- [ ] **22.3** EmEditor → Same 〔未訳〕
-- [ ] **22.4** Notepad++ → Same 〔未訳〕
-- [ ] **22.5** メモ帳 → Opens, at the top — it has no line argument, and that is correct 〔未訳〕
-- [ ] **22.6** VS Code / nvim, if you have them → At the line 〔未訳〕
+- [ ] **22.1** 秀丸エディタ → アウトラインの項目の行で開く — *秀丸エディタ → Opens at the outline entry's line*
+- [ ] **22.2** サクラエディタ → 同じ — *サクラエディタ → Same*
+- [ ] **22.3** EmEditor → 同じ — *EmEditor → Same*
+- [ ] **22.4** Notepad++ → 同じ — *Notepad++ → Same*
+- [ ] **22.5** メモ帳 → 開くが先頭から。行を指定する引数が無いので、**これが正しい** — *メモ帳 → Opens, at the top — it has no line argument, and that is correct*
+- [ ] **22.6** VS Code / nvim（入っていれば）→ その行で開く — *VS Code / nvim, if you have them → At the line*
 
 ## 23. ネットワークパス（共有が要る） — 0 / 4
 
-- [ ] **23.1** `g<Space>`, type `\\server\share` → It opens 〔未訳〕
-- [ ] **23.2** Copy a file to and from it → Works, with progress 〔未訳〕
-- [ ] **23.3** Unplug the network mid-listing, or point at a dead host → **The window keeps responding.** An error toast, and the tab goes back where it was 〔未訳〕
-- [ ] **23.4** Tab-complete a path on the share → The prompt stays responsive; a `…` shows while it waits 〔未訳〕
+- [ ] **23.1** `g<Space>` から `\\server\share` と入力 → 開く — *`g<Space>`, type `\\server\share` → It opens*
+- [ ] **23.2** そこへファイルをコピー、そこからコピー → どちらも動き、進捗が出る — *Copy a file to and from it → Works, with progress*
+- [ ] **23.3** 一覧の取得中にネットワークを抜く、または応答しないホストを指定する → **ウィンドウが固まらない。**エラーのトーストが出て、タブは元の場所に戻る — *Unplug the network mid-listing, or point at a dead host → **The window keeps responding.** An error toast, and the tab goes back where it was*
+- [ ] **23.4** 共有上のパスを Tab 補完する → プロンプトが固まらず、待っている間 `…` が出る — *Tab-complete a path on the share → The prompt stays responsive; a `…` shows while it waits*
 
 ## 24. 扱いにくい名前 — 0 / 3
 
 自動テスト済みなので下には出していない: 24.1, 24.3
 
-- [ ] **24.2** The very long name → Elided in the middle, with the extension still readable 〔未訳〕
-- [ ] **24.4** Copy the name with a quote in it, `<A-t>` into the terminal → Quoted so the shell sees one word 〔未訳〕
-- [ ] **24.5** `d` then `u` on the CJK-named file → Comes back under the same name 〔未訳〕
+- [ ] **24.2** 非常に長い名前 → 真ん中が省略され、拡張子は読める形で残る — *The very long name → Elided in the middle, with the extension still readable*
+- [ ] **24.4** 引用符を含む名前をコピーして、`<A-t>` でターミナルへ → シェルが 1 語として受け取る形に引用される — *Copy the name with a quote in it, `<A-t>` into the terminal → Quoted so the shell sees one word*
+- [ ] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
 
 ## 25. `filer env` — 0 / 19
 
-- [ ] **25.1** `filer env` from PowerShell → The four sections print. A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears** 〔未訳〕
-- [ ] **25.2** The Config section → Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest 〔未訳〕
-- [ ] **25.3** With a deliberate typo in `keymap.toml` → The warning appears under `Warnings`, its several lines indented under the one key 〔未訳〕
-- [ ] **25.4** The Tools section → `pdftoppm`, `ffmpeg`, `ffprobe`, `pwsh`, `git` with versions where installed and `not found` where not, each naming what it is for 〔未訳〕
-- [ ] **25.4a** With `[term] shell = "pwsh"` set (v0.29.1) → `pwsh` is the shell listed. Without it, `powershell` — the one that will actually launch, not a guess 〔未訳〕
-- [ ] **25.4b** With openers configured → Each named program is listed with the opener kind it belongs to, found or not 〔未訳〕
-- [ ] **25.4c** An opener naming a **quoted full path** (秀丸, サクラ) → The whole path is resolved, not just up to the first space 〔未訳〕
-- [ ] **25.4d** Watch the screen while `filer env` runs → **No editor or viewer opens.** The programs are looked up on `PATH`, never executed 〔未訳〕
-- [ ] **25.5** On Windows on ARM with the x64 build → `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed 〔未訳〕
-- [ ] **25.6** `filer --help` → `env` is listed under COMMANDS 〔未訳〕
-- [ ] **25.7** Double-click `filer.exe` (no console) → Unchanged: the window opens, nothing is printed anywhere 〔未訳〕
-- [ ] **25.8** Open filer once, quit, then `filer env` (v0.29.0) → A **Last run** section: the adapter with its backend and device type, and every font file that was loaded 〔未訳〕
-- [ ] **25.9** On a fresh machine, `filer env` **before** ever opening filer → `not recorded — filer has not opened a window on this machine yet`, not an empty section 〔未訳〕
-- [ ] **25.10** Name a different font in `filer.toml`, `<C-F5>`, then `filer env` again → The new file is listed; the reload updates the record 〔未訳〕
-- [ ] **25.11** With no bold face anywhere → `none found; bold is faked by overstriking` — the bold list is separate from the regular one on purpose 〔未訳〕
-- [ ] **25.12** An opener starting with `start` (the default-app one) → **`built into cmd`**, not `not found`. It is one of `cmd`'s own commands and is never a file on the `PATH`, so the lookup every other row uses cannot see it (v0.33.12) 〔未訳〕
-- [ ] **25.13** `<Enter>` on a file whose rule uses that opener → It really does open — the row and the behaviour agree 〔未訳〕
-- [ ] **25.14** An opener naming a program that genuinely is not installed → Still **`not found`**. The exemption is for the shell's own names only 〔未訳〕
-- [ ] **25.15** Break `yazi.toml` and read the Warnings row → The path is written **`…\filer\yazi.toml`**, all backslashes. It used to come out `…\filer/yazi.toml`, in the one message whose job is to name the file to edit (v0.33.12) 〔未訳〕
+- [ ] **25.1** PowerShell から `filer env` → 4 つの節が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること** — *`filer env` from PowerShell → The four sections print. A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears***
+- [ ] **25.2** Config の節 → 両方のディレクトリが出て、それぞれ中身か `nothing here` を述べ、`not here:` に残りが並ぶ — *The Config section → Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest*
+- [ ] **25.3** `keymap.toml` にわざと打ち間違いを入れる → `Warnings` の下に警告が出て、複数行がそのキーの下に字下げされる — *With a deliberate typo in `keymap.toml` → The warning appears under `Warnings`, its several lines indented under the one key*
+- [ ] **25.4** Tools の節 → `pdftoppm` `ffmpeg` `ffprobe` `pwsh` `git` が並び、入っていれば版、無ければ `not found`。それぞれ何のためのものかも書かれている — *The Tools section → `pdftoppm`, `ffmpeg`, `ffprobe`, `pwsh`, `git` with versions where installed and `not found` where not, each naming what it is for*
+- [ ] **25.4a** `[term] shell = "pwsh"` を設定した状態で → シェルとして `pwsh` が並ぶ。設定していなければ `powershell`。**実際に起動するほう**であって推測ではない — *With `[term] shell = "pwsh"` set (v0.29.1) → `pwsh` is the shell listed. Without it, `powershell` — the one that will actually launch, not a guess*
+- [ ] **25.4b** オープナーを設定した状態で → 指定された各プログラムが、属するオープナーの種類とともに並ぶ（見つかったかどうかも） — *With openers configured → Each named program is listed with the opener kind it belongs to, found or not*
+- [ ] **25.4c** **引用符付きのフルパス**を指定したオープナー（秀丸、サクラ）→ 最初の空白までではなく、パス全体が解決される — *An opener naming a **quoted full path** (秀丸, サクラ) → The whole path is resolved, not just up to the first space*
+- [ ] **25.4d** `filer env` の実行中に画面を見る → **エディタやビューアが 1 つも起動しない。**`PATH` を調べるだけで、実行はしない — *Watch the screen while `filer env` runs → **No editor or viewer opens.** The programs are looked up on `PATH`, never executed*
+- [ ] **25.5** ARM 版 Windows で x64 ビルドを使う → `OS arch` と `Process arch` が**食い違う。**その食い違いを見せることが、両方を出している理由 — *On Windows on ARM with the x64 build → `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed*
+- [ ] **25.6** `filer --help` → COMMANDS の下に `env` が並ぶ — *`filer --help` → `env` is listed under COMMANDS*
+- [ ] **25.7** `filer.exe` をダブルクリック（コンソール無し）→ 以前のまま。ウィンドウが開き、どこにも何も出力されない — *Double-click `filer.exe` (no console) → Unchanged: the window opens, nothing is printed anywhere*
+- [ ] **25.8** filer を一度開いて終了し、そのあと `filer env` → **Last run** の節が出る。アダプタとそのバックエンド・デバイス種別、読み込まれた全フォントファイル — *Open filer once, quit, then `filer env` (v0.29.0) → A **Last run** section: the adapter with its backend and device type, and every font file that was loaded*
+- [ ] **25.9** 新しい機械で、filer を一度も開かずに `filer env` → `not recorded — filer has not opened a window on this machine yet` と出る（空の節ではない） — *On a fresh machine, `filer env` **before** ever opening filer → `not recorded — filer has not opened a window on this machine yet`, not an empty section*
+- [ ] **25.10** `filer.toml` で別のフォントを指定して `<C-F5>`、もう一度 `filer env` → 新しいファイルが並ぶ。再読み込みが記録を更新している — *Name a different font in `filer.toml`, `<C-F5>`, then `filer env` again → The new file is listed; the reload updates the record*
+- [ ] **25.11** ボールド体がどこにも無い状態で → `none found; bold is faked by overstriking` と出る。ボールドの一覧を通常のものと分けてあるのは、このため — *With no bold face anywhere → `none found; bold is faked by overstriking` — the bold list is separate from the regular one on purpose*
+- [ ] **25.12** `start` で始まるオープナー（既定のアプリで開くもの）→ **`built into cmd`** と出る（`not found` ではない）。`cmd` 自身のコマンドで `PATH` 上のファイルではないため、他の行と同じ探索では見つけられない（v0.33.12） — *An opener starting with `start` (the default-app one) → **`built into cmd`**, not `not found`. It is one of `cmd`'s own commands and is never a file on the `PATH`, so the lookup every other row uses cannot see it (v0.33.12)*
+- [ ] **25.13** そのオープナーを使うルールのファイルで `<Enter>` → 実際に開く。表示と挙動が一致していること — *`<Enter>` on a file whose rule uses that opener → It really does open — the row and the behaviour agree*
+- [ ] **25.14** 本当に入っていないプログラムを指定したオープナー → やはり **`not found`**。例外扱いはシェル自身の名前だけ — *An opener naming a program that genuinely is not installed → Still **`not found`**. The exemption is for the shell's own names only*
+- [ ] **25.15** `yazi.toml` を壊して Warnings の行を読む → パスが **`…\filer\yazi.toml`** と、すべて円記号で書かれている。以前は `…\filer/yazi.toml` と出ていた —— **編集すべきファイルを指し示すのが仕事のメッセージなのに、そこが壊れていた**（v0.33.12） — *Break `yazi.toml` and read the Warnings row → The path is written **`…\filer\yazi.toml`**, all backslashes. It used to come out `…\filer/yazi.toml`, in the one message whose job is to name the file to edit (v0.33.12)*
 
 ## 26. アプリの中からのバグ報告 — 0 / 10
 
-- [ ] **26.1** `<F12>` → The default browser opens GitHub's new-issue form, and a toast says so 〔未訳〕
-- [ ] **26.2** Look at the form → **Version** and **OS とアーキテクチャ** are already filled in; the rest is empty 〔未訳〕
-- [ ] **26.3** Compare the filled version against `filer --version` in a terminal → The same string, architecture included 〔未訳〕
-- [ ] **26.4** Compare the filled OS line against `winver` → Edition, feature update and build all match, UBR included (`Windows 11 Pro 25H2 (build 26200.9457)`) 〔未訳〕
-- [ ] **26.4b** Compare it against the form's own PowerShell snippet → The same facts. Nothing left worth pasting over the top 〔未訳〕
-- [ ] **26.5** On the ARM64 machine, with the **ARM64** build → OS arch and Process arch both read `aarch64` 〔未訳〕
-- [ ] **26.6** On the ARM64 machine, with the **x64** build (under emulation) → OS arch `aarch64`, Process arch `x86_64` — **the two disagree, and that is the finding** 〔未訳〕
-- [ ] **26.7** Submit the report → It posts, and the pre-filled fields survive 〔未訳〕
-- [ ] **26.8** `<F12>` with no browser set as default (or a broken association) → An error toast naming the failure. **The window keeps working** 〔未訳〕
-- [ ] **26.9** `<F12>` from the terminal pane (`<C-t>` first) → Nothing: `[term]` passes it to the shell, which is correct 〔未訳〕
+- [ ] **26.1** `<F12>` → 既定のブラウザで GitHub の新規 issue フォームが開き、トーストがそう言う — *`<F12>` → The default browser opens GitHub's new-issue form, and a toast says so*
+- [ ] **26.2** フォームを見る → **Version** と **OS とアーキテクチャ** が既に埋まっている。残りは空 — *Look at the form → **Version** and **OS とアーキテクチャ** are already filled in; the rest is empty*
+- [ ] **26.3** 埋まっている版を、ターミナルの `filer --version` と比べる → アーキテクチャも含めて同じ文字列 — *Compare the filled version against `filer --version` in a terminal → The same string, architecture included*
+- [ ] **26.4** 埋まっている OS の行を `winver` と比べる → エディション・機能更新・ビルドがすべて一致し、UBR も入っている（`Windows 11 Pro 25H2 (build 26200.9457)`） — *Compare the filled OS line against `winver` → Edition, feature update and build all match, UBR included (`Windows 11 Pro 25H2 (build 26200.9457)`)*
+- [ ] **26.4b** フォーム自身が載せている PowerShell の断片と比べる → 同じ事実。上から貼り直す価値のあるものが残っていない — *Compare it against the form's own PowerShell snippet → The same facts. Nothing left worth pasting over the top*
+- [ ] **26.5** ARM64 機で **ARM64** ビルドを使う → OS arch と Process arch がどちらも `aarch64` — *On the ARM64 machine, with the **ARM64** build → OS arch and Process arch both read `aarch64`*
+- [ ] **26.6** ARM64 機で **x64** ビルドを使う（エミュレーション）→ OS arch は `aarch64`、Process arch は `x86_64` —— **食い違うことが、まさに報告したい事実** — *On the ARM64 machine, with the **x64** build (under emulation) → OS arch `aarch64`, Process arch `x86_64` — **the two disagree, and that is the finding***
+- [ ] **26.7** 報告を投稿する → 投稿でき、あらかじめ埋まっていた欄も残る — *Submit the report → It posts, and the pre-filled fields survive*
+- [ ] **26.8** 既定のブラウザが未設定（または関連付けが壊れている）状態で `<F12>` → 失敗を述べるエラーのトースト。**ウィンドウは動き続ける** — *`<F12>` with no browser set as default (or a broken association) → An error toast naming the failure. **The window keeps working***
+- [ ] **26.9** ターミナルペインの中から `<F12>`（先に `<C-t>`）→ 何も起きない。`[term]` がシェルに渡しているためで、これが正しい — *`<F12>` from the terminal pane (`<C-t>` first) → Nothing: `[term]` passes it to the shell, which is correct*
 
 ## 27. 届かなかったプレビュー — 全 5 件が自動
 
@@ -395,85 +393,85 @@ fsutil hardlink list <新しくできたパス>
 
 ## 28. 外から加えられた変更 — 0 / 7
 
-- [ ] **28.1** Put the cursor on the **last** row, delete that file from Explorer → The row goes, the cursor lands on the new last row, **no crash** 〔未訳〕
-- [ ] **28.2** Cursor on the last row; delete several files at the end at once → Same 〔未訳〕
-- [ ] **28.3** Delete every file in the folder from outside → An empty listing, still responsive 〔未訳〕
-- [ ] **28.4** Cursor on the last row of a **filtered** listing (`f`), delete the file it is on → Same, and the filter still holds 〔未訳〕
-- [ ] **28.5** Same in the **other pane** (`<C-w>`) and in the **preview** of a directory → Neither crashes 〔未訳〕
-- [ ] **28.6** Cursor on the last row, delete that file with `d` → Same — this is what Issue #5 reported 〔未訳〕
-- [ ] **28.7** Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash 〔未訳〕
+- [ ] **28.1** カーソルを**最終行**に置いて、そのファイルをエクスプローラーから削除 → 行が消え、カーソルは新しい最終行に乗る。**落ちない** — *Put the cursor on the **last** row, delete that file from Explorer → The row goes, the cursor lands on the new last row, **no crash***
+- [ ] **28.2** カーソルを最終行に置いて、末尾の複数ファイルを一度に削除 → 同じ — *Cursor on the last row; delete several files at the end at once → Same*
+- [ ] **28.3** フォルダ内の全ファイルを外から削除 → 空の一覧になり、操作も効く — *Delete every file in the folder from outside → An empty listing, still responsive*
+- [ ] **28.4** **絞り込んだ**一覧（`f`）の最終行にカーソルを置き、そのファイルを削除 → 同じ。絞り込みも保たれる — *Cursor on the last row of a **filtered** listing (`f`), delete the file it is on → Same, and the filter still holds*
+- [ ] **28.5** **もう一方のペイン**（`<C-w>`）と、ディレクトリの**プレビュー**で同じこと → どちらも落ちない — *Same in the **other pane** (`<C-w>`) and in the **preview** of a directory → Neither crashes*
+- [ ] **28.6** カーソルを最終行に置いて、そのファイルを `d` で削除 → 同じ。これが Issue #5 の報告内容 — *Cursor on the last row, delete that file with `d` → Same — this is what Issue #5 reported*
+- [ ] **28.7** カーソルが乗っているファイルを外から改名 → カーソルが名前に追従するか、その場に留まる。落ちない — *Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash*
 
 ## 29. ターミナルのカレントディレクトリを持ち帰る — 0 / 5
 
-- [ ] **29.1** With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` → A toast naming OSC 7 and `LocationChangedAction`, pointing at the README — **not** silence, and not a wait 〔未訳〕
-- [ ] **29.2** Paste the README hook into `$PROFILE`, open a new terminal, `cd C:\dev`, press `<A-Up>` → The file list moves to `C:\dev` 〔未訳〕
-- [ ] **29.3** Same with a directory whose name has a **space** and one with **Japanese** in it → Both arrive intact 〔未訳〕
-- [ ] **29.4** `cd` to a UNC path (`\\server\share`) and press `<A-Up>` → Either it follows or it says why; no crash 〔未訳〕
-- [ ] **29.5** Run the hook line by hand in a shell that already has Starship → The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`) 〔未訳〕
+- [ ] **29.1** `$PROFILE` にフックが**無い**状態でターミナルを開き（`<C-t>`）、`cd` してから `<A-Up>` → OSC 7 と `LocationChangedAction` を挙げ、README を指すトーストが出る。**無反応でも待ちでもない** — *With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` → A toast naming OSC 7 and `LocationChangedAction`, pointing at the README — **not** silence, and not a wait*
+- [ ] **29.2** README のフックを `$PROFILE` に貼り、新しいターミナルを開いて `cd C:\dev`、`<A-Up>` → ファイル一覧が `C:\dev` へ移動する — *Paste the README hook into `$PROFILE`, open a new terminal, `cd C:\dev`, press `<A-Up>` → The file list moves to `C:\dev`*
+- [ ] **29.3** 名前に**空白**を含むディレクトリと、**日本語**を含むディレクトリで同じこと → どちらも壊れずに届く — *Same with a directory whose name has a **space** and one with **Japanese** in it → Both arrive intact*
+- [ ] **29.4** UNC パス（`\\server\share`）へ `cd` して `<A-Up>` → 追従するか、できない理由を述べる。落ちない — *`cd` to a UNC path (`\\server\share`) and press `<A-Up>` → Either it follows or it says why; no crash*
+- [ ] **29.5** Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため） — *Run the hook line by hand in a shell that already has Starship → The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`)*
 
 ## 30. プロンプトでの右クリック貼り付け — 0 / 14
 
-- [ ] **30.1** Copy a path in Explorer's address bar, press `c`+`d` (or whatever opens the `cd` prompt), right-click the field → The path appears; `<Enter>` goes there 〔未訳〕
-- [ ] **30.2** Type `abc`, click between `a` and `b` with the **right** button → The paste lands there, not at the end 〔未訳〕
-- [ ] **30.3** Select part of the text with a drag, then right-click **on the selection** → The selection is replaced 〔未訳〕
-- [ ] **30.4** Copy two lines of text, right-click into `s` → One line, the break shown as a space — the same as `<C-v>` 〔未訳〕
-- [ ] **30.5** Copy a Japanese path, right-click into `cd` → Intact, and the caret sits after it 〔未訳〕
-- [ ] **30.6** With an image (not text) on the clipboard, right-click a prompt → Nothing happens, **no toast** 〔未訳〕
-- [ ] **30.7** Same in the command palette, in `f`, and in `S-r` (bulk rename) → Each pastes; the bulk preview re-renders 〔未訳〕
-- [ ] **30.8** Right-click in the **file list** → Still the context menu — the list is unchanged 〔未訳〕
-- [ ] **30.9** Right-click in the **terminal** pane (`<C-t>`) → The clipboard is typed in, and the pane takes the keys if it did not have them 〔未訳〕
-- [ ] **30.10** Select text in the terminal with a drag, then right-click → The selection was copied on release; the right-click pastes it back — select to copy, right-click to paste 〔未訳〕
-- [ ] **30.11** Copy **three lines** and right-click into the terminal at a PowerShell prompt → All three sit in the buffer, **nothing runs** until `<Enter>` (PSReadLine asks for bracketed paste) 〔未訳〕
-- [ ] **30.12** The same in a shell that does **not** ask for bracketed paste (`cmd.exe`) → The lines run, as they always have — and no stray `[200~` appears 〔未訳〕
-- [ ] **30.13** Right-click in the terminal while `vim` is open → The text is inserted; no `[200~` on screen 〔未訳〕
-- [ ] **30.14** `<C-v>` in the terminal → Same as the right-click, including 23.11 〔未訳〕
+- [ ] **30.1** エクスプローラーのアドレスバーでパスをコピーし、`c`+`d` で `cd` のプロンプトを出し、入力欄を右クリック → パスが入る。`<Enter>` でそこへ移動する — *Copy a path in Explorer's address bar, press `c`+`d` (or whatever opens the `cd` prompt), right-click the field → The path appears; `<Enter>` goes there*
+- [ ] **30.2** `abc` と打ち、`a` と `b` の間を**右**ボタンでクリック → そこに貼られる（末尾ではない） — *Type `abc`, click between `a` and `b` with the **right** button → The paste lands there, not at the end*
+- [ ] **30.3** ドラッグで一部を選択してから、**選択範囲の上**で右クリック → 選択が置き換わる — *Select part of the text with a drag, then right-click **on the selection** → The selection is replaced*
+- [ ] **30.4** 2 行のテキストをコピーして `s` に右クリック → 1 行になり、改行は空白として表示される（`<C-v>` と同じ） — *Copy two lines of text, right-click into `s` → One line, the break shown as a space — the same as `<C-v>`*
+- [ ] **30.5** 日本語のパスをコピーして `cd` に右クリック → 壊れずに入り、カーソルはその後ろに来る — *Copy a Japanese path, right-click into `cd` → Intact, and the caret sits after it*
+- [ ] **30.6** クリップボードに（文字ではなく）画像がある状態でプロンプトを右クリック → 何も起きない。**トーストも出ない** — *With an image (not text) on the clipboard, right-click a prompt → Nothing happens, **no toast***
+- [ ] **30.7** コマンドパレット、`f`、`S-r`（一括リネーム）で同じこと → どれも貼れる。一括リネームはプレビューが再描画される — *Same in the command palette, in `f`, and in `S-r` (bulk rename) → Each pastes; the bulk preview re-renders*
+- [ ] **30.8** **ファイル一覧**を右クリック → これまでどおりコンテキストメニュー。一覧側は変わっていない — *Right-click in the **file list** → Still the context menu — the list is unchanged*
+- [ ] **30.9** **ターミナル**ペイン（`<C-t>`）を右クリック → クリップボードの内容が打ち込まれ、キーを持っていなければペインがキーを受け取る — *Right-click in the **terminal** pane (`<C-t>`) → The clipboard is typed in, and the pane takes the keys if it did not have them*
+- [ ] **30.10** ターミナルでドラッグして選択し、そのあと右クリック → 離した時点でコピーされていて、右クリックで貼り戻される（選択でコピー、右クリックで貼り付け） — *Select text in the terminal with a drag, then right-click → The selection was copied on release; the right-click pastes it back — select to copy, right-click to paste*
+- [ ] **30.11** **3 行**をコピーして、PowerShell のプロンプトのターミナルに右クリック → 3 行ともバッファに入り、`<Enter>` を押すまで**何も実行されない**（PSReadLine が bracketed paste を要求するため） — *Copy **three lines** and right-click into the terminal at a PowerShell prompt → All three sit in the buffer, **nothing runs** until `<Enter>` (PSReadLine asks for bracketed paste)*
+- [ ] **30.12** bracketed paste を**要求しない**シェル（`cmd.exe`）で同じこと → これまでどおり行が実行される。そして `[200~` のような余計な文字が出ない — *The same in a shell that does **not** ask for bracketed paste (`cmd.exe`) → The lines run, as they always have — and no stray `[200~` appears*
+- [ ] **30.13** `vim` を開いた状態のターミナルで右クリック → 文字が挿入される。画面に `[200~` が出ない — *Right-click in the terminal while `vim` is open → The text is inserted; no `[200~` on screen*
+- [ ] **30.14** ターミナルで `<C-v>` → 右クリックと同じ（30.11 の挙動も含めて） — *`<C-v>` in the terminal → Same as the right-click, including 23.11*
 
 ## 31. ホストの共有一覧 — 0 / 13
 
-- [ ] **31.1** `g`+`<Space>`, type `\\<your server's address>`, `<Enter>` → The shares are listed, the same ones Explorer shows 〔未訳〕
-- [ ] **31.2** Same with a host **name** rather than an address, and with the `//` spelling → Both arrive; the path is shown back in the `\\host` spelling 〔未訳〕
-- [ ] **31.3** Walk into a share and back out with `h` → Into the share, then back to the host list 〔未訳〕
-- [ ] **31.4** `h` again, at the host → Nothing moves (the host is the top), no crash 〔未訳〕
-- [ ] **31.5** A host that is off, or does not exist (an unused address on your own subnet) → The tab returns to where it was and a toast says why — it does not hang the window 〔未訳〕
-- [ ] **31.5a** 24.1 and 24.5 again, watching for a **toast** → v0.16.0 fell back to the parent in silence, so a failure looked like nothing happening. Whatever the outcome, there is now either a listing or a message; if it is still a message, its os error number is the thing to report 〔未訳〕
-- [ ] **31.6** A host that needs a login the machine has not been given → Same: a refusal as a toast, naming it 〔未訳〕
-- [ ] **31.7** A host with **many** shares (more than a screenful) → All of them, scrolling normally 〔未訳〕
-- [ ] **31.8** A share name with a space or non-ASCII in it → Intact 〔未訳〕
-- [ ] **31.9** Hover a share and look at the size column → Empty — there is nothing to read, and it must not sit there counting 〔未訳〕
-- [ ] **31.10** `<C-r>` / refresh on the host listing → Re-asks the server; no crash 〔未訳〕
-- [ ] **31.11** Open the host in the **other pane** (`<C-w>`) and in a second tab → Both fine 〔未訳〕
-- [ ] **31.12** Go to a host, then change directory away → The watcher does not complain about the host it could not watch 〔未訳〕
+- [ ] **31.1** `g`+`<Space>` で `\\<サーバのアドレス>` と入力して `<Enter>` → 共有が並ぶ。エクスプローラーが見せるものと同じ — *`g`+`<Space>`, type `\\<your server's address>`, `<Enter>` → The shares are listed, the same ones Explorer shows*
+- [ ] **31.2** アドレスではなくホスト**名**で、また `//` の綴りでも同じこと → どちらも届く。表示は `\\host` の綴りに戻される — *Same with a host **name** rather than an address, and with the `//` spelling → Both arrive; the path is shown back in the `\\host` spelling*
+- [ ] **31.3** 共有の中へ入り、`h` で出る → 共有へ入り、ホストの一覧へ戻る — *Walk into a share and back out with `h` → Into the share, then back to the host list*
+- [ ] **31.4** ホストの位置でもう一度 `h` → 何も動かない（ホストが最上位）。落ちない — *`h` again, at the host → Nothing moves (the host is the top), no crash*
+- [ ] **31.5** 電源が入っていないホスト、または存在しないホスト（自分のサブネットの未使用アドレス）→ タブは元の場所に戻り、理由がトーストで出る。ウィンドウは固まらない — *A host that is off, or does not exist (an unused address on your own subnet) → The tab returns to where it was and a toast says why — it does not hang the window*
+- [ ] **31.5a** 24.1 と 24.5 をもう一度、**トーストが出るか**を見ながら → v0.16.0 は黙って親に戻っていたので、失敗が「何も起きない」に見えていた。いまは一覧かメッセージのどちらかが必ず出る。メッセージなら、その os error 番号が報告すべきもの — *24.1 and 24.5 again, watching for a **toast** → v0.16.0 fell back to the parent in silence, so a failure looked like nothing happening. Whatever the outcome, there is now either a listing or a message; if it is still a message, its os error number is the thing to report*
+- [ ] **31.6** この機械に資格情報を与えていないホスト → 同じく、拒否がトーストで名前付きで出る — *A host that needs a login the machine has not been given → Same: a refusal as a toast, naming it*
+- [ ] **31.7** 共有が**たくさん**あるホスト（1 画面に収まらない数）→ 全部出て、普通にスクロールできる — *A host with **many** shares (more than a screenful) → All of them, scrolling normally*
+- [ ] **31.8** 名前に空白や非 ASCII を含む共有 → 壊れずに出る — *A share name with a space or non-ASCII in it → Intact*
+- [ ] **31.9** 共有をホバーしてサイズの列を見る → 空。読むものが無く、**そこで数え続けてはいけない** — *Hover a share and look at the size column → Empty — there is nothing to read, and it must not sit there counting*
+- [ ] **31.10** ホストの一覧で `<C-r>` / 再読み込み → サーバに問い直す。落ちない — *`<C-r>` / refresh on the host listing → Re-asks the server; no crash*
+- [ ] **31.11** **もう一方のペイン**（`<C-w>`）と 2 つ目のタブでホストを開く → どちらも問題なし — *Open the host in the **other pane** (`<C-w>`) and in a second tab → Both fine*
+- [ ] **31.12** ホストへ行ってから、別のディレクトリへ移動する → 監視できなかったホストについて、ウォッチャが文句を言わない — *Go to a host, then change directory away → The watcher does not complain about the host it could not watch*
 
 ## 32. オープナー — 0 / 12
 
-- [ ] **32.1** Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` → 秀丸 / サクラ / VS Code / Neovim / default — with the descriptions, not the command lines 〔未訳〕
-- [ ] **32.2** `<Enter>` on the same file → Opens in the first entry (秀丸), no console flash 〔未訳〕
-- [ ] **32.3** `<S-Enter>` on a `.pdf` → Edge and Chrome first, then the default-app entry 〔未訳〕
-- [ ] **32.4** `<S-Enter>` on a `.xlsx`, pick Excel → Excel opens it — this is the `start ""` case that fails without it 〔未訳〕
-- [ ] **32.5** A file whose name has a **space**, through each of the above → One argument, opens correctly 〔未訳〕
-- [ ] **32.6** Several files selected, then `<Enter>` → All of them go to one invocation 〔未訳〕
-- [ ] **32.7** A rule written `*.{xlsx,xls,csv}` → Matches all three (this is what did not work before v0.17.0) 〔未訳〕
-- [ ] **32.8** An opener naming a program that is not installed → An error toast within a few seconds, no hang 〔未訳〕
-- [ ] **32.8a** An opener whose program is a **quoted full path** (秀丸, サクラ) → It opens. This is the v0.17.0 bug: `cmd` mangled the line and the failure was silent 〔未訳〕
-- [ ] **32.8b** 秀丸 and サクラ from `<S-Enter>` **and** from `<Enter>` as the first entry → Both, since they take different code paths to the same launcher 〔未訳〕
-- [ ] **32.8c** An opener with a deliberate typo in the path → A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report 〔未訳〕
-- [ ] **32.9** Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ → Lands on the line 〔未訳〕
+- [ ] **32.1** README の `[opener]` / `[open]` の例を `yazi.toml` に貼って再起動し、`.txt` で `<S-Enter>` → 秀丸 / サクラ / VS Code / Neovim / 既定 が、コマンド行ではなく**説明文**で並ぶ — *Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` → 秀丸 / サクラ / VS Code / Neovim / default — with the descriptions, not the command lines*
+- [ ] **32.2** 同じファイルで `<Enter>` → 先頭の項目（秀丸）で開く。コンソールが一瞬も出ない — *`<Enter>` on the same file → Opens in the first entry (秀丸), no console flash*
+- [ ] **32.3** `.pdf` で `<S-Enter>` → Edge と Chrome が先に、そのあと既定アプリの項目 — *`<S-Enter>` on a `.pdf` → Edge and Chrome first, then the default-app entry*
+- [ ] **32.4** `.xlsx` で `<S-Enter>` して Excel を選ぶ → Excel が開く。これが `start ""` の場合で、それが無いと失敗する — *`<S-Enter>` on a `.xlsx`, pick Excel → Excel opens it — this is the `start ""` case that fails without it*
+- [ ] **32.5** 名前に**空白**を含むファイルで、上のそれぞれを試す → 1 つの引数として渡り、正しく開く — *A file whose name has a **space**, through each of the above → One argument, opens correctly*
+- [ ] **32.6** 複数選択してから `<Enter>` → 全部がひとつの起動に渡される — *Several files selected, then `<Enter>` → All of them go to one invocation*
+- [ ] **32.7** `*.{xlsx,xls,csv}` と書いたルール → 3 つとも一致する（v0.17.0 以前はこれが効かなかった） — *A rule written `*.{xlsx,xls,csv}` → Matches all three (this is what did not work before v0.17.0)*
+- [ ] **32.8** 入っていないプログラムを指定したオープナー → 数秒以内にエラーのトースト。固まらない — *An opener naming a program that is not installed → An error toast within a few seconds, no hang*
+- [ ] **32.8a** プログラムを**引用符付きのフルパス**で指定したオープナー（秀丸、サクラ）→ 開く。これが v0.17.0 のバグで、`cmd` が行を壊し、しかも失敗が無言だった — *An opener whose program is a **quoted full path** (秀丸, サクラ) → It opens. This is the v0.17.0 bug: `cmd` mangled the line and the failure was silent*
+- [ ] **32.8b** 秀丸とサクラを、`<S-Enter>` から**と**先頭項目としての `<Enter>` から、両方試す → どちらも開く。同じ起動処理へ別の経路で入るため — *秀丸 and サクラ from `<S-Enter>` **and** from `<Enter>` as the first entry → Both, since they take different code paths to the same launcher*
+- [ ] **32.8c** パスにわざと打ち間違いを入れたオープナー → 失敗を述べるトースト。日本語版 Windows では `cmd` の文言ではなく終了コードが出るはずで、**それは仕様であって報告すべきバグではない** — *An opener with a deliberate typo in the path → A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report*
+- [ ] **32.9** アウトラインから（行の上で `<C-o>`）秀丸とサクラで開く → その行に着地する — *Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ → Lands on the line*
 
 ## 33. 設定の警告と、その色 — 0 / 11
 
 自動テスト済みなので下には出していない: 33.1, 33.2, 33.3, 33.5, 33.7, 33.8, 33.10
 
-- [ ] **33.4** Make something actually fail (an opener naming a program that is not installed, 25.8) → Still **red**, so the two are told apart at a glance 〔未訳〕
-- [ ] **33.6** A theme with a light background → The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable 〔未訳〕
-- [ ] **33.9** Break **three** config files at once → Up to five boxes stack downward, each sized to its own text, none overlapping the next 〔未訳〕
-- [ ] **33.11** Put `[[preview]]` into `yazi.toml` (it belongs in `filer.toml`) and start → **One line**: `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13) 〔未訳〕
-- [ ] **33.12** Put `[term]` into `yazi.toml` as well → A second line for it, same shape. Both say the file went unread, because it did 〔未訳〕
-- [ ] **33.13** Put `[term]` into a `yazi.toml` that is otherwise fine (no `[[preview]]`) → `… belongs in filer.toml and was ignored` — *ignored*, not *unread*: the rest of the file did load 〔未訳〕
-- [ ] **33.14** Put `[opener]` into `filer.toml` → The same warning the other way round: `belongs in yazi.toml` 〔未訳〕
-- [ ] **33.15** Move both into the right files, `<C-F5>` → No warnings. `filer env` agrees, and the terminal pane now starts what `[term] shell` names 〔未訳〕
-- [ ] **33.16** With filer **already running**, create `%APPDATA%\filer\filer.toml`, then press `~` → The file is a row of its own, in the warning colour, reading `on disk, not read yet — <C-F5> re-reads config`. The directory is **not** `nothing here` (v0.34.0) 〔未訳〕
-- [ ] **33.17** `<C-F5>`, then `~` again → The row is now an ordinary loaded file, no marker 〔未訳〕
-- [ ] **33.18** Rebind `config_reload` to `<F9>` and repeat 33.16 → The row names `<F9>`, not `<C-F5>` — it is read from the keymap, not written into the message 〔未訳〕
+- [ ] **33.4** 実際に失敗するものを作る（入っていないプログラムを指定したオープナー、25.8）→ こちらは**赤**のまま。一目で区別が付くこと — *Make something actually fail (an opener naming a program that is not installed, 25.8) → Still **red**, so the two are told apart at a glance*
+- [ ] **33.6** 背景の明るいテーマ → 黄色がそれでも読める。読めなければそう報告すること（いまは固定の既定値で、テーマから変えられない） — *A theme with a light background → The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable*
+- [ ] **33.9** 設定ファイルを**3 つ同時に**壊す → 箱が最大 5 つまで下へ積まれ、それぞれ自分の文章の大きさになり、重ならない — *Break **three** config files at once → Up to five boxes stack downward, each sized to its own text, none overlapping the next*
+- [ ] **33.11** `[[preview]]` を `yazi.toml` に入れて（本来は `filer.toml`）起動 → **1 行で** `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`。以前の `invalid type: map, expected a string` ではない（v0.33.13） — *Put `[[preview]]` into `yazi.toml` (it belongs in `filer.toml`) and start → **One line**: `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13)*
+- [ ] **33.12** `[term]` も `yazi.toml` に入れる → それについても同じ形の行が 1 つ増える。どちらも「このファイルは読まれなかった」と述べる。実際そうだから — *Put `[term]` into `yazi.toml` as well → A second line for it, same shape. Both say the file went unread, because it did*
+- [ ] **33.13** `[[preview]]` の無い、それ以外は正常な `yazi.toml` に `[term]` を入れる → `… belongs in filer.toml and was ignored`。*unread* ではなく *ignored* —— ファイルの残りは読み込まれている — *Put `[term]` into a `yazi.toml` that is otherwise fine (no `[[preview]]`) → `… belongs in filer.toml and was ignored` — *ignored*, not *unread*: the rest of the file did load*
+- [ ] **33.14** `[opener]` を `filer.toml` に入れる → 逆向きの同じ警告（`belongs in yazi.toml`） — *Put `[opener]` into `filer.toml` → The same warning the other way round: `belongs in yazi.toml`*
+- [ ] **33.15** 両方を正しいファイルへ移して `<C-F5>` → 警告が消える。`filer env` の表示も一致し、ターミナルペインが `[term] shell` の指すものを起動するようになる — *Move both into the right files, `<C-F5>` → No warnings. `filer env` agrees, and the terminal pane now starts what `[term] shell` names*
+- [ ] **33.16** filer を**起動したまま** `%APPDATA%\filer\filer.toml` を作り、`~` を押す → そのファイルが 1 行として、警告色で `on disk, not read yet — <C-F5> re-reads config` と出る。ディレクトリは `nothing here` に**ならない**（v0.34.0） — *With filer **already running**, create `%APPDATA%\filer\filer.toml`, then press `~` → The file is a row of its own, in the warning colour, reading `on disk, not read yet — <C-F5> re-reads config`. The directory is **not** `nothing here` (v0.34.0)*
+- [ ] **33.17** `<C-F5>` してから、もう一度 `~` → 普通に読み込まれたファイルの行になり、印が消える — *`<C-F5>`, then `~` again → The row is now an ordinary loaded file, no marker*
+- [ ] **33.18** `config_reload` を `<F9>` に割り当て直して 33.16 を繰り返す → 行が `<C-F5>` ではなく `<F9>` を示す。メッセージに埋め込まれているのではなく、keymap から読んでいるため — *Rebind `config_reload` to `<F9>` and repeat 33.16 → The row names `<F9>`, not `<C-F5>` — it is read from the keymap, not written into the message*
 
 ## 34. ヘルプパネル自身のスクロール — 全 14 件が自動
 
@@ -481,37 +479,37 @@ fsutil hardlink list <新しくできたパス>
 
 ## 35. 設定ファイルの探索場所（OS ごと） — 0 / 10
 
-- [ ] **35.1** Windows → `filer env` with both variables unset → `%APPDATA%\yazi\config` and `%APPDATA%\filer` — **unchanged from v0.34.0.** This is the row that must not have moved 〔未訳〕
-- [ ] **35.2** Windows → Put `[mgr] sort_by = "mtime"` in `%APPDATA%\yazi\config\yazi.toml` → Read. yazi's own directory still shares with filer 〔未訳〕
-- [ ] **35.3** macOS → `filer env` → `~/.config/yazi` and `~/.config/filer`, **not** `~/Library/Application Support/…` 〔未訳〕
-- [ ] **35.4** macOS → Install yazi, run `yazi` once, put a `yazi.toml` where yazi reads it → filer reads the same file. This is the whole point of the change: before v0.35.0 filer looked under `~/Library/Application Support/yazi/config/`, which yazi never writes 〔未訳〕
-- [ ] **35.5** macOS → Anyone upgrading with config in `~/Library/Application Support/filer/` → It is **no longer read** — `filer env` lists it as missing. Move it to `~/.config/filer/`. Called out as a 変更 in CHANGELOG 〔未訳〕
-- [ ] **35.6** Linux → `filer env` → `~/.config/yazi` — **not** `~/.config/yazi/config` 〔未訳〕
-- [ ] **35.7** Linux / macOS → `XDG_CONFIG_HOME=/tmp/x filer env` → `/tmp/x/yazi` and `/tmp/x/filer` 〔未訳〕
-- [ ] **35.8** Linux / macOS → `XDG_CONFIG_HOME=relative filer env`, and again with it empty → Falls back to `~/.config/…`. XDG says a relative value is ignored 〔未訳〕
-- [ ] **35.9** Any → `last-run.toml` → Still in the state directory (`data_dir()`), which this change did **not** touch. On Windows that is the same `%APPDATA%\filer`; on Linux `~/.local/share/filer` 〔未訳〕
-- [ ] **35.10** Any → Symlink `filer.toml` into the config directory from elsewhere, then `<C-F5>` → Read through the link. Re-check after editing via the **link path** with an editor that saves by rename — that replaces the symlink with a regular file 〔未訳〕
+- [ ] **35.1** [Windows] 両方の環境変数を未設定にして `filer env` → `%APPDATA%\yazi\config` と `%APPDATA%\filer`。**v0.34.0 から変わっていないこと。**動いていてはいけない行 — *Windows → `filer env` with both variables unset → `%APPDATA%\yazi\config` and `%APPDATA%\filer` — **unchanged from v0.34.0.** This is the row that must not have moved*
+- [ ] **35.2** [Windows] `%APPDATA%\yazi\config\yazi.toml` に `[mgr] sort_by = "mtime"` を置く → 読まれる。yazi 自身のディレクトリを filer と共有したまま — *Windows → Put `[mgr] sort_by = "mtime"` in `%APPDATA%\yazi\config\yazi.toml` → Read. yazi's own directory still shares with filer*
+- [ ] **35.3** [macOS] `filer env` → `~/.config/yazi` と `~/.config/filer`。`~/Library/Application Support/…` では**ない** — *macOS → `filer env` → `~/.config/yazi` and `~/.config/filer`, **not** `~/Library/Application Support/…`*
+- [ ] **35.4** [macOS] yazi を入れて一度 `yazi` を起動し、yazi が読む場所に `yazi.toml` を置く → filer が同じファイルを読む。**これがこの変更の目的。**v0.35.0 以前は `~/Library/Application Support/yazi/config/` を見ていて、yazi はそこに書かない — *macOS → Install yazi, run `yazi` once, put a `yazi.toml` where yazi reads it → filer reads the same file. This is the whole point of the change: before v0.35.0 filer looked under `~/Library/Application Support/yazi/config/`, which yazi never writes*
+- [ ] **35.5** [macOS] `~/Library/Application Support/filer/` に設定を置いたまま更新した場合 → **もう読まれない。**`filer env` には無いものとして出る。`~/.config/filer/` へ移すこと（CHANGELOG に**変更**として明記した） — *macOS → Anyone upgrading with config in `~/Library/Application Support/filer/` → It is **no longer read** — `filer env` lists it as missing. Move it to `~/.config/filer/`. Called out as a 変更 in CHANGELOG*
+- [ ] **35.6** [Linux] `filer env` → `~/.config/yazi`。`~/.config/yazi/config` では**ない** — *Linux → `filer env` → `~/.config/yazi` — **not** `~/.config/yazi/config`*
+- [ ] **35.7** [Linux / macOS] `XDG_CONFIG_HOME=/tmp/x filer env` → `/tmp/x/yazi` と `/tmp/x/filer` — *Linux / macOS → `XDG_CONFIG_HOME=/tmp/x filer env` → `/tmp/x/yazi` and `/tmp/x/filer`*
+- [ ] **35.8** [Linux / macOS] `XDG_CONFIG_HOME=relative filer env` と、空にした場合 → どちらも `~/.config/…` に戻る。XDG の仕様では相対値は無視する — *Linux / macOS → `XDG_CONFIG_HOME=relative filer env`, and again with it empty → Falls back to `~/.config/…`. XDG says a relative value is ignored*
+- [ ] **35.9** [共通] `last-run.toml` → 状態ディレクトリ（`data_dir()`）のまま。この変更では**触っていない**。Windows では同じ `%APPDATA%\filer`、Linux では `~/.local/share/filer` — *Any → `last-run.toml` → Still in the state directory (`data_dir()`), which this change did **not** touch. On Windows that is the same `%APPDATA%\filer`; on Linux `~/.local/share/filer`*
+- [ ] **35.10** [共通] 別の場所から設定ディレクトリへ `filer.toml` をシンボリックリンクして `<C-F5>` → リンク越しに読まれる。**リンクのパス経由で、保存時に改名するエディタで編集したあと**もう一度確かめること（それをするとシンボリックリンクが普通のファイルに置き換わる） — *Any → Symlink `filer.toml` into the config directory from elsewhere, then `<C-F5>` → Read through the link. Re-check after editing via the **link path** with an editor that saves by rename — that replaces the symlink with a regular file*
 
 ## 36. `T` と、`<F3>` との違い — 0 / 5
 
 自動テスト済みなので下には出していない: 36.1, 36.2, 36.3, 36.4, 36.5, 36.5a, 36.5b, 36.5c, 36.6, 36.7, 36.8, 36.9, 36.11, 36.12, 36.16, 36.17
 
-- [ ] **36.10** Bind `<S-t>` instead of `T` in `prepend_keymap`, `<C-F5>` → **Nothing happens on any key** — the lesson the tests pin. No warning is printed either, because the notation is valid 〔未訳〕
-- [ ] **36.13** maximized preview (`T`) → `q` → Columns back, app still running 〔未訳〕
-- [ ] **36.14** `help` (`~`), task list, spotter (`Tab`), comparison (`<A-d>`) → `q` in each → Closes, app still running (unchanged — these already had their own layer) 〔未訳〕
-- [ ] **36.15** Nothing up → `q` → Quits on the first press 〔未訳〕
-- [ ] **36.18** Rebind: `[[mgr.keymap]]` with `on = "Q"`, `run = "quit"`, then `Q` with `<F3>` up → Closes the panel first, like `q` — the behaviour is on the action, not the letter 〔未訳〕
+- [ ] **36.10** `prepend_keymap` で `T` ではなく `<S-t>` を割り当てて `<C-F5>` → **どのキーを押しても何も起きない。**テストが固定している教訓そのもの。記法としては正しいので、警告も出ない — *Bind `<S-t>` instead of `T` in `prepend_keymap`, `<C-F5>` → **Nothing happens on any key** — the lesson the tests pin. No warning is printed either, because the notation is valid*
+- [ ] **36.13** 最大化プレビュー（`T`）の状態で `q` → 列が戻り、アプリは動き続ける — *maximized preview (`T`) → `q` → Columns back, app still running*
+- [ ] **36.14** `help`（`~`）、タスク一覧、spot（`Tab`）、比較（`<A-d>`）のそれぞれで `q` → 閉じるだけでアプリは動き続ける（以前から同じ。これらは元々自分のレイヤーを持っている） — *`help` (`~`), task list, spotter (`Tab`), comparison (`<A-d>`) → `q` in each → Closes, app still running (unchanged — these already had their own layer)*
+- [ ] **36.15** 何も開いていない状態で `q` → 1 回目で終了する — *Nothing up → `q` → Quits on the first press*
+- [ ] **36.18** `[[mgr.keymap]]` で `on = "Q"` / `run = "quit"` を割り当て、`<F3>` を開いた状態で `Q` → `q` と同じくまずパネルが閉じる。**挙動は文字ではなく動作に紐づいている** — *Rebind: `[[mgr.keymap]]` with `on = "Q"`, `run = "quit"`, then `Q` with `<F3>` up → Closes the panel first, like `q` — the behaviour is on the action, not the letter*
 
 ## 37. `start ""` 形式のオープナーが実際に起動するか — 0 / 8
 
-- [ ] **37.1** `<Enter>` on a `.pdf` with `browser = [{ run = 'start "" msedge %*' }]` first → **Edge opens the PDF.** No command prompt appears 〔未訳〕
-- [ ] **37.2** `<Enter>` on `.xlsx` / `.docx` / `.pptx` with `start "" excel %*` and friends → The Office app opens the file 〔未訳〕
-- [ ] **37.3** `<Enter>` on anything routed to `open = [{ run = 'start "" %*' }]` → The file's associated app opens it 〔未訳〕
-- [ ] **37.4** A file whose **name contains a space**, through any of the above → Opens as one file, not two. The path keeps its quotes 〔未訳〕
-- [ ] **37.5** An opener written `start "" msedge "%*"` (placeholder quoted by hand) → Same result as 37.1 — the pair around the placeholder is still absorbed 〔未訳〕
-- [ ] **37.6** Select two PDFs, `<Enter>` → Both open as separate arguments, not one quoted blob 〔未訳〕
-- [ ] **37.7** Openers given as a full path (IrfanView, sakura, Hidemaru) → Unchanged — these never went through `start` 〔未訳〕
-- [ ] **37.8** `O` on a PDF → The picker lists Edge, Chrome, the default app, then the editors; each entry launches what it says 〔未訳〕
+- [ ] **37.1** `browser = [{ run = 'start "" msedge %*' }]` を先頭にして `.pdf` で `<Enter>` → **Edge が PDF を開く。**コマンドプロンプトが出ない — *`<Enter>` on a `.pdf` with `browser = [{ run = 'start "" msedge %*' }]` first → **Edge opens the PDF.** No command prompt appears*
+- [ ] **37.2** `start "" excel %*` などを設定して `.xlsx` / `.docx` / `.pptx` で `<Enter>` → Office のアプリがファイルを開く — *`<Enter>` on `.xlsx` / `.docx` / `.pptx` with `start "" excel %*` and friends → The Office app opens the file*
+- [ ] **37.3** `open = [{ run = 'start "" %*' }]` に流れるものを `<Enter>` → 関連付けられたアプリが開く — *`<Enter>` on anything routed to `open = [{ run = 'start "" %*' }]` → The file's associated app opens it*
+- [ ] **37.4** **名前に空白を含む**ファイルで、上のそれぞれを試す → 2 つではなく 1 つのファイルとして開く。パスの引用符が保たれている — *A file whose **name contains a space**, through any of the above → Opens as one file, not two. The path keeps its quotes*
+- [ ] **37.5** `start "" msedge "%*"` と書いたオープナー（プレースホルダを手で引用したもの）→ 37.1 と同じ結果。プレースホルダを囲む対は変わらず吸収される — *An opener written `start "" msedge "%*"` (placeholder quoted by hand) → Same result as 37.1 — the pair around the placeholder is still absorbed*
+- [ ] **37.6** PDF を 2 つ選んで `<Enter>` → 引用符でひと塊にならず、別々の引数として両方開く — *Select two PDFs, `<Enter>` → Both open as separate arguments, not one quoted blob*
+- [ ] **37.7** フルパスで指定したオープナー（IrfanView、サクラ、秀丸）→ 以前のまま。これらは `start` を通っていない — *Openers given as a full path (IrfanView, sakura, Hidemaru) → Unchanged — these never went through `start`*
+- [ ] **37.8** PDF で `O` → Edge、Chrome、既定アプリ、そのあとエディタ群が並ぶ。それぞれ表示どおりのものが起動する — *`O` on a PDF → The picker lists Edge, Chrome, the default app, then the editors; each entry launches what it says*
 
 ## 38. フォーカスの規則、それを描く 2 つのペインで — 全 9 件が自動
 
@@ -519,48 +517,48 @@ fsutil hardlink list <新しくできたパス>
 
 ## 39. ターミナルペインでの `<A-j>` / `<A-k>` — 0 / 9
 
-- [ ] **39.1** `<C-t>`, run something long (`dir /s` or `ls -R`), then `<A-k>` → The scrollback goes **up** five lines per press 〔未訳〕
-- [ ] **39.2** `<A-j>` → Back **down** five lines. Same direction as in the file list, where these scroll the preview 〔未訳〕
-- [ ] **39.3** Hold `<A-k>` to the top, then `<A-j>` back → Stops at each end without overshooting — no dead presses coming back 〔未訳〕
-- [ ] **39.4** `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>`, and the wheel → Unchanged 〔未訳〕
-- [ ] **39.5** With the terminal **unfocused** (`<C-t>` back to the list), `<A-j>` → Scrolls the **preview**, not the terminal. The layer decides, not the key 〔未訳〕
-- [ ] **39.6** In the pane, run a program that reads Alt+j — `nvim` with `nnoremap <A-j> :m+1<CR>` → **It does see the key** from v0.38.0 — see section 40. Before that it did not 〔未訳〕
-- [ ] **39.7** `[[term.prepend_keymap]]` binding `<A-j>` to `noop`, then `<C-F5>` → The key does nothing **and still does not reach the shell** — anything bound here is consumed. Handing it back needs a full `[term] keymap = [...]` replacement 〔未訳〕
-- [ ] **39.8** Alt+b / Alt+f / Alt+d at the shell prompt → Still reach readline. Only j and k were taken 〔未訳〕
-- [ ] **39.9** `<F1>` from inside the pane → The term layer's list shows `<A-j>` / `<A-k>` with their descriptions 〔未訳〕
+- [ ] **39.1** `<C-t>` で長いもの（`dir /s` や `ls -R`）を実行してから `<A-k>` → スクロールバックが 1 回につき 5 行**上**へ — *`<C-t>`, run something long (`dir /s` or `ls -R`), then `<A-k>` → The scrollback goes **up** five lines per press*
+- [ ] **39.2** `<A-j>` → 5 行**下**へ戻る。ファイル一覧でプレビューをスクロールするのと同じ向き — *`<A-j>` → Back **down** five lines. Same direction as in the file list, where these scroll the preview*
+- [ ] **39.3** `<A-k>` を押し続けて最上部まで行き、`<A-j>` で戻る → 行き過ぎずに両端で止まる。戻るときの空押しが無い — *Hold `<A-k>` to the top, then `<A-j>` back → Stops at each end without overshooting — no dead presses coming back*
+- [ ] **39.4** `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` とホイール → 以前のまま — *`<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>`, and the wheel → Unchanged*
+- [ ] **39.5** ターミナルから**フォーカスを外して**（`<C-t>` で一覧へ戻って）`<A-j>` → ターミナルではなく**プレビュー**がスクロールする。キーではなくレイヤーが決めている — *With the terminal **unfocused** (`<C-t>` back to the list), `<A-j>` → Scrolls the **preview**, not the terminal. The layer decides, not the key*
+- [ ] **39.6** ペインの中で Alt+j を読むプログラムを動かす（`nnoremap <A-j> :m+1<CR>` を設定した `nvim`）→ v0.38.0 以降は**キーが届く**（40 節を参照）。それ以前は届かなかった — *In the pane, run a program that reads Alt+j — `nvim` with `nnoremap <A-j> :m+1<CR>` → **It does see the key** from v0.38.0 — see section 40. Before that it did not*
+- [ ] **39.7** `[[term.prepend_keymap]]` で `<A-j>` を `noop` に割り当てて `<C-F5>` → キーは何もせず、**シェルにも届かない。**ここで割り当てたものは消費される。返すには `[term] keymap = [...]` を丸ごと置き換える必要がある — *`[[term.prepend_keymap]]` binding `<A-j>` to `noop`, then `<C-F5>` → The key does nothing **and still does not reach the shell** — anything bound here is consumed. Handing it back needs a full `[term] keymap = [...]` replacement*
+- [ ] **39.8** シェルのプロンプトで Alt+b / Alt+f / Alt+d → これまでどおり readline に届く。取られたのは j と k だけ — *Alt+b / Alt+f / Alt+d at the shell prompt → Still reach readline. Only j and k were taken*
+- [ ] **39.9** ペインの中で `<F1>` → term レイヤーの一覧に `<A-j>` / `<A-k>` が説明付きで出る — *`<F1>` from inside the pane → The term layer's list shows `<A-j>` / `<A-k>` with their descriptions*
 
 ## 40. 全画面プログラムにスクロールのジェスチャーを渡す — 0 / 13
 
-- [ ] **40.1** `<C-t>`, `nvim` a long file, `<A-j>` / `<A-k>` with `nnoremap <A-j> :m+1<CR>` bound → **nvim sees the key.** The v0.37.0 collision is gone 〔未訳〕
-- [ ] **40.2** In the same nvim, `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` → All reach nvim. Every `term_scroll` key is handed over, not just the two 〔未訳〕
-- [ ] **40.3** In the same nvim, `<C-t>` → **Still filer's** — it leaves the pane, with nvim left running. Non-scrolling keys are never handed over 〔未訳〕
-- [ ] **40.4** Quit nvim, then `<A-j>` / `<A-k>` at the shell prompt → Back to scrolling filer's scrollback. The handover follows the program, not a setting 〔未訳〕
-- [ ] **40.5** The wheel inside nvim, and inside `less` → Scrolls the document. Before v0.38.0 it tried to walk a scrollback that does not exist, so nothing moved 〔未訳〕
-- [ ] **40.6** The wheel at the shell prompt → Still walks the scrollback, unchanged 〔未訳〕
-- [ ] **40.7** `less` a long file, `<S-PageUp>`, then `q` to quit, then `<S-PageUp>` again → Inside `less` it pages the document; after quitting it scrolls the pane's scrollback 〔未訳〕
-- [ ] **40.8** In nvim with `set nonumber`, wheel up then down → Lands back where it started — one notch is a fixed number of arrows each way 〔未訳〕
-- [ ] **40.9** A program using the alternate screen **and** application-cursor mode → The wheel's arrows arrive as SS3 (`ESC O A`), not CSI. nvim in insert mode is the easy check 〔未訳〕
-- [ ] **40.10** At a `bash`/`zsh` prompt in the pane, type a few words, then `Alt-b` / `Alt-f` → The cursor moves **by word**. Before v0.38.0 nothing happened — the key was dropped with no bytes behind it 〔未訳〕
-- [ ] **40.11** `Alt-d` at the same prompt → Deletes the word ahead 〔未訳〕
-- [ ] **40.12** PowerShell (PSReadLine) in the pane, `Alt-b` / `Alt-f` → Same word motions 〔未訳〕
-- [ ] **40.13** `Alt-j` / `Alt-k` at an ordinary prompt → **Still filer's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen 〔未訳〕
+- [ ] **40.1** `<C-t>` から長いファイルを `nvim` で開き、`nnoremap <A-j> :m+1<CR>` を割り当てた状態で `<A-j>` / `<A-k>` → **nvim にキーが届く。**v0.37.0 の衝突が解消されている — *`<C-t>`, `nvim` a long file, `<A-j>` / `<A-k>` with `nnoremap <A-j> :m+1<CR>` bound → **nvim sees the key.** The v0.37.0 collision is gone*
+- [ ] **40.2** 同じ nvim の中で `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` → すべて nvim に届く。2 つだけでなく `term_scroll` のキー全部が渡される — *In the same nvim, `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` → All reach nvim. Every `term_scroll` key is handed over, not just the two*
+- [ ] **40.3** 同じ nvim の中で `<C-t>` → **これは filer のまま。**nvim を動かしたままペインから出る。スクロール以外のキーは決して渡さない — *In the same nvim, `<C-t>` → **Still filer's** — it leaves the pane, with nvim left running. Non-scrolling keys are never handed over*
+- [ ] **40.4** nvim を終了してから、シェルのプロンプトで `<A-j>` / `<A-k>` → filer のスクロールバック操作に戻る。受け渡しは設定ではなくプログラムに追従している — *Quit nvim, then `<A-j>` / `<A-k>` at the shell prompt → Back to scrolling filer's scrollback. The handover follows the program, not a setting*
+- [ ] **40.5** nvim の中と `less` の中でホイール → 文書がスクロールする。v0.38.0 以前は存在しないスクロールバックを歩こうとして何も動かなかった — *The wheel inside nvim, and inside `less` → Scrolls the document. Before v0.38.0 it tried to walk a scrollback that does not exist, so nothing moved*
+- [ ] **40.6** シェルのプロンプトでホイール → これまでどおりスクロールバックを歩く — *The wheel at the shell prompt → Still walks the scrollback, unchanged*
+- [ ] **40.7** 長いファイルを `less` で開いて `<S-PageUp>`、`q` で終了してからもう一度 `<S-PageUp>` → `less` の中では文書がページ送りされ、終了後はペインのスクロールバックが動く — *`less` a long file, `<S-PageUp>`, then `q` to quit, then `<S-PageUp>` again → Inside `less` it pages the document; after quitting it scrolls the pane's scrollback*
+- [ ] **40.8** `set nonumber` の nvim でホイールを上げてから下げる → 元の位置に戻る。1 ノッチは両方向とも固定本数の矢印キーだから — *In nvim with `set nonumber`, wheel up then down → Lands back where it started — one notch is a fixed number of arrows each way*
+- [ ] **40.9** 代替画面**かつ**アプリケーションカーソルモードを使うプログラム → ホイールの矢印が CSI ではなく SS3（`ESC O A`）で届く。挿入モードの nvim が確かめやすい — *A program using the alternate screen **and** application-cursor mode → The wheel's arrows arrive as SS3 (`ESC O A`), not CSI. nvim in insert mode is the easy check*
+- [ ] **40.10** ペインの `bash` / `zsh` プロンプトで数語打ってから `Alt-b` / `Alt-f` → カーソルが**単語単位**で動く。v0.38.0 以前は何も起きなかった（キーが、送るバイトを持たないまま捨てられていた） — *At a `bash`/`zsh` prompt in the pane, type a few words, then `Alt-b` / `Alt-f` → The cursor moves **by word**. Before v0.38.0 nothing happened — the key was dropped with no bytes behind it*
+- [ ] **40.11** 同じプロンプトで `Alt-d` → 前方の単語を削除する — *`Alt-d` at the same prompt → Deletes the word ahead*
+- [ ] **40.12** ペインの PowerShell（PSReadLine）で `Alt-b` / `Alt-f` → 同じ単語移動 — *PowerShell (PSReadLine) in the pane, `Alt-b` / `Alt-f` → Same word motions*
+- [ ] **40.13** 普通のプロンプトで `Alt-j` / `Alt-k` → **これは filer のスクロールのまま。**この 2 つは `[term]` レイヤーに割り当てられていて、プロンプトは代替画面ではないため — *`Alt-j` / `Alt-k` at an ordinary prompt → **Still filer's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen*
 
 ## 41. spot パネルの 4 つの provider — 0 / 14
 
-- [ ] **41.1** `<Tab>` on a `.zip` from the fixtures → An **Archive** section: format, entry and folder counts, unpacked size, ratio, `Encrypted: no` 〔未訳〕
-- [ ] **41.2** `<Tab>` on a zip made **encrypted by 7-Zip** → `Encrypted: yes (entries need a password)`, and the counts are still there. **Cannot be unit-tested — this build of `zip` has no AES writer, so no encrypted fixture can be made in-tree** 〔未訳〕
-- [ ] **41.3** `<Tab>` on a 7z made with "encrypt file names" → `Encrypted: yes (the listing itself)` and **no counts at all** (nothing below is known) 〔未訳〕
-- [ ] **41.4** `<Tab>` on an archive with more than 20,000 entries → The panel arrives without the window stalling, and says `Scanned: first 20,000 entries` 〔未訳〕
-- [ ] **41.5** `<Tab>` on a CRLF file saved by Notepad, then on an LF one → The `Line endings` row tells them apart, with counts 〔未訳〕
-- [ ] **41.6** `<Tab>` on a Notepad "UTF-16 LE" save → `Encoding: UTF-16 LE`, `BOM: UTF-16 LE (FF FE)` — **not** treated as binary 〔未訳〕
-- [ ] **41.7** `<Tab>` on a 2 GB log → Rows arrive promptly, `Scanned: first 1.0 M of …`, and **no `Final newline` row** (the end was never read) 〔未訳〕
-- [ ] **41.8** `<Tab>` on each of the six release binaries → `Architecture` matches the triple the artifact is named for — `x86_64` / `aarch64` 〔未訳〕
-- [ ] **41.9** `<Tab>` on `C:\Windows\explorer.exe`, then on a `.dll` → `Windows GUI` / `DLL` 〔未訳〕
-- [ ] **41.10** `<Tab>` on a real `.docx` / `.xlsx` / `.pptx` saved by Office → Author, revision, times marked **UTC**, word / page / slide counts 〔未訳〕
-- [ ] **41.11** `<Tab>` on an old `.doc` → **No Document section, and no error** 〔未訳〕
-- [ ] **41.12** Look at the key column on every new section → No key runs into the value column (`overlay.rs` hard-codes `key_w = 130.0`) 〔未訳〕
-- [ ] **41.13** `<A-j>` down into a new section's rows, then `y` → The right value is copied. **`Act::Copy` counts rows across every section, so the new sections shift the indices** 〔未訳〕
-- [ ] **41.14** `<Tab>` on a folder on a slow network drive → The panel still follows the cursor; the spot worker is newest-wins 〔未訳〕
+- [ ] **41.1** fixtures の `.zip` で `<Tab>` → **Archive** セクション（形式、エントリ数とフォルダ数、展開後サイズ、圧縮率、`Encrypted: no`） — *`<Tab>` on a `.zip` from the fixtures → An **Archive** section: format, entry and folder counts, unpacked size, ratio, `Encrypted: no`*
+- [ ] **41.2** **7-Zip で暗号化した** zip で `<Tab>` → `Encrypted: yes (entries need a password)` と出て、件数も出ている。**単体テストにできない**（この `zip` のビルドに AES 書き込みが無く、暗号化した fixture をツリー内で作れない） — *`<Tab>` on a zip made **encrypted by 7-Zip** → `Encrypted: yes (entries need a password)`, and the counts are still there. **Cannot be unit-tested — this build of `zip` has no AES writer, so no encrypted fixture can be made in-tree***
+- [ ] **41.3** 「ファイル名も暗号化」で作った 7z で `<Tab>` → `Encrypted: yes (the listing itself)` と出て、**件数は一切出ない**（その先が分からないため） — *`<Tab>` on a 7z made with "encrypt file names" → `Encrypted: yes (the listing itself)` and **no counts at all** (nothing below is known)*
+- [ ] **41.4** エントリが 2 万を超える書庫で `<Tab>` → ウィンドウが止まらずにパネルが出て、`Scanned: first 20,000 entries` と述べる — *`<Tab>` on an archive with more than 20,000 entries → The panel arrives without the window stalling, and says `Scanned: first 20,000 entries`*
+- [ ] **41.5** メモ帳で CRLF 保存したファイルと LF のファイルで `<Tab>` → `Line endings` の行が件数付きで区別する — *`<Tab>` on a CRLF file saved by Notepad, then on an LF one → The `Line endings` row tells them apart, with counts*
+- [ ] **41.6** メモ帳の「UTF-16 LE」保存で `<Tab>` → `Encoding: UTF-16 LE`、`BOM: UTF-16 LE (FF FE)`。バイナリ扱いに**ならない** — *`<Tab>` on a Notepad "UTF-16 LE" save → `Encoding: UTF-16 LE`, `BOM: UTF-16 LE (FF FE)` — **not** treated as binary*
+- [ ] **41.7** 2GB のログで `<Tab>` → 行がすぐ出て `Scanned: first 1.0 M of …` となり、**`Final newline` の行は出ない**（末尾を読んでいないため） — *`<Tab>` on a 2 GB log → Rows arrive promptly, `Scanned: first 1.0 M of …`, and **no `Final newline` row** (the end was never read)*
+- [ ] **41.8** リリースの 6 つのバイナリそれぞれで `<Tab>` → `Architecture` が成果物の名前のトリプルと一致する（`x86_64` / `aarch64`） — *`<Tab>` on each of the six release binaries → `Architecture` matches the triple the artifact is named for — `x86_64` / `aarch64`*
+- [ ] **41.9** `C:\Windows\explorer.exe` と、`.dll` で `<Tab>` → `Windows GUI` / `DLL` — *`<Tab>` on `C:\Windows\explorer.exe`, then on a `.dll` → `Windows GUI` / `DLL`*
+- [ ] **41.10** Office で保存した本物の `.docx` / `.xlsx` / `.pptx` で `<Tab>` → 作成者、リビジョン、**UTC** と明記された時刻、語数 / ページ数 / スライド数 — *`<Tab>` on a real `.docx` / `.xlsx` / `.pptx` saved by Office → Author, revision, times marked **UTC**, word / page / slide counts*
+- [ ] **41.11** 古い `.doc` で `<Tab>` → **Document セクションが出ず、エラーも出ない** — *`<Tab>` on an old `.doc` → **No Document section, and no error***
+- [ ] **41.12** 新しい各セクションのキーの列を見る → キーが値の列にはみ出していない（`overlay.rs` が `key_w = 130.0` で固定している） — *Look at the key column on every new section → No key runs into the value column (`overlay.rs` hard-codes `key_w = 130.0`)*
+- [ ] **41.13** 新しいセクションの行まで `<A-j>` で下り、`y` → 正しい値がコピーされる。**`Act::Copy` は全セクションを通して行を数えるので、セクションが増えると添字がずれる** — *`<A-j>` down into a new section's rows, then `y` → The right value is copied. **`Act::Copy` counts rows across every section, so the new sections shift the indices***
+- [ ] **41.14** 遅いネットワークドライブ上のフォルダで `<Tab>` → パネルはカーソルに追従し続ける（spot ワーカーは newest-wins） — *`<Tab>` on a folder on a slow network drive → The panel still follows the cursor; the spot worker is newest-wins*
 
 ## 42. ミニマップのホバーカード — 全 13 件が自動
 
@@ -570,37 +568,37 @@ fsutil hardlink list <新しくできたパス>
 
 自動テスト済みなので下には出していない: 43.1, 43.2, 43.3, 43.4, 43.5, 43.6, 43.7, 43.8, 43.10, 43.11, 43.12, 43.13
 
-- [ ] **43.9** A 50 MB CSV → Opens promptly, cut at `max_text_bytes`, footer says truncated 〔未訳〕
+- [ ] **43.9** 50MB の CSV → すぐ開き、`max_text_bytes` で切られ、フッタが省略したと述べる — *A 50 MB CSV → Opens promptly, cut at `max_text_bytes`, footer says truncated*
 
 ## 44. ディスク使用量 — 0 / 13
 
-- [ ] **44.1** `gu` in a project with a `node_modules` → Children largest first, with bars; `node_modules` near the top with a total far bigger than its own entry 〔未訳〕
-- [ ] **44.2** `gu`, then `<Esc>` → Back in the directory, cursor where it was. The walk stops (no CPU after leaving) 〔未訳〕
-- [ ] **44.3** `gu` on a tree with 300k+ files → Finishes, and says the walk was cut short and the totals are floors 〔未訳〕
-- [ ] **44.4** `gu` in a folder holding a `.gitignore`d `target/` or `build/` → It is **counted**, not skipped 〔未訳〕
-- [ ] **44.5** `gu` where a hidden folder holds most of the space → It is counted, and visible 〔未訳〕
-- [ ] **44.6** `gu` on a folder with a symlink/junction to a big tree → The link is one entry, not a second copy of the tree, and no hang 〔未訳〕
-- [ ] **44.7** `gu` at `C:\` → Answers; the biggest folders are plausible against WizTree or Explorer's own 〔未訳〕
-- [ ] **44.8** `gu` on a network share (UNC) → Answers or fails gracefully; `<Esc>` still gets out mid-walk 〔未訳〕
-- [ ] **44.9** `gu`, then `j`/`k`, `y`, `d`, space to select → All the ordinary list keys work — this is the list, not a panel 〔未訳〕
-- [ ] **44.10** `gu`, then `Enter` on a folder → Ordinary navigation: it leaves the view and enters the folder. `gu` again measures from there 〔未訳〕
-- [ ] **44.11** `gu` while a usage view is already up → Refused with a message, not a view with no way back 〔未訳〕
-- [ ] **44.12** `gu`, then `,` to re-sort → The order changes (as asked); `gu` again restores largest-first 〔未訳〕
-- [ ] **44.13** Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug** 〔未訳〕
+- [ ] **44.1** `node_modules` のあるプロジェクトで `gu` → 子が大きい順に棒付きで並ぶ。`node_modules` が上位に来て、合計が自身のエントリよりはるかに大きい — *`gu` in a project with a `node_modules` → Children largest first, with bars; `node_modules` near the top with a total far bigger than its own entry*
+- [ ] **44.2** `gu` してから `<Esc>` → 元のディレクトリに戻り、カーソルも元の位置。走査は止まる（抜けたあと CPU を使わない） — *`gu`, then `<Esc>` → Back in the directory, cursor where it was. The walk stops (no CPU after leaving)*
+- [ ] **44.3** 30 万ファイル超のツリーで `gu` → 完了し、走査を打ち切ったことと合計が下限値であることを述べる — *`gu` on a tree with 300k+ files → Finishes, and says the walk was cut short and the totals are floors*
+- [ ] **44.4** `.gitignore` された `target/` や `build/` を含むフォルダで `gu` → **数に入る**（除外されない） — *`gu` in a folder holding a `.gitignore`d `target/` or `build/` → It is **counted**, not skipped*
+- [ ] **44.5** 容量の大半を隠しフォルダが占める場所で `gu` → 数に入り、表示もされる — *`gu` where a hidden folder holds most of the space → It is counted, and visible*
+- [ ] **44.6** 大きなツリーへのシンボリックリンク / ジャンクションを含むフォルダで `gu` → リンクは 1 エントリ扱いでツリーの二重計上にならず、固まらない — *`gu` on a folder with a symlink/junction to a big tree → The link is one entry, not a second copy of the tree, and no hang*
+- [ ] **44.7** `C:\` で `gu` → 答えが出る。上位のフォルダが WizTree やエクスプローラーの表示と見比べて妥当 — *`gu` at `C:\` → Answers; the biggest folders are plausible against WizTree or Explorer's own*
+- [ ] **44.8** ネットワーク共有（UNC）で `gu` → 答えるか、穏当に失敗する。走査の途中でも `<Esc>` で抜けられる — *`gu` on a network share (UNC) → Answers or fails gracefully; `<Esc>` still gets out mid-walk*
+- [ ] **44.9** `gu` のあと `j`/`k`、`y`、`d`、スペースで選択 → 通常の一覧キーが全部効く。**パネルではなく一覧そのもの**だから — *`gu`, then `j`/`k`, `y`, `d`, space to select → All the ordinary list keys work — this is the list, not a panel*
+- [ ] **44.10** `gu` のあとフォルダで `Enter` → 普通の移動（ビューを抜けてフォルダに入る）。そこでもう一度 `gu` すればそこから測り直す — *`gu`, then `Enter` on a folder → Ordinary navigation: it leaves the view and enters the folder. `gu` again measures from there*
+- [ ] **44.11** 使用量ビューを開いたまま `gu` → メッセージを添えて断られる（戻れないビューにならない） — *`gu` while a usage view is already up → Refused with a message, not a view with no way back*
+- [ ] **44.12** `gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。もう一度 `gu` すれば大きい順に戻る — *`gu`, then `,` to re-sort → The order changes (as asked); `gu` again restores largest-first*
+- [ ] **44.13** フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある** — *Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug***
 
 ## 45. 2 つのフォルダを比べる — 0 / 9
 
 自動テスト済みなので下には出していない: 45.1, 45.2, 45.5, 45.7
 
-- [ ] **45.3** `n` / `N` → Walks between the rows that are not `=`, skipping matches. At the end it says so 〔未訳〕
-- [ ] **45.4** `gg` / `G` → First and last row 〔未訳〕
-- [ ] **45.6** A tree where one file differs in its last byte only → That row is `~`, not `=` 〔未訳〕
-- [ ] **45.8** A folder on one side where the other has a file of that name → `~` 〔未訳〕
-- [ ] **45.9** Select one file and one folder, `<A-d>` → Refused with "compare two files, or two folders — not one of each" 〔未訳〕
-- [ ] **45.10** Two `node_modules` (100k+ paths) → Answers, or says it was cut short; the window does not freeze 〔未訳〕
-- [ ] **45.11** Two trees differing only in where a symlink points → The link row reads as differing 〔未訳〕
-- [ ] **45.12** Split the view, stand on a folder in each pane, `<A-d>` → Compares those two 〔未訳〕
-- [ ] **45.13** `q` / `<Esc>` → Closes, and two **files** still compare line by line as before 〔未訳〕
+- [ ] **45.3** `n` / `N` → `=` でない行の間を歩き、一致した行は飛ばす。末尾ではその旨を述べる — *`n` / `N` → Walks between the rows that are not `=`, skipping matches. At the end it says so*
+- [ ] **45.4** `gg` / `G` → 最初の行と最後の行 — *`gg` / `G` → First and last row*
+- [ ] **45.6** 最後の 1 バイトだけが違うファイルを含むツリー → その行が `=` ではなく `~` になる — *A tree where one file differs in its last byte only → That row is `~`, not `=`*
+- [ ] **45.8** 片方ではフォルダ、もう片方では同名のファイル → `~` — *A folder on one side where the other has a file of that name → `~`*
+- [ ] **45.9** ファイル 1 つとフォルダ 1 つを選んで `<A-d>` → `compare two files, or two folders — not one of each` と断られる — *Select one file and one folder, `<A-d>` → Refused with "compare two files, or two folders — not one of each"*
+- [ ] **45.10** `node_modules` 同士（10 万パス超）→ 答えが出るか、打ち切ったと述べる。ウィンドウは固まらない — *Two `node_modules` (100k+ paths) → Answers, or says it was cut short; the window does not freeze*
+- [ ] **45.11** シンボリックリンクの指す先だけが違う 2 つのツリー → そのリンクの行が「異なる」と読める — *Two trees differing only in where a symlink points → The link row reads as differing*
+- [ ] **45.12** 2 分割して各ペインでフォルダの上に立ち、`<A-d>` → その 2 つが比較される — *Split the view, stand on a folder in each pane, `<A-d>` → Compares those two*
+- [ ] **45.13** `q` / `<Esc>` → 閉じる。そして 2 つの**ファイル**はこれまでどおり行単位で比較できる — *`q` / `<Esc>` → Closes, and two **files** still compare line by line as before*
 
 ## 46. spot パネルの Git セクション — 0 / 11
 
@@ -612,14 +610,14 @@ cd $HOME\Desktop\filer-fixtures\repo
 git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 ```
 
-- [ ] **46.1** `<Tab>` on a committed file → A **Git** section: `Last change` is a short hash and `YYYY-MM-DD HH:MM`, then `Subject` and `Author` 〔未訳〕
-- [ ] **46.2** Check it against `git log -1 -- <that file>` → The same commit. Not the repository's newest — **the newest that touched this path** 〔未訳〕
-- [ ] **46.3** `<Tab>` on a file changed by more than one commit → `Commits` appears with the count 〔未訳〕
-- [ ] **46.4** `<Tab>` on a file added by exactly one commit → **No `Commits` row** — one says nothing the date has not 〔未訳〕
-- [ ] **46.5** `<Tab>` on a file in a history of 50+ commits touching it → `Commits` reads `50+`, not a wrong total. The cap is there so a directory near the root reads a page, not the whole history 〔未訳〕
-- [ ] **46.6** `<Tab>` on a **directory** → The last commit that touched anything inside it 〔未訳〕
-- [ ] **46.7** `<Tab>` on a file that is new and never committed (`git status` shows `?`) → **No Git section at all** — nothing in the history touches it 〔未訳〕
-- [ ] **46.8** `<Tab>` somewhere that is not a repository → No Git section, and no pause before the panel draws 〔未訳〕
-- [ ] **46.9** The same on a machine with no `git` on `PATH` → No Git section, no error, and the rest of the panel is unaffected 〔未訳〕
-- [ ] **46.10** `<Tab>` on a file whose last subject has Japanese in it, or an emoji → Drawn intact, not mojibake — the format is NUL-separated so nothing needs quoting 〔未訳〕
-- [ ] **46.11** Watch for a console window → **None flashes.** `git` is spawned with `CREATE_NO_WINDOW`, the same as the status worker 〔未訳〕
+- [ ] **46.1** コミット済みのファイルで `<Tab>` → **Git** セクションが出る。`Last change` が短いハッシュと `YYYY-MM-DD HH:MM`、続いて `Subject` と `Author` — *`<Tab>` on a committed file → A **Git** section: `Last change` is a short hash and `YYYY-MM-DD HH:MM`, then `Subject` and `Author`*
+- [ ] **46.2** `git log -1 -- <そのファイル>` と突き合わせる → 同じコミット。リポジトリの最新ではなく、**そのパスに触れた最新のもの** — *Check it against `git log -1 -- <that file>` → The same commit. Not the repository's newest — **the newest that touched this path***
+- [ ] **46.3** 複数のコミットが触れたファイルで `<Tab>` → `Commits` が件数付きで出る — *`<Tab>` on a file changed by more than one commit → `Commits` appears with the count*
+- [ ] **46.4** ちょうど 1 つのコミットで追加されたファイルで `<Tab>` → **`Commits` の行が出ない。**1 件では日付以上のことを言っていないため — *`<Tab>` on a file added by exactly one commit → **No `Commits` row** — one says nothing the date has not*
+- [ ] **46.5** そのパスに触れたコミットが 50 件以上ある履歴のファイルで `<Tab>` → `Commits` が `50+` と出る（間違った合計ではない）。ルート近くのディレクトリで履歴全部ではなく 1 ページ分だけ読むための上限 — *`<Tab>` on a file in a history of 50+ commits touching it → `Commits` reads `50+`, not a wrong total. The cap is there so a directory near the root reads a page, not the whole history*
+- [ ] **46.6** **ディレクトリ**で `<Tab>` → その中の何かに触れた最後のコミット — *`<Tab>` on a **directory** → The last commit that touched anything inside it*
+- [ ] **46.7** 新規で未コミットのファイル（`git status` で `?`）で `<Tab>` → **Git セクションが出ない。**履歴の中に触れたものが無いため — *`<Tab>` on a file that is new and never committed (`git status` shows `?`) → **No Git section at all** — nothing in the history touches it*
+- [ ] **46.8** リポジトリでない場所で `<Tab>` → Git セクションが出ず、パネルの描画前に待ちも発生しない — *`<Tab>` somewhere that is not a repository → No Git section, and no pause before the panel draws*
+- [ ] **46.9** `git` が `PATH` に無い機械で同じこと → Git セクションが出ず、エラーも出ず、パネルの他の部分にも影響しない — *The same on a machine with no `git` on `PATH` → No Git section, no error, and the rest of the panel is unaffected*
+- [ ] **46.10** 最後のコミットの件名に日本語や絵文字が入っているファイルで `<Tab>` → 文字化けせずそのまま描かれる（書式が NUL 区切りなので引用が要らない） — *`<Tab>` on a file whose last subject has Japanese in it, or an emoji → Drawn intact, not mojibake — the format is NUL-separated so nothing needs quoting*
+- [ ] **46.11** コンソールの窓が出ないか見張る → **一瞬も出ない。**`git` は status ワーカーと同じく `CREATE_NO_WINDOW` で起動される — *Watch for a console window → **None flashes.** `git` is spawned with `CREATE_NO_WINDOW`, the same as the status worker*
