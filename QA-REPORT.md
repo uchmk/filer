@@ -950,3 +950,30 @@ v0.29.0 で足された節で、行の数字だけが古い。チェックは「
   `Fonts` 行も書いたとおりの `/` で出ているので、揃えるならそちらも同時に。
   実機の行を足すなら 25 節に「`[ui] fonts` を `/` で書いて開閉 → `filer env` の
   Bold 行に `/` と `\` が混ざらない」。
+
+### `walking_off_the_file_and_back_needs_no_worker` が Windows で時々落ちる
+
+- **どこ**: `src/ui/mod.rs` の `preview_arrival_frame::walking_off_the_file_and_back_needs_no_worker`
+  （27.3）。
+- **いつ**: PR #40 の CI（`7fb1481`）で 1 回。`476 passed; 1 failed` で、
+  `one turn was enough: the cache answered` が落ちた。**同じ日の同じ Windows ランナーで
+  #38 / #39 / #41 は通っている。**その PR の diff は Markdown 2 ファイルだけで、
+  ソースは 1 行も変わっていない。再実行では緑。**4 回に 1 回。**
+- **テストの主張**: `alpha.txt` → `beta.txt` → 戻る、と歩いたとき、**キャッシュが答えるので
+  ワーカーは要らない**。これ自体は正しい主張で、弱めるべきではない。
+- **検証の書き方**: その主張を `s.turn()` **1 回**に賭けている。`turn()` は
+  `drain_channels` → `kick_scans` → `request_preview` → `draw` の順に回るので、
+  **非同期な出来事が 3 つ挟まった 1 回**になっている。ウォッチャの通知が遅れて届いて
+  フォルダが `LoadState::Loading` に戻れば、その 1 回はスキャンに使われて
+  `preview_arrived()` は false になる。Windows の変更通知は Linux の inotify より
+  遅れて届くので、**Linux で何度通っても Windows でだけ時々落ちる**形になる。
+- **まだ言えないこと**: 上は機序の候補であって、**確かめていない。**
+  キャッシュのキー（`src/app.rs:1566`）は `len` と `mtime` を持つので、
+  再スキャンが `alpha.txt` に別の mtime を報告した場合も同じ落ち方をする。
+  どちらなのかは、落ちた瞬間の `preview.state` と `current.state` を見ないと分からない。
+- **提案（直していない）**: 主張はスキャンと無関係なので、`turn()` ではなく
+  `s.app.request_preview(false)` を直接呼んでから `s.draw()` すれば、
+  **テストを弱めずに**非同期を 1 つも挟まずに書ける。ただし上の 2 つ目の機序
+  （mtime が動く）だとこれでは直らないので、**先に機序を確かめること。**
+- **なぜ書くか**: 再実行して緑になったので、このまま黙っていると記録が残らない。
+  **通った回数を数えて判断し始めると、5 回目の失敗が黙って通る。**
