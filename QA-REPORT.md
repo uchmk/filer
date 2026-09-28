@@ -1383,3 +1383,86 @@ keymap で `n` に割り当てた `arrow 1`（既定の `<A-j>` と同じコマ�
 - **41.12**: 見た目の行。
 - **41.14**: 遅いネットワークドライブが無い。`net use` に接続は無く、FileSystem のドライブは
   `C:` と `R:`（RAM ディスク）だけ。
+
+## TESTING.md sections 32 / 37 — Windows 実機で確かめた（ebac1fc / 0.47.26）
+
+Windows のセッション（`.claude/windows-role.md`）から。32 節 12 行と 37 節 8 行、計 20 行のうち
+13 行（32.1 / 32.3 / 32.4 / 32.6 / 32.7 / 32.8 / 32.8c / 37.1〜37.6）を TESTING-CHECKS.md で
+チェックした。証拠は PR 本文に 1 行ずつある。「正しいプログラムが起動したか」は、キーの前後で
+`Get-CimInstance Win32_Process` を比べて**増えたプロセスのコマンドライン**と、そのウィンドウの
+タイトルで示した。起動したものは毎回閉じてから次の行へ進んだ。設定は README の `[opener]` /
+`[open]` の例をそのまま写したもの（`YAZI_CONFIG_HOME` で切り替え）と、行ごとに最小にしたもの。
+
+### サクラエディタの行指定が `-L=` になっていて、効かない（32.9）
+
+- **場所**: `src/exec.rs:223` `"sakura" => LineArg::Flag("-L="),`。同じ綴りが
+  `src/exec.rs:187` の doc コメント、テスト（`src/exec.rs:565` / `:572`）、README の
+  Outline の節（`-L=N` to Sakura）にもある。
+- **実測**: サクラエディタ 2.4.2.6048。アウトラインから開くと、filer が走らせた行は
+  `cmd /S /C ""C:\Program Files (x86)\sakura\sakura.exe" -L=6 "R:\Temp\op\cases\md\outline.md""`
+  で、キャレットは 1 行目のまま（覚えていた位置に戻るだけ）だった。filer を通さず直接
+  起動して比べた結果:
+  - `sakura.exe -Y=6 outline.md` → 6 行目に着地。`-Y=3` → 3 行目。
+  - `sakura.exe -L=6 outline.md`、`-L=11` → **無視される**（前回の位置が復元される）。
+- **直すなら**: 表の 1 行を `-Y=` にし、テスト 2 本と doc コメント、README の 1 語を揃える。
+  それまでの回避策は `filer.toml` の `sakura = "-Y={line} {path}"`（`[line_args]`）の
+  はずだが、**これは実機で試していない**。
+- 32.9 はこのためチェックしていない。秀丸は入っていないので、半分はそもそも試せない。
+
+### 32.9 のキーが `<C-o>` になっている
+
+9.1 について 416 行目で報告済みのものと同じ誤り。`<C-o>` はどの keymap にも無く、実際の
+経路は `<BackTab>`（アウトラインへ）→ 行を選んで `<Enter>`。この節ではその経路で試した。
+
+### README の例では、`.docx` / `.pptx` の `<Enter>` が Excel に行く（37.2）
+
+- README の例は `office = [excel, winword, powerpnt]` を 1 つのリストにし、
+  `*.{docx,docm,doc}` と `*.{pptx,pptm,ppt}` のルールもそのリストを先頭に置いている。
+  先頭項目が `start "" excel %*` なので、**`.docx` で `<Enter>` すると Excel が起動し、
+  「ファイル形式または拡張子が正しくありません」のダイアログで止まる**（実測）。
+- 37.2 の文言（「Office のアプリがファイルを開く」）は Word / PowerPoint を前提にしている。
+  チェックは、Word と PowerPoint を先頭にした最小の設定（`start "" winword %*` /
+  `start "" powerpnt %*`）で `WINWORD.EXE "…\probe.docx"`（タイトル `probe.docx - Word`）と
+  `POWERPNT.EXE "…\probe.pptx"`（`probe.pptx - PowerPoint`）を見て付けた。
+- **提案（直していない）**: README の例を `excel` / `word` / `powerpoint` の 3 リストに分け、
+  ルールごとに合うものを先頭にする。貼って使う人がそのまま踏む。
+
+### `cargo test` のうち 5 本が、持ち主の実際の設定を読んで落ちる
+
+この機械で素の `cargo test` を回すと 472 通過 / 5 失敗。`YAZI_CONFIG_HOME` /
+`FILER_CONFIG_HOME` / `FILER_STATE_HOME` を空のディレクトリに向けると 477 本すべて通る。
+1 つずつ向けて切り分けた:
+
+- `FILER_CONFIG_HOME`（持ち主の `filer.toml`）が効いて落ちる 4 本:
+  - `ui::csv_table_frame::the_table_relays_out_when_the_window_is_resized`（`src/ui/mod.rs:4140`）
+  - `ui::overlay::help_frame::the_wheel_turns_the_panel_and_leaves_the_list_alone`（`src/ui/overlay.rs:1705`）
+  - `ui::overlay::help_frame::a_panel_owns_the_wheel_and_a_prompt_leaves_it`（`src/ui/overlay.rs:1759`）
+  - `ui::whole_frame::a_long_file_gets_a_strip_and_a_narrow_window_does_not`
+    （`src/ui/mod.rs:1693`、`a pane too narrow for the map draws none of it`）
+- `YAZI_CONFIG_HOME`（持ち主の `yazi.toml`）が効いて落ちる 1 本:
+  - `envreport::tests::it_reports_what_is_actually_there`（`src/envreport.rs:447`、
+    `pdftoppm is not used yet:` のあとに持ち主の環境の Tools 節が出る）
+- CI のランナーには設定が無いので緑になる。**設定を持っている人の機械でだけ赤になる**
+  ので、手元で回した人は「既知の失敗」として数え始めかねない（CLAUDE.md が戒めている形）。
+  テストのほうで設定ディレクトリを `util::test_dir` に向けるのが筋だと思う。
+
+### 実機に残るもの・この機械の事情
+
+- **秀丸と IrfanView が入っていない。**そのため 32.2（先頭項目が秀丸）、32.5（「上の
+  それぞれ」に秀丸を含む）、32.8a / 32.8b（秀丸の半分）、32.9、37.7 は持ち主の行。
+  - 32.2 では、先頭の秀丸が無いので `Open failed: exit code 1 — "C:\Program Files\Hidemaru\Hidemaru.exe" "…\probe32.txt"`
+    のトーストになった（先頭項目が選ばれたこと自体は読める）。
+  - サクラの半分は確かめた: 先頭項目の `<Enter>` からも `<S-Enter>` からも
+    `sakura.exe "…\probe32.txt"` が起動し、タイトルは `probe32.txt - サクラエディタ`。
+  - 32.5 は Excel（`space book.xlsx - Excel`）、サクラ（`space name.txt - サクラエディタ`）、
+    Edge（`space name.pdf`）で 1 引数を確かめた。
+- **37.8** は Edge / サクラ / VS Code / Neovim の 4 項目を選んで、それぞれ表示どおりのものが
+  起動したことを見た。Chrome と既定アプリ（この機械では `.pdf` → Chrome）は、持ち主が
+  使用中の Chrome に混ざるので押していない。秀丸は無い。
+- **37.3 の `.csv`**: この機械の `.csv` の関連付けが壊れている（`UserChoiceLatest` の
+  ProgId が `Applications\sakura.exe` で、Windows が受け付けない）。filer を通さず
+  `cmd` から `start "" probe.csv` しても「アプリの選択」ダイアログになるので filer の
+  問題ではない。37.3 のチェックは `.txt`（関連付け先のサクラが `"…\space name.txt"` を
+  1 引数で受け取った）で付けた。
+- **32.8c の文言**: 日本語版 Windows では期待どおり `exit code 1` になった
+  （`Open failed: exit code 1 — "C:\Program Files (x86)\sakura\sakurra.exe" "…\probe32.txt"`）。
