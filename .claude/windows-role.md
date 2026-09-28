@@ -155,6 +155,12 @@ machine and every session gets them for free:
 { "env": { "TEMP": "R:\\Temp", "TMP": "R:\\Temp" } }
 ```
 
+Reading your own screenshots and captures back off `R:` needs no permission:
+`.claude\settings.json` grants it, in the repository, so a `git pull` is all it
+takes. Being told to work somewhere and then asked to approve every read of what
+you left there was half an instruction -- the section 32 / 37 run answered that
+prompt 56 times.
+
 **`R:` empties when the machine powers off.** So one rule follows from it, and it
 is the one that matters:
 
