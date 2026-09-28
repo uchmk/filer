@@ -1259,6 +1259,15 @@ pub(crate) mod harness {
         /// worth asking about, so joining keeps the index aligned with
         /// [`Self::texts`] rather than inventing a character that was not drawn.
         pub glyphs: Vec<String>,
+        /// Where each string was put, in the same order as [`Self::texts`]: the
+        /// galley's top-left corner in window coordinates.
+        ///
+        /// What this answers is the *layout* rather than the contents -- whether
+        /// the icon column left one character before the name or a whole em,
+        /// whether two panes start their rows at the same height. Neither shows
+        /// up in the strings, and the first of them is what a reader notices
+        /// before any of the words.
+        pub places: Vec<egui::Pos2>,
         /// Every drawn string and the colour it was drawn in, in paint order.
         ///
         /// The same strings as [`Self::texts`], which stays because most
@@ -1295,6 +1304,16 @@ pub(crate) mod harness {
         pub fn drawn(&self, text: &str) -> Option<&str> {
             let i = self.texts.iter().position(|t| t == text)?;
             self.glyphs.get(i).map(String::as_str)
+        }
+
+        /// Where the galley laid out from exactly `text` ended up.
+        ///
+        /// Exactly, for the reason [`Self::drawn`] is exact: a file's name is
+        /// also inside the path the header draws, and the header is somewhere
+        /// else entirely, so a `contains` would answer about the wrong galley.
+        pub fn placed(&self, text: &str) -> Option<egui::Pos2> {
+            let i = self.texts.iter().position(|t| t == text)?;
+            self.places.get(i).copied()
         }
 
         /// Every rectangle that falls inside `area`, for asking where something
@@ -1478,6 +1497,7 @@ pub(crate) mod harness {
             let mut painted = Painted {
                 texts: Vec::new(),
                 glyphs: Vec::new(),
+                places: Vec::new(),
                 inked: Vec::new(),
                 rects: Vec::new(),
                 strokes: Vec::new(),
@@ -1500,6 +1520,7 @@ pub(crate) mod harness {
                 into.glyphs.push(
                     t.galley.rows.iter().flat_map(|r| r.glyphs.iter()).map(|g| g.chr).collect(),
                 );
+                into.places.push(t.pos);
                 // `Painter::text` lays the galley out in the colour it is given
                 // and passes the same colour as the fallback, so for a string
                 // drawn in one colour this is that colour. A galley built from

@@ -139,13 +139,21 @@ pub fn draw(
         let icon = st.theme.icon_for(entry);
         let mut x = row_rect.left() + 8.0;
 
-        if !icon.text.trim().is_empty() {
+        // An all-blank icon still holds the column: the ASCII fallback draws
+        // plain files as a *space* (`Theme::without_nerd_icons`), and trimming
+        // first would have dropped that column, starting file names one place
+        // to the left of the folders' on the same list.
+        if !icon.text.is_empty() {
             let g = painter.layout_no_wrap(
                 icon.text.clone(),
                 st.font.clone(),
                 icon.fg.unwrap_or(base_color),
             );
-            let w = g.size().x.max(st.font.size);
+            // Nerd Font glyphs differ in advance width, so they are padded to a
+            // full em to line the names up. ASCII icons are monospace and line
+            // up on their own; padding *those* to an em opens a gap wide enough
+            // to read as indentation -- `/      config` instead of `/ config`.
+            let w = if icon.text.is_ascii() { g.size().x } else { g.size().x.max(st.font.size) };
             painter.galley(
                 egui::pos2(x, y + (st.row_h - g.size().y) / 2.0),
                 g,
@@ -356,4 +364,99 @@ pub fn permissions(entry: &Entry) -> String {
         s.push('h');
     }
     s
+}
+
+/// The icon column, which is the one part of a row that has no words in it.
+///
+/// Reported from a screenshot rather than from [TESTING.md]: with no Nerd Font
+/// installed the list read `/      config`, a gap wide enough that the folders
+/// looked indented under the files. Nothing in the drawn strings says so, which
+/// is what `Painted::placed` is for.
+///
+/// [TESTING.md]: ../../TESTING.md
+#[cfg(test)]
+mod icon_column {
+    use crate::ui::harness::Screen;
+
+    /// filer's config as it comes out on a machine with no icon font: what
+    /// `apply_fonts` does to the theme when `install_fonts` finds no Nerd Font.
+    fn without_icon_font() -> crate::config::Config {
+        let mut cfg = crate::config::Config::load();
+        std::sync::Arc::make_mut(&mut cfg.theme).without_nerd_icons();
+        cfg
+    }
+
+    /// A folder and a plain file, listed in that order.
+    fn one_of_each(label: &str) -> (std::path::PathBuf, std::sync::Arc<Vec<crate::fs::Entry>>) {
+        let dir = crate::util::test_dir(label);
+        std::fs::create_dir_all(dir.join("config")).unwrap();
+        std::fs::write(dir.join("notes.txt"), "1").unwrap();
+        let entries = std::sync::Arc::new(vec![
+            crate::fs::Entry::from_path(dir.join("config")).unwrap(),
+            crate::fs::Entry::from_path(dir.join("notes.txt")).unwrap(),
+        ]);
+        (dir, entries)
+    }
+
+    fn listing(cfg: crate::config::Config, dir: &std::path::Path, entries: std::sync::Arc<Vec<crate::fs::Entry>>) -> Screen {
+        let mut s = Screen::with_config(cfg, dir.to_path_buf());
+        s.app.tabs[s.app.active].current =
+            crate::core::folder::Folder::from_entries(dir.to_path_buf(), entries, true);
+        s
+    }
+
+    /// The ASCII fallback's icons are one monospace character, so the column is
+    /// one character wide -- not one em, which is nearly twice that.
+    ///
+    /// The width is measured rather than asserted against a number: a second
+    /// frame widens the folder's icon to `//`, and the distance the name moves
+    /// is exactly what one character costs in whatever font the test ran with.
+    #[test]
+    fn an_ascii_icon_takes_one_character_of_room() {
+        let (dir, entries) = one_of_each("icon-column");
+
+        let one = listing(without_icon_font(), &dir, entries.clone()).draw();
+        let (icon, name) = (
+            one.placed("/").expect("the folder's fallback icon is drawn"),
+            one.placed("config").expect("and its name"),
+        );
+
+        let mut wider = without_icon_font();
+        std::sync::Arc::make_mut(&mut wider.theme).icon_dir_default.text = "//".into();
+        let two = listing(wider, &dir, entries).draw();
+        let per_char = two.placed("config").expect("the name moves right").x - name.x;
+        assert!(per_char > 0.0, "widening the icon by a character moved the name: {per_char}");
+
+        // One character, then the 8px pad the columns are separated by. What the
+        // bug put in between was the difference between a character's advance
+        // and a full em -- a monospace character is about 0.6 em, so the gap
+        // came out around half again as wide as it should be.
+        let gap = name.x - icon.x;
+        assert!(
+            (gap - (per_char + 8.0)).abs() < 0.5,
+            "the name sits one character plus the pad past the icon: \
+             gap {gap}, character {per_char}",
+        );
+    }
+
+    /// Files and folders start their names in the same place.
+    ///
+    /// `without_nerd_icons` gives plain files a *space* rather than an empty
+    /// string, on purpose: the column is still theirs. Trimming before asking
+    /// whether there was an icon threw that away and left the file names one
+    /// place to the left of the folders' on the same list.
+    #[test]
+    fn a_blank_icon_still_holds_its_column() {
+        let (dir, entries) = one_of_each("icon-blank");
+        let f = listing(without_icon_font(), &dir, entries).draw();
+
+        let folder = f.placed("config").expect("the folder's name");
+        let file = f.placed("notes.txt").expect("the file's name");
+        assert!(
+            (folder.x - file.x).abs() < 0.01,
+            "both names start at the same x: folder {}, file {}",
+            folder.x,
+            file.x,
+        );
+    }
 }

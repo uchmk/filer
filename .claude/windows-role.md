@@ -113,6 +113,47 @@ cargo test   --manifest-path C:\dev\filer\Cargo.toml
   row -- renumbering is how a checklist loses its place.
 - **Kill a running `filer.exe` without asking.** CLAUDE.md says the build wins.
 
+## Where to put files: `R:\Temp` is a RAM disk
+
+The machine has a RAM disk mounted at `R:`. **Do all the scratch work under
+`R:\Temp`** -- fixtures, sample trees, archives you unpack, anything filer writes
+while you test it. It is fast, and it keeps the real disks clear of the debris a
+checklist run leaves behind.
+
+```powershell
+New-Item -ItemType Directory -Force -Path R:\Temp | Out-Null
+$env:TEMP = 'R:\Temp'; $env:TMP = 'R:\Temp'   # `cargo test` writes its trees here too
+.\scripts\make-fixtures.ps1 -Path R:\Temp\filer-fixtures
+```
+
+Setting `TEMP` is worth doing before `cargo test`: `util::test_dir` builds every
+test's tree under `std::env::temp_dir()`, so the whole suite moves to the RAM
+disk with those two lines and nothing else.
+
+**`R:` empties when the machine powers off.** So one rule follows from it, and it
+is the one that matters:
+
+> **Nothing that is evidence may live only on `R:`.**
+
+Evidence is what a `[x]` rests on -- the command you ran, what it printed, the
+state you found on disk. A tick whose evidence evaporated at the next reboot is a
+tick nobody can check, which is the failure mode this whole file exists to
+prevent. So the moment you have it, copy it out:
+
+- **The pull request body** is the primary home, one line per tick. It is on
+  GitHub, not on this machine at all.
+- **`QA-REPORT.md`**, in the repository, for anything longer -- a failing
+  command's full output, a `filer env` dump you are comparing against.
+- **Screenshots and captured files**: `C:\dev\filer\docs\` if they belong in the
+  repository, otherwise somewhere on `C:`. Never leave the only copy on `R:`.
+
+Two things never go on the RAM disk at all: **the repository checkout**
+(`C:\dev\filer` stays where it is) and **anything not yet committed**.
+
+If `R:` is not mounted, say so and use the default temp directory. It is a
+convenience, not a requirement, and stopping the run over it would be worse than
+writing to `C:`.
+
 ## The thing to be most careful about
 
 You are the only session that can confuse *running something* with *checking
