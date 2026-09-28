@@ -194,7 +194,7 @@ impl Config {
         let mut warnings = Vec::new();
         let mut loaded = Vec::new();
 
-        let dirs = config_dirs();
+        let dirs = dirs_to_read();
         let mut yazi_cfg = YaziToml::default();
         let mut keymap_texts: Vec<String> = Vec::new();
         let mut theme = Theme::default();
@@ -344,6 +344,36 @@ pub fn config_dirs() -> Vec<PathBuf> {
     CONFIG_VARS.iter().filter_map(|v| config_home(v)).collect()
 }
 
+/// The directories [`Config::load`] actually opens files in.
+///
+/// Separate from [`config_dirs`] because the two answer different questions.
+/// `config_dirs` says *where filer looks*, and the help panel and `filer env`
+/// print that whether or not anything is there -- so a test about the listing
+/// still wants the real answer. This says *what gets read*, and under
+/// `cfg(test)` that is nothing: the state every test was written against.
+///
+/// Until v0.47.27 both were the same function, so `cargo test` read whoever
+/// ran it's `%APPDATA%`: a `[[preview]]` naming `pdftoppm`, or a `keymap.toml`
+/// moving `j`, failed five tests that passed everywhere else. CI has no config
+/// and neither does a cloud container, so **the only machines that could see
+/// it were the ones nobody ran the suite on.**
+///
+/// No knob to point it somewhere else, deliberately. Test config would have to
+/// live in a `static`, and a process-wide first-wins one that a single test
+/// set would change what every other test running beside it reads -- which is
+/// the objection to `std::env::set_var` here, not an improvement on it. The
+/// day a test needs to load a config file, it can take the directory as an
+/// argument instead.
+#[cfg(test)]
+fn dirs_to_read() -> Vec<PathBuf> {
+    Vec::new()
+}
+
+#[cfg(not(test))]
+fn dirs_to_read() -> Vec<PathBuf> {
+    config_dirs()
+}
+
 /// A file in a config directory, written the way the platform writes a path.
 ///
 /// `format!("{}/{name}", dir.display())` put a forward slash in the middle of a
@@ -462,6 +492,28 @@ mod dirs_tests {
     /// The trailing `config` belongs to yazi's Windows layout only. Appending it
     /// everywhere sent filer to `~/.config/yazi/config/yazi.toml`, which yazi
     /// never writes -- so a Linux user's existing yazi config went unread.
+    /// The suite reads no config of its own, whatever machine it runs on.
+    ///
+    /// Until v0.47.27 it read whoever ran it's, so a `[[preview]]` naming
+    /// `pdftoppm` or a `keymap.toml` moving `j` failed five tests that passed
+    /// everywhere else. CI has no config and neither does a cloud container,
+    /// so the only machines that could see it were the ones nobody ran the
+    /// suite on -- and when two of them finally did, the answer on offer was
+    /// "five failures are normal here", which is how a sixth goes unnoticed.
+    ///
+    /// Asserted through `Config::load` rather than on `dirs_to_read` alone, so
+    /// that routing `load` back to the ambient directories fails here too.
+    #[test]
+    fn the_suite_never_reads_the_machines_own_config() {
+        assert!(dirs_to_read().is_empty(), "no directory is opened under cfg(test)");
+        let cfg = Config::load();
+        assert!(cfg.loaded.is_empty(), "so nothing was loaded: {:?}", cfg.loaded);
+        assert!(cfg.warnings.is_empty(), "and nothing complained: {:?}", cfg.warnings);
+        // `config_dirs` is the other question -- where filer *looks* -- and the
+        // help panel and `filer env` print it whether or not anything is there.
+        assert!(!config_dirs().is_empty(), "which is still answered");
+    }
+
     #[test]
     fn the_yazi_layer_follows_yazis_own_layout() {
         let got = yazi_config_dir(Path::new("/base"));
