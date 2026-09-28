@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**24 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
+**30 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -376,18 +376,18 @@ fsutil hardlink list <新しくできたパス>
 - [x] **25.14** 本当に入っていないプログラムを指定したオープナー → やはり **`not found`**。例外扱いはシェル自身の名前だけ — *An opener naming a program that genuinely is not installed → Still **`not found`**. The exemption is for the shell's own names only*
 - [x] **25.15** `yazi.toml` を壊して Warnings の行を読む → パスが **`…\filer\yazi.toml`** と、すべて円記号で書かれている。以前は `…\filer/yazi.toml` と出ていた —— **編集すべきファイルを指し示すのが仕事のメッセージなのに、そこが壊れていた**（v0.33.12） — *Break `yazi.toml` and read the Warnings row → The path is written **`…\filer\yazi.toml`**, all backslashes. It used to come out `…\filer/yazi.toml`, in the one message whose job is to name the file to edit (v0.33.12)*
 
-## 26. アプリの中からのバグ報告 — 0 / 10
+## 26. アプリの中からのバグ報告 — 6 / 10
 
-- [ ] **26.1** `<F12>` → 既定のブラウザで GitHub の新規 issue フォームが開き、トーストがそう言う — *`<F12>` → The default browser opens GitHub's new-issue form, and a toast says so*
-- [ ] **26.2** フォームを見る → **Version** と **OS とアーキテクチャ** が既に埋まっている。残りは空 — *Look at the form → **Version** and **OS とアーキテクチャ** are already filled in; the rest is empty*
-- [ ] **26.3** 埋まっている版を、ターミナルの `filer --version` と比べる → アーキテクチャも含めて同じ文字列 — *Compare the filled version against `filer --version` in a terminal → The same string, architecture included*
-- [ ] **26.4** 埋まっている OS の行を `winver` と比べる → エディション・機能更新・ビルドがすべて一致し、UBR も入っている（`Windows 11 Pro 25H2 (build 26200.9457)`） — *Compare the filled OS line against `winver` → Edition, feature update and build all match, UBR included (`Windows 11 Pro 25H2 (build 26200.9457)`)*
-- [ ] **26.4b** フォーム自身が載せている PowerShell の断片と比べる → 同じ事実。上から貼り直す価値のあるものが残っていない — *Compare it against the form's own PowerShell snippet → The same facts. Nothing left worth pasting over the top*
+- [x] **26.1** `<F12>` → 既定のブラウザで GitHub の新規 issue フォームが開き、トーストがそう言う — *`<F12>` → The default browser opens GitHub's new-issue form, and a toast says so*
+- [x] **26.2** フォームを見る → **Version** と **OS とアーキテクチャ** が既に埋まっている。残りは空 — *Look at the form → **Version** and **OS とアーキテクチャ** are already filled in; the rest is empty*
+- [x] **26.3** 埋まっている版を、ターミナルの `filer --version` と比べる → アーキテクチャも含めて同じ文字列 — *Compare the filled version against `filer --version` in a terminal → The same string, architecture included*
+- [x] **26.4** 埋まっている OS の行を `winver` と比べる → エディション・機能更新・ビルドがすべて一致し、UBR も入っている（`Windows 11 Pro 25H2 (build 26200.9457)`） — *Compare the filled OS line against `winver` → Edition, feature update and build all match, UBR included (`Windows 11 Pro 25H2 (build 26200.9457)`)*
+- [x] **26.4b** フォーム自身が載せている PowerShell の断片と比べる → 同じ事実。上から貼り直す価値のあるものが残っていない — *Compare it against the form's own PowerShell snippet → The same facts. Nothing left worth pasting over the top*
 - [ ] **26.5** ARM64 機で **ARM64** ビルドを使う → OS arch と Process arch がどちらも `aarch64` — *On the ARM64 machine, with the **ARM64** build → OS arch and Process arch both read `aarch64`*
 - [ ] **26.6** ARM64 機で **x64** ビルドを使う（エミュレーション）→ OS arch は `aarch64`、Process arch は `x86_64` —— **食い違うことが、まさに報告したい事実** — *On the ARM64 machine, with the **x64** build (under emulation) → OS arch `aarch64`, Process arch `x86_64` — **the two disagree, and that is the finding***
 - [ ] **26.7** 報告を投稿する → 投稿でき、あらかじめ埋まっていた欄も残る — *Submit the report → It posts, and the pre-filled fields survive*
 - [ ] **26.8** 既定のブラウザが未設定（または関連付けが壊れている）状態で `<F12>` → 失敗を述べるエラーのトースト。**ウィンドウは動き続ける** — *`<F12>` with no browser set as default (or a broken association) → An error toast naming the failure. **The window keeps working***
-- [ ] **26.9** ターミナルペインの中から `<F12>`（先に `<C-t>`）→ 何も起きない。`[term]` がシェルに渡しているためで、これが正しい — *`<F12>` from the terminal pane (`<C-t>` first) → Nothing: `[term]` passes it to the shell, which is correct*
+- [x] **26.9** ターミナルペインの中から `<F12>`（先に `<C-t>`）→ 何も起きない。`[term]` がシェルに渡しているためで、これが正しい — *`<F12>` from the terminal pane (`<C-t>` first) → Nothing: `[term]` passes it to the shell, which is correct*
 
 ## 27. 届かなかったプレビュー — 全 5 件が自動
 
