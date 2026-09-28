@@ -184,7 +184,7 @@ pub fn template_is_valid(template: &str) -> bool {
 
 /// How an editor is told which line to open at.
 enum LineArg {
-    /// A flag before the paths: `nvim +12 file`, `sakura -L=12 file`.
+    /// A flag before the paths: `nvim +12 file`, `sakura -Y=12 file`.
     Flag(&'static str),
     /// `code -g file:12`
     Goto,
@@ -220,7 +220,11 @@ pub fn at_line(run: &str, paths: &[PathBuf], line: usize, custom: &LineArgs) -> 
         "nvim" | "vim" | "vi" | "gvim" | "nano" | "emacs" | "emacsclient" | "micro" | "kak" => LineArg::Flag("+"),
         // Editors common on Windows. Notepad has no line switch, so it stays out.
         "hidemaru" => LineArg::Flag("/j"),
-        "sakura" => LineArg::Flag("-L="),
+        // `-Y=`, not `-L=`. Sakura takes `-L=` without complaining and does
+        // nothing with it, so the file opened at line 1 and the only way to
+        // notice was to look. Checked on sakura 2.4.2: `-L=6` lands on line 1,
+        // `-Y=6` on line 6.
+        "sakura" => LineArg::Flag("-Y="),
         "emeditor" => LineArg::Flag("/l "),
         "notepad++" => LineArg::Flag("-n"),
         "code" | "code-insiders" | "codium" | "cursor" | "windsurf" => LineArg::Goto,
@@ -562,14 +566,14 @@ mod tests {
         let p = s.raw;
         let at = |run: &str| at_line(run, &s.paths, 123, &LineArgs::new());
         assert_eq!(at("hidemaru %s").as_deref(), Some(format!(r#"hidemaru /j123 "{p}""#).as_str()));
-        assert_eq!(at("sakura %s").as_deref(), Some(format!(r#"sakura -L=123 "{p}""#).as_str()));
+        assert_eq!(at("sakura %s").as_deref(), Some(format!(r#"sakura -Y=123 "{p}""#).as_str()));
         assert_eq!(at("emeditor %s").as_deref(), Some(format!(r#"emeditor /l 123 "{p}""#).as_str()));
         assert_eq!(at("notepad++ %s").as_deref(), Some(format!(r#"notepad++ -n123 "{p}""#).as_str()));
         // Notepad takes no line, so it is opened the plain way.
         assert_eq!(at("notepad %s"), None);
         assert_eq!(
             at(&format!(r#""{}" %s"#, s.sakura)).as_deref(),
-            Some(format!(r#""{}" -L=123 "{p}""#, s.sakura).as_str())
+            Some(format!(r#""{}" -Y=123 "{p}""#, s.sakura).as_str())
         );
         // `++` in the file name must not stop the key being found.
         assert_eq!(
