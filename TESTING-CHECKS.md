@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**46 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
+**68 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -444,19 +444,19 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **31.11** **もう一方のペイン**（`<C-w>`）と 2 つ目のタブでホストを開く → どちらも問題なし — *Open the host in the **other pane** (`<C-w>`) and in a second tab → Both fine*
 - [ ] **31.12** ホストへ行ってから、別のディレクトリへ移動する → 監視できなかったホストについて、ウォッチャが文句を言わない — *Go to a host, then change directory away → The watcher does not complain about the host it could not watch*
 
-## 32. オープナー — 0 / 12
+## 32. オープナー — 7 / 12
 
-- [ ] **32.1** README の `[opener]` / `[open]` の例を `yazi.toml` に貼って再起動し、`.txt` で `<S-Enter>` → 秀丸 / サクラ / VS Code / Neovim / 既定 が、コマンド行ではなく**説明文**で並ぶ — *Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` → 秀丸 / サクラ / VS Code / Neovim / default — with the descriptions, not the command lines*
+- [x] **32.1** README の `[opener]` / `[open]` の例を `yazi.toml` に貼って再起動し、`.txt` で `<S-Enter>` → 秀丸 / サクラ / VS Code / Neovim / 既定 が、コマンド行ではなく**説明文**で並ぶ — *Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` → 秀丸 / サクラ / VS Code / Neovim / default — with the descriptions, not the command lines*
 - [ ] **32.2** 同じファイルで `<Enter>` → 先頭の項目（秀丸）で開く。コンソールが一瞬も出ない — *`<Enter>` on the same file → Opens in the first entry (秀丸), no console flash*
-- [ ] **32.3** `.pdf` で `<S-Enter>` → Edge と Chrome が先に、そのあと既定アプリの項目 — *`<S-Enter>` on a `.pdf` → Edge and Chrome first, then the default-app entry*
-- [ ] **32.4** `.xlsx` で `<S-Enter>` して Excel を選ぶ → Excel が開く。これが `start ""` の場合で、それが無いと失敗する — *`<S-Enter>` on a `.xlsx`, pick Excel → Excel opens it — this is the `start ""` case that fails without it*
+- [x] **32.3** `.pdf` で `<S-Enter>` → Edge と Chrome が先に、そのあと既定アプリの項目 — *`<S-Enter>` on a `.pdf` → Edge and Chrome first, then the default-app entry*
+- [x] **32.4** `.xlsx` で `<S-Enter>` して Excel を選ぶ → Excel が開く。これが `start ""` の場合で、それが無いと失敗する — *`<S-Enter>` on a `.xlsx`, pick Excel → Excel opens it — this is the `start ""` case that fails without it*
 - [ ] **32.5** 名前に**空白**を含むファイルで、上のそれぞれを試す → 1 つの引数として渡り、正しく開く — *A file whose name has a **space**, through each of the above → One argument, opens correctly*
-- [ ] **32.6** 複数選択してから `<Enter>` → 全部がひとつの起動に渡される — *Several files selected, then `<Enter>` → All of them go to one invocation*
-- [ ] **32.7** `*.{xlsx,xls,csv}` と書いたルール → 3 つとも一致する（v0.17.0 以前はこれが効かなかった） — *A rule written `*.{xlsx,xls,csv}` → Matches all three (this is what did not work before v0.17.0)*
-- [ ] **32.8** 入っていないプログラムを指定したオープナー → 数秒以内にエラーのトースト。固まらない — *An opener naming a program that is not installed → An error toast within a few seconds, no hang*
+- [x] **32.6** 複数選択してから `<Enter>` → 全部がひとつの起動に渡される — *Several files selected, then `<Enter>` → All of them go to one invocation*
+- [x] **32.7** `*.{xlsx,xls,csv}` と書いたルール → 3 つとも一致する（v0.17.0 以前はこれが効かなかった） — *A rule written `*.{xlsx,xls,csv}` → Matches all three (this is what did not work before v0.17.0)*
+- [x] **32.8** 入っていないプログラムを指定したオープナー → 数秒以内にエラーのトースト。固まらない — *An opener naming a program that is not installed → An error toast within a few seconds, no hang*
 - [ ] **32.8a** プログラムを**引用符付きのフルパス**で指定したオープナー（秀丸、サクラ）→ 開く。これが v0.17.0 のバグで、`cmd` が行を壊し、しかも失敗が無言だった — *An opener whose program is a **quoted full path** (秀丸, サクラ) → It opens. This is the v0.17.0 bug: `cmd` mangled the line and the failure was silent*
 - [ ] **32.8b** 秀丸とサクラを、`<S-Enter>` から**と**先頭項目としての `<Enter>` から、両方試す → どちらも開く。同じ起動処理へ別の経路で入るため — *秀丸 and サクラ from `<S-Enter>` **and** from `<Enter>` as the first entry → Both, since they take different code paths to the same launcher*
-- [ ] **32.8c** パスにわざと打ち間違いを入れたオープナー → 失敗を述べるトースト。日本語版 Windows では `cmd` の文言ではなく終了コードが出るはずで、**それは仕様であって報告すべきバグではない** — *An opener with a deliberate typo in the path → A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report*
+- [x] **32.8c** パスにわざと打ち間違いを入れたオープナー → 失敗を述べるトースト。日本語版 Windows では `cmd` の文言ではなく終了コードが出るはずで、**それは仕様であって報告すべきバグではない** — *An opener with a deliberate typo in the path → A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report*
 - [ ] **32.9** アウトラインから（行の上で `<C-o>`）秀丸とサクラで開く → その行に着地する — *Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ → Lands on the line*
 
 ## 33. 設定の警告と、その色 — 0 / 10
@@ -501,14 +501,14 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **36.15** 何も開いていない状態で `q` → 1 回目で終了する — *Nothing up → `q` → Quits on the first press*
 - [ ] **36.18** `[[mgr.keymap]]` で `on = "Q"` / `run = "quit"` を割り当て、`<F3>` を開いた状態で `Q` → `q` と同じくまずパネルが閉じる。**挙動は文字ではなく動作に紐づいている** — *Rebind: `[[mgr.keymap]]` with `on = "Q"`, `run = "quit"`, then `Q` with `<F3>` up → Closes the panel first, like `q` — the behaviour is on the action, not the letter*
 
-## 37. `start ""` 形式のオープナーが実際に起動するか — 0 / 8
+## 37. `start ""` 形式のオープナーが実際に起動するか — 6 / 8
 
-- [ ] **37.1** `browser = [{ run = 'start "" msedge %*' }]` を先頭にして `.pdf` で `<Enter>` → **Edge が PDF を開く。**コマンドプロンプトが出ない — *`<Enter>` on a `.pdf` with `browser = [{ run = 'start "" msedge %*' }]` first → **Edge opens the PDF.** No command prompt appears*
-- [ ] **37.2** `start "" excel %*` などを設定して `.xlsx` / `.docx` / `.pptx` で `<Enter>` → Office のアプリがファイルを開く — *`<Enter>` on `.xlsx` / `.docx` / `.pptx` with `start "" excel %*` and friends → The Office app opens the file*
-- [ ] **37.3** `open = [{ run = 'start "" %*' }]` に流れるものを `<Enter>` → 関連付けられたアプリが開く — *`<Enter>` on anything routed to `open = [{ run = 'start "" %*' }]` → The file's associated app opens it*
-- [ ] **37.4** **名前に空白を含む**ファイルで、上のそれぞれを試す → 2 つではなく 1 つのファイルとして開く。パスの引用符が保たれている — *A file whose **name contains a space**, through any of the above → Opens as one file, not two. The path keeps its quotes*
-- [ ] **37.5** `start "" msedge "%*"` と書いたオープナー（プレースホルダを手で引用したもの）→ 37.1 と同じ結果。プレースホルダを囲む対は変わらず吸収される — *An opener written `start "" msedge "%*"` (placeholder quoted by hand) → Same result as 37.1 — the pair around the placeholder is still absorbed*
-- [ ] **37.6** PDF を 2 つ選んで `<Enter>` → 引用符でひと塊にならず、別々の引数として両方開く — *Select two PDFs, `<Enter>` → Both open as separate arguments, not one quoted blob*
+- [x] **37.1** `browser = [{ run = 'start "" msedge %*' }]` を先頭にして `.pdf` で `<Enter>` → **Edge が PDF を開く。**コマンドプロンプトが出ない — *`<Enter>` on a `.pdf` with `browser = [{ run = 'start "" msedge %*' }]` first → **Edge opens the PDF.** No command prompt appears*
+- [x] **37.2** `start "" excel %*` などを設定して `.xlsx` / `.docx` / `.pptx` で `<Enter>` → Office のアプリがファイルを開く — *`<Enter>` on `.xlsx` / `.docx` / `.pptx` with `start "" excel %*` and friends → The Office app opens the file*
+- [x] **37.3** `open = [{ run = 'start "" %*' }]` に流れるものを `<Enter>` → 関連付けられたアプリが開く — *`<Enter>` on anything routed to `open = [{ run = 'start "" %*' }]` → The file's associated app opens it*
+- [x] **37.4** **名前に空白を含む**ファイルで、上のそれぞれを試す → 2 つではなく 1 つのファイルとして開く。パスの引用符が保たれている — *A file whose **name contains a space**, through any of the above → Opens as one file, not two. The path keeps its quotes*
+- [x] **37.5** `start "" msedge "%*"` と書いたオープナー（プレースホルダを手で引用したもの）→ 37.1 と同じ結果。プレースホルダを囲む対は変わらず吸収される — *An opener written `start "" msedge "%*"` (placeholder quoted by hand) → Same result as 37.1 — the pair around the placeholder is still absorbed*
+- [x] **37.6** PDF を 2 つ選んで `<Enter>` → 引用符でひと塊にならず、別々の引数として両方開く — *Select two PDFs, `<Enter>` → Both open as separate arguments, not one quoted blob*
 - [ ] **37.7** フルパスで指定したオープナー（IrfanView、サクラ、秀丸）→ 以前のまま。これらは `start` を通っていない — *Openers given as a full path (IrfanView, sakura, Hidemaru) → Unchanged — these never went through `start`*
 - [ ] **37.8** PDF で `O` → Edge、Chrome、既定アプリ、そのあとエディタ群が並ぶ。それぞれ表示どおりのものが起動する — *`O` on a PDF → The picker lists Edge, Chrome, the default app, then the editors; each entry launches what it says*
 
@@ -544,21 +544,21 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **40.12** ペインの PowerShell（PSReadLine）で `Alt-b` / `Alt-f` → 同じ単語移動 — *PowerShell (PSReadLine) in the pane, `Alt-b` / `Alt-f` → Same word motions*
 - [ ] **40.13** 普通のプロンプトで `Alt-j` / `Alt-k` → **これは filer のスクロールのまま。**この 2 つは `[term]` レイヤーに割り当てられていて、プロンプトは代替画面ではないため — *`Alt-j` / `Alt-k` at an ordinary prompt → **Still filer's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen*
 
-## 41. spot パネルの 4 つの provider — 0 / 14
+## 41. spot パネルの 4 つの provider — 9 / 14
 
-- [ ] **41.1** fixtures の `.zip` で `<Tab>` → **Archive** セクション（形式、エントリ数とフォルダ数、展開後サイズ、圧縮率、`Encrypted: no`） — *`<Tab>` on a `.zip` from the fixtures → An **Archive** section: format, entry and folder counts, unpacked size, ratio, `Encrypted: no`*
-- [ ] **41.2** **7-Zip で暗号化した** zip で `<Tab>` → `Encrypted: yes (entries need a password)` と出て、件数も出ている。**単体テストにできない**（この `zip` のビルドに AES 書き込みが無く、暗号化した fixture をツリー内で作れない） — *`<Tab>` on a zip made **encrypted by 7-Zip** → `Encrypted: yes (entries need a password)`, and the counts are still there. **Cannot be unit-tested — this build of `zip` has no AES writer, so no encrypted fixture can be made in-tree***
-- [ ] **41.3** 「ファイル名も暗号化」で作った 7z で `<Tab>` → `Encrypted: yes (the listing itself)` と出て、**件数は一切出ない**（その先が分からないため） — *`<Tab>` on a 7z made with "encrypt file names" → `Encrypted: yes (the listing itself)` and **no counts at all** (nothing below is known)*
-- [ ] **41.4** エントリが 2 万を超える書庫で `<Tab>` → ウィンドウが止まらずにパネルが出て、`Scanned: first 20,000 entries` と述べる — *`<Tab>` on an archive with more than 20,000 entries → The panel arrives without the window stalling, and says `Scanned: first 20,000 entries`*
+- [x] **41.1** fixtures の `.zip` で `<Tab>` → **Archive** セクション（形式、エントリ数とフォルダ数、展開後サイズ、圧縮率、`Encrypted: no`） — *`<Tab>` on a `.zip` from the fixtures → An **Archive** section: format, entry and folder counts, unpacked size, ratio, `Encrypted: no`*
+- [x] **41.2** **7-Zip で暗号化した** zip で `<Tab>` → `Encrypted: yes (entries need a password)` と出て、件数も出ている。**単体テストにできない**（この `zip` のビルドに AES 書き込みが無く、暗号化した fixture をツリー内で作れない） — *`<Tab>` on a zip made **encrypted by 7-Zip** → `Encrypted: yes (entries need a password)`, and the counts are still there. **Cannot be unit-tested — this build of `zip` has no AES writer, so no encrypted fixture can be made in-tree***
+- [x] **41.3** 「ファイル名も暗号化」で作った 7z で `<Tab>` → `Encrypted: yes (the listing itself)` と出て、**件数は一切出ない**（その先が分からないため） — *`<Tab>` on a 7z made with "encrypt file names" → `Encrypted: yes (the listing itself)` and **no counts at all** (nothing below is known)*
+- [x] **41.4** エントリが 2 万を超える書庫で `<Tab>` → ウィンドウが止まらずにパネルが出て、`Scanned: first 20,000 entries` と述べる — *`<Tab>` on an archive with more than 20,000 entries → The panel arrives without the window stalling, and says `Scanned: first 20,000 entries`*
 - [ ] **41.5** メモ帳で CRLF 保存したファイルと LF のファイルで `<Tab>` → `Line endings` の行が件数付きで区別する — *`<Tab>` on a CRLF file saved by Notepad, then on an LF one → The `Line endings` row tells them apart, with counts*
 - [ ] **41.6** メモ帳の「UTF-16 LE」保存で `<Tab>` → `Encoding: UTF-16 LE`、`BOM: UTF-16 LE (FF FE)`。バイナリ扱いに**ならない** — *`<Tab>` on a Notepad "UTF-16 LE" save → `Encoding: UTF-16 LE`, `BOM: UTF-16 LE (FF FE)` — **not** treated as binary*
-- [ ] **41.7** 2GB のログで `<Tab>` → 行がすぐ出て `Scanned: first 1.0 M of …` となり、**`Final newline` の行は出ない**（末尾を読んでいないため） — *`<Tab>` on a 2 GB log → Rows arrive promptly, `Scanned: first 1.0 M of …`, and **no `Final newline` row** (the end was never read)*
+- [x] **41.7** 2GB のログで `<Tab>` → 行がすぐ出て `Scanned: first 1.0 M of …` となり、**`Final newline` の行は出ない**（末尾を読んでいないため） — *`<Tab>` on a 2 GB log → Rows arrive promptly, `Scanned: first 1.0 M of …`, and **no `Final newline` row** (the end was never read)*
 - [ ] **41.8** リリースの 6 つのバイナリそれぞれで `<Tab>` → `Architecture` が成果物の名前のトリプルと一致する（`x86_64` / `aarch64`） — *`<Tab>` on each of the six release binaries → `Architecture` matches the triple the artifact is named for — `x86_64` / `aarch64`*
-- [ ] **41.9** `C:\Windows\explorer.exe` と、`.dll` で `<Tab>` → `Windows GUI` / `DLL` — *`<Tab>` on `C:\Windows\explorer.exe`, then on a `.dll` → `Windows GUI` / `DLL`*
-- [ ] **41.10** Office で保存した本物の `.docx` / `.xlsx` / `.pptx` で `<Tab>` → 作成者、リビジョン、**UTC** と明記された時刻、語数 / ページ数 / スライド数 — *`<Tab>` on a real `.docx` / `.xlsx` / `.pptx` saved by Office → Author, revision, times marked **UTC**, word / page / slide counts*
-- [ ] **41.11** 古い `.doc` で `<Tab>` → **Document セクションが出ず、エラーも出ない** — *`<Tab>` on an old `.doc` → **No Document section, and no error***
+- [x] **41.9** `C:\Windows\explorer.exe` と、`.dll` で `<Tab>` → `Windows GUI` / `DLL` — *`<Tab>` on `C:\Windows\explorer.exe`, then on a `.dll` → `Windows GUI` / `DLL`*
+- [x] **41.10** Office で保存した本物の `.docx` / `.xlsx` / `.pptx` で `<Tab>` → 作成者、リビジョン、**UTC** と明記された時刻、語数 / ページ数 / スライド数 — *`<Tab>` on a real `.docx` / `.xlsx` / `.pptx` saved by Office → Author, revision, times marked **UTC**, word / page / slide counts*
+- [x] **41.11** 古い `.doc` で `<Tab>` → **Document セクションが出ず、エラーも出ない** — *`<Tab>` on an old `.doc` → **No Document section, and no error***
 - [ ] **41.12** 新しい各セクションのキーの列を見る → キーが値の列にはみ出していない（`overlay.rs` が `key_w = 130.0` で固定している） — *Look at the key column on every new section → No key runs into the value column (`overlay.rs` hard-codes `key_w = 130.0`)*
-- [ ] **41.13** 新しいセクションの行まで `<A-j>` で下り、`y` → 正しい値がコピーされる。**`Act::Copy` は全セクションを通して行を数えるので、セクションが増えると添字がずれる** — *`<A-j>` down into a new section's rows, then `y` → The right value is copied. **`Act::Copy` counts rows across every section, so the new sections shift the indices***
+- [x] **41.13** 新しいセクションの行まで `<A-j>` で下り、`y` → 正しい値がコピーされる。**`Act::Copy` は全セクションを通して行を数えるので、セクションが増えると添字がずれる** — *`<A-j>` down into a new section's rows, then `y` → The right value is copied. **`Act::Copy` counts rows across every section, so the new sections shift the indices***
 - [ ] **41.14** 遅いネットワークドライブ上のフォルダで `<Tab>` → パネルはカーソルに追従し続ける（spot ワーカーは newest-wins） — *`<Tab>` on a folder on a slow network drive → The panel still follows the cursor; the spot worker is newest-wins*
 
 ## 42. ミニマップのホバーカード — 全 13 件が自動

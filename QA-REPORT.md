@@ -1282,3 +1282,187 @@ TESTING-CHECKS.md でチェックした。証拠は PR 本文に 1 行ずつあ�
   **`E` の既定の割り当て自体は確かめていない**（それは TESTING-KEYS.md の仕事）。
 - 空の設定ディレクトリの名前は、セッションごとに分けること（`R:\Temp\emptycfg` を
   他のセッションと共有していた時間がある）。
+
+## TESTING.md section 41 — Windows 実機で確かめた（52507ef / 0.47.25）
+
+Windows のセッション（`.claude/windows-role.md`）から。41 節の 14 行のうち 9 行（41.1〜41.4 /
+41.7 / 41.9〜41.11 / 41.13）を TESTING-CHECKS.md でチェックした。証拠は PR 本文に 1 行ずつある。
+走らせたのは `084fa53`（0.47.24）から作った release の `filer.exe` で、`52507ef` との差分に
+ソースは無い。
+
+**どう読んだか**: filer を空の隔離した設定で開き、キーは filer 自身のウィンドウにだけ
+`PostMessage` で送った（前面を取り合わないので、並行して動く他のセッションの窓に
+キーが入らない）。`<Tab>` のあと、`y` で各行を 1 つずつクリップボードに写し、センチネルと
+置き換わったかで「その行に何が出ていたか」を文字で読んだ。行の移動は、ハーネスの
+keymap で `n` に割り当てた `arrow 1`（既定の `<A-j>` と同じコマンド）を使った。41.13 だけは
+本物の `<A-j>` で歩いた（`AttachThreadInput` で filer の入力状態を共有して Alt を立て、
+`WM_SYSKEYDOWN` を送る）。窓が止まっていないかは、`<Tab>` のあと 20 ms ごとに
+`SendMessageTimeout(WM_NULL)` を投げ、返事までの最長時間で測った。
+
+### 見つけたもの（どれも直していない）
+
+#### `cargo test` が実機の設定を読み、5 件落ちる
+
+- **実測**: この機械で、変数を何も設定せずに `cargo test` を回すと `472 passed; 5 failed`。
+  - `envreport::tests::it_reports_what_is_actually_there`（`src/envreport.rs:447`、
+    `pdftoppm is not used yet`）
+  - `ui::csv_table_frame::the_table_relays_out_when_the_window_is_resized`（`src/ui/mod.rs:4140`）
+  - `ui::whole_frame::a_long_file_gets_a_strip_and_a_narrow_window_does_not`（`src/ui/mod.rs:1693`）
+  - `ui::overlay::help_frame::the_wheel_turns_the_panel_and_leaves_the_list_alone`（`src/ui/overlay.rs:1705`）
+  - `ui::overlay::help_frame::a_panel_owns_the_wheel_and_a_prompt_leaves_it`（`src/ui/overlay.rs:1759`）
+- 空のディレクトリを `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` / `FILER_STATE_HOME` に
+  渡すと `477 passed; 0 failed`。**つまり、テストが持ち主の `%APPDATA%\yazi` と
+  `%APPDATA%\filer` を読んでいる。**この機械の設定には `[[preview]]` の `pdftoppm` や、
+  レイアウトを変える `[ui]` の値がある。
+- **なぜ困るか**: CI のランナーには設定が無いので緑になる。**設定を持っている人の手元でだけ
+  落ちる**ので、「手元で全部回してからマージする」（CLAUDE.md）という手順が、設定を持つ人に
+  とっては毎回赤から始まる。そのうち「いつもの 5 件」として数えるようになると、6 件目を
+  見落とす。CLAUDE.md が Linux の「既知の 4 件」で戒めているのと同じ形になる。
+- **提案**: テストのハーネスが `App` を作るときは、設定を読む場所をテスト用の空の
+  ディレクトリ（`util::test_dir`）に固定する。`envreport` のテストも同じ。
+  環境変数を書き換えるのはテストの並列実行とぶつかるので、読む場所を引数で受け取る形が安全。
+  **このセッションは、以降のテストを空の設定で回した。**
+
+#### 41.8: 6 つのうち `macos-x64` が出たことがない
+
+- **実測**: 最新のリリース `v0.47.10` のアセットは 5 つ（`linux-arm64` / `linux-x64` /
+  `macos-arm64` / `windows-arm64` / `windows-x64`）。そのリリースを作った run
+  `36327051962` は、`macos-x64` のジョブ（`runs-on: macos-13`）が
+  **2026-09-27T15:12:12Z から queued のまま**で、run 全体も `queued` のまま。
+  `build.yml` の直近 100 回の run でも、`macos-x64` が成功したものは 1 つも無い。
+- **推測（確かめていない）**: GitHub は `macos-13` のイメージを廃止すると告知していた。
+  ラベルに合うランナーが無いので、ジョブが拾われずに待ち続けている形に見える。
+  `macos-15-intel` など、今もある Intel のラベルに移すのが候補。
+- **食い違い**: CLAUDE.md の「成果物は 6 つ」、41.8 の「six release binaries」。
+  **いまのリリースには Intel Mac 用のバイナリが無い。**
+- 残りの 5 つは、`Architecture` の値が、ヘッダを直接読んだ値と一致した（PR 本文）。
+  **41.8 は 6 つそろっていないのでチェックしていない。**
+
+#### 暗号化した zip では、Preview に名前が 1 つも出ない
+
+- 41.2 の zip（ZipCrypto / AES-256 のどちらも）で、spot の Archive 節は
+  `6 files, 1 folders` と数えられるのに、Preview は
+  `Cannot list: unsupported Zip archive: Password required to decrypt file` だけを出す。
+- zip は、中身を暗号化してもエントリ名は平文のまま（spot が数えられるのはそのため）。
+  `7z l` もパスワードなしで名前を全部出す。**見せられる一覧を、中身が読めないという理由で
+  出していない。**41.3（名前ごと暗号化した 7z）なら `Cannot list: PasswordRequired` が正しい。
+- **提案**: 一覧は中央ディレクトリから作り、パスワードが要るのは中身を開くときだけにする。
+  行を足すなら「暗号化した zip の Preview に名前が並び、`(encrypted)` の印が付く」。
+
+#### `Longest line` は、同じ長さの行があると**最後の**行を指す
+
+- **どこ**: `src/spot.rs:373` の `.max_by_key(|&(_, chars)| chars)`。
+  `Iterator::max_by_key` は、最大が複数あるとき**最後の**要素を返す。
+- **実測**: 41.7 の 2 GB のログは、どの行も 100 文字。パネルは
+  `100 chars (line 10,381)` と出した。これは、読んだ最初の 1.0 M のうち最後の完全な行。
+  「最長の行」と聞いて人が期待するのは、たぶん最初の行（line 1）。
+- 単体テスト（`src/spot.rs:873`）は最長の行が 1 つだけのデータしか使っていないので、
+  この挙動を固定も否定もしていない。
+- **提案**: 最初の行を指すなら `max_by_key(|&(i, c)| (c, Reverse(i)))` にする。
+  どちらを採るにしても、同じ長さの行が並ぶケースをテストに入れる。
+
+#### Mime 行が OOXML にも古い型を出す（軽い）
+
+- `src/mime.rs:92-94` は `docx` / `xlsx` / `pptx` を `doc` / `xls` / `ppt` と同じ行に並べている。
+  そのため 41.10 のパネルには、`.docx` で `application/msword`、`.xlsx` で
+  `application/vnd.ms-excel`、`.pptx` で `application/vnd.ms-powerpoint` が出た。
+- 正しい型は `application/vnd.openxmlformats-officedocument.wordprocessingml.document` など。
+  長いので、パネルの幅で切れるかは 41.12 と同じく見た目の話になる。
+
+### チェックしなかった行
+
+- **41.5 / 41.6**: 値はどちらも期待どおりだった。
+  - CRLF のファイルは `CRLF (5)`、LF のファイルは `LF (5)`。
+  - UTF-16 のファイルは `UTF-16 LE` / `UTF-16 LE (FF FE)` / `CRLF (3)`。Text 節が出ており、
+    バイナリ扱いにはなっていない。
+  - **ただし、ファイルはメモ帳で保存していない。**同じバイト列を PowerShell で書いた。
+    この機械には持ち主の分からないメモ帳の窓が開いていて、Win11 のメモ帳は開いたファイルを
+    その窓のタブに足す。他のセッションの作業に手を出すことになるので、使わなかった。
+    行が「Notepad で保存した」と言っているので、持ち主が保存して確かめる。
+- **41.8**: 上の節。5 / 6。
+- **41.12**: 見た目の行。
+- **41.14**: 遅いネットワークドライブが無い。`net use` に接続は無く、FileSystem のドライブは
+  `C:` と `R:`（RAM ディスク）だけ。
+
+## TESTING.md sections 32 / 37 — Windows 実機で確かめた（ebac1fc / 0.47.26）
+
+Windows のセッション（`.claude/windows-role.md`）から。32 節 12 行と 37 節 8 行、計 20 行のうち
+13 行（32.1 / 32.3 / 32.4 / 32.6 / 32.7 / 32.8 / 32.8c / 37.1〜37.6）を TESTING-CHECKS.md で
+チェックした。証拠は PR 本文に 1 行ずつある。「正しいプログラムが起動したか」は、キーの前後で
+`Get-CimInstance Win32_Process` を比べて**増えたプロセスのコマンドライン**と、そのウィンドウの
+タイトルで示した。起動したものは毎回閉じてから次の行へ進んだ。設定は README の `[opener]` /
+`[open]` の例をそのまま写したもの（`YAZI_CONFIG_HOME` で切り替え）と、行ごとに最小にしたもの。
+
+### サクラエディタの行指定が `-L=` になっていて、効かない（32.9）
+
+- **場所**: `src/exec.rs:223` `"sakura" => LineArg::Flag("-L="),`。同じ綴りが
+  `src/exec.rs:187` の doc コメント、テスト（`src/exec.rs:565` / `:572`）、README の
+  Outline の節（`-L=N` to Sakura）にもある。
+- **実測**: サクラエディタ 2.4.2.6048。アウトラインから開くと、filer が走らせた行は
+  `cmd /S /C ""C:\Program Files (x86)\sakura\sakura.exe" -L=6 "R:\Temp\op\cases\md\outline.md""`
+  で、キャレットは 1 行目のまま（覚えていた位置に戻るだけ）だった。filer を通さず直接
+  起動して比べた結果:
+  - `sakura.exe -Y=6 outline.md` → 6 行目に着地。`-Y=3` → 3 行目。
+  - `sakura.exe -L=6 outline.md`、`-L=11` → **無視される**（前回の位置が復元される）。
+- **直すなら**: 表の 1 行を `-Y=` にし、テスト 2 本と doc コメント、README の 1 語を揃える。
+  それまでの回避策は `filer.toml` の `sakura = "-Y={line} {path}"`（`[line_args]`）の
+  はずだが、**これは実機で試していない**。
+- 32.9 はこのためチェックしていない。秀丸は入っていないので、半分はそもそも試せない。
+
+### 32.9 のキーが `<C-o>` になっている
+
+9.1 について 416 行目で報告済みのものと同じ誤り。`<C-o>` はどの keymap にも無く、実際の
+経路は `<BackTab>`（アウトラインへ）→ 行を選んで `<Enter>`。この節ではその経路で試した。
+
+### README の例では、`.docx` / `.pptx` の `<Enter>` が Excel に行く（37.2）
+
+- README の例は `office = [excel, winword, powerpnt]` を 1 つのリストにし、
+  `*.{docx,docm,doc}` と `*.{pptx,pptm,ppt}` のルールもそのリストを先頭に置いている。
+  先頭項目が `start "" excel %*` なので、**`.docx` で `<Enter>` すると Excel が起動し、
+  「ファイル形式または拡張子が正しくありません」のダイアログで止まる**（実測）。
+- 37.2 の文言（「Office のアプリがファイルを開く」）は Word / PowerPoint を前提にしている。
+  チェックは、Word と PowerPoint を先頭にした最小の設定（`start "" winword %*` /
+  `start "" powerpnt %*`）で `WINWORD.EXE "…\probe.docx"`（タイトル `probe.docx - Word`）と
+  `POWERPNT.EXE "…\probe.pptx"`（`probe.pptx - PowerPoint`）を見て付けた。
+- **提案（直していない）**: README の例を `excel` / `word` / `powerpoint` の 3 リストに分け、
+  ルールごとに合うものを先頭にする。貼って使う人がそのまま踏む。
+
+### `cargo test` のうち 5 本が、持ち主の実際の設定を読んで落ちる
+
+この機械で素の `cargo test` を回すと 472 通過 / 5 失敗。`YAZI_CONFIG_HOME` /
+`FILER_CONFIG_HOME` / `FILER_STATE_HOME` を空のディレクトリに向けると 477 本すべて通る。
+1 つずつ向けて切り分けた:
+
+- `FILER_CONFIG_HOME`（持ち主の `filer.toml`）が効いて落ちる 4 本:
+  - `ui::csv_table_frame::the_table_relays_out_when_the_window_is_resized`（`src/ui/mod.rs:4140`）
+  - `ui::overlay::help_frame::the_wheel_turns_the_panel_and_leaves_the_list_alone`（`src/ui/overlay.rs:1705`）
+  - `ui::overlay::help_frame::a_panel_owns_the_wheel_and_a_prompt_leaves_it`（`src/ui/overlay.rs:1759`）
+  - `ui::whole_frame::a_long_file_gets_a_strip_and_a_narrow_window_does_not`
+    （`src/ui/mod.rs:1693`、`a pane too narrow for the map draws none of it`）
+- `YAZI_CONFIG_HOME`（持ち主の `yazi.toml`）が効いて落ちる 1 本:
+  - `envreport::tests::it_reports_what_is_actually_there`（`src/envreport.rs:447`、
+    `pdftoppm is not used yet:` のあとに持ち主の環境の Tools 節が出る）
+- CI のランナーには設定が無いので緑になる。**設定を持っている人の機械でだけ赤になる**
+  ので、手元で回した人は「既知の失敗」として数え始めかねない（CLAUDE.md が戒めている形）。
+  テストのほうで設定ディレクトリを `util::test_dir` に向けるのが筋だと思う。
+
+### 実機に残るもの・この機械の事情
+
+- **秀丸と IrfanView が入っていない。**そのため 32.2（先頭項目が秀丸）、32.5（「上の
+  それぞれ」に秀丸を含む）、32.8a / 32.8b（秀丸の半分）、32.9、37.7 は持ち主の行。
+  - 32.2 では、先頭の秀丸が無いので `Open failed: exit code 1 — "C:\Program Files\Hidemaru\Hidemaru.exe" "…\probe32.txt"`
+    のトーストになった（先頭項目が選ばれたこと自体は読める）。
+  - サクラの半分は確かめた: 先頭項目の `<Enter>` からも `<S-Enter>` からも
+    `sakura.exe "…\probe32.txt"` が起動し、タイトルは `probe32.txt - サクラエディタ`。
+  - 32.5 は Excel（`space book.xlsx - Excel`）、サクラ（`space name.txt - サクラエディタ`）、
+    Edge（`space name.pdf`）で 1 引数を確かめた。
+- **37.8** は Edge / サクラ / VS Code / Neovim の 4 項目を選んで、それぞれ表示どおりのものが
+  起動したことを見た。Chrome と既定アプリ（この機械では `.pdf` → Chrome）は、持ち主が
+  使用中の Chrome に混ざるので押していない。秀丸は無い。
+- **37.3 の `.csv`**: この機械の `.csv` の関連付けが壊れている（`UserChoiceLatest` の
+  ProgId が `Applications\sakura.exe` で、Windows が受け付けない）。filer を通さず
+  `cmd` から `start "" probe.csv` しても「アプリの選択」ダイアログになるので filer の
+  問題ではない。37.3 のチェックは `.txt`（関連付け先のサクラが `"…\space name.txt"` を
+  1 引数で受け取った）で付けた。
+- **32.8c の文言**: 日本語版 Windows では期待どおり `exit code 1` になった
+  （`Open failed: exit code 1 — "C:\Program Files (x86)\sakura\sakurra.exe" "…\probe32.txt"`）。
