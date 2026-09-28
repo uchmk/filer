@@ -1028,3 +1028,104 @@ Config
   変数を未設定にした `filer env` の Tools 節に、`yazi.toml` の `[opener]` にだけある
   `sakura.exe` / `Hidemaru.exe` / `i_view64.exe` が並んだ（`filer.toml` にはコメント行が
   1 行あるだけ）。並び順が mtime になるかは画面を見る行なので、持ち主が確かめる。
+
+## TESTING.md section 41 — Windows 実機で確かめた（52507ef / 0.47.25）
+
+Windows のセッション（`.claude/windows-role.md`）から。41 節の 14 行のうち 9 行（41.1〜41.4 /
+41.7 / 41.9〜41.11 / 41.13）を TESTING-CHECKS.md でチェックした。証拠は PR 本文に 1 行ずつある。
+走らせたのは `084fa53`（0.47.24）から作った release の `filer.exe` で、`52507ef` との差分に
+ソースは無い。
+
+**どう読んだか**: filer を空の隔離した設定で開き、キーは filer 自身のウィンドウにだけ
+`PostMessage` で送った（前面を取り合わないので、並行して動く他のセッションの窓に
+キーが入らない）。`<Tab>` のあと、`y` で各行を 1 つずつクリップボードに写し、センチネルと
+置き換わったかで「その行に何が出ていたか」を文字で読んだ。行の移動は、ハーネスの
+keymap で `n` に割り当てた `arrow 1`（既定の `<A-j>` と同じコマンド）を使った。41.13 だけは
+本物の `<A-j>` で歩いた（`AttachThreadInput` で filer の入力状態を共有して Alt を立て、
+`WM_SYSKEYDOWN` を送る）。窓が止まっていないかは、`<Tab>` のあと 20 ms ごとに
+`SendMessageTimeout(WM_NULL)` を投げ、返事までの最長時間で測った。
+
+### 見つけたもの（どれも直していない）
+
+#### `cargo test` が実機の設定を読み、5 件落ちる
+
+- **実測**: この機械で、変数を何も設定せずに `cargo test` を回すと `472 passed; 5 failed`。
+  - `envreport::tests::it_reports_what_is_actually_there`（`src/envreport.rs:447`、
+    `pdftoppm is not used yet`）
+  - `ui::csv_table_frame::the_table_relays_out_when_the_window_is_resized`（`src/ui/mod.rs:4140`）
+  - `ui::whole_frame::a_long_file_gets_a_strip_and_a_narrow_window_does_not`（`src/ui/mod.rs:1693`）
+  - `ui::overlay::help_frame::the_wheel_turns_the_panel_and_leaves_the_list_alone`（`src/ui/overlay.rs:1705`）
+  - `ui::overlay::help_frame::a_panel_owns_the_wheel_and_a_prompt_leaves_it`（`src/ui/overlay.rs:1759`）
+- 空のディレクトリを `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` / `FILER_STATE_HOME` に
+  渡すと `477 passed; 0 failed`。**つまり、テストが持ち主の `%APPDATA%\yazi` と
+  `%APPDATA%\filer` を読んでいる。**この機械の設定には `[[preview]]` の `pdftoppm` や、
+  レイアウトを変える `[ui]` の値がある。
+- **なぜ困るか**: CI のランナーには設定が無いので緑になる。**設定を持っている人の手元でだけ
+  落ちる**ので、「手元で全部回してからマージする」（CLAUDE.md）という手順が、設定を持つ人に
+  とっては毎回赤から始まる。そのうち「いつもの 5 件」として数えるようになると、6 件目を
+  見落とす。CLAUDE.md が Linux の「既知の 4 件」で戒めているのと同じ形になる。
+- **提案**: テストのハーネスが `App` を作るときは、設定を読む場所をテスト用の空の
+  ディレクトリ（`util::test_dir`）に固定する。`envreport` のテストも同じ。
+  環境変数を書き換えるのはテストの並列実行とぶつかるので、読む場所を引数で受け取る形が安全。
+  **このセッションは、以降のテストを空の設定で回した。**
+
+#### 41.8: 6 つのうち `macos-x64` が出たことがない
+
+- **実測**: 最新のリリース `v0.47.10` のアセットは 5 つ（`linux-arm64` / `linux-x64` /
+  `macos-arm64` / `windows-arm64` / `windows-x64`）。そのリリースを作った run
+  `36327051962` は、`macos-x64` のジョブ（`runs-on: macos-13`）が
+  **2026-09-27T15:12:12Z から queued のまま**で、run 全体も `queued` のまま。
+  `build.yml` の直近 100 回の run でも、`macos-x64` が成功したものは 1 つも無い。
+- **推測（確かめていない）**: GitHub は `macos-13` のイメージを廃止すると告知していた。
+  ラベルに合うランナーが無いので、ジョブが拾われずに待ち続けている形に見える。
+  `macos-15-intel` など、今もある Intel のラベルに移すのが候補。
+- **食い違い**: CLAUDE.md の「成果物は 6 つ」、41.8 の「six release binaries」。
+  **いまのリリースには Intel Mac 用のバイナリが無い。**
+- 残りの 5 つは、`Architecture` の値が、ヘッダを直接読んだ値と一致した（PR 本文）。
+  **41.8 は 6 つそろっていないのでチェックしていない。**
+
+#### 暗号化した zip では、Preview に名前が 1 つも出ない
+
+- 41.2 の zip（ZipCrypto / AES-256 のどちらも）で、spot の Archive 節は
+  `6 files, 1 folders` と数えられるのに、Preview は
+  `Cannot list: unsupported Zip archive: Password required to decrypt file` だけを出す。
+- zip は、中身を暗号化してもエントリ名は平文のまま（spot が数えられるのはそのため）。
+  `7z l` もパスワードなしで名前を全部出す。**見せられる一覧を、中身が読めないという理由で
+  出していない。**41.3（名前ごと暗号化した 7z）なら `Cannot list: PasswordRequired` が正しい。
+- **提案**: 一覧は中央ディレクトリから作り、パスワードが要るのは中身を開くときだけにする。
+  行を足すなら「暗号化した zip の Preview に名前が並び、`(encrypted)` の印が付く」。
+
+#### `Longest line` は、同じ長さの行があると**最後の**行を指す
+
+- **どこ**: `src/spot.rs:373` の `.max_by_key(|&(_, chars)| chars)`。
+  `Iterator::max_by_key` は、最大が複数あるとき**最後の**要素を返す。
+- **実測**: 41.7 の 2 GB のログは、どの行も 100 文字。パネルは
+  `100 chars (line 10,381)` と出した。これは、読んだ最初の 1.0 M のうち最後の完全な行。
+  「最長の行」と聞いて人が期待するのは、たぶん最初の行（line 1）。
+- 単体テスト（`src/spot.rs:873`）は最長の行が 1 つだけのデータしか使っていないので、
+  この挙動を固定も否定もしていない。
+- **提案**: 最初の行を指すなら `max_by_key(|&(i, c)| (c, Reverse(i)))` にする。
+  どちらを採るにしても、同じ長さの行が並ぶケースをテストに入れる。
+
+#### Mime 行が OOXML にも古い型を出す（軽い）
+
+- `src/mime.rs:92-94` は `docx` / `xlsx` / `pptx` を `doc` / `xls` / `ppt` と同じ行に並べている。
+  そのため 41.10 のパネルには、`.docx` で `application/msword`、`.xlsx` で
+  `application/vnd.ms-excel`、`.pptx` で `application/vnd.ms-powerpoint` が出た。
+- 正しい型は `application/vnd.openxmlformats-officedocument.wordprocessingml.document` など。
+  長いので、パネルの幅で切れるかは 41.12 と同じく見た目の話になる。
+
+### チェックしなかった行
+
+- **41.5 / 41.6**: 値はどちらも期待どおりだった。
+  - CRLF のファイルは `CRLF (5)`、LF のファイルは `LF (5)`。
+  - UTF-16 のファイルは `UTF-16 LE` / `UTF-16 LE (FF FE)` / `CRLF (3)`。Text 節が出ており、
+    バイナリ扱いにはなっていない。
+  - **ただし、ファイルはメモ帳で保存していない。**同じバイト列を PowerShell で書いた。
+    この機械には持ち主の分からないメモ帳の窓が開いていて、Win11 のメモ帳は開いたファイルを
+    その窓のタブに足す。他のセッションの作業に手を出すことになるので、使わなかった。
+    行が「Notepad で保存した」と言っているので、持ち主が保存して確かめる。
+- **41.8**: 上の節。5 / 6。
+- **41.12**: 見た目の行。
+- **41.14**: 遅いネットワークドライブが無い。`net use` に接続は無く、FileSystem のドライブは
+  `C:` と `R:`（RAM ディスク）だけ。
