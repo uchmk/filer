@@ -50,8 +50,15 @@ jobs:
           - name: macos-arm64
             os: macos-14
             target: aarch64-apple-darwin
+          # Cross-compiled from the ARM runner. This said `macos-13` until
+          # v0.47.28, and that image is gone: the job simply queued, for over a
+          # day in the run that finally exposed it, and no `macos-x64` build
+          # has succeeded in the last 100 runs. Nothing failed, so nothing said
+          # so -- the release just came out with five assets where the notes
+          # promise six. Apple's SDK carries both architectures, so an ARM
+          # runner builds this target with nothing but `rustup target add`.
           - name: macos-x64
-            os: macos-13
+            os: macos-14
             target: x86_64-apple-darwin
           - name: linux-x64
             os: ubuntu-latest
