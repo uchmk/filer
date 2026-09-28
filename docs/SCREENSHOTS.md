@@ -1,4 +1,20 @@
-# The three screenshots the README is waiting for
+# Pictures of filer
+
+Two separate things live here: the **social preview**, which is done, and the
+**three README screenshots**, which are not.
+
+## The social preview — done
+
+`banner.html` is the source, `social-preview.png` is it rendered. GitHub has no
+API for the setting, so it is uploaded by hand at **Settings > General > Social
+preview**, and that upload is the only step left.
+
+Edit the HTML rather than the PNG; the file's own header comment has the one
+command that re-renders it, and says which details in it are load-bearing (the
+colours are filer's own, the window chrome is Windows, the listing is the real
+contents of `src/`).
+
+## The three screenshots the README is waiting for
 
 A file manager is a thing you look at. The README is 1400 lines and, until these
 exist, not one of them shows what the program puts on a screen — so a visitor has

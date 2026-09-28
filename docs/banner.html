@@ -1,0 +1,194 @@
+<!doctype html>
+<!--
+  filer's social preview -- the banner GitHub shows when the repository is
+  linked anywhere. Rendered to docs/social-preview.png and uploaded by hand at
+  Settings > General > Social preview; GitHub has no API for that setting.
+
+  Kept as source rather than as a PNG alone so the wording can change without
+  anyone having to rebuild it in a drawing program. To re-render, from the
+  repository root, with any Chromium (the path below is the one Playwright
+  installs):
+
+      chromium --headless --disable-gpu --hide-scrollbars \
+        --force-device-scale-factor=2 --window-size=1280,640 \
+        --screenshot=docs/social-preview.png docs/banner.html
+
+  GitHub wants 1280x640; the scale factor renders at twice that so it stays
+  sharp on a high-DPI screen.
+
+  Two things it is easy to get wrong here, both found by getting them wrong:
+
+  - **The colours are filer's own**, read out of src/config/theme.rs, so the
+    banner and the program cannot disagree about what colour the thing is. If
+    the default theme changes, change them here too.
+  - **The window chrome is Windows**, and the file listing is the real contents
+    of src/. This is a banner whose whole claim is "Windows GUI"; macOS traffic
+    lights over an invented directory is the detail that tells a reader nobody
+    looked.
+-->
+<html><head><meta charset="utf-8">
+<style>
+  /* filer's own palette, read out of src/config/theme.rs so the banner and the
+     program cannot disagree about what colour the thing is. */
+  :root{
+    --bg:#16181d; --bg-alt:#1b1e24; --border:#2c3039;
+    --fg:#c8cdd8; --fg-bright:#e8ebf2; --dim:#798090;
+    --cyan:#6fd0d0; --yellow:#e8c87a; --green:#8ed08e;
+    --blue:#7ab8f5; --magenta:#c99cf0; --hover:#2f4a6b;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1280px;height:640px;overflow:hidden}
+  body{
+    background:var(--bg);
+    font-family:"DejaVu Sans Mono",monospace;
+    position:relative;
+  }
+  /* a slow cyan bloom behind the wordmark, so the left half is not flat black */
+  .glow{
+    position:absolute; left:-180px; top:120px; width:820px; height:520px;
+    background:radial-gradient(closest-side, rgba(111,208,208,.13), transparent 70%);
+  }
+  .wrap{position:absolute;inset:0;display:flex;align-items:center;padding:0 84px}
+
+  /* ---- left: the wordmark ---- */
+  .left{width:560px;flex:none;position:relative}
+  .mark{
+    font-size:132px; font-weight:700; letter-spacing:-4px; line-height:1;
+    color:var(--fg-bright); display:flex; align-items:center;
+  }
+  .caret{
+    display:inline-block; width:58px; height:104px; margin-left:16px;
+    background:var(--cyan); border-radius:2px;
+  }
+  .tag{
+    margin-top:30px; font-size:26px; line-height:1.45; color:var(--fg);
+  }
+  .tag b{color:var(--cyan);font-weight:700}
+  .chips{margin-top:38px;display:flex;gap:10px;flex-wrap:wrap}
+  .chip{
+    font-size:17px; color:var(--dim); border:1px solid var(--border);
+    border-radius:999px; padding:7px 16px; background:var(--bg-alt);
+  }
+
+  /* ---- right: the program, drawn rather than screenshotted ---- */
+  .app{
+    position:absolute; right:60px; top:96px; width:496px; height:448px;
+    background:var(--bg-alt); border:1px solid var(--border); border-radius:10px;
+    overflow:hidden; box-shadow:0 30px 70px rgba(0,0,0,.5);
+  }
+  .bar{
+    height:30px; border-bottom:1px solid var(--border); display:flex;
+    align-items:center; padding:0 14px; gap:8px; font-size:12px; color:var(--dim);
+  }
+  .dot{width:9px;height:9px;border-radius:50%}
+  .cols{display:flex;height:calc(100% - 30px)}
+  .col{padding:10px 0;overflow:hidden}
+  .c1{width:104px;border-right:1px solid var(--border);opacity:.45}
+  .c2{width:196px;border-right:1px solid var(--border)}
+  .c3{flex:1;position:relative}
+  .row{height:22px;display:flex;align-items:center;padding:0 12px;gap:8px;font-size:12px;color:var(--fg)}
+  .row.on{background:var(--hover);color:var(--fg-bright)}
+  .row .ic{color:var(--blue)}
+  .bar3{width:3px;height:14px;border-radius:2px;flex:none}
+  .nm{white-space:nowrap;overflow:hidden;text-overflow:clip}
+  /* preview: code-shaped bars rather than text, so it reads at any size */
+  .ln{height:9px;border-radius:2px;margin:0 0 9px 0}
+  .pv{padding:12px 14px}
+  /* the minimap strip down the right of the preview */
+  .map{position:absolute;right:6px;top:12px;bottom:12px;width:7px;display:flex;flex-direction:column;gap:3px}
+  .map i{display:block;border-radius:1px;height:7px}
+
+  /* the which-key panel, which is the thing worth showing */
+  .wk{
+    position:absolute; left:0; right:0; bottom:0;
+    background:rgba(22,24,29,.97); border-top:1px solid var(--border);
+    padding:11px 14px 13px;
+  }
+  .wk h{display:block;font-size:11px;color:var(--dim);margin-bottom:9px}
+  .wk .g{display:grid;grid-template-columns:1fr 1fr;gap:7px 16px}
+  .wk .k{font-size:12px;display:flex;gap:9px;align-items:baseline}
+  .wk .k b{color:var(--yellow);font-weight:700;min-width:16px}
+  .wk .k span{color:var(--dim)}
+</style></head>
+<body>
+  <div class="glow"></div>
+  <div class="wrap">
+    <div class="left">
+      <div class="mark">filer<span class="caret"></span></div>
+      <div class="tag">yazi's config files,<br>in a <b>Windows GUI</b>.</div>
+      <div class="chips">
+        <span class="chip">Rust</span><span class="chip">egui</span>
+        <span class="chip">vim keys</span><span class="chip">MIT / Apache-2.0</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="app">
+    <div class="bar">
+      <span style="color:var(--cyan)">C:\dev\filer\src</span>
+      <span style="margin-left:auto;color:var(--dim);letter-spacing:3px">&#9472; &#9633; &#10005;</span>
+    </div>
+    <div class="cols">
+      <div class="col c1">
+        <div class="row"><span class="ic">▸</span><span class="nm">.github</span></div>
+        <div class="row"><span class="ic">▸</span><span class="nm">docs</span></div>
+        <div class="row on"><span class="ic">▾</span><span class="nm">src</span></div>
+        <div class="row"><span class="ic">▸</span><span class="nm">scripts</span></div>
+        <div class="row"><span style="color:var(--dim)">·</span><span class="nm">README</span></div>
+      </div>
+      <div class="col c2">
+        <div class="row"><span class="bar3"></span><span class="ic">&#9656;</span><span class="nm">config</span></div>
+        <div class="row"><span class="bar3"></span><span class="ic">&#9656;</span><span class="nm">core</span></div>
+        <div class="row"><span class="bar3"></span><span class="ic">&#9656;</span><span class="nm">fs</span></div>
+        <div class="row"><span class="bar3"></span><span class="ic">&#9656;</span><span class="nm">preview</span></div>
+        <div class="row"><span class="bar3"></span><span class="ic">&#9656;</span><span class="nm">ui</span></div>
+        <div class="row"><span class="bar3" style="background:var(--green)"></span><span class="nm">app.rs</span></div>
+        <div class="row on"><span class="bar3" style="background:var(--yellow)"></span><span class="nm">exec.rs</span></div>
+        <div class="row"><span class="bar3"></span><span class="nm">main.rs</span></div>
+        <div class="row"><span class="bar3"></span><span class="nm">spot.rs</span></div>
+        <div class="row"><span class="bar3"></span><span class="nm">terminal.rs</span></div>
+        <div class="row"><span class="bar3"></span><span class="nm">util.rs</span></div>
+      </div>
+      <div class="col c3">
+        <div class="pv">
+          <div class="ln" style="width:52%;background:var(--magenta);opacity:.85"></div>
+          <div class="ln" style="width:78%;background:#3a4150"></div>
+          <div class="ln" style="width:64%;background:var(--green);opacity:.7"></div>
+          <div class="ln" style="width:86%;background:#3a4150"></div>
+          <div class="ln" style="width:41%;background:var(--blue);opacity:.75"></div>
+          <div class="ln" style="width:72%;background:#3a4150"></div>
+          <div class="ln" style="width:58%;background:#3a4150"></div>
+          <div class="ln" style="width:80%;background:var(--yellow);opacity:.6"></div>
+          <div class="ln" style="width:46%;background:#3a4150"></div>
+          <div class="ln" style="width:69%;background:#3a4150"></div>
+          <div class="ln" style="width:55%;background:var(--magenta);opacity:.7"></div>
+          <div class="ln" style="width:83%;background:#3a4150"></div>
+        </div>
+        <div class="map">
+          <i style="background:var(--magenta);opacity:.7"></i>
+          <i style="background:#3a4150"></i>
+          <i style="background:var(--green);opacity:.6"></i>
+          <i style="background:#3a4150"></i>
+          <i style="background:var(--blue);opacity:.6"></i>
+          <i style="background:#3a4150"></i>
+          <i style="background:#3a4150"></i>
+          <i style="background:var(--yellow);opacity:.5"></i>
+          <i style="background:#3a4150"></i>
+          <i style="background:var(--magenta);opacity:.5"></i>
+          <i style="background:#3a4150"></i>
+          <i style="background:#3a4150"></i>
+          <i style="background:var(--green);opacity:.5"></i>
+        </div>
+        <div class="wk">
+          <h>g —</h>
+          <div class="g">
+            <div class="k"><b>g</b><span>top</span></div>
+            <div class="k"><b>h</b><span>home</span></div>
+            <div class="k"><b>f</b><span>follow</span></div>
+            <div class="k"><b>u</b><span>usage</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body></html>
