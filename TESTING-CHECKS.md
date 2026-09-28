@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**33 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
+**46 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -444,19 +444,19 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **31.11** **もう一方のペイン**（`<C-w>`）と 2 つ目のタブでホストを開く → どちらも問題なし — *Open the host in the **other pane** (`<C-w>`) and in a second tab → Both fine*
 - [ ] **31.12** ホストへ行ってから、別のディレクトリへ移動する → 監視できなかったホストについて、ウォッチャが文句を言わない — *Go to a host, then change directory away → The watcher does not complain about the host it could not watch*
 
-## 32. オープナー — 0 / 12
+## 32. オープナー — 7 / 12
 
-- [ ] **32.1** README の `[opener]` / `[open]` の例を `yazi.toml` に貼って再起動し、`.txt` で `<S-Enter>` → 秀丸 / サクラ / VS Code / Neovim / 既定 が、コマンド行ではなく**説明文**で並ぶ — *Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` → 秀丸 / サクラ / VS Code / Neovim / default — with the descriptions, not the command lines*
+- [x] **32.1** README の `[opener]` / `[open]` の例を `yazi.toml` に貼って再起動し、`.txt` で `<S-Enter>` → 秀丸 / サクラ / VS Code / Neovim / 既定 が、コマンド行ではなく**説明文**で並ぶ — *Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` → 秀丸 / サクラ / VS Code / Neovim / default — with the descriptions, not the command lines*
 - [ ] **32.2** 同じファイルで `<Enter>` → 先頭の項目（秀丸）で開く。コンソールが一瞬も出ない — *`<Enter>` on the same file → Opens in the first entry (秀丸), no console flash*
-- [ ] **32.3** `.pdf` で `<S-Enter>` → Edge と Chrome が先に、そのあと既定アプリの項目 — *`<S-Enter>` on a `.pdf` → Edge and Chrome first, then the default-app entry*
-- [ ] **32.4** `.xlsx` で `<S-Enter>` して Excel を選ぶ → Excel が開く。これが `start ""` の場合で、それが無いと失敗する — *`<S-Enter>` on a `.xlsx`, pick Excel → Excel opens it — this is the `start ""` case that fails without it*
+- [x] **32.3** `.pdf` で `<S-Enter>` → Edge と Chrome が先に、そのあと既定アプリの項目 — *`<S-Enter>` on a `.pdf` → Edge and Chrome first, then the default-app entry*
+- [x] **32.4** `.xlsx` で `<S-Enter>` して Excel を選ぶ → Excel が開く。これが `start ""` の場合で、それが無いと失敗する — *`<S-Enter>` on a `.xlsx`, pick Excel → Excel opens it — this is the `start ""` case that fails without it*
 - [ ] **32.5** 名前に**空白**を含むファイルで、上のそれぞれを試す → 1 つの引数として渡り、正しく開く — *A file whose name has a **space**, through each of the above → One argument, opens correctly*
-- [ ] **32.6** 複数選択してから `<Enter>` → 全部がひとつの起動に渡される — *Several files selected, then `<Enter>` → All of them go to one invocation*
-- [ ] **32.7** `*.{xlsx,xls,csv}` と書いたルール → 3 つとも一致する（v0.17.0 以前はこれが効かなかった） — *A rule written `*.{xlsx,xls,csv}` → Matches all three (this is what did not work before v0.17.0)*
-- [ ] **32.8** 入っていないプログラムを指定したオープナー → 数秒以内にエラーのトースト。固まらない — *An opener naming a program that is not installed → An error toast within a few seconds, no hang*
+- [x] **32.6** 複数選択してから `<Enter>` → 全部がひとつの起動に渡される — *Several files selected, then `<Enter>` → All of them go to one invocation*
+- [x] **32.7** `*.{xlsx,xls,csv}` と書いたルール → 3 つとも一致する（v0.17.0 以前はこれが効かなかった） — *A rule written `*.{xlsx,xls,csv}` → Matches all three (this is what did not work before v0.17.0)*
+- [x] **32.8** 入っていないプログラムを指定したオープナー → 数秒以内にエラーのトースト。固まらない — *An opener naming a program that is not installed → An error toast within a few seconds, no hang*
 - [ ] **32.8a** プログラムを**引用符付きのフルパス**で指定したオープナー（秀丸、サクラ）→ 開く。これが v0.17.0 のバグで、`cmd` が行を壊し、しかも失敗が無言だった — *An opener whose program is a **quoted full path** (秀丸, サクラ) → It opens. This is the v0.17.0 bug: `cmd` mangled the line and the failure was silent*
 - [ ] **32.8b** 秀丸とサクラを、`<S-Enter>` から**と**先頭項目としての `<Enter>` から、両方試す → どちらも開く。同じ起動処理へ別の経路で入るため — *秀丸 and サクラ from `<S-Enter>` **and** from `<Enter>` as the first entry → Both, since they take different code paths to the same launcher*
-- [ ] **32.8c** パスにわざと打ち間違いを入れたオープナー → 失敗を述べるトースト。日本語版 Windows では `cmd` の文言ではなく終了コードが出るはずで、**それは仕様であって報告すべきバグではない** — *An opener with a deliberate typo in the path → A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report*
+- [x] **32.8c** パスにわざと打ち間違いを入れたオープナー → 失敗を述べるトースト。日本語版 Windows では `cmd` の文言ではなく終了コードが出るはずで、**それは仕様であって報告すべきバグではない** — *An opener with a deliberate typo in the path → A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report*
 - [ ] **32.9** アウトラインから（行の上で `<C-o>`）秀丸とサクラで開く → その行に着地する — *Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ → Lands on the line*
 
 ## 33. 設定の警告と、その色 — 0 / 10
@@ -501,14 +501,14 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **36.15** 何も開いていない状態で `q` → 1 回目で終了する — *Nothing up → `q` → Quits on the first press*
 - [ ] **36.18** `[[mgr.keymap]]` で `on = "Q"` / `run = "quit"` を割り当て、`<F3>` を開いた状態で `Q` → `q` と同じくまずパネルが閉じる。**挙動は文字ではなく動作に紐づいている** — *Rebind: `[[mgr.keymap]]` with `on = "Q"`, `run = "quit"`, then `Q` with `<F3>` up → Closes the panel first, like `q` — the behaviour is on the action, not the letter*
 
-## 37. `start ""` 形式のオープナーが実際に起動するか — 0 / 8
+## 37. `start ""` 形式のオープナーが実際に起動するか — 6 / 8
 
-- [ ] **37.1** `browser = [{ run = 'start "" msedge %*' }]` を先頭にして `.pdf` で `<Enter>` → **Edge が PDF を開く。**コマンドプロンプトが出ない — *`<Enter>` on a `.pdf` with `browser = [{ run = 'start "" msedge %*' }]` first → **Edge opens the PDF.** No command prompt appears*
-- [ ] **37.2** `start "" excel %*` などを設定して `.xlsx` / `.docx` / `.pptx` で `<Enter>` → Office のアプリがファイルを開く — *`<Enter>` on `.xlsx` / `.docx` / `.pptx` with `start "" excel %*` and friends → The Office app opens the file*
-- [ ] **37.3** `open = [{ run = 'start "" %*' }]` に流れるものを `<Enter>` → 関連付けられたアプリが開く — *`<Enter>` on anything routed to `open = [{ run = 'start "" %*' }]` → The file's associated app opens it*
-- [ ] **37.4** **名前に空白を含む**ファイルで、上のそれぞれを試す → 2 つではなく 1 つのファイルとして開く。パスの引用符が保たれている — *A file whose **name contains a space**, through any of the above → Opens as one file, not two. The path keeps its quotes*
-- [ ] **37.5** `start "" msedge "%*"` と書いたオープナー（プレースホルダを手で引用したもの）→ 37.1 と同じ結果。プレースホルダを囲む対は変わらず吸収される — *An opener written `start "" msedge "%*"` (placeholder quoted by hand) → Same result as 37.1 — the pair around the placeholder is still absorbed*
-- [ ] **37.6** PDF を 2 つ選んで `<Enter>` → 引用符でひと塊にならず、別々の引数として両方開く — *Select two PDFs, `<Enter>` → Both open as separate arguments, not one quoted blob*
+- [x] **37.1** `browser = [{ run = 'start "" msedge %*' }]` を先頭にして `.pdf` で `<Enter>` → **Edge が PDF を開く。**コマンドプロンプトが出ない — *`<Enter>` on a `.pdf` with `browser = [{ run = 'start "" msedge %*' }]` first → **Edge opens the PDF.** No command prompt appears*
+- [x] **37.2** `start "" excel %*` などを設定して `.xlsx` / `.docx` / `.pptx` で `<Enter>` → Office のアプリがファイルを開く — *`<Enter>` on `.xlsx` / `.docx` / `.pptx` with `start "" excel %*` and friends → The Office app opens the file*
+- [x] **37.3** `open = [{ run = 'start "" %*' }]` に流れるものを `<Enter>` → 関連付けられたアプリが開く — *`<Enter>` on anything routed to `open = [{ run = 'start "" %*' }]` → The file's associated app opens it*
+- [x] **37.4** **名前に空白を含む**ファイルで、上のそれぞれを試す → 2 つではなく 1 つのファイルとして開く。パスの引用符が保たれている — *A file whose **name contains a space**, through any of the above → Opens as one file, not two. The path keeps its quotes*
+- [x] **37.5** `start "" msedge "%*"` と書いたオープナー（プレースホルダを手で引用したもの）→ 37.1 と同じ結果。プレースホルダを囲む対は変わらず吸収される — *An opener written `start "" msedge "%*"` (placeholder quoted by hand) → Same result as 37.1 — the pair around the placeholder is still absorbed*
+- [x] **37.6** PDF を 2 つ選んで `<Enter>` → 引用符でひと塊にならず、別々の引数として両方開く — *Select two PDFs, `<Enter>` → Both open as separate arguments, not one quoted blob*
 - [ ] **37.7** フルパスで指定したオープナー（IrfanView、サクラ、秀丸）→ 以前のまま。これらは `start` を通っていない — *Openers given as a full path (IrfanView, sakura, Hidemaru) → Unchanged — these never went through `start`*
 - [ ] **37.8** PDF で `O` → Edge、Chrome、既定アプリ、そのあとエディタ群が並ぶ。それぞれ表示どおりのものが起動する — *`O` on a PDF → The picker lists Edge, Chrome, the default app, then the editors; each entry launches what it says*
 
