@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**42 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
+**55 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -147,18 +147,18 @@ cd $HOME\Desktop\filer-fixtures
 - [ ] **7.7** `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う — *With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set → The listed directories follow them*
 - [ ] **7.8** 設定の警告行 → 黄色のまま。クリックできない — *A config warning line → Still yellow, and not clickable*
 
-## 8. ターミナルペインが起動するシェル — 0 / 7
+## 8. ターミナルペインが起動するシェル — 5 / 7
 
 **`[term]` は `filer.toml` に書く。**`yazi.toml` に書いても黙って無視される
 （v0.33.13 でそれを警告するようにした）。設定を変えたら `<C-S-t>` でシェルを終わらせてから
 `<C-t>` で開き直すこと。`<C-t>` の往復では同じシェルが生き続ける（1.5 / 1.6）。
 
-- [ ] **8.1** `filer.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `5.1.x`（Windows PowerShell。以前の版から変わっていない） — *`<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` → `5.1.x` — Windows PowerShell, unchanged from every earlier version*
+- [x] **8.1** `filer.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `5.1.x`（Windows PowerShell。以前の版から変わっていない） — *`<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` → `5.1.x` — Windows PowerShell, unchanged from every earlier version*
 - [ ] **8.2** `[term]` / `shell = "pwsh"` を足して `<C-S-t>` → `<C-t>` → もう一度聞く → `7.x` — *Add `[term]` / `shell = "pwsh"`, `<C-S-t>`, `<C-t>`, ask again → `7.x`*
-- [ ] **8.3** それぞれで `$PROFILE` → 別のパスが出る（5.1 は `WindowsPowerShell\`、7 は `PowerShell\`） — *`$PROFILE` in each → Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7*
-- [ ] **8.4** OSC 7 のフックを pwsh のプロファイルにだけ入れて、それぞれで `cd` して `<A-Up>` → pwsh では追従し、5.1 ではその旨が出る。**この非対称そのものが報告の中身** — *With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each → Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report*
-- [ ] **8.5** `args = ["-NoLogo"]` → 起動時のバナーが消える — *`args = ["-NoLogo"]` → The banner is gone*
-- [ ] **8.6** インストールされていない `shell` を指定 → 起動に失敗し、その旨が出る（無言の空ペインにならない） — *A `shell` that is not installed → It fails to start and says so — no silent empty pane*
+- [x] **8.3** それぞれで `$PROFILE` → 別のパスが出る（5.1 は `WindowsPowerShell\`、7 は `PowerShell\`） — *`$PROFILE` in each → Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7*
+- [x] **8.4** OSC 7 のフックを pwsh のプロファイルにだけ入れて、それぞれで `cd` して `<A-Up>` → pwsh では追従し、5.1 ではその旨が出る。**この非対称そのものが報告の中身** — *With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each → Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report*
+- [x] **8.5** `args = ["-NoLogo"]` → 起動時のバナーが消える — *`args = ["-NoLogo"]` → The banner is gone*
+- [x] **8.6** インストールされていない `shell` を指定 → 起動に失敗し、その旨が出る（無言の空ペインにならない） — *A `shell` that is not installed → It fails to start and says so — no silent empty pane*
 - [ ] **8.7** `[term]` を消して `<C-S-t>` → `<C-t>` → 既定に戻る — *Remove `[term]` again, `<C-S-t>`, `<C-t>` → Back to the default*
 
 ## 9. ファイル末尾のアウトライン — 全 5 件が自動
@@ -316,19 +316,19 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **20.5** `filer.toml` に構文エラーを入れて `<C-F5>` → 問題を挙げたエラーのトーストが出て、**以前の設定がそのまま効き続ける** — *Put a syntax error in `filer.toml`, `<C-F5>` → An error toast naming the problem; the old config stays in force*
 - [ ] **20.6** `[ui] minimap = false` にして `<C-F5>` → ミニマップが出なくなる — *`[ui] minimap = false`, `<C-F5>` → No minimap*
 
-## 21. 書庫（zip / tar / 7z） — 0 / 9
+## 21. 書庫（zip / tar / 7z） — 8 / 9
 
 自動テスト済みなので下には出していない: 21.1, 21.6, 21.12
 
-- [ ] **21.2** `sample.zip` で `e` → 隣に `sample` フォルダとして展開され、タスクパネルに進捗が出る — *`e` on it → Unpacked into a `sample` folder beside it; progress in the task panel*
-- [ ] **21.3** もう一度 `e` → 2 つ目は別の名前になる。1 つ目は上書きされない — *`e` again → The second one gets a different name; the first is not overwritten*
+- [x] **21.2** `sample.zip` で `e` → 隣に `sample` フォルダとして展開され、タスクパネルに進捗が出る — *`e` on it → Unpacked into a `sample` folder beside it; progress in the task panel*
+- [x] **21.3** もう一度 `e` → 2 つ目は別の名前になる。1 つ目は上書きされない — *`e` again → The second one gets a different name; the first is not overwritten*
 - [ ] **21.4** `to-pack\` を選んで `E`、`to-pack.zip` をそのまま受け入れる → 圧縮され、結果が開く — *Select `to-pack\`, press `E`, accept `to-pack.zip` → Packed, and the result opens*
-- [ ] **21.5** `E` で名前を `.tar.gz` で終わるように変える → zip ではなく gzip 圧縮した tar になる — *`E` and change the name to end in `.tar.gz` → A gzipped tar, not a zip*
-- [ ] **21.7** `E` で名前を **`.7z`** で終わるように変える → 本物の 7z ができる（v0.27.0 まで読み取り専用として断られていた） — *`E` and change the name to end in **`.7z`** (v0.27.0) → A real 7z. Until v0.27.0 this was refused as read-only*
-- [ ] **21.8** その `.7z` で `e` → 展開でき、中身が入れたものと一致する — *`e` on that `.7z` → It unpacks, and the files match what went in*
-- [ ] **21.9** 同じ `.7z` を 7-Zip や エクスプローラーで開く → そちらでも開ける。他所へ持って行けることが、この形式を入れた理由 — *Open the same `.7z` in 7-Zip or Explorer → It opens there too — the point of the format is that it travels*
-- [ ] **21.10** サブフォルダを含むフォルダを `.7z` に固めて、タスクパネルを見る → 件数は**ファイル**の数（フォルダではない）で、途中で止まらず総数まで届く — *Pack a folder holding subfolders as `.7z`, watch the task panel → The count is of **files**, not folders, and it reaches the total rather than stopping short*
-- [ ] **21.11** 同じ入力の `.7z` と `.zip` を比べる → 7z のほうが小さい。それが持っている理由 — *Compare the `.7z` and the `.zip` of the same input → The 7z is smaller; that is the reason to have it*
+- [x] **21.5** `E` で名前を `.tar.gz` で終わるように変える → zip ではなく gzip 圧縮した tar になる — *`E` and change the name to end in `.tar.gz` → A gzipped tar, not a zip*
+- [x] **21.7** `E` で名前を **`.7z`** で終わるように変える → 本物の 7z ができる（v0.27.0 まで読み取り専用として断られていた） — *`E` and change the name to end in **`.7z`** (v0.27.0) → A real 7z. Until v0.27.0 this was refused as read-only*
+- [x] **21.8** その `.7z` で `e` → 展開でき、中身が入れたものと一致する — *`e` on that `.7z` → It unpacks, and the files match what went in*
+- [x] **21.9** 同じ `.7z` を 7-Zip や エクスプローラーで開く → そちらでも開ける。他所へ持って行けることが、この形式を入れた理由 — *Open the same `.7z` in 7-Zip or Explorer → It opens there too — the point of the format is that it travels*
+- [x] **21.10** サブフォルダを含むフォルダを `.7z` に固めて、タスクパネルを見る → 件数は**ファイル**の数（フォルダではない）で、途中で止まらず総数まで届く — *Pack a folder holding subfolders as `.7z`, watch the task panel → The count is of **files**, not folders, and it reaches the total rather than stopping short*
+- [x] **21.11** 同じ入力の `.7z` と `.zip` を比べる → 7z のほうが小さい。それが持っている理由 — *Compare the `.7z` and the `.zip` of the same input → The 7z is smaller; that is the reason to have it*
 
 ## 22. エディタを行番号付きで開く（エディタのインストールが要る） — 0 / 6
 

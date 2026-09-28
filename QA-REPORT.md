@@ -978,6 +978,103 @@ v0.29.0 で足された節で、行の数字だけが古い。チェックは「
 - **なぜ書くか**: 再実行して緑になったので、このまま黙っていると記録が残らない。
   **通った回数を数えて判断し始めると、5 回目の失敗が黙って通る。**
 
+## TESTING.md section 8 — Windows 実機で確かめた（eb80fc9 / 0.47.25）
+
+Windows のセッション（`.claude/windows-role.md`）から。ConPTY のペインを実機で初めて
+起動した。試したシェルは `powershell`（5.1.26100）、`pwsh`（7.6.6）、`cmd`。**どのシェルでも
+落ちず、固まらず、文字化けもなかった**（`cmd` のペインに `dir /b` で出した `日本語テスト.txt`
+もそのまま読めた）。7 行のうち 5 行（8.1 / 8.3 / 8.4 / 8.5 / 8.6）を TESTING-CHECKS.md で
+チェックし、証拠は PR 本文に 1 行ずつ書いた。8.2 と 8.7 は、**書いてある手順どおりに
+やると期待どおりにならない**のでチェックしていない（下の 1 件目）。
+
+試したバイナリは 0.47.24 のソースから作った release ビルド。`src/` は eb80fc9 と同じ。
+設定は `FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` / `FILER_STATE_HOME` で一時ディレクトリに
+隔離した（人の設定には `[term] shell = "pwsh"` が入っていて、8.1 の前提を満たさないため）。
+
+### 8.2 / 8.7 と 8 節の注記: `<C-S-t>` → `<C-t>` では `[term]` を読み直さない
+
+- **書いてあること**: 8.2 は「`shell = "pwsh"` を足して `<C-S-t>`、`<C-t>`」、8.7 は
+  「`[term]` を消して `<C-S-t>`、`<C-t>`」。TESTING-CHECKS.md の 8 節の注記も
+  「設定を変えたら `<C-S-t>` でシェルを終わらせてから `<C-t>` で開き直すこと」と書いている。
+- **実際**: その手順では**前のシェルがまた起動する**。
+  - 8.2: `shell = "pwsh"` を書いて `<C-S-t>` → `<C-t>` のあとのフィラーの子は
+    `powershell.exe  cmd=[powershell]`（5.1 のまま）。
+  - 8.7: `filer.toml` を消して `<C-S-t>` → `<C-t>` のあとの子は
+    `cmd.exe  cmd=[cmd /k R:\Temp\w8\probe.cmd]`（消す前の設定のまま）。
+  - どちらも `<C-S-t>` → `<C-F5>` → `<C-t>` にすると期待どおりになる
+    （`pwsh.exe cmd=[pwsh]` / `powershell.exe cmd=[powershell]`）。
+- **なぜ**: シェルは `self.cfg.term.shell` から取っていて（`src/app.rs:3994`）、`self.cfg` が
+  変わるのは `reload_config`（`<C-F5>`）だけ。`<C-S-t>` はシェルを終わらせるだけで、
+  設定を読み直さない。**プログラムはこの設計どおりに動いているので、直すのは行の文言。**
+- **提案（直していない）**: 8.2 / 8.7 の Do を「`<C-S-t>`, `<C-F5>`, `<C-t>`」にし、
+  注記も同じにする。順番に意味がある: **ペインにフォーカスがあるあいだは `<C-F5>` が
+  シェルに渡る**（`[term]` 層は `<C-F5>` を持っていない）ので、`<C-S-t>` でリストに
+  戻ってから押すこと。この「ペインにいると `<C-F5>` が効かない」も設計どおりだと思うが、
+  知らないと「読み直したのに変わらない」に見えるので、注記に一言あるとよい。
+
+### シェルの起動に失敗するたびに `OpenConsole.exe` が 1 つ残る
+
+- **再現**: `[term] shell = "nosuchshell-w8"`、`<C-F5>`、`<C-t>`。8.6 の期待どおり
+  トーストが出てペインは開かない。**そのたびに**フィラーの子として
+  `OpenConsole.exe --headless --width 80 --height 24 --signal 0x… --server 0x…` が 1 つ増え、
+  5 秒以上たっても消えない。3 回やって 3 つ（pid 52832 / 44300 / 40916、どれも
+  ppid = フィラー）。フィラーを閉じると 3 つとも消えた。
+- **原因**: `alacritty_terminal` 0.26.0 の `src/tty/windows/conpty.rs`。
+  `new()` は `CreatePseudoConsole` が成功したあと（122 行）、`CreateProcessW` の失敗
+  （233 行）などで `return Err(Error::last_os_error())` する。そのとき `Conpty { handle, api }`
+  （241 行）はまだ作られていないので、`ClosePseudoConsole` を呼ぶ `Drop for Conpty` が
+  走らない。**疑似コンソールの HPCON が閉じられず、そのホスト（OpenConsole）が残る。**
+  157 / 183 / 200 行の早期 return も同じ形。
+- **影響**: フィラーが生きているあいだだけ、失敗 1 回につきプロセス 1 つ。設定を
+  書き間違えて何度か `<C-t>` を押す、という普通の操作で溜まる。
+- **提案（直していない）**: 根はクレート側なので上流への報告が本筋。フィラー側でできる
+  手当ては、spawn の前にシェルを `PATH` で解決して、見つからなければ ConPTY を作らずに
+  エラーにすること（`envreport.rs` がすでに同じ解決をしている）。これで「インストール
+  されていない」場合は漏れなくなる。見つかったが起動できない場合は残る。
+
+### 8.6 のメッセージがシェルの名前を言わない
+
+- 出たトーストは `Terminal failed: 指定されたファイルが見つかりません。 (os error 2)`。
+  何が見つからないのかが書いていない。8.6 の期待（「その旨が出る」）は満たしているので
+  チェックは付けた。
+- **提案（直していない）**: `Terminal failed: nosuchshell-w8: …` のように `[term] shell` の
+  値を入れる。設定を書いた本人が読むメッセージなので、自分が書いた文字列が見えれば
+  綴りの間違いにすぐ気づける。
+
+### ConPTY が WezTerm の `conpty.dll` / `OpenConsole.exe` から来ている
+
+- 上の `OpenConsole.exe` は `C:\Program Files\WezTerm\OpenConsole.exe`。
+  `ConptyApi::load_conpty` が `LoadLibraryW("conpty.dll")` を**名前だけで**呼ぶので、
+  `PATH` 上にある WezTerm の `conpty.dll` が選ばれ、それが隣の `OpenConsole.exe` を起動する。
+  WezTerm が無い機械では `kernel32` の `CreatePseudoConsole`（conhost）に落ちるはず。
+- **バグではない**が、**機械によって別の ConPTY 実装が動く**ことになる。この機械の結果は
+  WezTerm 同梱版のもの。「この機械では出ない／出る」が起きたら、まず `PATH` に
+  `conpty.dll` があるかを見ること。
+
+### `cargo test` が開発者本人の設定を読んで 5 件落ちる
+
+- **再現**: この機械で、環境変数を何も立てずに `cargo test`（eb80fc9）。
+  `472 passed; 5 failed`。`FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` / `FILER_STATE_HOME` を
+  空のディレクトリに向けると `477 passed`。
+- **落ちるもの**:
+  - `envreport::tests::it_reports_what_is_actually_there`（`src/envreport.rs:447`）:
+    `pdftoppm is not used yet`。人の `yazi.toml` に `pdftoppm` / `ffmpeg` を使う previewer が
+    あるので、Tools 節に出る。**テストの主張（コードに無いツールを名指ししない）は、
+    設定がツールを名指ししている場合には成り立たない。**
+  - `ui::csv_table_frame::the_table_relays_out_when_the_window_is_resized`（`src/ui/mod.rs:4140`）、
+    `ui::whole_frame::a_long_file_gets_a_strip_and_a_narrow_window_does_not`（`src/ui/mod.rs:1693`）、
+    `ui::overlay::help_frame::the_wheel_turns_the_panel_and_leaves_the_list_alone`（`src/ui/overlay.rs:1705`）、
+    `ui::overlay::help_frame::a_panel_owns_the_wheel_and_a_prompt_leaves_it`（`src/ui/overlay.rs:1759`）:
+    列数や行数を数えるフレームのテスト。人の設定のフォント（HackGen35 Console NF）や
+    レイアウトの設定で、テストが前提にしている幅・高さが変わる。
+- **なぜ書くか**: CI は設定の無いランナーなので緑になり、**手元でだけ赤い**。
+  CLAUDE.md の「CI が緑でもマージ前に手元で全部回す」は、この機械では 5 件の既知の失敗を
+  抱えた状態になる。それは CLAUDE.md が戻すなと言っている「既知の N 件」の形そのもの。
+- **提案（直していない）**: `Config::load()` を通るテストが、設定の場所を隔離した
+  ディレクトリに向けるようにする（`util::test_dir` と同じ考え方で、テスト全体で 1 回）。
+  環境変数はプロセス全体に効くので、テストごとではなく**テストバイナリの始めに 1 回**
+  立てる形になる（246 行・661 行で書いた並列実行の問題を避けるため）。
+
 ## TESTING.md section 35 — Windows 実機で確かめた（084fa53 / 0.47.24）
 
 Windows のセッション（`.claude/windows-role.md`）から。35 節の 10 行のうち Windows で
@@ -1028,6 +1125,163 @@ Config
   変数を未設定にした `filer env` の Tools 節に、`yazi.toml` の `[opener]` にだけある
   `sakura.exe` / `Hidemaru.exe` / `i_view64.exe` が並んだ（`filer.toml` にはコメント行が
   1 行あるだけ）。並び順が mtime になるかは画面を見る行なので、持ち主が確かめる。
+
+## TESTING.md section 21 — Windows 実機で確かめた（eb80fc9 / 0.47.24）
+
+Windows のセッション（`.claude/windows-role.md`）から。21 節の 9 行のうち 8 行を
+TESTING-CHECKS.md でチェックした。証拠は PR 本文に 1 行ずつある。**21.4 はチェックして
+いない**（下の 1 つ目）。ここには行の食い違い 2 件、プログラムの気になる点 2 件、
+テストの隔離の穴 1 件、ハーネスの注記を書く。どれも直していない。
+
+作業場所は `R:\Temp\ar`（RAM ディスク）。filer は `FILER_CONFIG_HOME` /
+`YAZI_CONFIG_HOME` / `FILER_STATE_HOME` を `R:\Temp\ar\cfg\{f,y,s}` に向けた空の設定で
+起動した。**`R:` は消えるので、ディスクの状態はここに写してある。**
+
+### 展開先・圧縮先が既にあるとき（21.3 と、行に無い圧縮側）
+
+- **展開（`e`）: 別名。上書きも拒否もしない。**`ops.rs` の `extract()` は
+  `unique_name(archive::extract_dir(src, dest_dir))` で、使われている名前は
+  `sample` → `sample_1` → `sample_2` と飛ばす。**既存のフォルダへ混ぜることもしない。**
+  - 実測: `sample.zip` で `e` を 3 回。1 回目のあと `sample\file1.txt` を書き換えて
+    `sample\MARKER.txt` を足し、2 回目のあと `sample_1\file1.txt` も書き換えた。
+    3 回目が終わっても**どちらの書き換えも MARKER.txt も残っていた。**元の `sample.zip` は
+    676 B・23:29:42 のまま。
+
+    ```text
+    R:\Temp\ar\w21
+    <DIR>           23:37:58 sample
+    <DIR>           23:38:04 sample_1
+    <DIR>           23:38:26 sample_2
+                676 23:29:42 sample.zip
+                 14 23:38:20 sample\file1.txt        "EDITED-BY-TEST"
+                  8 23:37:58 sample\MARKER.txt
+                 16 23:38:20 sample_1\file1.txt      "EDITED-BY-TEST-1"
+                 12 23:38:26 sample_2\file1.txt      "contents 1"
+    （各フォルダに file2〜5.txt 12 B と nested\deep.txt 6 B）
+    ```
+
+- **圧縮（`E`）: 聞く。**`resolve_dest()` が「File already exists」を出し、
+  o / a / s / S / r / q を受ける。`R:\Temp\ar\w21c` で `to-pack.zip` を 12 B の
+  テキスト（`OLD-SENTINEL`）に差し替えて試した。
+
+  | 押したキー | ディスク |
+  | --- | --- |
+  | `s`（skip） | `to-pack.zip` は 12 B の番兵のまま |
+  | `q`（cancel） | 番兵のまま。新しいファイルもできない |
+  | `r` → Enter | 提案どおり `to-pack_1.zip`（970 B）ができる。番兵のまま |
+  | `o`（overwrite） | `to-pack.zip` が 970 B の zip になる。`7z t` で Everything is Ok、Folders 2 / Files 6 |
+
+  上書きした `to-pack.zip` と `to-pack_1.zip` の SHA-256 は同じ
+  （`9AB2E22F…691D9D`）。**同じ入力からは同じバイト列の zip ができる**
+  （下の 1980 年の件の裏返し）。
+
+### 21.4 の「the result opens」が何を指すのか決まらない — チェックしていない
+
+- **実測**: `to-pack\` で圧縮 → Enter。`R:\Temp\ar\w21\to-pack.zip`（970 B）ができ、
+  `7z l` で `to-pack\` の下に file1〜5.txt と `nested\deep.txt`（6 files, 2 folders）。
+  **それ以外には何も起きなかった**（アプリも Explorer も開かず、カーソルも動かない）。
+- **コード**: `app.rs` の `OpEvent::Finished`（3147 行）はタスクの状態を変え、
+  エラーを出し、undo を積むだけ。**圧縮の結果を開く・選ぶ・見せる処理はどこにも無い。**
+- **既存の報告の誤り**: 上の「21 節の届かない 9 件」の表の 21.4 の行が、
+  「Packed, and the result opens」を**ジョブ完了後の `open`** と書いているが、そういう `open` は無い。
+- **どちらの間違いか分からない**ので、行の文言は直さず、チェックもしていない。
+  - 「結果の書庫が 7-Zip などで開ける（壊れていない）」の意味なら、上の `7z l` で満たす。
+  - 「filer が結果を開く／カーソルを置く」の意味なら、機能が無い。
+  行を「→ `to-pack.zip` ができ、7-Zip で中身が見える」に直すか、完了時に結果へ
+  カーソルを置く機能を足すか、どちらかを決めてほしい。
+
+### filer が書く zip は、全エントリの日付が 1980-01-01 になる
+
+- **どこ**: `src/fs/archive.rs` の `write_zip()`（484 行）。
+  `SimpleFileOptions::default().compression_method(Deflated)` だけで、
+  `last_modified_time` を渡していない。zip クレートの既定は DOS 時刻の最小値。
+- **実測**（同じ `to-pack\` から作った 3 形式）:
+
+  ```text
+  to-pack.zip     1980-01-01 00:00:00  to-pack\file1.txt
+  to-pack.7z      2026-09-28 23:29:42  to-pack\file1.txt
+  to-pack.tar.gz  9 28 23:29           to-pack/file1.txt
+  ```
+
+  **7z と tar は元の更新日時を持っているのに、zip だけ持っていない。**
+- **展開側も戻さない。**7z を展開した `to-pack_1\to-pack\file1.txt` の更新日時は
+  展開した時刻（23:40:56）で、書庫の 23:29:42 ではない。zip・7z とも同じ。
+- **なぜ書くか**: 他のマシンで zip を開いた人には、全ファイルが 1980 年に見える。
+  21.9 が言う「持って行ける」ことの一部だと思う。上の「同じ入力なら同じバイト列」は
+  この副作用で、それが欲しいなら意図として doc コメントに書いておくべき。
+- **提案（直していない）**: `m.path` の mtime を `zip::DateTime` にして
+  `last_modified_time` に渡す。展開側で mtime を戻すかは別の判断。
+
+### 往復するとフォルダが 2 段になる（`to-pack_1\to-pack\…`）
+
+- **実測**（21.8）: `to-pack\` を `to-pack.7z` に固め、それを `e` すると、
+  `to-pack\` が既にあるので `to-pack_1\` ができ、その中に `to-pack\` がある。
+
+  ```text
+  R:\Temp\ar\w21t
+  <DIR>           23:40:11 to-pack
+  <DIR>           23:40:56 to-pack_1
+                404 23:40:23 to-pack.7z
+  <DIR>           23:40:56 to-pack_1\to-pack
+  <DIR>           23:40:56 to-pack_1\to-pack\nested
+                 12 23:40:56 to-pack_1\to-pack\file1.txt   （file2〜5 も 12 B）
+                  6 23:40:56 to-pack_1\to-pack\nested\deep.txt
+  ```
+
+  中身は `Get-FileHash` で 6 ファイルとも元と一致した（差分 0）。
+- **なぜ書くか**: `extract_dir()` は書庫ごとに必ずフォルダを作るので、
+  「中にフォルダが 1 つだけある書庫」（filer 自身がフォルダを固めたもの）では必ず 2 段になる。
+  yazi など他のツールには、最上位がフォルダ 1 つならそれを剥がすものがある
+  （yazi がそうだったと記憶しているが、確かめていない）。
+- **バグではなく設計の問題**なので、直すかどうかは人の判断。直すなら
+  「最上位がフォルダ 1 つだけなら、そのフォルダ名で（`unique_name` を通して）展開する」。
+
+### 持ち主の設定があると `cargo test` が 5 件落ちる
+
+- **実測**: 7d6197f（`src` は eb80fc9 と同じ）で、`FILER_*` / `YAZI_*` を
+  **設定しない**まま（この機の持ち主の yazi / filer 設定が読まれる状態）`cargo test` →
+  `472 passed; 5 failed`。空の設定ディレクトリに向けると 477 件すべて通る。
+
+  ```text
+  envreport::tests::it_reports_what_is_actually_there
+  ui::csv_table_frame::the_table_relays_out_when_the_window_is_resized
+  ui::overlay::help_frame::a_panel_owns_the_wheel_and_a_prompt_leaves_it
+  ui::overlay::help_frame::the_wheel_turns_the_panel_and_leaves_the_list_alone
+  ui::whole_frame::a_long_file_gets_a_strip_and_a_narrow_window_does_not
+  ```
+
+  1 件目は `pdftoppm is not used yet` で落ちる（持ち主の `filer.toml` の `[[preview]]` が
+  `pdftoppm` を名指ししている）。
+- **なぜ書くか**: CI のランナーには設定が無いので通る。**開発者の手元でだけ赤くなる**ので、
+  「手元で全部回してからマージする」（CLAUDE.md）がこの機では成り立たない。
+  失敗件数を数えて判断し始める危険も、CLAUDE.md が書いているとおり。
+- **提案（直していない）**: テストの実行中は設定ディレクトリを空の一時ディレクトリに
+  向ける（ハーネスと `envreport` のテストが、環境変数ではなく明示の引数で設定の場所を
+  受け取る形）。
+
+### 行の文言についての小さな注記
+
+- **21.2 の進捗は書庫の数を数える。**展開のタスクパネルは
+  `Extract 1 item(s) [done] 1/1 files · 676 B / 676 B` で、「files」は中のエントリでは
+  なく書庫の数。圧縮のほうはエントリを数える（`6/6 files · 66 B / 66 B`）。
+  コードどおりで、行も「進捗が出る」としか言っていないので食い違いではないが、
+  同じ「files」が別のものを数えている。
+- **21.10**: `tree\`（ファイル 300、サブフォルダ 25 と空フォルダ 1、525,900 B）を
+  `tree.7z` に固めて `300/300 files · 514 K / 514 K`。`7z t` で Folders 26 / Files 300。
+  **フォルダを数えていれば 326 になるはずで、ならなかった。**
+- **21.11**: `to-pack.7z` 404 B < `to-pack.zip` 970 B、`tree.7z` 13,833 B <
+  `tree.zip` 45,920 B。
+
+### ハーネスの注記（再現する人向け）
+
+- キーは `PostMessage` で **filer 自身のウィンドウにだけ**送った。`SendKeys` は前面の
+  ウィンドウに届くので、**同じ機で他のセッションの filer が動いていると、そちらのキーが
+  こちらの filer に入る**（実際、こちらのウィンドウで勝手に `sample` が展開された）。
+- `PostMessage` では Shift を押した状態を作れないので、`E`（Shift+e）の代わりに、
+  分離した `keymap.toml` で `<F9>` を `compress`、`<F10>` を `tasks_show` に割り当てた。
+  **`E` の既定の割り当て自体は確かめていない**（それは TESTING-KEYS.md の仕事）。
+- 空の設定ディレクトリの名前は、セッションごとに分けること（`R:\Temp\emptycfg` を
+  他のセッションと共有していた時間がある）。
 
 ## TESTING.md section 41 — Windows 実機で確かめた（52507ef / 0.47.25）
 
