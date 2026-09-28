@@ -92,8 +92,18 @@ useful than a thin test.
 
 ## How to work
 
+Run this before anything else. The `TEMP` lines are not optional decoration:
+without them you will pick a scratch directory of your own on `C:`, which is
+what happened the first time, and [the section below](#where-to-put-files-rtemp-is-a-ram-disk)
+explains what the right one buys.
+
 ```powershell
 $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+
+# Scratch space. `R:` is a RAM disk -- fast, and gone at the next power cycle.
+New-Item -ItemType Directory -Force -Path R:\Temp | Out-Null
+$env:TEMP = 'R:\Temp'; $env:TMP = 'R:\Temp'
+
 cargo build --release --manifest-path C:\dev\filer\Cargo.toml
 cargo test   --manifest-path C:\dev\filer\Cargo.toml
 ```
@@ -120,15 +130,23 @@ The machine has a RAM disk mounted at `R:`. **Do all the scratch work under
 while you test it. It is fast, and it keeps the real disks clear of the debris a
 checklist run leaves behind.
 
+**Never invent a scratch directory of your own.** `C:\tmp\something` works and
+nothing breaks, which is exactly why it is easy to end up with several of them
+on three different disks and no idea which run left which. There is one place.
+
 ```powershell
-New-Item -ItemType Directory -Force -Path R:\Temp | Out-Null
-$env:TEMP = 'R:\Temp'; $env:TMP = 'R:\Temp'   # `cargo test` writes its trees here too
 .\scripts\make-fixtures.ps1 -Path R:\Temp\filer-fixtures
 ```
 
-Setting `TEMP` is worth doing before `cargo test`: `util::test_dir` builds every
-test's tree under `std::env::temp_dir()`, so the whole suite moves to the RAM
-disk with those two lines and nothing else.
+The two `TEMP` lines in the preamble above carry further than they look:
+`util::test_dir` builds every test's tree under `std::env::temp_dir()`, so
+`cargo test` moves to the RAM disk with them and nothing else. If you would
+rather not remember them, put them in `.claude\settings.local.json` on this
+machine and every session gets them for free:
+
+```json
+{ "env": { "TEMP": "R:\\Temp", "TMP": "R:\\Temp" } }
+```
 
 **`R:` empties when the machine powers off.** So one rule follows from it, and it
 is the one that matters:
