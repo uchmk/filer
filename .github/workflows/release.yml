@@ -84,14 +84,29 @@ jobs:
       # are meant to be linked to and recognised. The architecture is in the
       # filename because it is the first thing a bug report needs to establish,
       # and a downloaded file is otherwise silent about which one it is.
-      - name: Name the binaries
-        shell: bash
+      #
+      # A zip rather than a bare .exe since v0.49.0: filer.exe travels with a
+      # newer ConPTY (conpty.dll, OpenConsole.exe) and its licence notice. The
+      # ConPTY built into Windows breaks programs run in the terminal pane --
+      # scripts/fetch-conpty.ps1 says how -- and alacritty_terminal picks the
+      # newer one up from beside the executable. Each zip holds one folder, so
+      # extracting it does not scatter three files into Downloads.
+      - name: Package the binaries
+        shell: pwsh
         run: |
-          tag="${{ steps.tag.outputs.name }}"
-          mkdir -p dist
-          cp target/x86_64-pc-windows-msvc/release/filer.exe "dist/filer-$tag-windows-x64.exe"
-          cp target/aarch64-pc-windows-msvc/release/filer.exe "dist/filer-$tag-windows-arm64.exe"
-          ls -l dist
+          $tag = "${{ steps.tag.outputs.name }}"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          foreach ($pair in @(@('x64', 'x86_64-pc-windows-msvc'), @('arm64', 'aarch64-pc-windows-msvc'))) {
+            $arch, $target = $pair
+            $name = "filer-$tag-windows-$arch"
+            $stage = "stage/$name"
+            New-Item -ItemType Directory -Force $stage | Out-Null
+            Copy-Item "target/$target/release/filer.exe" $stage
+            pwsh -File scripts/fetch-conpty.ps1 -Arch $arch -Dest $stage
+            if ($LASTEXITCODE -ne 0) { throw "fetching ConPTY for $arch failed" }
+            Compress-Archive -Path $stage -DestinationPath "dist/$name.zip" -Force
+          }
+          Get-ChildItem dist
 
       # Release notes in English, from the commits.
       #
@@ -192,7 +207,7 @@ jobs:
           this tag's commit and that nothing altered it on the way:
 
           ```powershell
-          Get-FileHash .\filer-...-windows-x64.exe -Algorithm SHA256 | Format-List Hash
+          Get-FileHash .\filer-...-windows-x64.zip -Algorithm SHA256 | Format-List Hash
           ```
 
           A matching hash does not remove the warning. Only a certificate does, and there
@@ -200,6 +215,12 @@ jobs:
 
           The macOS and Linux downloads are `.tar.gz` because a release asset does not carry
           the executable bit and an archive does.
+
+          The Windows downloads are `.zip`: `filer.exe` comes with `conpty.dll` and
+          `OpenConsole.exe`, a newer ConPTY from Microsoft's own package (MIT, notice
+          included). **Keep the three together.** filer runs without the other two, but on
+          the older ConPTY built into Windows, programs in the terminal pane such as
+          lazygit misread keys.
           NOTE
 
           # Pointing at the tag rather than at `main`, so the link keeps saying
@@ -230,7 +251,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: ${{ steps.tag.outputs.name }}
           body_path: notes.md
-          files: dist/*.exe
+          files: dist/*.zip
           fail_on_unmatched_files: true
 
   # macOS and Linux, added to the release the Windows job has already made.

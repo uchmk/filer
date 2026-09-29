@@ -26,8 +26,15 @@ previewer found inside it, the commit that last touched it, how it is encoded:
 
 ## Getting a build
 
-A [release](https://github.com/uchmk/filer/releases) carries a `.exe` for Windows x64 and ARM64, and
+A [release](https://github.com/uchmk/filer/releases) carries a `.zip` for Windows x64 and ARM64, and
 a `.tar.gz` for macOS and Linux. No account needed.
+
+The Windows zip holds `filer.exe` with `conpty.dll` and `OpenConsole.exe` — a newer ConPTY, from
+Microsoft's own package, with its MIT notice. **Keep the three in one folder.** filer runs without
+the other two, but then the terminal pane falls back to the ConPTY built into Windows, which is old
+enough to break programs run in it: lazygit starts with a menu nobody opened. Building filer
+yourself, `pwsh -File scripts\fetch-conpty.ps1` puts the pinned version beside
+`target\release\filer.exe` (and `-Dest target\debug` beside a debug build).
 
 **Windows will warn you about the download, and it is right to.** The binaries are not code-signed,
 so the publisher shows as unknown; SmartScreen adds its own warning because a file published today
@@ -39,7 +46,7 @@ published on the release page, so comparing it tells you the file is the one CI 
 tag's commit, unaltered in transit:
 
 ```powershell
-Get-FileHash .\filer-v0.0.0-windows-x64.exe -Algorithm SHA256 | Format-List Hash
+Get-FileHash .\filer-v0.0.0-windows-x64.zip -Algorithm SHA256 | Format-List Hash
 ```
 
 A matching hash does not remove the warning — only a signing certificate does, and there isn't one.

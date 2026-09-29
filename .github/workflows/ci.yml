@@ -70,6 +70,17 @@ jobs:
         run: cargo build --locked --all-targets
       - name: Test
         run: cargo test --locked
+      # The ConPTY that Windows builds ship beside filer.exe (see
+      # scripts/fetch-conpty.ps1). Fetched here, on every pull request, so that
+      # a broken script, a moved URL or a package whose hash no longer matches
+      # fails the change that caused it rather than the next release.
+      - name: Fetch the bundled ConPTY
+        run: |
+          pwsh -File scripts/fetch-conpty.ps1 -Arch x64 -Dest "$env:RUNNER_TEMP/conpty"
+          foreach ($f in 'conpty.dll', 'OpenConsole.exe', 'ConPTY-LICENSE.txt') {
+            if (-not (Test-Path "$env:RUNNER_TEMP/conpty/$f")) { throw "missing $f" }
+          }
+          Get-ChildItem "$env:RUNNER_TEMP/conpty"
 
   # Does the Linux binary actually start?
   #

@@ -159,6 +159,8 @@ drawing has been seen. `<C-t>` opens it.
 | 1.30 | Maximise, then `<C-S-t>` (end the shell) | The pane goes, and the list is drawn full height rather than under a gap. Nothing is left maximised with no pane in it |
 | 1.31 | In the pane, `lazygit`, then `?` to open its key list, then `Esc` (v0.48.6) | **The list closes.** Until v0.48.6 it never did, however often `Esc` was pressed — the same in gh-dash, or any tcell program. Windows Terminal is the control: it has always closed there |
 | 1.32 | At the pwsh prompt in the pane, type `abc` without Enter, then `Esc` | The line empties. PSReadLine was never affected; this row is there so the change that fixed 1.31 is seen not to have broken it |
+| 1.33 | With the bundled ConPTY beside filer.exe, `pwsh -File scripts\keyprobe.ps1 -Query` in the pane (v0.49.0) | The primary DA reply reads `\e[?6c` — filer's own answer, passed through — and no `{up:…}` appears between characters. `\e[?61;6;7;22;23;24;28;32;42c` means the ConPTY built into Windows answered instead: the two files are missing, or not beside filer.exe |
+| 1.34 | Then `lazygit` in the pane | It opens on its usual view with **no menu open**. On the ConPTY built into Windows it started with its copy menu showing, a key nobody pressed |
 
 ## 2. The minimap (v0.5.0)
 
