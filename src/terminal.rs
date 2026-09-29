@@ -15,7 +15,6 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use alacritty_terminal::event::{Event as PtyEvent, EventListener, WindowSize};
 use alacritty_terminal::event_loop::{EventLoop, EventLoopSender, Msg};
@@ -91,10 +90,6 @@ struct Tapped {
     /// Bytes of an OSC 7 that has begun but not ended, since a read can stop
     /// anywhere — including in the middle of one.
     partial: Vec<u8>,
-    /// ConPTY has asked for win32-input-mode; see [`scan_win32_mode`].
-    win32: Arc<AtomicBool>,
-    /// The tail of the last read, for a mode switch cut in two by the pipe.
-    mode_tail: Vec<u8>,
 }
 
 /// Longest OSC 7 worth waiting for. A path cannot sensibly be longer, and a
@@ -106,9 +101,6 @@ impl io::Read for Tapped {
         let n = self.inner.reader().read(buf)?;
         for path in scan_osc7(&mut self.partial, &buf[..n]) {
             let _ = self.cwd.send(path);
-        }
-        if let Some(on) = scan_win32_mode(&mut self.mode_tail, &buf[..n]) {
-            self.win32.store(on, Ordering::Relaxed);
         }
         Ok(n)
     }
@@ -161,51 +153,29 @@ impl alacritty_terminal::event::OnResize for Tapped {
     }
 }
 
-/// Whether `chunk` switches win32-input-mode on or off: the last of
-/// `CSI ? 9001 h` / `CSI ? 9001 l` in it, if either is there.
+/// A key as a single win32-input-mode record, **pressed only**:
+/// `CSI Vk ; Sc ; Uc ; 1 ; Cs ; 1 _`.
 ///
-/// ConPTY asks the terminal for this mode when it starts, and until v0.48.5
-/// nothing here listened -- `alacritty_terminal` drops private modes it does
-/// not know. Keys then reach ConPTY as plain VT, and ConPTY has to guess a
-/// key record from the bytes. For a lone `ESC` it guesses badly: a record with
-/// no virtual key and no scan code, only the character `0x1b`. tcell (lazygit,
-/// gh-dash) hands exactly that shape to a nested parser whose lone-escape
-/// timer nothing ever runs, so `Esc` did nothing there, however often it was
-/// pressed. PSReadLine reads the character and was fine, which is what made it
-/// look like the key was arriving.
+/// This is how `Esc` reaches a tcell program (lazygit, gh-dash) intact, and
+/// the "pressed only" is the whole fix. A program in virtual-terminal input
+/// mode gets the press as the character `0x1b` and waits 50ms to be sure it is
+/// a lone Escape. If a release record follows -- which it did, both when
+/// ConPTY made one up from a plain `ESC` and when this sent one -- tcell turns
+/// it into `ESC [ 27 ; 1 ; 27 ; 0 ; 0 ; 1 _` in the same stream. A second ESC
+/// inside the wait makes the first an Alt prefix, the release is then ignored,
+/// and the key is gone. Windows Terminal delivers no release to such a
+/// program, so the wait runs out and Escape arrives; this matches it.
 ///
-/// `tail` keeps the end of the previous read, since the pipe can split the
-/// sequence anywhere.
-fn scan_win32_mode(tail: &mut Vec<u8>, chunk: &[u8]) -> Option<bool> {
-    const ON: &[u8] = b"\x1b[?9001h";
-    const OFF: &[u8] = b"\x1b[?9001l";
-    let mut hay = std::mem::take(tail);
-    hay.extend_from_slice(chunk);
-    let last = |needle: &[u8]| hay.windows(needle.len()).rposition(|w| w == needle);
-    let found = match (last(ON), last(OFF)) {
-        (Some(a), Some(b)) => Some(a > b),
-        (Some(_), None) => Some(true),
-        (None, Some(_)) => Some(false),
-        (None, None) => None,
-    };
-    // One byte short of a whole marker is all a split can leave behind.
-    let keep = hay.len().min(ON.len() - 1);
-    *tail = hay[hay.len() - keep..].to_vec();
-    found
-}
-
-/// A key as a win32-input-mode record, pressed and then released:
-/// `CSI Vk ; Sc ; Uc ; Kd ; Cs ; Rc _`.
-///
-/// Only the keys that plain VT cannot carry come through here. Everything else
-/// still goes as ordinary bytes, which ConPTY reads either way.
+/// ConPTY takes the record without having asked for win32-input-mode, which
+/// `scripts/keyprobe.ps1` showed on the real machine: what this sent came out
+/// as a key record carrying the virtual key.
 pub fn win32_key(vk: u16, scan: u16, ch: u16, mods: Mods) -> Vec<u8> {
     // dwControlKeyState: the left-hand bits, since a synthesised key has no
     // side and the left is what every keyboard has.
     let state = (if mods.alt { 0x02 } else { 0 })
         | (if mods.ctrl { 0x08 } else { 0 })
         | (if mods.shift { 0x10 } else { 0 });
-    format!("\x1b[{vk};{scan};{ch};1;{state};1_\x1b[{vk};{scan};{ch};0;{state};1_").into_bytes()
+    format!("\x1b[{vk};{scan};{ch};1;{state};1_").into_bytes()
 }
 
 /// Pull the directories out of any OSC 7 sequences in `chunk`.
@@ -354,8 +324,6 @@ pub struct Terminal {
     /// not send OSC 7 leaves this `None` for ever, which is why it only ever
     /// suppresses work rather than driving any.
     pub shell_cwd: Option<PathBuf>,
-    /// Set from the reader thread by the tap; see [`scan_win32_mode`].
-    win32: Arc<AtomicBool>,
 }
 
 impl Terminal {
@@ -384,14 +352,7 @@ impl Terminal {
         let window = window_size(size, cell);
         let pty = tty::new(&options, window, 0)?;
         let (cwd_tx, cwd_rx) = crossbeam_channel::unbounded();
-        let win32 = Arc::new(AtomicBool::new(false));
-        let pty = Tapped {
-            inner: pty,
-            cwd: cwd_tx,
-            partial: Vec::new(),
-            win32: win32.clone(),
-            mode_tail: Vec::new(),
-        };
+        let pty = Tapped { inner: pty, cwd: cwd_tx, partial: Vec::new() };
 
         let (tx, rx) = crossbeam_channel::unbounded();
         let proxy = Proxy { tx, wake: Arc::new(wake) };
@@ -416,13 +377,7 @@ impl Terminal {
             cwd_rx,
             found: None,
             shell_cwd: None,
-            win32,
         })
-    }
-
-    /// ConPTY has asked for keys as win32-input-mode records.
-    pub fn win32_input(&self) -> bool {
-        self.win32.load(Ordering::Relaxed)
     }
 
     /// Take everything the shell has said since the last frame. Returns the
@@ -1372,55 +1327,25 @@ mod tests {
         assert_eq!(bracket("", true), Vec::<u8>::new());
     }
 
-    /// ConPTY's request for win32-input-mode is noticed, and so is its
-    /// withdrawal -- wherever the pipe happens to cut the sequence.
+    /// `Esc` as a win32-input-mode record: the fields tcell reads it by, and
+    /// **no release record after it**.
     ///
-    /// Everything that fixes `Esc` in a tcell program hangs off this flag, so a
-    /// read boundary landing inside the marker must not lose it.
+    /// The release is what lost the key. A program in VT input mode gets the
+    /// press as a lone `0x1b` and waits 50ms; a release arriving inside that
+    /// wait is turned by tcell into a second ESC, which makes the first one an
+    /// Alt prefix, and the key never comes out. So the assertion that matters
+    /// is that exactly one record is sent, and that it is a press.
     #[test]
-    fn the_win32_input_request_is_heard_through_a_split_read() {
-        let mut tail = Vec::new();
-        // The whole thing in one read, among other output.
-        assert_eq!(scan_win32_mode(&mut tail, b"hi\x1b[?9001h\x1b[?1004hthere"), Some(true));
-        // Nothing about the mode: no change to report.
-        assert_eq!(scan_win32_mode(&mut tail, b"plain output"), None);
-
-        // Cut after the ESC, and again after the `?`.
-        let mut tail = Vec::new();
-        assert_eq!(scan_win32_mode(&mut tail, b"abc\x1b"), None);
-        assert_eq!(scan_win32_mode(&mut tail, b"[?"), None);
-        assert_eq!(scan_win32_mode(&mut tail, b"9001h rest"), Some(true), "the halves meet");
-
-        // Switched off later; and when both are in one read, the last wins.
-        assert_eq!(scan_win32_mode(&mut tail, b"\x1b[?9001l"), Some(false));
-        assert_eq!(scan_win32_mode(&mut tail, b"\x1b[?9001l..\x1b[?9001h"), Some(true));
-        assert_eq!(scan_win32_mode(&mut tail, b"\x1b[?9001h..\x1b[?9001l"), Some(false));
-
-        // The carry never grows past one marker's worth.
-        let mut tail = Vec::new();
-        scan_win32_mode(&mut tail, &[b'x'; 10_000]);
-        assert!(tail.len() < b"\x1b[?9001h".len());
-    }
-
-    /// `Esc` as a win32-input-mode record: the fields tcell reads it by.
-    ///
-    /// What matters is the virtual key (27) and a non-zero scan code. With both
-    /// at zero tcell treats the record as a bare character and passes it to a
-    /// nested parser whose lone-escape timer is never run -- which is the
-    /// shape ConPTY made out of a plain ESC, and why `Esc` did nothing in
-    /// lazygit and gh-dash.
-    #[test]
-    fn escape_goes_as_a_key_record_with_its_virtual_key() {
+    fn escape_goes_as_one_key_press_and_no_release() {
         let s = |b: Vec<u8>| String::from_utf8(b).unwrap();
-        assert_eq!(
-            s(win32_key(0x1b, 1, 0x1b, Mods::default())),
-            "\x1b[27;1;27;1;0;1_\x1b[27;1;27;0;0;1_",
-            "pressed, then released"
-        );
+        let esc = s(win32_key(0x1b, 1, 0x1b, Mods::default()));
+        assert_eq!(esc, "\x1b[27;1;27;1;0;1_", "VK_ESCAPE, scan code 1, pressed");
+        assert_eq!(esc.matches('_').count(), 1, "one record, no release after it");
+
         let shift = Mods { shift: true, ..Default::default() };
         let ctrl_alt = Mods { ctrl: true, alt: true, ..Default::default() };
-        assert!(s(win32_key(0x1b, 1, 0x1b, shift)).starts_with("\x1b[27;1;27;1;16;1_"));
-        assert!(s(win32_key(0x1b, 1, 0x1b, ctrl_alt)).starts_with("\x1b[27;1;27;1;10;1_"));
+        assert_eq!(s(win32_key(0x1b, 1, 0x1b, shift)), "\x1b[27;1;27;1;16;1_");
+        assert_eq!(s(win32_key(0x1b, 1, 0x1b, ctrl_alt)), "\x1b[27;1;27;1;10;1_");
     }
 
     /// A path reaches the shell as one word -- in the form *that* shell reads.
