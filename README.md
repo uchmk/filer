@@ -102,6 +102,11 @@ Honored: `[mgr]` (`ratio`, `sort_by`, `sort_reverse`, `sort_dir_first`, `sort_se
 `[manager]` is accepted as an alias for `[mgr]`. Unknown keys are ignored rather than rejected.
 
 Opener placeholders `$@`, `$0`, `%*`, `%0` and `%s` all expand to the selected paths.
+
+The terminal pane takes a third of the window, which suits a shell and is too little for a
+full-screen program. `<C-S-Enter>` (`term_max`, also `plugin toggle-pane max-term`) hands it the
+window and hands it back, and works while the terminal holds the keys — the state you are in when a
+TUI is running. From the list, `Esc` also restores it, as it does a maximized preview.
 `block = true` gets its own console window (so `nvim` works); everything else starts without one.
 Rule patterns take `*`, `?`, `[abc]` and `{jpg,png}`, which is what yazi's own rules are written
 with.

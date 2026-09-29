@@ -723,6 +723,10 @@ desc = "Open the terminal pane"
 on = "<A-t>"
 run = "term_send"
 desc = "Type the selected paths into the terminal"
+[[mgr.keymap]]
+on = "<C-S-Enter>"
+run = "term_max"
+desc = "Give the terminal pane the window, or hand it back"
 
 # --- Terminal pane ------------------------------------------------------------
 # Only what is bound here is kept; every other key goes to the shell, which is
@@ -753,6 +757,13 @@ desc = "Command palette"
 on = "<A-Up>"
 run = "term_cd"
 desc = "Put the pane where the shell is"
+# A third of the window is right for a shell and too little for a full-screen
+# program. Ctrl and Shift together keep this off the shell's keyboard, the same
+# reason the scrollback keys carry Shift.
+[[term.keymap]]
+on = "<C-S-Enter>"
+run = "term_max"
+desc = "Give the terminal pane the window, or hand it back"
 
 # Scrollback and search. Shift is what keeps these out of the shell's way:
 # a program reading the keyboard sees PageUp, never Shift+PageUp.

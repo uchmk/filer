@@ -221,6 +221,8 @@ pub enum Act {
     TermFind { prev: bool, repeat: bool },
     /// Move the terminal's view through its scrollback.
     TermScroll(Step),
+    /// Give the terminal pane the window, or hand it back.
+    MaxTerm,
 
     /// Fuzzy-search every `mgr` binding and run the one picked.
     Palette,
@@ -537,6 +539,7 @@ pub fn parse(line: &str) -> Act {
         "term_cd" => Act::TermCd,
         "term_find" => Act::TermFind { prev: a.has("prev"), repeat: a.has("repeat") },
         "term_scroll" => Act::TermScroll(parse_step(a.first().unwrap_or("-1"))),
+        "term_max" => Act::MaxTerm,
         "toggle_render" => Act::ToggleRender,
         "toggle_outline" => Act::ToggleOutline,
 
@@ -580,6 +583,7 @@ fn plugin(pos: &[String]) -> Act {
         ("toggle-pane", "max-preview") => Act::MaxPreview,
         ("toggle-pane", "min-preview") => Act::MaxPreview,
         ("toggle-pane", "max-parent") | ("toggle-pane", "min-parent") => Act::TogglePaneParent,
+        ("toggle-pane", "max-term") | ("toggle-pane", "min-term") => Act::MaxTerm,
         ("toggle-pane", _) => Act::MaxPreview,
         ("bookmarks", "save") => Act::BookmarkSave,
         ("bookmarks", "jump") => Act::BookmarkJump,
@@ -652,6 +656,13 @@ mod tests {
         });
         assert_eq!(parse("tab_switch 1 --relative"), Act::TabSwitch { n: 1, relative: true });
         assert_eq!(parse("plugin toggle-pane max-preview"), Act::MaxPreview);
+        // The pane's own maximise, under both spellings it can arrive in.
+        assert_eq!(parse("term_max"), Act::MaxTerm);
+        assert_eq!(parse("plugin toggle-pane max-term"), Act::MaxTerm);
+        assert_eq!(parse("plugin toggle-pane min-term"), Act::MaxTerm);
+        // `toggle-pane` with anything else still means the preview, so the new
+        // arm must sit before that catch-all rather than after it.
+        assert_eq!(parse("plugin toggle-pane"), Act::MaxPreview);
         assert_eq!(parse("plugin bookmarks jump"), Act::BookmarkJump);
         assert_eq!(parse("plugin bookmarks list"), Act::BookmarkList);
         assert_eq!(parse("palette"), Act::Palette);
