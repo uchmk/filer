@@ -668,8 +668,12 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
                 // it into a record with no virtual key, and tcell never reads
                 // that as Escape. Once ConPTY has asked for win32-input-mode,
                 // send it as the record itself -- VK_ESCAPE, scan code 1.
+                // EXPERIMENT: on Windows, whether or not ConPTY asked. The ask
+                // never comes -- `alacritty_terminal` creates the ConPTY with
+                // flags 0 -- so the gated form above did nothing. This finds
+                // out whether ConPTY takes the record unasked.
                 Some(terminal::Special::Escape)
-                    if app.term.as_ref().is_some_and(|t| t.win32_input()) =>
+                    if cfg!(windows) || app.term.as_ref().is_some_and(|t| t.win32_input()) =>
                 {
                     Some(terminal::win32_key(0x1b, 1, 0x1b, mods))
                 }
