@@ -4,11 +4,16 @@
 # define, and reads their bodies, comments and diffs without a browser. It uses
 # gh's own credentials, so `gh auth login` is the whole setup.
 #
-#   gh extension install dlvhdr/gh-dash
-#   # then copy this file to:
-#   #   Windows  %APPDATA%\gh-dash\config.yml
-#   #   Unix     ~/.config/gh-dash/config.yml
-#   gh dash
+#   gh extension install dlvhdr/gh-dash   # `gh dash` is an extension, not a
+#   gh dash                               # subcommand: without this, "unknown
+#                                         # command \"dash\" for \"gh\""
+#
+# Nothing has to be copied anywhere. gh-dash looks for `.gh-dash.yml` in the
+# root of the repository it is started in, before falling back to the global
+# config, so this file applies here and nowhere else -- which is what makes the
+# repository-specific sections below reasonable to commit. The full order is
+# `$GH_DASH_CONFIG`, then this file, then `$XDG_CONFIG_HOME/gh-dash/config.yml`,
+# then `%USERPROFILE%\.config\gh-dash\config.yml` on Windows (not `%APPDATA%`).
 #
 # It does the half filer does not: browsing pull requests *as a list*. filer's
 # spot panel answers the other direction -- `<Tab>` on a file says which pull
@@ -110,7 +115,11 @@ keybindings:
 #    all and the TUI has nowhere to draw; with it, it gets a console of its own
 #    -- a new window beside filer, not filer's pane.
 #
-# Neither route is checked on real hardware yet. Route 1 rests on `<C-t>` and on
-# the pane handling an alternate-screen program, and while section 1 confirmed
-# the pane forwards `<C-c>` to the shell (1.19, v0.48.1), no TUI has been run in
-# it. Treat both as untried until they are pressed.
+# Route 1 has been seen to *draw*: gh-dash rendered in the pane with its
+# alternate screen, colours, box drawing and split preview intact. That is the
+# part that was in doubt, and it is settled.
+#
+# What is still open is whether it can be *used*: that keys reach it, and that
+# quitting hands the pane back with a working prompt. Drawing and driving are
+# separate claims, and only the first has been shown -- 1.24 and 1.25 cover the
+# rest. Route 2 has not been tried at all.
