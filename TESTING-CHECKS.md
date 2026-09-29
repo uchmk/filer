@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**96 / 370 済み。**（TESTING.md の全 526 件のうち、`cargo test` が見ている 156 件は
+**96 / 372 済み。**（TESTING.md の全 528 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -21,7 +21,7 @@
 キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、こちらは「1 つのキーでは
 確かめられない振る舞い」の側。
 
-## 1. ターミナルペイン — 19 / 33
+## 1. ターミナルペイン — 19 / 35
 
 準備:
 
@@ -63,6 +63,8 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **1.19** ペインで時間のかかるもの（`sleep 30`）を走らせて `<C-c>` を押す（v0.47.34） → コマンドが止まってプロンプトが戻る。**filer は開いたまま。**v0.47.34 までは `[mgr]` の `close` が走り、タブが閉じ、最後の 1 枚なら filer ごと終了してシェルも道連れになっていた — *Run something slow in the pane (`sleep 30`) and press `<C-c>` (v0.47.34) → The command stops and the prompt comes back. **filer is still open** — until v0.47.34 this ran `[mgr]` `close`, so the tab went and the last one took filer and the shell with it*
 - [x] **1.20** 名前に `'` を含むファイルで `<A-t>`、`[term] shell` で指定できる各シェルについて（v0.47.34）→ シェルが 1 語として読める形で入る。PowerShell なら `''` と重ね、bash なら `'\''`、cmd なら素の `"…"`。**`>>` の継続プロンプトにならない** — *`<A-t>` on a file with a `'` in its name, in each shell `[term] shell` can name (v0.47.34) → The line is one word the shell can read: `''` doubled for PowerShell, `'\''` for bash, plain `"…"` for cmd. **No `>>` continuation prompt***
 - [x] **1.21** ペインを開いたまま、名前に `'` を含むディレクトリへ一覧を移動する（v0.47.34） → `cd` が通ってプロンプトが戻る。1.20 と同じ引用が、filer 自身が打つパスにも効いていること — *Walk the list into a directory with a `'` in its name, with the pane open (v0.47.34) → The `cd` lands and the prompt returns. The same quoting as 1.20, on the path filer types for itself*
+- [ ] **1.22** `[term] shell` を Git Bash のフルパスにして、ペインを開いたまま **普通の**ディレクトリ（`'` も空白も無い）へ一覧を移動する → `cd` が着いて、プロンプトがそのディレクトリになる。**`bash: cd: R:Tempfiler-fixtures: No such file or directory` にならないこと** —— 引用の外の `\` は POSIX シェルではエスケープなので、v0.48.1 まで普通の Windows パスには一切入れなかった。1.20 と 1.21 はどちらも `'` のある名前を指定しているので、これを見落としていた — *With `[term] shell` set to Git Bash's full path, walk the list into an **ordinary** directory — no `'`, no space (v0.48.1) → The `cd` lands and the prompt is in that directory. **Not `bash: cd: R:Tempfiler-fixtures: No such file or directory`** — an unquoted `\` is an escape to a POSIX shell, so until v0.48.1 no ordinary Windows path could be walked into at all. 1.20 and 1.21 both name a `'`, which is why they missed it*
+- [ ] **1.23** 同じシェルで、**普通の**名前のファイルに `<A-t>` → パスがバックスラッシュごとそのまま入る。1.22 と `quote()` を共有していて、これまで推定されただけで一度も押されていない — *The same shell, `<A-t>` on a file with an **ordinary** name (v0.48.1) → The path arrives whole, backslashes and all. This shares `quote()` with 1.22 and was only ever inferred from it, never pressed*
 
 ## 2. ミニマップ — 0 / 10
 

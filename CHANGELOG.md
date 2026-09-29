@@ -9,6 +9,48 @@
 
 ## [未リリース]
 
+## [0.48.1] - 2026-09-29
+
+### 修正
+
+- **Git Bash で、`'` を含まない普通のパスに `cd` できなかった。**`quote()` は全文字が
+  英数字か `_-./:\` なら引用せずに返していたが、**`\` は POSIX シェルではエスケープ**なので、
+  `cd R:\Temp\filer-fixtures` が `R:Tempfiler-fixtures` になっていた。
+  `[term] shell` を Git Bash にすると **`follow()` の `cd` が普通のパスで毎回失敗し、
+  一覧とペインがずれたまま**になる。`Quoting::Posix` のときだけ `\` を安全な文字から外した。
+  - **テストがこの誤りを守る側にいた。**`quote(r"C:\dev\filer", how) == r"C:\dev\filer"` を
+    **`Posix` を含む 3 シェルすべてで**固定していたので、直すにはまずテストを直す必要があった。
+  - **直し方の裏は実機で既に取れていた。**1.21 の
+    `cd 'R:\Temp\filer-fixtures\it'\''s here'` が `/r/Temp/filer-fixtures/it's here` に着いて
+    いるので、**引用の中なら Git Bash は `\` をそのまま受け取る。**
+  - 1.20 と 1.21 はどちらも `'` のある名前しか指定していない。**だから 4 シェルを通しても
+    見つからず、普通のパスで一覧を歩いたときに出た。**
+- TESTING.md に 1.22 / 1.23 を追加。1.23 は `<A-t>` 側で、**報告が「同じ関数からの推定で、
+  押していない」と明記していた**ぶん。
+
+### 追加
+
+- **`scripts/gh-dash.yml`** —— [gh-dash](https://github.com/dlvhdr/gh-dash)（`gh` の拡張）の設定。
+  PR / Issue を区画に並べて中身まで読むほうで、**filer の spot とは向きが逆**なので重ならない
+  （spot は「このファイルはどこから来たか」、gh-dash は「PR の一覧」）。`g` で lazygit に渡す。
+  - ドキュメントの `tmux new-window` の例は **Windows で動かない**ので `cd && lazygit` に。
+  - **`--block` の意味を取り違えないこと。**`exec::configure` は Windows で
+    block なら `CREATE_NEW_CONSOLE`、でなければ `CREATE_NO_WINDOW` を渡す。つまり
+    `shell 'gh dash' --block` は **filer とは別のコンソール窓**を開く（ペインではない）。
+    必要なのは事実だが、理由は「block でないとコンソールが無く TUI に描く先が無い」ため。
+  - **どちらの入口も未検証。**`<C-t>` のペインは `alacritty_terminal` なので全画面 TUI も
+    描けるはずだが、**代替画面を使うプログラムをまだ走らせていない。**1.19 で `<C-c>` が
+    シェルに届くことは確かめたが、それとこれは別。ファイルにもそう書いてある。
+
+### 変更
+
+- Windows 実機のセッションで **1.19〜1.21 を確認**（pwsh / Windows PowerShell / Git Bash / cmd）。
+  QA-REPORT.md に、Git Bash の `cd` が引用の無い Windows パスのバックスラッシュを失うことを記録。
+  - 1.19 は依頼どおり (a) と (b) を別々に示している。**(a) はシェルが `0x03` を受け取ったこと**で、
+    `try { sleep 30; 'NOT-INTERRUPTED' }` が `SLEPT=3.0s STATUS=Stopped` になり、
+    `NOT-INTERRUPTED` は出なかった —— **否定を示すために肯定対照を置いた形。**
+    (b) は filer とシェルの pid が前後で同じで、タブが 2 枚とも残っていること。
+
 ## [0.48.0] - 2026-09-29
 
 ### 追加

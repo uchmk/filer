@@ -148,6 +148,8 @@ drawing has been seen. `<C-t>` opens it.
 | 1.19 | Run something slow in the pane (`sleep 30`) and press `<C-c>` (v0.47.34) | The command stops and the prompt comes back. **filer is still open** — until v0.47.34 this ran `[mgr]` `close`, so the tab went and the last one took filer and the shell with it |
 | 1.20 | `<A-t>` on a file with a `'` in its name, in each shell `[term] shell` can name (v0.47.34) | The line is one word the shell can read: `''` doubled for PowerShell, `'\''` for bash, plain `"…"` for cmd. **No `>>` continuation prompt** |
 | 1.21 | Walk the list into a directory with a `'` in its name, with the pane open (v0.47.34) | The `cd` lands and the prompt returns. The same quoting as 1.20, on the path filer types for itself |
+| 1.22 | With `[term] shell` set to Git Bash's full path, walk the list into an **ordinary** directory — no `'`, no space (v0.48.1) | The `cd` lands and the prompt is in that directory. **Not `bash: cd: R:Tempfiler-fixtures: No such file or directory`** — an unquoted `\` is an escape to a POSIX shell, so until v0.48.1 no ordinary Windows path could be walked into at all. 1.20 and 1.21 both name a `'`, which is why they missed it |
+| 1.23 | The same shell, `<A-t>` on a file with an **ordinary** name (v0.48.1) | The path arrives whole, backslashes and all. This shares `quote()` with 1.22 and was only ever inferred from it, never pressed |
 
 ## 2. The minimap (v0.5.0)
 
