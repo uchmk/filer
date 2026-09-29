@@ -157,6 +157,8 @@ drawing has been seen. `<C-t>` opens it.
 | 1.28 | Maximise from the **list** side, then type | The keystrokes go to the pane, not to the hidden list. Maximising hands the pane the keys, because a list nobody can see is not somewhere to aim them |
 | 1.29 | Maximise, then `<C-t>` | The keys go back to the list **and the pane returns to a third** in one press. Leaving the pane and giving the window back are the same intent |
 | 1.30 | Maximise, then `<C-S-t>` (end the shell) | The pane goes, and the list is drawn full height rather than under a gap. Nothing is left maximised with no pane in it |
+| 1.31 | In the pane, `lazygit`, then `?` to open its key list, then `Esc` (v0.48.5) | **The list closes.** Until v0.48.5 it never did, however often `Esc` was pressed — the same in gh-dash, or any tcell program. Windows Terminal is the control: it has always closed there |
+| 1.32 | At the pwsh prompt in the pane, type `abc` without Enter, then `Esc` | The line empties. PSReadLine was never affected; this row is there so the change that fixed 1.31 is seen not to have broken it |
 
 ## 2. The minimap (v0.5.0)
 
