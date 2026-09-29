@@ -219,6 +219,88 @@ pub(crate) fn last_commit(path: &Path) -> Option<Commit> {
 /// How far back [`last_commit`] counts before it stops and says "and more".
 const LOG_CAP: usize = 50;
 
+/// How the commit that last touched a path arrived on the current branch.
+///
+/// This closes the question [`last_commit`] opens but cannot answer: the hash
+/// says *when* the file changed, not *why it was taken*. Where a repository is
+/// merged with merge commits -- which this one is, deliberately, so that the
+/// joins stay visible -- the merge that brought a commit in **carries the pull
+/// request number in its own subject**, so the answer is already on disk.
+///
+/// Nothing here reaches the network. No token to keep out of `filer env`, no
+/// request that might never return, and the two rules the Git section is held
+/// to keep applying word for word: 46.8 (no pause where there is no
+/// repository) and 46.9 (silence where there is no `git`), because this is one
+/// more `git log` and nothing else.
+pub(crate) struct Origin {
+    /// The merge commit, short.
+    pub merge: String,
+    /// The pull request its subject names, when it names one.
+    pub pr: Option<u32>,
+    /// The branch it took in, when its subject names one.
+    pub branch: Option<String>,
+}
+
+/// The merge that first took `commit` into `HEAD`, if one did.
+///
+/// `--ancestry-path` keeps only commits descended from `commit` *and* ancestral
+/// to `HEAD`; among those, the oldest merge is the one that brought it in.
+/// `rev-list` writes newest first, so that is the last line.
+///
+/// `None` is the honest answer in two ordinary cases, and neither is an error:
+/// a commit pushed straight to the branch never went through a merge, and a
+/// commit on a branch not merged yet has not arrived anywhere to be asked
+/// about.
+pub(crate) fn origin(path: &Path, commit: &str) -> Option<Origin> {
+    let dir = if path.is_dir() { path } else { path.parent()? };
+    let range = format!("{commit}..HEAD");
+    let out = run(dir, &["rev-list", "--merges", "--ancestry-path", &range])?;
+    let sha = out.lines().rev().find(|l| !l.is_empty())?;
+    // Being *after* a commit is not the same as having *brought it in*. A merge
+    // took the commit in only if the commit was not already on the branch the
+    // merge targeted -- that is, not reachable from the merge's first parent.
+    // Without this, a commit pushed straight onto the mainline is credited to
+    // whichever merge happened next, and the row fills in with a real merge and
+    // a real number that have nothing to do with the file. That is the same
+    // silent shape as the missing pathspec in v0.47.32, and the test here
+    // caught it the same way: by building a history where the two disagree.
+    let first_parent = format!("{sha}^1");
+    if run(dir, &["merge-base", "--is-ancestor", commit, &first_parent]).is_some() {
+        return None;
+    }
+    let line = run(dir, &["log", "-n1", "--format=%h%x00%s", sha])?;
+    let (merge, subject) = line.trim_end().split_once('\0')?;
+    let (pr, branch) = merge_subject(subject);
+    Some(Origin { merge: merge.to_string(), pr, branch })
+}
+
+/// The pull request number and branch a merge commit's subject names.
+///
+/// Three shapes turn up: GitHub's `Merge pull request #61 from owner/branch`,
+/// GitLab's `Merge branch 'x' into 'y'`, and git's own `Merge branch 'x'`.
+/// Anything else yields neither and the caller still has the merge's hash,
+/// which is the point -- a forge this does not know about degrades to showing
+/// the merge rather than to showing nothing.
+fn merge_subject(subject: &str) -> (Option<u32>, Option<String>) {
+    if let Some(rest) = subject.strip_prefix("Merge pull request #") {
+        let (num, rest) = rest.split_once(' ').unwrap_or((rest, ""));
+        // `from owner/branch`. The owner is noise next to the branch, but a
+        // branch may hold slashes of its own, so only the first one is cut.
+        let branch = rest
+            .strip_prefix("from ")
+            .and_then(|o| o.split_once('/'))
+            .map(|(_, b)| b.to_string())
+            .filter(|b| !b.is_empty());
+        return (num.parse().ok(), branch);
+    }
+    let branch = subject
+        .strip_prefix("Merge branch '")
+        .and_then(|r| r.split_once('\''))
+        .map(|(b, _)| b.to_string())
+        .filter(|b| !b.is_empty());
+    (None, branch)
+}
+
 /// What `git log` had to say about one path.
 pub(crate) struct Commit {
     pub hash: String,
@@ -547,6 +629,113 @@ mod tests {
         let top = last_commit(&root).expect("the root has history");
         assert_eq!(top.subject, "top: unrelated to sub", "the root's newest is the repo's");
         assert_eq!(top.count, 3);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The four subject shapes, and the one that is none of them.
+    ///
+    /// This runs on both platforms on purpose: what a forge writes in a merge
+    /// subject has nothing to do with the operating system, so a
+    /// `#[cfg(windows)]` here would only mean Linux stopped checking it.
+    #[test]
+    fn a_merge_subject_names_its_pull_request() {
+        // GitHub, which is where the number comes from.
+        let (pr, branch) = merge_subject("Merge pull request #61 from uchmk/claude/task-09i0cs");
+        assert_eq!(pr, Some(61));
+        assert_eq!(
+            branch.as_deref(),
+            Some("claude/task-09i0cs"),
+            "the owner is cut, the branch's own slashes are kept"
+        );
+
+        // The number is all that is there when a fork is not named.
+        let (pr, branch) = merge_subject("Merge pull request #7");
+        assert_eq!(pr, Some(7));
+        assert_eq!(branch, None);
+
+        // GitLab, and git's own default: a branch but no number.
+        let (pr, branch) = merge_subject("Merge branch 'feature/x' into 'main'");
+        assert_eq!(pr, None);
+        assert_eq!(branch.as_deref(), Some("feature/x"));
+        let (pr, branch) = merge_subject("Merge branch 'topic'");
+        assert_eq!(pr, None);
+        assert_eq!(branch.as_deref(), Some("topic"));
+
+        // An ordinary commit subject yields neither, rather than a stray parse.
+        // `origin` still shows the merge's hash, so the row is not empty.
+        assert_eq!(merge_subject("v0.48.0: add something"), (None, None));
+        assert_eq!(merge_subject("Merge pull request #x from a/b").0, None);
+    }
+
+    /// A real merge, read back out of a real repository.
+    ///
+    /// The point being checked is that **the pull request number survives on
+    /// disk**: nothing here talks to a forge, and the answer still names #7.
+    /// That is what makes the spot row possible without a token or a request,
+    /// and it holds because the merge is a merge commit -- squash or rebase
+    /// would have flattened the subject away, which is why this repository's
+    /// own rule forbids them.
+    #[test]
+    fn the_merge_that_took_a_commit_in_is_found() {
+        let root = crate::util::test_dir("git-origin");
+        std::fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| Command::new("git").arg("-C").arg(&root).args(args).output();
+        let Ok(out) = git(&["init", "-q", "-b", "main"]) else {
+            eprintln!("git is not installed; skipping");
+            return;
+        };
+        if !out.status.success() {
+            eprintln!("git init failed; skipping");
+            return;
+        }
+        let _ = git(&["config", "user.email", "t@example.com"]);
+        let _ = git(&["config", "user.name", "Ada"]);
+
+        std::fs::write(root.join("base.txt"), b"base").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "the base"]);
+
+        // A file that exists only on the branch, so its last commit is the one
+        // the merge brought in.
+        let _ = git(&["checkout", "-q", "-b", "feature/x"]);
+        let file = root.join("added.txt");
+        std::fs::write(&file, b"added on the branch").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "add the file"]);
+
+        // Meanwhile a commit goes straight onto main. It is *older* than the
+        // merge and not the root, which is the case that has to come back
+        // empty: the merge is on its ancestry path, so a walk alone credits it.
+        let _ = git(&["checkout", "-q", "main"]);
+        let straight = root.join("mainline.txt");
+        std::fs::write(&straight, b"pushed straight to main").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "straight onto main"]);
+
+        let subject = "Merge pull request #7 from acme/feature/x";
+        let _ = git(&["merge", "-q", "--no-ff", "-m", subject, "feature/x"]);
+
+        let c = last_commit(&file).expect("the file is committed");
+        assert_eq!(c.subject, "add the file", "the branch's commit, not the merge");
+        let o = origin(&file, &c.hash).expect("a merge took it in");
+        assert_eq!(o.pr, Some(7), "read off the merge subject, with nothing fetched");
+        assert_eq!(o.branch.as_deref(), Some("feature/x"));
+        assert!(!o.merge.is_empty(), "the merge's own hash is shown too");
+        assert_ne!(o.merge, c.hash, "the merge is not the commit it took in");
+
+        // Neither of the mainline commits was brought in by that merge, so
+        // neither gets a row. This is the half the first draft got wrong: the
+        // merge *is* on their ancestry path, so a walk that stops there reports
+        // #7 for a file the pull request never touched.
+        for name in ["mainline.txt", "base.txt"] {
+            let p = root.join(name);
+            let m = last_commit(&p).expect("committed");
+            assert!(
+                origin(&p, &m.hash).is_none(),
+                "{name} went straight onto main; #7 did not bring it in"
+            );
+        }
 
         let _ = std::fs::remove_dir_all(&root);
     }

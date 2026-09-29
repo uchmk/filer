@@ -219,6 +219,22 @@ fn git(path: &Path) -> Option<Section> {
     if c.count > 1 {
         s.row("Commits", if c.capped { format!("{}+", c.count) } else { c.count.to_string() });
     }
+    // And where it came from. `git log` says when the file changed; it does not
+    // say why the change was taken, and that is the half a file manager is
+    // otherwise sent to a browser for. The merge that took the commit in knows,
+    // and it is already on disk -- see `git::origin`. Absent for a commit
+    // pushed straight to the branch, or one not merged yet: both get no rows
+    // rather than a guess.
+    if let Some(o) = crate::fs::git::origin(path, &c.hash) {
+        let via = match o.pr {
+            Some(n) => format!("#{n}  {}", o.merge),
+            None => o.merge,
+        };
+        s.row("Came in via", via);
+        if let Some(b) = o.branch {
+            s.row("From branch", b);
+        }
+    }
     Some(s)
 }
 
@@ -1051,6 +1067,59 @@ mod tests {
         assert_eq!(value(d, "Directories"), Some("1"));
         assert!(value(d, "Files' size").unwrap().contains("5 bytes"));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The Git section says where the file came from, not just when it changed.
+    ///
+    /// The rows are what `<Tab>` is for: the question "why is this line here"
+    /// used to mean leaving the file manager. Nothing in here touches the
+    /// network -- the pull request number is read out of the merge commit's own
+    /// subject, which is on disk because this repository merges with merge
+    /// commits.
+    #[test]
+    fn the_git_section_says_which_pull_request_brought_the_file_in() {
+        use std::process::Command;
+        let root = crate::util::test_dir("spot-origin");
+        std::fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| Command::new("git").arg("-C").arg(&root).args(args).output();
+        let Ok(out) = git(&["init", "-q", "-b", "main"]) else {
+            eprintln!("git is not installed; skipping");
+            return;
+        };
+        if !out.status.success() {
+            eprintln!("git init failed; skipping");
+            return;
+        }
+        let _ = git(&["config", "user.email", "t@example.com"]);
+        let _ = git(&["config", "user.name", "Ada"]);
+        std::fs::write(root.join("base.txt"), b"base").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "the base"]);
+        let _ = git(&["checkout", "-q", "-b", "topic"]);
+        let file = root.join("feature.rs");
+        std::fs::write(&file, b"fn main() {}").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "add the feature"]);
+        let _ = git(&["checkout", "-q", "main"]);
+        let subject = "Merge pull request #42 from acme/topic";
+        let _ = git(&["merge", "-q", "--no-ff", "-m", subject, "topic"]);
+
+        let all = inspect(&file);
+        let g = section(&all, "Git").expect("a committed file has a Git section");
+        assert_eq!(value(g, "Subject"), Some("add the feature"));
+        let via = value(g, "Came in via").expect("the merge that took it in");
+        assert!(via.starts_with("#42 "), "the pull request number leads: {via:?}");
+        assert_eq!(value(g, "From branch"), Some("topic"));
+
+        // The file that went straight onto main gets the history rows and
+        // neither of the new ones, rather than being credited to #42.
+        let straight = inspect(&root.join("base.txt"));
+        let b = section(&straight, "Git").expect("also committed");
+        assert_eq!(value(b, "Subject"), Some("the base"));
+        assert_eq!(value(b, "Came in via"), None, "no merge brought it in");
+        assert_eq!(value(b, "From branch"), None);
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

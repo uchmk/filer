@@ -343,6 +343,16 @@ overlay only while it has the keys.
     carries git's *state* per row; this is its history, for the one row under the cursor, so
     "when did this change, and why" does not need a terminal. `git` on `PATH` answers, as it does
     for the status marks; outside a repository, or for a file never committed, no section appears.
+    - **Where it came from**, too: `Came in via` names the pull request that brought that commit in
+      and the merge commit's own hash, and `From branch` the branch it merged. A merge commit's
+      subject is `Merge pull request #61 from owner/branch`, so **the number is already on disk** —
+      nothing is fetched, no token is involved, and the section behaves the same with the network
+      unplugged. GitLab's and git's own `Merge branch 'x'` give the branch without a number, and a
+      subject in neither shape still shows the merge. A commit pushed straight to the branch, or one
+      not merged yet, gets **no such rows**: a merge that merely came *later* is not credited,
+      which is checked by asking git whether the commit was already on the merge's first parent.
+      Browsing pull requests *as a list* is a different job, and tools like `gh-dash` already do it;
+      this is the other direction, where the file under the cursor is the question.
   - An image's real dimensions, format and color type, a font's family / style / version / weight /
     glyph count, a directory's file and subdirectory counts.
 

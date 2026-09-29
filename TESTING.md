@@ -1259,4 +1259,9 @@ real repository with a history — this one will do.
 | 46.9 | The same on a machine with no `git` on `PATH` | No Git section, no error, and the rest of the panel is unaffected |
 | 46.10 | `<Tab>` on a file whose last subject has Japanese in it, or an emoji | Drawn intact, not mojibake — the format is NUL-separated so nothing needs quoting |
 | 46.11 | Watch for a console window | **None flashes.** `git` is spawned with `CREATE_NO_WINDOW`, the same as the status worker |
+| 46.12 | `<Tab>` on a file whose commit arrived through a merged pull request | `Came in via` reads `#<n>` then the merge's short hash, and `From branch` names the branch |
+| 46.13 | Check `#<n>` against the pull request on GitHub | **The same number**, and the file is in that pull request's diff. The number is read out of the merge commit's subject — nothing is fetched, so this is the row that proves the subject is the source |
+| 46.14 | `<Tab>` on a file whose last commit was pushed **straight to `main`** | **No `Came in via` and no `From branch`** — the history rows only. A merge that merely came later must not be credited |
+| 46.15 | `<Tab>` on a file committed on the current branch and **not merged yet** | The same: history rows, no `Came in via`. It has not arrived anywhere to be asked about |
+| 46.16 | Pull the network cable (or turn off Wi-Fi) and repeat 46.12 | **Identical output, at the same speed.** Nothing here leaves the machine |
 
