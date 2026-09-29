@@ -12,9 +12,10 @@
 //! part with tests: [`encode`] is a pure function over a key and its
 //! modifiers.
 
-use std::io;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use alacritty_terminal::event::{Event as PtyEvent, EventListener, WindowSize};
 use alacritty_terminal::event_loop::{EventLoop, EventLoopSender, Msg};
@@ -90,6 +91,8 @@ struct Tapped {
     /// Bytes of an OSC 7 that has begun but not ended, since a read can stop
     /// anywhere — including in the middle of one.
     partial: Vec<u8>,
+    /// `FILER_PTY_LOG`, when it is set; see [`PtyLog`].
+    log: PtyLog,
 }
 
 /// Longest OSC 7 worth waiting for. A path cannot sensibly be longer, and a
@@ -99,6 +102,7 @@ const MAX_OSC: usize = 4096;
 impl io::Read for Tapped {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let n = self.inner.reader().read(buf)?;
+        log_pty(&self.log, "out", &buf[..n]);
         for path in scan_osc7(&mut self.partial, &buf[..n]) {
             let _ = self.cwd.send(path);
         }
@@ -176,6 +180,65 @@ pub fn win32_key(vk: u16, scan: u16, ch: u16, mods: Mods) -> Vec<u8> {
         | (if mods.ctrl { 0x08 } else { 0 })
         | (if mods.shift { 0x10 } else { 0 });
     format!("\x1b[{vk};{scan};{ch};1;{state};1_").into_bytes()
+}
+
+/// A record of every byte that crosses the PTY, for when the pane and a
+/// program in it disagree about what was said.
+///
+/// Set `FILER_PTY_LOG` to a file path before starting filer and each chunk is
+/// appended as one line: milliseconds since the pane opened, the direction,
+/// and the bytes with control characters spelled out. `out` is what the shell
+/// side (on Windows, ConPTY) wrote to filer; `in` is what filer wrote to it,
+/// split by origin into `in key`, `in paste` and `in reply` -- the last being
+/// the terminal's own answers to a program's queries, which are the bytes
+/// under suspicion when lazygit opens a menu at startup that nobody asked for.
+///
+/// Off unless the variable is set, and nothing is read or written for it then.
+/// A chunk is whatever one read or write happened to carry, so a sequence can
+/// be split across two lines, and a multi-byte character cut at a chunk's edge
+/// shows as U+FFFD.
+type PtyLog = Option<Arc<Mutex<PtyLogFile>>>;
+
+struct PtyLogFile {
+    file: std::fs::File,
+    start: Instant,
+}
+
+fn open_pty_log() -> PtyLog {
+    let path = std::env::var_os("FILER_PTY_LOG")?;
+    let file = std::fs::OpenOptions::new().create(true).append(true).open(path).ok()?;
+    let log = PtyLogFile { file, start: Instant::now() };
+    let log = Arc::new(Mutex::new(log));
+    if let Ok(mut l) = log.lock() {
+        let _ = writeln!(l.file, "== pane opened");
+    }
+    Some(log)
+}
+
+fn log_pty(log: &PtyLog, dir: &str, bytes: &[u8]) {
+    let Some(log) = log else { return };
+    let Ok(mut l) = log.lock() else { return };
+    let ms = l.start.elapsed().as_millis();
+    let _ = writeln!(l.file, "{ms:>8} {dir:<9} {}", escape_bytes(bytes));
+}
+
+/// Bytes as one readable line: `\e` for ESC, `\r` `\n` `\t`, `\xNN` for any
+/// other control character, and `\\` for a backslash so that none of those
+/// spellings can be mistaken for the text they stand in for.
+pub fn escape_bytes(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len());
+    for c in String::from_utf8_lossy(bytes).chars() {
+        match c {
+            '\x1b' => out.push_str("\\e"),
+            '\r' => out.push_str("\\r"),
+            '\n' => out.push_str("\\n"),
+            '\t' => out.push_str("\\t"),
+            '\\' => out.push_str("\\\\"),
+            c if (c as u32) < 0x20 || c == '\x7f' => out.push_str(&format!("\\x{:02X}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 /// Pull the directories out of any OSC 7 sequences in `chunk`.
@@ -324,6 +387,8 @@ pub struct Terminal {
     /// not send OSC 7 leaves this `None` for ever, which is why it only ever
     /// suppresses work rather than driving any.
     pub shell_cwd: Option<PathBuf>,
+    /// `FILER_PTY_LOG`, when it is set; see [`PtyLog`].
+    log: PtyLog,
 }
 
 impl Terminal {
@@ -352,7 +417,8 @@ impl Terminal {
         let window = window_size(size, cell);
         let pty = tty::new(&options, window, 0)?;
         let (cwd_tx, cwd_rx) = crossbeam_channel::unbounded();
-        let pty = Tapped { inner: pty, cwd: cwd_tx, partial: Vec::new() };
+        let log = open_pty_log();
+        let pty = Tapped { inner: pty, cwd: cwd_tx, partial: Vec::new(), log: log.clone() };
 
         let (tx, rx) = crossbeam_channel::unbounded();
         let proxy = Proxy { tx, wake: Arc::new(wake) };
@@ -377,6 +443,7 @@ impl Terminal {
             cwd_rx,
             found: None,
             shell_cwd: None,
+            log,
         })
     }
 
@@ -395,7 +462,7 @@ impl Terminal {
                 PtyEvent::ClipboardStore(_, text) => clipboard.push(text),
                 // A program answering a query writes back through the same
                 // pipe it would if the user had typed it.
-                PtyEvent::PtyWrite(text) => self.send(text.into_bytes()),
+                PtyEvent::PtyWrite(text) => self.send_as(text.into_bytes(), "in reply"),
                 PtyEvent::Exit | PtyEvent::ChildExit(_) => self.exited = true,
                 _ => {}
             }
@@ -415,6 +482,12 @@ impl Terminal {
     }
 
     pub fn send(&self, bytes: Vec<u8>) {
+        self.send_as(bytes, "in key");
+    }
+
+    /// `send`, labelled for the PTY log by where the bytes came from.
+    fn send_as(&self, bytes: Vec<u8>, origin: &str) {
+        log_pty(&self.log, origin, &bytes);
         // Typing is an answer to what is on screen, so the view comes back to
         // the bottom — every terminal does this, and a key that seemed to do
         // nothing because the view was in the scrollback is a bad surprise.
@@ -516,7 +589,7 @@ impl Terminal {
         // Carriage returns are what a terminal calls Enter; a pasted `\n`
         // that stays a newline confuses a line editor.
         let text = text.replace("\r\n", "\r").replace('\n', "\r");
-        self.send(bracket(&text, self.bracketed_paste()));
+        self.send_as(bracket(&text, self.bracketed_paste()), "in paste");
     }
 
     /// Whether the program on the other end asked for bracketed paste.
@@ -1346,6 +1419,40 @@ mod tests {
         let ctrl_alt = Mods { ctrl: true, alt: true, ..Default::default() };
         assert_eq!(s(win32_key(0x1b, 1, 0x1b, shift)), "\x1b[27;1;27;1;16;1_");
         assert_eq!(s(win32_key(0x1b, 1, 0x1b, ctrl_alt)), "\x1b[27;1;27;1;10;1_");
+    }
+
+    /// The PTY log spells control characters out, and cannot be misread.
+    ///
+    /// `\e[?9001;0$y` has to read as the reply it is, and a literal backslash
+    /// followed by `e` in the shell's output must not look like an ESC.
+    #[test]
+    fn the_pty_log_spells_the_bytes_out() {
+        assert_eq!(escape_bytes(b"\x1b[?9001;0$y"), "\\e[?9001;0$y");
+        assert_eq!(escape_bytes(b"a\r\n\tb\x07\x7f"), "a\\r\\n\\tb\\x07\\x7F");
+        assert_eq!(escape_bytes(br"C:\e"), r"C:\\e", "a real backslash is doubled");
+        assert_eq!(escape_bytes("日本".as_bytes()), "日本", "text stays text");
+    }
+
+    /// Each chunk is one line: time, direction, bytes -- appended, so a second
+    /// pane in the same run adds to the file rather than replacing it.
+    #[test]
+    fn the_pty_log_writes_one_line_per_chunk() {
+        let dir = crate::util::test_dir("pty-log");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("pty.log");
+        let file = std::fs::OpenOptions::new().create(true).append(true).open(&path).unwrap();
+        let log: PtyLog = Some(Arc::new(Mutex::new(PtyLogFile { file, start: Instant::now() })));
+        log_pty(&log, "out", b"\x1b[?9001h");
+        log_pty(&log, "in reply", b"\x1b[?6c");
+        log_pty(&None, "in key", b"ignored when the log is off");
+        drop(log);
+
+        let text = std::fs::read_to_string(&path).unwrap();
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 2, "one line per chunk, nothing when off: {text:?}");
+        assert!(lines[0].ends_with("out       \\e[?9001h"), "{:?}", lines[0]);
+        assert!(lines[1].ends_with("in reply  \\e[?6c"), "{:?}", lines[1]);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// A path reaches the shell as one word -- in the form *that* shell reads.
