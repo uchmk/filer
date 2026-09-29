@@ -619,7 +619,21 @@ pub fn quote(s: &str, how: Quoting) -> String {
     // `'` is deliberately not in the safe set: cmd leaves it alone, but the
     // other two do not, and a name that needs no quotes in one shell still has
     // to come out right in the others.
-    if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || "_-./:\\".contains(c)) {
+    //
+    // `\` is safe only where it is *nothing but* a path separator. A POSIX shell
+    // reads it as an escape, so an unquoted `R:\Temp\x` arrives as `R:Tempx`,
+    // and with `[term] shell` set to Git Bash **every ordinary Windows path
+    // failed** -- `follow()` typed a `cd` that could not land, so walking the
+    // list left the pane behind. Section 1 on the Windows machine found it, and
+    // the same run showed the cure already works: 1.21's quoted
+    // `cd 'R:\Temp\filer-fixtures\it'\''s here'` arrived as
+    // `/r/Temp/filer-fixtures/it's here`, so Git Bash takes `\` intact inside
+    // quotes. The test below used to pin the broken form for all three shells.
+    let safe: &str = match how {
+        Quoting::Posix => "_-./:",
+        Quoting::PowerShell | Quoting::Cmd => "_-./:\\",
+    };
+    if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || safe.contains(c)) {
         return s.to_owned();
     }
     match how {
@@ -1300,8 +1314,19 @@ mod tests {
         // Nothing awkward in it, so nothing is added, whatever the shell.
         for how in [PowerShell, Posix, Cmd] {
             assert_eq!(quote("/home/user/src", how), "/home/user/src", "{how:?}");
-            assert_eq!(quote(r"C:\dev\filer", how), r"C:\dev\filer", "{how:?}");
         }
+
+        // A Windows path is bare only where `\` is just a separator. This line
+        // asserted the bare form for `Posix` too, which is how Git Bash came to
+        // receive `cd R:\Temp\x` and read it as `R:Tempx`: a backslash escapes
+        // the character after it, so the separators ate the directory names and
+        // no ordinary path could be walked into at all.
+        assert_eq!(quote(r"C:\dev\filer", PowerShell), r"C:\dev\filer");
+        assert_eq!(quote(r"C:\dev\filer", Cmd), r"C:\dev\filer");
+        assert_eq!(quote(r"C:\dev\filer", Posix), r"'C:\dev\filer'", "quoted, so `\\` survives");
+        // Forward slashes are a separator in every shell, so those stay bare --
+        // the quoting is about the backslash, not about being a Windows path.
+        assert_eq!(quote("C:/dev/filer", Posix), "C:/dev/filer");
 
         // A space would split it in two without the quotes.
         assert_eq!(quote("/a b/c", PowerShell), "'/a b/c'");
