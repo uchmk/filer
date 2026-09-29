@@ -4,7 +4,7 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**242 / 244 checked.**
+**243 / 244 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
@@ -197,7 +197,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<A-t>` — Type the selected paths into the terminal · `term_send`
 - [ ] `<C-S-Enter>` — Give the terminal pane the window, or hand it back · `term_max`
 
-## `[term]` — 14 / 15
+## `[term]` — 15 / 15
 
 While the terminal pane holds the keys. Everything not listed here goes to the shell.
 
@@ -208,7 +208,7 @@ While the terminal pane holds the keys. Everything not listed here goes to the s
 - [x] `<F1>` — Show the key list · `help`
 - [x] `<C-S-p>` — Command palette · `palette`
 - [x] `<A-Up>` — Put the pane where the shell is · `term_cd`
-- [ ] `<C-S-Enter>` — Give the terminal pane the window, or hand it back · `term_max`
+- [x] `<C-S-Enter>` — Give the terminal pane the window, or hand it back · `term_max`
 - [x] `<S-PageUp>` — Scroll back half a screen · `term_scroll -50%`
 - [x] `<S-PageDown>` — Scroll forward half a screen · `term_scroll 50%`
 - [x] `<S-Home>` — To the top of the scrollback · `term_scroll top`
