@@ -1781,8 +1781,8 @@ Windows のセッション（`.claude/windows-role.md`）から。上の節（0.
 
 ### ハーネスについて
 
-- **`[term] shell = "bash"` は WSL の bash に行く**（`System32\bash.exe` がパスより先に
-  見つかる）。Git Bash を試すならフルパスを書くこと。
+- **`[term] shell = "bash"` は WSL の bash に行く**（`where bash` では Git の `usr\bin\bash.exe` と
+  `WindowsApps\bash.exe` が並ぶ）。Git Bash を試すならフルパスを書くこと。
 - **`<A-t>` はキーをペインに移す**（`term_focus = true`）。そのあと一覧を操作するなら
   `<C-t>` で戻す。これを忘れて、一覧に送ったつもりの `gg` `cc` `j` がシェルの行に積もった。
 - **PowerShell 5.1 には `LocationChangedAction` が無い。**OSC 7 のフックがエラーになるので、
