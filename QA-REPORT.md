@@ -1724,3 +1724,72 @@ release ビルド（0.47.33、`src/` は 0f0d36b と同じ）で動かした。�
 - **`filer env` はパイプに出ない。**release は GUI サブシステムで `CONOUT$` に書くので、
   コンソールのバッファを読む（`envdump.ps1`）。
 - スクリプトはすべて `C:\dev\filer-evidence\1\` と `scripts\` に置いた。
+
+## TESTING.md section 1 — v0.47.34 の答え合わせ（ac1a34c / 0.47.36）
+
+Windows のセッション（`.claude/windows-role.md`）から。上の節（0.47.33）で報告した
+`<C-c>` と `quote()` の 3 件を v0.47.34 が直したので、実機の release ビルド
+（0.47.36、ac1a34c。`src/terminal.rs` / `main.rs` / `app.rs` は v0.48.0 の main と同じ）で
+1.19 / 1.20 / 1.21 を確かめた。設定は `R:\Temp\t1bcfg` に隔離、画面は 150%（dpi 144）。
+生の出力・スクリプト・キャプチャは `C:\dev\filer-evidence\1b\` にある。
+
+**3 行ともチェックした。上の節の 3 件（`<C-c>` で終了、PowerShell の `'\''`、`it's here` で `>>`）は
+4 シェルすべてで再現しない。**ただし bash で**別の**引用の穴が見つかった（下の 1 件目）。
+
+| シェル（`[term] shell`） | 1.20: `<A-t>` で行に入った文字列 → Enter の結果 | 1.21: filer が打った `cd` → 着いた場所 | 1.19: `<C-c>` |
+| --- | --- | --- | --- |
+| `pwsh`（7.6.6） | `'R:\…\awkward names\quote''in-name.txt'` → `n=1`、`exists=True` | `cd 'R:\Temp\filer-fixtures\it''s here'` → `PWD=R:\Temp\filer-fixtures\it's here` | `sleep 30` が 3.0 秒で `Stopped` |
+| `powershell`（5.1） | 同じ文字列 → `n=1`、`exists=True` | 同じ `cd` → 同じ `PWD` | `sleep 30` の後の `'NOT-INTERRUPTED'` が出ずにプロンプト |
+| Git Bash（`C:/Program Files/Git/bin/bash.exe`） | `'R:\…\awkward names\quote'\''in-name.txt'` → `n=1`、`[…quote'in-name.txt]`、`ls -d` がファイルを見つけた | `cd 'R:\Temp\filer-fixtures\it'\''s here'` → `PWD=/r/Temp/filer-fixtures/it's here` | `sleep 30; echo NOT-INTERRUPTED` が止まり、後続も出ない |
+| `cmd` | `"R:\…\awkward names\quote'in-name.txt"` → `dir /b` が `quote'in-name.txt` | `cd "R:\Temp\filer-fixtures\it's here"` → `cd` が `R:\Temp\filer-fixtures\it's here` | `ping -n 30` が 4 回で `Ctrl+C`、プロンプトが戻る |
+
+- どのシェルでも `>>`（や bash の `>`）の継続プロンプトにはならなかった。`<A-t>` の文字列は
+  **Enter の前に**ペインをドラッグで読んだもの。
+- 1.19 は依頼どおり 2 つに分けて見た。**(a) シェルに 0x03 が届いた**: pwsh で
+  `$t0=Get-Date; try { sleep 30; 'NOT-INTERRUPTED' } finally { $t1=Get-Date }` の 2.5 秒後に `<C-c>`、
+  `SLEPT=3.0s STATUS=Stopped`（`s19c.txt`）。ネイティブの子（`ping -n 30`）も統計を出して
+  `Ctrl+C` で止まった（`s19.txt`）。**(b) filer は開いたまま、タブも減っていない**: filer の pid
+  （59520）とシェルの pid が `<C-c>` の前後で同じ。タブ 2 を開いた状態で押し、タイトルは
+  `Filer: …\awkward names`（タブ 2）のまま。`[` で `Filer: R:\Temp\filer-fixtures`、`]` で
+  `…\awkward names` に戻れて、2 枚とも残っている。4 シェルの通し（`s20-*.txt`）でも、
+  最後の pid は起動したときの pid と同じ。
+- **`<C-x>`（`Event::Cut`）は押していない。**
+
+### Git Bash で、`'` の無いパスの `\` が消える（`cd` が効かない）
+
+- **再現**: `[term] shell = "C:/Program Files/Git/bin/bash.exe"`（`args = ["--noprofile", "--norc", "-i"]`）。
+  ペインを開いたまま、一覧で親ディレクトリへ移動する。
+- **実測**: ペインに `cd R:\Temp\filer-fixtures` が打たれ、
+  `bash: cd: R:Tempfiler-fixtures: No such file or directory`。シェルは `it's here` に残り、
+  **一覧とペインがずれたまま**になる（`s20-bash.txt`、`shots\s20-bash-cd.png`）。
+  `'` を含む `it's here` へは入れたのに、そこから出られない。
+- **期待**: filer の `cd` が着く（1.21 と同じ「filer 自身が打つパス」）。
+- **原因**: `src/terminal.rs:621` の `quote()` は、全部の文字が英数字か `_-./:\` なら
+  **引用せずに返す**。`\` は PowerShell と cmd では普通の文字だが、POSIX シェルでは
+  エスケープなので、引用の外の `R:\Temp` は `R:Temp` になる。テスト
+  `terminal.rs:1303` が `quote(r"C:\dev\filer", how) == r"C:\dev\filer"` を **`Posix` を含む
+  3 つすべてで**固定しているので、この誤りを守る側にいる。
+- **影響**: Windows で bash を使うと、**普通のパスでは `follow()` の `cd` が毎回失敗する。**
+  `quote()` を共有する `<A-t>` も、`notes.md` のような普通の名前で `R:Tempfiler-fixturesnotes.md`
+  を渡すはず（**未確認**: 同じ関数からの推定で、押してはいない）。引用されたパス
+  （`'R:\…'`）は Git Bash が `\` のまま受け取って正しく着く。
+- **提案（直していない）**: `Quoting::Posix` のときは `\` を安全な文字から外す（引用させる）。
+  あるいは Posix では常に `'…'` で囲む。
+- **TESTING.md に行が無い。**1.20 / 1.21 は `'` のある名前しか指定していないので、bash で
+  `'` の**無い**パスを通す行が無い。「bash で普通のディレクトリへ一覧を移動 → `cd` が着く」を
+  1.21 の隣に足すことを提案する。
+
+### ハーネスについて
+
+- **`[term] shell = "bash"` は WSL の bash に行く**（`System32\bash.exe` がパスより先に
+  見つかる）。Git Bash を試すならフルパスを書くこと。
+- **`<A-t>` はキーをペインに移す**（`term_focus = true`）。そのあと一覧を操作するなら
+  `<C-t>` で戻す。これを忘れて、一覧に送ったつもりの `gg` `cc` `j` がシェルの行に積もった。
+- **PowerShell 5.1 には `LocationChangedAction` が無い。**OSC 7 のフックがエラーになるので、
+  5.1 では filer が毎回 `cd` を打つ（今回の判定には影響しない）。
+- **1 回だけ `<A-t>` が何も入れなかった**（最初の pwsh の通し、`<C-t>` の 500 ms 後に `<A-t>`）。
+  同じ間隔で 4 回繰り返した `probe5.txt` では 4 回とも入り、再現しなかったので不具合としては
+  報告しない。スクリプトは `<A-t>` の前に一覧のホバーをコピーで読むようにした（その結果も
+  証拠になる）。
+- `filer.exe --version` はパイプに何も出さない（GUI サブシステム、上の節の `filer env` と同じ）。
+  版は exe のファイルバージョン `0.47.36` とビルド時刻（HEAD ac1a34c より後）で確かめた。
