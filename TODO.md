@@ -621,6 +621,27 @@
   - [ ] 新しい ConPTY の上では、v0.48.6 の Esc の修正は要らないかもしれない（離したレコードが
     付かないので）。要らないと分かれば、同梱なしで動かしたときのためだけに残すか決める。
 
+## Windows 版を exe 1 つで配れるようにする
+
+v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.exe` + ライセンス表示）。
+新しい ConPTY を exe に埋め込めば、また exe 1 つで配れる。
+
+- [ ] 作る。
+  1. ビルド時に 2 つのファイルを `include_bytes!` で埋め込む（約 1.2MB 増）。**ファイルがあるときだけ**
+     埋め込み（build.rs で有無を見て cfg を立てる）、無ければ今までどおり Windows 標準の ConPTY を使う。
+     こうしておけば、手元の `cargo build` はファイル無しでも今のまま通る。
+  2. ペインを初めて開くときに `%LOCALAPPDATA%\filer\conpty\<版>\` へ書き出す。**毎回 SHA-256 を
+     照合**し、違えば書き直す（すり替えられた DLL を読まないため）。古い版のフォルダは片付ける。
+  3. 書き出した `conpty.dll` を **フルパスで `LoadLibraryW`** しておく。同じ名前の DLL が読み込み済みなら
+     Windows はそれを使うので、`alacritty_terminal` が後で名前だけで読んでも、書き出したものが使われる
+     （`alacritty_terminal` は改造しなくて済む）。`conpty.dll` は自分の横の `OpenConsole.exe` を起動する。
+  4. MIT の表示を、書き出したフォルダと `filer env`（またはヘルプ）に出す。
+- [ ] **実機で Windows Defender / SmartScreen に止められないか確かめる。ここが通るまで配布形は変えない。**
+  「exe が別の exe を書き出して起動する」はドロッパーと同じ形。書き出す 2 つは Microsoft の
+  Authenticode 署名付き（署名の有無と署名者名は確認済み、検証まではしていない）だが、書き出す側の
+  `filer.exe` は署名が無い（Q14）ので、どう判定されるかは試さないと分からない。
+- [ ] 通ったら、release.yml の Windows の成果物を zip から exe に戻す（zip を残すかも決める）。
+
 ## GitHub の情報を見る口（Q16）
 
 - [x] **「このファイルはどこから来たのか」を spot に入れた（v0.48.0）。**`Came in via` に
