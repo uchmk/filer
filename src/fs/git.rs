@@ -189,9 +189,16 @@ pub(crate) fn last_commit(path: &Path) -> Option<Commit> {
         // NUL cannot appear in any of the four, so nothing here needs quoting.
         "--format=%h%x00%aI%x00%an%x00%s".to_string(),
     ];
-    if let Some(name) = name.filter(|_| !path.is_dir()) {
+    // A directory is asked about as `.`, because `run` has already put git
+    // inside it with `-C`. Until v0.47.32 the pathspec was dropped entirely
+    // here, so `git -C sub log` answered for the whole repository: a directory
+    // reported whatever commit was newest anywhere, and counted every commit
+    // in the history. `status` a few lines up has always passed `-- .`; this is
+    // the same thing.
+    let spec = if path.is_dir() { Some(".".to_string()) } else { name };
+    if let Some(spec) = spec {
         args.push("--".to_string());
-        args.push(name);
+        args.push(spec);
     }
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     let out = run(dir, &args)?;
@@ -480,6 +487,66 @@ mod tests {
         // A file git has never seen is not a commit with empty fields.
         std::fs::write(root.join("b.txt"), b"never committed").unwrap();
         assert!(last_commit(&root.join("b.txt")).is_none(), "nothing in the history touches it");
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A directory answers for itself, not for the repository around it.
+    ///
+    /// The bug this covers was silent in the worst way: the row was filled in,
+    /// with a real commit and a real count, just the wrong ones. Section 46 on
+    /// the Windows machine only caught it because the fixtures repository had
+    /// been given commits that touch nothing in the directory being asked
+    /// about -- with a history where the newest commit happens to touch
+    /// everything, a missing pathspec and a correct one agree.
+    ///
+    /// So the repository here is built to disagree: `top.txt` is committed
+    /// last and never touches `sub`, and `sub` has two commits of its own.
+    /// Without the pathspec this reads `sub` as `top.txt`'s commit, and counts
+    /// three.
+    #[test]
+    fn a_directory_reports_the_last_commit_inside_it() {
+        let root = crate::util::test_dir("git-log-dir");
+        std::fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| Command::new("git").arg("-C").arg(&root).args(args).output();
+        let Ok(out) = git(&["init", "-q"]) else {
+            eprintln!("git is not installed; skipping");
+            return;
+        };
+        if !out.status.success() {
+            eprintln!("git init failed; skipping");
+            return;
+        }
+        let _ = git(&["config", "user.email", "t@example.com"]);
+        let _ = git(&["config", "user.name", "Grace"]);
+
+        let sub = root.join("sub");
+        std::fs::create_dir_all(&sub).unwrap();
+        std::fs::write(sub.join("inner.txt"), b"one").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "sub: the first"]);
+        std::fs::write(sub.join("inner.txt"), b"two").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "sub: the second"]);
+
+        // Newest in the repository, and nothing to do with `sub`.
+        std::fs::write(root.join("top.txt"), b"elsewhere").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "top: unrelated to sub"]);
+
+        let c = last_commit(&sub).expect("a directory with history has a last commit");
+        assert_eq!(c.subject, "sub: the second", "the newest that touched `sub`, not the repo's");
+        assert_eq!(c.count, 2, "the two commits inside `sub`, not all three");
+
+        // And the file inside it still answers for itself.
+        let inner = last_commit(&sub.join("inner.txt")).expect("the file has history too");
+        assert_eq!(inner.subject, "sub: the second");
+        assert_eq!(inner.count, 2);
+
+        // The root does see everything, because everything is inside it.
+        let top = last_commit(&root).expect("the root has history");
+        assert_eq!(top.subject, "top: unrelated to sub", "the root's newest is the repo's");
+        assert_eq!(top.count, 3);
 
         let _ = std::fs::remove_dir_all(&root);
     }
