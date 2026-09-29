@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**104 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
+**108 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -21,7 +21,7 @@
 キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、こちらは「1 つのキーでは
 確かめられない振る舞い」の側。
 
-## 1. ターミナルペイン — 27 / 46
+## 1. ターミナルペイン — 31 / 46
 
 準備:
 
@@ -63,13 +63,13 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **1.19** ペインで時間のかかるもの（`sleep 30`）を走らせて `<C-c>` を押す（v0.47.34） → コマンドが止まってプロンプトが戻る。**filer は開いたまま。**v0.47.34 までは `[mgr]` の `close` が走り、タブが閉じ、最後の 1 枚なら filer ごと終了してシェルも道連れになっていた — *Run something slow in the pane (`sleep 30`) and press `<C-c>` (v0.47.34) → The command stops and the prompt comes back. **filer is still open** — until v0.47.34 this ran `[mgr]` `close`, so the tab went and the last one took filer and the shell with it*
 - [x] **1.20** 名前に `'` を含むファイルで `<A-t>`、`[term] shell` で指定できる各シェルについて（v0.47.34）→ シェルが 1 語として読める形で入る。PowerShell なら `''` と重ね、bash なら `'\''`、cmd なら素の `"…"`。**`>>` の継続プロンプトにならない** — *`<A-t>` on a file with a `'` in its name, in each shell `[term] shell` can name (v0.47.34) → The line is one word the shell can read: `''` doubled for PowerShell, `'\''` for bash, plain `"…"` for cmd. **No `>>` continuation prompt***
 - [x] **1.21** ペインを開いたまま、名前に `'` を含むディレクトリへ一覧を移動する（v0.47.34） → `cd` が通ってプロンプトが戻る。1.20 と同じ引用が、filer 自身が打つパスにも効いていること — *Walk the list into a directory with a `'` in its name, with the pane open (v0.47.34) → The `cd` lands and the prompt returns. The same quoting as 1.20, on the path filer types for itself*
-- [ ] **1.22** `[term] shell` を Git Bash のフルパスにして、ペインを開いたまま **普通の**ディレクトリ（`'` も空白も無い）へ一覧を移動する → `cd` が着いて、プロンプトがそのディレクトリになる。**`bash: cd: R:Tempfiler-fixtures: No such file or directory` にならないこと** —— 引用の外の `\` は POSIX シェルではエスケープなので、v0.48.1 まで普通の Windows パスには一切入れなかった。1.20 と 1.21 はどちらも `'` のある名前を指定しているので、これを見落としていた — *With `[term] shell` set to Git Bash's full path, walk the list into an **ordinary** directory — no `'`, no space (v0.48.1) → The `cd` lands and the prompt is in that directory. **Not `bash: cd: R:Tempfiler-fixtures: No such file or directory`** — an unquoted `\` is an escape to a POSIX shell, so until v0.48.1 no ordinary Windows path could be walked into at all. 1.20 and 1.21 both name a `'`, which is why they missed it*
-- [ ] **1.23** 同じシェルで、**普通の**名前のファイルに `<A-t>` → パスがバックスラッシュごとそのまま入る。1.22 と `quote()` を共有していて、これまで推定されただけで一度も押されていない — *The same shell, `<A-t>` on a file with an **ordinary** name (v0.48.1) → The path arrives whole, backslashes and all. This shares `quote()` with 1.22 and was only ever inferred from it, never pressed*
+- [x] **1.22** `[term] shell` を Git Bash のフルパスにして、ペインを開いたまま **普通の**ディレクトリ（`'` も空白も無い）へ一覧を移動する → `cd` が着いて、プロンプトがそのディレクトリになる。**`bash: cd: R:Tempfiler-fixtures: No such file or directory` にならないこと** —— 引用の外の `\` は POSIX シェルではエスケープなので、v0.48.1 まで普通の Windows パスには一切入れなかった。1.20 と 1.21 はどちらも `'` のある名前を指定しているので、これを見落としていた — *With `[term] shell` set to Git Bash's full path, walk the list into an **ordinary** directory — no `'`, no space (v0.48.1) → The `cd` lands and the prompt is in that directory. **Not `bash: cd: R:Tempfiler-fixtures: No such file or directory`** — an unquoted `\` is an escape to a POSIX shell, so until v0.48.1 no ordinary Windows path could be walked into at all. 1.20 and 1.21 both name a `'`, which is why they missed it*
+- [x] **1.23** 同じシェルで、**普通の**名前のファイルに `<A-t>` → パスがバックスラッシュごとそのまま入る。1.22 と `quote()` を共有していて、これまで推定されただけで一度も押されていない — *The same shell, `<A-t>` on a file with an **ordinary** name (v0.48.1) → The path arrives whole, backslashes and all. This shares `quote()` with 1.22 and was only ever inferred from it, never pressed*
 - [x] **1.24** ペインの中で全画面 TUI を走らせる（`gh dash`、または `lazygit`）（v0.48.2） → ちゃんと描ける。代替画面・色・罫線・TUI 自身の分割ペイン。**一度は見えている**ので、この行はそれを見続けるためのもの — *In the pane, run a full-screen TUI — `gh dash`, or `lazygit` (v0.48.2) → It draws: alternate screen, colours, box drawing, its own split panes. Seen once already; this row is for keeping it seen*
 - [x] **1.25** その TUI を操作して、抜ける（`j` / `k` で移動、`q` で終了） → キーが届き、抜けるとペインが返ってきてプロンプトが使える。**描けることと操作できることは別の主張で、1.24 が通ってもこちらは何も言えない。**抜けられない TUI はペインを道連れにする — *Drive that TUI, then quit it (`j` / `k` to move, `q` to leave) → The keys reach it, and quitting gives the pane back with a working prompt. **Drawing and driving are separate claims** — 1.24 passing says nothing about this one, and a TUI that cannot be left would strand the pane*
 - [x] **1.26** ペインを開いた状態で `<C-S-Enter>`（v0.48.4） → ペインが**上端まで**窓を取る。ヘッダも一覧も無く、下にステータスバーだけ。高さの 3 分の 1 はシェルには妥当で、全画面のプログラムには足りない — *With the pane open, `<C-S-Enter>` (v0.48.4) → The pane takes the window **to the top edge** — no header, no list, only the status bar below it. A third of the height is right for a shell and too little for a full-screen program*
-- [ ] **1.27** TUI を走らせた状態のペインの中から、もう一度 `<C-S-Enter>` → 3 分の 1 に戻る。**ターミナルがキーを持っている間に効くこと**が要点 —— TUI はまさにその状態を作るし、この機能が要るのもそこだけ — *`<C-S-Enter>` again, from inside the pane, with a TUI running in it → Back to a third. The key has to work **while the terminal holds the keys** — that is the state a TUI puts you in, and the only one where this matters*
-- [ ] **1.28** **一覧側**から最大化して、何か打つ → 打鍵はペインに行く（隠れた一覧ではなく）。最大化はペインにキーを渡す —— 見えない一覧は、キーを向ける先ではないので — *Maximise from the **list** side, then type → The keystrokes go to the pane, not to the hidden list. Maximising hands the pane the keys, because a list nobody can see is not somewhere to aim them*
+- [x] **1.27** TUI を走らせた状態のペインの中から、もう一度 `<C-S-Enter>` → 3 分の 1 に戻る。**ターミナルがキーを持っている間に効くこと**が要点 —— TUI はまさにその状態を作るし、この機能が要るのもそこだけ — *`<C-S-Enter>` again, from inside the pane, with a TUI running in it → Back to a third. The key has to work **while the terminal holds the keys** — that is the state a TUI puts you in, and the only one where this matters*
+- [x] **1.28** **一覧側**から最大化して、何か打つ → 打鍵はペインに行く（隠れた一覧ではなく）。最大化はペインにキーを渡す —— 見えない一覧は、キーを向ける先ではないので — *Maximise from the **list** side, then type → The keystrokes go to the pane, not to the hidden list. Maximising hands the pane the keys, because a list nobody can see is not somewhere to aim them*
 - [x] **1.29** 最大化してから `<C-t>` → キーが一覧に戻り、**同時にペインも 3 分の 1 に戻る**。1 回の押下で両方。ペインから出ることと窓を返すことは同じ意図 — *Maximise, then `<C-t>` → The keys go back to the list **and the pane returns to a third** in one press. Leaving the pane and giving the window back are the same intent*
 - [ ] **1.30** 最大化してから `<C-S-t>`（シェルを終わらせる） → ペインが消え、一覧が全高で描かれる（隙間の下に押し込まれない）。ペインの無い最大化が残らないこと — *Maximise, then `<C-S-t>` (end the shell) → The pane goes, and the list is drawn full height rather than under a gap. Nothing is left maximised with no pane in it*
 - [x] **1.31** ペインで `lazygit` → `?` でキー一覧を開く → `Esc`（v0.48.6） → **一覧が閉じる。**v0.48.6 までは何度押しても閉じなかった（gh-dash など tcell のプログラムすべて同じ）。Windows Terminal が対照で、あちらでは最初から閉じる — *In the pane, `lazygit`, then `?` to open its key list, then `Esc` (v0.48.6) → **The list closes.** Until v0.48.6 it never did, however often `Esc` was pressed — the same in gh-dash, or any tcell program. Windows Terminal is the control: it has always closed there*

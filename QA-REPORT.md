@@ -1793,3 +1793,67 @@ Windows のセッション（`.claude/windows-role.md`）から。上の節（0.
   証拠になる）。
 - `filer.exe --version` はパイプに何も出さない（GUI サブシステム、上の節の `filer env` と同じ）。
   版は exe のファイルバージョン `0.47.36` とビルド時刻（HEAD ac1a34c より後）で確かめた。
+
+## TESTING.md section 1 — v0.48.1 と最大化の答え合わせ（51e6fb0 / 0.49.1）
+
+Windows のセッション（`.claude/windows-role.md`）から。担当は 1.22 / 1.23 / 1.27 / 1.28 / 1.30。
+実機の release ビルド（0.49.1、51e6fb0）に `scripts\fetch-conpty.ps1` で同梱の ConPTY
+（1.24.260710001）を置いて動かした。ペインの親子は `OpenConsole.exe` → シェルで、同梱の
+ConPTY が使われている。設定は `R:\Temp\t1bcfg` に隔離、画面は 150%（dpi 144）、窓は
+クライアント 2040 x 1290。生の出力・スクリプト・キャプチャは `C:\dev\filer-evidence\1d\` にある。
+
+**1.22 / 1.23 / 1.27 / 1.28 にチェックを付けた。1.30 は測った値だけで、チェックは付けていない。**
+新しい不具合は見つからなかった。
+
+| 行 | やったこと | 読んだもの |
+| --- | --- | --- |
+| 1.22 | `[term] shell = "C:/Program Files/Git/bin/bash.exe"`（`--noprofile --norc -i`）。fixtures の直下でペインを開き、`<C-t>` で一覧に戻して `l` で `repo` へ | filer が打った行は `cd 'R:\Temp\filer-fixtures\repo'`、エラーは出なかった。続けて `pwd > /r/Temp/t1d/w122.txt` を実行 → **`/r/Temp/filer-fixtures/repo`**（`w122.txt`、`s22.txt`） |
+| 1.23 | 同じシェルで `h` で fixtures の直下へ戻り、`notes.md` の上で `f() { echo "n=$#"; printf "[%s]\n" "$@" \| tee …; ls -l -- "$@"; }; f ` と打ってから `<A-t>` | **Enter の前に**ドラッグで読んだ行の末尾が `'R:\Temp\filer-fixtures\notes.md'`。Enter で `n=1`、`[R:\Temp\filer-fixtures\notes.md]`、`ls -l` がファイルを見つけた（`w123.txt`、`s22.txt`） |
+| 1.28 | pwsh のペインを開いて `<C-t>` で一覧に戻し、**一覧側から** `<C-S-Enter>`、そのまま `echo W128 > R:\Temp\w128.txt` と Enter | `R:\Temp\w128.txt` ができて中身は `W128`。打鍵がペインのシェルに届いた証拠 |
+| 1.27 | 最大化したまま `lazygit`、プロセスに `lazygit.exe` がいる状態でペインの中から `<C-S-Enter>`、`q` で抜ける | 行数は下の表。`<C-S-Enter>` の**直前と直後**の両方で `lazygit.exe` が pwsh の子にいた。つまり TUI がキーを持っている間に押している |
+| 1.30 | もう一度最大化して `<C-S-t>`、`<C-t>` で開き直す | `<C-S-t>` の後、filer の子プロセスは空（シェルが終わった）。開き直した後は 12 行 |
+
+`$Host.UI.RawUI.WindowSize.Height` をペインの pwsh からファイルに書いた値:
+
+| 時点 | 行数 |
+| --- | --- |
+| 通常（開いた直後） | 12 |
+| 一覧側から最大化（1.28） | 35 |
+| 最大化のまま lazygit → ペインから `<C-S-Enter>` → `q` の後（1.27） | **12** |
+| ペインから再び最大化 | 35 |
+| `<C-S-t>` → `<C-t>` で開き直した後（1.30） | **12** |
+
+- 1.27 は 3 つ目が 1 つ目と同じなので、lazygit が動いている間の `<C-S-Enter>` で 3 分の 1 に
+  戻っている。`q` のほうに窓を戻す働きは無いので、戻したのはこの 1 回の押下。
+- 1.28 は「隠れた一覧**ではなく**」の側を直接には見ていない。見たのは、打鍵がペインに**届いた**ことだけ。
+  キーの行き先は `term_focus` の 1 つだけで決まるので、両方に届くことは無いと読んだ。
+- **1.30 はチェックしていない。**「最大化が残らない」の半分は、開き直した後の 12 行
+  （最大化の 35 行ではない）で示せた。**「一覧が全高で描かれる」の半分は見た目**なので
+  オーナーの判断に残す。`<C-S-t>` の直後の画面は `shots\f-closed.png`。
+- 1.27 の lazygit 実行中の画面は `shots\c-lazygit-max.png`（最大化中）と
+  `shots\d-lazygit-after-cse.png`（`<C-S-Enter>` の後）。見た目の判定はしていない。
+
+### `a_send_does_not_disturb_what_is_yanked` が 1 回だけ落ちた
+
+- 準備の 1 回目の `cargo test`（TEMP = `R:\Temp`）で
+  `app::send_pane_and_the_register::a_send_does_not_disturb_what_is_yanked` が
+  `src\app.rs:6134:69` で panic した（`Entry::from_path(sent.clone()).unwrap()`）。
+  すぐ回し直すと 492 件すべて通り、再現しなかった。
+- 同じ時刻に `cargo build --release` と `fetch-conpty.ps1` を並べて走らせていた。
+  この機械では他の Claude Code のセッションも複数動いていた。
+- このテストは一時ディレクトリを `std::env::temp_dir().join("filer-send-pane")` と**手で組んでいる**。
+  CLAUDE.md の「`util::test_dir("ラベル")` を使う」に反していて、同名のディレクトリは
+  プロセスを跨いで共有される。ほかに `filer-spot-follow`（`app.rs:5864`）、
+  `filer-follow-msg`（`app.rs:6180`）、`filer-parent-click`（`ui/mod.rs:1220`）も同じ形。
+  原因だとは確かめていない。**直していない**（QA の書ける範囲ではあるが、このセッションの担当外）。
+
+### ハーネスについて
+
+- **1 回目の通しで filer が起動直後に消えた。**`Geo` が dpi 144 を返した（窓はあった）直後、
+  まだ何もキーを送っていない時点で、窓が見つからなくなった。その間にしたのは
+  `& filer.exe --version` だけ。同じ手順を切り出した `vcheck.ps1` では消えず
+  （`vcheck.txt`）、2 回目の通しも最後まで同じ pid だったので、**不具合としては報告しない。**
+  なお `& filer.exe --version` をパイプで受けると何も出ない（原因は調べていない）。
+  版は 51e6fb0 の `Cargo.toml`（0.49.1）で見ている。
+- 高さを測るヘルパーを `H` と名付けたら、PowerShell の既定エイリアス（`Get-History`）に負けた。
+  関数よりエイリアスが先に解決される。`Hgt` に変えた。
