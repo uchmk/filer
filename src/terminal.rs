@@ -178,6 +178,28 @@ pub fn win32_key(vk: u16, scan: u16, ch: u16, mods: Mods) -> Vec<u8> {
     format!("\x1b[{vk};{scan};{ch};1;{state};1_").into_bytes()
 }
 
+/// The bytes for a reply the terminal owes a program -- a device attributes
+/// report, a mode report, a cursor position.
+///
+/// EXPERIMENT (Windows): as press-only win32-input-mode records, one per
+/// character, rather than as text. ConPTY attaches a release record carrying a
+/// virtual key to every character it is given as text (`scripts/keyprobe.ps1`
+/// shows `up vk= 65` after an `a`). A single typed key survives that, but a
+/// reply is a sequence, and tcell folds each release into the same stream as
+/// `ESC [ ... _`, so `ESC [ ? 9001 ; 0 $ y` arrives cut to pieces and its last
+/// `y` is read as a key press -- lazygit's copy menu, opening at startup.
+/// Records with no virtual key and no release reach the program as the bare
+/// characters, in order.
+fn reply_bytes(text: &str) -> Vec<u8> {
+    if cfg!(windows) { win32_text(text) } else { text.as_bytes().to_vec() }
+}
+
+/// `text` as press-only win32-input-mode records, one per UTF-16 unit, with no
+/// virtual key or scan code -- the shape ConPTY hands on as the bare character.
+pub fn win32_text(text: &str) -> Vec<u8> {
+    text.encode_utf16().flat_map(|u| win32_key(0, 0, u, Mods::default())).collect()
+}
+
 /// Pull the directories out of any OSC 7 sequences in `chunk`.
 ///
 /// The shape is `ESC ] 7 ; file://host/path` closed by BEL or ST (`ESC \`).
@@ -395,7 +417,7 @@ impl Terminal {
                 PtyEvent::ClipboardStore(_, text) => clipboard.push(text),
                 // A program answering a query writes back through the same
                 // pipe it would if the user had typed it.
-                PtyEvent::PtyWrite(text) => self.send(text.into_bytes()),
+                PtyEvent::PtyWrite(text) => self.send(reply_bytes(&text)),
                 PtyEvent::Exit | PtyEvent::ChildExit(_) => self.exited = true,
                 _ => {}
             }
@@ -1346,6 +1368,18 @@ mod tests {
         let ctrl_alt = Mods { ctrl: true, alt: true, ..Default::default() };
         assert_eq!(s(win32_key(0x1b, 1, 0x1b, shift)), "\x1b[27;1;27;1;16;1_");
         assert_eq!(s(win32_key(0x1b, 1, 0x1b, ctrl_alt)), "\x1b[27;1;27;1;10;1_");
+    }
+
+    /// A reply goes as one press-only record per character: no virtual key, no
+    /// scan code, no release. Any release in there is what cut replies apart.
+    #[test]
+    fn a_reply_goes_as_bare_character_presses() {
+        let out = String::from_utf8(win32_text("\x1b[?1c")).unwrap();
+        assert_eq!(
+            out,
+            "\x1b[0;0;27;1;0;1_\x1b[0;0;91;1;0;1_\x1b[0;0;63;1;0;1_\x1b[0;0;49;1;0;1_\x1b[0;0;99;1;0;1_"
+        );
+        assert!(!out.contains(";0;0;1_"), "no release record anywhere");
     }
 
     /// A path reaches the shell as one word -- in the form *that* shell reads.
