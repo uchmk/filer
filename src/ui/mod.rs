@@ -108,16 +108,18 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
     // full-screen program: gh-dash drew its own split panes inside 35% of the
     // height and there was nowhere to put them.
     //
-    // Even maximised it stops two rows short. Not out of taste: `body` is built
-    // downwards from the header, so a pane tall enough to pass the status bar
-    // inverts that rectangle.
-    let term_h = match app.term.is_some() {
-        true => {
-            let want = if app.max_term { 1.0 } else { 0.35 };
-            let floor = row_h * if app.max_term { 2.0 } else { 6.0 };
-            (full.height() * want).clamp(row_h * 4.0, full.height() - header_h - status_h - floor)
-        }
-        false => 0.0,
+    // Maximised, it goes all the way to the top: the header and the list are
+    // not drawn at all, rather than squeezed to a sliver. A sliver is worse than
+    // nothing -- it costs the pane rows and shows too little to read.
+    //
+    // The status bar stays. It is one row, and it is what says filer is still
+    // here rather than that a terminal has taken the window.
+    let maxed = app.term.is_some() && app.max_term;
+    let term_h = match (app.term.is_some(), maxed) {
+        (_, true) => full.height() - status_h,
+        (true, false) => (full.height() * 0.35)
+            .clamp(row_h * 4.0, full.height() - header_h - status_h - row_h * 6.0),
+        (false, _) => 0.0,
     };
     let bottom_extra = which_h + input_h + term_h;
     let body = Rect::from_min_max(
@@ -125,8 +127,12 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
         egui::pos2(full.right(), status.top() - bottom_extra),
     );
 
-    draw_header(app, ui, header, &f, row_h);
-    draw_body(app, ui, body, &f, row_h, &mut queued);
+    // Skipped rather than drawn into an inverted rectangle: `body` is built
+    // downwards from the header, so at this height its bottom is above its top.
+    if !maxed {
+        draw_header(app, ui, header, &f, row_h);
+        draw_body(app, ui, body, &f, row_h, &mut queued);
+    }
     if term_h > 0.0 {
         let r = Rect::from_min_size(
             egui::pos2(full.left(), status.top() - bottom_extra),

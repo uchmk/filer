@@ -2428,7 +2428,18 @@ impl App {
 
             // Nothing to maximise without a pane, and leaving the flag set
             // would surprise whoever opens one next.
-            Act::MaxTerm => self.max_term = self.term.is_some() && !self.max_term,
+            //
+            // Maximising also hands the pane the keys. Pressed from the list,
+            // it otherwise hides that list while leaving it holding them, so
+            // the next keystroke goes somewhere off screen. Tying the two
+            // together means maximised always implies the pane has the keys --
+            // which is what makes leaving the pane the only way back.
+            Act::MaxTerm => {
+                self.max_term = self.term.is_some() && !self.max_term;
+                if self.max_term {
+                    self.term_focus = true;
+                }
+            }
 
             Act::MaxPreview => {
                 self.max_preview = !self.max_preview;
@@ -2655,14 +2666,6 @@ impl App {
         // Only for a bare `escape`; `escape --filter` and friends stay targeted.
         if all && self.max_preview {
             self.max_preview = false;
-            return;
-        }
-        // The same reasoning as `max_preview` above: a maximised pane hides the
-        // list, and `Esc` is what everyone tries first to get it back. This only
-        // runs when the list holds the keys -- inside the pane `Esc` belongs to
-        // the shell, and `<C-S-Enter>` is the way back.
-        if all && self.max_term {
-            self.max_term = false;
             return;
         }
         if (all || what.search) && self.in_search_view() {
@@ -3993,6 +3996,7 @@ impl App {
             // Dropping it sends the shell its shutdown.
             self.term = None;
             self.term_focus = false;
+            self.max_term = false;
             return;
         }
         if self.term.is_some() {
@@ -4125,6 +4129,7 @@ impl App {
         if term.exited {
             self.term = None;
             self.term_focus = false;
+            self.max_term = false;
             self.toast("The shell exited");
             return;
         }
@@ -4160,7 +4165,16 @@ impl App {
             }
             for a in acts {
                 match a {
-                    Act::Close | Act::Escape(_) => self.term_focus = false,
+                    // Leaving the pane un-maximises it. A maximised pane is
+                    // only of use while you are looking at it -- handing the
+                    // keys back to a list that is not on screen leaves nothing
+                    // to aim them at -- so "get out of the pane" and "give the
+                    // window back" are in practice the same intent, and this
+                    // spends one key on both rather than two.
+                    Act::Close | Act::Escape(_) => {
+                        self.term_focus = false;
+                        self.max_term = false;
+                    }
                     other => self.act(other),
                 }
             }
@@ -6429,26 +6443,43 @@ mod escape_and_max_preview {
         assert!(!a.max_preview, "`Esc` has to be a way out of this");
     }
 
-    /// The maximised pane needs the same way out, and must not claim one it
-    /// cannot honour.
+    /// Maximising is not offered where it cannot be honoured, and it never
+    /// leaves the keys somewhere off screen.
     ///
-    /// `Esc` here is the list's, not the shell's: inside the pane every key but
-    /// the bound ones goes to the program running there, so a TUI keeps its own
-    /// `Esc` and `<C-S-Enter>` is the way back. This only covers the case where
-    /// the keys came back to the list with the pane still filling the window.
+    /// `Esc` is deliberately *not* a way out of this one, unlike the maximised
+    /// preview above. Inside the pane it belongs to the shell -- a TUI wants its
+    /// own -- and outside the pane this state cannot arise, because maximising
+    /// gives the pane the keys and every way out of the pane restores the size.
     #[test]
-    fn a_bare_escape_also_restores_the_pane() {
-        let mut a = app();
-        a.max_term = true;
-        a.escape(EscapeWhat::default());
-        assert!(!a.max_term, "`Esc` has to be a way out of this too");
-
-        // Toggling with no pane open must not arm it: the flag would then be
-        // set for whoever opens one next, and nothing on screen said so.
+    fn maximising_the_pane_takes_the_keys_with_it() {
+        // No pane: nothing happens, and nothing is remembered for the next one.
         let mut a = app();
         assert!(a.term.is_none(), "no pane in a fresh app");
         a.act(Act::MaxTerm);
-        assert!(!a.max_term, "nothing to maximise, so nothing is remembered");
+        assert!(!a.max_term, "nothing to maximise, so nothing is armed");
+        assert!(!a.term_focus, "and no keys are sent anywhere");
+    }
+
+    /// Leaving the pane hands the window back, by every route out of it.
+    ///
+    /// `<C-t>` is the one anybody presses; the other two are the pane going
+    /// away underneath a maximised flag, which would otherwise be waiting for
+    /// whoever opens the next one.
+    #[test]
+    fn leaving_the_pane_un_maximises_it() {
+        // `<C-t>` from inside: `close` on the terminal keymap.
+        let mut a = app();
+        a.max_term = true;
+        a.term_focus = true;
+        a.feed_term_key(crate::config::keys::Key::ctrl('t'), None);
+        assert!(!a.term_focus, "the keys go back to the list");
+        assert!(!a.max_term, "and the window with them");
+
+        // The shell was told to go: `terminal close`.
+        let mut a = app();
+        a.max_term = true;
+        a.act(Act::Terminal(Some(false)));
+        assert!(!a.max_term, "no pane left to be maximised");
     }
 
     /// `escape --filter` is aimed at one thing and must stay aimed at it.
