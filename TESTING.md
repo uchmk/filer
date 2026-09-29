@@ -672,6 +672,8 @@ Run from a shell, not from inside the app.
 | 25.8 | Open filer once, quit, then `filer env` (v0.29.0) | A **Last run** section: the adapter with its backend and device type, and every font file that was loaded |
 | 25.9 | On a fresh machine, `filer env` **before** ever opening filer | `not recorded — filer has not opened a window on this machine yet`, not an empty section |
 | 25.10 | Name a different font in `filer.toml`, `<C-F5>`, then `filer env` again | The new file is listed; the reload updates the record |
+| 25.8a | Open filer, quit, `filer env`, and check the **Window** row against the screen (v0.47.33) | The pixels are the window you can see, and `pt x scale` multiplies out to them. **This is the row that settles a DPI argument** — what a script measures with `GetClientRect`, or a `PrintWindow` capture, depends on the DPI awareness of whatever did the measuring, and can disagree with the window while looking right |
+| 25.8b | On a display at 150%, open filer, quit, then `filer env` | The Window row reads e.g. `2040 x 1290 px (1360 x 860 pt @ 1.5)` — the pixels are half again the points, and **nothing is cut off the right or bottom edge of the window** |
 | 25.11 | With no bold face anywhere | `none found; bold is faked by overstriking` — the bold list is separate from the regular one on purpose |
 | 25.12 | An opener starting with `start` (the default-app one) | **`built into cmd`**, not `not found`. It is one of `cmd`'s own commands and is never a file on the `PATH`, so the lookup every other row uses cannot see it (v0.33.12) |
 | 25.13 | `<Enter>` on a file whose rule uses that opener | It really does open — the row and the behaviour agree |
