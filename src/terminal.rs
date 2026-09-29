@@ -289,6 +289,9 @@ pub struct Terminal {
     size: Size,
     /// Where the shell was last told to go, so it is not told twice.
     followed: Option<PathBuf>,
+    /// How to quote a word for the shell that was actually started, decided
+    /// once at `spawn` because that is where the program's name is known.
+    quoting: Quoting,
     cwd_rx: Receiver<PathBuf>,
     /// Where the last search matched, so the next one carries on past it.
     found: Option<Point>,
@@ -308,6 +311,7 @@ impl Terminal {
         shell: Option<(String, Vec<String>)>,
         wake: impl Fn() + Send + Sync + 'static,
     ) -> io::Result<Self> {
+        let quoting = Quoting::for_shell(shell.as_ref().map(|(p, _)| p.as_str()));
         let options = tty::Options {
             // `None` is the platform default, which on Windows is
             // `powershell` -- Windows PowerShell 5.1, not `pwsh`. They read
@@ -344,6 +348,7 @@ impl Terminal {
             exited: false,
             size,
             followed: Some(cwd.to_path_buf()),
+            quoting,
             cwd_rx,
             found: None,
             shell_cwd: None,
@@ -512,8 +517,13 @@ impl Terminal {
         if self.shell_cwd.as_deref() == Some(cwd) {
             return;
         }
-        let quoted = quote(&cwd.to_string_lossy());
+        let quoted = quote(&cwd.to_string_lossy(), self.quoting);
         self.send(format!("cd {quoted}\r").into_bytes());
+    }
+
+    /// How a word has to be quoted for the shell in this pane.
+    pub fn quoting(&self) -> Quoting {
+        self.quoting
     }
 
     /// Run the terminal's own locked grid through `f`. Locking is the caller's
@@ -541,16 +551,84 @@ fn window_size(size: Size, cell: (u16, u16)) -> WindowSize {
     }
 }
 
+/// How the shell in the pane wants a word with something awkward in it.
+///
+/// They do not agree, and the one filer opens by default is the one that
+/// agrees least: this used to emit the POSIX form for everything, on a
+/// Windows-first program whose pane runs PowerShell unless told otherwise.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum Quoting {
+    /// `powershell`, `pwsh`. A single quote inside is **doubled**.
+    #[default]
+    PowerShell,
+    /// `bash`, `sh`, `zsh`, … A single quote inside is closed, escaped with a
+    /// backslash, and reopened.
+    Posix,
+    /// `cmd.exe`, where single quotes mean nothing at all -- they would be
+    /// handed to the program as part of the name. Double quotes are the
+    /// grouping, and a `"` inside a path is not legal on Windows anyway.
+    Cmd,
+}
+
+impl Quoting {
+    /// Work out the convention from what `[term] shell` names.
+    ///
+    /// An unknown shell on Windows is far likelier to be PowerShell-shaped
+    /// than POSIX-shaped, and elsewhere the reverse, so the platform decides
+    /// what the fallback is rather than one convention being assumed for all.
+    pub fn for_shell(program: Option<&str>) -> Self {
+        let Some(program) = program else {
+            // What `tty::Options { shell: None }` starts.
+            return if cfg!(windows) { Self::PowerShell } else { Self::Posix };
+        };
+        // Split on both separators by hand rather than through `Path`, which
+        // only knows the host's: `C:\\WINDOWS\\System32\\cmd.exe` is one long
+        // component on Linux, and this string comes out of a config file that
+        // may name either shape.
+        let name = program.rsplit(['/', '\\']).next().unwrap_or(program).to_ascii_lowercase();
+        let name = [".exe", ".cmd", ".bat"]
+            .iter()
+            .find_map(|x| name.strip_suffix(x))
+            .unwrap_or(&name)
+            .to_owned();
+        match name.as_str() {
+            "powershell" | "pwsh" => Self::PowerShell,
+            "cmd" => Self::Cmd,
+            "bash" | "sh" | "zsh" | "dash" | "ksh" | "fish" => Self::Posix,
+            _ => {
+                if cfg!(windows) {
+                    Self::PowerShell
+                } else {
+                    Self::Posix
+                }
+            }
+        }
+    }
+}
+
 /// Wrap a path for a shell that is about to read it as one word.
 ///
-/// Single quotes are the only form every POSIX shell agrees on, and PowerShell
-/// reads them the same way; a single quote inside is closed, escaped and
-/// reopened, which both understand.
-pub fn quote(s: &str) -> String {
+/// Until v0.47.34 this wrote the POSIX form whatever the shell was, and said
+/// in its own doc comment that PowerShell read it the same way. It does not:
+/// PowerShell doubles a single quote inside single quotes, and reads the
+/// POSIX `'\''` as a closed string followed by a stray backslash and an
+/// unterminated one. Section 1 on the Windows machine found the pane sitting
+/// at the `>>` continuation prompt after `<A-t>` on a file with a quote in its
+/// name -- and getting out of that with `<C-c>` used to quit filer.
+pub fn quote(s: &str, how: Quoting) -> String {
+    // `'` is deliberately not in the safe set: cmd leaves it alone, but the
+    // other two do not, and a name that needs no quotes in one shell still has
+    // to come out right in the others.
     if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || "_-./:\\".contains(c)) {
         return s.to_owned();
     }
-    format!("'{}'", s.replace('\'', r"'\''"))
+    match how {
+        Quoting::PowerShell => format!("'{}'", s.replace('\'', "''")),
+        Quoting::Posix => format!("'{}'", s.replace('\'', r"'\''")),
+        // Nothing to escape: a `"` cannot be in a Windows path, and `'` is an
+        // ordinary character here.
+        Quoting::Cmd => format!("\"{s}\""),
+    }
 }
 
 /// The keys a terminal wants that are not text.
@@ -1210,15 +1288,58 @@ mod tests {
         assert_eq!(bracket("", true), Vec::<u8>::new());
     }
 
+    /// A path reaches the shell as one word -- in the form *that* shell reads.
+    ///
+    /// The single quote is the whole point. This test used to assert the POSIX
+    /// escape for every shell, which is how the bug survived: PowerShell reads
+    /// `'it'\''s'` as the string `it`, a stray backslash, and an unterminated
+    /// string, and sits at `>>` waiting for the rest.
     #[test]
     fn a_path_reaches_the_shell_as_one_word() {
-        assert_eq!(quote("/home/user/src"), "/home/user/src");
-        assert_eq!(quote(r"C:\dev\filer"), r"C:\dev\filer");
+        use Quoting::*;
+        // Nothing awkward in it, so nothing is added, whatever the shell.
+        for how in [PowerShell, Posix, Cmd] {
+            assert_eq!(quote("/home/user/src", how), "/home/user/src", "{how:?}");
+            assert_eq!(quote(r"C:\dev\filer", how), r"C:\dev\filer", "{how:?}");
+        }
+
         // A space would split it in two without the quotes.
-        assert_eq!(quote("/a b/c"), "'/a b/c'");
-        // A quote inside is closed, escaped and reopened.
-        assert_eq!(quote("it's"), r"'it'\''s'");
-        assert_eq!(quote(""), "''");
+        assert_eq!(quote("/a b/c", PowerShell), "'/a b/c'");
+        assert_eq!(quote("/a b/c", Posix), "'/a b/c'");
+        assert_eq!(quote("/a b/c", Cmd), "\"/a b/c\"");
+
+        // The one they disagree about.
+        assert_eq!(quote("it's", PowerShell), "'it''s'", "doubled, not escaped");
+        assert_eq!(quote("it's", Posix), r"'it'\''s'");
+        // cmd does not treat `'` as anything, so it needs no help at all.
+        assert_eq!(quote("it's", Cmd), "\"it's\"");
+
+        assert_eq!(quote("", PowerShell), "''");
+        assert_eq!(quote("", Posix), "''");
+        assert_eq!(quote("", Cmd), "\"\"");
+    }
+
+    /// What `[term] shell` names decides the convention, and the fallback is
+    /// the platform's rather than one convention for everybody.
+    #[test]
+    fn the_shells_name_picks_the_quoting() {
+        let native = if cfg!(windows) { Quoting::PowerShell } else { Quoting::Posix };
+        // `None` is what `tty::Options` starts by default.
+        assert_eq!(Quoting::for_shell(None), native, "the platform default shell");
+
+        assert_eq!(Quoting::for_shell(Some("powershell")), Quoting::PowerShell);
+        assert_eq!(Quoting::for_shell(Some("pwsh")), Quoting::PowerShell);
+        assert_eq!(Quoting::for_shell(Some("cmd")), Quoting::Cmd);
+        assert_eq!(Quoting::for_shell(Some("bash")), Quoting::Posix);
+        assert_eq!(Quoting::for_shell(Some("zsh")), Quoting::Posix);
+
+        // A full path, and the case Windows writes it in.
+        assert_eq!(Quoting::for_shell(Some(r"C:\WINDOWS\System32\cmd.exe")), Quoting::Cmd);
+        assert_eq!(Quoting::for_shell(Some(r"C:\Program Files\PowerShell\7\pwsh.exe")), Quoting::PowerShell);
+        assert_eq!(Quoting::for_shell(Some("/usr/bin/bash")), Quoting::Posix);
+
+        // Something nobody listed: guess by platform rather than by habit.
+        assert_eq!(Quoting::for_shell(Some("nushell")), native);
     }
 }
 

@@ -4016,8 +4016,9 @@ impl App {
             self.error("The terminal is not open");
             return;
         };
+        let how = term.quoting();
         let line: Vec<String> =
-            paths.iter().map(|p| crate::terminal::quote(&p.to_string_lossy())).collect();
+            paths.iter().map(|p| crate::terminal::quote(&p.to_string_lossy(), how)).collect();
         term.send(format!(" {}", line.join(" ")).into_bytes());
         self.term_focus = true;
     }
