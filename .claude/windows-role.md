@@ -28,19 +28,36 @@ So everything below has been written from the source and never once run:
 - **Use the tools the checklist names**: `fsutil`, `winver`, `$PSVersionTable`,
   `where`, `Get-FileHash`.
 
-## What you still cannot do, and must not pretend to
+## Measure before you call it a look
 
-**TESTING.md is a checklist for a person, and most of it stays that way.** The
-rows that need eyes need eyes:
+**The owner wants as little left for a person as possible.** So before you put a
+row down as an appearance row, look for something that can be *read* in its
+place. Most rows that sound like looks have one:
+
+| The row says | What you can read instead |
+| --- | --- |
+| the list went somewhere | the window title: `(Get-Process filer).MainWindowTitle` |
+| the cursor landed on a row | `c` `f` on it, then `Get-Clipboard` |
+| keys reached the pane, not the list | type a command that **creates a file**; it exists only if they did |
+| the pane is a third / the whole window | `$Host.UI.RawUI.WindowSize.Height` in the pane |
+| the list is drawn full height | from the top of `many\`, `<C-f>` then `c` `f`: a page move is as many rows as the list shows, so the file it lands on measures the list |
+| no crash, no hang, the walk stopped | `Get-Process filer` -- still there, and its CPU time no longer rising |
+| nothing leaves the machine | Windows Firewall rules blocking `filer.exe` and `git.exe` outbound (needs elevation; delete them afterwards), then the same output at the same speed. Without elevation, `Get-NetTCPConnection` / `Get-NetUDPEndpoint` for filer and its children as supporting evidence |
+| what the pane and a program in it said to each other | `FILER_PTY_LOG`, and `scripts\keyprobe.ps1` in the pane |
+| a click, a hover, the pointer | `SendInput` for the mouse, `GetCursorInfo` for the cursor shape, through `Add-Type` |
+
+Reading text off a screenshot is reading text -- a `~` in a column, a count in a
+footer. Taking a screenshot is always fine, and one is worth attaching.
+
+What stays a look after all that is a judgement, and those are the owner's:
 
 - whether a colour *reads as* yellow against a light theme
 - whether a 3px bar beside a row is noticeable at all
 - whether text is "clipped", "stretched", "overlapping" or "smooth"
 - whether a drag felt continuous
-- whether a layout is *wrong* rather than merely present
 
-You can screenshot these. **You cannot judge them**, and a screenshot you
-describe is not a check that passed. Say what you saw and leave the row alone.
+When you leave a row for that reason, **say which proxy you tried and why it
+could not carry the claim.** "It is visual" on its own is not a reason any more.
 
 ## Ticking TESTING-CHECKS.md
 
@@ -79,14 +96,18 @@ still on the human's list when it was written.
 
 | Section | Rows | Why it suits you |
 | --- | --- | --- |
-| ~~**25. `filer env`**~~ | ~~19~~ | **Done** (v0.47.25): 15 ticked, 4 left that need ARM, no bold face anywhere, or eyes |
-| **41. spot panel providers** | 14 | Archive counts, encodings, architectures -- all values, not looks. 41.8 is the six release binaries, which is the only check the cross-builds have ever had. Skip 41.12 (appearance) |
-| **35. config paths per platform** | 10 | Same tools as 25, already proven. Other platforms' rows are not yours |
-| **32 / 37. openers** | 20 | Did the right program start, with the path intact as one argument. 25.13's window-title check is the pattern. Close what you open |
-| **21. archives** | 9 | Pack, unpack, then look at what is on disk -- `Get-ChildItem -Recurse` is the evidence |
-| **8. which shell the pane runs** | 7 | `$PSVersionTable`, `$PROFILE` -- strings. Small, but **ConPTY is code a cloud session cannot run a line of** |
-| **26. bug report** | 10 | Compare filer's version and OS lines against `filer --version` and `winver` |
-| **13 / 15. links** | ~8 | `fsutil hardlink list`, `New-Item -ItemType SymbolicLink` |
+| **46. spot's Git section** | 46.12–46.16 | `Came in via` / `From branch` are values -- copy them with `y` and read the clipboard. 46.15 needs a commit on an unmerged branch: make it in a throwaway clone under `R:\Temp`, never in the real checkout. 46.16 cannot be done by turning the network off -- that cuts your own session -- so block `filer.exe` and `git.exe` outbound in Windows Firewall instead (see the table above), and remove the rules when done |
+| **1. the terminal pane** | 1.22, 1.23, 1.27, 1.28, 1.30 | Git Bash's full path for 1.22 / 1.23 (`bash` alone is WSL); `pwd` and the typed line are the evidence. The maximise rows look like appearance rows and need not be: measure the pane with `$Host.UI.RawUI.WindowSize.Height`, and for 1.28 type a command that **creates a file** -- it exists only if the keys reached the pane. 1.30's "list drawn full height" half is a page move from the top of `many\\`: compare the file `<C-f>` lands on before and after |
+| **12. undo and redo** | 10 | Every expectation is a file state: in the recycle bin, back at its path, under its old name |
+| **45. comparing two folders** | 9 | You build both trees, so every `<` `>` `~` `=` and each footer count is known in advance. 45.7's 64 MB files come from `fsutil file createnew` |
+| **44. disk usage** | 13 | Totals against `Get-ChildItem -Recurse -Force \| Measure-Object Length -Sum`; "the walk stops" against the process's CPU time from `Get-Process` |
+| **29. the terminal's directory, brought back** | 5 | Where the list went reads off the window title (`(Get-Process filer).MainWindowTitle`). OSC 7 through ConPTY -- nobody else can run it |
+| **28. changes made from outside** | 7 | "No crash" is the process still being there; where the cursor landed is `y` on the hovered row |
+| **7. the config paths in the help panel** | 8 | The listed directories are text, and `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` move them. 7.2 and 7.3 are the pointer and a highlight -- looks, skip them |
+
+Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26 and 13 / 15.
+Rows still open there were left by those runs on purpose -- ARM, another platform, or eyes -- so
+read that section's entry in QA-REPORT.md before taking one.
 
 **One section per run, and one session at a time.** On 2026-09-28 two sessions
 ran section 25 in the same working directory at once. It came out as an
@@ -96,6 +117,33 @@ luck, not the design, and they were a commit away from fighting over the index.
 The rest -- the terminal pane's drawing, the minimap's shape, the wheel's feel,
 the image zoom's sharpness -- is the owner's, and saying so plainly is more
 useful than a thin test.
+
+## Proposals: say what should change
+
+You are the one session that *uses* filer rather than reading it, and the owner
+wants to hear what that is like. **Every run ends with proposals** -- things that
+should work differently, not only things that are broken. Be direct: "this
+should", "this would be better if", "this gets in the way". An opinion you can
+ground in something you just did is worth more than a hedged one.
+
+Write them in `QA-REPORT.md`, under a `### Proposals` heading inside your run's
+section, and count them in the pull request body. For each:
+
+- **What you ran into**: the steps, and what happened. It must come from this
+  run -- a proposal nobody can reproduce is a wish.
+- **What should change**, concretely: the key, the message, the default, the
+  layout.
+- **Why**: what it costs now, and who it would help.
+- **How big** you think it is: a line, a function, a design question.
+
+Anything goes -- a confusing message, a key that fights another program, a
+default that was wrong for you, a step that took three keys and should take one,
+a feature filer lacks that you reached for. Bugs still go in the report as bugs;
+this is for the things that work as written and should not.
+
+**Do not implement them.** The session that merges your pull request turns the
+ones worth doing into TODO.md tasks, or into QUESTIONS.md when there is a choice
+for the owner to make.
 
 ## How to work
 
@@ -113,6 +161,11 @@ $env:TEMP = 'R:\Temp'; $env:TMP = 'R:\Temp'
 
 cargo build --release --manifest-path C:\dev\filer\Cargo.toml
 cargo test   --manifest-path C:\dev\filer\Cargo.toml
+
+# The newer ConPTY the Windows release ships beside filer.exe (since v0.49.0).
+# Without it the terminal pane runs on the one built into Windows, which breaks
+# programs in the pane -- and you would be testing something nobody downloads.
+pwsh -File C:\dev\filer\scripts\fetch-conpty.ps1 -Dest C:\dev\filer\target\release
 ```
 
 - **One section per run.** Read it first and say which rows you can settle and

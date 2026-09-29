@@ -1276,5 +1276,5 @@ real repository with a history — this one will do.
 | 46.13 | Check `#<n>` against the pull request on GitHub | **The same number**, and the file is in that pull request's diff. The number is read out of the merge commit's subject — nothing is fetched, so this is the row that proves the subject is the source |
 | 46.14 | `<Tab>` on a file whose last commit was pushed **straight to `main`** | **No `Came in via` and no `From branch`** — the history rows only. A merge that merely came later must not be credited |
 | 46.15 | `<Tab>` on a file committed on the current branch and **not merged yet** | The same: history rows, no `Came in via`. It has not arrived anywhere to be asked about |
-| 46.16 | Pull the network cable (or turn off Wi-Fi) and repeat 46.12 | **Identical output, at the same speed.** Nothing here leaves the machine |
+| 46.16 | Pull the network cable, turn off Wi-Fi, or block `filer.exe` and `git.exe` outbound in Windows Firewall — then repeat 46.12 | **Identical output, at the same speed.** Nothing here leaves the machine. The firewall form is for a session on the machine, which the other two would cut off |
 
