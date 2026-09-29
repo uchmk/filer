@@ -1,6 +1,6 @@
 [package]
 name = "filer"
-version = "0.48.7"
+version = "0.48.8"
 edition = "2021"
 rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"

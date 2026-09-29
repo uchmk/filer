@@ -111,6 +111,13 @@ since a hidden list is nowhere to aim them, and **every way out of the pane rest
 `<C-t>` gives the keys back and the window with them, in one press. `q` and `Esc` cannot do this —
 binding them here would stop them reaching the shell, and a pane whose keys filer keeps is not a
 terminal.
+
+When a program in the pane misbehaves, two tools show what actually passed between them. Set
+`FILER_PTY_LOG` to a file path before starting filer, and every chunk crossing the pane's PTY is
+appended to it — what the shell side wrote (`out`), and what filer wrote back, split into `in key`,
+`in paste` and `in reply` (the terminal's own answers to a program's queries). `scripts/keyprobe.ps1`
+shows the other end: the console key records a program receives, read the way tcell reads them, and
+with `-Query` it sends tcell's startup queries and prints the replies as they arrive.
 `block = true` gets its own console window (so `nvim` works); everything else starts without one.
 Rule patterns take `*`, `?`, `[abc]` and `{jpg,png}`, which is what yazi's own rules are written
 with.
