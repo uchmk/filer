@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**93 / 362 済み。**（TESTING.md の全 518 件のうち、`cargo test` が見ている 156 件は
+**93 / 365 済み。**（TESTING.md の全 521 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -21,7 +21,7 @@
 キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、こちらは「1 つのキーでは
 確かめられない振る舞い」の側。
 
-## 1. ターミナルペイン — 16 / 30
+## 1. ターミナルペイン — 16 / 33
 
 準備:
 
@@ -60,6 +60,9 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **1.16** シェルで `cd` してから `<A-Up>` → 一覧がシェルのいる場所へ追従する — *`cd` somewhere in the shell, then `<A-Up>` → The file list follows to where the shell is*
 - [x] **1.17** 2 つ選んで `<A-t>` → パスが引用符付きでシェルの行に打ち込まれる。**実行はされない** — *Select two files, `<A-t>` → Their paths are typed onto the shell's line, quoted, **not run***
 - [x] **1.18** OSC 7 を報告するシェル（PowerShell 7、または `PROMPT_COMMAND` を設定した bash）で、一覧側のディレクトリを変える → シェルに余計な `cd` が打ち込まれない — *With a shell that reports OSC 7 (PowerShell 7, or bash with a `PROMPT_COMMAND`), change directory in the list → No stray `cd` is typed into the shell*
+- [ ] **1.19** ペインで時間のかかるもの（`sleep 30`）を走らせて `<C-c>` を押す（v0.47.34） → コマンドが止まってプロンプトが戻る。**filer は開いたまま。**v0.47.34 までは `[mgr]` の `close` が走り、タブが閉じ、最後の 1 枚なら filer ごと終了してシェルも道連れになっていた — *Run something slow in the pane (`sleep 30`) and press `<C-c>` (v0.47.34) → The command stops and the prompt comes back. **filer is still open** — until v0.47.34 this ran `[mgr]` `close`, so the tab went and the last one took filer and the shell with it*
+- [ ] **1.20** 名前に `'` を含むファイルで `<A-t>`、`[term] shell` で指定できる各シェルについて（v0.47.34）→ シェルが 1 語として読める形で入る。PowerShell なら `''` と重ね、bash なら `'\''`、cmd なら素の `"…"`。**`>>` の継続プロンプトにならない** — *`<A-t>` on a file with a `'` in its name, in each shell `[term] shell` can name (v0.47.34) → The line is one word the shell can read: `''` doubled for PowerShell, `'\''` for bash, plain `"…"` for cmd. **No `>>` continuation prompt***
+- [ ] **1.21** ペインを開いたまま、名前に `'` を含むディレクトリへ一覧を移動する（v0.47.34） → `cd` が通ってプロンプトが戻る。1.20 と同じ引用が、filer 自身が打つパスにも効いていること — *Walk the list into a directory with a `'` in its name, with the pane open (v0.47.34) → The `cd` lands and the prompt returns. The same quoting as 1.20, on the path filer types for itself*
 
 ## 2. ミニマップ — 0 / 10
 

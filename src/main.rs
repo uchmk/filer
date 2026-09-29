@@ -534,11 +534,21 @@ pub(crate) fn handle_input(app: &mut App, ctx: &egui::Context) {
             // egui-winit turns the clipboard chords into these events and never
             // emits the keypress, so `<C-c>` and friends would never reach the
             // keymap. Put the chord back while no text field is focused.
+            //
+            // Through `on_key_event` rather than `feed_key`, because the
+            // terminal is not an overlay: `Overlay::None` is still true while a
+            // shell has the keys, and feeding the keymap there ran `[mgr]`
+            // `close`. So `<C-c>` -- the one key everybody presses to stop a
+            // command -- closed the tab, and on the last one quit filer and
+            // took the shell with it. `on_key_event` is where the `term_focus`
+            // arm turns the chord into the control code the shell is waiting
+            // for, which `control_code` could already produce and nothing was
+            // reaching.
             egui::Event::Copy if matches!(app.overlay, Overlay::None) => {
-                app.feed_key(Key::ctrl('c'));
+                on_key_event(app, egui::Key::C, &chord_ctrl());
             }
             egui::Event::Cut if matches!(app.overlay, Overlay::None) => {
-                app.feed_key(Key::ctrl('x'));
+                on_key_event(app, egui::Key::X, &chord_ctrl());
             }
             // The terminal takes a paste as text for the shell; everywhere
             // else it is the yank register's `p`.
@@ -581,6 +591,15 @@ pub(crate) fn handle_input(app: &mut App, ctx: &egui::Context) {
             _ => {}
         }
     }
+}
+
+/// The modifiers a real `Ctrl`+letter arrives with, for the chords egui-winit
+/// swallows into `Copy` and `Cut` before any key event is made.
+///
+/// `command` alongside `ctrl` is how egui reports the press on Windows and
+/// Linux, and the terminal reads either.
+fn chord_ctrl() -> egui::Modifiers {
+    egui::Modifiers { ctrl: true, command: true, ..Default::default() }
 }
 
 fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {

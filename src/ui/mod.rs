@@ -4260,3 +4260,50 @@ mod csv_table_frame {
         );
     }
 }
+
+/// `<C-c>` while the shell has the keys is the shell's, not the keymap's.
+///
+/// egui-winit never emits a key event for the clipboard chords -- it turns them
+/// into `Copy` and `Cut` -- so filer puts the chord back by hand. It put it back
+/// into the keymap, guarded only on no overlay being open. The terminal is not
+/// an overlay, so with a shell focused `[mgr]` `close` ran: the tab closed, and
+/// on the last tab filer quit and took the shell with it.
+///
+/// Section 1 on the Windows machine found it the way anybody would -- by
+/// pressing the key that stops a running command.
+#[cfg(test)]
+mod terminal_chords {
+    use super::harness::Screen;
+
+    /// With the terminal focused, the chord must not reach `[mgr]`.
+    ///
+    /// `quit` is what the old path set, through `Act::Close` on a lone tab, so
+    /// it is the flag that says whether the bug is back. The shell receiving
+    /// `0x03` needs a pty and belongs to TESTING.md 1.19; what is asserted here
+    /// is the half that lost people's work.
+    #[test]
+    fn ctrl_c_with_the_shell_focused_does_not_close_the_tab() {
+        let mut s = Screen::open(crate::util::test_dir("term-chord-c"));
+        assert_eq!(s.app.tabs.len(), 1, "one tab, so `close` would quit");
+
+        s.app.term_focus = true;
+        s.feed(vec![egui::Event::Copy]);
+        assert!(!s.app.quit, "the shell's interrupt is not filer's `close`");
+        assert_eq!(s.app.tabs.len(), 1, "and no tab was closed");
+
+        // `Cut` is the same shape and was never checked; `<C-x>` is unbound in
+        // the default keymap today, which is luck rather than a guard.
+        s.feed(vec![egui::Event::Cut]);
+        assert!(!s.app.quit, "nor is `<C-x>`");
+    }
+
+    /// And with the list focused it still is the keymap's, which is the whole
+    /// reason the chord is put back at all.
+    #[test]
+    fn ctrl_c_with_the_list_focused_still_closes() {
+        let mut s = Screen::open(crate::util::test_dir("term-chord-list"));
+        assert!(!s.app.term_focus, "the list has the keys");
+        s.feed(vec![egui::Event::Copy]);
+        assert!(s.app.quit, "`<C-c>` is `close`, and this is the last tab");
+    }
+}
