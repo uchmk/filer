@@ -104,9 +104,13 @@ Honored: `[mgr]` (`ratio`, `sort_by`, `sort_reverse`, `sort_dir_first`, `sort_se
 Opener placeholders `$@`, `$0`, `%*`, `%0` and `%s` all expand to the selected paths.
 
 The terminal pane takes a third of the window, which suits a shell and is too little for a
-full-screen program. `<C-S-Enter>` (`term_max`, also `plugin toggle-pane max-term`) hands it the
-window and hands it back, and works while the terminal holds the keys — the state you are in when a
-TUI is running. From the list, `Esc` also restores it, as it does a maximized preview.
+full-screen program. `<C-S-Enter>` (`term_max`, also `plugin toggle-pane max-term`) gives it the
+window **to the top edge** — no header, no list, only the status bar below — and works while the
+terminal holds the keys, which is the state a TUI puts you in. Maximizing hands the pane the keys,
+since a hidden list is nowhere to aim them, and **every way out of the pane restores the size**:
+`<C-t>` gives the keys back and the window with them, in one press. `q` and `Esc` cannot do this —
+binding them here would stop them reaching the shell, and a pane whose keys filer keeps is not a
+terminal.
 `block = true` gets its own console window (so `nvim` works); everything else starts without one.
 Rule patterns take `*`, `?`, `[abc]` and `{jpg,png}`, which is what yazi's own rules are written
 with.

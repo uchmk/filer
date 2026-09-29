@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**96 / 377 済み。**（TESTING.md の全 533 件のうち、`cargo test` が見ている 156 件は
+**96 / 379 済み。**（TESTING.md の全 535 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -21,7 +21,7 @@
 キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、こちらは「1 つのキーでは
 確かめられない振る舞い」の側。
 
-## 1. ターミナルペイン — 19 / 40
+## 1. ターミナルペイン — 19 / 42
 
 準備:
 
@@ -67,9 +67,11 @@ cd $HOME\Desktop\filer-fixtures
 - [ ] **1.23** 同じシェルで、**普通の**名前のファイルに `<A-t>` → パスがバックスラッシュごとそのまま入る。1.22 と `quote()` を共有していて、これまで推定されただけで一度も押されていない — *The same shell, `<A-t>` on a file with an **ordinary** name (v0.48.1) → The path arrives whole, backslashes and all. This shares `quote()` with 1.22 and was only ever inferred from it, never pressed*
 - [ ] **1.24** ペインの中で全画面 TUI を走らせる（`gh dash`、または `lazygit`）（v0.48.2） → ちゃんと描ける。代替画面・色・罫線・TUI 自身の分割ペイン。**一度は見えている**ので、この行はそれを見続けるためのもの — *In the pane, run a full-screen TUI — `gh dash`, or `lazygit` (v0.48.2) → It draws: alternate screen, colours, box drawing, its own split panes. Seen once already; this row is for keeping it seen*
 - [ ] **1.25** その TUI を操作して、抜ける（`j` / `k` で移動、`q` で終了） → キーが届き、抜けるとペインが返ってきてプロンプトが使える。**描けることと操作できることは別の主張で、1.24 が通ってもこちらは何も言えない。**抜けられない TUI はペインを道連れにする — *Drive that TUI, then quit it (`j` / `k` to move, `q` to leave) → The keys reach it, and quitting gives the pane back with a working prompt. **Drawing and driving are separate claims** — 1.24 passing says nothing about this one, and a TUI that cannot be left would strand the pane*
-- [ ] **1.26** ペインを開いた状態で `<C-S-Enter>`（v0.48.3） → ペインが窓を取り、ヘッダとステータスバーと一覧の細い帯だけが残る。高さの 3 分の 1 はシェルには妥当で、全画面のプログラムには足りない — *With the pane open, `<C-S-Enter>` (v0.48.3) → The pane takes the window, leaving the header, the status bar and a sliver of list. A third of the height is right for a shell and too little for a full-screen program*
-- [ ] **1.27** ペインの中から、もう一度 `<C-S-Enter>` → 3 分の 1 に戻る。**ターミナルがキーを持っている間に効くこと**が要点 —— TUI を走らせているときがその状態で、この機能が要るのもそこだけ — *`<C-S-Enter>` again, from inside the pane → Back to a third. The key has to work **while the terminal holds the keys** — that is the state you are in when a TUI is running, and the only one where this matters*
-- [ ] **1.28** 最大化してから `<C-t>` でキーを一覧に戻し、`Esc` を押す → ペインが 3 分の 1 に戻る。ペインにフォーカスがある間 `Esc` はシェルのものなので、これは一覧側の出口。最大化したプレビューに対する `Esc` と同じ振る舞い — *Maximise, give the keys back with `<C-t>`, then press `Esc` → The pane returns to a third. `Esc` belongs to the shell while the pane has focus, so this is the list's way out, matching what `Esc` already does for a maximised preview*
+- [ ] **1.26** ペインを開いた状態で `<C-S-Enter>`（v0.48.4） → ペインが**上端まで**窓を取る。ヘッダも一覧も無く、下にステータスバーだけ。高さの 3 分の 1 はシェルには妥当で、全画面のプログラムには足りない — *With the pane open, `<C-S-Enter>` (v0.48.4) → The pane takes the window **to the top edge** — no header, no list, only the status bar below it. A third of the height is right for a shell and too little for a full-screen program*
+- [ ] **1.27** TUI を走らせた状態のペインの中から、もう一度 `<C-S-Enter>` → 3 分の 1 に戻る。**ターミナルがキーを持っている間に効くこと**が要点 —— TUI はまさにその状態を作るし、この機能が要るのもそこだけ — *`<C-S-Enter>` again, from inside the pane, with a TUI running in it → Back to a third. The key has to work **while the terminal holds the keys** — that is the state a TUI puts you in, and the only one where this matters*
+- [ ] **1.28** **一覧側**から最大化して、何か打つ → 打鍵はペインに行く（隠れた一覧ではなく）。最大化はペインにキーを渡す —— 見えない一覧は、キーを向ける先ではないので — *Maximise from the **list** side, then type → The keystrokes go to the pane, not to the hidden list. Maximising hands the pane the keys, because a list nobody can see is not somewhere to aim them*
+- [ ] **1.29** 最大化してから `<C-t>` → キーが一覧に戻り、**同時にペインも 3 分の 1 に戻る**。1 回の押下で両方。ペインから出ることと窓を返すことは同じ意図 — *Maximise, then `<C-t>` → The keys go back to the list **and the pane returns to a third** in one press. Leaving the pane and giving the window back are the same intent*
+- [ ] **1.30** 最大化してから `<C-S-t>`（シェルを終わらせる） → ペインが消え、一覧が全高で描かれる（隙間の下に押し込まれない）。ペインの無い最大化が残らないこと — *Maximise, then `<C-S-t>` (end the shell) → The pane goes, and the list is drawn full height rather than under a gap. Nothing is left maximised with no pane in it*
 
 ## 2. ミニマップ — 0 / 10
 
