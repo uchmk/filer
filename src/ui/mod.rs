@@ -102,10 +102,21 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
         egui::pos2(full.left(), full.bottom() - status_h),
         Vec2::new(full.width(), status_h),
     );
-    // The terminal takes the bottom third, and never so much that the list
-    // it sits under stops being usable.
+    // The terminal takes the bottom third, and never so much that the list it
+    // sits under stops being usable -- until `term_max`, where the point is to
+    // hand the pane the window. A third is plenty for a shell and cramped for a
+    // full-screen program: gh-dash drew its own split panes inside 35% of the
+    // height and there was nowhere to put them.
+    //
+    // Even maximised it stops two rows short. Not out of taste: `body` is built
+    // downwards from the header, so a pane tall enough to pass the status bar
+    // inverts that rectangle.
     let term_h = match app.term.is_some() {
-        true => (full.height() * 0.35).clamp(row_h * 4.0, full.height() - header_h - row_h * 6.0),
+        true => {
+            let want = if app.max_term { 1.0 } else { 0.35 };
+            let floor = row_h * if app.max_term { 2.0 } else { 6.0 };
+            (full.height() * want).clamp(row_h * 4.0, full.height() - header_h - status_h - floor)
+        }
         false => 0.0,
     };
     let bottom_extra = which_h + input_h + term_h;

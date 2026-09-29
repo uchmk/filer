@@ -152,6 +152,9 @@ drawing has been seen. `<C-t>` opens it.
 | 1.23 | The same shell, `<A-t>` on a file with an **ordinary** name (v0.48.1) | The path arrives whole, backslashes and all. This shares `quote()` with 1.22 and was only ever inferred from it, never pressed |
 | 1.24 | In the pane, run a full-screen TUI — `gh dash`, or `lazygit` (v0.48.2) | It draws: alternate screen, colours, box drawing, its own split panes. Seen once already; this row is for keeping it seen |
 | 1.25 | Drive that TUI, then quit it (`j` / `k` to move, `q` to leave) | The keys reach it, and quitting gives the pane back with a working prompt. **Drawing and driving are separate claims** — 1.24 passing says nothing about this one, and a TUI that cannot be left would strand the pane |
+| 1.26 | With the pane open, `<C-S-Enter>` (v0.48.3) | The pane takes the window, leaving the header, the status bar and a sliver of list. A third of the height is right for a shell and too little for a full-screen program |
+| 1.27 | `<C-S-Enter>` again, from inside the pane | Back to a third. The key has to work **while the terminal holds the keys** — that is the state you are in when a TUI is running, and the only one where this matters |
+| 1.28 | Maximise, give the keys back with `<C-t>`, then press `Esc` | The pane returns to a third. `Esc` belongs to the shell while the pane has focus, so this is the list's way out, matching what `Esc` already does for a maximised preview |
 
 ## 2. The minimap (v0.5.0)
 

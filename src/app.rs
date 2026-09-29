@@ -955,6 +955,9 @@ pub struct App {
     pub yank: Yank,
     pub preview: PreviewSlot,
     pub max_preview: bool,
+    /// The terminal pane has the window. A third of the height is right for a
+    /// shell and too little for a full-screen program, so this is the way out.
+    pub max_term: bool,
     /// The quick-look panel is up: the hovered file, big, over the panes.
     pub quick: bool,
     pub hide_parent: bool,
@@ -1081,6 +1084,7 @@ impl App {
             yank: Yank { paths: Vec::new(), cut: false },
             preview: PreviewSlot::default(),
             max_preview: false,
+            max_term: false,
             quick: false,
             hide_parent: false,
             render_markdown,
@@ -1777,7 +1781,7 @@ impl App {
                 self.tabs[self.active].preview_offset = line.min(self.preview.max_offset);
                 true
             }
-            Act::Seek(_) | Act::MaxPreview => false,
+            Act::Seek(_) | Act::MaxPreview | Act::MaxTerm => false,
             // Already in the outline.
             Act::Enter => true,
             Act::Open { interactive, .. } => {
@@ -2422,6 +2426,10 @@ impl App {
             Act::ToggleOutline => self.toggle_outline(),
             Act::ToggleRender => self.toggle_render(),
 
+            // Nothing to maximise without a pane, and leaving the flag set
+            // would surprise whoever opens one next.
+            Act::MaxTerm => self.max_term = self.term.is_some() && !self.max_term,
+
             Act::MaxPreview => {
                 self.max_preview = !self.max_preview;
                 if self.max_preview {
@@ -2647,6 +2655,14 @@ impl App {
         // Only for a bare `escape`; `escape --filter` and friends stay targeted.
         if all && self.max_preview {
             self.max_preview = false;
+            return;
+        }
+        // The same reasoning as `max_preview` above: a maximised pane hides the
+        // list, and `Esc` is what everyone tries first to get it back. This only
+        // runs when the list holds the keys -- inside the pane `Esc` belongs to
+        // the shell, and `<C-S-Enter>` is the way back.
+        if all && self.max_term {
+            self.max_term = false;
             return;
         }
         if (all || what.search) && self.in_search_view() {
@@ -6411,6 +6427,28 @@ mod escape_and_max_preview {
         a.max_preview = true;
         a.escape(EscapeWhat::default());
         assert!(!a.max_preview, "`Esc` has to be a way out of this");
+    }
+
+    /// The maximised pane needs the same way out, and must not claim one it
+    /// cannot honour.
+    ///
+    /// `Esc` here is the list's, not the shell's: inside the pane every key but
+    /// the bound ones goes to the program running there, so a TUI keeps its own
+    /// `Esc` and `<C-S-Enter>` is the way back. This only covers the case where
+    /// the keys came back to the list with the pane still filling the window.
+    #[test]
+    fn a_bare_escape_also_restores_the_pane() {
+        let mut a = app();
+        a.max_term = true;
+        a.escape(EscapeWhat::default());
+        assert!(!a.max_term, "`Esc` has to be a way out of this too");
+
+        // Toggling with no pane open must not arm it: the flag would then be
+        // set for whoever opens one next, and nothing on screen said so.
+        let mut a = app();
+        assert!(a.term.is_none(), "no pane in a fresh app");
+        a.act(Act::MaxTerm);
+        assert!(!a.max_term, "nothing to maximise, so nothing is remembered");
     }
 
     /// `escape --filter` is aimed at one thing and must stay aimed at it.
