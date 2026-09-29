@@ -88,11 +88,23 @@ jobs:
       - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }}
 
+      - name: Gather the files
+        shell: bash
+        run: |
+          mkdir -p dist
+          # Windows is the only one that names the binary `filer.exe`.
+          cp target/${{ matrix.target }}/release/filer${{ runner.os == 'Windows' && '.exe' || '' }} dist/
+
+      # Windows ships a newer ConPTY beside filer.exe; see
+      # scripts/fetch-conpty.ps1 for why.
+      - name: Add the bundled ConPTY
+        if: runner.os == 'Windows'
+        run: pwsh -File scripts/fetch-conpty.ps1 -Arch ${{ contains(matrix.target, 'aarch64') && 'arm64' || 'x64' }} -Dest dist
+
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
           # The commit is in the name, so two downloads are never confused.
           name: filer-${{ matrix.name }}-${{ github.sha }}
-          # Windows is the only one that names the binary `filer.exe`.
-          path: target/${{ matrix.target }}/release/filer${{ runner.os == 'Windows' && '.exe' || '' }}
+          path: dist/
           if-no-files-found: error
