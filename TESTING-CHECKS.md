@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**75 / 360 済み。**（TESTING.md の全 516 件のうち、`cargo test` が見ている 156 件は
+**75 / 362 済み。**（TESTING.md の全 518 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -354,7 +354,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **24.4** 引用符を含む名前をコピーして、`<A-t>` でターミナルへ → シェルが 1 語として受け取る形に引用される — *Copy the name with a quote in it, `<A-t>` into the terminal → Quoted so the shell sees one word*
 - [ ] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
 
-## 25. `filer env` — 15 / 19
+## 25. `filer env` — 15 / 21
 
 - [x] **25.1** PowerShell から `filer env` → 4 つの節が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること** — *`filer env` from PowerShell → The four sections print. A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears***
 - [x] **25.2** Config の節 → 両方のディレクトリが出て、それぞれ中身か `nothing here` を述べ、`not here:` に残りが並ぶ — *The Config section → Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest*
@@ -370,6 +370,8 @@ fsutil hardlink list <新しくできたパス>
 - [x] **25.8** filer を一度開いて終了し、そのあと `filer env` → **Last run** の節が出る。アダプタとそのバックエンド・デバイス種別、読み込まれた全フォントファイル — *Open filer once, quit, then `filer env` (v0.29.0) → A **Last run** section: the adapter with its backend and device type, and every font file that was loaded*
 - [x] **25.9** 新しい機械で、filer を一度も開かずに `filer env` → `not recorded — filer has not opened a window on this machine yet` と出る（空の節ではない） — *On a fresh machine, `filer env` **before** ever opening filer → `not recorded — filer has not opened a window on this machine yet`, not an empty section*
 - [x] **25.10** `filer.toml` で別のフォントを指定して `<C-F5>`、もう一度 `filer env` → 新しいファイルが並ぶ。再読み込みが記録を更新している — *Name a different font in `filer.toml`, `<C-F5>`, then `filer env` again → The new file is listed; the reload updates the record*
+- [ ] **25.8a** filer を開いて終了し、`filer env` の **Window** の行を画面と突き合わせる（v0.47.33）→ ピクセルの数が目の前の窓と一致し、`pt × 倍率` がその数になる。**DPI の議論に決着を付けるのはこの行。**外から `GetClientRect` で測った値も `PrintWindow` のキャプチャも、**測った側のプロセスの DPI 認識に依存する**ので、窓と食い違ったまま両方もっともらしく見えることがある — *Open filer, quit, `filer env`, and check the **Window** row against the screen (v0.47.33) → The pixels are the window you can see, and `pt x scale` multiplies out to them. **This is the row that settles a DPI argument** — what a script measures with `GetClientRect`, or a `PrintWindow` capture, depends on the DPI awareness of whatever did the measuring, and can disagree with the window while looking right*
+- [ ] **25.8b** 150% 表示の画面で filer を開いて終了し、`filer env` → Window の行が例えば `2040 x 1290 px (1360 x 860 pt @ 1.5)` と出る。ピクセルがポイントの 1.5 倍で、**窓の右端も下端も何も切れていない** — *On a display at 150%, open filer, quit, then `filer env` → The Window row reads e.g. `2040 x 1290 px (1360 x 860 pt @ 1.5)` — the pixels are half again the points, and **nothing is cut off the right or bottom edge of the window***
 - [ ] **25.11** ボールド体がどこにも無い状態で → `none found; bold is faked by overstriking` と出る。ボールドの一覧を通常のものと分けてあるのは、このため — *With no bold face anywhere → `none found; bold is faked by overstriking` — the bold list is separate from the regular one on purpose*
 - [x] **25.12** `start` で始まるオープナー（既定のアプリで開くもの）→ **`built into cmd`** と出る（`not found` ではない）。`cmd` 自身のコマンドで `PATH` 上のファイルではないため、他の行と同じ探索では見つけられない（v0.33.12） — *An opener starting with `start` (the default-app one) → **`built into cmd`**, not `not found`. It is one of `cmd`'s own commands and is never a file on the `PATH`, so the lookup every other row uses cannot see it (v0.33.12)*
 - [x] **25.13** そのオープナーを使うルールのファイルで `<Enter>` → 実際に開く。表示と挙動が一致していること — *`<Enter>` on a file whose rule uses that opener → It really does open — the row and the behaviour agree*

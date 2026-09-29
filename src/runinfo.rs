@@ -17,7 +17,10 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Eq)]
+// `Eq` is gone from this derive because `ppp` is an `f32`. Nothing asks for it:
+// the struct is written to a file and read back, never hashed or put in a set,
+// and `assert_eq!` only ever wanted `PartialEq`.
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct RunInfo {
     /// The version that wrote this, so a stale file cannot be read as current.
     pub version: String,
@@ -32,6 +35,50 @@ pub struct RunInfo {
     pub fonts: Vec<PathBuf>,
     /// The bold faces, which are a separate search and separately absent.
     pub bold: Vec<PathBuf>,
+    /// The window as egui laid it out, in points, and what one point came out
+    /// as in pixels. `[0.0, 0.0]` and `0.0` mean no frame has been drawn yet.
+    ///
+    /// Written down for the same reason as the adapter: it cannot be known
+    /// without a window. But unlike the adapter, it is a question people *do*
+    /// try to answer from outside -- and that is where it goes wrong. What
+    /// `GetClientRect` reports for a window depends on the DPI awareness of
+    /// the process doing the asking, so a measurement taken from a script and
+    /// the window's own view can disagree while both look authoritative. A
+    /// screen capture is worse: `PrintWindow` can hand back a bitmap in
+    /// logical coordinates, and then every length measured off it is wrong by
+    /// the scale factor in a way that stays self-consistent.
+    ///
+    /// On 2026-09-29 that cost a whole section of TESTING.md: a run reported
+    /// that filer was laying out a window half again too large for itself, and
+    /// nothing available could tell whether the window or the ruler was at
+    /// fault. These two fields are filer's own answer, which no amount of DPI
+    /// virtualisation can distort.
+    pub window_pt: [f32; 2],
+    /// Pixels per point, as egui had it for the frame this was written on.
+    pub ppp: f32,
+}
+
+impl RunInfo {
+    /// The window as one line for a bug report: pixels first, because that is
+    /// what a person measures, with the points and the scale that produced it.
+    ///
+    /// `None` before any frame has been drawn, which `filer env` prints as its
+    /// own sentence rather than as a row of zeroes.
+    pub fn window_line(&self) -> Option<String> {
+        let [w, h] = self.window_pt;
+        if self.ppp <= 0.0 || w <= 0.0 || h <= 0.0 {
+            return None;
+        }
+        Some(format!(
+            "{:.0} x {:.0} px ({:.0} x {:.0} pt @ {})",
+            w * self.ppp,
+            h * self.ppp,
+            w,
+            h,
+            // `1.5`, not `1.5000001`: the scale is a setting, not a measurement.
+            (self.ppp * 1000.0).round() / 1000.0,
+        ))
+    }
 }
 
 fn path() -> PathBuf {
@@ -72,6 +119,36 @@ fn load_from(p: &std::path::Path) -> Option<RunInfo> {
 mod tests {
     use super::*;
 
+    /// The window line reads as pixels first, because that is what a person
+    /// with a ruler has, and carries the points and the scale that made them.
+    ///
+    /// The case that matters is the one the row exists for: 1360 x 860 points
+    /// at 1.5 needs 2040 x 1290 pixels. Anyone reading the row can check the
+    /// arithmetic against the window they are looking at, which is the whole
+    /// point of printing all three numbers rather than the one filer used.
+    #[test]
+    fn the_window_line_gives_pixels_points_and_the_scale_between_them() {
+        let at = |w: f32, h: f32, ppp: f32| {
+            RunInfo { window_pt: [w, h], ppp, ..Default::default() }.window_line()
+        };
+        assert_eq!(at(1360.0, 860.0, 1.5).as_deref(), Some("2040 x 1290 px (1360 x 860 pt @ 1.5)"));
+        assert_eq!(at(1360.0, 860.0, 1.0).as_deref(), Some("1360 x 860 px (1360 x 860 pt @ 1)"));
+        // A scale that is not a round number still reads as one value, not as
+        // whatever float arithmetic left behind.
+        assert_eq!(at(1000.0, 500.0, 1.25).as_deref(), Some("1250 x 625 px (1000 x 500 pt @ 1.25)"));
+    }
+
+    /// Before the first frame there is no window, and the row says so rather
+    /// than printing zeroes that read as a measurement.
+    #[test]
+    fn a_record_from_before_the_first_frame_has_no_window_line() {
+        assert_eq!(RunInfo::default().window_line(), None, "nothing drawn yet");
+        // A record written by a filer too old to know about the field also
+        // arrives with zeroes, and must not be read as `0 x 0 px`.
+        let old = RunInfo { adapter: "some GPU".into(), ..Default::default() };
+        assert_eq!(old.window_line(), None, "an older filer left the field empty");
+    }
+
     /// It survives the round trip, and an absent one is absent rather than
     /// empty: "filer has never opened a window here" and "it opened one and
     /// found no fonts" are different answers and must not look alike.
@@ -89,6 +166,8 @@ mod tests {
             device: "DiscreteGpu".into(),
             fonts: vec![PathBuf::from(r"C:\fonts\HackGen35ConsoleNF-Regular.ttf")],
             bold: Vec::new(),
+            window_pt: [1360.0, 860.0],
+            ppp: 1.5,
         };
         save_to(&p, &info);
         assert_eq!(load_from(&p).as_ref(), Some(&info));

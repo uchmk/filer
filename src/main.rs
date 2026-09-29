@@ -184,6 +184,7 @@ fn main() -> eframe::Result<()> {
                 title: String::new(),
                 focused: true,
                 last_input_frame: u64::MAX,
+                last_geometry: None,
             }))
         }),
     )
@@ -384,6 +385,36 @@ struct Filer {
     /// egui may run several layout passes per frame, all seeing the same input
     /// events. Keys must only be acted on once.
     last_input_frame: u64,
+    /// The geometry last written to `last-run.toml`, so that writing it again
+    /// costs nothing while nothing moves. A resize or a drag onto a monitor at
+    /// another scale changes it; a frame does not.
+    last_geometry: Option<([f32; 2], f32)>,
+}
+
+impl Filer {
+    /// Put the window's own view of its size into `last-run.toml`.
+    ///
+    /// Only when it has moved: every frame would rewrite the file for nothing.
+    /// The record is carried over rather than rebuilt, for the same reason the
+    /// font reload carries it -- the adapter cannot be re-read without holding
+    /// the render state, and a geometry change is no reason to lose it.
+    fn record_geometry(&mut self, ctx: &egui::Context) {
+        let (size, ppp) = ctx.input(|i| (i.viewport_rect().size(), i.pixels_per_point()));
+        let now = ([size.x, size.y], ppp);
+        // A window being dragged is resized every frame, and each one would be
+        // a write. Round to the pixel before comparing: below that nobody is
+        // reading this file anyway.
+        let rounded = ([now.0[0].round(), now.0[1].round()], (now.1 * 1000.0).round() / 1000.0);
+        if self.last_geometry == Some(rounded) {
+            return;
+        }
+        self.last_geometry = Some(rounded);
+        let mut used = crate::runinfo::load().unwrap_or_default();
+        used.version = env!("CARGO_PKG_VERSION").into();
+        used.window_pt = rounded.0;
+        used.ppp = rounded.1;
+        crate::runinfo::save(&used);
+    }
 }
 
 impl eframe::App for Filer {
@@ -395,6 +426,7 @@ impl eframe::App for Filer {
         let ctx = ui.ctx().clone();
 
         self.app.drain_channels(&ctx);
+        self.record_geometry(&ctx);
         let frame_nr = ctx.cumulative_frame_nr();
         if frame_nr != self.last_input_frame {
             self.last_input_frame = frame_nr;

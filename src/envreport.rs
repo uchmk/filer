@@ -304,6 +304,12 @@ fn last_run() -> Vec<(String, String)> {
             true => "not recorded".into(),
             false => format!("{}   ({}, {})", info.adapter, info.backend, info.device),
         }),
+        // Above the fonts because it is the one row that settles an argument:
+        // what filer thinks its own window is, as against what a capture or a
+        // script measured from outside.
+        ("Window".into(), info.window_line().unwrap_or_else(|| {
+            "not recorded — no frame was drawn before the record was written".into()
+        })),
         ("Fonts".into(), list(&info.fonts, "none loaded — this is why icons are boxes")),
         ("Bold".into(), list(&info.bold, "none found; bold is faked by overstriking")),
     ];
