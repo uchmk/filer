@@ -28,6 +28,20 @@
 - TESTING.md に 1.22 / 1.23 を追加。1.23 は `<A-t>` 側で、**報告が「同じ関数からの推定で、
   押していない」と明記していた**ぶん。
 
+### 追加
+
+- **`scripts/gh-dash.yml`** —— [gh-dash](https://github.com/dlvhdr/gh-dash)（`gh` の拡張）の設定。
+  PR / Issue を区画に並べて中身まで読むほうで、**filer の spot とは向きが逆**なので重ならない
+  （spot は「このファイルはどこから来たか」、gh-dash は「PR の一覧」）。`g` で lazygit に渡す。
+  - ドキュメントの `tmux new-window` の例は **Windows で動かない**ので `cd && lazygit` に。
+  - **`--block` の意味を取り違えないこと。**`exec::configure` は Windows で
+    block なら `CREATE_NEW_CONSOLE`、でなければ `CREATE_NO_WINDOW` を渡す。つまり
+    `shell 'gh dash' --block` は **filer とは別のコンソール窓**を開く（ペインではない）。
+    必要なのは事実だが、理由は「block でないとコンソールが無く TUI に描く先が無い」ため。
+  - **どちらの入口も未検証。**`<C-t>` のペインは `alacritty_terminal` なので全画面 TUI も
+    描けるはずだが、**代替画面を使うプログラムをまだ走らせていない。**1.19 で `<C-c>` が
+    シェルに届くことは確かめたが、それとこれは別。ファイルにもそう書いてある。
+
 ### 変更
 
 - Windows 実機のセッションで **1.19〜1.21 を確認**（pwsh / Windows PowerShell / Git Bash / cmd）。

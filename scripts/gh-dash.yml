@@ -1,0 +1,116 @@
+# A gh-dash config for working on this repository from a terminal.
+#
+# gh-dash is a `gh` extension: it lists pull requests and issues in sections you
+# define, and reads their bodies, comments and diffs without a browser. It uses
+# gh's own credentials, so `gh auth login` is the whole setup.
+#
+#   gh extension install dlvhdr/gh-dash
+#   # then copy this file to:
+#   #   Windows  %APPDATA%\gh-dash\config.yml
+#   #   Unix     ~/.config/gh-dash/config.yml
+#   gh dash
+#
+# It does the half filer does not: browsing pull requests *as a list*. filer's
+# spot panel answers the other direction -- `<Tab>` on a file says which pull
+# request brought it in (v0.48.0) -- so the two do not overlap.
+#
+# The `g` binding hands off to lazygit, which is the third piece: gh-dash reads
+# GitHub, lazygit does the git operations. Both are launched from filer's own
+# terminal pane with `<C-t>`; the pane is a real terminal emulator
+# (`alacritty_terminal`), so a full-screen TUI runs in it. Mouse events are not
+# forwarded, which neither tool needs.
+
+prSections:
+  - title: Mine
+    filters: is:open author:@me
+  - title: Needs review
+    filters: is:open review-requested:@me
+  - title: filer
+    filters: is:open repo:uchmk/filer
+  - title: Recently merged
+    filters: is:merged repo:uchmk/filer
+    limit: 10
+
+issuesSections:
+  - title: Open
+    filters: is:open repo:uchmk/filer
+  - title: Mine
+    filters: is:open author:@me
+  - title: Recently closed
+    filters: is:closed repo:uchmk/filer
+    limit: 10
+
+defaults:
+  preview:
+    open: true
+    width: 70
+  prsLimit: 20
+  issuesLimit: 20
+  view: prs
+
+keybindings:
+  prs:
+    # Check the branch out locally. Built in, bound here so it is visible.
+    - key: O
+      builtin: checkout
+
+    # Hand off to lazygit for anything that is a git operation rather than a
+    # GitHub one. The docs' example wraps this in `tmux new-window`, which does
+    # not exist on Windows -- running it in place works on both, and gh-dash
+    # comes back when lazygit exits.
+    - key: g
+      name: lazygit
+      command: cd {{.RepoPath}} && lazygit
+
+    # The checks for the head commit, which is what decides whether a pull
+    # request of this repository's is done.
+    - key: C
+      name: checks
+      command: gh pr checks --repo {{.RepoName}} {{.PrNumber}}
+
+    # Read the whole thread -- review comments included -- without a browser.
+    - key: v
+      name: comments
+      command: gh pr view --repo {{.RepoName}} --comments {{.PrNumber}} | less -R
+
+    # `gh pr diff` pages the patch; `--name-only` first when it is a large one.
+    - key: d
+      name: diff
+      command: gh pr diff --repo {{.RepoName}} {{.PrNumber}} | less -R
+
+  issues:
+    - key: g
+      name: lazygit
+      command: cd {{.RepoPath}} && lazygit
+    - key: v
+      name: comments
+      command: gh issue view --repo {{.RepoName}} --comments {{.IssueNumber}} | less -R
+
+# Available in a command: {{.RepoName}}, {{.RepoPath}}, {{.PrNumber}},
+# {{.HeadRefName}}, {{.BaseRefName}}, {{.Author}}; issues get {{.IssueNumber}}
+# in place of {{.PrNumber}}.
+#
+# There are two ways to reach it from filer, and they are not the same thing.
+#
+# 1. In filer's own terminal pane: `<C-t>`, then `gh dash`. One window. The pane
+#    is `alacritty_terminal`, so a full-screen TUI has a real terminal to draw
+#    on. Mouse events are not forwarded to the pty, which neither tool needs.
+#
+# 2. Bound to a key, which opens a **separate console window**:
+#
+#      # keymap.toml
+#      [[mgr.keymap]]
+#      on   = ["g", "h"]
+#      run  = "shell 'gh dash' --block"
+#      desc = "Open the GitHub dashboard"
+#
+#    `--block` is required, but not for the reason it looks like: on Windows
+#    `exec::configure` passes `CREATE_NEW_CONSOLE` for a blocking command and
+#    `CREATE_NO_WINDOW` otherwise. So without it the process gets no console at
+#    all and the TUI has nowhere to draw; with it, it gets a console of its own
+#    -- a new window beside filer, not filer's pane.
+#
+# Neither route is checked on real hardware yet. Route 1 rests on `<C-t>` and on
+# the pane handling an alternate-screen program, and while section 1 confirmed
+# the pane forwards `<C-c>` to the shell (1.19, v0.48.1), no TUI has been run in
+# it. Treat both as untried until they are pressed.
