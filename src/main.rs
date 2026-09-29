@@ -664,13 +664,13 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
                 shift: modifiers.shift,
             };
             let bytes = match special(key, mods.shift) {
-                // A lone ESC is the one key plain VT cannot carry: ConPTY turns
-                // it into a record with no virtual key, and tcell never reads
-                // that as Escape. Once ConPTY has asked for win32-input-mode,
-                // send it as the record itself -- VK_ESCAPE, scan code 1.
-                Some(terminal::Special::Escape)
-                    if app.term.as_ref().is_some_and(|t| t.win32_input()) =>
-                {
+                // On Windows `Esc` goes as one win32-input-mode key press, not
+                // as a plain ESC. ConPTY makes a press *and a release* out of a
+                // plain ESC, and the release, reaching a tcell program right
+                // behind the press, turns the key into an Alt prefix that never
+                // resolves -- so `Esc` did nothing in lazygit or gh-dash. See
+                // `terminal::win32_key`.
+                Some(terminal::Special::Escape) if cfg!(windows) => {
                     Some(terminal::win32_key(0x1b, 1, 0x1b, mods))
                 }
                 Some(s) => {
