@@ -2762,3 +2762,202 @@ Windows のセッション（`.claude/windows-role.md`、無人実行）から�
   `big` / `mid` の木は合わせて約 2.6 GB。
 - 45.10 の「固まらない」は WM_NULL の往復で測ったので、**描画が進んでいるか**までは言えない。ただ
   `d4-mid-1s.png` の `Comparing…` が `2s` で結果に変わっていて、その間も往復は 7 ms 以内だった。
+
+## TESTING.md 41.8 — 6 つのリリースバイナリを ARM64 機で読んだ（f2df71d / 0.52.1、ARM64 レーン）
+
+ARM64 レーンの 3 本目（`.claude/windows-role.md`「The ARM64 lane」、`auto-wintest.ps1 -Lane arm`、無人実行）。
+順番表の先頭「41. spot's four providers / 41.8」が担当。
+
+**41.8 は合格したのでチェックを付けた（9 / 14 → 10 / 14）。**順番表は「ARM64 の半分だけ」と
+書いていたが、**6 つ全部をこの機械で読めた。**`executable()`（`src/spot.rs:472`）はマジック
+バイトだけを見てホストに依存しないので、ELF も Mach-O もこの機械で正しく読める ——
+**走らせる必要が無いのが、この行の性質。**そして #79（x64 機の 41 節）がチェックを
+見送った理由（`macos-x64` の成果物が存在しない）は、v0.49.1 で解消している。
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `(Get-CimInstance Win32_ComputerSystem).SystemType` = `ARM64-based PC`、`PROCESSOR_ARCHITECTURE=ARM64` |
+| OS | `Windows 11 Home 26H1 (build 28000.2956)`（`filer env` の出力） |
+| rustc | 1.98.1 (48a229cea 2026-09-01) / aarch64-pc-windows-msvc —— CI と同じ stable |
+| 昇格 | 無し（`IsInRole('Administrators')` = False）。41 節に昇格の要る行は無い |
+| ネイティブ build | `cargo build --release` → PE machine **0xAA64**、21,644,288 B。`filer env` は `OS arch : aarch64` / `Process arch : aarch64` |
+| ConPTY | `fetch-conpty.ps1` → `ConPTY 1.24.260710001 (arm64)` |
+| `cargo test` | **499 passed; 0 failed**（ネイティブ ARM64、2.63s）。x64 ランナーに無い失敗は無い |
+| 一時ディレクトリ | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（この機械に RAM ディスクは無い） |
+
+生の出力は `C:\dev\filer-evidence\arm-41\`（`panel-1.txt` 〜 `panel-6.txt`、`spot-41-8.png`、
+`arm41-local-env.txt`、および `post41.ps1` / `find41.ps1` / `drive41.ps1` / `keys41.ps1` /
+`focus41.ps1` / `harness-keymap.toml`）。
+
+### 41.8 —— 6 つのバイナリ（合格、チェック済み）
+
+`gh release download v0.49.1` で 6 つの成果物を落とし、展開して 1 つのフォルダに並べ、
+**先に自分でヘッダを読んでから**（PowerShell で `e_machine` / `cputype` / COFF `Machine` を
+直接）、filer の `<Tab>` の答えと突き合わせた。名前は並び順のために付け替えたが、
+`executable()` は拡張子を見ないので答えは変わらない（`5-windows-arm64.exe` の
+`Mime` が PE を当てているのが、その裏返しの証拠）。
+
+| 成果物 | 自分で読んだヘッダ | filer の `Format` | filer の `Architecture` |
+| --- | --- | --- | --- |
+| `filer-v0.49.1-linux-arm64.tar.gz` | ELF class=2 `e_machine=0x00B7` | ELF 64-bit | **aarch64** |
+| `filer-v0.49.1-linux-x64.tar.gz` | ELF class=2 `e_machine=0x003E` | ELF 64-bit | **x86_64** |
+| `filer-v0.49.1-macos-arm64.tar.gz` | Mach-O `0xFEEDFACF` `cputype=0x0100000C` | Mach-O 64-bit | **aarch64** |
+| `filer-v0.49.1-macos-x64.tar.gz` | Mach-O `0xFEEDFACF` `cputype=0x01000007` | Mach-O 64-bit | **x86_64** |
+| `filer-v0.49.1-windows-arm64.zip` | PE `Machine=0xAA64` | PE32+ | **aarch64** |
+| `filer-v0.49.1-windows-x64.zip` | PE `Machine=0x8664` | PE32+ | **x86_64** |
+
+6 行とも、成果物の名前のトリプル（`arm64` / `x64`）と一致する。各 capture には `Name` と
+`Path` の行が入っているので、**どの答えがどのファイルのものかを取り違えようが無い**
+（`panel-N.txt` にそのまま残してある）。Mach-O の 2 つは thin なので `Slices` の行は出ず、
+これも期待どおり。`spot-41-8.png` は 6 番目（`6-windows-x64.exe`）のパネルで、
+**同じ画面の hex プレビューに `50 45 00 00 64 86 00 00` が出ている** —— PE 署名と
+`Machine=0x8664` が、パネルの `x86_64` の隣に生のバイトで並んでいる。
+
+`<Tab>` のあとパネルが出るまでにウィンドウが止まっていないことは、`WM_NULL` を
+`SendMessageTimeout` で投げて測った（6 回とも 0〜10 ms で返事）。
+
+### #79 が残した「`macos-x64` が出たことがない」は解消している
+
+#79（52507ef / 0.47.25）は、最新リリース v0.47.10 のアセットが 5 つしか無く、
+`macos-13` のランナーが取られずに `macos-x64` のジョブが queued のままだと書いた。
+**v0.49.1（2026-09-29）には 6 つそろっている**（`gh release view --json assets`）。
+
+```
+filer-v0.49.1-linux-arm64.tar.gz    11,760,260
+filer-v0.49.1-linux-x64.tar.gz      12,601,090
+filer-v0.49.1-macos-arm64.tar.gz     8,908,788
+filer-v0.49.1-macos-x64.tar.gz       9,589,411     <-- #79 の時点では存在しなかった
+filer-v0.49.1-windows-arm64.zip     10,872,211
+filer-v0.49.1-windows-x64.zip       11,703,838
+```
+
+CLAUDE.md の「成果物は 6 つ」と 41.8 の「six release binaries」は、いまは事実に合っている。
+**#79 のこの節は閉じてよい。**
+
+### チェックしなかった行（41 節の残り 4 件）
+
+- **41.5 / 41.6（メモ帳の CRLF / UTF-16 LE 保存）**: 取れなかった。**この run では
+  そもそもキーが画面に届かない**（下の「スクリーンセーバー」の節）。メモ帳の「名前を付けて
+  保存」はダイアログと文字コードのドロップダウンを操るもので、`PostMessage` では駆動できない。
+  バイト列を自分で書くのは #79 が既にやっていて、**それは「メモ帳で保存した」の代わりに
+  ならない**（行がそう書いている）ので繰り返さなかった。
+- **41.12（キーの列が値の列にはみ出していないか）**: 見た目の行。代わりに読めるものを探したが、
+  `spot-41-8.png` で言えるのは「Executable と File の 2 つの節で重なっていない」までで、
+  行が求めているのは **every new section**（Archive / Text / Document / Executable）。
+  4 つ全部を 1 枚に出せないので、画素の位置を測っても行の主張を担げない。持ち主の目に残す。
+- **41.14（遅いネットワークドライブ）**: この機械にネットワークドライブが無い。
+  共有を作るには昇格が要り、この run は昇格していない。#79 と同じ理由で残る。
+
+### 見つけたもの（どれも直していない）
+
+#### 無人の run では、画面がスクリーンセーバーに取られていて `SendInput` が 1 つも届かない
+
+- **実測**: `Focus-Proc`（#81 / #84 が使った `SetForegroundWindow` の手）が 40 回とも失敗した。
+  調べると `GetForegroundWindow()` が **0 を返し続けていた**。`OpenInputDesktop` で入力
+  デスクトップの名前を読むと `Screen-saver`、`SystemParametersInfo(SPI_GETSCREENSAVERRUNNING)`
+  も `True`。走っていたのは `C:\WINDOWS\ASUS\ScreenSaver\OLED Care Screensaver.scr`（この
+  ノート PC は OLED なので、持ち主が入れたものではなく機械に付いてくるもの）。
+  `LogonUI` は**無い** —— つまり `windows-role.md` の「Unattended runs」が挙げている
+  「画面がロックされたら」の検査（`Get-Process LogonUI`）**には引っかからない。**
+- **なぜ困るか**: 無人の run は定義上ずっと放置されているので、**これは例外ではなく通常状態**。
+  ARM64 レーンの 1 本目・2 本目がたまたま通ったのは、走った時刻が持ち主の操作の直後
+  だっただけに見える。`SendInput` を前提に書かれた測り方（`windows-role.md` の
+  「Measure before you call it a look」の表のうち、クリック・ホバー・ドラッグ・
+  `<F12>` の行）は、**無人ではどれも静かに空振りする。**しかも `SendInput` は
+  「4 送った」と成功を返すので、**センチネルを置いていないと気づけない。**
+- **この run はどう逃げたか**: キーを `PostMessage(WM_KEYDOWN / WM_CHAR / WM_KEYUP)` で
+  filer のウィンドウへ直接入れた。フォアグラウンドも入力デスクトップも要らず、
+  **他のウィンドウにキーが漏れない**（2026-09-30 のクリップボード事故の再発も防げる）。
+  修飾キーだけは乗らないので、`C`（`copy all`）と `<A-j>`（`arrow 1`）を、隔離した
+  `FILER_CONFIG_HOME` の `[[spot.prepend_keymap]]` で `a` と `n` に置いた
+  （`harness-keymap.toml`）。**測っている対象は `Architecture` の値なので、どのキーで
+  コピーさせたかは主張に影響しない。**
+- **`PrintWindow` はスクリーンセーバー下でも通る**（`PW_RENDERFULLCONTENT = 2`）。
+  `spot-41-8.png` はその状態で撮ったもので、wgpu のサーフェスもちゃんと写っている
+  （標本した色が 547 色。真っ黒なら 1 色になる）。**スクリーンショットは無人でも証拠になる。**
+
+#### `Process.MainWindowHandle` が winit のイベント用ウィンドウを指すことがある
+
+- **実測**: `Start-Process -PassThru` して `$p.Refresh()` で待つと、`MainWindowHandle` が
+  `1902666` を返した。そこへキーを `PostMessage` しても**何も起きない**（6 回とも
+  センチネルのまま）。ウィンドウを列挙すると、その HWND の正体はこれ:
+
+```
+330566 |vis=True |class=Window Class                  |title=Filer: C:\...\rel41\bins   <-- 本物
+1902666|vis=True |class=Winit Thread Event Target     |title=                           <-- これを掴んでいた
+2033546|vis=False|class=wgpu Device Class 7ff696a211b0|title=wgpu Device Class ...
+```
+
+- winit は本物のウィンドウより先に「Thread Event Target」ウィンドウを作り、**それが
+  `IsWindowVisible` で真になる。**`MainWindowHandle` は「オーナーの無い最初の可視な
+  トップレベル」を返すので、タイミング次第でこちらを掴む。
+- **なぜ困るか**: `windows-role.md` の「Measure before you call it a look」が、
+  **「the list went somewhere」の proxy として `(Get-Process filer).MainWindowTitle` を
+  名指ししている。**この HWND を掴んだときの `MainWindowTitle` は**空文字列**で、
+  「リストがどこにも行かなかった」と読めてしまう。**空振りが失敗に見えない**形の測り方。
+- **どうすべきか**: 役割定義の proxy を、クラス名とタイトルで選ぶ形に直す
+  （この run の `find41.ps1`: `class == "Window Class"` かつ `title` が `Filer:` で始まる）。
+  filer 側の話ではないので、直すのは `.claude/windows-role.md`。
+
+### Proposals
+
+1. **無人の run のために、キーを入れる口を filer 自身に用意してほしい。**
+   - 何が起きたか: この run の測定は「`<Tab>` を押してパネルを読む」だけなのに、そこへ
+     到達するのに `SendInput` が死んでいることの発見、入力デスクトップの調査、
+     `PostMessage` への書き換え、修飾キーを避けるための harness keymap、
+     winit のイベントウィンドウの切り分け —— **測る前の足場作りが仕事の大半になった。**
+     しかもその足場は毎回 run ごとに作り直されていて、`R:` や `filer-scratch` に
+     `grab.ps1` / `input.ps1` / `chord.ps1` / `post41.ps1` と似たものが溜まっている。
+   - どう変えるか: `filer --keys "<Tab>a"` のような、**keymap を通してキー列を流し込む
+     引数**（か、環境変数で受ける待ち受け）。押した結果は既にクリップボードから読めるので、
+     入り口だけあればよい。`Key::parse` は既にあり、`handle_input` も `pub(crate)` になっている。
+   - なぜ: 実機の run が毎回作っている Win32 の足場が丸ごと消える。**そして「キーが
+     届かなかった」と「届いたが何も起きなかった」を取り違える事故が構造的に無くなる** ——
+     これは `windows-role.md` が「一番の危険」と呼んでいるものの一種。
+   - 大きさ: 設計の判断が要る（テスト用の口をリリースするバイナリに置いてよいか、
+     置くならどう危なくないようにするか）。持ち主に決めてもらう類。
+
+2. **`windows-role.md` の「画面がロックされた」の検査に、スクリーンセーバーを足してほしい。**
+   - 何が起きたか: 上の節のとおり。`Get-Process LogonUI` は無人で放置された機械の
+     **普通の状態を捕まえられない。**この run は `SendInput` が 40 回失敗してから気づいた。
+   - どう変えるか: 役割定義の検査を `OpenInputDesktop` の名前が `Default` であること
+     （あるいは `SystemParametersInfo(SPI_GETSCREENSAVERRUNNING)` が偽であること）に広げ、
+     そうでないときは **`SendInput` を使わず `PostMessage` で測る**と書く。
+   - なぜ: 無人の run は全部この状態で始まる。**気づかないまま「押したのに何も起きない」を
+     バグとして報告する run が、いつか出る。**
+   - 大きさ: `.claude/windows-role.md` に数行。
+
+3. **`filer env` をパイプで読めるようにしてほしい。**（#81 の提案 3・#84 の提案 3 の再掲、3 回目）
+   - 何が起きたか: この run も `grab.ps1`（`ReadConsoleOutputCharacterW` でコンソールの
+     画面バッファを読み返す）から始めた。そして**同じ壊れ方をもう一度見た** ——
+     `arm41-local-env.txt` の警告行が、コンソールの幅で折り返されて
+     `max-previe` / `w` に割れている。画面バッファを読む以上これは避けられない。
+   - どう変えるか: `say()`（`src/main.rs:51`）で、`GetStdHandle(STD_OUTPUT_HANDLE)` が
+     `GetFileType` で `FILE_TYPE_DISK` / `FILE_TYPE_PIPE` を返すときは、`AttachConsole` より
+     先にそちらへ書く。
+   - なぜ: 無人の実機テストは全部スクリプトで、版・アーキテクチャ・警告を読む唯一の口がここ。
+     人にも効く（`filer env | clip` が黙って空を作る）。
+   - 大きさ: 関数 1 つ。**3 回続けて同じ回避を書いた。**
+
+4. **spot の `copy all`（v0.52.0）は残してほしい —— 実機テストの測定手段として一番強い。**
+   - 何が起きたか: 提案というより、この run の土台の報告。`C`（`copy all`）は
+     **1 キーでパネル全体がラベル付きで取れて、`Name` と `Path` が頭に付く。**
+     おかげで「6 つの答えのうち、どれがどのファイルのものか」を取り違えずに済んだ。
+     #79 は行ごとに `y` を打って添字を数えており、41.13 が警告しているとおり
+     セクションが増えれば添字はずれる。**`copy all` はその事故の種を消している。**
+   - どう変えるか: 変えるべきところは無い。強いて足すなら
+     `Act::Copy(CopyWhat::All)` が `spot_sections()` の結果を 2 回歩いているので
+     1 回にできる（`src/app.rs:2053-2055`）。
+   - なぜ: 実機の run が「パネルに何が出ていたか」を文字で持ち帰る唯一の手段。
+   - 大きさ: 無し（維持の要望）。整理を足すなら数行。
+
+### 順番表（`.claude/windows-role.md`「The ARM64 lane」）
+
+無人実行は `.claude/` への書き込みを権限で拒否されるので、変更は PR 本文の `## Queue` に書いた。
+**`41. spot's four providers` の行を消してよい**（41.8 をチェック済み。同節に残る
+41.5 / 41.6 / 41.12 / 41.14 は、それぞれ「メモ帳」「見た目」「ネットワークドライブ」で
+**この機械では取れない** —— 上の節に理由を書いた。ARM64 の話ではないので、この行を
+ARM64 の順番表に残しても次の run が同じ 4 件を見送るだけになる）。
+`the test suite` の行は残す —— 毎回走らせる約束なので、この run も 499 / 0 を記録した。
