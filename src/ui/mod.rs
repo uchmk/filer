@@ -1217,7 +1217,7 @@ mod parent_column {
     /// *and* something to put the cursor on, which is what `Reveal` is.
     #[test]
     fn a_file_is_revealed_and_a_directory_entered() {
-        let dir = std::env::temp_dir().join("filer-parent-click");
+        let dir = crate::util::test_dir("parent-click");
         let _ = std::fs::create_dir_all(dir.join("sub"));
         let file = dir.join("a.txt");
         std::fs::write(&file, "x").unwrap();

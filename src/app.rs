@@ -5861,8 +5861,7 @@ mod spot_follows_the_cursor {
     #[test]
     fn a_new_hover_is_asked_about_once_it_exists() {
         let mut a = app();
-        let dir = std::env::temp_dir().join("filer-spot-follow");
-        let _ = std::fs::create_dir_all(&dir);
+        let dir = crate::util::test_dir("spot-follow");
         let one = dir.join("one.txt");
         let two = dir.join("two.txt");
         std::fs::write(&one, "1").unwrap();
@@ -6119,7 +6118,7 @@ mod send_pane_and_the_register {
     /// the thing that broke.
     #[test]
     fn a_send_does_not_disturb_what_is_yanked() {
-        let root = std::env::temp_dir().join("filer-send-pane");
+        let root = crate::util::test_dir("send-pane");
         let (left, right) = (root.join("left"), root.join("right"));
         let _ = std::fs::create_dir_all(&left);
         let _ = std::fs::create_dir_all(&right);
@@ -6177,8 +6176,7 @@ mod follow_says_what_it_is_for {
     /// identifies it.
     #[test]
     fn an_ordinary_file_is_told_that_it_is_not_a_link() {
-        let dir = std::env::temp_dir().join("filer-follow-msg");
-        let _ = std::fs::create_dir_all(&dir);
+        let dir = crate::util::test_dir("follow-msg");
         let plain = dir.join("plain.txt");
         std::fs::write(&plain, "x").unwrap();
 
