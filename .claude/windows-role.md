@@ -78,6 +78,11 @@ Tick a row only when **all** of these hold:
    not something you looked at and formed an opinion about.
 3. You can show the evidence: the command you ran and what came back.
 
+**After ticking, run `cargo run --example make-testcheck`** -- it keeps your
+ticks and rewrites the counts, which a hand edit misses (the first ARM64 run
+fixed the section heading and not the total, and CI went red on it). Then
+`-- --check` must say `in sync`.
+
 Put the evidence in the pull request body, one line per tick, so whoever merges
 can see what each one rests on. A tick with no evidence behind it is worse than
 an unticked row: the row would have been checked eventually, and the tick means
@@ -195,13 +200,12 @@ these differences:
 
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
-| **26. the architecture rows** | 26.5, 26.6 | `filer env` with the native ARM64 build (both read `aarch64`), then with the x64 release build under emulation (`OS arch aarch64`, `Process arch x86_64`). Build the first with `cargo build --release`; take the second from the latest GitHub release's `windows-x64.zip` |
-| **25. `filer env`** | 25.5 | The same x64 build under emulation: the two arch lines disagree, and that disagreement is the row |
+| **26.6 / 25.5, again with the fix** | 2 | v0.51.2 reads the machine through `IsWow64Process2`. Build the x64 binary here (`rustup target add x86_64-pc-windows-msvc`, then `cargo build --release --target x86_64-pc-windows-msvc`; needs the VS x64 build tools) or take a release zip newer than v0.51.1, and read the two arch lines apart: `OS arch aarch64`, `Process arch x86_64`. The first run (#81) found `x86_64` on both with v0.49.1 |
 | **41. spot's four providers** | 41.8 | The ARM64 half only: `<Tab>` on `filer.exe` from the release's `windows-arm64.zip` reads `Architecture aarch64`. The x64 and other-platform halves are not this machine's |
 | **the release zip itself** | -- | Unpack the latest release's `windows-arm64.zip`: four files in one folder, `ConPTY-LICENSE.txt` names the version `scripts/fetch-conpty.ps1` pins, and `conpty.dll` / `OpenConsole.exe` are ARM64 (`dumpbin /headers` or the PE machine field, `0xAA64`). Then run it, not a local build: `<C-t>`, `lazygit` -- no copy menu at startup, `Esc` closes a panel (1.31 / 1.32 as the x64 machine did them). Nobody has run the ARM64 zip yet |
 | **1. the terminal pane, again** | 1.1-1.34 | The pane is ConPTY and native code, the likeliest place for ARM64 to differ. Re-run the rows that are `[x]` on x64 and record each ARM64 result in QA-REPORT.md |
 | **21 / 32 / 37. archives and openers, again** | the `[x]` rows | Native code again (the archive readers, `ShellExecute`, `start ""`). Same form: ARM64 results in QA-REPORT.md |
-| **the test suite** | -- | `cargo test` natively on ARM64. Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
+| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
 
 ## Proposals: say what should change
 
