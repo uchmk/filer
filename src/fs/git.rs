@@ -274,6 +274,59 @@ pub(crate) fn origin(path: &Path, commit: &str) -> Option<Origin> {
     Some(Origin { merge: merge.to_string(), pr, branch })
 }
 
+/// The web page of pull request `pr`, when `origin` is on GitHub.
+///
+/// Built from `remote.origin.url` alone: nothing is fetched, so the Git
+/// section's promise not to touch the network (46.16) holds until the page is
+/// actually opened, which is the user's own `<Enter>` (Q20). Other forges are
+/// not guessed at -- a wrong URL is worse than none.
+pub(crate) fn pull_request_url(path: &Path, pr: u32) -> Option<String> {
+    let dir = if path.is_dir() { path } else { path.parent()? };
+    let remote = run(dir, &["config", "--get", "remote.origin.url"])?;
+    github_pr_url(remote.trim(), pr)
+}
+
+/// `owner/repo` out of the three ways a GitHub remote is written, and the pull
+/// request's page from it.
+fn github_pr_url(remote: &str, pr: u32) -> Option<String> {
+    let path = remote
+        .strip_prefix("https://github.com/")
+        .or_else(|| remote.strip_prefix("http://github.com/"))
+        .or_else(|| remote.strip_prefix("git@github.com:"))
+        .or_else(|| remote.strip_prefix("ssh://git@github.com/"))?;
+    let path = path.trim_end_matches('/');
+    let path = path.strip_suffix(".git").unwrap_or(path);
+    let (owner, repo) = path.split_once('/')?;
+    if owner.is_empty() || repo.is_empty() || repo.contains('/') {
+        return None;
+    }
+    Some(format!("https://github.com/{owner}/{repo}/pull/{pr}"))
+}
+
+/// The default branch `commit` has not reached yet, as `origin/main`.
+///
+/// Answers the question "Came in via" leaves open when it is empty: a commit
+/// pushed straight onto the mainline and one on a branch nobody has merged
+/// look the same without it (Q19). Only asked where the clone knows its
+/// default branch (`origin/HEAD`); guessing `main` would mark every commit of a
+/// `master` repository as unmerged. And only from local refs -- as current as
+/// the last fetch, and no newer.
+pub(crate) fn not_merged_into(path: &Path, commit: &str) -> Option<String> {
+    let dir = if path.is_dir() { path } else { path.parent()? };
+    let default = run(dir, &["rev-parse", "--abbrev-ref", "origin/HEAD"])?;
+    let default = default.trim();
+    if default.is_empty() || default == "origin/HEAD" {
+        return None;
+    }
+    // `--is-ancestor` exits 0 when merged, 1 when not; `run` reads anything
+    // but 0 as "no answer", so a failure here also reads as "not merged". The
+    // commit came from `git log` a moment ago, so it exists.
+    match run(dir, &["merge-base", "--is-ancestor", commit, default]) {
+        Some(_) => None,
+        None => Some(default.to_string()),
+    }
+}
+
 /// The pull request number and branch a merge commit's subject names.
 ///
 /// Three shapes turn up: GitHub's `Merge pull request #61 from owner/branch`,
@@ -387,6 +440,25 @@ fn classify(x: char, y: char) -> State {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every way a GitHub remote is written leads to the same page, and a
+    /// remote that is not GitHub leads nowhere rather than somewhere wrong.
+    #[test]
+    fn a_github_remote_gives_the_pull_request_page() {
+        let page = Some("https://github.com/uchmk/filer/pull/71".to_string());
+        for remote in [
+            "https://github.com/uchmk/filer",
+            "https://github.com/uchmk/filer.git",
+            "https://github.com/uchmk/filer/",
+            "git@github.com:uchmk/filer.git",
+            "ssh://git@github.com/uchmk/filer.git",
+        ] {
+            assert_eq!(github_pr_url(remote, 71), page, "{remote}");
+        }
+        for remote in ["https://gitlab.com/uchmk/filer.git", "git@github.com:uchmk", "https://github.com/uchmk/filer/tree/main", ""] {
+            assert_eq!(github_pr_url(remote, 71), None, "{remote}");
+        }
+    }
 
     /// Porcelain records are NUL-joined, and git leaves a trailing NUL.
     fn porcelain(records: &[&str]) -> String {

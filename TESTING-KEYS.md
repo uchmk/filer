@@ -4,7 +4,7 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**243 / 244 checked.**
+**243 / 246 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
@@ -294,7 +294,7 @@ The task manager (`w`).
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 
-## `[spot]` — 21 / 21
+## `[spot]` — 21 / 23
 
 The details panel (`<Tab>`).
 
@@ -310,6 +310,8 @@ The details panel (`<Tab>`).
 - [x] `<A-k>` — Previous line of the panel · `arrow -1`
 - [x] `<A-j>` — Next line of the panel · `arrow 1`
 - [x] `c` — Copy the selected value · `copy cell`
+- [ ] `C` — Copy the whole panel, labelled · `copy all`
+- [ ] `<Enter>` — Open the pull request on its rows; enter the directory elsewhere · `enter`
 - [x] `<Up>` — Spot the previous file · `swipe -1`
 - [x] `<Down>` — Spot the next file · `swipe 1`
 - [x] `<A-Up>` — Previous line of the panel · `arrow -1`

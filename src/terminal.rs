@@ -389,6 +389,9 @@ pub struct Terminal {
     pub shell_cwd: Option<PathBuf>,
     /// `FILER_PTY_LOG`, when it is set; see [`PtyLog`].
     log: PtyLog,
+    /// The shell's process, to ask whether it has started anything. `None`
+    /// where the PTY did not say, which reads as "nothing running".
+    shell_pid: Option<u32>,
 }
 
 impl Terminal {
@@ -416,6 +419,10 @@ impl Terminal {
         };
         let window = window_size(size, cell);
         let pty = tty::new(&options, window, 0)?;
+        #[cfg(windows)]
+        let shell_pid = pty.child_watcher().pid().map(|p| p.get());
+        #[cfg(unix)]
+        let shell_pid = Some(pty.child().id());
         let (cwd_tx, cwd_rx) = crossbeam_channel::unbounded();
         let log = open_pty_log();
         let pty = Tapped { inner: pty, cwd: cwd_tx, partial: Vec::new(), log: log.clone() };
@@ -444,7 +451,19 @@ impl Terminal {
             found: None,
             shell_cwd: None,
             log,
+            shell_pid,
         })
+    }
+
+    /// Whether the shell is running something -- lazygit, an editor, a build
+    /// -- rather than sitting at its prompt. Ending the shell ends that too,
+    /// so `<C-S-t>` asks first when this is true (Q21).
+    ///
+    /// "Something" is any child process of the shell. A shell that keeps a
+    /// helper of its own alive would read as busy and be asked about when it
+    /// need not be; that errs on the side of the question, which costs a key.
+    pub fn busy(&self) -> bool {
+        !self.exited && self.shell_pid.is_some_and(|pid| !children(pid).is_empty())
     }
 
     /// Take everything the shell has said since the last frame. Returns the
@@ -1044,6 +1063,63 @@ pub struct CellView {
     pub selected: bool,
 }
 
+/// The processes whose parent is `pid`. Read when a key asks, not every frame:
+/// one snapshot of the process table on Windows, `/proc` on Linux, `pgrep` on
+/// macOS. Empty when the platform will not say.
+pub fn children(pid: u32) -> Vec<u32> {
+    #[cfg(windows)]
+    {
+        use windows::Win32::Foundation::CloseHandle;
+        use windows::Win32::System::Diagnostics::ToolHelp::{
+            CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+            TH32CS_SNAPPROCESS,
+        };
+        let Ok(snap) = (unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }) else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        let mut e = PROCESSENTRY32W { dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32, ..Default::default() };
+        let mut ok = unsafe { Process32FirstW(snap, &mut e) }.is_ok();
+        while ok {
+            if e.th32ParentProcessID == pid && e.th32ProcessID != pid {
+                out.push(e.th32ProcessID);
+            }
+            ok = unsafe { Process32NextW(snap, &mut e) }.is_ok();
+        }
+        let _ = unsafe { CloseHandle(snap) };
+        out
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let Ok(dir) = std::fs::read_dir("/proc") else { return Vec::new() };
+        dir.flatten()
+            .filter_map(|d| d.file_name().to_str()?.parse::<u32>().ok())
+            .filter(|&child| {
+                // `pid (comm) state ppid ...`; the name may hold spaces and
+                // parentheses, so the fields are counted from the last `)`.
+                std::fs::read_to_string(format!("/proc/{child}/stat")).ok().is_some_and(|stat| {
+                    stat.rsplit_once(')')
+                        .and_then(|(_, rest)| rest.split_whitespace().nth(1)?.parse::<u32>().ok())
+                        == Some(pid)
+                })
+            })
+            .collect()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("pgrep")
+            .args(["-P", &pid.to_string()])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).lines().filter_map(|l| l.trim().parse().ok()).collect())
+            .unwrap_or_default()
+    }
+    #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
+    {
+        let _ = pid;
+        Vec::new()
+    }
+}
+
 /// A terminal built without a PTY, for tests anywhere in the crate.
 #[cfg(test)]
 pub mod testing {
@@ -1072,6 +1148,24 @@ pub mod testing {
 mod tests {
     use super::testing::{feed, term};
     use super::*;
+
+    /// `children` finds a process this one started: the question `<C-S-t>`
+    /// asks of the shell before ending it (Q21). Asserted on the child's own
+    /// pid rather than on "none before, one after", because tests running
+    /// beside this one start processes of their own (git, mostly).
+    #[test]
+    fn a_started_process_is_found_among_the_children() {
+        let mut child = if cfg!(windows) {
+            std::process::Command::new("cmd").args(["/c", "ping -n 30 127.0.0.1 >nul"]).spawn()
+        } else {
+            std::process::Command::new("sleep").arg("30").spawn()
+        }
+        .expect("a child process to look for");
+        let found = children(std::process::id());
+        let _ = child.kill();
+        let _ = child.wait();
+        assert!(found.contains(&child.id()), "{} among {found:?}", child.id());
+    }
 
     /// The scrollback keys moved the view and the screen did not follow.
     ///

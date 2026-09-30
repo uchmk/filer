@@ -68,6 +68,8 @@ pub enum ConfirmAction {
     Conflict { reply: Sender<Resolution>, job: u64 },
     DeleteForever { paths: Vec<PathBuf> },
     BookmarkDeleteAll,
+    /// `<C-S-t>` while a program runs under the shell.
+    EndShell,
 }
 
 pub struct ConfirmOverlay {
@@ -2011,6 +2013,7 @@ impl App {
     fn spot_act(&mut self, a: Act) {
         let rows: usize = self.spot_sections().iter().map(|s| s.rows.len()).sum();
         let page = self.tabs[self.active].page_rows.max(1);
+        let pr_url = if matches!(a, Act::Enter) { self.spot_pr_url() } else { None };
         let Overlay::Spot(ov) = &mut self.overlay else { return };
         match a {
             Act::Close | Act::Escape(_) | Act::Spot | Act::Quit => self.overlay = Overlay::None,
@@ -2021,6 +2024,15 @@ impl App {
             }
             // `h` and `l` change directory, as they do in the list and so as
             // they do under `<F3>`, which keeps the list's own keys live.
+            // `<Enter>` on a pull request's rows opens its page (Q20), before
+            // anything moves: the rows are what the cursor is on.
+            Act::Enter if pr_url.is_some() => {
+                let url = pr_url.unwrap_or_default();
+                match exec::open_url(&url) {
+                    Ok(()) => self.toast(format!("Opened {url}")),
+                    Err(e) => self.error(format!("could not open the browser: {e}")),
+                }
+            }
             Act::Leave | Act::Enter => {
                 // In the list, `enter` on a plain file focuses the preview's
                 // outline -- another panel wanting these same keys. With the
@@ -2035,6 +2047,17 @@ impl App {
                 // is not known yet; the once-a-frame call catches it.
                 self.sync_spot();
             }
+            // Everything at once, labelled, so it can be pasted into a bug
+            // report or a chat as text rather than a screenshot (Q18).
+            Act::Copy(CopyWhat::All) => {
+                let sections = self.spot_sections();
+                let text = spot_text(&sections);
+                let rows: usize = sections.iter().map(|s| s.rows.len()).sum();
+                match exec::set_clipboard(&text) {
+                    Ok(()) => self.toast(format!("Copied the spot panel: {rows} rows")),
+                    Err(err) => self.error(format!("Clipboard: {err}")),
+                }
+            }
             Act::Copy(_) => {
                 let cursor = ov.cursor;
                 let sections = self.spot_sections();
@@ -2046,6 +2069,25 @@ impl App {
             }
             _ => {}
         }
+    }
+
+    /// The pull request page the spot cursor is on, when it is on one: the
+    /// `Came in via` row or the page's own row, in a section that has a page.
+    fn spot_pr_url(&self) -> Option<String> {
+        let Overlay::Spot(ov) = &self.overlay else { return None };
+        let sections = self.spot_sections();
+        let mut at = ov.cursor;
+        for s in &sections {
+            if at < s.rows.len() {
+                let key = s.rows[at].0.as_str();
+                if key != "Came in via" && key != crate::spot::PR_ROW {
+                    return None;
+                }
+                return s.rows.iter().find(|(k, _)| k == crate::spot::PR_ROW).map(|(_, v)| v.clone());
+            }
+            at -= s.rows.len();
+        }
+        None
     }
 
     // ------------------------------------------------------------ navigation
@@ -2399,10 +2441,7 @@ impl App {
             // The same steps and bounds egui's own zoom used, so turning
             // that off and doing it here is not a change in feel.
             Act::Scale(to) => self.scale(to),
-            Act::BugReport => match exec::open_url(&crate::bugreport::url()) {
-                Ok(()) => self.toast("Opened a bug report in your browser"),
-                Err(e) => self.error(format!("could not open the browser: {e}")),
-            },
+            Act::BugReport => self.bug_report(),
             Act::TasksShow => self.overlay = Overlay::Tasks(TasksOverlay { cursor: 0 }),
             // These act on the row the task panel has under its cursor, so
             // they open it first when it is not the overlay in front.
@@ -3206,6 +3245,25 @@ impl App {
         }
     }
 
+    /// `<F12>`: the issue form in the browser, already filled in.
+    ///
+    /// When the browser cannot be opened, the URL goes on the clipboard so it
+    /// can be pasted into one by hand -- only then, so a report that worked
+    /// never overwrites what was on the clipboard (Q22). The form's fields
+    /// travel in the URL, so the pasted link is the whole report.
+    fn bug_report(&mut self) {
+        let url = crate::bugreport::url();
+        match exec::open_url(&url) {
+            Ok(()) => self.toast("Opened a bug report in your browser"),
+            Err(e) => match exec::set_clipboard(&url) {
+                Ok(()) => self.error(format!(
+                    "could not open the browser: {e}. The report's link is on the clipboard -- paste it into one"
+                )),
+                Err(_) => self.error(format!("could not open the browser: {e}")),
+            },
+        }
+    }
+
     fn start_rename(&mut self, cursor: RenameCursor) {
         let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
         let name = e.name.clone();
@@ -3232,7 +3290,7 @@ impl App {
         let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
         let text = match what {
             // Outside the spot panel the hovered path is the only cell.
-            CopyWhat::Path | CopyWhat::Cell => e.path.display().to_string(),
+            CopyWhat::Path | CopyWhat::Cell | CopyWhat::All => e.path.display().to_string(),
             CopyWhat::Dirname => e
                 .path
                 .parent()
@@ -3993,10 +4051,21 @@ impl App {
     /// them back when it already has them.
     fn terminal(&mut self, what: Tri) {
         if what == Some(false) {
-            // Dropping it sends the shell its shutdown.
-            self.term = None;
-            self.term_focus = false;
-            self.max_term = false;
+            // Ending the shell ends whatever runs under it, and on screen that
+            // looks just like `<C-t>` hiding the pane -- so a running program
+            // is asked about first, and a prompt is not (Q21).
+            if let Some(t) = self.term.as_ref().filter(|t| t.busy()) {
+                let what = if t.title.is_empty() { "A program".to_owned() } else { format!("`{}`", t.title) };
+                self.overlay = Overlay::Confirm(ConfirmOverlay {
+                    title: "End the shell?".into(),
+                    body: vec![format!("{what} is still running in the terminal, and ends with it.")],
+                    options: vec![('y', "End it".into()), ('n', "Keep it".into())],
+                    action: ConfirmAction::EndShell,
+                    dest: None,
+                });
+                return;
+            }
+            self.end_shell();
             return;
         }
         if self.term.is_some() {
@@ -4021,6 +4090,17 @@ impl App {
                 self.term_focus = true;
             }
             Err(e) => self.error(format!("Terminal failed: {e}")),
+        }
+    }
+
+    /// Drop the terminal, which sends the shell its shutdown, and say so: the
+    /// pane going away looks the same as `<C-t>` hiding it otherwise.
+    fn end_shell(&mut self) {
+        let had = self.term.take().is_some();
+        self.term_focus = false;
+        self.max_term = false;
+        if had {
+            self.toast("Ended the shell");
         }
     }
 
@@ -4569,6 +4649,11 @@ impl App {
                     self.tabs[self.active].clear_selection();
                 }
             }
+            ConfirmAction::EndShell => {
+                if ch == 'y' {
+                    self.end_shell();
+                }
+            }
             ConfirmAction::BookmarkDeleteAll => {
                 if ch == 'y' {
                     self.bookmarks.clear();
@@ -4733,6 +4818,21 @@ fn preview_paths(paths: &[PathBuf]) -> Vec<String> {
         out.push(format!("… and {} more", paths.len() - 8));
     }
     out
+}
+
+
+/// The spot panel as text: each section's title on a line of its own, then
+/// one `Label<TAB>value` line per row, and a blank line between sections. A tab
+/// because values hold spaces and colons, and a spreadsheet splits on it.
+fn spot_text(sections: &[Section]) -> String {
+    sections
+        .iter()
+        .map(|s| {
+            let rows: Vec<String> = s.rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect();
+            format!("{}\n{}", s.title, rows.join("\n"))
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
 }
 
 #[cfg(test)]
@@ -6478,6 +6578,80 @@ mod escape_and_max_preview {
         a.max_term = true;
         a.act(Act::Terminal(Some(false)));
         assert!(!a.max_term, "no pane left to be maximised");
+    }
+
+    /// `<C-S-t>` asks before ending a shell that is running something, and
+    /// does what the answer says (Q21).
+    ///
+    /// A real shell on a real PTY, because the question is about a real child
+    /// process: the shell is given a long-running command and the test waits,
+    /// with a deadline, until that command shows up under it. Only the busy
+    /// path is asserted -- whether an idle shell keeps a helper process of its
+    /// own is the platform's business, and "busy" errs toward asking anyway.
+    #[test]
+    fn ending_a_busy_shell_asks_first() {
+        let mut a = app();
+        a.act(Act::Terminal(Some(true)));
+        let Some(t) = a.term.as_ref() else {
+            // No PTY in this environment: nothing here to ask about.
+            return;
+        };
+        // A shell starting up runs short-lived children of its own (profile
+        // scripts), and the first version of this test caught one of those
+        // instead of the command and then found it gone. So let it settle
+        // first: idle for a stretch, or give up waiting after a few seconds
+        // (a shell that keeps a helper for ever never goes idle, and that is
+        // fine -- the command still has to show up below).
+        let (settle, mut idle_since) = (std::time::Instant::now(), std::time::Instant::now());
+        while settle.elapsed() < std::time::Duration::from_secs(5) {
+            if t.busy() {
+                idle_since = std::time::Instant::now();
+            } else if idle_since.elapsed() > std::time::Duration::from_millis(500) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(25));
+        }
+        let cmd: &[u8] = if cfg!(windows) { b"ping -n 60 127.0.0.1\r" } else { b"sleep 60\r" };
+        t.send(cmd.to_vec());
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        while !a.term.as_ref().is_some_and(|t| t.busy()) {
+            assert!(std::time::Instant::now() < deadline, "the command never showed up under the shell");
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+
+        a.act(Act::Terminal(Some(false)));
+        assert!(
+            matches!(&a.overlay, Overlay::Confirm(c) if matches!(c.action, ConfirmAction::EndShell)),
+            "a running program is asked about",
+        );
+        a.answer_confirm('n');
+        assert!(a.term.is_some(), "`n` keeps the shell and what it runs");
+
+        a.act(Act::Terminal(Some(false)));
+        a.answer_confirm('y');
+        assert!(a.term.is_none(), "`y` ends it");
+    }
+
+    /// `copy all` lays the panel out as text a spreadsheet or a bug report can
+    /// take: titles alone, rows as `Label<TAB>value`, sections apart (Q18).
+    #[test]
+    fn the_whole_spot_panel_copies_as_labelled_lines() {
+        let sections = vec![
+            Section { title: "File".into(), rows: vec![("Name".into(), "a b.txt".into()), ("Size".into(), "3 B".into())] },
+            Section { title: "Git".into(), rows: vec![("Came in via".into(), "#71  48b6c9c".into())] },
+        ];
+        assert_eq!(spot_text(&sections), "File\nName\ta b.txt\nSize\t3 B\n\nGit\nCame in via\t#71  48b6c9c");
+    }
+
+    /// The default spot keys reach the two new commands: `C` copies it all,
+    /// and `<Enter>` is `enter`, which opens a pull request on its rows.
+    #[test]
+    fn the_spot_keys_for_copy_all_and_enter() {
+        use crate::config::keys::Key;
+        let km = &Config::load().keymap;
+        let run = |k: Key| km.spot.iter().find(|b| b.on == vec![k]).map(|b| b.run.clone());
+        assert_eq!(run(Key::parse("C").unwrap()), Some(vec![Act::Copy(CopyWhat::All)]));
+        assert_eq!(run(Key::parse("<Enter>").unwrap()), Some(vec![Act::Enter]));
     }
 
     /// `escape --filter` is aimed at one thing and must stay aimed at it.
