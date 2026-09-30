@@ -782,7 +782,7 @@
 - [ ] 全画面のプログラム（lazygit）にスクロールのキー（`<S-End>`）を 30/s で約 165 回送ると、その後の `?` `<Esc>`
   への反応が 15 秒以上遅れる（60 秒後には追いつく）。`<S-End>` は代替画面のプログラムへ渡す設計（40 節）。
   filer 側で溜めているのか、lazygit 側の処理か、切り分けていない。キーを押しっぱなしにすれば人でも起きる速さ。
-- `filer env` をリダイレクトで取れない件、**4 回目の報告**（#93）。上の該当項目を参照。
+- `filer env` をリダイレクトで取れない件、**4 回目の報告**（#93）。v0.54.4 で直した。
 - [ ] TESTING.md 1.18 の「PowerShell 7」だけでは足りない。この機械の pwsh 7.6.6 はプロンプトが OSC 7 を出さず、
   README の `LocationChangedAction` のフックを読み込んで初めて 1.16 / 1.18 が通った。行の文言にフックを前提と書く。
 - [ ] `filer --keys` に待ちを足す（`<Wait:2000>` の形。#93 の提案）。今は待ちの代わりに無害なキーを詰めていて、
@@ -918,7 +918,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `cargo run` では再現しない。
 - [ ] `:` のコンソールが一瞬で閉じる（要確認: Q13）。`git log -5` のように短いものは
   読めない。Q12 が先。
-- [ ] release の `filer.exe --version` を PowerShell のパイプで受けると何も出ない
+- [x] release の `filer.exe --version` を PowerShell のパイプで受けると何も出ない
   （2026-09-30、Windows 実機のセッションの報告。原因は未調査）。これも
   `windows_subsystem = "windows"` の側の話と見ている。`--version` は版を確かめる唯一の口なので、
   出力先の扱いを調べる（パイプ・リダイレクト・素の実行の 3 通り）。
@@ -928,6 +928,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
     パイプにもリダイレクトにも何も流れない（`filer env > out.txt` も `$v = & filer env` も空）。`filer env | Select-String`
     が絞り込めない（全部画面に出る）のも同じ。stdout のハンドルが `GetFileType` でパイプかファイルならそこへ書き、
     コンソールのときだけ `CONOUT$` にする。実機の無人の計測は全部これで始まるので、優先度は高い。
+  - **直した（v0.54.4）。**上の形のとおり、標準出力がファイルかパイプなら `say()` はそこへ書く。`--version` と
+    `--help` も同じ関数なので一緒に直った。CI の test は debug ビルド（コンソールを持つ）で見えないので、
+    `build.yml` の windows-x64 で出荷する release の exe を実際にリダイレクトして確かめる。実機では 25.18〜25.20。
 
 ## 環境・その他
 

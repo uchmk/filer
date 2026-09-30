@@ -88,6 +88,33 @@ jobs:
       - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }}
 
+      # The release binary is a GUI-subsystem program, and until v0.54.4 its
+      # `filer env` and `--version` wrote only to the screen: redirected to a
+      # file or a pipe they gave nothing at all, and a debug build -- which is
+      # all the test job ever runs -- cannot show it, because it owns a
+      # console. So this runs the binary that actually ships. x64 only: the
+      # runner cannot execute the ARM64 build.
+      - name: Its output can be redirected
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        shell: pwsh
+        run: |
+          $exe = "target/${{ matrix.target }}/release/filer.exe"
+          # PowerShell's own `>` does not connect a GUI-subsystem program's
+          # output to the file at all (found here: 0 bytes, process already
+          # gone), so the forms checked are the ones that do reach it: a pipe
+          # into Out-File, cmd's `>`, and a pipe into another command.
+          & $exe --version | Out-File -Encoding utf8 version.txt
+          $v = Get-Content -Raw version.txt
+          if (-not ($v -match '^filer \d')) { throw "--version | Out-File gave: '$v'" }
+          cmd /c "`"$exe`" env > env.txt"
+          $e = Get-Content -Raw env.txt
+          if (-not ($e -match 'Process arch')) { throw "cmd's > gave: '$e'" }
+          $arch = & $exe env | Select-String 'Process arch'
+          if (-not $arch) { throw "filer env | Select-String found no 'Process arch' line" }
+          "Out-File: $v"
+          "cmd >:    $((Get-Item env.txt).Length) bytes"
+          "piped:    $arch"
+
       - name: Gather the files
         shell: bash
         run: |

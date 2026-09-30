@@ -1178,7 +1178,17 @@ clipboard instead, to paste into one. For everything else a report tends to need
 
 ```
 filer env
+filer env | Out-File filer-env.txt   # into a file, to attach
+filer env | Select-String arch       # or through a pipe
 ```
+
+Since v0.54.4 the text goes wherever standard output is sent; before that it went only to the
+screen. One exception is PowerShell's own `>`: it does not connect a windowed program's output to
+the file at all, so `filer env > out.txt` still gives an empty file there. Pipe into `Out-File` (or
+`Set-Content`) instead, or use `cmd /c "filer env > out.txt"`, where `>` works as usual. If a non-ASCII
+path comes out garbled in PowerShell, that is PowerShell decoding the bytes with the console's code
+page: `[Console]::OutputEncoding = [Text.Encoding]::UTF8` first, or go through `cmd`, which writes
+the UTF-8 as it is.
 
 It says which config files were looked for **and where**, which were found and how big they are,
 any warnings from loading them, which outside tools are on the `PATH` and what each one is for,
