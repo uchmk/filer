@@ -3714,7 +3714,7 @@ ARM64 レーンの 7 本目（`.claude/windows-role.md`「The ARM64 lane」、`a
 | 一時ディレクトリ | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（この機械に RAM ディスクは無い） |
 | 入力デスクトップ | **スクリーンセーバが握っていた**（`OpenInputDesktop` = `Screen-saver`、`SPI_GETSCREENSAVERRUNNING` = True、`LogonUI` は 0 本）。#88 と同じ状況 |
 
-生の証拠は `C:\dev\filer-evidence\arm-1.9g-45.11\`（`shots\` に 40 枚、`runs\<tag>\pty.log`、
+生の証拠は `C:\dev\filer-evidence\arm-1.9g-45.11\`（`shots\` に 74 枚 —— 窓ぜんぶと、読んだところを切り出した `strip-*` / `*-rows` / `*-foot`、`runs\<tag>\pty.log`、
 足場の `lib.ps1` / `find.ps1` / `shot.ps1` / `desk.ps1`、フィクスチャの `fx45.ps1` / `fx4514.ps1`、
 `run19.ps1`）。
 
