@@ -48,7 +48,9 @@ pub fn which(app: &App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
 /// menu nor any way to ask for the clipboard. So both halves are done here.
 ///
 /// Where it lands: egui moves the caret on a press of *any* button, the
-/// secondary one included, so the text goes where the click was. Line breaks
+/// secondary one included, so the text goes where the click was -- or over the
+/// selection, when the click fell on it; `selected` is the field's selection as
+/// the previous frame left it, since by now egui has collapsed it. Line breaks
 /// become spaces, which is what egui itself does with a multi-line paste into a
 /// one-line field — matching `<C-v>` matters more than any other choice here,
 /// since a mouse paste that behaved differently would be a second thing to
@@ -61,11 +63,12 @@ fn right_click_paste(
     resp: &egui::Response,
     id: egui::Id,
     text: &mut String,
+    selected: Option<std::ops::Range<usize>>,
 ) -> Result<bool, String> {
     if !resp.secondary_clicked() {
         return Ok(false);
     }
-    let add = crate::exec::get_clipboard()?.replace(['\r', '\n'], " ");
+    let add = one_line(&crate::exec::get_clipboard()?);
     if add.is_empty() {
         return Ok(false);
     }
@@ -79,12 +82,44 @@ fn right_click_paste(
         // Never clicked into: the end is where typing would have gone.
         None => chars..chars,
     };
+    let at = paste_over(at, selected, chars);
     let caret = at.start + add.chars().count();
     *text = splice(text, at, &add);
     let one = egui::text::CCursorRange::one(egui::text::CCursor::new(caret));
     state.cursor.set_char_range(Some(one));
     state.store(ui.ctx(), id);
     Ok(true)
+}
+
+/// The clipboard as one line. A line break is one space whichever way it was
+/// spelled: folding `\r` and `\n` one at a time made a Windows CRLF two, where
+/// `<C-v>` makes one (30.4, #104).
+fn one_line(clip: &str) -> String {
+    clip.replace("\r\n", "\n").replace(['\r', '\n'], " ")
+}
+
+/// Where a right-click's paste goes. egui has collapsed any selection to the
+/// click by the time the paste runs, so `at` is the click; `selected` is what
+/// the frame before had selected. A click on the selection pastes over it, as
+/// a browser and a terminal do (30.3, #104); anywhere else, where it fell.
+fn paste_over(
+    at: std::ops::Range<usize>,
+    selected: Option<std::ops::Range<usize>>,
+    chars: usize,
+) -> std::ops::Range<usize> {
+    match selected {
+        Some(s) if s.start < s.end && s.end <= chars && (s.start..=s.end).contains(&at.start) => s,
+        _ => at,
+    }
+}
+
+/// The field's selection as it stands, in characters: read before the field
+/// is drawn, it is what the previous frame left, which a press is about to
+/// collapse.
+fn selection(ui: &Ui, id: egui::Id) -> Option<std::ops::Range<usize>> {
+    let state = egui::text_edit::TextEditState::load(ui.ctx(), id)?;
+    let r = state.cursor.char_range()?.as_sorted_char_range();
+    Some(usize::from(r.start)..usize::from(r.end))
 }
 
 /// `text` with the character range `at` replaced by `add`.
@@ -130,6 +165,7 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
     );
     let id = egui::Id::new("filer-input");
     let before = ov.text.clone();
+    let selected = selection(ui, id);
     let resp = ui.put(
         field,
         egui::TextEdit::singleline(&mut ov.text)
@@ -142,9 +178,21 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
     );
     if !ov.focused {
         resp.request_focus();
+        // Where the prompt asked the caret to be, or what to select. Until
+        // v0.55.0 this was worked out and never handed to the field, so every
+        // prompt opened with the caret wherever egui left it.
+        if let Some((from, to)) = ov.initial_selection.take() {
+            let mut state = egui::text_edit::TextEditState::load(ui.ctx(), id).unwrap_or_default();
+            let range = egui::text::CCursorRange::two(
+                egui::text::CCursor::new(from),
+                egui::text::CCursor::new(to),
+            );
+            state.cursor.set_char_range(Some(range));
+            state.store(ui.ctx(), id);
+        }
         ov.focused = true;
     }
-    let clip = right_click_paste(ui, &resp, id, &mut ov.text);
+    let clip = right_click_paste(ui, &resp, id, &mut ov.text, selected);
     if (resp.changed() || matches!(clip, Ok(true))) && ov.text != before {
         app.input_changed();
     }
@@ -779,6 +827,7 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
 
     let before = p.query.clone();
     let pick_id = egui::Id::new("filer-pick");
+    let selected = selection(ui, pick_id);
     let resp = ui.put(
         field,
         egui::TextEdit::singleline(&mut p.query)
@@ -795,7 +844,7 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
     }
     // The clipboard is ignored here rather than reported: a chooser has no room
     // for a toast under it, and the query is typed far more often than pasted.
-    let _ = right_click_paste(ui, &resp, pick_id, &mut p.query);
+    let _ = right_click_paste(ui, &resp, pick_id, &mut p.query, selected);
     if p.query != before {
         p.refilter();
     }
@@ -1166,13 +1215,19 @@ pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
 
 #[cfg(test)]
 mod tests {
-    use super::splice;
+    use super::{one_line, paste_over, splice};
 
     /// A paste goes where the caret is, and a selection is replaced rather than
     /// pushed aside — the same two cases every text field has.
     #[test]
     fn pastes_at_the_caret() {
         assert_eq!(splice("cd ", 3..3, "D:/work"), "cd D:/work");
+        assert_eq!(splice("cd old", paste_over(4..4, Some(3..6), 6), "new"), "cd new", "a click on the selection");
+        assert_eq!(splice("cd old", paste_over(1..1, Some(3..6), 6), "X"), "cXd old", "a click beside it");
+        assert_eq!(paste_over(2..2, Some(2..2), 6), 2..2, "a caret is not a selection");
+        assert_eq!(paste_over(0..0, None, 0), 0..0);
+        assert_eq!(one_line("line one\r\nline two"), "line one line two", "CRLF is one space");
+        assert_eq!(one_line("a\nb\rc"), "a b c");
         assert_eq!(splice("cd old", 3..6, "new"), "cd new");
         assert_eq!(splice("", 0..0, "x"), "x");
         // A caret past the end (a stored one from longer text) clamps rather
@@ -2404,10 +2459,9 @@ mod bulk_frame {
     ///
     /// `<C-a>` is egui's, not the keymap's -- `Overlay::Input` hands text
     /// straight to the field. It is here because the prompt opens on
-    /// `{name}{ext}` and typing lands after it, so a rule typed without this
-    /// reads `{name}{ext}s/a/b/`. The prompt is *supposed* to open with that
-    /// rule selected (`InputOverlay::initial_selection`); it does not, which is
-    /// in QA-REPORT.md rather than fixed here.
+    /// `{name}{ext}`. Since v0.55.0 that rule opens selected, so typing alone
+    /// would replace it too (`prompt_selection` tests that); this keeps the
+    /// person's own habit, and still works if a later change moves the caret.
     fn rule(s: &mut Screen, rule: &str) -> Painted {
         s.feed(vec![chord(egui::Key::A, ctrl())]);
         s.typed(rule);
@@ -2702,5 +2756,68 @@ mod shell_hint_frame {
         // promises a wait.
         assert!(f.says("$@ all"), "the placeholder legend stays: {:?}", f.texts);
         assert!(!f.says("waits"), "nothing says filer waits: {:?}", f.texts);
+    }
+}
+
+/// Q31: a prompt that opens with text in it opens with that text selected, so
+/// what is typed or pasted replaces it. `InputOverlay::initial_selection` was
+/// worked out for every prompt and never handed to the field before v0.55.0.
+#[cfg(test)]
+mod prompt_selection {
+    use super::overlays::showing;
+    use crate::app::Overlay;
+    use crate::ui::harness::Screen;
+
+    fn field(s: &Screen) -> String {
+        match &s.app.overlay {
+            Overlay::Input(ov) => ov.text.clone(),
+            _ => panic!("no prompt is open"),
+        }
+    }
+
+    /// `cd` opens on where you are; a path typed or pasted replaces it
+    /// rather than landing on the end of it (30.1, #104).
+    #[test]
+    fn the_cd_prompt_opens_with_the_path_selected() {
+        let (_dir, mut s) = showing("q31-cd", &["a.txt"]);
+        s.typed("g");
+        s.typed(" ");
+        s.draw();
+        s.typed("C:/elsewhere");
+        s.draw();
+        assert_eq!(field(&s), "C:/elsewhere");
+    }
+
+    /// `r` selects the name without its extension, as `F2` does.
+    #[test]
+    fn rename_selects_the_name_up_to_the_extension() {
+        let (_dir, mut s) = showing("q31-rename", &["report.txt"]);
+        s.typed("r");
+        s.draw();
+        s.typed("notes");
+        s.draw();
+        assert_eq!(field(&s), "notes.txt");
+    }
+
+    /// The bulk rule opens on `{name}{ext}`, selected.
+    #[test]
+    fn bulk_rename_opens_with_its_rule_selected() {
+        let (_dir, mut s) = showing("q31-bulk", &["a.txt", "b.txt"]);
+        s.typed("R");
+        s.draw();
+        s.typed("x-{name}");
+        s.draw();
+        assert_eq!(field(&s), "x-{name}");
+    }
+
+    /// The archive's name selects the part before `.zip`.
+    #[test]
+    fn the_archive_name_selects_its_stem() {
+        let (_dir, mut s) = showing("q31-compress", &["a.txt"]);
+        s.typed("E");
+        s.draw();
+        s.typed("bundle");
+        s.draw();
+        assert_eq!(field(&s), "bundle.zip");
     }
 }

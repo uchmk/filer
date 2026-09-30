@@ -14,6 +14,7 @@
 
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -93,6 +94,11 @@ struct Tapped {
     partial: Vec<u8>,
     /// `FILER_PTY_LOG`, when it is set; see [`PtyLog`].
     log: PtyLog,
+    /// Whether the other end has asked for win32-input-mode; see
+    /// [`Terminal::win32_input`]. Written here, where the request goes past.
+    win32: Arc<AtomicBool>,
+    /// The end of the last read, in case the request was cut in two.
+    mode_tail: Vec<u8>,
 }
 
 /// Longest OSC 7 worth waiting for. A path cannot sensibly be longer, and a
@@ -105,6 +111,9 @@ impl io::Read for Tapped {
         log_pty(&self.log, "out", &buf[..n]);
         for path in scan_osc7(&mut self.partial, &buf[..n]) {
             let _ = self.cwd.send(path);
+        }
+        if let Some(on) = scan_win32_mode(&mut self.mode_tail, &buf[..n]) {
+            self.win32.store(on, Ordering::Relaxed);
         }
         Ok(n)
     }
@@ -157,6 +166,23 @@ impl alacritty_terminal::event::OnResize for Tapped {
     }
 }
 
+/// The shell the pane starts when `[term] shell` names none.
+///
+/// On Windows that is `pwsh` when PowerShell 7 is installed, and Windows
+/// PowerShell 5.1 when it is not (Q29), which is how Windows Terminal picks
+/// too. 5.1 lacks `LocationChangedAction`, the hook the README gives for
+/// bringing the directory back, and ships a PSReadLine without prediction, so
+/// starting it on a machine that has 7 was starting the worse of two shells.
+/// `None` is the platform's own default: `powershell` on Windows, the login
+/// shell elsewhere.
+pub fn default_shell() -> Option<String> {
+    pick_default_shell(cfg!(windows), crate::util::locate("pwsh").is_some())
+}
+
+fn pick_default_shell(windows: bool, have_pwsh: bool) -> Option<String> {
+    (windows && have_pwsh).then(|| "pwsh".to_owned())
+}
+
 /// A key as a single win32-input-mode record, **pressed only**:
 /// `CSI Vk ; Sc ; Uc ; 1 ; Cs ; 1 _`.
 ///
@@ -174,12 +200,120 @@ impl alacritty_terminal::event::OnResize for Tapped {
 /// `scripts/keyprobe.ps1` showed on the real machine: what this sent came out
 /// as a key record carrying the virtual key.
 pub fn win32_key(vk: u16, scan: u16, ch: u16, mods: Mods) -> Vec<u8> {
+    record(vk, scan, ch, mods, false)
+}
+
+fn record(vk: u16, scan: u16, ch: u16, mods: Mods, enhanced: bool) -> Vec<u8> {
     // dwControlKeyState: the left-hand bits, since a synthesised key has no
-    // side and the left is what every keyboard has.
+    // side and the left is what every keyboard has. ENHANCED_KEY (0x100) is
+    // what the arrows and the block above them carry on a real keyboard.
     let state = (if mods.alt { 0x02 } else { 0 })
         | (if mods.ctrl { 0x08 } else { 0 })
-        | (if mods.shift { 0x10 } else { 0 });
+        | (if mods.shift { 0x10 } else { 0 })
+        | (if enhanced { 0x100 } else { 0 });
     format!("\x1b[{vk};{scan};{ch};1;{state};1_").into_bytes()
+}
+
+/// A special key as a win32-input-mode record, for when the other end has
+/// asked for them (Q27).
+///
+/// Every sequence a special key sends as VT starts with ESC, and a tcell
+/// program cannot tell a lone `<Esc>` from the start of the next one if it
+/// arrives inside its 50ms wait: `<Esc>` followed within 31ms by a forwarded
+/// `<S-End>` (`\e[1;2F`) lost the Escape for good (#99). A record is one key
+/// whatever follows it, which is how Windows Terminal sends them all.
+pub fn special_record(key: Special, mods: Mods) -> Vec<u8> {
+    use Special::*;
+    let (vk, scan, ch, enhanced, mods) = match key {
+        Enter => (0x0d, 0x1c, 0x0d, false, mods),
+        Backspace => (0x08, 0x0e, if mods.ctrl { 0x7f } else { 0x08 }, false, mods),
+        Tab => (0x09, 0x0f, 0x09, false, mods),
+        BackTab => (0x09, 0x0f, 0x09, false, Mods { shift: true, ..mods }),
+        Escape => (0x1b, 0x01, 0x1b, false, mods),
+        Up => (0x26, 0x48, 0, true, mods),
+        Down => (0x28, 0x50, 0, true, mods),
+        Left => (0x25, 0x4b, 0, true, mods),
+        Right => (0x27, 0x4d, 0, true, mods),
+        Home => (0x24, 0x47, 0, true, mods),
+        End => (0x23, 0x4f, 0, true, mods),
+        PageUp => (0x21, 0x49, 0, true, mods),
+        PageDown => (0x22, 0x51, 0, true, mods),
+        Insert => (0x2d, 0x52, 0, true, mods),
+        Delete => (0x2e, 0x53, 0, true, mods),
+        F(n @ 1..=10) => (0x70 + u16::from(n) - 1, 0x3b + u16::from(n) - 1, 0, false, mods),
+        F(11) => (0x7a, 0x57, 0, false, mods),
+        F(12) => (0x7b, 0x58, 0, false, mods),
+        F(n) => (0x70 + u16::from(n.min(24)) - 1, 0, 0, false, mods),
+    };
+    record(vk, scan, ch, mods, enhanced)
+}
+
+/// A letter or digit held with Ctrl or Alt as a win32-input-mode record.
+/// `None` for anything else, which then goes as the bytes it always did.
+///
+/// `ch` is what the key would type: the control code under Ctrl (`Ctrl+C` is
+/// 3), the character itself under Alt alone. The scan codes are a US
+/// keyboard's, which is what ConPTY expects of a synthesised key.
+pub fn char_record(c: char, mods: Mods) -> Option<Vec<u8>> {
+    const LETTERS: [u16; 26] = [
+        0x1e, 0x30, 0x2e, 0x20, 0x12, 0x21, 0x22, 0x23, 0x17, 0x24, 0x25, 0x26, 0x32, 0x31, 0x18,
+        0x19, 0x10, 0x13, 0x1f, 0x14, 0x16, 0x2f, 0x11, 0x2d, 0x15, 0x2c,
+    ];
+    if !(mods.ctrl || mods.alt) {
+        return None;
+    }
+    let (vk, scan) = match c.to_ascii_uppercase() {
+        u @ 'A'..='Z' => (u as u16, LETTERS[(u as u8 - b'A') as usize]),
+        '0' => (0x30, 0x0b),
+        d @ '1'..='9' => (d as u16, 0x02 + (d as u16 - '1' as u16)),
+        _ => return None,
+    };
+    let typed = match (mods.ctrl, c.is_ascii_alphabetic()) {
+        (true, true) => (c.to_ascii_lowercase() as u16) - u16::from(b'a') + 1,
+        (true, false) => 0,
+        (false, _) if mods.shift => c.to_ascii_uppercase() as u16,
+        (false, _) => c as u16,
+    };
+    Some(record(vk, scan, typed, mods, false))
+}
+
+/// Whether this read turned win32-input-mode on or off, going by the last
+/// `\e[?9001h` or `\e[?9001l` in it. ConPTY asks for it as it starts, when
+/// the terminal on the other side can send key records rather than VT.
+///
+/// `tail` keeps the end of the previous read, since a request can be cut in
+/// two by where one read stopped.
+fn scan_win32_mode(tail: &mut Vec<u8>, chunk: &[u8]) -> Option<bool> {
+    const SET: &[u8] = b"\x1b[?9001h";
+    const RESET: &[u8] = b"\x1b[?9001l";
+    tail.extend_from_slice(chunk);
+    let mut last = None;
+    let mut i = 0;
+    while i + SET.len() <= tail.len() {
+        if tail[i..].starts_with(SET) {
+            last = Some(true);
+            i += SET.len();
+        } else if tail[i..].starts_with(RESET) {
+            last = Some(false);
+            i += RESET.len();
+        } else {
+            i += 1;
+        }
+    }
+    let keep = tail.len().saturating_sub(SET.len() - 1);
+    tail.drain(..keep);
+    last
+}
+
+/// The terminal's answer to a program asking whether win32-input-mode is on
+/// (`\e[?9001$p`). alacritty does not know the mode and says so (`0`, not
+/// recognised), which told lazygit the mode did not exist while `<Esc>` was
+/// already arriving in it. Said as it is instead: set (1) or reset (2).
+fn answer_win32_query(reply: String, on: bool) -> String {
+    match reply.as_str() {
+        "\x1b[?9001;0$y" => format!("\x1b[?9001;{}$y", if on { 1 } else { 2 }),
+        _ => reply,
+    }
 }
 
 /// A record of every byte that crosses the PTY, for when the pane and a
@@ -386,6 +520,8 @@ pub struct Terminal {
     /// How to quote a word for the shell that was actually started, decided
     /// once at `spawn` because that is where the program's name is known.
     quoting: Quoting,
+    /// Whether the other end asked for keys as win32-input-mode records.
+    win32: Arc<AtomicBool>,
     cwd_rx: Receiver<PathBuf>,
     /// The last match, start and end, so the next search carries on past it
     /// in whichever direction it goes.
@@ -414,7 +550,8 @@ impl Terminal {
         let quoting = Quoting::for_shell(shell.as_ref().map(|(p, _)| p.as_str()));
         let options = tty::Options {
             // `None` is the platform default, which on Windows is
-            // `powershell` -- Windows PowerShell 5.1, not `pwsh`. They read
+            // `powershell` -- Windows PowerShell 5.1. `default_shell` asks for
+            // `pwsh` before it comes to that when 7 is installed. They read
             // different profiles, so a shell hook set up for one is simply not
             // there in the other; `[term] shell` is how you say which.
             shell: shell.map(|(program, args)| tty::Shell::new(program, args)),
@@ -432,7 +569,15 @@ impl Terminal {
         let shell_pid = Some(pty.child().id());
         let (cwd_tx, cwd_rx) = crossbeam_channel::unbounded();
         let log = open_pty_log();
-        let pty = Tapped { inner: pty, cwd: cwd_tx, partial: Vec::new(), log: log.clone() };
+        let win32 = Arc::new(AtomicBool::new(false));
+        let pty = Tapped {
+            inner: pty,
+            cwd: cwd_tx,
+            partial: Vec::new(),
+            log: log.clone(),
+            win32: win32.clone(),
+            mode_tail: Vec::new(),
+        };
 
         let (tx, rx) = crossbeam_channel::unbounded();
         let proxy = Proxy { tx, wake: Arc::new(wake) };
@@ -459,7 +604,14 @@ impl Terminal {
             shell_cwd: None,
             log,
             shell_pid,
+            win32,
         })
+    }
+
+    /// Whether keys should go as win32-input-mode records: the other end
+    /// (ConPTY, on Windows) asked for them. Never true anywhere else.
+    pub fn win32_input(&self) -> bool {
+        self.win32.load(Ordering::Relaxed)
     }
 
     /// Whether the shell is running something -- lazygit, an editor, a build
@@ -488,7 +640,10 @@ impl Terminal {
                 PtyEvent::ClipboardStore(_, text) => clipboard.push(text),
                 // A program answering a query writes back through the same
                 // pipe it would if the user had typed it.
-                PtyEvent::PtyWrite(text) => self.send_as(text.into_bytes(), "in reply"),
+                PtyEvent::PtyWrite(text) => {
+                    let text = answer_win32_query(text, self.win32_input());
+                    self.send_as(text.into_bytes(), "in reply")
+                }
                 PtyEvent::Exit | PtyEvent::ChildExit(_) => self.exited = true,
                 _ => {}
             }
@@ -963,6 +1118,44 @@ pub fn cursor_cell<T: EventListener>(term: &Term<T>) -> (usize, usize) {
 pub fn app_cursor<T: EventListener>(term: &Term<T>) -> bool {
     use alacritty_terminal::term::TermMode;
     term.mode().contains(TermMode::APP_CURSOR)
+}
+
+/// Whether the program has asked to be told about the mouse, and in which
+/// encoding. nvim asks at startup (`\e[?1002h\e[?1006h`), as do htop, tmux and
+/// most other full-screen programs.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum MouseReport {
+    Off,
+    /// `\e[<b;x;yM` (mode 1006): any column, and what everything current asks for.
+    Sgr,
+    /// `\e[M` and three bytes, the original X10 form. Columns past 223 cannot
+    /// be said in it, so they are said as 223.
+    Plain,
+}
+
+pub fn mouse_report<T: EventListener>(term: &Term<T>) -> MouseReport {
+    use alacritty_terminal::term::TermMode;
+    let mode = term.mode();
+    match (mode.intersects(TermMode::MOUSE_MODE), mode.contains(TermMode::SGR_MOUSE)) {
+        (false, _) => MouseReport::Off,
+        (true, true) => MouseReport::Sgr,
+        (true, false) => MouseReport::Plain,
+    }
+}
+
+/// One notch of the wheel as the program asked to hear it: buttons 64 (up)
+/// and 65 (down) at the cell under the pointer, counted from zero here and
+/// from one on the wire. A wheel has no release, so there is no `m` form.
+pub fn wheel_report(up: bool, col: usize, line: usize, how: MouseReport) -> Vec<u8> {
+    let button = if up { 64 } else { 65 };
+    match how {
+        MouseReport::Off => Vec::new(),
+        MouseReport::Sgr => format!("\x1b[<{button};{};{}M", col + 1, line + 1).into_bytes(),
+        MouseReport::Plain => {
+            let at = |n: usize| (32 + 1 + n.min(222)) as u8;
+            vec![0x1b, b'[', b'M', 32 + button, at(col), at(line)]
+        }
+    }
 }
 
 /// Whether a full-screen program is drawing: `nvim`, `less`, `htop` and the
@@ -1630,6 +1823,15 @@ mod tests {
         assert_eq!(quote("", Posix), "''");
         assert_eq!(quote("", Cmd), "\"\"");
     }
+    /// Q29: PowerShell 7 is preferred on Windows when it is there, and
+    /// nothing changes anywhere else.
+    #[test]
+    fn the_default_shell_is_pwsh_on_windows_when_it_is_installed() {
+        assert_eq!(pick_default_shell(true, true), Some("pwsh".to_owned()));
+        assert_eq!(pick_default_shell(true, false), None, "5.1, the platform default");
+        assert_eq!(pick_default_shell(false, true), None, "a pwsh on Linux is not the login shell");
+    }
+
 
     /// What `[term] shell` names decides the convention, and the fallback is
     /// the platform's rather than one convention for everybody.
@@ -1717,6 +1919,63 @@ mod readme_snippet {
     }
 }
 
+/// Q27: keys as win32-input-mode records once the other end asks for them.
+#[cfg(test)]
+mod win32_input_tests {
+    use super::*;
+
+    fn s(b: Vec<u8>) -> String {
+        String::from_utf8(b).unwrap()
+    }
+
+    /// The request is seen however the reads fall, and the last one wins.
+    #[test]
+    fn the_request_is_seen_even_when_a_read_cuts_it() {
+        let mut tail = Vec::new();
+        assert_eq!(scan_win32_mode(&mut tail, b"hello \x1b[?90"), None);
+        assert_eq!(scan_win32_mode(&mut tail, b"01h and more"), Some(true), "across two reads");
+        assert_eq!(scan_win32_mode(&mut tail, b"\x1b[?9001l"), Some(false));
+        assert_eq!(scan_win32_mode(&mut tail, b"\x1b[?9001h\x1b[?9001l"), Some(false), "the last one");
+        assert_eq!(scan_win32_mode(&mut tail, b"\x1b[?1049h"), None, "another mode is not this one");
+        assert!(tail.len() < 10, "and the carry stays short: {}", tail.len());
+    }
+
+    /// `\e[?9001$p` was answered "not recognised"; now it is answered as it is.
+    #[test]
+    fn the_query_is_answered_with_the_state() {
+        assert_eq!(answer_win32_query("\x1b[?9001;0$y".into(), true), "\x1b[?9001;1$y");
+        assert_eq!(answer_win32_query("\x1b[?9001;0$y".into(), false), "\x1b[?9001;2$y");
+        assert_eq!(answer_win32_query("\x1b[?1049;1$y".into(), true), "\x1b[?1049;1$y", "others untouched");
+    }
+
+    /// `<S-End>` -- the key that took lazygit's `<Esc>` with it -- is one
+    /// record with no ESC in front of its own, and so is every special key.
+    #[test]
+    fn special_keys_are_records() {
+        let shift = Mods { shift: true, ..Default::default() };
+        assert_eq!(s(special_record(Special::End, shift)), "\x1b[35;79;0;1;272;1_");
+        assert_eq!(s(special_record(Special::Escape, Mods::default())), "\x1b[27;1;27;1;0;1_");
+        assert_eq!(s(special_record(Special::Enter, Mods::default())), "\x1b[13;28;13;1;0;1_");
+        assert_eq!(s(special_record(Special::BackTab, Mods::default())), "\x1b[9;15;9;1;16;1_");
+        assert_eq!(s(special_record(Special::F(5), Mods::default())), "\x1b[116;63;0;1;0;1_");
+        assert_eq!(s(special_record(Special::F(12), Mods::default())), "\x1b[123;88;0;1;0;1_");
+    }
+
+    /// Ctrl carries the control code, Alt the character, Alt+Shift the capital.
+    #[test]
+    fn chords_are_records() {
+        let ctrl = Mods { ctrl: true, ..Default::default() };
+        let alt = Mods { alt: true, ..Default::default() };
+        let alt_shift = Mods { alt: true, shift: true, ..Default::default() };
+        assert_eq!(s(char_record('c', ctrl).unwrap()), "\x1b[67;46;3;1;8;1_");
+        assert_eq!(s(char_record('b', alt).unwrap()), "\x1b[66;48;98;1;2;1_");
+        assert_eq!(s(char_record('b', alt_shift).unwrap()), "\x1b[66;48;66;1;18;1_");
+        assert_eq!(s(char_record('1', alt).unwrap()), "\x1b[49;2;49;1;2;1_");
+        assert_eq!(char_record('[', ctrl), None, "no record form: the caller keeps the old bytes");
+        assert_eq!(char_record('a', Mods::default()), None, "a plain letter is text");
+    }
+}
+
 /// The alternate screen, and the meta prefix — the two things the pane needs
 /// in order to know when a key is its own and when it belongs to a program.
 #[cfg(test)]
@@ -1735,6 +1994,28 @@ mod alt_screen_tests {
 
         feed(&mut t, "\x1b[?1049l");
         assert!(!alt_screen(&t), "and given it back on the way out");
+    }
+
+    /// Q28: what nvim sends at startup turns the wheel into mouse reports, in
+    /// the SGR form it asked for; turning the mouse off again turns them off.
+    #[test]
+    fn a_program_that_asks_for_the_mouse_is_told_about_the_wheel() {
+        let mut t = term(80, 24);
+        assert_eq!(mouse_report(&t), MouseReport::Off);
+
+        feed(&mut t, "\x1b[?1049h\x1b[?1002h\x1b[?1006h");
+        assert_eq!(mouse_report(&t), MouseReport::Sgr);
+        assert_eq!(wheel_report(true, 9, 4, MouseReport::Sgr), b"\x1b[<64;10;5M");
+        assert_eq!(wheel_report(false, 0, 0, MouseReport::Sgr), b"\x1b[<65;1;1M");
+
+        feed(&mut t, "\x1b[?1006l");
+        assert_eq!(mouse_report(&t), MouseReport::Plain, "still reporting, the old way");
+        assert_eq!(wheel_report(true, 9, 4, MouseReport::Plain), [0x1b, b'[', b'M', 96, 42, 37]);
+        assert_eq!(wheel_report(false, 500, 0, MouseReport::Plain)[4], 255, "a far column is capped");
+
+        feed(&mut t, "\x1b[?1002l");
+        assert_eq!(mouse_report(&t), MouseReport::Off, "and `less` never asks");
+        assert!(wheel_report(true, 0, 0, MouseReport::Off).is_empty());
     }
 
     /// The reason the flag is the right question: there is nothing to scroll

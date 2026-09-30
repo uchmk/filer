@@ -741,7 +741,13 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
                 alt: modifiers.alt,
                 shift: modifiers.shift,
             };
-            let bytes = match special(key, mods.shift) {
+            // Once the other end has asked for win32-input-mode (ConPTY does,
+            // as it starts), every key whose VT form begins with ESC goes as a
+            // key record, as Windows Terminal sends them: a tcell program then
+            // cannot mistake `<Esc>` and the key after it for one sequence
+            // (Q27, #99). Plain text still goes as text.
+            let win32 = app.term.as_ref().is_some_and(|t| t.win32_input());
+            let vt = match special(key, mods.shift) {
                 // On Windows `Esc` goes as one win32-input-mode key press, not
                 // as a plain ESC. ConPTY makes a press *and a release* out of a
                 // plain ESC, and the release, reaching a tcell program right
@@ -770,6 +776,16 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
                     terminal::meta_char(c)
                 }),
                 None => None,
+            };
+            // A chord with no record form (`Ctrl+[`, `Ctrl+Space`) keeps its
+            // old bytes rather than going missing.
+            let bytes = match (win32, special(key, mods.shift)) {
+                (true, Some(s)) => Some(terminal::special_record(s, mods)),
+                (true, None) if mods.ctrl || mods.alt => keys::printable(key)
+                    .or_else(|| key.name().chars().next())
+                    .and_then(|c| terminal::char_record(c, mods))
+                    .or(vt),
+                _ => vt,
             };
             app.feed_term_key(k, bytes);
         }

@@ -48,7 +48,14 @@ pub fn focus_rule(theme: &Theme, focused: bool) -> Color32 {
 /// hard for one or two lines. Every surface that scrolls by rows needs this,
 /// and each keeps its own remainder — one shared between them would jump when
 /// the pointer crossed from one to another mid-turn.
+///
+/// Turning the other way throws the remainder away. What was owed was owed in
+/// the old direction; carried into the new one it ate part of the first notch,
+/// so one notch up moved a row and one notch down moved none (40.8, #100).
 pub fn wheel_whole(acc: &mut f32, rows: f32) -> i64 {
+    if rows * *acc < 0.0 {
+        *acc = 0.0;
+    }
     *acc += rows;
     let whole = acc.trunc();
     *acc -= whole;
@@ -1190,8 +1197,7 @@ mod wheel {
         assert_eq!(wheel_whole(&mut acc, 0.6), 1, "now it is");
         assert!((acc - 0.2).abs() < 1e-5, "and 0.2 of a row is still owed: {acc}");
 
-        // Turning back the other way spends the remainder rather than
-        // stranding it, so a reversal answers at once.
+        // The other way round works the same.
         let mut acc = 0.0;
         assert_eq!(wheel_whole(&mut acc, -0.6), 0);
         assert_eq!(wheel_whole(&mut acc, -0.6), -1);
@@ -1202,6 +1208,21 @@ mod wheel {
             assert_eq!(wheel_whole(&mut acc, 1.0), 1);
         }
         assert!(acc.abs() < 1e-5, "no drift after ten rows: {acc}");
+    }
+
+    /// 40.8: a notch is about 1.6 rows, arriving over several frames. Up one
+    /// notch and down one must move the same number of rows each way; carrying
+    /// the 0.6 left from the way up into the way down made the second move
+    /// nothing at all.
+    #[test]
+    fn a_change_of_direction_starts_from_nothing() {
+        let notch = |acc: &mut f32, dir: f32| -> i64 { (0..8).map(|_| wheel_whole(acc, dir * 0.2)).sum() };
+        let mut acc = 0.0;
+        let up = notch(&mut acc, 1.0);
+        let down = notch(&mut acc, -1.0);
+        assert_eq!(up, 1);
+        assert_eq!(down, -1, "the same one row back down, not none");
+        assert_eq!(notch(&mut acc, 1.0), 1, "and up again");
     }
 }
 

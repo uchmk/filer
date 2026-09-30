@@ -753,6 +753,12 @@ desc = "Show the key list"
 on = "<C-S-p>"
 run = "palette"
 desc = "Command palette"
+# Trying a config change means pressing this often, and leaving the pane to do
+# it also un-maximises the pane. Hardly any terminal program reads Ctrl+F5.
+[[term.keymap]]
+on = "<C-F5>"
+run = "config_reload"
+desc = "Read the config files again (theme, icons, keys)"
 [[term.keymap]]
 on = "<A-Up>"
 run = "term_cd"

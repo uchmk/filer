@@ -56,6 +56,7 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     // can still be reported through `app`.
     let pasting = resp.secondary_clicked().then(crate::exec::get_clipboard);
     let press = ui.ctx().input(|i| i.pointer.press_origin());
+    let hover = ui.ctx().input(|i| i.pointer.hover_pos());
     if resp.clicked() || resp.drag_started() || resp.secondary_clicked() {
         app.term_focus = true;
     }
@@ -63,12 +64,13 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let Some(term) = &mut app.term else { return };
     term.resize(size, (cell_w.round() as u16, row_h.round() as u16));
     // Out from under the lock before any laying out happens.
-    let (rows, cursor, app_cursor, alt_screen) = term.with_grid(|t| {
+    let (rows, cursor, app_cursor, alt_screen, mouse) = term.with_grid(|t| {
         (
             terminal::snapshot(t),
             terminal::cursor_cell(t),
             terminal::app_cursor(t),
             terminal::alt_screen(t),
+            terminal::mouse_report(t),
         )
     });
 
@@ -214,16 +216,25 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
         }
     }
     // The wheel walks the scrollback rather than the file list under it --
-    // except on the alternate screen, where there is no scrollback and the
-    // program drawing it is the thing being scrolled. Sending arrows there is
-    // what every terminal does, and it is the only way a pager or an editor in
-    // this pane can be scrolled with the wheel at all.
+    // except where a program is the thing being scrolled. One that asked for
+    // the mouse (nvim, htop, tmux) is told about the wheel as the mouse, at
+    // the cell under the pointer, and scrolls its view without moving its
+    // cursor (Q28). One that did not but owns the alternate screen, where
+    // there is no scrollback, gets arrows: what every terminal does, and the
+    // only way a pager like `less` can be scrolled with the wheel at all.
     let rows = wheel * LINES_PER_PIXEL / row_h;
     let whole = crate::ui::wheel_whole(&mut app.term_scroll_rows, rows);
     if whole != 0 {
-        if alt_screen {
+        if mouse != terminal::MouseReport::Off {
+            let (col, line, _) = cell_at(hover.unwrap_or(inner.center()));
+            let one = terminal::wheel_report(whole > 0, col, line, mouse);
+            term.send(one.repeat(whole.unsigned_abs() as usize));
+        } else if alt_screen {
             let key = if whole > 0 { Special::Up } else { Special::Down };
-            let bytes = crate::terminal::encode(key, Mods::default(), app_cursor);
+            let bytes = match term.win32_input() {
+                true => crate::terminal::special_record(key, Mods::default()),
+                false => crate::terminal::encode(key, Mods::default(), app_cursor),
+            };
             let mut out = Vec::with_capacity(bytes.len() * whole.unsigned_abs() as usize);
             for _ in 0..whole.unsigned_abs() {
                 out.extend_from_slice(&bytes);

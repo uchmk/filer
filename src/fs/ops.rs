@@ -77,6 +77,9 @@ pub enum OpEvent {
         /// caller asked to move to `x.pdf` can land as `x_1.pdf`, and an undo
         /// that went looking for `x.pdf` would find nothing.
         moved: Vec<(PathBuf, PathBuf)>,
+        /// For a compress: the archive written, under the name it really got
+        /// (a name already taken can be resolved to `x_1.zip` here).
+        made: Option<PathBuf>,
     },
 }
 
@@ -134,6 +137,7 @@ impl Runner {
                         paused: false,
                         last_report: std::time::Instant::now(),
                         moved: Vec::new(),
+                        made: None,
                     };
                     ctx.run(&req);
                     let _ = ev_tx.send(OpEvent::Finished {
@@ -142,6 +146,7 @@ impl Runner {
                         errors: std::mem::take(&mut ctx.errors),
                         cancelled: ctx.cancelled,
                         moved: std::mem::take(&mut ctx.moved),
+                        made: ctx.made.take(),
                     });
                     wake();
                 }
@@ -229,6 +234,8 @@ struct Ctx<'a> {
     last_report: std::time::Instant,
     /// Where each moved file ended up. Empty for everything but a move.
     moved: Vec<(PathBuf, PathBuf)>,
+    /// The archive a compress wrote, once it is whole.
+    made: Option<PathBuf>,
 }
 
 impl Ctx<'_> {
@@ -425,10 +432,14 @@ impl Ctx<'_> {
             self.report_entry(name);
             !self.cancelled
         });
-        if let Err(e) = r {
-            self.errors.push(format!("{}: {e}", short(&dest)));
-            // A half-written archive is worse than none: it looks openable.
-            let _ = std::fs::remove_file(&dest);
+        match r {
+            Ok(()) if !self.cancelled => self.made = Some(dest),
+            Ok(()) => {}
+            Err(e) => {
+                self.errors.push(format!("{}: {e}", short(&dest)));
+                // A half-written archive is worse than none: it looks openable.
+                let _ = std::fs::remove_file(&dest);
+            }
         }
     }
 
