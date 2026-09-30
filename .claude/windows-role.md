@@ -223,6 +223,7 @@ these differences:
 
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
+| **1.9g, 45.11 and the lazygit lag, after v0.54.5** | 2 + 1 | v0.54.5 fixed `<C-S-b>` needing two presses (1.9g) and folder comparison reading through links (45.11). Re-run both on a build of current `main`. For the lazygit lag #93 found: open `pty.log` from #93's evidence and compare the time of `in key \e[27;1;27;1;0;1_` (the `<Esc>`) with the `out` lines where lazygit redraws -- if `in key` is on time, filer is not the one holding it; say which side is |
 | **21 / 32 / 37. archives and openers, again** | the `[x]` rows | Native code again (the archive readers, `ShellExecute`, `start ""`). Same form: ARM64 results in QA-REPORT.md |
 | **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91) and 0.54.0 (505 / 0, #93). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
 

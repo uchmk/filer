@@ -297,15 +297,29 @@ pub fn next_change(rows: &[Row], from: usize, back: bool) -> Option<usize> {
 /// to be read to know it -- which settles almost every row in practice. Only
 /// same-sized pairs are read, and only up to [`MAX_COMPARE_BYTES`].
 pub fn compare_trees(left: &Path, right: &Path) -> Outcome {
-    let mut budget = MAX_TREE_ENTRIES;
-    let a = match walk(left, &mut budget) {
+    compare_trees_within(left, right, MAX_TREE_ENTRIES)
+}
+
+/// [`compare_trees`] with the path limit given, so a test can reach it with a
+/// tree of twenty files rather than a hundred thousand.
+fn compare_trees_within(left: &Path, right: &Path, limit: usize) -> Outcome {
+    // Half the limit for each side, not one limit shared. Shared, the left
+    // walk could spend all of it, and every path the right walk never reached
+    // then read as "only left": two identical `node_modules` came out as
+    // `5000 only left · 0 only right` (#86).
+    let (mut budget_l, mut budget_r) = (limit / 2, limit / 2);
+    let a = match walk(left, &mut budget_l) {
         Ok(m) => m,
         Err(e) => return Outcome::Error(format!("{}: {e}", crate::util::file_name(left))),
     };
-    let b = match walk(right, &mut budget) {
+    let b = match walk(right, &mut budget_r) {
         Ok(m) => m,
         Err(e) => return Outcome::Error(format!("{}: {e}", crate::util::file_name(right))),
     };
+    // A side that was cut short cannot say a path is missing from it, so a
+    // path found only on the *other* side is not a difference anyone can
+    // vouch for, and is left out rather than shown as `<` or `>`.
+    let (cut_l, cut_r) = (budget_l == 0, budget_r == 0);
     let mut rels: Vec<PathBuf> = a.keys().chain(b.keys()).cloned().collect();
     rels.sort();
     rels.dedup();
@@ -314,9 +328,21 @@ pub fn compare_trees(left: &Path, right: &Path) -> Outcome {
     for rel in rels {
         let (l, r) = (a.get(&rel), b.get(&rel));
         let (state, dir, ls, rs) = match (l, r) {
-            (Some(&(dir, len)), None) => (TreeState::LeftOnly, dir, len, 0),
-            (None, Some(&(dir, len))) => (TreeState::RightOnly, dir, 0, len),
-            (Some(&(ld, ll)), Some(&(rd, rl))) => {
+            (Some(_), None) if cut_r => continue,
+            (None, Some(_)) if cut_l => continue,
+            (Some(e), None) => (TreeState::LeftOnly, e.dir, e.len, 0),
+            (None, Some(e)) => (TreeState::RightOnly, e.dir, 0, e.len),
+            // A link is compared as a link: by where it points. Reading
+            // through it compared the targets' contents, so two links to
+            // identical files read as matching wherever they pointed (45.11),
+            // and a link to a directory could not be opened as a file and read
+            // as "too big to read" (#86).
+            (Some(le), Some(re)) if le.link.is_some() || re.link.is_some() => {
+                let state = if le.link == re.link { TreeState::Same } else { TreeState::Differ };
+                (state, false, 0, 0)
+            }
+            (Some(le), Some(re)) => {
+                let (ld, ll, rd, rl) = (le.dir, le.len, re.dir, re.len);
                 if ld != rd {
                     // A folder on one side and a file on the other is a
                     // difference, not something to read.
@@ -343,7 +369,17 @@ pub fn compare_trees(left: &Path, right: &Path) -> Outcome {
         }
     }
     let counts = TreeCounts::of(&rows);
-    Outcome::Tree { rows, counts, truncated: budget == 0 }
+    Outcome::Tree { rows, counts, truncated: cut_l || cut_r }
+}
+
+/// One path found by [`walk`].
+#[derive(Debug, PartialEq)]
+struct Found {
+    dir: bool,
+    len: u64,
+    /// Where a symlink (or a junction) points, as written. `None` for
+    /// anything else.
+    link: Option<PathBuf>,
 }
 
 /// Every path under `root`, relative to it, as (is a directory, length).
@@ -351,10 +387,7 @@ pub fn compare_trees(left: &Path, right: &Path) -> Outcome {
 /// `symlink_metadata`, so a link is itself rather than what it points at: two
 /// trees that differ only in where a link goes should read as differing, and a
 /// link into a parent must not turn the walk into a loop.
-fn walk(
-    root: &Path,
-    budget: &mut usize,
-) -> std::io::Result<std::collections::HashMap<PathBuf, (bool, u64)>> {
+fn walk(root: &Path, budget: &mut usize) -> std::io::Result<std::collections::HashMap<PathBuf, Found>> {
     let mut out = std::collections::HashMap::new();
     let mut stack = vec![root.to_path_buf()];
     // Fail on the root only: a directory further down that cannot be read is one
@@ -372,9 +405,14 @@ fn walk(
             *budget -= 1;
             let path = e.path();
             let Ok(md) = std::fs::symlink_metadata(&path) else { continue };
-            let dir = md.is_dir() && !md.file_type().is_symlink();
+            let is_link = md.file_type().is_symlink();
+            let dir = md.is_dir() && !is_link;
+            // An unreadable target still marks it a link: it is compared, and
+            // a link that cannot be read on either side reads as the same.
+            let link = is_link.then(|| std::fs::read_link(&path).unwrap_or_default());
             if let Ok(rel) = path.strip_prefix(root) {
-                out.insert(rel.to_path_buf(), (dir, if dir { 0 } else { md.len() }));
+                let len = if dir || is_link { 0 } else { md.len() };
+                out.insert(rel.to_path_buf(), Found { dir, len, link });
             }
             if dir {
                 stack.push(path);
@@ -656,6 +694,82 @@ mod tree_tests {
             .find(|r| r.rel == Path::new(rel))
             .unwrap_or_else(|| panic!("no row for {rel}: {rows:?}"))
             .state
+    }
+
+    /// Each side has its own half of the limit, and a side that ran out cannot
+    /// make paths it never reached look like the other side's alone (#86).
+    #[test]
+    fn a_cut_short_walk_does_not_invent_one_sided_rows() {
+        let (l, r) = dirs();
+        for i in 0..20 {
+            std::fs::write(l.join(format!("f{i:02}")), b"x").unwrap();
+            std::fs::write(r.join(format!("f{i:02}")), b"x").unwrap();
+        }
+        let Outcome::Tree { rows, truncated, .. } = compare_trees_within(&l, &r, 10) else {
+            panic!("two folders compare as a tree")
+        };
+        assert!(truncated, "ten paths is not enough for 21 a side");
+        assert!(
+            rows.iter().all(|r| matches!(r.state, TreeState::Same)),
+            "identical trees show only matches, never `<` or `>`: {}",
+            shape(&rows)
+        );
+        assert!(!rows.is_empty(), "what both sides reached is still compared");
+
+        // With room for everything, nothing is held back.
+        let Outcome::Tree { truncated, .. } = compare_trees_within(&l, &r, 1000) else { panic!() };
+        assert!(!truncated);
+    }
+
+    /// Links are compared by where they point, not by what is there: two
+    /// links to identical files in different places differ, two to the same
+    /// place match, and neither is read (45.11, #86).
+    #[cfg(unix)]
+    #[test]
+    fn links_compare_by_where_they_point() {
+        use std::os::unix::fs::symlink;
+        let (l, r) = dirs();
+        for side in [&l, &r] {
+            std::fs::write(side.join("t1"), b"same bytes").unwrap();
+            std::fs::write(side.join("t2"), b"same bytes").unwrap();
+        }
+        symlink("t1", l.join("ln")).unwrap();
+        symlink("t2", r.join("ln")).unwrap();
+        symlink("t1", l.join("same")).unwrap();
+        symlink("t1", r.join("same")).unwrap();
+        symlink("sub", l.join("dl")).unwrap();
+        symlink("sub", r.join("dl")).unwrap();
+        let rows = rows(&l, &r);
+        assert_eq!(named(&rows, "ln"), TreeState::Differ, "same bytes behind, different places");
+        assert_eq!(named(&rows, "same"), TreeState::Same);
+        assert_eq!(named(&rows, "dl"), TreeState::Same, "a link to a directory, not `?`");
+    }
+
+    /// The Windows half, with junctions, which need no privilege to make: a
+    /// link to a directory used to be opened as a file, fail, and read as
+    /// "too big to read" (#86).
+    #[cfg(windows)]
+    #[test]
+    fn junctions_compare_by_where_they_point() {
+        let (l, r) = dirs();
+        let junction = |at: &Path, to: &Path| {
+            let ok = std::process::Command::new("cmd")
+                .args(["/c", "mklink", "/J"])
+                .arg(at)
+                .arg(to)
+                .output()
+                .is_ok_and(|o| o.status.success());
+            assert!(ok, "mklink /J {} {}", at.display(), to.display());
+        };
+        std::fs::create_dir_all(l.join("a")).unwrap();
+        std::fs::create_dir_all(r.join("a")).unwrap();
+        std::fs::create_dir_all(r.join("b")).unwrap();
+        junction(&l.join("j"), &l.join("a"));
+        junction(&r.join("j"), &r.join("b"));
+        let rows = rows(&l, &r);
+        let j = named(&rows, "j");
+        assert_ne!(j, TreeState::Unread, "a junction is a link, not an unreadable file");
+        assert_eq!(j, TreeState::Differ, "the two point to different places");
     }
 
     /// The footer's numbers are counted once, when the comparison is built, so

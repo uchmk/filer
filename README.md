@@ -653,13 +653,14 @@ Sizes decide almost every row without anything being read: two files of differen
 that is most of them. Only same-sized pairs are opened, compared in blocks and stopped at the first
 one that differs, so a file that changed early costs nothing however large it is. Past 64 MB a
 same-sized pair is left as `?` rather than read — and it is **not** reported as matching, because
-saying two files are the same is a claim and that is the absence of one. Very large trees stop after
-100,000 paths and say so.
+saying two files are the same is a claim and that is the absence of one.
 
-Two things do not yet work as they should, found on a real machine (v0.52.3) and in TODO.md:
-**symlinks are compared by what they point at**, so two links to identical files read as matching
-even when they point to different places; and **the 100,000-path limit is shared by the two sides**,
-so when the left one uses it up, everything on the right reads as missing ("only left").
+Links — symlinks and junctions — are compared as links, by **where they point**, and never read
+through: two links to identical files in different places differ, and a link to a folder is a link,
+not something too big to read. Very large trees stop after 100,000 paths, half for each side, and say
+`cut short`; when a side was cut short, a path the *other* side has is not listed as only there,
+because the side that ran out may simply not have reached it. (Both of these were wrong until v0.54.5,
+found on a real machine.)
 
 ## Quick look
 
