@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**161 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
+**169 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -542,16 +542,16 @@ fsutil hardlink list <新しくできたパス>
 
 `cargo test` が全部見ているので、押すものはありません。
 
-## 39. ターミナルペインでの `<A-j>` / `<A-k>` — 0 / 9
+## 39. ターミナルペインでの `<A-j>` / `<A-k>` — 8 / 9
 
-- [ ] **39.1** `<C-t>` で長いもの（`dir /s` や `ls -R`）を実行してから `<A-k>` → スクロールバックが 1 回につき 5 行**上**へ — *`<C-t>`, run something long (`dir /s` or `ls -R`), then `<A-k>` → The scrollback goes **up** five lines per press*
-- [ ] **39.2** `<A-j>` → 5 行**下**へ戻る。ファイル一覧でプレビューをスクロールするのと同じ向き — *`<A-j>` → Back **down** five lines. Same direction as in the file list, where these scroll the preview*
-- [ ] **39.3** `<A-k>` を押し続けて最上部まで行き、`<A-j>` で戻る → 行き過ぎずに両端で止まる。戻るときの空押しが無い — *Hold `<A-k>` to the top, then `<A-j>` back → Stops at each end without overshooting — no dead presses coming back*
-- [ ] **39.4** `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` とホイール → 以前のまま — *`<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>`, and the wheel → Unchanged*
-- [ ] **39.5** ターミナルから**フォーカスを外して**（`<C-t>` で一覧へ戻って）`<A-j>` → ターミナルではなく**プレビュー**がスクロールする。キーではなくレイヤーが決めている — *With the terminal **unfocused** (`<C-t>` back to the list), `<A-j>` → Scrolls the **preview**, not the terminal. The layer decides, not the key*
-- [ ] **39.6** ペインの中で Alt+j を読むプログラムを動かす（`nnoremap <A-j> :m+1<CR>` を設定した `nvim`）→ v0.38.0 以降は**キーが届く**（40 節を参照）。それ以前は届かなかった — *In the pane, run a program that reads Alt+j — `nvim` with `nnoremap <A-j> :m+1<CR>` → **It does see the key** from v0.38.0 — see section 40. Before that it did not*
-- [ ] **39.7** `[[term.prepend_keymap]]` で `<A-j>` を `noop` に割り当てて `<C-F5>` → キーは何もせず、**シェルにも届かない。**ここで割り当てたものは消費される。返すには `[term] keymap = [...]` を丸ごと置き換える必要がある — *`[[term.prepend_keymap]]` binding `<A-j>` to `noop`, then `<C-F5>` → The key does nothing **and still does not reach the shell** — anything bound here is consumed. Handing it back needs a full `[term] keymap = [...]` replacement*
-- [ ] **39.8** シェルのプロンプトで Alt+b / Alt+f / Alt+d → これまでどおり readline に届く。取られたのは j と k だけ — *Alt+b / Alt+f / Alt+d at the shell prompt → Still reach readline. Only j and k were taken*
+- [x] **39.1** `<C-t>` で長いもの（`dir /s` や `ls -R`）を実行してから `<A-k>` → スクロールバックが 1 回につき 5 行**上**へ — *`<C-t>`, run something long (`dir /s` or `ls -R`), then `<A-k>` → The scrollback goes **up** five lines per press*
+- [x] **39.2** `<A-j>` → 5 行**下**へ戻る。ファイル一覧でプレビューをスクロールするのと同じ向き — *`<A-j>` → Back **down** five lines. Same direction as in the file list, where these scroll the preview*
+- [x] **39.3** `<A-k>` を押し続けて最上部まで行き、`<A-j>` で戻る → 行き過ぎずに両端で止まる。戻るときの空押しが無い — *Hold `<A-k>` to the top, then `<A-j>` back → Stops at each end without overshooting — no dead presses coming back*
+- [x] **39.4** `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` とホイール → 以前のまま — *`<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>`, and the wheel → Unchanged*
+- [x] **39.5** ターミナルから**フォーカスを外して**（`<C-t>` で一覧へ戻って）`<A-j>` → ターミナルではなく**プレビュー**がスクロールする。キーではなくレイヤーが決めている — *With the terminal **unfocused** (`<C-t>` back to the list), `<A-j>` → Scrolls the **preview**, not the terminal. The layer decides, not the key*
+- [x] **39.6** ペインの中で Alt+j を読むプログラムを動かす（`nnoremap <A-j> :m+1<CR>` を設定した `nvim`）→ v0.38.0 以降は**キーが届く**（40 節を参照）。それ以前は届かなかった — *In the pane, run a program that reads Alt+j — `nvim` with `nnoremap <A-j> :m+1<CR>` → **It does see the key** from v0.38.0 — see section 40. Before that it did not*
+- [x] **39.7** `[[term.prepend_keymap]]` で `<A-j>` を `noop` に割り当てて `<C-F5>` → キーは何もせず、**シェルにも届かない。**ここで割り当てたものは消費される。返すには `[term] keymap = [...]` を丸ごと置き換える必要がある — *`[[term.prepend_keymap]]` binding `<A-j>` to `noop`, then `<C-F5>` → The key does nothing **and still does not reach the shell** — anything bound here is consumed. Handing it back needs a full `[term] keymap = [...]` replacement*
+- [x] **39.8** シェルのプロンプトで Alt+b / Alt+f / Alt+d → これまでどおり readline に届く。取られたのは j と k だけ — *Alt+b / Alt+f / Alt+d at the shell prompt → Still reach readline. Only j and k were taken*
 - [ ] **39.9** ペインの中で `<F1>` → term レイヤーの一覧に `<A-j>` / `<A-k>` が説明付きで出る — *`<F1>` from inside the pane → The term layer's list shows `<A-j>` / `<A-k>` with their descriptions*
 
 ## 40. 全画面プログラムにスクロールのジェスチャーを渡す — 10 / 13
