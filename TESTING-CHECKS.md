@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**119 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
+**120 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -21,7 +21,7 @@
 キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、こちらは「1 つのキーでは
 確かめられない振る舞い」の側。
 
-## 1. ターミナルペイン — 31 / 46
+## 1. ターミナルペイン — 32 / 46
 
 準備:
 
@@ -71,7 +71,7 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **1.27** TUI を走らせた状態のペインの中から、もう一度 `<C-S-Enter>` → 3 分の 1 に戻る。**ターミナルがキーを持っている間に効くこと**が要点 —— TUI はまさにその状態を作るし、この機能が要るのもそこだけ — *`<C-S-Enter>` again, from inside the pane, with a TUI running in it → Back to a third. The key has to work **while the terminal holds the keys** — that is the state a TUI puts you in, and the only one where this matters*
 - [x] **1.28** **一覧側**から最大化して、何か打つ → 打鍵はペインに行く（隠れた一覧ではなく）。最大化はペインにキーを渡す —— 見えない一覧は、キーを向ける先ではないので — *Maximise from the **list** side, then type → The keystrokes go to the pane, not to the hidden list. Maximising hands the pane the keys, because a list nobody can see is not somewhere to aim them*
 - [x] **1.29** 最大化してから `<C-t>` → キーが一覧に戻り、**同時にペインも 3 分の 1 に戻る**。1 回の押下で両方。ペインから出ることと窓を返すことは同じ意図 — *Maximise, then `<C-t>` → The keys go back to the list **and the pane returns to a third** in one press. Leaving the pane and giving the window back are the same intent*
-- [ ] **1.30** 最大化してから `<C-S-t>`（シェルを終わらせる） → ペインが消え、一覧が全高で描かれる（隙間の下に押し込まれない）。ペインの無い最大化が残らないこと — *Maximise, then `<C-S-t>` (end the shell) → The pane goes, and the list is drawn full height rather than under a gap. Nothing is left maximised with no pane in it*
+- [x] **1.30** 最大化してから `<C-S-t>`（シェルを終わらせる） → ペインが消え、一覧が全高で描かれる（隙間の下に押し込まれない）。ペインの無い最大化が残らないこと — *Maximise, then `<C-S-t>` (end the shell) → The pane goes, and the list is drawn full height rather than under a gap. Nothing is left maximised with no pane in it*
 - [x] **1.31** ペインで `lazygit` → `?` でキー一覧を開く → `Esc`（v0.48.6） → **一覧が閉じる。**v0.48.6 までは何度押しても閉じなかった（gh-dash など tcell のプログラムすべて同じ）。Windows Terminal が対照で、あちらでは最初から閉じる — *In the pane, `lazygit`, then `?` to open its key list, then `Esc` (v0.48.6) → **The list closes.** Until v0.48.6 it never did, however often `Esc` was pressed — the same in gh-dash, or any tcell program. Windows Terminal is the control: it has always closed there*
 - [x] **1.32** ペインの pwsh のプロンプトで `abc` と打ち（Enter は押さない）、`Esc` → 行が空になる。PSReadLine は元々影響を受けていなかった。1.31 を直した変更がこちらを壊していないことを見る行 — *At the pwsh prompt in the pane, type `abc` without Enter, then `Esc` → The line empties. PSReadLine was never affected; this row is there so the change that fixed 1.31 is seen not to have broken it*
 - [x] **1.33** 同梱の ConPTY を filer.exe の横に置いた状態で、ペインで `pwsh -File scripts\keyprobe.ps1 -Query`（v0.49.0） → DA1 の応答が `\e[?6c`（filer 自身の答えがそのまま通ったもの）で、文字の間に `{up:…}` が出ない。`\e[?61;6;7;22;23;24;28;32;42c` なら Windows 標準の ConPTY が答えている —— 2 つのファイルが無いか、filer.exe の横に無い — *With the bundled ConPTY beside filer.exe, `pwsh -File scripts\keyprobe.ps1 -Query` in the pane (v0.49.0) → The primary DA reply reads `\e[?6c` — filer's own answer, passed through — and no `{up:…}` appears between characters. `\e[?61;6;7;22;23;24;28;32;42c` means the ConPTY built into Windows answered instead: the two files are missing, or not beside filer.exe*
