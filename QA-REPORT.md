@@ -1857,3 +1857,110 @@ ConPTY が使われている。設定は `R:\Temp\t1bcfg` に隔離、画面は 
   版は 51e6fb0 の `Cargo.toml`（0.49.1）で見ている。
 - 高さを測るヘルパーを `H` と名付けたら、PowerShell の既定エイリアス（`Get-History`）に負けた。
   関数よりエイリアスが先に解決される。`Hgt` に変えた。
+
+## TESTING.md section 13 / 15 — ジャンクション・ハードリンク・拡大縮小（281e433 / 0.49.1）
+
+Windows のセッション（`.claude/windows-role.md`）から。担当は 13 の残り（13.7 / 13.16）と 15 の全 7 行。
+実機の release ビルド（`C:\dev\filer-win13\target\release\filer.exe`、51e6fb0 でビルド、0.49.1）を
+動かした。設定は `R:\Temp\w13cfg` に隔離（`[spot]` に `n` = `arrow 1` だけ足してある。パネルの
+カーソルを素のキーで動かすため）、画面は 150%、キーボードは JIS。キーは filer の窓に
+PostMessage で送り、Ctrl / Shift は filer の入力スレッドに attach してキーボード状態に立てた。
+spot パネルの行は `y` でクリップボードに写して読んだ。ハーネスとキャプチャ、読んだ行の
+写しは `C:\dev\filer-evidence\13\` にある（`lib.ps1`、`13-spot-readouts.txt`、`15.5-spot.txt`、`*.png`）。
+
+**13.7 / 13.16 / 15.1 / 15.2 / 15.3 / 15.5 / 15.7 にチェックを付けた。15.4 は測った値だけで
+チェックは付けていない（「滑らかに」が見た目）。15.6 は見た目なので触れていない。**
+不具合を 1 件見つけた（下の「RAM ディスク上のジャンクションで `Resolves` が `no`」）。
+
+| 行 | やったこと | 読んだもの |
+| --- | --- | --- |
+| 13.7 | `R:\Temp\w13` に `mklink /J j-target target-dir`。一覧で見て、ホバーして `<Tab>`、閉じて `g`+`f` | 一覧の行が `j-target  ->`（`13.7-list.png`）。spot は `Link to a directory` / `Symlink` / Target `R:\Temp\w13\target-dir`。`g`+`f` の後、ホバーのパスが **`R:\Temp\w13\target-dir\inside.txt`**（`13.7-after-gf.png`、`13-spot-readouts.txt`）。C: の NTFS 上に同じ形で作ったジャンクションでも `Symlink` と Target・Resolves が出た |
+| 13.16 | `fsutil hardlink create locked-2.txt locked.txt`、別の pwsh で `locked.txt` を `FileShare.None` の書き込みで開いたまま `<Tab>` | ロックが効いていた証拠に、同じ spot の別の行が `…別のプロセスが使用中です。 (os error 32)`。その下に `Hardlink` / **`2`** / Also at `R:\Temp\w13\locked.txt`。`locked.txt` 側から見ても `Hardlink` / `2` / `R:\Temp\w13\locked-2.txt`。`fsutil hardlink list` は `\Temp\w13\locked.txt` と `\Temp\w13\locked-2.txt` の 2 つで、自分を除いた集合と一致（`13.16-spot.png`、`13-spot-readouts.txt`） |
+| 15.1 | `src\a.txt` を `y` し、空の `dst1` に入って `<C-->`（JIS で `Ctrl` + VK 0xBD） | トースト `Scale 90%`、ヘッダは `1 copied · 0 items`。`dst1` の中身は押す前・押した後・最後まで **0 件**（`15.1-yanked.png`、`15.1-ctrl-minus.png`） |
+| 15.2 | 90% から `<C-+>`（`Ctrl`+`Shift`+VK 0xBB = JIS の `+`）、続けて `<C-=>`（`Ctrl`+`Shift`+VK 0xBD = JIS の `=`） | トーストが `Scale 100%`、次に `Scale 110%`（`15.2-ctrl-plus.png`、`15.2-ctrl-equals.png`） |
+| 15.3 | 110% から `<C-0>` | トースト `Scale 100% ×2`（直前の 100% のトーストと合流した）（`15.3-ctrl-0.png`） |
+| 15.4 | 100% から `<C-->` を auto-repeat 付きで 41 回の keydown、20% から `<C-+>` を 71 回 | 下の表。20% と 500% で止まることは読めた。**チェックは付けていない** |
+| 15.5 | 同じドライブ: `src\a.txt` を `y`、`dst1` で `=`。ドライブ跨ぎ: `R:` の `a.txt` を `y`、`C:` の一時ディレクトリで `=` | 同じドライブ: `R:\Temp\w13\dst1\a.txt` ができ、`fsutil hardlink list` が `\Temp\w13\src\a.txt` と `\Temp\w13\dst1\a.txt`。spot は `Hardlink` / `2` / `R:\Temp\w13\src\a.txt`（`15.5-spot.txt`）。跨ぎ: トースト `Hardlink: a.txt: ファイルを別のディスク ドライブに移動できません。 (os error 17)`、tasks は `Hardlink 1 item(s) [failed]`、C: 側のディレクトリは空のまま（`15.5-cross-toast.png`、`15.5-cross-tasks.png`） |
+| 15.7 | `~` でヘルプを開いてスクロール | `= Hardlink the yanked files → hardlink`、`<C-+>` / `<C-=>` `Make everything bigger → scale in`、`<C--> Make everything smaller → scale out`、`<C-0> Back to the original size → scale reset` が他の行と同じ形で並んでいる（`15.7-help-scrolled.png`） |
+
+15.4 で読んだトースト（同じ文言のトーストは `×N` で 1 つにまとまる）:
+
+| 操作 | トースト | 読み方 |
+| --- | --- | --- |
+| 100% から `<C-->` を 41 回 | `Scale 20% ×34` | 100 → 20 は 10% 刻みで 8 回。残り 33 回は 20% のまま → 1 + 33 = 34 で勘定が合う |
+| そのまま `<C-+>` を 1 回ずつ 4 回 | `Scale 30% ×2` … `Scale 60% ×2` | 床から普通に戻れる（`15.4-floor-then-4-up.png`） |
+| 20% から `<C-+>` を 71 回 | `Scale 500% ×24` | 20 → 500 は 48 回。残り 23 回は 500% のまま → 24 で勘定が合う（`15.4-hold-plus.png`） |
+
+### RAM ディスク上のジャンクションで `Resolves` が `no (… os error 1)` になる
+
+- `R:`（RAM ディスク）の `j-target`（`mklink /J`、中身は普通に辿れる）の spot が
+  `Resolves  no (ファンクションが間違っています。 (os error 1))`。**同じ画面で `g`+`f` は
+  `target-dir\inside.txt` に着地している**ので、リンク自体は生きている。
+- 同じ形のジャンクションを C: の NTFS に作ると `Resolves` は正しく出た（`…\c--dev-filer\…\w13c\target-dir`。
+  パスの `c--dev-filer` が小文字になって返るのは `canonicalize` の結果そのまま）。
+- `Resolves` は `std::fs::canonicalize`（`src/spot.rs:109`）の結果で、エラーなら `no ({e})`。
+  Windows の `canonicalize` は `GetFinalPathNameByHandleW` を使うので、それを実装していない
+  ボリューム（このドライバの RAM ディスク）では `ERROR_INVALID_FUNCTION` になる、と読んだ。
+  ドライバ側を確かめたわけではない。
+- 困ること: 壊れたリンク（13.12）と**同じ `no (…)` の見た目**になるので、生きているリンクを
+  壊れていると読ませる。RAM ディスク、一部のネットワークドライブ、仮想ドライブで起こりうる。
+- **直していない。**案としては、`canonicalize` が失敗したら `read_link` の Target を
+  リンクの親に対して解決して `metadata()` で存在を見る、という退路がある
+  （成功したら、正規化していないことが分かる書き方で出す）。
+
+### TESTING.md 15.4 は 2 行に分けたほうがいい
+
+- 15.4 は「20% / 500% で止まる」（トーストで読める）と「滑らかに縮む」（見た目）が 1 行に
+  入っているので、前半を確かめても `[x]` を付けられない。上の表のとおり前半は数えられた。
+- 「押しっぱなしで 20% / 500% で止まる（トーストの `×N` が勘定に合う）」と「押しっぱなしの
+  間の描き替えが滑らか」の 2 行に分ければ、前半は実機のセッションで付けられる。
+  文言の変更なので、ここでは報告だけにする。
+
+### Proposals
+
+1. **ジャンクションは `Kind: Junction` と出すべき。**
+   - 起きたこと: 13.7 で `mklink /J` のジャンクションの spot が `Kind: Symlink`。`dir` は
+     `<JUNCTION>`、Explorer のプロパティも別物として扱う。
+   - 変えるべきこと: 再解析タグ（`IO_REPARSE_TAG_MOUNT_POINT`）を見て `Junction` と出す。
+     一覧の `->` はそのままでいい（「追える」ことを言う印なので）。
+   - 理由: ジャンクションは相対にできず、別のマシンの共有を指せず、消したときの振る舞いも
+     ツールによって違う。「これはどちらか」を確かめるためだけに `dir` を開くことになる。
+   - 大きさ: `link()` の中の 1 関数（`#[cfg(windows)]`）。
+2. **ハードリンクがドライブを跨いだときは、filer の言葉で言うべき。**
+   - 起きたこと: 15.5 の跨ぎで、トーストが `ファイルを別のディスク ドライブに移動できません。 (os error 17)`。
+     **移動はしていない**のに「移動できない」と言われる（OS の `ERROR_NOT_SAME_DEVICE` の文言）。
+   - 変えるべきこと: os error 17 のときは `Hardlink: a.txt: hardlinks can't cross drives (R: → C:). Use p to copy instead.`
+     のように、理由と代わりの手を言う。13.8 の `os error 1314` で既にやっている形と同じ。
+   - 理由: 何が悪かったかは分かっても、「移動」の文字で自分の押したキーを疑う。
+   - 大きさ: エラーの写像に 1 腕。
+3. **拡大縮小が端で止まったら、トーストがそう言うべき。**
+   - 起きたこと: 15.4 で床に着いてからも押し続けると `Scale 20% ×34` になるだけ。
+     `×34` が「34 回縮んだ」なのか「止まっている」なのかは、数を数えないと分からない。
+   - 変えるべきこと: 端では `Scale 20% (minimum)` / `Scale 500% (maximum)` と出す。
+   - 理由: 押しっぱなしにする人ほど「まだ効いているのか」を知りたい。
+   - 大きさ: 1 行。
+4. **`g <Space>`（`cd --interactive`）の入力欄は、打ち始めたら中身を置き換えるべき。**
+   - 起きたこと: 15.5 の跨ぎを作るとき、`g <Space>` の欄（今のディレクトリが入っている）に
+     `C:\tmp\w13-cross` と打ったら、トーストが `R:\TeC:\tmp\w13-crossmp\w13: … (os error 123)`。
+     打った文字が既存のパスの**途中**（`R:\Te` の後）に差し込まれた。補完が途中で
+     カーソルを動かしたように見えるが、原因は確かめていない。
+   - 変えるべきこと: 開いた時点で中身を全選択にして、最初の 1 文字で置き換える
+     （Explorer のアドレスバーと同じ）。少なくともカーソルは末尾に固定する。
+   - 理由: 絶対パスを打ちたいとき、今のパスは邪魔でしかない。消す手間が毎回かかり、
+     消し損ねると上のような存在しないパスに飛ぼうとする。
+   - 大きさ: 入力欄の初期化の数行。補完がカーソルを動かしているなら、そちらは不具合。
+
+### ハーネスについて
+
+- **クリップボードは他のセッションと共有している。**spot を `y` で写す読み方をしている間に
+  別のセッションのハーネスが同じことをしていて、1 回の読み取りの 8 行目以降が
+  `R:\Temp\filer-46-15\unmerged-46-15.txt` に化けた。他の filer が動いていないときに
+  取り直したものだけを使った。**並行して走るなら、クリップボードで読む手順は同時に回せない。**
+- **この画面は 150% で、DPI を意識しない pwsh は窓の矩形を 1.5 で割った値で受け取る。**
+  キャプチャが左上 3 分の 2 だけになり、トースト（右上）もステータスバー（下）も写らなかった。
+  `SetThreadDpiAwarenessContext(-4)` を先に呼べば 3862 x 2182 の実寸で取れる（`lib.ps1`）。
+- `ToastShot` は右上 1400 x 420 の切り出し。トーストは 6 秒で消えるので、押してからすぐ撮る。
+- 起動直後の `MainWindowHandle` は短命の窓を指すことがあり、そこへ送ったキーは全部消えた。
+  タイトルが `Filer` で始まるまで待ってから取る。
+- `Hover 'dst'` は `dst1` に着地した（`f` のフィルタの先頭）。同じドライブのハードリンクの
+  試験としては同じなので、そのまま使った。
