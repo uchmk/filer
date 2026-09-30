@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**169 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
+**172 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -660,9 +660,9 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [ ] **46.19** `origin/HEAD` のある clone で、46.15 のファイル（コミット済み・未マージ）→ **`Not merged`** の行に `not in origin/main yet`（その clone の既定のブランチ）。46.14 のファイル（main に直接）にはこの行が**無い**ので、2 つが同じ見た目ではなくなった — *On a 46.15 file (committed, not merged) in a clone that has `origin/HEAD` → A **`Not merged`** row: `not in origin/main yet` (the clone's own default branch). A 46.14 file (straight to main) has **no** such row, so the two no longer look alike*
 - [ ] **46.20** `origin/HEAD` の無いリポジトリ（`git remote set-head origin -d`）で同じこと → `Not merged` の行は出ない。既定のブランチを推測しない — *The same in a repository with no `origin/HEAD` (`git remote set-head origin -d`) → No `Not merged` row at all — filer does not guess the default branch*
 
-## 47. 放置した窓は CPU を使わない — 0 / 4
+## 47. 放置した窓は CPU を使わない — 3 / 4
 
-- [ ] **47.1** ファイルとサブフォルダのあるフォルダで filer を開き、10 秒何も触らない。`(Get-Process filer).CPU` を 10 秒あけて 2 回読む → 2 つの差は **1 秒よりずっと小さい**（100 分の数秒なら普通） — *Open filer on a folder of files and subfolders, touch nothing for 10 s, then read `(Get-Process filer).CPU` twice, 10 s apart → The two readings differ by **well under 1 s** (a few hundredths is normal)*
-- [ ] **47.2** `j` でファイルに乗り、すぐ（40 ms のデバウンスの内に）`j` でサブフォルダに乗って手を離す。CPU を 10 秒あけて 2 回読む → 同じく**増えない**。v0.54.2 より前は、これが描き続けたまま止まらなくなる手順だった — *`j` onto a file and at once `j` onto a subfolder (inside the 40 ms debounce), then hands off; read the CPU twice, 10 s apart → The same: **no rise**. Before v0.54.2 this was the sequence that left it drawing for ever*
-- [ ] **47.3** 47.2 のあと窓を最小化する → 最小化していても増えない — *The same as 47.2, then minimise the window → Still no rise while minimised*
+- [x] **47.1** ファイルとサブフォルダのあるフォルダで filer を開き、10 秒何も触らない。`(Get-Process filer).CPU` を 10 秒あけて 2 回読む → 2 つの差は **1 秒よりずっと小さい**（100 分の数秒なら普通） — *Open filer on a folder of files and subfolders, touch nothing for 10 s, then read `(Get-Process filer).CPU` twice, 10 s apart → The two readings differ by **well under 1 s** (a few hundredths is normal)*
+- [x] **47.2** `j` でファイルに乗り、すぐ（40 ms のデバウンスの内に）`j` でサブフォルダに乗って手を離す。CPU を 10 秒あけて 2 回読む → 同じく**増えない**。v0.54.2 より前は、これが描き続けたまま止まらなくなる手順だった — *`j` onto a file and at once `j` onto a subfolder (inside the 40 ms debounce), then hands off; read the CPU twice, 10 s apart → The same: **no rise**. Before v0.54.2 this was the sequence that left it drawing for ever*
+- [x] **47.3** 47.2 のあと窓を最小化する → 最小化していても増えない — *The same as 47.2, then minimise the window → Still no rise while minimised*
 - [ ] **47.4** 47.1〜47.3 でまだ増えるとき: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime` を 10 秒あけて 2 回 → どのスレッドの時間が増えるかと、分かれば開始アドレスを報告する。次に調べるのはそのスレッド — *If 47.1-47.3 still rise: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart → Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at*
