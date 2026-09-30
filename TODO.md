@@ -746,6 +746,10 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `cargo run` では再現しない。
 - [ ] `:` のコンソールが一瞬で閉じる（要確認: Q13）。`git log -5` のように短いものは
   読めない。Q12 が先。
+- [ ] release の `filer.exe --version` を PowerShell のパイプで受けると何も出ない
+  （2026-09-30、Windows 実機のセッションの報告。原因は未調査）。これも
+  `windows_subsystem = "windows"` の側の話と見ている。`--version` は版を確かめる唯一の口なので、
+  出力先の扱いを調べる（パイプ・リダイレクト・素の実行の 3 通り）。
 
 ## 環境・その他
 

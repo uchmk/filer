@@ -1217,7 +1217,7 @@ mod parent_column {
     /// *and* something to put the cursor on, which is what `Reveal` is.
     #[test]
     fn a_file_is_revealed_and_a_directory_entered() {
-        let dir = std::env::temp_dir().join("filer-parent-click");
+        let dir = crate::util::test_dir("parent-click");
         let _ = std::fs::create_dir_all(dir.join("sub"));
         let file = dir.join("a.txt");
         std::fs::write(&file, "x").unwrap();
@@ -1456,10 +1456,19 @@ pub(crate) mod harness {
         /// same two questions asked from outside: a `Ready` payload, and a key
         /// naming the file the cursor is on. Either alone would pass while the
         /// pane showed the file before it.
+        ///
+        /// And a third: the key asked for is in the cache. A re-layout keeps
+        /// the old payload `Ready` while the new one is read, and the very first
+        /// look at a file is one -- its request goes out at the default box
+        /// size, before any frame has measured the pane. Stopping there left the
+        /// real-size answer in flight, and a cursor that moved on made it stale,
+        /// so coming back found nothing cached (27.3 failed on the Windows
+        /// runner, where the first read wins the race).
         pub(crate) fn preview_arrived(&self) -> bool {
+            let key = self.app.preview.key.as_ref();
             matches!(self.app.preview.state, crate::app::PreviewState::Ready(_))
-                && self.app.preview.key.as_ref().map(|k| &k.path)
-                    == self.app.tab().current.hovered().map(|e| &e.path)
+                && key.map(|k| &k.path) == self.app.tab().current.hovered().map(|e| &e.path)
+                && key.is_some_and(|k| self.app.preview.cache.peek(k).is_some())
         }
 
         /// One frame, with nothing typed.
@@ -3814,6 +3823,42 @@ mod preview_arrival_frame {
         assert!(s.preview_arrived(), "one turn was enough: the cache answered");
         assert!(!waiting(&f), "with no `…` on the way: {:?}", f.texts);
         assert!(f.says("alpha lives here"), "and the right file: {:?}", f.texts);
+    }
+
+    /// The order the Windows runner hit, set up on purpose: the first answer
+    /// comes back at the default box size, and the frame then measures the pane
+    /// and asks again. The pane still shows the first payload, `Ready`, but the
+    /// answer the cache will be asked for is not in yet -- so a helper that
+    /// called this "arrived" let 27.3 walk away before it was.
+    #[test]
+    fn a_relayout_in_flight_has_not_arrived() {
+        let mut s = on("arrive-relayout", &[("alpha.txt", "alpha lives here\n")]);
+        look_at(&mut s, "alpha.txt");
+        let real = s.app.preview.box_size;
+
+        forget(&mut s);
+        s.app.preview.box_size = (900, 900);
+        s.app.request_preview(false);
+        // A text payload uploads nothing, so any context will do.
+        let ctx = egui::Context::default();
+        for _ in 0..1000 {
+            s.app.drain_channels(&ctx);
+            if matches!(s.app.preview.state, crate::app::PreviewState::Ready(_)) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(s.preview_arrived(), "the default-size answer is in, and cached");
+
+        s.app.preview.box_size = real;
+        s.app.request_preview(false);
+        assert!(
+            matches!(s.app.preview.state, crate::app::PreviewState::Ready(_)),
+            "a re-layout keeps the old payload up",
+        );
+        assert!(!s.preview_arrived(), "but the one asked for is still on its way");
+        s.settle();
+        assert!(s.preview_arrived(), "until it lands");
     }
 
     /// 27.4: an image never seen this session zooms from its own fit.
