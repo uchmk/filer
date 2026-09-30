@@ -11,6 +11,15 @@
 #   pwsh -File scripts\keyprobe.ps1 -Query    # send tcell's startup queries and
 #                                             # show the replies as they arrive
 #   ... -Log probe.txt                        # also append every line to a file
+#   ... -AltScreen                            # switch to the alternate screen,
+#                                             # as a full-screen program does
+#
+# Every line starts with the time it was printed, in milliseconds since the
+# Unix epoch -- the clock `FILER_PTY_LOG`'s `== pane opened` line also gives,
+# so a key's `in key` line there and its records here can be set side by side
+# and the time between them read off. -AltScreen is what makes filer forward
+# `<S-End>` and the other scroll keys to the program instead of scrolling the
+# pane itself, which is how a burst of them was seen to hold lazygit up (#93).
 #
 # Press q to stop.
 #
@@ -23,7 +32,7 @@
 # console, and with stdout redirected they would go into the pipe instead of
 # reaching the terminal. Use -Log for a copy on disk.
 
-param([switch]$Win32, [switch]$Query, [string]$Log)
+param([switch]$Win32, [switch]$Query, [switch]$AltScreen, [string]$Log)
 
 Add-Type @"
 using System;
@@ -57,6 +66,7 @@ public static class KeyProbe {
 $esc = [char]27
 
 function Say([string]$line) {
+    $line = '{0} {1}' -f [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(), $line
     $line
     if ($Log) { Add-Content -Path $Log -Value $line }
 }
@@ -78,8 +88,10 @@ $old = [uint32]0
 $mode = 'VT input'
 if ($Win32) { $mode += ' + win32-input-mode' }
 if ($Query) { $mode += ' + tcell startup queries' }
+if ($AltScreen) { $mode += ' + alternate screen' }
 Say "keyprobe: $mode. Press keys, then q to stop."
 
+if ($AltScreen) { [Console]::Out.Write("$esc[?1049h") }
 if ($Win32) { [Console]::Out.Write("$esc[?9001h") }
 if ($Query) {
     # What tcell v3.5.0 sends at startup on Windows, in its order
@@ -120,5 +132,6 @@ try {
     }
 } finally {
     if ($Win32) { [Console]::Out.Write("$esc[?9001l") }
+    if ($AltScreen) { [Console]::Out.Write("$esc[?1049l") }
     [void][KeyProbe]::SetConsoleMode($in, $old)
 }

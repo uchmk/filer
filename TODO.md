@@ -791,6 +791,15 @@
     スクロールのキーを、受け取ったその場で `term.send` で PTY に書く。遅れは ConPTY か lazygit の側と見る。
     確かめ方: #93 の証拠の `pty.log` で、`<Esc>` の `in key \e[27;1;27;1;0;1_` の時刻と、lazygit の画面が戻る
     `out` の時刻を比べる。`in key` が押した時刻どおりなら filer は遅れていない。ARM64 の順番表に入れた。
+  - **lazygit 自身の処理量ではない**（v0.54.6 で確認）: Linux の PTY で lazygit v0.55.1（tcell v2.8.1）と
+    v0.65.1（tcell v3.5.0）に `\e[1;2F` を 165 個（30/s）・600 個・2000 個（一度に）送っても、その後の `?` は
+    20〜30ms、`<Esc>` は約 65ms（tcell の単独 ESC の待ち 50ms 込み）で効いた。遅れは Windows の経路にしかない:
+    ConPTY がバイト列をキーのレコードにする所か、tcell v3 がレコードを `\e[…_` の文字列に組み直す所
+    （`tty_win.go` の `encodeWinKeyRecord`）。どちらも Esc の不具合（v0.48.6）と起動時メニュー（v0.49.0）が出た継ぎ目。
+  - [ ] 実機で測る（両レーンの順番表の「the lazygit lag (#93)」）。`keyprobe.ps1 -AltScreen` と `FILER_PTY_LOG` を
+    同じ時計（Unix ミリ秒）で読めるようにした。プローブに届くまでの遅れが伸びれば filer か ConPTY、伸びなければ
+    tcell / lazygit の Windows 側。Windows Terminal で同じ量を押す対照（win32-input-mode で送るので ConPTY の
+    VT 解析を通らない）も取る。結果で直し方を決める（例: 転送するスクロールキーも Esc と同じくレコードで送る）。
 - `filer env` をリダイレクトで取れない件、**4 回目の報告**（#93）。v0.54.4 で直した。
 - [ ] TESTING.md 1.18 の「PowerShell 7」だけでは足りない。この機械の pwsh 7.6.6 はプロンプトが OSC 7 を出さず、
   README の `LocationChangedAction` のフックを読み込んで初めて 1.16 / 1.18 が通った。行の文言にフックを前提と書く。

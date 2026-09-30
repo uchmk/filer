@@ -193,6 +193,9 @@ pub fn win32_key(vk: u16, scan: u16, ch: u16, mods: Mods) -> Vec<u8> {
 /// the terminal's own answers to a program's queries, which are the bytes
 /// under suspicion when lazygit opens a menu at startup that nobody asked for.
 ///
+/// The first line gives the moment the pane opened in Unix milliseconds, so a
+/// line's time plus that is the wall clock `scripts/keyprobe.ps1` prints.
+///
 /// Off unless the variable is set, and nothing is read or written for it then.
 /// A chunk is whatever one read or write happened to carry, so a sequence can
 /// be split across two lines, and a multi-byte character cut at a chunk's edge
@@ -210,7 +213,10 @@ fn open_pty_log() -> PtyLog {
     let log = PtyLogFile { file, start: Instant::now() };
     let log = Arc::new(Mutex::new(log));
     if let Ok(mut l) = log.lock() {
-        let _ = writeln!(l.file, "== pane opened");
+        // The wall clock once, so the lines' milliseconds can be matched
+        // against another program's (`scripts/keyprobe.ps1` prints this clock).
+        let unix = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
+        let _ = writeln!(l.file, "== pane opened at {unix} (Unix ms; the times below count from here)");
     }
     Some(log)
 }
