@@ -697,6 +697,8 @@ Run from a shell, not from inside the app.
 | 25.13 | `<Enter>` on a file whose rule uses that opener | It really does open — the row and the behaviour agree |
 | 25.14 | An opener naming a program that genuinely is not installed | Still **`not found`**. The exemption is for the shell's own names only |
 | 25.15 | Break `yazi.toml` and read the Warnings row | The path is written **`…\filer\yazi.toml`**, all backslashes. It used to come out `…\filer/yazi.toml`, in the one message whose job is to name the file to edit (v0.33.12) |
+| 25.16 | `filer <a folder with files> --keys "<Tab>C"`, then `Get-Clipboard` (v0.54.0) | The window opens, spot opens on the first row by itself, and the clipboard holds the whole panel as `Label<TAB>value` lines — `Name` and `Path` naming that first row |
+| 25.17 | `filer --keys "<Tab"` and `filer --keys "<Bogus>"` | **No window**: one line naming the problem (`has no closing >` / `is not a key`), exit code 2 |
 
 ## 26. Bug report from inside the app (v0.11.0)
 

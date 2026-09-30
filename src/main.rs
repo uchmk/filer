@@ -10,6 +10,7 @@ mod diff;
 mod exec;
 mod fs;
 mod glob;
+mod keyscript;
 mod mime;
 mod preview;
 mod rename;
@@ -32,6 +33,8 @@ struct Cli {
     path: Option<PathBuf>,
     cwd_file: Option<PathBuf>,
     chooser_file: Option<PathBuf>,
+    /// `--keys`: pressed by filer itself once it has started (Q24).
+    keys: Vec<Key>,
 }
 
 /// Put a line where whoever typed the command is looking.
@@ -67,18 +70,38 @@ fn say(text: &str) {
 }
 
 fn parse_cli() -> Cli {
-    let mut cli = Cli { path: None, cwd_file: None, chooser_file: None };
+    let mut cli = Cli { path: None, cwd_file: None, chooser_file: None, keys: Vec::new() };
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
             "--cwd-file" => cli.cwd_file = args.next().map(PathBuf::from),
             "--chooser-file" => cli.chooser_file = args.next().map(PathBuf::from),
+            // Checked before any window opens: a script that cannot be typed
+            // should say so on the command line, not do half of itself.
+            "--keys" => {
+                let script = args.next().unwrap_or_default();
+                match keyscript::parse(&script) {
+                    Ok(keys) => match keys.iter().find(|k| keyscript::events(k).is_none()) {
+                        Some(k) => {
+                            say(&format!("filer: --keys: {k:?} cannot be typed"));
+                            std::process::exit(2);
+                        }
+                        None => cli.keys = keys,
+                    },
+                    Err(why) => {
+                        say(&format!("filer: --keys: {why}"));
+                        std::process::exit(2);
+                    }
+                }
+            }
             "--help" | "-h" => {
                 say(
                     "filer — a yazi-flavored file manager\n\n\
-                     USAGE:\n    filer [PATH] [--cwd-file FILE] [--chooser-file FILE]\n\n\
+                     USAGE:\n    filer [PATH] [--cwd-file FILE] [--chooser-file FILE] [--keys KEYS]\n\n\
                      OPTIONS:\n    -h, --help       this text\n    \
-                     -V, --version    the version and the architecture\n\n\
+                     -V, --version    the version and the architecture\n    \
+                     --keys KEYS      press these keys once started, in keymap notation:\n                     \
+                     \"<Tab>C\" opens spot and copies it. For scripted checks\n\n\
                      COMMANDS:\n    env              config files, outside tools and environment,\n                     \
                      for pasting into a bug report\n\n\
                      Config is read from yazi's config directory, then from filer's own.\n\
@@ -185,6 +208,8 @@ fn main() -> eframe::Result<()> {
                 focused: true,
                 last_input_frame: u64::MAX,
                 last_geometry: None,
+                script: cli.keys.iter().filter_map(keyscript::events).collect(),
+                script_at: (0, std::time::Instant::now()),
             }))
         }),
     )
@@ -389,6 +414,10 @@ struct Filer {
     /// costs nothing while nothing moves. A resize or a drag onto a monitor at
     /// another scale changes it; a frame does not.
     last_geometry: Option<([f32; 2], f32)>,
+    /// `--keys`, as the events each press arrives as, still to be pressed.
+    script: std::collections::VecDeque<Vec<egui::Event>>,
+    /// The frame and the moment the last scripted key went in.
+    script_at: (u64, std::time::Instant),
 }
 
 impl Filer {
@@ -420,6 +449,31 @@ impl Filer {
 impl eframe::App for Filer {
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
         self.app.cfg.theme.bg.to_normalized_gamma_f32()
+    }
+
+    /// `--keys`: the next scripted key, in the raw input a keyboard would have
+    /// filled -- so it takes every road a real press takes.
+    ///
+    /// One key at a time, and only once what the last one started has landed
+    /// (`App::settled`): `<Tab>C` copying a panel whose sections are still on
+    /// the worker would copy half of it. Two frames apart at least, so what the
+    /// key opened has been drawn once; and never more than five seconds behind,
+    /// so a thing that never settles delays the script rather than stopping it.
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+        if self.script.is_empty() {
+            return;
+        }
+        ctx.request_repaint();
+        let frame = ctx.cumulative_frame_nr();
+        let (last_frame, last_at) = self.script_at;
+        let waited_long = last_at.elapsed() > Duration::from_secs(5);
+        if frame < last_frame + 2 || !(self.app.settled() || waited_long) {
+            return;
+        }
+        if let Some(events) = self.script.pop_front() {
+            raw_input.events.extend(events);
+            self.script_at = (frame, std::time::Instant::now());
+        }
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {

@@ -34,6 +34,12 @@ So everything below has been written from the source and never once run:
 row down as an appearance row, look for something that can be *read* in its
 place. Most rows that sound like looks have one:
 
+**Start with `--keys`.** Since v0.54.0 filer presses keys itself: `filer <dir> --keys "<Tab>C"`
+opens spot on the first row and copies the whole panel, and `Get-Clipboard` reads it. No window
+to find, no `SendInput` for a screen saver to swallow. Reach for `PostMessage` / `SendInput` only
+for what `--keys` cannot do -- the mouse, a key into a program running in the pane after the fact,
+or a sequence that depends on what you read in between.
+
 | The row says | What you can read instead |
 | --- | --- |
 | the list went somewhere | the window title -- of **filer's own window**: class `Window Class`, title starting `Filer:`. Not `(Get-Process filer).MainWindowHandle`, which can be winit's untitled `Winit Thread Event Target` window, whose empty title reads like a failure (#88) |

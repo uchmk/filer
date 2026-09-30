@@ -1214,6 +1214,25 @@ function f {
 }
 ```
 
+
+## Scripted keys
+
+`--keys KEYS` has filer press keys by itself once it has started, written the way the keymap writes
+them — `<Tab>` is one key, anything outside `<…>` is one key per character:
+
+```powershell
+filer C:\some\dir --keys "<Tab>C"     # open spot on the first row, copy the whole panel
+Get-Clipboard
+```
+
+The keys go in as the events a keyboard would have produced, so they take the same road a real press
+does, overlays and terminal included. Each waits until what the last one started has landed — the
+listing read, the preview up, the spot panel's or a comparison's answer back — and never more than
+five seconds. It is meant for checks run by a script, where driving the window from outside is
+fragile (a screen saver, for one, swallows synthetic input without a word). It only ever acts on the
+filer it starts: nothing is opened for a filer that is already running. A key that cannot be typed
+is refused on the command line, before any window opens.
+
 ## Platform Support (Roadmap)
 
 Development currently centers on Windows, but the goal is cross-platform support across the

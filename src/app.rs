@@ -1733,6 +1733,27 @@ impl App {
     }
 
     /// The preview on screen is the hovered file's, fully loaded.
+    /// Whether what the last key started has landed: the listing is read, the
+    /// preview is up, and an open spot panel or comparison has its answer.
+    /// `--keys` waits on this between presses, as a person would wait to see.
+    pub fn settled(&self) -> bool {
+        let tab = &self.tabs[self.active];
+        if matches!(tab.current.state, LoadState::Loading)
+            || self.preview.pending_since.is_some()
+            || matches!(self.preview.state, PreviewState::Loading)
+        {
+            return false;
+        }
+        match &self.overlay {
+            Overlay::Spot(_) => {
+                let hovered = tab.current.hovered().map(|e| &e.path);
+                hovered.is_none() || self.spotted.as_ref().map(|(p, _)| p) == hovered
+            }
+            Overlay::Diff(ov) => ov.outcome.is_some(),
+            _ => true,
+        }
+    }
+
     fn preview_ready(&self) -> bool {
         let hovered = self.tabs[self.active].current.hovered().map(|e| &e.path);
         matches!(self.preview.state, PreviewState::Ready(_))
