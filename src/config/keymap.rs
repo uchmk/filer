@@ -349,6 +349,16 @@ run = "plugin bookmarks save"
         assert_eq!(bound(&km.term, "<C-S-p>"), vec![Act::Palette]);
     }
 
+    /// Reloading from inside the pane: before, `<C-F5>` went to the shell as
+    /// `\e[15;5~` and trying a config change meant leaving the pane each time.
+    #[test]
+    fn the_terminal_layer_reloads_the_config() {
+        let (km, _) = Keymap::load(&[]);
+
+        assert_eq!(bound(&km.term, "<C-F5>"), bound(&km.mgr, "<C-F5>"));
+        assert_eq!(bound(&km.term, "<C-F5>"), vec![Act::ConfigReload]);
+    }
+
     /// The one place the defaults knowingly leave yazi's: `<C-r>` is redo, as
     /// it is nearly everywhere, and inverting the selection moves over one
     /// modifier. Worth a test, because the obvious "fix" is to put it back.

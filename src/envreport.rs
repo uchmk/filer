@@ -113,7 +113,7 @@ fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
 
     let shell = match cfg.term.shell.is_empty() {
         false => cfg.term.shell.clone(),
-        true => DEFAULT_SHELL.to_string(),
+        true => crate::terminal::default_shell().unwrap_or_else(|| DEFAULT_SHELL.to_string()),
     };
     let what = match cfg.term.shell.is_empty() {
         false => "terminal pane, from [term] shell",
@@ -177,7 +177,7 @@ fn found(exe: &str, what: &str) -> String {
     if shell_builtin(exe) {
         return format!("built into {SHELL_NAME}   ({what})");
     }
-    match locate(exe) {
+    match crate::util::locate(exe) {
         Some(p) => format!("{}   ({what})", p.display()),
         None => format!("not found   ({what})"),
     }
@@ -210,31 +210,6 @@ fn shell_builtin(exe: &str) -> bool {
         (exe.to_string(), ["echo", "cd", "export", "eval", "exec", "set", "test", "printf"]);
 
     known.contains(&name.as_str())
-}
-
-/// `which`, near enough: an absolute or relative name is taken as it stands,
-/// and a bare one is looked for along `PATH`, trying each of `PATHEXT`'s
-/// suffixes so that `code` finds `code.cmd`.
-fn locate(exe: &str) -> Option<std::path::PathBuf> {
-    let raw = std::path::Path::new(exe);
-    if raw.components().count() > 1 {
-        return raw.is_file().then(|| raw.to_path_buf());
-    }
-    let exts: Vec<String> = match std::env::var("PATHEXT") {
-        Ok(v) => std::iter::once(String::new())
-            .chain(v.split(';').map(|e| e.to_ascii_lowercase()))
-            .collect(),
-        Err(_) => vec![String::new()],
-    };
-    for dir in std::env::split_paths(&std::env::var_os("PATH")?) {
-        for ext in &exts {
-            let p = dir.join(format!("{exe}{ext}"));
-            if p.is_file() {
-                return Some(p);
-            }
-        }
-    }
-    None
 }
 
 /// The program an opener's command line starts with.
@@ -331,6 +306,7 @@ fn variables() -> Vec<(String, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::util::locate;
 
     /// `start` is not a file and never will be, so the `PATH` lookup that
     /// serves every other entry can only say "not found" about the commonest

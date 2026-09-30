@@ -967,6 +967,11 @@ pub struct App {
     pub list_scroll_rows: f32,
     /// What the terminal was last searched for, so the key repeats it.
     term_needle: String,
+    /// A file to put the cursor on when its directory is next read, ahead of
+    /// whatever was hovered: an archive that did not exist a moment ago, so
+    /// the listing that is on screen cannot select it yet (Q25). Spent by the
+    /// next read of the current directory, so leaving that directory drops it.
+    land_on: Option<PathBuf>,
     /// A drag in flight between the panes.
     pub drag: Option<Drag>,
     /// Where each pane was drawn this frame, so a drop can be placed.
@@ -1103,6 +1108,7 @@ impl App {
             preview_scroll_rows: 0.0,
             list_scroll_rows: 0.0,
             term_needle: String::new(),
+            land_on: None,
             drag: None,
             pane_rects: Vec::new(),
             differ,
@@ -1499,6 +1505,12 @@ impl App {
             f.rebuild(show_hidden);
             if let Some(name) = keep.or(memo) {
                 f.select_name(&name);
+            }
+            let land = self.land_on.take().filter(|p| p.parent() == Some(path));
+            if let Some(p) = land {
+                let name = util::file_name(&p);
+                self.tabs[self.active].memo.insert(path.to_path_buf(), name.clone());
+                self.tabs[self.active].current.select_name(&name);
             }
         }
 
@@ -3261,7 +3273,7 @@ impl App {
                     dest: Some(dest),
                 });
             }
-            ops::OpEvent::Finished { id, errors, cancelled, kind, moved } => {
+            ops::OpEvent::Finished { id, errors, cancelled, kind, moved, made } => {
                 // A move that actually moved something is a step `u` can take
                 // back. A cancelled one is not: half a move is not a state
                 // worth offering to reverse in one keystroke.
@@ -3298,6 +3310,12 @@ impl App {
                     }
                 }
                 let cwd = self.tabs[self.active].cwd.clone();
+                // The archive just packed is what you want to look at next
+                // (Q25) -- but only where you still are: a compress that ends
+                // after you moved on does not pull you back.
+                if let Some(archive) = made.filter(|p| p.parent() == Some(cwd.as_path())) {
+                    self.land_on = Some(archive);
+                }
                 self.cache.remove(&cwd);
                 self.rescan(&cwd);
             }
@@ -3327,6 +3345,8 @@ impl App {
         let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
         let name = e.name.clone();
         let (stem, _ext) = util::stem_and_ext(&name);
+        // A folder's name has no extension to keep, whatever dot is in it.
+        let stem = if e.is_dir_like() { name.as_str() } else { stem };
         let sel = match cursor {
             RenameCursor::Start => (0, 0),
             RenameCursor::End => (name.chars().count(), name.chars().count()),
@@ -3521,13 +3541,23 @@ impl App {
 
     // ---------------------------------------------------------------- input
 
+    /// A prompt that opens with text in it opens with that text selected, as
+    /// Explorer's address bar and `F2` do: typing or pasting replaces it, and
+    /// `<End>` keeps it to go on from (Q31). Two keep their own shape: a shell
+    /// command is a template you add to, so the caret waits at its end, and an
+    /// archive's name selects the part before `.zip`, which is what you change.
     pub fn open_input(&mut self, kind: InputKind, title: &str, text: String) {
         let len = text.chars().count();
+        let selection = match kind {
+            InputKind::Shell { .. } => (len, len),
+            InputKind::Compress => (0, util::stem_and_ext(&text).0.chars().count()),
+            _ => (0, len),
+        };
         self.overlay = Overlay::Input(InputOverlay {
             kind,
             title: title.to_owned(),
             text,
-            initial_selection: Some((len, len)),
+            initial_selection: Some(selection),
             focused: false,
             completion: Vec::new(),
             completion_at: 0,
@@ -4148,11 +4178,13 @@ impl App {
         // The real shape arrives with the first frame that draws it; this is
         // only what the shell starts life believing.
         let size = crate::terminal::Size::new(80, 24);
-        // Empty means "whatever the platform starts", which is what it has
-        // always been; a name here is the way to ask for `pwsh` rather than
-        // the Windows PowerShell the default resolves to.
-        let shell = (!self.cfg.term.shell.is_empty())
-            .then(|| (self.cfg.term.shell.clone(), self.cfg.term.args.clone()));
+        // Empty means the default: `pwsh` on Windows when it is installed,
+        // otherwise whatever the platform starts (Q29). A name here is the way
+        // to ask for a particular one.
+        let shell = match self.cfg.term.shell.is_empty() {
+            false => Some((self.cfg.term.shell.clone(), self.cfg.term.args.clone())),
+            true => crate::terminal::default_shell().map(|s| (s, Vec::new())),
+        };
         match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), shell, move || {
             ctx.request_repaint()
         }) {

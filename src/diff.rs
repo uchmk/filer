@@ -377,9 +377,39 @@ fn compare_trees_within(left: &Path, right: &Path, limit: usize) -> Outcome {
 struct Found {
     dir: bool,
     len: u64,
-    /// Where a symlink (or a junction) points, as written. `None` for
-    /// anything else.
-    link: Option<PathBuf>,
+    /// Where a symlink (or a junction) points. `None` for anything else.
+    link: Option<Target>,
+}
+
+/// Where a link points, in the form two trees can be compared by.
+#[derive(Debug, PartialEq)]
+enum Target {
+    /// Somewhere inside the tree being compared, relative to its root. Two
+    /// copies of one tree hold links that point into *their own* copy, and a
+    /// junction's target is always absolute, so as written they could never
+    /// match (Q26, #98). Relative to the root they do.
+    Inside(PathBuf),
+    /// Anywhere else, as written: two links out to one shared place match,
+    /// and a relative link out of the tree is left as the text it is.
+    Written(PathBuf),
+}
+
+impl Target {
+    /// `link` is the link's own path under `root`, `to` what `read_link`
+    /// returned; `roots` is `root` spelled every way a target might spell it.
+    fn of(roots: &[PathBuf], link: &Path, to: PathBuf) -> Self {
+        let absolute = match to.is_absolute() {
+            true => crate::util::unverbatim(&to),
+            false => link.parent().map(|p| p.join(&to)).unwrap_or_else(|| to.clone()),
+        };
+        let absolute = crate::util::normalize(&absolute);
+        for root in roots {
+            if let Ok(rel) = absolute.strip_prefix(root) {
+                return Self::Inside(rel.to_path_buf());
+            }
+        }
+        Self::Written(to)
+    }
 }
 
 /// Every path under `root`, relative to it, as (is a directory, length).
@@ -393,6 +423,16 @@ fn walk(root: &Path, budget: &mut usize) -> std::io::Result<std::collections::Ha
     // Fail on the root only: a directory further down that cannot be read is one
     // unreadable row, not a reason to abandon the comparison.
     std::fs::metadata(root)?;
+    // The spellings a link's target might use for the root: as it was given,
+    // and as the file system resolves it (a junction's target is the real
+    // path, with any link above the root already followed).
+    let mut roots = vec![crate::util::normalize(&crate::util::unverbatim(root))];
+    if let Ok(real) = std::fs::canonicalize(root) {
+        let real = crate::util::normalize(&crate::util::unverbatim(&real));
+        if !roots.contains(&real) {
+            roots.push(real);
+        }
+    }
     while let Some(p) = stack.pop() {
         if *budget == 0 {
             break;
@@ -409,7 +449,7 @@ fn walk(root: &Path, budget: &mut usize) -> std::io::Result<std::collections::Ha
             let dir = md.is_dir() && !is_link;
             // An unreadable target still marks it a link: it is compared, and
             // a link that cannot be read on either side reads as the same.
-            let link = is_link.then(|| std::fs::read_link(&path).unwrap_or_default());
+            let link = is_link.then(|| Target::of(&roots, &path, std::fs::read_link(&path).unwrap_or_default()));
             if let Ok(rel) = path.strip_prefix(root) {
                 let len = if dir || is_link { 0 } else { md.len() };
                 out.insert(rel.to_path_buf(), Found { dir, len, link });
@@ -745,6 +785,41 @@ mod tree_tests {
         assert_eq!(named(&rows, "dl"), TreeState::Same, "a link to a directory, not `?`");
     }
 
+    /// The Unix half of Q26, which also covers a relative link against an
+    /// absolute one: both copies' links go to their own `t1`, one written as
+    /// `t1` and one as the full path, and they match. A link out of the tree
+    /// is still compared as written, so two links to one shared place match
+    /// and two to different places do not.
+    #[cfg(unix)]
+    #[test]
+    fn links_into_their_own_copy_match_and_links_out_do_not_move() {
+        use std::os::unix::fs::symlink;
+        let (l, r) = dirs();
+        let out = crate::util::test_dir("diff-links-out");
+        std::fs::write(out.join("x"), b"x").unwrap();
+        std::fs::write(out.join("y"), b"y").unwrap();
+        for side in [&l, &r] {
+            std::fs::write(side.join("t1"), b"t").unwrap();
+            std::fs::create_dir_all(side.join("sub")).unwrap();
+        }
+        symlink(l.join("t1"), l.join("abs")).unwrap();
+        symlink(r.join("t1"), r.join("abs")).unwrap();
+        symlink("t1", l.join("mixed")).unwrap();
+        symlink(r.join("t1"), r.join("mixed")).unwrap();
+        symlink("../t1", l.join("sub").join("up")).unwrap();
+        symlink(r.join("t1"), r.join("sub").join("up")).unwrap();
+        symlink(out.join("x"), l.join("shared")).unwrap();
+        symlink(out.join("x"), r.join("shared")).unwrap();
+        symlink(out.join("x"), l.join("apart")).unwrap();
+        symlink(out.join("y"), r.join("apart")).unwrap();
+        let rows = rows(&l, &r);
+        assert_eq!(named(&rows, "abs"), TreeState::Same, "absolute, each into its own copy");
+        assert_eq!(named(&rows, "mixed"), TreeState::Same, "relative against absolute, one place");
+        assert_eq!(named(&rows, "sub/up"), TreeState::Same, "`..` resolved from the link's folder");
+        assert_eq!(named(&rows, "shared"), TreeState::Same, "one place outside both");
+        assert_eq!(named(&rows, "apart"), TreeState::Differ, "two places outside");
+    }
+
     /// The Windows half, with junctions, which need no privilege to make: a
     /// link to a directory used to be opened as a file, fail, and read as
     /// "too big to read" (#86).
@@ -770,6 +845,26 @@ mod tree_tests {
         let j = named(&rows, "j");
         assert_ne!(j, TreeState::Unread, "a junction is a link, not an unreadable file");
         assert_eq!(j, TreeState::Differ, "the two point to different places");
+    }
+
+    /// Two copies of one tree whose junctions point into their own copy: the
+    /// targets are absolute and so differ as text, but they are the same
+    /// place in each tree, and 45.5 says two copies read as `=` (Q26, #98).
+    #[cfg(windows)]
+    #[test]
+    fn junctions_into_their_own_copy_match() {
+        let (l, r) = dirs();
+        for side in [&l, &r] {
+            std::fs::create_dir_all(side.join("t1")).unwrap();
+            let ok = std::process::Command::new("cmd")
+                .args(["/c", "mklink", "/J"])
+                .arg(side.join("ln"))
+                .arg(side.join("t1"))
+                .output()
+                .is_ok_and(|o| o.status.success());
+            assert!(ok, "mklink /J under {}", side.display());
+        }
+        assert_eq!(named(&rows(&l, &r), "ln"), TreeState::Same);
     }
 
     /// The footer's numbers are counted once, when the comparison is built, so

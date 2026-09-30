@@ -273,8 +273,8 @@ max_history = 200
 window_width = 1360.0
 window_height = 860.0
 
-[term]                     # what `<C-t>` starts; omit for the platform default
-# shell = "pwsh"           # Windows without this is PowerShell 5.1, not 7
+[term]                     # what `<C-t>` starts; omit for the default
+# shell = "powershell"     # Windows without this is pwsh (7) when installed, else 5.1
 # args = ["-NoLogo"]
 ```
 
@@ -480,6 +480,7 @@ rather than another set of bindings. Only what the `[term]` keymap section binds
 | `<C-t>` | give the keys back to the list, leaving the shell running |
 | `<C-S-t>` | close the pane and end the shell — asking first when a program (lazygit, an editor, a build) is still running under it |
 | `<F1>` `<C-S-p>` | the key list / the command palette |
+| `<C-F5>` | read the config files again, as in the list |
 | `<A-Up>` | put the file list where the shell is |
 | `<A-j>` `<A-k>` | five lines down / up the scrollback — the keys that scroll the preview from the list |
 | `<S-PageUp>` `<S-PageDown>` | half a screen back / forward through the scrollback |
@@ -495,8 +496,10 @@ place they did nothing was the one you noticed.
 They are handed back automatically where it matters. A full-screen program — `nvim`, `less`,
 `htop` — runs on the terminal's *alternate screen*, which is created with no scrollback at all, so
 a scrolling key there would be spent on a scroll that cannot move anything. While that screen is up
-every `term_scroll` key goes to the program instead, and the wheel is sent as arrow keys rather
-than walking a scrollback that does not exist. Keys that are not about scrolling stay filer's:
+every `term_scroll` key goes to the program instead, and so does the wheel: as the mouse to a
+program that asked to hear about the mouse (`nvim`, `htop`, `tmux` — so the view scrolls and the
+cursor stays put), and as arrow keys to one that did not (`less`), rather than walking a scrollback
+that does not exist. Keys that are not about scrolling stay filer's:
 `<C-t>` has to get you out of a full-screen program as much as out of a shell.
 
 To take the scrolling keys back on the ordinary screen too, replace the whole section with a
@@ -518,7 +521,8 @@ the word. **Right-click pastes**, which is the other half of that pair; `<C-v>` 
 Click the pane to take the keys back.
 
 A paste is wrapped in the bracketed-paste markers when the program on the other end asks for
-them — bash, zsh, fish, PSReadLine and vim all do. That is what keeps a clipboard holding three
+them — bash, zsh, fish and vim do; PowerShell's PSReadLine on Windows does not (5.1 and 7.6 both
+measured), so there a multi-line paste runs line by line. That is what keeps a clipboard holding three
 lines from running as two commands and a half-typed third: inside the markers a line editor puts
 the text in the buffer and waits. A shell that does not ask gets the text plain, where a newline
 is Enter and always has been.
@@ -657,7 +661,10 @@ saying two files are the same is a claim and that is the absence of one.
 
 Links — symlinks and junctions — are compared as links, by **where they point**, and never read
 through: two links to identical files in different places differ, and a link to a folder is a link,
-not something too big to read. Very large trees stop after 100,000 paths, half for each side, and say
+not something too big to read. A link that points **inside** the folder being compared is compared
+by where it lands in that folder, so two copies of one tree read as `=` even though each copy's
+links name its own copy (a junction always spells its target in full); a link out of the folder is
+compared as written. Very large trees stop after 100,000 paths, half for each side, and say
 `cut short`; when a side was cut short, a path the *other* side has is not listed as only there,
 because the side that ran out may simply not have reached it. (Both of these were wrong until v0.54.5,
 found on a real machine.)
@@ -1052,10 +1059,15 @@ and visual mode, so you can start a range with the mouse and finish it with the 
 
 In a prompt — `cd`, `s`, `f`, rename, `;` / `:`, the command palette — **right-click pastes**, the
 way a terminal does (and the way the terminal pane itself does), and `<C-v>` does the same from
-the keyboard. The text lands where you clicked,
-replacing whatever was selected; line breaks become spaces, since the prompt is one line. A path
-copied out of Explorer's address bar therefore takes one click to get into `cd`, with no hand
-leaving the mouse.
+the keyboard. The text lands where you clicked, or replaces the selection when you click on it;
+a line break becomes one space, since the prompt is one line.
+
+A prompt that opens with text in it opens with that text **selected**, as Explorer's address bar
+and `F2` do: `cd` selects the directory it starts from, the bulk rename its `{name}{ext}`, so
+what you type or paste replaces it, and `<End>` keeps it to go on from. Rename (`r`) selects the
+name up to its extension, and the archive name `E` offers selects the part before `.zip`. A path
+copied out of Explorer's address bar therefore takes one right-click to get into `cd`, with no
+hand leaving the mouse.
 
 ## Running a command on the selection
 
@@ -1123,7 +1135,11 @@ characters work as they are: percent-escapes are undone on the way in, so escapi
 optional rather than required.
 
 **Which PowerShell, and therefore which `$PROFILE`.** With nothing configured the pane starts
-`powershell`, and that is Windows PowerShell 5.1 rather than PowerShell 7. They read different files:
+`pwsh` — PowerShell 7 — when it is installed, and `powershell`, Windows PowerShell 5.1, only when it
+is not (since v0.55.0; before that it was always 5.1). **The hook needs 7**: 5.1 has no
+`LocationChangedAction` at all, so the four lines above fail there every time the shell starts. On
+a machine with only 5.1, `winget install Microsoft.PowerShell` and a new pane. The two read
+different files:
 
 | Shell | `$PROFILE` |
 | --- | --- |
@@ -1160,16 +1176,16 @@ Writing through `$PROFILE` rather than a typed path is the point of it: whicheve
 reads is the one that gets the hook, so the 5.1-or-7 question above cannot be answered wrongly.
 Then `<C-S-t>` and `<C-t>` as before.
 
-To run PowerShell 7 in the pane instead, name it in `filer.toml`:
+To choose the shell yourself — 5.1 on a machine that has 7, say, or `cmd` — name it in `filer.toml`:
 
 ```toml
 [term]
-shell = "pwsh"
+shell = "powershell"
 # args = ["-NoLogo"]
 ```
 
-Leaving `[term]` out keeps the platform's own default, which is the behaviour every earlier version
-had. The same setting names a shell on macOS and Linux, where the default is the login shell.
+Leaving `[term]` out keeps the default above. The same setting names a shell on macOS and Linux,
+where the default is the login shell.
 
 ## Reporting a problem
 

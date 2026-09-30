@@ -614,7 +614,7 @@ row needs which. 21.6 says something other than what it says here, which is writ
 | 21.1 | Hover `sample.zip` | The preview lists what is inside |
 | 21.2 | `e` on it | Unpacked into a `sample` folder beside it; progress in the task panel |
 | 21.3 | `e` again | The second one gets a different name; the first is not overwritten |
-| 21.4 | Select `to-pack\`, press `E`, accept `to-pack.zip` | Packed, and the result opens |
+| 21.4 | Select `to-pack\`, press `E`, accept `to-pack.zip` | Packed, and when the job is done the cursor is on `to-pack.zip` (v0.55.0). Had you moved to another folder meanwhile, it stays where you are |
 | 21.5 | `E` and change the name to end in `.tar.gz` | A gzipped tar, not a zip |
 | 21.6 | `e` on a text file | A toast says it was skipped; nothing else happens |
 | 21.7 | `E` and change the name to end in **`.7z`** (v0.27.0) | A real 7z. Until v0.27.0 this was refused as read-only |
@@ -777,6 +777,7 @@ instructions.
 | 29.3 | Same with a directory whose name has a **space** and one with **Japanese** in it | Both arrive intact |
 | 29.4 | `cd` to a UNC path (`\\server\share`) and press `<A-Up>` | Either it follows or it says why; no crash |
 | 29.5 | Run the hook line by hand in a shell that already has Starship | The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`) |
+| 29.6 | With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` | 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again |
 
 ## 30. Right-click paste in a prompt (v0.14.0)
 
@@ -796,6 +797,7 @@ instructions.
 | 30.12 | The same in a shell that does **not** ask for bracketed paste (`cmd.exe`) | The lines run, as they always have — and no stray `[200~` appears |
 | 30.13 | Right-click in the terminal while `vim` is open | The text is inserted; no `[200~` on screen |
 | 30.14 | `<C-v>` in the terminal | Same as the right-click, including 23.11 |
+| 30.15 | `r` on `report.txt`, `R` on two files, `gSpace` (`cd`), `E` on `a.txt` (v0.55.0); then, with a path on the clipboard, right-click **on** the `cd` prompt's selection | Each opens with its text selected, so typing replaces it: `r` selects `report`, `R` all of `{name}{ext}`, `cd` the whole path, `E` the `a` before `.zip`. The right-click's path replaces the selection, and `<Enter>` goes there |
 
 ## 31. A host's shares (v0.16.0)
 
@@ -1083,7 +1085,7 @@ What needs a machine is the handover, in a real `nvim` and a real pager.
 | 40.5 | The wheel inside nvim, and inside `less` | Scrolls the document. Before v0.38.0 it tried to walk a scrollback that does not exist, so nothing moved |
 | 40.6 | The wheel at the shell prompt | Still walks the scrollback, unchanged |
 | 40.7 | `less` a long file, `<S-PageUp>`, then `q` to quit, then `<S-PageUp>` again | Inside `less` it pages the document; after quitting it scrolls the pane's scrollback |
-| 40.8 | In nvim with `set nonumber`, wheel up then down | Lands back where it started — one notch is a fixed number of arrows each way |
+| 40.8 | In `less`, one notch up then one notch down (v0.55.0) | Lands back where it started — one notch is the same number of arrows each way. Until v0.55.0 the first notch after turning round was lost (#100) |
 | 40.9 | A program using the alternate screen **and** application-cursor mode | The wheel's arrows arrive as SS3 (`ESC O A`), not CSI. nvim in insert mode is the easy check |
 
 ### `Alt`+letter reaches the shell at all (v0.38.0)
@@ -1094,6 +1096,9 @@ What needs a machine is the handover, in a real `nvim` and a real pager.
 | 40.11 | `Alt-d` at the same prompt | Deletes the word ahead |
 | 40.12 | PowerShell (PSReadLine) in the pane, `Alt-b` / `Alt-f` | Same word motions |
 | 40.13 | `Alt-j` / `Alt-k` at an ordinary prompt | **Still filer's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen |
+| 40.14 | The wheel inside nvim, with `FILER_PTY_LOG` set (v0.55.0) | nvim's view scrolls and **its cursor stays on the same line** (`:echo line('.')` before and after). The log shows `\e[<64;…M` / `\e[<65;…M`, not `\e[A` |
+| 40.15 | lazygit in the pane (v0.55.0): about 300 `<S-End>` at 30 a second, with `?` then `<Esc>` in the middle of them, as #99 rebuilt #93 | The key list closes within a second of the `<Esc>`. Until v0.55.0 it stayed open for minutes: `<Esc>` sent as a record and `<S-End>` as `\e[1;2F` right behind it read to tcell as one sequence |
+| 40.16 | With `FILER_PTY_LOG` set (v0.55.0): open the pane, type `ping -t localhost`, `<C-c>`, then `<C-Left>` over a typed word and `<Tab>` completion | The log's `out` lines hold `\e[?9001h` near the start, and the `in key` lines are records (`\e[…;…;…;1;…;1_`) rather than `\e[1;5D`; `<C-c>` stops the ping, `<C-Left>` moves by a word, `<Tab>` completes — the shell reads records as it reads a real keyboard |
 
 ---
 
@@ -1224,6 +1229,7 @@ identical pair says so, and the highlight follows `j`. What is left is the real 
 | 45.13 | `q` / `<Esc>` | Closes, and two **files** still compare line by line as before |
 | 45.14 | Compare two trees of hundreds of paths that differ in one file far down (v0.53.0) | The view opens with the cursor **on that file**, not on the first row. A pair with no differences opens at the top |
 | 45.15 | `z`, then `j` / `n`, then `z` again | The `=` rows leave the list; the footer still counts them and adds `matches hidden (z)`; `j` and `n` step only over what is shown; the second `z` brings every row back with the cursor on the same path |
+| 45.16 | Copy a folder holding a **junction** to a folder inside it (`mklink /J ln t1`), then compare the original with the copy (v0.55.0) | `= ln`: both links land on `t1` in their own tree, so the copies read as the same even though the two targets differ as text |
 
 ## Known gaps in this checklist
 
