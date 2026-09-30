@@ -28,8 +28,13 @@
 #
 #   pwsh -File scripts\auto-wintest.ps1          # look once, run if there is work
 #   pwsh -File scripts\auto-wintest.ps1 -Force   # run even if nothing changed
+#   ... -LogDir R:\Temp                           # the log on the RAM disk
 #
-# Log: %LOCALAPPDATA%\filer-wintest\auto-wintest.log
+# Log: %LOCALAPPDATA%\filer-wintest\auto-wintest.log, or in -LogDir. The log
+# may go on the RAM disk (-LogDir R:\Temp): it is for reading what a run did,
+# not evidence. The state file stays in %LOCALAPPDATA% whatever -LogDir says --
+# on R: it would be gone after a reboot, and the next firing would start a run
+# for a trigger that was already used.
 #
 # The run works in its own worktree ($Work), not in the checkout you use, so
 # it never meets your uncommitted changes and you can keep working while it
@@ -41,6 +46,7 @@
 
 param(
     [string]$Work = 'C:\dev\filer-wintest',
+    [string]$LogDir,
     [switch]$Force
 )
 
@@ -59,7 +65,9 @@ $Denied = @(
 
 $state = Join-Path $env:LOCALAPPDATA 'filer-wintest'
 New-Item -ItemType Directory -Force -Path $state | Out-Null
-$log = Join-Path $state 'auto-wintest.log'
+if (-not $LogDir) { $LogDir = $state }
+New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+$log = Join-Path $LogDir 'auto-wintest.log'
 $last = Join-Path $state 'last-trigger'
 
 function Say([string]$line) {
