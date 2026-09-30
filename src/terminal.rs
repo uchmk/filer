@@ -20,7 +20,7 @@ use std::time::Instant;
 use alacritty_terminal::event::{Event as PtyEvent, EventListener, WindowSize};
 use alacritty_terminal::event_loop::{EventLoop, EventLoopSender, Msg};
 use alacritty_terminal::grid::{Dimensions, Scroll};
-use alacritty_terminal::index::{Column, Direction, Line, Point, Side};
+use alacritty_terminal::index::{Boundary, Column, Direction, Line, Point, Side};
 use alacritty_terminal::selection::{Selection, SelectionType};
 use alacritty_terminal::term::search::RegexSearch;
 use alacritty_terminal::sync::FairMutex;
@@ -381,8 +381,9 @@ pub struct Terminal {
     /// once at `spawn` because that is where the program's name is known.
     quoting: Quoting,
     cwd_rx: Receiver<PathBuf>,
-    /// Where the last search matched, so the next one carries on past it.
-    found: Option<Point>,
+    /// The last match, start and end, so the next search carries on past it
+    /// in whichever direction it goes.
+    found: Option<(Point, Point)>,
     /// Where the shell says it is, when it says so at all. A shell that does
     /// not send OSC 7 leaves this `None` for ever, which is why it only ever
     /// suppresses work rather than driving any.
@@ -554,34 +555,8 @@ impl Terminal {
     /// Find `needle` from the top of the view, and put the match on screen.
     /// Returns whether anything matched.
     pub fn search(&mut self, needle: &str, back: bool) -> bool {
-        let Ok(mut re) = RegexSearch::new(needle) else { return false };
         let mut term = self.term.lock();
-        // From where the last match left off, so a repeat walks the matches
-        // rather than finding the same one.
-        let origin = self.found.unwrap_or_else(|| search_origin(&term, back));
-        let dir = if back { Direction::Left } else { Direction::Right };
-        let Some(m) = term.search_next(&mut re, origin, dir, Side::Left, None) else {
-            drop(term);
-            // Wrap: a search that runs off the end starts again.
-            self.found = None;
-            return false;
-        };
-        let hit = *m.start();
-        // Put the line holding the match on screen.
-        let want = (-hit.line.0).max(0);
-        let now = term.grid().display_offset() as i32;
-        term.scroll_display(Scroll::Delta(want - now));
-        term.selection = Some(Selection::new(SelectionType::Simple, hit, Side::Left));
-        if let Some(sel) = term.selection.as_mut() {
-            sel.update(*m.end(), Side::Right);
-        }
-        drop(term);
-        // Step past this one so the next search moves on.
-        self.found = Some(match back {
-            true => Point::new(hit.line, Column(hit.column.0.saturating_sub(1))),
-            false => Point::new(hit.line, Column(m.end().column.0 + 1)),
-        });
-        true
+        search_in(&mut term, &mut self.found, needle, back)
     }
 
     /// Forget where a search got to, so the next one starts from the view.
@@ -1120,6 +1095,41 @@ pub fn children(pid: u32) -> Vec<u32> {
     }
 }
 
+/// One step of a scrollback search: the next match of `needle` from the last
+/// one, `found`, in the direction asked, selected and scrolled onto the screen.
+/// A free function over the grid so that the walk can be tested without a PTY.
+fn search_in(term: &mut Term<Proxy>, found: &mut Option<(Point, Point)>, needle: &str, back: bool) -> bool {
+    let Ok(mut re) = RegexSearch::new(needle) else { return false };
+    // From just past the last match *in the direction of this search*, so a
+    // repeat walks the matches rather than finding the same one. The match's
+    // two ends are kept rather than one stepped-past point: that point was
+    // stepped the way the *last* search went, so the first press after turning
+    // round started beside the current match and found it again -- `<C-S-b>`
+    // after `<C-S-n>` did nothing once (#93, 1.9g).
+    let origin = match *found {
+        Some((start, _)) if back => start.sub(&*term, Boundary::Grid, 1),
+        Some((_, end)) => end.add(&*term, Boundary::Grid, 1),
+        None => search_origin(term, back),
+    };
+    let dir = if back { Direction::Left } else { Direction::Right };
+    let Some(m) = term.search_next(&mut re, origin, dir, Side::Left, None) else {
+        // Wrap: a search that runs off the end starts again.
+        *found = None;
+        return false;
+    };
+    let hit = *m.start();
+    // Put the line holding the match on screen.
+    let want = (-hit.line.0).max(0);
+    let now = term.grid().display_offset() as i32;
+    term.scroll_display(Scroll::Delta(want - now));
+    term.selection = Some(Selection::new(SelectionType::Simple, hit, Side::Left));
+    if let Some(sel) = term.selection.as_mut() {
+        sel.update(*m.end(), Side::Right);
+    }
+    *found = Some((hit, *m.end()));
+    true
+}
+
 /// A terminal built without a PTY, for tests anywhere in the crate.
 #[cfg(test)]
 pub mod testing {
@@ -1148,6 +1158,30 @@ pub mod testing {
 mod tests {
     use super::testing::{feed, term};
     use super::*;
+
+    /// Turning round mid-search moves at once: one `<C-S-b>` undoes one
+    /// `<C-S-n>` (#93, 1.9g). Before, the first press after a change of
+    /// direction found the match it was already on.
+    #[test]
+    fn a_search_turns_round_in_one_press() {
+        let mut t = term(40, 5);
+        for i in 0..30 {
+            feed(&mut t, &format!("line {i:02} hit\r\n"));
+        }
+        let mut found = None;
+        let line = |f: &Option<(Point, Point)>| f.expect("a match").0.line.0;
+        // `back` walks toward the older lines, as `<C-S-f>` and `<C-S-n>` do.
+        assert!(search_in(&mut t, &mut found, "hit", true));
+        let first = line(&found);
+        assert!(search_in(&mut t, &mut found, "hit", true));
+        let second = line(&found);
+        assert!(second < first, "a second press goes further back: {first} then {second}");
+
+        assert!(search_in(&mut t, &mut found, "hit", false));
+        assert_eq!(line(&found), first, "one press the other way comes straight back");
+        assert!(search_in(&mut t, &mut found, "hit", true));
+        assert_eq!(line(&found), second, "and one more returns to where it was");
+    }
 
     /// `children` finds a process this one started: the question `<C-S-t>`
     /// asks of the shell before ending it (Q21). Asserted on the child's own
