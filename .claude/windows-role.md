@@ -248,6 +248,7 @@ these differences:
 
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
+| **v0.56.0, Q32 and Q33** | 2 | 44.14 (`gu` shows sizes whatever the line mode, and puts it back) and 31.9 (a host's shares show no size in `linemode size`) against `\\192.168.0.150`, if `net view` answers |
 | **24. awkward names** | the `[ ]` rows | Names through the shell and ConPTY: 24.4 in `FILER_PTY_LOG` (what the shell was sent), 24.5 on disk. 24.2 is a look |
 | **22. opening an editor at a line** | the `[ ]` rows | Process creation: `Get-CimInstance Win32_Process` shows the command line filer built. VS Code and Neovim are installed on this machine; say which others are not |
 | **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104), 0.54.14 (509 / 0, #105), 0.55.1 (523 / 0, #107), 0.55.2 (523 / 0, #108), 0.55.3 (523 / 0, #109) and 0.55.4 (523 / 0, #110). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |

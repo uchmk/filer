@@ -769,6 +769,9 @@ is full.
 
 This is the file list, not a panel: `j` / `k`, the wheel, selection, `y`, `d` and the rest work as
 they always do, and `<Esc>` (or `h`) leaves and goes back to the directory. Leaving cancels the walk.
+While the view is up the right-hand column shows the sizes whatever line mode the tab had, and the
+tab gets its own back on the way out (v0.56.0; before that the bars were all you saw unless the
+config said `linemode = "usage"`, which made every ordinary folder read `0 B`).
 It is one level deep — entering a folder is ordinary navigation and leaves the view, so `gu` again
 measures from there.
 
@@ -1291,7 +1294,8 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   does. They are not files and nothing on a disk here holds them — the network provider is asked
   what is being shared, over the same connection Explorer uses, so a host you can reach there you
   can reach here, with the credentials you already have. Shares show as folders with no size and
-  no dates, because there are none to read.
+  no dates, because there are none to read — not even the child count `linemode size` gives other
+  folders, which for a share is a trip across the network per row (v0.56.0).
 - `h` from a share root therefore goes up to its host. (`\\host\share` has no parent as far as
   the path arithmetic is concerned — the host and the share are one prefix — so this is a
   deliberate step rather than a fallout.)
