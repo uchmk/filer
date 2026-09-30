@@ -105,7 +105,6 @@ still on the human's list when it was written.
 
 | Section | Rows | Why it suits you |
 | --- | --- | --- |
-| **45. comparing two folders** | 9 | You build both trees, so every `<` `>` `~` `=` and each footer count is known in advance. 45.7's 64 MB files come from `fsutil file createnew` |
 | **44. disk usage** | 13 | Totals against `Get-ChildItem -Recurse -Force \| Measure-Object Length -Sum`; "the walk stops" against the process's CPU time from `Get-Process` |
 | **29. the terminal's directory, brought back** | 5 | Where the list went reads off the window title (`(Get-Process filer).MainWindowTitle`). OSC 7 through ConPTY -- nobody else can run it |
 | **28. changes made from outside** | 7 | "No crash" is the process still being there; where the cursor landed is `y` on the hovered row |
@@ -120,7 +119,7 @@ still on the human's list when it was written.
 | **31. a host's shares** | 13 | `\\localhost` and `\\<this machine's name>` list your own shares; `New-SmbShare` (elevated) makes one with a space or Japanese in its name. 31.5 is an unused address on your subnet |
 | **22. opening an editor at a line** | 6 | Only the editors installed here: `Get-CimInstance Win32_Process` shows the command line filer built, `-n42` or `+42` or `--goto`. Say which ones were not installed |
 
-Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26, 13 / 15, 46, 1 and 12.
+Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26, 13 / 15, 46, 1, 12 and 45 (45.11 waits on the symlink fix in TODO.md; `fx45.ps1` in the run's evidence rebuilds its tree).
 46.16 is still open: it needs the firewall rules, so an elevated run -- or a person.
 Rows still open there were left by those runs on purpose -- ARM, another platform, or eyes -- so
 read that section's entry in QA-REPORT.md before taking one.
