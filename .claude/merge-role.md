@@ -31,7 +31,9 @@ All of these, or it is not merged:
    TESTING-KEYS.md -- and you do not merge: comment on the pull request naming
    the files, and add a line to QUESTIONS.md so the owner sees it.
 2. **CI is green on its head**: `audit`, `clippy`, `smoke` and `test` all
-   `success`. Still running: stop, the next run will look again. Red: read the
+   `success`. A pull request that only changes files in `ci.yml`'s
+   `paths-ignore` (QA-REPORT.md, `.claude/**`, ...) runs `audit` alone, by
+   design: that is green. Still running: stop, the next run will look again. Red: read the
    log. A documentation-only pull request cannot break a build, so a red test is
    a flaky test on `main`. **Do not fix code from here** -- nobody reviews what an
    unattended run pushes to `main`. Write the failing test, the log line and your
