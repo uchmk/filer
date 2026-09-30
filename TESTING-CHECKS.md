@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**144 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
+**147 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -21,7 +21,7 @@
 キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、こちらは「1 つのキーでは
 確かめられない振る舞い」の側。
 
-## 1. ターミナルペイン — 37 / 48
+## 1. ターミナルペイン — 38 / 48
 
 準備:
 
@@ -46,7 +46,7 @@ cd $HOME\Desktop\filer-fixtures
 - [ ] **1.9e** プロンプトが画面から出るまで戻る → カーソルも一緒に消える（元の高さに四角が取り残されない） — *Scroll back far enough that the prompt leaves the screen → The cursor goes with it — no block left behind at its old height*
 - [ ] **1.9c** `<C-S-f>` でスクロールバックのずっと上にある語を検索、Enter → そこへ飛び、**一致箇所が強調される** — *`<C-S-f>` for a word far up the scrollback, Enter → The view jumps to the match **and the match is highlighted***
 - [x] **1.9f** `<C-S-f>` で**いま画面に出ている**語を検索 → 履歴の古いほうではなく、画面のものが先に見つかる — *`<C-S-f>` for a word that is on screen right now (v0.20.4) → The one on screen is found first, not an older one up in the history*
-- [ ] **1.9g** そのあと `<C-S-n>` / `<C-S-b>` → `<C-S-n>` で履歴の上へ、`<C-S-b>` で下へ戻る — *`<C-S-n>` / `<C-S-b>` after that → `<C-S-n>` walks further up into the history, `<C-S-b>` comes back down*
+- [x] **1.9g** そのあと `<C-S-n>` / `<C-S-b>` → `<C-S-n>` で履歴の上へ、`<C-S-b>` で下へ戻る — *`<C-S-n>` / `<C-S-b>` after that → `<C-S-n>` walks further up into the history, `<C-S-b>` comes back down*
 - [x] **1.9h** `<C-S-f>` で存在しない語を検索 → 赤いトーストで「無い」と言う（無反応ではない） — *`<C-S-f>` for something that is not there → A red toast saying so — not silence*
 - [x] **1.10** `<S-End>` のあと何か 1 文字打つ → 最下部に戻る。打つだけでも戻ることの確認 — *`<S-End>`, then type a character → Back at the bottom, and typing alone would have done it*
 - [ ] **1.11** 出力の上をドラッグ → **ドラッグ中から選択が描かれ**、離すとクリップボードに入る（v0.20.4 まではコピーは効くのに何も描かれなかった） — *Drag across some output (v0.20.4) → **It highlights as you drag**, and is on the clipboard when you let go. Before v0.20.4 the copy worked and nothing was drawn*
@@ -613,7 +613,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **44.12** `gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。もう一度 `gu` すれば大きい順に戻る — *`gu`, then `,` to re-sort → The order changes (as asked); `gu` again restores largest-first*
 - [ ] **44.13** フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある** — *Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug***
 
-## 45. 2 つのフォルダを比べる — 8 / 11
+## 45. 2 つのフォルダを比べる — 10 / 11
 
 自動テスト済みなので下には出していない: 45.1, 45.2, 45.5, 45.7
 
@@ -626,8 +626,8 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **45.11** シンボリックリンクの指す先だけが違う 2 つのツリー → そのリンクの行が「異なる」と読める — *Two trees differing only in where a symlink points → The link row reads as differing*
 - [x] **45.12** 2 分割して各ペインでフォルダの上に立ち、`<A-d>` → その 2 つが比較される — *Split the view, stand on a folder in each pane, `<A-d>` → Compares those two*
 - [x] **45.13** `q` / `<Esc>` → 閉じる。そして 2 つの**ファイル**はこれまでどおり行単位で比較できる — *`q` / `<Esc>` → Closes, and two **files** still compare line by line as before*
-- [ ] **45.14** 数百のパスのうち奥の 1 ファイルだけが違う 2 つのツリーを比べる（v0.53.0）→ カーソルが**そのファイルの上**で開く（先頭の行ではない）。差分の無い組は先頭で開く — *Compare two trees of hundreds of paths that differ in one file far down (v0.53.0) → The view opens with the cursor **on that file**, not on the first row. A pair with no differences opens at the top*
-- [ ] **45.15** `z`、続けて `j` / `n`、もう一度 `z` → `=` の行が一覧から消える。フッタは数え続け、`matches hidden (z)` が付く。`j` と `n` は見えている行だけを歩く。2 回目の `z` で全部の行が戻り、カーソルは同じパスの上にある — *`z`, then `j` / `n`, then `z` again → The `=` rows leave the list; the footer still counts them and adds `matches hidden (z)`; `j` and `n` step only over what is shown; the second `z` brings every row back with the cursor on the same path*
+- [x] **45.14** 数百のパスのうち奥の 1 ファイルだけが違う 2 つのツリーを比べる（v0.53.0）→ カーソルが**そのファイルの上**で開く（先頭の行ではない）。差分の無い組は先頭で開く — *Compare two trees of hundreds of paths that differ in one file far down (v0.53.0) → The view opens with the cursor **on that file**, not on the first row. A pair with no differences opens at the top*
+- [x] **45.15** `z`、続けて `j` / `n`、もう一度 `z` → `=` の行が一覧から消える。フッタは数え続け、`matches hidden (z)` が付く。`j` と `n` は見えている行だけを歩く。2 回目の `z` で全部の行が戻り、カーソルは同じパスの上にある — *`z`, then `j` / `n`, then `z` again → The `=` rows leave the list; the footer still counts them and adds `matches hidden (z)`; `j` and `n` step only over what is shown; the second `z` brings every row back with the cursor on the same path*
 
 ## 46. spot パネルの Git セクション — 14 / 20
 
