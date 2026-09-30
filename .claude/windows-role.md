@@ -117,14 +117,13 @@ still on the human's list when it was written.
 | **28. changes made from outside** | 7 | "No crash" is the process still being there; where the cursor landed is `y` on the hovered row |
 | **7. the config paths in the help panel** | 8 | The listed directories are text, and `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` move them. 7.2 and 7.3 are the pointer and a highlight -- looks, skip them |
 | **36. `T`, and `q` from each layer** | 5 | Every row is "closed, and the app is still running" or "quit": `Get-Process filer` after the key, and the window title for where the list is |
-| **30. right-click paste in prompts** | 14 | Put the text there with `Set-Clipboard`, right-click with `SendInput`. In `cd`, `<Enter>` and read the window title; in the pane, `FILER_PTY_LOG` shows whether the paste was bracketed (30.11-30.13). 30.3 needs a drag -- `SendInput` does that too |
 | **14. the parent column, with the mouse** | 6 | Click with `SendInput`; the window title says where the list went and `c` `f` which row the cursor is on |
 | **33. config warnings** | 10 | The warning lines are text: a screenshot, and `filer env`. 33.6 (does yellow read on a light theme) and 33.9 (boxes do not overlap) are looks |
 | **24. awkward names** | 3 | 24.4 in `FILER_PTY_LOG` (what the shell was sent), 24.5 on disk. 24.2 is a look |
 | **31. a host's shares** | 13 | `\\localhost` and `\\<this machine's name>` list your own shares; `New-SmbShare` (elevated) makes one with a space or Japanese in its name. 31.5 is an unused address on your subnet |
 | **22. opening an editor at a line** | 6 | Only the editors installed here: `Get-CimInstance Win32_Process` shows the command line filer built, `-n42` or `+42` or `--goto`. Say which ones were not installed |
 
-Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26, 13 / 15, 46, 1, 12, 45, 40 (40.7, 40.8 and 40.12 left for the reasons in TODO.md; #100) and 39 (39.9 is a bug in TODO.md; #102) (45.11 waits on the symlink fix in TODO.md; `fx45.ps1` in the run's evidence rebuilds its tree).
+Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26, 13 / 15, 46, 1, 12, 45, 40 (40.7, 40.8 and 40.12 left for the reasons in TODO.md; #100) 39 (39.9 is a bug in TODO.md; #102) and 30 (30.1, 30.3, 30.4 and 30.11 are bugs or wording in TODO.md; #104) (45.11 waits on the symlink fix in TODO.md; `fx45.ps1` in the run's evidence rebuilds its tree).
 46.16 is still open: it needs the firewall rules, so an elevated run -- or a person. So is 45.11:
 symbolic links need elevation or developer mode (#98 passed its junction form on ARM64).
 Rows still open there were left by those runs on purpose -- ARM, another platform, or eyes -- so
@@ -237,9 +236,10 @@ these differences:
 
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
-| **30. right-click paste in prompts** | 14 | Needs the mouse: `SendInput`, once the screen saver is gone (#100's `wake.ps1`). `Set-Clipboard` puts the text there; `FILER_PTY_LOG` says whether the paste was bracketed (30.11-30.13) |
 | **31. a host's shares** | 13 | `\\localhost\C$` already lists from this account (#101 used it). 31.5 is an unused address on this subnet. `New-SmbShare` rows need elevation -- leave them and say so |
-| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102) and 0.54.12 (509 / 0, #103). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
+| **28. changes made from outside** | the `[ ]` rows | The watcher is native code (`ReadDirectoryChangesW` through `notify`). "No crash" is the process still being there; where the cursor landed is `c` `f` on the hovered row |
+| **44. disk usage** | the `[ ]` rows | A native walk of the file system. Totals against `Get-ChildItem -Recurse -Force \| Measure-Object Length -Sum`; "the walk stops" against the process's CPU time from `Get-Process` |
+| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103) and 0.54.13 (509 / 0, #104). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
 
 ## Proposals: say what should change
 
