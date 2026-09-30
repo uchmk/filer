@@ -156,6 +156,9 @@ pub enum Act {
 
     Find { prev: bool, smart: bool, insensitive: bool },
     FindArrow { prev: bool },
+    /// In a folder comparison, hide the `=` rows or bring them back (filer's
+    /// own `hide_same`, Q23).
+    HideSame,
     Filter { smart: bool, insensitive: bool },
     Search { via: SearchVia, insensitive: bool },
     /// Measure what is under each child of the current directory and list them
@@ -503,6 +506,7 @@ pub fn parse(line: &str) -> Act {
             insensitive: a.has("insensitive"),
         },
         "find_arrow" => Act::FindArrow { prev: a.has("previous") },
+        "hide_same" => Act::HideSame,
         "filter" => Act::Filter { smart: a.has("smart"), insensitive: a.has("insensitive") },
         "usage" => Act::Usage,
         "search" => Act::Search {

@@ -332,8 +332,37 @@ pub struct DiffOverlay {
     pub rows: usize,
     /// The selected row, for a tree comparison. A file comparison has nothing to
     /// select -- the rows are lines, not things you act on -- so it leaves this
-    /// where it is and shows no cursor.
+    /// where it is and shows no cursor. An index into [`DiffOverlay::shown`],
+    /// not into the rows themselves, so that it means the row on screen
+    /// whether or not `=` rows are hidden.
     pub cursor: usize,
+    /// A tree comparison with its `=` rows hidden (`z`, Q23), so a large pair
+    /// can be walked difference by difference. The footer still counts them.
+    pub hide_same: bool,
+}
+
+impl DiffOverlay {
+    /// The worker's answer, in place. A tree opens on its first difference,
+    /// not its first row: 497 matching rows of 500 used to fill the screen
+    /// with no difference on it, and nothing said there was one until the
+    /// footer was read (Q23). `gg` is still the top.
+    pub fn arrive(&mut self, outcome: diff::Outcome) {
+        if let diff::Outcome::Tree { rows, .. } = &outcome {
+            self.cursor =
+                rows.iter().position(|r| !matches!(r.state, diff::TreeState::Same)).unwrap_or(0);
+        }
+        self.outcome = Some(outcome);
+    }
+
+    /// The tree rows on screen, as indices into the outcome's rows: all of
+    /// them, or all but the matches when `hide_same` is on. Empty for a file
+    /// comparison, which has lines rather than rows.
+    pub fn shown(&self) -> Vec<usize> {
+        let Some(diff::Outcome::Tree { rows, .. }) = &self.outcome else { return Vec::new() };
+        (0..rows.len())
+            .filter(|&i| !(self.hide_same && matches!(rows[i].state, diff::TreeState::Same)))
+            .collect()
+    }
 }
 
 impl Overlay {
@@ -1289,7 +1318,7 @@ impl App {
             // by another pair, has nowhere to go.
             if let Overlay::Diff(ov) = &mut self.overlay {
                 if ov.left == res.left && ov.right == res.right {
-                    ov.outcome = Some(res.outcome);
+                    ov.arrive(res.outcome);
                 }
             }
         }
@@ -2407,6 +2436,8 @@ impl App {
                 self.open_input(InputKind::Find { prev }, if prev { "Find previous" } else { "Find next" }, String::new());
             }
             Act::FindArrow { prev } => self.find_arrow(prev),
+            // Only the comparison view has matching rows to hide; `diff_act` takes it there.
+            Act::HideSame => {}
             Act::Filter { smart, insensitive } => self.filter(smart, insensitive),
             Act::Usage => self.start_usage(),
             Act::Search { via, .. } => {
@@ -3664,7 +3695,7 @@ impl App {
             max_bytes: self.cfg.ui.max_text_bytes,
         });
         self.overlay =
-            Overlay::Diff(DiffOverlay { left, right, outcome: None, offset: 0, rows: 1, cursor: 0 });
+            Overlay::Diff(DiffOverlay { left, right, outcome: None, offset: 0, rows: 1, cursor: 0, hide_same: false });
     }
 
     /// The compare view's own commands: scroll, jump between differences, close.
@@ -3674,19 +3705,31 @@ impl App {
         // A tree comparison is a list with a cursor, so the same keys mean
         // something different there: `j` moves the selection rather than the
         // scroll, and `n`/`N` walk to the next path that is not a match.
-        if let Some(diff::Outcome::Tree { rows, .. }) = &ov.outcome {
-            let len = rows.len();
+        if matches!(&ov.outcome, Some(diff::Outcome::Tree { .. })) {
+            let shown = ov.shown();
+            let len = shown.len();
+            let Some(diff::Outcome::Tree { rows, .. }) = &ov.outcome else { return };
             match a {
                 Act::Close | Act::Escape(_) | Act::Quit | Act::Compare => {
                     self.overlay = Overlay::None
                 }
+                // Hidden or shown, the cursor stays on the row it was on; when
+                // that row is a match being hidden, on the next one that is not.
+                Act::HideSame => {
+                    let at = shown.get(ov.cursor).copied().unwrap_or(0);
+                    ov.hide_same = !ov.hide_same;
+                    let now = ov.shown();
+                    ov.cursor = now.iter().position(|&i| i >= at).unwrap_or(now.len().saturating_sub(1));
+                    let what = if ov.hide_same { "Hiding matching rows" } else { "Showing matching rows" };
+                    self.toast(what);
+                }
                 Act::Arrow(step) if len > 0 => ov.cursor = step.apply(ov.cursor, len, page),
                 Act::FindArrow { prev } if len > 0 => {
-                    let differs = |r: &diff::TreeRow| !matches!(r.state, diff::TreeState::Same);
+                    let differs = |&i: &usize| !matches!(rows[i].state, diff::TreeState::Same);
                     let found = if prev {
-                        rows[..ov.cursor].iter().rposition(differs)
+                        shown[..ov.cursor].iter().rposition(differs)
                     } else {
-                        rows[ov.cursor + 1..].iter().position(differs).map(|i| i + ov.cursor + 1)
+                        shown[ov.cursor + 1..].iter().position(differs).map(|i| i + ov.cursor + 1)
                     };
                     match found {
                         Some(at) => ov.cursor = at,
@@ -5790,6 +5833,7 @@ mod diff_tree_keys {
             offset: 0,
             rows: 10,
             cursor: 0,
+            hide_same: false,
         });
         a
     }
@@ -5799,6 +5843,60 @@ mod diff_tree_keys {
             Overlay::Diff(ov) => ov.cursor,
             _ => panic!("the overlay closed"),
         }
+    }
+
+    /// A tree opens on its first difference, and on its top row when there is
+    /// none (Q23).
+    #[test]
+    fn a_tree_opens_on_its_first_difference() {
+        let rows = vec![row("a", TreeState::Same), row("b", TreeState::Same), row("c", TreeState::Differ)];
+        let mut ov = DiffOverlay {
+            left: PathBuf::from("l"),
+            right: PathBuf::from("r"),
+            outcome: None,
+            offset: 0,
+            rows: 10,
+            cursor: 0,
+            hide_same: false,
+        };
+        let counts = crate::diff::TreeCounts::of(&rows);
+        ov.arrive(Outcome::Tree { rows, counts, truncated: false });
+        assert_eq!(ov.cursor, 2, "on `c`, the one difference");
+
+        let same = vec![row("a", TreeState::Same), row("b", TreeState::Same)];
+        let counts = crate::diff::TreeCounts::of(&same);
+        ov.arrive(Outcome::Tree { rows: same, counts, truncated: false });
+        assert_eq!(ov.cursor, 0, "nothing differs, so the top");
+    }
+
+    /// `z` hides the matches and brings them back, keeping the cursor on the
+    /// row it was on -- or, when that row is a match going out of sight, on the
+    /// next one that stays. `j` and `n` then walk the rows that are shown (Q23).
+    #[test]
+    fn z_hides_the_matching_rows_and_the_cursor_stays_put() {
+        let mut a = app_with(vec![
+            row("a", TreeState::Same),
+            row("b", TreeState::Differ),
+            row("c", TreeState::Same),
+            row("d", TreeState::LeftOnly),
+            row("e", TreeState::Same),
+        ]);
+        let shown = |a: &App| match &a.overlay {
+            Overlay::Diff(ov) => ov.shown(),
+            _ => panic!("the overlay closed"),
+        };
+        // On `c`, a match.
+        a.diff_act(Act::Arrow(crate::config::cmd::Step::Rel(2)));
+        a.diff_act(Act::HideSame);
+        assert_eq!(shown(&a), vec![1, 3], "only `b` and `d`");
+        assert_eq!(shown(&a)[cursor(&a)], 3, "`c` went, so the cursor is on `d`, the next that stayed");
+
+        a.diff_act(Act::Arrow(crate::config::cmd::Step::Rel(-1)));
+        assert_eq!(shown(&a)[cursor(&a)], 1, "`k` steps over the hidden `c` onto `b`");
+
+        a.diff_act(Act::HideSame);
+        assert_eq!(shown(&a).len(), 5, "all back");
+        assert_eq!(shown(&a)[cursor(&a)], 1, "still on `b`");
     }
 
     /// `j`/`k` move the selection, not the scroll -- the rows are things you pick,
@@ -6031,6 +6129,7 @@ mod diff_scrolling {
             offset: 0,
             rows: 20,
             cursor: 0,
+            hide_same: false,
         });
         let at = |a: &App| match &a.overlay {
             Overlay::Diff(ov) => ov.offset,
@@ -6065,6 +6164,7 @@ mod diff_scrolling {
             offset: 0,
             rows: 20,
             cursor: 0,
+            hide_same: false,
         });
         a.diff_act(Act::Arrow(Step::Bot));
         match &a.overlay {
@@ -6373,6 +6473,7 @@ mod window_scale {
                 offset: 0,
                 rows: 10,
                 cursor: 0,
+                hide_same: false,
             })),
         ];
         for (name, overlay) in panels {

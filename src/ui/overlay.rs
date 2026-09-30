@@ -875,8 +875,14 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     dim(ui, full);
     let theme = app.cfg.theme.clone();
     let Overlay::Diff(ov) = &mut app.overlay else { return };
+    // `z` is offered only where it does something: a tree has rows to hide.
+    let keys = if matches!(ov.outcome, Some(Outcome::Tree { .. })) {
+        "n/N differences, z hides matches, q to close"
+    } else {
+        "n/N differences, q to close"
+    };
     let title = format!(
-        "{}  ↔  {} — n/N differences, q to close",
+        "{}  ↔  {} — {keys}",
         crate::util::file_name(&ov.left),
         crate::util::file_name(&ov.right),
     );
@@ -975,6 +981,7 @@ fn diff_tree(
     row_h: f32,
 ) {
     use crate::diff::{Outcome, TreeState};
+    let shown = ov.shown();
     let Some(Outcome::Tree { rows, counts, truncated }) = &ov.outcome else { return };
     let (counts, truncated) = (*counts, *truncated);
     if rows.is_empty() {
@@ -988,22 +995,33 @@ fn diff_tree(
         return;
     }
 
+    if shown.is_empty() {
+        painter.text(
+            inner.left_top(),
+            Align2::LEFT_TOP,
+            "Every path matches; the matching rows are hidden (z shows them).",
+            f.clone(),
+            theme.fg_dim,
+        );
+        return;
+    }
+
     let visible = ((inner.height() / row_h).floor() as usize).max(2) - 1;
     ov.rows = visible;
-    ov.cursor = ov.cursor.min(rows.len() - 1);
+    ov.cursor = ov.cursor.min(shown.len() - 1);
     // Keep the cursor on screen, the way the spot panel does.
     if ov.cursor < ov.offset {
         ov.offset = ov.cursor;
     } else if ov.cursor >= ov.offset + visible {
         ov.offset = ov.cursor + 1 - visible;
     }
-    ov.offset = ov.offset.min(rows.len().saturating_sub(visible.min(rows.len())));
+    ov.offset = ov.offset.min(shown.len().saturating_sub(visible.min(shown.len())));
     let top = ov.offset;
 
     let cell = painter.layout_no_wrap("M".repeat(20), f.clone(), theme.fg).size().x / 20.0;
     let mut y = inner.top();
 
-    for (i, row) in rows.iter().enumerate().skip(top).take(visible) {
+    for (i, row) in shown.iter().map(|&r| &rows[r]).enumerate().skip(top).take(visible) {
         if i == ov.cursor {
             painter.rect_filled(
                 Rect::from_min_size(inner.left_top() + Vec2::new(0.0, y - inner.top()), Vec2::new(inner.width(), row_h)),
@@ -1056,6 +1074,10 @@ fn diff_tree(
     }
     if truncated {
         foot.push_str("  ·  cut short");
+    }
+    // Said, so that a list with no `=` in it is not read as "nothing matched".
+    if ov.hide_same {
+        foot.push_str("  ·  matches hidden (z)");
     }
     painter.text(
         egui::pos2(inner.left(), inner.bottom() - row_h),
@@ -1363,8 +1385,26 @@ mod diff_frame {
             offset: 0,
             rows: 10,
             cursor: 0,
+            hide_same: false,
         });
         s
+    }
+
+    /// `z` on screen: the matches leave the list, the footer still counts them
+    /// and says they are hidden, and `z` again brings them back (Q23).
+    #[test]
+    fn hidden_matches_leave_the_list_and_the_footer_says_so() {
+        let mut s = showing(vec![row("changed.txt", TreeState::Differ), row("same.txt", TreeState::Same)]);
+        let f = s.typed("z");
+        assert!(f.says("changed.txt"), "the difference stays: {:?}", f.texts);
+        assert!(!f.says("same.txt"), "the match is gone from the list: {:?}", f.texts);
+        assert!(f.says("1 match"), "and still counted: {:?}", f.texts);
+        assert!(f.says("matches hidden (z)"), "and the footer says why it is missing: {:?}", f.texts);
+        assert!(f.says("z hides matches"), "the title offers the key: {:?}", f.texts);
+
+        let f = s.typed("z");
+        assert!(f.says("same.txt"), "back: {:?}", f.texts);
+        assert!(!f.says("matches hidden"), "{:?}", f.texts);
     }
 
     /// Every sign is drawn, and the footer counts each kind.
@@ -2087,6 +2127,7 @@ mod compare_frame {
             // number of rows that fit, which is what these tests are here for.
             rows: 1,
             cursor: 0,
+            hide_same: false,
         });
         s
     }
