@@ -5437,3 +5437,191 @@ ARM64 の表の先頭にあった section 31 を 1 つだけ進めた。
   filer からの共有一覧。`New-SmbShare` も `net use` も `cmdkey /add` も実行していない。
 - 起動した `filer.exe` は **19 本**、いずれも run の最後に終わらせた。終了時の
   `Get-Process filer` は 0 本。
+
+---
+
+## ARM64 の実機 — v0.55.0 が Q25〜Q31 で変えた行（v0.55.1、無人の run）
+
+`.claude/windows-role.md` の「The ARM64 lane」の先頭、**v0.55.0, the answers to
+Q25-Q31** の節。ネイティブ ARM64 で、`origin/main` の 4d0aae5（v0.55.1）を
+自分でビルドしたバイナリを動かした。
+
+- `filer env`: **Process arch aarch64** / OS arch aarch64 / Windows 11 Home 26H1
+  (build 28000.2956) / Version 0.55.1。エミュレーションではない。
+- `cargo test`: **523 passed; 0 failed**（0.54.14 の 509 から増えている）。
+- ペインの ConPTY は `scripts/fetch-conpty.ps1` が入れた **1.24.260710001 (arm64)**。
+- **昇格していない**（`IsInRole('Administrators')` = False）。この節に昇格の要る行は無い。
+- 開始時に ASUS の OLED Care スクリーンセーバーが走っていた。役割定義のとおり
+  `Get-Process | Where-Object ProcessName -match 'OLED Care' | Stop-Process -Force` で
+  止め、以後 `OpenInputDesktop` は最後まで `Default`、
+  `SPI_GETSCREENSAVERRUNNING` は False だった。
+
+### 結果
+
+| 行 | 結果 | 根拠 |
+| --- | --- | --- |
+| 1.31 | ○（x64 で `[x]` 済み。ARM64 でも同じ） | 40.15 の中で確認。lazygit の `?` で開いたキー一覧が `<Esc>` の **663 ms 後**に閉じていた |
+| 1.32 | ○（同上） | ペインの pwsh プロンプトで `abc` → 画面に `> abc`、`<Esc>` → `> ` だけ |
+| 1.33 | ○（同上） | `pwsh -File scripts\keyprobe.ps1 -Query -Log …` の記録が `\e[?2048;0$y\e[?1000;2$y\e[?1006;2$y\e[?9001;1$y` **`\e[?6c`**。`\e[?61;6;7;…c` ではなく、`{up:…}` も無い |
+| 1.34 | ○（同上） | 続けて `lazygit` → いつもの 6 ペインで開き、**メニューは出ていない**（40.15 の 1 枚目） |
+| 29.2 | **`[x]` を付けた** | `$PROFILE` に README のフックを追記 → ペインで `cd C:\dev` → `<A-Up>` → 窓のタイトルが `Filer: C:\Users\…\p30` から **`Filer: C:\dev`** へ |
+| 29.6 | **`[x]` を付けた** | 既定（`[term] shell` 無し）: ペインで `$PSVersionTable.PSVersion.ToString()` をファイルに書かせて **`7.6.6`**。`filer env` も `pwsh … (terminal pane, the platform default)`。run 専用の `FILER_CONFIG_HOME` に `[term] shell = "powershell"` を置くと **`5.1.28000.2952`**、`filer env` は `powershell … (terminal pane, from [term] shell)` |
+| 30.1 | **×（下の「見つけたこと 1」）** | Explorer のアドレスバー（`Alt+D` → `Ctrl+C`、クリップボードは事前に番兵で潰してある）でパスを取り、`g<Space>` の欄を右クリック → パスは**選択を置き換えず、クリック位置に挿入**された。`<Enter>` は `os error 123` のトーストで、移動しない |
+| 30.15 | **×（5 つのうち 4 つは通る）** | `r` は `report` を選ぶ（`zz` と打って `zz.txt` になった）。`E` は `.zip` の前の `a` を選ぶ（`NEW` と打って `NEW.zip`）。`R` は `{name}{ext}` 全体を選ぶ（`pre-{name}{ext}` と打って `pre-a.txt` / `pre-NEW.zip`）。`cd` はパス全体を選ぶ（打ち直しで `p30-dest` へ移動）。**右クリックだけが置き換えない** |
+| 40.14 | **`[x]` を付けた** | ペインを最大化した nvim（`winheight` 34）で、ホイール 1 ノッチ前後の `writefile([line('.'),line('w0')])` が **507/491 → 507/494**。表示は 3 行動き、カーソルは動かない。`FILER_PTY_LOG` の `in key` は `\e[<65;46;29M`、矢印（`\e[A` / `\eOA`）は**このログに 1 行も無い** |
+| 40.15 | **`[x]` を付けた** | lazygit に `<S-End>` を 33 ms 間隔で 150 回 → `?` → 一覧が開く → `<Esc>` の直後に `<S-End>` を 14 回続けたまま **663 ms 後**のスクリーンショットで一覧は閉じていた（フッタが `実行: <enter> ¦ 閉じる/キャンセル: <esc>` から `ステージ: <space> ¦ …` に戻っている）。合計 354 回の `<S-End>` を送って固まらない |
+| 40.16 | **`[x]` を付けた** | ログの 5 行目（`6 out`）に **`\e[c\e[?1004h\e[?9001h`**。`in key` はすべてレコード: `<C-c>` = `\e[67;46;3;1;8;1_`、`<C-Left>` = `\e[37;75;0;1;264;1_`、`<Tab>` = `\e[9;15;9;1;0;1_`、`<Esc>` = `\e[27;1;27;1;0;1_`、`<S-End>` = `\e[35;79;0;1;272;1_`。**`\e[1;5D` も `\e[1;2F` も 0 件**。`<C-c>` は ping を止め（統計が出て `Ctrl+C` が表示された）、`echo abcdef ghijkl` の途中で `<C-Left>` → `X` と打つと `echo abcdef Xghijkl` が実行され（1 語だけ戻っている）、`Get-Chi` + `<Tab>` は `Get-ChildItem` になった |
+| 45.16 | **`[x]` を付けた** | `orig\ln` → `orig\t1`、`copy\ln` → `copy\t1` の 2 つのジャンクション（`LinkTarget` は絶対パスで互いに違う）を `<A-d>` で比較 → **`= ln`**、フッタは `0 only left · 0 only right · 0 differ · 4 match` |
+| 21.4 | 触っていない | 自動テスト済み（`make-testcheck` が除外している） |
+| 40.8 | 触っていない | 同上 |
+
+### 見つけたこと 1（バグ）: 右クリックの貼り付けが、実際のクリックでは選択を置き換えない
+
+**v0.55.0 で直したことになっている 30.3 の修正（`ui/overlay.rs` の `paste_over`）が、
+人が押す長さのクリックでは効かない。** 30.1 / 30.3 / 30.15 の右クリック側が、
+いま全部これで落ちる。
+
+再現（3 通りとも同じ）:
+
+1. `g<Space>` → `cd` のプロンプトがパス全体を選択した状態で開く。
+2. 選択の上を右クリック（`SendInput` で押下 → **120 ms** → 離す）。
+3. 欄は `C:\Users\yuu06\AppData\Loca` + クリップボードのパス + `l\Temp\filer-scratch\p30-dest\`。
+   **選択は消えただけで、置き換わっていない。**
+
+キーボードで作った選択でも同じ: `<Home>` → `<S-Right>` ×10 で先頭 10 文字を選び
+（スクリーンショットで青く反転しているのを確認）、5 文字目を右クリック →
+`C:\Us` + クリップボード + `ers\yuu06\…`。
+
+**押下と離すを 1 回の `SendInput` にまとめると、正しく置き換わる**（欄がクリップボードの
+パスだけになる）。ここが原因の証拠で、読みはこうなる:
+
+- `input()` は `ui.put()` の**前**に `selection()` を呼び、「前のフレームの選択」を取る。
+- `resp.secondary_clicked()` が真になるのは**離したフレーム**。押下のフレームで
+  egui が選択をキャレットに畳んでしまうので、離したフレームから見た「前のフレーム」は
+  **もう畳まれたあと**で、`selected` は幅 0 の範囲になる。
+- `paste_over` は `s.start < s.end` を要求するので、そのまま `at`（クリック位置）に落ちる。
+- 押下と離すが同じフレームに入ったときだけ、「前のフレーム」が本物の選択になる。
+
+`overlay.rs` の doc コメント（「egui has collapsed any selection to the click by the
+time the paste runs, so `at` is the click; `selected` is what the frame before had
+selected」）は、押下と離すが 1 フレームに入る前提で書かれている。実際のクリックは
+数フレームまたぐ。**直すなら、押下の時点（`resp.is_pointer_button_down_on()` が
+立った最初のフレーム）の選択を覚えておいて、それを `paste_over` に渡す**のが
+いちばん小さい。`<C-v>` は同じ選択をきちんと置き換える（確認済み）ので、
+置き換えの経路そのものは動いている。
+
+この run では直していない（役割定義のとおり）。いまのテストは `paste_over` の
+単体テストだけで、「押下と離すが別フレーム」を通っていない。
+
+### 見つけたこと 2（観察）: ホイール 1 ノッチとマウスレポートの数が 1 対 1 でない
+
+40.14 で `SendInput` の `MOUSEEVENTF_WHEEL`（120 単位 = 1 ノッチ）を送った数と、
+`FILER_PTY_LOG` に出た `\e[<64;…M` / `\e[<65;…M` の数が合わない。
+
+| 送ったノッチ | ログのレポート | nvim が動いた行数（`mousescroll` は `ver:3`） |
+| --- | --- | --- |
+| 3 | 5 | 15 |
+| 2 | 3 | 9 |
+| 1 | 1 | 3 |
+
+1 ノッチにつき 1.67 本という形なので、端数を溜めて出しているように見える。
+40.8（「上に 1 ノッチ、下に 1 ノッチで元に戻る」）はこの溜めの上に立っている行で、
+いまは自動テストになっているが、**溜めが残ったまま向きを変えたときに何が起きるかは
+実機でしか出ない**。バグと断定はしない（この機械のホイール設定＝1 ノッチ 3 行と
+egui の smooth scroll のどちらの影響かを、この run では切り分けていない）。
+
+### 見つけたこと 3（TESTING.md の文言）: 40.14 は nvim の `scrolloff` に依存する
+
+40.14 を素直に「ペインは 3 分の 1 のまま、nvim を開いてホイール」でやると、
+**カーソルは必ず動く。** この機械の nvim は `scrolloff=4` で、3 分の 1 のペインは
+`winheight=11`。カーソルが居られるのは `w0+4`〜`w0+6` の 3 行しかなく、1 ノッチが
+3 行なので、どちらへ回してもはみ出して引き戻される（実測: 500/495 → 514/510）。
+
+`<C-S-Enter>` でペインを窓いっぱいにする（`winheight=34`）と、行の文言どおり
+カーソルは動かない。**行に「ペインを最大化してから」か「`:set scrolloff=0` で」を
+足すべき。**そうしないと、通るかどうかが人の nvim 設定次第になる。
+
+### Proposals
+
+#### 1. 起動中の filer にキーを送る口がほしい（`filer send-keys`）
+
+- **何が起きたか**: この節の 11 行のうち、`--keys` だけで済んだのは 45.16 の 1 行。
+  残りは全部「押す → 画面かファイルを読む → 次を押す」で、`--keys` は
+  `App::settled()` を待つ一括指定なので途中で読めない。結局 `SendInput` で
+  駆動したが、`SendInput` は**窓を最前面にしないと届かない**し、スクリーンセーバーに
+  取られる。`PostMessage` なら最前面が要らないが、**修飾キーが送れない**
+  （winit は Ctrl / Shift / Alt を `GetKeyState` で読むので、ポストした
+  `VK_CONTROL` は見えない。実際 `<C-v>` がただの `v` として届いた）。
+  つまり無人の run から `<C-t>` や `<C-S-Enter>` を安全に送る道が今は無い。
+- **どう変えるか**: 起動中のインスタンスにキー列を渡す口を 1 つ作る。
+  `filer send-keys "<C-t>"` が名前付きパイプ（Windows）/ Unix ソケットで
+  同じ `--keys` の記法を投げ、`filer send-keys --shot out.png` で
+  そのときの窓を返す、くらいの形。
+- **なぜ**: 実機の run はこれから何十節も残っていて、**全部が「押して読む」**。
+  いまは毎回、座標の較正とスクリーンセーバー対策と修飾キーの回避策を書き直している。
+  口が 1 つあれば、この役割の run がそのまま**再実行できるスクリプト**になる。
+  TODO.md の「`--keys` でクリックする」と同じ問題の、もう半分。
+- **大きさ**: 設計。受け口（1 スレッド）と、`Act` への流し込みは既にある。
+
+#### 2. `cd` が 1 回失敗するとトーストが 3 つ出る
+
+- **何が起きたか**: 30.1 で壊れたパス
+  （`C:\Users\yuu06\AppData\LocaC:\Users\…\p30l\Temp\filer-scratch\p30-dest\`）に
+  `<Enter>` を押したら、赤いトーストが**3 つ**出た。1 つ目は全文と
+  `os error 123`、2 つ目は `Temp: …`、3 つ目は `filer-scratch: …`。
+  いちばん下の 2 つはパスの途中の名前だけで、何を指しているのか読めない。
+- **どう変えるか**: 1 回の `cd` の失敗は 1 つのトーストにする。中で複数の候補を
+  試しているなら、いちばん外側の失敗だけを出す。
+- **なぜ**: 失敗の理由（`os error 123` = 名前の構文が不正）は 1 つ目に全部出ている。
+  あとの 2 つは画面を 2 行ぶん押し上げるだけで、**どこを直せばいいのかは増えない**。
+  30.1 は「右クリックで貼ってから `<Enter>`」の行なので、ここは人が必ず通る。
+- **大きさ**: トーストを出している所の 1 か所。数行。
+
+#### 3. ペインのシェルが `pwsh` になったことを、`filer env` 以外でも言ってほしい
+
+- **何が起きたか**: 29.6 で `[term] shell` を書かずに `<C-t>` すると `pwsh` が立つ。
+  正しい。ただし**それが分かるのはバナー（`PowerShell 7.6.6`）を読んだときだけ**で、
+  バナーを消している人には何も出ない。5.1 と 7 は `$PROFILE` が別ファイルなので、
+  29 節の OSC 7 フックはここですれ違う（`config/mod.rs` のコメントが、まさにそう書いている）。
+- **どう変えるか**: ペインを初めて開いたときのトーストに、起動したシェルの名前を
+  入れる（`Started pwsh` くらい）。`<C-S-t>` の「Ended the shell」と対になる。
+- **なぜ**: 「フックを入れたのに `<A-Up>` が効かない」の原因の 1 位がこれで、
+  いまは `filer env` を開くまで気づけない。
+- **大きさ**: トーストの文字列 1 つ。数行。
+
+### Queue
+
+`windows-role.md`「The ARM64 lane」の表から、**先頭の
+「v0.55.0, the answers to Q25-Q31」の行を消す**。10 行のうち 8 行が済み
+（1.31〜1.34 は x64 の `[x]` を ARM64 で追認、29.2 / 29.6 / 40.14 / 40.15 / 40.16 /
+45.16 に `[x]`）、残った 30.1 と 30.15 は**上の「見つけたこと 1」が直るまで
+進められない**。21.4 と 40.8 は自動テスト済みで、表に書かれていたが押す対象ではない。
+
+次の行（**28. changes made from outside**）はそのまま。
+
+### この run が触ったもの
+
+- `TESTING-CHECKS.md`: 29.2 / 29.6 / 40.14 / 40.15 / 40.16 / 45.16 に `[x]`、
+  `cargo run --example make-testcheck` で見出しと合計を書き直した（**196 / 405**、
+  `-- --check` は `in sync`）。`make-keycheck -- --check` も `in sync`（243 / 248）。
+- `QA-REPORT.md`: この節。
+- ほかに変えたファイルは無い。`Cargo.toml` と `CHANGELOG.md` は役割定義のとおり触っていない。
+- **人の設定ファイル**: 29.2 のために `$PROFILE` を触った。これは
+  `C:\Users\yuu06\OneDrive\ドキュメント\PowerShell\Microsoft.PowerShell_profile.ps1` で、
+  **`C:\dev\obsidian-notes\notes\config\PowerShell\…` への SymbolicLink**（git 管理下）。
+  手順は役割定義のとおり:
+  - 前: `LinkTarget` を記録、6486 バイト、SHA-256
+    `07FBCB5CA3201101D027DA3106DD0BA791016F74DC4AA631A5EB6527634FFCF4`、
+    `evidence\PROFILE.backup.ps1` に複製。
+  - 中: `Add-Content` で**追記のみ**（`Set-Content` は使っていない）。
+    `git -C C:\dev\obsidian-notes status` は ` M notes/config/PowerShell/…` になった。
+  - 後: バックアップのバイト列を書き戻し、SHA-256 は**同じ値**、`LinkType` は
+    `SymbolicLink` で同じ行き先、`git status` は**空**（clean）に戻った。
+  - 29.6 の PowerShell 5.1 側は run 専用の `FILER_CONFIG_HOME` を使ったので、
+    人の `filer.toml` は触っていない。
+- 起動した `filer.exe` は **9 本**、いずれも run の最後に終わらせた。終了時の
+  `Get-Process filer` は **0 本**。テスト用に開いた Explorer の窓も閉じた。
+- 作業用のディレクトリはプロンプトが指定した
+  `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（この機械に RAM ディスクは無い）。
+  `TEMP` / `TMP` も同じ。スクリーンショットとログは同じ場所の `evidence\` に置いてあるが、
+  **証拠はこの節とプルリクエストの本文に文字で写してある**。
