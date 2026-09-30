@@ -5396,6 +5396,12 @@ mod preview_delivery {
         let dir = crate::util::test_dir("debounce-timer");
         std::fs::write(dir.join("a.txt"), "a").unwrap();
         std::fs::write(dir.join("b.txt"), "b").unwrap();
+        // An hour apart, on purpose. The cache key carries the file's mtime,
+        // and this test once built b.txt's key from a.txt's: on Linux the two
+        // were written in the same clock tick and it passed, on NTFS they were
+        // not and it failed now and then. Apart, the mistake fails everywhere.
+        let hour_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+        std::fs::File::options().write(true).open(dir.join("b.txt")).unwrap().set_modified(hour_ago).unwrap();
         std::fs::create_dir(dir.join("sub")).unwrap();
         let entries: Vec<crate::fs::Entry> = ["a.txt", "b.txt", "sub"]
             .iter()
@@ -5425,7 +5431,7 @@ mod preview_delivery {
         let cached = preview::Key {
             path: dir.join("b.txt"),
             len: 1,
-            mtime: a.tabs[a.active].current.hovered().and_then(|e| e.modified),
+            mtime: entries[1].modified, // b.txt's own
             box_size: a.preview.box_size,
             cols: 0,
             n: 0,
