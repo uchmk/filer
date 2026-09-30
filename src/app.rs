@@ -6593,7 +6593,15 @@ mod escape_and_max_preview {
         let mut a = app();
         a.act(Act::Terminal(Some(true)));
         let Some(t) = a.term.as_ref() else {
-            // No PTY in this environment: nothing here to ask about.
+            // Not a quiet pass: this used to `return` here, and a green run
+            // could not say whether the shell had ever started (TODO, v0.52.1).
+            // Windows (ConPTY) and Linux (a pty pair) always have one, so no
+            // terminal there is a failure, with the reason the app gave.
+            let why: Vec<&str> = a.toasts.iter().map(|t| t.text.as_str()).collect();
+            if cfg!(any(windows, target_os = "linux")) {
+                panic!("the terminal did not start: {why:?}");
+            }
+            eprintln!("skipped: no terminal on this platform: {why:?}");
             return;
         };
         // A shell starting up runs short-lived children of its own (profile
