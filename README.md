@@ -228,7 +228,7 @@ this project's own). `select` and `select_all` are accepted as `toggle --state=o
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe`, `enter`, `copy cell` and `copy all` (this project's own: the whole panel, `Label<TAB>value` per row); in `[term]`:
 `close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
-`close`, `arrow` and `find_arrow`; in `[help]`: `close`, `help` (which closes it too) and `arrow`.
+`close`, `arrow`, `find_arrow` and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too) and `arrow`.
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -616,6 +616,7 @@ is not.
 | --- | --- |
 | `j` `k` `<C-d>` `<C-u>` `gg` `G` | scroll (move the selection, comparing folders) |
 | `n` `N` | to the next / previous difference |
+| `z` | comparing folders: hide the matching rows, or bring them back |
 | `q` `<Esc>` | close |
 
 Each side carries its own line numbers, so a line found here can be found in the file. An edited
@@ -642,17 +643,23 @@ laid side by side without being matched up, and say so.
 ```
 
 `<` and `>` point at the tree that has it, `~` is in both and differs, `=` matches, and `?` is a pair
-the same size that was too big to read. `n` / `N` walk between the paths that are not matches, and the
-footer counts each kind. One of each — a file against a folder — is refused, since there is nothing
+the same size that was too big to read. The list opens with the cursor on the **first difference**, not
+the first row — in a tree that mostly matches, the first screen would otherwise hold none. `n` / `N` walk
+between the paths that are not matches, `z` hides the matches altogether (the footer still counts them,
+and says they are hidden), and `gg` is the top. One of each — a file against a folder — is refused, since there is nothing
 sensible to show for it.
 
 Sizes decide almost every row without anything being read: two files of different lengths differ, and
 that is most of them. Only same-sized pairs are opened, compared in blocks and stopped at the first
 one that differs, so a file that changed early costs nothing however large it is. Past 64 MB a
 same-sized pair is left as `?` rather than read — and it is **not** reported as matching, because
-saying two files are the same is a claim and that is the absence of one. Symlinks are compared as
-themselves rather than followed, so two trees that differ only in where a link points read as
-differing. Very large trees stop after 100,000 paths and say so.
+saying two files are the same is a claim and that is the absence of one. Very large trees stop after
+100,000 paths and say so.
+
+Two things do not yet work as they should, found on a real machine (v0.52.3) and in TODO.md:
+**symlinks are compared by what they point at**, so two links to identical files read as matching
+even when they point to different places; and **the 100,000-path limit is shared by the two sides**,
+so when the left one uses it up, everything on the right reads as missing ("only left").
 
 ## Quick look
 

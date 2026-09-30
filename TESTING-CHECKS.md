@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**138 / 390 済み。**（TESTING.md の全 546 件のうち、`cargo test` が見ている 156 件は
+**138 / 392 済み。**（TESTING.md の全 548 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -608,7 +608,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **44.12** `gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。もう一度 `gu` すれば大きい順に戻る — *`gu`, then `,` to re-sort → The order changes (as asked); `gu` again restores largest-first*
 - [ ] **44.13** フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある** — *Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug***
 
-## 45. 2 つのフォルダを比べる — 8 / 9
+## 45. 2 つのフォルダを比べる — 8 / 11
 
 自動テスト済みなので下には出していない: 45.1, 45.2, 45.5, 45.7
 
@@ -621,6 +621,8 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **45.11** シンボリックリンクの指す先だけが違う 2 つのツリー → そのリンクの行が「異なる」と読める — *Two trees differing only in where a symlink points → The link row reads as differing*
 - [x] **45.12** 2 分割して各ペインでフォルダの上に立ち、`<A-d>` → その 2 つが比較される — *Split the view, stand on a folder in each pane, `<A-d>` → Compares those two*
 - [x] **45.13** `q` / `<Esc>` → 閉じる。そして 2 つの**ファイル**はこれまでどおり行単位で比較できる — *`q` / `<Esc>` → Closes, and two **files** still compare line by line as before*
+- [ ] **45.14** 数百のパスのうち奥の 1 ファイルだけが違う 2 つのツリーを比べる（v0.53.0）→ カーソルが**そのファイルの上**で開く（先頭の行ではない）。差分の無い組は先頭で開く — *Compare two trees of hundreds of paths that differ in one file far down (v0.53.0) → The view opens with the cursor **on that file**, not on the first row. A pair with no differences opens at the top*
+- [ ] **45.15** `z`、続けて `j` / `n`、もう一度 `z` → `=` の行が一覧から消える。フッタは数え続け、`matches hidden (z)` が付く。`j` と `n` は見えている行だけを歩く。2 回目の `z` で全部の行が戻り、カーソルは同じパスの上にある — *`z`, then `j` / `n`, then `z` again → The `=` rows leave the list; the footer still counts them and adds `matches hidden (z)`; `j` and `n` step only over what is shown; the second `z` brings every row back with the cursor on the same path*
 
 ## 46. spot パネルの Git セクション — 14 / 20
 

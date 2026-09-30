@@ -1217,6 +1217,8 @@ identical pair says so, and the highlight follows `j`. What is left is the real 
 | 45.11 | Two trees differing only in where a symlink points | The link row reads as differing |
 | 45.12 | Split the view, stand on a folder in each pane, `<A-d>` | Compares those two |
 | 45.13 | `q` / `<Esc>` | Closes, and two **files** still compare line by line as before |
+| 45.14 | Compare two trees of hundreds of paths that differ in one file far down (v0.53.0) | The view opens with the cursor **on that file**, not on the first row. A pair with no differences opens at the top |
+| 45.15 | `z`, then `j` / `n`, then `z` again | The `=` rows leave the list; the footer still counts them and adds `matches hidden (z)`; `j` and `n` step only over what is shown; the second `z` brings every row back with the cursor on the same path |
 
 ## Known gaps in this checklist
 
