@@ -1685,4 +1685,33 @@ mod archive_frame {
         assert!(s.app.tasks.is_empty(), "and nothing was queued");
         assert!(!dir.join("out.rar").exists(), "nor written");
     }
+
+    /// 21.4 / Q25: when the compress is done, the cursor is on the archive it
+    /// wrote -- a file that was not in the listing when the job started, so the
+    /// listing's own "keep what was hovered" would have left it on `a.txt`.
+    #[test]
+    fn a_finished_compress_lands_on_its_archive() {
+        let (dir, mut s) = showing("frame-archive-lands", &["a.txt", "b.txt"]);
+        s.typed("E");
+        s.feed(vec![chord(egui::Key::A, ctrl())]);
+        s.typed("out.zip");
+        s.draw();
+        s.feed(vec![enter()]);
+
+        let mut landed = false;
+        for _ in 0..1000 {
+            s.turn();
+            if s.app.tabs[0].current.hovered_name() == Some("out.zip") {
+                landed = true;
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(dir.join("out.zip").exists(), "the archive was written");
+        assert!(
+            landed,
+            "the cursor went to the archive, not {:?}",
+            s.app.tabs[0].current.hovered_name(),
+        );
+    }
 }

@@ -129,6 +129,31 @@ pub fn fmt_time(t: Option<SystemTime>, fmt: &str) -> String {
     }
 }
 
+/// `which`, near enough: an absolute or relative name is taken as it stands,
+/// and a bare one is looked for along `PATH`, trying each of `PATHEXT`'s
+/// suffixes so that `code` finds `code.cmd`.
+pub fn locate(exe: &str) -> Option<std::path::PathBuf> {
+    let raw = std::path::Path::new(exe);
+    if raw.components().count() > 1 {
+        return raw.is_file().then(|| raw.to_path_buf());
+    }
+    let exts: Vec<String> = match std::env::var("PATHEXT") {
+        Ok(v) => std::iter::once(String::new())
+            .chain(v.split(';').map(|e| e.to_ascii_lowercase()))
+            .collect(),
+        Err(_) => vec![String::new()],
+    };
+    for dir in std::env::split_paths(&std::env::var_os("PATH")?) {
+        for ext in &exts {
+            let p = dir.join(format!("{exe}{ext}"));
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+    }
+    None
+}
+
 /// Lexically normalize a path (resolve `.`/`..`) without touching the filesystem.
 ///
 /// `..` never climbs past a root, so a drive root, a UNC share root (`\\host\share`)
