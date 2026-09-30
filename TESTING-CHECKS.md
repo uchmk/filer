@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**196 / 405 済み。**（TESTING.md の全 563 件のうち、`cargo test` が見ている 158 件は
+**203 / 405 済み。**（TESTING.md の全 563 件のうち、`cargo test` が見ている 158 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -418,15 +418,15 @@ fsutil hardlink list <新しくできたパス>
 
 `cargo test` が全部見ているので、押すものはありません。
 
-## 28. 外から加えられた変更 — 0 / 7
+## 28. 外から加えられた変更 — 7 / 7
 
-- [ ] **28.1** カーソルを**最終行**に置いて、そのファイルをエクスプローラーから削除 → 行が消え、カーソルは新しい最終行に乗る。**落ちない** — *Put the cursor on the **last** row, delete that file from Explorer → The row goes, the cursor lands on the new last row, **no crash***
-- [ ] **28.2** カーソルを最終行に置いて、末尾の複数ファイルを一度に削除 → 同じ — *Cursor on the last row; delete several files at the end at once → Same*
-- [ ] **28.3** フォルダ内の全ファイルを外から削除 → 空の一覧になり、操作も効く — *Delete every file in the folder from outside → An empty listing, still responsive*
-- [ ] **28.4** **絞り込んだ**一覧（`f`）の最終行にカーソルを置き、そのファイルを削除 → 同じ。絞り込みも保たれる — *Cursor on the last row of a **filtered** listing (`f`), delete the file it is on → Same, and the filter still holds*
-- [ ] **28.5** **もう一方のペイン**（`<C-w>`）と、ディレクトリの**プレビュー**で同じこと → どちらも落ちない — *Same in the **other pane** (`<C-w>`) and in the **preview** of a directory → Neither crashes*
-- [ ] **28.6** カーソルを最終行に置いて、そのファイルを `d` で削除 → 同じ。これが Issue #5 の報告内容 — *Cursor on the last row, delete that file with `d` → Same — this is what Issue #5 reported*
-- [ ] **28.7** カーソルが乗っているファイルを外から改名 → カーソルが名前に追従するか、その場に留まる。落ちない — *Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash*
+- [x] **28.1** カーソルを**最終行**に置いて、そのファイルをエクスプローラーから削除 → 行が消え、カーソルは新しい最終行に乗る。**落ちない** — *Put the cursor on the **last** row, delete that file from Explorer → The row goes, the cursor lands on the new last row, **no crash***
+- [x] **28.2** カーソルを最終行に置いて、末尾の複数ファイルを一度に削除 → 同じ — *Cursor on the last row; delete several files at the end at once → Same*
+- [x] **28.3** フォルダ内の全ファイルを外から削除 → 空の一覧になり、操作も効く — *Delete every file in the folder from outside → An empty listing, still responsive*
+- [x] **28.4** **絞り込んだ**一覧（`f`）の最終行にカーソルを置き、そのファイルを削除 → 同じ。絞り込みも保たれる — *Cursor on the last row of a **filtered** listing (`f`), delete the file it is on → Same, and the filter still holds*
+- [x] **28.5** **もう一方のペイン**（`<C-w>`）と、ディレクトリの**プレビュー**で同じこと → どちらも落ちない — *Same in the **other pane** (`<C-w>`) and in the **preview** of a directory → Neither crashes*
+- [x] **28.6** カーソルを最終行に置いて、そのファイルを `d` で削除 → 同じ。これが Issue #5 の報告内容 — *Cursor on the last row, delete that file with `d` → Same — this is what Issue #5 reported*
+- [x] **28.7** カーソルが乗っているファイルを外から改名 → カーソルが名前に追従するか、その場に留まる。落ちない — *Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash*
 
 ## 29. ターミナルのカレントディレクトリを持ち帰る — 6 / 6
 
