@@ -2444,3 +2444,175 @@ Windows のセッション（`.claude/windows-role.md`、無人実行）から�
   「ファイルの置換またはスキップ」のダイアログで止まる。止まったプロセスを落として、残りは 1 件ずつ戻した。
   自分が作ってごみ箱に残った 1 件（`twin3\dup.txt`）は `$R` / `$I` を直接消した。
 - `DateDeleted` は UTC で返る（01:42 は日本時間の 10:42）。
+
+## TESTING.md 26.6 / 25.5 — 直ったので取り直した（abd67e1 / 0.51.3、ARM64 レーン）
+
+ARM64 レーンの 2 本目（`.claude/windows-role.md`「The ARM64 lane」、`auto-wintest.ps1 -Lane arm`、無人実行）。
+順番表の先頭にあった「26.6 / 25.5, again with the fix」の 2 行だけが担当。
+
+**どちらも合格したのでチェックを付けた。**v0.51.2 の `IsWow64Process2` が、#81 で落ちた
+2 行をそのまま閉じている。**そして #81 が残していた疑問（`NativeMachine` は
+エミュレーションの側から呼んでも偽られないのか）にも、この run が答えを出した —— 偽られない。**
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `(Get-CimInstance Win32_ComputerSystem).SystemType` = `ARM64-based PC`、`PROCESSOR_ARCHITECTURE=ARM64` |
+| OS | `Windows 11 Home` / `10.0.28000`、UBR 2956（filer の出力と一致、下記） |
+| rustc | 1.98.1 (aarch64-pc-windows-msvc) —— CI と同じ stable |
+| 昇格 | 無し（`IsInRole('Administrators')` = False）。この 2 行はどちらも昇格を要らない |
+| ネイティブ build | `cargo build --release` → PE machine **0xAA64**、21,633,024 B |
+| x64 build | `cargo build --release --target x86_64-pc-windows-msvc` → PE machine **0x8664**、25,162,752 B。**この機械で組んだ 0.51.3** |
+| `cargo test` | **494 passed; 0 failed**（ネイティブ ARM64、1.73s）。x64 ランナーに無い失敗は無い |
+| 一時ディレクトリ | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（この機械に RAM ディスクは無く、スクリプトがここを `TEMP` / `TMP` に入れた） |
+
+生の出力は `C:\dev\filer-evidence\arm-26b\`（`arm64-env.txt`、`x64-env.txt`、`x64-f12-url.txt`、
+`x64-f12-os.txt`、`versions.txt`、および `grab.ps1` / `chord.ps1` / `f12.ps1`）。
+
+### この機械で x64 をクロスビルドできる（#81 の記述の訂正）
+
+#81 は「この機械には x64 の MSVC ツールチェーンが無い（`rustup target list --installed` は
+aarch64 だけ、vswhere も無し）」と書いて、リリースの zip で代用した。**いまは揃っている。**
+
+```
+C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Tools\MSVC\14.51.36231
+  bin\Hostarm64 -> arm64, x64, x86      <-- ARM64 ホストから x64 を吐ける
+  lib           -> arm64, arm64ec, onecore, x64, x86
+C:\Program Files (x86)\Windows Kits\10\Lib\10.0.26100.0\um -> arm64, x64, x86
+```
+
+`rustup target add x86_64-pc-windows-msvc` のあと `cargo build --release --target
+x86_64-pc-windows-msvc` が 2m31s で通り、`vcvarsall.bat` を通す必要もなかった（rustc が自分で
+リンカを見つける）。**だから ARM64 レーンは「x64 でどう見えるか」を、リリースを待たずに
+いまの main で試せる。**#81 は 0.49.1 の配布物で測るしかなかったが、この run の x64 は 0.51.3 で、
+アーキテクチャの 2 行を含むコードそのものが手元のものである。
+
+### 25.5 —— `filer env` の 2 行が食い違う（合格、チェック済み）
+
+行の期待は「`OS arch` と `Process arch` が**食い違う**」。x64 build（PE machine 0x8664）を
+走らせて読んだ（`x64-env.txt`）:
+
+```
+Filer
+    Version      : 0.51.3
+    OS           : Windows 11 Home 26H1 (build 28000.2956)
+    OS arch      : aarch64      <-- 機械
+    Process arch : x86_64       <-- 動いている binary
+```
+
+同じ測り方をネイティブ build でやると 2 行はそろう（`arm64-env.txt`）: `OS arch : aarch64` /
+`Process arch : aarch64`。**食い違いは binary を替えたときだけ出る**ので、2 行が別のものを
+見ていることが読める。`filer --version` も `filer 0.51.3 (aarch64)` と `filer 0.51.3 (x86_64)`（`versions.txt`）。
+
+**本当にエミュレーションで動いていたことの根拠**（`Process arch` はコンパイル時定数なので、
+それだけでは「x64 の binary が走った」ことしか言わない）:
+
+```
+main module    : ...\target\x86_64-pc-windows-msvc\release\filer.exe   (PE 0x8664)
+読み込まれていたモジュール : C:\WINDOWS\System32\xtajit64se.dll        <-- x64 エミュレータ
+IsWow64Process2(pid) -> ProcessMachine=0x0000 NativeMachine=0xAA64
+```
+
+`xtajit64se.dll` は ARM64 Windows の x64 エミュレータで、ネイティブの ARM64 プロセスには
+載らない。#81 と同じく `ProcessMachine` は `0x0000` で、**エミュレーションの x64 は古典的な
+WOW64 として報告されない**（`native_arch()` のコメントがそう書いているとおり）。
+
+### 26.6 —— `<F12>` の URL でも食い違う（合格、チェック済み）
+
+行の期待は「OS arch `aarch64`、Process arch `x86_64`」。x64 build の窓を前面に出したことを
+`GetForegroundWindow` の pid で確認してから `SendInput` で `<F12>` を送り、開いた Chrome の
+アドレスバーを `<C-l>` `<C-c>` で読んだ（クリップボードには先にセンチネルを置いた）。
+
+```
+https://github.com/uchmk/filer/issues/new?template=bug_report.yml&version=filer%200.51.3%20%28x86_64%29&os=OS%3A%20Windows%2011%20Home%2026H1%20%28build%2028000.2956%29%0AOS%20arch%3A%20aarch64%0AProcess%20arch%3A%20x86_64
+```
+
+`version=` が `filer 0.51.3 (x86_64)` なので、**この URL を組んだのは x64 の binary** であって、
+26.5 の読み直しではない。`os=` を復号すると（`x64-f12-os.txt`）:
+
+```
+OS: Windows 11 Home 26H1 (build 28000.2956)
+OS arch: aarch64
+Process arch: x86_64
+```
+
+**#81 が「quietly misleads everyone」と呼んだ状態は解消している。**エミュレーションの build から
+出した報告は、もう「この機械は x64 だ」と主張しない。
+
+### #81 の残した疑問への答え: `NativeMachine` はエミュレーション側から呼んでも正しい
+
+#81 は `IsWow64Process2` を提案しつつ、こう書いていた —— 「ただしこれは native の呼び出し元から
+問うた結果でしかない。`NativeMachine` がエミュレーションの側から呼んでも偽られないことは
+この run では確かめていない」。
+
+**この run で確かめた。**上の `OS arch : aarch64` は、**エミュレーションの x64 プロセス自身が**
+`IsWow64Process2(GetCurrentProcess(), ..)` を呼んで得た値である（`src/bugreport.rs:139`）。
+外から native の PowerShell で問うた値（`NativeMachine=0xAA64`）と一致する。
+**`GetNativeSystemInfo` が偽られる同じ経路で、`NativeMachine` は偽られない。**
+
+### 付随して確かめたこと: エディションが `Home` と出る（#81 の指摘の修正）
+
+#81 は `windows_name()` が `Windows 11 Core 26H1` と出すことを指摘した。0.51.3 では
+
+```
+OS : Windows 11 Home 26H1 (build 28000.2956)
+```
+
+と出る（`arm64-env.txt` / `x64-env.txt` の両方、および `<F12>` の URL）。`Win32_OperatingSystem.Caption`
+= `Microsoft Windows 11 Home` と一致する。26.4 はもう x64 機で `[x]` なので触っていない。
+
+### Proposals
+
+4 件。うち 3 件は #81 の再掲だが、**3 件とも、この run でもう一度同じ回避を書かされた**ので、
+起きたことは新しい。
+
+1. **`filer env` に、動いている実行ファイルのパスを出す。**（新規）
+   - 何が起きたか: この run は 2 つの build の出力を並べるのが仕事なのに、**出力の中に
+     どちらの exe が出したかを言うものが無い。**`arm64-env.txt` と `x64-env.txt` は
+     `Process arch` の 1 語しか違わず、取り違えても気づけない。実際は `Start-Process` に
+     渡したパス・`MainModule.FileName`・PE ヘッダを別に記録して突き合わせた。
+   - どう変えるか: `Filer` の節に `Executable : C:\...\filer.exe` を 1 行足す
+     （`std::env::current_exe()`）。
+   - なぜ: `filer env` は「バグ報告に貼るテキスト」で、**報告を読む人が最初に知りたいのは
+     どのファイルが動いていたか**である。複数の版を並べて試す人（ここ、リリースの検証、
+     ポータブル版）には毎回効く。
+   - 大きさ: 1 行（`envreport.rs` の `Filer` の節）。
+2. **`Process arch` に、エミュレーションであることを言わせる。**（#81 の提案 2 の再掲。データはもう揃っている）
+   - 何が起きたか: 2 行が食い違うことが答えだと**知っていたから**読めた。知らない人は
+     `OS arch : aarch64` と `Process arch : x86_64` を見て、これが正常なのか異常なのかを
+     判断できない。26.6 の行の文言（「食い違うことが、まさに報告したい事実」）が
+     TESTING.md にしか無く、出力の側にはヒントが 1 つも無い。
+   - どう変えるか: `Process arch : x86_64 (emulated on aarch64)` のように、2 つが違うときだけ
+     括弧で添える。`native_arch()` と `consts::ARCH` を比べるだけで、もう両方正しい。
+   - なぜ: **いちばん値打ちのある 1 行**（ネイティブ版があるのに x64 版が動いている）を、
+     報告を受けた側が見落とさなくなる。ARM64 機からの報告はこれから増える。
+   - 大きさ: 数行。文言は持ち主の判断。
+3. **`filer env` を、リダイレクトでも読めるようにする。**（#81 の提案 1 の再掲）
+   - 何が起きたか: `say()` が `AttachConsole` して `CONOUT$` に書くので、この run でも
+     **#81 が書いた `ReadConsoleOutputCharacterW` の 40 行（`grab.ps1`）をそのまま使うしかなかった。**
+     しかもコンソールのスクリーンバッファは横 120 桁で折り返すので、`Warnings` の行が
+     `max-previe` / `w` に割れて記録された（`arm64-env.txt` を見れば分かる）。
+     **測り方のせいでテキストが壊れる**のは、証拠として弱い。
+   - どう変えるか: `say()` で、`GetStdHandle(STD_OUTPUT_HANDLE)` が `GetFileType` で
+     `FILE_TYPE_DISK` / `FILE_TYPE_PIPE` を返すときは、`AttachConsole` より先にそちらへ書く。
+   - なぜ: 無人の実機テストは全部スクリプトで、版・アーキテクチャ・警告を読む唯一の口がここ。
+     人にも効く（`filer env | clip` が黙って空を作る）。
+   - 大きさ: 関数 1 つ。**2 回続けて同じ回避を書いたので、優先度を上げてほしい。**
+4. **`<F12>` の URL をクリップボードにも置く。**（#81 の提案 3 の再掲）
+   - 何が起きたか: URL を読む手が「Chrome を前面に出して `<C-l>` `<C-c>`」しか無く、
+     **1 回目は静かに失敗した。**PowerShell は構造体の配列を添字で読むと**コピーを返す**ので、
+     `$a[0].ki.wVk = ...` が捨てられ、`SendInput` は 4 を返しながら空のキーを送っていた
+     （`chord.ps1` の冒頭にその注意を書いた）。センチネルを置いていたので気づけたが、
+     置いていなければ**前のクリップボードの中身を URL として報告していた。**
+   - どう変えるか: `bug-report` が URL をクリップボードにも入れ、トーストでそう言う。
+   - なぜ: 26.8（ブラウザが開けないとき）の実害も小さくなる。テストの側では、ブラウザの
+     キー割り当てに依存しない測り方ができる。
+   - 大きさ: 1 行（`exec::set_clipboard` を `Act::BugReport` に足す）＋トーストの文言。
+     既にあるものを踏むので、持ち主の判断が要る。
+
+### 順番表（`.claude/windows-role.md`「The ARM64 lane」）
+
+無人実行は `.claude/` への書き込みを権限で拒否されるので、変更は PR 本文の `## Queue` に書いた。
+**`26.6 / 25.5, again with the fix` の行を消してよい**（この run で両方 `[x]`）。
+`the test suite` の行は残す —— 毎回走らせる約束なので、この run も 494 / 0 を記録した。

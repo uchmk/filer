@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**128 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
+**130 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -370,7 +370,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **24.4** 引用符を含む名前をコピーして、`<A-t>` でターミナルへ → シェルが 1 語として受け取る形に引用される — *Copy the name with a quote in it, `<A-t>` into the terminal → Quoted so the shell sees one word*
 - [ ] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
 
-## 25. `filer env` — 17 / 21
+## 25. `filer env` — 18 / 21
 
 - [x] **25.1** PowerShell から `filer env` → 4 つの節が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること** — *`filer env` from PowerShell → The four sections print. A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears***
 - [x] **25.2** Config の節 → 両方のディレクトリが出て、それぞれ中身か `nothing here` を述べ、`not here:` に残りが並ぶ — *The Config section → Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest*
@@ -380,7 +380,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **25.4b** オープナーを設定した状態で → 指定された各プログラムが、属するオープナーの種類とともに並ぶ（見つかったかどうかも） — *With openers configured → Each named program is listed with the opener kind it belongs to, found or not*
 - [x] **25.4c** **引用符付きのフルパス**を指定したオープナー（秀丸、サクラ）→ 最初の空白までではなく、パス全体が解決される — *An opener naming a **quoted full path** (秀丸, サクラ) → The whole path is resolved, not just up to the first space*
 - [x] **25.4d** `filer env` の実行中に画面を見る → **エディタやビューアが 1 つも起動しない。**`PATH` を調べるだけで、実行はしない — *Watch the screen while `filer env` runs → **No editor or viewer opens.** The programs are looked up on `PATH`, never executed*
-- [ ] **25.5** ARM 版 Windows で x64 ビルドを使う → `OS arch` と `Process arch` が**食い違う。**その食い違いを見せることが、両方を出している理由 — *On Windows on ARM with the x64 build → `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed*
+- [x] **25.5** ARM 版 Windows で x64 ビルドを使う → `OS arch` と `Process arch` が**食い違う。**その食い違いを見せることが、両方を出している理由 — *On Windows on ARM with the x64 build → `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed*
 - [x] **25.6** `filer --help` → COMMANDS の下に `env` が並ぶ — *`filer --help` → `env` is listed under COMMANDS*
 - [ ] **25.7** `filer.exe` をダブルクリック（コンソール無し）→ 以前のまま。ウィンドウが開き、どこにも何も出力されない — *Double-click `filer.exe` (no console) → Unchanged: the window opens, nothing is printed anywhere*
 - [x] **25.8** filer を一度開いて終了し、そのあと `filer env` → **Last run** の節が出る。アダプタとそのバックエンド・デバイス種別、読み込まれた全フォントファイル — *Open filer once, quit, then `filer env` (v0.29.0) → A **Last run** section: the adapter with its backend and device type, and every font file that was loaded*
@@ -394,7 +394,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **25.14** 本当に入っていないプログラムを指定したオープナー → やはり **`not found`**。例外扱いはシェル自身の名前だけ — *An opener naming a program that genuinely is not installed → Still **`not found`**. The exemption is for the shell's own names only*
 - [x] **25.15** `yazi.toml` を壊して Warnings の行を読む → パスが **`…\filer\yazi.toml`** と、すべて円記号で書かれている。以前は `…\filer/yazi.toml` と出ていた —— **編集すべきファイルを指し示すのが仕事のメッセージなのに、そこが壊れていた**（v0.33.12） — *Break `yazi.toml` and read the Warnings row → The path is written **`…\filer\yazi.toml`**, all backslashes. It used to come out `…\filer/yazi.toml`, in the one message whose job is to name the file to edit (v0.33.12)*
 
-## 26. アプリの中からのバグ報告 — 7 / 10
+## 26. アプリの中からのバグ報告 — 8 / 10
 
 - [x] **26.1** `<F12>` → 既定のブラウザで GitHub の新規 issue フォームが開き、トーストがそう言う — *`<F12>` → The default browser opens GitHub's new-issue form, and a toast says so*
 - [x] **26.2** フォームを見る → **Version** と **OS とアーキテクチャ** が既に埋まっている。残りは空 — *Look at the form → **Version** and **OS とアーキテクチャ** are already filled in; the rest is empty*
@@ -402,7 +402,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **26.4** 埋まっている OS の行を `winver` と比べる → エディション・機能更新・ビルドがすべて一致し、UBR も入っている（`Windows 11 Pro 25H2 (build 26200.9457)`） — *Compare the filled OS line against `winver` → Edition, feature update and build all match, UBR included (`Windows 11 Pro 25H2 (build 26200.9457)`)*
 - [x] **26.4b** フォーム自身が載せている PowerShell の断片と比べる → 同じ事実。上から貼り直す価値のあるものが残っていない — *Compare it against the form's own PowerShell snippet → The same facts. Nothing left worth pasting over the top*
 - [x] **26.5** ARM64 機で **ARM64** ビルドを使う → OS arch と Process arch がどちらも `aarch64` — *On the ARM64 machine, with the **ARM64** build → OS arch and Process arch both read `aarch64`*
-- [ ] **26.6** ARM64 機で **x64** ビルドを使う（エミュレーション）→ OS arch は `aarch64`、Process arch は `x86_64` —— **食い違うことが、まさに報告したい事実** — *On the ARM64 machine, with the **x64** build (under emulation) → OS arch `aarch64`, Process arch `x86_64` — **the two disagree, and that is the finding***
+- [x] **26.6** ARM64 機で **x64** ビルドを使う（エミュレーション）→ OS arch は `aarch64`、Process arch は `x86_64` —— **食い違うことが、まさに報告したい事実** — *On the ARM64 machine, with the **x64** build (under emulation) → OS arch `aarch64`, Process arch `x86_64` — **the two disagree, and that is the finding***
 - [ ] **26.7** 報告を投稿する → 投稿でき、あらかじめ埋まっていた欄も残る — *Submit the report → It posts, and the pre-filled fields survive*
 - [ ] **26.8** 既定のブラウザが未設定（または関連付けが壊れている）状態で `<F12>` → 失敗を述べるエラーのトースト。**ウィンドウは動き続ける** — *`<F12>` with no browser set as default (or a broken association) → An error toast naming the failure. **The window keeps working***
 - [x] **26.9** ターミナルペインの中から `<F12>`（先に `<C-t>`）→ 何も起きない。`[term]` がシェルに渡しているためで、これが正しい — *`<F12>` from the terminal pane (`<C-t>` first) → Nothing: `[term]` passes it to the shell, which is correct*
