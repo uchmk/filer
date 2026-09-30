@@ -677,6 +677,19 @@
 - **無人の実行は `.claude/` 以下を編集できない**（権限の保護に止められる）ことが最初の無人の実行で分かった。
   順番表の更新は PR 本文の `## Queue` に書かせ、マージする側が当てる形に役割定義を直した。
 
+## 実機のセッションの報告（v0.51.2 で受けた分: #81、ARM64 の初回）
+
+- [x] **x64 版をエミュレーションで動かすと `OS arch` が `x86_64` になる**（26.6 / 25.5 が落ちた）。
+  `GetNativeSystemInfo` はエミュレーション中に AMD64 と答える。`IsWow64Process2` の native machine を
+  先に読むように直した（v0.51.2）。**ARM64 の機械で測り直すまでは未確認**（順番表に入れた）。
+- [x] エディションが `Windows 11 Core` と出る。`Core` → `Home` の対応を足した（v0.51.2）。
+- [ ] `filer env` の Process arch に、エミュレーション中ならそうと書く（`x86_64 (emulated on aarch64)`）。
+  native と process が違えば分かるので、上の修正で材料は揃った。
+- [ ] `<F12>` の URL をクリップボードにも置く（要確認: Q22）。
+- [x] `make-testcheck --check` が、閉じ `**` で終わる行を毎回「変わった」と誤って並べていた
+  （`trim_end_matches('*')` が太字の閉じまで削っていた）。1 つだけ削るように直した（v0.51.2）。
+  本当の差分（今回は合計の書き忘れ）が誤表示に埋もれていた。
+
 ## Windows 版を exe 1 つで配れるようにする
 
 v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.exe` + ライセンス表示）。
@@ -806,6 +819,10 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   （2026-09-30、Windows 実機のセッションの報告。原因は未調査）。これも
   `windows_subsystem = "windows"` の側の話と見ている。`--version` は版を確かめる唯一の口なので、
   出力先の扱いを調べる（パイプ・リダイレクト・素の実行の 3 通り）。
+  - **原因は分かった**（ARM64 の実行 #81）: `say()` が親のコンソールに接続して `CONOUT$` へ直接書くので、
+    パイプにもリダイレクトにも何も流れない（`filer env > out.txt` も `$v = & filer env` も空）。`filer env | Select-String`
+    が絞り込めない（全部画面に出る）のも同じ。stdout のハンドルが `GetFileType` でパイプかファイルならそこへ書き、
+    コンソールのときだけ `CONOUT$` にする。実機の無人の計測は全部これで始まるので、優先度は高い。
 
 ## 環境・その他
 

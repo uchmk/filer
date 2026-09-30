@@ -83,11 +83,13 @@ fn windows_name() -> String {
     // machine. The build number is what actually separates the two.
     let mut name = if info.dwBuildNumber >= 22000 { "Windows 11" } else { "Windows 10" }.to_owned();
 
-    // "Professional" is how the registry spells the edition; "Pro" is how the
-    // box, the About page and everyone else spells it.
+    // The registry spells two editions the way nobody else does: "Professional"
+    // is "Pro" on the box and the About page, and "Core" is Home -- the ARM64
+    // laptop's report read `Windows 11 Core`, which names no edition anyone
+    // has bought.
     if let Some(ed) = reg_string("EditionID") {
         name.push(' ');
-        name.push_str(if ed == "Professional" { "Pro" } else { &ed });
+        name.push_str(edition_name(&ed));
     }
     // 25H2 and friends. Absent on builds old enough to use `ReleaseId`, and a
     // missing feature update is not worth an apology in the middle of a line.
@@ -101,14 +103,48 @@ fn windows_name() -> String {
     }
 }
 
-/// The architecture of the machine, not of this process. Emulation does not
-/// touch it, which is exactly why it is here.
+/// `EditionID` as the edition is sold. Only the two the registry spells
+/// differently are mapped; anything else (`Enterprise`, `Education`) already
+/// reads right.
+#[cfg(any(windows, test))]
+fn edition_name(id: &str) -> &str {
+    match id {
+        "Professional" => "Pro",
+        "Core" => "Home",
+        other => other,
+    }
+}
+
+/// The architecture of the machine, not of this process -- the whole reason
+/// the line exists is to show the two disagreeing under emulation.
+///
+/// `IsWow64Process2`'s native machine first. `GetNativeSystemInfo` was used
+/// alone until v0.51.2 on the strength of its name, and ARM64's x64 emulation
+/// answers it with AMD64 for compatibility: the ARM64 laptop's x64 build said
+/// `OS arch x86_64`, so a report from an emulated build claimed an x64
+/// machine (TESTING.md 26.6 / 25.5). Only the *native* half is read: for an
+/// x64 process on ARM64 the process half comes back `UNKNOWN`, since that is
+/// emulation and not WOW64. `IsWow64Process2` is linked at load time and needs
+/// Windows 10 1709; everything older is long out of support.
 #[cfg(windows)]
 fn native_arch() -> &'static str {
     use windows::Win32::System::SystemInformation::{
-        GetNativeSystemInfo, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_ARM64,
+        GetNativeSystemInfo, IMAGE_FILE_MACHINE, IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_ARM64,
+        IMAGE_FILE_MACHINE_I386, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_ARM64,
         PROCESSOR_ARCHITECTURE_INTEL, SYSTEM_INFO,
     };
+    use windows::Win32::System::Threading::{GetCurrentProcess, IsWow64Process2};
+
+    let (mut process, mut native) = (IMAGE_FILE_MACHINE::default(), IMAGE_FILE_MACHINE::default());
+    if unsafe { IsWow64Process2(GetCurrentProcess(), &mut process, Some(&mut native)) }.is_ok() {
+        if native == IMAGE_FILE_MACHINE_ARM64 {
+            return "aarch64";
+        } else if native == IMAGE_FILE_MACHINE_AMD64 {
+            return "x86_64";
+        } else if native == IMAGE_FILE_MACHINE_I386 {
+            return "x86";
+        }
+    }
 
     let mut si = SYSTEM_INFO::default();
     unsafe { GetNativeSystemInfo(&mut si) };
@@ -209,6 +245,16 @@ fn encode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Home and Pro as they are sold, not as the registry spells them; the rest
+    /// untouched. Runs everywhere: it is a table, not a Windows call.
+    #[test]
+    fn editions_read_as_they_are_sold() {
+        assert_eq!(edition_name("Core"), "Home");
+        assert_eq!(edition_name("Professional"), "Pro");
+        assert_eq!(edition_name("Enterprise"), "Enterprise");
+        assert_eq!(edition_name("Education"), "Education");
+    }
 
     #[test]
     fn encodes_the_characters_a_query_string_cannot_carry() {

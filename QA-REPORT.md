@@ -2125,3 +2125,191 @@ Windows のセッション（`.claude/windows-role.md`、無人実行）から�
 
 - 表から `| **1. the terminal pane** | 1.30 | ... |` の行を消す。
 - 「Worked through before」の行を `... 13 / 15, 46 and 1.` にする。
+
+## TESTING.md section 26 — ARM64 実機で確かめた（0a2209f / 0.51.1、ARM64 レーン）
+
+ARM64 レーンの 1 本目（`.claude/windows-role.md`「The ARM64 lane」、`auto-wintest.ps1 -Lane arm`、無人実行）。
+担当は順番表の先頭にあった 26.5 と 26.6 だけ。
+
+**26.5 にチェックを付けた。26.6 は落ちた** —— これがこの run の中身で、**プログラムの不具合**である。
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `(Get-CimInstance Win32_ComputerSystem).SystemType` = `ARM64-based PC`、`PROCESSOR_ARCHITECTURE=ARM64` |
+| OS | `Microsoft Windows 11 Home` / `10.0.28000`、レジストリは `EditionID=Core` `DisplayVersion=26H1` `CurrentBuild=28000` `UBR=2956` |
+| rustc | 1.98.1 (aarch64-pc-windows-msvc) —— CI と同じ stable |
+| 昇格 | 無し（`IsInRole('Administrators')` = False）。26 のどの行も昇格を要らない |
+| ネイティブ build | `cargo build --release` → `target\release\filer.exe`、PE machine **0xAA64**（ARM64） |
+| x64 build | リリース v0.49.1 の `filer-v0.49.1-windows-x64.zip`、`filer.exe` の PE machine **0x8664**（AMD64） |
+| ConPTY | `scripts\fetch-conpty.ps1 -Dest target\release` → `ConPTY 1.24.260710001 (arm64)`、`conpty.dll` と `OpenConsole.exe` はどちらも 0xAA64。**arm64 を正しく選んでいる** |
+| `cargo test` | **493 passed; 0 failed**（ネイティブ ARM64、1.68s）。x64 ランナーに無い失敗は無い |
+
+`src\bugreport.rs` は **v0.49.1 から 1 行も変わっていない**（`git log v0.49.1..HEAD -- src/bugreport.rs` が空）。
+だから下の x64 の観測は 0.49.1 のものではなく、**いまの main のもの**である。この機械には x64 の
+MSVC ツールチェーンが無い（`rustup target list --installed` は aarch64 だけ、vswhere も無し）ので、
+x64 は配布物を動かす形で試した。
+
+生の出力は `C:\dev\filer-evidence\arm-26\`（`arm64-env.txt`、`x64-env.txt`、`arm64-f12-url.txt`、
+`x64-f12-url.txt`、および測定に使った `grab.ps1` / `input.ps1`）。
+
+### GUI バイナリが `CONOUT$` に書いた文字を読む方法
+
+release build は GUI サブシステムなので、`say()`（`src/main.rs:51`）が `AttachConsole` して
+`CONOUT$` へ書く。**だから `filer env > out.txt` でも `$v = filer env` でも 1 文字も取れない**
+（実際に両方とも空だった）。代わりに、実行したあと**コンソールのスクリーンバッファを
+`ReadConsoleOutputCharacterW` で読み返した**（`grab.ps1`）。これで `filer env` の全文がテキストとして取れる。
+無人で `filer env` を測る後続の run はこれを使えばよい。
+
+### 26.5 —— ネイティブ ARM64 ビルド（合格、チェック済み）
+
+行の期待は「OS arch と Process arch がどちらも `aarch64`」。**`<F12>` の実物**で確かめた:
+ネイティブ release build（0.51.1）を起動し、`SetForegroundWindow` で前面に出したことを
+`GetForegroundWindow` の pid で確認してから `SendInput` で `<F12>` を送り、開いた Chrome の
+アドレスバーを `<C-l>` `<C-c>` で読んだ（クリップボードにはセンチネルを先に置いた）。
+
+```
+https://github.com/uchmk/filer/issues/new?template=bug_report.yml&version=filer%200.51.1%20%28aarch64%29&os=OS%3A%20Windows%2011%20Core%2026H1%20%28build%2028000.2956%29%0AOS%20arch%3A%20aarch64%0AProcess%20arch%3A%20aarch64
+```
+
+`os=` を復号すると:
+
+```
+OS: Windows 11 Core 26H1 (build 28000.2956)
+OS arch: aarch64
+Process arch: aarch64
+```
+
+`filer env` も同じことを言う（`arm64-env.txt`）: `OS arch : aarch64` / `Process arch : aarch64`。
+2 つが一致するのは偶然ではなく、`envreport.rs:49` が `bugreport::os_line()` を行に割っているだけだから。
+`filer --version` は `filer 0.51.1 (aarch64)`。
+
+### 26.6 —— x64 ビルドをエミュレーションで（**落ちた**）
+
+行の期待は「OS arch は `aarch64`、Process arch は `x86_64` —— **食い違うことが、まさに報告したい事実**」。
+実際に出たのは**食い違わない 2 行**である。
+
+`filer env`（`x64-env.txt`、PE machine 0x8664 の binary、`Path` で走っている exe を確認した）:
+
+```
+    Version      : 0.49.1
+    OS           : Windows 11 Core 26H1 (build 28000.2956)
+    OS arch      : x86_64      <-- aarch64 のはず
+    Process arch : x86_64
+```
+
+`<F12>` の URL も同じ（`x64-f12-url.txt`。version が `0.49.1 (x86_64)` なので、
+26.5 の URL の読み直しではなく x64 の binary が組んだものだと分かる）:
+
+```
+OS: Windows 11 Core 26H1 (build 28000.2956)
+OS arch: x86_64
+Process arch: x86_64
+```
+
+#### 不具合: `GetNativeSystemInfo` はエミュレーションに影響される
+
+`native_arch()`（`src/bugreport.rs:106`）は `GetNativeSystemInfo` を呼び、コメントはこう書いている:
+
+> the machine underneath is what `GetNativeSystemInfo` answers, and it is
+> **unaffected by the emulation**. When the two lines disagree, the disagreement
+> is the finding.
+
+**この前提が成り立っていない。**ARM64 上の x64 エミュレーションは、互換性のために
+`GetNativeSystemInfo` にも `PROCESSOR_ARCHITECTURE_AMD64` を返す（Microsoft の文書どおりの動作で、
+Windows の不具合ではない）。`GetNativeSystemInfo` が本当に効くのは x64 ホスト上の 32bit WOW64 だけ。
+
+結果として、**この節がわざわざ 2 行に分けて防ごうとしていた誤解を、いまは自分で作っている**:
+ARM64 機からエミュレーションの x64 build で出した報告は、`OS arch: x86_64` と、
+**この機械は x64 だと主張する**。26.6 の「quietly misleads everyone」がそのまま起きる。
+番号の付いた行が 1 つ落ちただけでなく、**節の目的そのものが逆向きに働いている。**
+
+どちらの間違いか: **プログラム。**行の文言は正しく、行が正しいからこそ落ちたと分かった。
+
+修正の候補（QA / 実機のロールは直さないので、提案として）: `IsWow64Process2` の
+`NativeMachine`。同じ機械で、走っているエミュレーションの x64 filer をネイティブ ARM64 の
+PowerShell から問うと、正しく ARM64 が返る:
+
+```
+emulated x64 filer (pid 2604, ...\filer-v0.49.1-windows-x64\filer.exe):
+  IsWow64Process2 -> ProcessMachine=0x0000 NativeMachine=0xAA64   (0xAA64 = ARM64)
+```
+
+**ただしこれは native の呼び出し元から問うた結果でしかない。**`NativeMachine` が
+エミュレーションの側から呼んでも偽られないことは（文書はそう述べているが）この run では
+確かめていない。直す人はこの機械で必ず取り直すこと —— それが取れれば 26.6 と 25.5 が同時に閉じる。
+なお `ProcessMachine` が `0x0000`（= WOW64 ではない）なのも意外で、この OS（build 28000）の
+x64 エミュレーションは古典的な WOW64 として報告されない。**`ProcessMachine` で分岐する実装は
+書かないこと。**アーキテクチャは `NativeMachine` と `std::env::consts::ARCH` の 2 つで足りる。
+
+### 25.5 も同じ理由で落ちる（チェックは付けていない）
+
+25.5 は 26.6 と同じ事実（`filer env` の 2 行が食い違うこと）を見る行で、上の `x64-env.txt` が
+そのまま証拠になる。**節が違うので 1 run 1 節の規則に従ってチェックは付けていない**が、
+取り直す run は要らない: 直したあとに 2 行同時に確かめられる。順番表への提案は下。
+
+### 付随して見つけたこと: エディションが `Core` と出る
+
+26.4 はもう x64 機（Pro）で `[x]` だが、この機械では `windows_name()`（`src/bugreport.rs:67`）が
+**`Windows 11 Core 26H1`** と出す。`Core` はレジストリの `EditionID` の綴りで、
+**Windows 自身はどこでも「Home」と呼ぶ**（`Win32_OperatingSystem.Caption` = `Microsoft Windows 11 Home`、
+winver も About も「Windows 11 Home」）。`Professional` → `Pro` の読み替えは既にあるのに、
+Home の側が無い。報告に貼られると、読む人が知らないエディション名になる。
+
+- 根拠: `EditionID : Core` / `Caption : Microsoft Windows 11 Home` / filer は `Windows 11 Core 26H1 (build 28000.2956)`
+- どちらの間違いか: プログラム。1 行で直る（`Core` → `Home`、`CoreSingleLanguage` → `Home Single Language` など）
+- なお、同じコメントが `ProductName` を使わない理由として挙げている「Windows 11 でも `Windows 10 Pro` と読める」は
+  **この機械でも本当だった**（`ProductName : Windows 10 Home`、実際は Windows 11）。そこの判断は正しい。
+
+### Proposals
+
+3 件。
+
+1. **`filer env` を GUI バイナリのまま、パイプでも読めるようにする。**
+   - 何が起きたか: この run の測定は全部 `filer env` から始まるのに、`filer env > out.txt` も
+     `$v = & filer env` も**空**だった。`say()` が `AttachConsole(ATTACH_PARENT_PROCESS)` に成功して
+     `CONOUT$` へ書くので、リダイレクトされた stdout には何も行かない。コンソールの
+     スクリーンバッファを `ReadConsoleOutputCharacterW` で読み返す 40 行の PowerShell を書いて回避した。
+   - どう変えるか: `say()` で、`GetStdHandle(STD_OUTPUT_HANDLE)` が**コンソール以外**
+     （`GetFileType` が `FILE_TYPE_DISK` / `FILE_TYPE_PIPE`）を指しているときは `AttachConsole` より先に
+     そちらへ書く。人が打ったときは今までどおり `CONOUT$`、リダイレクトされたときはそのファイルへ。
+   - なぜ: `filer env` は「バグ報告に貼るテキスト」なのに、**スクリプトから集められない。**
+     無人の実機テストは全部スクリプトで、版・アーキテクチャ・警告を読むのはここしかない。
+     人にも効く: `filer env | clip` や `filer env > env.txt` が黙って空を作るのは驚く。
+   - 大きさ: 関数 1 つ（`say()` の分岐 1 つ）。
+2. **`filer env` に、アーキテクチャの根拠を言わせる。**
+   - 何が起きたか: x64 build が `OS arch : x86_64` と言ったとき、それが**嘘だと分かったのは
+     `Win32_ComputerSystem.SystemType` を別に見たから**で、filer の出力の中には矛盾が無い。
+     報告を受け取る側にも同じことが起きる: 一貫して x64 だと書かれた報告が届く。
+   - どう変えるか: エミュレーションを検出できる実装（上の不具合の修正）とセットで、
+     `Process arch : x86_64 (emulated on aarch64)` のように 1 行で言う。
+   - なぜ: この節の存在理由は「どのバイナリが動いているか」を報告に必ず載せることで、
+     いま**そこだけが信用できない。**ARM64 機の報告は今後増える。
+   - 大きさ: 上の不具合の修正に乗るので数行。ただし文言は持ち主の判断。
+3. **`<F12>` の URL を、ブラウザに渡すだけでなくクリップボードにも置く。**
+   - 何が起きたか: 26.5 / 26.6 の期待値はフォームに入る**テキスト**なのに、それを読む手が無かった。
+     Chrome が既に動いていたので新しいプロセスは生まれず、`Win32_Process` の `CommandLine` には
+     何も出ない（`CommandLine LIKE '%issues/new%'` を 20 秒ポーリングして 0 件）。結局
+     ブラウザを前面に出して `<C-l>` `<C-c>` を送り、アドレスバーをコピーした —— **ブラウザの
+     キー割り当てに依存する測り方**で、Chrome 以外だと書き直しになる。
+   - どう変えるか: `bug-report` が URL をクリップボードにも入れ、トーストでそう言う。
+   - なぜ: 26.8（ブラウザが開けないとき）の実害もこれで小さくなる —— 開けなくても URL は手元にある。
+     テストの側では、フォームに入る値が**ブラウザ抜きで**読めるようになる。
+   - 大きさ: 1 行（`exec::set_clipboard` を `Act::BugReport` に足す）＋トーストの文言。
+     既にクリップボードにあるものを踏むので、持ち主の判断が要る。
+
+### 順番表（`.claude/windows-role.md`「The ARM64 lane」）を更新できなかった
+
+役割定義どおり、無人実行はこのファイルへの書き込みを権限で拒否される。回避していない。
+**マージする側で次を入れてからマージしてほしい。**入れないと、次の ARM64 の run がまた 26 を取る。
+
+- `**26. the architecture rows**` の行を消す。26.5 は `[x]`、26.6 は**プログラムが直るまで
+  付けられない**（この報告の不具合）。
+- `**25. filer env**`（25.5）の行も消す。25.5 は 26.6 と同じ 1 つの不具合で落ちる行で、
+  別の run を立てても同じ `x64-env.txt` が出るだけ。
+- 代わりに、両方を**修正後の再確認**として 1 行にまとめるのを勧める:
+  「26.6 / 25.5 の再確認 | 2 | `native_arch()` を直したあと、リリースの `windows-x64.zip` を
+  この機械で走らせて 2 行が食い違うことを見る。直るまで待ち」。
+- `cargo test` の行はこの run で緑（493 / 0）だった。残すか消すかは判断だが、
+  **ネイティブ ARM64 で落ちるテストは無い**と記録しておく。

@@ -39,7 +39,11 @@ All of these, or it is not merged:
    request, and stop. Never merge over red.
 3. **The checklists agree with their generators** on the pull request's head:
    `cargo run --example make-testcheck -- --check` and
-   `cargo run --example make-keycheck -- --check`, both exit 0.
+   `cargo run --example make-keycheck -- --check`, both exit 0. One exception:
+   when `make-testcheck --check` says *"The checks all match; the difference is
+   in the surrounding text"*, the ticks are right and only a count is stale --
+   merge, then regenerate on `main` as part of 4 (CI's clippy job runs the same
+   check, so it is red for this reason too; that red is not a reason to wait).
 4. **Every new tick has its evidence line** in the pull request body, and none
    is an appearance row (`windows-role.md`, "Ticking TESTING-CHECKS.md"). A tick
    you cannot match to evidence: comment, do not merge.

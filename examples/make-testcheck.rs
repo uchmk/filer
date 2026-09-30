@@ -496,7 +496,11 @@ fn rows_of_file(text: &str) -> BTreeMap<&str, String> {
         let en = match body.strip_suffix(" 〔未訳〕") {
             Some(en) => en.to_owned(),
             None => match body.split_once(" — *") {
-                Some((_, en)) => en.trim_end_matches('*').to_owned(),
+                // Exactly one `*`: the italic's closer. An English that itself
+                // ends in bold ends the line in `***`, and trimming them all
+                // took the bold's closer too -- every such row then read as
+                // drifted in any failing `--check`, burying the real change.
+                Some((_, en)) => en.strip_suffix('*').unwrap_or(en).to_owned(),
                 None => continue, // not a row this generator wrote
             },
         };
