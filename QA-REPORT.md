@@ -2961,3 +2961,213 @@ CLAUDE.md の「成果物は 6 つ」と 41.8 の「six release binaries」は�
 **この機械では取れない** —— 上の節に理由を書いた。ARM64 の話ではないので、この行を
 ARM64 の順番表に残しても次の run が同じ 4 件を見送るだけになる）。
 `the test suite` の行は残す —— 毎回走らせる約束なので、この run も 499 / 0 を記録した。
+
+## リリースの zip そのもの — ARM64 機で展開して、中身を読み、それを動かした（c8db529 / 0.53.1、ARM64 レーン）
+
+ARM64 レーンの 4 本目（`.claude/windows-role.md`「The ARM64 lane」、`auto-wintest.ps1 -Lane arm`、無人実行）。
+順番表の先頭「**the release zip itself**」が担当。「Nobody has run the ARM64 zip yet」と
+書かれていた行で、**この run で走らせた。**
+
+**チェックは 1 つも付けていない。**この節が求める 3 行（1.31 / 1.32 / 1.34）は x64 機で既に
+`[x]` で、レーンの規則どおり ARM64 の結果はここに書く。**そして zip の中身そのものには
+TESTING.md に対応する行が無い**（下の「見つけたもの」1 番）。`make-testcheck -- --check` と
+`make-keycheck -- --check` は両方 `in sync`（139 / 392、243 / 247）で、ずれは無い。
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `PROCESSOR_ARCHITECTURE=ARM64`、`Win32_ComputerSystem.SystemType` = `ARM64-based PC` |
+| OS | `Windows 11 Core 26H1 (build 28000.2956)`（リリース版 `filer env` の出力） |
+| rustc | 1.98.1 (48a229cea 2026-09-01) / aarch64-pc-windows-msvc —— CI と同じ stable |
+| 昇格 | 無し（`IsInRole('Administrators')` = False）。この節に昇格の要る行は無い |
+| `cargo test` | **502 passed; 0 failed**（ネイティブ ARM64、2.68 s、c8db529）。x64 ランナーに無い失敗は無い |
+| 一時ディレクトリ | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（この機械に RAM ディスクは無い） |
+| 入力 | スクリーンセーバーが入力デスクトップを持っていた（`OpenInputDesktop` の名前 = `Screen-saver`、`SPI_GETSCREENSAVERRUNNING` = True、`LogonUI` は無し）。#88 と同じなので、最初から `PostMessage` で入れた |
+
+生の証拠は `C:\dev\filer-evidence\arm-zip\`（`shots\01`〜`15`、`pty.log` 93 KB、
+`rel-env.txt`、`rel-version.txt`、`harness-keymap.toml` / `harness-filer.toml`、
+および `start.ps1` / `step-*.ps1` / `lib.ps1` / `shot.ps1`）。
+
+### zip の中身（合格）
+
+`gh release download v0.49.1 --pattern 'filer-v0.49.1-windows-arm64.zip'`。
+zip 自体の SHA-256 は `AE93440250A7E86B0C3FAB8FED570E776F44F5325596051649767CCB2EE9D975`。
+
+- **1 つのフォルダに 4 ファイル。**`filer-v0.49.1-windows-arm64\` の直下に
+  `filer.exe` 21,639,168 B / `conpty.dll` 106,336 B / `OpenConsole.exe` 1,120,056 B /
+  `ConPTY-LICENSE.txt` 1,475 B。ほかに何も入っていない。
+- **`ConPTY-LICENSE.txt` の版は、ピン止めと一致する。**本文は
+  「version 1.24.260710001」と書いており、`scripts/fetch-conpty.ps1` の `$version` は
+  **リリースのタグ `v0.49.1` でも、いまの `main`（c8db529）でも** `1.24.260710001`。
+- **3 つの PE はすべて ARM64。**`e_lfanew` から COFF ヘッダを直接読んで、
+  `filer.exe` / `conpty.dll` / `OpenConsole.exe` とも署名 `0x00004550`・Machine `0xAA64`。
+  `conpty.dll` と `OpenConsole.exe` のファイル版はどちらも `1.24.2607.10001`。
+- **同梱物はピン止めしたパッケージとバイト単位で同じ。**`fetch-conpty.ps1` を空の
+  ディレクトリに走らせて SHA-256 を突き合わせた。
+  `conpty.dll` = `DB3D173640B172BAFD42D5B541B638A9AEEC1C7D0E40DD636BF02822A32C912C`、
+  `OpenConsole.exe` = `ED7622FD0D3BEDC9AB9F122F5E58EDF0DEF9E7999224F52DD395BA9F54EDBE09`、
+  4 つのハッシュが 2 組とも一致。**リリースが古い ConPTY を抱えていない**ことは、
+  版の文字列ではなくこれで言える。
+
+### それを動かした（ローカルビルドではない）
+
+`$env:FILER_CONFIG_HOME` を隔離し、展開した `filer.exe` をそのまま起動した。
+
+- `filer --version` → `filer 0.49.1 (aarch64)`。
+- `filer env` → `Version 0.49.1` / `OS arch : aarch64` / **`Process arch : aarch64`**。
+  レーンの規則が要求する「ネイティブの版を動かしているか」の確認（`rel-env.txt`）。
+- **同梱の ConPTY が実際に使われている。**動いているプロセスのモジュールに
+  `...\filer-v0.49.1-windows-arm64\conpty.dll`（`1.24.2607.10001`）が入っており、
+  子プロセスは `...\filer-v0.49.1-windows-arm64\OpenConsole.exe --headless --width 80
+  --height 24 --signal 0x7f0 --server 0x794`。**Windows 内蔵のものではなく、zip の中の 2 つ。**
+- ペインのシェルは `pwsh`（1.32 が pwsh のプロンプトを名指しするので、隔離した
+  `filer.toml` に `[term] shell = "pwsh"` と書いた）。`pwsh.exe` も `lazygit.exe` も
+  この機械では ARM64 ネイティブ（lazygit の PE Machine = `0xAA64`）。
+- **`[term]` を `yazi.toml` に書くと無視される。**最初そう書いて、`filer env` の
+  Warnings が `[term] belongs in filer.toml and was ignored` と教えてくれた。
+  警告が無ければ「pwsh で試した」と思い込んだまま 5.1 を測っていた —— 25 節・33 節が
+  見ている警告表示が、実際にこの run を 1 回救っている。
+
+### 1.34 —— 起動時にメニューが開かない（ARM64 で合格、チェックは付けない）
+
+ペインで `lazygit`。**1 回目は lazygit 自身の「Thanks for using lazygit!」の案内**が出た
+（版ごとに 1 回出るもので、古い ConPTY が作ったコピーメニューではない。`03-lazygit-started.png`）。
+`Esc` で閉じ、`q` で抜け、**もう一度起動した 2 回目**（`06-lazygit-second-start.png`）が
+1.34 の言う姿 —— ステータス / 差分 / コマンドログの通常画面で、**メニューは開いていない。**
+フッタも `コミット: c ┆ スタッシュ: s ┆ リセット: D ┆ キーバインディング: ?` の通常表示。
+
+裏付けとして、`pty.log` に **1.33 の署名**がそのまま出ている:
+
+```
+   62156 in reply  \e[?6c
+```
+
+DA1 への応答が filer 自身の `\e[?6c`。Windows 内蔵の ConPTY が答えていれば
+`\e[?61;6;7;22;23;24;28;32;42c` になるはずで、**1.34 の不具合の原因だったのがこれ。**
+つまり zip から起動しただけで同梱 ConPTY の経路に乗っている。
+
+### 1.31 —— `?` で開いたキー一覧が `Esc` で閉じる（ARM64 で合格、チェックは付けない）
+
+- `?` → キー一覧が開く（`07-keybindings.png`: `--- ローカル ---`、
+  `<ctrl+o> パスをクリップボードにコピー`、`<space> ステージ`、フッタが
+  `実行: <enter> ┆ 閉じる/キャンセル: <esc>`）。
+- `Esc` → **閉じる**（`08-after-esc.png`: ステータス / 差分の通常画面に戻り、フッタも通常表示）。
+  `pty.log` には `in key \e[27;1;27;1;0;1_` —— v0.48.6 が入れた win32-input-mode の
+  ESC 押下で、平の `\e` ではない。
+- **画面を見ない形の裏取り**も取った。キー一覧が開いたままなら `q` は一覧を閉じるだけで
+  lazygit は残り、次に打った行はシェルに届かない。実際には `q` で lazygit が終わり、
+  続けて打った `ni …` が**ファイルをディスクに作った**
+  （`zip\repo\esc-closed-the-key--list.txt`、`10-file-made.png` に一覧と `ni` の出力の両方）。
+  **`Esc` が閉じていなければ、このファイルは無い。**
+
+### 1.32 —— pwsh のプロンプトで `abc` と打って `Esc`（ARM64 で合格、チェックは付けない）
+
+`11-abc-typed.png` にプロンプトの `abcc`（`c` が 2 つなのは下の harness の話）、
+`Esc` のあと `12-after-esc.png` では**プロンプトの右に何も残っていない。**
+こちらもディスクで裏を取った: 行が空になっていなければ次の行は `abcni …` になって
+コマンドとして解決しない。実際には `line-was-cleared.txxt` が作られた。
+
+### 取れなかった行
+
+- **1.35 / 1.36（`<C-S-t>` の End the shell? の確認）は、リリースには無い機能。**
+  v0.52.0 で入ったもので、最新リリースは **v0.49.1**（2026-09-29）。この節は
+  「リリースの zip を動かす」節なので、手元ビルドに持ち替えてまで取らなかった。
+  1 節の残りとして次の run（順番表の「1. the terminal pane, again」）に回る。
+- 昇格の要る行は、この節には無い。
+
+### 見つけたもの（どれも直していない）
+
+#### 1. リリースの zip を確かめる行が TESTING.md に無い
+
+順番表の先頭にありながら、**チェックできる行がどこにもない。**41.8 は「6 つのバイナリを
+filer の spot で読む」行で、zip の**中身**（4 ファイル・ライセンスの版・ConPTY の
+アーキテクチャ）には触れていない。今回読んだものは、どれも「テキストかファイルの状態」で、
+人の目を要しない。**行が無いので、この run の合格は QA-REPORT にしか残らない。**
+TESTING.md に節を足すべき（下の Proposals 1）。
+
+#### 2. `PostMessage` で打った文字が、たまに 2 つになる —— filer のバグではなく harness の話
+
+- **実測**: 約 50 文字打って 3 回、`pty.log` に `--` / `cc` / `xx` と 1 チャンクで 2 文字出た
+  （`ni esc-closed-the-key--list.txt`、`abcc`、`line-was-cleared.txxt` がその結果）。
+- **原因の切り分け**: `WM_CHAR` だけを投げると**何も届かない**（`14-wm-char-only.png` は
+  `13` と 1 バイトも違わない。`pty.log` にも行が出ない）。逆に `WM_KEYDOWN` / `WM_KEYUP`
+  だけを投げると **23 文字中 3 文字だけ**届いた（`y` `-` `g`）。つまり winit は通常
+  `WM_CHAR` から文字を作るが、**対になる `WM_CHAR` がまだキューに無いときは
+  キーボードレイアウトから自分で作る。**別プロセスから `PostMessage` すると 3 つの
+  メッセージが 1 つずつ届くので、この「先回り」が時々起きて、**そのあと届いた
+  `WM_CHAR` が 2 文字目になる。**
+- **本物のキーボードでは起こらない**（`WM_KEYDOWN` と `WM_CHAR` はシステムが同時に
+  キューへ入れるので、先回りする隙が無い）。**filer の不具合として報告しない。**
+- **次の run への申し送り**: `PostMessage` で打った行は、`Enter` の前に
+  `pty.log` か画面で**実際に何が入ったかを読むこと。**打った文字列を期待値にしない。
+
+#### 3. スクリーンセーバーは今回も入力デスクトップを持っていた
+
+#88 が書いたとおりで、`LogonUI` は無いまま `OpenInputDesktop` の名前が `Screen-saver`。
+この run は最初から `PostMessage` と `PrintWindow(PW_RENDERFULLCONTENT)` だけで測ったので、
+`SendInput` の空振りには 1 度も当たらなかった。**#88 の提案 2（役割定義の検査に
+スクリーンセーバーを足す）は、2 本続けて必要だったことになる。**
+
+### Proposals
+
+1. **TESTING.md に「リリースの zip」の節を作ってほしい。**
+   - 何が起きたか: 順番表の先頭の仕事なのに、合格を書き込む行が 1 つも無かった。
+     今回読んだ 4 つ（ファイルが 4 つであること・ライセンスの版がピン止めと一致すること・
+     3 つの PE が目的のアーキテクチャであること・同梱 ConPTY がピン止めパッケージと
+     バイト一致すること）は、**全部が機械で読めるテキストかハッシュ**で、
+     見た目の判断が 1 つも要らない。
+   - どう変えるか: 新しい節（たとえば「47. the release zip」）に 5 行程度。
+     Windows の 2 つ（x64 / arm64）と、tar.gz 側の「実行ビットが残っていること」を
+     1 行ずつ。**どのプラットフォームの zip かを行に書く**と、レーンごとに取れる。
+   - なぜ: **人が最初に触るのはリリースの zip で、そこが壊れると中身は関係ない。**
+     いまは誰も確かめておらず、確かめても記録が残らない。
+   - 大きさ: TESTING.md に 1 節。`make-testcheck` が生成し直すだけ。
+
+2. **`filer --keys "<C-t>lazygit\r"` のような、キー列を流し込む入り口がやはり欲しい。**
+   （#88 の提案 1 の再掲。**今回は別の証拠が付く。**）
+   - 何が起きたか: この run で実際に測ったのはキー 6 つ（`t` / `lazygit` / `?` / `Esc` /
+     `q` / 1 行）なのに、そこへ至るまでに harness keymap、`PostMessage` の組み立て、
+     winit のイベントウィンドウの回避、そして**上の「2 文字になる」現象の切り分け**を
+     やっている。**測定そのものより足場のほうが長い。**
+   - どう変えるか: keymap を通してキー列を流す引数か、環境変数で受ける待ち受け。
+     修飾キーが要らなくなれば、harness keymap ごと消える。
+   - なぜ: 無人の実機 run は毎回これを組み直していて、**しかも今回は組み方が原因で
+     入力が 2 文字になった。**足場が測定を汚すところまで来ている。
+   - 大きさ: 設計の判断（テスト用の口をリリースするバイナリに置いてよいか）。持ち主が決める類。
+
+3. **リリースのページに、zip の中身が 4 つであることと SHA-256 を出してほしい。**
+   - 何が起きたか: 同梱 ConPTY が正しいものかを確かめるのに、`fetch-conpty.ps1` を
+     もう一度走らせてハッシュを突き合わせた。**落とした人には、この手が無い**
+     （スクリプトはリポジトリにあるが、zip だけ取った人は見ない）。
+   - どう変えるか: `release.yml` が作るノートに、各成果物の SHA-256 と、
+     Windows の zip については「`filer.exe` のほかに ConPTY の 2 ファイルと
+     ライセンスが入る」の 1 行を足す。
+   - なぜ: **バイナリを配る以上、受け取った側が同一性を確かめられる形にしておくのが筋。**
+     いまはノートに版の話しか無く、4 ファイルが揃っているかは展開しないと分からない。
+   - 大きさ: `release.yml` に数行（`Get-FileHash` の結果を本文に足すだけ）。
+
+4. **ペインの `lazygit` が初回に出す案内で、`<C-t>` が効かなくなる場面がある。**
+   - 何が起きたか: 1 回目の起動で「Thanks for using lazygit!」のポップアップが出た。
+     これは lazygit 自身のもので filer は悪くない。ただ、**この状態のペインは
+     全画面 TUI がポップアップを持っている状態**で、キーは全部 lazygit に渡る。
+     `Esc` で閉じられたから進めたが、閉じ方を知らない TUI に当たった人は
+     **ペインごと抜けられない**と思うはずで、画面には何の手掛かりも無い。
+     （`<C-t>` は `[term]` 層の `close` なので効くはず —— ただしこれは
+     keymap を読んで言っているだけで、**この run では押していない。**
+     `PostMessage` に修飾キーが乗らないため、押すには別の harness keymap が要る。）
+   - どう変えるか: ペインの下端（ステータスバー側）に、TUI が走っている間だけ
+     `<C-t> back to the list` のような 1 行を出す。あるいは 1.35 の確認ダイアログと
+     同じ文言で、`<C-t>` が何をするかを最初の 1 回だけトーストで出す。
+   - なぜ: **ペインに入った人が出口を知らないのが、いちばん怖い状態。**
+     全画面 TUI は画面を丸ごと取るので、filer の UI は何も見えていない。
+   - 大きさ: 表示 1 行（どこに出すかは見た目の判断なので持ち主が決める）。
+
+### 順番表（`.claude/windows-role.md`「The ARM64 lane」）
+
+無人実行は `.claude/` への書き込みを権限で拒否されるので、変更は PR 本文の `## Queue` に書いた。
+**`the release zip itself` の行を消してよい**（4 つの検査は全部通り、zip の binary で
+1.31 / 1.32 / 1.34 も動かした）。次は `1. the terminal pane, again` が先頭になる。
+**その行に 1 つ足してほしい**: 1.35 / 1.36 はリリース v0.49.1 に無い機能なので、
+**その節は手元ビルドで走らせること**。`the test suite` の行はそのまま残す
+（この run も 502 / 0 を記録した）。
