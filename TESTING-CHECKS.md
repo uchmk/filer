@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**139 / 394 済み。**（TESTING.md の全 550 件のうち、`cargo test` が見ている 156 件は
+**144 / 394 済み。**（TESTING.md の全 550 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -21,7 +21,7 @@
 キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、こちらは「1 つのキーでは
 確かめられない振る舞い」の側。
 
-## 1. ターミナルペイン — 32 / 48
+## 1. ターミナルペイン — 37 / 48
 
 準備:
 
@@ -45,9 +45,9 @@ cd $HOME\Desktop\filer-fixtures
 - [ ] **1.9d** ペインの上でホイール → 1 ノッチずつ滑らかに動く（以前は 1〜2 行動かすのに強く回す必要があった） — *The mouse wheel over the pane (v0.20.4) → Moves smoothly, a notch at a time. It used to need spinning hard for one or two lines*
 - [ ] **1.9e** プロンプトが画面から出るまで戻る → カーソルも一緒に消える（元の高さに四角が取り残されない） — *Scroll back far enough that the prompt leaves the screen → The cursor goes with it — no block left behind at its old height*
 - [ ] **1.9c** `<C-S-f>` でスクロールバックのずっと上にある語を検索、Enter → そこへ飛び、**一致箇所が強調される** — *`<C-S-f>` for a word far up the scrollback, Enter → The view jumps to the match **and the match is highlighted***
-- [ ] **1.9f** `<C-S-f>` で**いま画面に出ている**語を検索 → 履歴の古いほうではなく、画面のものが先に見つかる — *`<C-S-f>` for a word that is on screen right now (v0.20.4) → The one on screen is found first, not an older one up in the history*
+- [x] **1.9f** `<C-S-f>` で**いま画面に出ている**語を検索 → 履歴の古いほうではなく、画面のものが先に見つかる — *`<C-S-f>` for a word that is on screen right now (v0.20.4) → The one on screen is found first, not an older one up in the history*
 - [ ] **1.9g** そのあと `<C-S-n>` / `<C-S-b>` → `<C-S-n>` で履歴の上へ、`<C-S-b>` で下へ戻る — *`<C-S-n>` / `<C-S-b>` after that → `<C-S-n>` walks further up into the history, `<C-S-b>` comes back down*
-- [ ] **1.9h** `<C-S-f>` で存在しない語を検索 → 赤いトーストで「無い」と言う（無反応ではない） — *`<C-S-f>` for something that is not there → A red toast saying so — not silence*
+- [x] **1.9h** `<C-S-f>` で存在しない語を検索 → 赤いトーストで「無い」と言う（無反応ではない） — *`<C-S-f>` for something that is not there → A red toast saying so — not silence*
 - [x] **1.10** `<S-End>` のあと何か 1 文字打つ → 最下部に戻る。打つだけでも戻ることの確認 — *`<S-End>`, then type a character → Back at the bottom, and typing alone would have done it*
 - [ ] **1.11** 出力の上をドラッグ → **ドラッグ中から選択が描かれ**、離すとクリップボードに入る（v0.20.4 まではコピーは効くのに何も描かれなかった） — *Drag across some output (v0.20.4) → **It highlights as you drag**, and is on the clipboard when you let go. Before v0.20.4 the copy worked and nothing was drawn*
 - [x] **1.11a** 同じ範囲を**右から左へ**ドラッグ → 1 文字も違わず同じ文字列（v0.26.4 まで逆向きは**両端で 1 文字ずつ**落ちていた） — *Drag **right to left** over the same run of text (v0.26.4) → The same text, character for character. Until v0.26.4 a backwards drag lost one at **each** end*
@@ -55,7 +55,7 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **1.11c** 文字の**右半分**からドラッグを始める → その文字は含まれない（これが正しく、1.11a が成り立つのと同じ規則） — *Drag from the right half of a character → That character is left out — correct, and the same rule that makes 1.11a work*
 - [ ] **1.12** 単語をダブルクリック → 単語が選択され、それが目に見える — *Double-click a word → The word is selected, and visibly so*
 - [x] **1.13** `<C-S-f>` でスクロールバックの語を検索、Enter、そのあと `<C-S-n>` → 次々に移動でき、末尾で先頭に回り込む — *`<C-S-f>`, type a word from the scrollback, Enter, then `<C-S-n>` → Matches are found and stepped through; it wraps at the end*
-- [ ] **1.14** ターミナルの中で `<F1>` → キー一覧がターミナルの**上に**開く。`<Esc>` で閉じ、入力がシェルに戻る — *`<F1>` inside the terminal → The key list opens **over** the terminal. `<Esc>` closes it and typing goes back to the shell*
+- [x] **1.14** ターミナルの中で `<F1>` → キー一覧がターミナルの**上に**開く。`<Esc>` で閉じ、入力がシェルに戻る — *`<F1>` inside the terminal → The key list opens **over** the terminal. `<Esc>` closes it and typing goes back to the shell*
 - [x] **1.15** ターミナルの中で `<C-S-p>` → コマンドパレットが開き、そこから実行できる — *`<C-S-p>` inside the terminal → The command palette opens, and running something from it works*
 - [x] **1.16** シェルで `cd` してから `<A-Up>` → 一覧がシェルのいる場所へ追従する — *`cd` somewhere in the shell, then `<A-Up>` → The file list follows to where the shell is*
 - [x] **1.17** 2 つ選んで `<A-t>` → パスが引用符付きでシェルの行に打ち込まれる。**実行はされない** — *Select two files, `<A-t>` → Their paths are typed onto the shell's line, quoted, **not run***
@@ -76,8 +76,8 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **1.32** ペインの pwsh のプロンプトで `abc` と打ち（Enter は押さない）、`Esc` → 行が空になる。PSReadLine は元々影響を受けていなかった。1.31 を直した変更がこちらを壊していないことを見る行 — *At the pwsh prompt in the pane, type `abc` without Enter, then `Esc` → The line empties. PSReadLine was never affected; this row is there so the change that fixed 1.31 is seen not to have broken it*
 - [x] **1.33** 同梱の ConPTY を filer.exe の横に置いた状態で、ペインで `pwsh -File scripts\keyprobe.ps1 -Query`（v0.49.0） → DA1 の応答が `\e[?6c`（filer 自身の答えがそのまま通ったもの）で、文字の間に `{up:…}` が出ない。`\e[?61;6;7;22;23;24;28;32;42c` なら Windows 標準の ConPTY が答えている —— 2 つのファイルが無いか、filer.exe の横に無い — *With the bundled ConPTY beside filer.exe, `pwsh -File scripts\keyprobe.ps1 -Query` in the pane (v0.49.0) → The primary DA reply reads `\e[?6c` — filer's own answer, passed through — and no `{up:…}` appears between characters. `\e[?61;6;7;22;23;24;28;32;42c` means the ConPTY built into Windows answered instead: the two files are missing, or not beside filer.exe*
 - [x] **1.34** 続けてペインで `lazygit` → いつもの画面で開き、**メニューが開いていない。**Windows 標準の ConPTY では、押していないキーでコピー画面が開いた状態で始まっていた — *Then `lazygit` in the pane → It opens on its usual view with **no menu open**. On the ConPTY built into Windows it started with its copy menu showing, a key nobody pressed*
-- [ ] **1.35** ペインで `lazygit`（または長く動くコマンド）を動かしたまま `<C-S-t>`（v0.52.0）→ **End the shell?** と聞かれ、動いているものの名前が出る。`n` でシェルもプログラムも残り、`y` で両方終わって **Ended the shell** とトーストが出る — *Run `lazygit` (or any long command) in the pane, then `<C-S-t>` (v0.52.0) → A dialog asks **End the shell?** and names what is running. `n` keeps the shell and the program; `y` ends both, and a toast says **Ended the shell***
-- [ ] **1.36** 何も動いていないプロンプトで `<C-S-t>` → **確認は出ない。**ペインはすぐ消え、トーストに **Ended the shell** と出る。`<C-t>` で隠しただけのようには見えなくなった — *At a bare prompt with nothing running, `<C-S-t>` → **No dialog**: the pane goes at once, and the toast says **Ended the shell** — so it no longer looks like `<C-t>` merely hiding it*
+- [x] **1.35** ペインで `lazygit`（または長く動くコマンド）を動かしたまま `<C-S-t>`（v0.52.0）→ **End the shell?** と聞かれ、動いているものの名前が出る。`n` でシェルもプログラムも残り、`y` で両方終わって **Ended the shell** とトーストが出る — *Run `lazygit` (or any long command) in the pane, then `<C-S-t>` (v0.52.0) → A dialog asks **End the shell?** and names what is running. `n` keeps the shell and the program; `y` ends both, and a toast says **Ended the shell***
+- [x] **1.36** 何も動いていないプロンプトで `<C-S-t>` → **確認は出ない。**ペインはすぐ消え、トーストに **Ended the shell** と出る。`<C-t>` で隠しただけのようには見えなくなった — *At a bare prompt with nothing running, `<C-S-t>` → **No dialog**: the pane goes at once, and the toast says **Ended the shell** — so it no longer looks like `<C-t>` merely hiding it*
 
 ## 2. ミニマップ — 0 / 10
 

@@ -3171,3 +3171,288 @@ TESTING.md に節を足すべき（下の Proposals 1）。
 **その行に 1 つ足してほしい**: 1.35 / 1.36 はリリース v0.49.1 に無い機能なので、
 **その節は手元ビルドで走らせること**。`the test suite` の行はそのまま残す
 （この run も 502 / 0 を記録した）。
+
+## TESTING.md section 1 — ターミナルペインを ARM64 で全部やり直した（e26671d / 0.54.0、ARM64 レーン）
+
+ARM64 レーンの 5 本目（`.claude/windows-role.md`「The ARM64 lane」、`auto-wintest.ps1 -Lane arm`、無人実行）。
+順番表の先頭「**1. the terminal pane, again**」が担当。前の run（zip）が
+「1.35 / 1.36 はリリース v0.49.1 に無いので手元ビルドで」と申し送っていたので、
+**手元の release ビルド（0.54.0、aarch64）**で走らせた。
+
+**チェックを 5 つ付けた**（1.9f / 1.9h / 1.14 / 1.35 / 1.36。どれも `[ ]` だった行で、
+根拠は下に 1 行ずつ書いた）。**1.35 と 1.36 は、どのプラットフォームでも初めて押された。**
+`make-testcheck` を走らせ直して `--check` が `in sync`（144 / 394、節の見出しは 37 / 48）。
+`make-keycheck -- --check` も `in sync`（243 / 247）。
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `PROCESSOR_ARCHITECTURE=ARM64`、`Win32_ComputerSystem.SystemType` = `ARM64-based PC` |
+| OS | `Windows 11 Home 26H1 (build 28000.2956)` |
+| rustc | 1.98.1 (48a229cea 2026-09-01) / aarch64-pc-windows-msvc —— CI と同じ stable |
+| filer | 手元ビルド 0.54.0、`filer env` が `OS arch aarch64` / `Process arch aarch64` / `Debug false` |
+| GPU | Qualcomm(R) Adreno(TM) X2-90 GPU（Vulkan、IntegratedGpu） |
+| 昇格 | 無し（`IsInRole('Administrators')` = False）。この節に昇格の要る行は無い |
+| `cargo test` | **505 passed; 0 failed**（ネイティブ ARM64、2.60 s、e26671d）。x64 ランナーに無い失敗は無い |
+| ConPTY | `scripts/fetch-conpty.ps1` で 1.24.260710001 (arm64) を `target\release` へ。ペインの子は `OpenConsole.exe --headless` で、そこの実体 |
+| 一時ディレクトリ | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（この機械に RAM ディスクは無い） |
+| 入力 | **スクリーンセーバーが入力デスクトップを持っていた**（`OpenInputDesktop` の名前 = `Screen-saver`、`SPI_GETSCREENSAVERRUNNING` = True、`LogonUI` は無し）。#88 から 3 本連続 |
+
+生の証拠は `C:\dev\filer-evidence\arm-1\`（`shots\` に 75 枚、`logs\` に `FILER_PTY_LOG` の
+記録 15 本、`lib1.ps1` / `desk.ps1` / `post.ps1` / `find.ps1` / `shot.ps1`、`arm1-env.txt`）。
+
+### 測り方 —— `--keys` で足場がほぼ消えた
+
+**この run は v0.54.0 の `filer --keys` でほぼ全部を駆動した。**前の run（#91）の提案 2 が
+そのまま効いていて、**harness keymap を 1 度も書かなかった**。修飾キー付きの和音
+（`<C-t>` / `<C-S-t>` / `<C-S-Enter>` / `<C-S-f>` / `<C-S-n>` / `<C-S-b>` / `<C-c>` / `<A-t>` /
+`<A-Up>`）が、そのまま本物のキーとして押せる。スクリーンセーバーが入力デスクトップを
+持っていても関係ない。
+
+足りないのは**待つ手立てだけ**。`--keys` は `App::settled()` の間だけ待って次を押すので、
+実測 **1 キー 33 ms**（`<S-End>` を 100 個並べて 3329 ms）。**シェルが起動するのを待つ、
+lazygit が描き終わるのを待つ、といった間は「無害なキーを並べて埋めた」**
+（一覧の外では `<S-End>` = `term_scroll bot`、全画面 TUI が出ている間は `<A-Up>` = `term_cd`。
+前者は代替画面ではプログラムへ転送されるので、TUI が動いている間は後者を使う）。
+この埋め草が 1 つ副作用を出した —— 下の「見つけたもの」2 番。
+
+読む側は 3 つ:
+
+- **`FILER_PTY_LOG`** —— シェルに何が行き、シェルが何を返したか。`in key` にあるかどうかで
+  「キーが一覧に戻ったか」まで測れる（`<C-t>` のあとに押した `<Down>` や `c` `f` が
+  ログに 1 文字も出ない、が証拠になる）。
+- **`PrintWindow(PW_RENDERFULLCONTENT)`** —— スクリーンセーバーの下でも撮れる。ダイアログ本文・
+  トースト・「N 行前」の注記は、**画像から読んだテキスト**として扱った。
+- **プロセスとクリップボード** —— `Win32_Process` で filer の子（`powershell.exe` / `lazygit.exe`）、
+  `c` `f` の結果で一覧のカーソル位置。
+
+`PostMessage` で文字を打つのは**やめたほうがいい**（最初に試して 2 つとも外れた）:
+`WM_KEYDOWN`+`WM_CHAR` は 12 文字に 1 回 `oo` と重なり（#91 の申し送りどおり）、
+`WM_CHAR` だけだと**1 文字も入らず**、`WM_KEYDOWN` だけだと `echo keydownonly` が `eco ` に
+なった。`--keys` は 1 度も外していない。
+
+### ARM64 の結果（x64 で `[x]` の行）
+
+すべて**この機械で押し直した**。ペインは既定 12 行 x 159 桁。
+
+| 行 | ARM64 の結果 | 根拠 |
+| --- | --- | --- |
+| 1.1 | 合格 | `pty.log` の最初のプロンプトが `PS C:\…\filer-fixtures\repo>` —— 一覧が見せていたディレクトリ |
+| 1.2 | **半分**（出力は届く。字の重なりは見た目） | `dir` の出力が `Mode / LastWriteTime / Length / Name` の桁で並ぶ（`shots\19-16200.png`） |
+| 1.3 | **半分**（塗った四角が打鍵で動くところまで） | `x` を打つ前後で、四角がプロンプト直後から `x` の次へ移った（`19b-18600.png`） |
+| 1.5 | 合格 | `== pane opened` が**ログ全体で 1 回**。`<C-t>` を挟んで `echo ONE` と `echo TWO` が同じシェルに届き、ONE の出力が残ったまま |
+| 1.6 | 合格 | 同上。往復の間に押した `<Down><Down>cf` は `in key` に 1 文字も無く、クリップボードが `clean.txt`（3 行目）になった |
+| 1.7 | 合格 | `<C-S-t>` のあと filer の子から `powershell.exe` と `OpenConsole.exe` が消え、filer は生存 |
+| 1.8 | **半分**（桁は組み直る。切れ・伸びは見た目） | ウィンドウを 1376 → 820 px にして、ペインの `$Host.UI.RawUI.WindowSize.Width` が **159 → 93** |
+| 1.9 | 合格 | `many\` で `dir` のあと `<S-PageUp>`。上端が item-492 → item-486 に動き、注記が `6 lines back` |
+| 1.9a | 合格（両向き） | `<S-PageUp>` x4 で `24 lines back`、`<S-PageDown>` で `18 lines back`。半画面 = 6 行（ペインが 12 行） |
+| 1.9b | 合格 | `<S-Home>` で `502 lines back` と最古の `Windows PowerShell` 行、`<S-End>` でプロンプトへ |
+| 1.9c | 合格（注記で測った。強調は画像から読んだ） | `item-05` を検索 → `433 lines back`、上端が `item-059.txt` で `item-05` に背景が付く |
+| 1.10 | 合格 | `<S-PageUp>` x2 のあと `x` を 1 文字打っただけで注記が消え、最下部の item-500 とプロンプトに戻った |
+| 1.11a / 1.11b / 1.11c | **取れず** | ドラッグが要る。スクリーンセーバーが入力デスクトップを持っていて `SendInput` が届かない（下の提案 1） |
+| 1.13 | **半分** | `<C-S-n>` で次の一致へ進むところまで確認（433 → 434）。**末尾で先頭に回り込むところは押していない** |
+| 1.15 | 合格 | ペインの中から `<C-S-p>`、`filename` で絞って `<Enter>` → クリップボードが `item-001.txt`。パレットはペインの上に描かれた（`115a-palette.png`） |
+| 1.16 | 合格（ただし OSC 7 を出すシェルが要る。下の 4 番） | pwsh に README のフックを入れて `cd ..` → `<A-Up>` で**ウィンドウタイトルが 3910 ms に `…\many` → `…\filer-fixtures`** |
+| 1.17 | 合格 | 2 つ選んで `<A-t>` → `'…\a file with spaces.txt' '…\long-long…'`。`in key` に `\r` は無い |
+| 1.18 | 合格 | 上と同じ run。`in key` は `cd ..\r` の 1 本だけ —— 一覧が追従したあと filer は `cd` を打っていない |
+| 1.19 | 合格 | `sleep 30` のあと `<C-c>` が `in key \x03` として届き、プロンプトが即戻って `echo AFTER` が走った。filer は 1 タブのまま生存 |
+| 1.20 | 合格（4 シェル） | `quote'in-name.txt` が powershell / pwsh で `'…quote''in-name.txt'`、cmd で `"…quote'in-name.txt"`、bash で `'…quote'\''in-name.txt'`。どれも `\r` 無し |
+| 1.21 | 合格 | `it's here` へ入ると `cd 'C:\…\it''s here'\r` が飛び、プロンプトが `PS C:\…\it's here>` に |
+| 1.22 | 合格 | Git Bash（ARM64 版、プロンプトが `CLANGARM64`）で `cd 'C:\…\qtest\plain'` が通り、`/tmp/s1/qtest/plain` へ。`No such file or directory` は 1 度も出ていない |
+| 1.23 | 合格 | 同じシェルで `<A-t>` → `'C:\…\plain\ordinary.txt'` が丸ごと 1 語で入った |
+| 1.24 | 合格 | lazygit が代替画面・罫線・色・自前の分割ペインで描けている（`135a-dialog.png`、`127-8500.png`） |
+| 1.25 | 合格 | `j j k k` と `q` が `in key` にあり、`\e[?1049l` で代替画面を出て、lazygit のプロセスが消え、`echo BACK` がプロンプトで走った |
+| 1.26 | 合格 | `<C-S-Enter>` でペインの行数が **12 → 35**、画面はヘッダも一覧も無くステータスバーだけ（`126a-maximised.png`）。もう一度で 12 |
+| 1.27 | 合格 | **lazygit を動かした状態**で `<C-S-Enter>` → lazygit が全高で描き直され、もう一度で 3 分の 1 に戻って一覧が出た（`127-8500.png` / `127-11500.png`） |
+| 1.28 | 合格 | 一覧側から `<C-S-Enter>` → `echo MAXTYPE` が `in key` とペインの出力に出た |
+| 1.29 | 合格 | そのあと `<C-t>` → `<Down><Down>cf` が一覧に効いて（クリップボード `clean.txt`）、戻ってから測った行数が **12** |
+| 1.30 | 合格 | 最大化から `<C-S-t>` → ペインが消え、`many\` の item-001〜item-033 が**ステータスバーまで**並ぶ（`130-after-close.png`）。隙間は無い |
+| 1.31 | 合格 | lazygit で `?` → キー一覧、`<Esc>` で閉じてフッタが `ステージ: <space> ¦ …` に戻った（`131h-after-esc.png`）。**ただし条件付き —— 下の 2 番** |
+| 1.32 | 合格 | pwsh のプロンプトで `abc`、`<Esc>` で行が空に（`crop132-4000.png` / `crop132-8000.png`） |
+| 1.33 | 合格 | `pty.log` に `in reply \e[?6c` —— filer 自身の答え。Windows 標準の ConPTY なら `\e[?61;6;7;…c` になる |
+| 1.34 | 合格 | lazygit が通常画面で開く。コピーメニューは出ていない（`131f-lazygit.png`、`135a-dialog.png`） |
+
+**取らなかった行**（見た目、またはマウス）: 1.3a（中抜きカーソルと枠の色）、1.4（16 色が
+一覧の配色と一致して見えるか）、1.9d（ホイールの滑らかさ）、1.9e（カーソルが取り残されないか）、
+1.11（ドラッグ中に描かれるか）、1.12（ダブルクリックの選択）。**1.9d / 1.11 / 1.12 と
+1.11a-c はマウスが要るので、スクリーンセーバーがある限りこの機械では取れない。**
+
+### 新しく付けたチェック（5 件）
+
+- **1.9f** —— `dir`（500 行）のあと `item-49` を検索。画面に出ている `item-499` が見つかり、
+  **「N 行前」の注記が出ず、表示も動かなかった**。履歴側の `item-049` を拾っていたら、
+  同じ条件の `item-05` がそうだったように `433 lines back` と出たはず。`shots\19f-onscreen.png`
+- **1.9h** —— `zzznotthere` を検索 → 赤枠のトーストに **`No match for zzznotthere`**。無反応ではない。
+  `shots\19h-6200.png`
+- **1.14** —— ペインの中で `<F1>` → キー一覧が**ペインの上に**開き（背後にペインの
+  `Windows PowerShell` / `BEFORE` / プロンプトが見えている）、`<Esc>` のあと `echo AFTER` が
+  シェルに届いた。`in key` は `echo BEFORE\r` と `echo AFTER\r` の**間に何も無い** ——
+  `<F1>`・埋め草・`<Esc>` は 1 バイトもシェルへ行っていない。`shots\114a-help-open.png` /
+  `114c-after-esc.png`
+- **1.35** —— ペインで `lazygit` を動かしたまま `<C-S-t>`。**`End the shell?` /
+  `` `repo - Lazygit` is still running in the terminal, and ends with it. `` / `[y] End it`
+  `[n] Keep it`**（`135a-dialog.png`）。`n` → ダイアログが消え、ペインも lazygit も残る
+  （`powershell.exe` の子に `lazygit.exe`、`135b-after-n.png`）。`y` → ペインが消え、
+  トーストが **`Ended the shell`**、filer の子は空、`Get-Process lazygit` も空（`135c-after-y.png`）
+- **1.36** —— 何も動いていないプロンプトで `<C-S-t>` → **確認は出ず**、ペインが即消えて
+  トーストが `Ended the shell`、一覧が全高。filer は生存、子は空（`136-after-cst.png`）
+
+### 見つけたもの
+
+#### 1. `<C-S-b>`（スクロールバック検索を下へ戻る）は、向きを変えた 1 回目が空振りする
+
+`many\` で `dir` → `<C-S-f>` `item-05` → 注記 `433 lines back`（上端 `item-059.txt`）。そこから:
+
+| 押したキー | 注記 |
+| --- | --- |
+| `<C-S-n>` | `434 lines back` |
+| `<C-S-b>` | **`434 lines back`（動かない）** |
+| `<C-S-b>` | `433 lines back` |
+
+**`<C-S-n>` 1 回を取り消すのに `<C-S-b>` が 2 回要る。**1.9g の文言
+「`<C-S-b>` で下へ戻る」は 2 回目から成り立つ。`app.rs` の `term_search` は
+`--prev` を `term_find(&needle, !prev)` に渡して向きだけ反転しているので、
+**反転した直後の 1 回が、いま居る一致そのものを見つけ直している**のだと思う
+（`terminal.rs` の `search` が現在位置を含むかどうかの話）。
+別々の run で 2 度再現した（`logs\r19c-pty.log` / `logs\r19g-pty.log`、
+`shots\crop-6700.png` 〜 `crop-18700.png`）。**1.9g にはチェックを付けていない。**
+
+#### 2. 全画面プログラムへ転送されたスクロールキーの塊が、そのプログラムを数十秒止める
+
+`<S-End>` は代替画面のときだけプログラムへ転送される（`app.rs:4304` の
+`if scrolls && self.term_alt_screen()`。意図どおり）。lazygit を動かした状態で
+`<S-End>` を **1 秒あたり 30 回**（`--keys` の実測ペース）流すと、`\e[1;2F` が
+その数だけ届く。165 回ほど流したあとで `?` → `<Esc>` と押すと:
+
+- **15 秒後にもキー一覧が開いたまま**（`shots\131d-after-esc.png` / `131e-after-esc2.png`）
+- **60 秒後には閉じている**（`131n-t60.png`）。`<Esc>` は届いていて、遅れているだけ
+
+同じ手順で、埋め草を `<A-Up>`（filer が食べるのでプログラムへ行かない）に替えると
+**その場で閉じる**（`131l-altup-pad2.png`）。`PostMessage` で `?` と `<Esc>` だけを
+送った run も**その場で閉じる**（`131h-after-esc.png`）。つまり**転送されたスクロールキーの
+量だけが原因**。
+
+- **人にも起こりうる。**キーリピートは毎秒 30 回前後なので、TUI の上で `<S-End>` を
+  2〜3 秒押しっぱなしにすると同じ量になる。押した本人には「TUI が固まった」に見える。
+- どちらの側の問題かは**切り分けていない**（filer が速く書きすぎるのか、tcell が
+  1 キーごとに全画面を描き直すのか）。`FILER_PTY_LOG` にはこちらが書いた
+  `\e[1;2F` しか残らないので、ここから先は section 40 の仕事。
+- **1.31 は合格にした。**転送を挟まない手順では毎回その場で閉じる。
+
+#### 3. `filer env` / `filer --version` の出力は、ファイルにリダイレクトすると**空になる**
+
+`main.rs` の `say()` は `AttachConsole(ATTACH_PARENT_PROCESS)` してから `CONOUT$` を開いて
+書く。**`CONOUT$` はコンソールの画面バッファそのものなので、`>` も `|` も素通りする。**
+
+```
+> cmd /c start /wait "" cmd /c "filer.exe --version > ver.txt 2>&1"
+size: 0
+content: []
+```
+
+`filer env` の説明は「バグレポートに貼るためのもの」なのに、
+**貼るための自然な操作（`filer env > env.txt`、`filer env | clip`）が黙って何も残さない。**
+画面には出るので、気づくのは貼り付けたあと。
+（この run で `filer env` を取れたのは、**コンソールを持たない親**から起動したときだけ
+—— `wscript.exe` 経由なら `AttachConsole` が失敗して `println!` に落ちる。
+`arm1-env.txt` はその方法で取った。）
+ARM64 の話ではない。**直していない**（`GetStdHandle(STD_OUTPUT_HANDLE)` が
+リダイレクトされているかを先に見る、が筋だと思う）。
+
+#### 4. pwsh 7.6.6 は、この機械の既定のプロンプトでは OSC 7 を出さない
+
+1.16 / 1.18 は「OSC 7 を報告するシェル（PowerShell 7、または …）」と書いてあるが、
+**この機械の pwsh 7.6.6（Starship）では 1 度も `\e]7;` が出ず、`<A-Up>` は
+`The shell has not said where it is (no OSC 7). …` のエラートーストになった**
+（`shots\116-final.png` がそのときのペイン）。README のフック
+（`LocationChangedAction`）を `-NoProfile -NoExit -File` で入れて初めて通った
+（`logs\r116b-pty.log` に `\e]7;file:///C:/…/filer-fixtures` が出ている）。
+
+- **filer の不具合ではない。**README はこの手順をちゃんと書いている。
+- ただし **TESTING.md 1.18 の「PowerShell 7」は、そのままでは条件を満たさない。**
+  行の文言を「README のフックを入れた PowerShell 7」にするか、pwsh を外すのが正しい。
+  **renumbering を避けるためこちらでは直していない。**
+
+#### 5. スクリーンセーバーは 3 本続けて入力デスクトップを持っていた
+
+`OpenInputDesktop` の名前が `Screen-saver`、`SPI_GETSCREENSAVERRUNNING` が True、
+`LogonUI` は無し。#88 → #91 → 今回で 3 本連続。**この run は最初から `--keys` と
+`PostMessage` だけで測ったので 1 度も空振りしなかったが、マウスの行（1.9d / 1.11 /
+1.11a-c / 1.12、section 14 や 30 も同じ）は、この機械では取りようがない。**下の提案 1。
+
+### Proposals
+
+1. **`auto-wintest.ps1` に、実行中だけスクリーンセーバーを止めさせてほしい。**
+   - 何が起きたか: 3 本続けて入力デスクトップが `Screen-saver` だった。おかげで
+     `SendInput` が 1 つも使えず、**section 1 のマウス 6 行（1.9d / 1.11 / 1.11a / 1.11b /
+     1.11c / 1.12）は押せないまま残った。**順番表にはマウスが主役の節（14「the parent
+     column, with the mouse」、30「right-click paste」）もあり、**このままだとその 2 節は
+     ARM64 レーンに回した瞬間に空振りする。**
+   - どう変えるか: `auto-wintest.ps1` の頭で
+     `SystemParametersInfo(SPI_SETSCREENSAVEACTIVE, 0)`、`finally` で元に戻す。
+     昇格は要らない（ユーザー単位の設定）。**戻し忘れが怖いので、元の値を状態ファイルに
+     書いてから消す**形にすれば、run が落ちても次回に戻せる。
+   - なぜ: **いま失われているのは「マウスの行が永久に取れない」こと**で、これは
+     見た目かどうかの話より重い。持ち主の機械の設定を触るので、判断は持ち主のもの。
+   - 大きさ: スクリプトに 10 行ほど＋ P/Invoke 1 つ。
+
+2. **`--keys` に「待つ」を足してほしい —— `<Wait:2000>` のような擬似キー 1 つでいい。**
+   - 何が起きたか: **`--keys` のおかげでこの run は harness keymap を 1 度も書かずに済んだ**
+     （前の run は書いた）。残った不便は 1 つだけで、**シェルの起動や lazygit の描画を待つ手立てが
+     無いこと。**そこで `<S-End>` や `<A-Up>` を 50〜300 個並べて時間を潰したのだが、
+     **その埋め草が測定を汚した** —— 上の「見つけたもの」2 番は、まさに埋め草が原因で
+     1.31 が落ちて見えた事故で、切り分けに 4 run 使った。
+   - どう変えるか: `keyscript::parse` に `<Wait:1500>`（ミリ秒）を足し、
+     `raw_input_hook` の gate に「その時間が経つまで次を押さない」を 1 本足す。
+     キーではないので `events()` は `None` ではなく専用の分岐になる。
+   - なぜ: **無害な埋め草は存在しない。**`<S-End>` は代替画面でプログラムへ行き、
+     `<A-Up>` はエラートーストを 500 個積む。待ちを表現できないせいで、
+     **計測のたびに「何を押しても副作用が無い場面か」を考える羽目になる。**
+   - 大きさ: 15 行ほど。`<Wait:…>` の構文だけ持ち主が決めれば実装は素直。
+
+3. **`filer env` をリダイレクトできるようにしてほしい**（上の「見つけたもの」3 番）。
+   - 何が起きたか: `filer env > env.txt` が 0 バイトのファイルを作る。この run では
+     `wscript.exe` 経由という遠回りでしか取れなかった。
+   - どう変えるか: `say()` で、まず `GetStdHandle(STD_OUTPUT_HANDLE)` が
+     コンソール以外（ファイル・パイプ）を指しているかを `GetFileType` で見る。
+     そうなら `println!`、そうでなければ今の `CONOUT$` の道。
+   - なぜ: **`filer env` は貼るために作った出力で、貼る人はまずリダイレクトする。**
+     黙って空になるのは、出力が無いより悪い（気づくのが後になる）。
+   - 大きさ: `say()` に 5 行。
+
+4. **ペインの行数と桁数を、どこかに数字で出してほしい。**
+   - 何が起きたか: 1.8 / 1.26 / 1.27 / 1.29 を測るのに、毎回ペインの中で
+     `$Host.UI.RawUI.WindowSize.Height` を打った。**シェルに依存する**ので、
+     cmd や bash では別のコマンドが要る（bash なら `tput lines`、cmd には素直な手が無い）。
+   - どう変えるか: `filer env` に `Terminal pane : 12 x 159` の 1 行。あるいは
+     ペインの右上の注記（「N 行前」が出るところ）に、リサイズ直後だけ `12 x 159` を
+     1 秒出す。
+   - なぜ: **ペインの大きさは、この節の 4 行が主張していることそのもの**なのに、
+     filer 自身はどこにも言わない。バグレポートでも「3 分の 1 にならない」と書く人は
+     数字を持っていない。
+   - 大きさ: `filer env` に 1 行なら数行。注記のほうは見た目の判断が要る。
+
+5. **`<C-S-t>` の確認ダイアログが、プログラムの名前をターミナルのタイトルから取っているのは良い。**
+   （変更の提案ではなく、そのまま残してほしいという話。）lazygit は
+   `cmd /c title repo - Lazygit` を投げるので、ダイアログが
+   `` `repo - Lazygit` is still running `` と**リポジトリ名まで**出せていた。
+   タイトルを出さないプログラムでは `A program` に落ちる（`app.rs:4124` 付近）。
+   **落ち方が正しいので、ここに凝った推測（子プロセスの実行ファイル名を読むなど）を
+   足さないほうがいい** —— タイトルは「プログラムが自分で名乗った名前」で、
+   実行ファイル名より人に通じる。
+
+### 順番表（`.claude/windows-role.md`「The ARM64 lane」）
+
+無人実行は `.claude/` への書き込みを権限で拒否されるので、変更は PR 本文の `## Queue` に書いた。
+
+- **`the release zip itself` の行は、まだ表に残っている。**#91 が「消してよい」と
+  書いたのにマージ側で反映されていない。**今回こそ消してほしい**（残っていると、
+  次の run がまた zip を見に行く）。
+- **`1. the terminal pane, again` の行も消してよい。**x64 で `[x]` の行は
+  全部この機械で押し直し、結果を上の表に書いた。`[ ]` のまま残るのは
+  **見た目（1.3a / 1.4 / 1.9e、および 1.2 と 1.8 の後半）とマウス（1.9d / 1.11 / 1.12、
+  再確認としての 1.11a-c）と 1.9g（上の 1 番の不具合）**で、
+  **どれも ARM64 の話ではない。**この行を残しても、次の run が同じ行を見送るだけになる。
+- 次は `21 / 32 / 37. archives and openers, again` が先頭になる。
+- `the test suite` の行はそのまま残す（この run も 505 / 0 を記録した）。
