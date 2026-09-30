@@ -486,7 +486,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "25.15" = '`yazi.toml` を壊して Warnings の行を読む → パスが **`…\filer\yazi.toml`** と、すべて円記号で書かれている。以前は `…\filer/yazi.toml` と出ていた —— **編集すべきファイルを指し示すのが仕事のメッセージなのに、そこが壊れていた**（v0.33.12）'
 "25.16" = "ファイルのあるフォルダで `filer <フォルダ> --keys \"<Tab>C\"`、続けて `Get-Clipboard`（v0.54.0）→ 窓が開き、spot が勝手に先頭の行で開き、クリップボードにパネル全体が `ラベル<TAB>値` の行で入っている。`Name` と `Path` がその先頭の行を指している"
 "25.17" = "`filer --keys \"<Tab\"` と `filer --keys \"<Bogus>\"` → **窓は開かない。**問題を言う 1 行（`has no closing >` / `is not a key`）と、終了コード 2"
-"25.18" = "release ビルドで `filer env > out.txt`、続けて `Get-Content out.txt`（v0.54.4）→ レポート全体が**ファイルに入り**、画面には何も出ない。v0.54.4 より前はファイルが空で、レポートは画面に出ていた"
+"25.18" = "release ビルドで `filer env \\| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c \"filer env > out2.txt\"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた）"
 "25.19" = "`filer env \\| Select-String arch` → **arch の 2 行だけ**が出る（レポート全体ではない）。`$v = & filer env; $v.Count` はレポートの行数で、0 ではない"
 "25.20" = "何もリダイレクトせずに `filer env` と `filer --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない"
 

@@ -699,7 +699,7 @@ Run from a shell, not from inside the app.
 | 25.15 | Break `yazi.toml` and read the Warnings row | The path is written **`…\filer\yazi.toml`**, all backslashes. It used to come out `…\filer/yazi.toml`, in the one message whose job is to name the file to edit (v0.33.12) |
 | 25.16 | `filer <a folder with files> --keys "<Tab>C"`, then `Get-Clipboard` (v0.54.0) | The window opens, spot opens on the first row by itself, and the clipboard holds the whole panel as `Label<TAB>value` lines — `Name` and `Path` naming that first row |
 | 25.17 | `filer --keys "<Tab"` and `filer --keys "<Bogus>"` | **No window**: one line naming the problem (`has no closing >` / `is not a key`), exit code 2 |
-| 25.18 | Release build: `filer env > out.txt`, then `Get-Content out.txt` (v0.54.4) | The whole report is **in the file**, and nothing is printed on screen. Before v0.54.4 the file was empty and the report went to the screen |
+| 25.18 | Release build: `filer env \| Out-File out.txt`, then `Get-Content out.txt`; and `cmd /c "filer env > out2.txt"` (v0.54.4) | The whole report is **in both files**, and nothing is printed on screen. Before v0.54.4 both were empty. (PowerShell's own `filer env > out.txt` still gives an empty file: PowerShell does not connect a windowed program's output to a file. README says so) |
 | 25.19 | `filer env \| Select-String arch` | **Only the two arch lines**, not the whole report. `$v = & filer env; $v.Count` is the report's line count, not 0 |
 | 25.20 | `filer env` with nothing redirected, and `filer --version` | Still printed on screen, as 25.1 has it — the console path is unchanged |
 
