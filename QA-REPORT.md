@@ -5835,3 +5835,283 @@ if ((Get-Clipboard) -ne $s) { throw 'clipboard would not arm' }
   （`$PROFILE` も `FILER_CONFIG_HOME` も、この節では不要だった）。
 - スクリーンショットは `filer-scratch\shots\` に置いてあるが、**そこから読んだ文字は
   この節とプルリクエストの本文に写してある**。
+
+---
+
+## TESTING.md section 44 — ディスク使用量、ARM64 実機で確かめた（f56ce72 / 0.55.3、ARM64 レーン）
+
+無人実行（`auto-wintest.ps1 -Lane arm`）。ARM64 レーンの順番表の先頭が 44 だったので、
+13 行すべてを当たった。**12 行が通り、44.7 が落ちた。**44.7 は仕様上の穴で、この節で
+一番価値のある結果なので先に書く。
+
+`filer env` は `Process arch aarch64` / `OS arch aarch64`、版は 0.55.3。ConPTY は
+`fetch-conpty.ps1` で `1.24.260710001 (arm64)` を `target\release` に置いた。
+RAM ディスクは無いので scratch は `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`
+（`TEMP` / `TMP` もそこ）。管理者ではない（この節には要らなかった）。
+
+**`cargo test` は 523 passed / 0 failed**（ARM64 ネイティブ、0.55.3）。
+
+### 測るための下ごしらえ
+
+`gu` のビューは既定の設定では**棒しか出ない。**`linemode` が `None` のままで、
+既定キーマップに `linemode usage` の束縛が無いからで、バイト数を読むには
+`yazi.toml` に `linemode = "usage"` を手で書くしかない（見つけたこと 2）。
+そこで run 専用の `FILER_CONFIG_HOME` を作り、
+
+```toml
+[mgr]
+ratio = [1, 6, 3]
+linemode = "usage"
+```
+
+だけを置いた。これで各行の合計が**読めるテキスト**になり、この節の判定は
+ほとんどがスクリーンショットから読んだ数字と `Get-ChildItem -Recurse -Force |
+Measure-Object Length -Sum` の突き合わせになっている。
+
+フィクスチャは `fx44.ps1`（`s44\proj` / `hidden` / `links` / `keys` / `dest` / `hard`）と
+`fxbig.ps1`（320 ディレクトリ × 1000 ファイル = 320,000 ファイル、81 秒）。
+どちらも本文の末尾に貼ってある。
+
+### 落ちた行
+
+#### 44.7 `C:\` で `gu` — 上位のフォルダが妥当ではない
+
+| 読んだもの | 値 |
+| --- | --- |
+| filer の `Windows` 行 | **`0 B`** |
+| `Get-ChildItem C:\Windows -Recurse -Force -File` | **179,442 ファイル / 36.1 GB** |
+| filer の合計（トースト） | `83 G in total (walk cut short; totals are floors)` |
+| `(Get-PSDrive C).Used` | 149.7 GB |
+
+`Windows` だけではない。`Recovery` / `System Volume Information` / `PerfLogs` /
+`OneDriveTemp` / `inetpub` も全部 `0 B` で並んだ。上位に来たのは `dev` 21 G、
+`Program Files (x86)` 20 G、`Users` 13 G、`hiberfil.sys` 13 G で、ここまでは妥当。
+**ドライブで一番大きいフォルダが空として並ぶ**ので、「WizTree やエクスプローラーと
+見比べて妥当」は成り立たない。
+
+原因は `fs/usage.rs` の `BUDGET: usize = 200_000` が**全部の子で 1 つの予算を共有して
+いる**こと。`read_dir` が返した順に使い切るので、先に当たった子が全部持っていき、
+後ろの子は 1 エントリも歩かれずに 0 で確定する。`C:\Windows` 単体で 179,442 ファイル
+あるから、ドライブ直下では予算が 1 つの子で尽きる勘定になる。
+
+さらに悪いのは**並び順が大きい順だ**ということで、歩かれなかったフォルダは
+必ず一番下に沈む。「どのフォルダが容量を食っているか」を答えるためのビューで、
+歩かれなかった＝答えかもしれないフォルダが、いちばん目に入らない場所に置かれる。
+
+「下限値である」とは言っている（トーストは正しい）。ただし**トーストは数秒で消え、
+そのあとは画面のどこにも下限だと書いていない。**25 秒後のスクリーンショットは
+`Windows 0 B` とだけ出ている。提案 2 を参照。
+
+同じことは合成したツリーでも読めた（44.3 の 320,000 ファイル）。`d0000`〜`d0198`
+あたりが `16 K`、`d0200` から下は全部 `0 B`、合計は `3.0 M`（実際は 4.9 M）。
+プレビューには `d0319` の中身（`f0000.bin` …）がちゃんと出ているので、
+**中身のあるフォルダが 0 B と表示されている**ことがその場で読める。
+
+### 通った行（ARM64 での結果と根拠）
+
+| # | 結果 | 根拠 |
+| --- | --- | --- |
+| 44.1 | ○ | `s44\proj` で `gu` → `node_modules 5.7 M` / `target 1.5 M` / `.git 27 K` / `src 6.0 K` / `README.md 1.0 K` / `.gitignore 21 B` の順。`node_modules` 自身のエントリは 2 子で、合計 6,000,000 B とは桁が違う。棒はどの行にも引かれ、長さが数字どおり（`node_modules` が満杯、`target` が約 1/4、以下ほぼ空）。**棒が目立つかどうかは持ち主の判断**で、この行を支えているのは順序と数字 |
+| 44.2 | ○ | カーソル: `--keys "jjcf"` → クリップボード `ccc`、`--keys "jjgu<Esc>cf"` → `ccc`。走査の停止: `big`（320,000 ファイル）の走査中 1.2 秒で `<Esc>`、`(Get-Process filer).CPU` は 1.797 のまま 10 秒動かず（完走させると 2.3〜2.4 CPU-s かかる測定済み） |
+| 44.3 | ○ | 320,000 ファイルで `gu` → 3 秒で完了し、トーストが `3.0 M in total (walk cut short; totals are floors) — <Esc> to leave`。320 items すべて並ぶ |
+| 44.4 | ○ | `proj\.gitignore` は `target/` と `node_modules/` を書いている（`git init` 済み）。どちらも一覧に出て `1.5 M` / `5.7 M` を持つ。合計 `7.3 M` = 7,634,443 B（`Get-ChildItem` と一致） |
+| 44.5 | ○ | `s44\hidden\.cache` の属性は `Hidden, Directory`（`Get-Item -Force` で確認）。`gu` → `.cache 3.8 M` が 1 行目、`visible 98 K`、合計 `3.9 M` = 4,100,000 B。`show_hidden` は既定の off のまま |
+| 44.6 | ○ | `s44\links\link` は `LinkTarget = …\links\real` のジャンクション。`gu` → 3 items で `real 2.9 M` / `tiny.txt 1.0 K` / `link -> 0 B`、合計 `2.9 M` = 3,001,000 B。**3 MB のツリーを二重に数えていない**。3 秒以内に完了（固まらない） |
+| 44.8 | ○ | `\\192.168.0.150\Backup`（LAN の Samba）で `gu` → `Job DESKTOP-7UBRVG9 409 G`。`Get-ChildItem -Recurse -Force` は 438,769,771,777 B = 408.6 GiB で一致。走査中 1.5 秒で `<Esc>` → タイトルは `Filer: \\192.168.0.150\Backup\` に戻り、CPU はその後 10 秒で 0 上昇、`Get-Process filer` は生きている |
+| 44.9 | ○ | `j`/`k`: `--keys "gujjkcf"` → `bbb`。選択: `--keys "gu<Space><Space>"` → ヘッダが `2 selected · 4 items`、カーソルは `3/4`。`y`: `--keys "guy<Esc>hkklp"` → `s44\dest\aaa\one.bin` が 30,000 B で出来た。`d`: `--keys "gud"` → 一覧が 3 items になり、ごみ箱に `aaa`（元の場所 `…\s44\keys`、削除 2026-10-01 5:22）が入っていた |
+| 44.10 | ○ | 使用量ビューで `<Enter>` → タイトルが `…\s44\proj` から `…\s44\proj\node_modules` になり、普通の一覧（2 items: left-pad, react）になる。そこで `gu` → `react 4.1 M` / `left-pad 1.6 M`、合計 `5.7 M` = 6,000,000 B（`Get-ChildItem` と一致） |
+| 44.11 | ○ | `--keys "gugu"` → 赤いトーストで `Usage: leave this view first`。一覧はそのままで `<Esc> to leave` も出たまま |
+| 44.12 | ○ | `--keys "gu,a"` → `Sort: alphabetical` で `node_modules` / `src` / `target` / `README.md`（ディレクトリ先・名前順）に変わる。`--keys "gu,a<Esc>gu"` → 大きい順に戻る（6 items、トーストが `×2`） |
+| 44.13 | ○ | 丸め: `proj` 合計 `7.3 M` ↔ 7,634,443 B、`node_modules` `5.7 M` ↔ 6,000,000 B、共有 `409 G` ↔ 438,769,771,777 B。ハードリンク: 1 MiB のファイルに 3 本のハードリンクを張ったツリーで `gu` → `tree 4.0 M`。`fsutil hardlink list` は 4 つの名前が同じ実体を指すと出るので、**ディスクは 1 MiB しか使っていないのに 4.0 M と出る**＝文書どおり多めに出る |
+
+### ほかに見つけたこと
+
+#### 1. 予算切れのフォルダが `0 B` と表示される（44.7 の中身）
+
+上に書いた。`0 B` は「空だった」と「歩いていない」を区別しない。`capped` は
+`Msg::Done` で分かっているのに、どの行が歩かれなかったかは持っていない。
+
+#### 2. 既定の設定では、使用量ビューに数字が出ない
+
+`start_usage` は `linemode` を触らない。既定キーマップ（`src/config/defaults/keymap.toml`
+の「Line mode」の節）には `m s` / `m t` / `m b` / `m p` / `m n` はあるが
+**`linemode usage` の束縛が無い。**`Linemode::Usage` は `parse` にも
+`serde` にもあるので、`yazi.toml` に書けば効く。つまり**設定ファイルを編集しないと
+バイト数が一度も読めない。**しかも `linemode = "usage"` を常設すると、
+普通の一覧でもフォルダの行が全部 `0 B` になる（`usage_bytes()` が `None` のため）。
+
+#### 3. 並べ替え直すと、隠しフォルダの行が消える
+
+`s44\proj` で `gu` → 6 items（`.git` と `.gitignore` を含む）。`,a` を押すと
+**4 items になる**（`Sort: alphabetical`）。合計のトーストは `7.3 M` のままなので、
+27 K ぶんを説明する行だけが無くなる。`show_hidden` が off のまま再構築されるからで、
+44.5 が保証している「隠しフォルダも数に入り、表示もされる」が、並べ替え 1 回で崩れる。
+
+#### 4. 使用量ビューの `,s`（サイズ順）は、測った合計で並ばない
+
+`--keys "gu,s"` → `Sort: size (reverse)` と出て、`node_modules 5.7 M` /
+`src 6.0 K` / `target 1.5 M` / `README.md 1.0 K` の順になる。`target` が `src` より
+下にいるので、並んでいるのは**エントリ自身の長さ（ディレクトリは子の数）**であって
+測った合計ではない。使用量ビューで「サイズ順」を押した人が期待するのは合計のほう。
+
+#### 5. `<Esc>` で抜けても「Measuring…」のトーストが残る
+
+走査は止まる（44.2 で測ったとおり）のに、`Measuring… <Esc> to leave` は出たまま
+時間切れまで消えない。抜けた直後のスクリーンショット（`44_2-after-esc`）に写っている。
+「まだ測っている」と読めてしまう。
+
+#### 6. TESTING.md 44.12 の文言が 44.11 と食い違う
+
+44.12 は「もう一度 `gu` すれば大きい順に戻る」と書いてあるが、44.11 が
+「ビューを開いたまま `gu` は断られる」を定めている。実際、`<Esc>` を挟まないと
+`gu` は `Usage: leave this view first` で断られる。**この run は
+`gu` → `,a` → `<Esc>` → `gu` として通した。**行の文言に `<Esc>` を足すのが正しいと思うが、
+番号と文言は報告に回す規則なので直していない。
+
+#### 7. 【実機セッション向け】`PostMessage` で送った平文字は 2 回効く
+
+この run で一番危なかったのはこれで、**役割定義（`windows-role.md`）の
+「Prefer `PostMessage` to `SendInput` for keys」がそのままでは正しくない。**
+
+同じキー列を 2 つの経路で送った結果:
+
+| キー列 | `--keys`（プロセス内） | `PostMessage`（`WM_KEYDOWN` + `WM_CHAR` + `WM_KEYUP`） |
+| --- | --- | --- |
+| `cf` | `aaa` | `aaa` |
+| `jcf` | **`bbb`** | **`ccc`** |
+| `jjcf` | **`ccc`** | **`C:\…\s44\keys\ccc`**（`c` が `c` `c` になって「パスをコピー」が走った） |
+
+`j` が 1 回で 2 行動き、`c` が `c` `c` の和音になる。**名前付きキー
+（`<Esc>` / `<Enter>` / `<Space>`）は二重にならない** — `keys::from_egui` が
+平文字のキーイベントを落とし、テキストだけを見る作りだから、二重になるのは
+「テキストになるキー」だけ。
+
+逃げ道は無かった:
+
+- `WM_CHAR` だけを送る → **何も届かない**（4 パターンとも `<none>`）。
+- `WM_KEYDOWN` + `WM_KEYUP` だけを送る（`VkKeyScanW` で正しい仮想キー、scan code も
+  `lParam` に入れた）→ **何も届かない**。
+
+直前の ARM64 run（#108, section 28）が同じ `WM_KEYDOWN` + `WM_CHAR` の手順を
+報告しているが、あの run が送ったのは `c` `c` のように**二重にしても結果が変わらない**
+キーだったので、表に出なかったのだと思う。
+
+**この run の結論: 平文字は `--keys` で送る。`PostMessage` は
+`<Esc>` / `<Enter>` のような名前付きキーと、`--keys` では間に合わない
+（`settled()` を待てない）タイミング用に限る。**
+実際この節では、44.2 の走査中 `<Esc>`、44.8 の走査中 `<Esc>`、44.10 の `<Enter>`、
+44.3 の末尾への `G` 以外はすべて `--keys` で送っている。
+最初に `PostMessage` で取った 44.2 のカーソルの結果（`aaa`、つまり「戻っていない」）は
+**この二重入力による誤りで、`--keys` で取り直したら `ccc` で正しく戻っていた。**
+
+なお `App::settled()` は `self.usage` を見ていないので、`--keys` は走査の完了を
+待たない。`gu` の直後のキーは走査中に入る。この節の範囲では実害が無かった
+（`proj` の走査は数ミリ秒）が、大きいツリーで `--keys` を使うときは注意が要る。
+
+### Proposals
+
+#### P1. `gu` の間だけ `linemode` を `usage` にする（見つけたこと 2）
+
+- **何に当たったか**: 既定の設定で `gu` を押すと、44px の棒が並ぶだけで数字が 1 つも
+  出ない。この節を測るために `FILER_CONFIG_HOME` を作って `linemode = "usage"` を
+  書くまで、「どのフォルダが何バイトか」が読めなかった。
+- **どう変えるか**: `start_usage` で `tab.linemode` を退避して `Usage` にし、
+  ビューを抜けるとき（`<Esc>`、`<Enter>` での移動、`,` での並べ替え直し）に戻す。
+  常設の `linemode = "usage"` を要らなくする。
+- **なぜ**: 「どのフォルダが容量を食っているか」に棒だけで答えるのは、
+  2 つの行を見比べる用にはなっても、**数字を報告する用にはならない**。
+  常設の `linemode = "usage"` は普通の一覧でフォルダが全部 `0 B` になるので、
+  代わりにならない。
+- **大きさ**: 関数 1 つぶん（`Tab` に 1 フィールド）。
+
+#### P2. 予算が尽きたフォルダを `0 B` と書かない（見つけたこと 1 / 44.7）
+
+- **何に当たったか**: `C:\` で `gu` → `Windows` が `0 B`。実際は 36.1 GB。
+  トーストが消えたあとは、画面のどこにも下限だと書いていない。
+- **どう変えるか**: 3 つあって、どれか 1 つでも入れば 44.7 は通ると思う。
+  1. `usage::Msg::Sized` に「この子は最後まで歩けたか」を足し、歩けなかった行は
+     `0 B` ではなく `≥ 0 B` か `?` で出す。**0 と「測っていない」を区別する**のが本質。
+  2. `capped` の間はヘッダかフッタに印を出し続ける（トーストは消える）。
+  3. 予算を子ごとに割る（`BUDGET / 子の数` を下限付きで）。
+     先に当たった子が全部持っていく今の形は、**`read_dir` の順番で答えが変わる**。
+- **なぜ**: 大きい順に並べるビューで、歩かれなかったフォルダは必ず最下段に沈む。
+  「容量を食っているのはどれか」を聞いた人に、**答えがいちばん見えない場所に置かれる。**
+  ドライブ直下は、この機能をいちばん使いたい場所でもある。
+- **大きさ**: 1 と 2 は関数 1 つぶん。3 は設計の判断（持ち主に聞くことかもしれない）。
+
+#### P3. 使用量ビューでは、隠しの絞り込みを外したままにする（見つけたこと 3）
+
+- **何に当たったか**: `gu` の 6 行が `,a` を押すと 4 行になる。
+- **どう変えるか**: 使用量ビュー（`in_search_view()` が真で `usage_max > 0` の間）は
+  `rebuild` で `show_hidden` を無視する。
+- **なぜ**: 走査は隠しフォルダを数えている（44.5 はそれを保証している）のに、
+  行だけ消えると合計と行の和が合わなくなる。**`.cache` や `.git` が容量を食っている
+  というのは、この機能で一番よくある答え**でもある。
+- **大きさ**: 1 行〜数行。
+
+#### P4. 使用量ビューの「サイズ順」は測った合計で並べる（見つけたこと 4）
+
+- **何に当たったか**: `gu` のあと `,s` を押すと `target 1.5 M` が `src 6.0 K` より
+  下に来る。
+- **どう変えるか**: 使用量ビューにいる間は `SortBy::Size` を `usage_bytes()` で
+  比べる（`,S` は逆順）。
+- **なぜ**: 使用量ビューで「サイズ順」を押すのは、**今見ている数字で並べ替えたい**とき。
+  別の量で並ぶのは、押した人には壊れて見える。`,a` や `,n` は意味が変わらないので
+  そのままでよい。
+- **大きさ**: 数行。
+
+#### P5. `<Esc>` で抜けたら「Measuring…」を消す（見つけたこと 5）
+
+- **何に当たったか**: 44.2 と 44.8 で走査中に `<Esc>` を押したあと、
+  `Measuring… <Esc> to leave` が出たまま残った。走査は止まっている。
+- **どう変えるか**: ビューを抜けるときに、そのトーストを取り下げる（か、
+  `Stopped` に差し替える）。
+- **なぜ**: 出ているトーストが唯一の進行表示なので、**残っていると
+  「まだ動いている」と読める。**ネットワーク共有のように時間のかかる走査では、
+  抜けたのか抜けられなかったのか分からなくなる。
+- **大きさ**: 1 行。
+
+#### P6. `windows-role.md` の「Prefer `PostMessage`」に但し書きを足す（見つけたこと 7）
+
+- **何に当たったか**: `PostMessage` で送った `j` が 2 行動き、44.2 を一度
+  「落ちた」と読み違えた。`--keys` で取り直すまで気づかなかった。
+- **どう変えるか**: 「Prefer `PostMessage` to `SendInput` for keys」の節に、
+  **平文字は二重になるので `--keys` を使う**ことと、
+  `PostMessage` は名前付きキー専用だと書く。`WM_CHAR` 単独も
+  `WM_KEYDOWN` 単独も届かないことも（両方試した人が次にまた試さないように）。
+- **なぜ**: 無人の run は人が見ていない。**二重に効くキーは「動いている画面」を
+  作るので、この文書がいちばん警戒している取り違えそのものになる。**
+- **大きさ**: Markdown 数行。
+
+### 後始末と、証拠の置き場所
+
+- 起動した `filer.exe` は 30 本ほど、すべてこの run の中で `Stop-Process` した。
+  終了時の `Get-Process filer` は 0 本。
+- 触ったのは `filer-scratch` の下だけ（`s44` / `big` / `cfg` / `shots`）と、
+  ごみ箱に入った `s44\keys\aaa`。**人の設定ファイルは 1 つも触っていない**
+  （`$PROFILE` も `%APPDATA%\yazi` も `%APPDATA%\filer` も読んだだけ。
+  この節の設定は run 専用の `FILER_CONFIG_HOME` に置いた）。
+- スクリーンショットは `filer-scratch\shots\` にあるが、**そこから読んだ文字は
+  この節とプルリクエストの本文に写してある。**
+
+フィクスチャを作り直す手順（`fx44.ps1` の要点）:
+
+```powershell
+# バイト数を正確に決めたいので WriteAllBytes で作る。
+Fill "$p\node_modules\left-pad\index.js"          200000
+Fill "$p\node_modules\left-pad\dist\bundle.js"   1500000
+Fill "$p\node_modules\react\cjs\react.dev.js"    2400000
+Fill "$p\node_modules\react\deep\a\b\c\blob.bin" 1900000
+Fill "$p\target\debug\app.exe"                    900000
+Fill "$p\target\debug\deps\lib.rlib"              700000
+Fill "$p\src\main.rs" 4096; Fill "$p\src\lib.rs" 2048; Fill "$p\README.md" 1024
+Set-Content "$p\.gitignore" -Value "target/`nnode_modules/" -NoNewline
+git -C $p init -q
+
+(Get-Item "$h\.cache").Attributes = 'Directory, Hidden'          # 44.5
+New-Item -ItemType Junction -Path "$l\link" -Target "$l\real"    # 44.6
+New-Item -ItemType HardLink -Path "$H\tree\copy1.bin" -Target "$H\tree\original.bin"  # 44.13
+
+# 44.3 / 44.2 用（予算 200,000 を超える）。81 秒かかる。
+for ($d = 0; $d -lt 320; $d++) { for ($i = 0; $i -lt 1000; $i++) { … } }   # 320,000 ファイル
+```
