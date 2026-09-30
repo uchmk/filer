@@ -113,7 +113,6 @@ still on the human's list when it was written.
 | --- | --- | --- |
 | **v0.55.0 on x64** | -- | ARM64 ticked 29.2, 29.6, 40.14-40.16 and 45.16 (#107); press the Q27 ones again on x64 -- 1.31-1.34, 40.15, 40.16 -- and record them in QA-REPORT.md under an x64 heading, since ConPTY's input path is where the two machines could differ. 30.1 / 30.15 wait on the right-click fix in TODO.md |
 | **47. an idle window uses no CPU** | 4 | First, because a fix waits on it: v0.54.2 stopped a redraw loop that is the likeliest cause of the 1.0 CPU-s/s #86 measured. Every row is `(Get-Process filer).CPU` read twice, 10 s apart; 47.2 is the sequence that used to start the loop. **`--keys` cannot do 47.2**: it waits for `App::settled()` between presses, which is false while the preview debounce is pending -- exactly what 47.2 interrupts. Post the two keys with `PostMessageW` and time the gap with a `Stopwatch` (#103 got 22-25 ms). `sort_dir_first` is on by default, so start on a file above a folder only with it off in a run-only `FILER_CONFIG_HOME`. **Close every prompt first**: an open `f` prompt reads 0.14-0.27 CPU-s per 10 s by itself. Take a positive control (keys at 100 ms for 10 s) so a 0 is a reading. On ARM64 all three rows read 0 (#103). If it still rises, 47.4 says which thread |
-| **44. disk usage** | 13 | Totals against `Get-ChildItem -Recurse -Force \| Measure-Object Length -Sum`; "the walk stops" against the process's CPU time from `Get-Process` |
 | **29. the terminal's directory, brought back** | 5 | Where the list went reads off the window title (`(Get-Process filer).MainWindowTitle`). OSC 7 through ConPTY -- nobody else can run it |
 | **7. the config paths in the help panel** | 8 | The listed directories are text, and `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` move them. 7.2 and 7.3 are the pointer and a highlight -- looks, skip them |
 | **36. `T`, and `q` from each layer** | 5 | Every row is "closed, and the app is still running" or "quit": `Get-Process filer` after the key, and the window title for where the list is |
@@ -123,7 +122,7 @@ still on the human's list when it was written.
 | **31. a host's shares** | 5 left | #105 ticked 8 on ARM64 against a Samba server on the LAN, `\\192.168.0.150` (four shares) -- usable only if `net view \\192.168.0.150` answers. Left: 31.2's host-name half (Windows refused `proxmox.local`; try this machine's own name), 31.7 / 31.8 (a screenful of shares, a share with a space or Japanese -- `New-SmbShare`, elevated), 31.5a and 31.9 wait on TODO.md |
 | **22. opening an editor at a line** | 6 | Only the editors installed here: `Get-CimInstance Win32_Process` shows the command line filer built, `-n42` or `+42` or `--goto`. Say which ones were not installed |
 
-Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26, 13 / 15, 46, 1, 12, 45, 40 (40.7, 40.8 and 40.12 left for the reasons in TODO.md; #100) 39 (39.9 is a bug in TODO.md; #102) 30 (30.1, 30.3, 30.4 and 30.11 are bugs or wording in TODO.md; #104) and 28 (all seven, ARM64, #108) (45.11 waits on the symlink fix in TODO.md; `fx45.ps1` in the run's evidence rebuilds its tree).
+Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26, 13 / 15, 46, 1, 12, 45, 40 (40.7, 40.8 and 40.12 left for the reasons in TODO.md; #100) 39 (39.9 is a bug in TODO.md; #102) 30 (30.1, 30.3, 30.4 and 30.11 are bugs or wording in TODO.md; #104) 28 (all seven, ARM64, #108) and 44 (44.7 waits on the budget fix in TODO.md; #109) (45.11 waits on the symlink fix in TODO.md; `fx45.ps1` in the run's evidence rebuilds its tree).
 46.16 is still open: it needs the firewall rules, so an elevated run -- or a person. So is 45.11:
 symbolic links need elevation or developer mode (#98 passed its junction form on ARM64).
 Rows still open there were left by those runs on purpose -- ARM, another platform, or eyes -- so
@@ -173,7 +172,11 @@ will answer a question**, so:
   screen saver, and cannot leak a keystroke into another window. **Put the scan
   code in `lParam`**: `1 | (MapVirtualKey(vk, 0) << 16)`. winit reads the key from
   bits 16-23, so with `lParam = 0` the press is dropped -- that, not PostMessage,
-  is what #93 ran into (found by #96). `SendInput` is
+  is what #93 ran into (found by #96). **Plain characters go through `--keys`,
+  not `PostMessage`**: a posted `WM_KEYDOWN` + `WM_CHAR` + `WM_KEYUP` for `c` ran as
+  `c` `c` (#109), while `WM_CHAR` alone and `WM_KEYDOWN` + `WM_KEYUP` alone reach
+  nothing. Posting is for named keys (`<Esc>`, `<Enter>`, `<Space>`) and for timing
+  `--keys` cannot hit. Modifiers do not arrive by posting at all (#107). `SendInput` is
   still the tool for the mouse and for anything that must come through the real
   input queue -- then check the input desktop first. `PrintWindow` with
   `PW_RENDERFULLCONTENT` captures the window under a screen saver too.
@@ -241,8 +244,10 @@ these differences:
 
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
-| **44. disk usage** | the `[ ]` rows | A native walk of the file system. Totals against `Get-ChildItem -Recurse -Force \| Measure-Object Length -Sum`; "the walk stops" against the process's CPU time from `Get-Process` |
-| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104), 0.54.14 (509 / 0, #105), 0.55.1 (523 / 0, #107) and 0.55.2 (523 / 0, #108). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
+| **47. an idle window uses no CPU, again** | 4 | #103 read 0 at 0.54.12; 0.55.x changed the pane's input and the wheel and has not been measured. Same method as #103 (a positive control first, prompts closed). Note the TODO.md bug from #108: an idle window schedules no frame for a watcher change, so do not change files under it while measuring |
+| **24. awkward names** | the `[ ]` rows | Names through the shell and ConPTY: 24.4 in `FILER_PTY_LOG` (what the shell was sent), 24.5 on disk. 24.2 is a look |
+| **22. opening an editor at a line** | the `[ ]` rows | Process creation: `Get-CimInstance Win32_Process` shows the command line filer built. VS Code and Neovim are installed on this machine; say which others are not |
+| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104), 0.54.14 (509 / 0, #105), 0.55.1 (523 / 0, #107), 0.55.2 (523 / 0, #108) and 0.55.3 (523 / 0, #109). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
 
 ## Proposals: say what should change
 
