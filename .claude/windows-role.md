@@ -111,7 +111,7 @@ still on the human's list when it was written.
 
 | Section | Rows | Why it suits you |
 | --- | --- | --- |
-| **47. an idle window uses no CPU** | 4 | First, because a fix waits on it: v0.54.2 stopped a redraw loop that is the likeliest cause of the 1.0 CPU-s/s #86 measured. Every row is `(Get-Process filer).CPU` read twice, 10 s apart; 47.2 is the sequence that used to start the loop. `filer <dir> --keys "jj"` presses the two keys with no harness. If it still rises, 47.4 says which thread |
+| **47. an idle window uses no CPU** | 4 | First, because a fix waits on it: v0.54.2 stopped a redraw loop that is the likeliest cause of the 1.0 CPU-s/s #86 measured. Every row is `(Get-Process filer).CPU` read twice, 10 s apart; 47.2 is the sequence that used to start the loop. **`--keys` cannot do 47.2**: it waits for `App::settled()` between presses, which is false while the preview debounce is pending -- exactly what 47.2 interrupts. Post the two keys with `PostMessageW` and time the gap with a `Stopwatch` (#103 got 22-25 ms). `sort_dir_first` is on by default, so start on a file above a folder only with it off in a run-only `FILER_CONFIG_HOME`. **Close every prompt first**: an open `f` prompt reads 0.14-0.27 CPU-s per 10 s by itself. Take a positive control (keys at 100 ms for 10 s) so a 0 is a reading. On ARM64 all three rows read 0 (#103). If it still rises, 47.4 says which thread |
 | **44. disk usage** | 13 | Totals against `Get-ChildItem -Recurse -Force \| Measure-Object Length -Sum`; "the walk stops" against the process's CPU time from `Get-Process` |
 | **29. the terminal's directory, brought back** | 5 | Where the list went reads off the window title (`(Get-Process filer).MainWindowTitle`). OSC 7 through ConPTY -- nobody else can run it |
 | **28. changes made from outside** | 7 | "No crash" is the process still being there; where the cursor landed is `y` on the hovered row |
@@ -178,6 +178,11 @@ will answer a question**, so:
   still the tool for the mouse and for anything that must come through the real
   input queue -- then check the input desktop first. `PrintWindow` with
   `PW_RENDERFULLCONTENT` captures the window under a screen saver too.
+- **A minimised window does not act on posted keys** until it is restored
+  (`SW_RESTORE`); read anything after restoring. **Stopping a screen saver takes
+  its process**: `Stop-Process -Name` misses `OLED Care Screensaver.scr`
+  silently; `Get-Process | Where-Object ProcessName -match 'OLED Care' |
+  Stop-Process -Force` works, and `OpenInputDesktop` says `Default` at once (#103).
 - **A person's config files are not scratch.** Before touching `$PROFILE`, a
   shell rc or anything outside the scratch directory: record whether it is a link
   and where to (`(Get-Item $f).LinkTarget`), its size and hash, and take a copy.
@@ -232,10 +237,9 @@ these differences:
 
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
-| **47. an idle window uses no CPU** | 4 | `(Get-Process filer).CPU` twice, 10 s apart, on a different CPU and GPU than the x64 machine -- the one measurement where the architecture is the point. `filer <dir> --keys "jj"` is 47.2 with no harness |
 | **30. right-click paste in prompts** | 14 | Needs the mouse: `SendInput`, once the screen saver is gone (#100's `wake.ps1`). `Set-Clipboard` puts the text there; `FILER_PTY_LOG` says whether the paste was bracketed (30.11-30.13) |
 | **31. a host's shares** | 13 | `\\localhost\C$` already lists from this account (#101 used it). 31.5 is an unused address on this subnet. `New-SmbShare` rows need elevation -- leave them and say so |
-| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101) and 0.54.10 (509 / 0, #102). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
+| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102) and 0.54.12 (509 / 0, #103). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
 
 ## Proposals: say what should change
 
