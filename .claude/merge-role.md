@@ -71,8 +71,10 @@ allowed because nothing in it can break a build:
   no decision, QUESTIONS.md (CLAUDE.md's format, with a recommendation) for a
   key, a default or a design choice. Merging without this is half the job.
 - **The queue of the pull request's lane** in `windows-role.md`: the section just
-  run must be out of the table, or cut down to what is left and why. If the run
-  did not do it, do it here -- otherwise the next run takes the same section.
+  run must be out of the table, or cut down to what is left and why. **The run
+  cannot edit the table itself** (writes under `.claude/` are refused to it), so
+  apply the `## Queue` section of its pull request body here, or work it out from
+  QA-REPORT.md if there is none -- otherwise the next run takes the same section.
 - **The `win` queue is empty**: refill it. Read TESTING-CHECKS.md for sections with
   unticked rows that are not in the table or the "worked through" line, and add
   the ones whose rows can be read as text, a file state or a process state,
