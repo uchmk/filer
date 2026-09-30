@@ -161,6 +161,8 @@ drawing has been seen. `<C-t>` opens it.
 | 1.32 | At the pwsh prompt in the pane, type `abc` without Enter, then `Esc` | The line empties. PSReadLine was never affected; this row is there so the change that fixed 1.31 is seen not to have broken it |
 | 1.33 | With the bundled ConPTY beside filer.exe, `pwsh -File scripts\keyprobe.ps1 -Query` in the pane (v0.49.0) | The primary DA reply reads `\e[?6c` — filer's own answer, passed through — and no `{up:…}` appears between characters. `\e[?61;6;7;22;23;24;28;32;42c` means the ConPTY built into Windows answered instead: the two files are missing, or not beside filer.exe |
 | 1.34 | Then `lazygit` in the pane | It opens on its usual view with **no menu open**. On the ConPTY built into Windows it started with its copy menu showing, a key nobody pressed |
+| 1.35 | Run `lazygit` (or any long command) in the pane, then `<C-S-t>` (v0.52.0) | A dialog asks **End the shell?** and names what is running. `n` keeps the shell and the program; `y` ends both, and a toast says **Ended the shell** |
+| 1.36 | At a bare prompt with nothing running, `<C-S-t>` | **No dialog**: the pane goes at once, and the toast says **Ended the shell** — so it no longer looks like `<C-t>` merely hiding it |
 
 ## 2. The minimap (v0.5.0)
 
@@ -714,6 +716,7 @@ tests cover the encoding and the shape of the URL, not what GitHub does with it.
 | 26.7 | Submit the report | It posts, and the pre-filled fields survive |
 | 26.8 | `<F12>` with no browser set as default (or a broken association) | An error toast naming the failure. **The window keeps working** |
 | 26.9 | `<F12>` from the terminal pane (`<C-t>` first) | Nothing: `[term]` passes it to the shell, which is correct |
+| 26.10 | `<F12>` with the browser association broken, as in 26.8 (v0.52.0) | The error toast also says the report's link is **on the clipboard**; pasting it into a browser opens the same pre-filled form. When the browser *does* open, the clipboard is left alone |
 
 ## 27. The preview that would not arrive (v0.12.0)
 
@@ -1277,4 +1280,8 @@ real repository with a history — this one will do.
 | 46.14 | `<Tab>` on a file whose last commit was pushed **straight to `main`** | **No `Came in via` and no `From branch`** — the history rows only. A merge that merely came later must not be credited |
 | 46.15 | `<Tab>` on a file committed on the current branch and **not merged yet** | The same: history rows, no `Came in via`. It has not arrived anywhere to be asked about |
 | 46.16 | Pull the network cable, turn off Wi-Fi, or block `filer.exe` and `git.exe` outbound in Windows Firewall — then repeat 46.12 | **Identical output, at the same speed.** Nothing here leaves the machine. The firewall form is for a session on the machine, which the other two would cut off |
+| 46.17 | In the spot panel, `C` (v0.52.0) | Every row is on the clipboard as `Label<TAB>value`, under each section's title, sections a blank line apart. The toast counts the rows |
+| 46.18 | On a 46.12 file in a clone of a GitHub repository, the `Pull request` row | It reads `https://github.com/<owner>/<repo>/pull/<n>` for the `#<n>` above it. `<Enter>` on it — or on `Came in via` — opens that page in the browser |
+| 46.19 | On a 46.15 file (committed, not merged) in a clone that has `origin/HEAD` | A **`Not merged`** row: `not in origin/main yet` (the clone's own default branch). A 46.14 file (straight to main) has **no** such row, so the two no longer look alike |
+| 46.20 | The same in a repository with no `origin/HEAD` (`git remote set-head origin -d`) | No `Not merged` row at all — filer does not guess the default branch |
 

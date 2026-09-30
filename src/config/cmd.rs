@@ -65,6 +65,9 @@ pub enum CopyWhat {
     NameWithoutExt,
     /// The spot panel's selected value (yazi's `copy cell`).
     Cell,
+    /// The whole spot panel, one `Label<TAB>value` line per row under each
+    /// section's title (filer's own `copy all`).
+    All,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -462,6 +465,7 @@ pub fn parse(line: &str) -> Act {
             Some("filename") => CopyWhat::Filename,
             Some("name_without_ext") => CopyWhat::NameWithoutExt,
             Some("cell") => CopyWhat::Cell,
+            Some("all") => CopyWhat::All,
             _ => CopyWhat::Path,
         }),
         "shell" => Act::Shell {

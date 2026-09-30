@@ -226,7 +226,7 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `split`, `pane_focus`, `toggle_render`, `toggle_outline`, `usage` and `bug-report` (the last two
 this project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
-`close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe` and `copy cell`; in `[term]`:
+`close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe`, `enter`, `copy cell` and `copy all` (this project's own: the whole panel, `Label<TAB>value` per row); in `[term]`:
 `close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
 `close`, `arrow` and `find_arrow`; in `[help]`: `close`, `help` (which closes it too) and `arrow`.
 
@@ -374,6 +374,15 @@ overlay only while it has the keys.
       subject in neither shape still shows the merge. A commit pushed straight to the branch, or one
       not merged yet, gets **no such rows**: a merge that merely came *later* is not credited,
       which is checked by asking git whether the commit was already on the merge's first parent.
+    - When `origin` is on GitHub, a `Pull request` row gives the page's address, built from
+      `remote.origin.url`; **`<Enter>` on it, or on `Came in via`, opens it.** Nothing is fetched
+      until you do.
+    - A commit the clone's default branch (`origin/HEAD`) does not contain yet gets a
+      `Not merged` row — `not in origin/main yet` — so a commit waiting on review no longer looks
+      like one pushed straight to `main`. Without `origin/HEAD` there is no row: the default branch
+      is not guessed. Like everything here it reads local refs, so it is as current as the last fetch.
+  - **`C`** copies the whole panel as text — each section's title, then `Label<TAB>value` per row —
+    for a bug report or a chat, where a screenshot used to go; `c` still copies the one value.
       Browsing pull requests *as a list* is a different job, and tools like `gh-dash` already do it;
       this is the other direction, where the file under the cursor is the question.
   - An image's real dimensions, format and color type, a font's family / style / version / weight /
@@ -469,7 +478,7 @@ rather than another set of bindings. Only what the `[term]` keymap section binds
 | Key | |
 | --- | --- |
 | `<C-t>` | give the keys back to the list, leaving the shell running |
-| `<C-S-t>` | close the pane and end the shell |
+| `<C-S-t>` | close the pane and end the shell — asking first when a program (lazygit, an editor, a build) is still running under it |
 | `<F1>` `<C-S-p>` | the key list / the command palette |
 | `<A-Up>` | put the file list where the shell is |
 | `<A-j>` `<A-k>` | five lines down / up the scrollback — the keys that scroll the preview from the list |
@@ -1157,7 +1166,8 @@ had. The same setting names a shell on macOS and Linux, where the default is the
 ## Reporting a problem
 
 `<F12>` opens a report form with the version, both architectures and the OS build already filled
-in. For everything else a report tends to need, `filer env` prints it:
+in. If no browser can be opened, the form's link — every field travels in it — is put on the
+clipboard instead, to paste into one. For everything else a report tends to need, `filer env` prints it:
 
 ```
 filer env

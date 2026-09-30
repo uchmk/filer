@@ -203,6 +203,10 @@ fn hard_links(path: &Path) -> (u64, Vec<String>) {
     (count, names)
 }
 
+/// The Git section's row holding a pull request's page, which `<Enter>` in
+/// the spot panel opens.
+pub const PR_ROW: &str = "Pull request";
+
 /// When this file last changed, and how often.
 ///
 /// The question a file manager raises and cannot answer without a terminal:
@@ -234,6 +238,13 @@ fn git(path: &Path) -> Option<Section> {
         if let Some(b) = o.branch {
             s.row("From branch", b);
         }
+        // `<Enter>` on either row opens it (Q20).
+        if let Some(url) = o.pr.and_then(|n| crate::fs::git::pull_request_url(path, n)) {
+            s.row(PR_ROW, url);
+        }
+    }
+    if let Some(default) = crate::fs::git::not_merged_into(path, &c.hash) {
+        s.row("Not merged", format!("not in {default} yet"));
     }
     Some(s)
 }
@@ -1118,6 +1129,32 @@ mod tests {
         assert_eq!(value(b, "Subject"), Some("the base"));
         assert_eq!(value(b, "Came in via"), None, "no merge brought it in");
         assert_eq!(value(b, "From branch"), None);
+
+        // No remote yet: a pull request number but nowhere to open it, and no
+        // default branch to be missing from.
+        assert_eq!(value(g, PR_ROW), None, "no remote, no page");
+        assert_eq!(value(g, "Not merged"), None, "no origin/HEAD, no claim");
+
+        // A GitHub remote whose default branch is `main` as of now.
+        let _ = git(&["remote", "add", "origin", "https://github.com/acme/widget.git"]);
+        let _ = git(&["update-ref", "refs/remotes/origin/main", "main"]);
+        let _ = git(&["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]);
+        let all = inspect(&file);
+        let g = section(&all, "Git").unwrap();
+        assert_eq!(value(g, PR_ROW), Some("https://github.com/acme/widget/pull/42"), "Q20");
+        assert_eq!(value(g, "Not merged"), None, "#42 is in origin/main");
+
+        // A commit on a branch nobody has merged: said, not left looking like
+        // one pushed straight to main (Q19).
+        let _ = git(&["checkout", "-q", "-b", "later"]);
+        let late = root.join("late.txt");
+        std::fs::write(&late, b"late").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "not merged yet"]);
+        let all = inspect(&late);
+        let l = section(&all, "Git").unwrap();
+        assert_eq!(value(l, "Came in via"), None);
+        assert_eq!(value(l, "Not merged"), Some("not in origin/main yet"));
 
         let _ = std::fs::remove_dir_all(&root);
     }

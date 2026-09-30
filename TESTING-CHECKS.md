@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**128 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
+**128 / 390 済み。**（TESTING.md の全 546 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -21,7 +21,7 @@
 キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、こちらは「1 つのキーでは
 確かめられない振る舞い」の側。
 
-## 1. ターミナルペイン — 32 / 46
+## 1. ターミナルペイン — 32 / 48
 
 準備:
 
@@ -76,6 +76,8 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **1.32** ペインの pwsh のプロンプトで `abc` と打ち（Enter は押さない）、`Esc` → 行が空になる。PSReadLine は元々影響を受けていなかった。1.31 を直した変更がこちらを壊していないことを見る行 — *At the pwsh prompt in the pane, type `abc` without Enter, then `Esc` → The line empties. PSReadLine was never affected; this row is there so the change that fixed 1.31 is seen not to have broken it*
 - [x] **1.33** 同梱の ConPTY を filer.exe の横に置いた状態で、ペインで `pwsh -File scripts\keyprobe.ps1 -Query`（v0.49.0） → DA1 の応答が `\e[?6c`（filer 自身の答えがそのまま通ったもの）で、文字の間に `{up:…}` が出ない。`\e[?61;6;7;22;23;24;28;32;42c` なら Windows 標準の ConPTY が答えている —— 2 つのファイルが無いか、filer.exe の横に無い — *With the bundled ConPTY beside filer.exe, `pwsh -File scripts\keyprobe.ps1 -Query` in the pane (v0.49.0) → The primary DA reply reads `\e[?6c` — filer's own answer, passed through — and no `{up:…}` appears between characters. `\e[?61;6;7;22;23;24;28;32;42c` means the ConPTY built into Windows answered instead: the two files are missing, or not beside filer.exe*
 - [x] **1.34** 続けてペインで `lazygit` → いつもの画面で開き、**メニューが開いていない。**Windows 標準の ConPTY では、押していないキーでコピー画面が開いた状態で始まっていた — *Then `lazygit` in the pane → It opens on its usual view with **no menu open**. On the ConPTY built into Windows it started with its copy menu showing, a key nobody pressed*
+- [ ] **1.35** ペインで `lazygit`（または長く動くコマンド）を動かしたまま `<C-S-t>`（v0.52.0）→ **End the shell?** と聞かれ、動いているものの名前が出る。`n` でシェルもプログラムも残り、`y` で両方終わって **Ended the shell** とトーストが出る — *Run `lazygit` (or any long command) in the pane, then `<C-S-t>` (v0.52.0) → A dialog asks **End the shell?** and names what is running. `n` keeps the shell and the program; `y` ends both, and a toast says **Ended the shell***
+- [ ] **1.36** 何も動いていないプロンプトで `<C-S-t>` → **確認は出ない。**ペインはすぐ消え、トーストに **Ended the shell** と出る。`<C-t>` で隠しただけのようには見えなくなった — *At a bare prompt with nothing running, `<C-S-t>` → **No dialog**: the pane goes at once, and the toast says **Ended the shell** — so it no longer looks like `<C-t>` merely hiding it*
 
 ## 2. ミニマップ — 0 / 10
 
@@ -394,7 +396,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **25.14** 本当に入っていないプログラムを指定したオープナー → やはり **`not found`**。例外扱いはシェル自身の名前だけ — *An opener naming a program that genuinely is not installed → Still **`not found`**. The exemption is for the shell's own names only*
 - [x] **25.15** `yazi.toml` を壊して Warnings の行を読む → パスが **`…\filer\yazi.toml`** と、すべて円記号で書かれている。以前は `…\filer/yazi.toml` と出ていた —— **編集すべきファイルを指し示すのが仕事のメッセージなのに、そこが壊れていた**（v0.33.12） — *Break `yazi.toml` and read the Warnings row → The path is written **`…\filer\yazi.toml`**, all backslashes. It used to come out `…\filer/yazi.toml`, in the one message whose job is to name the file to edit (v0.33.12)*
 
-## 26. アプリの中からのバグ報告 — 7 / 10
+## 26. アプリの中からのバグ報告 — 7 / 11
 
 - [x] **26.1** `<F12>` → 既定のブラウザで GitHub の新規 issue フォームが開き、トーストがそう言う — *`<F12>` → The default browser opens GitHub's new-issue form, and a toast says so*
 - [x] **26.2** フォームを見る → **Version** と **OS とアーキテクチャ** が既に埋まっている。残りは空 — *Look at the form → **Version** and **OS とアーキテクチャ** are already filled in; the rest is empty*
@@ -406,6 +408,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **26.7** 報告を投稿する → 投稿でき、あらかじめ埋まっていた欄も残る — *Submit the report → It posts, and the pre-filled fields survive*
 - [ ] **26.8** 既定のブラウザが未設定（または関連付けが壊れている）状態で `<F12>` → 失敗を述べるエラーのトースト。**ウィンドウは動き続ける** — *`<F12>` with no browser set as default (or a broken association) → An error toast naming the failure. **The window keeps working***
 - [x] **26.9** ターミナルペインの中から `<F12>`（先に `<C-t>`）→ 何も起きない。`[term]` がシェルに渡しているためで、これが正しい — *`<F12>` from the terminal pane (`<C-t>` first) → Nothing: `[term]` passes it to the shell, which is correct*
+- [ ] **26.10** 26.8 と同じく関連付けを壊した状態で `<F12>`（v0.52.0）→ エラーのトーストが、報告のリンクが**クリップボードにある**とも言う。ブラウザに貼ると同じ、埋まった状態のフォームが開く。ブラウザが開けたときはクリップボードに触らない — *`<F12>` with the browser association broken, as in 26.8 (v0.52.0) → The error toast also says the report's link is **on the clipboard**; pasting it into a browser opens the same pre-filled form. When the browser *does* open, the clipboard is left alone*
 
 ## 27. 届かなかったプレビュー — 全 5 件が自動
 
@@ -619,7 +622,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **45.12** 2 分割して各ペインでフォルダの上に立ち、`<A-d>` → その 2 つが比較される — *Split the view, stand on a folder in each pane, `<A-d>` → Compares those two*
 - [ ] **45.13** `q` / `<Esc>` → 閉じる。そして 2 つの**ファイル**はこれまでどおり行単位で比較できる — *`q` / `<Esc>` → Closes, and two **files** still compare line by line as before*
 
-## 46. spot パネルの Git セクション — 14 / 16
+## 46. spot パネルの Git セクション — 14 / 20
 
 準備:
 
@@ -645,3 +648,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [x] **46.14** 最後のコミットが **`main` に直接** push されたファイルで `<Tab>` → **`Came in via` も `From branch` も出ない。**履歴の行だけ。あとから来ただけの merge に帰属させてはいけない — *`<Tab>` on a file whose last commit was pushed **straight to `main`** → **No `Came in via` and no `From branch`** — the history rows only. A merge that merely came later must not be credited*
 - [x] **46.15** 現在のブランチでコミットし **まだマージしていない**ファイルで `<Tab>` → 同じく履歴の行だけで `Came in via` は出ない。まだどこにも到着していないので訊く相手がいない — *`<Tab>` on a file committed on the current branch and **not merged yet** → The same: history rows, no `Came in via`. It has not arrived anywhere to be asked about*
 - [ ] **46.16** 回線を抜く、Wi-Fi を切る、または Windows ファイアウォールで `filer.exe` と `git.exe` の外向き通信を塞ぐ —— そのうえで 46.12 をやり直す → **同じ出力・同じ速さ。**ここは何もマシンの外に出ない。ファイアウォールの方法は、実機で動くセッション向け（前の 2 つだとセッション自体が切れる） — *Pull the network cable, turn off Wi-Fi, or block `filer.exe` and `git.exe` outbound in Windows Firewall — then repeat 46.12 → **Identical output, at the same speed.** Nothing here leaves the machine. The firewall form is for a session on the machine, which the other two would cut off*
+- [ ] **46.17** spot パネルで `C`（v0.52.0）→ 全部の行が `ラベル<TAB>値` の形でクリップボードに入る。節ごとに見出しの下、節と節の間は空行。トーストが行数を言う — *In the spot panel, `C` (v0.52.0) → Every row is on the clipboard as `Label<TAB>value`, under each section's title, sections a blank line apart. The toast counts the rows*
+- [ ] **46.18** GitHub のリポジトリの clone で、46.12 のファイルの `Pull request` の行 → 上の `#<n>` の `https://github.com/<owner>/<repo>/pull/<n>` と出る。その行か `Came in via` の行で `<Enter>` を押すと、そのページがブラウザで開く — *On a 46.12 file in a clone of a GitHub repository, the `Pull request` row → It reads `https://github.com/<owner>/<repo>/pull/<n>` for the `#<n>` above it. `<Enter>` on it — or on `Came in via` — opens that page in the browser*
+- [ ] **46.19** `origin/HEAD` のある clone で、46.15 のファイル（コミット済み・未マージ）→ **`Not merged`** の行に `not in origin/main yet`（その clone の既定のブランチ）。46.14 のファイル（main に直接）にはこの行が**無い**ので、2 つが同じ見た目ではなくなった — *On a 46.15 file (committed, not merged) in a clone that has `origin/HEAD` → A **`Not merged`** row: `not in origin/main yet` (the clone's own default branch). A 46.14 file (straight to main) has **no** such row, so the two no longer look alike*
+- [ ] **46.20** `origin/HEAD` の無いリポジトリ（`git remote set-head origin -d`）で同じこと → `Not merged` の行は出ない。既定のブランチを推測しない — *The same in a repository with no `origin/HEAD` (`git remote set-head origin -d`) → No `Not merged` row at all — filer does not guess the default branch*

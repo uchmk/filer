@@ -1049,6 +1049,14 @@ on = "c"
 run = "copy cell"
 desc = "Copy the selected value"
 [[spot.keymap]]
+on = "C"
+run = "copy all"
+desc = "Copy the whole panel, labelled"
+[[spot.keymap]]
+on = "<Enter>"
+run = "enter"
+desc = "Open the pull request on its rows; enter the directory elsewhere"
+[[spot.keymap]]
 on = "<Up>"
 run = "swipe -1"
 desc = "Spot the previous file"
