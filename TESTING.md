@@ -1289,3 +1289,18 @@ real repository with a history — this one will do.
 | 46.19 | On a 46.15 file (committed, not merged) in a clone that has `origin/HEAD` | A **`Not merged`** row: `not in origin/main yet` (the clone's own default branch). A 46.14 file (straight to main) has **no** such row, so the two no longer look alike |
 | 46.20 | The same in a repository with no `origin/HEAD` (`git remote set-head origin -d`) | No `Not merged` row at all — filer does not guess the default branch |
 
+
+## 47. An idle window uses no CPU (v0.54.2)
+
+The Windows machine measured an idle, even minimised, filer at 1.0 CPU-second per second (#86).
+v0.54.2 found one way to get there -- the preview's debounce timer, left running for good when the
+cursor moved off a file onto a directory, a cached file or the file already shown, which kept the
+window redrawing 60 times a second -- and fixed it. These rows are what says whether that was *the*
+cause. Every expectation is a number from `Get-Process`.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 47.1 | Open filer on a folder of files and subfolders, touch nothing for 10 s, then read `(Get-Process filer).CPU` twice, 10 s apart | The two readings differ by **well under 1 s** (a few hundredths is normal) |
+| 47.2 | `j` onto a file and at once `j` onto a subfolder (inside the 40 ms debounce), then hands off; read the CPU twice, 10 s apart | The same: **no rise**. Before v0.54.2 this was the sequence that left it drawing for ever |
+| 47.3 | The same as 47.2, then minimise the window | Still no rise while minimised |
+| 47.4 | If 47.1-47.3 still rise: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart | Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at |

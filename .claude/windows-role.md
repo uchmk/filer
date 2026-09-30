@@ -111,6 +111,7 @@ still on the human's list when it was written.
 
 | Section | Rows | Why it suits you |
 | --- | --- | --- |
+| **47. an idle window uses no CPU** | 4 | First, because a fix waits on it: v0.54.2 stopped a redraw loop that is the likeliest cause of the 1.0 CPU-s/s #86 measured. Every row is `(Get-Process filer).CPU` read twice, 10 s apart; 47.2 is the sequence that used to start the loop. `filer <dir> --keys "jj"` presses the two keys with no harness. If it still rises, 47.4 says which thread |
 | **44. disk usage** | 13 | Totals against `Get-ChildItem -Recurse -Force \| Measure-Object Length -Sum`; "the walk stops" against the process's CPU time from `Get-Process` |
 | **29. the terminal's directory, brought back** | 5 | Where the list went reads off the window title (`(Get-Process filer).MainWindowTitle`). OSC 7 through ConPTY -- nobody else can run it |
 | **28. changes made from outside** | 7 | "No crash" is the process still being there; where the cursor landed is `y` on the hovered row |
