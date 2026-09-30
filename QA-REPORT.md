@@ -2125,3 +2125,134 @@ Windows のセッション（`.claude/windows-role.md`、無人実行）から�
 
 - 表から `| **1. the terminal pane** | 1.30 | ... |` の行を消す。
 - 「Worked through before」の行を `... 13 / 15, 46 and 1.` にする。
+
+## TESTING.md section 12 — undo と redo をごみ箱で確かめる（0a2209f / 0.51.1）
+
+Windows のセッション（`.claude/windows-role.md`、無人実行）から。担当は順番表の先頭の section 12（10 行）。
+実機の release ビルド（0a2209f、0.51.1）を、隔離した設定（`R:\Temp\w12cfg`）で動かした。画面は 150%、
+キーは filer の窓に PostMessage で送り、ホバー中の名前は `c` `f` とクリップボードで読んだ。
+ごみ箱は Shell.Application の `NameSpace(10)` で、項目ごとの `System.Recycle.DeletedFrom` と
+`DateDeleted` を読んだ。スクリプト・生の出力・キャプチャは `C:\dev\filer-evidence\12\` にある
+（`h12.ps1`、`run*.ps1` / `run*.log`、`*.png`）。昇格はしていない。
+
+**12.1 / 12.2 / 12.3 / 12.4 / 12.5 / 12.9 / 12.10 にチェックを付けた。**12.8 は行の期待値が
+間違っている（既存の報告を実機で確かめた）、12.11 は条件を作れなかった、12.12 は Explorer の取り消し
+履歴を読めない、でそれぞれ付けていない。不具合 1 件と、提案 6 件。
+
+**フィクスチャは R: ではなく C: に置いた。**R:（RAM ディスク）には**ごみ箱が無い**
+（シェルの「ごみ箱へ」で試すと、黙って完全に消えた）ので、12.1〜12.10 は既定の一時ディレクトリ
+（`%LOCALAPPDATA%\Temp\filer-12`、`scripts/make-fixtures.ps1` の既定）で回した。
+
+| 行 | やったこと | 読んだもの |
+| --- | --- | --- |
+| 12.1 | `many\item-007.txt`（中身 `section12-A`）で `d` | ディスクに無い。ごみ箱に `…\fx\many\item-007.txt`、削除 01:42:01、11 バイト（`runA.log`） |
+| 12.2 | `u` | 元の場所に中身 `section12-A` で戻り、ごみ箱から消えた。トースト `Restored item-007.txt`（`a2-toast-after-u.png`） |
+| 12.3 | `u` の直後に `w` | `Trash  Trash 1 item(s)  [done]` と `Restore  Restore 1 item(s)  [done]`、`1/1 files`（`a3-tasks-after-u.png`） |
+| 12.4 | `U` | ディスクから消え、ごみ箱に削除 01:42:06 の新しい項目。トースト `Trashed item-007.txt`（`a4-toast-after-U.png`）。もう一度 `u` で戻した |
+| 12.5 | `twin1\dup.txt`（`older, twin1`）を `d`、4 秒あけて `twin2\dup.txt`（`newer, twin2`）を `d`、`u` | `twin2\dup.txt` が中身 `newer, twin2` で戻り、`twin1\dup.txt` は削除 01:42:47 のままごみ箱に残った。トースト `Restored dup.txt`（`runB.log`、`b1-toast-after-u.png`） |
+| 12.9 | `item-020.txt`（`section12-D-original`）を `d`、外から同名の `blocker` を作って `u` | `blocker` はディスクに残り、元のファイルはごみ箱のまま。メッセージは `Restore: item-020.txt: Error during a `trash` operation: RestoreCollision { path: "…\\many\\item-020.txt", … }`（`c1-full-after-blocked-u.png`）。`blocker` をどけてもう一度 `u` → 中身 `section12-D-original` で戻り、ごみ箱は空、トースト `Restored item-020.txt`（`c2-toast-after-second-u.png`） |
+| 12.10 | 別の pwsh が `item-032.txt` を `FileShare.None` で開いたまま（開けないことを確かめた）、`item-030`〜`034` の 5 件を選んで `d` | 030 / 031 / 033 / 034 はごみ箱に入り、032 だけディスクに残った。トースト `Trash: item-032.txt: Error during a `trash` operation: Unknown { description: "Some operations were aborted" }`（`h1-after-d.png`）。タスクは `Trash 5 item(s) [failed]`、**`4/5 files`**、エラー行は `item-032.txt` だけ（`h2-tasks.png`、`runE3.log`） |
+
+12.9 の「名前が使われていると言う」は、`RestoreCollision` と衝突したパスが出ていることで読んだ。
+言い方が生の Debug 表示なのは提案 1。
+
+### 12.8 は書いてあるとおりには起きない（既存の報告を実機で確かめた）
+
+- `item-010.txt` を `r` で改名 → `u` で戻す → `a` で `new12.txt` を作る → `U`: トーストは
+  **`Renamed to item-010renamed12.txt`** で、redo は残っていた（`c7-toast-U-after-create.png`、`runC2.log`）。
+  作成は取り消しの手順を積まないので、履歴は分岐しない。上の section 12 の既存の報告のとおり。
+- 同じ規則を改名で: `u` で戻す → `item-011.txt` を `r` で改名（新しい操作）→ `U`: トーストは
+  **`Nothing to redo`**（`c8-toast-U-after-rename.png`）。分岐はする。
+- だから TESTING.md の 12.8 を「新しいファイルを作る」→「別のファイルを改名する」に直せば、
+  この 2 つ目の結果でそのまま付けられる。文言の変更なので、ここでは報告だけにする。
+
+### RAM ディスクでは `d` が一度も効かない
+
+- `R:\Temp\f12r\keep-me.txt` で `d`: トースト `Trash: keep-me.txt: Error during a `trash` operation: CanonicalizePath { original: "R:\\Temp\\f12r" }`、
+  タスクは `Trash 1 item(s) [failed]`、`0/1 files`。ファイルはディスクに残り、ごみ箱にも無い（`f1-r-after-d.png`、`f2-r-tasks.png`、`runE.log`）。
+- **失敗しているのはシェルに渡す前**で、trash クレートが親ディレクトリを `canonicalize` した段階。section 13 の
+  報告（RAM ディスクのジャンクションで `Resolves` が `os error 1`）と同じ根で、このボリュームは
+  `GetFinalPathNameByHandleW` に答えないと読んだ。
+- 困ること: このドライブでは `d` で消せるものが 1 つも無く、メッセージは理由（「このドライブは正規化できない」）も
+  代わりの手（`D` で完全に消す）も言わない。ファイルが残るので、データは失われない。
+- **直していない。**
+
+### 12.11 と 12.12 を付けなかった理由
+
+- **12.11**: この機械にあるのは C: と R: だけ。R: は「ごみ箱を無効にした」ドライブではなく「ごみ箱が無い」ドライブで、
+  しかも上のとおり**シェルに届く前に**落ちるので、12.11 が試したい経路（シェルが「ごみ箱に入れられない」と
+  言う）を通っていない。メッセージの形（`Trash: <名前>: …`、ファイル名入り）だけなら合っている。
+  C: のごみ箱を切る（`HKCU\…\BitBucket\Volume\{…}\NukeOnDelete = 1`）と、その間は持ち主の機械の
+  **すべての削除が完全削除になる**ので、無人ではやらなかった。USB メモリを 1 本挿してそのドライブだけ切れば、
+  次の実行で付けられる。
+- **12.12**: 前半（ロックが無ければ以前のまま）は、5 件をまとめて消して `Trash 5 item(s) [done]`、`5/5 files`、
+  `u` で 5 件とも戻ったことで読めた（`g2-tasks.png`、`runE2.log`。選択がフィルタのせいで別の 5 件に
+  なった回だが、ロックの無いまとめ削除としては同じ）。後半の「Explorer の取り消し履歴に**1 つ**」は外から読めない。
+  代わりに Explorer で `Ctrl+Z` を押して 5 件がまとめて戻るかを見る手はあるが、動いている机の上で押すと
+  **持ち主自身の直前の操作を取り消しかねない**ので、無人ではやらなかった。人に残す。
+
+### 改名の欄で、打った文字が語幹を置き換えずに後ろに入った（原因未確認）
+
+- `r` の欄は語幹を選んだ状態で開く（`start_rename`、`RenameCursor::BeforeExt` → `(0, stem)`）はずだが、
+  `renamed12` と打つと `item-010renamed12.txt` になった（`c6-rename-typed.png`）。開いた直後の
+  `c5-rename-open.png` にも選択の色は写っていない。
+- section 13 / 15 の提案 4（`g <Space>` の欄で、打った文字が途中に入る）と同じ形。どちらも
+  PostMessage で WM_CHAR を送っていて、**窓が前面に無い**状態で動かしているので、ハーネスのせいの
+  可能性を消せていない。人が 1 度 `r` を押して打てば分かる。12 の結果には影響しない（改名は改名なので）。
+
+### Proposals
+
+6 件。
+
+1. **`RestoreCollision` は人の言葉で言うべき。**
+   - 起きたこと: 12.9 で `u` が断るとき、メッセージが `RestoreCollision { path: "C:\\…\\item-020.txt", remaining_items: [TrashItem { id: "C:\\$Recycle.Bin\\S-1-5-21-…\\$R…txt", … time_deleted: 1790732640 }] }`。
+     SID と `$R` のファイル名と UNIX 時刻が出る。
+   - 変えるべきこと: `Restore: item-020.txt: a file by that name is already there. Move it away and press u again.`
+     のように、何が邪魔をしていて次に何をすればいいかを言う。取り消しの手順は残っているので、それが言える。
+   - 理由: 押し直せば通る、という一番大事なことがメッセージから読めない。
+   - 大きさ: エラーの写像に 1 腕。
+2. **一部だけ失敗した削除でも、消えたぶんの取り消しの手順を積むべき。**
+   - 起きたこと: 12.10 で 5 件中 4 件がごみ箱に入ったが、直後の `u` は **`Nothing to undo`**（`h3-after-u.png`）。
+     4 件はごみ箱に残ったまま（`runE3.log`）。失敗した `Fresh` の手順は `Undos::keep` で捨てられる。
+   - 変えるべきこと: 失敗した項目を除いた残りで手順を積む（ジョブは何が通ったかを知っている。タスクの `4/5` がそれ）。
+   - 理由: 一番取り消したくなるのは、思ったとおりに行かなかった操作。今は Explorer のごみ箱を開いて 4 件を探して戻すしかない。
+   - 大きさ: 削除ジョブの完了で、通ったパスの一覧を手順に渡す。数十行。
+3. **ロックで止まったときは、そう言うべき。**
+   - 起きたこと: 12.10 のメッセージは `item-032.txt: … Unknown { description: "Some operations were aborted" }`。
+     ファイル名は出る（v0.27.1 の修正は効いている）が、**なぜ**は言わない。
+   - 変えるべきこと: 1 件ずつの再試行で失敗したとき、そのファイルを開いてみて os error 32 なら
+     `item-032.txt is open in another program` と言う。
+   - 理由: 「中断された」では、閉じれば済むのか、権限なのか、壊れているのかが分からない。
+   - 大きさ: 失敗の枝で 1 回開いてみる関数 1 つ（`#[cfg(windows)]`）。
+4. **正規化できないドライブで `d` が落ちたら、理由と `D` を言うべき。**
+   - 起きたこと: 上の「RAM ディスクでは `d` が一度も効かない」。`CanonicalizePath { original: "R:\\Temp\\f12r" }`。
+   - 変えるべきこと: この失敗のときは `Trash: keep-me.txt: this drive can't use the Recycle Bin (R:). Use D to delete permanently.` と出す。
+     trash クレートの前で自前で正規化を試して、落ちたら生のパスで渡す退路も考えられる（section 13 の提案と同じ根）。
+   - 理由: RAM ディスク・仮想ドライブ・一部のネットワークドライブで、`d` が黙って効かない（に見える）。
+   - 大きさ: エラーの写像なら 1 腕。退路は trash クレートの呼び方を変えるので要設計。
+5. **タスクパネルのごみ箱の行は、`0 B / 0 B` を出さず、動詞を 2 回言わないべき。**
+   - 起きたこと: `Trash  Trash 5 item(s)`、`Restore  Restore 1 item(s)` と動詞が 2 回並び、
+     2 行目は `5/5 files · 0 B / 0 B`（`h2-tasks.png`、`a3-tasks-after-u.png`）。
+     ごみ箱の移動は大きさを数えていないので、`0 B` は「空のファイルだった」と読める。
+   - 変えるべきこと: 大きさを数えないジョブでは `· 0 B / 0 B` を省く。見出しは `Trash 5 item(s)` の 1 回。
+   - 理由: 12.10 の「件数が実際と合う」を読むとき、並んでいる数のうちどれが意味を持つのか迷った。
+   - 大きさ: 描画の条件 1 つと、ラベルの組み立て 1 か所。
+6. **役割定義に「section 12 は R: で回せない」と書くべき。**
+   - 起きたこと: 役割定義は一時ファイルを R: に置くよう勧めているが、R: にはごみ箱が無く、しかも
+     `d` が正規化で落ちる。最初の数分をそれを確かめるのに使った。
+   - 変えるべきこと: 「Where to put files」の節に、ごみ箱を通る行（12、および `d` を使う行）は
+     C: の一時ディレクトリで回すこと、と 1 行足す。証拠は相変わらず `C:\dev\filer-evidence\` に置く。
+   - 理由: 次にごみ箱を通る節を取るセッションが、同じ確認をしなくて済む。
+   - 大きさ: 文書 1 行（`.claude/` の下なので、マージする側が入れる）。
+
+### ハーネスについて
+
+- **`f` のフィルタはあいまい検索。**`item-03` で絞ると先頭は `item-003` / `013` / `023` で、`030` はその後
+  （`g0-selected.png`）。1 回目はそれに気づかず別の 5 件を選んで消した（ロックしたファイルは選ばれていなかった。
+  `u` で全部戻った）。`j` を 3 回挟んで `item-030` に着いてから `<Space>` を 5 回押した回（`runE3`）だけを使った。
+- `Hover` の後に `Esc` を押すとフィルタが外れてカーソルが先頭に戻る。`e*.png` の回はそれで `item-001`〜`005` を
+  消していた（`u` で戻っている）。証拠には使っていない。
+- ごみ箱の項目を Shell の `InvokeVerb('undelete')` で戻すと、同じパスにファイルがあるとき
+  「ファイルの置換またはスキップ」のダイアログで止まる。止まったプロセスを落として、残りは 1 件ずつ戻した。
+  自分が作ってごみ箱に残った 1 件（`twin3\dup.txt`）は `$R` / `$I` を直接消した。
+- `DateDeleted` は UTC で返る（01:42 は日本時間の 10:42）。
