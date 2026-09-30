@@ -111,7 +111,7 @@ still on the human's list when it was written.
 
 | Section | Rows | Why it suits you |
 | --- | --- | --- |
-| **v0.55.0, the answers to Q25-Q31** | 10 | What v0.55.0 changed on the owner's answers, on a build of current `main`: 1.31-1.34 again and 40.15 / 40.16 (keys as win32-input-mode records -- `FILER_PTY_LOG` shows `\e[?9001h` and the records), 40.8 / 40.14 (the wheel), 29.2 / 29.6 (`pwsh` as the default), 30.1 / 30.15 (prompts open selected), 45.16 (a copied tree with a junction). 21.4 is automated now |
+| **v0.55.0 on x64** | -- | ARM64 ticked 29.2, 29.6, 40.14-40.16 and 45.16 (#107); press the Q27 ones again on x64 -- 1.31-1.34, 40.15, 40.16 -- and record them in QA-REPORT.md under an x64 heading, since ConPTY's input path is where the two machines could differ. 30.1 / 30.15 wait on the right-click fix in TODO.md |
 | **47. an idle window uses no CPU** | 4 | First, because a fix waits on it: v0.54.2 stopped a redraw loop that is the likeliest cause of the 1.0 CPU-s/s #86 measured. Every row is `(Get-Process filer).CPU` read twice, 10 s apart; 47.2 is the sequence that used to start the loop. **`--keys` cannot do 47.2**: it waits for `App::settled()` between presses, which is false while the preview debounce is pending -- exactly what 47.2 interrupts. Post the two keys with `PostMessageW` and time the gap with a `Stopwatch` (#103 got 22-25 ms). `sort_dir_first` is on by default, so start on a file above a folder only with it off in a run-only `FILER_CONFIG_HOME`. **Close every prompt first**: an open `f` prompt reads 0.14-0.27 CPU-s per 10 s by itself. Take a positive control (keys at 100 ms for 10 s) so a 0 is a reading. On ARM64 all three rows read 0 (#103). If it still rises, 47.4 says which thread |
 | **44. disk usage** | 13 | Totals against `Get-ChildItem -Recurse -Force \| Measure-Object Length -Sum`; "the walk stops" against the process's CPU time from `Get-Process` |
 | **29. the terminal's directory, brought back** | 5 | Where the list went reads off the window title (`(Get-Process filer).MainWindowTitle`). OSC 7 through ConPTY -- nobody else can run it |
@@ -237,10 +237,9 @@ these differences:
 
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
-| **v0.55.0, the answers to Q25-Q31** | 10 | What v0.55.0 changed on the owner's answers, natively, on a build of current `main`: 1.31-1.34 again and 40.15 / 40.16 (keys as win32-input-mode records -- `FILER_PTY_LOG` shows `\e[?9001h` and the records), 40.8 / 40.14 (the wheel), 29.2 / 29.6 (`pwsh` as the default), 30.1 / 30.15 (prompts open selected), 45.16 (a copied tree with a junction). 21.4 is automated now |
 | **28. changes made from outside** | the `[ ]` rows | The watcher is native code (`ReadDirectoryChangesW` through `notify`). "No crash" is the process still being there; where the cursor landed is `c` `f` on the hovered row |
 | **44. disk usage** | the `[ ]` rows | A native walk of the file system. Totals against `Get-ChildItem -Recurse -Force \| Measure-Object Length -Sum`; "the walk stops" against the process's CPU time from `Get-Process` |
-| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104) and 0.54.14 (509 / 0, #105). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
+| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104), 0.54.14 (509 / 0, #105) and 0.55.1 (523 / 0, #107). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
 
 ## Proposals: say what should change
 
