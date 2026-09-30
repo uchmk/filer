@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**147 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
+**157 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -554,21 +554,21 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **39.8** シェルのプロンプトで Alt+b / Alt+f / Alt+d → これまでどおり readline に届く。取られたのは j と k だけ — *Alt+b / Alt+f / Alt+d at the shell prompt → Still reach readline. Only j and k were taken*
 - [ ] **39.9** ペインの中で `<F1>` → term レイヤーの一覧に `<A-j>` / `<A-k>` が説明付きで出る — *`<F1>` from inside the pane → The term layer's list shows `<A-j>` / `<A-k>` with their descriptions*
 
-## 40. 全画面プログラムにスクロールのジェスチャーを渡す — 0 / 13
+## 40. 全画面プログラムにスクロールのジェスチャーを渡す — 10 / 13
 
-- [ ] **40.1** `<C-t>` から長いファイルを `nvim` で開き、`nnoremap <A-j> :m+1<CR>` を割り当てた状態で `<A-j>` / `<A-k>` → **nvim にキーが届く。**v0.37.0 の衝突が解消されている — *`<C-t>`, `nvim` a long file, `<A-j>` / `<A-k>` with `nnoremap <A-j> :m+1<CR>` bound → **nvim sees the key.** The v0.37.0 collision is gone*
-- [ ] **40.2** 同じ nvim の中で `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` → すべて nvim に届く。2 つだけでなく `term_scroll` のキー全部が渡される — *In the same nvim, `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` → All reach nvim. Every `term_scroll` key is handed over, not just the two*
-- [ ] **40.3** 同じ nvim の中で `<C-t>` → **これは filer のまま。**nvim を動かしたままペインから出る。スクロール以外のキーは決して渡さない — *In the same nvim, `<C-t>` → **Still filer's** — it leaves the pane, with nvim left running. Non-scrolling keys are never handed over*
-- [ ] **40.4** nvim を終了してから、シェルのプロンプトで `<A-j>` / `<A-k>` → filer のスクロールバック操作に戻る。受け渡しは設定ではなくプログラムに追従している — *Quit nvim, then `<A-j>` / `<A-k>` at the shell prompt → Back to scrolling filer's scrollback. The handover follows the program, not a setting*
-- [ ] **40.5** nvim の中と `less` の中でホイール → 文書がスクロールする。v0.38.0 以前は存在しないスクロールバックを歩こうとして何も動かなかった — *The wheel inside nvim, and inside `less` → Scrolls the document. Before v0.38.0 it tried to walk a scrollback that does not exist, so nothing moved*
-- [ ] **40.6** シェルのプロンプトでホイール → これまでどおりスクロールバックを歩く — *The wheel at the shell prompt → Still walks the scrollback, unchanged*
+- [x] **40.1** `<C-t>` から長いファイルを `nvim` で開き、`nnoremap <A-j> :m+1<CR>` を割り当てた状態で `<A-j>` / `<A-k>` → **nvim にキーが届く。**v0.37.0 の衝突が解消されている — *`<C-t>`, `nvim` a long file, `<A-j>` / `<A-k>` with `nnoremap <A-j> :m+1<CR>` bound → **nvim sees the key.** The v0.37.0 collision is gone*
+- [x] **40.2** 同じ nvim の中で `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` → すべて nvim に届く。2 つだけでなく `term_scroll` のキー全部が渡される — *In the same nvim, `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` → All reach nvim. Every `term_scroll` key is handed over, not just the two*
+- [x] **40.3** 同じ nvim の中で `<C-t>` → **これは filer のまま。**nvim を動かしたままペインから出る。スクロール以外のキーは決して渡さない — *In the same nvim, `<C-t>` → **Still filer's** — it leaves the pane, with nvim left running. Non-scrolling keys are never handed over*
+- [x] **40.4** nvim を終了してから、シェルのプロンプトで `<A-j>` / `<A-k>` → filer のスクロールバック操作に戻る。受け渡しは設定ではなくプログラムに追従している — *Quit nvim, then `<A-j>` / `<A-k>` at the shell prompt → Back to scrolling filer's scrollback. The handover follows the program, not a setting*
+- [x] **40.5** nvim の中と `less` の中でホイール → 文書がスクロールする。v0.38.0 以前は存在しないスクロールバックを歩こうとして何も動かなかった — *The wheel inside nvim, and inside `less` → Scrolls the document. Before v0.38.0 it tried to walk a scrollback that does not exist, so nothing moved*
+- [x] **40.6** シェルのプロンプトでホイール → これまでどおりスクロールバックを歩く — *The wheel at the shell prompt → Still walks the scrollback, unchanged*
 - [ ] **40.7** 長いファイルを `less` で開いて `<S-PageUp>`、`q` で終了してからもう一度 `<S-PageUp>` → `less` の中では文書がページ送りされ、終了後はペインのスクロールバックが動く — *`less` a long file, `<S-PageUp>`, then `q` to quit, then `<S-PageUp>` again → Inside `less` it pages the document; after quitting it scrolls the pane's scrollback*
 - [ ] **40.8** `set nonumber` の nvim でホイールを上げてから下げる → 元の位置に戻る。1 ノッチは両方向とも固定本数の矢印キーだから — *In nvim with `set nonumber`, wheel up then down → Lands back where it started — one notch is a fixed number of arrows each way*
-- [ ] **40.9** 代替画面**かつ**アプリケーションカーソルモードを使うプログラム → ホイールの矢印が CSI ではなく SS3（`ESC O A`）で届く。挿入モードの nvim が確かめやすい — *A program using the alternate screen **and** application-cursor mode → The wheel's arrows arrive as SS3 (`ESC O A`), not CSI. nvim in insert mode is the easy check*
-- [ ] **40.10** ペインの `bash` / `zsh` プロンプトで数語打ってから `Alt-b` / `Alt-f` → カーソルが**単語単位**で動く。v0.38.0 以前は何も起きなかった（キーが、送るバイトを持たないまま捨てられていた） — *At a `bash`/`zsh` prompt in the pane, type a few words, then `Alt-b` / `Alt-f` → The cursor moves **by word**. Before v0.38.0 nothing happened — the key was dropped with no bytes behind it*
-- [ ] **40.11** 同じプロンプトで `Alt-d` → 前方の単語を削除する — *`Alt-d` at the same prompt → Deletes the word ahead*
+- [x] **40.9** 代替画面**かつ**アプリケーションカーソルモードを使うプログラム → ホイールの矢印が CSI ではなく SS3（`ESC O A`）で届く。挿入モードの nvim が確かめやすい — *A program using the alternate screen **and** application-cursor mode → The wheel's arrows arrive as SS3 (`ESC O A`), not CSI. nvim in insert mode is the easy check*
+- [x] **40.10** ペインの `bash` / `zsh` プロンプトで数語打ってから `Alt-b` / `Alt-f` → カーソルが**単語単位**で動く。v0.38.0 以前は何も起きなかった（キーが、送るバイトを持たないまま捨てられていた） — *At a `bash`/`zsh` prompt in the pane, type a few words, then `Alt-b` / `Alt-f` → The cursor moves **by word**. Before v0.38.0 nothing happened — the key was dropped with no bytes behind it*
+- [x] **40.11** 同じプロンプトで `Alt-d` → 前方の単語を削除する — *`Alt-d` at the same prompt → Deletes the word ahead*
 - [ ] **40.12** ペインの PowerShell（PSReadLine）で `Alt-b` / `Alt-f` → 同じ単語移動 — *PowerShell (PSReadLine) in the pane, `Alt-b` / `Alt-f` → Same word motions*
-- [ ] **40.13** 普通のプロンプトで `Alt-j` / `Alt-k` → **これは filer のスクロールのまま。**この 2 つは `[term]` レイヤーに割り当てられていて、プロンプトは代替画面ではないため — *`Alt-j` / `Alt-k` at an ordinary prompt → **Still filer's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen*
+- [x] **40.13** 普通のプロンプトで `Alt-j` / `Alt-k` → **これは filer のスクロールのまま。**この 2 つは `[term]` レイヤーに割り当てられていて、プロンプトは代替画面ではないため — *`Alt-j` / `Alt-k` at an ordinary prompt → **Still filer's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen*
 
 ## 41. spot パネルの 4 つの provider — 10 / 14
 
