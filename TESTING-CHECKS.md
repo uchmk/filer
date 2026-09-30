@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**128 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
+**136 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -605,19 +605,19 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **44.12** `gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。もう一度 `gu` すれば大きい順に戻る — *`gu`, then `,` to re-sort → The order changes (as asked); `gu` again restores largest-first*
 - [ ] **44.13** フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある** — *Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug***
 
-## 45. 2 つのフォルダを比べる — 0 / 9
+## 45. 2 つのフォルダを比べる — 8 / 9
 
 自動テスト済みなので下には出していない: 45.1, 45.2, 45.5, 45.7
 
-- [ ] **45.3** `n` / `N` → `=` でない行の間を歩き、一致した行は飛ばす。末尾ではその旨を述べる — *`n` / `N` → Walks between the rows that are not `=`, skipping matches. At the end it says so*
-- [ ] **45.4** `gg` / `G` → 最初の行と最後の行 — *`gg` / `G` → First and last row*
-- [ ] **45.6** 最後の 1 バイトだけが違うファイルを含むツリー → その行が `=` ではなく `~` になる — *A tree where one file differs in its last byte only → That row is `~`, not `=`*
-- [ ] **45.8** 片方ではフォルダ、もう片方では同名のファイル → `~` — *A folder on one side where the other has a file of that name → `~`*
-- [ ] **45.9** ファイル 1 つとフォルダ 1 つを選んで `<A-d>` → `compare two files, or two folders — not one of each` と断られる — *Select one file and one folder, `<A-d>` → Refused with "compare two files, or two folders — not one of each"*
-- [ ] **45.10** `node_modules` 同士（10 万パス超）→ 答えが出るか、打ち切ったと述べる。ウィンドウは固まらない — *Two `node_modules` (100k+ paths) → Answers, or says it was cut short; the window does not freeze*
+- [x] **45.3** `n` / `N` → `=` でない行の間を歩き、一致した行は飛ばす。末尾ではその旨を述べる — *`n` / `N` → Walks between the rows that are not `=`, skipping matches. At the end it says so*
+- [x] **45.4** `gg` / `G` → 最初の行と最後の行 — *`gg` / `G` → First and last row*
+- [x] **45.6** 最後の 1 バイトだけが違うファイルを含むツリー → その行が `=` ではなく `~` になる — *A tree where one file differs in its last byte only → That row is `~`, not `=`*
+- [x] **45.8** 片方ではフォルダ、もう片方では同名のファイル → `~` — *A folder on one side where the other has a file of that name → `~`*
+- [x] **45.9** ファイル 1 つとフォルダ 1 つを選んで `<A-d>` → `compare two files, or two folders — not one of each` と断られる — *Select one file and one folder, `<A-d>` → Refused with "compare two files, or two folders — not one of each"*
+- [x] **45.10** `node_modules` 同士（10 万パス超）→ 答えが出るか、打ち切ったと述べる。ウィンドウは固まらない — *Two `node_modules` (100k+ paths) → Answers, or says it was cut short; the window does not freeze*
 - [ ] **45.11** シンボリックリンクの指す先だけが違う 2 つのツリー → そのリンクの行が「異なる」と読める — *Two trees differing only in where a symlink points → The link row reads as differing*
-- [ ] **45.12** 2 分割して各ペインでフォルダの上に立ち、`<A-d>` → その 2 つが比較される — *Split the view, stand on a folder in each pane, `<A-d>` → Compares those two*
-- [ ] **45.13** `q` / `<Esc>` → 閉じる。そして 2 つの**ファイル**はこれまでどおり行単位で比較できる — *`q` / `<Esc>` → Closes, and two **files** still compare line by line as before*
+- [x] **45.12** 2 分割して各ペインでフォルダの上に立ち、`<A-d>` → その 2 つが比較される — *Split the view, stand on a folder in each pane, `<A-d>` → Compares those two*
+- [x] **45.13** `q` / `<Esc>` → 閉じる。そして 2 つの**ファイル**はこれまでどおり行単位で比較できる — *`q` / `<Esc>` → Closes, and two **files** still compare line by line as before*
 
 ## 46. spot パネルの Git セクション — 14 / 16
 
