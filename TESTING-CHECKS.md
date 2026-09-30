@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**203 / 405 済み。**（TESTING.md の全 563 件のうち、`cargo test` が見ている 158 件は
+**215 / 405 済み。**（TESTING.md の全 563 件のうち、`cargo test` が見ている 158 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -602,21 +602,21 @@ fsutil hardlink list <新しくできたパス>
 
 - [ ] **43.9** 50MB の CSV → すぐ開き、`max_text_bytes` で切られ、フッタが省略したと述べる — *A 50 MB CSV → Opens promptly, cut at `max_text_bytes`, footer says truncated*
 
-## 44. ディスク使用量 — 0 / 13
+## 44. ディスク使用量 — 12 / 13
 
-- [ ] **44.1** `node_modules` のあるプロジェクトで `gu` → 子が大きい順に棒付きで並ぶ。`node_modules` が上位に来て、合計が自身のエントリよりはるかに大きい — *`gu` in a project with a `node_modules` → Children largest first, with bars; `node_modules` near the top with a total far bigger than its own entry*
-- [ ] **44.2** `gu` してから `<Esc>` → 元のディレクトリに戻り、カーソルも元の位置。走査は止まる（抜けたあと CPU を使わない） — *`gu`, then `<Esc>` → Back in the directory, cursor where it was. The walk stops (no CPU after leaving)*
-- [ ] **44.3** 30 万ファイル超のツリーで `gu` → 完了し、走査を打ち切ったことと合計が下限値であることを述べる — *`gu` on a tree with 300k+ files → Finishes, and says the walk was cut short and the totals are floors*
-- [ ] **44.4** `.gitignore` された `target/` や `build/` を含むフォルダで `gu` → **数に入る**（除外されない） — *`gu` in a folder holding a `.gitignore`d `target/` or `build/` → It is **counted**, not skipped*
-- [ ] **44.5** 容量の大半を隠しフォルダが占める場所で `gu` → 数に入り、表示もされる — *`gu` where a hidden folder holds most of the space → It is counted, and visible*
-- [ ] **44.6** 大きなツリーへのシンボリックリンク / ジャンクションを含むフォルダで `gu` → リンクは 1 エントリ扱いでツリーの二重計上にならず、固まらない — *`gu` on a folder with a symlink/junction to a big tree → The link is one entry, not a second copy of the tree, and no hang*
+- [x] **44.1** `node_modules` のあるプロジェクトで `gu` → 子が大きい順に棒付きで並ぶ。`node_modules` が上位に来て、合計が自身のエントリよりはるかに大きい — *`gu` in a project with a `node_modules` → Children largest first, with bars; `node_modules` near the top with a total far bigger than its own entry*
+- [x] **44.2** `gu` してから `<Esc>` → 元のディレクトリに戻り、カーソルも元の位置。走査は止まる（抜けたあと CPU を使わない） — *`gu`, then `<Esc>` → Back in the directory, cursor where it was. The walk stops (no CPU after leaving)*
+- [x] **44.3** 30 万ファイル超のツリーで `gu` → 完了し、走査を打ち切ったことと合計が下限値であることを述べる — *`gu` on a tree with 300k+ files → Finishes, and says the walk was cut short and the totals are floors*
+- [x] **44.4** `.gitignore` された `target/` や `build/` を含むフォルダで `gu` → **数に入る**（除外されない） — *`gu` in a folder holding a `.gitignore`d `target/` or `build/` → It is **counted**, not skipped*
+- [x] **44.5** 容量の大半を隠しフォルダが占める場所で `gu` → 数に入り、表示もされる — *`gu` where a hidden folder holds most of the space → It is counted, and visible*
+- [x] **44.6** 大きなツリーへのシンボリックリンク / ジャンクションを含むフォルダで `gu` → リンクは 1 エントリ扱いでツリーの二重計上にならず、固まらない — *`gu` on a folder with a symlink/junction to a big tree → The link is one entry, not a second copy of the tree, and no hang*
 - [ ] **44.7** `C:\` で `gu` → 答えが出る。上位のフォルダが WizTree やエクスプローラーの表示と見比べて妥当 — *`gu` at `C:\` → Answers; the biggest folders are plausible against WizTree or Explorer's own*
-- [ ] **44.8** ネットワーク共有（UNC）で `gu` → 答えるか、穏当に失敗する。走査の途中でも `<Esc>` で抜けられる — *`gu` on a network share (UNC) → Answers or fails gracefully; `<Esc>` still gets out mid-walk*
-- [ ] **44.9** `gu` のあと `j`/`k`、`y`、`d`、スペースで選択 → 通常の一覧キーが全部効く。**パネルではなく一覧そのもの**だから — *`gu`, then `j`/`k`, `y`, `d`, space to select → All the ordinary list keys work — this is the list, not a panel*
-- [ ] **44.10** `gu` のあとフォルダで `Enter` → 普通の移動（ビューを抜けてフォルダに入る）。そこでもう一度 `gu` すればそこから測り直す — *`gu`, then `Enter` on a folder → Ordinary navigation: it leaves the view and enters the folder. `gu` again measures from there*
-- [ ] **44.11** 使用量ビューを開いたまま `gu` → メッセージを添えて断られる（戻れないビューにならない） — *`gu` while a usage view is already up → Refused with a message, not a view with no way back*
-- [ ] **44.12** `gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。もう一度 `gu` すれば大きい順に戻る — *`gu`, then `,` to re-sort → The order changes (as asked); `gu` again restores largest-first*
-- [ ] **44.13** フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある** — *Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug***
+- [x] **44.8** ネットワーク共有（UNC）で `gu` → 答えるか、穏当に失敗する。走査の途中でも `<Esc>` で抜けられる — *`gu` on a network share (UNC) → Answers or fails gracefully; `<Esc>` still gets out mid-walk*
+- [x] **44.9** `gu` のあと `j`/`k`、`y`、`d`、スペースで選択 → 通常の一覧キーが全部効く。**パネルではなく一覧そのもの**だから — *`gu`, then `j`/`k`, `y`, `d`, space to select → All the ordinary list keys work — this is the list, not a panel*
+- [x] **44.10** `gu` のあとフォルダで `Enter` → 普通の移動（ビューを抜けてフォルダに入る）。そこでもう一度 `gu` すればそこから測り直す — *`gu`, then `Enter` on a folder → Ordinary navigation: it leaves the view and enters the folder. `gu` again measures from there*
+- [x] **44.11** 使用量ビューを開いたまま `gu` → メッセージを添えて断られる（戻れないビューにならない） — *`gu` while a usage view is already up → Refused with a message, not a view with no way back*
+- [x] **44.12** `gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。もう一度 `gu` すれば大きい順に戻る — *`gu`, then `,` to re-sort → The order changes (as asked); `gu` again restores largest-first*
+- [x] **44.13** フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある** — *Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug***
 
 ## 45. 2 つのフォルダを比べる — 11 / 12
 
