@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**172 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
+**182 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -437,22 +437,22 @@ fsutil hardlink list <新しくできたパス>
 - [x] **29.4** UNC パス（`\\server\share`）へ `cd` して `<A-Up>` → 追従するか、できない理由を述べる。落ちない — *`cd` to a UNC path (`\\server\share`) and press `<A-Up>` → Either it follows or it says why; no crash*
 - [x] **29.5** Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため） — *Run the hook line by hand in a shell that already has Starship → The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`)*
 
-## 30. プロンプトでの右クリック貼り付け — 0 / 14
+## 30. プロンプトでの右クリック貼り付け — 10 / 14
 
 - [ ] **30.1** エクスプローラーのアドレスバーでパスをコピーし、`c`+`d` で `cd` のプロンプトを出し、入力欄を右クリック → パスが入る。`<Enter>` でそこへ移動する — *Copy a path in Explorer's address bar, press `c`+`d` (or whatever opens the `cd` prompt), right-click the field → The path appears; `<Enter>` goes there*
-- [ ] **30.2** `abc` と打ち、`a` と `b` の間を**右**ボタンでクリック → そこに貼られる（末尾ではない） — *Type `abc`, click between `a` and `b` with the **right** button → The paste lands there, not at the end*
+- [x] **30.2** `abc` と打ち、`a` と `b` の間を**右**ボタンでクリック → そこに貼られる（末尾ではない） — *Type `abc`, click between `a` and `b` with the **right** button → The paste lands there, not at the end*
 - [ ] **30.3** ドラッグで一部を選択してから、**選択範囲の上**で右クリック → 選択が置き換わる — *Select part of the text with a drag, then right-click **on the selection** → The selection is replaced*
 - [ ] **30.4** 2 行のテキストをコピーして `s` に右クリック → 1 行になり、改行は空白として表示される（`<C-v>` と同じ） — *Copy two lines of text, right-click into `s` → One line, the break shown as a space — the same as `<C-v>`*
-- [ ] **30.5** 日本語のパスをコピーして `cd` に右クリック → 壊れずに入り、カーソルはその後ろに来る — *Copy a Japanese path, right-click into `cd` → Intact, and the caret sits after it*
-- [ ] **30.6** クリップボードに（文字ではなく）画像がある状態でプロンプトを右クリック → 何も起きない。**トーストも出ない** — *With an image (not text) on the clipboard, right-click a prompt → Nothing happens, **no toast***
-- [ ] **30.7** コマンドパレット、`f`、`S-r`（一括リネーム）で同じこと → どれも貼れる。一括リネームはプレビューが再描画される — *Same in the command palette, in `f`, and in `S-r` (bulk rename) → Each pastes; the bulk preview re-renders*
-- [ ] **30.8** **ファイル一覧**を右クリック → これまでどおりコンテキストメニュー。一覧側は変わっていない — *Right-click in the **file list** → Still the context menu — the list is unchanged*
-- [ ] **30.9** **ターミナル**ペイン（`<C-t>`）を右クリック → クリップボードの内容が打ち込まれ、キーを持っていなければペインがキーを受け取る — *Right-click in the **terminal** pane (`<C-t>`) → The clipboard is typed in, and the pane takes the keys if it did not have them*
-- [ ] **30.10** ターミナルでドラッグして選択し、そのあと右クリック → 離した時点でコピーされていて、右クリックで貼り戻される（選択でコピー、右クリックで貼り付け） — *Select text in the terminal with a drag, then right-click → The selection was copied on release; the right-click pastes it back — select to copy, right-click to paste*
+- [x] **30.5** 日本語のパスをコピーして `cd` に右クリック → 壊れずに入り、カーソルはその後ろに来る — *Copy a Japanese path, right-click into `cd` → Intact, and the caret sits after it*
+- [x] **30.6** クリップボードに（文字ではなく）画像がある状態でプロンプトを右クリック → 何も起きない。**トーストも出ない** — *With an image (not text) on the clipboard, right-click a prompt → Nothing happens, **no toast***
+- [x] **30.7** コマンドパレット、`f`、`S-r`（一括リネーム）で同じこと → どれも貼れる。一括リネームはプレビューが再描画される — *Same in the command palette, in `f`, and in `S-r` (bulk rename) → Each pastes; the bulk preview re-renders*
+- [x] **30.8** **ファイル一覧**を右クリック → これまでどおりコンテキストメニュー。一覧側は変わっていない — *Right-click in the **file list** → Still the context menu — the list is unchanged*
+- [x] **30.9** **ターミナル**ペイン（`<C-t>`）を右クリック → クリップボードの内容が打ち込まれ、キーを持っていなければペインがキーを受け取る — *Right-click in the **terminal** pane (`<C-t>`) → The clipboard is typed in, and the pane takes the keys if it did not have them*
+- [x] **30.10** ターミナルでドラッグして選択し、そのあと右クリック → 離した時点でコピーされていて、右クリックで貼り戻される（選択でコピー、右クリックで貼り付け） — *Select text in the terminal with a drag, then right-click → The selection was copied on release; the right-click pastes it back — select to copy, right-click to paste*
 - [ ] **30.11** **3 行**をコピーして、PowerShell のプロンプトのターミナルに右クリック → 3 行ともバッファに入り、`<Enter>` を押すまで**何も実行されない**（PSReadLine が bracketed paste を要求するため） — *Copy **three lines** and right-click into the terminal at a PowerShell prompt → All three sit in the buffer, **nothing runs** until `<Enter>` (PSReadLine asks for bracketed paste)*
-- [ ] **30.12** bracketed paste を**要求しない**シェル（`cmd.exe`）で同じこと → これまでどおり行が実行される。そして `[200~` のような余計な文字が出ない — *The same in a shell that does **not** ask for bracketed paste (`cmd.exe`) → The lines run, as they always have — and no stray `[200~` appears*
-- [ ] **30.13** `vim` を開いた状態のターミナルで右クリック → 文字が挿入される。画面に `[200~` が出ない — *Right-click in the terminal while `vim` is open → The text is inserted; no `[200~` on screen*
-- [ ] **30.14** ターミナルで `<C-v>` → 右クリックと同じ（30.11 の挙動も含めて） — *`<C-v>` in the terminal → Same as the right-click, including 23.11*
+- [x] **30.12** bracketed paste を**要求しない**シェル（`cmd.exe`）で同じこと → これまでどおり行が実行される。そして `[200~` のような余計な文字が出ない — *The same in a shell that does **not** ask for bracketed paste (`cmd.exe`) → The lines run, as they always have — and no stray `[200~` appears*
+- [x] **30.13** `vim` を開いた状態のターミナルで右クリック → 文字が挿入される。画面に `[200~` が出ない — *Right-click in the terminal while `vim` is open → The text is inserted; no `[200~` on screen*
+- [x] **30.14** ターミナルで `<C-v>` → 右クリックと同じ（30.11 の挙動も含めて） — *`<C-v>` in the terminal → Same as the right-click, including 23.11*
 
 ## 31. ホストの共有一覧 — 0 / 13
 
