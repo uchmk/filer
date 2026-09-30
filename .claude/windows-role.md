@@ -128,7 +128,8 @@ still on the human's list when it was written.
 | **22. opening an editor at a line** | 6 | Only the editors installed here: `Get-CimInstance Win32_Process` shows the command line filer built, `-n42` or `+42` or `--goto`. Say which ones were not installed |
 
 Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26, 13 / 15, 46, 1, 12 and 45 (45.11 waits on the symlink fix in TODO.md; `fx45.ps1` in the run's evidence rebuilds its tree).
-46.16 is still open: it needs the firewall rules, so an elevated run -- or a person.
+46.16 is still open: it needs the firewall rules, so an elevated run -- or a person. So is 45.11:
+symbolic links need elevation or developer mode (#98 passed its junction form on ARM64).
 Rows still open there were left by those runs on purpose -- ARM, another platform, or eyes -- so
 read that section's entry in QA-REPORT.md before taking one.
 
@@ -227,8 +228,10 @@ these differences:
 
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
-| **1.9g, 45.11 and the lazygit lag, after v0.54.5** | 2 + 1 | v0.54.5 fixed `<C-S-b>` needing two presses (1.9g) and folder comparison reading through links (45.11). Re-run both on a build of current `main`. Then the lazygit lag, as in the `win` queue's row of that name -- the same steps, so the two machines' numbers sit side by side |
-| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91) 0.54.0 (505 / 0, #93) and 0.54.3 (506 / 0, #96). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
+| **the lazygit lag (#93)** | -- | As in the `win` queue's row of that name, (a) to (c) -- the same steps, so the two machines' numbers sit side by side. #98 read #93's old log and showed filer writes the `<Esc>` on time; what is left is where between ConPTY and lazygit it waits, which needs `keyprobe.ps1 -AltScreen` |
+| **40. scroll gestures handed to full-screen programs** | the `[ ]` rows | Where the lag above lives. lazygit and `less` are installed; `FILER_PTY_LOG` shows what filer sent, `--keys` presses. Rows already `[x]` on x64: ARM64 results in QA-REPORT.md |
+| **29. the terminal's directory, brought back** | the `[ ]` rows | OSC 7 through ConPTY is native code. Where the list went reads off the window title. Settles the TODO.md item about pwsh 7.6.6 not emitting OSC 7 without README's hook |
+| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
 
 ## Proposals: say what should change
 
