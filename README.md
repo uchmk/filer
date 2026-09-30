@@ -1178,7 +1178,14 @@ clipboard instead, to paste into one. For everything else a report tends to need
 
 ```
 filer env
+filer env > filer-env.txt        # or into a file, to attach
+filer env | Select-String arch   # or through a pipe
 ```
+
+Redirecting works like any other command (since v0.54.4; before that, the text went only to the
+screen). If a non-ASCII path comes out garbled in PowerShell, that is PowerShell decoding the bytes
+with the console's code page: `[Console]::OutputEncoding = [Text.Encoding]::UTF8` first, or redirect
+from `cmd` (`cmd /c "filer env > out.txt"`), which writes the UTF-8 as it is.
 
 It says which config files were looked for **and where**, which were found and how big they are,
 any warnings from loading them, which outside tools are on the `PATH` and what each one is for,

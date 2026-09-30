@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**144 / 398 済み。**（TESTING.md の全 554 件のうち、`cargo test` が見ている 156 件は
+**144 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -372,7 +372,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **24.4** 引用符を含む名前をコピーして、`<A-t>` でターミナルへ → シェルが 1 語として受け取る形に引用される — *Copy the name with a quote in it, `<A-t>` into the terminal → Quoted so the shell sees one word*
 - [ ] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
 
-## 25. `filer env` — 18 / 23
+## 25. `filer env` — 18 / 26
 
 - [x] **25.1** PowerShell から `filer env` → 4 つの節が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること** — *`filer env` from PowerShell → The four sections print. A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears***
 - [x] **25.2** Config の節 → 両方のディレクトリが出て、それぞれ中身か `nothing here` を述べ、`not here:` に残りが並ぶ — *The Config section → Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest*
@@ -397,6 +397,9 @@ fsutil hardlink list <新しくできたパス>
 - [x] **25.15** `yazi.toml` を壊して Warnings の行を読む → パスが **`…\filer\yazi.toml`** と、すべて円記号で書かれている。以前は `…\filer/yazi.toml` と出ていた —— **編集すべきファイルを指し示すのが仕事のメッセージなのに、そこが壊れていた**（v0.33.12） — *Break `yazi.toml` and read the Warnings row → The path is written **`…\filer\yazi.toml`**, all backslashes. It used to come out `…\filer/yazi.toml`, in the one message whose job is to name the file to edit (v0.33.12)*
 - [ ] **25.16** ファイルのあるフォルダで `filer <フォルダ> --keys "<Tab>C"`、続けて `Get-Clipboard`（v0.54.0）→ 窓が開き、spot が勝手に先頭の行で開き、クリップボードにパネル全体が `ラベル<TAB>値` の行で入っている。`Name` と `Path` がその先頭の行を指している — *`filer <a folder with files> --keys "<Tab>C"`, then `Get-Clipboard` (v0.54.0) → The window opens, spot opens on the first row by itself, and the clipboard holds the whole panel as `Label<TAB>value` lines — `Name` and `Path` naming that first row*
 - [ ] **25.17** `filer --keys "<Tab"` と `filer --keys "<Bogus>"` → **窓は開かない。**問題を言う 1 行（`has no closing >` / `is not a key`）と、終了コード 2 — *`filer --keys "<Tab"` and `filer --keys "<Bogus>"` → **No window**: one line naming the problem (`has no closing >` / `is not a key`), exit code 2*
+- [ ] **25.18** release ビルドで `filer env > out.txt`、続けて `Get-Content out.txt`（v0.54.4）→ レポート全体が**ファイルに入り**、画面には何も出ない。v0.54.4 より前はファイルが空で、レポートは画面に出ていた — *Release build: `filer env > out.txt`, then `Get-Content out.txt` (v0.54.4) → The whole report is **in the file**, and nothing is printed on screen. Before v0.54.4 the file was empty and the report went to the screen*
+- [ ] **25.19** `filer env \| Select-String arch` → **arch の 2 行だけ**が出る（レポート全体ではない）。`$v = & filer env; $v.Count` はレポートの行数で、0 ではない — *`filer env \| Select-String arch` → **Only the two arch lines**, not the whole report. `$v = & filer env; $v.Count` is the report's line count, not 0*
+- [ ] **25.20** 何もリダイレクトせずに `filer env` と `filer --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない — *`filer env` with nothing redirected, and `filer --version` → Still printed on screen, as 25.1 has it — the console path is unchanged*
 
 ## 26. アプリの中からのバグ報告 — 8 / 11
 

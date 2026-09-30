@@ -50,11 +50,35 @@ struct Cli {
 /// `AttachConsole` refuses and the ordinary path is correct. A release build
 /// started by double-clicking has no parent console to attach to, and the text
 /// goes nowhere — which is what should happen, since nobody asked for it.
+///
+/// **Redirected output comes first.** `CONOUT$` is the screen, not standard
+/// output, so until v0.54.4 `filer env > out.txt` wrote an empty file and
+/// `filer env | Select-String arch` printed the whole report unfiltered -- the
+/// very captures a bug report is made of, silently lost. A GUI binary still
+/// inherits whatever handles its parent redirected, so when standard output is
+/// a file or a pipe, the text goes there; the console path is only for a real
+/// console. Reported four times by the real-machine runs (#81, #84, #88, #93).
 #[cfg(windows)]
 fn say(text: &str) {
     use std::io::Write;
-    use windows::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
+    use windows::Win32::Storage::FileSystem::{GetFileType, FILE_TYPE_DISK, FILE_TYPE_PIPE};
+    use windows::Win32::System::Console::{
+        AttachConsole, GetStdHandle, ATTACH_PARENT_PROCESS, STD_OUTPUT_HANDLE,
+    };
 
+    let redirected = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) }
+        .ok()
+        .filter(|h| !h.is_invalid())
+        .is_some_and(|h| {
+            let kind = unsafe { GetFileType(h) };
+            kind == FILE_TYPE_DISK || kind == FILE_TYPE_PIPE
+        });
+    if redirected {
+        let mut out = std::io::stdout().lock();
+        let _ = writeln!(out, "{text}");
+        let _ = out.flush();
+        return;
+    }
     if unsafe { AttachConsole(ATTACH_PARENT_PROCESS) }.is_ok() {
         if let Ok(mut out) = std::fs::OpenOptions::new().write(true).open("CONOUT$") {
             let _ = writeln!(out, "{text}");

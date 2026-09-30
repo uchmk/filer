@@ -88,6 +88,25 @@ jobs:
       - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }}
 
+      # The release binary is a GUI-subsystem program, and until v0.54.4 its
+      # `filer env` and `--version` wrote only to the screen: redirected to a
+      # file or a pipe they gave nothing at all, and a debug build -- which is
+      # all the test job ever runs -- cannot show it, because it owns a
+      # console. So this runs the binary that actually ships. x64 only: the
+      # runner cannot execute the ARM64 build.
+      - name: Its output can be redirected
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        shell: pwsh
+        run: |
+          $exe = "target/${{ matrix.target }}/release/filer.exe"
+          & $exe --version > version.txt
+          $v = Get-Content -Raw version.txt
+          if ($v -notmatch '^filer \d') { throw "--version redirected to a file gave: '$v'" }
+          $arch = & $exe env | Select-String 'Process arch'
+          if (-not $arch) { throw "filer env | Select-String found no 'Process arch' line" }
+          "version: $v"
+          "piped:   $arch"
+
       - name: Gather the files
         shell: bash
         run: |
