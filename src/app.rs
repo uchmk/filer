@@ -1551,6 +1551,12 @@ impl App {
     // -------------------------------------------------------------- preview
 
     pub fn request_preview(&mut self, force: bool) {
+        // The debounce's timer, taken rather than read: every way out of this
+        // function below leaves it cleared except the one that is still
+        // waiting, which puts it back. `main` repaints every 16 ms while it is
+        // set, and each early return used to leave it set for good -- an idle
+        // window drawing 60 frames a second, minimised or not (#86).
+        let pending = self.preview.pending_since.take();
         let Some(entry) = self.tabs[self.active].current.hovered().cloned() else {
             self.preview.state = PreviewState::Empty;
             self.preview.key = None;
@@ -1625,17 +1631,18 @@ impl App {
 
         // Debounce: while the cursor is still moving, don't touch the disk.
         let debounce = Duration::from_millis(self.cfg.ui.preview_debounce_ms);
-        match self.preview.pending_since {
+        match pending {
             Some(t) if t.elapsed() >= debounce => {}
-            Some(_) => return,
-            None => {
-                self.preview.pending_since = Some(Instant::now());
-                if !debounce.is_zero() {
-                    return;
-                }
+            Some(t) => {
+                self.preview.pending_since = Some(t);
+                return;
             }
+            None if !debounce.is_zero() => {
+                self.preview.pending_since = Some(Instant::now());
+                return;
+            }
+            None => {}
         }
-        self.preview.pending_since = None;
 
         // A re-layout of the file already shown keeps it up until the new
         // one arrives, rather than blinking through "loading" on every resize.
@@ -5372,6 +5379,70 @@ mod tests {
 #[cfg(test)]
 mod preview_delivery {
     use super::*;
+
+    /// The debounce's timer ends with the look it was for, however that look
+    /// ends -- not only by the worker being asked.
+    ///
+    /// `main` repaints every 16 ms while `pending_since` is set, which is what
+    /// the timer needs to fire. `request_preview` took several early returns
+    /// that left it set: onto a directory, onto a file already cached, back
+    /// onto the file already shown. After any of those nothing ever cleared
+    /// it, and an idle window -- minimised, even -- drew 60 frames a second
+    /// for good: the "1 CPU-second per second" the Windows machine measured
+    /// (#86). Each case here is the cursor leaving a file whose timer is
+    /// running.
+    #[test]
+    fn the_debounce_timer_does_not_outlive_the_look() {
+        let dir = crate::util::test_dir("debounce-timer");
+        std::fs::write(dir.join("a.txt"), "a").unwrap();
+        std::fs::write(dir.join("b.txt"), "b").unwrap();
+        std::fs::create_dir(dir.join("sub")).unwrap();
+        let entries: Vec<crate::fs::Entry> = ["a.txt", "b.txt", "sub"]
+            .iter()
+            .map(|n| crate::fs::Entry::from_path(dir.join(n)).unwrap())
+            .collect();
+
+        let fresh = || {
+            let mut a = App::new(Config::load(), std::env::temp_dir(), egui::Context::default());
+            a.cfg.ui.preview_debounce_ms = 10_000;
+            a.tabs[a.active].current = Folder::from_entries(dir.clone(), Arc::new(entries.clone()), true);
+            a
+        };
+        let hover = |a: &mut App, name: &str| {
+            assert!(a.tabs[a.active].current.select_name(name));
+            a.request_preview(false);
+        };
+
+        // Onto a directory while the timer runs.
+        let mut a = fresh();
+        hover(&mut a, "a.txt");
+        assert!(a.preview.pending_since.is_some(), "the timer starts on a file");
+        hover(&mut a, "sub");
+        assert!(a.preview.pending_since.is_none(), "a directory ends it");
+
+        // Onto a file the cache already has.
+        let mut a = fresh();
+        let cached = preview::Key {
+            path: dir.join("b.txt"),
+            len: 1,
+            mtime: a.tabs[a.active].current.hovered().and_then(|e| e.modified),
+            box_size: a.preview.box_size,
+            cols: 0,
+            n: 0,
+        };
+        a.preview.cache.put(cached, CachedPreview { payload: Payload::Error("x".into()), texture: None });
+        hover(&mut a, "a.txt");
+        assert!(a.preview.pending_since.is_some());
+        hover(&mut a, "b.txt");
+        assert!(matches!(a.preview.state, PreviewState::Ready(_)), "served from the cache");
+        assert!(a.preview.pending_since.is_none(), "a cache hit ends it");
+
+        // Back onto the file already on screen.
+        hover(&mut a, "a.txt");
+        assert!(a.preview.pending_since.is_some());
+        hover(&mut a, "b.txt");
+        assert!(a.preview.pending_since.is_none(), "the file already shown ends it");
+    }
 
     /// The answer from the preview worker has to reach the screen, not just the
     /// cache.
