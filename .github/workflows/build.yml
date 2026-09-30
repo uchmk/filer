@@ -99,9 +99,16 @@ jobs:
         shell: pwsh
         run: |
           $exe = "target/${{ matrix.target }}/release/filer.exe"
+          # Through a pipe PowerShell reads to the end, so it waits for the
+          # program; redirected to a file it may not wait for a GUI-subsystem
+          # one. The size is printed before and after waiting, so a failure
+          # says which of the two it was.
           & $exe --version > version.txt
+          "file right after: $((Get-Item version.txt).Length) bytes"
+          Get-Process filer -ErrorAction SilentlyContinue | Wait-Process -Timeout 10
+          "file after waiting: $((Get-Item version.txt).Length) bytes"
           $v = Get-Content -Raw version.txt
-          if ($v -notmatch '^filer \d') { throw "--version redirected to a file gave: '$v'" }
+          if (-not ($v -match '^filer \d')) { throw "--version redirected to a file gave: '$v'" }
           $arch = & $exe env | Select-String 'Process arch'
           if (-not $arch) { throw "filer env | Select-String found no 'Process arch' line" }
           "version: $v"
