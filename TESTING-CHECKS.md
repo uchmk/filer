@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**215 / 405 済み。**（TESTING.md の全 563 件のうち、`cargo test` が見ている 158 件は
+**217 / 405 済み。**（TESTING.md の全 563 件のうち、`cargo test` が見ている 158 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -363,13 +363,13 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **23.3** 一覧の取得中にネットワークを抜く、または応答しないホストを指定する → **ウィンドウが固まらない。**エラーのトーストが出て、タブは元の場所に戻る — *Unplug the network mid-listing, or point at a dead host → **The window keeps responding.** An error toast, and the tab goes back where it was*
 - [ ] **23.4** 共有上のパスを Tab 補完する → プロンプトが固まらず、待っている間 `…` が出る — *Tab-complete a path on the share → The prompt stays responsive; a `…` shows while it waits*
 
-## 24. 扱いにくい名前 — 0 / 3
+## 24. 扱いにくい名前 — 2 / 3
 
 自動テスト済みなので下には出していない: 24.1, 24.3
 
 - [ ] **24.2** 非常に長い名前 → 真ん中が省略され、拡張子は読める形で残る — *The very long name → Elided in the middle, with the extension still readable*
-- [ ] **24.4** 引用符を含む名前をコピーして、`<A-t>` でターミナルへ → シェルが 1 語として受け取る形に引用される — *Copy the name with a quote in it, `<A-t>` into the terminal → Quoted so the shell sees one word*
-- [ ] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
+- [x] **24.4** 引用符を含む名前をコピーして、`<A-t>` でターミナルへ → シェルが 1 語として受け取る形に引用される — *Copy the name with a quote in it, `<A-t>` into the terminal → Quoted so the shell sees one word*
+- [x] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
 
 ## 25. `filer env` — 18 / 26
 
