@@ -245,6 +245,12 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
 - **改善案を出す。**実機のセッションは毎回、QA-REPORT.md の `### Proposals` に「こうするべき」を
   書いてくる（役割の定義の Proposals の節）。**マージする側は、そのうち採るものを TODO.md のタスクに、
   持ち主の判断が要るものを QUESTIONS.md の質問に移す。**PR をマージしただけで終わらせない。
+- **無人で回せる（v0.50.0 から）。**`scripts/auto-wintest.ps1` をタスク スケジューラで 15 分おきに
+  呼ぶと、`main` の TESTING.md / TESTING-CHECKS.md / `windows-role.md` が変わっていて、`test/win-*` の
+  PR が開いていないときに 1 本起動する（別 worktree の `C:\dev\filer-wintest` で）。登録の仕方は
+  スクリプトの冒頭。**実機の PR をマージすることが次の実行の引き金になる**ので、マージする側は
+  順番表（`windows-role.md` の「Where the work is」）が次の節を指しているかを確かめてからマージする。
+  無人のときの規則は役割定義の「Unattended runs」の節。
 - **一番の危険は「動かしたこと」を「確かめたこと」と取り違えること。**クラウドの
   セッションはそもそも起動できないので、この取り違えが起きない。実機のセッションだけが
   起こせる。チェックを付ける前に「**失敗していたら画面かディスクの何が違ったはずか**」を
