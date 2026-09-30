@@ -45,6 +45,10 @@ place. Most rows that sound like looks have one:
 | nothing leaves the machine | Windows Firewall rules blocking `filer.exe` and `git.exe` outbound (needs elevation; delete them afterwards), then the same output at the same speed. Without elevation, `Get-NetTCPConnection` / `Get-NetUDPEndpoint` for filer and its children as supporting evidence |
 | what the pane and a program in it said to each other | `FILER_PTY_LOG`, and `scripts\keyprobe.ps1` in the pane |
 | a click, a hover, the pointer | `SendInput` for the mouse, `GetCursorInfo` for the cursor shape, through `Add-Type` |
+| a key or a paste reached the program in the pane | `FILER_PTY_LOG`: `in key` / `in paste` lines are the bytes sent, so `\e[200~` around a paste, `\eOA` against `\e[A`, or no line at all, can be read |
+| a program was started, and how | `Get-CimInstance Win32_Process` for filer's children: the `CommandLine` shows the editor and the line number it was given |
+| a toast or a warning said something | a screenshot, read as text. Also `filer env`, which prints the config warnings |
+| the app kept running / quit | `Get-Process filer` after the key |
 
 Reading text off a screenshot is reading text -- a `~` in a column, a count in a
 footer. Taking a screenshot is always fine, and one is worth attaching.
@@ -96,20 +100,32 @@ still on the human's list when it was written.
 
 | Section | Rows | Why it suits you |
 | --- | --- | --- |
-| **46. spot's Git section** | 46.12–46.16 | `Came in via` / `From branch` are values -- copy them with `y` and read the clipboard. 46.15 needs a commit on an unmerged branch: make it in a throwaway clone under `R:\Temp`, never in the real checkout. 46.16 cannot be done by turning the network off -- that cuts your own session -- so block `filer.exe` and `git.exe` outbound in Windows Firewall instead (see the table above), and remove the rules when done |
-| **1. the terminal pane** | 1.30 | 1.22 / 1.23 / 1.27 / 1.28 were settled on 2026-09-30, and 1.30's "not left maximised" half with them (12 rows after reopening, not 35). What is left is 1.30's "list drawn full height" half is a page move from the top of `many\\`: compare the file `<C-f>` lands on before and after |
+| **1. the terminal pane** | 1.30 | 1.22 / 1.23 / 1.27 / 1.28 were settled on 2026-09-30, and 1.30's "not left maximised" half with them (12 rows after reopening, not 35). What is left is 1.30's "list drawn full height" half: a page move from the top of `many\` -- compare the file `<C-f>` lands on before and after |
 | **12. undo and redo** | 10 | Every expectation is a file state: in the recycle bin, back at its path, under its old name |
 | **45. comparing two folders** | 9 | You build both trees, so every `<` `>` `~` `=` and each footer count is known in advance. 45.7's 64 MB files come from `fsutil file createnew` |
 | **44. disk usage** | 13 | Totals against `Get-ChildItem -Recurse -Force \| Measure-Object Length -Sum`; "the walk stops" against the process's CPU time from `Get-Process` |
 | **29. the terminal's directory, brought back** | 5 | Where the list went reads off the window title (`(Get-Process filer).MainWindowTitle`). OSC 7 through ConPTY -- nobody else can run it |
 | **28. changes made from outside** | 7 | "No crash" is the process still being there; where the cursor landed is `y` on the hovered row |
 | **7. the config paths in the help panel** | 8 | The listed directories are text, and `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` move them. 7.2 and 7.3 are the pointer and a highlight -- looks, skip them |
+| **36. `T`, and `q` from each layer** | 5 | Every row is "closed, and the app is still running" or "quit": `Get-Process filer` after the key, and the window title for where the list is |
+| **40. scroll gestures handed to full-screen programs** | 13 | `FILER_PTY_LOG` says which keys went to the program and as which bytes (40.9's `\eOA`). 40.10-40.12: type `echo ab cd`, `Alt-b`, then `X` and `<Enter>` -- the output says where the cursor was. `less` comes with Git for Windows; take nvim rows only if `where nvim` finds it |
+| **30. right-click paste in prompts** | 14 | Put the text there with `Set-Clipboard`, right-click with `SendInput`. In `cd`, `<Enter>` and read the window title; in the pane, `FILER_PTY_LOG` shows whether the paste was bracketed (30.11-30.13). 30.3 needs a drag -- `SendInput` does that too |
+| **14. the parent column, with the mouse** | 6 | Click with `SendInput`; the window title says where the list went and `c` `f` which row the cursor is on |
+| **33. config warnings** | 10 | The warning lines are text: a screenshot, and `filer env`. 33.6 (does yellow read on a light theme) and 33.9 (boxes do not overlap) are looks |
+| **24. awkward names** | 3 | 24.4 in `FILER_PTY_LOG` (what the shell was sent), 24.5 on disk. 24.2 is a look |
+| **39. `<A-j>` / `<A-k>` in the pane** | 9 | 39.7 and 39.8 are "did the key reach the shell" -- `FILER_PTY_LOG`. Where the scrollback moved to is a look unless a numbered output (`1..500`) makes the top row readable |
+| **31. a host's shares** | 13 | `\\localhost` and `\\<this machine's name>` list your own shares; `New-SmbShare` (elevated) makes one with a space or Japanese in its name. 31.5 is an unused address on your subnet |
+| **22. opening an editor at a line** | 6 | Only the editors installed here: `Get-CimInstance Win32_Process` shows the command line filer built, `-n42` or `+42` or `--goto`. Say which ones were not installed |
 
-Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26 and 13 / 15.
+Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26, 13 / 15 and 46.
+46.16 is still open: it needs the firewall rules, so an elevated run -- or a person.
 Rows still open there were left by those runs on purpose -- ARM, another platform, or eyes -- so
 read that section's entry in QA-REPORT.md before taking one.
 
-**One section per run, and one session at a time.** On 2026-09-28 two sessions
+**One section per run, and one session at a time** -- and that includes an
+unattended run: `auto-wintest.ps1` only knows about the runs it started itself,
+so do not start one by hand while it may fire. On 2026-09-30 two sessions shared
+the clipboard, and each one's `c` landed in the other's capture. On 2026-09-28 two sessions
 ran section 25 in the same working directory at once. It came out as an
 independent re-test and found two more bugs, so nothing was lost -- but that was
 luck, not the design, and they were a commit away from fighting over the index.
@@ -117,6 +133,40 @@ luck, not the design, and they were a commit away from fighting over the index.
 The rest -- the terminal pane's drawing, the minimap's shape, the wheel's feel,
 the image zoom's sharpness -- is the owner's, and saying so plainly is more
 useful than a thin test.
+
+## Unattended runs
+
+`scripts/auto-wintest.ps1` starts you with no one watching, when `main` has
+changed this file, TESTING.md or TESTING-CHECKS.md and no `test/win-*` pull
+request is open. Everything above still holds. What changes is that **nobody
+will answer a question**, so:
+
+- **Take the first section in the queue.** Do not ask which one.
+- **Never wait for input.** A choice that is the owner's goes in QA-REPORT.md,
+  as a finding or a proposal, and the run carries on with what it can settle.
+- **Your checkout is the worktree the prompt names**, not `C:\dev\filer`: read
+  every path in this file with that swap. Make your branch there with
+  `git checkout -B test/win-<section> origin/main`; if git refuses because the
+  branch is checked out in another worktree, add `-auto` to the name.
+- **Elevation**: check `([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole('Administrators')`.
+  If you are not elevated, rows that need it (the firewall rules) are left, and
+  the report says that was the reason.
+- **The screen can lock under you.** If `Get-Process LogonUI` appears, input
+  stopped reaching the window: nothing measured after that counts. Stop driving
+  it and report how far you got.
+- **In the same pull request, update the queue above**: move your section out of
+  the table and into the "Worked through before" line, or cut its row down to
+  what is left and why. Merging your pull request is what starts the next run,
+  and the next run reads this table -- if it still lists your section, it runs
+  it again.
+- **Finish the run yourself**: commit, `git push -u origin <your branch>`, and
+  `gh pr create --base main` with the body this file asks for. Never merge,
+  never push to `main`.
+- **Close every `filer.exe` you started** before you finish.
+- **The last line you print** is one of these, alone, so the script can log it:
+  - `WINTEST_DONE <pull request URL>`
+  - `WINTEST_NOTHING` -- the queue is empty, or every section left needs a person
+  - `WINTEST_FAILED <one line: why>` -- and commit nothing in that case
 
 ## Proposals: say what should change
 

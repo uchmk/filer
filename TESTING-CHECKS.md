@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**108 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
+**119 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -208,7 +208,7 @@ cd $HOME\Desktop\filer-fixtures
 - [ ] **12.11** ごみ箱を無効にしたドライブで `d` → 同じ形のメッセージが、ファイル名を挙げて出る — *`d` on a drive whose Recycle Bin is turned off → Same shape of message, naming the file*
 - [ ] **12.12** ロックされたファイルが無い状態で `d` → 以前のまま。そしてエクスプローラー自身の取り消し履歴に**項目が 1 つだけ**残る（まとめて渡す呼び出しが通常の経路であることの確認） — *`d` with nothing locked → Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path*
 
-## 13. シンボリックリンクと `g`+`f` — 6 / 8
+## 13. シンボリックリンクと `g`+`f` — 8 / 8
 
 Windows ではリンクを作るのが面倒。**ジャンクション**は管理者権限が要らない
 （`mklink /J linktest C:\dev`）。**ファイルへのシンボリックリンクは開発者モードか管理者権限**が要る
@@ -226,14 +226,14 @@ fsutil hardlink create locked-2.txt locked.txt
 fsutil hardlink list locked.txt        # 期待値の答え合わせ用
 ```
 
-- [ ] **13.7** ジャンクション（`mklink /J`）で試す → シンボリックリンクと同じ扱い（名前の後ろに `->` が付き、`g`+`f` で追える） — *A junction (`mklink /J`), not just a symlink → Treated the same: `->`, and `g`+`f` follows it*
+- [x] **13.7** ジャンクション（`mklink /J`）で試す → シンボリックリンクと同じ扱い（名前の後ろに `->` が付き、`g`+`f` で追える） — *A junction (`mklink /J`), not just a symlink → Treated the same: `->`, and `g`+`f` follows it*
 - [x] **13.8** `y` してから、別のディレクトリで `-` → シンボリックリンクができる。**Windows では開発者モードが要る**（設定 > システム > 開発者向け）。無いと `os error 1314` で失敗し、トーストが対処法を 2 つ示す — *`y`, then `-` in another directory → The symlink appears. **On Windows this needs Developer Mode on** (Settings > System > For developers) — without it, and without running filer elevated, it fails with `os error 1314` and the toast says which two remedies there are. The privilege is the OS's, not the app's: `std` already passes `SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, which is what makes Developer Mode enough*
 - [x] **13.9** `y` してから、**隣の**ディレクトリで `_` → 同じリンクが相対パス（`..\other\file`）で作られる。`g`+`f` で追え、両方のディレクトリを一緒に移動しても壊れない（これが `-` に対する `_` の利点） — *`y`, then `_` in a **sibling** directory → The same link, written relative (`..\other\file`). `g`+`f` follows it, and it survives moving both directories together — which is the point of `_` over `-`*
 - [x] **13.10** シンボリックリンクの上で `<Tab>` → **Link** セクションが出る。`Kind` が `Symlink`、`Target` が保存されたパス、`Resolves` が実際の着地点 — *`<Tab>` on a symlink (v0.46.0) → A **Link** section: `Kind` reads `Symlink`, `Target` the stored path, `Resolves` where it lands*
 - [x] **13.11** `_` で作ったリンクの上で `<Tab>` → `Kind` が `Symlink (relative)`。`Target` は相対パス、`Resolves` は絶対パスで、**2 行が食い違うことがこの対の要点** — *`<Tab>` on a link made with `_` → `Kind` reads `Symlink (relative)`, and `Target` is the relative path while `Resolves` is absolute — the two rows differ, which is the whole point of the pair*
 - [x] **13.12** **壊れた**リンクの上で `<Tab>` → `Resolves` が `no (…)` と OS の理由を出し、セクション自体は表示される — *`<Tab>` on a **broken** link → `Resolves` reads `no (…)` with the OS's reason, and the section still appears*
 - [x] **13.14** 同じものを Windows で → `Also at` に別名のパスが並ぶ。`fsutil hardlink list` と突き合わせる（自分自身のパスを除いた同じ集合になる） — *The same, on Windows → `Also at` lists the other path. Check it against `fsutil hardlink list` — the same set, with the file's own path left out*
-- [ ] **13.16** ハードリンクを作り、別のプログラムに共有なしの書き込みロックを握らせた状態で `<Tab>`（コマンドは上の「準備」）→ `Links` は `2` のまま、`Also at` も出る。ハンドルがアクセス権を一切要求しないので、排他ロックでも数えられる — *Hardlink a file, then have another program hold it open for writing with no sharing, and `<Tab>` it (commands in the preamble above) → `Links` still reads `2` and `Also at` still lists the other name. The handle asks for **no** access rights, so an exclusive write lock does not hide the count*
+- [x] **13.16** ハードリンクを作り、別のプログラムに共有なしの書き込みロックを握らせた状態で `<Tab>`（コマンドは上の「準備」）→ `Links` は `2` のまま、`Also at` も出る。ハンドルがアクセス権を一切要求しないので、排他ロックでも数えられる — *Hardlink a file, then have another program hold it open for writing with no sharing, and `<Tab>` it (commands in the preamble above) → `Links` still reads `2` and `Also at` still lists the other name. The handle asks for **no** access rights, so an exclusive write lock does not hide the count*
 
 ## 14. 親ディレクトリの列を、マウスで — 0 / 6
 
@@ -246,7 +246,7 @@ fsutil hardlink list locked.txt        # 期待値の答え合わせ用
 - [ ] **14.5** いま自分がいるディレクトリの行をクリック → その場に留まり、カーソルが飛び回らない — *Click the row for the directory you are already in → You stay there, and the cursor does not jump about*
 - [ ] **14.6** ドライブ直下（親の列が無い場所）で → クリックするものが無く、何もおかしくならない — *At a drive root, where there is no parent column → Nothing to click, and nothing misbehaves*
 
-## 15. ウィンドウの拡大縮小と、取り返したキー — 0 / 7
+## 15. ウィンドウの拡大縮小と、取り返したキー — 5 / 7
 
 **v0.32.0 まで `<C-->` はウィンドウ縮小とハードリンク作成を同時にやっていた** —— 1 打で 2 動作。
 それを分けたのがこの節。ハードリンク作成は `=` に移った（v0.45.6 まで `<C-S-->` だったが、
@@ -259,13 +259,13 @@ fsutil hardlink list locked.txt        # 期待値の答え合わせ用
 fsutil hardlink list <新しくできたパス>
 ```
 
-- [ ] **15.1** 何かヤンクした状態で `<C-->` → **ウィンドウが縮むだけ。**v0.32.0 まではハードリンクも同時に作っていた（1 打で 2 動作） — *`<C-->` with something yanked → **Only** the window shrinks. Until v0.32.0 it also made a hardlink — one press, two actions*
-- [ ] **15.2** `<C-+>` と `<C-=>` → どちらでも大きくなる。どちらに shift が要るかは配列次第（US は `+` が shift+equals、JIS は `+` が shift+semicolon で `=` が shift+minus）。**両方の綴りが割り当ててあるのでどちらからでも届く**（v0.45.6） — *`<C-+>`, and `<C-=>` → Both make it bigger. Which of the two needs shift depends on the layout — on US `+` is shift+equals, on JIS `+` is shift+semicolon and `=` is shift+minus — and both spellings are bound so either reaches it (v0.45.6)*
-- [ ] **15.3** `<C-0>` → 100% に戻り、トーストがそう言う — *`<C-0>` → Back to 100%, and a toast says so*
+- [x] **15.1** 何かヤンクした状態で `<C-->` → **ウィンドウが縮むだけ。**v0.32.0 まではハードリンクも同時に作っていた（1 打で 2 動作） — *`<C-->` with something yanked → **Only** the window shrinks. Until v0.32.0 it also made a hardlink — one press, two actions*
+- [x] **15.2** `<C-+>` と `<C-=>` → どちらでも大きくなる。どちらに shift が要るかは配列次第（US は `+` が shift+equals、JIS は `+` が shift+semicolon で `=` が shift+minus）。**両方の綴りが割り当ててあるのでどちらからでも届く**（v0.45.6） — *`<C-+>`, and `<C-=>` → Both make it bigger. Which of the two needs shift depends on the layout — on US `+` is shift+equals, on JIS `+` is shift+semicolon and `=` is shift+minus — and both spellings are bound so either reaches it (v0.45.6)*
+- [x] **15.3** `<C-0>` → 100% に戻り、トーストがそう言う — *`<C-0>` → Back to 100%, and a toast says so*
 - [ ] **15.4** `<C-->` を押しっぱなし → 滑らかに縮んで 20% で止まる。`<C-+>` の押しっぱなしは 500% で止まる — *Hold `<C-->` down → It shrinks smoothly and stops at 20%; `<C-+>` held stops at 500%*
-- [ ] **15.5** 何かヤンクした状態で、**同じドライブ内の**ディレクトリで `=` → ハードリンクができる。**一覧の行には印が出ない**（ハードリンクは同じ実体を指す別のエントリなので、区別する印が無い）。v0.46.0 以降は **`<Tab>` の spot パネルに出る**（`Kind: Hardlink` / `Links: 2`。それが 13.13）。外から確かめるなら `fsutil hardlink list <新しいパス>`。**ドライブを跨ぐと失敗するのが正しい**（NTFS のハードリンクはボリュームを跨げない） — *`=` with something yanked, in a directory **on the same drive** → The hardlink, in its new place. No *row* says so — a hardlink is another entry pointing at the same data, so the listing has no marker for it. Since v0.46.0 the spot panel does: `<Tab>` on it reads `Kind: Hardlink` and `Links: 2`, which is 13.13. Confirm from outside with `fsutil hardlink list <the new path>`, which lists every path sharing the data; or write to one and read the other. Across drives it must fail: NTFS hardlinks cannot leave their volume. Was `<C-S-->` until v0.45.6, a chord no keyboard can produce*
+- [x] **15.5** 何かヤンクした状態で、**同じドライブ内の**ディレクトリで `=` → ハードリンクができる。**一覧の行には印が出ない**（ハードリンクは同じ実体を指す別のエントリなので、区別する印が無い）。v0.46.0 以降は **`<Tab>` の spot パネルに出る**（`Kind: Hardlink` / `Links: 2`。それが 13.13）。外から確かめるなら `fsutil hardlink list <新しいパス>`。**ドライブを跨ぐと失敗するのが正しい**（NTFS のハードリンクはボリュームを跨げない） — *`=` with something yanked, in a directory **on the same drive** → The hardlink, in its new place. No *row* says so — a hardlink is another entry pointing at the same data, so the listing has no marker for it. Since v0.46.0 the spot panel does: `<Tab>` on it reads `Kind: Hardlink` and `Links: 2`, which is 13.13. Confirm from outside with `fsutil hardlink list <the new path>`, which lists every path sharing the data; or write to one and read the other. Across drives it must fail: NTFS hardlinks cannot leave their volume. Was `<C-S-->` until v0.45.6, a chord no keyboard can produce*
 - [ ] **15.6** 画像の上で `<A-i>` / `<A-o>` → **画像の**拡大縮小のまま影響を受けない（`zoom` と `scale` は別のコマンド） — *`<A-i>` / `<A-o>` on an image → Still the **image** zoom, unaffected — `zoom` and `scale` are different commands*
-- [ ] **15.7** `~` → `scale in` / `scale out` / `scale reset` が他のコマンドと同じように並んでいる — *`~` → `scale in` / `scale out` / `scale reset` are listed, like any other command*
+- [x] **15.7** `~` → `scale in` / `scale out` / `scale reset` が他のコマンドと同じように並んでいる — *`~` → `scale in` / `scale out` / `scale reset` are listed, like any other command*
 
 ## 16. Word / Excel / PowerPoint — 0 / 12
 
@@ -619,7 +619,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **45.12** 2 分割して各ペインでフォルダの上に立ち、`<A-d>` → その 2 つが比較される — *Split the view, stand on a folder in each pane, `<A-d>` → Compares those two*
 - [ ] **45.13** `q` / `<Esc>` → 閉じる。そして 2 つの**ファイル**はこれまでどおり行単位で比較できる — *`q` / `<Esc>` → Closes, and two **files** still compare line by line as before*
 
-## 46. spot パネルの Git セクション — 10 / 16
+## 46. spot パネルの Git セクション — 14 / 16
 
 準備:
 
@@ -640,8 +640,8 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [x] **46.9** `git` が `PATH` に無い機械で同じこと → Git セクションが出ず、エラーも出ず、パネルの他の部分にも影響しない — *The same on a machine with no `git` on `PATH` → No Git section, no error, and the rest of the panel is unaffected*
 - [x] **46.10** 最後のコミットの件名に日本語や絵文字が入っているファイルで `<Tab>` → 文字化けせずそのまま描かれる（書式が NUL 区切りなので引用が要らない） — *`<Tab>` on a file whose last subject has Japanese in it, or an emoji → Drawn intact, not mojibake — the format is NUL-separated so nothing needs quoting*
 - [x] **46.11** コンソールの窓が出ないか見張る → **一瞬も出ない。**`git` は status ワーカーと同じく `CREATE_NO_WINDOW` で起動される — *Watch for a console window → **None flashes.** `git` is spawned with `CREATE_NO_WINDOW`, the same as the status worker*
-- [ ] **46.12** マージ済みの pull request 経由で入ったコミットを持つファイルで `<Tab>` → `Came in via` が `#<n>` と merge の短いハッシュ、`From branch` がブランチ名 — *`<Tab>` on a file whose commit arrived through a merged pull request → `Came in via` reads `#<n>` then the merge's short hash, and `From branch` names the branch*
-- [ ] **46.13** `#<n>` を GitHub の pull request と突き合わせる → **同じ番号**で、そのファイルがその PR の差分に入っている。番号は merge コミットの件名から読んでいて何も取得していないので、**件名が出所であることを示すのがこの行** — *Check `#<n>` against the pull request on GitHub → **The same number**, and the file is in that pull request's diff. The number is read out of the merge commit's subject — nothing is fetched, so this is the row that proves the subject is the source*
-- [ ] **46.14** 最後のコミットが **`main` に直接** push されたファイルで `<Tab>` → **`Came in via` も `From branch` も出ない。**履歴の行だけ。あとから来ただけの merge に帰属させてはいけない — *`<Tab>` on a file whose last commit was pushed **straight to `main`** → **No `Came in via` and no `From branch`** — the history rows only. A merge that merely came later must not be credited*
-- [ ] **46.15** 現在のブランチでコミットし **まだマージしていない**ファイルで `<Tab>` → 同じく履歴の行だけで `Came in via` は出ない。まだどこにも到着していないので訊く相手がいない — *`<Tab>` on a file committed on the current branch and **not merged yet** → The same: history rows, no `Came in via`. It has not arrived anywhere to be asked about*
+- [x] **46.12** マージ済みの pull request 経由で入ったコミットを持つファイルで `<Tab>` → `Came in via` が `#<n>` と merge の短いハッシュ、`From branch` がブランチ名 — *`<Tab>` on a file whose commit arrived through a merged pull request → `Came in via` reads `#<n>` then the merge's short hash, and `From branch` names the branch*
+- [x] **46.13** `#<n>` を GitHub の pull request と突き合わせる → **同じ番号**で、そのファイルがその PR の差分に入っている。番号は merge コミットの件名から読んでいて何も取得していないので、**件名が出所であることを示すのがこの行** — *Check `#<n>` against the pull request on GitHub → **The same number**, and the file is in that pull request's diff. The number is read out of the merge commit's subject — nothing is fetched, so this is the row that proves the subject is the source*
+- [x] **46.14** 最後のコミットが **`main` に直接** push されたファイルで `<Tab>` → **`Came in via` も `From branch` も出ない。**履歴の行だけ。あとから来ただけの merge に帰属させてはいけない — *`<Tab>` on a file whose last commit was pushed **straight to `main`** → **No `Came in via` and no `From branch`** — the history rows only. A merge that merely came later must not be credited*
+- [x] **46.15** 現在のブランチでコミットし **まだマージしていない**ファイルで `<Tab>` → 同じく履歴の行だけで `Came in via` は出ない。まだどこにも到着していないので訊く相手がいない — *`<Tab>` on a file committed on the current branch and **not merged yet** → The same: history rows, no `Came in via`. It has not arrived anywhere to be asked about*
 - [ ] **46.16** 回線を抜く、Wi-Fi を切る、または Windows ファイアウォールで `filer.exe` と `git.exe` の外向き通信を塞ぐ —— そのうえで 46.12 をやり直す → **同じ出力・同じ速さ。**ここは何もマシンの外に出ない。ファイアウォールの方法は、実機で動くセッション向け（前の 2 つだとセッション自体が切れる） — *Pull the network cable, turn off Wi-Fi, or block `filer.exe` and `git.exe` outbound in Windows Firewall — then repeat 46.12 → **Identical output, at the same speed.** Nothing here leaves the machine. The firewall form is for a session on the machine, which the other two would cut off*
