@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**121 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
+**128 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -193,18 +193,18 @@ cd $HOME\Desktop\filer-fixtures
 
 `cargo test` が全部見ているので、押すものはありません。
 
-## 12. undo と redo — 0 / 10
+## 12. undo と redo — 7 / 10
 
 自動テスト済みなので下には出していない: 12.6, 12.7
 
-- [ ] **12.1** `many\` の中のファイルで `d` → ごみ箱に入る — *`d` on a file in `many\` → It goes to the recycle bin*
-- [ ] **12.2** `u` → 元の場所に戻る。トーストがそう言う — *`u` → It comes back, in its original place. A toast says so*
-- [ ] **12.3** （F2 の最中に）タスクパネル `w` を見る → `Restore` の行が現れて完了する — *Check the task panel (`w`) during F2 → A `Restore` row appears and completes*
-- [ ] **12.4** `U` → もう一度削除される — *`U` → Deleted again*
-- [ ] **12.5** 別々のフォルダにある同名のファイルを、時間を空けて 2 つ削除してから `u` → **直前に消したほう**が戻る（古いほうではない） — *Delete two files with the same name from different folders, an interval apart, then `u` → The one just deleted comes back — not the older one*
+- [x] **12.1** `many\` の中のファイルで `d` → ごみ箱に入る — *`d` on a file in `many\` → It goes to the recycle bin*
+- [x] **12.2** `u` → 元の場所に戻る。トーストがそう言う — *`u` → It comes back, in its original place. A toast says so*
+- [x] **12.3** （F2 の最中に）タスクパネル `w` を見る → `Restore` の行が現れて完了する — *Check the task panel (`w`) during F2 → A `Restore` row appears and completes*
+- [x] **12.4** `U` → もう一度削除される — *`U` → Deleted again*
+- [x] **12.5** 別々のフォルダにある同名のファイルを、時間を空けて 2 つ削除してから `u` → **直前に消したほう**が戻る（古いほうではない） — *Delete two files with the same name from different folders, an interval apart, then `u` → The one just deleted comes back — not the older one*
 - [ ] **12.8** ファイルを `r` で改名 → `u` で戻す → 新しいファイルを作る → `U` → **redo は消えている。**新しい操作が履歴を分岐させたため — *Rename a file, undo it, then create a new file, then `U` → Redo is gone: the new action forked history*
-- [ ] **12.9** ファイルを `d` で消し、**同じ名前のファイルを先に作ってから** `u` → `u` が「その名前は使われている」と名前を挙げて断り、**取り消しの手順は残る。**邪魔なファイルをどけてもう一度押すと通る — *Delete a file, `u`, but create a file with that name first → `u` says the name is taken, and pressing it again after moving that file out of the way works*
-- [ ] **12.10** 別のプログラムで開いてロックされたファイルを、**他の数件と一緒に**選んで `d` → 他は消える。メッセージが**消えなかったファイルの名前を挙げ**、タスクパネルの件数も実際に消えた数と合う（v0.27.1 まで `Trash: trash: Error … Some operations were aborted` と名前を挙げずに言い、全件成功として数えていた） — *Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) → The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done*
+- [x] **12.9** ファイルを `d` で消し、**同じ名前のファイルを先に作ってから** `u` → `u` が「その名前は使われている」と名前を挙げて断り、**取り消しの手順は残る。**邪魔なファイルをどけてもう一度押すと通る — *Delete a file, `u`, but create a file with that name first → `u` says the name is taken, and pressing it again after moving that file out of the way works*
+- [x] **12.10** 別のプログラムで開いてロックされたファイルを、**他の数件と一緒に**選んで `d` → 他は消える。メッセージが**消えなかったファイルの名前を挙げ**、タスクパネルの件数も実際に消えた数と合う（v0.27.1 まで `Trash: trash: Error … Some operations were aborted` と名前を挙げずに言い、全件成功として数えていた） — *Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) → The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done*
 - [ ] **12.11** ごみ箱を無効にしたドライブで `d` → 同じ形のメッセージが、ファイル名を挙げて出る — *`d` on a drive whose Recycle Bin is turned off → Same shape of message, naming the file*
 - [ ] **12.12** ロックされたファイルが無い状態で `d` → 以前のまま。そしてエクスプローラー自身の取り消し履歴に**項目が 1 つだけ**残る（まとめて渡す呼び出しが通常の経路であることの確認） — *`d` with nothing locked → Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path*
 
