@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**190 / 405 済み。**（TESTING.md の全 563 件のうち、`cargo test` が見ている 158 件は
+**196 / 405 済み。**（TESTING.md の全 563 件のうち、`cargo test` が見ている 158 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -428,14 +428,14 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **28.6** カーソルを最終行に置いて、そのファイルを `d` で削除 → 同じ。これが Issue #5 の報告内容 — *Cursor on the last row, delete that file with `d` → Same — this is what Issue #5 reported*
 - [ ] **28.7** カーソルが乗っているファイルを外から改名 → カーソルが名前に追従するか、その場に留まる。落ちない — *Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash*
 
-## 29. ターミナルのカレントディレクトリを持ち帰る — 4 / 6
+## 29. ターミナルのカレントディレクトリを持ち帰る — 6 / 6
 
 - [x] **29.1** `$PROFILE` にフックが**無い**状態でターミナルを開き（`<C-t>`）、`cd` してから `<A-Up>` → OSC 7 と `LocationChangedAction` を挙げ、README を指すトーストが出る。**無反応でも待ちでもない** — *With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` → A toast naming OSC 7 and `LocationChangedAction`, pointing at the README — **not** silence, and not a wait*
-- [ ] **29.2** README のフックを `$PROFILE` に貼り、新しいターミナルを開いて `cd C:\dev`、`<A-Up>` → ファイル一覧が `C:\dev` へ移動する — *Paste the README hook into `$PROFILE`, open a new terminal, `cd C:\dev`, press `<A-Up>` → The file list moves to `C:\dev`*
+- [x] **29.2** README のフックを `$PROFILE` に貼り、新しいターミナルを開いて `cd C:\dev`、`<A-Up>` → ファイル一覧が `C:\dev` へ移動する — *Paste the README hook into `$PROFILE`, open a new terminal, `cd C:\dev`, press `<A-Up>` → The file list moves to `C:\dev`*
 - [x] **29.3** 名前に**空白**を含むディレクトリと、**日本語**を含むディレクトリで同じこと → どちらも壊れずに届く — *Same with a directory whose name has a **space** and one with **Japanese** in it → Both arrive intact*
 - [x] **29.4** UNC パス（`\\server\share`）へ `cd` して `<A-Up>` → 追従するか、できない理由を述べる。落ちない — *`cd` to a UNC path (`\\server\share`) and press `<A-Up>` → Either it follows or it says why; no crash*
 - [x] **29.5** Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため） — *Run the hook line by hand in a shell that already has Starship → The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`)*
-- [ ] **29.6** `[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`filer env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る — *With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` → 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again*
+- [x] **29.6** `[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`filer env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る — *With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` → 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again*
 
 ## 30. プロンプトでの右クリック貼り付け — 10 / 15
 
@@ -555,7 +555,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **39.8** シェルのプロンプトで Alt+b / Alt+f / Alt+d → これまでどおり readline に届く。取られたのは j と k だけ — *Alt+b / Alt+f / Alt+d at the shell prompt → Still reach readline. Only j and k were taken*
 - [ ] **39.9** ペインの中で `<F1>` → term レイヤーの一覧に `<A-j>` / `<A-k>` が説明付きで出る — *`<F1>` from inside the pane → The term layer's list shows `<A-j>` / `<A-k>` with their descriptions*
 
-## 40. 全画面プログラムにスクロールのジェスチャーを渡す — 10 / 15
+## 40. 全画面プログラムにスクロールのジェスチャーを渡す — 13 / 15
 
 自動テスト済みなので下には出していない: 40.8
 
@@ -571,9 +571,9 @@ fsutil hardlink list <新しくできたパス>
 - [x] **40.11** 同じプロンプトで `Alt-d` → 前方の単語を削除する — *`Alt-d` at the same prompt → Deletes the word ahead*
 - [ ] **40.12** ペインの PowerShell（PSReadLine）で `Alt-b` / `Alt-f` → 同じ単語移動 — *PowerShell (PSReadLine) in the pane, `Alt-b` / `Alt-f` → Same word motions*
 - [x] **40.13** 普通のプロンプトで `Alt-j` / `Alt-k` → **これは filer のスクロールのまま。**この 2 つは `[term]` レイヤーに割り当てられていて、プロンプトは代替画面ではないため — *`Alt-j` / `Alt-k` at an ordinary prompt → **Still filer's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen*
-- [ ] **40.14** `FILER_PTY_LOG` を設定して nvim の中でホイール（v0.55.0）→ nvim の表示がスクロールし、**カーソルは同じ行のまま**（前後で `:echo line('.')`）。ログには `\e[A` ではなく `\e[<64;…M` / `\e[<65;…M` が出る — *The wheel inside nvim, with `FILER_PTY_LOG` set (v0.55.0) → nvim's view scrolls and **its cursor stays on the same line** (`:echo line('.')` before and after). The log shows `\e[<64;…M` / `\e[<65;…M`, not `\e[A`*
-- [ ] **40.15** ペインで lazygit を動かし（v0.55.0）、`<S-End>` を毎秒 30 回で約 300 回、その途中に `?` と `<Esc>` を入れる（#99 が #93 を組み直した形）→ `<Esc>` から 1 秒以内にキー一覧が閉じる。v0.55.0 までは数分開いたままだった。レコードで送った `<Esc>` の直後に `\e[1;2F` の `<S-End>` が来ると、tcell には 1 つの列に読めていた — *lazygit in the pane (v0.55.0): about 300 `<S-End>` at 30 a second, with `?` then `<Esc>` in the middle of them, as #99 rebuilt #93 → The key list closes within a second of the `<Esc>`. Until v0.55.0 it stayed open for minutes: `<Esc>` sent as a record and `<S-End>` as `\e[1;2F` right behind it read to tcell as one sequence*
-- [ ] **40.16** `FILER_PTY_LOG` を設定して（v0.55.0）ペインを開き、`ping -t localhost` と打って `<C-c>`、続けて打った語の上で `<C-Left>` と `<Tab>` の補完 → ログの `out` の最初のほうに `\e[?9001h` があり、`in key` の行は `\e[1;5D` ではなくレコード（`\e[…;…;…;1;…;1_`）。`<C-c>` で ping が止まり、`<C-Left>` は 1 語戻り、`<Tab>` は補完する。シェルはレコードを本物のキーボードと同じに読む — *With `FILER_PTY_LOG` set (v0.55.0): open the pane, type `ping -t localhost`, `<C-c>`, then `<C-Left>` over a typed word and `<Tab>` completion → The log's `out` lines hold `\e[?9001h` near the start, and the `in key` lines are records (`\e[…;…;…;1;…;1_`) rather than `\e[1;5D`; `<C-c>` stops the ping, `<C-Left>` moves by a word, `<Tab>` completes — the shell reads records as it reads a real keyboard*
+- [x] **40.14** `FILER_PTY_LOG` を設定して nvim の中でホイール（v0.55.0）→ nvim の表示がスクロールし、**カーソルは同じ行のまま**（前後で `:echo line('.')`）。ログには `\e[A` ではなく `\e[<64;…M` / `\e[<65;…M` が出る — *The wheel inside nvim, with `FILER_PTY_LOG` set (v0.55.0) → nvim's view scrolls and **its cursor stays on the same line** (`:echo line('.')` before and after). The log shows `\e[<64;…M` / `\e[<65;…M`, not `\e[A`*
+- [x] **40.15** ペインで lazygit を動かし（v0.55.0）、`<S-End>` を毎秒 30 回で約 300 回、その途中に `?` と `<Esc>` を入れる（#99 が #93 を組み直した形）→ `<Esc>` から 1 秒以内にキー一覧が閉じる。v0.55.0 までは数分開いたままだった。レコードで送った `<Esc>` の直後に `\e[1;2F` の `<S-End>` が来ると、tcell には 1 つの列に読めていた — *lazygit in the pane (v0.55.0): about 300 `<S-End>` at 30 a second, with `?` then `<Esc>` in the middle of them, as #99 rebuilt #93 → The key list closes within a second of the `<Esc>`. Until v0.55.0 it stayed open for minutes: `<Esc>` sent as a record and `<S-End>` as `\e[1;2F` right behind it read to tcell as one sequence*
+- [x] **40.16** `FILER_PTY_LOG` を設定して（v0.55.0）ペインを開き、`ping -t localhost` と打って `<C-c>`、続けて打った語の上で `<C-Left>` と `<Tab>` の補完 → ログの `out` の最初のほうに `\e[?9001h` があり、`in key` の行は `\e[1;5D` ではなくレコード（`\e[…;…;…;1;…;1_`）。`<C-c>` で ping が止まり、`<C-Left>` は 1 語戻り、`<Tab>` は補完する。シェルはレコードを本物のキーボードと同じに読む — *With `FILER_PTY_LOG` set (v0.55.0): open the pane, type `ping -t localhost`, `<C-c>`, then `<C-Left>` over a typed word and `<Tab>` completion → The log's `out` lines hold `\e[?9001h` near the start, and the `in key` lines are records (`\e[…;…;…;1;…;1_`) rather than `\e[1;5D`; `<C-c>` stops the ping, `<C-Left>` moves by a word, `<Tab>` completes — the shell reads records as it reads a real keyboard*
 
 ## 41. spot パネルの 4 つの provider — 10 / 14
 
@@ -618,7 +618,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **44.12** `gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。もう一度 `gu` すれば大きい順に戻る — *`gu`, then `,` to re-sort → The order changes (as asked); `gu` again restores largest-first*
 - [ ] **44.13** フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある** — *Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug***
 
-## 45. 2 つのフォルダを比べる — 10 / 12
+## 45. 2 つのフォルダを比べる — 11 / 12
 
 自動テスト済みなので下には出していない: 45.1, 45.2, 45.5, 45.7
 
@@ -633,7 +633,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **45.13** `q` / `<Esc>` → 閉じる。そして 2 つの**ファイル**はこれまでどおり行単位で比較できる — *`q` / `<Esc>` → Closes, and two **files** still compare line by line as before*
 - [x] **45.14** 数百のパスのうち奥の 1 ファイルだけが違う 2 つのツリーを比べる（v0.53.0）→ カーソルが**そのファイルの上**で開く（先頭の行ではない）。差分の無い組は先頭で開く — *Compare two trees of hundreds of paths that differ in one file far down (v0.53.0) → The view opens with the cursor **on that file**, not on the first row. A pair with no differences opens at the top*
 - [x] **45.15** `z`、続けて `j` / `n`、もう一度 `z` → `=` の行が一覧から消える。フッタは数え続け、`matches hidden (z)` が付く。`j` と `n` は見えている行だけを歩く。2 回目の `z` で全部の行が戻り、カーソルは同じパスの上にある — *`z`, then `j` / `n`, then `z` again → The `=` rows leave the list; the footer still counts them and adds `matches hidden (z)`; `j` and `n` step only over what is shown; the second `z` brings every row back with the cursor on the same path*
-- [ ] **45.16** 中の `t1` を指す**ジャンクション**（`mklink /J ln t1`）を持つフォルダを写し、元と写しを比べる（v0.55.0）→ `= ln`。行き先の文字列は違っても、どちらも自分のツリーの `t1` に着くので同じと読む — *Copy a folder holding a **junction** to a folder inside it (`mklink /J ln t1`), then compare the original with the copy (v0.55.0) → `= ln`: both links land on `t1` in their own tree, so the copies read as the same even though the two targets differ as text*
+- [x] **45.16** 中の `t1` を指す**ジャンクション**（`mklink /J ln t1`）を持つフォルダを写し、元と写しを比べる（v0.55.0）→ `= ln`。行き先の文字列は違っても、どちらも自分のツリーの `t1` に着くので同じと読む — *Copy a folder holding a **junction** to a folder inside it (`mklink /J ln t1`), then compare the original with the copy (v0.55.0) → `= ln`: both links land on `t1` in their own tree, so the copies read as the same even though the two targets differ as text*
 
 ## 46. spot パネルの Git セクション — 14 / 20
 
