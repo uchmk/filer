@@ -100,7 +100,6 @@ still on the human's list when it was written.
 
 | Section | Rows | Why it suits you |
 | --- | --- | --- |
-| **46. spot's Git section** | 46.12–46.16 | `Came in via` / `From branch` are values -- copy them with `y` and read the clipboard. 46.15 needs a commit on an unmerged branch: make it in a throwaway clone under `R:\Temp`, never in the real checkout. 46.16 cannot be done by turning the network off -- that cuts your own session -- so block `filer.exe` and `git.exe` outbound in Windows Firewall instead (see the table above), and remove the rules when done |
 | **1. the terminal pane** | 1.30 | 1.22 / 1.23 / 1.27 / 1.28 were settled on 2026-09-30, and 1.30's "not left maximised" half with them (12 rows after reopening, not 35). What is left is 1.30's "list drawn full height" half: a page move from the top of `many\` -- compare the file `<C-f>` lands on before and after |
 | **12. undo and redo** | 10 | Every expectation is a file state: in the recycle bin, back at its path, under its old name |
 | **45. comparing two folders** | 9 | You build both trees, so every `<` `>` `~` `=` and each footer count is known in advance. 45.7's 64 MB files come from `fsutil file createnew` |
@@ -118,11 +117,15 @@ still on the human's list when it was written.
 | **31. a host's shares** | 13 | `\\localhost` and `\\<this machine's name>` list your own shares; `New-SmbShare` (elevated) makes one with a space or Japanese in its name. 31.5 is an unused address on your subnet |
 | **22. opening an editor at a line** | 6 | Only the editors installed here: `Get-CimInstance Win32_Process` shows the command line filer built, `-n42` or `+42` or `--goto`. Say which ones were not installed |
 
-Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26 and 13 / 15.
+Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26, 13 / 15 and 46.
+46.16 is still open: it needs the firewall rules, so an elevated run -- or a person.
 Rows still open there were left by those runs on purpose -- ARM, another platform, or eyes -- so
 read that section's entry in QA-REPORT.md before taking one.
 
-**One section per run, and one session at a time.** On 2026-09-28 two sessions
+**One section per run, and one session at a time** -- and that includes an
+unattended run: `auto-wintest.ps1` only knows about the runs it started itself,
+so do not start one by hand while it may fire. On 2026-09-30 two sessions shared
+the clipboard, and each one's `c` landed in the other's capture. On 2026-09-28 two sessions
 ran section 25 in the same working directory at once. It came out as an
 independent re-test and found two more bugs, so nothing was lost -- but that was
 luck, not the design, and they were a commit away from fighting over the index.
