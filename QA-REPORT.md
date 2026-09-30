@@ -4359,3 +4359,215 @@ PostMessage で入れている）。**マウスは届かない。**同じウィ�
 - **なぜ**: マウスの行は 13 節に散らばっていて（14 節は丸ごとマウス、30 節も半分）、
   **この 1 台が測れないままだと、その全部が人待ちになる。**
 - **大きさ**: スクリプトに 10 行ほどと、役割定義に 1 段落。
+
+## TESTING.md section 29 — ターミナルのカレントディレクトリを持ち帰るを ARM64 で確かめた（ca8aecd / 0.54.9、ARM64 レーン）
+
+ARM64 レーンの 10 本目（`.claude/windows-role.md`「The ARM64 lane」、`auto-wintest.ps1 -Lane arm`、無人実行）。
+順番表の先頭にあった **40** は #100 で済んでいるので、その次の
+「**29. the terminal's directory, brought back**」の `[ ]` 5 行を全部通した。
+
+**4 行は期待どおりで `[x]` を付けた。29.2 だけ付けていない** —— この節の前書きが自分で言うとおり
+「what is being tested here is mostly the instructions」で、**その指示が、ペインが既定で起こすシェルでは動かない**から。
+`make-testcheck -- --check` は `in sync`（**161 / 401**）、`make-keycheck -- --check` も `in sync`（243 / 247）。
+`cargo test` は **509 passed; 0 failed**（ネイティブ ARM64、debug 2.86 s、ca8aecd）。見つけたもの 5 件、提案 5 件。
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `PROCESSOR_ARCHITECTURE=ARM64`、Adreno X2-90（Vulkan）、窓 1376x899 |
+| OS | `Windows 11 Home 26H1 (build 28000.2956)` |
+| filer | 手元ビルド 0.54.9、`filer env` が `OS arch aarch64` / `Process arch aarch64` / `Debug false` |
+| シェル | `powershell.exe` **5.1.28000.2952**（ペインの既定）、`pwsh` **7.6.6**、starship **1.26.0**、mise / zoxide / atuin / PSFzf |
+| ConPTY | `scripts/fetch-conpty.ps1` で 1.24.260710001 (arm64) を `target\release` へ |
+| 昇格 | **無し**（`IsInRole('Administrators')` = False。この節は昇格を要らなかった） |
+| 一時ディレクトリ | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（この機械に RAM ディスクは無い） |
+
+生の証拠は `C:\dev\filer-evidence\arm-29\`（`runs\<tag>\pty.log` 4 本、`shots\` 10 枚、
+足場の `lib.ps1` と `fx29.ps1`、run の `r1`〜`r4`、`profile-hook.ps1`）。
+
+### 測り方 — この節も「見た目」の行が 1 つも無い
+
+- **一覧がどこへ行ったか**は**窓のタイトル**で読む。`title_format` の既定が `Filer: {cwd}` なので、
+  タイトルがそのまま「一覧はどこにいるか」になる。窓は `EnumWindows` でクラス `Window Class` かつ
+  タイトルが `Filer:` で始まるものを選ぶ（`MainWindowHandle` は winit の無題の窓を指すことがある、#88）。
+- **シェルが現在地を言ったか**は `FILER_PTY_LOG` の `out` 行にある `\e]7;file://…`。
+  言わなかったことも、ログに 1 本も無いことで読める。
+- **トーストの文面**は `PrintWindow(PW_RENDERFULLCONTENT)` の写真を**テキストとして**読む。
+- **キー**は `--keys "<C-t>"` でペインを開くところまでを filer 自身に押させ、その先（シェルが
+  立ち上がってから打つ `cd` と `<A-Up>`）は SendInput。入力デスクトップは各 run の前後で
+  `OpenInputDesktop` が `Default` を返すことを確かめている。
+- **日本語のディレクトリへは `. .\jp.ps1` で入る。**SendInput はキーボードレイアウト経由なので
+  日本語の名前は打てない。`Set-Location` はシェル自身の `cd` で、フックは同じように動く。
+- **シェルが「打ち終わった」判定**は、**PTY ログが 900 ms 伸びなくなったこと**にした。
+  プロンプトの形（`PS …>`）で待つ作りだと **Starship のプロンプト（`❯` 1 文字）で永久に当たらない**。
+  最初の 29.5 の run はこれで 25 秒の空振りを 5 回した。
+
+### 行ごとの結果
+
+| 行 | 結果 | 根拠 |
+| --- | --- | --- |
+| 29.1 | **合** | 既定のシェル、フック無し（`test-path $PROFILE` = **False**、`hook=[]`）。`cd plain` の後 `<A-Up>` → トーストが **`The shell has not said where it is (no OSC 7). PowerShell: set LocationChangedAction in $PROFILE — the line is in the README`**。タイトルは `…\s29` のまま。キーから戻るまで **623 ms**、その後 `<C-t>` `c` `f` が `plain` をコピーした（待ちでも無反応でもない） |
+| 29.2 | **付けず** | pwsh の `$PROFILE` に貼れば通る（`osc7 file:///C:/dev` → タイトル **`Filer: C:\dev`**）。**既定のシェル（5.1）では、プロファイルが毎回 `PropertyAssignmentException` を出して終わる。**下の「見つけたもの 1」 |
+| 29.3 | **合** | 空白: `osc7 …/s29/with space` → タイトル `…\s29\with space`。日本語: `osc7 …/s29/日本語フォルダ` → タイトル `…\s29\日本語フォルダ`。どちらも壊れていない |
+| 29.4 | **合** | `\\localhost\C$\dev` へ `cd` → **落ちず、理由を述べる**。トースト 2 本: `\localhost\C$\dev: 指定されたパスが見つかりません。 (os error 3)` と `C$: 同`。ただし**追従はできない**し、名前が 1 文字ずれている。下の「見つけたもの 2」 |
+| 29.5 | **合** | 実機の pwsh プロファイル（`starship init powershell` を読む）でペインを開き、README の 4 行を**手で 1 行にして打った**。プロンプトは前も後も Starship の 2 行（パス行 + `❯`）のまま。`cd plain` の後も同じ形で描かれ、`osc7 file:///C:/Users/…/s29/plain` が出て一覧が動いた |
+
+`<A-Up>` が効いた 4 回とも、**ペインに `cd` が打ち返されていない**（`follow` の
+「シェルが既に言っているなら打たない」が働いている。PTY ログの `in` 行に `cd ` で始まるものが 0 本）。
+
+### 見つけたもの 1: README のフックは、ペインが既定で起こすシェルでは動かない
+
+`$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction` は
+**Windows PowerShell 5.1 に存在しない**。`Get-Member -MemberType Property` の答えがそれを言う:
+
+| シェル | `InvokeCommand` のプロパティ |
+| --- | --- |
+| `powershell` 5.1.28000.2952 | `CommandNotFoundAction` `HasErrors` `PostCommandLookupAction` `PreCommandLookupAction` |
+| `pwsh` 7.6.6 | 上の 4 つ + **`LocationChangedAction`** |
+
+だから README の 4 行を 5.1 の `$PROFILE` に貼ると、**シェルを開くたびに**こうなる（run `29-2-default` の写真）:
+
+```
+発生場所 C:\Users\yuu06\OneDrive\ドキュメント\WindowsPowerShell\Microsoft.PowerShell_profile.ps1:1 文字:1
++ $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction =  ...
+    + CategoryInfo          : InvalidOperation: (:) []、RuntimeException
+    + FullyQualifiedErrorId : PropertyAssignmentException
+```
+
+そのうえで `hook=[]`、`cd C:\dev` に OSC 7 は出ず、`<A-Up>` は 29.1 と**同じトースト**を出す。
+**指示どおりにやった人に返ってくるのは「フックを入れろ」という同じ案内**で、出口が無い。
+
+**README はこの 2 つを両方書いている**——「ペインは `powershell`、つまり 5.1」（1125-1131 行）と
+「この 4 行を `$PROFILE` に入れる」（1111 行）——が、**その組み合わせは動かない。**
+5.1 の `$PROFILE` の場所を表に載せていることが、動くという意味に読める。
+
+### 見つけたもの 2: UNC パスはスラッシュが 1 つ多い URL になって、届いた先で 1 つ足りなくなる
+
+README のフックは `$PWD.ProviderPath` の `\` を `/` にして `file:///` を前に付ける。
+UNC では `ProviderPath` が `\\localhost\C$\dev` なので、出ていく URL は:
+
+```
+\e]7;file://///localhost/C$/dev\e\        ← スラッシュ 5 本
+```
+
+`from_file_url` は `file://` を外して最初の `/` から後ろを取るので `///localhost/C$/dev`。
+Windows のパス解析は UNC の前置詞に**ちょうど 2 本**を要求するため、3 本は前置詞にならず
+**`\localhost\C$\dev`**（先頭 1 本）に潰れる。トーストがその名前をそのまま出している。
+
+- 行の期待（**追従するか、理由を述べる。落ちない**）は**満たされている**ので 29.4 は合。
+- ただし**追従はできない**。直すなら (a) README のフックを UNC のとき `file://localhost/C$/dev` の形にする、
+  (b) `from_file_url` で先頭の `/` が 3 本以上なら 2 本に畳む、のどちらか。**(b) のほうが、
+  フックを書いたのが誰であっても効く。**
+
+### 見つけたもの 3: `-replace` が効かなくても、filer は追従した
+
+29.5 の 1 回目、こちらの手違いで `-replace '\\\\', '/'`（＝バックスラッシュ 2 つの正規表現）を打ってしまい、
+シェルは `file:///C:\Users\…\s29\plain` と**バックスラッシュのまま**の URL を出した。
+**それでも一覧は動いた**（タイトルが `…\s29\plain` になった）。`from_file_url` は最後に
+`Path::new` へ渡すだけなので、Windows では `\` も区切りとして通る。
+
+**README の `-replace` は、Windows では必須ではない。**必須のように読めるので、書き添えるか、
+そのままにするなら「他の端末と同じ綴りにするため」と理由を書くほうがいい。
+
+### 見つけたもの 4: `LocationChangedAction` は 1 つしか持てず、README の行は既にあるものを捨てる
+
+この機械の pwsh は、プロファイルを読むだけで `LocationChangedAction` が**埋まっている**。
+3 つの init を別々に試して、埋めているのが **mise** だと分かった:
+
+| init | `LocationChangedAction` を設定するか |
+| --- | --- |
+| `zoxide init powershell` | no |
+| `mise activate pwsh` | **yes** |
+| `atuin init powershell --disable-up-arrow` | no |
+| `starship init powershell` | no（null のまま） |
+
+**mise は既にあるハンドラを呼んでから自分の仕事をする**（先にマーカーを入れてから
+`mise activate` すると、`Set-Location` でマーカーが 1 回上がる）。
+**README の 4 行は `=` で代入するので、既にあるものを捨てる**（前後のハンドラの参照が別物になる）。
+
+つまり `$PROFILE` の**下のほうに貼ると mise の `cd` フックが黙って死ぬ**。
+これは「どこに貼るか」で結果が変わる指示で、README は場所を指定していない。
+
+### 見つけたもの 5: この run 自身がやった事故 —— `$PROFILE` はシンボリックリンクだった
+
+29.2 のために README の 4 行を `$PROFILE` へ入れようとして、`Set-Content` で**上書き**した。
+この機械の `$PROFILE`（`…\OneDrive\ドキュメント\PowerShell\Microsoft.PowerShell_profile.ps1`）は
+**シンボリックリンク**で、実体は `C:\dev\obsidian-notes\notes\config\PowerShell\…` にある。
+書き込みはリンクを素通りして実体に届き、**128 行が 4 行になった。**
+
+**実体が git の管理下にあったので完全に戻せた**（`git restore` で 128 行 / 6486 バイト、`git status` は空）。
+戻せたのは運で、設計ではない。その後の 29.2〜29.4 では、(a) 先に控えを取り、(b) `Add-Content` で
+**追記**し、(c) 終わったら `git restore` して**追記前の控えとバイト単位で一致することを確かめた**。
+いま `git -C C:\dev\obsidian-notes status` はこのファイルについて空で、5.1 側に作った
+プロファイルと空のディレクトリも消してある。
+
+### Proposals
+
+#### 1. ペインの既定シェルは、`pwsh` があれば `pwsh` にすべき（#100 の提案 3 と同じ結論、別の理由）
+
+- **何が起きたか**: 見つけたもの 1。**29 節の指示は、ペインの既定シェルでは成立しない。**
+  #100 は「5.1 の PSReadLine が古い」という理由で同じことを言ったが、こちらは**機能が無い**。
+  `LocationChangedAction` は 5.1 に存在せず、代わりになるのは `prompt` の差し替えだけで、
+  それは README が「Starship を壊すから」と明示的に避けた方法。
+- **どうするべきか**: `[term] shell` が空のとき `pwsh` を PATH から探し、あればそれを起こす。
+  併せて README の「Which PowerShell」の表に、**5.1 ではこのフックは使えない**と 1 行足す。
+- **なぜ**: いまは「README のとおりにしたのに動かない」が既定の体験で、**エラーは
+  プロファイルを読むたびに出るのに、トーストは「フックを入れろ」と言い続ける。**
+- **大きさ**: 既定の決定に `which` 1 回と分岐 1 つ。**既定の変更なので CHANGELOG の「変更」。**
+
+#### 2. `from_file_url` は、先頭のスラッシュが 3 本以上なら 2 本に畳むべき
+
+- **何が起きたか**: 見つけたもの 2。UNC で `file://///host/share` が来て `\host\share` になった。
+- **どうするべきか**: `file://` を外したあと、先頭の `/` の連続が 3 本以上なら 2 本にしてから
+  `Path::new` に渡す。`//host/share` は Windows で正しく UNC の前置詞になる。
+- **なぜ**: **書き手の側では直しきれない。**OSC 7 を出すのは shell のフックで、
+  「UNC のときだけ `file://host/share` にする」を全員に書かせるより、受け取る側が 1 行で吸収するほうが確実。
+  31 節（ホストの共有一覧）を使う人はそのまま `<A-Up>` に来る。
+- **大きさ**: `terminal.rs` の `from_file_url` に数行と、テスト 1 つ（Linux でも走る形にできる）。
+
+#### 3. README のフックは、既にあるハンドラを呼ぶ形で配るべき
+
+- **何が起きたか**: 見つけたもの 4。mise（や、同じところを使う他のツール）の `cd` フックが、
+  貼る場所によって黙って消える。**消えたことは何も知らせない。**
+- **どうするべきか**: 配る 4 行を、こう変える:
+
+  ```powershell
+  $prev = $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
+  $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
+      param($s, $e)
+      if ($prev) { & $prev $s $e }
+      $p = $PWD.ProviderPath -replace '\\', '/'
+      [Console]::Write("$([char]27)]7;file:///$p$([char]27)\")
+  }
+  ```
+
+- **なぜ**: `LocationChangedAction` は**セッションに 1 つしかない**。mise は自分で連鎖しているので、
+  「連鎖するのが作法」の場所。filer だけが上書きするのは行儀が悪いし、**壊れ方が静か**で、
+  「mise が効かなくなった」と `<A-Up>` が結び付く人はいない。
+- **大きさ**: README の 4 行を 7 行に。コードは 1 行も要らない。
+
+#### 4. `<A-Up>` のトーストは、シェルが何を言ったかで文面を変えるべき
+
+- **何が起きたか**: 29.1（シェルが何も言っていない）と、**フックはあるのに 5.1 で失敗している状態**で、
+  出るトーストが**同じ**。29.4 のように「言ったが行けなかった」ときだけは別の文面（os error 3）になる。
+- **どうするべきか**: 一度も OSC 7 を見ていないときは今の文面のまま。**ペインの中で
+  `LocationChangedAction` の代入が失敗した**ことまでは filer には見えないので、
+  代わりに「**このペインのシェルは `powershell` 5.1 です**」を文面に足す
+  （filer は自分が何を起こしたか知っている）。`pwsh` を起こしていればその 1 行は出ない。
+- **なぜ**: 5.1 の人は、いまの案内に従うかぎり**永久に同じところを回る**。
+  シェルの名前が出れば、README の「Which PowerShell」の表にたどり着ける。
+- **大きさ**: `term_pull_cwd` の文面に 1 分岐。
+
+#### 5. 役割定義は、人の設定ファイルを書き換える前に実体を確かめさせるべき
+
+- **何が起きたか**: 見つけたもの 5。**このセッションが人の pwsh プロファイル 128 行を消した。**
+  `$PROFILE` はシンボリックリンクで、`Set-Content` はリンクを素通りする。git で戻せたのは偶然。
+- **どうするべきか**: `.claude/windows-role.md` の「Unattended runs」に 1 項足す——
+  **人のファイル（`$PROFILE`、`%APPDATA%` の設定、レジストリ）に触る行は、(a) 触る前に
+  `(Get-Item -Force).Target` と `(Get-Item).Length` を控え、(b) 上書きではなく追記で行い、
+  (c) run の最後に元に戻ったことをバイトで確かめ、(d) その 3 つを報告に書く。**
+  29 節のように**人の `$PROFILE` を書き換えないと測れない節がある**ので、「触るな」では回らない。
+- **なぜ**: 実機のセッションだけが起こせる壊し方で、**壊したことに気づかないまま終われる**。
+  この run も、プロファイルが git の中に無ければ、気づいたときには戻せなかった。
+- **大きさ**: 役割定義に 1 段落。
