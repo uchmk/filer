@@ -185,6 +185,10 @@ will answer a question**, so:
   schedules no frame for it, so the first key wakes the app and only the second
   sees the new listing -- a single key returned the old one about half the time
   (#108; the bug is in TODO.md, and this line goes when it is fixed).
+- **In a `--keys` script, write a space as `<Space>`.** A plain space
+  disappears, and in the pane every key after it goes to the list instead:
+  `<C-t>echo hi<Enter>` sent the shell `echo` and walked the list (#110). This
+  line goes when `--keys` refuses a plain space (TODO.md).
 - **A minimised window does not act on posted keys** until it is restored
   (`SW_RESTORE`); read anything after restoring. **Stopping a screen saver takes
   its process**: `Stop-Process -Name` misses `OLED Care Screensaver.scr`
@@ -244,10 +248,9 @@ these differences:
 
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
-| **47. an idle window uses no CPU, again** | 4 | #103 read 0 at 0.54.12; 0.55.x changed the pane's input and the wheel and has not been measured. Same method as #103 (a positive control first, prompts closed). Note the TODO.md bug from #108: an idle window schedules no frame for a watcher change, so do not change files under it while measuring |
 | **24. awkward names** | the `[ ]` rows | Names through the shell and ConPTY: 24.4 in `FILER_PTY_LOG` (what the shell was sent), 24.5 on disk. 24.2 is a look |
 | **22. opening an editor at a line** | the `[ ]` rows | Process creation: `Get-CimInstance Win32_Process` shows the command line filer built. VS Code and Neovim are installed on this machine; say which others are not |
-| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104), 0.54.14 (509 / 0, #105), 0.55.1 (523 / 0, #107), 0.55.2 (523 / 0, #108) and 0.55.3 (523 / 0, #109). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
+| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104), 0.54.14 (509 / 0, #105), 0.55.1 (523 / 0, #107), 0.55.2 (523 / 0, #108), 0.55.3 (523 / 0, #109) and 0.55.4 (523 / 0, #110). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
 
 ## Proposals: say what should change
 
