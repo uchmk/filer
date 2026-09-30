@@ -3456,3 +3456,235 @@ ARM64 の話ではない。**直していない**（`GetStdHandle(STD_OUTPUT_HAN
   **どれも ARM64 の話ではない。**この行を残しても、次の run が同じ行を見送るだけになる。
 - 次は `21 / 32 / 37. archives and openers, again` が先頭になる。
 - `the test suite` の行はそのまま残す（この run も 505 / 0 を記録した）。
+
+## TESTING.md 21 / 32 / 37 — 書庫とオープナーを ARM64 でやり直した（3c1ef3f / 0.54.3、ARM64 レーン）
+
+ARM64 レーンの 6 本目（`.claude/windows-role.md`「The ARM64 lane」、`auto-wintest.ps1 -Lane arm`、無人実行）。
+順番表の先頭「**21 / 32 / 37. archives and openers, again**」が担当。レーンの規則どおり、
+x64 で `[x]` の行を**この機械で押し直し、結果をここに書く**。
+
+**チェックは 1 つも付けていない。**x64 で `[x]` の 21 行（21 節 8 件・32 節 7 件・37 節 6 件）は
+**全部この機械でも合格**したので、規則どおり結果は下の表に置いた。`[ ]` の行では **21.4 を取りに行って、
+取れないことを確かめた** —— 詳細は下の「21.4」の節。`make-testcheck -- --check` は `in sync`
+（144 / 398）、`make-keycheck -- --check` も `in sync`（243 / 247）。
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `PROCESSOR_ARCHITECTURE=ARM64`、`Win32_ComputerSystem.SystemType` = `ARM64-based PC` |
+| OS | `Windows 11 Home 26H1 (build 28000.2956)` |
+| rustc | 1.98.1 (48a229cea 2026-09-01) / aarch64-pc-windows-msvc —— CI と同じ stable |
+| filer | 手元ビルド 0.54.3、`filer env` が `OS arch aarch64` / `Process arch aarch64` / `Debug false` |
+| 昇格 | 無し（`IsInRole('Administrators')` = False）。この 3 節に昇格の要る行は無い |
+| `cargo test` | **506 passed; 0 failed**（ネイティブ ARM64、2.62 s、3c1ef3f）。x64 ランナーに無い失敗は無い |
+| ConPTY | `scripts/fetch-conpty.ps1` で 1.24.260710001 (arm64) を `target\release` へ |
+| 一時ディレクトリ | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（この機械に RAM ディスクは無い） |
+| 入っている | 7-Zip 26.02、Office 16.0.20430（Excel / Word / PowerPoint）、Edge、Chrome、VS Code、Neovim |
+| 入っていない | **秀丸・サクラ・IrfanView**（`App Paths` にも `where` にも無い）。32.2 / 32.5 / 32.8a / 32.8b / 32.9 と 37.7 / 37.8 の一部は、そのせいで取れない |
+
+生の証拠は `C:\dev\filer-evidence\arm-21-32-37\`（`*.png` 31 枚、`arm-env.txt`、
+使った設定 2 本 `cfg-readme.toml` / `cfg-per-app.toml`、`postkey.ps1` / `shot.ps1` / `watchwin.ps1`）。
+
+### 測り方
+
+- **キーは `--keys` で入れた。**書庫は `filer <dir> --keys "E<BS><BS><BS>7z<Enter>"` のように
+  1 本のコマンドで固められるので、足場がまったく要らない。
+- **`--keys` のあとに押したいキーは `PostMessage` で入れた。**ジョブの完了を待ってから押すものが
+  あるため（タスクパネル、ピッカーの選択）。#93 は「`PostMessage` はやめたほうがいい」と
+  書いているが、**外れていた原因は `lParam` だった** —— 下の「Proposals」1 番。
+- **読む側**は 4 つ: `Get-Clipboard`（`c` `c` でカーソル位置）、`PrintWindow(PW_RENDERFULLCONTENT)`
+  のスクリーンショット（トースト・タスクパネル・ピッカーを**テキストとして**読む）、
+  `Get-CimInstance Win32_Process` の `CommandLine`（どのプログラムが何を渡されて起動したか）、
+  ディスク（`7z l` / `tar -tvf` / `Get-FileHash` / マジックバイト）。
+- **コンソールが出ていないこと**は、`EnumWindows` を 5 秒回して `ConsoleWindowClass` /
+  `CASCADIA_HOSTING_WINDOW_CLASS` / `PseudoConsoleWindow` の可視ウィンドウを集め、
+  **開く前と同じ集合であること**で測った（`watchwin.ps1`）。37.1 の「コマンドプロンプトが出ない」はこれ。
+
+### ARM64 の結果（x64 で `[x]` の 21 行）
+
+| 行 | ARM64 | 根拠 |
+| --- | --- | --- |
+| 21.2 | 合格 | `--keys "jcce"`。`c` `c` が `…\arm21\sample.zip` を返し（カーソルの位置）、隣に `sample\` ができて file1-5.txt（各 12 B）と `nested\deep.txt`（6 B）の 6 件 |
+| 21.3 | 合格 | もう一度 `e` → `sample_1\` ができ、`sample\` は 6 ファイルのまま。上書きされていない |
+| 21.5 | 合格 | `--keys "E<BS><BS><BS>tar.gz<Enter>"` → `to-pack.tar.gz` 253 B。先頭 2 B が `1F 8B`（gzip）、`7z l` が `Type = gzip`、中の tar を `tar -tvf` すると 6 ファイル 2 フォルダ。**zip ではない** |
+| 21.7 | 合格 | 同じく `.7z` → 403 B。先頭が `37 7A BC AF 27 1C`、`7z l` が `Type = 7z` / `Method = LZMA2:23`。**本物の 7z** |
+| 21.8 | 合格 | その `.7z` で `e` → `to-pack_1\to-pack\` に 6 ファイル。元の 6 ファイルと SHA-256 が全部一致（`48CE61F9,5B525BE5,071CAD55,162D4166,1585BFC7,682598B1`） |
+| 21.9 | 合格 | `7z t` が `Everything is Ok / Folders: 2 / Files: 6`。7-Zip File Manager を起動するとウィンドウタイトルが `…\to-pack.7z\` |
+| 21.10 | 合格 | 200 ファイル・5 サブフォルダ・50 MB を `.7z` に。タスクパネルが `90/200 files · 22 M / 50 M · 5.1 M/s · 5s left` → `200/200 files · 50 M / 50 M [done]`。**件数はファイルの 200 で、フォルダを足した 205 ではない**（`2110b-3.png` / `2110b-8.png`） |
+| 21.11 | 合格 | 同じ `to-pack\` から 7z 403 B、zip 970 B。7z のほうが小さい |
+| 32.1 | 合格 | README の `[opener]` / `[open]` をそのまま貼って `<S-Enter>`。`秀丸エディタ` / `サクラエディタ` / `VS Code` / `Neovim` / `Open with the default app` が**説明文**で並び、コマンド行は右端（`321-picker.png`） |
+| 32.3 | 合格 | `doc.pdf` で `<S-Enter>` → `Edge` / `Chrome` / `Open with the default app` / 秀丸 / サクラ / VS Code / Neovim の順（`323-pdf-picker.png`） |
+| 32.4 | 合格 | `book.xlsx` で `<S-Enter>` → 先頭が `Excel`。`<Enter>` で `EXCEL.EXE "…\open\book.xlsx"` が起動（`Win32_Process`）。**残った `cmd.exe` は無い** |
+| 32.6 | 合格 | `doc.pdf` と `second.pdf` を `<Space>` で選び（ヘッダが `2 selected · 12 items`）`<Enter>` → msedge **1 プロセス**に 2 つの引数。`"…doc.pdf" "…second.pdf"` |
+| 32.7 | 合格 | `*.{xlsx,xlsm,xls,csv}` のルールで `book.xlsx` / `data.csv` / `old.xls` の 3 つとも `office` のリストが先頭に来る（`324-xlsx-picker.png` / `327-csv.png` / `327-xls.png`、ヘッダのパスが各ファイル） |
+| 32.8 | 合格 | `nosuchprogram-xyz %*` のオープナーで `<Enter>` → **3 秒で**赤いトースト `Open failed: exit code 1 — nosuchprogram-xyz "…\a.txt"`。直後に `c` `c` が応答するので固まっていない（`328-missing.png`） |
+| 32.8c | 合格 | `"C:\Program Files\Hidemaru\Hidemruu.exe"`（わざと打ち間違えたフルパス）→ `Open failed: exit code 1 — "C:\Program Files\Hidemaru\Hidemruu.exe" "…\note.md"`。**日本語 Windows なので終了コード**で、行が言うとおり（`328c-typo.png`） |
+| 37.1 | 合格 | `browser` 先頭 `start "" msedge %*` の `.pdf` で `<Enter>` → Edge のウィンドウタイトルが `doc.pdf および他 17 ページ - 個人 - Microsoft Edge`。**可視コンソールの集合は開く前と同一**（`watchwin.ps1`、5 秒） |
+| 37.2 | 合格（設定は別の話） | `start "" winword %*` / `start "" powerpnt %*` を当てると `WINWORD.EXE "…\memo.docx"` / `POWERPNT.EXE "…\deck.pptx"` が起動。コンソールは出ない。**ただし README の例のままだと Excel が起動する** —— 下の「見つけたもの」1 番 |
+| 37.3 | 合格 | `pic.png`（`*` のフォールバック → `open`）で `<Enter>` → `Photos` が起動し、ウィンドウタイトルが `pic.png`。コンソールは出ない |
+| 37.4 | 合格 | `has space.pdf` で `<Enter>` → `msedge.exe "…\open\has space.pdf"` の**引数 1 つ**。Edge のタイトルが `has space.pdf - 個人 - Microsoft Edge` |
+| 37.5 | 合格 | `start "" msedge "%*"`（手で引用符を付けた）で 37.1 と同じ結果。空白入りの名前でも `"…\has space.pdf"` が 1 引数のまま |
+| 37.6 | 合格 | 32.6 と同じ起動。1 プロセスに `"…doc.pdf" "…second.pdf"` の 2 引数で、引用符でひと塊になっていない |
+
+### 21.4 —— 取りに行って、**取れないことが確かめられた**（チェックは付けていない）
+
+x64 の run（この報告の「21.4 の『the result opens』が何を指すのか決まらない」の節）が
+「カーソルも動かない」と書いて保留にした行。**ARM64 でも同じ**で、今回は経緯自体が
+`windows-role.md` の「一番の危険」そのものだったので書き残す。
+
+1. `filer <dir> --keys "E<Enter>"` で `to-pack.zip`（970 B、先頭 `50 4B 03 04`、
+   `7z l` で 6 files / 2 folders）ができる。ここまでは毎回同じ。
+2. そのあと `c` `c` を送って読んだら **`…\to-pack.zip`** が返り、プレビュー枠に書庫の
+   中身が並んでいた（`214-packed.png`）。「Packed, and the result opens」に見えた。
+3. **これは自分が動かしていた。**同じセッションで `PostMessage` の効き方を試していて、
+   `lParam = 0` の `WM_KEYDOWN`（VK 0x4A = `j`）を 1 発送っていた。当時は「効いていない」と
+   判断したが、**`j` だけは通っていた。**
+4. 何も余計なキーを送らずにやり直すと、カーソルは **`to-pack` のまま**（`214-recheck.png`、
+   `c` `c` が `…\arm21d\to-pack` を返す）。コードもそうなっていて、
+   `OpEvent::Finished`（`app.rs:3264`）は状態・エラー・undo・`rescan` だけで、
+   **結果を開く / 選ぶ処理はどこにも無い。**
+
+つまり x64 の報告は正しい。**行の文言か機能か、どちらを直すかは持ち主の判断**なので、
+文言はいじらず、チェックも付けない。
+
+### 見つけたもの
+
+#### 1. README の `[opener]` の例では、`.docx` / `.pptx` を `<Enter>` すると **Excel** が起動する
+
+- **どこ**: README.md の `[opener]` / `[open]` の例（140-174 行）。`office` が
+  **1 本のリスト**で、その先頭が `start "" excel %*`。`[open].rules` は
+  `*.{docx,docm,doc}` にも `*.{pptx,pptm,ppt}` にも `use = ["office", "open"]` を当てている。
+  `<Enter>` は「最初に当たったオープナー」を走らせるので、**Word 文書でも Excel が呼ばれる。**
+- **実測**: `memo.docx` で `<Enter>` → トーストが
+  `$ start "" excel "C:\…\open\memo.docx"`、Excel がタイトル `Excel`（ファイル無し）で起動
+  （`372-docx.png`）。`deck.pptx` でも同じ（`372-pptx.png`）。
+- **filer の不具合ではない。**`office` を `excel` / `word` / `powerpoint` の 3 本に割って
+  ルールを振り直した設定（`cfg-per-app.toml`）では、`WINWORD.EXE` と `POWERPNT.EXE` が
+  ちゃんと起動する。つまり `start "" winword %*` の仕組み（37.2 が試している当のもの）は通っている。
+- **なぜ書くか**: TESTING.md の 32 節の前書きが「**README の例が試験対象。ここで失敗したら
+  手順書が間違っていて、それは機能が無いより悪い**」と言っている。まさにその状態。
+  README のコメントも「`open` のリストが既に関連付けで Office に届くので、
+  プログラムを名指しするのは関連付けを上書きしたいときだけ」と書いているが、
+  **名指ししたリストを 3 つの拡張子で共有している**ところが噛み合っていない。
+- **直し方（直していない）**: 例を `excel` / `word` / `powerpoint` に割るのが一番素直。
+  `office` 1 本のままにするなら、`<Enter>` の例からは外して `<S-Enter>` 専用として書く。
+
+#### 2. zip の日付が 1980-01-01 になる件は、0.54.3 でもそのまま（既報）
+
+この報告の「filer が書く zip は、全エントリの日付が 1980-01-01 になる」と同じ。
+今回の `to-pack.zip` も `1980-01-01 00:00:00`、同じ入力から作った `to-pack.7z` は
+`2026-09-30 14:37:17`、`to-pack.tar.gz` の中の tar も `9 30 14:37`。**7z と tar は保つのに zip だけ落とす。**
+ARM64 の話ではない。新しい発見でもないので、再掲だけしておく。
+
+#### 3. `filer env` をリダイレクトすると空になる件も、0.54.3 でそのまま（既報）
+
+#93 の 3 番と同じ。`filer.exe env > file` も `| clip` も 0 バイト。この run でも
+**コンソールを持たない親から `WScript.Shell.Exec` で呼んで**取った。
+`cscript` では駄目で（コンソールを持つので `AttachConsole` が成功してしまう）、
+`wscript` から呼んだときだけ `println!` に落ちてパイプに出る。
+
+#### 4. この機械の `.pdf` の関連付けは `start ""` から起動しない —— **filer の外でも同じ**
+
+37.8 の「既定アプリ」の項目を選ぶと、トーストも出ないまま何も起きない（`378-default.png`）。
+**filer のせいではない**: 同じことを filer の外でやっても起動しない。
+
+```text
+HKCU:…\FileExts\.pdf\UserChoice\ProgId = MSEdgePDF
+cmd /c start "" "…\doc.pdf"      -> msedge は 1 つも増えない
+Invoke-Item "…\doc.pdf"          -> 同じ
+msedge.exe about:blank           -> 普通に起動する（22 プロセス、タイトルあり）
+```
+
+`.png` では同じ `start "" %*` が Photos を起動している（37.3）ので、**壊れているのは
+この機械の `.pdf` の関連付け**。持ち主に直してもらう以外に無いので、37.8 は
+「7 項目のうち 5 つまで」で止めた。
+
+### 取れなかった行と、その理由
+
+| 行 | 理由 |
+| --- | --- |
+| 32.2 / 32.8a / 32.8b / 32.9 | **秀丸とサクラがこの機械に入っていない。**`App Paths` にも `where` にも無い。32.8a が言う「引用符付きフルパス」の仕組み自体は、VS Code のフルパスで通ることを確かめた（37.7 の欄） |
+| 32.5 | 「上のそれぞれを通して」の「それぞれ」に 32.2（秀丸）が入っているので、全部は通せない。通せた分: `has space.pdf` を `<Enter>`（37.4）と `has space.txt` をフルパスのオープナー（37.7）で、どちらも引数 1 つ |
+| 37.7 | 名指しの 3 本（IrfanView / サクラ / 秀丸）がどれも入っていない。**代わりに VS Code をフルパスで**指定して確かめた: `"C:\Program Files\Microsoft VS Code\Code.exe" %*` で `has space.txt` を開くと、トーストのコマンド行に `start` が 1 度も出ず、`Code.exe "…\has space.txt"` が起動してタイトルが `has space.txt - Visual Studio Code`（`377-fullpath.png`）。**行が名指しした 3 本では試していない**ので、チェックは付けない |
+| 37.8 | 並び順は合っている（`Edge` / `Chrome` / `Open with the default app` / 秀丸 / サクラ / `VS Code` / `Neovim`、`378-O-picker.png`）。起動は **Edge・Chrome・VS Code・Neovim の 4 つが表示どおり**（Chrome はタイトル `doc.pdf - Google Chrome`、VS Code は `doc.pdf - Visual Studio Code`、Neovim は `block = true` のとおり自前のコンソールが出て `nvim "…\doc.pdf"`）。**残る 3 つは秀丸・サクラ（未導入）と既定アプリ（上の 4 番）。**「それぞれ表示どおりのものが起動する」を全部は言えない |
+| 21.4 | 上の節のとおり |
+
+### Proposals
+
+#### 1. `PostMessage` は「効かない」のではなく、`lParam` にスキャンコードが要る
+
+- **何に当たったか**: #93 が「`PostMessage` で文字を打つのはやめたほうがいい。`WM_CHAR` だけだと
+  1 文字も入らない」と書いていたので、この run も最初 `WM_CHAR` で `c` `c` を送って
+  **1 度も届かなかった**。`WM_KEYDOWN` に替えても届かない。原因は `lParam = 0` で、
+  **winit は `lParam` の 16-23 ビットからスキャンコードを読む**ため、物理キーに落ちず捨てられる。
+- **どう変わるか**: `MapVirtualKey(vk, 0)` でスキャンコードを取り、
+  `lParam = 1 | (sc << 16)`（`WM_KEYUP` はさらに `| 0xC0000000`）にすると、**そのまま通る。**
+  この run はタスクパネル・ピッカーの `<Down>` / `<Enter>`・`c` `c` を全部これで入れた。
+  文字は `VkKeyScan(ch)` で仮想キーに直してから同じ経路に載せる（`postkey.ps1`）。
+- **なぜ**: `--keys` は起動時にしか押せないので、**ジョブの完了やピッカーの表示を見てから
+  押す**ことができない。この run の 21.10（タスクパネルを開いたまま進捗を読む）と
+  37.8（ピッカーの N 番目を選ぶ）は、`--keys` だけでは撮れなかった。
+  `windows-role.md` の「Prefer `PostMessage` to `SendInput`」の節に **1 行**足せば、
+  次の run が同じ 1 時間を使わずに済む。
+- **大きさ**: ドキュメント 1 行（と、置くなら `scripts\postkey.ps1` として 40 行）。
+
+#### 2. `--keys` に「待つ」トークンが欲しい
+
+- **何に当たったか**: 21.10 で `E<BS><BS><BS>7z<Enter>w` と書いたら、
+  `w`（タスクパネル）が `<Enter>` の直後に来る。`--keys` は `App::settled()` しか待たず、
+  **ジョブは `settled()` に入っていない**ので、間に合うかどうかは運になる。
+  一度は `w` が入力欄に入って名前が `big.7zw` になり、何も固められなかった。
+- **何を変えるか**: `--keys "…<Enter><Wait:2000>w"` のように、**ミリ秒を待つトークン**を
+  1 つ足す。キーではないので `Key::parse` の外で拾う。
+- **なぜ**: 「ジョブが終わってから押す」は書庫・コピー・削除のどの節でも要る。
+  いまは外から `PostMessage` を足すしかなく、それは提案 1 を知っている人にしかできない。
+- **大きさ**: `keyscript.rs` に列挙型を 1 つ（`Key` か `Wait`）と、`main.rs` の送り出しに分岐。
+
+#### 3. オープナーが失敗したときのトーストが `exit code 1` しか言わない
+
+- **何に当たったか**: `nosuchprogram-xyz` を指定したときも、フルパスを打ち間違えたときも、
+  出るのは `Open failed: exit code 1 — <コマンド行>`。32.8c は「日本語 Windows では
+  終了コードが出るのが仕様」と書いてあるが、**`exit code 1` は原因を 1 文字も言っていない。**
+  この run で実際に困った: 「Excel が起動して何も開かない」（上の 1 番）と
+  「プログラムが見つからない」が、同じ見た目の失敗として並ぶ。
+- **何を変えるか**: `cmd /C` に投げる前に、**行の先頭のプログラムを解決してみる**
+  （引用符付きならそのパスの存在、裸の名前なら `PATH` と `App Paths`）。
+  見つからなければ `Open failed: nosuchprogram-xyz was not found on PATH` のように、
+  終了コードではなく**何が無かったか**を言う。見つかったのに落ちたときだけ終了コードを出す。
+- **なぜ**: オープナーの設定は手で書くもので、間違いのほとんどは綴りとパス。
+  いまのトーストは「失敗した」までしか言わないので、設定を直す手がかりが無い。
+- **大きさ**: `exec.rs` に解決の関数 1 つと、`app.rs` の失敗メッセージの分岐。
+
+#### 4. `<Enter>` が走らせた 1 本を、トーストではなくどこかに残してほしい
+
+- **何に当たったか**: `<Enter>` で何が起動したかは `$ start "" excel "…"` のトーストで
+  分かるが、**数秒で消える。**上の 1 番（docx で Excel が起動する）に気づいたのは、
+  たまたまトーストが出ている間にスクリーンショットを撮っていたから。
+  撮っていなければ「Word が開かなかった」までしか分からず、
+  **原因が設定にあることは分からなかった。**
+- **何を変えるか**: 起動したコマンド行を `w`（タスクパネル）に 1 行残す。
+  ジョブではないので進捗は要らない —— 「いつ、何を、どのファイルに対して走らせたか」だけ。
+- **なぜ**: オープナーはこのアプリで一番設定を間違えやすいところで、
+  いまは間違いの証拠が数秒で消える。
+- **大きさ**: 設計の判断が要る（タスク一覧に「ジョブではないもの」を混ぜてよいか）。
+  混ぜたくないなら、別の履歴パネルか `filer env` の隣。
+
+### 順番表（`.claude/windows-role.md`「The ARM64 lane」）
+
+無人実行は `.claude/` への書き込みを権限で拒否されるので、変更は PR 本文の `## Queue` に書いた。
+
+- **`21 / 32 / 37. archives and openers, again` の行は消してよい。**x64 で `[x]` の 21 行は
+  全部この機械で押し直し、結果を上の表に書いた。`[ ]` のまま残るのは
+  **秀丸・サクラ・IrfanView が無いと押せない行**（32.2 / 32.5 / 32.8a / 32.8b / 32.9、37.7 / 37.8 の一部）と
+  **21.4**（持ち主の判断待ち）で、**どれも ARM64 の話ではない。**
+- `the test suite` の行はそのまま残す（この run も 506 / 0 を記録した）。
+- **代わりに 2 つ足してほしい**（どちらもこの run で足場を確かめたもの）:
+  - **22. opening an editor at a line** —— `Win32_Process` の `CommandLine` で
+    filer が組んだ `-n42` / `+42` / `--goto` が読める。この機械には **VS Code と Neovim が
+    入っていて、秀丸・サクラ・IrfanView は入っていない**（上の表）。6 行のうち取れるのは
+    その 2 つぶんで、残りは「入っていない」と報告する行になる。
+  - **7. the config paths in the help panel** —— 並ぶディレクトリはただのテキストで、
+    `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` で動かせる。**この run は 5 つの設定を
+    その 2 つの環境変数で差し替えて回した**ので、足場はもう分かっている。7.2 / 7.3 は
+    ポインタと強調なので見た目。
