@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**115 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
+**119 / 383 済み。**（TESTING.md の全 539 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -619,7 +619,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **45.12** 2 分割して各ペインでフォルダの上に立ち、`<A-d>` → その 2 つが比較される — *Split the view, stand on a folder in each pane, `<A-d>` → Compares those two*
 - [ ] **45.13** `q` / `<Esc>` → 閉じる。そして 2 つの**ファイル**はこれまでどおり行単位で比較できる — *`q` / `<Esc>` → Closes, and two **files** still compare line by line as before*
 
-## 46. spot パネルの Git セクション — 10 / 16
+## 46. spot パネルの Git セクション — 14 / 16
 
 準備:
 
@@ -640,8 +640,8 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [x] **46.9** `git` が `PATH` に無い機械で同じこと → Git セクションが出ず、エラーも出ず、パネルの他の部分にも影響しない — *The same on a machine with no `git` on `PATH` → No Git section, no error, and the rest of the panel is unaffected*
 - [x] **46.10** 最後のコミットの件名に日本語や絵文字が入っているファイルで `<Tab>` → 文字化けせずそのまま描かれる（書式が NUL 区切りなので引用が要らない） — *`<Tab>` on a file whose last subject has Japanese in it, or an emoji → Drawn intact, not mojibake — the format is NUL-separated so nothing needs quoting*
 - [x] **46.11** コンソールの窓が出ないか見張る → **一瞬も出ない。**`git` は status ワーカーと同じく `CREATE_NO_WINDOW` で起動される — *Watch for a console window → **None flashes.** `git` is spawned with `CREATE_NO_WINDOW`, the same as the status worker*
-- [ ] **46.12** マージ済みの pull request 経由で入ったコミットを持つファイルで `<Tab>` → `Came in via` が `#<n>` と merge の短いハッシュ、`From branch` がブランチ名 — *`<Tab>` on a file whose commit arrived through a merged pull request → `Came in via` reads `#<n>` then the merge's short hash, and `From branch` names the branch*
-- [ ] **46.13** `#<n>` を GitHub の pull request と突き合わせる → **同じ番号**で、そのファイルがその PR の差分に入っている。番号は merge コミットの件名から読んでいて何も取得していないので、**件名が出所であることを示すのがこの行** — *Check `#<n>` against the pull request on GitHub → **The same number**, and the file is in that pull request's diff. The number is read out of the merge commit's subject — nothing is fetched, so this is the row that proves the subject is the source*
-- [ ] **46.14** 最後のコミットが **`main` に直接** push されたファイルで `<Tab>` → **`Came in via` も `From branch` も出ない。**履歴の行だけ。あとから来ただけの merge に帰属させてはいけない — *`<Tab>` on a file whose last commit was pushed **straight to `main`** → **No `Came in via` and no `From branch`** — the history rows only. A merge that merely came later must not be credited*
-- [ ] **46.15** 現在のブランチでコミットし **まだマージしていない**ファイルで `<Tab>` → 同じく履歴の行だけで `Came in via` は出ない。まだどこにも到着していないので訊く相手がいない — *`<Tab>` on a file committed on the current branch and **not merged yet** → The same: history rows, no `Came in via`. It has not arrived anywhere to be asked about*
+- [x] **46.12** マージ済みの pull request 経由で入ったコミットを持つファイルで `<Tab>` → `Came in via` が `#<n>` と merge の短いハッシュ、`From branch` がブランチ名 — *`<Tab>` on a file whose commit arrived through a merged pull request → `Came in via` reads `#<n>` then the merge's short hash, and `From branch` names the branch*
+- [x] **46.13** `#<n>` を GitHub の pull request と突き合わせる → **同じ番号**で、そのファイルがその PR の差分に入っている。番号は merge コミットの件名から読んでいて何も取得していないので、**件名が出所であることを示すのがこの行** — *Check `#<n>` against the pull request on GitHub → **The same number**, and the file is in that pull request's diff. The number is read out of the merge commit's subject — nothing is fetched, so this is the row that proves the subject is the source*
+- [x] **46.14** 最後のコミットが **`main` に直接** push されたファイルで `<Tab>` → **`Came in via` も `From branch` も出ない。**履歴の行だけ。あとから来ただけの merge に帰属させてはいけない — *`<Tab>` on a file whose last commit was pushed **straight to `main`** → **No `Came in via` and no `From branch`** — the history rows only. A merge that merely came later must not be credited*
+- [x] **46.15** 現在のブランチでコミットし **まだマージしていない**ファイルで `<Tab>` → 同じく履歴の行だけで `Came in via` は出ない。まだどこにも到着していないので訊く相手がいない — *`<Tab>` on a file committed on the current branch and **not merged yet** → The same: history rows, no `Came in via`. It has not arrived anywhere to be asked about*
 - [ ] **46.16** 回線を抜く、Wi-Fi を切る、または Windows ファイアウォールで `filer.exe` と `git.exe` の外向き通信を塞ぐ —— そのうえで 46.12 をやり直す → **同じ出力・同じ速さ。**ここは何もマシンの外に出ない。ファイアウォールの方法は、実機で動くセッション向け（前の 2 つだとセッション自体が切れる） — *Pull the network cable, turn off Wi-Fi, or block `filer.exe` and `git.exe` outbound in Windows Firewall — then repeat 46.12 → **Identical output, at the same speed.** Nothing here leaves the machine. The firewall form is for a session on the machine, which the other two would cut off*
