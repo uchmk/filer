@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**182 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
+**190 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -454,21 +454,21 @@ fsutil hardlink list <新しくできたパス>
 - [x] **30.13** `vim` を開いた状態のターミナルで右クリック → 文字が挿入される。画面に `[200~` が出ない — *Right-click in the terminal while `vim` is open → The text is inserted; no `[200~` on screen*
 - [x] **30.14** ターミナルで `<C-v>` → 右クリックと同じ（30.11 の挙動も含めて） — *`<C-v>` in the terminal → Same as the right-click, including 23.11*
 
-## 31. ホストの共有一覧 — 0 / 13
+## 31. ホストの共有一覧 — 8 / 13
 
-- [ ] **31.1** `g`+`<Space>` で `\\<サーバのアドレス>` と入力して `<Enter>` → 共有が並ぶ。エクスプローラーが見せるものと同じ — *`g`+`<Space>`, type `\\<your server's address>`, `<Enter>` → The shares are listed, the same ones Explorer shows*
+- [x] **31.1** `g`+`<Space>` で `\\<サーバのアドレス>` と入力して `<Enter>` → 共有が並ぶ。エクスプローラーが見せるものと同じ — *`g`+`<Space>`, type `\\<your server's address>`, `<Enter>` → The shares are listed, the same ones Explorer shows*
 - [ ] **31.2** アドレスではなくホスト**名**で、また `//` の綴りでも同じこと → どちらも届く。表示は `\\host` の綴りに戻される — *Same with a host **name** rather than an address, and with the `//` spelling → Both arrive; the path is shown back in the `\\host` spelling*
-- [ ] **31.3** 共有の中へ入り、`h` で出る → 共有へ入り、ホストの一覧へ戻る — *Walk into a share and back out with `h` → Into the share, then back to the host list*
-- [ ] **31.4** ホストの位置でもう一度 `h` → 何も動かない（ホストが最上位）。落ちない — *`h` again, at the host → Nothing moves (the host is the top), no crash*
-- [ ] **31.5** 電源が入っていないホスト、または存在しないホスト（自分のサブネットの未使用アドレス）→ タブは元の場所に戻り、理由がトーストで出る。ウィンドウは固まらない — *A host that is off, or does not exist (an unused address on your own subnet) → The tab returns to where it was and a toast says why — it does not hang the window*
+- [x] **31.3** 共有の中へ入り、`h` で出る → 共有へ入り、ホストの一覧へ戻る — *Walk into a share and back out with `h` → Into the share, then back to the host list*
+- [x] **31.4** ホストの位置でもう一度 `h` → 何も動かない（ホストが最上位）。落ちない — *`h` again, at the host → Nothing moves (the host is the top), no crash*
+- [x] **31.5** 電源が入っていないホスト、または存在しないホスト（自分のサブネットの未使用アドレス）→ タブは元の場所に戻り、理由がトーストで出る。ウィンドウは固まらない — *A host that is off, or does not exist (an unused address on your own subnet) → The tab returns to where it was and a toast says why — it does not hang the window*
 - [ ] **31.5a** 24.1 と 24.5 をもう一度、**トーストが出るか**を見ながら → v0.16.0 は黙って親に戻っていたので、失敗が「何も起きない」に見えていた。いまは一覧かメッセージのどちらかが必ず出る。メッセージなら、その os error 番号が報告すべきもの — *24.1 and 24.5 again, watching for a **toast** → v0.16.0 fell back to the parent in silence, so a failure looked like nothing happening. Whatever the outcome, there is now either a listing or a message; if it is still a message, its os error number is the thing to report*
-- [ ] **31.6** この機械に資格情報を与えていないホスト → 同じく、拒否がトーストで名前付きで出る — *A host that needs a login the machine has not been given → Same: a refusal as a toast, naming it*
+- [x] **31.6** この機械に資格情報を与えていないホスト → 同じく、拒否がトーストで名前付きで出る — *A host that needs a login the machine has not been given → Same: a refusal as a toast, naming it*
 - [ ] **31.7** 共有が**たくさん**あるホスト（1 画面に収まらない数）→ 全部出て、普通にスクロールできる — *A host with **many** shares (more than a screenful) → All of them, scrolling normally*
 - [ ] **31.8** 名前に空白や非 ASCII を含む共有 → 壊れずに出る — *A share name with a space or non-ASCII in it → Intact*
 - [ ] **31.9** 共有をホバーしてサイズの列を見る → 空。読むものが無く、**そこで数え続けてはいけない** — *Hover a share and look at the size column → Empty — there is nothing to read, and it must not sit there counting*
-- [ ] **31.10** ホストの一覧で `<C-r>` / 再読み込み → サーバに問い直す。落ちない — *`<C-r>` / refresh on the host listing → Re-asks the server; no crash*
-- [ ] **31.11** **もう一方のペイン**（`<C-w>`）と 2 つ目のタブでホストを開く → どちらも問題なし — *Open the host in the **other pane** (`<C-w>`) and in a second tab → Both fine*
-- [ ] **31.12** ホストへ行ってから、別のディレクトリへ移動する → 監視できなかったホストについて、ウォッチャが文句を言わない — *Go to a host, then change directory away → The watcher does not complain about the host it could not watch*
+- [x] **31.10** ホストの一覧で `<C-r>` / 再読み込み → サーバに問い直す。落ちない — *`<C-r>` / refresh on the host listing → Re-asks the server; no crash*
+- [x] **31.11** **もう一方のペイン**（`<C-w>`）と 2 つ目のタブでホストを開く → どちらも問題なし — *Open the host in the **other pane** (`<C-w>`) and in a second tab → Both fine*
+- [x] **31.12** ホストへ行ってから、別のディレクトリへ移動する → 監視できなかったホストについて、ウォッチャが文句を言わない — *Go to a host, then change directory away → The watcher does not complain about the host it could not watch*
 
 ## 32. オープナー — 7 / 12
 
