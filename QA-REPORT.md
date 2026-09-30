@@ -1857,3 +1857,93 @@ ConPTY が使われている。設定は `R:\Temp\t1bcfg` に隔離、画面は 
   版は 51e6fb0 の `Cargo.toml`（0.49.1）で見ている。
 - 高さを測るヘルパーを `H` と名付けたら、PowerShell の既定エイリアス（`Get-History`）に負けた。
   関数よりエイリアスが先に解決される。`Hgt` に変えた。
+
+## TESTING.md section 46 (46.12–46.16) — Windows 実機で確かめた（51e6fb0 / 0.49.1）
+
+v0.48.0 で入った `Came in via` / `From branch` の行。Windows 11 Pro 10.0.26200、
+`target\release\filer.exe`（`scripts\fetch-conpty.ps1` で同梱 ConPTY 1.24.260710001 を配置済み）。
+ハーネスは `C:\dev\filer-evidence\46b\spot46.ps1`（46 節の初回のものに `-Tcp` を足しただけ）。
+キーは filer の窓に `PostMessage` で送り、spot の各行で `y` → `Get-Clipboard` で値を読む。
+**`y` は値だけをコピーする**ので、ラベルとの対応は行の順（`src/spot.rs:215-235`）と
+スクリーンショット（`*-open.png`、同じフォルダ）で取った。どの実行も全行がスクリーンショットと一致した。
+
+| 行 | 結果 | 根拠 |
+| --- | --- | --- |
+| 46.12 | 合格 | `src\terminal.rs`: 行 11 `88128c8  2026-09-29 16:07`、行 15 `#71  48b6c9c`、行 16 `claude/task-09i0cs`。git 側の期待値 `git rev-list --merges --ancestry-path 88128c8..HEAD` の最古 = `48b6c9c Merge pull request #71 from uchmk/claude/task-09i0cs`、`88128c8` はその第 1 親から届かない |
+| 46.13 | 合格 | `gh pr view 71 --json number,title,headRefName,mergeCommit,files` → `number 71`、`headRefName claude/task-09i0cs`、`mergeCommit 48b6c9c…`、`files` に `src/terminal.rs` |
+| 46.14 | 合格 | `src\preview\csv.rs`: 行 11–14 `dbcedad  2026-09-27 03:26` / 件名 / `Claude` / `2`、行 15 は Text 節の `UTF-8`（`Came in via` も `From branch` も無い）。対象の探し方は下 |
+| 46.15 | 合格 | `R:\Temp` の使い捨て clone、ブランチ `topic-unmerged` のコミット `02ed675`（`unmerged-46-15.txt`）: 行 10–12 `02ed675  2026-09-30 08:38` / `46.15: committed on a branch, not merged` / `QA`、行 13 は `UTF-8`。本物のチェックアウトにはコミットしていない |
+| 46.16 | **未チェック（人が行う）** | 回線を切るとこのセッションが切れるので実行していない（この run の指示。main の 281e433 で行の文言と役割定義に「ファイアウォールで `filer.exe` / `git.exe` の外向きを塞ぐ」形が足されたが、この run では使っていない。管理者権限も要る）。補助の証拠だけ: 46.12 と同じ画面で Git 節を出したまま `Get-NetTCPConnection -OwningProcess 75548`（filer）を 2 回 → **どちらも 0 件**。取れたのは filer 本体の接続だけで、filer が一瞬起動する `git.exe` の接続は見ていない |
+
+46.14 の対象の探し方（main の first-parent の線上にある非 merge コミットが、最後に触れたファイル）:
+
+```bash
+git rev-list --first-parent --no-merges HEAD > /r/Temp/fp.txt
+for f in $(git ls-files); do c=$(git log -1 --format=%H -- "$f"); grep -q "^$c$" /r/Temp/fp.txt && echo "$(git log -1 --format='%h %ad %s' --date=short $c) :: $f"; done
+```
+
+`src/preview/csv.rs` を選んだ理由は、**v0.48.0 のバグ（後から来ただけの merge に帰属させる）を
+再現できる形だから。**`dbcedad` の後で最も古い merge は `0fee23c`（件名は `v0.45.6: a symbol
+reached with shift never matched its binding, on any keyboard`）で、`git merge-base --is-ancestor
+dbcedad 0fee23c^1` が真になる。第 1 親の判定が無ければ `Came in via  0fee23c` と出ていたはず。
+
+### 並行していたセッションとクリップボードの取り合い
+
+- 最初の 46.12 は、別の実機セッションのハーネス（`R:\Temp\t1d\s22.ps1`、08:36 起動）と重なった。
+  `y` のたびに**こちらが入れていない `<<s 1022932342>>` のような値**がクリップボードに入り、
+  フィルタも `<Tab>` も効かなかった。人の指示でそのプロセスを止めてから取り直した。
+- 46.15 の 1 回目も、`C:\dev\filer-win13` の filer（09:01 起動、13 節）と重なり、行 0–9 に
+  `Hardlink` などの他人の値が入った。こちらは止めずに取り直し、2 回目（`unmerged2.txt`）が
+  スクリーンショットと 1 行ずつ一致したものを証拠にした。
+- **このハーネスの方式（クリップボード経由）は、同時に 1 セッションしか成り立たない。**
+  役割定義の「one session at a time」は作業ディレクトリだけでなく、クリップボードにも効く。
+
+### 手で組んだ一時ディレクトリのテストが、もう 1 本落ちた
+
+上の節（section 1、`a_send_does_not_disturb_what_is_yanked`）と同じ形の 2 件目。
+
+- 準備の 1 回目の `cargo test`（TEMP = `R:\Temp`、`C:\dev\filer`）で
+  `app::follow_says_what_it_is_for::an_ordinary_file_is_told_that_it_is_not_a_link` が
+  `src\app.rs:6190:62` で panic した（491 通過 / 1 失敗）。6190 行は
+  `crate::fs::Entry::from_path(plain).unwrap()` で、直前に書いた `plain.txt` を読めなかった。
+- 単独で 1 回、全体を続けて 3 回回し直して、どれも通った（4 回の全体実行で 1 回）。
+- 一時ディレクトリは `std::env::temp_dir().join("filer-follow-msg")`。上の節が挙げた 4 つのうちの 1 つ。
+- **同じ朝に、4 つのうち 2 つが別々のセッションで 1 回ずつ落ちた。**この時間帯には
+  `C:\dev\filer-win13`（section 13）と `test/win-1d`（section 1）のセッションも、同じ
+  `TEMP=R:\Temp` で `cargo test` を回していた。どちらも名前にプロセス ID が入らないので、
+  **別のチェックアウトのテストプロセスと同じディレクトリを取り合える。**これが原因だとは
+  確かめていない（同時刻に走っていたかは記録が無い）。
+- `util::test_dir` と、`src/app.rs:5430`（`filer-move-undo-{pid}`）・`src/preview/external.rs:131`
+  （`filer-preview-{pid}-{n}`）は、名前にプロセス ID を入れている。**直していない。**
+
+### Proposals
+
+3 件。
+
+1. **spot の中身を、ラベル付きで丸ごとコピーできるようにする。**
+   - 何が起きたか: 46.12〜46.15 では各行で `y` を押して値を読んだが、`y` は**値だけ**を
+     コピーする。どの値が `Came in via` なのかは、行の順とスクリーンショットで照らすしかなかった。
+     しかも `Commits` の行は件数が 1 なら出ない（46.15）し、Git 節より上の行数もファイルで変わるので、
+     同じ `UTF-8` が 46.14 では 15 行目、46.15 では 13 行目に来る。**行番号で読むと、ファイルごとに意味がずれる。**
+   - どう変えるか: `[spot]` に `Y`（または `c` `a`）で、パネル全体を
+     `Label<TAB>value` の行として 1 回でコピーするコマンドを足す。
+   - なぜ: バグ報告やチャットに「spot には何と出ていたか」を貼るとき、今はスクリーンショットになる。
+     テキストなら検索でき、差分も取れる。このセッションのハーネスも、20 回の `y` が 1 回で済む。
+   - 大きさ: 関数 1 つとキー 1 つ（行の組み立ては `spot.rs` に既にある）。
+2. **「直接 push された」と「まだどこにも入っていない」を見分けられるようにする。**
+   - 何が起きたか: 46.14（`csv.rs`、main に直接）と 46.15（未マージのブランチ）は、
+     **spot の見た目が同じ**になる。どちらも履歴の行だけで、`Came in via` が無い。
+     行の期待どおりだが、spot だけを見た人は「このコミットは main にあるのか」を答えられない。
+   - どう変えるか: 既定ブランチ（`origin/HEAD`）に届いていないコミットにだけ、
+     `Not merged` のような 1 行を出す。
+   - なぜ: レビュー中のブランチでファイルを眺めるとき、一番知りたいのは「これはもう入ったか」。
+   - 大きさ: 設計の判断が要る。既定ブランチをどう決めるか（`origin/HEAD` が無い clone もある）と、
+     `merge-base --is-ancestor` が 1 回増えること。
+3. **`Came in via` の `#71` から、その pull request を開けるようにする。**
+   - 何が起きたか: 46.13 では `#71` を読んで、手で `gh pr view 71` を打った。値は `#71  48b6c9c` と
+     ハッシュ付きでコピーされるので、そのまま貼っても使えない。
+   - どう変えるか: その行で `<Enter>`（または `o`）を押すと、`remote.origin.url` から
+     `https://github.com/<owner>/<repo>/pull/71` を組んで既定のブラウザで開く。
+   - なぜ: 「どの PR で入ったか」を知った次にしたいのは、たいていその PR を読むこと。
+     URL を組むだけなので、46.16 の「何も外に出さない」は開くまで守られる。
+   - 大きさ: 関数 1 つ。GitHub 以外のホストをどうするかは判断が要る。
