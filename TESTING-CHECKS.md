@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**157 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
+**161 / 401 済み。**（TESTING.md の全 557 件のうち、`cargo test` が見ている 156 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -429,13 +429,13 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **28.6** カーソルを最終行に置いて、そのファイルを `d` で削除 → 同じ。これが Issue #5 の報告内容 — *Cursor on the last row, delete that file with `d` → Same — this is what Issue #5 reported*
 - [ ] **28.7** カーソルが乗っているファイルを外から改名 → カーソルが名前に追従するか、その場に留まる。落ちない — *Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash*
 
-## 29. ターミナルのカレントディレクトリを持ち帰る — 0 / 5
+## 29. ターミナルのカレントディレクトリを持ち帰る — 4 / 5
 
-- [ ] **29.1** `$PROFILE` にフックが**無い**状態でターミナルを開き（`<C-t>`）、`cd` してから `<A-Up>` → OSC 7 と `LocationChangedAction` を挙げ、README を指すトーストが出る。**無反応でも待ちでもない** — *With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` → A toast naming OSC 7 and `LocationChangedAction`, pointing at the README — **not** silence, and not a wait*
+- [x] **29.1** `$PROFILE` にフックが**無い**状態でターミナルを開き（`<C-t>`）、`cd` してから `<A-Up>` → OSC 7 と `LocationChangedAction` を挙げ、README を指すトーストが出る。**無反応でも待ちでもない** — *With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` → A toast naming OSC 7 and `LocationChangedAction`, pointing at the README — **not** silence, and not a wait*
 - [ ] **29.2** README のフックを `$PROFILE` に貼り、新しいターミナルを開いて `cd C:\dev`、`<A-Up>` → ファイル一覧が `C:\dev` へ移動する — *Paste the README hook into `$PROFILE`, open a new terminal, `cd C:\dev`, press `<A-Up>` → The file list moves to `C:\dev`*
-- [ ] **29.3** 名前に**空白**を含むディレクトリと、**日本語**を含むディレクトリで同じこと → どちらも壊れずに届く — *Same with a directory whose name has a **space** and one with **Japanese** in it → Both arrive intact*
-- [ ] **29.4** UNC パス（`\\server\share`）へ `cd` して `<A-Up>` → 追従するか、できない理由を述べる。落ちない — *`cd` to a UNC path (`\\server\share`) and press `<A-Up>` → Either it follows or it says why; no crash*
-- [ ] **29.5** Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため） — *Run the hook line by hand in a shell that already has Starship → The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`)*
+- [x] **29.3** 名前に**空白**を含むディレクトリと、**日本語**を含むディレクトリで同じこと → どちらも壊れずに届く — *Same with a directory whose name has a **space** and one with **Japanese** in it → Both arrive intact*
+- [x] **29.4** UNC パス（`\\server\share`）へ `cd` して `<A-Up>` → 追従するか、できない理由を述べる。落ちない — *`cd` to a UNC path (`\\server\share`) and press `<A-Up>` → Either it follows or it says why; no crash*
+- [x] **29.5** Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため） — *Run the hook line by hand in a shell that already has Starship → The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`)*
 
 ## 30. プロンプトでの右クリック貼り付け — 0 / 14
 
