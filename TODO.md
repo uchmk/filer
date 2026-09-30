@@ -1089,3 +1089,20 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   - 40.12: PSReadLine が Emacs 編集モードである前提。Windows モード（既定）には `Alt+b` / `Alt+f` が無く、`b` が
     そのまま入る。filer 側は正しい（`\ed` は KillWord、`\e[1;5D` は単語戻り）。前提を行に書く。
 - ペインの既定のシェルを `pwsh` にする提案（#100 の提案 3）は Q29。
+
+## 実機のセッションの報告（v0.54.11 で受けた分: #101、ARM64 の 29 節）
+
+- [x] 29 節の `[ ]` 5 行を ARM64 で押し、29.1 / 29.3 / 29.4 / 29.5 にチェック。`cargo test` 509 / 0。
+- [ ] 29.2 が付けられない。README のフックは既定のシェル（Windows PowerShell 5.1）では動かない（要確認: Q29）。
+- [ ] **UNC パスの OSC 7 を追えない**（バグ）。`cd \\localhost\C$\dev` で PowerShell は `file://///localhost/C$/dev` を出し、
+  `from_file_url`（`terminal.rs`）が先頭の `///` をそのまま残して `\localhost\C$\dev` になる。UNC には先頭の `\` が
+  ちょうど 2 つ要る。3 つ以上の `/` を 2 つにまとめる（Linux でもテストできる。#101 の提案 2）。今はトーストが
+  `指定されたパスが見つかりません` と正直に言い、落ちはしない（29.4 はそれで通った）。
+- [ ] README のフックが `LocationChangedAction` を**上書き**している。1 セッションに 1 つの枠で、この機械では mise が
+  既に使っていた（zoxide / atuin / starship は使わない）。`mise activate` の下に貼ると mise の `cd` フックが黙って
+  消える。前のハンドラを呼ぶ形にして載せる（#101 の提案 3）。
+- [ ] `<A-Up>` の「OSC 7 が無い」トーストに、ペインで動いているシェルの名前を出す。5.1 の人が同じ手順に送り返される
+  のを避ける（#101 の提案 4）。
+- README の `-replace '\\', '/'` は Windows では必須ではない。バックスラッシュのままの URL（`file:///C:\Users\…`）でも
+  filer は追えた（#101 の所見 3）。README を直すときに一緒に見る。
+- 人の設定ファイルを触るときの規則を役割定義の「Unattended runs」に足した（#101 の提案 5）。

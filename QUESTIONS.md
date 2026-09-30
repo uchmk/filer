@@ -588,10 +588,13 @@ Claude が判断に迷った点をここに書きます。各質問の「回答�
 - タスク: TODO.md「実機のセッションの報告（v0.54.10 で受けた分: #100、…）」
 - 背景: 設定が無いとき、ペインは `powershell`（Windows PowerShell 5.1）を起動する。ARM64 の機械（#100）には pwsh 7.6.6 が
   入っているのに、ペインは 5.1 と PSReadLine 2.0.0 で起動した。既定の変更なので、CHANGELOG に「変更」として書く必要がある。
-  なお pwsh 7.6.6 はプロンプトで OSC 7 を出さないことが分かっていて（TODO.md の 1.18 の項目）、README のフックが要る点は
-  5.1 と変わらない。
+  **追記（#101）**: 理由がもう 1 つ増えた。README のフックが使う `LocationChangedAction` は **Windows PowerShell 5.1 に
+  存在しない**（`InvokeCommand` のプロパティは 4 つだけで、7.6.6 には 5 つ目としてある）。5.1 の `$PROFILE` に貼ると
+  起動のたびに `PropertyAssignmentException` になり、`<A-Up>` は「フックを貼れ」というトーストを繰り返す。**既定のシェルの
+  ままでは README の手順に出口が無い。**TESTING.md 29.2 はこの答え待ちで付けられない。
 - 選択肢:
   1. **`pwsh` が PATH にあればそれを、無ければ `powershell` を使う（推奨）。**Windows Terminal の既定の選び方と同じで、
      新しい PSReadLine（予測表示など）が使える。設定の `shell` を書いた人には影響しない。
-  2. 今のまま `powershell`。README に「pwsh を使うなら `shell = "pwsh"` と書く」と足す。
+  2. 今のまま `powershell`。README に「pwsh を使うなら `shell = "pwsh"` と書く」と足し、5.1 向けの別の手順
+     （`prompt` 関数で OSC 7 を出す）を書く。
 - 回答:
