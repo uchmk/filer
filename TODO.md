@@ -690,6 +690,27 @@
   （`trim_end_matches('*')` が太字の閉じまで削っていた）。1 つだけ削るように直した（v0.51.2）。
   本当の差分（今回は合計の書き忘れ）が誤表示に埋もれていた。
 
+## 実機のセッションの報告（v0.51.3 で受けた分: #83、12 節）
+
+- [ ] **一部だけ失敗した削除で、取り消しの手順が残らない**（バグ）。12.10 で 5 件中 4 件がごみ箱に入ったのに、
+  直後の `u` は `Nothing to undo`。失敗した `Fresh` の手順が `Undos::keep` で捨てられている。通ったパスだけで
+  手順を積む（ジョブは何が通ったかを知っている。タスクの `4/5` がそれ）。
+- [ ] `d` が正規化できないボリューム（ImDisk の RAM ディスク、仮想ドライブ）で必ず失敗する
+  （`CanonicalizePath { original: "R:\\Temp\\…" }`）。13 節の `Resolves: no (os error 1)` と同じ根。
+  少なくとも `this drive can't use the Recycle Bin (R:). Use D to delete permanently.` と言う。正規化が
+  落ちたら生のパスで trash に渡す退路は要設計。
+- [ ] `RestoreCollision { path: …, remaining_items: [TrashItem { id: "C:\\$Recycle.Bin\\S-1-5-21-…` を
+  人の言葉にする: `a file by that name is already there. Move it away and press u again.`（手順は残っている）。
+- [ ] ロックで削除が止まったとき（`Unknown { description: "Some operations were aborted" }`）、そのファイルを
+  開いてみて os error 32 なら `… is open in another program` と言う（`#[cfg(windows)]`）。
+- [ ] タスクパネルのごみ箱の行: 動詞が 2 回並ぶ（`Trash  Trash 5 item(s)`）のと、大きさを数えないジョブの
+  `· 0 B / 0 B`（空のファイルに読める）をやめる。
+- [ ] TESTING.md 12.8 の文言が逆。作成は redo を残し、**名前の変更**が redo を分岐させる（実機で確認済み、
+  証拠は #83）。「別のファイルの名前を変える」の形に直す。番号は動かさない。`testcheck-ja.toml` の訳も。
+- [ ] 名前の変更（`r`）で、打った文字が語幹を置き換えずに後ろに足された（実機、PostMessage のハーネス）。
+  `g <Space>` の件（13/15 節）と同じ形。人が一度 `r` を押して打てば分かる。ハーネスのせいなら閉じる。
+- 役割定義に「ごみ箱を通る行は R: で回せない」を足した（提案 6）。
+
 ## Windows 版を exe 1 つで配れるようにする
 
 v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.exe` + ライセンス表示）。
