@@ -1026,6 +1026,11 @@ pub struct App {
     /// The biggest total in the usage view, which the rows' bars are drawn
     /// against. Zero when the view is not up.
     pub usage_max: u64,
+    /// The tab's linemode from before `gu`, put back on the way out. The view
+    /// shows sizes whatever the tab was showing (Q33): its bars alone could
+    /// not be read as numbers, and `linemode = "usage"` in the config made every
+    /// ordinary folder read `0 B` instead.
+    usage_linemode: Option<crate::fs::entry::Linemode>,
     pub ctx: egui::Context,
     /// How much bigger everything is drawn. Held here rather than read back
     /// from egui: `set_zoom_factor` only takes effect at the start of the next
@@ -1137,6 +1142,7 @@ impl App {
             search: None,
             usage: None,
             usage_max: 0,
+            usage_linemode: None,
             ctx,
             scale: 1.0,
             pending_conflict: None,
@@ -1271,8 +1277,15 @@ impl App {
 
     /// `linemode size` shows a child count for directories; compute it only for
     /// the rows actually on screen, and only once per directory.
+    ///
+    /// Not in a host's listing (`\\server`): its rows are shares, and counting
+    /// one is a `read_dir` across the network for a number nobody needs while
+    /// picking a share. Its size column stays empty (Q32, TESTING.md 31.9).
     fn ensure_dir_sizes(&mut self) {
         if !self.tabs[self.active].linemode.wants_dir_size() {
+            return;
+        }
+        if util::host_only_unc(&self.tabs[self.active].cwd) {
             return;
         }
         let tab = &self.tabs[self.active];
@@ -2282,6 +2295,12 @@ impl App {
         // Dropping the handle cancels the walk, so leaving is all it takes.
         self.usage = None;
         self.usage_max = 0;
+        if let Some(mode) = self.usage_linemode.take() {
+            self.tabs[self.active].linemode = mode;
+        }
+        // It said the walk was still going, which stopped being true just now
+        // (#109).
+        self.toasts.retain(|t| !t.text.starts_with("Measuring"));
         let cwd = self.tabs[self.active].cwd.clone();
         let show_hidden = self.tabs[self.active].show_hidden;
         let folder = match self.cache.get(&cwd) {
@@ -4430,6 +4449,8 @@ impl App {
         tab.current = folder;
         self.usage = Some(handle);
         self.usage_max = 0;
+        self.usage_linemode = Some(tab.linemode);
+        tab.linemode = crate::fs::entry::Linemode::Usage;
         self.preview.state = PreviewState::Empty;
         self.preview.key = None;
         self.toast("Measuring… <Esc> to leave");
@@ -5556,6 +5577,46 @@ mod preview_delivery {
 }
 
 #[cfg(test)]
+mod host_sizes {
+    use super::*;
+    use crate::fs::entry::{Entry, Kind, Linemode};
+
+    /// Q32 / 31.9: in `linemode size`, a folder's row asks for its children to
+    /// be counted -- but a host's rows are shares, and each count would be a
+    /// trip across the network. The same rows in an ordinary folder are counted.
+    #[test]
+    fn a_hosts_shares_are_not_counted() {
+        let listing = |at: &Path| {
+            let entries: Vec<Entry> = ["Backup", "cache"]
+                .iter()
+                .map(|n| Entry { path: at.join(n), name: n.to_string(), kind: Kind::Dir, ..Default::default() })
+                .collect();
+            crate::core::folder::Folder::from_entries(at.to_path_buf(), Arc::new(entries), true)
+        };
+        let ctx = egui::Context::default();
+        let mut a = App::new(Config::load(), std::env::temp_dir(), ctx);
+        a.tabs[a.active].linemode = Linemode::Size;
+        a.tabs[a.active].page_rows = 10;
+
+        // A `\\host` is a host only on Windows; elsewhere `//x` is a path.
+        #[cfg(windows)]
+        {
+            let host = PathBuf::from(r"\\fileserver");
+            a.tabs[a.active].cwd = host.clone();
+            a.tabs[a.active].current = listing(&host);
+            a.ensure_dir_sizes();
+            assert!(a.counted.is_empty(), "nothing asked of the network: {:?}", a.counted);
+        }
+
+        let dir = crate::util::test_dir("host-sizes");
+        a.tabs[a.active].cwd = dir.clone();
+        a.tabs[a.active].current = listing(&dir);
+        a.ensure_dir_sizes();
+        assert_eq!(a.counted.len(), 2, "an ordinary folder's folders are still counted");
+    }
+}
+
+#[cfg(test)]
 mod preview_scroll {
     use super::*;
 
@@ -6135,6 +6196,26 @@ mod usage_view {
         assert_eq!(a.usage_max, 900, "the bars are drawn against the biggest row");
         let fat = a.tabs[a.active].current.entries.iter().find(|e| e.name == "fat").unwrap();
         assert_eq!(fat.usage_bytes(), 900, "a folder is worth what is under it");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Q33: the view shows sizes whatever the tab was showing, and gives the
+    /// tab its own mode back on the way out -- along with dropping the
+    /// "Measuring…" toast, which stopped being true when the walk did (#109).
+    #[test]
+    fn the_view_shows_sizes_and_puts_the_linemode_back() {
+        use crate::fs::entry::Linemode;
+        let dir = tree();
+        let mut a = app_in(&dir);
+        a.tabs[a.active].linemode = Linemode::Mtime;
+
+        a.start_usage();
+        assert_eq!(a.tabs[a.active].linemode, Linemode::Usage, "numbers without a config change");
+        assert!(a.toasts.iter().any(|t| t.text.starts_with("Measuring")));
+
+        a.exit_search_view();
+        assert_eq!(a.tabs[a.active].linemode, Linemode::Mtime, "the tab's own mode again");
+        assert!(!a.toasts.iter().any(|t| t.text.starts_with("Measuring")), "no longer measuring");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

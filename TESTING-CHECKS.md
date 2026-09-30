@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**215 / 405 済み。**（TESTING.md の全 563 件のうち、`cargo test` が見ている 158 件は
+**215 / 406 済み。**（TESTING.md の全 564 件のうち、`cargo test` が見ている 158 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -602,7 +602,7 @@ fsutil hardlink list <新しくできたパス>
 
 - [ ] **43.9** 50MB の CSV → すぐ開き、`max_text_bytes` で切られ、フッタが省略したと述べる — *A 50 MB CSV → Opens promptly, cut at `max_text_bytes`, footer says truncated*
 
-## 44. ディスク使用量 — 12 / 13
+## 44. ディスク使用量 — 12 / 14
 
 - [x] **44.1** `node_modules` のあるプロジェクトで `gu` → 子が大きい順に棒付きで並ぶ。`node_modules` が上位に来て、合計が自身のエントリよりはるかに大きい — *`gu` in a project with a `node_modules` → Children largest first, with bars; `node_modules` near the top with a total far bigger than its own entry*
 - [x] **44.2** `gu` してから `<Esc>` → 元のディレクトリに戻り、カーソルも元の位置。走査は止まる（抜けたあと CPU を使わない） — *`gu`, then `<Esc>` → Back in the directory, cursor where it was. The walk stops (no CPU after leaving)*
@@ -617,6 +617,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **44.11** 使用量ビューを開いたまま `gu` → メッセージを添えて断られる（戻れないビューにならない） — *`gu` while a usage view is already up → Refused with a message, not a view with no way back*
 - [x] **44.12** `gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。もう一度 `gu` すれば大きい順に戻る — *`gu`, then `,` to re-sort → The order changes (as asked); `gu` again restores largest-first*
 - [x] **44.13** フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある** — *Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug***
+- [ ] **44.14** タブを `linemode mtime`（`m m`）にして `gu`、すぐ `<Esc>`（v0.56.0）→ 行には日付ではなくサイズ（`1.5 M`、`6.0 K`）が出る。`<Esc>` の後は日付に戻り、`Measuring…` のトーストもすぐ消える — *With the tab on `linemode mtime` (`m m`), `gu`, then `<Esc>` straight away (v0.56.0) → The rows show sizes (`1.5 M`, `6.0 K`), not dates; after `<Esc>` the list shows dates again, and the `Measuring…` toast is gone at once*
 
 ## 45. 2 つのフォルダを比べる — 11 / 12
 

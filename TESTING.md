@@ -1202,6 +1202,7 @@ The walk and the ordering are unit-tested on a small tree. What needs a machine 
 | 44.11 | `gu` while a usage view is already up | Refused with a message, not a view with no way back |
 | 44.12 | `gu`, then `,` to re-sort | The order changes (as asked); `gu` again restores largest-first |
 | 44.13 | Compare a folder's total against Explorer's own properties | Within rounding. **Hard links read high — that is documented, not a bug** |
+| 44.14 | With the tab on `linemode mtime` (`m m`), `gu`, then `<Esc>` straight away (v0.56.0) | The rows show sizes (`1.5 M`, `6.0 K`), not dates; after `<Esc>` the list shows dates again, and the `Measuring…` toast is gone at once |
 
 ## 45. Comparing two folders (v0.43.0)
 
