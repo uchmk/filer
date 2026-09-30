@@ -137,16 +137,18 @@ useful than a thin test.
 ## Unattended runs
 
 `scripts/auto-wintest.ps1` starts you with no one watching, when `main` has
-changed this file, TESTING.md or TESTING-CHECKS.md and no `test/win-*` pull
+changed this file, TESTING.md or TESTING-CHECKS.md and no pull request from
+your lane (`test/win-*` or `test/arm-*`, see [the ARM64 lane](#the-arm64-lane))
 request is open. Everything above still holds. What changes is that **nobody
 will answer a question**, so:
 
-- **Take the first section in the queue.** Do not ask which one.
+- **Take the first section in your lane's queue** (the prompt names it). Do not
+  ask which one.
 - **Never wait for input.** A choice that is the owner's goes in QA-REPORT.md,
   as a finding or a proposal, and the run carries on with what it can settle.
 - **Your checkout is the worktree the prompt names**, not `C:\dev\filer`: read
   every path in this file with that swap. Make your branch there with
-  `git checkout -B test/win-<section> origin/main`; if git refuses because the
+  `git checkout -B test/<lane>-<section> origin/main`; if git refuses because the
   branch is checked out in another worktree, add `-auto` to the name.
 - **Elevation**: check `([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole('Administrators')`.
   If you are not elevated, rows that need it (the firewall rules) are left, and
@@ -167,6 +169,38 @@ will answer a question**, so:
   - `WINTEST_DONE <pull request URL>`
   - `WINTEST_NOTHING` -- the queue is empty, or every section left needs a person
   - `WINTEST_FAILED <one line: why>` -- and commit nothing in that case
+
+## The ARM64 lane
+
+A second machine, a Windows laptop on ARM64, runs the same role with
+`auto-wintest.ps1 -Lane arm`. Everything in this file applies to it, with
+these differences:
+
+- **Its branches are `test/arm-<section>`**, and it waits only on its own open
+  pull requests, so the two machines never hold each other up.
+- **Its queue is the table below**, not the one in "Where the work is". Move a
+  section out of *this* table when you finish it.
+- **There is no RAM disk.** The script picks the scratch directory, sets `TEMP`
+  and `TMP` to it, and names it in the prompt: read `R:\Temp` in this file as
+  that directory.
+- **Check what you are running first**: `filer env` must say `Process arch
+  aarch64` for the native build. A run that tested the x64 build by accident
+  proved nothing about ARM64.
+- **Ticks.** TESTING-CHECKS.md has one box per row. A row already `[x]` from
+  the x64 machine stays as it is: record the ARM64 result in QA-REPORT.md
+  under a heading that says ARM64, one line per row with its evidence -- a
+  row that *fails* on ARM64 is a finding, and the most valuable kind this lane
+  can produce. Tick only rows still `[ ]` that you verified here.
+
+| Section | Rows | What it is on ARM64 |
+| --- | --- | --- |
+| **26. the architecture rows** | 26.5, 26.6 | `filer env` with the native ARM64 build (both read `aarch64`), then with the x64 release build under emulation (`OS arch aarch64`, `Process arch x86_64`). Build the first with `cargo build --release`; take the second from the latest GitHub release's `windows-x64.zip` |
+| **25. `filer env`** | 25.5 | The same x64 build under emulation: the two arch lines disagree, and that disagreement is the row |
+| **41. spot's four providers** | 41.8 | The ARM64 half only: `<Tab>` on `filer.exe` from the release's `windows-arm64.zip` reads `Architecture aarch64`. The x64 and other-platform halves are not this machine's |
+| **the release zip itself** | -- | Unpack the latest release's `windows-arm64.zip`: four files in one folder, `ConPTY-LICENSE.txt` names the version `scripts/fetch-conpty.ps1` pins, and `conpty.dll` / `OpenConsole.exe` are ARM64 (`dumpbin /headers` or the PE machine field, `0xAA64`). Then run it, not a local build: `<C-t>`, `lazygit` -- no copy menu at startup, `Esc` closes a panel (1.31 / 1.32 as the x64 machine did them). Nobody has run the ARM64 zip yet |
+| **1. the terminal pane, again** | 1.1-1.34 | The pane is ConPTY and native code, the likeliest place for ARM64 to differ. Re-run the rows that are `[x]` on x64 and record each ARM64 result in QA-REPORT.md |
+| **21 / 32 / 37. archives and openers, again** | the `[x]` rows | Native code again (the archive readers, `ShellExecute`, `start ""`). Same form: ARM64 results in QA-REPORT.md |
+| **the test suite** | -- | `cargo test` natively on ARM64. Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
 
 ## Proposals: say what should change
 
@@ -220,7 +254,7 @@ pwsh -File C:\dev\filer\scripts\fetch-conpty.ps1 -Dest C:\dev\filer\target\relea
 
 - **One section per run.** Read it first and say which rows you can settle and
   which you cannot, before touching anything.
-- **Work on `test/win-<section>`**, from the latest `origin/main`. Never push to
+- **Work on `test/win-<section>`** (`test/arm-<section>` on the ARM64 machine), from the latest `origin/main`. Never push to
   `main`, never `--force`.
 - **Do not bump the version and do not write CHANGELOG.md.** A pull request that
   touches `Cargo.toml` and `CHANGELOG.md` conflicts with every other one that

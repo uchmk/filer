@@ -1,19 +1,23 @@
 # Merging the Windows machine's pull requests
 
 A scheduled cloud session reads this and does what a person used to ask for by
-hand: take a `test/win-*` pull request from the Windows machine's session
+hand: take a pull request from a Windows machine's session
 (`.claude/windows-role.md`), check it, merge it, and do the merger's share. The
-merge is also what starts the Windows machine's next run
-(`scripts/auto-wintest.ps1` waits while one of these is open), so a pull request
-left sitting stops the whole loop.
+merge is also what starts that machine's next run (`scripts/auto-wintest.ps1`
+waits while one of its lane's is open), so a pull request left sitting stops
+the loop.
+
+There are two lanes, one per machine: `test/win-*` from the x64 machine and
+`test/arm-*` from the ARM64 laptop. Each has its own queue in
+`windows-role.md` -- "Where the work is" for `win`, "The ARM64 lane" for `arm`.
 
 Read [CLAUDE.md](../CLAUDE.md) first; its rules apply in full. Reply in Japanese;
 code, comments and commits in English. Nobody is watching: never wait for input.
 
 ## 1. Find the work
 
-- List open pull requests whose head branch starts with `test/win-`. None: stop
-  here and say so in one line. That is most runs.
+- List open pull requests whose head branch starts with `test/win-` or
+  `test/arm-`. None: stop here and say so in one line. That is most runs.
 - **One per run, oldest first.** The next run takes the next one; two merged in
   one run conflict with each other at the end of QA-REPORT.md.
 
@@ -66,15 +70,21 @@ allowed because nothing in it can break a build:
   every bug in its QA-REPORT.md section goes somewhere -- TODO.md for what needs
   no decision, QUESTIONS.md (CLAUDE.md's format, with a recommendation) for a
   key, a default or a design choice. Merging without this is half the job.
-- **The queue** in `windows-role.md` ("Where the work is"): the section just
+- **The queue of the pull request's lane** in `windows-role.md`: the section just
   run must be out of the table, or cut down to what is left and why. If the run
   did not do it, do it here -- otherwise the next run takes the same section.
-- **The queue is empty**: refill it. Read TESTING-CHECKS.md for sections with
+- **The `win` queue is empty**: refill it. Read TESTING-CHECKS.md for sections with
   unticked rows that are not in the table or the "worked through" line, and add
   the ones whose rows can be read as text, a file state or a process state,
   each with how to measure it -- the way the existing rows are written. When
   nothing measurable is left, say so in TODO.md and leave the table empty; the
   Windows run then answers `WINTEST_NOTHING`.
+- **The `arm` queue is empty**: refill it with rows that are native code or
+  architecture-specific (ConPTY, the shell, archives, openers, `filer env`),
+  re-run against their x64 result -- not with appearance rows, which look the
+  same on both.
+- **An ARM64 result that differs from x64** is a bug report, whatever the run
+  called it: it goes to TODO.md with both results side by side.
 
 
 ## Never

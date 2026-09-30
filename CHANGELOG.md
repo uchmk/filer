@@ -9,6 +9,21 @@
 
 ## [未リリース]
 
+## [0.51.0] - 2026-09-30
+
+### 追加
+
+- **実機のテストに ARM64 のレーンを足した。**ARM64 のノート PC で `scripts/auto-wintest.ps1 -Lane arm` を回すと、
+  `test/arm-*` のブランチで、ARM64 用の順番表（`.claude/windows-role.md` の「The ARM64 lane」）から 1 節ずつ進める。
+  - レーンごとに順番表・worktree（`C:\dev\filer-armtest`）・状態ファイル・ログが別で、待つのは自分のレーンの PR だけ。
+    x64 の機械と同時に動かしても、同じ節を取り合わず、互いを止めない。
+  - ARM64 の順番表: ARM64 でしか確かめられない行（26.5 / 26.6 / 25.5 / 41.8）、リリースの `windows-arm64.zip`
+    （同梱の ARM64 版 ConPTY を含む）、ネイティブのコードを通る節の再確認。x64 で済んだ行の ARM64 の結果は
+    QA-REPORT.md に記録し、x64 と食い違えば不具合として扱う。
+  - マージの役割（`.claude/merge-role.md`）も `test/arm-*` を拾う。
+- `auto-wintest.ps1` に `-Scratch` を足した。RAM ディスク（R:）が無ければ `%TEMP%\filer-scratch` を使い、
+  実行中の `TEMP` / `TMP` をそこに向け、プロンプトで `R:\Temp` の読み替えを指示する。
+
 ## [0.50.2] - 2026-09-30
 
 ### 追加

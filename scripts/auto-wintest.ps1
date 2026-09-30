@@ -7,8 +7,9 @@
 #   - origin/main has changed TESTING.md, TESTING-CHECKS.md or
 #     .claude/windows-role.md since the last run it started -- a merged run
 #     changes the last two, so merging one pull request is what starts the next;
-#   - no test/win-* pull request is still open (that section is not done yet,
-#     and a second run would take the same one: it happened on 2026-09-28);
+#   - no pull request from this lane (test/win-* or test/arm-*) is still open
+#     (that section is not done yet, and a second run would take the same one:
+#     it happened on 2026-09-28);
 #   - the screen is not locked (SendInput does nothing on a locked desktop, and
 #     the run would record every key as having done nothing);
 #   - the working copy is clean (a dirty one is a run that was cut off, and
@@ -29,6 +30,18 @@
 #   pwsh -File scripts\auto-wintest.ps1          # look once, run if there is work
 #   pwsh -File scripts\auto-wintest.ps1 -Force   # run even if nothing changed
 #   ... -LogDir R:\Temp                           # the log on the RAM disk
+#   ... -Lane arm                                 # the ARM64 machine's lane
+#
+# Lanes. The x64 machine runs lane `win` (the default), the ARM64 laptop lane
+# `arm`. Each has its own queue in windows-role.md, its own branch prefix
+# (test/win-, test/arm-), its own worktree and state, and waits only on its
+# own pull requests -- so the two machines never take the same section and
+# never hold each other up.
+#
+# Scratch space. The run's TEMP and TMP are set to -Scratch, which defaults to
+# R:\Temp when there is an R: drive (the RAM disk on the x64 machine) and to
+# %TEMP%\filer-scratch otherwise, and the prompt tells the run where it is.
+# `cargo test` builds its test trees under TEMP, so they follow.
 #
 # Log: %LOCALAPPDATA%\filer-wintest\auto-wintest.log, or in -LogDir. The log
 # may go on the RAM disk (-LogDir R:\Temp): it is for reading what a run did,
@@ -45,8 +58,10 @@
 # role definition, plus the few commands it must never run, in $Denied.
 
 param(
-    [string]$Work = 'C:\dev\filer-wintest',
+    [ValidateSet('win', 'arm')] [string]$Lane = 'win',
+    [string]$Work,
     [string]$LogDir,
+    [string]$Scratch,
     [switch]$Force
 )
 
@@ -63,12 +78,22 @@ $Denied = @(
     'Bash(cargo fmt:*)', 'PowerShell(cargo fmt:*)'
 ) -join ','
 
+# The `win` lane keeps the names it had before lanes existed, so a machine
+# already running it carries on from its state file.
+$suffix = if ($Lane -eq 'win') { '' } else { "-$Lane" }
+if (-not $Work) { $Work = if ($Lane -eq 'win') { 'C:\dev\filer-wintest' } else { "C:\dev\filer-$($Lane)test" } }
+if (-not $Scratch) {
+    $Scratch = if (Test-Path 'R:\') { 'R:\Temp' } else { Join-Path ([IO.Path]::GetTempPath()) 'filer-scratch' }
+}
+$queue = if ($Lane -eq 'win') { 'the queue in "Where the work is"' } else { 'the ARM64 queue in "The ARM64 lane"' }
+
 $state = Join-Path $env:LOCALAPPDATA 'filer-wintest'
 New-Item -ItemType Directory -Force -Path $state | Out-Null
 if (-not $LogDir) { $LogDir = $state }
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
-$log = Join-Path $LogDir 'auto-wintest.log'
-$last = Join-Path $state 'last-trigger'
+New-Item -ItemType Directory -Force -Path $Scratch | Out-Null
+$log = Join-Path $LogDir "auto-wintest$suffix.log"
+$last = Join-Path $state "last-trigger$suffix"
 
 function Say([string]$line) {
     $stamped = '[{0:yyyy-MM-dd HH:mm:ss}] {1}' -f (Get-Date), $line
@@ -78,7 +103,7 @@ function Say([string]$line) {
 
 # Task Scheduler's IgnoreNew already keeps its own firings apart; this also
 # covers one started by hand while a scheduled one is running.
-$mutex = [Threading.Mutex]::new($false, 'Local\filer-auto-wintest')
+$mutex = [Threading.Mutex]::new($false, "Local\filer-auto-wintest$suffix")
 if (-not $mutex.WaitOne(0)) { Say 'A run is already going. Nothing to do.'; exit 0 }
 
 try {
@@ -103,7 +128,7 @@ try {
     if (-not $Force -and $trigger -eq $seen) { exit 0 }   # quiet: this is most runs
 
     $open = gh pr list --repo $repo --state open --json headRefName --jq '.[].headRefName' |
-        Where-Object { $_ -like 'test/win-*' }
+        Where-Object { $_ -like "test/$Lane-*" }
     if ($LASTEXITCODE -ne 0) { Say 'gh pr list failed (is gh logged in?). Trying again next time.'; exit 0 }
     if ($open) {
         Say "Waiting: $($open -join ', ') is still open."
@@ -117,9 +142,11 @@ try {
 
     git -C $Work checkout -q --detach origin/main
     $head = (git -C $Work rev-parse --short HEAD).Trim()
-    Say "Starting a run on $head (trigger $($trigger.Substring(0, 7)))."
+    Say "[$Lane] Starting a run on $head (trigger $($trigger.Substring(0, 7)))."
 
-    $prompt = "無人実行です。人は見ていません。.claude/windows-role.md を読み、その「Unattended runs」の節に従って、順番表の次の節を 1 つだけ進めてください。チェックアウトは $Work です（役割定義に出てくる C:\dev\filer は、すべてここに読み替えてください）。"
+    $prompt = "無人実行です。人は見ていません。.claude/windows-role.md を読み、その「Unattended runs」の節に従って、$queue の次の節を 1 つだけ進めてください。レーンは $Lane で、ブランチは test/$Lane-<節> です。チェックアウトは $Work です（役割定義に出てくる C:\dev\filer は、すべてここに読み替えてください）。作業用の一時ディレクトリは $Scratch で、TEMP / TMP も既にそこを指しています（役割定義に出てくる R:\Temp は、すべてここに読み替えてください）。"
+    $env:TEMP = $Scratch
+    $env:TMP = $Scratch
 
     Push-Location $Work
     try {
