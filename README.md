@@ -238,7 +238,7 @@ this project's own). `select` and `select_all` are accepted as `toggle --state=o
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe`, `enter`, `copy cell` and `copy all` (this project's own: the whole panel, `Label<TAB>value` per row); in `[term]`:
 `close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
-`close`, `arrow`, `find_arrow` and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too) and `arrow`.
+`close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too) and `arrow`.
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -633,7 +633,8 @@ is not.
 | `j` `k` `<C-d>` `<C-u>` `gg` `G` | scroll (move the selection, comparing folders) |
 | `n` `N` | to the next / previous difference |
 | `z` | comparing folders: hide the matching rows, or bring them back |
-| `q` `<Esc>` | close |
+| `<Enter>` | comparing folders: compare the two files on this row, line by line; `q` comes back to the folders, on the same row |
+| `q` `<Esc>` | close (back to the folders, from a pair opened with `<Enter>`) |
 
 Each side carries its own line numbers, so a line found here can be found in the file. An edited
 line sits opposite the line it replaced rather than being listed as a removal and an addition far
@@ -1402,8 +1403,8 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
 - Undo covers renames (single and bulk), trips to the recycle bin, moves, new files and folders,
   and links — not copies, archives or `D` — and on macOS not the recycle bin — see [Undo](#undo). It is not written to disk, so closing the window forgets it.
 - Comparing files is line-level and read-only: no word-level highlighting inside a changed line and
-  no editing from the view. Comparing folders lists the paths and says which differ; it does not open
-  a pair from a row, and it has no filter for showing only the differences.
+  no editing from the view. Comparing folders opens a pair of files from a row
+  (`<Enter>`), but not a pair of folders: a subfolder's rows are already in the same list.
 - The minimap stops where the file was cut off at `max_text_bytes` rather than describing the rest,
   so on a truncated file the strip describes only the head and silently rescales it to the full
   height.

@@ -4,7 +4,7 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**249 / 249 checked.**
+**249 / 250 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
@@ -326,7 +326,7 @@ The details panel (`<Tab>`).
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 
-## `[diff]` — 17 / 17
+## `[diff]` — 17 / 18
 
 The side-by-side comparison (`<A-d>`).
 
@@ -344,6 +344,7 @@ The side-by-side comparison (`<A-d>`).
 - [x] `G` — To the bottom · `arrow bot`
 - [x] `n` — To the next difference · `find_arrow`
 - [x] `N` — To the previous difference · `find_arrow --previous`
+- [ ] `<Enter>` — Compare the files on this row (folders) · `enter`
 - [x] `z` — Hide or show the matching rows of a folder comparison · `hide_same`
 - [x] `<C-+>` — Make everything bigger · `scale in`
 - [x] `<C-=>` — Make everything bigger · `scale in`

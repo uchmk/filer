@@ -339,6 +339,9 @@ pub struct DiffOverlay {
     /// A tree comparison with its `=` rows hidden (`z`, Q23), so a large pair
     /// can be walked difference by difference. The footer still counts them.
     pub hide_same: bool,
+    /// The folder comparison this file comparison was opened from with
+    /// `<Enter>`, where `q` goes back to -- on the row it was opened from.
+    pub back: Option<Box<DiffOverlay>>,
 }
 
 impl DiffOverlay {
@@ -3995,7 +3998,7 @@ impl App {
             max_bytes: self.cfg.ui.max_text_bytes,
         });
         self.overlay =
-            Overlay::Diff(DiffOverlay { left, right, outcome: None, offset: 0, rows: 1, cursor: 0, hide_same: false });
+            Overlay::Diff(DiffOverlay { left, right, outcome: None, offset: 0, rows: 1, cursor: 0, hide_same: false, back: None });
     }
 
     /// The compare view's own commands: scroll, jump between differences, close.
@@ -4012,6 +4015,36 @@ impl App {
             match a {
                 Act::Close | Act::Escape(_) | Act::Quit | Act::Compare => {
                     self.overlay = Overlay::None
+                }
+                // The pair under the cursor, compared as files. Only a file on
+                // both sides has a pair; anything else says why there is not.
+                Act::Enter | Act::Open { .. } => {
+                    let Some(row) = shown.get(ov.cursor).map(|&i| &rows[i]) else { return };
+                    let why = match row.state {
+                        diff::TreeState::LeftOnly | diff::TreeState::RightOnly => Some("it is on one side only"),
+                        _ if row.dir => Some("that is a folder"),
+                        _ => None,
+                    };
+                    if let Some(why) = why {
+                        return self.error(format!("Compare: {why}"));
+                    }
+                    let (left, right) = (ov.left.join(&row.rel), ov.right.join(&row.rel));
+                    let Overlay::Diff(tree) = std::mem::replace(&mut self.overlay, Overlay::None) else { return };
+                    self.differ.request(diff::Request {
+                        left: left.clone(),
+                        right: right.clone(),
+                        max_bytes: self.cfg.ui.max_text_bytes,
+                    });
+                    self.overlay = Overlay::Diff(DiffOverlay {
+                        left,
+                        right,
+                        outcome: None,
+                        offset: 0,
+                        rows: 1,
+                        cursor: 0,
+                        hide_same: false,
+                        back: Some(Box::new(tree)),
+                    });
                 }
                 // Hidden or shown, the cursor stays on the row it was on; when
                 // that row is a match being hidden, on the next one that is not.
@@ -4048,7 +4081,14 @@ impl App {
             _ => &[],
         };
         match a {
-            Act::Close | Act::Escape(_) | Act::Quit | Act::Compare => self.overlay = Overlay::None,
+            // Back to the folder comparison it was opened from, if any.
+            Act::Close | Act::Escape(_) => {
+                self.overlay = match ov.back.take() {
+                    Some(tree) => Overlay::Diff(*tree),
+                    None => Overlay::None,
+                }
+            }
+            Act::Quit | Act::Compare => self.overlay = Overlay::None,
             // Against the last *scroll position*, not the last row. Clamping
             // to `len - 1` left `G` a screenful past where the pane can
             // actually sit, so the next `j` or `k` moved a number nothing was
@@ -6484,7 +6524,7 @@ mod diff_tree_keys {
             offset: 0,
             rows: 10,
             cursor: 0,
-            hide_same: false,
+            hide_same: false, back: None,
         });
         a
     }
@@ -6509,6 +6549,7 @@ mod diff_tree_keys {
             rows: 10,
             cursor: 0,
             hide_same: false,
+            back: None,
         };
         let counts = crate::diff::TreeCounts::of(&rows);
         ov.arrive(Outcome::Tree { rows, counts, truncated: false });
@@ -6605,6 +6646,38 @@ mod diff_tree_keys {
         a.diff_act(Act::Arrow(crate::config::cmd::Step::Rel(1)));
         a.diff_act(Act::FindArrow { prev: false });
         assert_eq!(cursor(&a), 0);
+    }
+
+    /// `<Enter>` on a row that differs compares that pair of files, and `q`
+    /// goes back to the folders, on the same row.
+    #[test]
+    fn enter_opens_the_pair_and_q_comes_back() {
+        let km = &Config::load().keymap;
+        let enter = km.diff.iter().find(|b| crate::config::keys::render_seq(&b.on) == "<Enter>");
+        assert_eq!(enter.map(|b| b.run.clone()), Some(vec![Act::Enter]), "<Enter> is bound in [diff]");
+
+        let mut a = app_with(vec![row("a", TreeState::Same), row("sub/b.txt", TreeState::Differ)]);
+        a.diff_act(Act::Arrow(Step::Rel(1)));
+        a.diff_act(Act::Enter);
+        match &a.overlay {
+            Overlay::Diff(ov) => {
+                assert_eq!((ov.left.as_path(), ov.right.as_path()), (Path::new("l/sub/b.txt"), Path::new("r/sub/b.txt")));
+                assert!(ov.back.is_some(), "with the folders to go back to");
+            }
+            _ => panic!("the overlay closed"),
+        }
+        a.diff_act(Act::Close);
+        assert_eq!(cursor(&a), 1, "back on the row it was opened from");
+        assert!(matches!(&a.overlay, Overlay::Diff(ov) if matches!(ov.outcome, Some(Outcome::Tree { .. }))));
+    }
+
+    /// A row with nothing to pair says why and stays where it is.
+    #[test]
+    fn enter_on_a_one_sided_row_stays() {
+        let mut a = app_with(vec![row("only-left.txt", TreeState::LeftOnly)]);
+        a.diff_act(Act::Enter);
+        assert!(matches!(&a.overlay, Overlay::Diff(ov) if ov.back.is_none() && ov.outcome.is_some()));
+        assert!(a.toasts.iter().any(|t| t.text.contains("one side only")));
     }
 }
 
@@ -6903,7 +6976,7 @@ mod diff_scrolling {
             offset: 0,
             rows: 20,
             cursor: 0,
-            hide_same: false,
+            hide_same: false, back: None,
         });
         let at = |a: &App| match &a.overlay {
             Overlay::Diff(ov) => ov.offset,
@@ -6938,7 +7011,7 @@ mod diff_scrolling {
             offset: 0,
             rows: 20,
             cursor: 0,
-            hide_same: false,
+            hide_same: false, back: None,
         });
         a.diff_act(Act::Arrow(Step::Bot));
         match &a.overlay {
@@ -7247,7 +7320,7 @@ mod window_scale {
                 offset: 0,
                 rows: 10,
                 cursor: 0,
-                hide_same: false,
+                hide_same: false, back: None,
             })),
         ];
         for (name, overlay) in panels {
