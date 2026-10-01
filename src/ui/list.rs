@@ -94,7 +94,7 @@ pub fn draw(
         painter.text(
             rect.left_top() + Vec2::new(8.0, 6.0),
             Align2::LEFT_TOP,
-            "(empty)",
+            empty_label(&folder.path),
             st.font.clone(),
             st.theme.fg_dim,
         );
@@ -293,6 +293,13 @@ fn entry_name(name: &str, kind: &crate::fs::Kind) -> String {
 ///
 /// `None` when the name fits, and when it has no stem to speak of or the
 /// extension is most of it; those are left to the plain cut at the end.
+/// What an empty listing says. A host with no shares is a different answer
+/// from a folder with no files, and `(empty)` read as the enumeration still
+/// being out (#105).
+fn empty_label(path: &std::path::Path) -> &'static str {
+    if util::host_only_unc(path) { "(no shares)" } else { "(empty)" }
+}
+
 fn elide_at(name: &str, max_width: f32, width: &dyn Fn(&str) -> f32) -> Option<(usize, usize)> {
     if width(name) <= max_width {
         return None;
@@ -577,5 +584,23 @@ mod elision {
         let (text, hits) = elided("abcdefghij.txt", &[0, 5, 11], (3, 8));
         assert_eq!(text, "abc…ij.txt");
         assert_eq!(hits, vec![0, 7], "`a` stays, `f` was cut, the `t` of `.txt` moved from 11 to 7");
+    }
+}
+
+#[cfg(test)]
+mod empty {
+    use super::empty_label;
+
+    #[test]
+    fn a_folder_with_nothing_in_it_is_empty() {
+        assert_eq!(empty_label(&std::env::temp_dir().join("nothing")), "(empty)");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_host_with_nothing_shared_says_so() {
+        use std::path::Path;
+        assert_eq!(empty_label(Path::new(r"\\fileserver")), "(no shares)");
+        assert_eq!(empty_label(Path::new(r"\\fileserver\share")), "(empty)");
     }
 }

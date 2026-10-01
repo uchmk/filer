@@ -355,6 +355,7 @@ which of the three marker colours the row's bar is filled with — including the
 over the yank, the register surviving a move to another directory, and `p` spending a cut but not a
 copy. What is left for an eye is that the colours read as green / yellow / red and that a 3px bar
 beside a row is noticeable at all, which is not something a frame can be asked.
+10.10 (v0.57.3) is `app::said_out_loud`, which reads the toast.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -366,6 +367,7 @@ beside a row is noticeable at all, which is not something a frame can be asked.
 | 10.6 | `p` after a cut | The register empties; the count leaves the header |
 | 10.7 | `X` or `Y` | The count leaves the header |
 | 10.8 | The status line, bottom right | Says the same thing in the same words as the header |
+| 10.10 | `c` `c` in an empty folder (v0.57.3) | A toast says `Nothing to copy`, and the clipboard keeps whatever it held — until v0.57.3 nothing was said, so the last path copied looked like this one |
 | 10.9 | Cut a file, then `p` into a directory that already holds that name, and answer **no** to the overwrite | The count still leaves the header — `paste()` empties a cut register when it *submits* the job, not when the job succeeds, so the files are neither moved nor still in the register |
 
 ## 11. Bulk rename (v0.4.0)
@@ -421,6 +423,7 @@ the redo survives it (see QA-REPORT.md).
 | 12.9 | Delete a file, `u`, but create a file with that name first | `u` says the name is taken, and pressing it again after moving that file out of the way works |
 | 12.10 | Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) | The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done |
 | 12.11 | `d` on a drive whose Recycle Bin is turned off | Same shape of message, naming the file |
+| 12.13 | `d` on one file, then on two (v0.57.3) | A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D` |
 | 12.12 | `d` with nothing locked | Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path |
 
 ## 13. Symlinks and `g`+`f` (v0.26.8)
@@ -502,6 +505,7 @@ to answer a click.
 | 15.4 | Hold `<C-->` down | It shrinks smoothly and stops at 20%; `<C-+>` held stops at 500% |
 | 15.5 | `=` with something yanked, in a directory **on the same drive** | The hardlink, in its new place. No *row* says so — a hardlink is another entry pointing at the same data, so the listing has no marker for it. Since v0.46.0 the spot panel does: `<Tab>` on it reads `Kind: Hardlink` and `Links: 2`, which is 13.13. Confirm from outside with `fsutil hardlink list <the new path>`, which lists every path sharing the data; or write to one and read the other. Across drives it must fail: NTFS hardlinks cannot leave their volume. Was `<C-S-->` until v0.45.6, a chord no keyboard can produce |
 | 15.6 | `<A-i>` / `<A-o>` on an image | Still the **image** zoom, unaffected — `zoom` and `scale` are different commands |
+| 15.8 | Hold `<C-+>` until it stops, then `<C-->` until it stops (v0.57.3) | The toast reads `Scale 500% (maximum)`, then `Scale 20% (minimum)` — the `×N` alone could not tell stopped from still moving |
 | 15.7 | `~` | `scale in` / `scale out` / `scale reset` are listed, like any other command |
 
 ## 16. Word, Excel and PowerPoint (v0.31.0)
@@ -647,6 +651,7 @@ Enter. Each of these is a skip if the editor is not installed.
 | 23.1 | `g<Space>`, type `\\server\share` | It opens |
 | 23.2 | Copy a file to and from it | Works, with progress |
 | 23.3 | Unplug the network mid-listing, or point at a dead host | **The window keeps responding.** An error toast, and the tab goes back where it was |
+| 23.5 | `g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) | **One** error toast, naming a whole path. Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`) |
 | 23.4 | Tab-complete a path on the share | The prompt stays responsive; a `…` shows while it waits |
 
 ## 24. Awkward names
@@ -819,6 +824,7 @@ ones where it says no.
 | 31.7 | A host with **many** shares (more than a screenful) | All of them, scrolling normally |
 | 31.8 | A share name with a space or non-ASCII in it | Intact |
 | 31.9 | Hover a share and look at the size column | Empty — there is nothing to read, and it must not sit there counting |
+| 31.13 | A host that answers but shares nothing (v0.57.3) | The list says `(no shares)`, not `(empty)` |
 | 31.10 | `<C-r>` / refresh on the host listing | Re-asks the server; no crash |
 | 31.11 | Open the host in the **other pane** (`<C-w>`) and in a second tab | Both fine |
 | 31.12 | Go to a host, then change directory away | The watcher does not complain about the host it could not watch |
@@ -1203,9 +1209,11 @@ The walk and the ordering are unit-tested on a small tree. What needs a machine 
 | 44.9 | `gu`, then `j`/`k`, `y`, `d`, space to select | All the ordinary list keys work — this is the list, not a panel |
 | 44.10 | `gu`, then `Enter` on a folder | Ordinary navigation: it leaves the view and enters the folder. `gu` again measures from there |
 | 44.11 | `gu` while a usage view is already up | Refused with a message, not a view with no way back |
-| 44.12 | `gu`, then `,` to re-sort | The order changes (as asked); `gu` again restores largest-first |
+| 44.12 | `gu`, then `,` to re-sort | The order changes (as asked); `<Esc>` and `gu` again restores largest-first (`gu` inside the view is refused, 44.11) |
 | 44.13 | Compare a folder's total against Explorer's own properties | Within rounding. **Hard links read high — that is documented, not a bug** |
-| 44.14 | With the tab on `linemode mtime` (`m m`), `gu`, then `<Esc>` straight away (v0.56.0) | The rows show sizes (`1.5 M`, `6.0 K`), not dates; after `<Esc>` the list shows dates again, and the `Measuring…` toast is gone at once |
+| 44.14 | With the tab on `linemode mtime` (`m t`), `gu`, then `<Esc>` straight away (v0.56.0) | The rows show sizes (`1.5 M`, `6.0 K`), not dates; after `<Esc>` the list shows dates again, and the `Measuring…` toast is gone at once |
+| 44.15 | `gu` on a small tree and let it finish (v0.57.3) | Only the total's toast is left; `Measuring…` goes when it arrives rather than sitting beside it |
+| 44.16 | `gu` on a tree big enough to take seconds, and watch the header (v0.57.3) | `N measured so far`, growing, while it walks; `N items` once the total's toast is up |
 
 ## 45. Comparing two folders (v0.43.0)
 
