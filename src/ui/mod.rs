@@ -3030,7 +3030,9 @@ mod config_warning_frame {
     fn the_panel_lists_the_files_and_then_the_warnings_in_the_same_yellow() {
         let (warnings, mut s) = screen("cfg-warn-panel", THREE_COMPLAINTS);
         let theme = s.app.cfg.theme.clone();
-        let dirs = crate::config::config_dirs();
+        // The panel's own list: under test it names empty stand-ins, not the
+        // directories of whoever runs the suite (#136).
+        let dirs = crate::ui::overlay::shown_config_dirs();
         let first_dir = dirs.first().expect("a config directory is searched").display().to_string();
 
         let f = s.typed("~");
