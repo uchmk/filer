@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**280 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
+**298 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -299,26 +299,26 @@ fsutil hardlink list <新しくできたパス>
 - [x] **16.11** 非常に大きなブック → 5000 行で打ち切り、省略したと述べる。固まらない — *A very large workbook → Stops at 5000 lines and says it is truncated; it does not hang*
 - [ ] **16.12** その中で `/` と `n` → 検索が効く（ただのテキストプレビューなので） — *`/` and `n` inside one → Search works, because it is an ordinary text preview*
 
-## 17. 自前のプレビューア — 0 / 18
+## 17. 自前のプレビューア — 18 / 18
 
-- [ ] **17.1** 複数ページの PDF をホバー → 1 ページ目と、その下に `page 1` — *Hover a multi-page PDF → Page one, with `page 1` under it*
-- [ ] **17.2** `<A-j>` → 2 ページ目。下に `page 2` — *`<A-j>` → Page two. `page 2` under it*
-- [ ] **17.3** `<A-k>` → 1 ページ目に戻る — *`<A-k>` → Back to page one*
-- [ ] **17.4** 1 ページ目でもう一度 `<A-k>` → そのまま。0 ページや負にはならない — *`<A-k>` again, on page one → Stays. It does not go to page zero or below*
-- [ ] **17.5** `<A-j>` を最終ページより先まで押し続ける → **最終ページが画面に残ったまま**、`No more: …` とコマンド自身の文言が出る（v0.30.1 まではページがエラーに置き換わっていた） — *Hold `<A-j>` past the last page (v0.30.1) → **The last page stays on screen**, and a line says `No more: …` with the command's own words. Until v0.30.1 the page was replaced by the error*
-- [ ] **17.5a** その直後に `<A-k>` → 最終ページの 1 つ前へ戻る（行き過ぎた先からではない） — *`<A-k>` straight after that → Back a page from the last one, not from somewhere past it*
-- [ ] **17.5b** **数秒の短い動画**で `<A-j>` を数回 → 同じく、描けた最後のフレームで止まる。`step = 10` なのですぐ末尾を越えるため、ここが一番効く — *A **short** video — a few seconds — and `<A-j>` a few times → Same: it stops at the last frame it could draw. This is where it bites, since `step = 10` runs off the end almost at once*
-- [ ] **17.5c** 動画の説明表示 → `50s` と出る（`s 50` ではない） — *The caption on a video (v0.30.1) → `50s`, not `s 50`*
-- [ ] **17.6** ページを送りながら画面を見る → **コンソールの窓が一瞬も出ない。**1 回の押下につき 1 回だけ実行される — *Watch the screen while paging → **No console window flashes.** It runs once per press*
-- [ ] **17.7** 5 ページまで送り、別のファイルへ行って戻る → 1 ページ目に戻っている（ページはファイルごとのもの） — *Page to 5, move to another file, come back → Back at page one: the page belongs to the file*
-- [ ] **17.8** 一度見たページへ戻る → 即座に出る（ページ単位でキャッシュされている） — *Page back to one you have already seen → Instant — it is cached per page*
-- [ ] **17.9** 動画をホバー → **フレームが出る。**v0.30.2 まで Windows では一度も出なかった（`{out}.png` が `"…page".png` と引用され、`cmd` がファイル名に引用符ごと渡していた） — *Hover a video (v0.30.2) → **A frame appears.** Until v0.30.2 none ever did on Windows: `{out}.png` was quoted as `"…page".png`, which `cmd` hands to ffmpeg with the quotes in the filename*
-- [ ] **17.9a** 空白を含むパスで同じこと → やはり描ける。引用が拡張子まで含めて単語全体を包むため — *The same on a path with a space → Still draws — the quoting wraps the whole word, suffix included*
-- [ ] **17.10** その上で `<A-j>` → `step` に従って 10 秒先へ — *`<A-j>` on it → Ten seconds in, by `step`*
-- [ ] **17.11** 名前に**空白**を含む PDF と、日本語フォルダの中の PDF → どちらも描ける。引用はルール側ではなく filer 側がやっている — *A PDF with a **space** in its name, and one in a Japanese folder → Both draw. The quoting is filer's, not the rule's*
-- [ ] **17.12** `pdftoppm` の名前を変えてから PDF をホバー → ツール名を挙げたエラーが出る（固まらない） — *Rename `pdftoppm` away, then hover a PDF → An error naming the tool, not a hang*
-- [ ] **17.13** `[[preview]]` のルールを消して `<C-F5>`、PDF をホバー → シェルのサムネイルに戻る（以前のまま） — *Remove the `[[preview]]` rules, `<C-F5>`, hover a PDF → Back to the shell thumbnail, unchanged*
-- [ ] **17.14** ルールを入れた状態で `filer env` → Tools の下に `pdftoppm` と `ffmpeg` が並び、横に `preview *.pdf` が出る — *`filer env` with the rules in place → `pdftoppm` and `ffmpeg` listed under Tools, with `preview *.pdf` beside them*
+- [x] **17.1** 複数ページの PDF をホバー → 1 ページ目と、その下に `page 1` — *Hover a multi-page PDF → Page one, with `page 1` under it*
+- [x] **17.2** `<A-j>` → 2 ページ目。下に `page 2` — *`<A-j>` → Page two. `page 2` under it*
+- [x] **17.3** `<A-k>` → 1 ページ目に戻る — *`<A-k>` → Back to page one*
+- [x] **17.4** 1 ページ目でもう一度 `<A-k>` → そのまま。0 ページや負にはならない — *`<A-k>` again, on page one → Stays. It does not go to page zero or below*
+- [x] **17.5** `<A-j>` を最終ページより先まで押し続ける → **最終ページが画面に残ったまま**、`No more: …` とコマンド自身の文言が出る（v0.30.1 まではページがエラーに置き換わっていた） — *Hold `<A-j>` past the last page (v0.30.1) → **The last page stays on screen**, and a line says `No more: …` with the command's own words. Until v0.30.1 the page was replaced by the error*
+- [x] **17.5a** その直後に `<A-k>` → 最終ページの 1 つ前へ戻る（行き過ぎた先からではない） — *`<A-k>` straight after that → Back a page from the last one, not from somewhere past it*
+- [x] **17.5b** **数秒の短い動画**で `<A-j>` を数回 → 同じく、描けた最後のフレームで止まる。`step = 10` なのですぐ末尾を越えるため、ここが一番効く — *A **short** video — a few seconds — and `<A-j>` a few times → Same: it stops at the last frame it could draw. This is where it bites, since `step = 10` runs off the end almost at once*
+- [x] **17.5c** 動画の説明表示 → `50s` と出る（`s 50` ではない） — *The caption on a video (v0.30.1) → `50s`, not `s 50`*
+- [x] **17.6** ページを送りながら画面を見る → **コンソールの窓が一瞬も出ない。**1 回の押下につき 1 回だけ実行される — *Watch the screen while paging → **No console window flashes.** It runs once per press*
+- [x] **17.7** 5 ページまで送り、別のファイルへ行って戻る → 1 ページ目に戻っている（ページはファイルごとのもの） — *Page to 5, move to another file, come back → Back at page one: the page belongs to the file*
+- [x] **17.8** 一度見たページへ戻る → 即座に出る（ページ単位でキャッシュされている） — *Page back to one you have already seen → Instant — it is cached per page*
+- [x] **17.9** 動画をホバー → **フレームが出る。**v0.30.2 まで Windows では一度も出なかった（`{out}.png` が `"…page".png` と引用され、`cmd` がファイル名に引用符ごと渡していた） — *Hover a video (v0.30.2) → **A frame appears.** Until v0.30.2 none ever did on Windows: `{out}.png` was quoted as `"…page".png`, which `cmd` hands to ffmpeg with the quotes in the filename*
+- [x] **17.9a** 空白を含むパスで同じこと → やはり描ける。引用が拡張子まで含めて単語全体を包むため — *The same on a path with a space → Still draws — the quoting wraps the whole word, suffix included*
+- [x] **17.10** その上で `<A-j>` → `step` に従って 10 秒先へ — *`<A-j>` on it → Ten seconds in, by `step`*
+- [x] **17.11** 名前に**空白**を含む PDF と、日本語フォルダの中の PDF → どちらも描ける。引用はルール側ではなく filer 側がやっている — *A PDF with a **space** in its name, and one in a Japanese folder → Both draw. The quoting is filer's, not the rule's*
+- [x] **17.12** `pdftoppm` の名前を変えてから PDF をホバー → ツール名を挙げたエラーが出る（固まらない） — *Rename `pdftoppm` away, then hover a PDF → An error naming the tool, not a hang*
+- [x] **17.13** `[[preview]]` のルールを消して `<C-F5>`、PDF をホバー → シェルのサムネイルに戻る（以前のまま） — *Remove the `[[preview]]` rules, `<C-F5>`, hover a PDF → Back to the shell thumbnail, unchanged*
+- [x] **17.14** ルールを入れた状態で `filer env` → Tools の下に `pdftoppm` と `ffmpeg` が並び、横に `preview *.pdf` が出る — *`filer env` with the rules in place → `pdftoppm` and `ffmpeg` listed under Tools, with `preview *.pdf` beside them*
 
 ## 18. クイックルックと、ミニマップの隣、その他のペイン — 0 / 5
 
