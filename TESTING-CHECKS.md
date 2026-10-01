@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**298 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
+**297 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -284,9 +284,9 @@ fsutil hardlink list <新しくできたパス>
 - [x] **15.7** `~` → `scale in` / `scale out` / `scale reset` が他のコマンドと同じように並んでいる — *`~` → `scale in` / `scale out` / `scale reset` are listed, like any other command*
 - [x] **15.9** 別のドライブのファイルをヤンクして `=`（`R:` → `C:`）（v0.59.4）→ エラーが Windows の「別のディスク ドライブに移動できません」ではなく `hardlinks can't cross drives (R: → C:). Use p to copy instead` と言う — *`=` with a file yanked from another drive (`R:` → `C:`) (v0.59.4) → The error reads `hardlinks can't cross drives (R: → C:). Use p to copy instead`, not Windows' "cannot move the file to a different disk drive"*
 
-## 16. Word / Excel / PowerPoint — 8 / 12
+## 16. Word / Excel / PowerPoint — 7 / 12
 
-- [x] **16.1** `.docx` をホバー → 段落ごとの本文が出る。16 進ダンプでもメタデータの一覧でもない — *Hover a `.docx` → Its text, paragraph by paragraph. Not a hex dump, not a metadata card*
+- [ ] **16.1** `.docx` をホバー → 段落ごとの本文が出る。16 進ダンプでもメタデータの一覧でもない — *Hover a `.docx` → Its text, paragraph by paragraph. Not a hex dump, not a metadata card*
 - [ ] **16.2** 1 文の中で太字と通常が混ざった段落 → **1 行になる**（書式の切れ目ごとに改行されない） — *A paragraph with mixed bold and plain in one sentence → **One line**, not one per run*
 - [ ] **16.3** 見出し 1 / 2 のスタイルを使った文書で `<S-Tab>` → 見出しがアウトラインになり、`<Enter>` でその位置へ飛ぶ — *A document with Heading 1/2 styles, then `<S-Tab>` → The headings are the outline, and `<Enter>` on one jumps to it*
 - [x] **16.4** `.xlsx` をホバー → 行がタブ区切りのセルとして出て、シートごとに名前が示される — *Hover a `.xlsx` → Rows as tab-separated cells, each sheet announced*
