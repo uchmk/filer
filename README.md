@@ -828,8 +828,11 @@ v0.27.0 — the encoder had been in the binary the whole time, since the 7z crat
 
 `e` gives each archive a folder of its own, named after it with the extension dropped
 (`report.tar.gz` unpacks into `report`), and steps the name past anything already there rather
-than merging into it. A selection holding things that are not archives extracts the ones that are
-and says how many it skipped.
+than merging into it. An archive whose top level is a single folder comes out as that folder
+instead of inside a second one named after the archive (v0.66.0): `to-pack.zip` holding `to-pack\…`
+gives `to-pack\`, not `to-pack\to-pack\` — the way 7-Zip's "Extract Here" does it. Loose files, or
+more than one thing at the top, keep the wrapper so nothing scatters. A selection holding things that
+are not archives extracts the ones that are and says how many it skipped.
 
 `E` asks what to call the archive, prefilled with `<name>.zip`. **The extension you type decides
 the format** — change it to `.tar.gz` and that is what you get. Names inside the archive are
@@ -1315,6 +1318,11 @@ for what the key before started to settle (v0.65.0). That is how a check reaches
 halfway — `d<Now>w` opens the task panel while the trash is still running, and `j<Now>j` lands two
 moves inside the preview's 40 ms debounce. It has to come right before a key; anything else is
 refused on the command line.
+
+`<Shot:name>` saves the window as it is at that point as `name.png`, beside the `FILER_KEYS_DONE`
+file (or in the folder filer was started from), and the next key waits until it is on disk
+(v0.67.0). `--keys "<Shot:before><C-t><Shot:after>"` gives the two pictures a comparison needs from
+one run. The name is letters, digits, `-` and `_`.
 
 A space is written `<Space>`; a plain one is refused.
 

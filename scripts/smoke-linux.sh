@@ -64,18 +64,24 @@ done
 DISPLAY="$DISP" "$BIN" "$ROOT/src" >"$LOG" 2>&1 &
 APP=$!
 
-# Long enough for the window to exist, the first scan to land and a frame to be
-# painted. Shorter than this and a slow runner photographs an empty window and
-# calls it a failure.
-sleep 12
-
-if ! kill -0 "$APP" 2>/dev/null; then
-  echo "filer exited before it could be photographed:" >&2
-  sed 's/^/    /' "$LOG" >&2
-  exit 1
-fi
-
-DISPLAY="$DISP" import -window root "$OUT"
+# Photographed until a frame shows up, for up to 30 s. A fixed `sleep 12` and
+# one picture was right on a quick runner and a coin toss on a slow one: twice
+# in forty runs the picture came out uniform -- the window not painted yet, not
+# filer failing to paint -- once on a commit that changed nothing near the
+# window (af126be, #159). The question is still "did anything get drawn", so
+# the threshold is the same one the check below uses.
+SD=0
+for _ in $(seq 1 15); do
+  sleep 2
+  if ! kill -0 "$APP" 2>/dev/null; then
+    echo "filer exited before it could be photographed:" >&2
+    sed 's/^/    /' "$LOG" >&2
+    exit 1
+  fi
+  DISPLAY="$DISP" import -window root "$OUT"
+  SD=$(identify -format "%[fx:standard_deviation]" "$OUT")
+  awk -v v="$SD" 'BEGIN { exit !(v >= 0.01) }' && break
+done
 
 # Two questions, in order of how badly they fail.
 #
@@ -84,7 +90,6 @@ DISPLAY="$DISP" import -window root "$OUT"
 # well above that. The threshold is deliberately near the floor: this is asking
 # "did anything happen", not "did the right thing happen", and a tighter bound
 # would start failing on a theme change, which is not a regression.
-SD=$(identify -format "%[fx:standard_deviation]" "$OUT")
 echo "pixel spread: $SD"
 if awk -v v="$SD" 'BEGIN { exit !(v < 0.01) }'; then
   echo "the window is blank -- filer started but painted nothing" >&2
