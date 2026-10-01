@@ -116,7 +116,7 @@ merging side updates it.
 
 | Section | Why it suits this lane |
 | --- | --- |
-| **Re-tests of changed behaviour** | First, always: rows a fix changed. **44.10** (v0.63.0): `gu`, `<Enter>` on a folder, `h`, `h` -- `cwd`, `hovered`, `view` and `toast` from `FILER_KEYS_DONE`. **45.18** (v0.61.0): compare two folders, `<Enter>` on a `≠` file row, `q` -- `compare:` and `toast`. Take a row out in your `## Queue` once it is settled |
+| **Re-tests of changed behaviour** | First, always: rows a fix changed. **44.10** (v0.63.0): `gu`, `<Enter>` on a folder, `h`, `h` -- `cwd`, `hovered`, `view` and `toast` from `FILER_KEYS_DONE`. **45.18** (v0.61.0): compare two folders, `<Enter>` on a `≠` file row, `q` -- `compare:` and `toast`. **21.14** (v0.65.7): `touch -d '2021-06-15 12:34:56'` the files, `E` then `e` for each format, and `stat -c %y` the unpacked ones. Take a row out in your `## Queue` once it is settled |
 | **24. awkward names** | Linux folders are case-sensitive, so 24.3's `UPPER.TXT` / `upper.txt` pair is two files here -- the row Windows cannot press. Names read back with `c f` |
 | **13. links** | Symlinks need no privilege here (13.8's Windows problem). `<Tab>` spot's `Kind` / `Target` / `Resolves` are text; `C` copies them. A plain folder no longer reads `Kind: Hardlink` (fixed in v0.59.7 after #131) |
 | **21. archives** | Pack with `E`, unpack with `e`, and read the result on disk (`unzip -l`, `tar tf`) |

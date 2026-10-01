@@ -120,14 +120,39 @@ fn extract_zip(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result
             std::fs::create_dir_all(parent)?;
         }
         let size = entry.size();
+        let when = entry.last_modified().and_then(from_zip_time);
         let mut out = BufWriter::new(File::create(&path)?);
         io::copy(&mut entry, &mut out)?;
         out.flush()?;
+        set_time(out, when)?;
         if !on_entry(&name, size) {
             return Ok(());
         }
     }
     refused_error(refused)
+}
+
+/// The entry's own time onto the file just written. Without it every file
+/// came out stamped with the moment it was unpacked, so a round trip through
+/// filer's own `E` and `e` lost the dates `E` had kept (#156). A time the
+/// archive does not carry leaves the file as it is.
+fn set_time(out: BufWriter<File>, when: Option<std::time::SystemTime>) -> io::Result<()> {
+    if let Some(when) = when {
+        out.into_inner().map_err(|e| e.into_error())?.set_modified(when)?;
+    }
+    Ok(())
+}
+
+/// A zip's MS-DOS time, which is local time with no zone -- the way `zip_time`
+/// writes it, so the two meet in the middle.
+fn from_zip_time(t: zip::DateTime) -> Option<std::time::SystemTime> {
+    let day = chrono::NaiveDate::from_ymd_opt(i32::from(t.year()), u32::from(t.month()), u32::from(t.day()))?;
+    let at = day.and_hms_opt(u32::from(t.hour()), u32::from(t.minute()), u32::from(t.second()))?;
+    // The zero the format falls back to says nothing about the file.
+    if t.year() <= 1980 && t.month() == 1 && t.day() == 1 {
+        return None;
+    }
+    at.and_local_timezone(chrono::Local).earliest().map(Into::into)
 }
 
 fn extract_tar<R: Read>(reader: &mut R, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<()> {
@@ -148,9 +173,16 @@ fn extract_tar<R: Read>(reader: &mut R, dest: &Path, on_entry: OnEntry<'_>) -> i
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
+        let when = entry
+            .header()
+            .mtime()
+            .ok()
+            .filter(|&s| s > 0)
+            .map(|s| std::time::UNIX_EPOCH + std::time::Duration::from_secs(s));
         let mut out = BufWriter::new(File::create(&path)?);
         io::copy(&mut entry, &mut out)?;
         out.flush()?;
+        set_time(out, when)?;
         if !on_entry(&name, size) {
             return Ok(());
         }
@@ -187,7 +219,9 @@ fn extract_7z(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<
             }
             let mut out = BufWriter::new(File::create(&path)?);
             io::copy(reader, &mut out)?;
-            out.flush()
+            out.flush()?;
+            let when = entry.has_last_modified_date.then(|| entry.last_modified_date().into());
+            set_time(out, when)
         };
         write().map_err(sevenz_rust2::Error::from)?;
         if !entry.is_directory() && !on_entry(&name, entry.size()) {
@@ -648,6 +682,35 @@ mod tests {
         let t = entry.last_modified().expect("a time is stored");
         assert_eq!((t.year(), t.month(), t.day()), (2021, 6, 15), "the file's day, not 1980-01-01");
         assert_eq!((t.hour(), t.minute(), t.second()), (12, 34, 56), "to the even second");
+    }
+
+    /// #156: unpacking puts each entry's time back, for all three formats.
+    /// Packed by filer itself, so it is the round trip a user would make.
+    #[test]
+    fn unpacking_keeps_the_entries_times() {
+        let dir = crate::util::test_dir("unpack-time");
+        let src = dir.join("src");
+        std::fs::create_dir_all(src.join("sub")).unwrap();
+        let when = chrono::NaiveDate::from_ymd_opt(2021, 6, 15)
+            .and_then(|d| d.and_hms_opt(12, 34, 56))
+            .and_then(|t| t.and_local_timezone(chrono::Local).single())
+            .unwrap();
+        for f in ["a.txt", "sub/b.txt"] {
+            let p = src.join(f);
+            std::fs::write(&p, f).unwrap();
+            std::fs::File::options().write(true).open(&p).unwrap().set_modified(when.into()).unwrap();
+        }
+        for (format, name) in [(Format::Zip, "x.zip"), (Format::TarGz, "x.tar.gz"), (Format::SevenZ, "x.7z")] {
+            let archive = dir.join(name);
+            compress(std::slice::from_ref(&src), &dir, &archive, format, &mut |_, _| true).unwrap();
+            let out = dir.join(format!("out-{name}"));
+            extract(&archive, &out, &mut |_, _| true).unwrap();
+            for f in ["src/a.txt", "src/sub/b.txt"] {
+                let got: chrono::DateTime<chrono::Local> =
+                    std::fs::metadata(out.join(f)).unwrap().modified().unwrap().into();
+                assert_eq!(got.timestamp(), when.timestamp(), "{name}: {f} keeps 12:34:56, not the time it was unpacked");
+            }
+        }
     }
 
     #[test]
