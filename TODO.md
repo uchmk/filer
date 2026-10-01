@@ -827,7 +827,7 @@
   9 行とも `--keys` では駆動できなかった**（どの行もペインが開いた後のキーで、ターミナルの節はどれも同じ形）。#99 では測るものが
   時間そのもので、127ms を `<A-Up>` を詰めて作っていた。今は待ちの代わりに無害なキーを詰めていて、
   それが上の「lazygit が遅れる」を起こし、1.31 を 4 回の実行にわたって壊れているように見せていた。
-- [ ] `auto-wintest.ps1` が実行の間だけスクリーンセーバーを切る（`SPI_SETSCREENSAVEACTIVE`、元の値を状態ファイルに
+- [x] （v0.64.3。ノート PC の Windows の設定は既に「なし」だった（持ち主が確認）ので、動いていたのは ASUS OLED Care の「ピクセルリフレッシュ」。`ES_DISPLAY_REQUIRED` を出し続け、Windows のセーバーを保存しない形で切り、`*.scr` を 5 秒ごとに止める見張りを置いた。元の値は `screensaver.json` に残し、殺された実行の分は次の起動で戻す。**Win32 の呼び出しは Windows でしか動かないので、ノート PC の次の無人実行のログに `Holding the screen saver off` と `Gave the screen saver back` が出たかを見ること**）`auto-wintest.ps1` が実行の間だけスクリーンセーバーを切る（`SPI_SETSCREENSAVEACTIVE`、元の値を状態ファイルに
   書いてから、`finally` で戻す）。3 回続けて、マウスの行が全部スクリーンセーバーに潰された（#93 の提案）。
   #100 でも同じ提案。40 節の 4 行と 14 / 30 節のマウスの行は `SendInput` でしか測れず、`PostMessage` のマウスは egui に届かない。
 - [x] （v0.59.4 で入れた。`last-run.toml` の `pane`。実機で 25.23）`filer env` にペインの大きさ（`Terminal pane : 12 x 159`）を出す。1 節の 4 行がこの数についての主張で、

@@ -43,6 +43,25 @@
 # %TEMP%\filer-scratch otherwise, and the prompt tells the run where it is.
 # `cargo test` builds its test trees under TEMP, so they follow.
 #
+# The screen saver is held off for the length of a run (-KeepScreenSaver
+# leaves it alone). A screen saver owns the input desktop, and SendInput then
+# goes nowhere without an error: on the ARM64 laptop three runs in a row lost
+# every mouse row that way (#93, #100). Three layers, because the laptop's saver
+# is not Windows' own -- ASUS OLED Care starts `OLED Care Screensaver.scr` by
+# itself, with Windows' screen saver set to (None):
+#
+#   - SetThreadExecutionState(ES_DISPLAY_REQUIRED) for as long as the run lasts,
+#     which is what keeps a video player's screen on;
+#   - Windows' own saver switched off in memory only (SPI_SETSCREENSAVEACTIVE
+#     with no SPIF_UPDATEINIFILE), so nothing is written to the profile, and
+#     the old value put back afterwards;
+#   - a watcher that stops any running `*.scr` every 5 seconds, for a saver
+#     that heeds neither of the above.
+#
+# Everything is undone in `finally`. A run killed outright never reaches it, so
+# the old value is also written to screensaver.json first, and the next firing
+# puts it back before doing anything else.
+#
 # Log: %LOCALAPPDATA%\filer-wintest\auto-wintest.log, or in -LogDir. The log
 # may go on the RAM disk (-LogDir R:\Temp): it is for reading what a run did,
 # not evidence. The state file stays in %LOCALAPPDATA% whatever -LogDir says --
@@ -62,7 +81,8 @@ param(
     [string]$Work,
     [string]$LogDir,
     [string]$Scratch,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$KeepScreenSaver
 )
 
 $ErrorActionPreference = 'Stop'
@@ -101,12 +121,93 @@ function Say([string]$line) {
     Add-Content -Path $log -Value $stamped
 }
 
+# The screen saver, held off while a run drives the window (see the top).
+$saverFile = Join-Path $state "screensaver$suffix.json"
+Add-Type -Namespace FilerWintest -Name Power -MemberDefinition @'
+[DllImport("kernel32.dll")]
+public static extern uint SetThreadExecutionState(uint flags);
+[DllImport("user32.dll", SetLastError = true)]
+public static extern bool SystemParametersInfo(uint action, uint param, ref bool value, uint winIni);
+[DllImport("user32.dll", SetLastError = true)]
+public static extern bool SystemParametersInfo(uint action, uint param, System.IntPtr value, uint winIni);
+'@
+$ES_CONTINUOUS = [uint32]'0x80000000'
+$ES_SYSTEM_REQUIRED = [uint32]1
+$ES_DISPLAY_REQUIRED = [uint32]2
+$SPI_GETSCREENSAVEACTIVE = [uint32]16
+$SPI_SETSCREENSAVEACTIVE = [uint32]17
+
+function Get-SaverActive {
+    $on = $false
+    [void][FilerWintest.Power]::SystemParametersInfo($SPI_GETSCREENSAVEACTIVE, 0, [ref]$on, 0)
+    $on
+}
+
+# In memory only: winIni 0, so the profile keeps whatever the owner chose.
+function Set-SaverActive([bool]$on) {
+    [void][FilerWintest.Power]::SystemParametersInfo($SPI_SETSCREENSAVEACTIVE, [uint32][int]$on, [IntPtr]::Zero, 0)
+}
+
+# A run killed before its `finally` left the saver off; put it back first.
+function Restore-LeftOverSaver {
+    if (-not (Test-Path $saverFile)) { return }
+    $was = (Get-Content -Raw $saverFile | ConvertFrom-Json).active
+    Set-SaverActive $was
+    Remove-Item $saverFile
+    Say "Put the screen saver back (active = $was), left off by a run that was cut off."
+}
+
+function Stop-ScreenSavers {
+    Get-Process | Where-Object { $_.Path -like '*.scr' } | ForEach-Object {
+        Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+        $_.Path
+    }
+}
+
+function Suspend-ScreenSaver {
+    $was = Get-SaverActive
+    @{ active = $was } | ConvertTo-Json | Set-Content -Path $saverFile
+    Set-SaverActive $false
+    [void][FilerWintest.Power]::SetThreadExecutionState($ES_CONTINUOUS -bor $ES_SYSTEM_REQUIRED -bor $ES_DISPLAY_REQUIRED)
+    foreach ($p in Stop-ScreenSavers) { Say "Stopped a running screen saver: $p" }
+    # The watcher. A thread job shares nothing with this script but what it is
+    # given, so the function goes in as text.
+    $body = ${function:Stop-ScreenSavers}.ToString()
+    $script:saverWatch = Start-ThreadJob -ArgumentList $body -ScriptBlock {
+        param($body)
+        $stop = [scriptblock]::Create($body)
+        while ($true) {
+            foreach ($p in & $stop) { "{0:HH:mm:ss} stopped {1}" -f (Get-Date), $p }
+            Start-Sleep -Seconds 5
+        }
+    }
+    Say "Holding the screen saver off for the run (it was active = $was)."
+}
+
+function Resume-ScreenSaver {
+    if ($script:saverWatch) {
+        $stopped = Receive-Job $script:saverWatch -ErrorAction SilentlyContinue
+        Remove-Job $script:saverWatch -Force
+        $script:saverWatch = $null
+        if ($stopped) { Say "During the run the watcher stopped a screen saver $(@($stopped).Count) time(s): $(@($stopped)[-1])" }
+    }
+    [void][FilerWintest.Power]::SetThreadExecutionState($ES_CONTINUOUS)
+    if (Test-Path $saverFile) {
+        $was = (Get-Content -Raw $saverFile | ConvertFrom-Json).active
+        Set-SaverActive $was
+        Remove-Item $saverFile
+        Say "Gave the screen saver back (active = $was)."
+    }
+}
+
 # Task Scheduler's IgnoreNew already keeps its own firings apart; this also
 # covers one started by hand while a scheduled one is running.
 $mutex = [Threading.Mutex]::new($false, "Local\filer-auto-wintest$suffix")
 if (-not $mutex.WaitOne(0)) { Say 'A run is already going. Nothing to do.'; exit 0 }
 
 try {
+    Restore-LeftOverSaver
+
     if (Get-Process LogonUI -ErrorAction SilentlyContinue) {
         Say 'The screen is locked. Trying again next time.'
         exit 0
@@ -148,12 +249,17 @@ try {
     $env:TEMP = $Scratch
     $env:TMP = $Scratch
 
+    if (-not $KeepScreenSaver) {
+        Suspend-ScreenSaver
+        $prompt += " スクリーンセーバーはこのスクリプトが実行の間だけ止めています（起動していれば 5 秒以内に止めます）。それでも入力デスクトップが Default でないときは、役割定義のとおり確かめてから進めてください。"
+    }
     Push-Location $Work
     try {
         $out = claude -p $prompt --permission-mode acceptEdits --allowedTools $Tools --disallowedTools $Denied 2>&1 | Out-String
         $code = $LASTEXITCODE
     } finally {
         Pop-Location
+        if (-not $KeepScreenSaver) { Resume-ScreenSaver }
     }
     Add-Content -Path $log -Value "===== exit=$code`n$out"
 
