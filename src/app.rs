@@ -1831,7 +1831,9 @@ impl App {
     /// `--keys` waits on this between presses, as a person would wait to see.
     pub fn settled(&self) -> bool {
         let tab = &self.tabs[self.active];
-        if matches!(tab.current.state, LoadState::Loading)
+        // A usage walk adds rows as it goes, so a key pressed mid-walk lands on
+        // whatever row happened to be there; #122 typed 600 `k`s to wait one out.
+        if self.usage.is_some() || matches!(tab.current.state, LoadState::Loading)
             || self.preview.pending_since.is_some()
             || matches!(self.preview.state, PreviewState::Loading)
         {
@@ -4628,6 +4630,11 @@ impl App {
         }
     }
 
+    /// True while `gu`'s view is up, walk finished or not.
+    pub fn in_usage_view(&self) -> bool {
+        self.usage_linemode.is_some()
+    }
+
     /// True while the current view is a search result list rather than a real
     /// directory; `leave`/`Esc` returns to the directory it started from.
     pub fn in_search_view(&self) -> bool {
@@ -7182,8 +7189,23 @@ mod escape_and_max_preview {
         }
         let cmd: &[u8] = if cfg!(windows) { b"ping -n 60 127.0.0.1\r" } else { b"sleep 60\r" };
         t.send(cmd.to_vec());
+        // Busy for a stretch, not for one look: the settling above gives up
+        // after five seconds, and on a loaded machine a profile script's child
+        // was still about, so one glance saw it and went on before the command
+        // had started (#122 saw this once in 553 on ARM64). The command runs
+        // for a minute; a child that is gone within half a second is not it.
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
-        while !a.term.as_ref().is_some_and(|t| t.busy()) {
+        let mut busy_since: Option<std::time::Instant> = None;
+        loop {
+            match a.term.as_ref().is_some_and(|t| t.busy()) {
+                true => {
+                    let since = *busy_since.get_or_insert_with(std::time::Instant::now);
+                    if since.elapsed() > std::time::Duration::from_millis(500) {
+                        break;
+                    }
+                }
+                false => busy_since = None,
+            }
             assert!(std::time::Instant::now() < deadline, "the command never showed up under the shell");
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
