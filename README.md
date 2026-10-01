@@ -159,20 +159,19 @@ browser = [
 ]
 
 # Naming the programs is only needed to override the file association — the
-# `open` list above already reaches Office through it. PowerPoint's executable
-# is `powerpnt`, not `powerpoint`.
-office = [
-  { run = 'start "" excel %*', desc = "Excel" },
-  { run = 'start "" winword %*', desc = "Word" },
-  { run = 'start "" powerpnt %*', desc = "PowerPoint" },
-]
+# `open` list above already reaches Office through it. One list per program:
+# `<Enter>` takes the first entry, so a shared list would hand every Word file
+# to Excel. PowerPoint's executable is `powerpnt`, not `powerpoint`.
+excel = [{ run = 'start "" excel %*', desc = "Excel" }]
+word = [{ run = 'start "" winword %*', desc = "Word" }]
+powerpoint = [{ run = 'start "" powerpnt %*', desc = "PowerPoint" }]
 
 [open]
 rules = [
   { name = "*.pdf", use = ["browser", "open"] },
-  { name = "*.{xlsx,xlsm,xls,csv}", use = ["office", "open", "edit"] },
-  { name = "*.{docx,docm,doc}", use = ["office", "open"] },
-  { name = "*.{pptx,pptm,ppt}", use = ["office", "open"] },
+  { name = "*.{xlsx,xlsm,xls,csv}", use = ["excel", "open", "edit"] },
+  { name = "*.{docx,docm,doc}", use = ["word", "open"] },
+  { name = "*.{pptx,pptm,ppt}", use = ["powerpoint", "open"] },
   { name = "*.{txt,md,toml,rs,py,json,yml,yaml,ini,log}", use = ["edit", "open"] },
   { name = "*", use = ["open", "edit"] },        # the fallback, last
 ]

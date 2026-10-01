@@ -477,6 +477,27 @@ pub fn fake_clipboard(text: &str) {
 mod tests {
     use super::*;
 
+    /// The `[opener]` example in the README is pasted as is, so it has to open
+    /// each Office file in its own program: one shared list handed every Word
+    /// and PowerPoint file to Excel (#96).
+    #[test]
+    fn the_readme_opener_example_opens_each_office_file_in_its_own_program() {
+        let readme = include_str!("../README.md");
+        let start = readme.find("```toml\n[opener]").expect("the README has the example") + "```toml\n".len();
+        let block = &readme[start..start + readme[start..].find("```").unwrap()];
+        let cfg: YaziToml = toml::from_str(block).expect("the example parses");
+        for (name, want) in [("a.docx", "Word"), ("a.pptx", "PowerPoint"), ("a.xlsx", "Excel"), ("a.pdf", "Edge")] {
+            let entry = Entry {
+                path: PathBuf::from(name),
+                name: name.into(),
+                ext: name.rsplit_once('.').map(|(_, e)| e.into()),
+                ..Default::default()
+            };
+            let first = openers_for(&cfg, &entry, "").first().and_then(|o| o.desc.clone());
+            assert_eq!(first.as_deref(), Some(want), "{name}");
+        }
+    }
+
     /// #96: a program that is not there is named; one that is, or a shell's
     /// own command, leaves the exit code to speak.
     #[test]

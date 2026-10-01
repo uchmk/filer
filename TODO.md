@@ -909,7 +909,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 ## README の opener 例で、Word / PowerPoint に Excel が先に当たる
 
-- [ ] README の `[opener]` の例をそのまま貼ると、`.docx` / `.pptx` に対して Excel の
+- [x] （v0.62.1、`office` を `excel` / `word` / `powerpoint` の 3 つに分けた。他の拡張子は先頭が正しかった: `*.pdf` は `browser`、テキストは `edit`）README の `[opener]` の例をそのまま貼ると、`.docx` / `.pptx` に対して Excel の
   行が先に並ぶので、**Word 文書で `<Enter>` を押すと Excel が開き、形式が違うという
   ダイアログで止まる。**32/37 節の実機確認が見つけた（QA-REPORT.md）。
   - 例の並び順を直すだけで済むはずだが、**README の例は利用者がそのまま貼るもの**なので、
