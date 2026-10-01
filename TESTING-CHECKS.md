@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**220 / 436 済み。**（TESTING.md の全 605 件のうち、`cargo test` が見ている 169 件は
+**219 / 436 済み。**（TESTING.md の全 605 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -638,7 +638,7 @@ fsutil hardlink list <新しくできたパス>
 
 - [ ] **43.9** 50MB の CSV → すぐ開き、`max_text_bytes` で切られ、フッタが省略したと述べる — *A 50 MB CSV → Opens promptly, cut at `max_text_bytes`, footer says truncated*
 
-## 44. ディスク使用量 — 14 / 16
+## 44. ディスク使用量 — 13 / 16
 
 自動テスト済みなので下には出していない: 44.7, 44.15, 44.18
 
@@ -650,7 +650,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **44.6** 大きなツリーへのシンボリックリンク / ジャンクションを含むフォルダで `gu` → リンクは 1 エントリ扱いでツリーの二重計上にならず、固まらない — *`gu` on a folder with a symlink/junction to a big tree → The link is one entry, not a second copy of the tree, and no hang*
 - [x] **44.8** ネットワーク共有（UNC）で `gu` → 答えるか、穏当に失敗する。走査の途中でも `<Esc>` で抜けられる — *`gu` on a network share (UNC) → Answers or fails gracefully; `<Esc>` still gets out mid-walk*
 - [x] **44.9** `gu` のあと `j`/`k`、`y`、`d`、スペースで選択 → 通常の一覧キーが全部効く。**パネルではなく一覧そのもの**だから — *`gu`, then `j`/`k`, `y`, `d`, space to select → All the ordinary list keys work — this is the list, not a panel*
-- [x] **44.10** `gu` のあとフォルダで `Enter` → 普通の移動（ビューを抜けてフォルダに入る）。そこでもう一度 `gu` すればそこから測り直す — *`gu`, then `Enter` on a folder → Ordinary navigation: it leaves the view and enters the folder. `gu` again measures from there*
+- [ ] **44.10** `gu` のあとフォルダで `Enter`、続けて `h`、もう一度 `h`（v0.63.0。それ以前は `Enter` でビューを抜けた）→ `Enter`: ビューのまま、そのフォルダを測る（ヘッダのパスがそのフォルダ）。1 回目の `h`: 1 つ上に戻り、ビューのまま、出てきたフォルダにカーソル。2 回目の `h`（`gu` を押したフォルダ）: ビューが閉じて普通の一覧に戻る — *`gu`, then `Enter` on a folder; then `h`, and `h` again (v0.63.0; before that `Enter` left the view) → `Enter`: the view stays and measures that folder (the header path is the folder). First `h`: back up, still in the view, the cursor on the folder it left. Second `h`, in the folder `gu` was pressed in: the view closes and the ordinary listing is back*
 - [x] **44.11** 使用量ビューを開いたまま `gu` → メッセージを添えて断られる（戻れないビューにならない） — *`gu` while a usage view is already up → Refused with a message, not a view with no way back*
 - [x] **44.12** `gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。`<Esc>` してからもう一度 `gu` すれば大きい順に戻る（ビューの中の `gu` は断られる。44.11） — *`gu`, then `,` to re-sort → The order changes (as asked); `<Esc>` and `gu` again restores largest-first (`gu` inside the view is refused, 44.11)*
 - [x] **44.13** フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある** — *Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug***
