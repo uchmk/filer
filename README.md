@@ -1301,6 +1301,24 @@ A script driving filer from outside needs to know when the keys are done, and gu
 file path and filer writes that file once the last key has gone in and what it started has landed —
 the same wait the keys themselves take (v0.60.1). `scripts/xrun.sh` waits for it.
 
+The file holds the state at that moment, one `name: value` per line (v0.60.2), so a check can read
+it without pressing another key — which would change what it reads:
+
+```text
+cwd: /tmp/work
+hovered: /tmp/work/b.txt
+selected: 2
+tab: 1 of 1
+overlay: input
+input: draft
+pane: closed
+toast: Yanked 1 item(s)
+```
+
+`overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `input` is
+there only while a prompt is open; `pane` is the terminal's grid (`12x159`) or `closed`; `toast` is
+the newest message still on screen, empty when there is none.
+
 ## Platform Support (Roadmap)
 
 Development currently centers on Windows, but the goal is cross-platform support across the

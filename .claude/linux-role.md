@@ -57,7 +57,10 @@ and it has settled (`OUT/keys.done`), then `XRUN_WAIT` seconds more (default 1;
 without `--keys`, 3) -- and leaves `OUT/shot.png`, `OUT/title.txt`,
 `OUT/clip.txt` (armed with `XRUN-SENTINEL` first, read while filer still owns
 it) and `OUT/filer.log`. No `OUT/keys.done` means the keys timed out: that
-result is of a half-pressed script, so do not tick from it.
+result is of a half-pressed script, so do not tick from it. `OUT/keys.done`
+itself holds the state after the last key -- `cwd`, `hovered`, `selected`,
+`tab`, `overlay`, `input`, `pane`, `toast`, one `name: value` per line
+(README, `--keys`) -- so read it rather than pressing a key to find out.
 
 ```bash
 scripts/xrun.sh /tmp/r1 "/tmp/filer-fixtures/awkward names" --keys "jjcf"
