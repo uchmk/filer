@@ -1267,6 +1267,7 @@ identical pair says so, and the highlight follows `j`. What is left is the real 
 | 45.15 | `z`, then `j` / `n`, then `z` again | The `=` rows leave the list; the footer still counts them and adds `matches hidden (z)`; `j` and `n` step only over what is shown; the second `z` brings every row back with the cursor on the same path |
 | 45.16 | Copy a folder holding a **junction** to a folder inside it (`mklink /J ln t1`), then compare the original with the copy (v0.55.0) | `= ln`: both links land on `t1` in their own tree, so the copies read as the same even though the two targets differ as text |
 | 45.17 | Compare two folders of the same name in different places, one holding a subfolder (v0.59.4) | Under the title, both **full paths** (`…\left\proj  ↔  …\right\proj`), each cut in its middle if long so both ends stay readable. A folder row ends in `\` like its children's paths, not `/` |
+| 45.18 | Compare two folders, put the cursor on a `≠` file row, `<Enter>`; then `q` (v0.61.0) | The two files open side by side, line by line, titled with both full paths. `q` goes back to the folder comparison **on the same row**, not closed and not at the top. `<Enter>` on a row that exists on one side only says `Compare: it is on one side only` and stays |
 
 ## Known gaps in this checklist
 

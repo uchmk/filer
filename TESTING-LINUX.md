@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**17 / 434 済み。**（TESTING.md の全 603 件のうち、`cargo test` が見ている 169 件は
+**17 / 435 済み。**（TESTING.md の全 604 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ほかに 9 件が `[-]`（Linux では対象外）。
@@ -620,7 +620,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **44.17** `gu` のあと、ビューの中で `m t`、続けて `m u`（v0.58.0）→ `m t` で数字が日付に替わり棒だけが残る。`m u` で**歩き直さずに**サイズが戻る（`Measuring…` が出ない）。`<Esc>` でタブ自身の表示に戻るのは今までどおり — *`gu`, then `m t` inside the view, then `m u` (v0.58.0) → `m t` swaps the numbers for dates with the bars left; `m u` brings the sizes back **without** walking again (no `Measuring…`). `<Esc>` still gives the tab its own mode back*
 - [ ] **44.19** 数秒かかる木で `gu` し、合計のトーストが消えるまで待つ（v0.59.2）→ ビューを開いている間ずっと、見出しが `N items · <大きさ> total` と言う（ここが使用量ビューだと分かる唯一の印）。その木で `filer --keys "gu<Wait:0>j"` とすると、カーソルは歩きが終わってから動く — *`gu` on a tree that takes seconds, then wait past the total's toast (v0.59.2) → The header reads `N items · <size> total` for as long as the view is up -- the one sign left that this is the usage view. And `filer --keys "gu<Wait:0>j"` on that tree moves the cursor only after the walk is done*
 
-## 45. 2 つのフォルダを比べる — 0 / 13
+## 45. 2 つのフォルダを比べる — 0 / 14
 
 自動テスト済みなので下には出していない: 45.1, 45.2, 45.5, 45.7
 
@@ -637,6 +637,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **45.15** `z`、続けて `j` / `n`、もう一度 `z` → `=` の行が一覧から消える。フッタは数え続け、`matches hidden (z)` が付く。`j` と `n` は見えている行だけを歩く。2 回目の `z` で全部の行が戻り、カーソルは同じパスの上にある — *`z`, then `j` / `n`, then `z` again → The `=` rows leave the list; the footer still counts them and adds `matches hidden (z)`; `j` and `n` step only over what is shown; the second `z` brings every row back with the cursor on the same path*
 - [ ] **45.16** 中の `t1` を指す**ジャンクション**（`mklink /J ln t1`）を持つフォルダを写し、元と写しを比べる（v0.55.0）→ `= ln`。行き先の文字列は違っても、どちらも自分のツリーの `t1` に着くので同じと読む — *Copy a folder holding a **junction** to a folder inside it (`mklink /J ln t1`), then compare the original with the copy (v0.55.0) → `= ln`: both links land on `t1` in their own tree, so the copies read as the same even though the two targets differ as text*
 - [ ] **45.17** 別の場所にある同じ名前の 2 つのフォルダ（片方にサブフォルダあり）を比べる（v0.59.4）→ 見出しの下に両方の**フルパス**（`…\left\proj  ↔  …\right\proj`）。長ければそれぞれ真ん中が切られ、両端は読める。フォルダの行は子のパスと同じく `\` で終わり、`/` ではない — *Compare two folders of the same name in different places, one holding a subfolder (v0.59.4) → Under the title, both **full paths** (`…\left\proj  ↔  …\right\proj`), each cut in its middle if long so both ends stay readable. A folder row ends in `\` like its children's paths, not `/`*
+- [ ] **45.18** 2 つのフォルダを比べ、`≠` のファイルの行にカーソルを置いて `<Enter>`、続けて `q`（v0.61.0）→ 2 つのファイルが行単位で横に並び、題に両方のフルパスが出る。`q` でフォルダの比較の**同じ行**に戻る（閉じない、先頭に戻らない）。片側にしか無い行で `<Enter>` を押すと `Compare: it is on one side only` と出て動かない — *Compare two folders, put the cursor on a `≠` file row, `<Enter>`; then `q` (v0.61.0) → The two files open side by side, line by line, titled with both full paths. `q` goes back to the folder comparison **on the same row**, not closed and not at the top. `<Enter>` on a row that exists on one side only says `Compare: it is on one side only` and stays*
 
 ## 46. spot パネルの Git セクション — 0 / 21
 

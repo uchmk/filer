@@ -958,8 +958,11 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     // `z` is offered only where it does something: a tree has rows to hide.
     // Each key is named with what it does: `n/N differences` read as a count
     // of differences that had not been filled in (#98).
+    // A pair opened from a folder comparison goes back to it, and says so.
     let keys = if matches!(ov.outcome, Some(Outcome::Tree { .. })) {
-        "n / N: next / previous difference · z: hide matches · q: close"
+        "n / N: next / previous difference · z: hide matches · Enter: compare files · q: close"
+    } else if ov.back.is_some() {
+        "n / N: next / previous difference · q: back to the folders"
     } else {
         "n / N: next / previous difference · q: close"
     };
@@ -1487,7 +1490,7 @@ mod diff_frame {
             offset: 0,
             rows: 10,
             cursor: 0,
-            hide_same: false,
+            hide_same: false, back: None,
         });
         s
     }
@@ -2259,7 +2262,7 @@ mod compare_frame {
             // number of rows that fit, which is what these tests are here for.
             rows: 1,
             cursor: 0,
-            hide_same: false,
+            hide_same: false, back: None,
         });
         s
     }
