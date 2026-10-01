@@ -1191,7 +1191,7 @@ impl App {
             return;
         }
         self.tabs[self.active].pending_cd =
-            Some(PendingCd { from: home, pushed: false, fallback: true });
+            Some(PendingCd { from: home, pushed: false, fallback: true, reveal: None });
     }
 
     // ------------------------------------------------------------- accessors
@@ -1532,7 +1532,13 @@ impl App {
 
         if self.tabs[self.active].cwd == path {
             // The directory answered, so the jump that led here stands.
-            self.tabs[self.active].pending_cd = None;
+            let reveal = self.tabs[self.active].pending_cd.take().and_then(|p| p.reveal);
+            if let Some(name) = reveal.filter(|n| !entries.iter().any(|e| &e.name == n)) {
+                // A typed path that named a file lands here with the file under
+                // the cursor. One that named nothing used to land here too, in
+                // silence, and looked like the place that was asked for.
+                self.error(format!("No such file or folder: {name} — showing {}", path.display()));
+            }
             let keep = self.tabs[self.active].current.hovered_name().map(str::to_owned);
             let filter = self.tabs[self.active].current.filter.clone();
             let cursor = self.tabs[self.active].current.cursor;
@@ -2239,7 +2245,7 @@ impl App {
         }
 
         let active = self.active;
-        let pending = PendingCd { from, pushed: push_history, fallback };
+        let pending = PendingCd { from, pushed: push_history, fallback, reveal: None };
         self.arrive(active, target.clone(), Some(pending));
 
         self.remember_history(&target);
@@ -2896,7 +2902,7 @@ impl App {
         // `switch_tab` fills the tab from the cache when the directory has been
         // listed before; one that is still loading has yet to prove it exists.
         if target != base && self.tabs[at].current.state == LoadState::Loading {
-            self.tabs[at].pending_cd = Some(PendingCd { from: base, pushed: false, fallback });
+            self.tabs[at].pending_cd = Some(PendingCd { from: base, pushed: false, fallback, reveal: None });
         }
     }
 
@@ -4255,12 +4261,14 @@ impl App {
             false => Some((self.cfg.term.shell.clone(), self.cfg.term.args.clone())),
             true => crate::terminal::default_shell().map(|s| (s, Vec::new())),
         };
+        let label = crate::terminal::shell_label(shell.as_ref().map(|(p, _)| p.as_str()));
         match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), shell, move || {
             ctx.request_repaint()
         }) {
             Ok(t) => {
                 self.term = Some(t);
                 self.term_focus = true;
+                self.toast(format!("Started {label} — <C-t> back to the list"));
             }
             Err(e) => self.error(format!("Terminal failed: {e}")),
         }
@@ -4321,14 +4329,16 @@ impl App {
         }
         self.term_needle = needle.to_owned();
         let Some(term) = &mut self.term else { return };
-        if term.search(needle, back) {
-            return;
+        match term.search(needle, back) {
+            Some(false) => return,
+            Some(true) => return self.toast("Wrapped"),
+            None => {}
         }
         // Nothing from here on; start again from the view.
         term.end_search();
         match term.search(needle, back) {
-            true => self.toast("Wrapped"),
-            false => self.error(format!("No match for {needle}")),
+            Some(_) => self.toast("Wrapped"),
+            None => self.error(format!("No match for {needle}")),
         }
     }
 
@@ -7397,6 +7407,30 @@ mod said_out_loud {
         // A failure that has nothing to do with the jump is still heard.
         a.on_scan(fail(&std::env::temp_dir().join("elsewhere")));
         assert_eq!(a.toasts.len(), 2);
+    }
+
+    /// TESTING.md 23.6 — a typed path that names nothing falls back to its
+    /// parent as before, and now says so; one naming a file stays quiet.
+    #[test]
+    fn a_path_that_names_nothing_says_where_it_landed() {
+        let dir = crate::util::test_dir("said-reveal");
+        std::fs::write(dir.join("here.txt"), "x").unwrap();
+        let listing = || Arc::new(vec![Entry::from_path(dir.join("here.txt")).unwrap()]);
+
+        let mut a = app_in(&dir.join("elsewhere"));
+        a.cd_or_reveal(dir.join("here.txt"));
+        a.on_scan(ScanResult::Failed { id: 0, path: dir.join("here.txt"), error: "not a dir".into() });
+        a.apply_listing(&dir, listing());
+        assert!(a.toasts.is_empty(), "the file is under the cursor: {:?}", a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+        assert_eq!(a.tabs[a.active].current.hovered_name(), Some("here.txt"));
+
+        let mut a = app_in(&dir.join("elsewhere"));
+        a.cd_or_reveal(dir.join("tpyo"));
+        a.on_scan(ScanResult::Failed { id: 0, path: dir.join("tpyo"), error: "not found".into() });
+        a.apply_listing(&dir, listing());
+        let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
+        assert_eq!(said.len(), 1, "{said:?}");
+        assert!(said[0].starts_with("No such file or folder: tpyo"), "{said:?}");
     }
 
     /// The same through a typed path, which first falls back to the parent in

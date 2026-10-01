@@ -133,6 +133,7 @@ drawing has been seen. `<C-t>` opens it.
 | 1.9f | `<C-S-f>` for a word that is on screen right now (v0.20.4) | The one on screen is found first, not an older one up in the history |
 | 1.9g | `<C-S-n>` / `<C-S-b>` after that | `<C-S-n>` walks further up into the history, `<C-S-b>` comes back down |
 | 1.9h | `<C-S-f>` for something that is not there | A red toast saying so — not silence |
+| 1.9i | `<C-S-n>` past the oldest match (v0.57.4) | It starts again from the newest, and a `Wrapped` toast says so. Until v0.57.4 the jump from `433` to `442 lines back` came without a word |
 | 1.10 | `<S-End>`, then type a character | Back at the bottom, and typing alone would have done it |
 | 1.11 | Drag across some output (v0.20.4) | **It highlights as you drag**, and is on the clipboard when you let go. Before v0.20.4 the copy worked and nothing was drawn |
 | 1.11a | Drag **right to left** over the same run of text (v0.26.4) | The same text, character for character. Until v0.26.4 a backwards drag lost one at **each** end |
@@ -367,8 +368,8 @@ beside a row is noticeable at all, which is not something a frame can be asked.
 | 10.6 | `p` after a cut | The register empties; the count leaves the header |
 | 10.7 | `X` or `Y` | The count leaves the header |
 | 10.8 | The status line, bottom right | Says the same thing in the same words as the header |
-| 10.10 | `c` `c` in an empty folder (v0.57.3) | A toast says `Nothing to copy`, and the clipboard keeps whatever it held — until v0.57.3 nothing was said, so the last path copied looked like this one |
 | 10.9 | Cut a file, then `p` into a directory that already holds that name, and answer **no** to the overwrite | The count still leaves the header — `paste()` empties a cut register when it *submits* the job, not when the job succeeds, so the files are neither moved nor still in the register |
+| 10.10 | `c` `c` in an empty folder (v0.57.3) | A toast says `Nothing to copy`, and the clipboard keeps whatever it held — until v0.57.3 nothing was said, so the last path copied looked like this one |
 
 ## 11. Bulk rename (v0.4.0)
 
@@ -423,8 +424,8 @@ the redo survives it (see QA-REPORT.md).
 | 12.9 | Delete a file, `u`, but create a file with that name first | `u` says the name is taken, and pressing it again after moving that file out of the way works |
 | 12.10 | Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) | The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done |
 | 12.11 | `d` on a drive whose Recycle Bin is turned off | Same shape of message, naming the file |
-| 12.13 | `d` on one file, then on two (v0.57.3) | A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D` |
 | 12.12 | `d` with nothing locked | Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path |
+| 12.13 | `d` on one file, then on two (v0.57.3) | A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D` |
 
 ## 13. Symlinks and `g`+`f` (v0.26.8)
 
@@ -505,8 +506,8 @@ to answer a click.
 | 15.4 | Hold `<C-->` down | It shrinks smoothly and stops at 20%; `<C-+>` held stops at 500% |
 | 15.5 | `=` with something yanked, in a directory **on the same drive** | The hardlink, in its new place. No *row* says so — a hardlink is another entry pointing at the same data, so the listing has no marker for it. Since v0.46.0 the spot panel does: `<Tab>` on it reads `Kind: Hardlink` and `Links: 2`, which is 13.13. Confirm from outside with `fsutil hardlink list <the new path>`, which lists every path sharing the data; or write to one and read the other. Across drives it must fail: NTFS hardlinks cannot leave their volume. Was `<C-S-->` until v0.45.6, a chord no keyboard can produce |
 | 15.6 | `<A-i>` / `<A-o>` on an image | Still the **image** zoom, unaffected — `zoom` and `scale` are different commands |
-| 15.8 | Hold `<C-+>` until it stops, then `<C-->` until it stops (v0.57.3) | The toast reads `Scale 500% (maximum)`, then `Scale 20% (minimum)` — the `×N` alone could not tell stopped from still moving |
 | 15.7 | `~` | `scale in` / `scale out` / `scale reset` are listed, like any other command |
+| 15.8 | Hold `<C-+>` until it stops, then `<C-->` until it stops (v0.57.3) | The toast reads `Scale 500% (maximum)`, then `Scale 20% (minimum)` — the `×N` alone could not tell stopped from still moving |
 
 ## 16. Word, Excel and PowerPoint (v0.31.0)
 
@@ -651,8 +652,9 @@ Enter. Each of these is a skip if the editor is not installed.
 | 23.1 | `g<Space>`, type `\\server\share` | It opens |
 | 23.2 | Copy a file to and from it | Works, with progress |
 | 23.3 | Unplug the network mid-listing, or point at a dead host | **The window keeps responding.** An error toast, and the tab goes back where it was |
-| 23.5 | `g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) | **One** error toast, naming a whole path. Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`) |
 | 23.4 | Tab-complete a path on the share | The prompt stays responsive; a `…` shows while it waits |
+| 23.5 | `g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) | **One** error toast, naming a whole path. Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`) |
+| 23.6 | `filer <a folder>\tpyo`, or `g<Space>` with a name that is not there (v0.57.4) | The folder above opens, as before, and a red toast says `No such file or folder: tpyo — showing <the folder>`. A name that *is* a file opens the folder with the file under the cursor and says nothing |
 
 ## 24. Awkward names
 
@@ -786,6 +788,7 @@ instructions.
 | 29.4 | `cd` to a UNC path (`\\server\share`) and press `<A-Up>` | Either it follows or it says why; no crash |
 | 29.5 | Run the hook line by hand in a shell that already has Starship | The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`) |
 | 29.6 | With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` | 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again |
+| 29.7 | `<C-t>` with no `[term] shell`, then again with `shell = "powershell"` (v0.57.4) | The first toast names the shell: `Started pwsh — <C-t> back to the list`, then `Started powershell — …`. It has to match what `$PSVersionTable.PSVersion` says |
 
 ## 30. Right-click paste in a prompt (v0.14.0)
 
@@ -824,10 +827,10 @@ ones where it says no.
 | 31.7 | A host with **many** shares (more than a screenful) | All of them, scrolling normally |
 | 31.8 | A share name with a space or non-ASCII in it | Intact |
 | 31.9 | Hover a share and look at the size column | Empty — there is nothing to read, and it must not sit there counting |
-| 31.13 | A host that answers but shares nothing (v0.57.3) | The list says `(no shares)`, not `(empty)` |
 | 31.10 | `<C-r>` / refresh on the host listing | Re-asks the server; no crash |
 | 31.11 | Open the host in the **other pane** (`<C-w>`) and in a second tab | Both fine |
 | 31.12 | Go to a host, then change directory away | The watcher does not complain about the host it could not watch |
+| 31.13 | A host that answers but shares nothing (v0.57.3) | The list says `(no shares)`, not `(empty)` |
 
 ## 32. Openers (v0.17.0)
 

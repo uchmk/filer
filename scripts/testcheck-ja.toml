@@ -524,6 +524,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "29.4" = 'UNC パス（`\\server\share`）へ `cd` して `<A-Up>` → 追従するか、できない理由を述べる。落ちない'
 "29.5" = 'Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため）'
 "29.6" = '`[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`filer env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る'
+"29.7" = '`[term] shell` なしで `<C-t>`、次に `shell = "powershell"` にしてもう一度（v0.57.4）→ 最初のトーストがシェルの名前を言う: `Started pwsh — <C-t> back to the list`、次に `Started powershell — …`。`$PSVersionTable.PSVersion` の答えと合っていること'
 
 # 30. プロンプトでの右クリック貼り付け
 "30.1" = 'エクスプローラーのアドレスバーでパスをコピーし、`c`+`d` で `cd` のプロンプトを出し、入力欄を右クリック → パスが入る。`<Enter>` でそこへ移動する'
