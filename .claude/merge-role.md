@@ -26,9 +26,10 @@ code, comments and commits in English. Nobody is watching: never wait for input.
 All of these, or it is not merged:
 
 1. **It only touches what the Windows session may write**: `QA-REPORT.md`,
-   `TESTING-CHECKS.md`, `.claude/windows-role.md` (its queue), and files under
-   `docs/`. Anything else -- `src/`, `Cargo.toml`, `CHANGELOG.md`, TESTING.md,
-   TESTING-KEYS.md -- and you do not merge: comment on the pull request naming
+   `TESTING-CHECKS.md`, `TESTING-KEYS.md` (ticks only: every changed line is a
+   `[ ]` turned `[x]`), `.claude/windows-role.md` (its queue), and files under
+   `docs/`. Anything else -- `src/`, `Cargo.toml`, `CHANGELOG.md`, TESTING.md, or
+   any other change to TESTING-KEYS.md -- and you do not merge: comment on the pull request naming
    the files, and add a line to QUESTIONS.md so the owner sees it.
 2. **CI is green on its head**: `audit`, `clippy`, `smoke` and `test` all
    `success`. A pull request that only changes files in `ci.yml`'s
@@ -48,6 +49,9 @@ All of these, or it is not merged:
    check, so it is red for this reason too; that red is not a reason to wait).
 4. **Every new tick has its evidence line** in the pull request body, and none
    is an appearance row (`windows-role.md`, "Ticking TESTING-CHECKS.md"). A tick
+   in TESTING-KEYS.md needs both halves on its line: what the key changed, and
+   the before/after snapshot of what it did not (`windows-role.md`,
+   "TESTING-KEYS.md"). A tick
    you cannot match to evidence: comment, do not merge.
 
 A conflict with `main` is not a reason to stop: merge `origin/main` into the

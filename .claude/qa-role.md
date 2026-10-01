@@ -24,7 +24,7 @@ Reply in Japanese. Code, comments and commit messages in English.
 
 **Only inside `#[cfg(test)]` modules, plus `QA-REPORT.md` and TODO.md.**
 Never `Cargo.toml`, and never `CHANGELOG.md` -- see "Branch and hand-off" for why.
-**Never TESTING-KEYS.md either: that file is the owner's.** Its `[x]` marks mean
+**Never TESTING-KEYS.md either: its ticks belong to the owner and the Windows machine's session.** Its `[x]` marks mean
 "tried on a real machine", which is not something you can do or undo, so you report
 what `--check` says and leave the file alone -- even to regenerate it.
 
