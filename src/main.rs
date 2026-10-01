@@ -210,7 +210,7 @@ fn main() -> eframe::Result<()> {
             }
             let has_bold = apply_fonts(&cc.egui_ctx, &mut cfg, &mut used);
             crate::runinfo::save(&used);
-            cc.egui_ctx.set_visuals(egui::Visuals::dark());
+            cc.egui_ctx.set_visuals(ui::visuals());
             // egui zooms on Ctrl +/-/0 of its own accord, at the end of the
             // frame, without consuming the key first. Every one of those is a
             // key filer binds, so both would run -- `<C-->` hardlinked *and*
@@ -438,7 +438,7 @@ struct Filer {
     /// The geometry last written to `last-run.toml`, so that writing it again
     /// costs nothing while nothing moves. A resize or a drag onto a monitor at
     /// another scale changes it; a frame does not.
-    last_geometry: Option<([f32; 2], f32)>,
+    last_geometry: Option<([f32; 2], f32, [usize; 2])>,
     /// `--keys`, as the events each press arrives as, still to be pressed.
     script: std::collections::VecDeque<keyscript::Press>,
     /// The frame and the moment the last scripted key went in.
@@ -459,14 +459,21 @@ impl Filer {
         // a write. Round to the pixel before comparing: below that nobody is
         // reading this file anyway.
         let rounded = ([now.0[0].round(), now.0[1].round()], (now.1 * 1000.0).round() / 1000.0);
-        if self.last_geometry == Some(rounded) {
+        // The pane's grid as well, which moves with the window and with `<C-S-Enter>`.
+        let pane = self.app.term.as_ref().map_or([0, 0], |t| [t.size().lines, t.size().cols]);
+        let key = (rounded.0, rounded.1, pane);
+        if self.last_geometry == Some(key) {
             return;
         }
-        self.last_geometry = Some(rounded);
+        self.last_geometry = Some(key);
         let mut used = crate::runinfo::load().unwrap_or_default();
         used.version = env!("CARGO_PKG_VERSION").into();
         used.window_pt = rounded.0;
         used.ppp = rounded.1;
+        // A pane closed later in the run keeps the size it last had.
+        if pane != [0, 0] {
+            used.pane = pane;
+        }
         crate::runinfo::save(&used);
     }
 }

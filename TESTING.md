@@ -408,8 +408,8 @@ obeys as well, and the module drives each in that form: history forking on a fre
 `U` walking the step forward again under its own sentence (12.4), and an undo blocked by a name
 taken in the meantime keeping the step, so a second press works (12.9). **The rows themselves are
 still unchecked** — nothing here has been through the recycle bin. 12.5's newest-of-two rule is
-`fs::restore`'s own unit test. 12.8's example is wrong: creating a file records no undo step, so
-the redo survives it (see QA-REPORT.md).
+`fs::restore`'s own unit test. 12.8 used to fork history by creating a file, which records no undo
+step; it now renames a second file (#83).
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -420,7 +420,7 @@ the redo survives it (see QA-REPORT.md).
 | 12.5 | Delete two files with the same name from different folders, an interval apart, then `u` | The one just deleted comes back — not the older one |
 | 12.6 | `r` to rename, then `u` | The old name is back |
 | 12.7 | `u` with nothing to undo | "Nothing to undo" — no error |
-| 12.8 | Rename a file, undo it, then create a new file, then `U` | Redo is gone: the new action forked history |
+| 12.8 | Rename a file, undo it, then rename **another** file, then `U` | Redo is gone: the new rename forked history. Creating a file records no undo step, so a new file leaves the redo in place (#83) |
 | 12.9 | Delete a file, `u`, but create a file with that name first | `u` says the name is taken, and pressing it again after moving that file out of the way works |
 | 12.10 | Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) | The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done |
 | 12.11 | `d` on a drive whose Recycle Bin is turned off | Same shape of message, naming the file |
@@ -482,6 +482,7 @@ machines do not have.
 | 13.14 | The same, on Windows | `Also at` lists the other path. Check it against `fsutil hardlink list` — the same set, with the file's own path left out |
 | 13.15 | `<Tab>` on an ordinary file with one name | **No Link section at all** — not a section saying "1", which would be noise on every file |
 | 13.16 | Hardlink a file, then have another program hold it open for writing with no sharing, and `<Tab>` it (commands in the preamble above) | `Links` still reads `2` and `Also at` still lists the other name. The handle asks for **no** access rights, so an exclusive write lock does not hide the count |
+| 13.17 | `<Tab>` on a junction (`mklink /J`) (v0.59.4) | `Kind` reads `Junction`, not `Symlink`. A symlink to the same folder (`mklink /D`) still reads `Symlink`. The list's `->` is unchanged for both (13.7) |
 
 ## 14. The parent column, with the mouse (v0.26.7)
 
@@ -504,11 +505,13 @@ to answer a click.
 | 15.1 | `<C-->` with something yanked | **Only** the window shrinks. Until v0.32.0 it also made a hardlink — one press, two actions |
 | 15.2 | `<C-+>`, and `<C-=>` | Both make it bigger. Which of the two needs shift depends on the layout — on US `+` is shift+equals, on JIS `+` is shift+semicolon and `=` is shift+minus — and both spellings are bound so either reaches it (v0.45.6) |
 | 15.3 | `<C-0>` | Back to 100%, and a toast says so |
-| 15.4 | Hold `<C-->` down | It shrinks smoothly and stops at 20%; `<C-+>` held stops at 500% |
+| 15.4 | Hold `<C-->` down | It stops at 20%, and the toast's count adds up: 8 steps down from 100% and the rest at the floor (`Scale 20% (minimum) ×N`). `<C-+>` held stops at 500% |
+| 15.4a | The same, watching the window rather than the toast | It shrinks **smoothly** while held, with no flicker or blank frames between steps |
 | 15.5 | `=` with something yanked, in a directory **on the same drive** | The hardlink, in its new place. No *row* says so — a hardlink is another entry pointing at the same data, so the listing has no marker for it. Since v0.46.0 the spot panel does: `<Tab>` on it reads `Kind: Hardlink` and `Links: 2`, which is 13.13. Confirm from outside with `fsutil hardlink list <the new path>`, which lists every path sharing the data; or write to one and read the other. Across drives it must fail: NTFS hardlinks cannot leave their volume. Was `<C-S-->` until v0.45.6, a chord no keyboard can produce |
 | 15.6 | `<A-i>` / `<A-o>` on an image | Still the **image** zoom, unaffected — `zoom` and `scale` are different commands |
 | 15.7 | `~` | `scale in` / `scale out` / `scale reset` are listed, like any other command |
 | 15.8 | Hold `<C-+>` until it stops, then `<C-->` until it stops (v0.57.3) | The toast reads `Scale 500% (maximum)`, then `Scale 20% (minimum)` — the `×N` alone could not tell stopped from still moving |
+| 15.9 | `=` with a file yanked from another drive (`R:` → `C:`) (v0.59.4) | The error reads `hardlinks can't cross drives (R: → C:). Use p to copy instead`, not Windows' "cannot move the file to a different disk drive" |
 
 ## 16. Word, Excel and PowerPoint (v0.31.0)
 
@@ -716,6 +719,7 @@ Run from a shell, not from inside the app.
 | 25.20 | `filer env` with nothing redirected, and `filer --version` | Still printed on screen, as 25.1 has it — the console path is unchanged |
 | 25.21 | `filer env` (v0.58.1) | An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone |
 | 25.22 | `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `FILER_PTY_LOG` set (v0.59.0) | The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `filer --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>` |
+| 25.23 | Open the pane, `<C-S-Enter>`, close filer, then `filer env` (v0.59.4) | A `Terminal pane` row under `Last run` gives the grid as `N x M (lines x columns)`, the size it last had. After a run that never opened the pane: `not opened in that run` |
 
 ## 26. Bug report from inside the app (v0.11.0)
 
@@ -794,6 +798,7 @@ instructions.
 | 29.5 | Run the hook line by hand in a shell that already has Starship | The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`) |
 | 29.6 | With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` | 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again |
 | 29.7 | `<C-t>` with no `[term] shell`, then again with `shell = "powershell"` (v0.57.4) | The first toast names the shell: `Started pwsh — <C-t> back to the list`, then `Started powershell — …`. It has to match what `$PSVersionTable.PSVersion` says |
+| 29.8 | In a pane started as `powershell` (5.1) with no hook, `<A-Up>` (v0.59.4) | The red toast names the shell -- `` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE `` -- so the hook goes into 5.1's profile, not 7's |
 
 ## 30. Right-click paste in a prompt (v0.14.0)
 
@@ -1256,6 +1261,7 @@ identical pair says so, and the highlight follows `j`. What is left is the real 
 | 45.14 | Compare two trees of hundreds of paths that differ in one file far down (v0.53.0) | The view opens with the cursor **on that file**, not on the first row. A pair with no differences opens at the top |
 | 45.15 | `z`, then `j` / `n`, then `z` again | The `=` rows leave the list; the footer still counts them and adds `matches hidden (z)`; `j` and `n` step only over what is shown; the second `z` brings every row back with the cursor on the same path |
 | 45.16 | Copy a folder holding a **junction** to a folder inside it (`mklink /J ln t1`), then compare the original with the copy (v0.55.0) | `= ln`: both links land on `t1` in their own tree, so the copies read as the same even though the two targets differ as text |
+| 45.17 | Compare two folders of the same name in different places, one holding a subfolder (v0.59.4) | Under the title, both **full paths** (`…\left\proj  ↔  …\right\proj`), each cut in its middle if long so both ends stay readable. A folder row ends in `\` like its children's paths, not `/` |
 
 ## Known gaps in this checklist
 
@@ -1340,3 +1346,4 @@ cause. Every expectation is a number from `Get-Process`.
 | 47.2 | `j` onto a file and at once `j` onto a subfolder (inside the 40 ms debounce), then hands off; read the CPU twice, 10 s apart | The same: **no rise**. Before v0.54.2 this was the sequence that left it drawing for ever |
 | 47.3 | The same as 47.2, then minimise the window | Still no rise while minimised |
 | 47.4 | If 47.1-47.3 still rise: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart | Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at |
+| 47.5 | Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3) | No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110) |

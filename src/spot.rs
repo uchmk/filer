@@ -89,6 +89,29 @@ pub fn inspect(path: &Path) -> Vec<Section> {
     providers.iter().filter_map(|p| p(path)).collect()
 }
 
+/// A directory junction (`mklink /J`), which `read_link` cannot tell from a
+/// symlink: its reparse tag, `IO_REPARSE_TAG_MOUNT_POINT`, can. `FindFirstFileW`
+/// hands the tag back in `dwReserved0` for anything with the reparse point
+/// attribute, without opening the link itself.
+#[cfg(windows)]
+fn is_junction(path: &Path) -> bool {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::{FindClose, FindFirstFileW, WIN32_FIND_DATAW};
+    const IO_REPARSE_TAG_MOUNT_POINT: u32 = 0xA000_0003;
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+    let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+    let mut data = WIN32_FIND_DATAW::default();
+    let Ok(handle) = (unsafe { FindFirstFileW(PCWSTR(wide.as_ptr()), &mut data) }) else { return false };
+    let _ = unsafe { FindClose(handle) };
+    data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT != 0 && data.dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT
+}
+
+#[cfg(not(windows))]
+fn is_junction(_: &Path) -> bool {
+    false
+}
+
 fn link(path: &Path) -> Option<Section> {
     let target = std::fs::read_link(path).ok();
     let (links, others) = hard_links(path);
@@ -99,12 +122,18 @@ fn link(path: &Path) -> Option<Section> {
     let mut s = Section::new("Link");
     match &target {
         Some(t) => {
-            // A junction reads as a symlink here, as it does everywhere else in
-            // the app (TESTING.md 13.7): `read_link` resolves both, and telling
-            // them apart needs the reparse tag. What is worth saying is whether
-            // the link survives being moved, which is the absolute/relative
-            // split -- `-` writes one, `_` the other.
-            s.row("Kind", if t.is_relative() { "Symlink (relative)" } else { "Symlink" });
+            // Everywhere else a junction is treated as a symlink (TESTING.md
+            // 13.7): `read_link` resolves both. Here, where the question is
+            // what kind of link this is, the reparse tag tells them apart. For
+            // a symlink what is worth saying is whether it survives being
+            // moved, the absolute/relative split -- `-` writes one, `_` the
+            // other; a junction is always absolute.
+            let kind = match is_junction(path) {
+                true => "Junction",
+                false if t.is_relative() => "Symlink (relative)",
+                false => "Symlink",
+            };
+            s.row("Kind", kind);
             s.row("Target", t.display().to_string());
             s.row("Resolves", match std::fs::canonicalize(path) {
                 Ok(real) => plain(&real),

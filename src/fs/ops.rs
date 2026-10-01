@@ -340,7 +340,7 @@ impl Ctx<'_> {
                     let dest = req.dest_dir.join(file_name(src));
                     let Some(dest) = self.resolve_dest(src, dest) else { continue };
                     if let Err(e) = std::fs::hard_link(src, &dest) {
-                        self.errors.push(format!("{}: {e}", short(src)));
+                        self.errors.push(format!("{}: {}", short(src), hardlink_error(&e, src, &req.dest_dir)));
                     }
                     self.files_done += 1;
                 }
@@ -781,6 +781,32 @@ fn explain(e: &std::io::Error) -> String {
     e.to_string()
 }
 
+/// Why a hardlink failed, in words that say what to do when the reason is
+/// the one every hardlink across drives hits: "The system cannot move the
+/// file to a different disk drive" (os error 17) named neither drive nor the
+/// way round it (#83).
+fn hardlink_error(e: &std::io::Error, src: &Path, dest_dir: &Path) -> String {
+    // ERROR_NOT_SAME_DEVICE on Windows, EXDEV elsewhere.
+    let cross = if cfg!(windows) { 17 } else { 18 };
+    if e.raw_os_error() != Some(cross) {
+        return e.to_string();
+    }
+    format!(
+        "hardlinks can't cross drives ({} → {}). Use p to copy instead",
+        volume(src),
+        volume(dest_dir)
+    )
+}
+
+/// The drive a path is on, as its prefix (`R:`, `\\host\share`), or the
+/// root where paths have none.
+fn volume(p: &Path) -> String {
+    match p.components().next() {
+        Some(std::path::Component::Prefix(pre)) => pre.as_os_str().to_string_lossy().into_owned(),
+        _ => p.components().take(2).collect::<std::path::PathBuf>().display().to_string(),
+    }
+}
+
 #[cfg(windows)]
 fn symlink(target: &Path, link: &Path, dir: bool) -> std::io::Result<()> {
     use std::os::windows::fs::{symlink_dir, symlink_file};
@@ -794,4 +820,28 @@ fn symlink(target: &Path, link: &Path, dir: bool) -> std::io::Result<()> {
 #[cfg(not(windows))]
 fn symlink(target: &Path, link: &Path, _dir: bool) -> std::io::Result<()> {
     std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(test)]
+mod hardlink_message {
+    use super::*;
+
+    /// #83: a hardlink across drives names both and the way round; any other
+    /// failure keeps the OS's own words.
+    #[test]
+    fn a_hardlink_across_drives_says_so() {
+        let cross = std::io::Error::from_raw_os_error(if cfg!(windows) { 17 } else { 18 });
+        let (src, dest) = if cfg!(windows) {
+            (Path::new(r"R:\tmp\a.txt"), Path::new(r"C:\work"))
+        } else {
+            (Path::new("/mnt/a.txt"), Path::new("/home/me"))
+        };
+        let said = hardlink_error(&cross, src, dest);
+        assert!(said.starts_with("hardlinks can't cross drives ("), "{said}");
+        assert!(said.ends_with("Use p to copy instead"), "{said}");
+        let drives = if cfg!(windows) { "(R: → C:)" } else { "(/mnt → /home)" };
+        assert!(said.contains(drives), "{said}");
+        let other = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+        assert_eq!(hardlink_error(&other, src, dest), other.to_string());
+    }
 }
