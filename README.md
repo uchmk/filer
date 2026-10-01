@@ -202,7 +202,8 @@ Key notation is yazi's: `<C-a>`, `<A-S-Up>`, `<Enter>`, `<Space>`, `<F5>`, `<lt>
 
 **Line mode** is yazi's name for the right-hand column of the file list — the one value shown
 beside every name. `m`+`s` shows the size, `m`+`t` the modified time, `m`+`b` the created time,
-`m`+`p` the permissions, and `m`+`n` turns the column off. `[mgr] linemode` in `yazi.toml` sets
+`m`+`p` the permissions, `m`+`u` the totals `gu` measured (v0.57.5; the way back to them inside
+the usage view after another `m` key), and `m`+`n` turns the column off. `[mgr] linemode` in `yazi.toml` sets
 the one you start with.
 
 The names are `none`, `size`, `usage`, `mtime` (or `modified`), `btime` (or `created`),

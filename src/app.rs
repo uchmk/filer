@@ -7165,6 +7165,18 @@ mod escape_and_max_preview {
         assert_eq!(run(Key::parse("<Enter>").unwrap()), Some(vec![Act::Enter]));
     }
 
+    /// Q36: `m u` puts the usage numbers back inside `gu`'s view after another
+    /// `m` key took them away; before it there was no key for them at all.
+    #[test]
+    fn m_u_is_the_usage_line_mode() {
+        use crate::config::keys::Key;
+        use crate::fs::entry::Linemode;
+        let km = &Config::load().keymap;
+        let on = vec![Key::parse("m").unwrap(), Key::parse("u").unwrap()];
+        let run = km.mgr.iter().find(|b| b.on == on).map(|b| b.run.clone());
+        assert_eq!(run, Some(vec![Act::Linemode(Linemode::Usage)]));
+    }
+
     /// `escape --filter` is aimed at one thing and must stay aimed at it.
     #[test]
     fn a_targeted_escape_leaves_it_alone() {
