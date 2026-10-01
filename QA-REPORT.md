@@ -8914,3 +8914,189 @@ C:\dev\filer-armtest\target\release\filer.exe`、`filer 0.67.3 (aarch64)`）。`
 - **`7. the config paths in the help panel` の行は消す。**8 行とも `[x]` にした。
 - 次は `36. T, and q from each layer`（5 行）がそのまま先頭になる。
 - `the test suite` の行はそのまま残す（この run も **594 / 0**、0.67.3）。
+
+---
+
+## TESTING.md section 36 — ARM64 実機、`T` と各レイヤーの `q`（0.67.4）
+
+ARM64 レーン（`test/arm-36`、`C:\dev\filer-armtest`）の無人実行。`filer env` は
+`OS arch aarch64` / `Process arch aarch64`、版は 0.67.4 — **ネイティブの ARM64 ビルド**で、
+エミュレーションではない。管理者ではない（`IsInRole('Administrators')` が `False`）が、
+この節に昇格の要る行は無い。
+
+この機械に RAM ディスクは無いので、作業は
+`C:\Users\yuu06\AppData\Local\Temp\filer-scratch\s36` で行った（`TEMP` / `TMP` も同じ）。
+
+**`cargo test`: 594 passed / 0 failed**（3.39 s、ARM64 ネイティブ）。
+
+### 読み方
+
+キーはすべて `filer --keys` で押した（`PostMessage` も `SendInput` も使っていないので、
+スクリーンセーバーや入力デスクトップの状態に左右されない）。読んだのは 3 つだけ:
+
+- **`FILER_KEYS_DONE`** の `overlay:` / `hovered:` / `selected:` / `tab:` / `compare:` の行。
+- **プロセスの生死**: `Start-Process -PassThru` の `HasExited` と `ExitCode`、および
+  `Get-Process -Id <pid>`（`Get-Process filer` ではなく **pid 指定**。並行する別の filer と
+  取り違えないため）。
+- **`<Shot:name>` の PNG の SHA-256。**「列が戻った」「パネルが閉じた」を目で判定せず、
+  **同じ run の中で撮った前後の絵がバイト単位で同一か**で判定した。1 つの run の中なので
+  窓の大きさも親ペインの中身も動かず、同一なら「描画が元に戻った」と言い切れる。
+
+設定は run ごとに空の `FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` を与えて既定キーマップで
+走らせた（36.15 だけは実機の設定そのままで走らせた。この機械の
+`%APPDATA%\filer\keymap.toml` は `T` を同じ動作に割り当て直しているだけで、`q` は既定）。
+
+### 結果
+
+**36.15 — 何も開いていない状態で `q` → 1 回目で終了する。[x]**
+
+実機の設定のまま `--keys "<Shot:nothing_up>q"`。`nothing_up.png` には 3 列（親 / 一覧 /
+プレビュー）が出ていてオーバーレイは無い。`q` 1 回で `HasExited = True` / `ExitCode = 0`
+（2.4 s）、2 秒置いて `Get-Process filer` が **0 件**。`FILER_KEYS_DONE` は書かれていない
+（最後のキーの後に生き残るフレームが無い＝終了した、という裏側の証拠にもなる）。
+
+**36.13 — 最大化プレビュー（`T`）の状態で `q` → 列が戻り、アプリは動き続ける。[x]**
+
+1 回の run で `--keys "<Shot:plain>T<Shot:max>q<Shot:back>"`:
+
+| 絵 | サイズ | SHA-256 |
+| --- | --- | --- |
+| `plain.png`（`T` の前） | 73737 | `B9F13EA0E22DA81C7514C81D2E4333D9CD28ADE8FEDDB9E1469BDC22A1E54749` |
+| `max.png`（`T` の後） | 44849 | `BE50ECBCC294B21C0A57F0CB08C1781F9E16C57D85D4E293F322801735E6D1F3` |
+| `back.png`（`q` の後） | 73737 | `B9F13EA0E22DA81C7514C81D2E4333D9CD28ADE8FEDDB9E1469BDC22A1E54749` |
+
+`back.png` は `plain.png` と**バイト単位で同一**、`max.png` だけが違う。`max.png` の中身も
+読んだ: プレビュー列が本文の全幅を占め、一覧列と親列が潰れ、タブバーと下のステータスバー
+（`NORMAL  drw  2026-10-02 03:05` … `1/13`）はそのまま。`q` の後も `FILER_KEYS_DONE` が
+書かれ（`overlay: none`）、pid は生きていた。
+
+別 run の対照 `--keys "T<Shot:a_max>q<Shot:b_back>q"` では `a_max.png` が上の `max.png` と
+**同じハッシュ**（`BE50ECBC…`）になり、**2 回目の `q` で終了**（`ExitCode = 0`、filer 0 件）。
+つまり 1 回目の `q` は列を戻すのに使われている。
+
+**36.14 — `help` / タスク一覧 / spot / 比較、それぞれで `q`。[x]**
+
+4 つとも 2 run ずつ。「開いた run」で `overlay:` が立つことを読み、「`q` まで押す run」で
+`overlay: none` と pid の生存を読んだ。
+
+| パネル | 開くキー | 開いた run の `overlay:` | `q` を足した run |
+| --- | --- | --- | --- |
+| help | `~` | `help` | `overlay: none`、pid 18240 生存 |
+| タスク一覧 | `w` | `tasks` | `overlay: none`、pid 564 生存 |
+| spot | `<Tab>` | `spot` | `overlay: none`、pid 30028 生存 |
+| 比較 | `j<Space><Space><A-d>` | `diff` + `compare: files …\file1.txt \| …\file2.txt`、`selected: 2` | `overlay: none`、pid 4656 生存 |
+
+**36.18 — `Q` を `quit` に割り当て、`<F3>` を開いた状態で `Q`。[x]**
+
+2 つの書き方で確かめた。`[[mgr.prepend_keymap]]` に `on = "Q"` / `run = "quit"` だけを置いた
+設定（既定キーは残る）で:
+
+- `--keys "Q"` → **終了**（`ExitCode = 0`）。`Q` が確かに `quit` に割り当たっている。
+- `--keys "<Shot:plain><F3><Shot:quick>Q<Shot:after>"` → **終了しない**（pid 31748 生存）。
+  `after.png` は `plain.png` と**同一ハッシュ**（`6288577B10D24E89860A50FBE0A50527408B31176E5EBBC182B2D6432D499377`、
+  ともに 113612 バイト）で、間の `quick.png` だけが別物。`quick.png` の中身も読んだ:
+  背景が暗く落ち、枠付きのパネルに `sub` という題と右上に `Esc to close`。
+- `--keys "<F3>QQ"` → **2 回目の `Q` で終了**。
+
+行の文面どおり `[[mgr.keymap]]`（`<F3>` と `Q` の 2 行）に書いた設定でも同じ結果:
+`plain.png` と `after.png` が同一（`5DFFCE5A77206A4C60514625E7C847275DD1836C91D6FFF216FCFD7621B26D14`）、
+`<F3>QQ` で終了、そしてその設定では `q` を押しても**何も起きない**（`[[mgr.keymap]]` が既定を
+置き換えるため）。つまり終了は文字 `q` ではなく `quit` という動作に付いている。
+
+**36.10 — チェックは付けていない。**行の期待と実際が食い違う（下の 1）。
+
+### Findings
+
+#### 1. 36.10 の行は `prepend_keymap` では成り立たない（TESTING.md の文面の問題）
+
+行は「`prepend_keymap` で `T` ではなく `<S-t>` を割り当てて `<C-F5>` → **どのキーを押しても
+何も起きない**」と書いている。実際に押して読むと、**2 つの前提のどちらを採るかで答えが変わる**。
+
+- `[[mgr.prepend_keymap]]` に `on = "<S-t>"` / `run = "quit"`（マッチしたら必ず分かるよう
+  `quit` にした）を置き、起動 1.5 秒後にファイルを置いて `<C-F5>` で読み直させてから `T`:
+  **アプリは終了しなかった**（pid 27628 生存）＝ `<S-t>` はマッチしていない。そのうえで
+  `after.png` のハッシュが `BE50ECBCC294B21C…` — **36.13 で撮った「最大化プレビュー」の絵と
+  バイト単位で同一**だった。つまり**既定の `T` がそのまま動いている。**「どのキーを押しても
+  何も起きない」は起きていない。
+- `[[mgr.keymap]]`（既定を置き換える形）に同じ `<S-t>` を置いた場合は、行のとおりになる。
+  `<C-F5>` の後に `T` `t` `j` `q` `~` を順に押して、`plain.png` と `after.png` が同一ハッシュ
+  （`D940AEEFE193F3586A9F59BD0F8559B840D840314FA6B92C3B61E6278574A41C`）、`FILER_KEYS_DONE` は
+  `hovered:` が `sub` のまま（`j` が効いていない）、`overlay: none`（`~` が効いていない）、
+  `tab: 1 of 1`（`t` が効いていない）、そして**プロセスは生きている**（`q` が効いていない）。
+
+「警告も出ない」の半分は両方で確認できた: どちらの設定でも `filer env` の
+`Warnings` が **`none`**。
+
+**`prepend_keymap` と書いてある限り、この行は実機で真にならない。**文面を
+`[[mgr.keymap]]`（＝既定を置き換える形）に直すか、期待を「書いた割り当てがどのキーでも
+発火しない（既定の `T` は動いたままになる）」に直すのが要る。行番号を動かさない直し方は
+持ち主の判断なので、ここに置く。
+
+#### 2. 36.18 の文面どおりに書くと `<F3>` が消える
+
+`[[mgr.keymap]]` は `[mgr]` の既定を**丸ごと置き換える**ので、行の指示どおり
+`on = "Q"` / `run = "quit"` の 1 つだけを書くと `<F3>` が無くなり、**その行の手順自体が
+実行できない。**この run は `<F3>` の割り当てを並べて足して回した。文面は
+`prepend_keymap` にするか、「`<F3>` も残すこと」と添えるのが要る。
+
+### Proposals
+
+#### 1. `FILER_KEYS_DONE` に `quick` と `max_preview` を出す
+
+- **何に当たったか**: `state_report` が持っているのは `Overlay` だけで、`<F3>`（`quick`）と
+  `T`（`max_preview`）は `App` のフラグなので 1 文字も出ない。36.13 と 36.18 は
+  まさにこの 2 つの行で、**絵のハッシュ比較に落とすしかなかった。**
+- **何を変えるか**: `src/main.rs` の `state_report` に 2 行足す
+  （`quick: true/false`、`max_preview: true/false`）。`overlay:` の隣が自然。
+- **なぜ**: この 2 つは「前に出ているもの」という点で overlay とまったく同じ役なのに、
+  外から読める道だけが無い。足せば 36.13 / 36.16 / 36.18 は**テキストを読むだけの行**になり、
+  絵の比較（窓の大きさや親ペインの中身に影響される、壊れやすい証拠）が要らなくなる。
+- **大きさ**: 2 行。
+
+#### 2. `<S-t>` のように「絶対にマッチしない `on`」は警告する
+
+- **何に当たったか**: 上の Finding 1。`<S-t>` は綴りとして正しく、警告も出ないので、
+  `filer env` は `Warnings : none` と言う。**設定が黙って死んでいることを教えてくれるものが
+  どこにも無い。**TESTING.md がこれを「テストが固定している教訓」と呼んでいること自体、
+  人が必ず踏むという申告になっている。
+- **何を変えるか**: `config/keymap.rs` の `build()` で、`on` が
+  「Shift + 印字可能な 1 文字」に解決されたら
+  `` `<S-t>` never matches; write the character itself (`T`) `` を warnings に積む。
+  `<C-S-t>` のように他の修飾が付くものは除く（そちらは実際にマッチする）。
+- **なぜ**: いまは「押しても何も起きない」で気づくしかなく、
+  しかも `prepend_keymap` だと**既定が動いてしまう**ので「効いている」と誤解する。
+- **大きさ**: 判定 1 つと warning 1 行。`Key::parse` の結果から見るだけなので関数 1 つ分。
+
+#### 3. `[[mgr.keymap]]` が既定を置き換えたことを起動時に一度言う
+
+- **何に当たったか**: Finding 1 の後半。`[[mgr.keymap]]` に 1 行書いただけの設定で起動した
+  filer は、**キーボードから終了する手段を失っていた**（`q` も `<C-q>` も `<C-F5>` も無い）。
+  この run は `Stop-Process` で落としたが、人がやれば「固まった」と読む。
+- **何を変えるか**: `keymap` セクションが与えられて既定が捨てられたときに、起動時トースト
+  1 本 — `[mgr] keymap replaces the 1 default bindings`（数は実際の件数）。
+  警告ではなく事実の通知で十分。`filer env` にも同じ行を出す。
+- **なぜ**: `keymap` と `prepend_keymap` の差は**崖**で、yazi の設定を写してくる人が
+  一番踏みやすい。差が出るのは「書いたキーが効く」ではなく「**書かなかったキーが全部消える**」
+  側なので、効いたかどうかを見ても気づけない。
+- **大きさ**: `fold()` が `Some(list)` を取った回数を数えて返すだけ。十数行。
+
+#### 4. `--keys` の最後に、設定を読み直させる手がかりが欲しい
+
+- **何に当たったか**: 36.10 は `<C-F5>` を含む行なので、`<Wait:4000>` の間に PowerShell から
+  `keymap.toml` を置き、その後に `<C-F5>` を押す、という**外と中の二人三脚**になった。
+  成立はしたが、「再読込が本当に起きたか」は**直接は読めない**（この run は「`q` が効かなく
+  なったこと」から逆算した）。
+- **何を変えるか**: `FILER_KEYS_DONE` に `config: <読み込んだファイルを `;` 区切りで>` を
+  足す。提案 1 と同じ場所で、同じ 1 行。
+- **なぜ**: 設定まわりの行（33 節、35 節、36.10、36.18）は全部これで「読んだ設定」を
+  突き合わせられるようになる。いまは `filer env` を**別プロセスで**走らせて推測している。
+- **大きさ**: 1 行。読み込んだパスは `config` 側がすでに持っている。
+
+### 順番表（`.claude/windows-role.md`「The ARM64 lane」）
+
+無人実行は `.claude/` への書き込みを権限で拒否されるので、変更は PR 本文の `## Queue` に書いた。
+
+- **`36. T, and q from each layer` の行は、残り 1 行に削る。**36.13 / 36.14 / 36.15 / 36.18 は
+  `[x]` にした。**36.10 だけが残る**が、これは Finding 1 のとおり**行の文面が実機と合わない**ので、
+  TESTING.md を直してからでないとチェックできない。順番表から外して TODO.md 行きにするのが筋。
+- `the test suite` の行はそのまま残す（この run も **594 / 0**、0.67.4）。

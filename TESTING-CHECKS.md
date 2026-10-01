@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**268 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
+**272 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -555,15 +555,15 @@ fsutil hardlink list <新しくできたパス>
 - [x] **35.9** [共通] `last-run.toml` → 状態ディレクトリ（`data_dir()`）のまま。この変更では**触っていない**。Windows では同じ `%APPDATA%\filer`、Linux では `~/.local/share/filer` — *Any → `last-run.toml` → Still in the state directory (`data_dir()`), which this change did **not** touch. On Windows that is the same `%APPDATA%\filer`; on Linux `~/.local/share/filer`*
 - [x] **35.10** [共通] 別の場所から設定ディレクトリへ `filer.toml` をシンボリックリンクして `<C-F5>` → リンク越しに読まれる。**リンクのパス経由で、保存時に改名するエディタで編集したあと**もう一度確かめること（それをするとシンボリックリンクが普通のファイルに置き換わる） — *Any → Symlink `filer.toml` into the config directory from elsewhere, then `<C-F5>` → Read through the link. Re-check after editing via the **link path** with an editor that saves by rename — that replaces the symlink with a regular file*
 
-## 36. `T` と、`<F3>` との違い — 0 / 5
+## 36. `T` と、`<F3>` との違い — 4 / 5
 
 自動テスト済みなので下には出していない: 36.1, 36.2, 36.3, 36.4, 36.5, 36.5a, 36.5b, 36.5c, 36.6, 36.7, 36.8, 36.9, 36.11, 36.12, 36.16, 36.17
 
 - [ ] **36.10** `prepend_keymap` で `T` ではなく `<S-t>` を割り当てて `<C-F5>` → **どのキーを押しても何も起きない。**テストが固定している教訓そのもの。記法としては正しいので、警告も出ない — *Bind `<S-t>` instead of `T` in `prepend_keymap`, `<C-F5>` → **Nothing happens on any key** — the lesson the tests pin. No warning is printed either, because the notation is valid*
-- [ ] **36.13** 最大化プレビュー（`T`）の状態で `q` → 列が戻り、アプリは動き続ける — *maximized preview (`T`) → `q` → Columns back, app still running*
-- [ ] **36.14** `help`（`~`）、タスク一覧、spot（`Tab`）、比較（`<A-d>`）のそれぞれで `q` → 閉じるだけでアプリは動き続ける（以前から同じ。これらは元々自分のレイヤーを持っている） — *`help` (`~`), task list, spotter (`Tab`), comparison (`<A-d>`) → `q` in each → Closes, app still running (unchanged — these already had their own layer)*
-- [ ] **36.15** 何も開いていない状態で `q` → 1 回目で終了する — *Nothing up → `q` → Quits on the first press*
-- [ ] **36.18** `[[mgr.keymap]]` で `on = "Q"` / `run = "quit"` を割り当て、`<F3>` を開いた状態で `Q` → `q` と同じくまずパネルが閉じる。**挙動は文字ではなく動作に紐づいている** — *Rebind: `[[mgr.keymap]]` with `on = "Q"`, `run = "quit"`, then `Q` with `<F3>` up → Closes the panel first, like `q` — the behaviour is on the action, not the letter*
+- [x] **36.13** 最大化プレビュー（`T`）の状態で `q` → 列が戻り、アプリは動き続ける — *maximized preview (`T`) → `q` → Columns back, app still running*
+- [x] **36.14** `help`（`~`）、タスク一覧、spot（`Tab`）、比較（`<A-d>`）のそれぞれで `q` → 閉じるだけでアプリは動き続ける（以前から同じ。これらは元々自分のレイヤーを持っている） — *`help` (`~`), task list, spotter (`Tab`), comparison (`<A-d>`) → `q` in each → Closes, app still running (unchanged — these already had their own layer)*
+- [x] **36.15** 何も開いていない状態で `q` → 1 回目で終了する — *Nothing up → `q` → Quits on the first press*
+- [x] **36.18** `[[mgr.keymap]]` で `on = "Q"` / `run = "quit"` を割り当て、`<F3>` を開いた状態で `Q` → `q` と同じくまずパネルが閉じる。**挙動は文字ではなく動作に紐づいている** — *Rebind: `[[mgr.keymap]]` with `on = "Q"`, `run = "quit"`, then `Q` with `<F3>` up → Closes the panel first, like `q` — the behaviour is on the action, not the letter*
 
 ## 37. `start ""` 形式のオープナーが実際に起動するか — 6 / 8
 
