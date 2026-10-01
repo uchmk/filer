@@ -8760,3 +8760,157 @@ Open failed: `C:\Program Files\Hidemaru\Hidemaru.exe` was not found — "C:\Prog
   （`YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` をこの run でも 2 本の設定に使った。8 行のうち
   7.2 / 7.3 は見た目）と **36. `T`, and `q` from each layer**（`Get-Process filer` と窓のタイトルだけで
   読める 5 行）。どちらも x64 側の順番表にあるが、ARM64 でも同じ道具で取れる。
+
+## TESTING.md section 7 — ヘルプパネルの設定パス 8 行を ARM64 で全部取った（bb75d64 / 0.67.3、ARM64 レーン、無人の run）
+
+ARM64 レーンの順番表の先頭「**7. the config paths in the help panel**（8 行）」が担当。native の ARM64
+ビルドで走らせた（`filer env` が `OS arch aarch64` / `Process arch aarch64`、`Executable :
+C:\dev\filer-armtest\target\release\filer.exe`、`filer 0.67.3 (aarch64)`）。`cargo test` は **594 / 0**
+（ネイティブ ARM64、7.85 s、bb75d64）。ConPTY は `fetch-conpty.ps1` で `1.24.260710001 (arm64)` を
+`target\release` へ（この節はペインを使わないが、手順どおり置いた）。一時フォルダは
+`C:\Users\yuu06\AppData\Local\Temp\filer-scratch\arm7`（この機械に RAM ディスクは無く、`TEMP` / `TMP` は
+スクリプトがそこへ向けている）。**昇格していない**（この節に昇格の要る行は無い）。
+
+**8 行すべてにチェックを付けた（0 / 8 → 8 / 8）。**`make-testcheck` を回して 268 / 445、
+`-- --check` は `in sync`。`make-keycheck -- --check` も `in sync`（249 / 250、この run は触っていない）。
+順番表が「見た目だから飛ばす」としていた **7.2 / 7.3 も、数として読めたので取った**（下の節に理由）。
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `PROCESSOR_ARCHITECTURE=ARM64`、ASUS のノート PC |
+| OS | `Windows 11 Home 26H1 (build 28000.2956)` |
+| rustc | 1.98.1 (48a229cea 2026-09-01) / aarch64-pc-windows-msvc |
+| 昇格 | 無し（`IsInRole('Administrators')` = False） |
+| 画面 | 入力デスクトップは終始 `Default`、`SPI_GETSCREENSAVERRUNNING` False、`LogonUI` 無し（マウスを使う行の前に毎回読んだ） |
+| 実機の設定 | `%APPDATA%\yazi\config\` に `yazi.toml` 2.6 K と `keymap.toml` 0 B、`%APPDATA%\filer\` に `keymap.toml` 124 B。`theme.toml` はどちらにも無いので、色は `theme.rs` の既定値 |
+
+生の証拠は `C:\dev\filer-evidence\arm-7\`（`*.png`、`done*.txt` = `FILER_KEYS_DONE` の中身、`win.ps1` =
+窓を探す・撮る・クリックする・ポインタを置く・画素を数える補助）。
+
+### 測り方
+
+- **キーは `--keys`。**`<Shot:name>`（0.67.0）がこの節と相性がよく、`~` を押した直後のパネルを
+  **同じ run の中で** PNG にできる。パネルの文字はそのまま読めるので、「両方のディレクトリが並ぶ」
+  「`nothing here` が付く」は読み取りで済んだ。
+- **マウスは `SendInput`。**クリックできる行はヘルプパネルの設定パスだけで、`--keys` では押せない。
+  押す前に入力デスクトップと screen saver を確かめ、`GetCursorPos` で**狙った画素に本当に乗ったか**を
+  毎回読んでからボタンを送った。
+- **落とし穴（この run で 1 回空振りした）**: PowerShell で `$arr[0].dx = …` と書くと、**配列から取り出した
+  構造体のコピー**に書くので、`SendInput` には全部 0 の `INPUT` が渡る。戻り値は 1 で、
+  「成功したのに何も起きない」顔をする。ローカルに組んでから `$arr[0] = $m` と入れ直すと直った。
+  `Landed`（`GetCursorPos`）を毎回読む形にしてあるのは、これを二度とやらないため。
+- **色は画素を数えた。**`PrintWindow(PW_RENDERFULLCONTENT)` で窓を取り込み、行の帯の中の色を
+  `Bitmap.GetPixel` で集計して、`theme.rs` の定数と突き合わせた（取り込みは窓枠込みなので、filer 自身の
+  `<Shot:>` より x が +8、y が +31 ずれる）。
+
+### 行ごとの根拠
+
+- **7.1**（両方並び、空のほうに `nothing here`）: `YAZI_CONFIG_HOME` = `…\arm7\yz-home`（`yazi.toml` 28 B
+  だけ）、`FILER_CONFIG_HOME` = `…\arm7\fl-home`（空）。**どこにも `filer.toml` は無い。**
+  `--keys "~<Shot:help71>"`、`FILER_KEYS_DONE` が `overlay: help`。`help71.png` の `config` 欄に
+  `…\yz-home\`（下に `yazi.toml`）と `…\fl-home\` が並び、`fl-home` の行の右端に `nothing here`。
+- **7.2**（パス行をホバー → 光る・手になる）: `…\yz-home\` の行（client 400,126）に**ポインタを置いただけ**
+  （ボタンは送っていない）。`hov_path.png` の帯（窓座標 y 157..172、x 120..1260）は
+  **`#2f4a6b` が 16011 px** = `theme.hovered_bg` の既定値（`src/config/theme.rs:345`）。
+  `GetCursorInfo().hCursor` = 65567 = `LoadCursorW(NULL, IDC_HAND)`。
+- **7.3**（キー行をホバー → 何も起きない）: 同じ置き方を `q  Quit the process` の行（client 400,425）へ。
+  帯は `#1b1e24`（`bg_alt`）が 17794 px で、**`#2f4a6b` は 0 px**。カーソルは 65539 = `IDC_ARROW`。
+- **7.4**（設定ファイルをクリック → その上にカーソル、`<Enter>` で開く）: 実機の設定（変数なし）で
+  `%APPDATA%\yazi\config\` の下の `yazi.toml` 行（client 310,149）をクリック。窓タイトルが
+  `Filer: C:\Users\yuu06\AppData\Roaming\yazi\config` に変わり、`post74r.png` はパネルが消えて
+  ヘッダが `…\yazi\config\yazi.toml`、その行が反転、プレビューに中身。続けて `<Enter>` を送ると
+  filer の子プロセスは `"cmd" /S /C "nvim "C:\Users\yuu06\AppData\Roaming\yazi\config\yazi.toml""`
+  （`Win32_Process.CommandLine`）。
+- **7.5**（ディレクトリをクリック → 空でも行く）: scratch の設定に戻し、**空の** `…\fl-home\` の行
+  （client 400,172）をクリック。タイトルが `Filer: …\arm7\fl-home`、`post75b.png` はタブが `1 fl-home`、
+  ヘッダが `…\fl-home`、右上が `0 items`、プレビューが `(empty)`。
+- **7.6**（空のほうに `filer.toml` を作って `<C-F5>`）: `fl-home` を空に戻し、
+  `--keys "~<Shot:a76b><Wait:6000><Esc><C-F5><Wait:500>~<Shot:b76b>"`。待っている間（開始 2.5 s 後）に
+  PowerShell から `fl-home\filer.toml`（27 B）を作った。`a76b.png` は `nothing here`、`b76b.png` は
+  `…\fl-home\` の下に `filer.toml` が並び、**`nothing here` も「読んでいない」警告も無い**。
+  `FILER_KEYS_DONE` の `toast: Reloaded 2 config file(s)`。
+- **7.7**（変数に従う）: 同じコマンドを変数だけ変えて 2 回。**設定あり** → `…\arm7\yz-home\` と
+  `…\arm7\fl-home\`（`help71.png`）、**設定なし** → `C:\Users\yuu06\AppData\Roaming\yazi\config\` と
+  `C:\Users\yuu06\AppData\Roaming\filer\`（`help77d.png`）。`filer env` の `Config` 欄も同じ 2 本を出す。
+- **7.8**（警告行は黄色のまま、クリックできない）: 実機の設定には警告が 1 本ある
+  （`[mgr] T is bound more than once; only plugin toggle-pane max-preview runs`）。`pre78.png` の
+  その行の帯（client y 236..252、x 239..900）は **`#e8c87a` が 307 px**（残りはアンチエイリアスの
+  `#e7c779` など）＝ `theme.warning` の既定値（`src/config/theme.rs:388`）。同じパネルの普通の行は
+  `#c8cdd8`（`fg`）、パス行は `#6fd0d0`（`cwd.fg`）なので、**3 色が別々に出ている。**ホバーしても
+  `#2f4a6b` は 0 px、カーソルは `IDC_ARROW`。クリックしても窓タイトルは変わらず、クリック前後の
+  取り込み画像の差は **2756 px、箱は (16,550)-(102,817)** だけ —— パネルの外の親カラムに
+  **この run 自身が書いた PNG が増えた**ぶんで、パネルは 1 px も動いていない。
+
+### 7.2 / 7.3 を「見た目」から外した
+
+順番表は「7.2 と 7.3 はポインタとハイライト —— 見た目、飛ばす」と書いている。今回はどちらも
+**数**として読めた: ハイライトは帯の中の `theme.hovered_bg` の画素数（16011 対 0）、ポインタは
+`GetCursorInfo` の `hCursor` と `LoadCursorW(IDC_HAND)` の**ハンドルの一致**。外れていれば数が違うので、
+「もっとよく見ていれば気づいた」にはならない。だから `[x]` を付けた。7.8 も同じ線で、
+**「`theme.warning` の値そのもので描かれている」までしか言っていない**（その色が黄色に見えるかは
+持ち主の判断）。この線を認めないなら、7.2 / 7.3 / 7.8 の 3 つを外せばよい。
+
+### 見つかったこと
+
+1. **ヘルプパネルを開いたまま `<C-F5>` を押しても何も起きない。**7.6 の最初の試行がそれで
+   （`a76.png` → `b76.png`）、パネル自身が `on disk, not read yet — <C-F5> re-reads config` と
+   書いている行の真下で `<C-F5>` を押したのに、閉じて開き直しても同じ警告のままだった。
+   `src/main.rs:1001` が `Overlay::Help` のキーを `feed_overlay_key` に回すので、`help` レイヤに
+   無いキーはそこで消える。`<Esc>` で閉じてから押せば `Reloaded 2 config file(s)` が出る。
+   **行の手順（パスをクリック → パネルは閉じる → `<C-F5>`）どおりなら動くので、7.6 は通した。**
+2. **オープナーが 1 つも設定されていないと、`<Enter>` は何も起きず何も言わない。**`[opener]` の無い
+   `yazi.toml` だけを読ませて `yz-home\yazi.toml` の上で `--keys "<Enter><Wait:2500>"`。
+   `FILER_KEYS_DONE` は `overlay: none` と `toast:`（空）、filer の子プロセスも無し、窓も開かない。
+   `src/app.rs` の `open()` は `openers.first()` が `None` のとき `exec::open_default()` に落ち、
+   `Ok(())` なら黙る。`<S-Enter>`（interactive）のほうは `No opener configured for this file type` と
+   言うので、**黙るのは `<Enter>` だけ。**
+
+### Proposals
+
+#### 1. `<C-F5>` を、ヘルプパネルを開いたままでも効かせる
+
+- **何に当たったか**: 上の 1。パネルが `<C-F5> re-reads config` と**自分で書いている**行を見ながら
+  `<C-F5>` を押して、何も起きなかった。押した側には「効かないキー」と「効いたが変化が無い」の
+  区別が付かない（トーストも出ないので、押せていないことすら分からない）。
+- **何を変えるか**: `config_reload` を `help` レイヤにも入れる（既定 `keymap.toml` の `[help]` に 1 行）。
+  パネルは開いたまま、再読込後の内容に描き変わるのが自然。
+- **なぜ**: あの警告を読む人は**必ずその直後に再読込したい。**いま要るのは `<Esc>` → `<C-F5>` → `~` の
+  3 キーで、しかも「パネルを閉じないと効かない」とはどこにも書いていない。
+- **大きさ**: 既定 keymap に 1 行。レイヤを跨がせたくないなら、せめて**効かなかったキーに
+  「このパネルでは使えません」のトースト**を出す（こちらは `feed_overlay_key` 側の話）。
+
+#### 2. `<Enter>` が ShellExecute に落ちたときも、何をしたかを言う
+
+- **何に当たったか**: 上の 2。オープナーの無い設定で `<Enter>` を押すと、画面もディスクも
+  1 ビットも変わらない。**壊れているのか、設定が足りないのか、キーが届いていないのかが分からない。**
+  この run は `FILER_KEYS_DONE` と `Win32_Process` を両方読んで初めて「届いていたが何も起きなかった」と
+  言えた。
+- **何を変えるか**: `open_default()` が `Ok` のときも短いトーストを出す（`既定のアプリに渡した: yazi.toml`）。
+  関連付けが無いときに Windows が何も出さないことがあるので、**filer 側が言うしかない。**
+- **なぜ**: `<S-Enter>` は `No opener configured for this file type` と言う。同じ状態で `<Enter>` だけが
+  黙るのは、2 つのキーの説明が食い違っているのと同じ。
+- **大きさ**: `src/app.rs` の `open()` の `None` の腕に 1 行。
+
+#### 3. ヘルプパネルの設定パスに、キーで届く道を 1 本つける
+
+- **何に当たったか**: この節の 4 行（7.2 / 7.3 / 7.4 / 7.5）は**マウスでしか押せない**ので、
+  `--keys` が揃っている今でも P/Invoke を 180 行書くことになった。パネルの行は
+  **プログラム中で唯一、キーから触れないクリック対象**（`goes_to` を持つのはここだけ）。
+- **何を変えるか**: パネルが開いている間、`j` / `k` が設定パスの行も選べるようにし、`<Enter>` で
+  `goes_to` を実行する。いまの `j` / `k` はスクロールなので、**`<Tab>` で「パスを選ぶ」状態に入る**でも
+  よい。
+- **なぜ**: キーボードだけで使うファイラで、ここだけマウスが要る。無人のテストから見ても、
+  マウスを使う行は screen saver と入力デスクトップの状態に左右されるぶん、取りこぼしやすい
+  （#88 がその事故）。
+- **大きさ**: `help` レイヤにカーソルを 1 つ持たせる（`app.help_scroll` の隣に `help_cursor`）。
+  描画側は `live` の判定に「カーソル行か」を足すだけ。
+
+### 順番表（`.claude/windows-role.md`「The ARM64 lane」）
+
+無人実行は `.claude/` への書き込みを権限で拒否されるので、変更は PR 本文の `## Queue` に書いた。
+
+- **`7. the config paths in the help panel` の行は消す。**8 行とも `[x]` にした。
+- 次は `36. T, and q from each layer`（5 行）がそのまま先頭になる。
+- `the test suite` の行はそのまま残す（この run も **594 / 0**、0.67.3）。

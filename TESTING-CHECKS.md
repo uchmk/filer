@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**260 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
+**268 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -156,18 +156,18 @@ cd $HOME\Desktop\filer-fixtures
 
 - [ ] **6.15** 大きなディレクトリを `<A-c>` して、ステータスバーを見る → 他のコピーと同じジョブ扱い。進捗と速度が出て、`w` から中止できる — *`<A-c>` a large directory, then watch the status bar → It is a job like any other copy: progress, speed, and cancellable from `w`*
 
-## 7. ヘルプパネルの設定ファイルパス — 0 / 8
+## 7. ヘルプパネルの設定ファイルパス — 8 / 8
 
 `~` か `<F1>` でヘルプを開く。上部の設定パスの並びが対象。
 
-- [ ] **7.1** どこにも `filer.toml` が無い状態で `~` → **両方の**ディレクトリが並び、空のほうに `nothing here` が付く（v0.25.0 までは存在するファイルしか出なかった） — *`~` with no `filer.toml` anywhere → **Both** directories are listed, the empty one marked `nothing here`. Before v0.25.0 only files that existed were shown*
-- [ ] **7.2** パスの行をホバー → 行が光り、ポインタが手の形になる — *Hover a path → The row lights up and the pointer becomes a hand*
-- [ ] **7.3** キーの行をホバー → 何も起きない。そこはリンクではない — *Hover a key row → Nothing happens — it is not a link*
-- [ ] **7.4** 設定**ファイル**をクリック → パネルが閉じ、そのファイルにカーソルを置いた状態でディレクトリが開く。`<Enter>` でそのまま開ける — *Click a config **file** → The panel closes, the list opens its directory with that file under the cursor. `<Enter>` then opens it*
-- [ ] **7.5** **ディレクトリ**をクリック → パネルが閉じ、空でもそこへ移動する — *Click a **directory** → The panel closes and the list goes there, empty or not*
-- [ ] **7.6** 空のほうをクリックし、そこに `filer.toml` を作って `<C-F5>` → 次に開いたとき `nothing here` が消えている — *Click the empty one, then create `filer.toml` there and `<C-F5>` → It appears in the panel next time, without `nothing here`*
-- [ ] **7.7** `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う — *With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set → The listed directories follow them*
-- [ ] **7.8** 設定の警告行 → 黄色のまま。クリックできない — *A config warning line → Still yellow, and not clickable*
+- [x] **7.1** どこにも `filer.toml` が無い状態で `~` → **両方の**ディレクトリが並び、空のほうに `nothing here` が付く（v0.25.0 までは存在するファイルしか出なかった） — *`~` with no `filer.toml` anywhere → **Both** directories are listed, the empty one marked `nothing here`. Before v0.25.0 only files that existed were shown*
+- [x] **7.2** パスの行をホバー → 行が光り、ポインタが手の形になる — *Hover a path → The row lights up and the pointer becomes a hand*
+- [x] **7.3** キーの行をホバー → 何も起きない。そこはリンクではない — *Hover a key row → Nothing happens — it is not a link*
+- [x] **7.4** 設定**ファイル**をクリック → パネルが閉じ、そのファイルにカーソルを置いた状態でディレクトリが開く。`<Enter>` でそのまま開ける — *Click a config **file** → The panel closes, the list opens its directory with that file under the cursor. `<Enter>` then opens it*
+- [x] **7.5** **ディレクトリ**をクリック → パネルが閉じ、空でもそこへ移動する — *Click a **directory** → The panel closes and the list goes there, empty or not*
+- [x] **7.6** 空のほうをクリックし、そこに `filer.toml` を作って `<C-F5>` → 次に開いたとき `nothing here` が消えている — *Click the empty one, then create `filer.toml` there and `<C-F5>` → It appears in the panel next time, without `nothing here`*
+- [x] **7.7** `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う — *With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set → The listed directories follow them*
+- [x] **7.8** 設定の警告行 → 黄色のまま。クリックできない — *A config warning line → Still yellow, and not clickable*
 
 ## 8. ターミナルペインが起動するシェル — 5 / 7
 
