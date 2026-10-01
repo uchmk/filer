@@ -2214,19 +2214,15 @@ impl App {
         }
     }
 
-    /// The pull request page the spot cursor is on, when it is on one: the
-    /// `Came in via` row or the page's own row, in a section that has a page.
+    /// The page the spot cursor is on, when it is on one: the pull request
+    /// from its `Came in via` row or its own row, the branch from `From branch`.
     fn spot_pr_url(&self) -> Option<String> {
         let Overlay::Spot(ov) = &self.overlay else { return None };
         let sections = self.spot_sections();
         let mut at = ov.cursor;
         for s in &sections {
             if at < s.rows.len() {
-                let key = s.rows[at].0.as_str();
-                if key != "Came in via" && key != crate::spot::PR_ROW {
-                    return None;
-                }
-                return s.rows.iter().find(|(k, _)| k == crate::spot::PR_ROW).map(|(_, v)| v.clone());
+                return page_for(&s.rows, &s.rows[at].0);
             }
             at -= s.rows.len();
         }
@@ -6319,6 +6315,51 @@ mod diff_tree_keys {
         a.diff_act(Act::Arrow(crate::config::cmd::Step::Rel(1)));
         a.diff_act(Act::FindArrow { prev: false });
         assert_eq!(cursor(&a), 0);
+    }
+}
+
+/// The web page behind one row of spot's Git section. `From branch` sat
+/// between two rows that opened and was the one that did nothing (#119); its
+/// page is built from the pull request's, which already carries the
+/// repository, so `<Enter>` asks git nothing on the UI thread.
+fn page_for(rows: &[(String, String)], key: &str) -> Option<String> {
+    let pr = rows.iter().find(|(k, _)| k == crate::spot::PR_ROW).map(|(_, v)| v.as_str())?;
+    match key {
+        "Came in via" => Some(pr.to_owned()),
+        k if k == crate::spot::PR_ROW => Some(pr.to_owned()),
+        "From branch" => {
+            let branch = rows.iter().find(|(k, _)| k == "From branch").map(|(_, v)| v.as_str())?;
+            let repo = &pr[..pr.rfind("/pull/")?];
+            Some(format!("{repo}/tree/{branch}"))
+        }
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod spot_pages {
+    use super::page_for;
+
+    /// The three rows that name a place on GitHub all open it; the rest do not.
+    #[test]
+    fn each_git_row_opens_its_own_page() {
+        let rows: Vec<(String, String)> = [
+            ("Came in via", "#71  48b6c9c"),
+            ("From branch", "claude/task-09i0cs"),
+            (crate::spot::PR_ROW, "https://github.com/uchmk/filer/pull/71"),
+            ("Subject", "x"),
+        ]
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        assert_eq!(page_for(&rows, "Came in via").as_deref(), Some("https://github.com/uchmk/filer/pull/71"));
+        assert_eq!(
+            page_for(&rows, "From branch").as_deref(),
+            Some("https://github.com/uchmk/filer/tree/claude/task-09i0cs")
+        );
+        assert_eq!(page_for(&rows, "Subject"), None);
+        // No pull request, no repository to build a branch page from.
+        assert_eq!(page_for(&rows[1..2], "From branch"), None);
     }
 }
 

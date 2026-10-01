@@ -732,7 +732,7 @@ desc = "Type the selected paths into the terminal"
 [[mgr.keymap]]
 on = "<C-S-Enter>"
 run = "term_max"
-desc = "Give the terminal pane the window, or hand it back"
+desc = "Give the terminal pane the window (the same key in the pane gives it back)"
 
 # --- Terminal pane ------------------------------------------------------------
 # Only what is bound here is kept; every other key goes to the shell, which is
@@ -1067,7 +1067,7 @@ desc = "Copy the whole panel, labelled"
 [[spot.keymap]]
 on = "<Enter>"
 run = "enter"
-desc = "Open the pull request on its rows; enter the directory elsewhere"
+desc = "Open the pull request or branch on its rows; enter the directory elsewhere"
 [[spot.keymap]]
 on = "<Up>"
 run = "swipe -1"

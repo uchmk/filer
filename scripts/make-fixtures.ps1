@@ -35,6 +35,18 @@ New-Item -ItemType Directory -Path $Path | Out-Null
 $root = (Resolve-Path -LiteralPath $Path).Path
 Write-Host "Building fixtures in $root`n"
 
+# What a group actually left on disk, against what it meant to make. The
+# script used to print only its intentions, and `awkward names\` was silently
+# three files short for many runs (#111).
+$script:short = 0
+function Test-Count([string] $dir, [int] $want, [string] $label, [string] $why = '') {
+    $got = @(Get-ChildItem -LiteralPath $dir -Force).Count
+    if ($got -ne $want) {
+        $script:short++
+        Write-Warning "${label}: $got entries on disk, expected $want$why"
+    }
+}
+
 function New-Dir([string] $name) {
     $p = Join-Path $root $name
     New-Item -ItemType Directory -Path $p -Force | Out-Null
@@ -155,6 +167,7 @@ foreach ($name in @(
     }
 }
 Write-Host '  awkward names\       spaces, CJK, a quote, a very long one, case pairs'
+Test-Count $awkward 6 'awkward names' ' (UPPER.TXT and upper.txt are one file in a case-insensitive folder; 24.3 needs `fsutil file setCaseSensitiveInfo <dir> enable`)'
 
 # --- files to rename in bulk (`R`), including a pair to swap.
 $ren = New-Dir 'bulk-rename'
@@ -168,6 +181,7 @@ Set-Content -LiteralPath (Join-Path $ren 'ab.txt') -Value 'ab' -Encoding UTF8
 Set-Content -LiteralPath (Join-Path $ren 'ba.txt') -Value 'ba' -Encoding UTF8
 Set-Content -LiteralPath (Join-Path $ren 'in the way.txt') -Value 'blocker' -Encoding UTF8
 Write-Host '  bulk-rename\         IMG_0001..0012, ab/ba to swap, a name in the way'
+Test-Count $ren 15 'bulk-rename'
 
 # --- a repository with every state the git signs are drawn for.
 $repo = New-Dir 'repo'
@@ -208,6 +222,10 @@ $many = New-Dir 'many'
     Set-Content -LiteralPath (Join-Path $many ("item-{0:D3}.txt" -f $_)) -Value "$_" -Encoding UTF8
 }
 Write-Host '  many\                500 entries, for scrolling and select-all'
+Test-Count $many 500 'many'
 
+if ($script:short -gt 0) {
+    Write-Warning "$($script:short) group(s) did not come out as intended; see above"
+}
 Write-Host "`nDone. Point filer at:`n  $root"
 Write-Host 'The checklist that uses these is TESTING.md in the repository root.'
