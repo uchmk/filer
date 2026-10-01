@@ -1404,7 +1404,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   CI のランナーには設定が無いので緑のまま。`ui::harness::Screen` が一時ディレクトリを使いながら**本物の設定ディレクトリ**を読んでいるのが原因。
   ハーネスが `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を空のディレクトリに向けて組むよう直す（環境変数はプロセス全体なので、
   読む側に渡す形にするか、テストの間だけ固定する）。
-- [ ] `name_shell`（`src/terminal.rs`）が、`[term] shell = "powershell"` と書いたときは版を付けない（所見、29.8）。
+- [x] （v0.65.3。ファイル名が `powershell` なら、設定で書いたものでも同じ名前にする。どちらの区切りのパスでも読む。29.7 の文言が変わったので印を外し、29.7 / 29.8 を再テストに積んだ）`name_shell`（`src/terminal.rs`）が、`[term] shell = "powershell"` と書いたときは版を付けない（所見、29.8）。
   既定のシェルのときだけ `powershell (Windows PowerShell 5.1)` になる。設定で書いた名前でも同じ形にする。
 - [ ] 23.5: `C:\Temp\a|b\c\d` と打つと、トーストが 1 つ上の `C:\Temp\a|b\c` を名指す（所見）。打ったパスをそのまま出す。
 - [ ] spot パネルの見出しが `<Esc> to close` だけで、行を動かす `<A-j>` / `<A-k>` が書いていない（提案 2）。`C` と `<Enter>` で行に
