@@ -3674,6 +3674,7 @@ impl App {
             Ok(l) => {
                 self.toast(format!("$ {line}"));
                 self.launches.push(l);
+                crate::runinfo::remember_launch(line);
             }
             Err(e) => self.error(format!("{what}: {e}")),
         }
