@@ -59,6 +59,36 @@ pub fn press(step: &Step) -> Option<Press> {
     }
 }
 
+/// A step as it was written, for saying where a script stopped.
+pub fn label(step: &Step) -> String {
+    match step {
+        Step::Key(k) => k.to_string(),
+        Step::Wait(d) => format!("<Wait:{}>", d.as_millis()),
+        Step::Now => "<Now>".into(),
+        Step::Shot(name) => format!("<Shot:{name}>"),
+    }
+}
+
+/// How long nothing may be pressed, past any `<Wait:N>` due, before a script
+/// counts as stuck. A key waits at most five seconds for things to settle, so
+/// this is only reached when the frame loop itself has stopped running.
+pub const STALL: Duration = Duration::from_secs(30);
+
+/// What `FILER_KEYS_DONE` holds for a script that stopped part way (#168,
+/// proposal 5): which keys went in, the last of them, and what was left.
+/// Before this an unattended run that stalled left nothing at all, so the
+/// result read as missing rather than as failed.
+pub fn stalled_report(labels: &[String], left: usize, quiet: Duration) -> String {
+    let pressed = labels.len().saturating_sub(left);
+    let last = pressed.checked_sub(1).map_or("nothing yet".into(), |i| format!("`{}`", labels[i]));
+    format!(
+        "keys: stalled\nstalled: {} s with nothing pressed\npressed: {pressed} of {} (last: {last})\nleft: {}\n",
+        quiet.as_secs(),
+        labels.len(),
+        labels[pressed..].join(" "),
+    )
+}
+
 /// `<Shot:name>`'s name: letters, digits, `-` and `_`, so it is a file name on
 /// every platform and cannot climb out of the folder it is saved in.
 fn shot(token: &str) -> Result<String, String> {
@@ -151,6 +181,17 @@ pub fn events(key: &Key) -> Option<Vec<egui::Event>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #168: a script that stopped says how far it got, in the notation it
+    /// was written in.
+    #[test]
+    fn a_stalled_script_says_where_it_stopped() {
+        let labels: Vec<String> = parse("d<Wait:9000>u<Shot:after>").unwrap().iter().map(label).collect();
+        assert_eq!(labels, ["d", "<Wait:9000>", "u", "<Shot:after>"]);
+        let said = stalled_report(&labels, 2, Duration::from_secs(39));
+        assert_eq!(said, "keys: stalled\nstalled: 39 s with nothing pressed\npressed: 2 of 4 (last: `<Wait:9000>`)\nleft: u <Shot:after>\n");
+        assert!(stalled_report(&labels, 4, STALL).contains("pressed: 0 of 4 (last: nothing yet)"));
+    }
 
     /// Q42: `<Shot:name>` is a step of its own, and its name is a plain file name.
     #[test]

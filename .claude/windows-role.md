@@ -44,6 +44,10 @@ harmless keys any more; a wait says how long it waited.
 **Since v0.65.0 `<Now>`** presses the next key without waiting for the last to settle (`d<Now>w`, `j<Now>j`), and
 **since v0.67.0 `<Shot:name>`** saves the window as `name.png` beside the `FILER_KEYS_DONE` file, so the picture between
 two keys comes from the same run (`<Shot:focused><C-t><Shot:unfocused>`).
+**Since v0.67.12** a key waits for a file job it started (trash, restore, copy, link) to finish, so `u<Shot:x>` shows the
+toast without a `<Wait:>` -- use `<Now>` to catch a job mid-run. And the `FILER_KEYS_DONE` file always comes: its last line
+is `keys: done`, or it starts `keys: stalled` with the keys pressed, the last one and the rest, when nothing went in for
+30 s past any wait. **A stalled file is not a result** -- say so in QA-REPORT.md with its lines.
 
 | The row says | What you can read instead |
 | --- | --- |
