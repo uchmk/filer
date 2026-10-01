@@ -255,7 +255,16 @@ pub enum Act {
 }
 
 /// Split a command string into words, honoring single/double quotes.
+///
+/// On Windows a backslash is a path separator, not an escape (Q37): the POSIX
+/// rule turned `cd C:\Users\me` into `C:Usersme`, and the error then named a
+/// path nobody had written (#119). The one escape kept there is `\"` inside
+/// double quotes, which has no other way to be written.
 pub fn lex(s: &str) -> Vec<String> {
+    lex_as(s, cfg!(windows))
+}
+
+fn lex_as(s: &str, windows: bool) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur = String::new();
     let mut quote: Option<char> = None;
@@ -266,7 +275,7 @@ pub fn lex(s: &str) -> Vec<String> {
             Some(q) => {
                 if c == q {
                     quote = None;
-                } else if c == '\\' && q == '"' {
+                } else if c == '\\' && q == '"' && (!windows || it.peek() == Some(&'"')) {
                     if let Some(n) = it.next() {
                         cur.push(n);
                     }
@@ -285,7 +294,7 @@ pub fn lex(s: &str) -> Vec<String> {
                         started = false;
                     }
                 }
-                '\\' => {
+                '\\' if !windows => {
                     if let Some(n) = it.next() {
                         cur.push(n);
                     }
@@ -650,6 +659,18 @@ mod tests {
             "git log --oneline".to_string(),
             "--block".to_string()
         ]);
+    }
+
+    /// Q37 (#119): a Windows path written straight into a keymap's `run`
+    /// keeps its backslashes there; elsewhere the POSIX escape still holds.
+    #[test]
+    fn a_backslash_is_a_separator_on_windows() {
+        let words = |s, w| lex_as(s, w);
+        assert_eq!(words(r"cd C:\Users\me\L", true), ["cd", r"C:\Users\me\L"]);
+        assert_eq!(words(r#"cd "C:\Program Files\x""#, true), ["cd", r"C:\Program Files\x"]);
+        assert_eq!(words(r#"shell "echo \"hi\"""#, true), ["shell", r#"echo "hi""#]);
+        assert_eq!(words(r"cd a\ b", false), ["cd", "a b"]);
+        assert_eq!(words(r#"shell "echo \\n""#, false), ["shell", r"echo \n"]);
     }
 
     #[test]

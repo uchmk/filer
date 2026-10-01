@@ -198,6 +198,11 @@ and the first exact match wins. That is what lets a prepended single-key `m` sha
 `m`-prefixed chords.
 
 `on` accepts a single token (`"T"`), a sequence string (`"gg"`) or an array (`["g", "g"]`).
+
+In `run`, quotes group words as in a shell (`run = "shell 'git log' --block"`). On Windows a backslash
+is part of a path, not an escape, so `run = 'cd C:\Users\me\work'` goes where it says; the one
+escape kept is `\"` inside double quotes. Elsewhere a backslash escapes the next character, as in a
+POSIX shell (v0.59.0; before that a Windows path written without quotes lost its backslashes).
 Key notation is yazi's: `<C-a>`, `<A-S-Up>`, `<Enter>`, `<Space>`, `<F5>`, `<lt>`.
 
 **Line mode** is yazi's name for the right-hand column of the file list — the one value shown
@@ -1271,6 +1276,15 @@ five seconds. It is meant for checks run by a script, where driving the window f
 fragile (a screen saver, for one, swallows synthetic input without a word). It only ever acts on the
 filer it starts: nothing is opened for a filer that is already running. A key that cannot be typed
 is refused on the command line, before any window opens.
+
+`<Wait:N>` pauses N milliseconds (up to 60000) after the key before it, for what filer cannot see
+settle — a shell in the terminal pane, a program running there (v0.59.0):
+
+```powershell
+filer --keys "<C-t><Wait:1500>git<Space>status<Enter><Wait:1000><C-S-Enter>"
+```
+
+A space is written `<Space>`; a plain one is refused.
 
 ## Platform Support (Roadmap)
 
