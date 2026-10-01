@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**250 / 443 済み。**（TESTING.md の全 612 件のうち、`cargo test` が見ている 169 件は
+**252 / 443 済み。**（TESTING.md の全 612 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -364,14 +364,14 @@ fsutil hardlink list <新しくできたパス>
 - [x] **21.11** 同じ入力の `.7z` と `.zip` を比べる → 7z のほうが小さい。それが持っている理由 — *Compare the `.7z` and the `.zip` of the same input → The 7z is smaller; that is the reason to have it*
 - [ ] **21.13** `to-pack\` を `.zip` に圧縮し、`7z l` で見る（v0.57.2）→ どのエントリも元のファイルの日時（偶数秒まで）を持つ。`1980-01-01 00:00:00` ではない — *Pack `to-pack\` as `.zip`, then `7z l` the archive (v0.57.2) → Every entry carries its file's own date and time (to the even second), not `1980-01-01 00:00:00`*
 
-## 22. エディタを行番号付きで開く（エディタのインストールが要る） — 0 / 6
+## 22. エディタを行番号付きで開く（エディタのインストールが要る） — 2 / 6
 
 - [ ] **22.1** 秀丸エディタ → アウトラインの項目の行で開く — *秀丸エディタ → Opens at the outline entry's line*
 - [ ] **22.2** サクラエディタ → 同じ — *サクラエディタ → Same*
 - [ ] **22.3** EmEditor → 同じ — *EmEditor → Same*
 - [ ] **22.4** Notepad++ → 同じ — *Notepad++ → Same*
-- [ ] **22.5** メモ帳 → 開くが先頭から。行を指定する引数が無いので、**これが正しい** — *メモ帳 → Opens, at the top — it has no line argument, and that is correct*
-- [ ] **22.6** VS Code / nvim（入っていれば）→ その行で開く — *VS Code / nvim, if you have them → At the line*
+- [x] **22.5** メモ帳 → 開くが先頭から。行を指定する引数が無いので、**これが正しい** — *メモ帳 → Opens, at the top — it has no line argument, and that is correct*
+- [x] **22.6** VS Code / nvim（入っていれば）→ その行で開く — *VS Code / nvim, if you have them → At the line*
 
 ## 23. ネットワークパス（共有が要る） — 1 / 5
 
