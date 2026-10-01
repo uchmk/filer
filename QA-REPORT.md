@@ -8367,3 +8367,170 @@ ARM64 レーンの無人実行（`.claude/windows-role.md`「The ARM64 lane」�
      `T` を 2 回縛っているので、この機械では起動のたび）。一度読んだ人には
      情報が無く、そのぶん**プレビューという毎回使う面積**を数秒隠す。
    - 大きさ: 出す先を変えるだけなら数行。どこに出すかは見た目の判断なので持ち主へ。
+
+## TESTING.md section 25 — `filer env` の開いていた 9 行を ARM64 で片づけた（8dae632 / 0.65.6、ARM64 レーン、無人の run）
+
+ARM64 レーンの順番表の先頭、25 節（`filer env`、開いていた 9 行）が担当。native の
+ARM64 ビルドで走らせた（`filer env` の `OS arch` / `Process arch` がどちらも `aarch64`、
+`Executable : C:\dev\filer-armtest\target\release\filer.exe`）。`cargo test` は **591 / 0**。
+ConPTY は `fetch-conpty.ps1` で `1.24.260710001 (arm64)` を `target\release` に置いた。
+一時フォルダは `C:\Users\yuu06\AppData\Local\Temp\filer-scratch\s25`（この機械に RAM ディスクは無く、
+`TEMP` / `TMP` はスクリプトがそこへ向けている）。**昇格していない**（この節に昇格の要る行は無い）。
+
+結果: 開いていた 9 行のうち **7 行に `[x]`**。25.11 と 25.19 は付けていない（理由は下の 2 節）。
+25 節は 22 / 31 → **29 / 31**。
+
+| 行 | 結果 | 根拠 |
+| --- | --- | --- |
+| 25.4 | **[x]** | 空の設定（run 限定の `FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME`）では Tools が `git : git version 2.55.0.windows.5 (the status column)` と `pwsh : …\pwsh.exe (terminal pane, the platform default)` の **2 行だけ**。`pdftoppm` / `ffmpeg` / `ffprobe` は出ない。README の `[[preview]]` の 2 例と opener を書いた設定では 6 行に増え、全部に用途が付く（下に貼った） |
+| 25.7 | **[x]** | `Start-Process`（= ShellExecute、ダブルクリックと同じ呼び出し）で起動 → 窓が開き（`MainWindowTitle` が `Filer: …\s25\tree`）、**起動したコンソールの画面バッファは空のまま**（`GetBufferContents` で読んで非空行 0） |
+| 25.11 | **[ ]** | **Windows では成立しない行。**下の節 |
+| 25.16 | **[x]** | `filer …\tree --keys "<Tab>C"` → `FILER_KEYS_DONE` が `overlay: spot` / `hovered: …\tree\sub`、クリップボードが `Name<TAB>sub` / `Path<TAB>…\tree\sub` から始まる `ラベル<TAB>値` の 11 行。前に置いた番兵 `SENTINEL-25-16` は消えている |
+| 25.17 | **[x]** | `--keys "<Tab"` → ``filer: --keys: `<Tab` has no closing `>` ``、`--keys "<Bogus>"` → ``filer: --keys: `<Bogus>` is not a key``。どちらも **1 行だけ**、`$LASTEXITCODE` が **2**、直後の `Get-Process filer` が 0 件（窓は開かない） |
+| 25.18 | **[x]** | `filer env \| Out-File out.txt` と `cmd /c "filer env > out2.txt"` が**どちらも 39 行**で、`Compare-Object` の差分が 0。5 つの節が両方にある。同時に画面バッファは非空行 0。PowerShell 自身の `filer env > out3.txt` は **0 バイト**（行の但し書きどおり） |
+| 25.19 | **[ ]** | 前半（`\| Select-String arch` が arch の 2 行だけ）は合格。**後半（`$v = & filer env; $v.Count`）が 0 になる。**下の節 |
+| 25.20 | **[x]** | 何もリダイレクトせずに `filer env` と `filer --version` → 画面バッファに 35 行のレポートと `filer 0.65.6 (aarch64)` が入っていた |
+| 25.25 | **[x]** | `--keys "j<Enter><Wait:2000>;echo<Space>hi<Enter><Wait:2000>q"` → `Launched` に `notepad "…\alpha.txt"`、`echo hi "…\alpha.txt"` の 2 行が**新しいものが後**で並ぶ。何も起動しなかった run の後は `nothing in that run`。`;` を 7 回打つと **5 件に切られる**（`n3`…`n7` が残った） |
+
+「画面バッファ」は、`conhost.exe pwsh -NoProfile -File <script>` で**本物のコンソールを 1 つ開き**、
+その中で走らせてから `$Host.UI.RawUI.GetBufferContents()` を読んだもの。filer はリダイレクトが
+無いとき `CONOUT$` に直接書くので、パイプでは「画面に出たか」を測れない（25.7 / 25.18 / 25.20 は
+そこが論点の行）。`host: ConsoleHost 7.6.6` と記録してある。
+
+### 25.4 の Tools（設定を入れたほう）
+
+`[[preview]]` は README の `pdftoppm` / `ffmpeg` の例をそのまま、opener は入っているもの 1 つと
+入っていない名前 1 つ:
+
+```text
+Tools
+    git                      : git version 2.55.0.windows.5   (the status column)
+    pwsh                     : C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.6.0_arm64__8wekyb3d8bbwe\pwsh.exe   (terminal pane, the platform default)
+    pdftoppm                 : C:\Users\yuu06\AppData\Local\Microsoft\WinGet\Packages\…\pdftoppm.exe   (preview *.pdf)
+    ffmpeg                   : C:\Users\yuu06\AppData\Local\Microsoft\WinGet\Packages\…\ffmpeg.exe   (preview *.{mp4,mkv,webm,mov,avi})
+    notepad                  : C:\WINDOWS\system32\notepad.exe   (opener [edit])
+    definitely-not-installed : not found   (opener [edit])
+```
+
+持ち主の実設定（環境変数を外した素の状態）でも同じ形で、`start : built into cmd (opener [browser])`、
+`C:\Program Files\Hidemaru\Hidemaru.exe : not found (opener [edit])` などが並ぶ。
+**2026-09 の run が「行の文言がコードと合っていない」と報告していた点は、いまの TESTING.md では
+直っている**（`ffprobe` が消え、`[[preview]]` と opener が名指すものと書かれている）。実測と一致した。
+
+### 見つけたもの 1: `$v = & filer env` は 1 行も捕まえない（25.19 の後半が落ちる）
+
+25.19 は「`$v = & filer env; $v.Count` はレポートの行数で、0 ではない」と言っているが、
+**この機械では 0 になる。**本物のコンソールで、PowerShell 7.6.6 と Windows PowerShell 5.1 の
+両方で同じだった:
+
+```text
+host: ConsoleHost 7.6.6               host: ConsoleHost 5.1.28000.2952
+piped into Select-String arch : 2     piped into Select-String arch : 2
+assigned to a variable        : 0     assigned to a variable        : 0
+--version assigned            : []    --version assigned            : []
+piped into Out-String         : 1854  piped into Out-String         : 1854
+```
+
+- **どこへ行ったのか**: 画面でもない。`Clear-Host` → `$v = & filer env` → 3 秒待って
+  バッファを読むと**非空行 0**、`$v` も 0 件。つまり `say()` は「リダイレクトされている」と
+  判断して標準出力（パイプ）に書き、**その先を誰も読まないまま捨てられている。**
+  `GetFileType` が `FILE_TYPE_PIPE` を返す以上 filer の分岐は書かれたとおりで、
+  PowerShell が GUI サブシステムの子を待たずにパイプラインを閉じる側の話。
+- **効く条件**: 下流に cmdlet があれば通る（`| Select-String`、`| Out-String`、
+  `| ForEach-Object { $_ }` は 39 行）。**代入だけが落ちる。**`filer --version` も同じ。
+- **なぜ重いか**: `filer env` はバグ報告に貼るためのもの。`$v = filer env` は
+  PowerShell で一番自然な取り方で、**しかも失敗が静か**（空が返るだけ）。
+  v0.54.4 が直した「静かに消える捕獲」と同じ症状が、この 1 形だけ残っている。
+- **回避**（報告する人に言えること）: `filer env | Out-String`、
+  `filer env | Set-Content out.txt`、`cmd /c "filer env > out.txt"` はどれも通る。
+- 直し方の案は下の Proposals 1。**行は直していない**（25.19 の後半をどう扱うかは持ち主の判断）。
+
+### 25.11 は Windows では押せない行
+
+25.11 は「ボールド体がどこにも無い状態で → `none found; bold is faked by overstriking`」。
+`src/main.rs` の `system_bold_fonts()` は Windows では**必ず**
+`C:\Windows\Fonts\{meiryob.ttc, YuGothB.ttc, consolab.ttf}` を候補に足す。この 3 つは
+この機械にも全部ある（`Test-Path` が 3 つとも True）。だから設定で何を指定しても
+`used.bold` は空にならず、**Windows でこの行の期待値を出す方法が無い**
+（OS のフォントを消す以外に。やらない）。
+
+- ボールドの兄弟が無いフォント（`C:\Windows\Fonts\consola.ttf` を `Probe.ttf` という名前で
+  コピーしたもの）を `[ui] fonts` に 1 つだけ指定して確かめた: `Fonts` の先頭は
+  `…\fonts\Probe.ttf` になるが、`Bold` は stock の `HackGen*-Bold.ttf` が埋め、
+  `none found` にはならない。`system_fonts()` が Nerd Font と Windows の和文フォントを
+  **設定の後ろに必ず足す**ので、「regular も bold も設定したものだけ」という状態自体が作れない。
+- `system_bold_fonts()` は `cfg!(windows)` が偽のとき空の `Vec` を返すので、
+  **この行は Linux / macOS のレーンでしか成立しない。**順番表の提案に書いた。
+
+### 見つけたもの 2: `--keys` の最後のキーが終了すると `FILER_KEYS_DONE` が書かれない
+
+25.25 を組むときに踏んだ。同じフォルダで 2 回:
+
+```text
+--keys "j"  -> FILER_KEYS_DONE exists: True    filer running: 1
+--keys "jq" -> FILER_KEYS_DONE exists: False   filer running: 0
+```
+
+`src/main.rs` の `raw_input_hook` は、スクリプトが空になった**次に来たフレーム**で
+`script_done` を書く。最後のキーが `q` だと次のフレームが来ないので、ファイルは作られない。
+
+- **なぜ困るか**: 「押して、閉じて、ディスクを見る」形の行（25.25、36 節、47 節など）は
+  スクリプトの末尾に `q` を置くのが自然なのに、**その run だけ状態が読めない。**
+  いまは「`q` を入れない run で状態を読み、`q` を入れた run でディスクを読む」と
+  2 回走らせて回避した（この run の 25.25 がそれ）。
+- 直し方の案は Proposals 2。
+
+### Proposals
+
+1. **コンソールサブシステムの小さな相棒（`filer.com`）を一緒に配りたい。**
+   - 何が起きたか: 上の「見つけたもの 1」。`$v = & filer env` が 0 行、
+     `$g = & filer --version` も空。PowerShell 5.1 と 7.6 の両方、本物のコンソールで。
+   - どう変えるか: `filer.com`（または `filer-cli.exe`）という**コンソールサブシステムの
+     極小バイナリ**を release の zip に同梱し、引数をそのまま渡して標準出力を中継する。
+     Windows の `PATHEXT` は `.COM` を `.EXE` より先に見るので、シェルで `filer env` と
+     打てば相棒が答え、ダブルクリックでは `filer.exe` がそのまま GUI として開く。
+     **Visual Studio の `devenv.com` / `devenv.exe` が同じ形。**
+   - なぜ: `filer env` の仕事は「バグ報告に貼れること」なので、**取り方によって黙って
+     空になるのが一番まずい。**いまの `say()` はリダイレクト先が分かる場合しか救えず、
+     「PowerShell が GUI の子を待たない」形には原理的に届かない。相棒を置けば、
+     `$v =`、`Start-Process -Wait`、`&&` の連結、CI の捕獲が全部ふつうに通る。
+   - 大きさ: Cargo の第 2 bin ターゲット（`windows_subsystem` を付けないもの）と
+     `release.yml` の同梱、`release-sums.sh` の表に 1 ファイル。レポートをその場で
+     組むか `filer.exe` を起動して中継するかは設計の選択（持ち主の判断）。
+
+2. **`FILER_KEYS_DONE` を、終了するスクリプトでも書いてほしい。**
+   - 何が起きたか: 上の「見つけたもの 2」。`--keys "jq"` で状態ファイルが作られない。
+   - どう変えるか: `script` が空になった時点（最後のキーを渡した直後の、settled を待つ
+     あのフレーム）で書くか、`eframe::App::on_exit` で `script_done` が残っていたら書く。
+     後者なら「`q` で閉じた直後の状態」が取れて、いまの意味とも矛盾しない。
+   - なぜ: 無人のレーンはこのファイルだけが「押した結果」の読み口。終了を含む手順が
+     **ちょうど読めない**ので、同じ操作を 2 回走らせることになる（この run で実際にそうした）。
+     行の数だけ run が増える。
+   - 大きさ: 書く場所を 1 か所増やすだけ。`on_exit` に移すなら数行。
+
+3. **TOML のパースエラーが、Windows のパスを `'…'` で書くよう促してほしい。**
+   - 何が起きたか: 25.11 の準備で `fonts = ["C:\Users\…\Probe.ttf"]` と書いた。
+     `\U` は TOML の不正なエスケープなので filer.toml は丸ごと無効になり、`filer env` は
+     正しく `…\cfg-bold\filer.toml: TOML parse error at line 2, column 15` と場所まで
+     出してくれたが、**自分が何を間違えたかに気づくまで run を 1 回無駄にした**
+     （設定が読まれていないことに、フォント一覧が変わらないことで気づいた）。
+   - どう変えるか: パースエラーが「二重引用符の中の不正なエスケープ」で、かつその行に
+     `C:\` のような綴りが見えるときだけ、警告の末尾に 1 行足す:
+     `a Windows path needs 'single quotes' in TOML, or \\ for every \`。
+   - なぜ: この設定ファイルに書く値の**大半が Windows のパス**（フォント、opener、エディタ）で、
+     TOML の基本文字列との組み合わせは誰でも踏む。`filer env` の Warnings は
+     「直すファイルを名指すのが仕事」の場所（25.15 がそう書いている）なので、
+     **直し方まで言える唯一の場所**でもある。
+   - 大きさ: 警告を組み立てる所に分岐 1 つ。文言は英語 1 行で足りる。
+
+4. **`--keys` のスクリプトが終わったあと、窓を閉じる形を用意したい。**
+   - 何が起きたか: `--keys` は既定で窓を残すので、`Start-Process -Wait` や
+     `& filer … --keys … | Out-String` が**帰ってこない**（この run で 2 回、180 秒の
+     タイムアウトに落ちた）。末尾に `q` を足せば閉じるが、そうすると Proposals 2 の
+     状態ファイルが書かれない。
+   - どう変えるか: `--keys "…" --quit`（スクリプトを押し終えたら、状態ファイルを書いてから
+     閉じる）。順序を保証することが要点。
+   - なぜ: 無人の run はほぼ全部「押す → 読む → 閉じる」で、いまはその 3 つをシェル側で
+     組み立てている。待てる形が 1 つあれば `Start-Sleep` の見積もりが要らなくなる
+     （この run では 5〜18 秒を手で決めていた）。
+   - 大きさ: Proposals 2 と同じ場所。フラグ 1 つとその分岐。
