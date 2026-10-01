@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**218 / 408 済み。**（TESTING.md の全 574 件のうち、`cargo test` が見ている 166 件は
+**218 / 409 済み。**（TESTING.md の全 577 件のうち、`cargo test` が見ている 168 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -22,6 +22,8 @@
 確かめられない振る舞い」の側。
 
 ## 1. ターミナルペイン — 38 / 49
+
+自動テスト済みなので下には出していない: 1.9i
 
 準備:
 
@@ -209,8 +211,8 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **12.9** ファイルを `d` で消し、**同じ名前のファイルを先に作ってから** `u` → `u` が「その名前は使われている」と名前を挙げて断り、**取り消しの手順は残る。**邪魔なファイルをどけてもう一度押すと通る — *Delete a file, `u`, but create a file with that name first → `u` says the name is taken, and pressing it again after moving that file out of the way works*
 - [x] **12.10** 別のプログラムで開いてロックされたファイルを、**他の数件と一緒に**選んで `d` → 他は消える。メッセージが**消えなかったファイルの名前を挙げ**、タスクパネルの件数も実際に消えた数と合う（v0.27.1 まで `Trash: trash: Error … Some operations were aborted` と名前を挙げずに言い、全件成功として数えていた） — *Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) → The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done*
 - [ ] **12.11** ごみ箱を無効にしたドライブで `d` → 同じ形のメッセージが、ファイル名を挙げて出る — *`d` on a drive whose Recycle Bin is turned off → Same shape of message, naming the file*
-- [ ] **12.13** 1 つのファイルで `d`、続けて 2 つで `d`（v0.57.3）→ そのたびにトーストが出る: `Trashed <名前> — u to undo`、次に `Trashed 2 item(s) — u to undo`。v0.57.3 まで `d` は何も言わず、`D` と見分けがつかなかった — *`d` on one file, then on two (v0.57.3) → A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D`*
 - [ ] **12.12** ロックされたファイルが無い状態で `d` → 以前のまま。そしてエクスプローラー自身の取り消し履歴に**項目が 1 つだけ**残る（まとめて渡す呼び出しが通常の経路であることの確認） — *`d` with nothing locked → Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path*
+- [ ] **12.13** 1 つのファイルで `d`、続けて 2 つで `d`（v0.57.3）→ そのたびにトーストが出る: `Trashed <名前> — u to undo`、次に `Trashed 2 item(s) — u to undo`。v0.57.3 まで `d` は何も言わず、`D` と見分けがつかなかった — *`d` on one file, then on two (v0.57.3) → A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D`*
 
 ## 13. シンボリックリンクと `g`+`f` — 8 / 8
 
@@ -363,11 +365,13 @@ fsutil hardlink list <新しくできたパス>
 
 ## 23. ネットワークパス（共有が要る） — 0 / 5
 
+自動テスト済みなので下には出していない: 23.6
+
 - [ ] **23.1** `g<Space>` から `\\server\share` と入力 → 開く — *`g<Space>`, type `\\server\share` → It opens*
 - [ ] **23.2** そこへファイルをコピー、そこからコピー → どちらも動き、進捗が出る — *Copy a file to and from it → Works, with progress*
 - [ ] **23.3** 一覧の取得中にネットワークを抜く、または応答しないホストを指定する → **ウィンドウが固まらない。**エラーのトーストが出て、タブは元の場所に戻る — *Unplug the network mid-listing, or point at a dead host → **The window keeps responding.** An error toast, and the tab goes back where it was*
-- [ ] **23.5** `g<Space>` で、途中のフォルダ名に `|` を含むパス（`C:\Temp\a|b\c\d`）を打って `<Enter>`（v0.57.3）→ エラーのトーストは **1 つ**で、パス全体を挙げる。v0.57.3 までは親の列がそれぞれ自分のトーストを足し、断片（`b: …`、`c: …`）だけを挙げていた — *`g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) → **One** error toast, naming a whole path. Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`)*
 - [ ] **23.4** 共有上のパスを Tab 補完する → プロンプトが固まらず、待っている間 `…` が出る — *Tab-complete a path on the share → The prompt stays responsive; a `…` shows while it waits*
+- [ ] **23.5** `g<Space>` で、途中のフォルダ名に `|` を含むパス（`C:\Temp\a|b\c\d`）を打って `<Enter>`（v0.57.3）→ エラーのトーストは **1 つ**で、パス全体を挙げる。v0.57.3 までは親の列がそれぞれ自分のトーストを足し、断片（`b: …`、`c: …`）だけを挙げていた — *`g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) → **One** error toast, naming a whole path. Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`)*
 
 ## 24. 扱いにくい名前 — 2 / 2
 
@@ -434,7 +438,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **28.7** カーソルが乗っているファイルを外から改名 → カーソルが名前に追従するか、その場に留まる。落ちない — *Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash*
 - [ ] **28.8** 窓に触らず（キーもマウスも使わず）、一覧にあるファイルをエクスプローラーから削除する（v0.57.2）→ キーを押さなくても 0.5 秒以内に行が消える。v0.57.2 までは次にキーを押すまで残っていた（#108） — *Leave the window alone -- no key, no mouse -- and delete a listed file from Explorer (v0.57.2) → The row goes within half a second, without a key being pressed. Until v0.57.2 the list kept it until the next key (#108)*
 
-## 29. ターミナルのカレントディレクトリを持ち帰る — 5 / 5
+## 29. ターミナルのカレントディレクトリを持ち帰る — 5 / 6
 
 自動テスト済みなので下には出していない: 29.4
 
@@ -443,6 +447,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **29.3** 名前に**空白**を含むディレクトリと、**日本語**を含むディレクトリで同じこと → どちらも壊れずに届く — *Same with a directory whose name has a **space** and one with **Japanese** in it → Both arrive intact*
 - [x] **29.5** Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため） — *Run the hook line by hand in a shell that already has Starship → The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`)*
 - [x] **29.6** `[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`filer env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る — *With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` → 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again*
+- [ ] **29.7** `[term] shell` なしで `<C-t>`、次に `shell = "powershell"` にしてもう一度（v0.57.4）→ 最初のトーストがシェルの名前を言う: `Started pwsh — <C-t> back to the list`、次に `Started powershell — …`。`$PSVersionTable.PSVersion` の答えと合っていること — *`<C-t>` with no `[term] shell`, then again with `shell = "powershell"` (v0.57.4) → The first toast names the shell: `Started pwsh — <C-t> back to the list`, then `Started powershell — …`. It has to match what `$PSVersionTable.PSVersion` says*
 
 ## 30. プロンプトでの右クリック貼り付け — 10 / 14
 
@@ -475,10 +480,10 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **31.7** 共有が**たくさん**あるホスト（1 画面に収まらない数）→ 全部出て、普通にスクロールできる — *A host with **many** shares (more than a screenful) → All of them, scrolling normally*
 - [ ] **31.8** 名前に空白や非 ASCII を含む共有 → 壊れずに出る — *A share name with a space or non-ASCII in it → Intact*
 - [x] **31.9** 共有をホバーしてサイズの列を見る → 空。読むものが無く、**そこで数え続けてはいけない** — *Hover a share and look at the size column → Empty — there is nothing to read, and it must not sit there counting*
-- [ ] **31.13** 応答はするが何も共有していないホスト（v0.57.3）→ 一覧は `(empty)` ではなく `(no shares)` と言う — *A host that answers but shares nothing (v0.57.3) → The list says `(no shares)`, not `(empty)`*
 - [x] **31.10** ホストの一覧で `<C-r>` / 再読み込み → サーバに問い直す。落ちない — *`<C-r>` / refresh on the host listing → Re-asks the server; no crash*
 - [x] **31.11** **もう一方のペイン**（`<C-w>`）と 2 つ目のタブでホストを開く → どちらも問題なし — *Open the host in the **other pane** (`<C-w>`) and in a second tab → Both fine*
 - [x] **31.12** ホストへ行ってから、別のディレクトリへ移動する → 監視できなかったホストについて、ウォッチャが文句を言わない — *Go to a host, then change directory away → The watcher does not complain about the host it could not watch*
+- [ ] **31.13** 応答はするが何も共有していないホスト（v0.57.3）→ 一覧は `(empty)` ではなく `(no shares)` と言う — *A host that answers but shares nothing (v0.57.3) → The list says `(no shares)`, not `(empty)`*
 
 ## 32. オープナー — 7 / 12
 

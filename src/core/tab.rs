@@ -33,6 +33,10 @@ pub struct PendingCd {
     /// Try the parent once before giving up. Set for a path someone typed,
     /// which may well name a file rather than a directory.
     pub fallback: bool,
+    /// Set once the fallback has been taken: the name the typed path ended in,
+    /// which the parent is expected to hold. When it does not, the path named
+    /// nothing at all, and the parent is shown with a word saying so (#98).
+    pub reveal: Option<String>,
 }
 
 /// What a failed listing does to the tab that asked for it.
@@ -113,8 +117,8 @@ impl Tab {
             if let Some(to) = self.cwd.parent().map(Path::to_path_buf) {
                 // `cd C:\dir\file.txt` means "show me that file".
                 let name = crate::util::file_name(&self.cwd);
-                self.memo.insert(to.clone(), name);
-                return CdFallout::Reveal { to, pending: PendingCd { fallback: false, ..p } };
+                self.memo.insert(to.clone(), name.clone());
+                return CdFallout::Reveal { to, pending: PendingCd { fallback: false, reveal: Some(name), ..p } };
             }
         }
         if p.pushed {
@@ -319,7 +323,7 @@ mod tests {
         let mut t = Tab::new(PathBuf::from(to), SortSpec::default(), true, crate::fs::entry::Linemode::None);
         t.back.push(PathBuf::from(from));
         t.pending_cd =
-            Some(PendingCd { from: PathBuf::from(from), pushed: true, fallback });
+            Some(PendingCd { from: PathBuf::from(from), pushed: true, fallback, reveal: None });
         t
     }
 
@@ -346,7 +350,7 @@ mod tests {
             fallout,
             CdFallout::Reveal {
                 to: PathBuf::from("/b"),
-                pending: PendingCd { from: PathBuf::from("/a"), pushed: true, fallback: false },
+                pending: PendingCd { from: PathBuf::from("/a"), pushed: true, fallback: false, reveal: Some("note.txt".into()) },
             }
         );
         // The cursor lands on the file once `/b` answers.
@@ -368,7 +372,7 @@ mod tests {
         let cwd = PathBuf::from("/b/note.txt");
         let mut t = Tab::new(cwd, SortSpec::default(), true, crate::fs::entry::Linemode::None);
         t.pending_cd =
-            Some(PendingCd { from: PathBuf::from("/home"), pushed: false, fallback: true });
+            Some(PendingCd { from: PathBuf::from("/home"), pushed: false, fallback: true, reveal: None });
         let fallout = t.cd_failed();
         let CdFallout::Reveal { to, pending } = fallout else { panic!("want Reveal") };
         assert_eq!(to, PathBuf::from("/b"));

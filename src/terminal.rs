@@ -183,6 +183,22 @@ fn pick_default_shell(windows: bool, have_pwsh: bool) -> Option<String> {
     (windows && have_pwsh).then(|| "pwsh".to_owned())
 }
 
+/// What the pane is about to start, in the words its first toast uses. The
+/// difference between PowerShell 5.1 and 7 is where a shell hook quietly stops
+/// working, and until this it showed only in the banner or `filer env` (#107).
+pub fn shell_label(program: Option<&str>) -> String {
+    name_shell(program, cfg!(windows), std::env::var("SHELL").ok())
+}
+
+fn name_shell(program: Option<&str>, windows: bool, env_shell: Option<String>) -> String {
+    match program {
+        Some(p) => crate::util::file_name(Path::new(p)),
+        // The platform default, as `spawn` documents it.
+        None if windows => "powershell (Windows PowerShell 5.1)".to_owned(),
+        None => env_shell.map_or_else(|| "sh".to_owned(), |s| crate::util::file_name(Path::new(&s))),
+    }
+}
+
 /// A key as a single win32-input-mode record, **pressed only**:
 /// `CSI Vk ; Sc ; Uc ; 1 ; Cs ; 1 _`.
 ///
@@ -722,7 +738,9 @@ impl Terminal {
 
     /// Find `needle` from the top of the view, and put the match on screen.
     /// Returns whether anything matched.
-    pub fn search(&mut self, needle: &str, back: bool) -> bool {
+    /// `Some(true)` when the match was found by running off the end and
+    /// starting again; `None` when there is none.
+    pub fn search(&mut self, needle: &str, back: bool) -> Option<bool> {
         let mut term = self.term.lock();
         search_in(&mut term, &mut self.found, needle, back)
     }
@@ -1312,8 +1330,8 @@ pub fn children(pid: u32) -> Vec<u32> {
 /// One step of a scrollback search: the next match of `needle` from the last
 /// one, `found`, in the direction asked, selected and scrolled onto the screen.
 /// A free function over the grid so that the walk can be tested without a PTY.
-fn search_in(term: &mut Term<Proxy>, found: &mut Option<(Point, Point)>, needle: &str, back: bool) -> bool {
-    let Ok(mut re) = RegexSearch::new(needle) else { return false };
+fn search_in(term: &mut Term<Proxy>, found: &mut Option<(Point, Point)>, needle: &str, back: bool) -> Option<bool> {
+    let Ok(mut re) = RegexSearch::new(needle) else { return None };
     // From just past the last match *in the direction of this search*, so a
     // repeat walks the matches rather than finding the same one. The match's
     // two ends are kept rather than one stepped-past point: that point was
@@ -1329,9 +1347,12 @@ fn search_in(term: &mut Term<Proxy>, found: &mut Option<(Point, Point)>, needle:
     let Some(m) = term.search_next(&mut re, origin, dir, Side::Left, None) else {
         // Wrap: a search that runs off the end starts again.
         *found = None;
-        return false;
+        return None;
     };
     let hit = *m.start();
+    // alacritty wraps by itself, so the only sign is a match on the wrong side
+    // of the last one: it went from 433 to "442 lines back" without a word (#98).
+    let wrapped = found.is_some_and(|(last, _)| if back { hit > last } else { hit < last });
     // Put the line holding the match on screen.
     let want = (-hit.line.0).max(0);
     let now = term.grid().display_offset() as i32;
@@ -1341,7 +1362,7 @@ fn search_in(term: &mut Term<Proxy>, found: &mut Option<(Point, Point)>, needle:
         sel.update(*m.end(), Side::Right);
     }
     *found = Some((hit, *m.end()));
-    true
+    Some(wrapped)
 }
 
 /// A terminal built without a PTY, for tests anywhere in the crate.
@@ -1385,16 +1406,43 @@ mod tests {
         let mut found = None;
         let line = |f: &Option<(Point, Point)>| f.expect("a match").0.line.0;
         // `back` walks toward the older lines, as `<C-S-f>` and `<C-S-n>` do.
-        assert!(search_in(&mut t, &mut found, "hit", true));
+        assert_eq!(search_in(&mut t, &mut found, "hit", true), Some(false));
         let first = line(&found);
-        assert!(search_in(&mut t, &mut found, "hit", true));
+        assert_eq!(search_in(&mut t, &mut found, "hit", true), Some(false));
         let second = line(&found);
         assert!(second < first, "a second press goes further back: {first} then {second}");
 
-        assert!(search_in(&mut t, &mut found, "hit", false));
+        assert_eq!(search_in(&mut t, &mut found, "hit", false), Some(false));
         assert_eq!(line(&found), first, "one press the other way comes straight back");
-        assert!(search_in(&mut t, &mut found, "hit", true));
+        assert_eq!(search_in(&mut t, &mut found, "hit", true), Some(false));
         assert_eq!(line(&found), second, "and one more returns to where it was");
+    }
+
+    /// TESTING.md 1.9i — past the last match the search starts again from the
+    /// other end, and says that it did (#98).
+    #[test]
+    fn a_search_says_when_it_wraps() {
+        let mut t = term(40, 5);
+        for i in 0..30 {
+            feed(&mut t, &format!("line {i:02}{}\r\n", if i % 10 == 0 { " hit" } else { "" }));
+        }
+        let mut found = None;
+        for n in 0..3 {
+            assert_eq!(search_in(&mut t, &mut found, "hit", true), Some(false), "match {n} going back");
+        }
+        assert_eq!(search_in(&mut t, &mut found, "hit", true), Some(true), "the fourth wraps to the newest");
+        assert_eq!(search_in(&mut t, &mut found, "hit", true), Some(false), "and walks on from there");
+        assert_eq!(search_in(&mut t, &mut found, "nowhere", true), None);
+    }
+
+    /// The pane's first toast names the shell, the default included.
+    #[test]
+    fn the_shell_is_named() {
+        assert_eq!(name_shell(Some("pwsh"), true, None), "pwsh");
+        assert_eq!(name_shell(None, true, None), "powershell (Windows PowerShell 5.1)");
+        assert_eq!(name_shell(None, false, Some("/usr/bin/zsh".into())), "zsh");
+        assert_eq!(name_shell(None, false, None), "sh");
+        assert_eq!(name_shell(Some("/bin/bash"), false, None), "bash");
     }
 
     /// `children` finds a process this one started: the question `<C-S-t>`
