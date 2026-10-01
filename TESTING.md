@@ -721,6 +721,7 @@ Run from a shell, not from inside the app.
 | 25.22 | `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `FILER_PTY_LOG` set (v0.59.0) | The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `filer --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>` |
 | 25.23 | Open the pane, `<C-S-Enter>`, close filer, then `filer env` (v0.59.4) | A `Terminal pane` row under `Last run` gives the grid as `N x M (lines x columns)`, the size it last had. After a run that never opened the pane: `not opened in that run` |
 | 25.24 | From a shell in some folder, `filer .`, then `filer ..`, then `filer two words` unquoted (v0.59.5) | `.` opens that folder with its **absolute** path in the title and a parent column, and `h` goes up; `..` opens the one above. The unquoted pair is refused before any window: `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` |
+| 25.25 | Open a file with an opener (`<Enter>` or `<S-Enter>`), run one `;` shell command, close filer, then `filer env` (v0.59.9) | A `Launched` row under `Last run` lists both command lines exactly as filer built them, newest last, at most five. After a run that launched nothing: `nothing in that run` |
 
 ## 26. Bug report from inside the app (v0.11.0)
 
@@ -843,6 +844,7 @@ ones where it says no.
 | 31.12 | Go to a host, then change directory away | The watcher does not complain about the host it could not watch |
 | 31.13 | A host that answers but shares nothing (v0.57.3) | The list says `(no shares)`, not `(empty)` |
 | 31.14 | `g<Space>` an address on your subnet that nothing answers on, `<Enter>`, then `<Esc>` before it gives up (v0.58.1) | Back where you were at once, a toast `Stopped waiting for \\<address>`, `j` / `k` work again -- and nothing more is said when the abandoned attempt times out later |
+| 31.15 | `g<Space>` an address that does not answer, `<Enter>`, and read the header before it gives up (v0.59.8) | The header's count reads `listing…` and the position `…` -- not `0 items` and `0/0`, which read as having arrived at an empty host. Once it answers, or `<Esc>` takes the tab back (31.14), the counts return |
 
 ## 32. Openers (v0.17.0)
 

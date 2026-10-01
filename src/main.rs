@@ -702,11 +702,15 @@ impl eframe::App for Filer {
 fn title_for(app: &App) -> String {
     let fmt = &app.cfg.yazi.mgr.title_format;
     let cwd = app.tab().cwd.display().to_string();
-    if fmt.contains("{cwd}") {
-        fmt.replace("{cwd}", &cwd)
-    } else {
-        format!("Filer: {cwd}")
+    if !fmt.contains("{cwd}") {
+        return format!("Filer: {cwd}");
     }
+    // `{rows}` and `{pane}` are filer's own: how many list rows are on screen,
+    // and the terminal pane's grid (`12x159`, empty when closed). A test run
+    // measured them with five key presses (TESTING.md 1.30); a title is read
+    // with one call from outside.
+    let pane = app.term.as_ref().map_or(String::new(), |t| format!("{}x{}", t.size().lines, t.size().cols));
+    fmt.replace("{cwd}", &cwd).replace("{rows}", &app.tab().page_rows.to_string()).replace("{pane}", &pane)
 }
 
 /// `pub(crate)` for [`crate::ui::harness`]: a test that drives the program with
@@ -970,6 +974,17 @@ fn _unused(app: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `{rows}` and `{pane}` in `title_format`: what is on screen, readable
+    /// from the window title, with no pane open an empty `{pane}`.
+    #[test]
+    fn the_title_can_say_how_much_is_on_screen() {
+        let dir = crate::util::test_dir("title-rows");
+        let mut app = App::new(crate::config::Config::load(), dir.clone(), egui::Context::default());
+        app.cfg.yazi.mgr.title_format = "{cwd} [{rows}] <{pane}>".into();
+        app.tabs[app.active].page_rows = 31;
+        assert_eq!(title_for(&app), format!("{} [31] <>", app.tab().cwd.display()));
+    }
 
     /// #131: the bold face is found beside a regular face with no `-Regular`.
     #[test]
