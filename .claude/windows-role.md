@@ -97,10 +97,25 @@ it never will be.
 **Never tick an appearance row.** If you are unsure which kind a row is, it is an
 appearance row.
 
-**TESTING-KEYS.md stays the owner's file**, exactly as it is for the cloud
-sessions. A tick there means a person pressed the key *and saw that nothing else
-happened*, and the second half is not something you can establish. Report drift
-with `cargo run --example make-keycheck -- --check`; do not write the file.
+**TESTING-KEYS.md: you may tick it too (since 2026-10-01, the owner's call).**
+A tick there means the key *did what its description says and nothing else* --
+`<A-m>` once ran its own command and the plain `m` as well, and each half looked
+right alone. "Nothing else" is the half a picture cannot give, so it is read the
+same way as everything else here: as state, before and after.
+
+- **Press it with `--keys`**, never `PostMessage` (a posted plain character
+  arrives twice, #109; a posted modifier not at all, #107).
+- **Snapshot before and after** the one key, everything it must *not* change:
+  the window title (where the list is), `c` `f` / `c` `c` for the hovered entry,
+  the header's `N selected · M items`, the clipboard (armed with a sentinel and
+  read back first), which overlay is open, the scratch directory's listing with
+  hashes, and for a key pressed in the pane the `in key` lines of
+  `FILER_PTY_LOG` (a key the pane keeps must add none). Only what the key is
+  meant to change may differ.
+- **In the pull request, one line per key**: the key, what changed (the
+  description's half), and the snapshot that did not (the "nothing else" half).
+- Tick only with both halves. Then `cargo run --example make-keycheck -- --check`
+  must still say `in sync`; never regenerate the file, only flip `[ ]` to `[x]`.
 
 ## Where the work is
 
@@ -247,6 +262,8 @@ these differences:
 
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
+| **TESTING-KEYS.md, the 5 unchecked keys** | 5 | The owner asked for these to be done by a machine; the rule is under "TESTING-KEYS.md" above. `<C-S-Enter>` in the pane: the shell's own size report (`$Host.UI.RawUI.WindowSize.Height`) grows, and grows back on the second press. `<C-F5>` in the pane: add a binding to a run-only `keymap.toml`, press it in the pane, and the new key works; `FILER_PTY_LOG` has no `\e[15;5~`. `C` in the spot panel: the clipboard holds `Label<TAB>value` lines. `<Enter>` in the spot panel: on a directory row it enters (title), on a `Came in via` row it opens the pull request (the browser's process and its URL) -- needs a repo whose commit came from a PR; if none, say so and leave it. `z` in a folder comparison: the footer gains `matches hidden (z)` and the `=` rows go; `z` again brings them back |
+| **v0.57.0, Q34 and Q35** | 2 | 24.2 (the 163-character name from the fixed `make-fixtures.ps1` ends in `name.txt` on screen) and 1.37 (`<A-t>` with the pane closed: `FILER_PTY_LOG` shows the path sent after the shell's first output) |
 | **v0.56.0, Q32 and Q33** | 2 | 44.14 (`gu` shows sizes whatever the line mode, and puts it back) and 31.9 (a host's shares show no size in `linemode size`) against `\\192.168.0.150`, if `net view` answers |
 | **1. the terminal pane** | the `[ ]` rows | ConPTY and the shell, natively. `--keys` (spaces as `<Space>`) plus `FILER_PTY_LOG` drove the `[term] shell` matrix cheaply in #111; rows already `[x]` on x64 go in QA-REPORT.md |
 | **22. opening an editor at a line** | the `[ ]` rows | Process creation: `Get-CimInstance Win32_Process` shows the command line filer built. VS Code and Neovim are installed on this machine; say which others are not |

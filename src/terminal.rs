@@ -785,6 +785,14 @@ impl Terminal {
         f(&self.term.lock())
     }
 
+    /// Whether the shell has put anything you could read on the screen yet --
+    /// a banner or a prompt. ConPTY writes its own setup sequences the moment
+    /// the pane opens, so "some bytes arrived" says nothing about whether the
+    /// shell is ready to be typed at; a character on screen does.
+    pub fn has_drawn(&self) -> bool {
+        self.with_grid(|t| snapshot(t).iter().flatten().any(|c| !matches!(c.c, ' ' | '\0')))
+    }
+
 }
 
 impl Drop for Terminal {
