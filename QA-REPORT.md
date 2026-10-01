@@ -7403,3 +7403,62 @@ libgl1-mesa-dri` を足したら起動した（lavapipe は `mesa-vulkan-drivers
 
 上の「TESTING.md の行として古いもの」。25.4 は Tools の今の中身（git、シェル、preview / opener の名指す
 プログラム）で書き直し、25.19 には「Windows 以外は arch が 1 行」を書き添える。
+
+---
+
+## TESTING.md section 24 — 扱いにくい名前を Linux で確かめた（769f3cc / 0.59.7、Linux lane、無人の run）
+
+Ubuntu x86_64 のクラウドコンテナ、Xvfb（X11）と lavapipe。debug ビルド（`target/debug/filer`）、
+`scripts/make-fixtures.sh /tmp/filer-fixtures`、シェルは bash（`SHELL=/bin/bash`）、ごみ箱は
+`~/.local/share/Trash`（`/tmp` と同じファイルシステム）。
+
+結果: 押す行 3 つのうち `[x]` 2（24.4 / 24.5）、`[-]` 1（24.6）。24.1〜24.3 は自動テスト済みで表に出ていない。
+証拠は PR 本文に 1 行ずつ。Windows と食い違った行は無い。
+
+### 見つけたもの 1: `xrun.sh` は `--keys` が終わるのを待たない
+
+`--keys "Gd<Wait:1500>u<Wait:1500>G<Wait:500>cf"` を既定の `XRUN_WAIT=3` で回すと、clip.txt は
+`XRUN-SENTINEL`、画面の位置は 5/6 のままだった。`<Wait:>` の合計（3.5 秒）が `XRUN_WAIT` を超え、
+**キーが押し終わる前に**画面とクリップボードを取っていた。`XRUN_WAIT=8` にすると
+`ひらがなとカタカナ.txt` が返った。filer の誤りではないが、**失敗に見える結果が出る**（逆に、
+キー列の後半が押される前の状態で `[x]` を付けてしまう危険もある）。
+
+### TESTING.md の行として古いもの
+
+- **24 節の注記**「24.4 needs the terminal pane, which is `#[cfg(windows)]`」は、もう正しくない。
+  Linux でもペインは bash で開き、`<A-t>` は POSIX の引用（`'…'\''…'`）で 1 語として届いた（24.4）。
+  同じく「24.5 needs the recycle bin」は、Linux では freedesktop のごみ箱で押せる（24.5）。
+- **24.6** は `scripts\make-fixtures.ps1` と NTFS の行。Linux 版の `scripts/make-fixtures.sh` を
+  新しいフォルダ（`/tmp/fx-fresh`）で走らせると、終了コード 0、標準エラーは空（`awkward names` は 6 件。
+  ext4 は大文字小文字を区別する）。同じ趣旨を `.sh` 側で確かめる行は TESTING.md に無い。
+
+### Proposals
+
+#### 提案 1: `xrun.sh` が `--keys` の `<Wait:N>` の合計を待ち時間に足す
+
+**踏んだこと**: 見つけたもの 1。
+
+**どう変えるべきか**: 引数の `--keys` の文字列から `<Wait:N>` を拾って合計し、`XRUN_WAIT` に加える
+（キー 1 つあたりの小さな余裕も足す）。または filer 側が「`--keys` を押し終えた」ことを
+`filer.log` に 1 行出し、`xrun.sh` はそれを待つ。後者のほうが確実。
+
+**なぜ**: 途中までしか押していない状態の読み取りは、成功にも失敗にも見える。人が見ていない run では
+誰も気づかない。
+
+**大きさ**: シェルで数行（前者）、または `--keys` の終わりに `eprintln!` 1 行（後者）。
+
+#### 提案 2: 24 節の注記を Linux のペインとごみ箱に合わせて書き直す
+
+**踏んだこと**: 「TESTING.md の行として古いもの」の 1 つ目。
+
+**どう変えるべきか**: 「24.4 needs the terminal pane, which is `#[cfg(windows)]`」を外し、
+「24.4 needs the terminal pane; 24.5 needs the recycle bin (Windows) or the freedesktop trash」の形に。
+
+**大きさ**: TESTING.md の 2 行（Linux レーンは触れないので、マージする側に頼む）。
+
+#### 提案 3: 24.6 に Linux 版の兄弟行を足す
+
+**どう変えるべきか**: 「`scripts/make-fixtures.sh` を新しいフォルダで → 警告なし、終了コード 0」の行を
+足す（例えば 24.6a）。`make-fixtures.sh` にも `count` の検査があるのに、それを確かめる行が無い。
+
+**大きさ**: TESTING.md の 1 行。
