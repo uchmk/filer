@@ -804,6 +804,7 @@ instructions.
 | 29.6 | With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` | 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again |
 | 29.7 | `<C-t>` with no `[term] shell`, then again with `shell = "powershell"` (v0.57.4) | The first toast names the shell: `Started pwsh — <C-t> back to the list`, then `Started powershell — …`. It has to match what `$PSVersionTable.PSVersion` says |
 | 29.8 | In a pane started as `powershell` (5.1) with no hook, `<A-Up>` (v0.59.4) | The red toast names the shell -- `` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE `` -- so the hook goes into 5.1's profile, not 7's |
+| 29.9 | Put a handler of another tool's in `$PROFILE` first (`mise activate pwsh`, or a stand-in: `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`), the README hook after it, open a new pane, `cd C:\dev`, `<A-Up>` (v0.64.2) | Both run: the list moves to `C:\dev` **and** the other tool's handler still does its job (the stand-in's title reads `other: C:\dev`). Before v0.64.2 the README hook replaced the other one |
 
 ## 30. Right-click paste in a prompt (v0.14.0)
 
@@ -1229,7 +1230,7 @@ The walk and the ordering are unit-tested on a small tree. What needs a machine 
 | 44.7 | `gu` at `C:\` | Answers; the biggest folders are plausible against WizTree or Explorer's own |
 | 44.8 | `gu` on a network share (UNC) | Answers or fails gracefully; `<Esc>` still gets out mid-walk |
 | 44.9 | `gu`, then `j`/`k`, `y`, `d`, space to select | All the ordinary list keys work — this is the list, not a panel |
-| 44.10 | `gu`, then `Enter` on a folder | Ordinary navigation: it leaves the view and enters the folder. `gu` again measures from there |
+| 44.10 | `gu`, then `Enter` on a folder; then `h`, and `h` again (v0.63.0; before that `Enter` left the view) | `Enter`: the view stays and measures that folder (the header path is the folder). First `h`: back up, still in the view, the cursor on the folder it left. Second `h`, in the folder `gu` was pressed in: the view closes and the ordinary listing is back |
 | 44.11 | `gu` while a usage view is already up | Refused with a message, not a view with no way back |
 | 44.12 | `gu`, then `,` to re-sort | The order changes (as asked); `<Esc>` and `gu` again restores largest-first (`gu` inside the view is refused, 44.11) |
 | 44.13 | Compare a folder's total against Explorer's own properties | Within rounding. **Hard links read high — that is documented, not a bug** |
@@ -1354,3 +1355,22 @@ cause. Every expectation is a number from `Get-Process`.
 | 47.3 | The same as 47.2, then minimise the window | Still no rise while minimised |
 | 47.4 | If 47.1-47.3 still rise: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart | Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at |
 | 47.5 | Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3) | No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110) |
+
+## 48. The release zips (v0.64.0)
+
+What a person downloads from the Releases page, checked as they would get it: nothing built here,
+nothing fetched by `scripts/fetch-conpty.ps1`. Take the newest release whose tag is v0.64.0 or later
+(48.5 needs its checksum table), download both Windows zips, and `Expand-Archive` each into an empty
+folder. Every row is a file listing, a command's output or a hash.
+
+The PE machine of a file, for 48.3:
+`$b = [IO.File]::ReadAllBytes($f); '{0:X4}' -f [BitConverter]::ToUInt16($b, [BitConverter]::ToInt32($b, 0x3C) + 4)`.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 48.1 | `Get-ChildItem -Recurse` in each extracted folder | One folder, `filer-<tag>-windows-x64` (or `-arm64`), holding exactly four files: `filer.exe`, `conpty.dll`, `OpenConsole.exe` and `ConPTY-LICENSE.txt`. Nothing else, and nothing at the top level beside the folder |
+| 48.2 | `.\filer.exe --version` from each folder | `filer <version> (x86_64)` from the x64 zip and `filer <version> (aarch64)` from the ARM64 one, the version being the tag without its `v` |
+| 48.3 | The PE machine (above) of all three binaries in each zip | `8664` for all three in the x64 zip, `AA64` for all three in the ARM64 one. A mixed zip is the bug this row exists for: the ARM64 build with an x64 ConPTY would start and then misbehave in the pane |
+| 48.4 | Read `ConPTY-LICENSE.txt` | Names the version `scripts/fetch-conpty.ps1` pins (`$version`) on the release's commit, and no `{VERSION}` is left in it |
+| 48.5 | `Get-FileHash -Algorithm SHA256` on each zip and on each extracted file | Every hash equals the row for that file in the **SHA-256** table at the end of the release page. A missing table means the `sums` job did not run: say so |
+| 48.6 | Start `filer.exe` from the x64 folder, open the pane (`<C-t>`), and list the process's modules: `(Get-Process filer).Modules \| ? ModuleName -eq conpty.dll \| % FileName` | The `conpty.dll` **in that folder**, not one under `C:\Windows`. That is what the zip is for |

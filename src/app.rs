@@ -1153,6 +1153,12 @@ pub struct App {
     /// The biggest total in the usage view, which the rows' bars are drawn
     /// against. Zero when the view is not up.
     pub usage_max: u64,
+    /// Where `gu` was pressed. `h` climbs inside the view down to here, and
+    /// leaves it from here.
+    usage_root: Option<PathBuf>,
+    /// The folder `h` came up out of, put under the cursor once the parent's
+    /// walk reports it.
+    usage_want: Option<String>,
     /// The tab's linemode from before `gu`, put back on the way out. The view
     /// shows sizes whatever the tab was showing (Q33): its bars alone could
     /// not be read as numbers, and `linemode = "usage"` in the config made every
@@ -1275,6 +1281,8 @@ impl App {
             usage: None,
             usage_max: 0,
             usage_linemode: None,
+            usage_root: None,
+            usage_want: None,
             term_pending: None,
             ctx,
             scale: 1.0,
@@ -1663,7 +1671,11 @@ impl App {
         let show_hidden = self.tabs[self.active].show_hidden;
         let memo = self.tabs[self.active].memo.get(path).cloned();
 
-        if self.tabs[self.active].cwd == path {
+        // A view standing in for the listing (search, usage) keeps the pane;
+        // the jump still stands.
+        if self.tabs[self.active].cwd == path && self.tabs[self.active].current.path != path {
+            self.tabs[self.active].pending_cd = None;
+        } else if self.tabs[self.active].cwd == path {
             // The directory answered, so the jump that led here stands.
             let reveal = self.tabs[self.active].pending_cd.take().and_then(|p| p.reveal);
             if let Some(name) = reveal.filter(|n| !entries.iter().any(|e| &e.name == n)) {
@@ -2484,12 +2496,16 @@ impl App {
         // Dropping the handle cancels the walk, so leaving is all it takes.
         self.usage = None;
         self.usage_max = 0;
+        self.usage_root = None;
+        self.usage_want = None;
         if let Some(mode) = self.usage_linemode.take() {
             self.tabs[self.active].linemode = mode;
         }
         // It said the walk was still going, which stopped being true just now
         // (#109).
         self.toasts.retain(|t| !t.text.starts_with("Measuring"));
+        // And the total told how to leave a view that is no longer up.
+        self.toasts.retain(|t| !t.text.ends_with("<Esc> to leave"));
         let cwd = self.tabs[self.active].cwd.clone();
         let show_hidden = self.tabs[self.active].show_hidden;
         let folder = match self.cache.get(&cwd) {
@@ -2504,7 +2520,11 @@ impl App {
 
     fn enter(&mut self) {
         let Some(entry) = self.tabs[self.active].current.hovered().cloned() else { return };
-        if entry.is_dir_like() {
+        // In the usage view a folder is measured in turn, the way `ncdu` goes
+        // down: the view stays, and `h` comes back up.
+        if entry.is_dir_like() && self.in_usage_view() {
+            self.remeasure(entry.path, None);
+        } else if entry.is_dir_like() {
             self.cd(entry.path, true);
         } else if !self.focus_outline() && !self.preview_ready() {
             // Still loading: move in once it arrives. A file without an
@@ -2514,6 +2534,13 @@ impl App {
     }
 
     fn leave(&mut self) {
+        let cwd = self.tabs[self.active].cwd.clone();
+        if self.in_usage_view() && self.usage_root.as_ref().is_some_and(|r| cwd.starts_with(r) && *r != cwd) {
+            if let Some(p) = util::parent_dir(&cwd) {
+                self.remeasure(p, Some(util::file_name(&cwd)));
+                return;
+            }
+        }
         if self.in_search_view() {
             self.exit_search_view();
             return;
@@ -3710,8 +3737,9 @@ impl App {
             return;
         }
         let Some(entry) = self.tabs[self.active].current.hovered().cloned() else { return };
+        // `<Enter>` on a folder is `l`, the usage view's going down included.
         if entry.is_dir_like() && !interactive {
-            self.cd(entry.path, true);
+            self.enter();
             return;
         }
         let line = line.filter(|_| paths.len() == 1 && paths[0] == entry.path);
@@ -4785,6 +4813,25 @@ impl App {
             self.error("Usage: leave this view first");
             return;
         }
+        self.usage_root = Some(self.tabs[self.active].cwd.clone());
+        self.usage_want = None;
+        self.measure_here();
+    }
+
+    /// Move the usage view to `dir` and measure it, keeping where `gu` started.
+    /// `want` is the name to put the cursor on when it turns up.
+    fn remeasure(&mut self, dir: PathBuf, want: Option<String>) {
+        let root = self.usage_root.clone();
+        self.exit_search_view();
+        self.cd(dir, true);
+        self.usage_root = root;
+        self.usage_want = want;
+        // The level just left had its own total; it is not this one's.
+        self.toasts.retain(|t| !t.text.contains(" in total"));
+        self.measure_here();
+    }
+
+    fn measure_here(&mut self) {
         let root = self.tabs[self.active].cwd.clone();
         let ctx = self.ctx.clone();
         let handle = crate::fs::usage::spawn(&root, move || ctx.request_repaint());
@@ -4833,6 +4880,11 @@ impl App {
             entries.sort_by(|a, b| b.usage_bytes().cmp(&a.usage_bytes()).then(a.name.cmp(&b.name)));
             self.usage_max = entries.first().map_or(0, Entry::usage_bytes);
             f.rebuild(true);
+            if let Some(name) = self.usage_want.take() {
+                if !f.select_name(&name) {
+                    self.usage_want = Some(name);
+                }
+            }
         }
         if let Some((total, capped)) = done {
             self.usage = None;
@@ -6802,6 +6854,54 @@ mod usage_view {
         assert_eq!(a.usage_max, 900, "the bars are drawn against the biggest row");
         let fat = a.tabs[a.active].current.entries.iter().find(|e| e.name == "fat").unwrap();
         assert_eq!(fat.usage_bytes(), 900, "a folder is worth what is under it");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// `l` on a folder measures that folder and stays in the view; `h` comes
+    /// back up with the cursor on the folder it left, and from where `gu` was
+    /// pressed, leaves.
+    #[test]
+    fn the_view_goes_down_and_comes_back_up() {
+        let dir = tree();
+        let mut a = app_in(&dir);
+        let settle = |a: &mut App| {
+            for _ in 0..2000 {
+                a.drain_usage();
+                if a.usage.is_none() {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+        };
+        let names = |a: &App| -> Vec<String> {
+            a.tabs[a.active].current.entries.iter().map(|e| e.name.clone()).collect()
+        };
+        a.start_usage();
+        settle(&mut a);
+        assert!(a.tabs[a.active].current.select_name("fat"));
+        // `<Enter>` is bound to `open`, which reaches folders the same way.
+        a.act(Act::Open { interactive: false, hovered: false });
+        settle(&mut a);
+        assert!(a.in_usage_view(), "still measuring, one level down");
+        assert_eq!(a.tabs[a.active].cwd, dir.join("fat"));
+        assert_eq!(names(&a), ["inner"]);
+        assert_eq!(a.tabs[a.active].current.entries[0].usage, Some(900), "measured, not just listed");
+        assert_eq!(a.usage_max, 900);
+        assert_eq!(a.toasts.iter().filter(|t| t.text.contains(" in total")).count(), 1, "this level's total only");
+        // The plain listing of `fat` arriving late must not replace the view.
+        a.apply_listing(&dir.join("fat"), Arc::new(Vec::new()));
+        assert_eq!(names(&a), ["inner"], "the view keeps its rows");
+
+        a.act(Act::Leave);
+        settle(&mut a);
+        assert!(a.in_usage_view(), "back up, still in the view");
+        assert_eq!(a.tabs[a.active].cwd, dir);
+        assert_eq!(a.tabs[a.active].current.hovered_name(), Some("fat"), "on the folder it came out of");
+
+        a.act(Act::Leave);
+        assert!(!a.in_usage_view(), "from where `gu` was pressed, `h` leaves");
+        assert!(!a.toasts.iter().any(|t| t.text.contains("to leave")), "nothing left saying how to leave");
+        assert_eq!(a.tabs[a.active].cwd, dir);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

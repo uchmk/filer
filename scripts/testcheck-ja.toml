@@ -541,6 +541,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "29.6" = '`[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`filer env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る'
 "29.7" = '`[term] shell` なしで `<C-t>`、次に `shell = "powershell"` にしてもう一度（v0.57.4）→ 最初のトーストがシェルの名前を言う: `Started pwsh — <C-t> back to the list`、次に `Started powershell — …`。`$PSVersionTable.PSVersion` の答えと合っていること'
 '29.8' = '''フックの無い `powershell`（5.1）で開いたペインで `<A-Up>`（v0.59.4）→ 赤いトーストがシェルの名前を挙げる（`` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE ``）。フックを 7 ではなく 5.1 のプロファイルに入れればよいと分かる'''
+'29.9' = '''`$PROFILE` に別のツールのハンドラを先に置き（`mise activate pwsh`、または代わりに `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`）、その後に README のフックを置いて、新しいペインで `cd C:\dev`、`<A-Up>`（v0.64.2）→ 両方動く: 一覧が `C:\dev` に移り、**かつ**別のツールのハンドラも働いている（代わりのものならタイトルが `other: C:\dev`）。v0.64.2 より前は README のフックが別のものを置き換えていた'''
 
 # 30. プロンプトでの右クリック貼り付け
 "30.1" = 'エクスプローラーのアドレスバーでパスをコピーし、`c`+`d` で `cd` のプロンプトを出し、入力欄を右クリック → パスが入る。`<Enter>` でそこへ移動する'
@@ -697,7 +698,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "44.7" = '`C:\` で `gu` → 答えが出る。上位のフォルダが WizTree やエクスプローラーの表示と見比べて妥当'
 "44.8" = 'ネットワーク共有（UNC）で `gu` → 答えるか、穏当に失敗する。走査の途中でも `<Esc>` で抜けられる'
 "44.9" = '`gu` のあと `j`/`k`、`y`、`d`、スペースで選択 → 通常の一覧キーが全部効く。**パネルではなく一覧そのもの**だから'
-"44.10" = '`gu` のあとフォルダで `Enter` → 普通の移動（ビューを抜けてフォルダに入る）。そこでもう一度 `gu` すればそこから測り直す'
+"44.10" = '`gu` のあとフォルダで `Enter`、続けて `h`、もう一度 `h`（v0.63.0。それ以前は `Enter` でビューを抜けた）→ `Enter`: ビューのまま、そのフォルダを測る（ヘッダのパスがそのフォルダ）。1 回目の `h`: 1 つ上に戻り、ビューのまま、出てきたフォルダにカーソル。2 回目の `h`（`gu` を押したフォルダ）: ビューが閉じて普通の一覧に戻る'
 "44.11" = '使用量ビューを開いたまま `gu` → メッセージを添えて断られる（戻れないビューにならない）'
 "44.12" = '`gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。`<Esc>` してからもう一度 `gu` すれば大きい順に戻る（ビューの中の `gu` は断られる。44.11）'
 "44.13" = 'フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある**'
@@ -761,3 +762,9 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "47.3" = "47.2 のあと窓を最小化する → 最小化していても増えない"
 "47.4" = "47.1〜47.3 でまだ増えるとき: `Get-Process filer \\| % Threads \\| sort TotalProcessorTime -desc \\| select -first 3 Id, TotalProcessorTime` を 10 秒あけて 2 回 → どのスレッドの時間が増えるかと、分かれば開始アドレスを報告する。次に調べるのはそのスレッド"
 '47.5' = '''`f` のプロンプトを開いて 10 秒何も触らず、前後で CPU を読む（v0.59.3）→ プロンプトを開いていないとき（47.1）と同じく増えない。キャレットは点滅せず常に出ている。v0.59.3 までは点滅のために毎秒 2 回描いていて、10 秒で 0.14〜0.30 CPU 秒（#103、#110）'''
+"48.1" = '展開した各フォルダで `Get-ChildItem -Recurse` → フォルダが 1 つ（`filer-<タグ>-windows-x64` か `-arm64`）で、中はちょうど 4 ファイル: `filer.exe`、`conpty.dll`、`OpenConsole.exe`、`ConPTY-LICENSE.txt`。他には何も無く、フォルダの横にも何も無い'
+"48.2" = '各フォルダで `.\filer.exe --version` → x64 の zip は `filer <版> (x86_64)`、ARM64 の zip は `filer <版> (aarch64)`。版はタグから `v` を除いたもの'
+"48.3" = '各 zip の 3 つのバイナリの PE machine（節の冒頭の式）→ x64 の zip は 3 つとも `8664`、ARM64 の zip は 3 つとも `AA64`。混ざっていたらこの行が探している不具合（ARM64 版に x64 の ConPTY が入ると、起動はしてペインでおかしくなる）'
+"48.4" = '`ConPTY-LICENSE.txt` を読む → リリースのコミットの `scripts/fetch-conpty.ps1` が固定している版（`$version`）が書いてあり、`{VERSION}` が残っていない'
+"48.5" = '各 zip と展開した各ファイルに `Get-FileHash -Algorithm SHA256` → リリースページ末尾の **SHA-256** の表の、そのファイルの行と全部一致する。表が無ければ `sums` ジョブが動かなかったということなので、そう書く'
+"48.6" = 'x64 のフォルダの `filer.exe` を起動してペインを開き（`<C-t>`）、プロセスのモジュールを見る: `(Get-Process filer).Modules \| ? ModuleName -eq conpty.dll \| % FileName` → **そのフォルダの** `conpty.dll` で、`C:\Windows` の下のものではない。zip はそのためにある'

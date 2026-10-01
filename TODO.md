@@ -541,7 +541,7 @@
   `search.rs` の走査器は既定で隠しファイルと `.gitignore` を除外するので流用せず、
   `ops::measure` の形（明示スタック・`symlink_metadata`・20 万件の予算）に倣った。
   - [ ] 残: ハードリンクの二重計上。inode の記録が必要。README に「多めに出る」と明記済み。
-  - [ ] 残: 1 段だけ。フォルダに入ると普通の移動になってビューを抜ける。
+  - [x] 1 段だけだった（v0.63.0 で `l` / `Enter` がビューのまま下りて測り直し、`h` で上がる。`gu` を押したフォルダからの `h` で抜ける。測った結果は持たず、着くたびに測り直す）。
 - [ ] 残: アーカイブの中を歩く（フォルダに入る / 1 ファイルだけ取り出す）。
   現在は一覧のみ。README の Known limits に挙がっている。
 - [x] ディレクトリ同士の比較（v0.43.0）。`Overlay::Diff` と `[diff]` キーマップを再利用し、
@@ -774,9 +774,9 @@
   版は `fetch-conpty.ps1` の固定と一致、`conpty.dll` / `OpenConsole.exe` は ARM64（`0xAA64`）で、固定したパッケージと
   SHA-256 まで一致。動いている filer がその `conpty.dll` を読み込み、`OpenConsole.exe` を子に持つことも確かめた。
   そのバイナリで 1.31 / 1.32 / 1.34（lazygit の Esc と起動時のメニュー）が ARM64 でも通った。
-- [ ] TESTING.md にリリースの zip を確かめる節を作る（#91 の提案）。今は「zip の中身」に当たる行が無く、順番表の
+- [x] （v0.64.1、TESTING.md 48 節。両レーンの順番表に積んだ。**48.5 は v0.64.0 以降で切ったリリースが要る**ので、次のリリースを切るまで残る）TESTING.md にリリースの zip を確かめる節を作る（#91 の提案）。今は「zip の中身」に当たる行が無く、順番表の
   先頭が「チェックを付ける行の無い仕事」になっていた。4 ファイル・版・`0xAA64`・ハッシュ一致は全部読める値。
-- [ ] リリースノートに各成果物の SHA-256 と、Windows の zip の 4 ファイルの構成を載せる（`release.yml`）。
+- [x] （v0.64.0、`release.yml` の `sums` ジョブと `scripts/release-sums.sh`。**次のリリースが初めての実走**なので、ノートの末尾に表が出たかを見ること）リリースノートに各成果物の SHA-256 と、Windows の zip の 4 ファイルの構成を載せる（`release.yml`）。
   ダウンロードした人は `fetch-conpty.ps1` を回せないので、同梱物が正しいかを確かめる手段が無い。
 - [ ] ペインで全画面の TUI（lazygit など）が動いている間も、ペインから出るキー（`<C-t>`）がどこかに見えるようにする。
   TUI が画面を全部使うと、戻り方が画面のどこにも無い。
@@ -909,7 +909,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 ## README の opener 例で、Word / PowerPoint に Excel が先に当たる
 
-- [ ] README の `[opener]` の例をそのまま貼ると、`.docx` / `.pptx` に対して Excel の
+- [x] （v0.62.1、`office` を `excel` / `word` / `powerpoint` の 3 つに分けた。他の拡張子は先頭が正しかった: `*.pdf` は `browser`、テキストは `edit`）README の `[opener]` の例をそのまま貼ると、`.docx` / `.pptx` に対して Excel の
   行が先に並ぶので、**Word 文書で `<Enter>` を押すと Excel が開き、形式が違うという
   ダイアログで止まる。**32/37 節の実機確認が見つけた（QA-REPORT.md）。
   - 例の並び順を直すだけで済むはずだが、**README の例は利用者がそのまま貼るもの**なので、
@@ -1113,7 +1113,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `from_file_url`（`terminal.rs`）が先頭の `///` をそのまま残して `\localhost\C$\dev` になる。UNC には先頭の `\` が
   ちょうど 2 つ要る。3 つ以上の `/` を 2 つにまとめる（Linux でもテストできる。#101 の提案 2）。今はトーストが
   `指定されたパスが見つかりません` と正直に言い、落ちはしない（29.4 はそれで通った）。
-- [ ] README のフックが `LocationChangedAction` を**上書き**している。1 セッションに 1 つの枠で、この機械では mise が
+- [x] （v0.64.2。前のハンドラを `GetNewClosure` で持って先に呼ぶ形にした。`$PWD` はクロージャで固まるので `$e.NewPath` を使う。Linux の pwsh 7.4.6 で、mise 役のハンドラと共存すること、`Add-Content` の形、filer のペインでの `<A-Up>` まで確かめた。29.2/29.3/29.5 の印を外し、29.9 を足して再テストに積んだ）README のフックが `LocationChangedAction` を**上書き**している。1 セッションに 1 つの枠で、この機械では mise が
   既に使っていた（zoxide / atuin / starship は使わない）。`mise activate` の下に貼ると mise の `cd` フックが黙って
   消える。前のハンドラを呼ぶ形にして載せる（#101 の提案 3）。
 - [x] （v0.59.4 で入れた。実機で 29.8）`<A-Up>` の「OSC 7 が無い」トーストに、ペインで動いているシェルの名前を出す。5.1 の人が同じ手順に送り返される

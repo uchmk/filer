@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**17 / 436 済み。**（TESTING.md の全 605 件のうち、`cargo test` が見ている 169 件は
+**17 / 443 済み。**（TESTING.md の全 612 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ほかに 9 件が `[-]`（Linux では対象外）。
@@ -416,7 +416,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **28.7** カーソルが乗っているファイルを外から改名 → カーソルが名前に追従するか、その場に留まる。落ちない — *Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash*
 - [ ] **28.8** 窓に触らず（キーもマウスも使わず）、一覧にあるファイルをエクスプローラーから削除する（v0.57.2）→ キーを押さなくても 0.5 秒以内に行が消える。v0.57.2 までは次にキーを押すまで残っていた（#108） — *Leave the window alone -- no key, no mouse -- and delete a listed file from Explorer (v0.57.2) → The row goes within half a second, without a key being pressed. Until v0.57.2 the list kept it until the next key (#108)*
 
-## 29. ターミナルのカレントディレクトリを持ち帰る — 0 / 7
+## 29. ターミナルのカレントディレクトリを持ち帰る — 0 / 8
 
 自動テスト済みなので下には出していない: 29.4
 
@@ -427,6 +427,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **29.6** `[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`filer env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る — *With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` → 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again*
 - [ ] **29.7** `[term] shell` なしで `<C-t>`、次に `shell = "powershell"` にしてもう一度（v0.57.4）→ 最初のトーストがシェルの名前を言う: `Started pwsh — <C-t> back to the list`、次に `Started powershell — …`。`$PSVersionTable.PSVersion` の答えと合っていること — *`<C-t>` with no `[term] shell`, then again with `shell = "powershell"` (v0.57.4) → The first toast names the shell: `Started pwsh — <C-t> back to the list`, then `Started powershell — …`. It has to match what `$PSVersionTable.PSVersion` says*
 - [ ] **29.8** フックの無い `powershell`（5.1）で開いたペインで `<A-Up>`（v0.59.4）→ 赤いトーストがシェルの名前を挙げる（`` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE ``）。フックを 7 ではなく 5.1 のプロファイルに入れればよいと分かる — *In a pane started as `powershell` (5.1) with no hook, `<A-Up>` (v0.59.4) → The red toast names the shell -- `` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE `` -- so the hook goes into 5.1's profile, not 7's*
+- [ ] **29.9** `$PROFILE` に別のツールのハンドラを先に置き（`mise activate pwsh`、または代わりに `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`）、その後に README のフックを置いて、新しいペインで `cd C:\dev`、`<A-Up>`（v0.64.2）→ 両方動く: 一覧が `C:\dev` に移り、**かつ**別のツールのハンドラも働いている（代わりのものならタイトルが `other: C:\dev`）。v0.64.2 より前は README のフックが別のものを置き換えていた — *Put a handler of another tool's in `$PROFILE` first (`mise activate pwsh`, or a stand-in: `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`), the README hook after it, open a new pane, `cd C:\dev`, `<A-Up>` (v0.64.2) → Both run: the list moves to `C:\dev` **and** the other tool's handler still does its job (the stand-in's title reads `other: C:\dev`). Before v0.64.2 the README hook replaced the other one*
 
 ## 30. プロンプトでの右クリック貼り付け — 0 / 14
 
@@ -612,7 +613,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **44.6** 大きなツリーへのシンボリックリンク / ジャンクションを含むフォルダで `gu` → リンクは 1 エントリ扱いでツリーの二重計上にならず、固まらない — *`gu` on a folder with a symlink/junction to a big tree → The link is one entry, not a second copy of the tree, and no hang*
 - [ ] **44.8** ネットワーク共有（UNC）で `gu` → 答えるか、穏当に失敗する。走査の途中でも `<Esc>` で抜けられる — *`gu` on a network share (UNC) → Answers or fails gracefully; `<Esc>` still gets out mid-walk*
 - [ ] **44.9** `gu` のあと `j`/`k`、`y`、`d`、スペースで選択 → 通常の一覧キーが全部効く。**パネルではなく一覧そのもの**だから — *`gu`, then `j`/`k`, `y`, `d`, space to select → All the ordinary list keys work — this is the list, not a panel*
-- [ ] **44.10** `gu` のあとフォルダで `Enter` → 普通の移動（ビューを抜けてフォルダに入る）。そこでもう一度 `gu` すればそこから測り直す — *`gu`, then `Enter` on a folder → Ordinary navigation: it leaves the view and enters the folder. `gu` again measures from there*
+- [ ] **44.10** `gu` のあとフォルダで `Enter`、続けて `h`、もう一度 `h`（v0.63.0。それ以前は `Enter` でビューを抜けた）→ `Enter`: ビューのまま、そのフォルダを測る（ヘッダのパスがそのフォルダ）。1 回目の `h`: 1 つ上に戻り、ビューのまま、出てきたフォルダにカーソル。2 回目の `h`（`gu` を押したフォルダ）: ビューが閉じて普通の一覧に戻る — *`gu`, then `Enter` on a folder; then `h`, and `h` again (v0.63.0; before that `Enter` left the view) → `Enter`: the view stays and measures that folder (the header path is the folder). First `h`: back up, still in the view, the cursor on the folder it left. Second `h`, in the folder `gu` was pressed in: the view closes and the ordinary listing is back*
 - [ ] **44.11** 使用量ビューを開いたまま `gu` → メッセージを添えて断られる（戻れないビューにならない） — *`gu` while a usage view is already up → Refused with a message, not a view with no way back*
 - [ ] **44.12** `gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。`<Esc>` してからもう一度 `gu` すれば大きい順に戻る（ビューの中の `gu` は断られる。44.11） — *`gu`, then `,` to re-sort → The order changes (as asked); `<Esc>` and `gu` again restores largest-first (`gu` inside the view is refused, 44.11)*
 - [ ] **44.13** フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある** — *Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug***
@@ -671,3 +672,12 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **47.3** 47.2 のあと窓を最小化する → 最小化していても増えない — *The same as 47.2, then minimise the window → Still no rise while minimised*
 - [ ] **47.4** 47.1〜47.3 でまだ増えるとき: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime` を 10 秒あけて 2 回 → どのスレッドの時間が増えるかと、分かれば開始アドレスを報告する。次に調べるのはそのスレッド — *If 47.1-47.3 still rise: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart → Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at*
 - [ ] **47.5** `f` のプロンプトを開いて 10 秒何も触らず、前後で CPU を読む（v0.59.3）→ プロンプトを開いていないとき（47.1）と同じく増えない。キャレットは点滅せず常に出ている。v0.59.3 までは点滅のために毎秒 2 回描いていて、10 秒で 0.14〜0.30 CPU 秒（#103、#110） — *Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3) → No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110)*
+
+## 48. The release zips (v0.64.0) — 0 / 6
+
+- [ ] **48.1** 展開した各フォルダで `Get-ChildItem -Recurse` → フォルダが 1 つ（`filer-<タグ>-windows-x64` か `-arm64`）で、中はちょうど 4 ファイル: `filer.exe`、`conpty.dll`、`OpenConsole.exe`、`ConPTY-LICENSE.txt`。他には何も無く、フォルダの横にも何も無い — *`Get-ChildItem -Recurse` in each extracted folder → One folder, `filer-<tag>-windows-x64` (or `-arm64`), holding exactly four files: `filer.exe`, `conpty.dll`, `OpenConsole.exe` and `ConPTY-LICENSE.txt`. Nothing else, and nothing at the top level beside the folder*
+- [ ] **48.2** 各フォルダで `.\filer.exe --version` → x64 の zip は `filer <版> (x86_64)`、ARM64 の zip は `filer <版> (aarch64)`。版はタグから `v` を除いたもの — *`.\filer.exe --version` from each folder → `filer <version> (x86_64)` from the x64 zip and `filer <version> (aarch64)` from the ARM64 one, the version being the tag without its `v`*
+- [ ] **48.3** 各 zip の 3 つのバイナリの PE machine（節の冒頭の式）→ x64 の zip は 3 つとも `8664`、ARM64 の zip は 3 つとも `AA64`。混ざっていたらこの行が探している不具合（ARM64 版に x64 の ConPTY が入ると、起動はしてペインでおかしくなる） — *The PE machine (above) of all three binaries in each zip → `8664` for all three in the x64 zip, `AA64` for all three in the ARM64 one. A mixed zip is the bug this row exists for: the ARM64 build with an x64 ConPTY would start and then misbehave in the pane*
+- [ ] **48.4** `ConPTY-LICENSE.txt` を読む → リリースのコミットの `scripts/fetch-conpty.ps1` が固定している版（`$version`）が書いてあり、`{VERSION}` が残っていない — *Read `ConPTY-LICENSE.txt` → Names the version `scripts/fetch-conpty.ps1` pins (`$version`) on the release's commit, and no `{VERSION}` is left in it*
+- [ ] **48.5** 各 zip と展開した各ファイルに `Get-FileHash -Algorithm SHA256` → リリースページ末尾の **SHA-256** の表の、そのファイルの行と全部一致する。表が無ければ `sums` ジョブが動かなかったということなので、そう書く — *`Get-FileHash -Algorithm SHA256` on each zip and on each extracted file → Every hash equals the row for that file in the **SHA-256** table at the end of the release page. A missing table means the `sums` job did not run: say so*
+- [ ] **48.6** x64 のフォルダの `filer.exe` を起動してペインを開き（`<C-t>`）、プロセスのモジュールを見る: `(Get-Process filer).Modules \| ? ModuleName -eq conpty.dll \| % FileName` → **そのフォルダの** `conpty.dll` で、`C:\Windows` の下のものではない。zip はそのためにある — *Start `filer.exe` from the x64 folder, open the pane (`<C-t>`), and list the process's modules: `(Get-Process filer).Modules \| ? ModuleName -eq conpty.dll \| % FileName` → The `conpty.dll` **in that folder**, not one under `C:\Windows`. That is what the zip is for*

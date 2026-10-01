@@ -159,20 +159,19 @@ browser = [
 ]
 
 # Naming the programs is only needed to override the file association — the
-# `open` list above already reaches Office through it. PowerPoint's executable
-# is `powerpnt`, not `powerpoint`.
-office = [
-  { run = 'start "" excel %*', desc = "Excel" },
-  { run = 'start "" winword %*', desc = "Word" },
-  { run = 'start "" powerpnt %*', desc = "PowerPoint" },
-]
+# `open` list above already reaches Office through it. One list per program:
+# `<Enter>` takes the first entry, so a shared list would hand every Word file
+# to Excel. PowerPoint's executable is `powerpnt`, not `powerpoint`.
+excel = [{ run = 'start "" excel %*', desc = "Excel" }]
+word = [{ run = 'start "" winword %*', desc = "Word" }]
+powerpoint = [{ run = 'start "" powerpnt %*', desc = "PowerPoint" }]
 
 [open]
 rules = [
   { name = "*.pdf", use = ["browser", "open"] },
-  { name = "*.{xlsx,xlsm,xls,csv}", use = ["office", "open", "edit"] },
-  { name = "*.{docx,docm,doc}", use = ["office", "open"] },
-  { name = "*.{pptx,pptm,ppt}", use = ["office", "open"] },
+  { name = "*.{xlsx,xlsm,xls,csv}", use = ["excel", "open", "edit"] },
+  { name = "*.{docx,docm,doc}", use = ["word", "open"] },
+  { name = "*.{pptx,pptm,ppt}", use = ["powerpoint", "open"] },
   { name = "*.{txt,md,toml,rs,py,json,yml,yaml,ini,log}", use = ["edit", "open"] },
   { name = "*", use = ["open", "edit"] },        # the fallback, last
 ]
@@ -789,12 +788,13 @@ folder", because a directory's own length is the size of its entry on disk and t
 is full.
 
 This is the file list, not a panel: `j` / `k`, the wheel, selection, `y`, `d` and the rest work as
-they always do, and `<Esc>` (or `h`) leaves and goes back to the directory. Leaving cancels the walk.
+they always do, and `<Esc>` leaves and goes back to the directory. Leaving cancels the walk.
 While the view is up the right-hand column shows the sizes whatever line mode the tab had, and the
 tab gets its own back on the way out (v0.56.0; before that the bars were all you saw unless the
 config said `linemode = "usage"`, which made every ordinary folder read `0 B`).
-It is one level deep — entering a folder is ordinary navigation and leaves the view, so `gu` again
-measures from there. Rows arrive as each child is measured, so while the walk runs the header counts
+`l` (or `<Enter>`) on a folder goes down into it and measures it in turn, staying in the view, the
+way `ncdu` does; `h` comes back up with the cursor on the folder it left, and from the folder `gu`
+was pressed in, `h` leaves (v0.63.0). Each level is measured again when you arrive. Rows arrive as each child is measured, so while the walk runs the header counts
 them as `N measured so far` rather than `N items` (v0.57.3); the toast with the total says it is done.
 
 Hidden files and anything `.gitignore` covers are **counted**: a folder does not stop taking up room
@@ -1150,14 +1150,24 @@ shell has to announce itself with **OSC 7**, and filer only believes what it is 
 PowerShell sends nothing by default. Most recipes for it replace `prompt`, which breaks Starship and
 every other prompt generator; this hook runs on each `cd` instead and leaves the prompt alone.
 
-**These four lines go in `$PROFILE`**, and nothing else does:
+**These lines go at the end of `$PROFILE`**, and nothing else does:
 
 ```powershell
+$prev = $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
 $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
-    $p = $PWD.ProviderPath -replace '\\', '/'
-    [Console]::Write("$([char]27)]7;file:///$p$([char]27)\")
-}
+    param($sender, $e)
+    if ($prev) { $prev.Invoke($sender, $e) }
+    $p = $e.NewPath.ProviderPath -replace '\\', '/' -replace '^(?!/)', '/'
+    [Console]::Write("$([char]27)]7;file://$p$([char]27)\")
+}.GetNewClosure()
 ```
+
+`LocationChangedAction` has room for one handler per session, and other tools use it too — `mise
+activate pwsh` does. So the hook keeps whatever was there before and calls it first: put it **after**
+those tools' lines, or the one that comes later replaces it (v0.64.2; before that this recipe
+replaced theirs, and mise's `cd` hook went quiet). The path is taken from the event rather than
+`$PWD`, which `GetNewClosure` would freeze at the folder the profile was read in. The same lines
+work in `pwsh` on Linux and macOS, where the path already starts with `/`.
 
 Then `<C-S-t>` and `<C-t>` — a profile is read when the shell starts, and plain `<C-t>` hands the
 keys back without ending it. `cd` somewhere and press `<A-Up>`. Paths with spaces or non-ASCII
@@ -1167,7 +1177,7 @@ optional rather than required.
 **Which PowerShell, and therefore which `$PROFILE`.** With nothing configured the pane starts
 `pwsh` — PowerShell 7 — when it is installed, and `powershell`, Windows PowerShell 5.1, only when it
 is not (since v0.55.0; before that it was always 5.1). **The hook needs 7**: 5.1 has no
-`LocationChangedAction` at all, so the four lines above fail there every time the shell starts. On
+`LocationChangedAction` at all, so the lines above fail there every time the shell starts. On
 a machine with only 5.1, `winget install Microsoft.PowerShell` and a new pane. The two read
 different files:
 
@@ -1195,10 +1205,13 @@ shell then fails to parse its own profile:
 ```powershell
 @'
 
+$prev = $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
 $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
-    $p = $PWD.ProviderPath -replace '\\', '/'
-    [Console]::Write("$([char]27)]7;file:///$p$([char]27)\")
-}
+    param($sender, $e)
+    if ($prev) { $prev.Invoke($sender, $e) }
+    $p = $e.NewPath.ProviderPath -replace '\\', '/' -replace '^(?!/)', '/'
+    [Console]::Write("$([char]27)]7;file://$p$([char]27)\")
+}.GetNewClosure()
 '@ | Add-Content -Path $PROFILE -Encoding UTF8
 ```
 
@@ -1313,13 +1326,16 @@ hovered: /tmp/work/b.txt
 selected: 2
 tab: 1 of 1
 overlay: input
+view: list
 input: draft
 pane: closed
 toast: Yanked 1 item(s)
 ```
 
-`overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `input` is
-there only while a prompt is open; `pane` is the terminal's grid (`12x159`) or `closed`; `toast` is
+`overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `view` is
+`usage` or `search` while one of those views stands in for the listing, else `list` (v0.64.0); `input` is
+there only while a prompt is open; `compare: folders <left> | <right>` (or `files`) only while a
+comparison is open; `pane` is the terminal's grid (`12x159`) or `closed`; `toast` is
 the newest message still on screen, empty when there is none.
 
 ## Platform Support (Roadmap)
