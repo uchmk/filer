@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**17 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
+**17 / 446 済み。**（TESTING.md の全 615 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ほかに 9 件が `[-]`（Linux では対象外）。
@@ -196,10 +196,10 @@
 - [ ] **12.14** 5 つのファイルで `d` し、走っている間に `w`（v0.58.1）→ 行は `Trash 5 item(s)  [running]`（動詞は **1 回**）、その下の行は `0/5 files` で、`0 B / 0 B` は出ない — *`d` on five files, and `w` while it runs (v0.58.1) → The row reads `Trash 5 item(s)  [running]` -- the verb **once** -- and the line under it `0/5 files`, with no `0 B / 0 B`*
 - [ ] **12.15** 12.10 と同じく、5 件のうち 1 件を別のプログラムで開いたまま 5 件を `d`、続けて `u`（v0.59.7）→ エラーが開いているファイルを `it is open in another program` と名指しし、`u` で入った **4 件**が戻る。v0.59.7 までは `Some operations were aborted` とだけ言い、`u` は `Nothing to undo` だった — *As 12.10 -- one file of five held open elsewhere, `d` on all five -- then `u` (v0.59.7) → The error names the held file with `it is open in another program`, and `u` brings back the **four** that went. Until v0.59.7 the error said only `Some operations were aborted` and `u` said `Nothing to undo`*
 - [ ] **12.16** 12.9 をもう一度: ファイルを `d`、同じ名前のファイルを新しく作り、`u`（v0.59.7）→ エラーが `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` ではなく `a file by that name is already there. Move it away and press u again` と言う。新しいファイルをどけてからの `u` は通る — *12.9 again: `d` a file, make a new file by that name, then `u` (v0.59.7) → The error reads `a file by that name is already there. Move it away and press u again` -- not `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` -- and after moving the new file away, `u` works*
-- [ ] **12.17** `a` で `new/deep/note.txt` を作り、`u`、続けて `U`（v0.60.0）→ `u` で `note.txt` と、そのために作った 2 つのフォルダが消え、トーストは `Removed note.txt`。`U` で 3 つとも戻る。ファイルに何か書いてから `u` すると残り、書き込まれたというエラーが出る — *`a`, type `new/deep/note.txt`, `<Enter>`, then `u`; then `U` (v0.60.0) → `u` removes `note.txt` and both folders made for it, toast `Removed note.txt`; `U` makes all three again. Write something into the file and press `u`: it stays, and the error says it has been written to since*
-- [ ] **12.18** ファイルをヤンクし、別のフォルダで `-`、続けて `u`、`U`（v0.60.0）→ `u` はリンクだけを消し、元のファイルと中身はそのまま。`U` でリンクが戻る。Windows では `=`（ハードリンク）とフォルダへの `-` でも — *Yank a file, `-` in another folder, then `u`; then `U` (v0.60.0) → `u` removes the link and only the link: the source file and its contents are untouched. `U` makes the link again. On Windows, also with `=` (hardlink) and with a folder (`-` on a directory)*
+- [ ] **12.17** `a` で `new/deep/note.txt` を作り、`u`、続けて `U`（v0.60.0）→ `u` で `note.txt` と、そのために作った 2 つのフォルダが消え、トーストは `Removed note.txt and 2 folder(s)`（v0.67.10。それまでは `Removed note.txt` で、フォルダのことを言わなかった）。`U` で 3 つとも戻る。ファイルに何か書いてから `u` すると残り、書き込まれたというエラーが出る — *`a`, type `new/deep/note.txt`, `<Enter>`, then `u`; then `U` (v0.60.0) → `u` removes `note.txt` and both folders made for it, toast `Removed note.txt and 2 folder(s)` (v0.67.10; before, `Removed note.txt` said nothing of the folders); `U` makes all three again. Write something into the file and press `u`: it stays, and the error says it has been written to since*
+- [ ] **12.18** ファイルをヤンクし、別のフォルダで `-`、続けて `u`、`U`（v0.60.0）→ `-` が `Linked <名前> — u to undo` と言う（v0.67.10。それまではヤンクのトーストが残るだけだった）。`u` はリンクだけを消し、元のファイルと中身はそのまま。`U` でリンクが戻る。Windows では `=`（ハードリンク）とフォルダへの `-` でも — *Yank a file, `-` in another folder, then `u`; then `U` (v0.60.0) → `-` says `Linked <name> — u to undo` (v0.67.10; before, the yank's toast stayed up). `u` removes the link and only the link: the source file and its contents are untouched. `U` makes the link again. On Windows, also with `=` (hardlink) and with a folder (`-` on a directory)*
 
-## 13. シンボリックリンクと `g`+`f` — 0 / 9
+## 13. シンボリックリンクと `g`+`f` — 0 / 10
 
 Windows ではリンクを作るのが面倒。**ジャンクション**は管理者権限が要らない
 （`mklink /J linktest C:\dev`）。**ファイルへのシンボリックリンクは開発者モードか管理者権限**が要る
@@ -209,6 +209,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 
 - [ ] **13.7** ジャンクション（`mklink /J`）で試す → シンボリックリンクと同じ扱い（名前の後ろに `->` が付き、`g`+`f` で追える） — *A junction (`mklink /J`), not just a symlink → Treated the same: `->`, and `g`+`f` follows it*
 - [ ] **13.8** `y` してから、別のディレクトリで `-` → シンボリックリンクができる。**Windows では開発者モードが要る**（設定 > システム > 開発者向け）。無いと `os error 1314` で失敗し、トーストが対処法を 2 つ示す — *`y`, then `-` in another directory → The symlink appears. **On Windows this needs Developer Mode on** (Settings > System > For developers) — without it, and without running filer elevated, it fails with `os error 1314` and the toast says which two remedies there are. The privilege is the OS's, not the app's: `std` already passes `SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, which is what makes Developer Mode enough*
+- [ ] **13.8a** 開発者モードが無く昇格もしていない状態で、**フォルダ**を `y` し、別のディレクトリで `-`（v0.67.11）→ 同じ拒否のあとに `A junction needs neither: mklink /J "<リンク>" "<フォルダ>"` が続き、パスは両方とも絶対パス。それを `cmd` に貼るとジャンクションができ、`g` `f` でたどれる。ファイルへの `-` ではジャンクションのことは言わない（フォルダ専用なので） — *Without Developer Mode and not elevated: `y` on a **folder**, then `-` in another directory (v0.67.11) → The same refusal, and after it `A junction needs neither: mklink /J "<the link>" "<the folder>"`, both paths absolute. Pasting that into `cmd` makes a junction that `g` `f` follows. `-` on a file says nothing of junctions (they are folders only)*
 - [ ] **13.9** `y` してから、**隣の**ディレクトリで `_` → 同じリンクが相対パス（`..\other\file`）で作られる。`g`+`f` で追え、両方のディレクトリを一緒に移動しても壊れない（これが `-` に対する `_` の利点） — *`y`, then `_` in a **sibling** directory → The same link, written relative (`..\other\file`). `g`+`f` follows it, and it survives moving both directories together — which is the point of `_` over `-`*
 - [ ] **13.10** シンボリックリンクの上で `<Tab>` → **Link** セクションが出る。`Kind` が `Symlink`、`Target` が保存されたパス、`Resolves` が実際の着地点 — *`<Tab>` on a symlink (v0.46.0) → A **Link** section: `Kind` reads `Symlink`, `Target` the stored path, `Resolves` where it lands*
 - [ ] **13.11** `_` で作ったリンクの上で `<Tab>` → `Kind` が `Symlink (relative)`。`Target` は相対パス、`Resolves` は絶対パスで、**2 行が食い違うことがこの対の要点** — *`<Tab>` on a link made with `_` → `Kind` reads `Symlink (relative)`, and `Target` is the relative path while `Resolves` is absolute — the two rows differ, which is the whole point of the pair*

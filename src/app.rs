@@ -931,8 +931,8 @@ fn paths_to_make(target: &Path) -> Vec<PathBuf> {
 /// then each folder made on the way, as far as each is empty too. A parent
 /// something else has been put into since stays, without an error: the slip
 /// being undone is the one name, and that is gone.
-fn unmake(paths: &[PathBuf], file: bool) -> std::io::Result<()> {
-    let Some((leaf, parents)) = paths.split_last() else { return Ok(()) };
+fn unmake(paths: &[PathBuf], file: bool) -> std::io::Result<usize> {
+    let Some((leaf, parents)) = paths.split_last() else { return Ok(0) };
     if file {
         if std::fs::metadata(leaf)?.len() > 0 {
             return Err(std::io::Error::other(format!("{} has been written to since", util::file_name(leaf))));
@@ -943,12 +943,19 @@ fn unmake(paths: &[PathBuf], file: bool) -> std::io::Result<()> {
         // check itself.
         std::fs::remove_dir(leaf)?;
     }
-    for dir in parents.iter().rev() {
-        if std::fs::remove_dir(dir).is_err() {
-            break;
-        }
+    // A parent someone has since put something in stays, and so does every
+    // folder above it; the count is of the folders that actually went.
+    Ok(parents.iter().rev().take_while(|dir| std::fs::remove_dir(dir).is_ok()).count())
+}
+
+/// The toast for a create taken back. The folders made on the way go with it,
+/// and the toast counts them, so that `u` after `a new/deep/note.txt` does not
+/// read as if only the file went.
+fn removed_label(step: &UndoStep, folders: usize) -> String {
+    match folders {
+        0 => step.undone_label(),
+        n => format!("{} and {n} folder(s)", step.undone_label()),
     }
-    Ok(())
 }
 
 /// Make again what [`unmake`] took back.
@@ -3528,7 +3535,14 @@ impl App {
                 // Links are made one by one and each stands alone, so what was
                 // made is a step even when a cancel or an error stopped the rest.
                 if !linked.is_empty() {
-                    self.undos.land(UndoStep::Link { links: linked }, Land::Fresh);
+                    let step = UndoStep::Link { links: linked };
+                    // A new link barely changes the listing, so say it was
+                    // made, as `d` does (#168). Not over an error: that toast
+                    // comes below and is the one to read.
+                    if errors.is_empty() && !cancelled {
+                        self.toast(format!("{} — u to undo", step.redone_label()));
+                    }
+                    self.undos.land(step, Land::Fresh);
                 }
                 if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
                     t.state = if cancelled {
@@ -4348,10 +4362,10 @@ impl App {
                 self.record_job(id, UndoStep::Trash { paths, dir }, Land::Undone);
             }
             UndoStep::Create { paths, file } => match unmake(&paths, file) {
-                Ok(()) => {
+                Ok(folders) => {
                     self.refresh_parent(&paths[0]);
                     let step = UndoStep::Create { paths, file };
-                    self.toast(step.undone_label());
+                    self.toast(removed_label(&step, folders));
                     self.undos.land(step, Land::Undone);
                 }
                 Err(e) => {
@@ -6212,6 +6226,71 @@ mod create_and_link_undo {
 
         a.redo_step();
         assert!(file.is_file(), "U makes the file again, folders and all");
+    }
+
+    fn toasts(a: &App) -> Vec<&str> {
+        a.toasts.iter().map(|t| t.text.as_str()).collect()
+    }
+
+    /// #168: the toast counts the folders `u` took with the file, and only
+    /// those -- one someone has since put something in stays, and is not
+    /// counted.
+    #[test]
+    fn undoing_a_create_counts_the_folders_that_went() {
+        let dir = util::test_dir("create-undo-said");
+        let mut a = app(&dir);
+        a.do_create("new/deep/note.txt");
+        a.undo_step();
+        assert!(toasts(&a).contains(&"Removed note.txt and 2 folder(s)"), "{:?}", toasts(&a));
+
+        a.redo_step();
+        std::fs::write(dir.join("new/other.txt"), b"").unwrap();
+        a.undo_step();
+        assert!(dir.join("new").is_dir() && !dir.join("new/deep").exists());
+        assert!(toasts(&a).contains(&"Removed note.txt and 1 folder(s)"), "{:?}", toasts(&a));
+
+        a.do_create("plain.txt");
+        a.undo_step();
+        assert!(toasts(&a).contains(&"Removed plain.txt"), "{:?}", toasts(&a));
+    }
+
+    fn finished(linked: Vec<ops::Link>, errors: Vec<String>) -> ops::OpEvent {
+        ops::OpEvent::Finished {
+            id: 3,
+            kind: OpKind::Hardlink,
+            errors,
+            cancelled: false,
+            moved: Vec::new(),
+            linked,
+            made: None,
+            trashed: Vec::new(),
+        }
+    }
+
+    /// #168: `=`, `-` and `_` say what they made, as `d` does, since a new
+    /// link barely changes the listing.
+    #[test]
+    fn a_finished_link_says_what_it_made() {
+        let dir = util::test_dir("link-said");
+        let mut a = app(&dir);
+        let link = |name: &str| ops::Link { at: dir.join(name), target: dir.join("src.txt"), dir: false, hard: true };
+        a.on_op_event(finished(vec![link("one.txt")], Vec::new()));
+        assert!(toasts(&a).contains(&"Linked one.txt — u to undo"), "{:?}", toasts(&a));
+
+        a.on_op_event(finished(vec![link("two.txt"), link("three.txt")], Vec::new()));
+        assert!(toasts(&a).contains(&"Made 2 link(s) — u to undo"), "{:?}", toasts(&a));
+    }
+
+    /// Some made and some not: the error is what to read, so no success line
+    /// goes up next to it. What was made is still a step `u` can take back.
+    #[test]
+    fn a_link_that_partly_failed_says_only_the_error() {
+        let dir = util::test_dir("link-said-partial");
+        let mut a = app(&dir);
+        let link = ops::Link { at: dir.join("one.txt"), target: dir.join("src.txt"), dir: false, hard: true };
+        a.on_op_event(finished(vec![link], vec!["two.txt: denied".into()]));
+        assert!(!toasts(&a).iter().any(|t| t.contains("u to undo")), "{:?}", toasts(&a));
+        assert_eq!(a.undos.undo.len(), 1);
     }
 
     /// A file written in since is not a slip any more: `u` keeps it, says
