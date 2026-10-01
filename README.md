@@ -1150,14 +1150,24 @@ shell has to announce itself with **OSC 7**, and filer only believes what it is 
 PowerShell sends nothing by default. Most recipes for it replace `prompt`, which breaks Starship and
 every other prompt generator; this hook runs on each `cd` instead and leaves the prompt alone.
 
-**These four lines go in `$PROFILE`**, and nothing else does:
+**These lines go at the end of `$PROFILE`**, and nothing else does:
 
 ```powershell
+$prev = $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
 $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
-    $p = $PWD.ProviderPath -replace '\\', '/'
-    [Console]::Write("$([char]27)]7;file:///$p$([char]27)\")
-}
+    param($sender, $e)
+    if ($prev) { $prev.Invoke($sender, $e) }
+    $p = $e.NewPath.ProviderPath -replace '\\', '/' -replace '^(?!/)', '/'
+    [Console]::Write("$([char]27)]7;file://$p$([char]27)\")
+}.GetNewClosure()
 ```
+
+`LocationChangedAction` has room for one handler per session, and other tools use it too — `mise
+activate pwsh` does. So the hook keeps whatever was there before and calls it first: put it **after**
+those tools' lines, or the one that comes later replaces it (v0.64.2; before that this recipe
+replaced theirs, and mise's `cd` hook went quiet). The path is taken from the event rather than
+`$PWD`, which `GetNewClosure` would freeze at the folder the profile was read in. The same lines
+work in `pwsh` on Linux and macOS, where the path already starts with `/`.
 
 Then `<C-S-t>` and `<C-t>` — a profile is read when the shell starts, and plain `<C-t>` hands the
 keys back without ending it. `cd` somewhere and press `<A-Up>`. Paths with spaces or non-ASCII
@@ -1167,7 +1177,7 @@ optional rather than required.
 **Which PowerShell, and therefore which `$PROFILE`.** With nothing configured the pane starts
 `pwsh` — PowerShell 7 — when it is installed, and `powershell`, Windows PowerShell 5.1, only when it
 is not (since v0.55.0; before that it was always 5.1). **The hook needs 7**: 5.1 has no
-`LocationChangedAction` at all, so the four lines above fail there every time the shell starts. On
+`LocationChangedAction` at all, so the lines above fail there every time the shell starts. On
 a machine with only 5.1, `winget install Microsoft.PowerShell` and a new pane. The two read
 different files:
 
@@ -1195,10 +1205,13 @@ shell then fails to parse its own profile:
 ```powershell
 @'
 
+$prev = $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
 $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
-    $p = $PWD.ProviderPath -replace '\\', '/'
-    [Console]::Write("$([char]27)]7;file:///$p$([char]27)\")
-}
+    param($sender, $e)
+    if ($prev) { $prev.Invoke($sender, $e) }
+    $p = $e.NewPath.ProviderPath -replace '\\', '/' -replace '^(?!/)', '/'
+    [Console]::Write("$([char]27)]7;file://$p$([char]27)\")
+}.GetNewClosure()
 '@ | Add-Content -Path $PROFILE -Encoding UTF8
 ```
 

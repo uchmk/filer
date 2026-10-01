@@ -804,6 +804,7 @@ instructions.
 | 29.6 | With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` | 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again |
 | 29.7 | `<C-t>` with no `[term] shell`, then again with `shell = "powershell"` (v0.57.4) | The first toast names the shell: `Started pwsh — <C-t> back to the list`, then `Started powershell — …`. It has to match what `$PSVersionTable.PSVersion` says |
 | 29.8 | In a pane started as `powershell` (5.1) with no hook, `<A-Up>` (v0.59.4) | The red toast names the shell -- `` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE `` -- so the hook goes into 5.1's profile, not 7's |
+| 29.9 | Put a handler of another tool's in `$PROFILE` first (`mise activate pwsh`, or a stand-in: `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`), the README hook after it, open a new pane, `cd C:\dev`, `<A-Up>` (v0.64.2) | Both run: the list moves to `C:\dev` **and** the other tool's handler still does its job (the stand-in's title reads `other: C:\dev`). Before v0.64.2 the README hook replaced the other one |
 
 ## 30. Right-click paste in a prompt (v0.14.0)
 
