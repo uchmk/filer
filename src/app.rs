@@ -6963,8 +6963,8 @@ mod diff_scrolling {
         let mut a = app();
         let rows: Vec<diff::Row> = (0..100)
             .map(|n| diff::Row {
-                left: Some(diff::Line { no: n, text: format!("line {n}") }),
-                right: Some(diff::Line { no: n, text: format!("line {n}") }),
+                left: Some(diff::Line { no: n, text: format!("line {n}"), changed: Vec::new() }),
+                right: Some(diff::Line { no: n, text: format!("line {n}"), changed: Vec::new() }),
                 same: true,
             })
             .collect();

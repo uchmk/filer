@@ -263,6 +263,7 @@ files. 5.9 does not match the program any more; it is written up in QA-REPORT.md
 | 5.8 | `binary.dat` against anything | Says it is not text on both sides and that the bytes differ |
 | 5.9 | Two directories | Refused with a reason |
 | 5.10 | `q` | Closes |
+| 5.11 | Compare two files where one line changes a single word (`price` → `cost`), and another a Japanese word (`太郎` → `花子`) (v0.62.0) | On each changed row only that word is painted stronger, red on the left and green on the right, and the mark sits exactly under the word -- the Japanese one too. A line changed completely keeps only the row tint |
 
 ## 6. Split view, and sending between the panes (v0.1.0, `<A-c>` / `<A-m>` v0.2.0)
 
