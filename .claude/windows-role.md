@@ -41,6 +41,9 @@ for what `--keys` cannot do -- the mouse, or a sequence that depends on what you
 **Since v0.59.0 `<Wait:N>` pauses N ms** after the key before it, for the shell or a program in the
 pane: `--keys "<C-t><Wait:1500>git<Space>status<Enter><Wait:1000><C-S-Enter>"`. Do not pad with
 harmless keys any more; a wait says how long it waited.
+**Since v0.65.0 `<Now>`** presses the next key without waiting for the last to settle (`d<Now>w`, `j<Now>j`), and
+**since v0.67.0 `<Shot:name>`** saves the window as `name.png` beside the `FILER_KEYS_DONE` file, so the picture between
+two keys comes from the same run (`<Shot:focused><C-t><Shot:unfocused>`).
 
 | The row says | What you can read instead |
 | --- | --- |

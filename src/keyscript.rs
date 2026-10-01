@@ -33,6 +33,11 @@ pub enum Step {
     /// preview's 40 ms debounce (47.2) -- which the settled wait otherwise
     /// waits out (Q41).
     Now,
+    /// `<Shot:name>`: the window as it is now, saved as `name.png` beside the
+    /// `FILER_KEYS_DONE` file, before the next key goes in. A check that
+    /// compares the screen between two keys started filer once per picture
+    /// and relied on the windows coming out the same size (Q42, #154).
+    Shot(String),
 }
 
 /// What a step becomes in the frame loop.
@@ -41,6 +46,7 @@ pub enum Press {
     Events(Vec<egui::Event>),
     Wait(Duration),
     Now,
+    Shot(String),
 }
 
 /// A step as the frame loop takes it; `None` for a key no keyboard can type.
@@ -49,7 +55,18 @@ pub fn press(step: &Step) -> Option<Press> {
         Step::Key(k) => events(k).map(Press::Events),
         Step::Wait(d) => Some(Press::Wait(*d)),
         Step::Now => Some(Press::Now),
+        Step::Shot(name) => Some(Press::Shot(name.clone())),
     }
+}
+
+/// `<Shot:name>`'s name: letters, digits, `-` and `_`, so it is a file name on
+/// every platform and cannot climb out of the folder it is saved in.
+fn shot(token: &str) -> Result<String, String> {
+    let name = token.strip_prefix("<Shot:").and_then(|t| t.strip_suffix('>')).unwrap_or("");
+    if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+        return Err(format!("`{token}` is not a shot; name it with letters, digits, - and _, as `<Shot:before>`"));
+    }
+    Ok(name.to_owned())
 }
 
 /// `<Wait:500>` as a pause, in milliseconds.
@@ -63,7 +80,8 @@ fn wait(token: &str) -> Option<Result<Duration, String>> {
 
 /// `<Tab>C<C-S-t>gg` as the keys it names, in yazi's notation: `<…>` is one
 /// key, anything else is one key per character. `<Wait:N>` pauses N ms, and
-/// `<Now>` presses the next key without waiting for the last one to settle.
+/// `<Now>` presses the next key without waiting for the last one to settle,
+/// and `<Shot:name>` saves the window as `name.png`.
 pub fn parse(script: &str) -> Result<Vec<Step>, String> {
     let mut out = Vec::new();
     let mut rest = script;
@@ -85,6 +103,7 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
         let step = match wait(token) {
             Some(d) => Step::Wait(d?),
             None if token == "<Now>" => Step::Now,
+            None if token.starts_with("<Shot:") => Step::Shot(shot(token)?),
             None => Step::Key(Key::parse(token).ok_or_else(|| format!("`{token}` is not a key"))?),
         };
         out.push(step);
@@ -132,6 +151,18 @@ pub fn events(key: &Key) -> Option<Vec<egui::Event>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Q42: `<Shot:name>` is a step of its own, and its name is a plain file name.
+    #[test]
+    fn a_shot_is_named() {
+        let got = parse("j<Shot:after-j>k").unwrap();
+        assert_eq!(got[1], Step::Shot("after-j".into()));
+        assert_eq!(press(&got[1]), Some(Press::Shot("after-j".into())));
+        for bad in ["<Shot:>", "<Shot:../x>", "<Shot:a b>", "<Shot:a/b>"] {
+            let err = parse(bad).unwrap_err();
+            assert!(err.contains("<Shot:before>"), "{bad}: {err}");
+        }
+    }
 
     /// Q41: `<Now>` marks the key after it, and only a key can follow it.
     #[test]
