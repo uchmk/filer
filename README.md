@@ -1319,6 +1319,11 @@ halfway — `d<Now>w` opens the task panel while the trash is still running, and
 moves inside the preview's 40 ms debounce. It has to come right before a key; anything else is
 refused on the command line.
 
+`<Shot:name>` saves the window as it is at that point as `name.png`, beside the `FILER_KEYS_DONE`
+file (or in the folder filer was started from), and the next key waits until it is on disk
+(v0.67.0). `--keys "<Shot:before><C-t><Shot:after>"` gives the two pictures a comparison needs from
+one run. The name is letters, digits, `-` and `_`.
+
 A space is written `<Space>`; a plain one is refused.
 
 A script driving filer from outside needs to know when the keys are done, and guessing from the

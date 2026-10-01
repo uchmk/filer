@@ -127,7 +127,8 @@ fn parse_cli() -> Cli {
                      --keys KEYS      press these keys once started, in keymap notation:\n                     \
                      \"<Tab>C\" opens spot and copies it; <Wait:500> pauses\n                     \
                      500 ms; <Now> presses the next key without waiting\n                     \
-                     for the last to settle. For scripted checks\n\n\
+                     for the last to settle; <Shot:name> saves the window\n                     \
+                     as name.png. For scripted checks\n\n\
                      COMMANDS:\n    env              config files, outside tools and environment,\n                     \
                      for pasting into a bug report\n\n\
                      Config is read from yazi's config directory, then from filer's own.\n\
@@ -260,6 +261,11 @@ fn main() -> eframe::Result<()> {
                 script: cli.keys.iter().filter_map(keyscript::press).collect(),
                 script_at: (0, std::time::Instant::now()),
                 script_now: false,
+                script_shot: None,
+                shot_dir: std::env::var_os("FILER_KEYS_DONE")
+                    .and_then(|p| PathBuf::from(p).parent().map(std::path::Path::to_path_buf))
+                    .filter(|p| !p.as_os_str().is_empty())
+                    .unwrap_or_else(|| PathBuf::from(".")),
                 script_done: std::env::var_os("FILER_KEYS_DONE").filter(|_| !cli.keys.is_empty()).map(PathBuf::from),
             }))
         }),
@@ -547,6 +553,12 @@ struct Filer {
     /// `<Now>` was read: the next key goes in a frame after the last, without
     /// the settled wait.
     script_now: bool,
+    /// `<Shot:name>`: asked for in the frame loop (`Some(name, false)`), then
+    /// sent and waited on (`true`) until the picture is on disk.
+    script_shot: Option<(String, bool)>,
+    /// Where `<Shot:name>` saves: beside `FILER_KEYS_DONE`, else the folder
+    /// filer was started from.
+    shot_dir: PathBuf,
     /// `FILER_KEYS_DONE`: a file to write once the last scripted key has been
     /// pressed and what it started has landed. A script that drives filer
     /// from outside (`scripts/xrun.sh`) waits for it instead of guessing how
@@ -555,6 +567,41 @@ struct Filer {
 }
 
 impl Filer {
+    /// `<Shot:name>`: ask for the picture, then save it when it arrives.
+    fn take_shot(&mut self, ctx: &egui::Context) {
+        let Some((name, sent)) = self.script_shot.clone() else { return };
+        if !sent {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::new(name.clone())));
+            self.script_shot = Some((name, true));
+            ctx.request_repaint();
+            return;
+        }
+        let image = ctx.input(|i| {
+            i.raw.events.iter().find_map(|e| match e {
+                egui::Event::Screenshot { user_data, image, .. }
+                    if user_data.data.as_ref().and_then(|d| d.downcast_ref::<String>()) == Some(&name) =>
+                {
+                    Some(image.clone())
+                }
+                _ => None,
+            })
+        });
+        let Some(image) = image else {
+            ctx.request_repaint();
+            return;
+        };
+        let [w, h] = image.size;
+        let rgba: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_srgba_unmultiplied()).collect();
+        let path = self.shot_dir.join(format!("{name}.png"));
+        let saved = image::RgbaImage::from_raw(w as u32, h as u32, rgba)
+            .ok_or_else(|| "the picture had the wrong size".to_owned())
+            .and_then(|img| img.save(&path).map_err(|e| e.to_string()));
+        if let Err(e) = saved {
+            self.app.error(format!("Shot {name}: {e}"));
+        }
+        self.script_shot = None;
+    }
+
     /// Put the window's own view of its size into `last-run.toml`.
     ///
     /// Only when it has moved: every frame would rewrite the file for nothing.
@@ -608,6 +655,14 @@ impl eframe::App for Filer {
         let frame = ctx.cumulative_frame_nr();
         let (last_frame, last_at) = self.script_at;
         let waited_long = last_at.elapsed() > Duration::from_secs(5);
+        // A picture being taken holds the next key until it is saved, or for
+        // five seconds if it never comes.
+        if self.script_shot.is_some() {
+            if !waited_long {
+                return;
+            }
+            self.script_shot = None;
+        }
         if self.script.front() == Some(&keyscript::Press::Now) {
             self.script.pop_front();
             self.script_now = true;
@@ -647,6 +702,11 @@ impl eframe::App for Filer {
                 self.script_at = (frame, std::time::Instant::now());
                 self.script_now = false;
             }
+            // Taken in `ui`, which is where a viewport command can be sent.
+            Some(keyscript::Press::Shot(name)) => {
+                self.script_shot = Some((name, false));
+                self.script_at = (frame, std::time::Instant::now());
+            }
             // Taken before the wait above; `parse` puts a key after every one.
             Some(keyscript::Press::Now) | None => {}
         }
@@ -657,6 +717,7 @@ impl eframe::App for Filer {
 
         self.app.drain_channels(&ctx);
         self.record_geometry(&ctx);
+        self.take_shot(&ctx);
         let frame_nr = ctx.cumulative_frame_nr();
         if frame_nr != self.last_input_frame {
             self.last_input_frame = frame_nr;
