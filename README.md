@@ -638,7 +638,9 @@ is not.
 
 Each side carries its own line numbers, so a line found here can be found in the file. An edited
 line sits opposite the line it replaced rather than being listed as a removal and an addition far
-apart.
+apart, and the words that changed inside it are painted stronger than the rest of the row (v0.62.0):
+`price` → `cost` in a long line shows as just those two words. A pair of lines with nothing in common
+but spaces is a change of the whole line, and is left at the row's tint.
 
 Reading the files and lining them up happens on a worker, so a big file or a slow share never holds
 the window. Identical files say so rather than drawing thousands of matching rows, and two files
@@ -1402,8 +1404,8 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   branch name are shown — there is no staging, diffing or committing here.
 - Undo covers renames (single and bulk), trips to the recycle bin, moves, new files and folders,
   and links — not copies, archives or `D` — and on macOS not the recycle bin — see [Undo](#undo). It is not written to disk, so closing the window forgets it.
-- Comparing files is line-level and read-only: no word-level highlighting inside a changed line and
-  no editing from the view. Comparing folders opens a pair of files from a row
+- Comparing files is read-only: no editing from the view. Words are marked inside an edited line
+  only while it fits on screen; a line cut short to fit keeps the whole-row tint. Comparing folders opens a pair of files from a row
   (`<Enter>`), but not a pair of folders: a subfolder's rows are already in the same list.
 - The minimap stops where the file was cut off at `max_text_bytes` rather than describing the rest,
   so on a truncated file the strip describes only the head and silently rescales it to the full

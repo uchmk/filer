@@ -13,6 +13,12 @@ use crossbeam_channel::{Receiver, Sender};
 pub struct Line {
     pub no: usize,
     pub text: String,
+    /// The parts of `text` that changed, as char ranges, when this line is
+    /// one of an edited pair: the view paints them stronger than the rest of
+    /// the row, so a one-word edit in a long line can be found at a glance.
+    /// Empty when the line has nothing opposite it, or nothing in common with
+    /// it -- then the whole row is the change, and its tint already says so.
+    pub changed: Vec<std::ops::Range<usize>>,
 }
 
 /// One row of the view: what is on the left, what is on the right, and whether
@@ -208,7 +214,7 @@ pub fn compare(a: &[String], b: &[String], max_cells: usize) -> (Vec<Row>, bool)
 }
 
 fn line(i: usize, text: &str) -> Line {
-    Line { no: i + 1, text: text.to_owned() }
+    Line { no: i + 1, text: text.to_owned(), changed: Vec::new() }
 }
 
 fn both(i: usize, x: &str, j: usize, y: &str) -> Row {
@@ -266,14 +272,99 @@ fn flush(
     off: usize,
 ) {
     for k in 0..dels.len().max(ins.len()) {
-        rows.push(Row {
-            left: dels.get(k).map(|&i| line(off + i, &a[i])),
-            right: ins.get(k).map(|&j| line(off + j, &b[j])),
-            same: false,
-        });
+        let mut left = dels.get(k).map(|&i| line(off + i, &a[i]));
+        let mut right = ins.get(k).map(|&j| line(off + j, &b[j]));
+        if let (Some(l), Some(r)) = (&mut left, &mut right) {
+            (l.changed, r.changed) = changed_words(&l.text, &r.text);
+        }
+        rows.push(Row { left, right, same: false });
     }
     dels.clear();
     ins.clear();
+}
+
+/// Past this many words on a side, a pair of lines is not split into words:
+/// the table is the square of it, and a line that long is not read word by word.
+const MAX_WORDS: usize = 400;
+
+/// Split a line into words: a run of letters, digits and `_`, a run of
+/// whitespace, or any other single character. As char ranges.
+fn words(s: &str) -> Vec<std::ops::Range<usize>> {
+    let class = |c: char| if c.is_alphanumeric() || c == '_' { 0 } else if c.is_whitespace() { 1 } else { 2 };
+    let chars: Vec<char> = s.chars().collect();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < chars.len() {
+        let k = class(chars[i]);
+        let mut j = i + 1;
+        if k != 2 {
+            while j < chars.len() && class(chars[j]) == k {
+                j += 1;
+            }
+        }
+        out.push(i..j);
+        i = j;
+    }
+    out
+}
+
+/// What changed between two lines that face each other, word by word: the
+/// words of each that are not in their longest common run, merged where they
+/// touch. Both empty when the lines share nothing (or are too long to split),
+/// which leaves the whole row as the change.
+pub fn changed_words(a: &str, b: &str) -> (Vec<std::ops::Range<usize>>, Vec<std::ops::Range<usize>>) {
+    let (wa, wb) = (words(a), words(b));
+    if wa.len() > MAX_WORDS || wb.len() > MAX_WORDS {
+        return (Vec::new(), Vec::new());
+    }
+    let (ca, cb): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+    let ta: Vec<&[char]> = wa.iter().map(|r| &ca[r.clone()]).collect();
+    let tb: Vec<&[char]> = wb.iter().map(|r| &cb[r.clone()]).collect();
+    let (n, m) = (ta.len(), tb.len());
+    let stride = m + 1;
+    let mut lcs = vec![0u32; (n + 1) * stride];
+    for i in (0..n).rev() {
+        for j in (0..m).rev() {
+            lcs[i * stride + j] = if ta[i] == tb[j] {
+                lcs[(i + 1) * stride + j + 1] + 1
+            } else {
+                lcs[(i + 1) * stride + j].max(lcs[i * stride + j + 1])
+            };
+        }
+    }
+    // Whitespace alone in common is not a resemblance worth showing.
+    let shared = (0..n).any(|i| (0..m).any(|j| ta[i] == tb[j] && !ta[i].iter().all(|c| c.is_whitespace())));
+    if !shared {
+        return (Vec::new(), Vec::new());
+    }
+    let (mut keep_a, mut keep_b) = (vec![false; n], vec![false; m]);
+    let (mut i, mut j) = (0, 0);
+    while i < n && j < m {
+        if ta[i] == tb[j] {
+            keep_a[i] = true;
+            keep_b[j] = true;
+            i += 1;
+            j += 1;
+        } else if lcs[(i + 1) * stride + j] >= lcs[i * stride + j + 1] {
+            i += 1;
+        } else {
+            j += 1;
+        }
+    }
+    let spans = |ws: &[std::ops::Range<usize>], keep: &[bool]| {
+        let mut out: Vec<std::ops::Range<usize>> = Vec::new();
+        for (r, &k) in ws.iter().zip(keep) {
+            if k {
+                continue;
+            }
+            match out.last_mut() {
+                Some(last) if last.end == r.start => last.end = r.end,
+                _ => out.push(r.clone()),
+            }
+        }
+        out
+    };
+    (spans(&wa, &keep_a), spans(&wb, &keep_b))
 }
 
 /// Where the next change is, from `row`, in the direction given. Used by `n`
@@ -546,6 +637,52 @@ impl Differ {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn picked(s: &str, spans: &[std::ops::Range<usize>]) -> Vec<String> {
+        let c: Vec<char> = s.chars().collect();
+        spans.iter().map(|r| c[r.clone()].iter().collect()).collect()
+    }
+
+    /// One word changed in a line: that word is the change on each side, and
+    /// the rest of the line is not.
+    #[test]
+    fn one_changed_word_is_marked_alone() {
+        let (a, b) = ("let total = price * count;", "let total = cost * count;");
+        let (l, r) = changed_words(a, b);
+        assert_eq!(picked(a, &l), ["price"]);
+        assert_eq!(picked(b, &r), ["cost"]);
+    }
+
+    /// Something added on one side only marks that side; neighbouring changed
+    /// words merge into one span. Char ranges, so a Japanese word is whole.
+    #[test]
+    fn additions_and_wide_characters() {
+        let (a, b) = ("f(x)", "f(x, y)");
+        let (l, r) = changed_words(a, b);
+        assert!(l.is_empty(), "nothing on the left went away");
+        assert_eq!(picked(b, &r), [", y"]);
+        let (a, b) = ("名前 は 太郎", "名前 は 花子");
+        let (_, r) = changed_words(a, b);
+        assert_eq!(picked(b, &r), ["花子"]);
+    }
+
+    /// Lines with nothing in common but spaces are a whole-line change, which
+    /// the row's tint already shows.
+    #[test]
+    fn nothing_in_common_marks_nothing() {
+        assert_eq!(changed_words("alpha beta", "gamma delta"), (Vec::new(), Vec::new()));
+    }
+
+    /// The pairing in the view carries the words.
+    #[test]
+    fn an_edited_pair_comes_with_its_words() {
+        let a = vec!["keep".to_string(), "one two three".to_string()];
+        let b = vec!["keep".to_string(), "one 2 three".to_string()];
+        let (rows, _) = compare(&a, &b, 1_000_000);
+        let edited = rows.iter().find(|r| !r.same).unwrap();
+        assert_eq!(picked(&edited.left.as_ref().unwrap().text, &edited.left.as_ref().unwrap().changed), ["two"]);
+        assert_eq!(picked(&edited.right.as_ref().unwrap().text, &edited.right.as_ref().unwrap().changed), ["2"]);
+    }
 
     fn lines(s: &str) -> Vec<String> {
         s.lines().map(str::to_owned).collect()

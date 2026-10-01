@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**17 / 435 済み。**（TESTING.md の全 604 件のうち、`cargo test` が見ている 169 件は
+**17 / 436 済み。**（TESTING.md の全 605 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ほかに 9 件が `[-]`（Linux では対象外）。
@@ -122,11 +122,12 @@
 - [ ] **4.7** **壊れた** SVG（途中で切ったもの）→ プレビューに `bad SVG: …` と出て、ウィンドウは動き続ける — *A **malformed** SVG (truncate one) → `bad SVG: …` on the preview, and the window keeps working*
 - [ ] **4.8** 4.2 と 4.3 を v0.33.5 のビルドと見比べる → 字形の違いがあれば新しいシェイパーの影響。何が変わったかを書いて両方添える（**v0.33.5 のビルドが要るので、無ければ飛ばす**） — *Compare 4.2 and 4.3 against v0.33.5's build → Any difference in the glyphs is the new shaper; say what changed and attach both*
 
-## 5. 2 ファイルの差分表示 — 0 / 1
+## 5. 2 ファイルの差分表示 — 0 / 2
 
 自動テスト済みなので下には出していない: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.6a, 5.6b, 5.6c, 5.7, 5.8, 5.10
 
 - [ ] **5.9** 2 つの**ディレクトリ**を選んで実行 → 理由を添えて断られる — *Two directories → Refused with a reason*
+- [ ] **5.11** 1 語だけ変わった行（`price` → `cost`）と、日本語の語が変わった行（`太郎` → `花子`）のある 2 つのファイルを比べる（v0.62.0）→ 変わった行では、その語だけが濃く塗られる（左は赤、右は緑）。塗りは語の真下にぴったり重なる（日本語の語も）。全部変わった行は行の色だけ — *Compare two files where one line changes a single word (`price` → `cost`), and another a Japanese word (`太郎` → `花子`) (v0.62.0) → On each changed row only that word is painted stronger, red on the left and green on the right, and the mark sits exactly under the word -- the Japanese one too. A line changed completely keeps only the row tint*
 
 ## 6. 2 分割ペインと、ペイン間の受け渡し — 0 / 1
 

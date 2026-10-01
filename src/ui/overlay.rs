@@ -1036,17 +1036,36 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         for (side, x, mark) in sides {
             // Nothing on this side: the line exists only in the other file.
             let Some(l) = side else { continue };
+            let number = format!("{:>4} ", l.no);
             if !row.same {
                 painter.rect_filled(
                     Rect::from_min_size(egui::pos2(x - 2.0, y), Vec2::new(half, row_h)),
                     CornerRadius::same(2),
                     mark.gamma_multiply(0.22),
                 );
+                // The words that changed, stronger. Measured with the font
+                // rather than counted in cells, so a wide character before
+                // them does not push the mark off its word. A line cut to fit
+                // has lost the positions they refer to, so it keeps the tint.
+                let chars: Vec<char> = l.text.chars().collect();
+                if chars.len() <= cols {
+                    let width = |t: String| painter.layout_no_wrap(t, f.clone(), theme.fg).size().x;
+                    for r in &l.changed {
+                        let before: String = number.chars().chain(chars[..r.start].iter().copied()).collect();
+                        let x0 = x + width(before);
+                        let w = width(chars[r.clone()].iter().collect());
+                        painter.rect_filled(
+                            Rect::from_min_size(egui::pos2(x0, y), Vec2::new(w, row_h)),
+                            CornerRadius::same(2),
+                            mark.gamma_multiply(0.6),
+                        );
+                    }
+                }
             }
             painter.text(
                 egui::pos2(x, y),
                 Align2::LEFT_TOP,
-                format!("{:>4} {}", l.no, crate::util::ellipsize_middle(&l.text, cols)),
+                format!("{number}{}", crate::util::ellipsize_middle(&l.text, cols)),
                 f.clone(),
                 theme.fg,
             );
