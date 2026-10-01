@@ -6333,3 +6333,171 @@ self.cursor = self.cursor.clamp(lo, hi);
 **なぜ**: いま実機の足場を書く全員が踏む。
 
 **大きさ**: 1 行。
+
+## TESTING.md section 24 — 扱いにくい名前（dc66742 / 0.55.5、ARM64 レーン）
+
+ARM64 の Windows ノート PC（Windows 11 Home 26H1 build 28000.2956、`filer env` の
+`Process arch aarch64`）で、無人 run として 24 節を通した。ビルドは
+`target\release\filer.exe` 0.55.5（同梱 ConPTY 1.24.260710001 arm64 を
+`scripts\fetch-conpty.ps1` で配置）。スクラッチは RAM ディスクが無い機械なので
+`C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（`TEMP` / `TMP` もそこ）。
+設定は `…\s24cfg\{yazi,filer}` に隔離して**既定のキーマップ**で回した。昇格なし
+（`IsInRole('Administrators')` = False）。
+
+`cargo test` はネイティブ ARM64 で **523 passed / 0 failed**（0.55.5）。
+
+**チェックしたのは 24.4 と 24.5 の 2 行。**24.2 は下の理由で残した。
+
+### 24.4 — `<A-t>` の引用は 3 シェルとも 1 語で届く（チェックした）
+
+カーソルを `quote'in-name.txt` に置き（`--keys "ggjjjcf"` → クリップボードが
+`quote'in-name.txt`）、`<C-t>` でペインを開いて代入の左辺を打ち、`<C-t>` で一覧に戻って
+`<A-t>`、`<Enter>`。ペインが送った・受け取ったバイトは `FILER_PTY_LOG` で読んだ。
+
+| `[term] shell` | ペインが実際に動かしたもの | `in key`（filer が打った引用） | シェルの答え |
+| --- | --- | --- | --- |
+| 既定（`pick_default_shell` が `pwsh` を選ぶ） | `pwsh.exe` 7.6.6 arm64（`Microsoft.PowerShell_7.6.6.0_arm64__8wekyb3d8bbwe`） | `'C:\…\awkward names\quote''in-name.txt'` | `$a.Count` → `1`、`Test-Path -LiteralPath $a` → `True` |
+| `powershell` | `Windows PowerShell`（5.1） | 同じ `'…quote''in-name.txt'` | `$a.Count` → `1`、`Test-Path` → `True` |
+| `cmd` | `C:\WINDOWS\SYSTEM32\cmd.exe` | `"C:\…\awkward names\quote'in-name.txt"` | `dir /b` が `quote'in-name.txt` を 1 行で返した |
+
+- PowerShell 系は `'` を**二重化**（`quote''in-name.txt`）、cmd は `"…"` で囲んで `'` を
+  そのまま残す。`Quoting::for_shell` の分岐どおりで、v0.47.34 が直した形が ARM64 の
+  ConPTY でもそのまま通っている。
+- 生ログは `…\filer-scratch\s24-pty-default.txt` / `s24-pty-ps51.txt` / `s24-pty-cmd.txt`。
+- 補足: 既定シェルは `powershell`（5.1）ではなく `pwsh` だった。`terminal.rs:179` の
+  `pick_default_shell` が「PowerShell 7 が入っていれば `pwsh`」なので仕様どおり。
+
+### 24.5 — `d` → `u` で日本語名がそのまま戻る（チェックした）
+
+`awkward names\` で `G`（最下行 = `ひらがなとカタカナ.txt`、`cf` のクリップボードが
+`U+3072 U+3089 U+304C U+306A U+3068 U+30AB U+30BF U+30AB U+30CA U+002E U+0074 U+0078 U+0074`）、
+`--keys "Gd<Enter>u"`。60 ms ごとにディレクトリを見ていた。
+
+```
+BEFORE exists=True hash=ACF10B94D77FD5E0C848AF65D22FF7338B36FC311BB264D8E45A10840E345691 len=33
+     3 ms  exists=True
+   543 ms  exists=False        ← d（ごみ箱へ）
+   606 ms  exists=True         ← u（戻った）
+AFTER  exists=True hash=ACF10B94D77FD5E0C848AF65D22FF7338B36FC311BB264D8E45A10840E345691 len=33
+ごみ箱の件数 62 → 62（入って出た）
+```
+
+名前・長さ・SHA-256 が一致。ごみ箱を経由していることは別の使い捨てディレクトリで
+切り分けた（`--keys "Gd<Enter>"` だけを流し、`u` を押さずに見た）:
+
+```
+after d: exists=False
+IN BIN: name=[ひらがなとカタカナ.txt] from=[C:\…\filer-scratch\s24bin-071117]
+```
+
+ごみ箱の中でも名前は化けていない。この run で `元に戻す` して片付けた。
+
+### 24.2 — 残した（行の文言と実装が食い違っているのは変わらない）
+
+`ui::awkward_names::a_very_long_name_is_cut_down_to_its_column` は ARM64 でも緑だが、
+この行が言う「**真ん中が**省略され、**拡張子が読める**」は実装がしていないこと
+（末尾を `…` にする）で、前の節（v0.45.0 の変換）で報告済み。ARM64 で新しく分かった
+ことは無いので、見た目の行としてではなく**未解決の食い違い**として残す。
+
+163 文字の名前そのものは ARM64 でも問題なく扱えている: 下の見つけたもの 1 を回避して
+本来の名前のファイルを置き、`Gk` `cf` でカーソル行の名前を取ると 163 文字が
+そのまま返り（`-ceq` で一致）、ウィンドウも生きたままだった。
+
+### 見つけたもの 1: `make-fixtures.ps1` が「非常に長い名前」を作っていない（24.2 の土台が無い）
+
+- **再現**: `scripts\make-fixtures.ps1` を回して `awkward names\` を見る。
+- **実測**: 本来 1 つのはずの `very-long-…-name.txt`（163 文字）が無く、代わりに
+  **`very-`（5 文字）、`long-`×30 の 150 文字、`name.txt`** の**3 ファイル**ができる。
+  `upper.txt` も作られない（下の見つけたもの 2）。
+- **原因**: `scripts/make-fixtures.ps1:145`
+
+  ```powershell
+  'very-' + ('long-' * 30) + 'name.txt',
+  ```
+
+  PowerShell では `,`（カンマ演算子）が `+` より**強く**結合する。配列リテラルの中で
+  この式は `(… , 'very-') + ('long-'*30) + ('name.txt', …)` と読まれ、1 つの文字列では
+  なく 3 要素に割れる。手元で同じリテラルを評価すると要素数は 6 ではなく **8** になる。
+- **影響**: 24.2 は**そもそも対象のファイルが無い状態で** 4 回以上の run に出されていた。
+  誰も気づかなかったのは、自動テストのほうが Rust 側で名前を組み立てているため。
+- **直し方（直していない）**: 式を丸ごと括る。
+
+  ```powershell
+  ('very-' + ('long-' * 30) + 'name.txt'),
+  ```
+
+### 見つけたもの 2: `UPPER.TXT` / `upper.txt` は既定の NTFS では 2 つにならない（24.3 の手順が成り立たない）
+
+- **再現**: 同じく `make-fixtures.ps1` のあとの `awkward names\`。
+- **実測**: `UPPER.TXT` だけがあり、`upper.txt` は無い。スクリプトの
+  `if (-not (Test-Path -LiteralPath $p))` は Windows では**大文字小文字を区別しない**ので
+  `UPPER.TXT` を見つけて 2 つめを作らない。仮にこのガードを外しても、既定の NTFS
+  ディレクトリでは同名として上書きされる。
+- **影響**: 24.3「`UPPER.TXT` と `upper.txt` → 両方出て、両方開ける」は、
+  `fsutil file setCaseSensitiveInfo <dir> enable`（既定では昇格が要る）を踏まない限り
+  **手では再現できない**。自動テスト側（`ui::awkward_names`）は 2 行をメモリ上で作るので
+  通っている。
+- **どうするべきか（判断は持ち主）**: フィクスチャ生成に
+  `fsutil file setCaseSensitiveInfo` を足して本当に 2 つ作るか、24.3 の行に
+  「大文字小文字を区別するディレクトリでのみ」と条件を書くか。**行の文言は触っていない。**
+
+### Proposals
+
+#### 1. `make-fixtures.ps1` に「作ったものを数えて確かめる」1 行を入れる
+
+**何に当たったか**: 見つけたもの 1 と 2。フィクスチャが**黙って**違うものを作り、
+それが何 run も気づかれずに残った。`awkward names\` は 6 ファイルのはずが、実際は
+7 個（3 つに割れた長い名前 + 消えた `upper.txt`）だった。
+
+**どう変えるべきか**: 各グループの最後に、期待する件数との突き合わせを 1 行足す。
+
+```powershell
+$want = 6
+$got = (Get-ChildItem -LiteralPath $awkward -Force).Count
+if ($got -ne $want) { Write-Warning "awkward names: $got files, expected $want" }
+```
+
+`Write-Host` の「できたよ」の行のすぐ隣に置けば、次に壊れたときその run で分かる。
+
+**なぜ**: いま `make-fixtures.ps1` の出力は「作った**つもり**」を印刷するだけで、
+ディスクを一度も見ていない。実機 run はこの出力を信じて先へ進む。
+
+**大きさ**: グループあたり 2 行。全部で 20 行ほど。
+
+#### 2. 24.2 の行を、実装が答えられる形に決め直す
+
+**何に当たったか**: 24.2 は「真ん中で省略・拡張子が残る」と書いてあるが、実装は末尾を
+`…` にする。v0.45.0 の報告から版が 10 個進んで、まだ誰も決めていない。この run でも
+「見た目だから残す」ではなく「文言が実装と違うから残す」として素通りするしかなかった。
+
+**どう変えるべきか**: どちらかに倒して、QUESTIONS.md ではなく TODO.md に落とす。
+
+1. **実装を行に合わせる**: `src/ui/list.rs` の `name_job()` で、幅が足りないときは
+   `stem` の途中を `…` に置き換えて拡張子を必ず残す。ファイル一覧の省略としてはこちらが
+   普通で、`IMG_0001.jpg` と `IMG_0002.jpg` が見分けられる利点もある。
+2. **行を実装に合わせる**:「列に収まるところで切られる」に書き換え、拡張子の話を落とす。
+
+推奨は **1**。ファイルマネージャで拡張子が消えるのは実用上つらい。
+
+**なぜ**: どちらでもよいが、**決まっていないこと**が一番高い。行が 1 つ、10 版にわたって
+「毎回読んで、毎回残す」対象になっている。
+
+**大きさ**: 1 なら関数 1 つ + `ui::awkward_names` のテスト 1 本の書き換え。2 なら 1 行。
+
+#### 3. `<A-t>` がペインを開いていないときは、開いてから送ってほしい
+
+**何に当たったか**: 24.4 の足場を組むとき、`<A-t>` を単独で押すと
+「The terminal is not open」で何も起きない（`app.rs:4218`）。`--keys` のスクリプトは
+`<C-t>` `<C-t>` を前に置いて、ペインを開いてから一覧へ焦点を戻す必要があった。
+手で使うときも、パスをシェルに渡したい場面は「まだペインを開いていない」ことが多い。
+
+**どう変えるべきか**: `term_send_paths` が `self.term` を `None` で見つけたら、
+`terminal`（= `<C-t>` が走らせるもの）と同じ経路でペインを開き、シェルが立ち上がってから
+送る。エラーを出すのは、ペインを開くこと自体が失敗したときだけにする。
+
+**なぜ**: いまの「開いていないと叱られる」は、キーの意味が
+「**選択中のパスをシェルへ渡す**」であることに対して余計な前提を足している。
+`<C-t>` を先に押さなければならないと覚えるのは、このキーを使う人だけが払うコスト。
+
+**大きさ**: 関数 1 つ。シェル起動は非同期なので、送るバイトを「開いたら流す」キューに
+積む形になる（`Terminal::send` の呼び出しを 1 段遅らせる）ので、設計の判断が 1 つ要る。
