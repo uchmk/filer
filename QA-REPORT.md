@@ -9100,3 +9100,337 @@ ARM64 レーン（`test/arm-36`、`C:\dev\filer-armtest`）の無人実行。`fi
   `[x]` にした。**36.10 だけが残る**が、これは Finding 1 のとおり**行の文面が実機と合わない**ので、
   TESTING.md を直してからでないとチェックできない。順番表から外して TODO.md 行きにするのが筋。
 - `the test suite` の行はそのまま残す（この run も **594 / 0**、0.67.4）。
+
+---
+
+## TESTING.md section 16 — ARM64 実機、Word / Excel / PowerPoint のプレビュー（0.67.4）
+
+ARM64 レーン（`test/arm-16`、`C:\dev\filer-armtest`）の無人実行。`filer --version` は
+`filer 0.67.4 (aarch64)`、`filer env` は `OS arch aarch64` / `Process arch aarch64` —
+**ネイティブの ARM64 ビルド**。管理者ではない（`IsInRole('Administrators')` が `False`）が、
+この節に昇格の要る行は無い。作業は `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`
+（`TEMP` / `TMP` も同じ。この機械に RAM ディスクは無い）。
+
+**`cargo test`: 594 passed / 0 failed**（3.66 s、ARM64 ネイティブ）。
+
+実行の前に `OpenInputDesktop` が `Screen-saver` を返したので（ASUS OLED Care）、
+`Get-Process | Where-Object ProcessName -match 'OLED Care' | Stop-Process -Force` で止め、
+`Default` と `SystemParametersInfo(SPI_GETSCREENSAVERRUNNING) = False` を確かめてから始めた。
+もっとも、キーは全部 `--keys`、画面は `<Shot:name>`（egui のフレームバッファ）なので、
+入力デスクトップには依存していない。
+
+### なぜこの節か
+
+順番表（`windows-role.md`「The ARM64 lane」）の先頭は `36. T, and q from each layer` だが、
+**#164 がこの節を済ませている**（36.13 / 36.14 / 36.15 / 36.18 を `[x]`、残る 36.10 は
+行の文面が実機と合わないので TESTING.md を直すまで押せない）。マージ側の版上げと順番表の
+補充がまだなので、表の見た目は 5 行のままだった。表の 2 行目は `the test suite` で、これは
+毎回走らせるもの。**つまり自分のレーンに押せる節が残っていない。**
+
+`WINTEST_NOTHING` で終わると PR が立たず、マージ側は PR が無いと動かない
+（`merge-role.md` の 1）ので、**順番表の補充を頼む相手がいなくなり、レーンが止まる。**
+そこで `merge-role.md` の「The `arm` queue is empty」が挙げる基準 — ネイティブのコード、
+アーキテクチャに関わるもの、テキストかファイルの状態で読めるもの — で自分で選んだ。
+**16 節は 12 行すべてが「プレビューに出る文字」**で、見た目の行が 1 つも無い。
+
+### 道具立て
+
+- **fixture は本物の Office が書いた**（`fx16.ps1`、COM 経由で Word / Excel / PowerPoint を
+  動かす）。この機械の Office は**日本語版**で、それが Finding 2 につながった。
+  Office が書けないものだけ `fx16b.ps1` / `fx16c.ps1` で詰め替えた（理由は各スクリプトの冒頭）。
+- **キーは `filer --keys`**。設定は run ごとに空の `FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME`
+  に `[ui] window_width = 2200` / `window_height = 1300` だけを置いた（既定キーマップ、
+  既定のプレビュー規則。窓を大きくしたのは読むため）。
+- **読んだもの**: `FILER_KEYS_DONE` の `hovered:` / `overlay:` / `toast:`、`<Shot:>` の PNG
+  に出た文字。`T`（最大化プレビュー）を押してから撮ると本文が全幅になる。
+- 証拠一式（スクリプト、全 PNG、fixture そのもの）は `C:\dev\filer-evidence\arm-16\`。
+
+### 結果
+
+**16.1 — `.docx` をホバー → 段落ごとの本文。16 進ダンプでもメタデータカードでもない。[x]**
+
+`doc.docx`（Word が書いた 6 段落）を `jjjj` でホバーし `T`:
+
+```
+Introduction
+bold
+Details
+日本語の段落です。A & B < C > D "quoted" and it's fine.
+Second section
+The last paragraph of the document.
+```
+
+6 段落が 6 行。16 進ダンプでもカードでもない。**ただし 2 行目は本来**
+**`This sentence has bold and plain in one line.` で、太字でない部分が消えている**
+（Finding 1。行の期待は「本文が段落ごとに出ること」なので `[x]` にしたが、
+この欠落を承知のうえでの `[x]` であることをここに明記しておく）。
+
+**16.2 — 1 文の中で太字と通常が混ざった段落 → 1 行になる。チェックせず（Finding 1）。**
+
+上の 2 行目のとおり、**1 行にはなるが中身が `bold` だけ**になる。期待の
+「書式の切れ目ごとに改行されない」は満たすが、「1 文が出る」ほうが壊れている。
+
+**16.4 — `.xlsx` をホバー → 行がタブ区切りのセル、シートごとに名前。[x]**
+
+`book.xlsx`:
+
+```
+--- 日本語 ---
+日本語の見出し
+A & B < C
+
+--- Summary ---
+Name    Qty     Price
+widget  3       12.5
+gadget with a space     10      4
+
+--- Dates ---
+plain date      2023-03-15
+date and time   2023-03-15 13:45
+serial as a number      45000
+```
+
+シートは `--- 名前 ---` で名乗り、セルはタブ位置で折り返る（`gadget with a space` の行だけ
+`10` が次のタブ位置に送られていて、固定幅ではなくタブであることが絵からも読める）。
+右の `Contents` にも 3 シートが並ぶ。
+
+**16.5 — 最初のタブが `sheet1.xml` ではないブック → ブック上の順番どおり、本当の名前で。[x]**
+
+**Excel はこの状態を書かない。**シートを入れ替えても消しても、保存のたびにパート名を
+タブ順に振り直す（`tabs.xlsx` と `deleted.xlsx` で確かめた）。そこで `odd-tabs.xlsx` は
+Excel が書いたブックのワークシートのパート名だけを `sheet9` / `sheet8` / `sheet7` に替え、
+`workbook.xml.rels` と `[Content_Types].xml` を合わせて詰め直した（`fx16b.ps1`）。
+**Excel はこれを開ける**（タブは `Dates`, `日本語`, `Summary`、1 枚目の A1 は `plain date`）。
+パート名順（7, 8, 9）は**タブ順の逆**なので、どちらを読んでいるかが分かれる。
+
+filer の出力はタブ順そのもの:
+
+```
+--- Dates ---    （パートは sheet9.xml）
+--- 日本語 ---   （sheet8.xml）
+--- Summary ---  （sheet7.xml）
+```
+
+中身も名前に付いて動いている（`Dates` の下に日付、`Summary` の下に `Name Qty Price`）。
+
+**16.6 — 日付 → `2023-03-15`（`45000` ではない）。[x]**
+
+**16.7 — 日付と時刻 → 日付の後ろに時刻。[x]**
+
+同じ `book.xlsx` の `Dates` シート。`=DATE(2023,3,15)` に `yyyy-mm-dd` を付けたセルが
+`2023-03-15`、`=DATE(2023,3,15)+TIME(13,45,0)` に `yyyy-mm-dd hh:mm` を付けたセルが
+`2023-03-15 13:45`。**対照**として、書式を付けずに `45000` を入れたセルは `45000` のまま出る
+（＝日付に見えるかどうかは書式で決めていて、数字を無条件に日付へ変えてはいない）。
+
+**16.8 — スライドが 10 枚以上ある `.pptx` → 順番どおり（9 の次が 10）。[x]**
+
+`deck.pptx`（PowerPoint が書いた 12 枚）。`--- Slide 1 ---` から `--- Slide 12 ---` まで
+番号順に並び、**`--- Slide 9 ---` の次が `--- Slide 10 ---`**。各見出しの下の本文も
+`Slide 10 of 12` / `bullet one on slide 10` と、見出しの番号と一致している
+（並べ替えだけでなく中身の対応も合っている）。右の `Contents` も `Slide 1` … `Slide 12`。
+
+**16.9 — 日本語と `&amp;` `&lt;`。[x]**
+
+`.docx` で `日本語の段落です。A & B < C > D "quoted" and it's fine.`、
+`.xlsx` で `日本語の見出し` と `A & B < C`。どちらも実体参照が戻っていて、文字化けも無い。
+シート名の `日本語` も `--- 日本語 ---` と出る。
+
+**16.11 — 非常に大きなブック → 5000 行で打ち切り、省略したと述べる。固まらない。[x]**
+
+`big.xlsx`（Excel が書いた 6000 行）。`T` のあと `<A-j>`（`seek 5`）を **1100 回**送って
+末尾まで送った。最後の行は `row 3999`、その下に
+
+```
+… 5000 lines total (truncated)
+```
+
+**固まらない半分**: 1100 回のキーをすべて受けて 41 秒で走り切り、最後に
+`FILER_KEYS_DONE` が書かれ、`<Shot:>` も撮れている。
+
+なお**数は 2 段階**になっている。Office の読み取りが 5000 行で止め（これが
+`5000 lines total`）、テキストプレビューの表示が 4000 行で止める（`text.rs` の
+`MAX_LINES = 4000`。だから最後が `row 3999` ＝ 見出し `--- Rows ---` を入れて 4000 行目）。
+行の文面「5000 行で打ち切り」は、**読み取りの打ち切りの数**のことなら正しい。
+
+**16.3 / 16.10 / 16.12 — チェックせず。**それぞれ Finding 2 / 3 / 4。
+
+### Findings
+
+#### 1. 属性の付いた `<w:t>` / `<t>` の中身が丸ごと落ちる（本文とセルが黙って消える）
+
+**16.2 が落ちた理由で、16 節で見つけたいちばん重い不具合。**
+
+`doc.docx` の該当段落は Word が 3 つの run に分けて書いている:
+
+```xml
+<w:t xml:space="preserve">This sentence has </w:t>
+<w:t>bold</w:t>
+<w:t xml:space="preserve"> and plain in one line.</w:t>
+```
+
+プレビューに出るのは **`bold` だけ**。`xml:space="preserve"` の付いた 2 つが消えている。
+
+最小の再現（`preserve.docx`、`fx16c.ps1` が作る 3 段落）:
+
+| 段落 | XML | 出たもの |
+| --- | --- | --- |
+| 1 | `<w:t xml:space="preserve">RUN WITH THE ATTRIBUTE </w:t>` | **空行** |
+| 2 | `<w:t>RUN WITHOUT IT</w:t>` | `RUN WITHOUT IT` |
+| 3 | `<w:t xml:space="preserve">SECOND ATTRIBUTE RUN</w:t><w:t> AND A PLAIN ONE</w:t>` | ` AND A PLAIN ONE` |
+
+**Excel でも同じ**（こちらのほうが実害が大きい）。Excel は**前後に空白のある文字列には**
+**必ず `xml:space="preserve"` を付ける**ので、`spaces.xlsx`（Excel が書いた 2 行 4 セル）は:
+
+```
+--- Spaces ---
+                                  ← ` leading space` と `trailing space ` の行が空
+no spaces at the ends   ordinary
+```
+
+**1 行目が丸ごと空のセル 2 つになる。**警告も `…` も出ないので、**プレビューを見た人には**
+**空のセルとの区別が付かない。**
+
+原因は `src/preview/office.rs` の `text_of()` が、タグを名前で見ずに
+`rest.find(":t>")`（＝属性の付かない `<w:t>` / `<a:t>`）という**リテラルで**探していること。
+属性が付いた開始タグはヒットせず、次の `:t>` まで読み飛ばされるので、その run の文字列が
+出力に入らない。`<t xml:space="preserve">` は Word も Excel も日常的に書く形なので、
+**壊れた文書ではなく普通の文書で起きる。**
+
+直し方は「`<` の直後がタグ名で、次が `>` か空白」という、同じファイルの `tag_text()` が
+すでに持っている判定に揃えるのが素直（`attr()` の近くに同じ注意書きがある）。
+修正はこの run の仕事ではないのでしない。
+
+#### 2. 日本語版 Word は `w:pStyle w:val="1"` と書くので、見出しのアウトラインが空になる（16.3）
+
+`fx16c.ps1` が Word に「見出し 1 / 見出し 2」で書かせた `long-word.docx` の中身は
+
+```
+w:pStyle w:val="1" | w:pStyle w:val="2" | w:pStyle w:val="1"
+```
+
+で、`Heading1` ではない。filer の `heading_level()` は `Heading` / `heading` で始まる値しか
+受けないので、**`<BackTab>` を押すとトーストが `No outline for this file`**
+（`FILER_KEYS_DONE` の `toast:` 行で読んだ）。
+
+同じファイルの `w:val` を `Heading1` / `Heading2` に書き換えただけの `long.docx` では、
+行の文面どおりに動く: `Contents` に `First heading` / `Second heading` / `Third heading` が
+並び、`j` で 2 つ目に移って `<Enter>` を押すと**プレビューの先頭が `Second heading` になる**
+（前後の `<Shot:>` を読み比べた。前は `First heading` と `body line 1..51 under the first
+heading`、後は `Second heading` と `body line 1..51 under the second heading`）。
+
+つまり**機能は動いていて、入口が日本語 Word の書き方に合っていない。**
+`word/styles.xml` の `w:styleId` → `w:name`（`w:val="heading 1"`）を引けば言語に依らず
+解けるが、依存とコード量の判断が要るので持ち主へ。
+**16.3 は、Word で見出しを付けた文書では実機で真にならない。**
+
+#### 3. Word が書いた `.doc` を `.docx` に改名しても、期待のメッセージは出ない（16.10）
+
+`old.doc`（Word に `wdFormatDocument97` で保存させたもの）を `old-renamed.docx` に改名して
+ホバーすると、カードは出るが `Note` は
+
+```
+no word/document.xml in it
+```
+
+で、行が期待する `not an Office XML file (a pre-2007 .doc/.xls/.ppt renamed?)` ではない。
+
+理由は**その `.doc` の中に zip が入っている**こと。先頭は OLE2 の `D0 CF 11 E0`、しかし
+バイト 8638 以降に `PK\x03\x04` が 5 つと `PK\x05\x06`（末尾レコード）があり、
+`zip::ZipArchive::new` が通ってしまう。だから `InvalidArchive` の枝に入らず、
+Word のパートが無いという別のメッセージになる。
+
+**対照**: 同じファイルの先頭 8000 バイトだけを `trunc.docx` として置く（zip の手前で切る）と、
+`Note` は `not an Office XML file (a pre-2007 .doc/.xls/.ppt renamed?)` になる。
+**メッセージ自体は正しく働く。**実際の Word が書いた `.doc` には届かないだけ。
+
+行をこのまま残すなら、「Word が書いた `.doc` では `no word/document.xml in it` と出る」が
+実機の答えになる。原因を言い当てたいなら、先頭 8 バイトが OLE2 の署名かどうかを見て
+`.doc` だと言うほうが確実（提案 3）。
+
+#### 4. 16.12 の `/` と `n` は、プレビューではなくファイル一覧を検索する
+
+`long.docx` を最大化プレビューで開いて `/` を押すと、下に `Find next: second` の入力欄が出て、
+右下のステータスが `find: second` になる。これは `[[mgr.keymap]]` の `/` = `find --smart`
+（desc: *Find next file*）で、**動いたのはカーソルのほうのファイル**だった
+（`hovered:` が `…\long.docx` から `…\s16b\preserve.docx` に変わった）。プレビューの表示位置は
+動かない。`n` = `find_arrow` も次の**ファイル**へ行く。
+
+`src/` を見ても、テキストプレビューの中を検索する道は無い（`ui/preview.rs` に検索語も
+ハイライトも無い）。**この行は Office のプレビューに限らず、どのテキストプレビューでも**
+**真にならない。**文面を直すか、提案 2 の機能を入れてから押す行にするのが要る。
+
+#### 5. （小）16.11 の「5000 行」は 2 つの打ち切りのうち片方の数
+
+上の 16.11 のとおり、読み取りは 5000 行、表示は 4000 行。画面に出る最後の行は `row 3999` で、
+注記は `… 5000 lines total (truncated)`。行の文面だけを見て「5000 行目まで出る」と読むと
+合わない。チェックは付けたが、文面に「表示は 4000 行まで」を足すと誤解が消える。
+
+### Proposals
+
+#### 1. プレビューの本文を、外から文字として読めるようにする
+
+- **何に当たったか**: 16 節は 12 行とも「プレビューに出る文字」だが、**それを読む道が**
+  **スクリーンショットしか無い。**この run は 11 枚の PNG を目で読んで判定した。
+  `FILER_KEYS_DONE` には `hovered:` も `toast:` もあるのに、**いま画面に出ている本文**だけが無い。
+- **何を変えるか**: `state_report` に `preview: <種類> <行数> <先頭 N 行の SHA-256>`、
+  あるいは `<Dump:name>` という `--keys` のステップ（`<Shot:>` の隣に `name.txt` を書く）。
+  後者なら 16 節・17 節・43 節・33 節がまるごと `Select-String` で判定できる行になる。
+- **なぜ**: 絵を読む判定は、窓の大きさ・フォント・テーマで壊れるうえ、
+  **自動化できない**（CI も、Linux レーンも、次の無人実行も同じ絵を読み直せない）。
+  文字で出れば「期待した文字列が出たか」で済み、人の目が要らなくなる。
+  実際この run の Finding 1 は、`AND A PLAIN ONE` を探すだけで出るたぐいの不具合だった。
+- **大きさ**: `state_report` に 1 行なら小さい。`<Dump:>` なら `<Shot:>` と同じ形で 1 ステップ分。
+
+#### 2. 長いプレビューの末尾へ飛ぶ手段が無い
+
+- **何に当たったか**: 16.11 の `… 5000 lines total (truncated)` は**末尾まで送らないと出ない**
+  （`ui/preview.rs` が `end >= lines.len()` のときだけ描く）。`<A-j>` は 5 行ずつなので、
+  **1100 回押した**（41 秒）。人が同じことをする気にはならない。
+- **何を変えるか**: プレビューに `seek` の「端まで」を足す。一覧の `arrow 100%` に相当するもの
+  （`seek 100%` を受けるか、`<A-S-j>` / `<A-S-k>` を `seek bottom` / `seek top` に割り当てる）。
+- **なぜ**: いま「このシートは全部で何行か」「打ち切られているか」を知るには、
+  物理的に押し続けるしかない。打ち切りの注記は**末尾にしか出ない**ので、
+  一番知りたい情報が一番遠い。
+- **大きさ**: コマンド 1 つとキー 2 つ。`seek` の引数に端を表す値を足すだけ。
+
+#### 3. 読めない Office ファイルのカードに、何のファイルに見えるかを書く
+
+- **何に当たったか**: Finding 3。Word が書いた `.doc` を `.docx` に改名した
+  — **行が想定している当のケース**で、出るのは `no word/document.xml in it` だった。
+  「Office XML ではない」も「pre-2007 の `.doc` では？」も出ない。zip は開けてしまうので、
+  いまの分岐では原因に届かない。
+- **何を変えるか**: `office::read` が失敗したとき、**先頭 8 バイトを見てから**文言を決める。
+  `D0 CF 11 E0 A1 B1 1A E1` なら `an OLE2 document (a pre-2007 .doc/.xls/.ppt renamed?)`、
+  `PK` で始まるのにパートが無ければ今の文言、どちらでもなければ `not an Office XML file`。
+- **なぜ**: いまの文言は「filer が中で何を探したか」を言っていて、
+  **人が次に何をすればいいか**を言っていない。`.doc` と分かれば「Word で開いて保存し直す」に
+  たどり着ける。8 バイト読むだけで、この節でいちばん人を迷わせた表示が直る。
+- **大きさ**: 10 行ほど。`read()` の `Err` を作るところ 1 か所。
+
+#### 4. 日本語版 Word の見出しを拾う（Finding 2 の裏返し）
+
+- **何に当たったか**: 日本語版 Word で「見出し 1」を使った文書のアウトラインが空になる。
+  **この機械の Office は日本語版で、日本語版しか持っていない人には常にこうなる。**
+- **何を変えるか**: `word/styles.xml` を 1 回読み、`w:styleId` → `w:name w:val`
+  （`heading 1` は言語に依らない）の対応を作って `heading_level()` に渡す。
+  `styles.xml` が無ければ今のまま。
+- **なぜ**: 見出しスタイルは Word の機能のうち**いちばん普通に使われるもの**で、
+  アウトラインはそれが唯一残す構造だとこのモジュール自身が書いている。
+  いま日本語の文書では常に空になる。
+- **大きさ**: パート 1 つを読んで対応表を 1 つ作る。関数 1 つ分。
+
+### 順番表（`.claude/windows-role.md`「The ARM64 lane」）
+
+無人実行は `.claude/` への書き込みを権限で拒否されるので、変更は PR 本文の `## Queue` に書いた。
+
+- **`36. T, and q from each layer` の行は消す。**#164 で 4 行が `[x]` になり、残る 36.10 は
+  TESTING.md の文面を直すまで押せない（#164 の Finding 1）。TODO.md 行き。
+- **`16. Word / Excel / PowerPoint` を足す必要は無い。**この run で 8 / 12 まで進め、
+  残る 4 行（16.2 / 16.3 / 16.10 / 16.12）は**全部プログラムか文面を直してからの再テスト**なので、
+  順番表ではなく TODO.md に積むのが筋。直ったら「Re-tests of changed behaviour」として戻ってくる。
+- **次に回す節の候補**（ネイティブ寄りで、文字かファイルの状態で読めるもの）:
+  `20. 設定とテーマ`（1 / 7。`<C-F5>` で色と文字の大きさが変わるかは絵だが、
+  読み込んだ設定は `filer env` で読める）、`35. 設定ファイルの探索場所`
+  （Windows の行は 35.2 の 1 行だけ）、`43. CSV / TSV を表として見る`（0 / 1）。
+  **どれも行数が少ない**ので、まとめて 1 本にするか、`merge-role.md` の基準で補充を。
+- `the test suite` の行はそのまま残す（この run も **594 / 0**、0.67.4）。

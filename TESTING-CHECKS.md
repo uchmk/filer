@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**272 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
+**280 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -284,19 +284,19 @@ fsutil hardlink list <新しくできたパス>
 - [x] **15.7** `~` → `scale in` / `scale out` / `scale reset` が他のコマンドと同じように並んでいる — *`~` → `scale in` / `scale out` / `scale reset` are listed, like any other command*
 - [x] **15.9** 別のドライブのファイルをヤンクして `=`（`R:` → `C:`）（v0.59.4）→ エラーが Windows の「別のディスク ドライブに移動できません」ではなく `hardlinks can't cross drives (R: → C:). Use p to copy instead` と言う — *`=` with a file yanked from another drive (`R:` → `C:`) (v0.59.4) → The error reads `hardlinks can't cross drives (R: → C:). Use p to copy instead`, not Windows' "cannot move the file to a different disk drive"*
 
-## 16. Word / Excel / PowerPoint — 0 / 12
+## 16. Word / Excel / PowerPoint — 8 / 12
 
-- [ ] **16.1** `.docx` をホバー → 段落ごとの本文が出る。16 進ダンプでもメタデータの一覧でもない — *Hover a `.docx` → Its text, paragraph by paragraph. Not a hex dump, not a metadata card*
+- [x] **16.1** `.docx` をホバー → 段落ごとの本文が出る。16 進ダンプでもメタデータの一覧でもない — *Hover a `.docx` → Its text, paragraph by paragraph. Not a hex dump, not a metadata card*
 - [ ] **16.2** 1 文の中で太字と通常が混ざった段落 → **1 行になる**（書式の切れ目ごとに改行されない） — *A paragraph with mixed bold and plain in one sentence → **One line**, not one per run*
 - [ ] **16.3** 見出し 1 / 2 のスタイルを使った文書で `<S-Tab>` → 見出しがアウトラインになり、`<Enter>` でその位置へ飛ぶ — *A document with Heading 1/2 styles, then `<S-Tab>` → The headings are the outline, and `<Enter>` on one jumps to it*
-- [ ] **16.4** `.xlsx` をホバー → 行がタブ区切りのセルとして出て、シートごとに名前が示される — *Hover a `.xlsx` → Rows as tab-separated cells, each sheet announced*
-- [ ] **16.5** **最初のタブが `sheet1.xml` ではない**ブック → タブがブック上の順番どおりに、本当の名前で出る — *A workbook whose **first tab is not `sheet1.xml`** → The tabs come out in the workbook's order, with their real names*
-- [ ] **16.6** 日付の入ったシート → `2023-03-15` と出る（`45000` ではない） — *A sheet holding dates → `2023-03-15`, **not** `45000`*
-- [ ] **16.7** 日付**と時刻**の入ったシート → 日付の後ろに時刻が続く — *A sheet holding a date **and** a time → The time follows the date*
-- [ ] **16.8** スライドが 10 枚以上ある `.pptx` をホバー → 順番どおり（9 の次が 10。1 の次ではない） — *Hover a `.pptx` with ten or more slides → In order — slide 10 after slide 9, not after slide 1*
-- [ ] **16.9** 3 種類のどれかに日本語 → 正しく出る。`&amp;` `&lt;` は `&` `<` に戻っている — *Japanese text in any of the three → Correct, and `&amp;` `&lt;` come through as `&` `<`*
+- [x] **16.4** `.xlsx` をホバー → 行がタブ区切りのセルとして出て、シートごとに名前が示される — *Hover a `.xlsx` → Rows as tab-separated cells, each sheet announced*
+- [x] **16.5** **最初のタブが `sheet1.xml` ではない**ブック → タブがブック上の順番どおりに、本当の名前で出る — *A workbook whose **first tab is not `sheet1.xml`** → The tabs come out in the workbook's order, with their real names*
+- [x] **16.6** 日付の入ったシート → `2023-03-15` と出る（`45000` ではない） — *A sheet holding dates → `2023-03-15`, **not** `45000`*
+- [x] **16.7** 日付**と時刻**の入ったシート → 日付の後ろに時刻が続く — *A sheet holding a date **and** a time → The time follows the date*
+- [x] **16.8** スライドが 10 枚以上ある `.pptx` をホバー → 順番どおり（9 の次が 10。1 の次ではない） — *Hover a `.pptx` with ten or more slides → In order — slide 10 after slide 9, not after slide 1*
+- [x] **16.9** 3 種類のどれかに日本語 → 正しく出る。`&amp;` `&lt;` は `&` `<` に戻っている — *Japanese text in any of the three → Correct, and `&amp;` `&lt;` come through as `&` `<`*
 - [ ] **16.10** 古い `.doc` を `.docx` に改名してホバー → Office XML ではないと述べるカードが出て、考えられる原因も示す — *Rename an old `.doc` to `.docx` and hover it → A card saying it is not an Office XML file, naming the likely cause*
-- [ ] **16.11** 非常に大きなブック → 5000 行で打ち切り、省略したと述べる。固まらない — *A very large workbook → Stops at 5000 lines and says it is truncated; it does not hang*
+- [x] **16.11** 非常に大きなブック → 5000 行で打ち切り、省略したと述べる。固まらない — *A very large workbook → Stops at 5000 lines and says it is truncated; it does not hang*
 - [ ] **16.12** その中で `/` と `n` → 検索が効く（ただのテキストプレビューなので） — *`/` and `n` inside one → Search works, because it is an ordinary text preview*
 
 ## 17. 自前のプレビューア — 0 / 18
