@@ -1113,7 +1113,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `from_file_url`（`terminal.rs`）が先頭の `///` をそのまま残して `\localhost\C$\dev` になる。UNC には先頭の `\` が
   ちょうど 2 つ要る。3 つ以上の `/` を 2 つにまとめる（Linux でもテストできる。#101 の提案 2）。今はトーストが
   `指定されたパスが見つかりません` と正直に言い、落ちはしない（29.4 はそれで通った）。
-- [ ] README のフックが `LocationChangedAction` を**上書き**している。1 セッションに 1 つの枠で、この機械では mise が
+- [x] （v0.64.2。前のハンドラを `GetNewClosure` で持って先に呼ぶ形にした。`$PWD` はクロージャで固まるので `$e.NewPath` を使う。Linux の pwsh 7.4.6 で、mise 役のハンドラと共存すること、`Add-Content` の形、filer のペインでの `<A-Up>` まで確かめた。29.2/29.3/29.5 の印を外し、29.9 を足して再テストに積んだ）README のフックが `LocationChangedAction` を**上書き**している。1 セッションに 1 つの枠で、この機械では mise が
   既に使っていた（zoxide / atuin / starship は使わない）。`mise activate` の下に貼ると mise の `cd` フックが黙って
   消える。前のハンドラを呼ぶ形にして載せる（#101 の提案 3）。
 - [x] （v0.59.4 で入れた。実機で 29.8）`<A-Up>` の「OSC 7 が無い」トーストに、ペインで動いているシェルの名前を出す。5.1 の人が同じ手順に送り返される
