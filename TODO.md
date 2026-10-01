@@ -1312,3 +1312,17 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] `linemode usage` に既定のキーが無く、ビューの中で列を変えると戻せない（提案 1）。**v0.58.0 で `m u` を割り当てた（Q36）**。実機で 44.17。
 - [x] 歩いている間、見出しの `N items` が測り終えた数なのにフォルダの件数に読める（提案 2）。**v0.57.3 で、歩きの間は
   `N measured so far` と出すようにした**（実機で 44.16）。分母（`2 / 5`）を出すのは `fs::usage` の設計が要るので見送り。
+
+## 実機のセッションの報告（v0.58.2 で受けた分: #119、ARM64 で TESTING-KEYS.md の残り 5 キー）
+
+- [x] `[spot]` `C` / `<Enter>`、`[diff]` `z`、`[mgr]` `<C-S-Enter>`、`[term]` `<C-F5>` を ARM64 で押し、他に何も起きないことも
+  読んでチェック。TESTING-KEYS.md は 248 / 248（その後 v0.58.0 の `m u` で 248 / 249）。`cargo test` 538 / 0（0.57.2）。
+- [ ] キーマップのコマンドに書いた Windows のパスで `\` が消える（所見 1）。`cmd.rs` の `lex()` が引用符の外の `\` を
+  エスケープとして落とすので、`run = 'cd C:\Users\…'` が `C:Users…` になり、エラーが書いていない名前を出す。
+  引用符の外の `\` を Windows でどう扱うかは既存の設定の意味が変わる（要確認: Q37）。
+- [ ] `[mgr]` の `<C-S-Enter>` の説明が「or hand it back」と言うが、`[mgr]` からは戻せない（所見 2）。最大化すると
+  キーはペインに移り、戻すのは `[term]` の同じキー。`[mgr]` の行の `desc` を「Give the terminal pane the window」にする
+  （TESTING-KEYS.md の行の文言が変わるので、生成し直してチェックを引き継ぐ）。
+- `--keys` の待ちのトークン（提案 1）は、上の「`filer --keys` に待ちを足す」と同じ。これで 7 回目の提案になった。
+- [ ] spot の `From branch` の行でも `<Enter>` で枝の GitHub のページを開く（提案 3）。隣の `Came in via` と `Pull request` は
+  開くのに、真ん中だけが黙っている。枝が消えていたときは開けないことをトーストで言う。
