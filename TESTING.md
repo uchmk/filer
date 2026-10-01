@@ -843,6 +843,7 @@ ones where it says no.
 | 31.12 | Go to a host, then change directory away | The watcher does not complain about the host it could not watch |
 | 31.13 | A host that answers but shares nothing (v0.57.3) | The list says `(no shares)`, not `(empty)` |
 | 31.14 | `g<Space>` an address on your subnet that nothing answers on, `<Enter>`, then `<Esc>` before it gives up (v0.58.1) | Back where you were at once, a toast `Stopped waiting for \\<address>`, `j` / `k` work again -- and nothing more is said when the abandoned attempt times out later |
+| 31.15 | `g<Space>` an address that does not answer, `<Enter>`, and read the header before it gives up (v0.59.8) | The header's count reads `listing…` and the position `…` -- not `0 items` and `0/0`, which read as having arrived at an empty host. Once it answers, or `<Esc>` takes the tab back (31.14), the counts return |
 
 ## 32. Openers (v0.17.0)
 
