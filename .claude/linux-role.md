@@ -52,9 +52,12 @@ scripts/make-fixtures.sh "$TMPDIR/filer-fixtures"   # or /tmp/filer-fixtures
 ```
 
 `scripts/xrun.sh OUT [filer args...]` starts its own X display, runs filer,
-waits for the window and `XRUN_WAIT` seconds (default 3), and leaves
-`OUT/shot.png`, `OUT/title.txt`, `OUT/clip.txt` (armed with `XRUN-SENTINEL`
-first, read while filer still owns it) and `OUT/filer.log`:
+waits for the window -- and with `--keys`, until filer has pressed the last key
+and it has settled (`OUT/keys.done`), then `XRUN_WAIT` seconds more (default 1;
+without `--keys`, 3) -- and leaves `OUT/shot.png`, `OUT/title.txt`,
+`OUT/clip.txt` (armed with `XRUN-SENTINEL` first, read while filer still owns
+it) and `OUT/filer.log`. No `OUT/keys.done` means the keys timed out: that
+result is of a half-pressed script, so do not tick from it.
 
 ```bash
 scripts/xrun.sh /tmp/r1 "/tmp/filer-fixtures/awkward names" --keys "jjcf"

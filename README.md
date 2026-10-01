@@ -1296,6 +1296,11 @@ filer --keys "<C-t><Wait:1500>git<Space>status<Enter><Wait:1000><C-S-Enter>"
 
 A space is written `<Space>`; a plain one is refused.
 
+A script driving filer from outside needs to know when the keys are done, and guessing from the
+`<Wait:N>` it wrote misses the time each key spends waiting to settle. Set `FILER_KEYS_DONE` to a
+file path and filer writes that file once the last key has gone in and what it started has landed —
+the same wait the keys themselves take (v0.60.1). `scripts/xrun.sh` waits for it.
+
 ## Platform Support (Roadmap)
 
 Development currently centers on Windows, but the goal is cross-platform support across the
