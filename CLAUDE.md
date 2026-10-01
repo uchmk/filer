@@ -263,6 +263,8 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   スクリプトの冒頭。**実機の PR をマージすることが次の実行の引き金になる**ので、マージする側は
   順番表（`windows-role.md` の「Where the work is」）が次の節を指しているかを確かめてからマージする。
   無人のときの規則は役割定義の「Unattended runs」の節。
+  **実行の間はスクリーンセーバーを止める**（v0.64.3。ノート PC の ASUS OLED Care が入力を握って `SendInput` を潰していた）。
+  止め方と戻し方はスクリプトの冒頭。`-KeepScreenSaver` で止めない。
 - **マージする側も無人で回っている（v0.50.2 から）。**クラウドの Routine が 1 時間おきに
   `.claude/merge-role.md` を読み、`test/win-*` の PR を 1 本確かめてマージし、版・CHANGELOG・
   提案の振り分け・順番表の補充までをする。**無人の実行が `main` に直接 push してよいのは、この
