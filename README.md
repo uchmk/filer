@@ -1313,13 +1313,16 @@ hovered: /tmp/work/b.txt
 selected: 2
 tab: 1 of 1
 overlay: input
+view: list
 input: draft
 pane: closed
 toast: Yanked 1 item(s)
 ```
 
-`overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `input` is
-there only while a prompt is open; `pane` is the terminal's grid (`12x159`) or `closed`; `toast` is
+`overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `view` is
+`usage` or `search` while one of those views stands in for the listing, else `list` (v0.64.0); `input` is
+there only while a prompt is open; `compare: folders <left> | <right>` (or `files`) only while a
+comparison is open; `pane` is the terminal's grid (`12x159`) or `closed`; `toast` is
 the newest message still on screen, empty when there is none.
 
 ## Platform Support (Roadmap)

@@ -2504,6 +2504,8 @@ impl App {
         // It said the walk was still going, which stopped being true just now
         // (#109).
         self.toasts.retain(|t| !t.text.starts_with("Measuring"));
+        // And the total told how to leave a view that is no longer up.
+        self.toasts.retain(|t| !t.text.ends_with("<Esc> to leave"));
         let cwd = self.tabs[self.active].cwd.clone();
         let show_hidden = self.tabs[self.active].show_hidden;
         let folder = match self.cache.get(&cwd) {
@@ -6898,6 +6900,7 @@ mod usage_view {
 
         a.act(Act::Leave);
         assert!(!a.in_usage_view(), "from where `gu` was pressed, `h` leaves");
+        assert!(!a.toasts.iter().any(|t| t.text.contains("to leave")), "nothing left saying how to leave");
         assert_eq!(a.tabs[a.active].cwd, dir);
         let _ = std::fs::remove_dir_all(&dir);
     }

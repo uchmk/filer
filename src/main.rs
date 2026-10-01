@@ -748,9 +748,26 @@ fn state_report(app: &App) -> String {
         format!("selected: {}", tab.selected.len()),
         format!("tab: {} of {}", app.active + 1, app.tabs.len()),
         format!("overlay: {overlay}"),
+        // What stands in for the listing: the cwd alone cannot tell a usage
+        // view from the plain folder it was opened on.
+        format!(
+            "view: {}",
+            if app.in_usage_view() {
+                "usage"
+            } else if app.in_search_view() {
+                "search"
+            } else {
+                "list"
+            }
+        ),
     ];
     if let app::Overlay::Input(ov) = &app.overlay {
         lines.push(format!("input: {}", ov.text));
+    }
+    // Two folders or two files, and the pair: `overlay: diff` is both.
+    if let app::Overlay::Diff(ov) = &app.overlay {
+        let what = if matches!(ov.outcome, Some(diff::Outcome::Tree { .. })) { "folders" } else { "files" };
+        lines.push(format!("compare: {what} {} | {}", ov.left.display(), ov.right.display()));
     }
     lines.push(format!(
         "pane: {}",
@@ -1047,6 +1064,8 @@ mod tests {
             assert!(report.lines().any(|l| l == line), "{line:?} in {report}");
         }
         assert!(!report.contains("input:"), "only while a prompt is open");
+        assert!(report.lines().any(|l| l == "view: list"), "{report}");
+        assert!(!report.contains("compare:"), "only while a comparison is open");
     }
 
     /// #131: the bold face is found beside a regular face with no `-Regular`.

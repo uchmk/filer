@@ -9,6 +9,11 @@ yazi 風のキーボード操作ファイルマネージャーを Rust + egui 0.
 - 実行中の `filer.exe` を止めるときは事前確認を不要とし、ビルドを優先する。
 - 改行は LF（`.gitattributes` の `eol=lf`）。スクリプトで書き換えるときは改行を変えない（Python なら `newline=''`）。
 - タスクは [TODO.md](TODO.md)、人への確認事項は [QUESTIONS.md](QUESTIONS.md) で管理する（書き方は「確認事項」の節）。
+- **直した分は再テストに回す（2026-10-01、持ち主の指示）。**修正で動きが変わった行は、チェック表の `[x]` を外し
+  （TESTING-CHECKS.md / TESTING-LINUX.md。前の動きを確かめた印なので残すと嘘になる）、`.claude/windows-role.md` と
+  `.claude/linux-role.md` の順番表の先頭の「Re-tests of changed behaviour」にその行を足す。印の無い行でも、
+  修正が直したはずの行（実機の報告から来た不具合など）は同じ所に足す。自分でも Linux の仮想ディスプレイで
+  `--keys` と `FILER_KEYS_DONE` を使って先に確かめること。
 - **実機でしか確かめられないことは [TESTING.md](TESTING.md) に積む。**画面の無い環境で書いた機能は、
   ここにチェック項目として足してから完了にする。テスト用ファイルは `scripts/make-fixtures.ps1` が作る。
 
@@ -74,6 +79,9 @@ main に入れず**別 SHA の複製**を入れるので、グラフから枝線
     取得は `scripts/fetch-conpty.ps1` の 1 か所で、版と SHA-256 はそこで固定している。
     **版を上げるときは、実機で新しい版を試してから、版とハッシュを一緒に変えること。**
     手元でビルドしたときも、このスクリプトで `target\release` に置かないと古い ConPTY で動く。
+  - **最後に `sums` ジョブが、全成果物と Windows の zip の中身（ファイルごと）の SHA-256 表をノートの末尾に足す**
+    （v0.64.0、`scripts/release-sums.sh`。`<!-- checksums -->` から後ろを置き換えるので再実行しても重ならない）。
+    手元で試すときは、成果物を置いたフォルダでこのスクリプトを回す。
   - ノート末尾の「Platforms」の節は `release.yml` が固定で付ける。**Windows 以外は
     ビルドが通ることしか分かっていない**ことを、毎回そこで明示している。
 
