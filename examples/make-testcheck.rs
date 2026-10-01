@@ -31,6 +31,13 @@
 //! With `--check` it writes nothing and reports whether the file still matches
 //! TESTING.md and the tests, exiting 1 if not. That is what CI runs: a check
 //! added to TESTING.md and never regenerated here is a check nobody will see.
+//!
+//! **`--lane linux` writes `TESTING-LINUX.md` instead** -- the same rows, with
+//! ticks of its own, for the Linux lane (`.claude/linux-role.md`). A tick in
+//! TESTING-CHECKS.md says "seen on a Windows machine", and a Linux run cannot
+//! honestly add to that. The Linux file also knows a third mark, `[-]`: the
+//! row does not apply on Linux (a UNC share, ConPTY, the recycle bin's
+//! Windows half). It is carried over like a tick and counted apart from one.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
@@ -39,7 +46,24 @@ use std::path::Path;
 const SRC: &str = "TESTING.md";
 const JA: &str = "scripts/testcheck-ja.toml";
 const SRC_DIR: &str = "src";
-const OUT: &str = "TESTING-CHECKS.md";
+const OUT_WINDOWS: &str = "TESTING-CHECKS.md";
+const OUT_LINUX: &str = "TESTING-LINUX.md";
+
+/// Which machine's checklist this run writes.
+#[derive(Clone, Copy, PartialEq)]
+enum Lane {
+    Windows,
+    Linux,
+}
+
+impl Lane {
+    fn out(self) -> &'static str {
+        match self {
+            Lane::Windows => OUT_WINDOWS,
+            Lane::Linux => OUT_LINUX,
+        }
+    }
+}
 
 /// One row of one of TESTING.md's tables.
 struct Check {
@@ -96,7 +120,14 @@ struct SectionNote {
 }
 
 fn main() {
-    let check = std::env::args().skip(1).any(|a| a == "--check");
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let check = args.iter().any(|a| a == "--check");
+    let lane = match args.iter().position(|a| a == "--lane").and_then(|i| args.get(i + 1)).map(String::as_str) {
+        None | Some("windows") => Lane::Windows,
+        Some("linux") => Lane::Linux,
+        Some(other) => panic!("--lane takes `windows` or `linux`, not `{other}`"),
+    };
+    let out_path = lane.out();
     let sections = parse(&std::fs::read_to_string(SRC).expect("read TESTING.md"));
     let notes: Notes = match std::fs::read_to_string(JA) {
         Ok(t) => toml::from_str(&t).expect("parse the Japanese annotations"),
@@ -108,15 +139,18 @@ fn main() {
     for id in &notes.manual {
         automated.remove(id);
     }
-    let done = previous_ticks();
+    let marks = previous_marks(out_path, lane);
+    // `done` is what counts as finished: ticked, or (on Linux) not applicable.
+    let done: BTreeSet<String> = marks.keys().cloned().collect();
 
     let all: Vec<&Check> = sections.iter().flat_map(|s| s.checks.iter()).collect();
     let manual: Vec<&&Check> = all.iter().filter(|c| !automated.contains(&c.id)).collect();
-    let ticked = manual.iter().filter(|c| done.contains(&c.id)).count();
+    let ticked = manual.iter().filter(|c| marks.get(&c.id) == Some(&'x')).count();
+    let skipped = manual.iter().filter(|c| marks.get(&c.id) == Some(&'-')).count();
     let untranslated = manual.iter().filter(|c| !notes.row.contains_key(&c.id)).count();
 
     let mut out = String::new();
-    preamble(&mut out, &all, &manual, ticked, untranslated);
+    preamble(&mut out, lane, &all, &manual, ticked, skipped, untranslated);
 
     for s in &sections {
         let mine: Vec<&Check> = s.checks.iter().filter(|c| !automated.contains(&c.id)).collect();
@@ -143,11 +177,13 @@ fn main() {
         if !auto.is_empty() {
             writeln!(out, "自動テスト済みなので下には出していない: {}\n", auto.join(", ")).unwrap();
         }
-        if let Some(setup) = n.map(|n| n.setup.trim()).filter(|s| !s.is_empty()) {
+        // The setup blocks are PowerShell against the Windows fixtures; on the
+        // Linux lane they would be instructions that cannot be followed.
+        if let Some(setup) = n.map(|n| n.setup.trim()).filter(|s| !s.is_empty() && lane == Lane::Windows) {
             writeln!(out, "準備:\n\n{setup}\n").unwrap();
         }
         for c in mine {
-            let mark = if done.contains(&c.id) { "x" } else { " " };
+            let mark = marks.get(&c.id).copied().unwrap_or(' ');
             let en = c.cells.join(" → ");
             match notes.row.get(&c.id) {
                 Some(ja) => writeln!(out, "- [{mark}] **{}** {ja} — *{en}*", c.id).unwrap(),
@@ -200,35 +236,49 @@ fn main() {
     if check {
         // Byte comparison, and tick-insensitive for free: `out` carried the
         // existing ticks forward, so a tick can never be what differs.
-        let old = std::fs::read_to_string(OUT).unwrap_or_default();
+        let old = std::fs::read_to_string(out_path).unwrap_or_default();
         if old == out {
             println!(
-                "{OUT}: in sync with {SRC} ({ticked} / {} checked, {untranslated} untranslated)",
+                "{out_path}: in sync with {SRC} ({ticked} / {} checked, {untranslated} untranslated)",
                 manual.len(),
             );
             return;
         }
         report_drift(&all, &automated, &old);
+        let flag = if lane == Lane::Linux { " -- --lane linux" } else { "" };
         eprintln!(
-            "\n{OUT} is out of date. Regenerate it, read the diff, and commit it:\n\n    \
-             cargo run --example make-testcheck\n"
+            "\n{out_path} is out of date. Regenerate it, read the diff, and commit it:\n\n    \
+             cargo run --example make-testcheck{flag}\n"
         );
         std::process::exit(1);
     }
-    std::fs::write(OUT, out).expect("write the checklist");
+    std::fs::write(out_path, out).expect("write the checklist");
     println!(
-        "{OUT}: {ticked} / {} checked ({} automated, {untranslated} untranslated)",
+        "{out_path}: {ticked} / {} checked ({} automated, {untranslated} untranslated)",
         manual.len(),
         all.len() - manual.len(),
     );
 }
 
-fn preamble(out: &mut String, all: &[&Check], manual: &[&&Check], ticked: usize, untranslated: usize) {
-    writeln!(out, "# 実機チェックリスト").unwrap();
+fn preamble(
+    out: &mut String,
+    lane: Lane,
+    all: &[&Check],
+    manual: &[&&Check],
+    ticked: usize,
+    skipped: usize,
+    untranslated: usize,
+) {
+    let flag = if lane == Lane::Linux { " -- --lane linux" } else { "" };
+    writeln!(out, "{}", match lane {
+        Lane::Windows => "# 実機チェックリスト",
+        Lane::Linux => "# Linux チェックリスト",
+    })
+    .unwrap();
     writeln!(out).unwrap();
     writeln!(
         out,
-        "`{SRC}` から `cargo run --example make-testcheck` で生成している。\
+        "`{SRC}` から `cargo run --example make-testcheck{flag}` で生成している。\
          **正は {SRC}**（英語）で、\nこのファイルはそれを日本語で並べ替えたもの。\
          食い違ったら {SRC} を信じること。各行の\n末尾の *斜体* が {SRC} の原文で、\
          訳はその手前にある。\n\n\
@@ -246,8 +296,24 @@ fn preamble(out: &mut String, all: &[&Check], manual: &[&&Check], ticked: usize,
         all.len() - manual.len(),
     )
     .unwrap();
+    if skipped > 0 {
+        writeln!(out, "\nほかに {skipped} 件が `[-]`（Linux では対象外）。").unwrap();
+    }
     if untranslated > 0 {
         writeln!(out, "\n未訳 {untranslated} 件は原文のまま `〔未訳〕` を付けて出している。").unwrap();
+    }
+    if lane == Lane::Linux {
+        writeln!(
+            out,
+            "\n## 使い方\n\n\
+             **このファイルの印は Linux で確かめたもの**で、[TESTING-CHECKS.md](TESTING-CHECKS.md)\
+             （Windows 実機）とは別に\n数える。書き方と規則は `.claude/linux-role.md`。\n\n\
+             - `[x]`: Linux（X11、Xvfb と CPU 描画）で操作し、期待値を**読めるテキストかファイルの状態**で確かめた。\n\
+             - `[-]`: Linux では対象外（UNC、ConPTY、ごみ箱の Windows 側など）。理由は PR に書く。\n\
+             - 見た目の行（色、滑らかさ、フォント）は付けない。CPU 描画では実機の代わりにならない。"
+        )
+        .unwrap();
+        return;
     }
     writeln!(
         out,
@@ -422,14 +488,20 @@ fn collect_rs(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
     }
 }
 
-/// The ids already ticked in the file on disk.
-fn previous_ticks() -> BTreeSet<String> {
-    let Ok(text) = std::fs::read_to_string(OUT) else { return BTreeSet::new() };
-    let mut out = BTreeSet::new();
+/// The marks already in the file on disk, by id: `x` for done, and on the
+/// Linux lane `-` for not applicable. A `[-]` written into the Windows file is
+/// not carried over -- every row there applies, so it would only hide one.
+fn previous_marks(path: &str, lane: Lane) -> BTreeMap<String, char> {
+    let Ok(text) = std::fs::read_to_string(path) else { return BTreeMap::new() };
+    let mut out = BTreeMap::new();
     for line in text.lines() {
-        let Some(rest) = line.strip_prefix("- [x] **") else { continue };
+        let (mark, rest) = match (line.strip_prefix("- [x] **"), line.strip_prefix("- [-] **")) {
+            (Some(rest), _) => ('x', rest),
+            (None, Some(rest)) if lane == Lane::Linux => ('-', rest),
+            _ => continue,
+        };
         if let Some(end) = rest.find("**") {
-            out.insert(rest[..end].to_owned());
+            out.insert(rest[..end].to_owned(), mark);
         }
     }
     out
@@ -482,7 +554,10 @@ fn report_drift(all: &[&Check], automated: &BTreeSet<String>, old: &str) {
 fn rows_of_file(text: &str) -> BTreeMap<&str, String> {
     let mut out = BTreeMap::new();
     for line in text.lines() {
-        let Some(rest) = line.strip_prefix("- [x] **").or_else(|| line.strip_prefix("- [ ] **"))
+        let Some(rest) = line
+            .strip_prefix("- [x] **")
+            .or_else(|| line.strip_prefix("- [ ] **"))
+            .or_else(|| line.strip_prefix("- [-] **"))
         else {
             continue;
         };

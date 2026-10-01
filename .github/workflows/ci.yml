@@ -169,3 +169,7 @@ jobs:
       # id that moves to a different row silently certifies the wrong thing.
       - name: The manual checklist matches TESTING.md
         run: cargo run --locked --example make-testcheck -- --check
+      # The Linux lane's copy of the same rows (.claude/linux-role.md), with its
+      # own marks. Kept in step for the same reason as the Windows one.
+      - name: The Linux checklist matches TESTING.md
+        run: cargo run --locked --example make-testcheck -- --lane linux --check
