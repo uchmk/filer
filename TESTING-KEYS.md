@@ -196,7 +196,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<S-F10>` — Open the context menu · `menu`
 - [x] `<C-t>` — Open the terminal pane · `terminal`
 - [x] `<A-t>` — Type the selected paths into the terminal · `term_send`
-- [x] `<C-S-Enter>` — Give the terminal pane the window, or hand it back · `term_max`
+- [x] `<C-S-Enter>` — Give the terminal pane the window (the same key in the pane gives it back) · `term_max`
 
 ## `[term]` — 16 / 16
 
@@ -313,7 +313,7 @@ The details panel (`<Tab>`).
 - [x] `<A-j>` — Next line of the panel · `arrow 1`
 - [x] `c` — Copy the selected value · `copy cell`
 - [x] `C` — Copy the whole panel, labelled · `copy all`
-- [x] `<Enter>` — Open the pull request on its rows; enter the directory elsewhere · `enter`
+- [x] `<Enter>` — Open the pull request or branch on its rows; enter the directory elsewhere · `enter`
 - [x] `<Up>` — Spot the previous file · `swipe -1`
 - [x] `<Down>` — Spot the next file · `swipe 1`
 - [x] `<A-Up>` — Previous line of the panel · `arrow -1`

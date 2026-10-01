@@ -221,7 +221,7 @@ fn shell_builtin(exe: &str) -> bool {
 /// Quoted when it holds a space, which a full path usually does -- and a path
 /// is the common case here, since that is how an editor outside the `PATH` is
 /// named.
-fn program(run: &str) -> Option<String> {
+pub(crate) fn program(run: &str) -> Option<String> {
     let run = run.trim();
     let exe = match run.strip_prefix('"') {
         Some(rest) => rest.split('"').next()?,

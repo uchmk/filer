@@ -238,7 +238,7 @@ fn git(path: &Path) -> Option<Section> {
         if let Some(b) = o.branch {
             s.row("From branch", b);
         }
-        // `<Enter>` on either row opens it (Q20).
+        // `<Enter>` on either row opens it (Q20), and on `From branch` the branch.
         if let Some(url) = o.pr.and_then(|n| crate::fs::git::pull_request_url(path, n)) {
             s.row(PR_ROW, url);
         }

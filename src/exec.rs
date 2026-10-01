@@ -299,9 +299,12 @@ impl Launch {
                     Ok(Some(st)) => {
                         let why = match stderr_text(&mut child) {
                             Some(msg) => msg,
-                            None => match st.code() {
-                                Some(c) => format!("exit code {c}"),
-                                None => "killed".into(),
+                            None => match missing_program(&cmdline, &|p| crate::util::locate(p).is_some()) {
+                                Some(p) => format!("`{p}` was not found"),
+                                None => match st.code() {
+                                    Some(c) => format!("exit code {c}"),
+                                    None => "killed".into(),
+                                },
                             },
                         };
                         let _ = tx.send(format!("Open failed: {why} — {cmdline}"));
@@ -318,6 +321,20 @@ impl Launch {
         });
         Self { rx }
     }
+}
+
+/// The program at the front of a command line that failed, when it is not
+/// there to run. `exit code 1` said the same for a misspelled program, a path
+/// with a typo and a program that ran and opened nothing (#96); this one can
+/// be told apart, and only off the UI thread, since it walks `PATH`. A
+/// shell's own command (`start`, `echo`) is never "missing".
+fn missing_program(cmdline: &str, found: &dyn Fn(&str) -> bool) -> Option<String> {
+    const BUILTIN: [&str; 6] = ["start", "call", "echo", "cd", "set", "exec"];
+    let exe = crate::envreport::program(cmdline)?;
+    if BUILTIN.contains(&exe.to_ascii_lowercase().as_str()) || found(&exe) {
+        return None;
+    }
+    Some(exe)
 }
 
 /// What the shell complained about, on one line.
@@ -459,6 +476,20 @@ pub fn fake_clipboard(text: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #96: a program that is not there is named; one that is, or a shell's
+    /// own command, leaves the exit code to speak.
+    #[test]
+    fn a_missing_program_is_named() {
+        let only_code = |p: &str| p == "code";
+        assert_eq!(missing_program("Hidemruu.exe /j10 a.txt", &only_code).as_deref(), Some("Hidemruu.exe"));
+        assert_eq!(
+            missing_program(r#""C:/Tools/Hide maru.exe" a.txt"#, &only_code).as_deref(),
+            Some("C:/Tools/Hide maru.exe")
+        );
+        assert_eq!(missing_program("code -g a.txt:3", &only_code), None);
+        assert_eq!(missing_program(r#"start "" a.txt"#, &only_code), None);
+    }
 
     #[test]
     fn substitutes_placeholders() {

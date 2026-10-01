@@ -37,8 +37,10 @@ place. Most rows that sound like looks have one:
 **Start with `--keys`.** Since v0.54.0 filer presses keys itself: `filer <dir> --keys "<Tab>C"`
 opens spot on the first row and copies the whole panel, and `Get-Clipboard` reads it. No window
 to find, no `SendInput` for a screen saver to swallow. Reach for `PostMessage` / `SendInput` only
-for what `--keys` cannot do -- the mouse, a key into a program running in the pane after the fact,
-or a sequence that depends on what you read in between.
+for what `--keys` cannot do -- the mouse, or a sequence that depends on what you read in between.
+**Since v0.59.0 `<Wait:N>` pauses N ms** after the key before it, for the shell or a program in the
+pane: `--keys "<C-t><Wait:1500>git<Space>status<Enter><Wait:1000><C-S-Enter>"`. Do not pad with
+harmless keys any more; a wait says how long it waited.
 
 | The row says | What you can read instead |
 | --- | --- |
@@ -198,10 +200,9 @@ will answer a question**, so:
   listing.** Since v0.57.2 an idle window reads a flagged directory by itself
   (#108 found it did not); 28.8 is the row that checks it. On an older build,
   send two keys about a second apart instead.
-- **In a `--keys` script, write a space as `<Space>`.** A plain space
-  disappears, and in the pane every key after it goes to the list instead:
-  `<C-t>echo hi<Enter>` sent the shell `echo` and walked the list (#110). This
-  line goes when `--keys` refuses a plain space (TODO.md).
+- **In a `--keys` script, write a space as `<Space>`.** Since v0.57.2 a plain
+  space is refused before the window opens (#110 sent the shell `echo` and
+  walked the list with the rest).
 - **A minimised window does not act on posted keys** until it is restored
   (`SW_RESTORE`); read anything after restoring. **Stopping a screen saver takes
   its process**: `Stop-Process -Name` misses `OLED Care Screensaver.scr`
@@ -263,7 +264,7 @@ these differences:
 | --- | --- | --- |
 | **TESTING-KEYS.md, `m u`** | 1 | The one unchecked key (v0.58.0): `gu`, `m t`, then `m u` -- the sizes come back and nothing walks again (no `Measuring…`, CPU flat). The "nothing else" half as in #119 |
 | **v0.57.0, Q34 and Q35** | 2 | 24.2 (the 163-character name from the fixed `make-fixtures.ps1` ends in `name.txt` on screen) and 1.37 (`<A-t>` with the pane closed: `FILER_PTY_LOG` shows the path sent after the shell's first output) |
-| **v0.57.3 to v0.58.1, the quiet keys** | 11 | 25.21 (`filer env` names its `.exe`, and the x64 build says it is emulated -- this lane is the only place that can be seen), 31.14 (`<Esc>` stops waiting on a dead address), 40.17 (one SGR report per wheel notch), 12.14 (a task row says its verb once), 44.17 (`m u` puts the sizes back inside `gu`'s view without walking again), 12.13 (`d` says what it trashed), 23.5 (one toast for a path that cannot be opened), 23.6 (a typed path naming nothing says so), 29.7 (the pane's first toast names the shell), 44.16 (the header says `measured so far` mid-walk; `C:\dev` took long enough in #114) and 31.13 (`(no shares)`) only if a host that shares nothing is to hand -- say so if not |
+| **v0.57.3 to v0.59.1, the quiet keys** | 16 | 20.7 and 25.22 (v0.59.0: a Windows path in a keymap `run`, and `<Wait:N>` -- use it from here on), 24.6 (`make-fixtures.ps1` counts what it made), 32.10 (a misspelled opener program is named), 46.21 (`<Enter>` on `From branch`), 25.21 (`filer env` names its `.exe`, and the x64 build says it is emulated -- this lane is the only place that can be seen), 31.14 (`<Esc>` stops waiting on a dead address), 40.17 (one SGR report per wheel notch), 12.14 (a task row says its verb once), 44.17 (`m u` puts the sizes back inside `gu`'s view without walking again), 12.13 (`d` says what it trashed), 23.5 (one toast for a path that cannot be opened), 23.6 (a typed path naming nothing says so), 29.7 (the pane's first toast names the shell), 44.16 (the header says `measured so far` mid-walk; `C:\dev` took long enough in #114) and 31.13 (`(no shares)`) only if a host that shares nothing is to hand -- say so if not |
 | **1. the terminal pane** | the `[ ]` rows | ConPTY and the shell, natively. `--keys` (spaces as `<Space>`) plus `FILER_PTY_LOG` drove the `[term] shell` matrix cheaply in #111; rows already `[x]` on x64 go in QA-REPORT.md |
 | **22. opening an editor at a line** | the `[ ]` rows | Process creation: `Get-CimInstance Win32_Process` shows the command line filer built. VS Code and Neovim are installed on this machine; say which others are not |
 | **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104), 0.54.14 (509 / 0, #105), 0.55.1 (523 / 0, #107), 0.55.2 (523 / 0, #108), 0.55.3 (523 / 0, #109), 0.55.4 (523 / 0, #110), 0.55.5 (523 / 0, #111), 0.56.2 (525 / 0, #114) and 0.57.2 (538 / 0, #119). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |

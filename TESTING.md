@@ -606,6 +606,7 @@ was that a gentle turn moved nothing at all.
 | 20.4 | Sort with `,s`, then `<C-F5>` | The sort **stays** as you set it — a reload does not undo what you changed by hand |
 | 20.5 | Put a syntax error in `filer.toml`, `<C-F5>` | An error toast naming the problem; the old config stays in force |
 | 20.6 | `[ui] minimap = false`, `<C-F5>` | No minimap |
+| 20.7 | In `keymap.toml`, `[[mgr.prepend_keymap]]` `on = "<F8>"`, `run = 'cd C:\Windows\System32'` -- no quotes inside the command (v0.59.0) | `<F8>` lands in `C:\Windows\System32`. Until v0.59.0 the backslashes were dropped and the error named `C:WindowsSystem32` |
 
 ## 21. Archives (v0.2.0)
 
@@ -679,6 +680,7 @@ has. 24.5 needs the recycle bin.
 | 24.3 | `UPPER.TXT` and `upper.txt` | Both listed, both openable |
 | 24.4 | Copy the name with a quote in it, `<A-t>` into the terminal | Quoted so the shell sees one word |
 | 24.5 | `d` then `u` on the CJK-named file | Comes back under the same name |
+| 24.6 | Run `scripts\make-fixtures.ps1` in a fresh folder (v0.59.1) | No warning, except on an ordinary (case-insensitive) NTFS folder: `awkward names: 5 entries on disk, expected 6`, naming `fsutil file setCaseSensitiveInfo` -- the reason 24.3 cannot be pressed there |
 
 ## 25. `filer env` (v0.28.0)
 
@@ -713,6 +715,7 @@ Run from a shell, not from inside the app.
 | 25.19 | `filer env \| Select-String arch` | **Only the two arch lines**, not the whole report. `$v = & filer env; $v.Count` is the report's line count, not 0 |
 | 25.20 | `filer env` with nothing redirected, and `filer --version` | Still printed on screen, as 25.1 has it — the console path is unchanged |
 | 25.21 | `filer env` (v0.58.1) | An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone |
+| 25.22 | `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `FILER_PTY_LOG` set (v0.59.0) | The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `filer --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>` |
 
 ## 26. Bug report from inside the app (v0.11.0)
 
@@ -854,6 +857,7 @@ instructions are wrong, which is worse than a missing feature.
 | 32.8b | 秀丸 and サクラ from `<S-Enter>` **and** from `<Enter>` as the first entry | Both, since they take different code paths to the same launcher |
 | 32.8c | An opener with a deliberate typo in the path | A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report |
 | 32.9 | Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ | Lands on the line |
+| 32.10 | An opener whose program is misspelled (`run = 'Hidemruu.exe %s'`), `<S-Enter>` and pick it (v0.59.1) | The error reads ``Open failed: `Hidemruu.exe` was not found — …``, not `exit code 1`. An opener whose program exists but fails still gives its exit code |
 
 ---
 
@@ -1317,6 +1321,7 @@ real repository with a history — this one will do.
 | 46.18 | On a 46.12 file in a clone of a GitHub repository, the `Pull request` row | It reads `https://github.com/<owner>/<repo>/pull/<n>` for the `#<n>` above it. `<Enter>` on it — or on `Came in via` — opens that page in the browser |
 | 46.19 | On a 46.15 file (committed, not merged) in a clone that has `origin/HEAD` | A **`Not merged`** row: `not in origin/main yet` (the clone's own default branch). A 46.14 file (straight to main) has **no** such row, so the two no longer look alike |
 | 46.20 | The same in a repository with no `origin/HEAD` (`git remote set-head origin -d`) | No `Not merged` row at all — filer does not guess the default branch |
+| 46.21 | On a file that came in through a pull request, `<Tab>`, the cursor on `From branch`, `<Enter>` (v0.59.1) | The browser opens the branch's page (`…/tree/<branch>`), and the toast says `Opened …`. A branch deleted after the merge opens GitHub's own 404, which is still the right address |
 
 
 ## 47. An idle window uses no CPU (v0.54.2)
