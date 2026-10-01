@@ -435,6 +435,32 @@ pub struct Task {
 }
 
 impl Task {
+    /// The row's first line. The label already starts with the verb, so it is
+    /// not put in front a second time (`Trash  Trash 5 item(s)`).
+    pub fn headline(&self) -> String {
+        format!("{}  [{}]", self.label, self.state.label())
+    }
+
+    /// The row's second line. A job that counts no bytes -- the trash, a
+    /// delete -- shows files only: `0 B / 0 B` read as a row of empty files.
+    pub fn detail(&self) -> String {
+        let mut out = format!("{}/{} files", self.files_done, self.files);
+        if self.bytes > 0 {
+            out.push_str(&format!(
+                " · {} / {}",
+                crate::util::human_size(self.bytes_done),
+                crate::util::human_size(self.bytes)
+            ));
+        }
+        if let Some(s) = self.speed() {
+            out.push_str(&format!(" · {}/s", crate::util::human_size(s)));
+        }
+        if let Some(eta) = self.eta() {
+            out.push_str(&format!(" · {} left", crate::util::fmt_duration(eta)));
+        }
+        out
+    }
+
     pub fn fraction(&self) -> f32 {
         if self.bytes > 0 {
             (self.bytes_done as f32 / self.bytes as f32).clamp(0.0, 1.0)
@@ -2311,6 +2337,27 @@ impl App {
         }
     }
 
+    /// `<Esc>` while a jump is still waiting for its first listing: go back to
+    /// where it came from. A mistyped address held the tab for twenty seconds
+    /// with nothing to do but wait (#105). The scan itself cannot be called
+    /// off, so its answer is let through quietly when it comes.
+    fn abandon_cd(&mut self) -> bool {
+        let tab = &mut self.tabs[self.active];
+        if tab.current.state != LoadState::Loading {
+            return false;
+        }
+        let Some(p) = tab.pending_cd.take() else { return false };
+        if p.pushed {
+            tab.back.pop();
+        }
+        let gone = tab.cwd.clone();
+        self.arrive(self.active, p.from, None);
+        self.kick_scans();
+        self.cd_refused = Some(gone.clone());
+        self.toast(format!("Stopped waiting for {}", gone.display()));
+        true
+    }
+
     /// Count a visit. The hit count survives the move to the end of the list,
     /// so a directory worked in every day climbs even though each visit looks
     /// like the last one.
@@ -2839,6 +2886,9 @@ impl App {
         // Only for a bare `escape`; `escape --filter` and friends stay targeted.
         if all && self.max_preview {
             self.max_preview = false;
+            return;
+        }
+        if all && self.abandon_cd() {
             return;
         }
         if (all || what.search) && self.in_search_view() {
@@ -5105,6 +5155,20 @@ mod tests {
     /// Tab asks the scan pool a question, and the answer may arrive over text
     /// that has since moved on. The question is the pair below, so an answer
     /// to an older one can be recognised and dropped.
+    /// #83: the verb once, and no byte counts for a job that has none.
+    #[test]
+    fn a_task_row_says_each_thing_once() {
+        let mut t = task(0);
+        t.kind = OpKind::Trash;
+        t.label = "Trash 5 item(s)".into();
+        t.files = 5;
+        assert!(t.headline().starts_with("Trash 5 item(s)  ["), "{}", t.headline());
+        assert_eq!(t.detail(), "0/5 files");
+        let mut c = task(2048);
+        c.bytes_done = 1024;
+        assert!(c.detail().starts_with("0/1 files · 1.0 K / 2.0 K"), "{}", c.detail());
+    }
+
     fn task(bytes: u64) -> Task {
         Task {
             id: 1,
@@ -7443,6 +7507,28 @@ mod said_out_loud {
         let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
         assert_eq!(said.len(), 1, "{said:?}");
         assert!(said[0].starts_with("No such file or folder: tpyo"), "{said:?}");
+    }
+
+    /// #105: `<Esc>` while a jump is still waiting takes the tab
+    /// back, and the late failure of the abandoned scan says nothing.
+    #[test]
+    fn escape_gives_up_on_a_jump_still_waiting() {
+        let dir = crate::util::test_dir("said-abandon");
+        let mut a = app_in(&dir);
+        let far = dir.join("slow");
+        a.cd(far.clone(), true);
+        assert!(a.tabs[a.active].pending_cd.is_some(), "waiting");
+        a.act(Act::Escape(EscapeWhat::default()));
+        assert_eq!(a.tabs[a.active].cwd, dir, "back where it came from");
+        assert!(a.tabs[a.active].back.is_empty(), "and the jump is not in the history");
+        assert!(a.toasts.iter().any(|t| t.text.starts_with("Stopped waiting for")));
+        a.toasts.clear();
+        a.on_scan(ScanResult::Failed { id: 0, path: far, error: "timed out".into() });
+        assert!(a.toasts.is_empty(), "{:?}", a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+
+        // With nothing waiting, `<Esc>` is what it was.
+        a.act(Act::Escape(EscapeWhat::default()));
+        assert_eq!(a.tabs[a.active].cwd, dir);
     }
 
     /// The same through a typed path, which first falls back to the parent in

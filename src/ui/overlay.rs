@@ -711,7 +711,7 @@ pub fn tasks(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         painter.text(
             egui::pos2(inner.left(), y),
             Align2::LEFT_TOP,
-            format!("{}  {}  [{}]", t.kind.verb(), t.label, t.state.label()),
+            t.headline(),
             f.clone(),
             color,
         );
@@ -724,20 +724,7 @@ pub fn tasks(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
             theme.progress_fg,
         );
         y += 10.0;
-        let mut detail = format!(
-            "{}/{} files · {} / {}",
-            t.files_done,
-            t.files,
-            crate::util::human_size(t.bytes_done),
-            crate::util::human_size(t.bytes)
-        );
-        if let Some(s) = t.speed() {
-            detail.push_str(&format!(" · {}/s", crate::util::human_size(s)));
-        }
-        if let Some(eta) = t.eta() {
-            detail.push_str(&format!(" · {} left", crate::util::fmt_duration(eta)));
-        }
-        painter.text(egui::pos2(inner.left(), y), Align2::LEFT_TOP, detail, f.clone(), theme.fg_dim);
+        painter.text(egui::pos2(inner.left(), y), Align2::LEFT_TOP, t.detail(), f.clone(), theme.fg_dim);
         y += row_h;
         for e in t.errors.iter().take(3) {
             painter.text(

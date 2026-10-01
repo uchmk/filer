@@ -25,6 +25,24 @@ pub fn fit(rect: Rect, cell_w: f32, row_h: f32) -> Size {
 /// close to the three lines every other terminal moves.
 const LINES_PER_PIXEL: f32 = 1.0;
 
+/// The wheel this frame in notches, read from the raw events rather than
+/// egui's smoothed delta. A program that asked for the mouse expects one
+/// report per notch, as every terminal sends; the smoothed delta spreads a
+/// notch over several frames, and three notches came out as five reports
+/// (#107). A trackpad, which reports points, counts a notch per 50 of them --
+/// what one notch of a Windows wheel reaches egui as.
+fn notches(events: &[egui::Event]) -> f32 {
+    events
+        .iter()
+        .map(|e| match e {
+            egui::Event::MouseWheel { unit: egui::MouseWheelUnit::Line, delta, .. } => delta.y,
+            egui::Event::MouseWheel { unit: egui::MouseWheelUnit::Page, delta, .. } => delta.y * 3.0,
+            egui::Event::MouseWheel { unit: egui::MouseWheelUnit::Point, delta, .. } => delta.y / 50.0,
+            _ => 0.0,
+        })
+        .sum()
+}
+
 pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let theme = app.cfg.theme.clone();
     let focused = app.term_focus;
@@ -48,9 +66,9 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let pointer = resp.interact_pointer_pos();
     let over = ui.rect_contains_pointer(rect);
     // A panel over the pane owns the wheel; see `Overlay::is_modal`.
-    let wheel = match over && !app.overlay.is_modal() {
-        true => ui.ctx().input(|i| i.smooth_scroll_delta.y),
-        false => 0.0,
+    let (wheel, notched) = match over && !app.overlay.is_modal() {
+        true => ui.ctx().input(|i| (i.smooth_scroll_delta.y, notches(&i.events))),
+        false => (0.0, 0.0),
     };
     // Read before the terminal is borrowed, so a clipboard that will not open
     // can still be reported through `app`.
@@ -222,7 +240,10 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     // cursor (Q28). One that did not but owns the alternate screen, where
     // there is no scrollback, gets arrows: what every terminal does, and the
     // only way a pager like `less` can be scrolled with the wheel at all.
-    let rows = wheel * LINES_PER_PIXEL / row_h;
+    let rows = match mouse {
+        terminal::MouseReport::Off => wheel * LINES_PER_PIXEL / row_h,
+        _ => notched,
+    };
     let whole = crate::ui::wheel_whole(&mut app.term_scroll_rows, rows);
     if whole != 0 {
         if mouse != terminal::MouseReport::Off {
@@ -385,5 +406,25 @@ mod tests {
         let tiny = Rect::from_min_size(egui::pos2(0.0, 0.0), Vec2::new(1.0, 1.0));
         let size = fit(tiny, 10.0, 20.0);
         assert_eq!((size.cols, size.lines), (1, 1));
+    }
+}
+
+#[cfg(test)]
+mod wheel_notches {
+    use super::notches;
+    use egui::{Event, Modifiers, MouseWheelUnit, TouchPhase, Vec2};
+
+    fn wheel(unit: MouseWheelUnit, y: f32) -> Event {
+        Event::MouseWheel { unit, delta: Vec2::new(0.0, y), phase: TouchPhase::Move, modifiers: Modifiers::NONE }
+    }
+
+    /// #107: one notch, one report -- counted from the raw events,
+    /// not from the smoothed delta that spread three notches into five.
+    #[test]
+    fn a_notch_is_one() {
+        assert_eq!(notches(&[wheel(MouseWheelUnit::Line, 1.0)]), 1.0);
+        assert_eq!(notches(&[wheel(MouseWheelUnit::Line, -1.0), wheel(MouseWheelUnit::Line, -1.0)]), -2.0);
+        assert_eq!(notches(&[wheel(MouseWheelUnit::Point, 50.0)]), 1.0);
+        assert_eq!(notches(&[Event::WindowFocused(true)]), 0.0);
     }
 }

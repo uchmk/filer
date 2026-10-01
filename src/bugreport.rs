@@ -57,8 +57,16 @@ pub fn os_line() -> String {
         "OS: {}\nOS arch: {}\nProcess arch: {}",
         windows_name(),
         native_arch(),
-        std::env::consts::ARCH,
+        process_arch(native_arch(), std::env::consts::ARCH),
     )
+}
+
+/// The process's own architecture, saying so outright when it is not the
+/// machine's. Two lines that disagree were the finding, but only to a reader
+/// who compared them; #84 read past it twice.
+#[cfg(any(windows, test))]
+fn process_arch(native: &str, own: &str) -> String {
+    if native == own { own.to_owned() } else { format!("{own} (emulated on {native})") }
 }
 
 /// `Windows 11 Pro 25H2 (build 26200.9457)`, assembled from the two places
@@ -245,6 +253,13 @@ fn encode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An x64 build on an ARM64 machine says it is emulated in the line itself.
+    #[test]
+    fn an_emulated_process_says_so() {
+        assert_eq!(process_arch("aarch64", "x86_64"), "x86_64 (emulated on aarch64)");
+        assert_eq!(process_arch("aarch64", "aarch64"), "aarch64");
+    }
 
     /// Home and Pro as they are sold, not as the registry spells them; the rest
     /// untouched. Runs everywhere: it is a table, not a Windows call.
