@@ -1031,6 +1031,9 @@ pub struct App {
     /// not be read as numbers, and `linemode = "usage"` in the config made every
     /// ordinary folder read `0 B` instead.
     usage_linemode: Option<crate::fs::entry::Linemode>,
+    /// What `<A-t>` asked to type into a pane it had to open first, held until
+    /// the shell has drawn something (Q35); see [`App::pump_terminal`].
+    term_pending: Option<(Vec<u8>, Instant)>,
     pub ctx: egui::Context,
     /// How much bigger everything is drawn. Held here rather than read back
     /// from egui: `set_zoom_factor` only takes effect at the start of the next
@@ -1143,6 +1146,7 @@ impl App {
             usage: None,
             usage_max: 0,
             usage_linemode: None,
+            term_pending: None,
             ctx,
             scale: 1.0,
             pending_conflict: None,
@@ -4218,6 +4222,7 @@ impl App {
     /// Drop the terminal, which sends the shell its shutdown, and say so: the
     /// pane going away looks the same as `<C-t>` hiding it otherwise.
     fn end_shell(&mut self) {
+        self.term_pending = None;
         let had = self.term.take().is_some();
         self.term_focus = false;
         self.max_term = false;
@@ -4229,20 +4234,35 @@ impl App {
     /// Type the selection into the shell, quoted so a path with a space in it
     /// arrives as one word. Nothing is run: the line is left for the user to
     /// put a command in front of.
+    ///
+    /// With the pane closed, it is opened first (Q35). A shell that is still
+    /// reading its profile can drop what is typed at it, so the line waits
+    /// until the shell has drawn something, or five seconds, whichever comes
+    /// first.
     fn term_send_paths(&mut self) {
         let paths = self.tabs[self.active].targets();
         if paths.is_empty() {
             return;
         }
-        let Some(term) = &self.term else {
-            self.error("The terminal is not open");
-            return;
-        };
+        if self.term.is_none() {
+            self.terminal(Some(true));
+        }
+        let Some(term) = &self.term else { return };
         let how = term.quoting();
         let line: Vec<String> =
             paths.iter().map(|p| crate::terminal::quote(&p.to_string_lossy(), how)).collect();
-        term.send(format!(" {}", line.join(" ")).into_bytes());
+        let bytes = format!(" {}", line.join(" ")).into_bytes();
+        match term.has_drawn() {
+            true => term.send(bytes),
+            false => self.term_pending = Some((bytes, Instant::now())),
+        }
         self.term_focus = true;
+    }
+
+    /// Whether a line is waiting for a pane that has just been opened, which
+    /// keeps the frames coming until it has gone.
+    pub fn term_waiting(&self) -> bool {
+        self.term_pending.is_some()
     }
 
     /// Look for `needle` in the terminal's scrollback and put the match on
@@ -4330,10 +4350,17 @@ impl App {
         }
         if term.exited {
             self.term = None;
+            self.term_pending = None;
             self.term_focus = false;
             self.max_term = false;
             self.toast("The shell exited");
             return;
+        }
+        let ready = |at: &Instant| term.has_drawn() || at.elapsed() > Duration::from_secs(5);
+        if self.term_pending.as_ref().is_some_and(|(_, at)| ready(at)) {
+            if let Some((bytes, _)) = self.term_pending.take() {
+                term.send(bytes);
+            }
         }
         term.follow(&cwd);
     }
@@ -6950,6 +6977,53 @@ mod escape_and_max_preview {
         a.act(Act::Terminal(Some(false)));
         a.answer_confirm('y');
         assert!(a.term.is_none(), "`y` ends it");
+    }
+
+    /// Q35: `<A-t>` with the pane closed opens it and types the name once the
+    /// shell has drawn something, rather than saying the pane is not open.
+    /// A real shell, because "ready" is a question only a real one answers:
+    /// the name has to come back on the screen as the shell's own echo.
+    #[test]
+    fn sending_a_name_opens_a_closed_pane() {
+        let dir = crate::util::test_dir("q35-send");
+        let file = dir.join("q35-marker.txt");
+        std::fs::write(&file, "x").unwrap();
+        let mut a = app();
+        a.tabs[a.active].cwd = dir.clone();
+        let entries = vec![crate::fs::Entry::from_path(file).unwrap()];
+        a.tabs[a.active].current = Folder::from_entries(dir, Arc::new(entries), true);
+        assert!(a.term.is_none());
+
+        a.act(Act::TermSend);
+        if a.term.is_none() {
+            let why: Vec<&str> = a.toasts.iter().map(|t| t.text.as_str()).collect();
+            if cfg!(any(windows, target_os = "linux")) {
+                panic!("the terminal did not start: {why:?}");
+            }
+            eprintln!("skipped: no terminal on this platform: {why:?}");
+            return;
+        }
+        assert!(!a.toasts.iter().any(|t| t.text.contains("not open")), "no refusal");
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        let echoed = |a: &App| {
+            a.term.as_ref().is_some_and(|t| {
+                t.with_grid(|g| {
+                    crate::terminal::snapshot(g)
+                        .iter()
+                        .any(|row| row.iter().map(|c| c.c).collect::<String>().contains("q35-marker.txt"))
+                })
+            })
+        };
+        while !(a.term_pending.is_none() && echoed(&a)) {
+            assert!(std::time::Instant::now() < deadline, "the name never reached the shell");
+            a.pump_terminal();
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        a.act(Act::Terminal(Some(false)));
+        if a.term.is_some() {
+            a.answer_confirm('y');
+        }
     }
 
     /// `copy all` lays the panel out as text a spreadsheet or a bug report can

@@ -568,6 +568,7 @@ impl eframe::App for Filer {
         }
         if !self.app.toasts.is_empty()
             || self.app.search.is_some()
+            || self.app.term_waiting()
             || self.app.tasks.iter().any(|t| t.state == app::TaskState::Running)
         {
             ctx.request_repaint_after(Duration::from_millis(80));

@@ -3385,17 +3385,12 @@ mod awkward_names {
         }
     }
 
-    /// Half of 24.2: the very long name is cut down to fit its column, and the
-    /// row it was cut from is still the whole name.
+    /// 24.2 (Q34): the very long name is cut inside its stem, so it fits its
+    /// column and still ends in `name.txt`.
     ///
-    /// **Where the `…` lands is deliberately not asserted.** 24.2 asks for the
-    /// middle, with the extension still readable; `list.rs`'s `name_job` sets
-    /// egui's `overflow_character`, which cuts the *end*, so what is drawn today
-    /// is `very-long-…` with `.txt` gone. Which of the two is wrong is not a
-    /// question a test can settle -- it is in QA-REPORT.md for the owner -- so
-    /// this asserts only what holds either way: the name was elided, and it was
-    /// elided from the name itself rather than from something mangled on the way
-    /// in. The row stays in TESTING.md until the ellipsis is decided.
+    /// Until v0.57.0 egui's `overflow_character` cut the *end* and `.txt` was
+    /// lost; `list.rs` now does the cutting itself (`elide_at`) and hands egui a
+    /// name that fits, so what the galley was asked for is what is drawn.
     #[test]
     fn a_very_long_name_is_cut_down_to_its_column() {
         let dir = crate::util::test_dir("frame-names-long");
@@ -3404,13 +3399,14 @@ mod awkward_names {
         let long = format!("very-{}name.txt", "long-".repeat(30));
         let f = showing(&dir, &[&long]).draw();
 
-        assert!(f.texts.iter().any(|t| t == &long), "the row is laid out from the whole name");
-        let row = f.drawn(&long).unwrap_or_else(|| panic!("the name is drawn: {:?}", f.glyphs));
-        assert!(row.contains('…'), "and drawn elided: {row:?}");
-        assert!(
-            row.chars().count() < long.chars().count(),
-            "which is fewer characters than the name has: {row:?}",
-        );
+        let row = f
+            .texts
+            .iter()
+            .find(|t| t.starts_with("very-long-") && t.contains('…'))
+            .unwrap_or_else(|| panic!("the name is laid out elided: {:?}", f.texts));
+        assert!(row.ends_with("name.txt"), "with the extension kept: {row:?}");
+        assert!(row.chars().count() < long.chars().count(), "and shorter than the name: {row:?}");
+        assert_eq!(f.drawn(row), Some(row.as_str()), "and it fits: every character got a glyph");
     }
 
     /// 24.3: two names differing only in case are two rows.
