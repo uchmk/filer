@@ -426,6 +426,7 @@ the redo survives it (see QA-REPORT.md).
 | 12.11 | `d` on a drive whose Recycle Bin is turned off | Same shape of message, naming the file |
 | 12.12 | `d` with nothing locked | Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path |
 | 12.13 | `d` on one file, then on two (v0.57.3) | A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D` |
+| 12.14 | `d` on five files, and `w` while it runs (v0.58.1) | The row reads `Trash 5 item(s)  [running]` -- the verb **once** -- and the line under it `0/5 files`, with no `0 B / 0 B` |
 
 ## 13. Symlinks and `g`+`f` (v0.26.8)
 
@@ -711,6 +712,7 @@ Run from a shell, not from inside the app.
 | 25.18 | Release build: `filer env \| Out-File out.txt`, then `Get-Content out.txt`; and `cmd /c "filer env > out2.txt"` (v0.54.4) | The whole report is **in both files**, and nothing is printed on screen. Before v0.54.4 both were empty. (PowerShell's own `filer env > out.txt` still gives an empty file: PowerShell does not connect a windowed program's output to a file. README says so) |
 | 25.19 | `filer env \| Select-String arch` | **Only the two arch lines**, not the whole report. `$v = & filer env; $v.Count` is the report's line count, not 0 |
 | 25.20 | `filer env` with nothing redirected, and `filer --version` | Still printed on screen, as 25.1 has it — the console path is unchanged |
+| 25.21 | `filer env` (v0.58.1) | An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone |
 
 ## 26. Bug report from inside the app (v0.11.0)
 
@@ -831,6 +833,7 @@ ones where it says no.
 | 31.11 | Open the host in the **other pane** (`<C-w>`) and in a second tab | Both fine |
 | 31.12 | Go to a host, then change directory away | The watcher does not complain about the host it could not watch |
 | 31.13 | A host that answers but shares nothing (v0.57.3) | The list says `(no shares)`, not `(empty)` |
+| 31.14 | `g<Space>` an address on your subnet that nothing answers on, `<Enter>`, then `<Esc>` before it gives up (v0.58.1) | Back where you were at once, a toast `Stopped waiting for \\<address>`, `j` / `k` work again -- and nothing more is said when the abandoned attempt times out later |
 
 ## 32. Openers (v0.17.0)
 
@@ -1111,6 +1114,7 @@ What needs a machine is the handover, in a real `nvim` and a real pager.
 | 40.14 | The wheel inside nvim, with `FILER_PTY_LOG` set (v0.55.0) | nvim's view scrolls and **its cursor stays on the same line** (`:echo line('.')` before and after). The log shows `\e[<64;…M` / `\e[<65;…M`, not `\e[A` |
 | 40.15 | lazygit in the pane (v0.55.0): about 300 `<S-End>` at 30 a second, with `?` then `<Esc>` in the middle of them, as #99 rebuilt #93 | The key list closes within a second of the `<Esc>`. Until v0.55.0 it stayed open for minutes: `<Esc>` sent as a record and `<S-End>` as `\e[1;2F` right behind it read to tcell as one sequence |
 | 40.16 | With `FILER_PTY_LOG` set (v0.55.0): open the pane, type `ping -t localhost`, `<C-c>`, then `<C-Left>` over a typed word and `<Tab>` completion | The log's `out` lines hold `\e[?9001h` near the start, and the `in key` lines are records (`\e[…;…;…;1;…;1_`) rather than `\e[1;5D`; `<C-c>` stops the ping, `<C-Left>` moves by a word, `<Tab>` completes — the shell reads records as it reads a real keyboard |
+| 40.17 | With `FILER_PTY_LOG` set, inside nvim, one notch of the wheel; then three (v0.58.1) | One `\e[<64;…M` (or `65`) per notch: 1, then 3. Until v0.58.1 three notches sent five, because the smoothed delta was counted |
 
 ---
 

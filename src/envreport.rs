@@ -46,6 +46,10 @@ fn version() -> Vec<(String, String)> {
     // so this does not repeat them: on Windows on ARM the two disagree and the
     // disagreement is the finding, which a second copy would only muddle.
     let mut rows = vec![("Version".into(), env!("CARGO_PKG_VERSION").to_string())];
+    // Which `.exe` this is: with two builds side by side, nothing else in the
+    // output said which one had answered (#84).
+    let exe = std::env::current_exe().map_or_else(|e| format!("(unknown: {e})"), |p| p.display().to_string());
+    rows.push(("Executable".into(), exe));
     for line in crate::bugreport::os_line().split('\n') {
         match line.split_once(": ") {
             Some((k, v)) => rows.push((k.to_string(), v.to_string())),
@@ -422,6 +426,10 @@ mod tests {
         // A tool says what it is for, found or not, so the reader learns what
         // they are missing rather than only that it is absent.
         assert!(text.contains("(the status column)"), "{text}");
+        // Which binary answered, by its own path (#84).
+        let exe = std::env::current_exe().unwrap();
+        let row = text.lines().find(|l| l.trim_start().starts_with("Executable")).unwrap_or_default();
+        assert!(row.ends_with(&format!(": {}", exe.display())), "{text}");
         // And only tools filer really runs: naming one it has no code for
         // reads as a dependency and sends the reader off installing something
         // that changes nothing.

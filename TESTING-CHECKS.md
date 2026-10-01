@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**218 / 410 済み。**（TESTING.md の全 578 件のうち、`cargo test` が見ている 168 件は
+**218 / 414 済み。**（TESTING.md の全 582 件のうち、`cargo test` が見ている 168 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -198,7 +198,7 @@ cd $HOME\Desktop\filer-fixtures
 
 `cargo test` が全部見ているので、押すものはありません。
 
-## 12. undo と redo — 7 / 11
+## 12. undo と redo — 7 / 12
 
 自動テスト済みなので下には出していない: 12.6, 12.7
 
@@ -213,6 +213,7 @@ cd $HOME\Desktop\filer-fixtures
 - [ ] **12.11** ごみ箱を無効にしたドライブで `d` → 同じ形のメッセージが、ファイル名を挙げて出る — *`d` on a drive whose Recycle Bin is turned off → Same shape of message, naming the file*
 - [ ] **12.12** ロックされたファイルが無い状態で `d` → 以前のまま。そしてエクスプローラー自身の取り消し履歴に**項目が 1 つだけ**残る（まとめて渡す呼び出しが通常の経路であることの確認） — *`d` with nothing locked → Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path*
 - [ ] **12.13** 1 つのファイルで `d`、続けて 2 つで `d`（v0.57.3）→ そのたびにトーストが出る: `Trashed <名前> — u to undo`、次に `Trashed 2 item(s) — u to undo`。v0.57.3 まで `d` は何も言わず、`D` と見分けがつかなかった — *`d` on one file, then on two (v0.57.3) → A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D`*
+- [ ] **12.14** 5 つのファイルで `d` し、走っている間に `w`（v0.58.1）→ 行は `Trash 5 item(s)  [running]`（動詞は **1 回**）、その下の行は `0/5 files` で、`0 B / 0 B` は出ない — *`d` on five files, and `w` while it runs (v0.58.1) → The row reads `Trash 5 item(s)  [running]` -- the verb **once** -- and the line under it `0/5 files`, with no `0 B / 0 B`*
 
 ## 13. シンボリックリンクと `g`+`f` — 8 / 8
 
@@ -380,7 +381,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **24.4** 引用符を含む名前をコピーして、`<A-t>` でターミナルへ → シェルが 1 語として受け取る形に引用される — *Copy the name with a quote in it, `<A-t>` into the terminal → Quoted so the shell sees one word*
 - [x] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
 
-## 25. `filer env` — 18 / 26
+## 25. `filer env` — 18 / 27
 
 - [x] **25.1** PowerShell から `filer env` → 4 つの節が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること** — *`filer env` from PowerShell → The four sections print. A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears***
 - [x] **25.2** Config の節 → 両方のディレクトリが出て、それぞれ中身か `nothing here` を述べ、`not here:` に残りが並ぶ — *The Config section → Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest*
@@ -408,6 +409,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **25.18** release ビルドで `filer env \| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c "filer env > out2.txt"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた） — *Release build: `filer env \| Out-File out.txt`, then `Get-Content out.txt`; and `cmd /c "filer env > out2.txt"` (v0.54.4) → The whole report is **in both files**, and nothing is printed on screen. Before v0.54.4 both were empty. (PowerShell's own `filer env > out.txt` still gives an empty file: PowerShell does not connect a windowed program's output to a file. README says so)*
 - [ ] **25.19** `filer env \| Select-String arch` → **arch の 2 行だけ**が出る（レポート全体ではない）。`$v = & filer env; $v.Count` はレポートの行数で、0 ではない — *`filer env \| Select-String arch` → **Only the two arch lines**, not the whole report. `$v = & filer env; $v.Count` is the report's line count, not 0*
 - [ ] **25.20** 何もリダイレクトせずに `filer env` と `filer --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない — *`filer env` with nothing redirected, and `filer --version` → Still printed on screen, as 25.1 has it — the console path is unchanged*
+- [ ] **25.21** `filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ — *`filer env` (v0.58.1) → An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone*
 
 ## 26. アプリの中からのバグ報告 — 8 / 11
 
@@ -468,7 +470,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **30.14** ターミナルで `<C-v>` → 右クリックと同じ（30.11 の挙動も含めて） — *`<C-v>` in the terminal → Same as the right-click, including 23.11*
 - [ ] **30.15** `report.txt` で `r`、2 つのファイルで `R`、`gSpace`（`cd`）、`a.txt` で `E`（v0.55.0）→ どれも入っている文字が選択された状態で開き、打つと置き換わる。`r` は `report`、`R` は `{name}{ext}` 全体、`cd` はパス全体、`E` は `.zip` の前の `a` を選ぶ。続けてクリップボードにパスを入れ、`cd` の選択範囲の**上**を右クリック → パスが選択範囲を置き換え、`<Enter>` でそこへ行く — *`r` on `report.txt`, `R` on two files, `gSpace` (`cd`), `E` on `a.txt` (v0.55.0); then, with a path on the clipboard, right-click **on** the `cd` prompt's selection → Each opens with its text selected, so typing replaces it: `r` selects `report`, `R` all of `{name}{ext}`, `cd` the whole path, `E` the `a` before `.zip`. The right-click's path replaces the selection, and `<Enter>` goes there*
 
-## 31. ホストの共有一覧 — 9 / 14
+## 31. ホストの共有一覧 — 9 / 15
 
 - [x] **31.1** `g`+`<Space>` で `\\<サーバのアドレス>` と入力して `<Enter>` → 共有が並ぶ。エクスプローラーが見せるものと同じ — *`g`+`<Space>`, type `\\<your server's address>`, `<Enter>` → The shares are listed, the same ones Explorer shows*
 - [ ] **31.2** アドレスではなくホスト**名**で、また `//` の綴りでも同じこと → どちらも届く。表示は `\\host` の綴りに戻される — *Same with a host **name** rather than an address, and with the `//` spelling → Both arrive; the path is shown back in the `\\host` spelling*
@@ -484,6 +486,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **31.11** **もう一方のペイン**（`<C-w>`）と 2 つ目のタブでホストを開く → どちらも問題なし — *Open the host in the **other pane** (`<C-w>`) and in a second tab → Both fine*
 - [x] **31.12** ホストへ行ってから、別のディレクトリへ移動する → 監視できなかったホストについて、ウォッチャが文句を言わない — *Go to a host, then change directory away → The watcher does not complain about the host it could not watch*
 - [ ] **31.13** 応答はするが何も共有していないホスト（v0.57.3）→ 一覧は `(empty)` ではなく `(no shares)` と言う — *A host that answers but shares nothing (v0.57.3) → The list says `(no shares)`, not `(empty)`*
+- [ ] **31.14** `g<Space>` で自分のサブネットの何も応答しないアドレスを打って `<Enter>`、諦める前に `<Esc>`（v0.58.1）→ すぐ元の場所に戻り、`Stopped waiting for \\<アドレス>` のトーストが出て、`j` / `k` が効く。取りやめた試みが後で時間切れになっても何も言わない — *`g<Space>` an address on your subnet that nothing answers on, `<Enter>`, then `<Esc>` before it gives up (v0.58.1) → Back where you were at once, a toast `Stopped waiting for \\<address>`, `j` / `k` work again -- and nothing more is said when the abandoned attempt times out later*
 
 ## 32. オープナー — 7 / 12
 
@@ -570,7 +573,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **39.7** `[[term.prepend_keymap]]` で `<A-j>` を `noop` に割り当てて `<C-F5>` → キーは何もせず、**シェルにも届かない。**ここで割り当てたものは消費される。返すには `[term] keymap = [...]` を丸ごと置き換える必要がある — *`[[term.prepend_keymap]]` binding `<A-j>` to `noop`, then `<C-F5>` → The key does nothing **and still does not reach the shell** — anything bound here is consumed. Handing it back needs a full `[term] keymap = [...]` replacement*
 - [x] **39.8** シェルのプロンプトで Alt+b / Alt+f / Alt+d → これまでどおり readline に届く。取られたのは j と k だけ — *Alt+b / Alt+f / Alt+d at the shell prompt → Still reach readline. Only j and k were taken*
 
-## 40. 全画面プログラムにスクロールのジェスチャーを渡す — 13 / 15
+## 40. 全画面プログラムにスクロールのジェスチャーを渡す — 13 / 16
 
 自動テスト済みなので下には出していない: 40.8
 
@@ -586,9 +589,10 @@ fsutil hardlink list <新しくできたパス>
 - [x] **40.11** 同じプロンプトで `Alt-d` → 前方の単語を削除する — *`Alt-d` at the same prompt → Deletes the word ahead*
 - [ ] **40.12** ペインの PowerShell（PSReadLine）で `Alt-b` / `Alt-f` → 同じ単語移動 — *PowerShell (PSReadLine) in the pane, `Alt-b` / `Alt-f` → Same word motions*
 - [x] **40.13** 普通のプロンプトで `Alt-j` / `Alt-k` → **これは filer のスクロールのまま。**この 2 つは `[term]` レイヤーに割り当てられていて、プロンプトは代替画面ではないため — *`Alt-j` / `Alt-k` at an ordinary prompt → **Still filer's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen*
-- [x] **40.14** `FILER_PTY_LOG` を設定して nvim の中でホイール（v0.55.0）→ nvim の表示がスクロールし、**カーソルは同じ行のまま**（前後で `:echo line('.')`）。ログには `\e[A` ではなく `\e[<64;…M` / `\e[<65;…M` が出る — *The wheel inside nvim, with `FILER_PTY_LOG` set (v0.55.0) → nvim's view scrolls and **its cursor stays on the same line** (`:echo line('.')` before and after). The log shows `\e[<64;…M` / `\e[<65;…M`, not `\e[A`*
+- [x] **40.14** `FILER_PTY_LOG` を設定して nvim の中でホイール（v0.55.0）→ nvim の表示がスクロールし、**カーソルは同じ行のまま**（前後で `:echo line('.')`）。ログには `\e[A` ではなく `[<64;…M` / `\e[<65;…M` が出る — *The wheel inside nvim, with `FILER_PTY_LOG` set (v0.55.0) → nvim's view scrolls and **its cursor stays on the same line** (`:echo line('.')` before and after). The log shows `\e[<64;…M` / `\e[<65;…M`, not `\e[A`*
 - [x] **40.15** ペインで lazygit を動かし（v0.55.0）、`<S-End>` を毎秒 30 回で約 300 回、その途中に `?` と `<Esc>` を入れる（#99 が #93 を組み直した形）→ `<Esc>` から 1 秒以内にキー一覧が閉じる。v0.55.0 までは数分開いたままだった。レコードで送った `<Esc>` の直後に `\e[1;2F` の `<S-End>` が来ると、tcell には 1 つの列に読めていた — *lazygit in the pane (v0.55.0): about 300 `<S-End>` at 30 a second, with `?` then `<Esc>` in the middle of them, as #99 rebuilt #93 → The key list closes within a second of the `<Esc>`. Until v0.55.0 it stayed open for minutes: `<Esc>` sent as a record and `<S-End>` as `\e[1;2F` right behind it read to tcell as one sequence*
 - [x] **40.16** `FILER_PTY_LOG` を設定して（v0.55.0）ペインを開き、`ping -t localhost` と打って `<C-c>`、続けて打った語の上で `<C-Left>` と `<Tab>` の補完 → ログの `out` の最初のほうに `\e[?9001h` があり、`in key` の行は `\e[1;5D` ではなくレコード（`\e[…;…;…;1;…;1_`）。`<C-c>` で ping が止まり、`<C-Left>` は 1 語戻り、`<Tab>` は補完する。シェルはレコードを本物のキーボードと同じに読む — *With `FILER_PTY_LOG` set (v0.55.0): open the pane, type `ping -t localhost`, `<C-c>`, then `<C-Left>` over a typed word and `<Tab>` completion → The log's `out` lines hold `\e[?9001h` near the start, and the `in key` lines are records (`\e[…;…;…;1;…;1_`) rather than `\e[1;5D`; `<C-c>` stops the ping, `<C-Left>` moves by a word, `<Tab>` completes — the shell reads records as it reads a real keyboard*
+- [ ] **40.17** `FILER_PTY_LOG` を設定して、nvim の中でホイールを 1 ノッチ、次に 3 ノッチ（v0.58.1）→ ノッチ 1 つにつき `\\e[<64;…M`（または `65`）が 1 本: 1 本、次に 3 本。v0.58.1 までは平滑化した量を数えていたので、3 ノッチで 5 本出ていた — *With `FILER_PTY_LOG` set, inside nvim, one notch of the wheel; then three (v0.58.1) → One `\e[<64;…M` (or `65`) per notch: 1, then 3. Until v0.58.1 three notches sent five, because the smoothed delta was counted*
 
 ## 41. spot パネルの 4 つの provider — 10 / 14
 
