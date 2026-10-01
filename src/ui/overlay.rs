@@ -548,6 +548,23 @@ fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
     out
 }
 
+/// The directories the help panel names, and looks into for files not read yet.
+#[cfg(not(test))]
+fn shown_config_dirs() -> Vec<std::path::PathBuf> {
+    crate::config::config_dirs()
+}
+
+/// Under test, a folder that is not there for each: the real ones hold whatever
+/// the person running the suite keeps in them. On a machine with a yazi and a
+/// filer config, their seven files were listed as "not read yet" and pushed
+/// the key list's heading out of the frame, so a help test failed there and
+/// nowhere else -- CI has no config (#136). `config_rows`' own tests pass their
+/// directories in and still look on disk.
+#[cfg(test)]
+pub(crate) fn shown_config_dirs() -> Vec<std::path::PathBuf> {
+    crate::config::CONFIG_VARS.iter().map(|v| std::env::temp_dir().join("filer-test-no-config").join(v)).collect()
+}
+
 pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queued: &mut Vec<Act>) {
     dim(ui, full);
     let rect = modal_rect(full, 0.86, 0.86);
@@ -558,7 +575,7 @@ pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
 
     // Config provenance first — it answers "did it pick up my yazi config?"
     // before the key list answers "what is bound to what".
-    let mut lines = config_rows(app, &crate::config::config_dirs());
+    let mut lines = config_rows(app, &shown_config_dirs());
     if app.cfg.loaded.is_empty() {
         lines.push(HelpRow::said("(nothing found in either; the defaults are in use)".into()));
     }

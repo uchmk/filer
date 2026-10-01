@@ -1399,7 +1399,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 - [x] 24 行のうち 22 行が合格、21 件にチェック（216 → 237。印を外した 4 行は別）。13.17 の `mklink /D` の半分だけ昇格待ちで残り、
   `windows-role.md` の昇格待ちの段落に移した。次の ARM64 の節は 48 節、その次が 1 節。
-- [ ] **テストが、走らせた機械の設定ファイルに左右される**（所見）。`ui::overlay::help_frame::help_from_the_pane_lists_the_panes_keys_first` が、
+- [x] （v0.65.1。ヘルプのパネルはテストの間、本物の設定フォルダの代わりに存在しない空のフォルダを名指す（`shown_config_dirs`）。`XDG_CONFIG_HOME` に偽の設定 7 ファイルを置いて再現し、もう 1 件 `the_panel_lists_the_files_and_then_the_warnings_in_the_same_yellow` も同じ形だったので直した。偽の設定あり・なしの両方で 590 件が緑。CLAUDE.md に確かめ方を書いた）**テストが、走らせた機械の設定ファイルに左右される**（所見）。`ui::overlay::help_frame::help_from_the_pane_lists_the_panes_keys_first` が、
   `%APPDATA%\yazi` / `%APPDATA%\filer` に設定がある機械では毎回落ちる（ヘルプの設定ディレクトリの節が 6 行伸び、見ている見出しが枠の外に出る）。
   CI のランナーには設定が無いので緑のまま。`ui::harness::Screen` が一時ディレクトリを使いながら**本物の設定ディレクトリ**を読んでいるのが原因。
   ハーネスが `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を空のディレクトリに向けて組むよう直す（環境変数はプロセス全体なので、
