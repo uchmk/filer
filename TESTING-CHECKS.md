@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**216 / 443 済み。**（TESTING.md の全 612 件のうち、`cargo test` が見ている 169 件は
+**237 / 443 済み。**（TESTING.md の全 612 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -199,7 +199,7 @@ cd $HOME\Desktop\filer-fixtures
 
 `cargo test` が全部見ているので、押すものはありません。
 
-## 12. undo と redo — 7 / 16
+## 12. undo と redo — 9 / 16
 
 自動テスト済みなので下には出していない: 12.6, 12.7
 
@@ -213,8 +213,8 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **12.10** 別のプログラムで開いてロックされたファイルを、**他の数件と一緒に**選んで `d` → 他は消える。メッセージが**消えなかったファイルの名前を挙げ**、タスクパネルの件数も実際に消えた数と合う（v0.27.1 まで `Trash: trash: Error … Some operations were aborted` と名前を挙げずに言い、全件成功として数えていた） — *Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) → The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done*
 - [ ] **12.11** ごみ箱を無効にしたドライブで `d` → 同じ形のメッセージが、ファイル名を挙げて出る — *`d` on a drive whose Recycle Bin is turned off → Same shape of message, naming the file*
 - [ ] **12.12** ロックされたファイルが無い状態で `d` → 以前のまま。そしてエクスプローラー自身の取り消し履歴に**項目が 1 つだけ**残る（まとめて渡す呼び出しが通常の経路であることの確認） — *`d` with nothing locked → Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path*
-- [ ] **12.13** 1 つのファイルで `d`、続けて 2 つで `d`（v0.57.3）→ そのたびにトーストが出る: `Trashed <名前> — u to undo`、次に `Trashed 2 item(s) — u to undo`。v0.57.3 まで `d` は何も言わず、`D` と見分けがつかなかった — *`d` on one file, then on two (v0.57.3) → A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D`*
-- [ ] **12.14** 5 つのファイルで `d` し、走っている間に `w`（v0.58.1）→ 行は `Trash 5 item(s)  [running]`（動詞は **1 回**）、その下の行は `0/5 files` で、`0 B / 0 B` は出ない — *`d` on five files, and `w` while it runs (v0.58.1) → The row reads `Trash 5 item(s)  [running]` -- the verb **once** -- and the line under it `0/5 files`, with no `0 B / 0 B`*
+- [x] **12.13** 1 つのファイルで `d`、続けて 2 つで `d`（v0.57.3）→ そのたびにトーストが出る: `Trashed <名前> — u to undo`、次に `Trashed 2 item(s) — u to undo`。v0.57.3 まで `d` は何も言わず、`D` と見分けがつかなかった — *`d` on one file, then on two (v0.57.3) → A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D`*
+- [x] **12.14** 5 つのファイルで `d` し、走っている間に `w`（v0.58.1）→ 行は `Trash 5 item(s)  [running]`（動詞は **1 回**）、その下の行は `0/5 files` で、`0 B / 0 B` は出ない — *`d` on five files, and `w` while it runs (v0.58.1) → The row reads `Trash 5 item(s)  [running]` -- the verb **once** -- and the line under it `0/5 files`, with no `0 B / 0 B`*
 - [ ] **12.15** 12.10 と同じく、5 件のうち 1 件を別のプログラムで開いたまま 5 件を `d`、続けて `u`（v0.59.7）→ エラーが開いているファイルを `it is open in another program` と名指しし、`u` で入った **4 件**が戻る。v0.59.7 までは `Some operations were aborted` とだけ言い、`u` は `Nothing to undo` だった — *As 12.10 -- one file of five held open elsewhere, `d` on all five -- then `u` (v0.59.7) → The error names the held file with `it is open in another program`, and `u` brings back the **four** that went. Until v0.59.7 the error said only `Some operations were aborted` and `u` said `Nothing to undo`*
 - [ ] **12.16** 12.9 をもう一度: ファイルを `d`、同じ名前のファイルを新しく作り、`u`（v0.59.7）→ エラーが `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` ではなく `a file by that name is already there. Move it away and press u again` と言う。新しいファイルをどけてからの `u` は通る — *12.9 again: `d` a file, make a new file by that name, then `u` (v0.59.7) → The error reads `a file by that name is already there. Move it away and press u again` -- not `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` -- and after moving the new file away, `u` works*
 - [ ] **12.17** `a` で `new/deep/note.txt` を作り、`u`、続けて `U`（v0.60.0）→ `u` で `note.txt` と、そのために作った 2 つのフォルダが消え、トーストは `Removed note.txt`。`U` で 3 つとも戻る。ファイルに何か書いてから `u` すると残り、書き込まれたというエラーが出る — *`a`, type `new/deep/note.txt`, `<Enter>`, then `u`; then `U` (v0.60.0) → `u` removes `note.txt` and both folders made for it, toast `Removed note.txt`; `U` makes all three again. Write something into the file and press `u`: it stays, and the error says it has been written to since*
@@ -259,7 +259,7 @@ fsutil hardlink list locked.txt        # 期待値の答え合わせ用
 - [ ] **14.5** いま自分がいるディレクトリの行をクリック → その場に留まり、カーソルが飛び回らない — *Click the row for the directory you are already in → You stay there, and the cursor does not jump about*
 - [ ] **14.6** ドライブ直下（親の列が無い場所）で → クリックするものが無く、何もおかしくならない — *At a drive root, where there is no parent column → Nothing to click, and nothing misbehaves*
 
-## 15. ウィンドウの拡大縮小と、取り返したキー — 5 / 9
+## 15. ウィンドウの拡大縮小と、取り返したキー — 6 / 9
 
 **v0.32.0 まで `<C-->` はウィンドウ縮小とハードリンク作成を同時にやっていた** —— 1 打で 2 動作。
 それを分けたのがこの節。ハードリンク作成は `=` に移った（v0.45.6 まで `<C-S-->` だったが、
@@ -282,7 +282,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **15.5** 何かヤンクした状態で、**同じドライブ内の**ディレクトリで `=` → ハードリンクができる。**一覧の行には印が出ない**（ハードリンクは同じ実体を指す別のエントリなので、区別する印が無い）。v0.46.0 以降は **`<Tab>` の spot パネルに出る**（`Kind: Hardlink` / `Links: 2`。それが 13.13）。外から確かめるなら `fsutil hardlink list <新しいパス>`。**ドライブを跨ぐと失敗するのが正しい**（NTFS のハードリンクはボリュームを跨げない） — *`=` with something yanked, in a directory **on the same drive** → The hardlink, in its new place. No *row* says so — a hardlink is another entry pointing at the same data, so the listing has no marker for it. Since v0.46.0 the spot panel does: `<Tab>` on it reads `Kind: Hardlink` and `Links: 2`, which is 13.13. Confirm from outside with `fsutil hardlink list <the new path>`, which lists every path sharing the data; or write to one and read the other. Across drives it must fail: NTFS hardlinks cannot leave their volume. Was `<C-S-->` until v0.45.6, a chord no keyboard can produce*
 - [ ] **15.6** 画像の上で `<A-i>` / `<A-o>` → **画像の**拡大縮小のまま影響を受けない（`zoom` と `scale` は別のコマンド） — *`<A-i>` / `<A-o>` on an image → Still the **image** zoom, unaffected — `zoom` and `scale` are different commands*
 - [x] **15.7** `~` → `scale in` / `scale out` / `scale reset` が他のコマンドと同じように並んでいる — *`~` → `scale in` / `scale out` / `scale reset` are listed, like any other command*
-- [ ] **15.9** 別のドライブのファイルをヤンクして `=`（`R:` → `C:`）（v0.59.4）→ エラーが Windows の「別のディスク ドライブに移動できません」ではなく `hardlinks can't cross drives (R: → C:). Use p to copy instead` と言う — *`=` with a file yanked from another drive (`R:` → `C:`) (v0.59.4) → The error reads `hardlinks can't cross drives (R: → C:). Use p to copy instead`, not Windows' "cannot move the file to a different disk drive"*
+- [x] **15.9** 別のドライブのファイルをヤンクして `=`（`R:` → `C:`）（v0.59.4）→ エラーが Windows の「別のディスク ドライブに移動できません」ではなく `hardlinks can't cross drives (R: → C:). Use p to copy instead` と言う — *`=` with a file yanked from another drive (`R:` → `C:`) (v0.59.4) → The error reads `hardlinks can't cross drives (R: → C:). Use p to copy instead`, not Windows' "cannot move the file to a different disk drive"*
 
 ## 16. Word / Excel / PowerPoint — 0 / 12
 
@@ -340,7 +340,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **19.6** 画像の上で `Ctrl`+ホイール → 拡大縮小し、同じ操作でペインが**スクロールしない** — *`Ctrl` and the wheel over an image → Zooms, and does **not** scroll the pane with the same turn*
 - [ ] **19.7** 回している途中でポインタを別のペインへ移す → どちらも飛ばない。端数はペインごとに別々に持っている — *Move the pointer between panes mid-turn → Neither jumps: each keeps its own remainder*
 
-## 20. 設定とテーマ — 0 / 7
+## 20. 設定とテーマ — 1 / 7
 
 - [ ] **20.1** filer を開いたまま `theme.toml` を編集し（`[mgr] cwd` を目立つ色に）、`<C-F5>` → 再起動せずに色が変わる — *With filer open, edit `theme.toml` (change `[mgr] cwd` to something loud) and press `<C-F5>` → The color changes without restarting*
 - [ ] **20.2** `filer.toml` の `[ui] font_size` を変えて `<C-F5>` → 文字の大きさが変わる — *Change `[ui] font_size` in `filer.toml`, `<C-F5>` → The text resizes*
@@ -348,7 +348,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **20.4** `,s` で並べ替えてから `<C-F5>` → **並び順は自分で設定したまま残る。**再読み込みが手で変えたものを元に戻さないこと — *Sort with `,s`, then `<C-F5>` → The sort **stays** as you set it — a reload does not undo what you changed by hand*
 - [ ] **20.5** `filer.toml` に構文エラーを入れて `<C-F5>` → 問題を挙げたエラーのトーストが出て、**以前の設定がそのまま効き続ける** — *Put a syntax error in `filer.toml`, `<C-F5>` → An error toast naming the problem; the old config stays in force*
 - [ ] **20.6** `[ui] minimap = false` にして `<C-F5>` → ミニマップが出なくなる — *`[ui] minimap = false`, `<C-F5>` → No minimap*
-- [ ] **20.7** `keymap.toml` に `[[mgr.prepend_keymap]]` で `on = "<F8>"`、`run = 'cd C:\Windows\System32'`（コマンドの中に引用符なし）を書く（v0.59.0）→ `<F8>` で `C:\Windows\System32` に着く。v0.59.0 までは `\` が落ち、エラーが `C:WindowsSystem32` を挙げていた — *In `keymap.toml`, `[[mgr.prepend_keymap]]` `on = "<F8>"`, `run = 'cd C:\Windows\System32'` -- no quotes inside the command (v0.59.0) → `<F8>` lands in `C:\Windows\System32`. Until v0.59.0 the backslashes were dropped and the error named `C:WindowsSystem32`*
+- [x] **20.7** `keymap.toml` に `[[mgr.prepend_keymap]]` で `on = "<F8>"`、`run = 'cd C:\Windows\System32'`（コマンドの中に引用符なし）を書く（v0.59.0）→ `<F8>` で `C:\Windows\System32` に着く。v0.59.0 までは `\` が落ち、エラーが `C:WindowsSystem32` を挙げていた — *In `keymap.toml`, `[[mgr.prepend_keymap]]` `on = "<F8>"`, `run = 'cd C:\Windows\System32'` -- no quotes inside the command (v0.59.0) → `<F8>` lands in `C:\Windows\System32`. Until v0.59.0 the backslashes were dropped and the error named `C:WindowsSystem32`*
 
 ## 21. 書庫（zip / tar / 7z） — 8 / 9
 
@@ -373,7 +373,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **22.5** メモ帳 → 開くが先頭から。行を指定する引数が無いので、**これが正しい** — *メモ帳 → Opens, at the top — it has no line argument, and that is correct*
 - [ ] **22.6** VS Code / nvim（入っていれば）→ その行で開く — *VS Code / nvim, if you have them → At the line*
 
-## 23. ネットワークパス（共有が要る） — 0 / 5
+## 23. ネットワークパス（共有が要る） — 1 / 5
 
 自動テスト済みなので下には出していない: 23.6
 
@@ -381,17 +381,17 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **23.2** そこへファイルをコピー、そこからコピー → どちらも動き、進捗が出る — *Copy a file to and from it → Works, with progress*
 - [ ] **23.3** 一覧の取得中にネットワークを抜く、または応答しないホストを指定する → **ウィンドウが固まらない。**エラーのトーストが出て、タブは元の場所に戻る — *Unplug the network mid-listing, or point at a dead host → **The window keeps responding.** An error toast, and the tab goes back where it was*
 - [ ] **23.4** 共有上のパスを Tab 補完する → プロンプトが固まらず、待っている間 `…` が出る — *Tab-complete a path on the share → The prompt stays responsive; a `…` shows while it waits*
-- [ ] **23.5** `g<Space>` で、途中のフォルダ名に `|` を含むパス（`C:\Temp\a|b\c\d`）を打って `<Enter>`（v0.57.3）→ エラーのトーストは **1 つ**で、パス全体を挙げる。v0.57.3 までは親の列がそれぞれ自分のトーストを足し、断片（`b: …`、`c: …`）だけを挙げていた — *`g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) → **One** error toast, naming a whole path. Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`)*
+- [x] **23.5** `g<Space>` で、途中のフォルダ名に `|` を含むパス（`C:\Temp\a|b\c\d`）を打って `<Enter>`（v0.57.3）→ エラーのトーストは **1 つ**で、パス全体を挙げる。v0.57.3 までは親の列がそれぞれ自分のトーストを足し、断片（`b: …`、`c: …`）だけを挙げていた — *`g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) → **One** error toast, naming a whole path. Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`)*
 
-## 24. 扱いにくい名前 — 2 / 3
+## 24. 扱いにくい名前 — 3 / 3
 
 自動テスト済みなので下には出していない: 24.1, 24.2, 24.3
 
 - [x] **24.4** 引用符を含む名前をコピーして、`<A-t>` でターミナルへ → シェルが 1 語として受け取る形に引用される — *Copy the name with a quote in it, `<A-t>` into the terminal → Quoted so the shell sees one word*
 - [x] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
-- [ ] **24.6** 新しいフォルダで `scripts\make-fixtures.ps1` を走らせる（v0.59.1）→ 警告は出ない。ただし普通の（大文字小文字を区別しない）NTFS のフォルダでは `awkward names: 5 entries on disk, expected 6` が出て、`fsutil file setCaseSensitiveInfo` を挙げる（24.3 がそこで押せない理由） — *Run `scripts\make-fixtures.ps1` in a fresh folder (v0.59.1) → No warning, except on an ordinary (case-insensitive) NTFS folder: `awkward names: 5 entries on disk, expected 6`, naming `fsutil file setCaseSensitiveInfo` -- the reason 24.3 cannot be pressed there*
+- [x] **24.6** 新しいフォルダで `scripts\make-fixtures.ps1` を走らせる（v0.59.1）→ 警告は出ない。ただし普通の（大文字小文字を区別しない）NTFS のフォルダでは `awkward names: 5 entries on disk, expected 6` が出て、`fsutil file setCaseSensitiveInfo` を挙げる（24.3 がそこで押せない理由） — *Run `scripts\make-fixtures.ps1` in a fresh folder (v0.59.1) → No warning, except on an ordinary (case-insensitive) NTFS folder: `awkward names: 5 entries on disk, expected 6`, naming `fsutil file setCaseSensitiveInfo` -- the reason 24.3 cannot be pressed there*
 
-## 25. `filer env` — 18 / 31
+## 25. `filer env` — 22 / 31
 
 - [x] **25.1** PowerShell から `filer env` → 5 つの節（Filer、Config、Last run、Tools、Variables）が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること** — *`filer env` from PowerShell → The five sections print (Filer, Config, Last run, Tools, Variables). A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears***
 - [x] **25.2** Config の節 → 両方のディレクトリが出て、それぞれ中身か `nothing here` を述べ、`not here:` に残りが並ぶ — *The Config section → Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest*
@@ -419,10 +419,10 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **25.18** release ビルドで `filer env \| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c "filer env > out2.txt"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた） — *Release build: `filer env \| Out-File out.txt`, then `Get-Content out.txt`; and `cmd /c "filer env > out2.txt"` (v0.54.4) → The whole report is **in both files**, and nothing is printed on screen. Before v0.54.4 both were empty. (PowerShell's own `filer env > out.txt` still gives an empty file: PowerShell does not connect a windowed program's output to a file. README says so)*
 - [ ] **25.19** `filer env \| Select-String arch` → **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない）。`$v = & filer env; $v.Count` はレポートの行数で、0 ではない — *`filer env \| Select-String arch` → **Only the two arch lines** (Windows; elsewhere there is one, `Process arch`), not the whole report. `$v = & filer env; $v.Count` is the report's line count, not 0*
 - [ ] **25.20** 何もリダイレクトせずに `filer env` と `filer --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない — *`filer env` with nothing redirected, and `filer --version` → Still printed on screen, as 25.1 has it — the console path is unchanged*
-- [ ] **25.21** `filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ — *`filer env` (v0.58.1) → An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone*
-- [ ] **25.22** `FILER_PTY_LOG` を設定して `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"`（v0.59.0）→ `echo` が届く前にシェルのプロンプトが出ている（ログの `out` の行が `in key` の行より前）、`hi` が表示され、1 秒後にペインが窓を取る。`filer --keys "<Wait:1.5s>"` はコマンド行で断られ、`<Wait:500>` と書き方を示す — *`filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `FILER_PTY_LOG` set (v0.59.0) → The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `filer --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>`*
-- [ ] **25.23** ペインを開いて `<C-S-Enter>`、filer を閉じてから `filer env`（v0.59.4）→ `Last run` の下に `Terminal pane` の行があり、最後の大きさを `N x M (lines x columns)` で出す。ペインを一度も開かなかった run の後は `not opened in that run` — *Open the pane, `<C-S-Enter>`, close filer, then `filer env` (v0.59.4) → A `Terminal pane` row under `Last run` gives the grid as `N x M (lines x columns)`, the size it last had. After a run that never opened the pane: `not opened in that run`*
-- [ ] **25.24** どこかのフォルダのシェルから `filer .`、次に `filer ..`、次に引用符なしで `filer two words`（v0.59.5）→ `.` はそのフォルダを開き、タイトルが**絶対**パスで親の列があり、`h` で上がれる。`..` は 1 つ上を開く。引用符なしの 2 語は窓を開く前に `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` と断られる — *From a shell in some folder, `filer .`, then `filer ..`, then `filer two words` unquoted (v0.59.5) → `.` opens that folder with its **absolute** path in the title and a parent column, and `h` goes up; `..` opens the one above. The unquoted pair is refused before any window: `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)`*
+- [x] **25.21** `filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ — *`filer env` (v0.58.1) → An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone*
+- [x] **25.22** `FILER_PTY_LOG` を設定して `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"`（v0.59.0）→ `echo` が届く前にシェルのプロンプトが出ている（ログの `out` の行が `in key` の行より前）、`hi` が表示され、1 秒後にペインが窓を取る。`filer --keys "<Wait:1.5s>"` はコマンド行で断られ、`<Wait:500>` と書き方を示す — *`filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `FILER_PTY_LOG` set (v0.59.0) → The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `filer --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>`*
+- [x] **25.23** ペインを開いて `<C-S-Enter>`、filer を閉じてから `filer env`（v0.59.4）→ `Last run` の下に `Terminal pane` の行があり、最後の大きさを `N x M (lines x columns)` で出す。ペインを一度も開かなかった run の後は `not opened in that run` — *Open the pane, `<C-S-Enter>`, close filer, then `filer env` (v0.59.4) → A `Terminal pane` row under `Last run` gives the grid as `N x M (lines x columns)`, the size it last had. After a run that never opened the pane: `not opened in that run`*
+- [x] **25.24** どこかのフォルダのシェルから `filer .`、次に `filer ..`、次に引用符なしで `filer two words`（v0.59.5）→ `.` はそのフォルダを開き、タイトルが**絶対**パスで親の列があり、`h` で上がれる。`..` は 1 つ上を開く。引用符なしの 2 語は窓を開く前に `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` と断られる — *From a shell in some folder, `filer .`, then `filer ..`, then `filer two words` unquoted (v0.59.5) → `.` opens that folder with its **absolute** path in the title and a parent column, and `h` goes up; `..` opens the one above. The unquoted pair is refused before any window: `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)`*
 - [ ] **25.25** オープナーでファイルを開き（`<Enter>` か `<S-Enter>`）、`;` のシェルを 1 つ走らせ、filer を閉じてから `filer env`（v0.59.9）→ `Last run` の下の `Launched` の行に、filer が組み立てたとおりのコマンド行が 2 つ、新しいものが後で、最大 5 つ並ぶ。何も起動しなかった run の後は `nothing in that run` — *Open a file with an opener (`<Enter>` or `<S-Enter>`), run one `;` shell command, close filer, then `filer env` (v0.59.9) → A `Launched` row under `Last run` lists both command lines exactly as filer built them, newest last, at most five. After a run that launched nothing: `nothing in that run`*
 
 ## 26. アプリの中からのバグ報告 — 8 / 11
@@ -454,7 +454,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **28.7** カーソルが乗っているファイルを外から改名 → カーソルが名前に追従するか、その場に留まる。落ちない — *Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash*
 - [ ] **28.8** 窓に触らず（キーもマウスも使わず）、一覧にあるファイルをエクスプローラーから削除する（v0.57.2）→ キーを押さなくても 0.5 秒以内に行が消える。v0.57.2 までは次にキーを押すまで残っていた（#108） — *Leave the window alone -- no key, no mouse -- and delete a listed file from Explorer (v0.57.2) → The row goes within half a second, without a key being pressed. Until v0.57.2 the list kept it until the next key (#108)*
 
-## 29. ターミナルのカレントディレクトリを持ち帰る — 2 / 8
+## 29. ターミナルのカレントディレクトリを持ち帰る — 4 / 8
 
 自動テスト済みなので下には出していない: 29.4
 
@@ -463,8 +463,8 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **29.3** 名前に**空白**を含むディレクトリと、**日本語**を含むディレクトリで同じこと → どちらも壊れずに届く — *Same with a directory whose name has a **space** and one with **Japanese** in it → Both arrive intact*
 - [ ] **29.5** Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため） — *Run the hook line by hand in a shell that already has Starship → The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`)*
 - [x] **29.6** `[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`filer env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る — *With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` → 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again*
-- [ ] **29.7** `[term] shell` なしで `<C-t>`、次に `shell = "powershell"` にしてもう一度（v0.57.4）→ 最初のトーストがシェルの名前を言う: `Started pwsh — <C-t> back to the list`、次に `Started powershell — …`。`$PSVersionTable.PSVersion` の答えと合っていること — *`<C-t>` with no `[term] shell`, then again with `shell = "powershell"` (v0.57.4) → The first toast names the shell: `Started pwsh — <C-t> back to the list`, then `Started powershell — …`. It has to match what `$PSVersionTable.PSVersion` says*
-- [ ] **29.8** フックの無い `powershell`（5.1）で開いたペインで `<A-Up>`（v0.59.4）→ 赤いトーストがシェルの名前を挙げる（`` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE ``）。フックを 7 ではなく 5.1 のプロファイルに入れればよいと分かる — *In a pane started as `powershell` (5.1) with no hook, `<A-Up>` (v0.59.4) → The red toast names the shell -- `` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE `` -- so the hook goes into 5.1's profile, not 7's*
+- [x] **29.7** `[term] shell` なしで `<C-t>`、次に `shell = "powershell"` にしてもう一度（v0.57.4）→ 最初のトーストがシェルの名前を言う: `Started pwsh — <C-t> back to the list`、次に `Started powershell — …`。`$PSVersionTable.PSVersion` の答えと合っていること — *`<C-t>` with no `[term] shell`, then again with `shell = "powershell"` (v0.57.4) → The first toast names the shell: `Started pwsh — <C-t> back to the list`, then `Started powershell — …`. It has to match what `$PSVersionTable.PSVersion` says*
+- [x] **29.8** フックの無い `powershell`（5.1）で開いたペインで `<A-Up>`（v0.59.4）→ 赤いトーストがシェルの名前を挙げる（`` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE ``）。フックを 7 ではなく 5.1 のプロファイルに入れればよいと分かる — *In a pane started as `powershell` (5.1) with no hook, `<A-Up>` (v0.59.4) → The red toast names the shell -- `` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE `` -- so the hook goes into 5.1's profile, not 7's*
 - [ ] **29.9** `$PROFILE` に別のツールのハンドラを先に置き（`mise activate pwsh`、または代わりに `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`）、その後に README のフックを置いて、新しいペインで `cd C:\dev`、`<A-Up>`（v0.64.2）→ 両方動く: 一覧が `C:\dev` に移り、**かつ**別のツールのハンドラも働いている（代わりのものならタイトルが `other: C:\dev`）。v0.64.2 より前は README のフックが別のものを置き換えていた — *Put a handler of another tool's in `$PROFILE` first (`mise activate pwsh`, or a stand-in: `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`), the README hook after it, open a new pane, `cd C:\dev`, `<A-Up>` (v0.64.2) → Both run: the list moves to `C:\dev` **and** the other tool's handler still does its job (the stand-in's title reads `other: C:\dev`). Before v0.64.2 the README hook replaced the other one*
 
 ## 30. プロンプトでの右クリック貼り付け — 10 / 14
@@ -486,7 +486,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **30.14** ターミナルで `<C-v>` → 右クリックと同じ（30.11 の挙動も含めて） — *`<C-v>` in the terminal → Same as the right-click, including 23.11*
 - [ ] **30.15** `report.txt` で `r`、2 つのファイルで `R`、`gSpace`（`cd`）、`a.txt` で `E`（v0.55.0）→ どれも入っている文字が選択された状態で開き、打つと置き換わる。`r` は `report`、`R` は `{name}{ext}` 全体、`cd` はパス全体、`E` は `.zip` の前の `a` を選ぶ。続けてクリップボードにパスを入れ、`cd` の選択範囲の**上**を右クリック → パスが選択範囲を置き換え、`<Enter>` でそこへ行く — *`r` on `report.txt`, `R` on two files, `gSpace` (`cd`), `E` on `a.txt` (v0.55.0); then, with a path on the clipboard, right-click **on** the `cd` prompt's selection → Each opens with its text selected, so typing replaces it: `r` selects `report`, `R` all of `{name}{ext}`, `cd` the whole path, `E` the `a` before `.zip`. The right-click's path replaces the selection, and `<Enter>` goes there*
 
-## 31. ホストの共有一覧 — 9 / 16
+## 31. ホストの共有一覧 — 11 / 16
 
 - [x] **31.1** `g`+`<Space>` で `\\<サーバのアドレス>` と入力して `<Enter>` → 共有が並ぶ。エクスプローラーが見せるものと同じ — *`g`+`<Space>`, type `\\<your server's address>`, `<Enter>` → The shares are listed, the same ones Explorer shows*
 - [ ] **31.2** アドレスではなくホスト**名**で、また `//` の綴りでも同じこと → どちらも届く。表示は `\\host` の綴りに戻される — *Same with a host **name** rather than an address, and with the `//` spelling → Both arrive; the path is shown back in the `\\host` spelling*
@@ -501,11 +501,11 @@ fsutil hardlink list <新しくできたパス>
 - [x] **31.10** ホストの一覧で `<C-r>` / 再読み込み → サーバに問い直す。落ちない — *`<C-r>` / refresh on the host listing → Re-asks the server; no crash*
 - [x] **31.11** **もう一方のペイン**（`<C-w>`）と 2 つ目のタブでホストを開く → どちらも問題なし — *Open the host in the **other pane** (`<C-w>`) and in a second tab → Both fine*
 - [x] **31.12** ホストへ行ってから、別のディレクトリへ移動する → 監視できなかったホストについて、ウォッチャが文句を言わない — *Go to a host, then change directory away → The watcher does not complain about the host it could not watch*
-- [ ] **31.13** 応答はするが何も共有していないホスト（v0.57.3）→ 一覧は `(empty)` ではなく `(no shares)` と言う — *A host that answers but shares nothing (v0.57.3) → The list says `(no shares)`, not `(empty)`*
-- [ ] **31.14** `g<Space>` で自分のサブネットの何も応答しないアドレスを打って `<Enter>`、諦める前に `<Esc>`（v0.58.1）→ すぐ元の場所に戻り、`Stopped waiting for \\<アドレス>` のトーストが出て、`j` / `k` が効く。取りやめた試みが後で時間切れになっても何も言わない — *`g<Space>` an address on your subnet that nothing answers on, `<Enter>`, then `<Esc>` before it gives up (v0.58.1) → Back where you were at once, a toast `Stopped waiting for \\<address>`, `j` / `k` work again -- and nothing more is said when the abandoned attempt times out later*
+- [x] **31.13** 応答はするが何も共有していないホスト（v0.57.3）→ 一覧は `(empty)` ではなく `(no shares)` と言う — *A host that answers but shares nothing (v0.57.3) → The list says `(no shares)`, not `(empty)`*
+- [x] **31.14** `g<Space>` で自分のサブネットの何も応答しないアドレスを打って `<Enter>`、諦める前に `<Esc>`（v0.58.1）→ すぐ元の場所に戻り、`Stopped waiting for \\<アドレス>` のトーストが出て、`j` / `k` が効く。取りやめた試みが後で時間切れになっても何も言わない — *`g<Space>` an address on your subnet that nothing answers on, `<Enter>`, then `<Esc>` before it gives up (v0.58.1) → Back where you were at once, a toast `Stopped waiting for \\<address>`, `j` / `k` work again -- and nothing more is said when the abandoned attempt times out later*
 - [ ] **31.15** `g<Space>` で応答しないアドレスを打って `<Enter>`、諦める前に見出しを読む（v0.59.8）→ 見出しの件数が `listing…`、位置が `…`。空のホストに着いたように読める `0 items` と `0/0` ではない。応答が来るか `<Esc>` で戻る（31.14）と、件数が戻る — *`g<Space>` an address that does not answer, `<Enter>`, and read the header before it gives up (v0.59.8) → The header's count reads `listing…` and the position `…` -- not `0 items` and `0/0`, which read as having arrived at an empty host. Once it answers, or `<Esc>` takes the tab back (31.14), the counts return*
 
-## 32. オープナー — 7 / 13
+## 32. オープナー — 8 / 13
 
 - [x] **32.1** README の `[opener]` / `[open]` の例を `yazi.toml` に貼って再起動し、`.txt` で `<S-Enter>` → 秀丸 / サクラ / VS Code / Neovim / 既定 が、コマンド行ではなく**説明文**で並ぶ — *Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` → 秀丸 / サクラ / VS Code / Neovim / default — with the descriptions, not the command lines*
 - [ ] **32.2** 同じファイルで `<Enter>` → 先頭の項目（秀丸）で開く。コンソールが一瞬も出ない — *`<Enter>` on the same file → Opens in the first entry (秀丸), no console flash*
@@ -519,7 +519,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **32.8b** 秀丸とサクラを、`<S-Enter>` から**と**先頭項目としての `<Enter>` から、両方試す → どちらも開く。同じ起動処理へ別の経路で入るため — *秀丸 and サクラ from `<S-Enter>` **and** from `<Enter>` as the first entry → Both, since they take different code paths to the same launcher*
 - [x] **32.8c** パスにわざと打ち間違いを入れたオープナー → 失敗を述べるトースト。日本語版 Windows では `cmd` の文言ではなく終了コードが出るはずで、**それは仕様であって報告すべきバグではない** — *An opener with a deliberate typo in the path → A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report*
 - [ ] **32.9** アウトラインから（行の上で `<C-o>`）秀丸とサクラで開く → その行に着地する — *Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ → Lands on the line*
-- [ ] **32.10** プログラム名を打ち間違えたオープナー（`run = 'Hidemruu.exe %s'`）を `<S-Enter>` で選ぶ（v0.59.1）→ エラーが `exit code 1` ではなく ``Open failed: `Hidemruu.exe` was not found — …`` と言う。プログラムはあるが失敗したときは今までどおり終了コードを言う — *An opener whose program is misspelled (`run = 'Hidemruu.exe %s'`), `<S-Enter>` and pick it (v0.59.1) → The error reads ``Open failed: `Hidemruu.exe` was not found — …``, not `exit code 1`. An opener whose program exists but fails still gives its exit code*
+- [x] **32.10** プログラム名を打ち間違えたオープナー（`run = 'Hidemruu.exe %s'`）を `<S-Enter>` で選ぶ（v0.59.1）→ エラーが `exit code 1` ではなく ``Open failed: `Hidemruu.exe` was not found — …`` と言う。プログラムはあるが失敗したときは今までどおり終了コードを言う — *An opener whose program is misspelled (`run = 'Hidemruu.exe %s'`), `<S-Enter>` and pick it (v0.59.1) → The error reads ``Open failed: `Hidemruu.exe` was not found — …``, not `exit code 1`. An opener whose program exists but fails still gives its exit code*
 
 ## 33. 設定の警告と、その色 — 0 / 10
 
@@ -591,7 +591,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **39.7** `[[term.prepend_keymap]]` で `<A-j>` を `noop` に割り当てて `<C-F5>` → キーは何もせず、**シェルにも届かない。**ここで割り当てたものは消費される。返すには `[term] keymap = [...]` を丸ごと置き換える必要がある — *`[[term.prepend_keymap]]` binding `<A-j>` to `noop`, then `<C-F5>` → The key does nothing **and still does not reach the shell** — anything bound here is consumed. Handing it back needs a full `[term] keymap = [...]` replacement*
 - [x] **39.8** シェルのプロンプトで Alt+b / Alt+f / Alt+d → これまでどおり readline に届く。取られたのは j と k だけ — *Alt+b / Alt+f / Alt+d at the shell prompt → Still reach readline. Only j and k were taken*
 
-## 40. 全画面プログラムにスクロールのジェスチャーを渡す — 13 / 16
+## 40. 全画面プログラムにスクロールのジェスチャーを渡す — 14 / 16
 
 自動テスト済みなので下には出していない: 40.8
 
@@ -610,7 +610,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **40.14** `FILER_PTY_LOG` を設定して nvim の中でホイール（v0.55.0）→ nvim の表示がスクロールし、**カーソルは同じ行のまま**（前後で `:echo line('.')`）。ログには `\e[A` ではなく `[<64;…M` / `\e[<65;…M` が出る — *The wheel inside nvim, with `FILER_PTY_LOG` set (v0.55.0) → nvim's view scrolls and **its cursor stays on the same line** (`:echo line('.')` before and after). The log shows `\e[<64;…M` / `\e[<65;…M`, not `\e[A`*
 - [x] **40.15** ペインで lazygit を動かし（v0.55.0）、`<S-End>` を毎秒 30 回で約 300 回、その途中に `?` と `<Esc>` を入れる（#99 が #93 を組み直した形）→ `<Esc>` から 1 秒以内にキー一覧が閉じる。v0.55.0 までは数分開いたままだった。レコードで送った `<Esc>` の直後に `\e[1;2F` の `<S-End>` が来ると、tcell には 1 つの列に読めていた — *lazygit in the pane (v0.55.0): about 300 `<S-End>` at 30 a second, with `?` then `<Esc>` in the middle of them, as #99 rebuilt #93 → The key list closes within a second of the `<Esc>`. Until v0.55.0 it stayed open for minutes: `<Esc>` sent as a record and `<S-End>` as `\e[1;2F` right behind it read to tcell as one sequence*
 - [x] **40.16** `FILER_PTY_LOG` を設定して（v0.55.0）ペインを開き、`ping -t localhost` と打って `<C-c>`、続けて打った語の上で `<C-Left>` と `<Tab>` の補完 → ログの `out` の最初のほうに `\e[?9001h` があり、`in key` の行は `\e[1;5D` ではなくレコード（`\e[…;…;…;1;…;1_`）。`<C-c>` で ping が止まり、`<C-Left>` は 1 語戻り、`<Tab>` は補完する。シェルはレコードを本物のキーボードと同じに読む — *With `FILER_PTY_LOG` set (v0.55.0): open the pane, type `ping -t localhost`, `<C-c>`, then `<C-Left>` over a typed word and `<Tab>` completion → The log's `out` lines hold `\e[?9001h` near the start, and the `in key` lines are records (`\e[…;…;…;1;…;1_`) rather than `\e[1;5D`; `<C-c>` stops the ping, `<C-Left>` moves by a word, `<Tab>` completes — the shell reads records as it reads a real keyboard*
-- [ ] **40.17** `FILER_PTY_LOG` を設定して、nvim の中でホイールを 1 ノッチ、次に 3 ノッチ（v0.58.1）→ ノッチ 1 つにつき `\\e[<64;…M`（または `65`）が 1 本: 1 本、次に 3 本。v0.58.1 までは平滑化した量を数えていたので、3 ノッチで 5 本出ていた — *With `FILER_PTY_LOG` set, inside nvim, one notch of the wheel; then three (v0.58.1) → One `\e[<64;…M` (or `65`) per notch: 1, then 3. Until v0.58.1 three notches sent five, because the smoothed delta was counted*
+- [x] **40.17** `FILER_PTY_LOG` を設定して、nvim の中でホイールを 1 ノッチ、次に 3 ノッチ（v0.58.1）→ ノッチ 1 つにつき `\\e[<64;…M`（または `65`）が 1 本: 1 本、次に 3 本。v0.58.1 までは平滑化した量を数えていたので、3 ノッチで 5 本出ていた — *With `FILER_PTY_LOG` set, inside nvim, one notch of the wheel; then three (v0.58.1) → One `\e[<64;…M` (or `65`) per notch: 1, then 3. Until v0.58.1 three notches sent five, because the smoothed delta was counted*
 
 ## 41. spot パネルの 4 つの provider — 10 / 14
 
@@ -639,7 +639,7 @@ fsutil hardlink list <新しくできたパス>
 
 - [ ] **43.9** 50MB の CSV → すぐ開き、`max_text_bytes` で切られ、フッタが省略したと述べる — *A 50 MB CSV → Opens promptly, cut at `max_text_bytes`, footer says truncated*
 
-## 44. ディスク使用量 — 13 / 16
+## 44. ディスク使用量 — 15 / 16
 
 自動テスト済みなので下には出していない: 44.7, 44.15, 44.18
 
@@ -656,11 +656,11 @@ fsutil hardlink list <新しくできたパス>
 - [x] **44.12** `gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。`<Esc>` してからもう一度 `gu` すれば大きい順に戻る（ビューの中の `gu` は断られる。44.11） — *`gu`, then `,` to re-sort → The order changes (as asked); `<Esc>` and `gu` again restores largest-first (`gu` inside the view is refused, 44.11)*
 - [x] **44.13** フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある** — *Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug***
 - [x] **44.14** タブを `linemode mtime`（`m t`）にして `gu`、すぐ `<Esc>`（v0.56.0）→ 行には日付ではなくサイズ（`1.5 M`、`6.0 K`）が出る。`<Esc>` の後は日付に戻り、`Measuring…` のトーストもすぐ消える — *With the tab on `linemode mtime` (`m t`), `gu`, then `<Esc>` straight away (v0.56.0) → The rows show sizes (`1.5 M`, `6.0 K`), not dates; after `<Esc>` the list shows dates again, and the `Measuring…` toast is gone at once*
-- [ ] **44.16** 数秒かかる大きさの木で `gu` して、見出しを見る（v0.57.3）→ 歩いている間は `N measured so far` で増えていき、合計のトーストが出たら `N items` になる — *`gu` on a tree big enough to take seconds, and watch the header (v0.57.3) → `N measured so far`, growing, while it walks; `N items` once the total's toast is up*
+- [x] **44.16** 数秒かかる大きさの木で `gu` して、見出しを見る（v0.57.3）→ 歩いている間は `N measured so far` で増えていき、合計のトーストが出たら `N items` になる — *`gu` on a tree big enough to take seconds, and watch the header (v0.57.3) → `N measured so far`, growing, while it walks; `N items` once the total's toast is up*
 - [x] **44.17** `gu` のあと、ビューの中で `m t`、続けて `m u`（v0.58.0）→ `m t` で数字が日付に替わり棒だけが残る。`m u` で**歩き直さずに**サイズが戻る（`Measuring…` が出ない）。`<Esc>` でタブ自身の表示に戻るのは今までどおり — *`gu`, then `m t` inside the view, then `m u` (v0.58.0) → `m t` swaps the numbers for dates with the bars left; `m u` brings the sizes back **without** walking again (no `Measuring…`). `<Esc>` still gives the tab its own mode back*
-- [ ] **44.19** 数秒かかる木で `gu` し、合計のトーストが消えるまで待つ（v0.59.2）→ ビューを開いている間ずっと、見出しが `N items · <大きさ> total` と言う（ここが使用量ビューだと分かる唯一の印）。その木で `filer --keys "gu<Wait:0>j"` とすると、カーソルは歩きが終わってから動く — *`gu` on a tree that takes seconds, then wait past the total's toast (v0.59.2) → The header reads `N items · <size> total` for as long as the view is up -- the one sign left that this is the usage view. And `filer --keys "gu<Wait:0>j"` on that tree moves the cursor only after the walk is done*
+- [x] **44.19** 数秒かかる木で `gu` し、合計のトーストが消えるまで待つ（v0.59.2）→ ビューを開いている間ずっと、見出しが `N items · <大きさ> total` と言う（ここが使用量ビューだと分かる唯一の印）。その木で `filer --keys "gu<Wait:0>j"` とすると、カーソルは歩きが終わってから動く — *`gu` on a tree that takes seconds, then wait past the total's toast (v0.59.2) → The header reads `N items · <size> total` for as long as the view is up -- the one sign left that this is the usage view. And `filer --keys "gu<Wait:0>j"` on that tree moves the cursor only after the walk is done*
 
-## 45. 2 つのフォルダを比べる — 11 / 14
+## 45. 2 つのフォルダを比べる — 12 / 14
 
 自動テスト済みなので下には出していない: 45.1, 45.2, 45.5, 45.7
 
@@ -676,10 +676,10 @@ fsutil hardlink list <新しくできたパス>
 - [x] **45.14** 数百のパスのうち奥の 1 ファイルだけが違う 2 つのツリーを比べる（v0.53.0）→ カーソルが**そのファイルの上**で開く（先頭の行ではない）。差分の無い組は先頭で開く — *Compare two trees of hundreds of paths that differ in one file far down (v0.53.0) → The view opens with the cursor **on that file**, not on the first row. A pair with no differences opens at the top*
 - [x] **45.15** `z`、続けて `j` / `n`、もう一度 `z` → `=` の行が一覧から消える。フッタは数え続け、`matches hidden (z)` が付く。`j` と `n` は見えている行だけを歩く。2 回目の `z` で全部の行が戻り、カーソルは同じパスの上にある — *`z`, then `j` / `n`, then `z` again → The `=` rows leave the list; the footer still counts them and adds `matches hidden (z)`; `j` and `n` step only over what is shown; the second `z` brings every row back with the cursor on the same path*
 - [x] **45.16** 中の `t1` を指す**ジャンクション**（`mklink /J ln t1`）を持つフォルダを写し、元と写しを比べる（v0.55.0）→ `= ln`。行き先の文字列は違っても、どちらも自分のツリーの `t1` に着くので同じと読む — *Copy a folder holding a **junction** to a folder inside it (`mklink /J ln t1`), then compare the original with the copy (v0.55.0) → `= ln`: both links land on `t1` in their own tree, so the copies read as the same even though the two targets differ as text*
-- [ ] **45.17** 別の場所にある同じ名前の 2 つのフォルダ（片方にサブフォルダあり）を比べる（v0.59.4）→ 見出しの下に両方の**フルパス**（`…\left\proj  ↔  …\right\proj`）。長ければそれぞれ真ん中が切られ、両端は読める。フォルダの行は子のパスと同じく `\` で終わり、`/` ではない — *Compare two folders of the same name in different places, one holding a subfolder (v0.59.4) → Under the title, both **full paths** (`…\left\proj  ↔  …\right\proj`), each cut in its middle if long so both ends stay readable. A folder row ends in `\` like its children's paths, not `/`*
+- [x] **45.17** 別の場所にある同じ名前の 2 つのフォルダ（片方にサブフォルダあり）を比べる（v0.59.4）→ 見出しの下に両方の**フルパス**（`…\left\proj  ↔  …\right\proj`）。長ければそれぞれ真ん中が切られ、両端は読める。フォルダの行は子のパスと同じく `\` で終わり、`/` ではない — *Compare two folders of the same name in different places, one holding a subfolder (v0.59.4) → Under the title, both **full paths** (`…\left\proj  ↔  …\right\proj`), each cut in its middle if long so both ends stay readable. A folder row ends in `\` like its children's paths, not `/`*
 - [ ] **45.18** 2 つのフォルダを比べ、`≠` のファイルの行にカーソルを置いて `<Enter>`、続けて `q`（v0.61.0）→ 2 つのファイルが行単位で横に並び、題に両方のフルパスが出る。`q` でフォルダの比較の**同じ行**に戻る（閉じない、先頭に戻らない）。片側にしか無い行で `<Enter>` を押すと `Compare: it is on one side only` と出て動かない — *Compare two folders, put the cursor on a `≠` file row, `<Enter>`; then `q` (v0.61.0) → The two files open side by side, line by line, titled with both full paths. `q` goes back to the folder comparison **on the same row**, not closed and not at the top. `<Enter>` on a row that exists on one side only says `Compare: it is on one side only` and stays*
 
-## 46. spot パネルの Git セクション — 14 / 21
+## 46. spot パネルの Git セクション — 15 / 21
 
 準備:
 
@@ -709,15 +709,15 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [ ] **46.18** GitHub のリポジトリの clone で、46.12 のファイルの `Pull request` の行 → 上の `#<n>` の `https://github.com/<owner>/<repo>/pull/<n>` と出る。その行か `Came in via` の行で `<Enter>` を押すと、そのページがブラウザで開く — *On a 46.12 file in a clone of a GitHub repository, the `Pull request` row → It reads `https://github.com/<owner>/<repo>/pull/<n>` for the `#<n>` above it. `<Enter>` on it — or on `Came in via` — opens that page in the browser*
 - [ ] **46.19** `origin/HEAD` のある clone で、46.15 のファイル（コミット済み・未マージ）→ **`Not merged`** の行に `not in origin/main yet`（その clone の既定のブランチ）。46.14 のファイル（main に直接）にはこの行が**無い**ので、2 つが同じ見た目ではなくなった — *On a 46.15 file (committed, not merged) in a clone that has `origin/HEAD` → A **`Not merged`** row: `not in origin/main yet` (the clone's own default branch). A 46.14 file (straight to main) has **no** such row, so the two no longer look alike*
 - [ ] **46.20** `origin/HEAD` の無いリポジトリ（`git remote set-head origin -d`）で同じこと → `Not merged` の行は出ない。既定のブランチを推測しない — *The same in a repository with no `origin/HEAD` (`git remote set-head origin -d`) → No `Not merged` row at all — filer does not guess the default branch*
-- [ ] **46.21** プルリクエストで入ったファイルで `<Tab>`、カーソルを `From branch` に置いて `<Enter>`（v0.59.1）→ ブラウザが枝のページ（`…/tree/<枝>`）を開き、トーストが `Opened …` と言う。マージ後に消された枝なら GitHub 自身の 404 が開くが、アドレスとしては正しい — *On a file that came in through a pull request, `<Tab>`, the cursor on `From branch`, `<Enter>` (v0.59.1) → The browser opens the branch's page (`…/tree/<branch>`), and the toast says `Opened …`. A branch deleted after the merge opens GitHub's own 404, which is still the right address*
+- [x] **46.21** プルリクエストで入ったファイルで `<Tab>`、カーソルを `From branch` に置いて `<Enter>`（v0.59.1）→ ブラウザが枝のページ（`…/tree/<枝>`）を開き、トーストが `Opened …` と言う。マージ後に消された枝なら GitHub 自身の 404 が開くが、アドレスとしては正しい — *On a file that came in through a pull request, `<Tab>`, the cursor on `From branch`, `<Enter>` (v0.59.1) → The browser opens the branch's page (`…/tree/<branch>`), and the toast says `Opened …`. A branch deleted after the merge opens GitHub's own 404, which is still the right address*
 
-## 47. 放置した窓は CPU を使わない — 3 / 5
+## 47. 放置した窓は CPU を使わない — 4 / 5
 
 - [x] **47.1** ファイルとサブフォルダのあるフォルダで filer を開き、10 秒何も触らない。`(Get-Process filer).CPU` を 10 秒あけて 2 回読む → 2 つの差は **1 秒よりずっと小さい**（100 分の数秒なら普通） — *Open filer on a folder of files and subfolders, touch nothing for 10 s, then read `(Get-Process filer).CPU` twice, 10 s apart → The two readings differ by **well under 1 s** (a few hundredths is normal)*
 - [x] **47.2** `j` でファイルに乗り、すぐ（40 ms のデバウンスの内に）`j` でサブフォルダに乗って手を離す。CPU を 10 秒あけて 2 回読む → 同じく**増えない**。v0.54.2 より前は、これが描き続けたまま止まらなくなる手順だった — *`j` onto a file and at once `j` onto a subfolder (inside the 40 ms debounce), then hands off; read the CPU twice, 10 s apart → The same: **no rise**. Before v0.54.2 this was the sequence that left it drawing for ever*
 - [x] **47.3** 47.2 のあと窓を最小化する → 最小化していても増えない — *The same as 47.2, then minimise the window → Still no rise while minimised*
 - [ ] **47.4** 47.1〜47.3 でまだ増えるとき: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime` を 10 秒あけて 2 回 → どのスレッドの時間が増えるかと、分かれば開始アドレスを報告する。次に調べるのはそのスレッド — *If 47.1-47.3 still rise: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart → Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at*
-- [ ] **47.5** `f` のプロンプトを開いて 10 秒何も触らず、前後で CPU を読む（v0.59.3）→ プロンプトを開いていないとき（47.1）と同じく増えない。キャレットは点滅せず常に出ている。v0.59.3 までは点滅のために毎秒 2 回描いていて、10 秒で 0.14〜0.30 CPU 秒（#103、#110） — *Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3) → No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110)*
+- [x] **47.5** `f` のプロンプトを開いて 10 秒何も触らず、前後で CPU を読む（v0.59.3）→ プロンプトを開いていないとき（47.1）と同じく増えない。キャレットは点滅せず常に出ている。v0.59.3 までは点滅のために毎秒 2 回描いていて、10 秒で 0.14〜0.30 CPU 秒（#103、#110） — *Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3) → No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110)*
 
 ## 48. The release zips (v0.64.0) — 0 / 6
 

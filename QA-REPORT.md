@@ -7403,3 +7403,245 @@ libgl1-mesa-dri` を足したら起動した（lavapipe は `mesa-vulkan-drivers
 
 上の「TESTING.md の行として古いもの」。25.4 は Tools の今の中身（git、シェル、preview / opener の名指す
 プログラム）で書き直し、25.19 には「Windows 以外は arch が 1 行」を書き添える。
+
+---
+
+## TESTING.md v0.57.3〜v0.59.5 の静かなキー 24 行 — ARM64 実機で確かめた（6b7ad58 / 0.59.6、ARM64 レーン、無人の run）
+
+ARM64 レーンの順番表（`.claude/windows-role.md`「The ARM64 lane」）の先頭、
+**「v0.57.3 to v0.59.5, the quiet keys」24 行**を 1 本で片付けた。24 行のうち
+**22 行が合格**（うち 21 行を TESTING-CHECKS.md でチェック、1 行は既に `[x]` だった）、
+**1 行は昇格権限が無くて半分しか押せず**（13.17）、**1 行は節の文言どおりの経路では再現しない**
+（29.8。別経路では文言どおりに出たのでチェックは付けた。下の「見つけたもの 2」）。
+
+### 走らせたもの
+
+| | |
+| --- | --- |
+| 機械 | `(Get-CimInstance Win32_ComputerSystem).SystemType` = `ARM64-based PC`、Windows 11 Home 26H1（build 28000.2956）、PowerShell 7.6.6 |
+| 昇格 | **なし**（`IsInRole('Administrators')` = `False`）。開発者モードも無効（`AllowDevelopmentWithoutDevLicense` 未設定） |
+| 入力デスクトップ | `OpenInputDesktop` → `Default`、`SPI_GETSCREENSAVERRUNNING` = `False`（run 中に 2 回確認） |
+| ネイティブ build | `cargo build --release` → PE machine `0xAA64`。`filer env` の `Process arch` = `aarch64` |
+| x64 build | `cargo build --release --target x86_64-pc-windows-msvc` → PE machine `0x8664`、`Process arch` = `x86_64 (emulated on aarch64)` |
+| ConPTY | `scripts\fetch-conpty.ps1` → **1.24.260710001 (arm64)** を `target\release` に |
+| 作業場所 | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（**この機械に RAM ディスクは無い**。`auto-wintest.ps1` が決めて `TEMP` / `TMP` に入れた） |
+| `cargo test` | **566 passed; 1 failed** → 下の「見つけたもの 1」。設定ディレクトリを隔離すると **567 passed; 0 failed**（3.14s） |
+
+### 見つけたもの 1 —— `cargo test` が「その機械に設定ファイルがあるか」で落ちる（本物の不具合）
+
+`ui::overlay::help_frame::help_from_the_pane_lists_the_panes_keys_first` が
+**この機械では必ず落ちる**。同じコミット（6b7ad58）の CI（Windows x64 ランナー）は緑。
+ARM64 かどうかではなく、**走らせた人の `%APPDATA%` に yazi / filer の設定ファイルがあるか**で
+決まる。
+
+- 落ちる場所: `src/ui/overlay.rs:1653` の
+  `at("keys in the list (<C-t> to get there)").expect("the list's heading")`
+- `f.texts` を出させたところ、ヘルプのパネルに描かれたのは
+  `config` の節 → `the mouse` → `keys in the terminal pane` → ペインのキー 13 個で終わり。
+  **`keys in the list` の見出しはフレームに 1 度も現れない。**
+- `config` の節が長いのが原因。この機械には実物の設定があり、パネルは
+  `C:\Users\yuu06\AppData\Roaming\yazi\config\` の `yazi.toml` / `keymap.toml` と
+  `C:\Users\yuu06\AppData\Roaming\filer\` の `keymap.toml` を、
+  それぞれ「見出し＋`on disk, not read yet — <C-F5> re-reads config`」の 2 行で並べる。
+  その分だけ下が押し出され、ハーネスの画面からはみ出す。
+- **証拠**: 同じコミット・同じバイナリで、環境変数だけ変えた 2 回。
+
+```
+cargo test help_from_the_pane_lists_the_panes_keys_first
+  -> test result: FAILED. 0 passed; 1 failed      (3 回連続、毎回同じ)
+
+$env:YAZI_CONFIG_HOME = <空のディレクトリ>; $env:FILER_CONFIG_HOME = <同じ>
+cargo test help_from_the_pane_lists_the_panes_keys_first
+  -> test result: ok. 1 passed; 0 failed
+cargo test                                         (全件)
+  -> test result: ok. 567 passed; 0 failed
+```
+
+- **どちらの間違いか**: プログラム（テスト）側。`ui::harness::Screen` は一時ディレクトリに
+  ツリーを作るが、**設定ディレクトリは実物を読んでいる**。CI のランナーには設定が無いので
+  緑のまま通り、**設定を持っている人の手元でだけ落ちる**。この run は「手元で全部回す」
+  規則に従って回したので見つかった。
+- **直し方の見当（実装はしない）**: `Screen::open` が `YAZI_CONFIG_HOME` /
+  `FILER_CONFIG_HOME` をテスト用の空ディレクトリに向けるか、`Config` を
+  「ファイルを読まない」形で組んでから差すか。どちらにせよ **1 か所**で、
+  このテストだけの問題ではない（ヘルプのパネルを見る他のテストも同じ地雷を踏みうる）。
+- ARM64 固有ではない。x64 の機械でも `%APPDATA%\yazi\config\yazi.toml` を置けば落ちるはず。
+
+### 見つけたもの 2 —— 29.8 の `powershell (Windows PowerShell 5.1)` は `[term] shell` 経由では出ない
+
+29.8 は「`powershell`（5.1）として開いたペインで `<A-Up>`」と書いてある。pwsh が入っている
+この機械でそれをやる自然な方法は `filer.toml` に `[term] shell = "powershell"` と書くことだが、
+**その経路では版が付かない。**
+
+- `[term] shell = "powershell"` のとき、トーストは
+  `` `powershell` has not said where it is (no OSC 7). PowerShell: set LocationChangedAction in that shell's $PROFILE — the line is in the README ``
+- `PATH` から `WindowsApps`（pwsh のエイリアス）を外し、`[term] shell` を書かずに起動したとき、
+  `` `powershell (Windows PowerShell 5.1)` has not said where it is (no OSC 7). … ``
+  ——**節の文言どおり。**
+
+理由は `src/terminal.rs:193` の `name_shell`:
+
+```rust
+match program {
+    Some(p) => crate::util::file_name(Path::new(p)),                      // 設定で名指ししたとき
+    None if windows => "powershell (Windows PowerShell 5.1)".to_owned(),  // 既定に落ちたとき
+    ...
+}
+```
+
+版が付くのは `None`（＝ pwsh が見つからず、プラットフォーム既定に落ちた）のときだけ。
+`src/app.rs:6374` の単体テスト `it_names_the_shell` は
+`no_osc7("powershell (Windows PowerShell 5.1)")` を渡しているので、
+**作者の意図は「版付きの札が来る」だったのに、実際にそう来る経路が 1 つしかない。**
+
+- **どちらの間違いか**: 設定で `powershell` と名指しした人にも「5.1 のほうの `$PROFILE`」と
+  言ってやるのが #101 の趣旨なので、**プログラム側を直すのが筋**
+  （`shell_label` が `powershell` / `pwsh` を見て版を足す）。直さないなら 29.8 の文言に
+  「pwsh が入っていない機械で」と条件を足すべき。
+- チェックは付けた（条件を満たす形で文言どおりに出たので）。ただし**上の条件付き**。
+
+### 見つけたもの 3 —— 23.5 のトーストは「打ったパス」ではなく「その親」を名指す
+
+23.5 で `g<Space>` に `C:\Temp\a|b\c\d` と打って `<Enter>` を押すと、トーストは **1 つ**で
+`C:\Temp\a|b\c: 指定されたパスが見つかりません。 (os error 3)`。
+節が求めるのは「**1 つ**のエラートースト、まるごとのパスを名指す」で、断片（`b: …`、`c: …`）
+ではない。`C:\Temp\a|b\c` は根からのまるごとのパスなので**合格**だが、打ったのは `…\c\d` で、
+最後の 1 段が落ちている。実害は小さいが、節の次の改訂で「どの段を名指すか」を決めるなら
+記録しておく価値がある。押してから 1.1 秒と 1.8 秒の 2 枚を撮り、トーストが 1 つしか
+積まれていないことも確かめた。
+
+### 見つけたもの 4 —— 13.17 の半分は昇格が要る
+
+`mklink /J` は通る（`Junction created for …`）が、`mklink /D` は
+`You do not have sufficient privilege to perform this operation.`。
+無人の run は昇格していないし、開発者モードも無効。だから 13.17 は
+**ジャンクションの半分だけ確かめ、チェックは付けていない**。
+45.11 と同じ理由で、人か昇格した run のための行。
+
+### 1 行ずつ
+
+`<Tab>` で spot を開き `C` で貼った板、`filer env` の出力、`FILER_PTY_LOG`、
+`(Get-Process filer).CPU`、窓のタイトル、`PrintWindow(PW_RENDERFULLCONTENT)` の画面を読んだ。
+画面は `C:\Users\yuu06\AppData\Local\Temp\filer-scratch\shots\` に残っているが
+**それは消える場所**なので、読んだ文字列はここと PR 本文に写してある。
+
+| # | 結果 | 読んだもの |
+| --- | --- | --- |
+| 12.13 | 合格・チェック済み | 1 つで `Trashed t1.txt — u to undo`、2 つ選んで `Trashed 2 item(s) — u to undo`。ディスク上でも `t1` `t2` `t3` が消えた |
+| 12.14 | 合格・チェック済み | タスク板が `Trash 5 item(s)  [running]`（動詞は 1 回）、その下が `0/5 files`。`0 B / 0 B` の行は無い。**400 MB × 5 でないと捕まらない**（提案 5） |
+| 13.17 | **半分だけ**・チェック無し | ジャンクションの spot は `Link` 節の `Kind` が `Junction`、`Target` と `Resolves` が実体のパス。`mklink /D` は昇格が無くて作れず、`Symlink` の半分は未確認 |
+| 15.9 | 合格・チェック済み（**`R:` の代わりに UNC**） | `Hardlink: a.txt: hardlinks can't cross drives (\\192.168.0.150\Backup → C:). Use p to copy instead`。Windows の「ファイルを別のディスク ドライブに移動できません」ではない。コピー先は空のまま。生の `CreateHardLinkW` も error 17（`ERROR_NOT_SAME_DEVICE`）を返す＝同じ分岐 |
+| 20.7 | 合格・チェック済み | `keymap.toml` に `run = 'cd C:\Windows\System32'`（中に引用符なし）→ `<F8>` で窓のタイトルが `Filer: C:\Windows\System32`。`filer env` の `Warnings` は `none` |
+| 23.5 | 合格・チェック済み | トースト **1 つ**、`C:\Temp\a|b\c: 指定されたパスが見つかりません。 (os error 3)`（見つけたもの 3） |
+| 23.6 | 合格（**この行は自動テスト済みで、押す一覧には無い**） | `filer <fx>\tpyo` → 親が開き、赤いトースト `No such file or folder: tpyo — showing C:\…\fx`。`filer <fx>\notes.md` → `fx` が開いて `notes.md` にカーソル（10/15）、トーストは無し |
+| 24.6 | 合格・チェック済み | `make-fixtures.ps1` を新しいフォルダで走らせると `警告: awkward names: 5 entries on disk, expected 6 (UPPER.TXT and upper.txt are one file in a case-insensitive folder; 24.3 needs fsutil file setCaseSensitiveInfo <dir> enable)` と `警告: 1 group(s) did not come out as intended`。節が言う例外どおり（警告が出ない側は `fsutil` に昇格が要るので未確認） |
+| 25.21 | 合格・チェック済み | ネイティブ `Executable : C:\dev\filer-armtest\target\release\filer.exe` / `Process arch : aarch64`。x64 `Executable : …\x86_64-pc-windows-msvc\release\filer.exe` / `Process arch : x86_64 (emulated on aarch64)`。PE machine は `0xAA64` と `0x8664` |
+| 25.22 | 合格・チェック済み | PTY ログで、プロンプト `❯` が `out` に出るのが **t=1009 ms**、最初の `in key` が **t=1878 ms**（`<Wait:2000>`）。`hi` が `out` に t=2277 ms。`<C-S-Enter>` でペインが窓を取った。`filer --keys "<Wait:1.5s>"` は窓を出さず exit 2、`` filer: --keys: `<Wait:1.5s>` is not a wait; write milliseconds up to 60000, as `<Wait:500>` `` |
+| 25.23 | 合格・チェック済み | ペインを開いて `<C-S-Enter>` → 終了 → `filer env` が `Terminal pane : 35 x 159 (lines x columns)`。ペインを開かなかった run のあとは `Terminal pane : not opened in that run` |
+| 25.24 | 合格・チェック済み | `filer .` → タイトルが絶対パス `Filer: C:\…\fx\many`、親の列あり、`h` で `Filer: C:\…\fx`。`filer ..` → `Filer: C:\…\fx`。`filer two words` → 窓を出さず exit 2、`filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` |
+| 29.7 | 合格・チェック済み | `[term] shell` 無し: `Started pwsh — <C-t> back to the list`、ペインの表示は `PowerShell 7.6.6`。`shell = "powershell"`: `Started powershell — <C-t> back to the list`、ペインで `$PSVersionTable.PSVersion` が `Major 5 / Minor 1` |
+| 29.8 | 合格・チェック済み（条件付き） | `` `powershell (Windows PowerShell 5.1)` has not said where it is (no OSC 7). PowerShell: set LocationChangedAction in that shell's $PROFILE — the line is in the README ``。5.1 の `$PROFILE`（`…\WindowsPowerShell\Microsoft.PowerShell_profile.ps1`）はこの機械に存在しない＝フックは無い。条件は見つけたもの 2 |
+| 31.13 | 合格・チェック済み | `net view \\YUU06` が `There are no entries in the list.`＝共有を出さないホスト。`g<Space>\\YUU06<Enter>` → タイトル `Filer: \\YUU06`、一覧は `(no shares)`。`(empty)` ではない |
+| 31.14 | 合格・チェック済み | `g<Space>\\192.168.0.31<Enter>`（応答の無いアドレス）→ タイトルが `Filer: \\192.168.0.31`。`<Esc>` を投げて **626 ms** で `Filer: C:\…\fx\many` に戻り、トースト `Stopped waiting for \\192.168.0.31`。`j` でカーソルが 1/500 → 2/500。**50 秒後と 80 秒後**に撮り直しても新しいトーストは無く、プロセスは生きている |
+| 32.10 | 合格・チェック済み | 綴り違い: `` Open failed: `Hidemruu.exe` was not found — Hidemruu.exe "C:\…\t4.txt" ``。存在するが失敗する側（`cmd /c exit 3`）: `Open failed: exit code 3 — cmd /c exit 3 "C:\…\t4.txt"`。`filer env` も `Hidemruu.exe : not found (opener [typo])` |
+| 40.17 | 合格・チェック済み | ペインで nvim を開き `<C-S-Enter>` で全画面に。`SendInput` の `MOUSEEVENTF_WHEEL` を 1 ノッチ → PTY ログに `in key \e[<65;80;19M` が **1 行**（t=28078 ms）。3 秒おいて 3 ノッチ → **3 行**（t=31102 / 31276 / 31432 ms）。5 行ではない |
+| 44.16 | 合格・チェック済み | `C:\Users\yuu06` で `gu`: ヘッダが `4 measured so far` → `10 measured so far` → `11 measured so far` と増え、終わると `42 items · 18 G total` |
+| 44.17 | 合格（**TESTING-CHECKS.md では既に `[x]`**。ARM64 でも確認） | `gu` の中で `m t` → 数字が `2026-10-01 13:07` に替わり棒は残る。`m u` → サイズが戻り（`151 K` / `105 K` / …）、ヘッダは `15 items · 293 K total` のまま、**`Measuring…` のトーストは出ない**。`<Esc>` → ふつうの一覧（`15 items`、列なし） |
+| 44.19 | 合格・チェック済み | 歩き終わって **25 秒後**でもヘッダは `5 items · 28 G total`（`C:\dev`）。`filer C:\Users\yuu06 --keys "gu<Wait:0>j"` は歩いている間ずっと `1/11`（`4 measured so far` のフレーム）で、終わってから `2/42` |
+| 45.17 | 合格・チェック済み | 見出しは `proj ↔ proj`、その下に **両方のフルパス** `C:\Users\yuu06\AppData\Local\Temp\filer-scrat…-of-the-comparison\proj ↔ C:\Users\yuu06\AppData\Local\Temp\filer-scrat…-of-the-comparison\proj`（**真ん中で切れて**両端が読める）。フォルダの行は `= sub\` で、子の `~ sub\deep.txt` と同じ `\`。`/` ではない |
+| 46.21 | 合格・チェック済み | `CHANGELOG.md` の spot で `<A-j>` を 17 回 → カーソルが `From branch  claude/task-09i0cs`。`<Enter>` → トースト `Opened https://github.com/uchmk/filer/tree/claude/task-09i0cs`。`Get-CimInstance Win32_Process` のコマンドラインも `chrome.exe --single-argument https://github.com/uchmk/filer/tree/claude/task-09i0cs` |
+| 47.5 | 合格・チェック済み | `f` のプロンプトを開いて放置。`(Get-Process filer).CPU` が **0.25 → 0.25 → 0.25**（10 秒 × 2 回、どちらも増分 **0.00**）。キャレットは前後の画面で同じ位置に描かれていて点滅していない。**陽性対照**: 同じ窓に 100 ms おきにキーを 10 秒投げると 0.25 → 1.125（**+0.875**）。だから 0 は読み取りであって、止まった計器ではない |
+
+### `cargo test`
+
+**ネイティブ ARM64 で 566 passed; 1 failed**（見つけたもの 1）。
+設定ディレクトリを隔離すると **567 passed; 0 failed**（3.14s）。
+x64 ランナーに無い失敗は **この 1 件だけ**で、それも ARM64 固有ではない。
+
+### Proposals
+
+#### 提案 1: `--keys` に「待たずに次を押す」書き方が要る
+
+**踏んだこと**: 12.14 の `[running]` を捕まえるのに、`--keys "<Space>×5 d w"` では
+**必ず `[done]` になってから** `w` が届く。`--keys` はキーの間で `App::settled()` を待つが、
+`settled()` は ops のジョブを見ていない（`src/app.rs:1844`）ので、`d` のあとは
+「一覧の読み直し」を待ち、その頃にはゴミ箱送りが終わっている。
+結局 `keymap.toml` に `run = [ "remove", "tasks_show" ]` を 1 つ縛って回避した。
+
+**どう変えるべきか**: `--keys` に `<Now>`（次のキーを settled を待たずに同じフレームで）か、
+`<Keys:dw>` のような「ひと息で送る」括りを足す。`<Wait:0>` は既にあるが
+**`<Wait:0>` でも settled は待つ**ので別物。
+
+**なぜ**: 「進んでいる最中の表示」を確かめる行は TESTING.md にいくつもある
+（12.14、44.16、12.3 の `Restore` 行）。今はどれも**運か回避策**で、無人の run では
+再現しない日が出る。
+
+**大きさ**: `--keys` のパーサに 1 トークン、送り手に分岐 1 つ。
+
+#### 提案 2: spot のパネルで `j` / `k` がファイルを送ってしまう
+
+**踏んだこと**: 46.21 で `From branch` の行にカーソルを下ろそうと `j` を 17 回押したら、
+**パネルではなく一覧**が 17 行進み、spot は 17 個先のファイル（`TODO.md`）を映した。
+パネルの行を動かすのは `<A-j>` / `<A-k>` だった。
+
+**どう変えるべきか**: 最低限、spot の見出し `Spot: <name> — <Esc> to close` に
+`<A-j>/<A-k> 行` と `<Enter> 開く` を足す。help のパネルは
+`Keys — <Esc> close, j/k scroll, <A-j>/<A-k> half a page, …` と全部書いてある。
+踏み込むなら、`Pull request` / `Came in via` / `From branch` を持つ板では `j` / `k` を
+パネル側に寄せる（ファイル送りは `<Down>` / `<Up>` に残す）。
+
+**なぜ**: v0.52.0 の `C`、v0.59.1 の `<Enter>` と、**パネルの行が操作対象になった**のに、
+その行へ行く手段が見出しに書かれていない。この run で 1 回分まるごと無駄にした。
+
+**大きさ**: 見出しの 1 行なら数分。キーの入れ替えは keymap とドキュメントの判断。
+
+#### 提案 3: 「Open with」の板でも、動かし方を見出しに書く
+
+**踏んだこと**: 32.10 で 2 つ目の opener を選ぼうと `j` を押したら、`type to filter` の欄に
+`j` が入って候補が消えた。`<Down>` が正しかった。
+
+**どう変えるべきか**: 見出しを `Open with — <Down>/<Up> choose, type to filter, <Enter> open` に。
+
+**なぜ**: 1 行で済むし、spot と同じ取り違えがもう 1 か所ある。
+
+**大きさ**: 1 行。
+
+#### 提案 4: `filer env` の Config 節が、同じディレクトリを 2 回並べて警告も 2 回出す
+
+**踏んだこと**: `YAZI_CONFIG_HOME` と `FILER_CONFIG_HOME` を同じ空ディレクトリに向けて
+検証を隔離したら、Config 節が同じ行を 2 回出し、
+`[term] belongs in filer.toml and was ignored` の警告まで 2 回出た。
+
+**どう変えるべきか**: 2 つの設定ホームが同じパスなら 1 行にまとめ、
+`(YAZI_CONFIG_HOME and FILER_CONFIG_HOME)` と添える。警告も重複を畳む。
+
+**なぜ**: 「設定を隔離して何かを試す」のは**検証の定番**で、この run はそれ無しでは
+見つけたもの 1 を切り分けられなかった。そのとき出力が倍になるのは、読みにくいだけでなく
+「2 つ壊れている」と読める。
+
+**大きさ**: 出力を組むところ 1 か所、数行。
+
+#### 提案 5: 12.14 の行に「大きさ」を書き足してほしい
+
+**踏んだこと**: 同じボリュームへのゴミ箱送りは**リネーム**なので、小さいファイル 5 つでは
+40 ms ほどで終わる。`PrintWindow` の 1 コマが約 57 ms なので、`[running]` は原理的に捕まらない。
+40 MB × 5 でも 120 MB × 5 でも駄目で、**400 MB × 5 でようやく 1 コマ**に入った。
+
+**どう変えるべきか**: 12.14 の「Do」に
+「five files big enough to take a moment (400 MB each worked on an NVMe)」と足す。
+
+**なぜ**: 書いてなければ、次に押す人も同じ 30 分を使う。そして「捕まらなかった」を
+「出なかった（不具合）」と取り違える余地がある。
+
+**大きさ**: 1 行。この役割はドキュメントを直さないので提案にとどめる。
+
+### 順番表（`.claude/windows-role.md`「The ARM64 lane」）
+
+**マージする側で次を入れてからマージしてほしい。**入れないと、次の ARM64 の run が
+また同じ 24 行を取る。
+
+- **先頭の行「v0.57.3 to v0.59.5, the quiet keys | 24」を消す。**24 行すべてに手を付け、
+  22 行が合格、13.17 だけが残った。
+- 残った 13.17 は**昇格が要る行**なので、`.claude/windows-role.md` の
+  「46.16 は still open … 45.11 も」の段落に **13.17 の `mklink /D` の半分**を足すのが収まりがよい。
+- そのうえで、次に取る節は現在 2 番目の **「1. the terminal pane | the `[ ]` rows」**になる。
