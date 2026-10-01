@@ -854,6 +854,14 @@ pub enum UndoStep {
     /// than the thing being undone. Undoing a move puts a file back where it
     /// came from, which is a rename across directories and deletes nothing.
     Move { pairs: Vec<(PathBuf, PathBuf)> },
+    /// What `a` made: the folders it had to make on the way, outermost first,
+    /// then the thing asked for -- a file when `file`, else a folder. Taken
+    /// back only while that is still empty: a file someone has since written
+    /// in is not a slip any more, and removing it would lose the writing.
+    Create { paths: Vec<PathBuf>, file: bool },
+    /// Links made by `-`, `_` or `=`. Taking one back removes the link
+    /// and never what it points at.
+    Link { links: Vec<ops::Link> },
 }
 
 impl UndoStep {
@@ -869,6 +877,11 @@ impl UndoStep {
             Self::Move { pairs } => match pairs.len() {
                 1 => format!("Moved {} back", util::file_name(&pairs[0].0)),
                 n => format!("Moved {n} item(s) back"),
+            },
+            Self::Create { paths, .. } => format!("Removed {}", created_name(paths)),
+            Self::Link { links } => match links.len() {
+                1 => format!("Removed the link {}", util::file_name(&links[0].at)),
+                n => format!("Removed {n} link(s)"),
             },
         }
     }
@@ -886,8 +899,87 @@ impl UndoStep {
                 1 => format!("Moved {}", util::file_name(&pairs[0].0)),
                 n => format!("Moved {n} item(s)"),
             },
+            Self::Create { paths, .. } => format!("Created {}", created_name(paths)),
+            Self::Link { links } => match links.len() {
+                1 => format!("Linked {}", util::file_name(&links[0].at)),
+                n => format!("Made {n} link(s)"),
+            },
         }
     }
+}
+
+/// The name a create is known by: the thing asked for, the last of its paths.
+fn created_name(paths: &[PathBuf]) -> String {
+    paths.last().map(|p| util::file_name(p)).unwrap_or_default()
+}
+
+/// The paths `a` will have to make for `target`: it and every parent that is
+/// not there yet, outermost first. Empty when `target` is already there, so
+/// that `a` on an existing folder -- which `create_dir_all` lets through --
+/// leaves nothing for `u` to remove.
+fn paths_to_make(target: &Path) -> Vec<PathBuf> {
+    let mut made: Vec<PathBuf> =
+        target.ancestors().take_while(|p| !p.as_os_str().is_empty() && !ops::exists(p)).map(Path::to_path_buf).collect();
+    made.reverse();
+    made
+}
+
+/// Take back a create: the thing asked for goes only while it is still empty,
+/// then each folder made on the way, as far as each is empty too. A parent
+/// something else has been put into since stays, without an error: the slip
+/// being undone is the one name, and that is gone.
+fn unmake(paths: &[PathBuf], file: bool) -> std::io::Result<()> {
+    let Some((leaf, parents)) = paths.split_last() else { return Ok(()) };
+    if file {
+        if std::fs::metadata(leaf)?.len() > 0 {
+            return Err(std::io::Error::other(format!("{} has been written to since", util::file_name(leaf))));
+        }
+        std::fs::remove_file(leaf)?;
+    } else {
+        // `remove_dir` refuses a folder with anything in it, which is the
+        // check itself.
+        std::fs::remove_dir(leaf)?;
+    }
+    for dir in parents.iter().rev() {
+        if std::fs::remove_dir(dir).is_err() {
+            break;
+        }
+    }
+    Ok(())
+}
+
+/// Make again what [`unmake`] took back.
+fn remake(paths: &[PathBuf], file: bool) -> std::io::Result<()> {
+    let Some((leaf, parents)) = paths.split_last() else { return Ok(()) };
+    for dir in parents {
+        match std::fs::create_dir(dir) {
+            Err(e) if e.kind() != std::io::ErrorKind::AlreadyExists => return Err(e),
+            _ => {}
+        }
+    }
+    match file {
+        true => std::fs::OpenOptions::new().write(true).create_new(true).open(leaf).map(|_| ()),
+        false => std::fs::create_dir(leaf),
+    }
+}
+
+/// Run `f` over each link, splitting them into those it worked on and those
+/// it did not, with the first error.
+fn each_link(
+    links: Vec<ops::Link>,
+    f: fn(&ops::Link) -> std::io::Result<()>,
+) -> (Vec<ops::Link>, Vec<ops::Link>, Option<std::io::Error>) {
+    let (mut done, mut left, mut first) = (Vec::new(), Vec::new(), None);
+    for l in links {
+        match f(&l) {
+            Ok(()) => done.push(l),
+            Err(e) => {
+                first.get_or_insert(e);
+                left.push(l);
+            }
+        }
+    }
+    (done, left, first)
 }
 
 /// Where a step belongs once the work behind it has succeeded.
@@ -3396,12 +3488,17 @@ impl App {
                     dest: Some(dest),
                 });
             }
-            ops::OpEvent::Finished { id, errors, cancelled, kind, moved, made, trashed } => {
+            ops::OpEvent::Finished { id, errors, cancelled, kind, moved, linked, made, trashed } => {
                 // A move that actually moved something is a step `u` can take
                 // back. A cancelled one is not: half a move is not a state
                 // worth offering to reverse in one keystroke.
                 if kind == OpKind::Move && !cancelled && !moved.is_empty() {
                     self.undos.land(UndoStep::Move { pairs: moved }, Land::Fresh);
+                }
+                // Links are made one by one and each stands alone, so what was
+                // made is a step even when a cancel or an error stopped the rest.
+                if !linked.is_empty() {
+                    self.undos.land(UndoStep::Link { links: linked }, Land::Fresh);
                 }
                 if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
                     t.state = if cancelled {
@@ -3799,6 +3896,7 @@ impl App {
         let base = self.tabs[self.active].cwd.clone();
         let as_dir = text.ends_with('/') || text.ends_with('\\');
         let target = util::resolve_against(&base, text.trim_end_matches(['/', '\\']));
+        let made = paths_to_make(&target);
         let res = if as_dir {
             std::fs::create_dir_all(&target)
         } else {
@@ -3817,6 +3915,9 @@ impl App {
                 self.cache.remove(&base);
                 self.rescan(&base);
                 self.tabs[self.active].memo.insert(base, name);
+                if !made.is_empty() {
+                    self.undos.land(UndoStep::Create { paths: made, file: !as_dir }, Land::Fresh);
+                }
             }
             Err(e) => self.error(format!("Create failed: {e}")),
         }
@@ -4178,6 +4279,51 @@ impl App {
                 let id = self.submit_op(OpKind::Restore, paths.clone(), dir.clone(), true);
                 self.record_job(id, UndoStep::Trash { paths, dir }, Land::Undone);
             }
+            UndoStep::Create { paths, file } => match unmake(&paths, file) {
+                Ok(()) => {
+                    self.refresh_parent(&paths[0]);
+                    let step = UndoStep::Create { paths, file };
+                    self.toast(step.undone_label());
+                    self.undos.land(step, Land::Undone);
+                }
+                Err(e) => {
+                    self.error(format!("Undo: {e}"));
+                    self.undos.keep(UndoStep::Create { paths, file }, Land::Undone);
+                }
+            },
+            UndoStep::Link { links } => self.relink(links, ops::Link::remove, Land::Undone),
+        }
+    }
+
+    /// Remove or make again a set of links. Each stands alone, so the ones
+    /// that went through move to the other stack and the rest stay, named in
+    /// the error -- `u` again once the way is clear finishes the job.
+    fn relink(&mut self, links: Vec<ops::Link>, f: fn(&ops::Link) -> std::io::Result<()>, how: Land) {
+        let (done, left, err) = each_link(links, f);
+        if let Some(l) = done.first().or(left.first()) {
+            self.refresh_parent(&l.at.clone());
+        }
+        let verb = if how == Land::Undone { "Undo" } else { "Redo" };
+        if !done.is_empty() {
+            let step = UndoStep::Link { links: done };
+            self.toast(match how {
+                Land::Undone => step.undone_label(),
+                _ => step.redone_label(),
+            });
+            self.undos.land(step, how);
+        }
+        if let Some(e) = err {
+            self.error(format!("{verb}: {e}"));
+            self.undos.keep(UndoStep::Link { links: left }, how);
+        }
+    }
+
+    /// List again the folder `p` is in, which `u` has just changed.
+    fn refresh_parent(&mut self, p: &Path) {
+        if let Some(dir) = p.parent() {
+            let dir = dir.to_path_buf();
+            self.cache.remove(&dir);
+            self.rescan(&dir);
         }
     }
 
@@ -4225,6 +4371,19 @@ impl App {
                 let id = self.submit_op(OpKind::Trash, paths.clone(), dir.clone(), true);
                 self.record_job(id, UndoStep::Trash { paths, dir }, Land::Redone);
             }
+            UndoStep::Create { paths, file } => match remake(&paths, file) {
+                Ok(()) => {
+                    self.refresh_parent(&paths[0]);
+                    let step = UndoStep::Create { paths, file };
+                    self.toast(step.redone_label());
+                    self.undos.land(step, Land::Redone);
+                }
+                Err(e) => {
+                    self.error(format!("Redo: {e}"));
+                    self.undos.keep(UndoStep::Create { paths, file }, Land::Redone);
+                }
+            },
+            UndoStep::Link { links } => self.relink(links, ops::Link::make, Land::Redone),
         }
     }
 
@@ -5939,6 +6098,114 @@ mod extract_message {
 }
 
 #[cfg(test)]
+mod create_and_link_undo {
+    use super::*;
+
+    fn app(dir: &Path) -> App {
+        App::new(Config::load(), dir.to_path_buf(), egui::Context::default())
+    }
+
+    /// `a` with folders on the way: `u` removes the file and the folders it
+    /// had to make, and `U` makes them all again.
+    #[test]
+    fn a_create_goes_and_comes_back() {
+        let dir = util::test_dir("create-undo");
+        let mut a = app(&dir);
+        a.do_create("new/deep/note.txt");
+        let file = dir.join("new/deep/note.txt");
+        assert!(file.is_file());
+
+        a.undo_step();
+        assert!(!dir.join("new").exists(), "the file and both folders made for it are gone");
+
+        a.redo_step();
+        assert!(file.is_file(), "U makes the file again, folders and all");
+    }
+
+    /// A file written in since is not a slip any more: `u` keeps it, says
+    /// why, and leaves the step to try again.
+    #[test]
+    fn a_created_file_with_something_in_it_stays() {
+        let dir = util::test_dir("create-undo-written");
+        let mut a = app(&dir);
+        a.do_create("kept.txt");
+        std::fs::write(dir.join("kept.txt"), b"work").unwrap();
+
+        a.undo_step();
+        assert!(dir.join("kept.txt").is_file(), "not removed");
+        assert_eq!(a.undos.undo.len(), 1, "still there for u once it is empty again");
+    }
+
+    /// `a` on a folder that is already there makes nothing, so `u` has
+    /// nothing of its to remove.
+    #[test]
+    fn a_folder_that_was_there_is_not_recorded() {
+        let dir = util::test_dir("create-undo-existing");
+        std::fs::create_dir(dir.join("was")).unwrap();
+        let mut a = app(&dir);
+        a.do_create("was/");
+        assert!(a.undos.undo.is_empty());
+    }
+
+    /// Undoing a hardlink removes the second name and leaves the file.
+    #[test]
+    fn a_hardlink_is_removed_and_the_file_stays() {
+        let dir = util::test_dir("link-undo-hard");
+        let src = dir.join("data.txt");
+        std::fs::write(&src, b"data").unwrap();
+        let link = ops::Link { at: dir.join("again.txt"), target: src.clone(), dir: false, hard: true };
+        link.make().unwrap();
+
+        let mut a = app(&dir);
+        a.undos.land(UndoStep::Link { links: vec![link.clone()] }, Land::Fresh);
+        a.undo_step();
+        assert!(!link.at.exists(), "the link is gone");
+        assert_eq!(std::fs::read(&src).unwrap(), b"data", "the file it named is not");
+
+        a.redo_step();
+        assert_eq!(std::fs::read(&link.at).unwrap(), b"data", "U links it again");
+    }
+
+    /// Something that took the link's name since is not the link: `u` leaves
+    /// it alone.
+    #[test]
+    fn a_file_that_took_the_name_is_not_removed() {
+        let dir = util::test_dir("link-undo-replaced");
+        let src = dir.join("data.txt");
+        std::fs::write(&src, b"data").unwrap();
+        let link = ops::Link { at: dir.join("again.txt"), target: src.clone(), dir: false, hard: true };
+        std::fs::write(&link.at, b"another file of a different size").unwrap();
+
+        let mut a = app(&dir);
+        a.undos.land(UndoStep::Link { links: vec![link.clone()] }, Land::Fresh);
+        a.undo_step();
+        assert!(link.at.exists(), "not ours to remove");
+        assert_eq!(a.undos.undo.len(), 1, "the step stays");
+    }
+
+    /// A symlink to a folder: `u` removes the link, not the folder or what
+    /// is in it.
+    #[cfg(unix)]
+    #[test]
+    fn a_folder_symlink_is_removed_and_the_folder_stays() {
+        let dir = util::test_dir("link-undo-sym");
+        std::fs::create_dir(dir.join("real")).unwrap();
+        std::fs::write(dir.join("real/inside.txt"), b"x").unwrap();
+        let link = ops::Link { at: dir.join("alias"), target: PathBuf::from("real"), dir: true, hard: false };
+        link.make().unwrap();
+
+        let mut a = app(&dir);
+        a.undos.land(UndoStep::Link { links: vec![link.clone()] }, Land::Fresh);
+        a.undo_step();
+        assert!(!ops::exists(&link.at), "the link is gone");
+        assert!(dir.join("real/inside.txt").is_file(), "the folder and its file are not");
+
+        a.redo_step();
+        assert!(dir.join("alias/inside.txt").is_file(), "U makes the same relative link again");
+    }
+}
+
+#[cfg(test)]
 mod move_undo {
     use super::*;
 
@@ -7536,6 +7803,7 @@ mod said_out_loud {
             errors: Vec::new(),
             cancelled: false,
             moved: Vec::new(),
+            linked: Vec::new(),
             made: None,
             trashed: vec![dir.join("a.txt")],
         });
@@ -7557,6 +7825,7 @@ mod said_out_loud {
             errors: vec!["locked.txt: in use".into()],
             cancelled: false,
             moved: Vec::new(),
+            linked: Vec::new(),
             made: None,
             trashed: vec![gone.clone()],
         });
