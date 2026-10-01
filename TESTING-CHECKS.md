@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**217 / 406 済み。**（TESTING.md の全 564 件のうち、`cargo test` が見ている 158 件は
+**217 / 406 済み。**（TESTING.md の全 565 件のうち、`cargo test` が見ている 159 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -21,7 +21,7 @@
 キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、こちらは「1 つのキーでは
 確かめられない振る舞い」の側。
 
-## 1. ターミナルペイン — 38 / 48
+## 1. ターミナルペイン — 38 / 49
 
 準備:
 
@@ -78,6 +78,7 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **1.34** 続けてペインで `lazygit` → いつもの画面で開き、**メニューが開いていない。**Windows 標準の ConPTY では、押していないキーでコピー画面が開いた状態で始まっていた — *Then `lazygit` in the pane → It opens on its usual view with **no menu open**. On the ConPTY built into Windows it started with its copy menu showing, a key nobody pressed*
 - [x] **1.35** ペインで `lazygit`（または長く動くコマンド）を動かしたまま `<C-S-t>`（v0.52.0）→ **End the shell?** と聞かれ、動いているものの名前が出る。`n` でシェルもプログラムも残り、`y` で両方終わって **Ended the shell** とトーストが出る — *Run `lazygit` (or any long command) in the pane, then `<C-S-t>` (v0.52.0) → A dialog asks **End the shell?** and names what is running. `n` keeps the shell and the program; `y` ends both, and a toast says **Ended the shell***
 - [x] **1.36** 何も動いていないプロンプトで `<C-S-t>` → **確認は出ない。**ペインはすぐ消え、トーストに **Ended the shell** と出る。`<C-t>` で隠しただけのようには見えなくなった — *At a bare prompt with nothing running, `<C-S-t>` → **No dialog**: the pane goes at once, and the toast says **Ended the shell** — so it no longer looks like `<C-t>` merely hiding it*
+- [ ] **1.37** ペインを**閉じた**まま、ファイルを選んで `<A-t>`（v0.57.0）→ ペインが開き、シェルのプロンプトが出たところで引用されたパスが行に入る。「The terminal is not open」とは言わず、プロファイル読み込み中のシェルに打って消えることもない。キーはペインに移る — *With the pane **closed**, select a file and `<A-t>` (v0.57.0) → The pane opens and, once the shell's prompt is up, the quoted path is on its line -- not "The terminal is not open", and not lost to a shell still loading its profile. The keys are in the pane*
 
 ## 2. ミニマップ — 0 / 10
 
@@ -363,11 +364,10 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **23.3** 一覧の取得中にネットワークを抜く、または応答しないホストを指定する → **ウィンドウが固まらない。**エラーのトーストが出て、タブは元の場所に戻る — *Unplug the network mid-listing, or point at a dead host → **The window keeps responding.** An error toast, and the tab goes back where it was*
 - [ ] **23.4** 共有上のパスを Tab 補完する → プロンプトが固まらず、待っている間 `…` が出る — *Tab-complete a path on the share → The prompt stays responsive; a `…` shows while it waits*
 
-## 24. 扱いにくい名前 — 2 / 3
+## 24. 扱いにくい名前 — 2 / 2
 
-自動テスト済みなので下には出していない: 24.1, 24.3
+自動テスト済みなので下には出していない: 24.1, 24.2, 24.3
 
-- [ ] **24.2** 非常に長い名前 → 真ん中が省略され、拡張子は読める形で残る — *The very long name → Elided in the middle, with the extension still readable*
 - [x] **24.4** 引用符を含む名前をコピーして、`<A-t>` でターミナルへ → シェルが 1 語として受け取る形に引用される — *Copy the name with a quote in it, `<A-t>` into the terminal → Quoted so the shell sees one word*
 - [x] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
 

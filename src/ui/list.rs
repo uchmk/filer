@@ -211,12 +211,16 @@ pub fn draw(
         }
 
         let avail = (row_rect.right() - right_w - x - 6.0).max(16.0);
-        let mut name = entry.name.clone();
-        if let crate::fs::Kind::Link { .. } = entry.kind {
-            name.push_str("  ->");
-        }
         let positions = if hits { folder.hit_at(row) } else { &[] };
-        let job = name_job(&name, positions, &st.font, base_color, &style, st.theme, avail);
+        // Too long for the row: cut inside the stem so the extension stays
+        // readable (Q34, 24.2), and move the search hits along with the text.
+        let width = |s: &str| painter.layout_no_wrap(s.to_owned(), st.font.clone(), base_color).size().x;
+        let full = entry_name(&entry.name, &entry.kind);
+        let (name, positions) = match elide_at(&full, avail, &width) {
+            Some(cut) => elided(&full, positions, cut),
+            None => (full, positions.to_vec()),
+        };
+        let job = name_job(&name, &positions, &st.font, base_color, &style, st.theme, avail);
         let galley = painter.layout_job(job);
         painter.galley(
             egui::pos2(x, y + (st.row_h - galley.size().y) / 2.0),
@@ -272,6 +276,70 @@ pub fn draw(
         out.scroll_rows = -scroll / st.row_h * 1.5;
     }
     out
+}
+
+/// The name as the row shows it: a link says so after its name.
+fn entry_name(name: &str, kind: &crate::fs::Kind) -> String {
+    match kind {
+        crate::fs::Kind::Link { .. } => format!("{name}  ->"),
+        _ => name.to_owned(),
+    }
+}
+
+/// Where to cut a name that is wider than `max_width` (Q34): keep its first
+/// `head` characters, then `…`, then everything from `tail` on -- the
+/// extension and the last third of what is kept of the stem, so that
+/// `report-2026-final.pdf` and `report-2026-final.docx` stay apart.
+///
+/// `None` when the name fits, and when it has no stem to speak of or the
+/// extension is most of it; those are left to the plain cut at the end.
+fn elide_at(name: &str, max_width: f32, width: &dyn Fn(&str) -> f32) -> Option<(usize, usize)> {
+    if width(name) <= max_width {
+        return None;
+    }
+    let chars: Vec<char> = name.chars().collect();
+    let n = chars.len();
+    let stem = crate::util::stem_and_ext(name).0.chars().count();
+    let ext = n - stem;
+    if stem < 2 || ext * 2 > n {
+        return None;
+    }
+    // `keep` characters of the stem, two thirds at the front.
+    let cut = |keep: usize| {
+        let back = keep / 3;
+        (keep - back, n - ext - back)
+    };
+    let shown = |(head, tail): (usize, usize)| -> String {
+        chars[..head].iter().chain(['…'].iter()).chain(chars[tail..].iter()).collect()
+    };
+    let (mut lo, mut hi) = (1, stem - 1);
+    if width(&shown(cut(lo))) > max_width {
+        return None;
+    }
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        match width(&shown(cut(mid))) <= max_width {
+            true => lo = mid,
+            false => hi = mid - 1,
+        }
+    }
+    Some(cut(lo))
+}
+
+/// `name` cut where `elide_at` said, with the search hits that survived the
+/// cut moved to where their characters now are.
+fn elided(name: &str, hits: &[usize], (head, tail): (usize, usize)) -> (String, Vec<usize>) {
+    let chars: Vec<char> = name.chars().collect();
+    let text = chars[..head].iter().chain(['…'].iter()).chain(chars[tail..].iter()).collect();
+    let moved = hits
+        .iter()
+        .filter_map(|&i| match i {
+            i if i < head => Some(i),
+            i if i >= tail => Some(head + 1 + (i - tail)),
+            _ => None,
+        })
+        .collect();
+    (text, moved)
 }
 
 fn name_job(
@@ -458,5 +526,52 @@ mod icon_column {
             folder.x,
             file.x,
         );
+    }
+}
+
+/// Q34 / 24.2: a long name is cut inside its stem, never through its
+/// extension. Widths here are one per character, which is enough to pin where
+/// the cut goes; the renderer passes the font's own measure.
+#[cfg(test)]
+mod elision {
+    use super::{elide_at, elided};
+
+    fn chars(s: &str) -> f32 {
+        s.chars().count() as f32
+    }
+
+    fn shown(name: &str, max: f32) -> String {
+        match elide_at(name, max, &chars) {
+            Some(cut) => elided(name, &[], cut).0,
+            None => name.to_owned(),
+        }
+    }
+
+    #[test]
+    fn the_extension_survives_the_cut() {
+        let long = format!("very-{}name.txt", "long-".repeat(30));
+        let s = shown(&long, 30.0);
+        assert!(s.ends_with("name.txt"), "the end of the stem and the extension: {s}");
+        assert!(s.starts_with("very-long-"), "and the start: {s}");
+        assert!(s.contains('…'));
+        assert!(s.chars().count() <= 30, "{} chars: {s}", s.chars().count());
+        // Two files that differ only in what they are stay apart.
+        assert_ne!(shown("report-2026-final-draft.pdf", 16.0), shown("report-2026-final-draft.docx", 16.0));
+    }
+
+    #[test]
+    fn short_or_odd_names_are_left_alone() {
+        assert_eq!(elide_at("a.txt", 30.0, &chars), None, "it fits");
+        assert_eq!(elide_at("x.averyveryverylongextension", 10.0, &chars), None, "the extension is most of it");
+        assert_eq!(elide_at("ab.txt", 2.0, &chars), None, "no room even for one character and the extension");
+    }
+
+    /// The search highlight moves with the characters it marked, and a hit
+    /// inside the cut is dropped rather than landing on the wrong letter.
+    #[test]
+    fn hits_follow_their_characters() {
+        let (text, hits) = elided("abcdefghij.txt", &[0, 5, 11], (3, 8));
+        assert_eq!(text, "abc…ij.txt");
+        assert_eq!(hits, vec![0, 7], "`a` stays, `f` was cut, the `t` of `.txt` moved from 11 to 7");
     }
 }

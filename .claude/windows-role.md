@@ -247,6 +247,7 @@ these differences:
 
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
+| **v0.57.0, Q34 and Q35** | 2 | 24.2 (the 163-character name from the fixed `make-fixtures.ps1` ends in `name.txt` on screen) and 1.37 (`<A-t>` with the pane closed: `FILER_PTY_LOG` shows the path sent after the shell's first output) |
 | **v0.56.0, Q32 and Q33** | 2 | 44.14 (`gu` shows sizes whatever the line mode, and puts it back) and 31.9 (a host's shares show no size in `linemode size`) against `\\192.168.0.150`, if `net view` answers |
 | **1. the terminal pane** | the `[ ]` rows | ConPTY and the shell, natively. `--keys` (spaces as `<Space>`) plus `FILER_PTY_LOG` drove the `[term] shell` matrix cheaply in #111; rows already `[x]` on x64 go in QA-REPORT.md |
 | **22. opening an editor at a line** | the `[ ]` rows | Process creation: `Get-CimInstance Win32_Process` shows the command line filer built. VS Code and Neovim are installed on this machine; say which others are not |

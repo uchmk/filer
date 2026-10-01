@@ -543,7 +543,9 @@ own. `<A-Up>` in the pane goes the other way: it puts the file list where the sh
 what you want after a command has moved it somewhere the list knows nothing about.
 
 `<A-t>` types the selected paths onto the shell's line, quoted so a path with a space in it
-arrives as one word. Nothing is run: the line is left for you to put a command in front of.
+arrives as one word. Nothing is run: the line is left for you to put a command in front of. With
+the pane closed it opens it first, and the paths go in once the shell has drawn its prompt (or
+after five seconds), so they are not typed at a shell still reading its profile (v0.57.0).
 
 ## Tasks
 
@@ -1054,6 +1056,9 @@ The differences worth knowing before you do that: here `d` sends to the recycle 
 (lf has `d` cut and no delete), `f` filters the listing (lf and vim jump to a character), `;` runs
 a shell command (lf repeats the character jump), and `e` / `E` unpack and pack. Every one of them is
 one `prepend_keymap` entry away from whatever you would rather it was.
+
+A name too long for its column is cut inside the name, not at its end, so the extension stays
+readable: `very-long-…long-name.txt`, not `very-long-long-…` (v0.57.0).
 
 Mouse works too: click to move the cursor, double-click to open, right-click for the context
 menu, drag onto the other pane to copy there, wheel to scroll. `Shift`+click selects from the cursor to the row you clicked, and
