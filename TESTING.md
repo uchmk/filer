@@ -1217,6 +1217,7 @@ The walk and the ordering are unit-tested on a small tree. What needs a machine 
 | 44.14 | With the tab on `linemode mtime` (`m t`), `gu`, then `<Esc>` straight away (v0.56.0) | The rows show sizes (`1.5 M`, `6.0 K`), not dates; after `<Esc>` the list shows dates again, and the `Measuring…` toast is gone at once |
 | 44.15 | `gu` on a small tree and let it finish (v0.57.3) | Only the total's toast is left; `Measuring…` goes when it arrives rather than sitting beside it |
 | 44.16 | `gu` on a tree big enough to take seconds, and watch the header (v0.57.3) | `N measured so far`, growing, while it walks; `N items` once the total's toast is up |
+| 44.17 | `gu`, then `m t` inside the view, then `m u` (v0.58.0) | `m t` swaps the numbers for dates with the bars left; `m u` brings the sizes back **without** walking again (no `Measuring…`). `<Esc>` still gives the tab its own mode back |
 
 ## 45. Comparing two folders (v0.43.0)
 

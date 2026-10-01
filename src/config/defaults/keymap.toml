@@ -562,6 +562,12 @@ desc = "Line mode: created time"
 on = [ "m", "p" ]
 run = "linemode permissions"
 desc = "Line mode: permissions"
+# Not in yazi, which has no `usage` mode. Inside `gu`'s view, after another
+# `m` key, this is the way back to the numbers without walking again (Q36).
+[[mgr.keymap]]
+on = [ "m", "u" ]
+run = "linemode usage"
+desc = "Line mode: disk usage (gu)"
 [[mgr.keymap]]
 on = [ "m", "n" ]
 run = "linemode none"
