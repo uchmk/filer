@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**301 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
+**306 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -340,14 +340,14 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **19.6** 画像の上で `Ctrl`+ホイール → 拡大縮小し、同じ操作でペインが**スクロールしない** — *`Ctrl` and the wheel over an image → Zooms, and does **not** scroll the pane with the same turn*
 - [ ] **19.7** 回している途中でポインタを別のペインへ移す → どちらも飛ばない。端数はペインごとに別々に持っている — *Move the pointer between panes mid-turn → Neither jumps: each keeps its own remainder*
 
-## 20. 設定とテーマ — 1 / 7
+## 20. 設定とテーマ — 6 / 7
 
-- [ ] **20.1** filer を開いたまま `theme.toml` を編集し（`[mgr] cwd` を目立つ色に）、`<C-F5>` → 再起動せずに色が変わる — *With filer open, edit `theme.toml` (change `[mgr] cwd` to something loud) and press `<C-F5>` → The color changes without restarting*
-- [ ] **20.2** `filer.toml` の `[ui] font_size` を変えて `<C-F5>` → 文字の大きさが変わる — *Change `[ui] font_size` in `filer.toml`, `<C-F5>` → The text resizes*
-- [ ] **20.3** `keymap.toml` に割り当てを足して `<C-F5>` → 新しいキーが効き、`<F1>` の一覧にも出る — *Add a `keymap.toml` binding, `<C-F5>` → The new key works, and `<F1>` lists it*
-- [ ] **20.4** `,s` で並べ替えてから `<C-F5>` → **並び順は自分で設定したまま残る。**再読み込みが手で変えたものを元に戻さないこと — *Sort with `,s`, then `<C-F5>` → The sort **stays** as you set it — a reload does not undo what you changed by hand*
+- [x] **20.1** filer を開いたまま `theme.toml` を編集し（`[mgr] cwd` を目立つ色に）、`<C-F5>` → 再起動せずに色が変わる — *With filer open, edit `theme.toml` (change `[mgr] cwd` to something loud) and press `<C-F5>` → The color changes without restarting*
+- [x] **20.2** `filer.toml` の `[ui] font_size` を変えて `<C-F5>` → 文字の大きさが変わる — *Change `[ui] font_size` in `filer.toml`, `<C-F5>` → The text resizes*
+- [x] **20.3** `keymap.toml` に割り当てを足して `<C-F5>` → 新しいキーが効き、`<F1>` の一覧にも出る — *Add a `keymap.toml` binding, `<C-F5>` → The new key works, and `<F1>` lists it*
+- [x] **20.4** `,s` で並べ替えてから `<C-F5>` → **並び順は自分で設定したまま残る。**再読み込みが手で変えたものを元に戻さないこと — *Sort with `,s`, then `<C-F5>` → The sort **stays** as you set it — a reload does not undo what you changed by hand*
 - [ ] **20.5** `filer.toml` に構文エラーを入れて `<C-F5>` → 問題を挙げたエラーのトーストが出て、**以前の設定がそのまま効き続ける** — *Put a syntax error in `filer.toml`, `<C-F5>` → An error toast naming the problem; the old config stays in force*
-- [ ] **20.6** `[ui] minimap = false` にして `<C-F5>` → ミニマップが出なくなる — *`[ui] minimap = false`, `<C-F5>` → No minimap*
+- [x] **20.6** `[ui] minimap = false` にして `<C-F5>` → ミニマップが出なくなる — *`[ui] minimap = false`, `<C-F5>` → No minimap*
 - [x] **20.7** `keymap.toml` に `[[mgr.prepend_keymap]]` で `on = "<F8>"`、`run = 'cd C:\Windows\System32'`（コマンドの中に引用符なし）を書く（v0.59.0）→ `<F8>` で `C:\Windows\System32` に着く。v0.59.0 までは `\` が落ち、エラーが `C:WindowsSystem32` を挙げていた — *In `keymap.toml`, `[[mgr.prepend_keymap]]` `on = "<F8>"`, `run = 'cd C:\Windows\System32'` -- no quotes inside the command (v0.59.0) → `<F8>` lands in `C:\Windows\System32`. Until v0.59.0 the backslashes were dropped and the error named `C:WindowsSystem32`*
 
 ## 21. 書庫（zip / tar / 7z） — 9 / 11
