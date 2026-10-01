@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**243 / 248 checked.**
+**248 / 248 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 151 / 152
+## `[mgr]` — 152 / 152
 
 The file list: what is in front of you unless an overlay is.
 
@@ -195,9 +195,9 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<S-F10>` — Open the context menu · `menu`
 - [x] `<C-t>` — Open the terminal pane · `terminal`
 - [x] `<A-t>` — Type the selected paths into the terminal · `term_send`
-- [ ] `<C-S-Enter>` — Give the terminal pane the window, or hand it back · `term_max`
+- [x] `<C-S-Enter>` — Give the terminal pane the window, or hand it back · `term_max`
 
-## `[term]` — 15 / 16
+## `[term]` — 16 / 16
 
 While the terminal pane holds the keys. Everything not listed here goes to the shell.
 
@@ -207,7 +207,7 @@ While the terminal pane holds the keys. Everything not listed here goes to the s
 - [x] `<C-S-t>` — Close the terminal and end the shell · `terminal close`
 - [x] `<F1>` — Show the key list · `help`
 - [x] `<C-S-p>` — Command palette · `palette`
-- [ ] `<C-F5>` — Read the config files again (theme, icons, keys) · `config_reload`
+- [x] `<C-F5>` — Read the config files again (theme, icons, keys) · `config_reload`
 - [x] `<A-Up>` — Put the pane where the shell is · `term_cd`
 - [x] `<C-S-Enter>` — Give the terminal pane the window, or hand it back · `term_max`
 - [x] `<S-PageUp>` — Scroll back half a screen · `term_scroll -50%`
@@ -295,7 +295,7 @@ The task manager (`w`).
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 
-## `[spot]` — 21 / 23
+## `[spot]` — 23 / 23
 
 The details panel (`<Tab>`).
 
@@ -311,8 +311,8 @@ The details panel (`<Tab>`).
 - [x] `<A-k>` — Previous line of the panel · `arrow -1`
 - [x] `<A-j>` — Next line of the panel · `arrow 1`
 - [x] `c` — Copy the selected value · `copy cell`
-- [ ] `C` — Copy the whole panel, labelled · `copy all`
-- [ ] `<Enter>` — Open the pull request on its rows; enter the directory elsewhere · `enter`
+- [x] `C` — Copy the whole panel, labelled · `copy all`
+- [x] `<Enter>` — Open the pull request on its rows; enter the directory elsewhere · `enter`
 - [x] `<Up>` — Spot the previous file · `swipe -1`
 - [x] `<Down>` — Spot the next file · `swipe 1`
 - [x] `<A-Up>` — Previous line of the panel · `arrow -1`
@@ -325,7 +325,7 @@ The details panel (`<Tab>`).
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 
-## `[diff]` — 16 / 17
+## `[diff]` — 17 / 17
 
 The side-by-side comparison (`<A-d>`).
 
@@ -343,7 +343,7 @@ The side-by-side comparison (`<A-d>`).
 - [x] `G` — To the bottom · `arrow bot`
 - [x] `n` — To the next difference · `find_arrow`
 - [x] `N` — To the previous difference · `find_arrow --previous`
-- [ ] `z` — Hide or show the matching rows of a folder comparison · `hide_same`
+- [x] `z` — Hide or show the matching rows of a folder comparison · `hide_same`
 - [x] `<C-+>` — Make everything bigger · `scale in`
 - [x] `<C-=>` — Make everything bigger · `scale in`
 - [x] `<C-->` — Make everything smaller · `scale out`

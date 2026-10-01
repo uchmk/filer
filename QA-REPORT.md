@@ -6644,3 +6644,236 @@ measuring ではない）。残りは寿命（6 秒）で消える。
 **大きさ**: 言葉を変えるだけなら関数 1 つ（`drain_usage` が受け取っている件数を、
 歩きが終わるまで別の文言で出す）。`2 / 5` のような分母を出すなら、子の総数を歩きの
 最初に数えて `Msg` に 1 つ足す必要があるので、`fs::usage` の設計に 1 つ判断が要る。
+
+## TESTING-KEYS.md の残り 5 キー — ARM64 実機で押して、他に何も起きないことまで読んだ（08dc635 / 0.57.2、ARM64 レーン、無人の run）
+
+ARM64 の Windows ノート PC（Windows 11 Home 26H1 build 28000.2956、`filer env` の
+`Process arch aarch64`）で、無人 run として ARM64 の順番表の先頭「TESTING-KEYS.md, the 5
+unchecked keys」を通した。ビルドは `target\release\filer.exe` 0.57.2（同梱 ConPTY
+1.24.260710001 arm64 を `scripts\fetch-conpty.ps1` で配置）。スクラッチは RAM ディスクが
+無い機械なので `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（`TEMP` / `TMP` もそこ）。
+設定と状態は run ごとに `…\arm-keys\runs\<tag>\{cfg-filer,cfg-yazi,state}` に隔離し、
+**既定のキーマップ**で回した（この機械の `keymap.toml` には `T` の割り当てがあるため）。
+昇格なし（`IsInRole('Administrators')` = False）。スクリーンセーバーが入力デスクトップを
+握っていた（`Desk::Name()` = `Screen-saver`、`SPI_GETSCREENSAVERRUNNING` = True）ので、
+キーは **`--keys` だけ**、画面は `PrintWindow(PW_RENDERFULLCONTENT)` だけで触っている。
+
+`cargo test` はネイティブ ARM64 で **538 passed / 0 failed**（0.57.2）。
+
+**5 キーすべてにチェックを入れた。これで TESTING-KEYS.md は 248 / 248。**
+`cargo run --example make-keycheck -- --check` は `in sync with src/config/defaults/keymap.toml
+(248 / 248 checked)`。ファイルは再生成していない（`[ ]` → `[x]` と、生成器が数えなおす
+見出しの数だけを手で直し、`--check` のバイト比較で同じになることを確かめた）。
+
+証拠一式は `C:\dev\filer-evidence\arm-keys\`（`lib.ps1`、`fx.ps1`、`step1-spot-C.ps1`、
+`step2-diff-z.ps1`、`step3-spot-enter.ps1`、`step4-term-max.ps1`、
+`step5-term-configreload.ps1`、`probe-*.ps1`、`out-*.txt`、`runs\*-pty.log`、`shots\*.png`）。
+
+**「他に何も起きていない」の読み方**は 5 キーとも同じ形にした。同じ前置きのキー列を
+2 本流し、片方にだけ目的のキーを足して、窓のタイトル・クリップボード（毎回
+`SENTINEL-<guid>` を入れてから押す）・作業ツリーの全ファイルの SHA-256・プロセスの生存を
+突き合わせる。カーソルの位置は `c` `f` の結果で、ペインに渡ったかどうかは
+`FILER_PTY_LOG` の `in key` 行の本数で読んだ。
+
+### `[spot]` `C` — パネル全体をラベル付きでコピー（チェックした）
+
+| 読んだもの | 結果 |
+| --- | --- |
+| `--keys "<Tab>"`（押さない側） | クリップボードは `SENTINEL-82ae…` のまま |
+| `--keys "<Tab>C"` | 14 行。`File` / `Name<TAB>L` / `Path<TAB>…\keys\L` / `Kind<TAB>Directory` / … / `Files' size<TAB>13 B (13 bytes)` |
+| 1 行目のバイト列 | `78,97,109,101,9,76`（`Name` と `L` の間は **9 = TAB**） |
+| トースト | `Copied the spot panel: 11 rows`（`a2-spot-C.png`） |
+
+- 他に何も: タイトル・ツリーのハッシュ・プロセスの生存はすべて同じ。`a1` と `a2` の
+  キャプチャはトースト以外に 1 か所も違わない（ヘッダ `3 items`、下段 `1/3`、
+  カーソルは `L`、パネルは開いたまま）。
+- **パネル側のカーソルも動いていない**: `<Tab>c` が `L` を返し、`<Tab>Cc` も `L` を返す
+  （`c` は「カーソルのセル」をコピーするので、`C` が行を動かしていたら別の値になる）。
+
+### `[diff]` `z` — フォルダ比較の一致行を隠す / 戻す（チェックした）
+
+`L` と `R` を `<Space><Space>` で選んで `<A-d>`。木は `same.txt`・`also.txt`（一致）、
+`differ.txt`（4 B → 5 B）、`onlyleft.txt` / `onlyright.txt`（片側だけ）。
+
+| 読んだもの | 画像 | 行とフッタ |
+| --- | --- | --- |
+| `<Space><Space><A-d>` | `b1-diff-open.png` | 5 行（`=` 2 つを含む）、`1 only left · 1 only right · 1 differ · 2 match` |
+| 同じ + `z` | `b2-diff-z.png` | `=` の 2 行が消えて 3 行、フッタに **`· matches hidden (z)`** が付く。トースト `Hiding matching rows` |
+| 同じ + `zz` | `b3-diff-zz.png` | `b1` と同じ 5 行・同じフッタ。トースト `Showing matching rows` |
+
+- 他に何も: タイトル・クリップボード（sentinel のまま）・ツリー・生存すべて同じ。
+  数（`1 / 1 / 1 / 2`）は隠しても変わらず、ヘッダの `2 selected · 3 items` と下段の `3/3`、
+  カーソル（`differ.txt`）も動いていない。
+
+### `[spot]` `<Enter>` — プルリクエストの行では開き、ほかではディレクトリに入る（チェックした）
+
+説明の 2 つの半分を別々に読み、**隣の行では何も起きない**ことも取った。
+
+| 読んだもの | 結果 |
+| --- | --- |
+| `--keys "<Tab>"`（押さない側） | タイトル `Filer: …\filer-scratch\keys` |
+| `--keys "<Tab><Enter>"`（ディレクトリの行） | タイトル **`Filer: …\filer-scratch\keys\L`**。他は全部同じ |
+| `<Tab>` + `<A-j>`×15（`Came in via  #115  580bd5e` の行）、`<Enter>` なし | `pull/` を含むブラウザのプロセスは **0** |
+| 同じ + `<Enter>` | トースト **`Opened https://github.com/uchmk/filer/pull/115`**（`c4-spot-enter-pr.png`）。`Win32_Process` に `chrome.exe --single-argument https://github.com/uchmk/filer/pull/115` |
+| `<A-j>`×16（`From branch` の行）+ `<Enter>` | ブラウザのプロセスは **1 つも増えない**、トーストも無し（`c5-spot-enter-frombranch.png`） |
+
+- 対象は `C:\dev\filer-armtest\README.md`（`Came in via #115` / `From branch
+  claude/task-09i0cs` / `Pull request https://github.com/uchmk/filer/pull/115`）。
+- 他に何も: プルリクエストを開いた側でも、タイトル・クリップボード・ツリー・生存は
+  押さない側と同じ。開いた窓はこの run が閉じ、URL を持つプロセスは 0 に戻した。
+- パネルの行数と画面の行数が合わないように見えるが、これは**パネルが 18 行で切れていて
+  カーソルに追従してスクロールする**ためで、`C` が 24 行を写すのと矛盾しない
+  （`probe2-cursor-20.png` で `Text` の節までスクロールして確かめた）。
+
+### `[mgr]` `<C-S-Enter>` — ペインに窓を渡す（チェックした）
+
+**シェル自身のサイズ報告**で測った。`h.ps1` は `$Host.UI.RawUI.WindowSize` をファイルに
+追記するだけのスクリプトで、どの run も前置きは同じ:
+`<C-t>` → `h.ps1` のパスを打つ → `<Enter>` → `<C-t>`（ペインは開いたまま、キーは一覧に戻る）。
+
+| run | 足したキー | シェルが報告した大きさ |
+| --- | --- | --- |
+| d1 | （なし） | `159x12` |
+| d2 | `<C-S-Enter>` | `159x35` |
+| d3 | `<C-S-Enter>` + もう一度報告 | `159x35` , `159x35` |
+| d4 | `<C-S-Enter>` + 報告 + `<C-t>` `<C-t>` + 報告 | `159x35` , `159x12` , `159x12` |
+
+- 窓は 899 px。12 行はペインが下から 1/3、35 行は窓いっぱい（`d1-pane-third.png` /
+  `d2-pane-max.png`。d2 では一覧が消え、下段は `drw … 1/3` のまま）。
+- `--keys` はシェルの起動より速いので、打った行が実行されるのは**キー列が全部入った
+  後**になることがある。だから数字は「シェルが読みに来た時点のペインの大きさ」で、
+  測っているのは**同じ前置きの 2 本の差**（12 行 対 35 行）である。
+- 他に何も: タイトル・クリップボード・ツリー・生存すべて同じ。`in key` の行は
+  **d1 も d2 も 54 本**（打ったパス 53 文字 + `<Enter>`）で、**このキーはシェルに
+  1 バイトも送っていない**。カーソルも `c` `f` で両方 `L`。
+- 「または戻す」の半分は `[mgr]` からは**押せない**。下の見つけたもの 2。
+
+### `[term]` `<C-F5>` — 設定を読み直す（チェックした）
+
+設定は起動時に 1 回読まれるので、**読み直さない限り知りようのない割り当て**を測りに
+使った。run 専用の `FILER_CONFIG_HOME` は空で始め、**ペインのシェル自身**に
+`mk.ps1` を走らせて `<F8>`（既定では未割り当て）= `cd …/keys/L` を書かせる。
+前置きは `<C-t>` → `mk.ps1` のパス → `<Enter>` → `#` と `z`×199（書き込みとキーの間に
+8 秒ほど置くためのコメント 1 行。`f2-at-9000ms.png` で、フィラーを打っている途中には
+すでに `mk.ps1` が走り終わっていることを確かめた）。
+
+| run | 足したキー | タイトル |
+| --- | --- | --- |
+| e1 | `<C-t>` `<F8>` | `Filer: …\filer-scratch\keys`（動かない） |
+| e2 | **`<C-F5>`** `<C-t>` `<F8>` | **`Filer: …\filer-scratch\keys\L`**、トースト `Reloaded 1 config file(s)` |
+
+- 他に何も（`<C-F5>` だけを差し替えた対）: e3（前置きのみ）と e4（前置き + `<C-F5>`）で
+  タイトル・クリップボード・ツリー・生存はすべて同じ。`in key` は**どちらも 255 本**、
+  `15;5~`（Ctrl+F5 の CSI）は**どちらも 0 件** — キーはシェルに渡っていない。
+  カーソルも `c` `f` で両方 `L`。
+- e2 だけ `in key` が 256 本になるが、256 本目は `cd C:\…\keys\L\r` で、これは `<F8>` が
+  一覧を動かした後に `Terminal::follow` が送ったもの（`app.rs:4386`）。キーのせいではない。
+- `e4-prefix-chord-at11000.png` のペインに `cd C:\…\keys\L` が見えるのは PSReadLine の
+  履歴予測（`\e[97;2;3m` の薄い斜体）で、入力ではない。`in key` が 255 本のままなのが根拠。
+
+### 見つけたもの 1: キーマップのコマンドに書いた Windows のパスは `\` が消える
+
+`keymap.toml` に
+
+```toml
+[[mgr.prepend_keymap]]
+on  = "<F8>"
+run = 'cd C:\Users\yuu06\AppData\Local\Temp\filer-scratch\keys\L'
+```
+
+と書いて `<F8>` を押すと、`C:Usersyuu06AppDataLocalTempfiler-scratchkeysL: 指定された
+パスが見つかりません。(os error 3)` というエラーが出る（`f1-F8-bound-at-start.png`）。
+
+- どこ: `src/config/cmd.rs` の `lex()`。引用符の外では `'\\' => { 次の 1 文字を push }` で、
+  **バックスラッシュが落ちて次の文字だけが残る**。POSIX のクォート規則としては正しいが、
+  Windows のパスはこれで全滅する。
+- 回避はできる: コマンド文字列の中で**シングルクォート**で囲む（`run = "cd 'C:\…'"`、
+  `lex` は `'` の中では `\` を落とさない）か、**スラッシュで書く**
+  （`run = 'cd C:/Users/…'`。この run はこちらで通した）。
+- 何が悪いか: **エラーが出す名前が、書いた名前と違う**。`C:Usersyuu06…` を見た人は
+  自分の打ち間違いを疑うので、クォートの話に辿り着けない。`cd` だけでなく
+  `reveal` / `shell` など位置引数にパスを取るもの全部に効く。
+- 直し方の候補は 2 つあり、どちらも設計の判断なので**提案ではなく報告**にしておく:
+  (a) Windows では引用符の外の `\` をエスケープとして扱わない、
+  (b) 落としたバックスラッシュがあったときだけ、エラーに「`'…'` で囲んでください」を足す。
+- README にも「キーマップのパスはクォートするか `/` で書く」という記述は無い。
+
+### 見つけたもの 2: `[mgr]` の `<C-S-Enter>` は「戻す」側を押せない
+
+説明は「Give the terminal pane the window, or hand it back」だが、`[mgr]` の側から
+**戻すことはできない**。`Act::MaxTerm` は最大化と同時に `term_focus = true` にし
+（`app.rs:2586`）、ペインから出る唯一の道である `Act::Close` / `Act::Escape` が
+`max_term = false` にする（`app.rs:4424`）。つまり **`max_term` が真のときキーは必ず
+ペイン側にある**ので、`[mgr]` の `<C-S-Enter>` が押せるのは「渡す」方向だけ。
+
+- これは `app.rs` のコメントが意図として書いているとおりの動作で、**不具合ではない**。
+  ただし 1 つの説明文を 2 つの割り当てが共有しているので、`[mgr]` の行だけを読むと
+  押せない半分が書いてあることになる。
+- 「戻す」半分は `[term]` の `<C-S-Enter>`（すでにチェック済み）が持っている。この run の
+  d4 でも、ペインから出る `<C-t>` で `159x35` → `159x12` に戻ることを読んでいる。
+- チェックは入れた。**押せる方向については説明どおりで、他に何も起きていない**ため。
+
+### Proposals
+
+#### 1. `--keys` に「待つ」トークンが要る（ペインを使う行がことごとくこれで詰まる）
+
+**何に出くわしたか**: `<C-S-Enter>` と `<C-F5>` の両方で、`--keys` が
+`App::settled()` しか待たないせいで**ペインの中のシェルより速く打ち終わってしまう**。
+`h.ps1` を打って `<Enter>` した直後に `<C-S-Enter>` を押すと、シェルが行を実行するのは
+最大化の**後**で、報告された大きさは前後が入れ替わる。`<C-F5>` では
+「シェルに設定ファイルを書かせてから読み直させる」という順番そのものが必要だったので、
+`#` と `z` を 199 個打って 8 秒稼ぐという形になった（`step5-term-configreload.ps1`）。
+
+**どう変えるべきか**: `--keys` の記法に待ちを 1 つ足す。`<Wait500>` のように
+ミリ秒を書けるトークンが素直で、`keyscript::parse` が `Key` ではなく
+`Step::{Key, Wait(Duration)}` を返す形になる。`raw_input_hook` は今も
+「`settled()` かつ 2 フレーム後」で送っているので、そこに「かつ待ちが明けた」が
+増えるだけ。
+
+**なぜ**: ペインの中で起きることを外から測る行は、`[term]` だけで 16 行、TESTING.md の
+section 1 がまるごとそれにあたる。いまはどの run も**フィラーのキーで時間を稼ぐ**という
+同じ工夫を再発明していて（#110 の `<Space>` と同じ種類の落とし穴）、しかも
+「何秒稼げたか」はキーの本数から推測するしかない。払っているのは実機のセッションで、
+1 行あたり数回の試行になる。
+
+**大きさ**: `keyscript.rs` の `parse` と `events` の戻り値、`main.rs` の
+`raw_input_hook` の条件 1 つ、`--help` の 1 行。関数 2 つぶん。
+
+#### 2. キーマップのコマンドでパスが壊れたとき、エラーがそう言うべき
+
+**何に出くわしたか**: 見つけたもの 1 そのもの。`run = 'cd C:\Users\…\L'` を書いて
+`<F8>` を押し、`C:Usersyuu06AppDataLocalTempfiler-scratchkeysL` が無いと言われた。
+しばらく「読み直しが効いていない」方を疑って、`<F8>` を**起動時から割り当てた**対照を
+取って初めて切り分けられた（`probe-f8.ps1`）。
+
+**どう変えるべきか**: `lex()` が引用符の外でバックスラッシュを落としたことを覚えておき、
+その引数を使うコマンドが `NotFound` で失敗したときに
+`cd: C:Users… （書いたパスに \ が含まれています。'…' で囲むか / で書いてください）`
+のように足す。あるいは Windows ではそもそも引用符の外の `\` をエスケープにしない。
+
+**なぜ**: いまのエラーは**書いていない名前**を出すので、原因に辿り着く道がない。
+これに当たるのは「yazi の設定を Windows に持ってきた人」全員で、しかも最初に試すのは
+たいてい `cd` か `shell` でパスを渡す行である。
+
+**大きさ**: (b) なら `lex` の戻り値に 1 つ（落としたかどうか）足して、エラー文を組む所で
+使うだけ。(a) は `#[cfg(windows)]` で分岐する 3 行だが、**既存の設定の意味が変わる**ので
+持ち主の判断が要る。
+
+#### 3. spot の `From branch` でも `<Enter>` で開けてよい
+
+**何に出くわしたか**: `<Enter>` の「何も起きない」側を取るために `From branch` の行で
+押した（c5）。`Came in via` と `Pull request` は開き、その**間に挟まれた**
+`From branch  claude/task-09i0cs` だけが無反応で、トーストも出ない。隣り合う 3 行のうち
+真ん中だけが黙っているので、押した側には「キーが効いていない」と見える。
+
+**どう変えるべきか**: `From branch` の行でも、その枝の GitHub のページ
+（`…/tree/<branch>`、`git::pull_request_url` と同じ remote から作れる）を開く。
+枝がもう消えていることはあるので、開けない場合は `Deleted branch` などのトーストを出す。
+
+**なぜ**: 「どの枝から来たか」を見ている人が次に見たいのは、たいていその枝である。
+いま同じ情報に行くには、`c` でコピーして自分でブラウザの URL を組むしかない。
+行が既にあって値も正しいので、足りないのは入口だけ。
+
+**大きさ**: `spot_pr_url` の兄弟として `spot_branch_url` を 1 つ（`fs::git` に remote から
+URL を作る関数は既にある）と、`spot_act` の `Act::Enter` の枝に 1 つ。
+枝が消えていたときの文言は決めが要る。
