@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**219 / 421 済み。**（TESTING.md の全 590 件のうち、`cargo test` が見ている 169 件は
+**219 / 427 済み。**（TESTING.md の全 596 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -207,7 +207,7 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **12.3** （F2 の最中に）タスクパネル `w` を見る → `Restore` の行が現れて完了する — *Check the task panel (`w`) during F2 → A `Restore` row appears and completes*
 - [x] **12.4** `U` → もう一度削除される — *`U` → Deleted again*
 - [x] **12.5** 別々のフォルダにある同名のファイルを、時間を空けて 2 つ削除してから `u` → **直前に消したほう**が戻る（古いほうではない） — *Delete two files with the same name from different folders, an interval apart, then `u` → The one just deleted comes back — not the older one*
-- [ ] **12.8** ファイルを `r` で改名 → `u` で戻す → 新しいファイルを作る → `U` → **redo は消えている。**新しい操作が履歴を分岐させたため — *Rename a file, undo it, then create a new file, then `U` → Redo is gone: the new action forked history*
+- [ ] **12.8** ファイルを `r` で改名 → `u` で戻す → **別の**ファイルを改名 → `U` → **redo は消えている。**新しい改名が履歴を分岐させたため。ファイルの作成は取り消しの手順を残さないので、新しいファイルを作っても redo は残る（#83） — *Rename a file, undo it, then rename **another** file, then `U` → Redo is gone: the new rename forked history. Creating a file records no undo step, so a new file leaves the redo in place (#83)*
 - [x] **12.9** ファイルを `d` で消し、**同じ名前のファイルを先に作ってから** `u` → `u` が「その名前は使われている」と名前を挙げて断り、**取り消しの手順は残る。**邪魔なファイルをどけてもう一度押すと通る — *Delete a file, `u`, but create a file with that name first → `u` says the name is taken, and pressing it again after moving that file out of the way works*
 - [x] **12.10** 別のプログラムで開いてロックされたファイルを、**他の数件と一緒に**選んで `d` → 他は消える。メッセージが**消えなかったファイルの名前を挙げ**、タスクパネルの件数も実際に消えた数と合う（v0.27.1 まで `Trash: trash: Error … Some operations were aborted` と名前を挙げずに言い、全件成功として数えていた） — *Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) → The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done*
 - [ ] **12.11** ごみ箱を無効にしたドライブで `d` → 同じ形のメッセージが、ファイル名を挙げて出る — *`d` on a drive whose Recycle Bin is turned off → Same shape of message, naming the file*
@@ -215,7 +215,7 @@ cd $HOME\Desktop\filer-fixtures
 - [ ] **12.13** 1 つのファイルで `d`、続けて 2 つで `d`（v0.57.3）→ そのたびにトーストが出る: `Trashed <名前> — u to undo`、次に `Trashed 2 item(s) — u to undo`。v0.57.3 まで `d` は何も言わず、`D` と見分けがつかなかった — *`d` on one file, then on two (v0.57.3) → A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D`*
 - [ ] **12.14** 5 つのファイルで `d` し、走っている間に `w`（v0.58.1）→ 行は `Trash 5 item(s)  [running]`（動詞は **1 回**）、その下の行は `0/5 files` で、`0 B / 0 B` は出ない — *`d` on five files, and `w` while it runs (v0.58.1) → The row reads `Trash 5 item(s)  [running]` -- the verb **once** -- and the line under it `0/5 files`, with no `0 B / 0 B`*
 
-## 13. シンボリックリンクと `g`+`f` — 8 / 8
+## 13. シンボリックリンクと `g`+`f` — 8 / 9
 
 Windows ではリンクを作るのが面倒。**ジャンクション**は管理者権限が要らない
 （`mklink /J linktest C:\dev`）。**ファイルへのシンボリックリンクは開発者モードか管理者権限**が要る
@@ -241,6 +241,7 @@ fsutil hardlink list locked.txt        # 期待値の答え合わせ用
 - [x] **13.12** **壊れた**リンクの上で `<Tab>` → `Resolves` が `no (…)` と OS の理由を出し、セクション自体は表示される — *`<Tab>` on a **broken** link → `Resolves` reads `no (…)` with the OS's reason, and the section still appears*
 - [x] **13.14** 同じものを Windows で → `Also at` に別名のパスが並ぶ。`fsutil hardlink list` と突き合わせる（自分自身のパスを除いた同じ集合になる） — *The same, on Windows → `Also at` lists the other path. Check it against `fsutil hardlink list` — the same set, with the file's own path left out*
 - [x] **13.16** ハードリンクを作り、別のプログラムに共有なしの書き込みロックを握らせた状態で `<Tab>`（コマンドは上の「準備」）→ `Links` は `2` のまま、`Also at` も出る。ハンドルがアクセス権を一切要求しないので、排他ロックでも数えられる — *Hardlink a file, then have another program hold it open for writing with no sharing, and `<Tab>` it (commands in the preamble above) → `Links` still reads `2` and `Also at` still lists the other name. The handle asks for **no** access rights, so an exclusive write lock does not hide the count*
+- [ ] **13.17** ジャンクション（`mklink /J`）で `<Tab>`（v0.59.4）→ `Kind` が `Symlink` ではなく `Junction`。同じフォルダへのシンボリックリンク（`mklink /D`）は今までどおり `Symlink`。一覧の `->` はどちらも変わらない（13.7） — *`<Tab>` on a junction (`mklink /J`) (v0.59.4) → `Kind` reads `Junction`, not `Symlink`. A symlink to the same folder (`mklink /D`) still reads `Symlink`. The list's `->` is unchanged for both (13.7)*
 
 ## 14. 親ディレクトリの列を、マウスで — 0 / 6
 
@@ -253,7 +254,7 @@ fsutil hardlink list locked.txt        # 期待値の答え合わせ用
 - [ ] **14.5** いま自分がいるディレクトリの行をクリック → その場に留まり、カーソルが飛び回らない — *Click the row for the directory you are already in → You stay there, and the cursor does not jump about*
 - [ ] **14.6** ドライブ直下（親の列が無い場所）で → クリックするものが無く、何もおかしくならない — *At a drive root, where there is no parent column → Nothing to click, and nothing misbehaves*
 
-## 15. ウィンドウの拡大縮小と、取り返したキー — 5 / 7
+## 15. ウィンドウの拡大縮小と、取り返したキー — 5 / 9
 
 **v0.32.0 まで `<C-->` はウィンドウ縮小とハードリンク作成を同時にやっていた** —— 1 打で 2 動作。
 それを分けたのがこの節。ハードリンク作成は `=` に移った（v0.45.6 まで `<C-S-->` だったが、
@@ -271,10 +272,12 @@ fsutil hardlink list <新しくできたパス>
 - [x] **15.1** 何かヤンクした状態で `<C-->` → **ウィンドウが縮むだけ。**v0.32.0 まではハードリンクも同時に作っていた（1 打で 2 動作） — *`<C-->` with something yanked → **Only** the window shrinks. Until v0.32.0 it also made a hardlink — one press, two actions*
 - [x] **15.2** `<C-+>` と `<C-=>` → どちらでも大きくなる。どちらに shift が要るかは配列次第（US は `+` が shift+equals、JIS は `+` が shift+semicolon で `=` が shift+minus）。**両方の綴りが割り当ててあるのでどちらからでも届く**（v0.45.6） — *`<C-+>`, and `<C-=>` → Both make it bigger. Which of the two needs shift depends on the layout — on US `+` is shift+equals, on JIS `+` is shift+semicolon and `=` is shift+minus — and both spellings are bound so either reaches it (v0.45.6)*
 - [x] **15.3** `<C-0>` → 100% に戻り、トーストがそう言う — *`<C-0>` → Back to 100%, and a toast says so*
-- [ ] **15.4** `<C-->` を押しっぱなし → 滑らかに縮んで 20% で止まる。`<C-+>` の押しっぱなしは 500% で止まる — *Hold `<C-->` down → It shrinks smoothly and stops at 20%; `<C-+>` held stops at 500%*
+- [ ] **15.4** `<C-->` を押しっぱなし → 20% で止まり、トーストの回数が勘定に合う（100% から 8 段、残りは床で `Scale 20% (minimum) ×N`）。`<C-+>` の押しっぱなしは 500% で止まる — *Hold `<C-->` down → It stops at 20%, and the toast's count adds up: 8 steps down from 100% and the rest at the floor (`Scale 20% (minimum) ×N`). `<C-+>` held stops at 500%*
+- [ ] **15.4a** 同じことを、トーストではなく窓を見ながら → 押している間**滑らかに**縮み、段の間にちらつきや空のフレームが出ない — *The same, watching the window rather than the toast → It shrinks **smoothly** while held, with no flicker or blank frames between steps*
 - [x] **15.5** 何かヤンクした状態で、**同じドライブ内の**ディレクトリで `=` → ハードリンクができる。**一覧の行には印が出ない**（ハードリンクは同じ実体を指す別のエントリなので、区別する印が無い）。v0.46.0 以降は **`<Tab>` の spot パネルに出る**（`Kind: Hardlink` / `Links: 2`。それが 13.13）。外から確かめるなら `fsutil hardlink list <新しいパス>`。**ドライブを跨ぐと失敗するのが正しい**（NTFS のハードリンクはボリュームを跨げない） — *`=` with something yanked, in a directory **on the same drive** → The hardlink, in its new place. No *row* says so — a hardlink is another entry pointing at the same data, so the listing has no marker for it. Since v0.46.0 the spot panel does: `<Tab>` on it reads `Kind: Hardlink` and `Links: 2`, which is 13.13. Confirm from outside with `fsutil hardlink list <the new path>`, which lists every path sharing the data; or write to one and read the other. Across drives it must fail: NTFS hardlinks cannot leave their volume. Was `<C-S-->` until v0.45.6, a chord no keyboard can produce*
 - [ ] **15.6** 画像の上で `<A-i>` / `<A-o>` → **画像の**拡大縮小のまま影響を受けない（`zoom` と `scale` は別のコマンド） — *`<A-i>` / `<A-o>` on an image → Still the **image** zoom, unaffected — `zoom` and `scale` are different commands*
 - [x] **15.7** `~` → `scale in` / `scale out` / `scale reset` が他のコマンドと同じように並んでいる — *`~` → `scale in` / `scale out` / `scale reset` are listed, like any other command*
+- [ ] **15.9** 別のドライブのファイルをヤンクして `=`（`R:` → `C:`）（v0.59.4）→ エラーが Windows の「別のディスク ドライブに移動できません」ではなく `hardlinks can't cross drives (R: → C:). Use p to copy instead` と言う — *`=` with a file yanked from another drive (`R:` → `C:`) (v0.59.4) → The error reads `hardlinks can't cross drives (R: → C:). Use p to copy instead`, not Windows' "cannot move the file to a different disk drive"*
 
 ## 16. Word / Excel / PowerPoint — 0 / 12
 
@@ -383,7 +386,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
 - [ ] **24.6** 新しいフォルダで `scripts\make-fixtures.ps1` を走らせる（v0.59.1）→ 警告は出ない。ただし普通の（大文字小文字を区別しない）NTFS のフォルダでは `awkward names: 5 entries on disk, expected 6` が出て、`fsutil file setCaseSensitiveInfo` を挙げる（24.3 がそこで押せない理由） — *Run `scripts\make-fixtures.ps1` in a fresh folder (v0.59.1) → No warning, except on an ordinary (case-insensitive) NTFS folder: `awkward names: 5 entries on disk, expected 6`, naming `fsutil file setCaseSensitiveInfo` -- the reason 24.3 cannot be pressed there*
 
-## 25. `filer env` — 18 / 28
+## 25. `filer env` — 18 / 29
 
 - [x] **25.1** PowerShell から `filer env` → 4 つの節が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること** — *`filer env` from PowerShell → The four sections print. A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears***
 - [x] **25.2** Config の節 → 両方のディレクトリが出て、それぞれ中身か `nothing here` を述べ、`not here:` に残りが並ぶ — *The Config section → Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest*
@@ -413,6 +416,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **25.20** 何もリダイレクトせずに `filer env` と `filer --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない — *`filer env` with nothing redirected, and `filer --version` → Still printed on screen, as 25.1 has it — the console path is unchanged*
 - [ ] **25.21** `filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ — *`filer env` (v0.58.1) → An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone*
 - [ ] **25.22** `FILER_PTY_LOG` を設定して `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"`（v0.59.0）→ `echo` が届く前にシェルのプロンプトが出ている（ログの `out` の行が `in key` の行より前）、`hi` が表示され、1 秒後にペインが窓を取る。`filer --keys "<Wait:1.5s>"` はコマンド行で断られ、`<Wait:500>` と書き方を示す — *`filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `FILER_PTY_LOG` set (v0.59.0) → The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `filer --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>`*
+- [ ] **25.23** ペインを開いて `<C-S-Enter>`、filer を閉じてから `filer env`（v0.59.4）→ `Last run` の下に `Terminal pane` の行があり、最後の大きさを `N x M (lines x columns)` で出す。ペインを一度も開かなかった run の後は `not opened in that run` — *Open the pane, `<C-S-Enter>`, close filer, then `filer env` (v0.59.4) → A `Terminal pane` row under `Last run` gives the grid as `N x M (lines x columns)`, the size it last had. After a run that never opened the pane: `not opened in that run`*
 
 ## 26. アプリの中からのバグ報告 — 8 / 11
 
@@ -443,7 +447,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **28.7** カーソルが乗っているファイルを外から改名 → カーソルが名前に追従するか、その場に留まる。落ちない — *Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash*
 - [ ] **28.8** 窓に触らず（キーもマウスも使わず）、一覧にあるファイルをエクスプローラーから削除する（v0.57.2）→ キーを押さなくても 0.5 秒以内に行が消える。v0.57.2 までは次にキーを押すまで残っていた（#108） — *Leave the window alone -- no key, no mouse -- and delete a listed file from Explorer (v0.57.2) → The row goes within half a second, without a key being pressed. Until v0.57.2 the list kept it until the next key (#108)*
 
-## 29. ターミナルのカレントディレクトリを持ち帰る — 5 / 6
+## 29. ターミナルのカレントディレクトリを持ち帰る — 5 / 7
 
 自動テスト済みなので下には出していない: 29.4
 
@@ -453,6 +457,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **29.5** Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため） — *Run the hook line by hand in a shell that already has Starship → The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`)*
 - [x] **29.6** `[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`filer env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る — *With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` → 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again*
 - [ ] **29.7** `[term] shell` なしで `<C-t>`、次に `shell = "powershell"` にしてもう一度（v0.57.4）→ 最初のトーストがシェルの名前を言う: `Started pwsh — <C-t> back to the list`、次に `Started powershell — …`。`$PSVersionTable.PSVersion` の答えと合っていること — *`<C-t>` with no `[term] shell`, then again with `shell = "powershell"` (v0.57.4) → The first toast names the shell: `Started pwsh — <C-t> back to the list`, then `Started powershell — …`. It has to match what `$PSVersionTable.PSVersion` says*
+- [ ] **29.8** フックの無い `powershell`（5.1）で開いたペインで `<A-Up>`（v0.59.4）→ 赤いトーストがシェルの名前を挙げる（`` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE ``）。フックを 7 ではなく 5.1 のプロファイルに入れればよいと分かる — *In a pane started as `powershell` (5.1) with no hook, `<A-Up>` (v0.59.4) → The red toast names the shell -- `` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE `` -- so the hook goes into 5.1's profile, not 7's*
 
 ## 30. プロンプトでの右クリック貼り付け — 10 / 14
 
@@ -646,7 +651,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **44.17** `gu` のあと、ビューの中で `m t`、続けて `m u`（v0.58.0）→ `m t` で数字が日付に替わり棒だけが残る。`m u` で**歩き直さずに**サイズが戻る（`Measuring…` が出ない）。`<Esc>` でタブ自身の表示に戻るのは今までどおり — *`gu`, then `m t` inside the view, then `m u` (v0.58.0) → `m t` swaps the numbers for dates with the bars left; `m u` brings the sizes back **without** walking again (no `Measuring…`). `<Esc>` still gives the tab its own mode back*
 - [ ] **44.19** 数秒かかる木で `gu` し、合計のトーストが消えるまで待つ（v0.59.2）→ ビューを開いている間ずっと、見出しが `N items · <大きさ> total` と言う（ここが使用量ビューだと分かる唯一の印）。その木で `filer --keys "gu<Wait:0>j"` とすると、カーソルは歩きが終わってから動く — *`gu` on a tree that takes seconds, then wait past the total's toast (v0.59.2) → The header reads `N items · <size> total` for as long as the view is up -- the one sign left that this is the usage view. And `filer --keys "gu<Wait:0>j"` on that tree moves the cursor only after the walk is done*
 
-## 45. 2 つのフォルダを比べる — 11 / 12
+## 45. 2 つのフォルダを比べる — 11 / 13
 
 自動テスト済みなので下には出していない: 45.1, 45.2, 45.5, 45.7
 
@@ -662,6 +667,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **45.14** 数百のパスのうち奥の 1 ファイルだけが違う 2 つのツリーを比べる（v0.53.0）→ カーソルが**そのファイルの上**で開く（先頭の行ではない）。差分の無い組は先頭で開く — *Compare two trees of hundreds of paths that differ in one file far down (v0.53.0) → The view opens with the cursor **on that file**, not on the first row. A pair with no differences opens at the top*
 - [x] **45.15** `z`、続けて `j` / `n`、もう一度 `z` → `=` の行が一覧から消える。フッタは数え続け、`matches hidden (z)` が付く。`j` と `n` は見えている行だけを歩く。2 回目の `z` で全部の行が戻り、カーソルは同じパスの上にある — *`z`, then `j` / `n`, then `z` again → The `=` rows leave the list; the footer still counts them and adds `matches hidden (z)`; `j` and `n` step only over what is shown; the second `z` brings every row back with the cursor on the same path*
 - [x] **45.16** 中の `t1` を指す**ジャンクション**（`mklink /J ln t1`）を持つフォルダを写し、元と写しを比べる（v0.55.0）→ `= ln`。行き先の文字列は違っても、どちらも自分のツリーの `t1` に着くので同じと読む — *Copy a folder holding a **junction** to a folder inside it (`mklink /J ln t1`), then compare the original with the copy (v0.55.0) → `= ln`: both links land on `t1` in their own tree, so the copies read as the same even though the two targets differ as text*
+- [ ] **45.17** 別の場所にある同じ名前の 2 つのフォルダ（片方にサブフォルダあり）を比べる（v0.59.4）→ 見出しの下に両方の**フルパス**（`…\left\proj  ↔  …\right\proj`）。長ければそれぞれ真ん中が切られ、両端は読める。フォルダの行は子のパスと同じく `\` で終わり、`/` ではない — *Compare two folders of the same name in different places, one holding a subfolder (v0.59.4) → Under the title, both **full paths** (`…\left\proj  ↔  …\right\proj`), each cut in its middle if long so both ends stay readable. A folder row ends in `\` like its children's paths, not `/`*
 
 ## 46. spot パネルの Git セクション — 14 / 21
 

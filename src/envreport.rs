@@ -289,6 +289,10 @@ fn last_run() -> Vec<(String, String)> {
         ("Window".into(), info.window_line().unwrap_or_else(|| {
             "not recorded — no frame was drawn before the record was written".into()
         })),
+        ("Terminal pane".into(), match info.pane {
+            [0, _] | [_, 0] => "not opened in that run".into(),
+            [lines, cols] => format!("{lines} x {cols} (lines x columns)"),
+        }),
         ("Fonts".into(), list(&info.fonts, "none loaded — this is why icons are boxes")),
         ("Bold".into(), list(&info.bold, "none found; bold is faked by overstriking")),
     ];

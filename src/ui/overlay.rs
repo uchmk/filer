@@ -563,6 +563,14 @@ pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
         lines.push(HelpRow::said("(nothing found in either; the defaults are in use)".into()));
     }
     lines.push(HelpRow::blank());
+    // What the mouse does that no key does, so it is in no key list: the
+    // right-click paste was only in the README (#104). Above the keys, which
+    // end the panel.
+    lines.push(HelpRow::heading("the mouse"));
+    lines.push(HelpRow::said(
+        "right-click in a prompt or the terminal pane pastes the clipboard, over the selection if there is one".into(),
+    ));
+    lines.push(HelpRow::blank());
     let row = |b: &crate::config::keymap::Binding| HelpRow {
         keys: crate::config::keys::render_seq(&b.on),
         text: if b.desc.is_empty() { b.raw.clone() } else { b.desc.clone() },
@@ -931,6 +939,16 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
 /// Two files side by side, the lines that differ marked. The gutter carries
 /// each side's own line number, so a line can be found in either file without
 /// counting rows.
+/// A compare tree row's path, a folder marked by the platform's own
+/// separator: `thing\inner.txt` above `thing/` mixed the two on Windows.
+fn tree_name(row: &crate::diff::TreeRow) -> String {
+    let mut name = row.rel.display().to_string();
+    if row.dir {
+        name.push(std::path::MAIN_SEPARATOR);
+    }
+    name
+}
+
 pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     use crate::diff::Outcome;
 
@@ -951,7 +969,24 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         crate::util::file_name(&ov.right),
     );
     let rect = modal_rect(full, 0.92, 0.86);
-    let inner = modal_frame(ui, rect, &theme, &title, f, row_h);
+    let framed = modal_frame(ui, rect, &theme, &title, f, row_h);
+    // Both full paths, under the names: comparing two folders of the same name
+    // is the usual case, and the title alone could not say which was which.
+    let cell = ui.painter().layout_no_wrap("M".into(), f.clone(), theme.fg).size().x.max(1.0);
+    let room = ((framed.width() / cell) as usize).max(8);
+    // Each side cut on its own, so a long left path cannot push the right
+    // one off the line: the file names at the ends are what tell them apart.
+    let half = room.saturating_sub(5) / 2;
+    let side = |p: &std::path::Path| crate::util::ellipsize_middle(&p.display().to_string(), half.max(4));
+    let paths = format!("{}  ↔  {}", side(&ov.left), side(&ov.right));
+    ui.painter_at(framed).text(
+        framed.left_top(),
+        Align2::LEFT_TOP,
+        paths,
+        f.clone(),
+        theme.fg_dim,
+    );
+    let inner = Rect::from_min_max(framed.min + Vec2::new(0.0, row_h), framed.max);
     let painter = ui.painter_at(inner);
 
     let note = |text: &str, color| {
@@ -1114,10 +1149,7 @@ fn diff_tree(
             TreeState::RightOnly if !row.dir => format!("  {}", crate::util::human_size(row.right)),
             _ => String::new(),
         };
-        let mut name = row.rel.display().to_string();
-        if row.dir {
-            name.push('/');
-        }
+        let name = tree_name(row);
         let cols = ((inner.width() / cell) as usize).saturating_sub(4 + size.chars().count());
         painter.text(
             inner.left_top() + Vec2::new(2.0 * cell, y - inner.top()),
@@ -1626,6 +1658,15 @@ mod help_frame {
         let f = s.draw();
         assert!(f.texts.iter().any(|t| t == "keys"));
         assert!(!f.texts.iter().any(|t| t == "keys in the terminal pane"));
+    }
+
+    /// #104: the right-click paste is not a key, so it has its own words
+    /// rather than being missing from the panel.
+    #[test]
+    fn the_help_says_what_the_mouse_does() {
+        let mut s = showing_help("help-mouse");
+        let f = s.draw();
+        assert!(f.texts.iter().any(|t| t.starts_with("right-click in a prompt")), "{:?}", f.texts);
     }
 
     /// A directory of `n` files, listed. Long enough that the list underneath
@@ -2412,6 +2453,8 @@ mod compare_frame {
         let f = s.typed("N");
         assert_eq!(top(&f), 51, "and stops at the first");
         assert!(f.says("At the first difference"), "saying which end: {:?}", f.texts);
+        // The newer end replaces the older rather than contradicting it.
+        assert!(!f.says("At the last difference"), "one end at a time: {:?}", f.texts);
     }
 
     /// 5.7 and 5.8: the two answers that are a sentence rather than a view.
@@ -2432,6 +2475,34 @@ mod compare_frame {
         let mut s = comparing("frame-compare-binary", "a\0b\n", "a\0bc\n");
         let f = s.draw();
         assert!(f.says("Not text on both sides, and the bytes differ."), "{:?}", f.texts);
+    }
+
+    /// Under the names, both full paths: two folders of one name are the
+    /// usual comparison, and the title could not tell them apart.
+    #[test]
+    fn the_full_paths_are_under_the_title() {
+        let mut s = comparing("frame-compare-paths", "a\n", "b\n");
+        let f = s.draw();
+        let Overlay::Diff(ov) = &s.app.overlay else { panic!("not comparing") };
+        let head: String = ov.left.display().to_string().chars().take(8).collect();
+        let line = f.texts.iter().find(|t| t.starts_with(&head) && t.contains('↔'));
+        let line = line.unwrap_or_else(|| panic!("no paths line: {:?}", f.texts));
+        assert!(line.contains("compare-left.txt") && line.contains("compare-right.txt"), "{line}");
+    }
+
+    /// A folder row ends in the platform's separator, the one its children use.
+    #[test]
+    fn a_folder_row_uses_the_native_separator() {
+        let row = |rel: &str, dir| crate::diff::TreeRow {
+            rel: rel.into(),
+            state: crate::diff::TreeState::Same,
+            dir,
+            left: 0,
+            right: 0,
+        };
+        let sep = std::path::MAIN_SEPARATOR;
+        assert_eq!(super::tree_name(&row("thing", true)), format!("thing{sep}"));
+        assert_eq!(super::tree_name(&row("a.txt", false)), "a.txt");
     }
 
     /// 5.10: `q` closes it, and the title says so before it is pressed.
