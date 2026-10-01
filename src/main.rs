@@ -258,6 +258,7 @@ fn main() -> eframe::Result<()> {
                 last_geometry: None,
                 script: cli.keys.iter().filter_map(keyscript::press).collect(),
                 script_at: (0, std::time::Instant::now()),
+                script_done: std::env::var_os("FILER_KEYS_DONE").filter(|_| !cli.keys.is_empty()).map(PathBuf::from),
             }))
         }),
     )
@@ -541,6 +542,11 @@ struct Filer {
     script: std::collections::VecDeque<keyscript::Press>,
     /// The frame and the moment the last scripted key went in.
     script_at: (u64, std::time::Instant),
+    /// `FILER_KEYS_DONE`: a file to write once the last scripted key has been
+    /// pressed and what it started has landed. A script that drives filer
+    /// from outside (`scripts/xrun.sh`) waits for it instead of guessing how
+    /// long the keys take -- a guess that read half-pressed results (#134).
+    script_done: Option<PathBuf>,
 }
 
 impl Filer {
@@ -590,7 +596,7 @@ impl eframe::App for Filer {
     /// key opened has been drawn once; and never more than five seconds behind,
     /// so a thing that never settles delays the script rather than stopping it.
     fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
-        if self.script.is_empty() {
+        if self.script.is_empty() && self.script_done.is_none() {
             return;
         }
         ctx.request_repaint();
@@ -598,6 +604,14 @@ impl eframe::App for Filer {
         let (last_frame, last_at) = self.script_at;
         let waited_long = last_at.elapsed() > Duration::from_secs(5);
         if frame < last_frame + 2 || !(self.app.settled() || waited_long) {
+            return;
+        }
+        // The same wait as before a key: the last one has been drawn and has
+        // settled, so what is on screen now is its result.
+        if self.script.is_empty() {
+            if let Some(done) = self.script_done.take() {
+                let _ = std::fs::write(done, "done\n");
+            }
             return;
         }
         match self.script.pop_front() {

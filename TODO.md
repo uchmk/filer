@@ -1372,6 +1372,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] Linux で日本語の名前が □ になる。**フォントを入れても □ のままだった**（filer は Windows のフォント置き場しか探して
   いなかった）。v0.59.7 で、Linux（Noto CJK、IPA、Droid）と macOS（ヒラギノ）の置き場を足し、等幅の ASCII の後ろに
   補いとして入れた。`fonts-noto-cjk` を入れたコンテナの Xvfb で、日本語が描かれ ASCII が等幅のままなのを画面で確かめた。
+- [x] `xrun.sh` が `--keys` の終わりを待たず、`<Wait:N>` の合計が `XRUN_WAIT` を越える手順を押しかけのまま読んでいた
+  （#134 の所見 1。v0.60.0 の確認でも `a` が押されずに当たった）。**v0.60.1 で、filer が `FILER_KEYS_DONE` のファイルを
+  最後のキーが落ち着いたときに書き、`xrun.sh` がそれを待つようにした**（既定 120 秒で打ち切り、`keys.done` が無ければそう言う）。
 - [ ] Wayland は確かめられない（コンテナに合成器が無い）。`weston --backend=headless` が apt で入るなら、それで試す。
 
 ## Linux レーンの報告（v0.59.7 で受けた分: #131、25 節 `filer env`）
