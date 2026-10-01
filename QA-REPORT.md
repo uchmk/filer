@@ -7252,3 +7252,154 @@ pwsh / bash / zsh で違う）。
 時間がかかる。断れば 1 行で分かる。
 
 **大きさ**: `parse_cli` に 4 行。
+
+---
+
+## TESTING.md section 25 — `filer env` を Linux で確かめた（6b7ad58 / 0.59.6、Linux lane、無人の run）
+
+Ubuntu x86_64 のクラウドコンテナ、Xvfb（X11）と lavapipe（`llvmpipe (LLVM 20.1.2, 256 bits) (Vulkan, Cpu)`）。
+debug ビルド（`target/debug/filer`）。設定と状態は `FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` /
+`FILER_STATE_HOME` をスクラッチの空ディレクトリに向けて、毎回の状態を自分で作った。
+
+結果: 30 行のうち `[x]` 17、`[-]` 9、`[ ]` 4（25.4 / 25.4a / 25.8b / 25.11）。証拠は PR 本文に 1 行ずつ。
+
+### 見つけたもの 1: Linux の `filer env` が、ペインで起動しないシェルを書く（25.4a）
+
+`[term] shell` を設定していないとき、Tools の行は
+
+```
+sh  : /usr/bin/sh   (terminal pane, the platform default)
+```
+
+と出る。ところが同じ環境（`SHELL=/bin/bash`）でペインを開き `echo $0 $PWD >shell.txt` を打つと、
+ファイルには `/bin/bash /…/scratchpad/pane` が入った。**ペインで動くのは `$SHELL`（bash）で、`sh` ではない。**
+25.4a の「実際に起動するほう — 推測ではない」が Linux では崩れている。
+
+原因は `envreport::tools` が `terminal::default_shell()`（Windows の `pwsh` 判定だけ）が `None` のとき
+`DEFAULT_SHELL = "sh"` に倒すこと。ペインの最初のトーストに出る `terminal::shell_label` は
+`$SHELL` を見ていて正しい。**同じ問いに 2 か所が別の答えを出している。**macOS（`$SHELL` は普通 zsh）でも同じはず。
+
+`[term] shell = "pwsh"` を入れた半分は正しい（`pwsh : not found   (terminal pane, from [term] shell)`）。
+
+### 見つけたもの 2: Linux（と macOS）ではフォントを 1 つも探さない
+
+`install_fonts` の候補は `%LOCALAPPDATA%\Microsoft\Windows\Fonts` と `C:\Windows\Fonts` だけ。Linux では
+`fc-list` に DejaVu / Liberation / FreeFont が並んでいても、`[ui] fonts` を書かない限り
+
+```
+Fonts : none loaded — this is why icons are boxes
+Bold  : none found; bold is faked by overstriking
+```
+
+になり、egui の組み込みフォントだけで描く。**`fonts-noto-cjk` を入れても日本語の名前は豆腐のまま**のはず
+（linux-role.md の「`fonts-noto-cjk` を入れるまで箱」という記述は、この実装では成り立たない。
+入れても読まれない）。`[ui] fonts = [".../LiberationMono-Regular.ttf"]` を書けば読まれる（25.10 で確認）。
+
+### 見つけたもの 3: `-Regular` の付かない名前は太字の兄弟が見つからない
+
+`[ui] fonts = ["/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"]` では `Bold : none found` だった。
+同じディレクトリに `DejaVuSansMono-Bold.ttf` がある。`bold_siblings` は語幹が `-Regular` で終わるときしか
+`-Bold` を試さない。`LiberationMono-Regular.ttf` では `LiberationMono-Bold.ttf` が見つかった。
+Linux の配布物には `-Regular` を付けない名前が多い（DejaVu、Noto の一部）。
+
+### 見つけたもの 4: spot がディレクトリを「Hardlink, Links 2」と言う（13 節に関係）
+
+25.16 の `filer <fixtures> --keys "<Tab>C"` で、先頭の `awkward names`（ただのディレクトリ）の spot が
+
+```
+Link
+Kind	Hardlink
+Links	2
+```
+
+だった。Unix のディレクトリは `.` と親からの名前で、作った直後から link count が 2 以上ある（サブディレクトリが
+増えるたびに 1 増える）。ハードリンクではない。Windows の NTFS ではディレクトリの link count は 1 なので、
+Linux / macOS でだけ出る誤り。13 節を Linux で回すときに当たる。
+
+### 見つけたもの 5: keymap.toml の警告だけ、どのディレクトリのファイルかを言わない
+
+壊した `yazi.toml` は `…/fcfg/yazi.toml: TOML parse error at line 1, column 5` とフルパスで出るのに、
+壊した `keymap.toml` は `keymap.toml: TOML parse error at line 4, column 14` だけだった
+（`config/keymap.rs:194`）。設定ディレクトリは 2 つあり、どちらの `keymap.toml` か分からない。
+また Warnings の値の最後に空行が 1 つ付く（toml のエラー文の末尾の改行がそのまま残る）。
+
+### TESTING.md の行として古いもの
+
+- **25.4**: Tools の節に `pdftoppm` `ffmpeg` `ffprobe` `pwsh` は**もう出ない**。今の Tools は `git`、ペインのシェル、
+  `[[preview]]` と opener が名指すプログラムだけ（`envreport::tools` のコメントのとおり、プレビューは
+  プロセス内で済む）。行の書き直しが要るので `[ ]` のまま。
+- **25.1**: 「The four sections」だが、今は Filer / Config / Last run / Tools / Variables の **5 つ**。
+- **25.19**: Windows 以外の `os_line` は arch を `Process arch` の 1 行しか出さない（設計どおり。
+  `bugreport.rs:228` のコメント）。`filer env | grep arch` は 1 行。行が Windows 前提なので `[-]` にした。
+
+### 付けなかった行
+
+- **25.8b**: `WINIT_X11_SCALE_FACTOR=1.5` で起動すると、X の `xwininfo` が `2040 x 1290` を返し、
+  `filer env` も `2040 x 1290 px (1360 x 860 pt @ 1.5)` と出た（**例の数字と完全に一致**）。ただし
+  行の後半「右端も下端も切れていない」は見た目なので付けていない。
+- **25.11**: 文言は出た（`none found; bold is faked by overstriking`）。ただ、機械には太字の
+  フォントがあった（見つけたもの 2・3 のせいで探していないだけ）。行の前提「ボールド体がどこにも無い」
+  を満たしていないので付けていない。
+
+### Proposals
+
+#### 提案 1: `filer env` のシェルの行を `shell_label` と同じ規則にする
+
+**踏んだこと**: 見つけたもの 1。診断が、動いているシェルと違う名前を出した。
+
+**どう変えるべきか**: `envreport::tools` で、`[term] shell` も `default_shell()` も無いときは
+Windows 以外では `$SHELL`（無ければ `sh`）を引く。`shell_label` と 1 つの関数にまとめるのが確実。
+
+**なぜ**: v0.28.1 の「動いているものを壊れていると言う」の裏返しで、こちらは「動いていないものを動いていると
+言う」。zsh の設定が効かないという報告で `filer env` を貼られたとき、`sh` と書いてあれば読む側が迷う。
+
+**大きさ**: 数行と、`name_shell` 型の純粋関数のテスト 1 つ。
+
+#### 提案 2: Linux / macOS の既定フォントを探す
+
+**踏んだこと**: 見つけたもの 2・3。
+
+**どう変えるべきか**: `#[cfg(target_os = "linux")]` で `/usr/share/fonts`・`~/.local/share/fonts` の
+よく知られた名前（Noto Sans Mono CJK、DejaVu Sans Mono、Nerd Font 各種）を、`#[cfg(target_os = "macos")]` で
+`/System/Library/Fonts`（Hiragino、Menlo）を候補に足す。`bold_siblings` は `-Regular` が無いときも
+`{stem}-Bold.{ext}` を試す。`fontconfig` を呼ぶ案は C 依存なので、Pure Rust 優先の方針なら固定の一覧が先。
+
+**なぜ**: いま Linux で日本語のファイル名を正しく表示する手段は `filer.toml` に手でパスを書くことだけで、
+README にもそう書かれていない。
+
+**大きさ**: 候補の一覧 2 つと兄弟探索に 2 行。どの名前を入れるかは持ち主の判断（QUESTIONS.md 向き）。
+
+#### 提案 3: spot の「Hardlink」をディレクトリでは出さない
+
+**踏んだこと**: 見つけたもの 4。
+
+**どう変えるべきか**: link count からハードリンクを言うのはファイルだけにする（ディレクトリはハードリンクを
+作れない）。
+
+**大きさ**: `spot.rs` の条件 1 つ。13 節の Linux レーンの前に直すと、その run が誤りで止まらない。
+
+#### 提案 4: keymap.toml の警告にもフルパスを付ける
+
+**踏んだこと**: 見つけたもの 5。
+
+**どう変えるべきか**: `config/keymap.rs:194` を `at(dir, "keymap.toml")` の形にし、エラー文の末尾の改行を
+`trim_end` する（他の 3 ファイルも同じ）。
+
+**大きさ**: 1〜2 行。
+
+#### 提案 5: linux-role.md の apt-get の行に描画に要るライブラリを足す
+
+**踏んだこと**: 書かれた `apt-get install -y -q xvfb xdotool xclip x11-utils imagemagick` だけでは、
+最初の起動が `Library libxkbcommon-x11.so could not be loaded.` で panic し、`xrun.sh` は
+`no window appeared` で終わった。`libxkbcommon-x11-0 mesa-vulkan-drivers libvulkan1 libegl1
+libgl1-mesa-dri` を足したら起動した（lavapipe は `mesa-vulkan-drivers` が入れる）。
+
+**どう変えるべきか**: role の 1 行に足す。`xrun.sh` の道具の確認に `ldconfig -p | grep -q libxkbcommon-x11`
+を足せば、panic の backtrace ではなく 1 行で分かる。
+
+**大きさ**: 2 行。`.claude/` は Linux レーンが触れないので、マージする側に頼む。
+
+#### 提案 6: TESTING.md の 25.1 / 25.4 / 25.19 を今の出力に合わせる
+
+上の「TESTING.md の行として古いもの」。25.4 は Tools の今の中身（git、シェル、preview / opener の名指す
+プログラム）で書き直し、25.19 には「Windows 以外は arch が 1 行」を書き添える。
