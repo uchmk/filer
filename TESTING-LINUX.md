@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**17 / 430 済み。**（TESTING.md の全 599 件のうち、`cargo test` が見ている 169 件は
+**17 / 431 済み。**（TESTING.md の全 600 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ほかに 9 件が `[-]`（Linux では対象外）。
@@ -443,7 +443,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **30.14** ターミナルで `<C-v>` → 右クリックと同じ（30.11 の挙動も含めて） — *`<C-v>` in the terminal → Same as the right-click, including 23.11*
 - [ ] **30.15** `report.txt` で `r`、2 つのファイルで `R`、`gSpace`（`cd`）、`a.txt` で `E`（v0.55.0）→ どれも入っている文字が選択された状態で開き、打つと置き換わる。`r` は `report`、`R` は `{name}{ext}` 全体、`cd` はパス全体、`E` は `.zip` の前の `a` を選ぶ。続けてクリップボードにパスを入れ、`cd` の選択範囲の**上**を右クリック → パスが選択範囲を置き換え、`<Enter>` でそこへ行く — *`r` on `report.txt`, `R` on two files, `gSpace` (`cd`), `E` on `a.txt` (v0.55.0); then, with a path on the clipboard, right-click **on** the `cd` prompt's selection → Each opens with its text selected, so typing replaces it: `r` selects `report`, `R` all of `{name}{ext}`, `cd` the whole path, `E` the `a` before `.zip`. The right-click's path replaces the selection, and `<Enter>` goes there*
 
-## 31. ホストの共有一覧 — 0 / 15
+## 31. ホストの共有一覧 — 0 / 16
 
 - [ ] **31.1** `g`+`<Space>` で `\\<サーバのアドレス>` と入力して `<Enter>` → 共有が並ぶ。エクスプローラーが見せるものと同じ — *`g`+`<Space>`, type `\\<your server's address>`, `<Enter>` → The shares are listed, the same ones Explorer shows*
 - [ ] **31.2** アドレスではなくホスト**名**で、また `//` の綴りでも同じこと → どちらも届く。表示は `\\host` の綴りに戻される — *Same with a host **name** rather than an address, and with the `//` spelling → Both arrive; the path is shown back in the `\\host` spelling*
@@ -460,6 +460,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **31.12** ホストへ行ってから、別のディレクトリへ移動する → 監視できなかったホストについて、ウォッチャが文句を言わない — *Go to a host, then change directory away → The watcher does not complain about the host it could not watch*
 - [ ] **31.13** 応答はするが何も共有していないホスト（v0.57.3）→ 一覧は `(empty)` ではなく `(no shares)` と言う — *A host that answers but shares nothing (v0.57.3) → The list says `(no shares)`, not `(empty)`*
 - [ ] **31.14** `g<Space>` で自分のサブネットの何も応答しないアドレスを打って `<Enter>`、諦める前に `<Esc>`（v0.58.1）→ すぐ元の場所に戻り、`Stopped waiting for \\<アドレス>` のトーストが出て、`j` / `k` が効く。取りやめた試みが後で時間切れになっても何も言わない — *`g<Space>` an address on your subnet that nothing answers on, `<Enter>`, then `<Esc>` before it gives up (v0.58.1) → Back where you were at once, a toast `Stopped waiting for \\<address>`, `j` / `k` work again -- and nothing more is said when the abandoned attempt times out later*
+- [ ] **31.15** `g<Space>` で応答しないアドレスを打って `<Enter>`、諦める前に見出しを読む（v0.59.8）→ 見出しの件数が `listing…`、位置が `…`。空のホストに着いたように読める `0 items` と `0/0` ではない。応答が来るか `<Esc>` で戻る（31.14）と、件数が戻る — *`g<Space>` an address that does not answer, `<Enter>`, and read the header before it gives up (v0.59.8) → The header's count reads `listing…` and the position `…` -- not `0 items` and `0/0`, which read as having arrived at an empty host. Once it answers, or `<Esc>` takes the tab back (31.14), the counts return*
 
 ## 32. オープナー — 0 / 13
 

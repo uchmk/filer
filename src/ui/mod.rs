@@ -70,6 +70,12 @@ pub fn wheel_whole(acc: &mut f32, rows: f32) -> i64 {
 /// wins there and the yank goes invisible under it. The register also carries
 /// across directories, which is where it matters most: what `p` would paste
 /// here is a fact about the register, not about anything on screen.
+/// The tab's folder has not been listed yet -- a jump still waiting on the
+/// first answer, typically from a host that may never give one.
+fn waiting(tab: &crate::core::tab::Tab) -> bool {
+    tab.current.state == crate::core::folder::LoadState::Loading && tab.current.entries.is_empty()
+}
+
 fn summary(total: usize, selected: usize, yank: Option<(usize, bool)>, hidden: bool, walking: bool, usage: Option<u64>) -> String {
     // While a usage walk runs the rows are the children measured so far, not
     // what the folder holds (#114), so the count says it is still growing.
@@ -280,7 +286,13 @@ fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let sel = tab.selected.len();
     let yank = (!app.yank.paths.is_empty()).then_some((app.yank.paths.len(), app.yank.cut));
     let usage = app.in_usage_view().then(|| tab.current.entries.iter().map(|e| e.usage_bytes()).sum());
-    let right = summary(total, sel, yank, tab.show_hidden, app.usage.is_some(), usage);
+    // Nothing has been listed yet: a count would be a claim about a folder
+    // that has not answered, and `0 items` on a host still being dialled read
+    // as having arrived at an empty one (#105).
+    let right = match waiting(tab) {
+        true => "listing…".to_owned(),
+        false => summary(total, sel, yank, tab.show_hidden, app.usage.is_some(), usage),
+    };
     painter.text(
         egui::pos2(rect.right() - 10.0, y + row_h / 2.0),
         Align2::RIGHT_CENTER,
@@ -895,7 +907,9 @@ fn draw_status(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId) {
             if app.yank.cut { "cut" } else { "copied" },
         ));
     }
-    let pos = if tab.current.view.is_empty() {
+    let pos = if waiting(tab) {
+        "…".to_string()
+    } else if tab.current.view.is_empty() {
         "0/0".to_string()
     } else {
         format!("{}/{}", tab.current.cursor + 1, tab.current.view.len())
@@ -1672,6 +1686,18 @@ mod whole_frame {
             "the header spells a path this platform would accept: {:?}",
             f.texts,
         );
+    }
+
+    /// #105: a folder still waiting for its first listing gets no count -- not
+    /// `0 items` and `0/0`, which read as having arrived somewhere empty.
+    #[test]
+    fn a_folder_not_yet_listed_is_not_counted() {
+        let dir = crate::util::test_dir("frame-waiting");
+        let mut s = Screen::open(dir.clone());
+        s.app.tabs[s.app.active].current = crate::core::folder::Folder::loading(dir.join("far"), None);
+        let f = s.draw();
+        assert!(f.says("listing…"), "{:?}", f.texts);
+        assert!(!f.says("0 items") && !f.says("0/0"), "{:?}", f.texts);
     }
 
     /// Visual mode says so, rather than only behaving differently.

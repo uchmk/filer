@@ -108,6 +108,10 @@ Honored: `[mgr]` (`ratio`, `sort_by`, `sort_reverse`, `sort_dir_first`, `sort_se
 `max_width`, `max_height`), `[opener]`, `[open].rules`, `[tasks].micro_workers`.
 `[manager]` is accepted as an alias for `[mgr]`. Unknown keys are ignored rather than rejected.
 
+`title_format` takes yazi's `{cwd}`, and two of filer's own (v0.59.8): `{rows}`, the list rows on
+screen, and `{pane}`, the terminal pane's grid as `12x159` (empty while it is closed). A script that
+reads the window title gets both without pressing a key: `title_format = "Filer: {cwd} [{rows}] {pane}"`.
+
 Opener placeholders `$@`, `$0`, `%*`, `%0` and `%s` all expand to the selected paths.
 
 The terminal pane takes a third of the window, which suits a shell and is too little for a
