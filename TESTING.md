@@ -640,6 +640,7 @@ row needs which. 21.6 says something other than what it says here, which is writ
 | 21.11 | Compare the `.7z` and the `.zip` of the same input | The 7z is smaller; that is the reason to have it |
 | 21.12 | `E` with a name ending in something else (`.rar`) | `Name it .zip, .7z, .tar or .tar.gz to say which format` |
 | 21.13 | Pack `to-pack\` as `.zip`, then `7z l` the archive (v0.57.2) | Every entry carries its file's own date and time (to the even second), not `1980-01-01 00:00:00` |
+| 21.14 | Give `to-pack\` files with old dates (`(Get-Item f).LastWriteTime = "2021-06-15 12:34:56"`), pack it with `E` as `.zip`, `.tar.gz` and `.7z`, then `e` each one (v0.65.7) | Every unpacked file has its original `LastWriteTime` back (a zip to the even second), not the moment it was unpacked. Before v0.65.7 every one read the time of the `e` (#156) |
 
 ## 22. Editors, at a line (needs the editors installed)
 
