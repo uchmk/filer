@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**242 / 443 済み。**（TESTING.md の全 612 件のうち、`cargo test` が見ている 169 件は
+**250 / 443 済み。**（TESTING.md の全 612 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -21,7 +21,7 @@
 キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、こちらは「1 つのキーでは
 確かめられない振る舞い」の側。
 
-## 1. ターミナルペイン — 39 / 49
+## 1. ターミナルペイン — 47 / 49
 
 自動テスト済みなので下には出していない: 1.9i
 
@@ -34,9 +34,9 @@ cd $HOME\Desktop\filer-fixtures
 
 - [x] **1.1** `<C-t>` を一覧から押す → 下部にシェルが開き、一覧が表示しているディレクトリに既にいる — *`<C-t>` from the file list → A shell opens along the bottom, already in the directory the list is showing*
 - [ ] **1.2** `dir` と打って Enter → 出力が一覧と同じフォントで、桁が揃い、字が重ならない — *Type `dir` and press Enter → Output in the list's own font, columns lined up, no overlapping glyphs*
-- [ ] **1.3** カーソルを見る → シェルのカーソル位置が四角く塗られ、打つと動く — *Look at the cursor → A block where the shell's cursor is, and it moves as you type*
-- [ ] **1.3a** `<C-t>` でキーを一覧に戻す → カーソルが**中抜き**になり、ペイン上端の線は枠の色のまま（フォーカスで緑にならない） — *`<C-t>` to give the keys back (v0.20.2) → The cursor goes **hollow**, and the rule along the top of the pane stays the plain border colour — it no longer turns green with focus*
-- [ ] **1.4** 色の出るものを実行（`repo` の中で `git status`）→ ANSI 16 色が出て、**一覧自身の配色と一致**する（別パレットに見えない） — *Run something colorful (`git status` in the `repo` fixture) → The 16 ANSI colors, and they match the file list's own colors rather than looking like a second palette*
+- [x] **1.3** カーソルを見る → シェルのカーソル位置が四角く塗られ、打つと動く — *Look at the cursor → A block where the shell's cursor is, and it moves as you type*
+- [x] **1.3a** `<C-t>` でキーを一覧に戻す → カーソルが**中抜き**になり、ペイン上端の線は枠の色のまま（フォーカスで緑にならない） — *`<C-t>` to give the keys back (v0.20.2) → The cursor goes **hollow**, and the rule along the top of the pane stays the plain border colour — it no longer turns green with focus*
+- [x] **1.4** 色の出るものを実行（`repo` の中で `git status`）→ ANSI 16 色が出て、**一覧自身の配色と一致**する（別パレットに見えない） — *Run something colorful (`git status` in the `repo` fixture) → The 16 ANSI colors, and they match the file list's own colors rather than looking like a second palette*
 - [x] **1.5** **もう一度 `<C-t>`** → キーが一覧に戻り、**シェルは生きたまま**出力も残っている（v0.6.0 の修正。以前はここでシェルが終了していた） — ***`<C-t>` again** → Keys go back to the list — **and the shell is still there**, with its output intact. This is the v0.6.0 fix; before it, this ended the shell*
 - [x] **1.6** `<C-t>` を何度か往復 → 同じシェルのまま。スクロールバックが消えない — *`<C-t>`, `<C-t>`, `<C-t>` a few times → The same shell throughout. The scrollback never resets*
 - [x] **1.7** `<C-S-t>` → **ここで**ペインが閉じ、シェルが終了する — *`<C-S-t>` → *Now* the pane closes and the shell ends*
@@ -44,18 +44,18 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **1.9** `many\` で `dir` して画面を埋め、`<S-PageUp>` → **本文が動く**（v0.20.3 まで注記だけが動き、スクロールしていない画面に「N 行前」と出ていた） — *`dir` in `many\` to fill the screen, then `<S-PageUp>` → **The text moves.** Until v0.20.3 only the note moved — it said "N lines back" over a screen that had not scrolled*
 - [x] **1.9a** `<S-PageUp>` / `<S-PageDown>` → 半画面ずつ戻る / 進む（v0.20.4 まで符号が逆で、`<S-PageUp>` が下を向いて何も起きなかった） — *`<S-PageUp>` / `<S-PageDown>` (v0.20.4) → Half a screen back / forward. Until v0.20.4 the sign was inverted, so `<S-PageUp>` aimed at the bottom and did nothing*
 - [x] **1.9b** `<S-Home>`、`<S-End>` → 最古の行と、プロンプト — *`<S-Home>`, `<S-End>` → The oldest line held, and the prompt. These worked before — no sign to get wrong*
-- [ ] **1.9d** ペインの上でホイール → 1 ノッチずつ滑らかに動く（以前は 1〜2 行動かすのに強く回す必要があった） — *The mouse wheel over the pane (v0.20.4) → Moves smoothly, a notch at a time. It used to need spinning hard for one or two lines*
-- [ ] **1.9e** プロンプトが画面から出るまで戻る → カーソルも一緒に消える（元の高さに四角が取り残されない） — *Scroll back far enough that the prompt leaves the screen → The cursor goes with it — no block left behind at its old height*
-- [ ] **1.9c** `<C-S-f>` でスクロールバックのずっと上にある語を検索、Enter → そこへ飛び、**一致箇所が強調される** — *`<C-S-f>` for a word far up the scrollback, Enter → The view jumps to the match **and the match is highlighted***
+- [x] **1.9d** ペインの上でホイール → 1 ノッチずつ滑らかに動く（以前は 1〜2 行動かすのに強く回す必要があった） — *The mouse wheel over the pane (v0.20.4) → Moves smoothly, a notch at a time. It used to need spinning hard for one or two lines*
+- [x] **1.9e** プロンプトが画面から出るまで戻る → カーソルも一緒に消える（元の高さに四角が取り残されない） — *Scroll back far enough that the prompt leaves the screen → The cursor goes with it — no block left behind at its old height*
+- [x] **1.9c** `<C-S-f>` でスクロールバックのずっと上にある語を検索、Enter → そこへ飛び、**一致箇所が強調される** — *`<C-S-f>` for a word far up the scrollback, Enter → The view jumps to the match **and the match is highlighted***
 - [x] **1.9f** `<C-S-f>` で**いま画面に出ている**語を検索 → 履歴の古いほうではなく、画面のものが先に見つかる — *`<C-S-f>` for a word that is on screen right now (v0.20.4) → The one on screen is found first, not an older one up in the history*
 - [x] **1.9g** そのあと `<C-S-n>` / `<C-S-b>` → `<C-S-n>` で履歴の上へ、`<C-S-b>` で下へ戻る — *`<C-S-n>` / `<C-S-b>` after that → `<C-S-n>` walks further up into the history, `<C-S-b>` comes back down*
 - [x] **1.9h** `<C-S-f>` で存在しない語を検索 → 赤いトーストで「無い」と言う（無反応ではない） — *`<C-S-f>` for something that is not there → A red toast saying so — not silence*
 - [x] **1.10** `<S-End>` のあと何か 1 文字打つ → 最下部に戻る。打つだけでも戻ることの確認 — *`<S-End>`, then type a character → Back at the bottom, and typing alone would have done it*
-- [ ] **1.11** 出力の上をドラッグ → **ドラッグ中から選択が描かれ**、離すとクリップボードに入る（v0.20.4 まではコピーは効くのに何も描かれなかった） — *Drag across some output (v0.20.4) → **It highlights as you drag**, and is on the clipboard when you let go. Before v0.20.4 the copy worked and nothing was drawn*
+- [x] **1.11** 出力の上をドラッグ → **ドラッグ中から選択が描かれ**、離すとクリップボードに入る（v0.20.4 まではコピーは効くのに何も描かれなかった） — *Drag across some output (v0.20.4) → **It highlights as you drag**, and is on the clipboard when you let go. Before v0.20.4 the copy worked and nothing was drawn*
 - [x] **1.11a** 同じ範囲を**右から左へ**ドラッグ → 1 文字も違わず同じ文字列（v0.26.4 まで逆向きは**両端で 1 文字ずつ**落ちていた） — *Drag **right to left** over the same run of text (v0.26.4) → The same text, character for character. Until v0.26.4 a backwards drag lost one at **each** end*
 - [x] **1.11b** 最初の文字の**左の隙間ではなく、文字の上から**ドラッグを始める → その文字が含まれる（以前は隙間から始めないと落ちた） — *Start the drag **on** the first character, not to its left (v0.26.4) → It is included. It used to be dropped unless the drag began in the gap before it*
 - [x] **1.11c** 文字の**右半分**からドラッグを始める → その文字は含まれない（これが正しく、1.11a が成り立つのと同じ規則） — *Drag from the right half of a character → That character is left out — correct, and the same rule that makes 1.11a work*
-- [ ] **1.12** 単語をダブルクリック → 単語が選択され、それが目に見える — *Double-click a word → The word is selected, and visibly so*
+- [x] **1.12** 単語をダブルクリック → 単語が選択され、それが目に見える — *Double-click a word → The word is selected, and visibly so*
 - [x] **1.13** `<C-S-f>` でスクロールバックの語を検索、Enter、そのあと `<C-S-n>` → 次々に移動でき、末尾で先頭に回り込む — *`<C-S-f>`, type a word from the scrollback, Enter, then `<C-S-n>` → Matches are found and stepped through; it wraps at the end*
 - [x] **1.14** ターミナルの中で `<F1>` → キー一覧がターミナルの**上に**開く。`<Esc>` で閉じ、入力がシェルに戻る — *`<F1>` inside the terminal → The key list opens **over** the terminal. `<Esc>` closes it and typing goes back to the shell*
 - [x] **1.15** ターミナルの中で `<C-S-p>` → コマンドパレットが開き、そこから実行できる — *`<C-S-p>` inside the terminal → The command palette opens, and running something from it works*
