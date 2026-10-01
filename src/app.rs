@@ -1953,13 +1953,21 @@ impl App {
 
     /// The preview on screen is the hovered file's, fully loaded.
     /// Whether what the last key started has landed: the listing is read, the
-    /// preview is up, and an open spot panel or comparison has its answer.
-    /// `--keys` waits on this between presses, as a person would wait to see.
+    /// preview is up, no file job is still running, and an open spot panel or
+    /// comparison has its answer. `--keys` waits on this between presses, as a
+    /// person would wait to see.
     pub fn settled(&self) -> bool {
         let tab = &self.tabs[self.active];
         // A usage walk adds rows as it goes, so a key pressed mid-walk lands on
         // whatever row happened to be there; #122 typed 600 `k`s to wait one out.
+        // A job says how it went in a toast when it finishes, so `u<Shot:x>`
+        // pictured `Restore 0%` and missed the toast it was taken for (#168).
+        // A row that wants the job mid-run says `<Now>`, as 12.14 does. A job
+        // asking about a name already taken waits on the next key, not the
+        // other way round.
+        let job_going = self.tasks.iter().any(|t| matches!(t.state, TaskState::Queued | TaskState::Running));
         if self.usage.is_some() || matches!(tab.current.state, LoadState::Loading)
+            || (job_going && !matches!(self.overlay, Overlay::Confirm(_)))
             || self.preview.pending_since.is_some()
             || matches!(self.preview.state, PreviewState::Loading)
         {
@@ -6252,6 +6260,47 @@ mod create_and_link_undo {
         a.do_create("plain.txt");
         a.undo_step();
         assert!(toasts(&a).contains(&"Removed plain.txt"), "{:?}", toasts(&a));
+    }
+
+    /// #168, proposal 4: `--keys` waits on `settled`, and a job only says how
+    /// it went once it is over, so a job queued or running is not settled.
+    /// Without this `u<Shot:x>` pictured the job at 0% and missed its toast.
+    #[test]
+    fn a_job_still_going_is_not_settled() {
+        let dir = util::test_dir("settled-job");
+        std::fs::write(dir.join("a.txt"), b"a").unwrap();
+        std::fs::create_dir(dir.join("sub")).unwrap();
+        let mut s = crate::ui::harness::Screen::open(&dir);
+        let settle = |s: &mut crate::ui::harness::Screen| {
+            for _ in 0..1000 {
+                s.turn();
+                if s.app.settled() {
+                    return true;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            false
+        };
+        assert!(settle(&mut s), "the listing and preview come up");
+
+        s.app.submit_op(OpKind::Copy, vec![dir.join("a.txt")], dir.join("sub"), false);
+        assert!(!s.app.settled(), "queued");
+        assert!(settle(&mut s));
+        assert!(dir.join("sub/a.txt").is_file(), "settled only once the copy was there");
+        assert!(s.app.tasks.iter().all(|t| t.state == TaskState::Done));
+
+        // Copied again, the name is taken and the job asks: that question is
+        // waiting on a key, so it is settled.
+        s.app.submit_op(OpKind::Copy, vec![dir.join("a.txt")], dir.join("sub"), false);
+        for _ in 0..1000 {
+            s.turn();
+            if matches!(s.app.overlay, Overlay::Confirm(_)) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(matches!(s.app.overlay, Overlay::Confirm(_)), "the conflict is asked");
+        assert!(s.app.settled(), "the job waits on the answer");
     }
 
     fn finished(linked: Vec<ops::Link>, errors: Vec<String>) -> ops::OpEvent {

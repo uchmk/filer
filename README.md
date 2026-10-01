@@ -1329,7 +1329,9 @@ A space is written `<Space>`; a plain one is refused.
 A script driving filer from outside needs to know when the keys are done, and guessing from the
 `<Wait:N>` it wrote misses the time each key spends waiting to settle. Set `FILER_KEYS_DONE` to a
 file path and filer writes that file once the last key has gone in and what it started has landed —
-the same wait the keys themselves take (v0.60.1). `scripts/xrun.sh` waits for it.
+the same wait the keys themselves take (v0.60.1). `scripts/xrun.sh` waits for it. "Landed" includes
+a file job: since v0.67.12 a key waits for a trash, copy, move, link or undo it started to finish,
+so `u<Shot:after>` pictures the toast the restore ends with (`<Now>` still reaches a job mid-run).
 
 The file holds the state at that moment, one `name: value` per line (v0.60.2), so a check can read
 it without pressing another key — which would change what it reads:
@@ -1344,6 +1346,7 @@ view: list
 input: draft
 pane: closed
 toast: Yanked 1 item(s)
+keys: done
 ```
 
 `overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `view` is
@@ -1351,6 +1354,20 @@ toast: Yanked 1 item(s)
 there only while a prompt is open; `compare: folders <left> | <right>` (or `files`) only while a
 comparison is open; `pane` is the terminal's grid (`12x159`) or `closed`; `toast` is
 the newest message still on screen, empty when there is none.
+
+A script that stops part way still leaves the file (v0.67.12). If nothing has been pressed for 30
+seconds past any `<Wait:N>` due -- the window stopped getting frames -- filer writes this instead,
+and says the same on standard error:
+
+```text
+keys: stalled
+stalled: 31 s with nothing pressed
+pressed: 2 of 4 (last: `<Wait:9000>`)
+left: u <Shot:after>
+```
+
+Should the keys go on after all, the usual report replaces it. So read the last line: `keys: done`
+is a finished script, and anything else is not.
 
 ## Platform Support (Roadmap)
 

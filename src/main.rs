@@ -21,7 +21,7 @@ mod ui;
 mod util;
 
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use app::{App, Overlay};
@@ -252,13 +252,27 @@ fn main() -> eframe::Result<()> {
             a.bold_font = has_bold;
             a.cwd_file = cli.cwd_file;
             a.chooser_file = cli.chooser_file;
+            let script_done =
+                std::env::var_os("FILER_KEYS_DONE").filter(|_| !cli.keys.is_empty()).map(PathBuf::from);
+            let script: std::collections::VecDeque<_> = cli.keys.iter().filter_map(keyscript::press).collect();
+            let script_watch = script_done.as_ref().map(|done| {
+                let watch = Arc::new(Mutex::new(ScriptWatch {
+                    left: script.len(),
+                    at: std::time::Instant::now(),
+                    due: Duration::ZERO,
+                    finished: false,
+                }));
+                let labels = cli.keys.iter().filter(|s| keyscript::press(s).is_some()).map(keyscript::label).collect();
+                watch_script(watch.clone(), labels, done.clone(), cc.egui_ctx.clone());
+                watch
+            });
             Ok(Box::new(Filer {
                 app: a,
                 title: String::new(),
                 focused: true,
                 last_input_frame: u64::MAX,
                 last_geometry: None,
-                script: cli.keys.iter().filter_map(keyscript::press).collect(),
+                script,
                 script_at: (0, std::time::Instant::now()),
                 script_now: false,
                 script_shot: None,
@@ -266,7 +280,8 @@ fn main() -> eframe::Result<()> {
                     .and_then(|p| PathBuf::from(p).parent().map(std::path::Path::to_path_buf))
                     .filter(|p| !p.as_os_str().is_empty())
                     .unwrap_or_else(|| PathBuf::from(".")),
-                script_done: std::env::var_os("FILER_KEYS_DONE").filter(|_| !cli.keys.is_empty()).map(PathBuf::from),
+                script_done,
+                script_watch,
             }))
         }),
     )
@@ -564,9 +579,65 @@ struct Filer {
     /// from outside (`scripts/xrun.sh`) waits for it instead of guessing how
     /// long the keys take -- a guess that read half-pressed results (#134).
     script_done: Option<PathBuf>,
+    /// What the watchdog reads (`watch_script`). `None` without a script or
+    /// without `FILER_KEYS_DONE`, where there is nobody to tell.
+    script_watch: Option<Arc<Mutex<ScriptWatch>>>,
+}
+
+/// How far `--keys` has got, shared with the thread that watches it.
+struct ScriptWatch {
+    /// Steps not yet taken.
+    left: usize,
+    /// When the last one was.
+    at: std::time::Instant,
+    /// A `<Wait:N>` at the head of the script: how long the quiet is meant to be.
+    due: Duration,
+    /// The report is written; the thread can stop.
+    finished: bool,
+}
+
+/// `--keys` runs in the frame loop, and a window that stops getting frames
+/// stops pressing -- one ARM64 run sat 60 s with `u` never pressed and nothing
+/// to show for it (#168, proposal 5). This thread nudges the loop once a
+/// second, and if nothing is pressed for [`keyscript::STALL`] past any wait due,
+/// writes `FILER_KEYS_DONE` with where the script stopped. A script that then
+/// finishes after all overwrites it with the usual report.
+fn watch_script(watch: Arc<Mutex<ScriptWatch>>, labels: Vec<String>, done: PathBuf, ctx: egui::Context) {
+    std::thread::spawn(move || {
+        let mut told = false;
+        loop {
+            std::thread::sleep(Duration::from_secs(1));
+            let Ok(w) = watch.lock() else { return };
+            if w.finished {
+                return;
+            }
+            ctx.request_repaint();
+            let quiet = w.at.elapsed();
+            if !told && quiet > w.due + keyscript::STALL {
+                told = true;
+                let report = keyscript::stalled_report(&labels, w.left, quiet);
+                eprintln!("filer --keys: {}", report.lines().collect::<Vec<_>>().join("; "));
+                let _ = std::fs::write(&done, report);
+            }
+        }
+    });
 }
 
 impl Filer {
+    /// Tell the watchdog the script has moved.
+    fn note_progress(&self) {
+        let Some(watch) = &self.script_watch else { return };
+        if let Ok(mut w) = watch.lock() {
+            w.left = self.script.len();
+            w.at = self.script_at.1;
+            w.due = match self.script.front() {
+                Some(keyscript::Press::Wait(d)) => *d,
+                _ => Duration::ZERO,
+            };
+            w.finished = self.script_done.is_none();
+        }
+    }
+
     /// `<Shot:name>`: ask for the picture, then save it when it arrives.
     fn take_shot(&mut self, ctx: &egui::Context) {
         let Some((name, sent)) = self.script_shot.clone() else { return };
@@ -681,7 +752,9 @@ impl eframe::App for Filer {
         // settled, so what is on screen now is its result.
         if self.script.is_empty() {
             if let Some(done) = self.script_done.take() {
-                let _ = std::fs::write(done, state_report(&self.app));
+                // `keys: done` against the watchdog's `keys: stalled`.
+                let _ = std::fs::write(done, state_report(&self.app) + "keys: done\n");
+                self.note_progress();
             }
             return;
         }
@@ -710,6 +783,7 @@ impl eframe::App for Filer {
             // Taken before the wait above; `parse` puts a key after every one.
             Some(keyscript::Press::Now) | None => {}
         }
+        self.note_progress();
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
@@ -1145,6 +1219,29 @@ mod tests {
         assert!(!report.contains("input:"), "only while a prompt is open");
         assert!(report.lines().any(|l| l == "view: list"), "{report}");
         assert!(!report.contains("compare:"), "only while a comparison is open");
+    }
+
+    /// #168, proposal 5: a script nothing has moved for longer than the stall
+    /// allows, past the wait it was on, gets a report saying where it stopped;
+    /// one still inside its wait does not.
+    #[test]
+    fn a_stalled_script_leaves_a_report() {
+        let dir = crate::util::test_dir("keys-stalled");
+        let labels: Vec<String> = ["j", "<Wait:2000>", "k"].map(String::from).into();
+        let watched = |quiet: Duration, due: Duration, name: &str| {
+            let done = dir.join(name);
+            let at = std::time::Instant::now().checked_sub(quiet).unwrap();
+            let watch = Arc::new(Mutex::new(ScriptWatch { left: 1, at, due, finished: false }));
+            watch_script(watch.clone(), labels.clone(), done.clone(), egui::Context::default());
+            std::thread::sleep(Duration::from_millis(1500));
+            watch.lock().unwrap().finished = true;
+            std::fs::read_to_string(done).ok()
+        };
+        let stuck = keyscript::STALL + Duration::from_secs(5);
+        let said = watched(stuck, Duration::ZERO, "stuck.done").expect("a report");
+        assert!(said.starts_with("keys: stalled\n"), "{said}");
+        assert!(said.contains("pressed: 2 of 3 (last: `<Wait:2000>`)\nleft: k\n"), "{said}");
+        assert_eq!(watched(stuck, Duration::from_secs(60), "waiting.done"), None, "still inside a <Wait:60000>");
     }
 
     /// #131: the bold face is found beside a regular face with no `-Regular`.

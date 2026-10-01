@@ -18,8 +18,9 @@
 #   clip.txt     the clipboard, read while filer still owns it (an X clipboard
 #                dies with its owner, so reading it afterwards gets nothing)
 #   filer.log    what filer printed
-#   keys.done    there when every `--keys` key went in; missing means the
-#                script timed out and the result is of a half-pressed script
+#   keys.done    there when every `--keys` key went in (last line `keys: done`);
+#                missing, or `keys: stalled` (v0.67.12), means the script did
+#                not finish and the result is of a half-pressed script
 #
 # The clipboard is armed with XRUN-SENTINEL first, so an unchanged clipboard
 # reads as that rather than as the previous run's. FILER_BIN overrides the
@@ -78,6 +79,17 @@ if [ "$keyed" = 1 ]; then
         sleep 0.2
     done
     [ -e "$out/keys.done" ] || echo "xrun: --keys did not finish within ${keys_timeout}s; this is a half-pressed result" >&2
+    # filer writes the file for a script that stalled too (v0.67.12), and
+    # replaces it if the keys go on after all: wait that out once more.
+    if head -1 "$out/keys.done" 2>/dev/null | grep -q '^keys: stalled'; then
+        for _ in $(seq 1 $((keys_timeout * 5))); do
+            tail -1 "$out/keys.done" | grep -q '^keys: done' && break
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 0.2
+        done
+        tail -1 "$out/keys.done" | grep -q '^keys: done' \
+            || echo "xrun: --keys stalled ($(grep -E '^(pressed|left):' "$out/keys.done" | tr '\n' ' ')); this is a half-pressed result" >&2
+    fi
 fi
 sleep "$wait_s"
 
