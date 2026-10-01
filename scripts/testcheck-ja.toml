@@ -434,6 +434,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "20.4" = '`,s` で並べ替えてから `<C-F5>` → **並び順は自分で設定したまま残る。**再読み込みが手で変えたものを元に戻さないこと'
 "20.5" = '`filer.toml` に構文エラーを入れて `<C-F5>` → 問題を挙げたエラーのトーストが出て、**以前の設定がそのまま効き続ける**'
 "20.6" = '`[ui] minimap = false` にして `<C-F5>` → ミニマップが出なくなる'
+'20.7' = '''`keymap.toml` に `[[mgr.prepend_keymap]]` で `on = "<F8>"`、`run = 'cd C:\Windows\System32'`（コマンドの中に引用符なし）を書く（v0.59.0）→ `<F8>` で `C:\Windows\System32` に着く。v0.59.0 までは `\` が落ち、エラーが `C:WindowsSystem32` を挙げていた'''
 
 # 21. 書庫
 "21.2" = '`sample.zip` で `e` → 隣に `sample` フォルダとして展開され、タスクパネルに進捗が出る'
@@ -494,6 +495,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "25.18" = "release ビルドで `filer env \\| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c \"filer env > out2.txt\"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた）"
 "25.19" = "`filer env \\| Select-String arch` → **arch の 2 行だけ**が出る（レポート全体ではない）。`$v = & filer env; $v.Count` はレポートの行数で、0 ではない"
 "25.21" = '`filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ'
+'25.22' = '''`FILER_PTY_LOG` を設定して `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"`（v0.59.0）→ `echo` が届く前にシェルのプロンプトが出ている（ログの `out` の行が `in key` の行より前）、`hi` が表示され、1 秒後にペインが窓を取る。`filer --keys "<Wait:1.5s>"` はコマンド行で断られ、`<Wait:500>` と書き方を示す'''
 "25.20" = "何もリダイレクトせずに `filer env` と `filer --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない"
 
 # 26. アプリ内からのバグ報告

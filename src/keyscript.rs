@@ -13,11 +13,49 @@
 //! events a key becomes is read back out of [`keys::from_egui`] rather than
 //! written down a second time, so the two cannot drift apart.
 
+use std::time::Duration;
+
 use crate::config::keys::{self, Code, Key};
 
+/// One step of a script: a key to press, or a pause.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Step {
+    Key(Key),
+    /// `<Wait:500>`: this long after the key before it went in, before the
+    /// next one does. A shell in the pane runs at its own pace, which filer
+    /// cannot see, so "settled" says nothing about it; every real-machine run
+    /// that drove the pane filled the gap with harmless keys instead and
+    /// guessed how long they took (#93, #119 and five more).
+    Wait(Duration),
+}
+
+/// What a step becomes in the frame loop.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Press {
+    Events(Vec<egui::Event>),
+    Wait(Duration),
+}
+
+/// A step as the frame loop takes it; `None` for a key no keyboard can type.
+pub fn press(step: &Step) -> Option<Press> {
+    match step {
+        Step::Key(k) => events(k).map(Press::Events),
+        Step::Wait(d) => Some(Press::Wait(*d)),
+    }
+}
+
+/// `<Wait:500>` as a pause, in milliseconds.
+fn wait(token: &str) -> Option<Result<Duration, String>> {
+    let ms = token.strip_prefix("<Wait:")?.strip_suffix('>')?;
+    Some(match ms.parse::<u64>() {
+        Ok(n) if n <= 60_000 => Ok(Duration::from_millis(n)),
+        _ => Err(format!("`{token}` is not a wait; write milliseconds up to 60000, as `<Wait:500>`")),
+    })
+}
+
 /// `<Tab>C<C-S-t>gg` as the keys it names, in yazi's notation: `<…>` is one
-/// key, anything else is one key per character.
-pub fn parse(script: &str) -> Result<Vec<Key>, String> {
+/// key, anything else is one key per character. `<Wait:N>` pauses N ms.
+pub fn parse(script: &str) -> Result<Vec<Step>, String> {
     let mut out = Vec::new();
     let mut rest = script;
     while let Some(c) = rest.chars().next() {
@@ -35,8 +73,11 @@ pub fn parse(script: &str) -> Result<Vec<Key>, String> {
         } else {
             &rest[..c.len_utf8()]
         };
-        let key = Key::parse(token).ok_or_else(|| format!("`{token}` is not a key"))?;
-        out.push(key);
+        let step = match wait(token) {
+            Some(d) => Step::Wait(d?),
+            None => Step::Key(Key::parse(token).ok_or_else(|| format!("`{token}` is not a key"))?),
+        };
+        out.push(step);
         rest = &rest[token.len()..];
     }
     Ok(out)
@@ -80,7 +121,8 @@ mod tests {
     #[test]
     fn a_script_splits_into_its_keys() {
         let got = parse("<Tab>C<C-S-t>gg").unwrap();
-        let want: Vec<Key> = ["<Tab>", "C", "<C-S-t>", "g", "g"].iter().map(|t| Key::parse(t).unwrap()).collect();
+        let want: Vec<Step> =
+            ["<Tab>", "C", "<C-S-t>", "g", "g"].iter().map(|t| Step::Key(Key::parse(t).unwrap())).collect();
         assert_eq!(got, want);
         assert!(parse("<Tab").is_err(), "an unclosed key is refused, not guessed at");
         assert!(parse("<Nonsense>").is_err());
@@ -89,6 +131,19 @@ mod tests {
         let err = parse("<C-t>echo hi<Enter>").unwrap_err();
         assert!(err.contains("<Space>") && err.contains("hi<Enter>"), "{err}");
         assert_eq!(parse("a<Space>b").unwrap().len(), 3);
+    }
+
+    /// `<Wait:N>` is a pause of N milliseconds between the keys either side.
+    #[test]
+    fn a_wait_is_a_pause_in_milliseconds() {
+        let got = parse("<C-t><Wait:1500>x").unwrap();
+        assert_eq!(got[1], Step::Wait(Duration::from_millis(1500)));
+        assert_eq!(press(&got[1]), Some(Press::Wait(Duration::from_millis(1500))));
+        assert!(matches!(press(&got[2]), Some(Press::Events(_))));
+        for bad in ["<Wait:>", "<Wait:1.5s>", "<Wait:-1>", "<Wait:99999999>"] {
+            let err = parse(bad).unwrap_err();
+            assert!(err.contains("<Wait:500>"), "{bad}: {err}");
+        }
     }
 
     /// Every key produces events that `from_egui` reads back as the same key --
@@ -117,11 +172,10 @@ mod tests {
         std::fs::write(dir.join("a.txt"), "a").unwrap();
         let mut s = crate::ui::harness::Screen::open(dir);
         s.settle();
-        let keys = parse("<Tab>").unwrap();
-        s.feed(events(&keys[0]).unwrap());
+        let key = |t| Key::parse(t).unwrap();
+        s.feed(events(&key("<Tab>")).unwrap());
         assert!(matches!(s.app.overlay, crate::app::Overlay::Spot(_)), "`<Tab>` opened spot");
-        let keys = parse("q").unwrap();
-        s.feed(events(&keys[0]).unwrap());
+        s.feed(events(&key("q")).unwrap());
         assert!(s.app.overlay.is_none(), "`q` closed it");
     }
 }

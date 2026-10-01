@@ -34,7 +34,7 @@ struct Cli {
     cwd_file: Option<PathBuf>,
     chooser_file: Option<PathBuf>,
     /// `--keys`: pressed by filer itself once it has started (Q24).
-    keys: Vec<Key>,
+    keys: Vec<keyscript::Step>,
 }
 
 /// Put a line where whoever typed the command is looking.
@@ -105,7 +105,7 @@ fn parse_cli() -> Cli {
             "--keys" => {
                 let script = args.next().unwrap_or_default();
                 match keyscript::parse(&script) {
-                    Ok(keys) => match keys.iter().find(|k| keyscript::events(k).is_none()) {
+                    Ok(keys) => match keys.iter().find(|k| keyscript::press(k).is_none()) {
                         Some(k) => {
                             say(&format!("filer: --keys: {k:?} cannot be typed"));
                             std::process::exit(2);
@@ -125,7 +125,8 @@ fn parse_cli() -> Cli {
                      OPTIONS:\n    -h, --help       this text\n    \
                      -V, --version    the version and the architecture\n    \
                      --keys KEYS      press these keys once started, in keymap notation:\n                     \
-                     \"<Tab>C\" opens spot and copies it. For scripted checks\n\n\
+                     \"<Tab>C\" opens spot and copies it; <Wait:500> pauses\n                     \
+                     500 ms. For scripted checks\n\n\
                      COMMANDS:\n    env              config files, outside tools and environment,\n                     \
                      for pasting into a bug report\n\n\
                      Config is read from yazi's config directory, then from filer's own.\n\
@@ -232,7 +233,7 @@ fn main() -> eframe::Result<()> {
                 focused: true,
                 last_input_frame: u64::MAX,
                 last_geometry: None,
-                script: cli.keys.iter().filter_map(keyscript::events).collect(),
+                script: cli.keys.iter().filter_map(keyscript::press).collect(),
                 script_at: (0, std::time::Instant::now()),
             }))
         }),
@@ -439,7 +440,7 @@ struct Filer {
     /// another scale changes it; a frame does not.
     last_geometry: Option<([f32; 2], f32)>,
     /// `--keys`, as the events each press arrives as, still to be pressed.
-    script: std::collections::VecDeque<Vec<egui::Event>>,
+    script: std::collections::VecDeque<keyscript::Press>,
     /// The frame and the moment the last scripted key went in.
     script_at: (u64, std::time::Instant),
 }
@@ -494,9 +495,23 @@ impl eframe::App for Filer {
         if frame < last_frame + 2 || !(self.app.settled() || waited_long) {
             return;
         }
-        if let Some(events) = self.script.pop_front() {
-            raw_input.events.extend(events);
-            self.script_at = (frame, std::time::Instant::now());
+        match self.script.pop_front() {
+            // Counted from the key before it: the next key goes in at least
+            // this long after that one, and still only once things settle.
+            Some(keyscript::Press::Wait(d)) => {
+                let left = d.saturating_sub(last_at.elapsed());
+                if left.is_zero() {
+                    self.script_at = (frame, std::time::Instant::now());
+                } else {
+                    self.script.push_front(keyscript::Press::Wait(d));
+                    ctx.request_repaint_after(left);
+                }
+            }
+            Some(keyscript::Press::Events(events)) => {
+                raw_input.events.extend(events);
+                self.script_at = (frame, std::time::Instant::now());
+            }
+            None => {}
         }
     }
 

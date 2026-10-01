@@ -37,8 +37,10 @@ place. Most rows that sound like looks have one:
 **Start with `--keys`.** Since v0.54.0 filer presses keys itself: `filer <dir> --keys "<Tab>C"`
 opens spot on the first row and copies the whole panel, and `Get-Clipboard` reads it. No window
 to find, no `SendInput` for a screen saver to swallow. Reach for `PostMessage` / `SendInput` only
-for what `--keys` cannot do -- the mouse, a key into a program running in the pane after the fact,
-or a sequence that depends on what you read in between.
+for what `--keys` cannot do -- the mouse, or a sequence that depends on what you read in between.
+**Since v0.59.0 `<Wait:N>` pauses N ms** after the key before it, for the shell or a program in the
+pane: `--keys "<C-t><Wait:1500>git<Space>status<Enter><Wait:1000><C-S-Enter>"`. Do not pad with
+harmless keys any more; a wait says how long it waited.
 
 | The row says | What you can read instead |
 | --- | --- |
@@ -198,10 +200,9 @@ will answer a question**, so:
   listing.** Since v0.57.2 an idle window reads a flagged directory by itself
   (#108 found it did not); 28.8 is the row that checks it. On an older build,
   send two keys about a second apart instead.
-- **In a `--keys` script, write a space as `<Space>`.** A plain space
-  disappears, and in the pane every key after it goes to the list instead:
-  `<C-t>echo hi<Enter>` sent the shell `echo` and walked the list (#110). This
-  line goes when `--keys` refuses a plain space (TODO.md).
+- **In a `--keys` script, write a space as `<Space>`.** Since v0.57.2 a plain
+  space is refused before the window opens (#110 sent the shell `echo` and
+  walked the list with the rest).
 - **A minimised window does not act on posted keys** until it is restored
   (`SW_RESTORE`); read anything after restoring. **Stopping a screen saver takes
   its process**: `Stop-Process -Name` misses `OLED Care Screensaver.scr`
