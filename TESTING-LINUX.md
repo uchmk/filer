@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**0 / 428 済み。**（TESTING.md の全 597 件のうち、`cargo test` が見ている 169 件は
+**0 / 430 済み。**（TESTING.md の全 599 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -175,7 +175,7 @@
 
 `cargo test` が全部見ているので、押すものはありません。
 
-## 12. undo と redo — 0 / 12
+## 12. undo と redo — 0 / 14
 
 自動テスト済みなので下には出していない: 12.6, 12.7
 
@@ -191,6 +191,8 @@
 - [ ] **12.12** ロックされたファイルが無い状態で `d` → 以前のまま。そしてエクスプローラー自身の取り消し履歴に**項目が 1 つだけ**残る（まとめて渡す呼び出しが通常の経路であることの確認） — *`d` with nothing locked → Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path*
 - [ ] **12.13** 1 つのファイルで `d`、続けて 2 つで `d`（v0.57.3）→ そのたびにトーストが出る: `Trashed <名前> — u to undo`、次に `Trashed 2 item(s) — u to undo`。v0.57.3 まで `d` は何も言わず、`D` と見分けがつかなかった — *`d` on one file, then on two (v0.57.3) → A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D`*
 - [ ] **12.14** 5 つのファイルで `d` し、走っている間に `w`（v0.58.1）→ 行は `Trash 5 item(s)  [running]`（動詞は **1 回**）、その下の行は `0/5 files` で、`0 B / 0 B` は出ない — *`d` on five files, and `w` while it runs (v0.58.1) → The row reads `Trash 5 item(s)  [running]` -- the verb **once** -- and the line under it `0/5 files`, with no `0 B / 0 B`*
+- [ ] **12.15** 12.10 と同じく、5 件のうち 1 件を別のプログラムで開いたまま 5 件を `d`、続けて `u`（v0.59.7）→ エラーが開いているファイルを `it is open in another program` と名指しし、`u` で入った **4 件**が戻る。v0.59.7 までは `Some operations were aborted` とだけ言い、`u` は `Nothing to undo` だった — *As 12.10 -- one file of five held open elsewhere, `d` on all five -- then `u` (v0.59.7) → The error names the held file with `it is open in another program`, and `u` brings back the **four** that went. Until v0.59.7 the error said only `Some operations were aborted` and `u` said `Nothing to undo`*
+- [ ] **12.16** 12.9 をもう一度: ファイルを `d`、同じ名前のファイルを新しく作り、`u`（v0.59.7）→ エラーが `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` ではなく `a file by that name is already there. Move it away and press u again` と言う。新しいファイルをどけてからの `u` は通る — *12.9 again: `d` a file, make a new file by that name, then `u` (v0.59.7) → The error reads `a file by that name is already there. Move it away and press u again` -- not `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` -- and after moving the new file away, `u` works*
 
 ## 13. シンボリックリンクと `g`+`f` — 0 / 9
 

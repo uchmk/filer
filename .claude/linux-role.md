@@ -35,14 +35,14 @@ Reply in Japanese. Code, comments and commit messages in English.
 - **ARM64 Linux, macOS.** x86_64 only.
 - **Speed and CPU.** Rendering is lavapipe on the CPU, so section 47 and any
   "smooth" or "instant" claim is not yours.
-- **Looks.** Fonts differ from a desktop (CJK names show as boxes until
-  `fonts-noto-cjk` is installed, and the icon column has no Nerd Font). A row
+- **Looks.** Fonts differ from a desktop (the icon column has no Nerd Font;
+  Japanese needs `fonts-noto-cjk`, which filer picks up since v0.59.7). A row
   about colour, alignment, clipping or smoothness stays unticked.
 
 ## How to work
 
 ```bash
-apt-get install -y -q xvfb xdotool xclip x11-utils imagemagick   # once per container
+apt-get install -y -q xvfb xdotool xclip x11-utils imagemagick fonts-noto-cjk   # once per container
 cargo build                      # target/debug/filer
 cargo test                       # must be green before you start
 scripts/make-fixtures.sh "$TMPDIR/filer-fixtures"   # or /tmp/filer-fixtures

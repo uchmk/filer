@@ -80,6 +80,10 @@ pub enum OpEvent {
         /// For a compress: the archive written, under the name it really got
         /// (a name already taken can be resolved to `x_1.zip` here).
         made: Option<PathBuf>,
+        /// For a trash: the paths that went. When some did not, these are what
+        /// `u` can bring back -- the whole step was thrown away before, so four
+        /// files of five in the bin and `u` said "Nothing to undo" (#83).
+        trashed: Vec<PathBuf>,
     },
 }
 
@@ -138,6 +142,7 @@ impl Runner {
                         last_report: std::time::Instant::now(),
                         moved: Vec::new(),
                         made: None,
+                        trashed: Vec::new(),
                     };
                     ctx.run(&req);
                     let _ = ev_tx.send(OpEvent::Finished {
@@ -147,6 +152,7 @@ impl Runner {
                         cancelled: ctx.cancelled,
                         moved: std::mem::take(&mut ctx.moved),
                         made: ctx.made.take(),
+                        trashed: std::mem::take(&mut ctx.trashed),
                     });
                     wake();
                 }
@@ -236,6 +242,8 @@ struct Ctx<'a> {
     moved: Vec<(PathBuf, PathBuf)>,
     /// The archive a compress wrote, once it is whole.
     made: Option<PathBuf>,
+    /// What a trash sent to the bin. Empty for everything else.
+    trashed: Vec<PathBuf>,
 }
 
 impl Ctx<'_> {
@@ -267,20 +275,37 @@ impl Ctx<'_> {
             // file it is about. Costly, but only on the path that has already
             // failed.
             OpKind::Trash => match trash::delete_all(&req.srcs) {
-                Ok(()) => self.files_done = req.srcs.len() as u64,
+                Ok(()) => {
+                    self.files_done = req.srcs.len() as u64;
+                    self.trashed = req.srcs.clone();
+                }
                 Err(_) => {
                     for p in &req.srcs {
                         // `symlink_metadata`, so a link whose target has gone
                         // still counts as present -- it is, and it can be
-                        // trashed.
+                        // trashed. One that is gone already went with the
+                        // batch call before it gave up.
                         if std::fs::symlink_metadata(p).is_err() {
                             self.files_done += 1;
+                            self.trashed.push(p.clone());
                             continue;
                         }
                         self.report(&p.to_string_lossy());
                         match trash::delete(p) {
-                            Ok(()) => self.files_done += 1,
-                            Err(e) => self.errors.push(format!("{}: {e}", crate::util::file_name(p))),
+                            Ok(()) => {
+                                self.files_done += 1;
+                                self.trashed.push(p.clone());
+                            }
+                            Err(e) => {
+                                // The trash says "Some operations were aborted"
+                                // and nothing about which or why; a file held
+                                // open elsewhere is by far the usual reason (#83).
+                                let why = match held_open(p) {
+                                    true => "it is open in another program".to_owned(),
+                                    false => e.to_string(),
+                                };
+                                self.errors.push(format!("{}: {why}", crate::util::file_name(p)));
+                            }
                         }
                     }
                 }
@@ -779,6 +804,23 @@ fn explain(e: &std::io::Error) -> String {
 #[cfg(not(windows))]
 fn explain(e: &std::io::Error) -> String {
     e.to_string()
+}
+
+/// Whether another program holds `p` open so that it cannot be removed:
+/// opening it with no sharing at all fails with a sharing violation (32).
+#[cfg(windows)]
+fn held_open(p: &Path) -> bool {
+    use std::os::windows::fs::OpenOptionsExt;
+    const ERROR_SHARING_VIOLATION: i32 = 32;
+    p.is_file()
+        && std::fs::OpenOptions::new().read(true).share_mode(0).open(p).err().and_then(|e| e.raw_os_error())
+            == Some(ERROR_SHARING_VIOLATION)
+}
+
+/// Elsewhere a file open in another program can be removed all the same.
+#[cfg(not(windows))]
+fn held_open(_: &Path) -> bool {
+    false
 }
 
 /// Why a hardlink failed, in words that say what to do when the reason is

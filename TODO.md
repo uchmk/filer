@@ -700,16 +700,16 @@
 
 ## 実機のセッションの報告（v0.51.3 で受けた分: #83、12 節）
 
-- [ ] **一部だけ失敗した削除で、取り消しの手順が残らない**（バグ）。12.10 で 5 件中 4 件がごみ箱に入ったのに、
+- [x] （v0.59.7 で直した。ジョブが入ったパスを `Finished.trashed` で返し、それだけで手順を積む。実機で 12.15）**一部だけ失敗した削除で、取り消しの手順が残らない**（バグ）。12.10 で 5 件中 4 件がごみ箱に入ったのに、
   直後の `u` は `Nothing to undo`。失敗した `Fresh` の手順が `Undos::keep` で捨てられている。通ったパスだけで
   手順を積む（ジョブは何が通ったかを知っている。タスクの `4/5` がそれ）。
 - [ ] `d` が正規化できないボリューム（ImDisk の RAM ディスク、仮想ドライブ）で必ず失敗する
   （`CanonicalizePath { original: "R:\\Temp\\…" }`）。13 節の `Resolves: no (os error 1)` と同じ根。
   少なくとも `this drive can't use the Recycle Bin (R:). Use D to delete permanently.` と言う。正規化が
   落ちたら生のパスで trash に渡す退路は要設計。
-- [ ] `RestoreCollision { path: …, remaining_items: [TrashItem { id: "C:\\$Recycle.Bin\\S-1-5-21-…` を
+- [x] （v0.59.7 で直した。実機で 12.16）`RestoreCollision { path: …, remaining_items: [TrashItem { id: "C:\\$Recycle.Bin\\S-1-5-21-…` を
   人の言葉にする: `a file by that name is already there. Move it away and press u again.`（手順は残っている）。
-- [ ] ロックで削除が止まったとき（`Unknown { description: "Some operations were aborted" }`）、そのファイルを
+- [x] （v0.59.7 で直した。実機で 12.15）ロックで削除が止まったとき（`Unknown { description: "Some operations were aborted" }`）、そのファイルを
   開いてみて os error 32 なら `… is open in another program` と言う（`#[cfg(windows)]`）。
 - [x] （v0.58.1 で直した。動詞が 2 回はごみ箱だけでなく全部の行だった。実機で 12.14）タスクパネルのごみ箱の行: 動詞が 2 回並ぶ（`Trash  Trash 5 item(s)`）のと、大きさを数えないジョブの
   `· 0 B / 0 B`（空のファイルに読める）をやめる。
@@ -1363,7 +1363,8 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] 最初の 1 本を走らせる（順番表の先頭、25 節）。PR が来たら `merge-role.md` のとおりにマージする。
 - [ ] 定期実行の Routine にするか決める（今は手で `create_session` する）。Windows のレーンは 15 分おきの監視だが、
   クラウドのセッションは走らせるたびに費用がかかる。
-- [ ] Linux で日本語の名前が □ になる（コンテナに CJK フォントが無いため。`fonts-noto-cjk` で直るかは未確認）。filer が
-  システムのフォントから CJK を拾っているかを、フォントを入れた状態で確かめる。
+- [x] Linux で日本語の名前が □ になる。**フォントを入れても □ のままだった**（filer は Windows のフォント置き場しか探して
+  いなかった）。v0.59.7 で、Linux（Noto CJK、IPA、Droid）と macOS（ヒラギノ）の置き場を足し、等幅の ASCII の後ろに
+  補いとして入れた。`fonts-noto-cjk` を入れたコンテナの Xvfb で、日本語が描かれ ASCII が等幅のままなのを画面で確かめた。
 - [ ] Wayland は確かめられない（コンテナに合成器が無い）。`weston --backend=headless` が apt で入るなら、それで試す。
 

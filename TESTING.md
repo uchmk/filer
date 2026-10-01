@@ -427,6 +427,8 @@ step; it now renames a second file (#83).
 | 12.12 | `d` with nothing locked | Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path |
 | 12.13 | `d` on one file, then on two (v0.57.3) | A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D` |
 | 12.14 | `d` on five files, and `w` while it runs (v0.58.1) | The row reads `Trash 5 item(s)  [running]` -- the verb **once** -- and the line under it `0/5 files`, with no `0 B / 0 B` |
+| 12.15 | As 12.10 -- one file of five held open elsewhere, `d` on all five -- then `u` (v0.59.7) | The error names the held file with `it is open in another program`, and `u` brings back the **four** that went. Until v0.59.7 the error said only `Some operations were aborted` and `u` said `Nothing to undo` |
+| 12.16 | 12.9 again: `d` a file, make a new file by that name, then `u` (v0.59.7) | The error reads `a file by that name is already there. Move it away and press u again` -- not `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` -- and after moving the new file away, `u` works |
 
 ## 13. Symlinks and `g`+`f` (v0.26.8)
 

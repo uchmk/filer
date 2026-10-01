@@ -3396,7 +3396,7 @@ impl App {
                     dest: Some(dest),
                 });
             }
-            ops::OpEvent::Finished { id, errors, cancelled, kind, moved, made } => {
+            ops::OpEvent::Finished { id, errors, cancelled, kind, moved, made, trashed } => {
                 // A move that actually moved something is a step `u` can take
                 // back. A cancelled one is not: half a move is not a state
                 // worth offering to reverse in one keystroke.
@@ -3431,6 +3431,10 @@ impl App {
                         if let Some(said) = said {
                             self.toast(said);
                         }
+                    } else if let (UndoStep::Trash { dir, .. }, Land::Fresh, false) = (&step, how, trashed.is_empty()) {
+                        // Some went and some did not: what went is a step `u`
+                        // can take back, and the rest is in the error above.
+                        self.undos.land(UndoStep::Trash { paths: trashed, dir: dir.clone() }, Land::Fresh);
                     } else {
                         self.undos.keep(step, how);
                     }
@@ -7532,9 +7536,33 @@ mod said_out_loud {
             cancelled: false,
             moved: Vec::new(),
             made: None,
+            trashed: vec![dir.join("a.txt")],
         });
         assert!(a.toasts.iter().any(|t| t.text == "Trashed a.txt — u to undo"), "{:?}",
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// #83: a trash where four of five went leaves a step for the four, so
+    /// `u` brings them back rather than saying there is nothing to undo.
+    #[test]
+    fn a_partly_failed_trash_can_still_be_undone() {
+        let dir = crate::util::test_dir("said-partial-trash");
+        let mut a = app_in(&dir);
+        let (gone, stuck) = (dir.join("a.txt"), dir.join("locked.txt"));
+        a.record_job(9, UndoStep::Trash { paths: vec![gone.clone(), stuck], dir: dir.clone() }, Land::Fresh);
+        a.on_op_event(ops::OpEvent::Finished {
+            id: 9,
+            kind: OpKind::Trash,
+            errors: vec!["locked.txt: in use".into()],
+            cancelled: false,
+            moved: Vec::new(),
+            made: None,
+            trashed: vec![gone.clone()],
+        });
+        match a.undos.undo.last() {
+            Some(UndoStep::Trash { paths, .. }) => assert_eq!(paths, &vec![gone], "only what went"),
+            other => panic!("no trash step to undo: {other:?}"),
+        }
     }
 
     /// TESTING.md 15.8 — a held zoom key stops at the ends, and the toast says
