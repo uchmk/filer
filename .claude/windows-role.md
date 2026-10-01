@@ -118,11 +118,10 @@ still on the human's list when it was written.
 | **36. `T`, and `q` from each layer** | 5 | Every row is "closed, and the app is still running" or "quit": `Get-Process filer` after the key, and the window title for where the list is |
 | **14. the parent column, with the mouse** | 6 | Click with `SendInput`; the window title says where the list went and `c` `f` which row the cursor is on |
 | **33. config warnings** | 10 | The warning lines are text: a screenshot, and `filer env`. 33.6 (does yellow read on a light theme) and 33.9 (boxes do not overlap) are looks |
-| **24. awkward names** | 3 | 24.4 in `FILER_PTY_LOG` (what the shell was sent), 24.5 on disk. 24.2 is a look |
 | **31. a host's shares** | 5 left | #105 ticked 8 on ARM64 against a Samba server on the LAN, `\\192.168.0.150` (four shares) -- usable only if `net view \\192.168.0.150` answers. Left: 31.2's host-name half (Windows refused `proxmox.local`; try this machine's own name), 31.7 / 31.8 (a screenful of shares, a share with a space or Japanese -- `New-SmbShare`, elevated), 31.5a and 31.9 wait on TODO.md |
 | **22. opening an editor at a line** | 6 | Only the editors installed here: `Get-CimInstance Win32_Process` shows the command line filer built, `-n42` or `+42` or `--goto`. Say which ones were not installed |
 
-Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26, 13 / 15, 46, 1, 12, 45, 40 (40.7, 40.8 and 40.12 left for the reasons in TODO.md; #100) 39 (39.9 is a bug in TODO.md; #102) 30 (30.1, 30.3, 30.4 and 30.11 are bugs or wording in TODO.md; #104) 28 (all seven, ARM64, #108) and 44 (44.7 waits on the budget fix in TODO.md; #109) (45.11 waits on the symlink fix in TODO.md; `fx45.ps1` in the run's evidence rebuilds its tree).
+Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8, 26, 13 / 15, 46, 1, 12, 45, 40 (40.7, 40.8 and 40.12 left for the reasons in TODO.md; #100) 39 (39.9 is a bug in TODO.md; #102) 30 (30.1, 30.3, 30.4 and 30.11 are bugs or wording in TODO.md; #104) 28 (all seven, ARM64, #108) 44 (44.7 waits on the budget fix in TODO.md; #109) and 24 (24.2 waits on Q34, 24.3 on case-sensitive folders; #111) (45.11 waits on the symlink fix in TODO.md; `fx45.ps1` in the run's evidence rebuilds its tree).
 46.16 is still open: it needs the firewall rules, so an elevated run -- or a person. So is 45.11:
 symbolic links need elevation or developer mode (#98 passed its junction form on ARM64).
 Rows still open there were left by those runs on purpose -- ARM, another platform, or eyes -- so
@@ -249,9 +248,9 @@ these differences:
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
 | **v0.56.0, Q32 and Q33** | 2 | 44.14 (`gu` shows sizes whatever the line mode, and puts it back) and 31.9 (a host's shares show no size in `linemode size`) against `\\192.168.0.150`, if `net view` answers |
-| **24. awkward names** | the `[ ]` rows | Names through the shell and ConPTY: 24.4 in `FILER_PTY_LOG` (what the shell was sent), 24.5 on disk. 24.2 is a look |
+| **1. the terminal pane** | the `[ ]` rows | ConPTY and the shell, natively. `--keys` (spaces as `<Space>`) plus `FILER_PTY_LOG` drove the `[term] shell` matrix cheaply in #111; rows already `[x]` on x64 go in QA-REPORT.md |
 | **22. opening an editor at a line** | the `[ ]` rows | Process creation: `Get-CimInstance Win32_Process` shows the command line filer built. VS Code and Neovim are installed on this machine; say which others are not |
-| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104), 0.54.14 (509 / 0, #105), 0.55.1 (523 / 0, #107), 0.55.2 (523 / 0, #108), 0.55.3 (523 / 0, #109) and 0.55.4 (523 / 0, #110). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
+| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104), 0.54.14 (509 / 0, #105), 0.55.1 (523 / 0, #107), 0.55.2 (523 / 0, #108), 0.55.3 (523 / 0, #109), 0.55.4 (523 / 0, #110) and 0.55.5 (523 / 0, #111). Any failure here and not on the x64 runner is the finding; paste the test name and the panic |
 
 ## Proposals: say what should change
 
