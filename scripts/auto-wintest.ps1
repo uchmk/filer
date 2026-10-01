@@ -38,10 +38,14 @@
 # own pull requests -- so the two machines never take the same section and
 # never hold each other up.
 #
-# Scratch space. The run's TEMP and TMP are set to -Scratch, which defaults to
-# R:\Temp when there is an R: drive (the RAM disk on the x64 machine) and to
-# %TEMP%\filer-scratch otherwise, and the prompt tells the run where it is.
-# `cargo test` builds its test trees under TEMP, so they follow.
+# Scratch space. Each run gets a folder of its own, run-<time>, under -Scratch,
+# which defaults to R:\Temp when there is an R: drive (the RAM disk on the x64
+# machine) and to %TEMP%\filer-scratch otherwise. TEMP and TMP point into it and
+# the prompt says where it is; `cargo test` builds its test trees under TEMP, so
+# they follow. Only the newest three run-* folders are kept: on the ARM64
+# laptop, with no RAM disk to empty itself, ten runs' leftovers had piled up and
+# an old run's script error dialog was still open in the middle of the screen
+# (#103). Nothing else under -Scratch is touched.
 #
 # The screen saver is held off for the length of a run (-KeepScreenSaver
 # leaves it alone). A screen saver owns the input desktop, and SendInput then
@@ -130,6 +134,12 @@ public static extern uint SetThreadExecutionState(uint flags);
 public static extern bool SystemParametersInfo(uint action, uint param, ref bool value, uint winIni);
 [DllImport("user32.dll", SetLastError = true)]
 public static extern bool SystemParametersInfo(uint action, uint param, System.IntPtr value, uint winIni);
+[DllImport("user32.dll", SetLastError = true)]
+public static extern System.IntPtr OpenInputDesktop(uint flags, bool inherit, uint access);
+[DllImport("user32.dll", SetLastError = true)]
+public static extern bool CloseDesktop(System.IntPtr desktop);
+[DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+public static extern bool GetUserObjectInformation(System.IntPtr obj, int index, System.Text.StringBuilder info, int length, out int needed);
 '@
 $ES_CONTINUOUS = [uint32]'0x80000000'
 $ES_SYSTEM_REQUIRED = [uint32]1
@@ -155,6 +165,22 @@ function Restore-LeftOverSaver {
     Set-SaverActive $was
     Remove-Item $saverFile
     Say "Put the screen saver back (active = $was), left off by a run that was cut off."
+}
+
+# The desktop that receives input: `Default` when keys and clicks reach the
+# windows on it, `Screen-saver` or `Winlogon` when they go nowhere. Asked
+# rather than inferred from LogonUI, which a screen saver does not start (#88).
+function Get-InputDesktop {
+    $h = [FilerWintest.Power]::OpenInputDesktop(0, $false, 0x0001)   # DESKTOP_READOBJECTS
+    if ($h -eq [IntPtr]::Zero) { return '(none: OpenInputDesktop failed)' }
+    try {
+        $name = [Text.StringBuilder]::new(256)
+        $needed = 0
+        [void][FilerWintest.Power]::GetUserObjectInformation($h, 2, $name, 512, [ref]$needed)   # UOI_NAME
+        $name.ToString()
+    } finally {
+        [void][FilerWintest.Power]::CloseDesktop($h)
+    }
 }
 
 function Stop-ScreenSavers {
@@ -245,13 +271,28 @@ try {
     $head = (git -C $Work rev-parse --short HEAD).Trim()
     Say "[$Lane] Starting a run on $head (trigger $($trigger.Substring(0, 7)))."
 
+    # This run's own scratch folder, and the oldest ones beyond three gone.
+    Get-ChildItem -Directory -Path $Scratch -Filter 'run-*' -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending | Select-Object -Skip 2 |
+        ForEach-Object { Remove-Item -Recurse -Force -LiteralPath $_.FullName -ErrorAction SilentlyContinue }
+    $Scratch = Join-Path $Scratch ('run-{0:yyyyMMdd-HHmmss}' -f (Get-Date))
+    New-Item -ItemType Directory -Force -Path $Scratch | Out-Null
+
     $prompt = "無人実行です。人は見ていません。.claude/windows-role.md を読み、その「Unattended runs」の節に従って、$queue の次の節を 1 つだけ進めてください。レーンは $Lane で、ブランチは test/$Lane-<節> です。チェックアウトは $Work です（役割定義に出てくる C:\dev\filer は、すべてここに読み替えてください）。作業用の一時ディレクトリは $Scratch で、TEMP / TMP も既にそこを指しています（役割定義に出てくる R:\Temp は、すべてここに読み替えてください）。"
     $env:TEMP = $Scratch
     $env:TMP = $Scratch
 
     if (-not $KeepScreenSaver) {
         Suspend-ScreenSaver
-        $prompt += " スクリーンセーバーはこのスクリプトが実行の間だけ止めています（起動していれば 5 秒以内に止めます）。それでも入力デスクトップが Default でないときは、役割定義のとおり確かめてから進めてください。"
+        $prompt += " スクリーンセーバーはこのスクリプトが実行の間だけ止めています（起動していれば 5 秒以内に止めます）。"
+    }
+    # Not a reason to stop: PostMessage and --keys still reach the window. The
+    # run is told, so it does not record SendInput rows as having done nothing.
+    Start-Sleep -Seconds 1
+    $desk = Get-InputDesktop
+    Say "Input desktop at the start: $desk"
+    if ($desk -ne 'Default') {
+        $prompt += " 起動時の入力デスクトップは `"$desk`" で、Default ではありません。SendInput のキーとマウスは届かないので、そういう行は測らずに理由を書いて残し、--keys と PostMessage で進められる行だけを進めてください。"
     }
     Push-Location $Work
     try {
