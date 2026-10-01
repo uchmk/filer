@@ -9,6 +9,18 @@
 
 ## [未リリース]
 
+## [0.59.1] - 2026-10-01
+
+### 変更
+
+- spot の `From branch` の行でも `<Enter>` で枝の GitHub のページを開く。隣の `Came in via` と `Pull request` は開くのに、
+  真ん中だけが黙っていた（#119 の提案 3）。
+- オープナーが失敗し、シェルが読める理由を返さなかったとき、先頭のプログラムが PATH に無ければ ``Open failed: `X` was not found``
+  と言う。今までは打ち間違いも失敗も `exit code 1` だった（#96 の提案 3）。
+- `[mgr]` の `<C-S-Enter>` の説明を「Give the terminal pane the window (the same key in the pane gives it back)」にした。
+  `[mgr]` からは戻せない（#119 の所見 2）。
+- `scripts/make-fixtures.ps1` が、グループごとにディスクの件数を期待と比べて警告する（#111 の提案 1）。
+
 ## [0.59.0] - 2026-10-01
 
 ### 追加
