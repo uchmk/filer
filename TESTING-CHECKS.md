@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**253 / 444 済み。**（TESTING.md の全 613 件のうち、`cargo test` が見ている 169 件は
+**253 / 445 済み。**（TESTING.md の全 614 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -350,7 +350,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **20.6** `[ui] minimap = false` にして `<C-F5>` → ミニマップが出なくなる — *`[ui] minimap = false`, `<C-F5>` → No minimap*
 - [x] **20.7** `keymap.toml` に `[[mgr.prepend_keymap]]` で `on = "<F8>"`、`run = 'cd C:\Windows\System32'`（コマンドの中に引用符なし）を書く（v0.59.0）→ `<F8>` で `C:\Windows\System32` に着く。v0.59.0 までは `\` が落ち、エラーが `C:WindowsSystem32` を挙げていた — *In `keymap.toml`, `[[mgr.prepend_keymap]]` `on = "<F8>"`, `run = 'cd C:\Windows\System32'` -- no quotes inside the command (v0.59.0) → `<F8>` lands in `C:\Windows\System32`. Until v0.59.0 the backslashes were dropped and the error named `C:WindowsSystem32`*
 
-## 21. 書庫（zip / tar / 7z） — 9 / 10
+## 21. 書庫（zip / tar / 7z） — 9 / 11
 
 自動テスト済みなので下には出していない: 21.1, 21.4, 21.6, 21.12
 
@@ -364,6 +364,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **21.11** 同じ入力の `.7z` と `.zip` を比べる → 7z のほうが小さい。それが持っている理由 — *Compare the `.7z` and the `.zip` of the same input → The 7z is smaller; that is the reason to have it*
 - [x] **21.13** `to-pack\` を `.zip` に圧縮し、`7z l` で見る（v0.57.2）→ どのエントリも元のファイルの日時（偶数秒まで）を持つ。`1980-01-01 00:00:00` ではない — *Pack `to-pack\` as `.zip`, then `7z l` the archive (v0.57.2) → Every entry carries its file's own date and time (to the even second), not `1980-01-01 00:00:00`*
 - [ ] **21.14** `to-pack\` のファイルを古い日時にし（`(Get-Item f).LastWriteTime = "2021-06-15 12:34:56"`）、`E` で `.zip`・`.tar.gz`・`.7z` に固めて、それぞれ `e` で展開する（v0.65.7）→ 展開したどのファイルも元の `LastWriteTime` に戻っている（zip は偶数秒まで）。展開した時刻ではない。v0.65.7 より前は、どれも `e` の時刻になっていた（#156） — *Give `to-pack\` files with old dates (`(Get-Item f).LastWriteTime = "2021-06-15 12:34:56"`), pack it with `E` as `.zip`, `.tar.gz` and `.7z`, then `e` each one (v0.65.7) → Every unpacked file has its original `LastWriteTime` back (a zip to the even second), not the moment it was unpacked. Before v0.65.7 every one read the time of the `e` (#156)*
+- [ ] **21.15** `to-pack\` だけを選んで `E`（書庫の一番上がフォルダ 1 つ）、`to-pack.zip` で `e`。続けて一番上がファイルの `sample.zip` でも同じ（v0.66.0）→ `to-pack_1\` の中に直接ファイルが入る。`to-pack_1\to-pack\` にはならない（Q43）。`sample.zip` は今までどおり自分の `sample\`（か `sample_1\`）フォルダに展開される — *`E` on `to-pack\` alone (the archive's top level is one folder), then `e` on `to-pack.zip`; then the same with `sample.zip`, whose top level is loose files (v0.66.0) → `to-pack_1\` holds the files directly -- no `to-pack_1\to-pack\` (Q43). `sample.zip` still unpacks into its own `sample\` (or `sample_1\`) folder*
 
 ## 22. エディタを行番号付きで開く（エディタのインストールが要る） — 2 / 6
 
