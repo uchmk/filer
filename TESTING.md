@@ -1229,7 +1229,7 @@ The walk and the ordering are unit-tested on a small tree. What needs a machine 
 | 44.7 | `gu` at `C:\` | Answers; the biggest folders are plausible against WizTree or Explorer's own |
 | 44.8 | `gu` on a network share (UNC) | Answers or fails gracefully; `<Esc>` still gets out mid-walk |
 | 44.9 | `gu`, then `j`/`k`, `y`, `d`, space to select | All the ordinary list keys work — this is the list, not a panel |
-| 44.10 | `gu`, then `Enter` on a folder | Ordinary navigation: it leaves the view and enters the folder. `gu` again measures from there |
+| 44.10 | `gu`, then `Enter` on a folder; then `h`, and `h` again (v0.63.0; before that `Enter` left the view) | `Enter`: the view stays and measures that folder (the header path is the folder). First `h`: back up, still in the view, the cursor on the folder it left. Second `h`, in the folder `gu` was pressed in: the view closes and the ordinary listing is back |
 | 44.11 | `gu` while a usage view is already up | Refused with a message, not a view with no way back |
 | 44.12 | `gu`, then `,` to re-sort | The order changes (as asked); `<Esc>` and `gu` again restores largest-first (`gu` inside the view is refused, 44.11) |
 | 44.13 | Compare a folder's total against Explorer's own properties | Within rounding. **Hard links read high — that is documented, not a bug** |

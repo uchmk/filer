@@ -788,12 +788,13 @@ folder", because a directory's own length is the size of its entry on disk and t
 is full.
 
 This is the file list, not a panel: `j` / `k`, the wheel, selection, `y`, `d` and the rest work as
-they always do, and `<Esc>` (or `h`) leaves and goes back to the directory. Leaving cancels the walk.
+they always do, and `<Esc>` leaves and goes back to the directory. Leaving cancels the walk.
 While the view is up the right-hand column shows the sizes whatever line mode the tab had, and the
 tab gets its own back on the way out (v0.56.0; before that the bars were all you saw unless the
 config said `linemode = "usage"`, which made every ordinary folder read `0 B`).
-It is one level deep — entering a folder is ordinary navigation and leaves the view, so `gu` again
-measures from there. Rows arrive as each child is measured, so while the walk runs the header counts
+`l` (or `<Enter>`) on a folder goes down into it and measures it in turn, staying in the view, the
+way `ncdu` does; `h` comes back up with the cursor on the folder it left, and from the folder `gu`
+was pressed in, `h` leaves (v0.63.0). Each level is measured again when you arrive. Rows arrive as each child is measured, so while the walk runs the header counts
 them as `N measured so far` rather than `N items` (v0.57.3); the toast with the total says it is done.
 
 Hidden files and anything `.gitignore` covers are **counted**: a folder does not stop taking up room
