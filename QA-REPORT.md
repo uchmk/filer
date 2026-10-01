@@ -7645,3 +7645,141 @@ x64 ランナーに無い失敗は **この 1 件だけ**で、それも ARM64 �
 - 残った 13.17 は**昇格が要る行**なので、`.claude/windows-role.md` の
   「46.16 は still open … 45.11 も」の段落に **13.17 の `mklink /D` の半分**を足すのが収まりがよい。
 - そのうえで、次に取る節は現在 2 番目の **「1. the terminal pane | the `[ ]` rows」**になる。
+
+## TESTING.md section 48 — リリースの zip を ARM64 実機で確かめた（c9594e7 / 0.64.6、ARM64 レーン、無人の run）
+
+ARM64 レーンの順番表の先頭、**「48. the release zips」6 行**を 1 本で片付けた。
+**6 行すべて合格**、TESTING-CHECKS.md の 48 節は 0 / 6 → **6 / 6**（全体 237 → 243）。
+
+使ったリリースは **v0.64.2**（Releases ページの最新。`v0.64.0` 以降という 48.5 の条件を満たし、
+末尾の SHA-256 の表もある。CLAUDE.md が書いているとおり v0.64.2 の `sums` ジョブは当日落ちて
+いて、表は後から `release-sums.yml` で載せ直されたもの）。**手元の build は 1 つも使っていない。**
+zip は人と同じく `Invoke-WebRequest` でアセットの URL から落とし、`Expand-Archive` で空の
+フォルダに展開した。ARM64 レーンの指示どおり **両方の zip** を見て、48.6 は ARM64 の
+フォルダで確かめた（x64 のフォルダでも押せたので、そちらも下に書く）。
+
+### 走らせたもの
+
+| | |
+| --- | --- |
+| 機械 | `ARM64-based PC`、Windows 11 Home 26H1（build 28000.2956）、PowerShell 7.6.6（arm64） |
+| 昇格 | **なし**（`IsInRole('Administrators')` = `False`）。48 節に昇格の要る行は無い |
+| 走らせた binary | **リリースの zip の中身だけ**。`filer env` → `Version 0.64.2` / `OS arch aarch64` / `Process arch aarch64` |
+| 作業場所 | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch\s48`（この機械に RAM ディスクは無く、`auto-wintest.ps1` が決めて `TEMP` / `TMP` に入れた） |
+| `cargo test` | **590 passed; 0 failed**（設定ディレクトリを隔離したとき、3.02s）。隔離しないと **589 / 1** で、落ちるのは下の既知の 1 件 |
+
+### 行ごとの根拠
+
+- **48.1** 両方の zip を空のフォルダに `Expand-Archive` → それぞれ最上位は
+  `filer-v0.64.2-windows-x64\` / `-arm64\` の **1 フォルダだけ**で、中は
+  `ConPTY-LICENSE.txt` 1475 B、`conpty.dll`、`filer.exe`、`OpenConsole.exe` の
+  **ちょうど 4 ファイル**。`Get-ChildItem -Recurse` の出力に他の項目は無し。
+- **48.2** `.\filer.exe --version` → x64 のフォルダが `filer 0.64.2 (x86_64)`、
+  ARM64 のフォルダが `filer 0.64.2 (aarch64)`。タグ `v0.64.2` から `v` を除いた版と一致。
+  **x64 のほうは ARM64 の x64 エミュレーションで走ったもの**だが、名乗った arch は `x86_64`
+  （つまり binary の中身を読んでいて、動いている機械ではない）。
+- **48.3** PE machine（節の冒頭の式）→ x64 の zip は `filer.exe` / `conpty.dll` /
+  `OpenConsole.exe` の **3 つとも `8664`**、ARM64 の zip は **3 つとも `AA64`**。混ざりは無し。
+- **48.4** `ConPTY-LICENSE.txt` は
+  「NuGet package Microsoft.Windows.Console.ConPTY, version **1.24.260710001**」と書いており、
+  タグ `v0.64.2` の `scripts/fetch-conpty.ps1` の `$version = '1.24.260710001'` と一致。
+  `{VERSION}` の残りは無し。両方の zip でファイルのハッシュまで同一
+  （`86f998a1…e37e41`）。
+- **48.5** zip 2 つと展開した 8 ファイルの `Get-FileHash -Algorithm SHA256` を、
+  リリースページ末尾の表（アセットの表 6 行＋ zip ごとの中身の表 4 行 × 2）と突き合わせ →
+  **10 / 10 一致、不一致 0**。中身の表の `Bytes` 列も全部一致。
+  確かめた値（抜粋）: `filer-v0.64.2-windows-arm64.zip` = `d4d3092b…bb5f52`、
+  `filer-v0.64.2-windows-arm64/filer.exe` = `7ec53d00…b453473`（21800448 B）、
+  `filer-v0.64.2-windows-x64.zip` = `5843b7c2…5a08d80d`、
+  `filer-v0.64.2-windows-x64/filer.exe` = `17013e10…0f7f9cbb`（25351680 B）。
+- **48.6** ARM64 のフォルダの `filer.exe` を `--keys "<C-t>"` 付きで起動 →
+  `(Get-Process filer).Modules | ? ModuleName -eq conpty.dll | % FileName` が
+  `…\s48\ex-arm64\filer-v0.64.2-windows-arm64\conpty.dll`。`C:\Windows` の下ではない。
+  子プロセスも `OpenConsole.exe` が**同じフォルダのもの**
+  （`Win32_Process` の `ExecutablePath`）。
+  x64 のフォルダでも同じで、`…\ex-x64\filer-v0.64.2-windows-x64\conpty.dll` を読んだ。
+
+### 見つけたもの —— 既知の 1 件がまだ残っている（新しい不具合は無し）
+
+`ui::overlay::help_frame::help_from_the_pane_lists_the_panes_keys_first` は
+**0.64.6 でもこの機械で必ず落ちる**（#136 で報告、TODO.md に未着手で載っている
+「テストが、走らせた機械の設定ファイルに左右される」）。同じコミット c9594e7 の CI
+（Windows x64 ランナー）は緑。3 回連続で同じ所で落ち、
+`YAZI_CONFIG_HOME` と `FILER_CONFIG_HOME` を空のディレクトリに向けると通る。
+
+今回わかった**余白の大きさ**を足しておく（一時的に診断を入れて `App` の値を読んだ。
+診断は `git checkout` で戻してあり、この PR には入っていない）:
+
+```
+実機の設定あり : rows=27 lines=183  pane の見出し=描かれる  list の見出し=描かれない
+設定を隔離     : rows=27 lines=180  pane の見出し=描かれる  list の見出し=描かれる
+```
+
+- パネルは全 180 行のうち **27 行しか描かない**。素の設定でも
+  `keys in the list (<C-t> to get there)` の見出しは**その 27 行目のあたり**にあり、
+  **余白は 3 行も無い。**
+- だから原因は「この機械に設定がある」だけではない。**`[term]` のキーを 1 つ足しても、
+  `config` の行が 1 行増えても、同じように落ちる。**TODO.md の直し方
+  （ハーネスで設定ホームを空に向ける）に加えて、**テストの側も `lines` 全体を見るか、
+  見出しが見えるところまでスクロールしてから探す**ほうがよい。今の形は
+  「27 行目に何が来るか」を assert しているのと同じ。
+
+### Proposals
+
+#### 提案 1: `filer env` に、読み込んだ ConPTY の行を出す
+
+**踏んだこと**: 48.6 は「exe の隣の `conpty.dll` が読まれたか」を見る行だが、それを読む手が
+`(Get-Process filer).Modules` しかない。**filer を起動したまま別のシェルからプロセスを
+覗く**必要があり、ペインを開いた状態を保ったまま計らないといけない。一方
+`filer env` は「バグ報告に貼るための出力」と自称していて、`Adapter` も `Fonts` も
+`pwsh` のフルパスも出すのに、**ConPTY については 1 行も無い**。
+
+**どう変えるべきか**: `Filer` の節（あるいは `Tools`）に 1 行足す。
+
+```
+    ConPTY        : C:\...\filer-v0.64.2-windows-arm64\conpty.dll (1.24.260710001, AA64)
+                    -- or -- built into Windows (no conpty.dll beside filer.exe)
+```
+
+版は `ConPTY-LICENSE.txt` から読んでも、`conpty.dll` のファイル版から取ってもよい。
+
+**なぜ**: ペインの不具合報告は「古い ConPTY で動いていた」が真の原因であることが多く
+（v0.49.0 の同梱はそのために入っている）、**報告に貼る出力にそれが出ていない**。
+48.6 も 1 コマンドで済むようになる。
+
+**大きさ**: 出力を組むところに 1 か所、数行。`conpty.dll` の有無を見るだけ。
+
+#### 提案 2: 48.6 の文言を「x64 のフォルダ」から「各フォルダ」に
+
+**踏んだこと**: 48.6 の「Do」は `Start filer.exe from the x64 folder` と x64 に固定されて
+いるのに、ARM64 レーンの順番表は「48.6 with the ARM64 folder」と**別のことを指示して
+いる**。チェック欄は 1 行 1 つなので、どちらを押したのか行の文言からは分からない。
+
+**どう変えるべきか**: 48.6 を `Start filer.exe from each folder` にする。両方で押すのは
+数十秒で、**混ざった zip（48.3 が探している不具合）が「起動はしてペインでおかしくなる」
+形で出るのは、まさにここ**なので、両方見るほうが行の趣旨にも合う。
+
+**なぜ**: 行の文言と順番表が食い違っていると、レーンごとの読み替えを覚えた人にしか
+正しく押せない。この run は両方押したが、それは順番表を読んだからで、行からは読めない。
+
+**大きさ**: 1 行。この役割は TESTING.md の文言を直さないので提案にとどめる。
+
+#### 提案 3: リリースを機械で検算するスクリプトを `scripts/` に置く
+
+**踏んだこと**: 48.1 / 48.2 / 48.3 / 48.5 は全部「落として、展開して、並べて、比べる」で、
+この run では **PowerShell を都度書いた**（ハッシュ表の照合だけで 20 行ほど。表は
+`| \`path\` | bytes | \`hash\` |` という形なので正規表現で取れる）。`scripts/release-sums.sh` は
+**表を作る側**しか無く、**読んで検算する側が無い。**
+
+**どう変えるべきか**: `scripts/verify-release.ps1 -Tag v0.64.2` を足す。やることは
+(1) `gh release view` で本文とアセットを取る、(2) Windows の zip を 2 つ落とす、
+(3) 展開して中身を数える、(4) `--version` と PE machine を読む、(5) 本文の表と
+ハッシュ・バイト数を突き合わせる、(6) 行ごとに `OK` / `MISMATCH` を出して終了コードに
+する。48 節の 6 行のうち **5 行がこれ 1 本**になる（48.6 は filer を起動するので別）。
+
+**なぜ**: いまの 48 節は「人が 10 個のハッシュを目で比べる」作業で、**比べ間違いが
+静かに通る**。リリースのたびに回せる形にしておけば、`sums` ジョブが落ちた
+（v0.64.2 で実際に起きた）ような事故も、次のリリースで自動的に見つかる。
+人にとっても「落としたものが CI の build か」を確かめる手順になる。
+
+**大きさ**: スクリプト 1 本、60〜80 行。この run で書いた断片がそのまま種になる。
