@@ -319,11 +319,18 @@ pub fn expand(input: &str) -> PathBuf {
 
 /// Absolutize relative to `base`, then normalize.
 pub fn resolve_against(base: &Path, input: &str) -> PathBuf {
-    let p = expand(input);
+    resolve_path(base, &expand(input))
+}
+
+/// `p` made absolute against `base`, and normalized: what [`resolve_against`]
+/// does after expanding `~`, for a path that arrived as a path -- the one on
+/// the command line, which used to stay relative and leave a tab with no
+/// parent to go up to (#126).
+pub fn resolve_path(base: &Path, p: &Path) -> PathBuf {
     // `\\host` has a root but no prefix, so `is_absolute` says no; joining it
     // onto the base would quietly turn it into `<drive>\host`.
-    if p.is_absolute() || has_windows_prefix(&p) || host_only_unc(&p) {
-        normalize(&p)
+    if p.is_absolute() || has_windows_prefix(p) || host_only_unc(p) {
+        normalize(p)
     } else {
         normalize(&base.join(p))
     }
@@ -500,6 +507,18 @@ pub fn test_dir(what: &str) -> std::path::PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #126: a path from the command line is made absolute against where filer
+    /// started, so the tab has a parent; an absolute one stays as it is.
+    #[test]
+    fn a_relative_start_path_becomes_absolute() {
+        let base = std::env::temp_dir().join("scratch");
+        assert_eq!(resolve_path(&base, Path::new("t137")), base.join("t137"));
+        assert_eq!(resolve_path(&base, Path::new(".")), base);
+        assert_eq!(resolve_path(&base, Path::new("..")), std::env::temp_dir());
+        let abs = std::env::temp_dir().join("elsewhere");
+        assert_eq!(resolve_path(&base, &abs), abs);
+    }
 
     /// The property the helper exists for: two tests never share a directory,
     /// however carelessly it is called. These two ask for the same label and

@@ -668,11 +668,9 @@ In `awkward names\`.
 24.1 and 24.3 are automated (`ui::awkward_names`, three tests): a CJK name reaches the row as
 itself and every character of it gets a glyph, and two names differing only in case stay two rows
 with their case kept. What is left for an eye in 24.1 is the column arithmetic -- that the glyphs
-are two cells wide and the rows line up. **24.2 is half checked**: the harness now reads the
-characters that were drawn rather than the ones handed to the layout, so "the long name is cut down
-to its column" is asserted — but *where* the `…` lands is not, because the code cuts the **end** and
-loses the extension, which is not what this row asks for. The row stays until that is settled
-(QA-REPORT.md). 24.4 needs the terminal pane, which is `#[cfg(windows)]`; the quoting it is really
+are two cells wide and the rows line up. 24.2 is asserted by the harness (the long name is cut down
+to its column and still ends in `name.txt`) since v0.57.0 cuts in the middle of the stem (Q34); the
+ARM64 machine read the same on screen (#126). 24.4 needs the terminal pane, which is `#[cfg(windows)]`; the quoting it is really
 about is `terminal::tests::a_path_reaches_the_shell_as_one_word`, over the same `'` the fixture
 has. 24.5 needs the recycle bin.
 
@@ -720,6 +718,7 @@ Run from a shell, not from inside the app.
 | 25.21 | `filer env` (v0.58.1) | An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone |
 | 25.22 | `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `FILER_PTY_LOG` set (v0.59.0) | The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `filer --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>` |
 | 25.23 | Open the pane, `<C-S-Enter>`, close filer, then `filer env` (v0.59.4) | A `Terminal pane` row under `Last run` gives the grid as `N x M (lines x columns)`, the size it last had. After a run that never opened the pane: `not opened in that run` |
+| 25.24 | From a shell in some folder, `filer .`, then `filer ..`, then `filer two words` unquoted (v0.59.5) | `.` opens that folder with its **absolute** path in the title and a parent column, and `h` goes up; `..` opens the one above. The unquoted pair is refused before any window: `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` |
 
 ## 26. Bug report from inside the app (v0.11.0)
 
