@@ -332,22 +332,7 @@ fn install_fonts(
     used: &mut crate::runinfo::RunInfo,
 ) -> (bool, bool) {
     let mut candidates: Vec<PathBuf> = cfg.ui.fonts.iter().map(PathBuf::from).collect();
-    if let Some(local) = dirs::data_local_dir() {
-        let user_fonts = local.join("Microsoft").join("Windows").join("Fonts");
-        for name in [
-            "HackGen35ConsoleNF-Regular.ttf",
-            "HackGenConsoleNF-Regular.ttf",
-            "HackGen35Console-Regular.ttf",
-            "FiraCodeNerdFont-Regular.ttf",
-            "CaskaydiaCoveNerdFont-Regular.ttf",
-            "JetBrainsMonoNerdFont-Regular.ttf",
-        ] {
-            candidates.push(user_fonts.join(name));
-        }
-    }
-    for name in ["meiryo.ttc", "YuGothM.ttc", "YuGothR.ttc", "msgothic.ttc", "consola.ttf"] {
-        candidates.push(PathBuf::from(r"C:\Windows\Fonts").join(name));
-    }
+    candidates.extend(system_fonts());
 
     let mut fonts = egui::FontDefinitions::default();
     let mut installed: Vec<String> = Vec::new();
@@ -377,6 +362,20 @@ fn install_fonts(
             list.insert(i, name.clone());
         }
     }
+    // A Japanese face for what the faces above cannot draw, behind them and
+    // egui's own monospace: Noto Sans CJK in front made every ASCII name
+    // proportional, and the columns stopped lining up.
+    for path in fallback_fonts() {
+        let name = font_stem(&path);
+        if installed.contains(&name) || !load_face(&mut fonts, &path, &name) {
+            continue;
+        }
+        for family in [egui::FontFamily::Monospace, egui::FontFamily::Proportional] {
+            fonts.families.entry(family).or_default().push(name.clone());
+        }
+        loaded.push(path);
+        break;
+    }
 
     used.fonts = loaded.clone();
 
@@ -386,9 +385,7 @@ fn install_fonts(
     for path in &loaded {
         bold_candidates.extend(bold_siblings(path));
     }
-    for name in ["meiryob.ttc", "YuGothB.ttc", "consolab.ttf"] {
-        bold_candidates.push(PathBuf::from(r"C:\Windows\Fonts").join(name));
-    }
+    bold_candidates.extend(system_bold_fonts());
     let mut bold: Vec<String> = Vec::new();
     let mut bold_used: Vec<PathBuf> = Vec::new();
     for path in bold_candidates {
@@ -419,6 +416,81 @@ fn install_fonts(
     (has_nerd, has_bold)
 }
 
+/// The user's Nerd Fonts, where each platform keeps a user's fonts.
+const NERD_FONTS: [&str; 6] = [
+    "HackGen35ConsoleNF-Regular.ttf",
+    "HackGenConsoleNF-Regular.ttf",
+    "HackGen35Console-Regular.ttf",
+    "FiraCodeNerdFont-Regular.ttf",
+    "CaskaydiaCoveNerdFont-Regular.ttf",
+    "JetBrainsMonoNerdFont-Regular.ttf",
+];
+
+/// Where to look for faces, in order: the user's Nerd Fonts, then Windows'
+/// own. The faces found here go in front of egui's.
+fn system_fonts() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    // `font_dir` is `~/.local/share/fonts` on Linux and `~/Library/Fonts` on
+    // macOS; Windows has none, and keeps a user's fonts under LOCALAPPDATA.
+    let user = dirs::font_dir()
+        .or_else(|| dirs::data_local_dir().map(|d| d.join("Microsoft").join("Windows").join("Fonts")));
+    if let Some(dir) = user {
+        out.extend(NERD_FONTS.iter().map(|n| dir.join(n)));
+    }
+    if cfg!(windows) {
+        for name in ["meiryo.ttc", "YuGothM.ttc", "YuGothR.ttc", "msgothic.ttc", "consola.ttf"] {
+            out.push(PathBuf::from(r"C:\Windows\Fonts").join(name));
+        }
+    }
+    out
+}
+
+/// A system face that covers Japanese on Linux and macOS, used only for what
+/// the faces in front cannot draw. Only Windows' folders were searched before,
+/// so on Linux a Japanese name was a row of boxes even with Noto CJK installed
+/// (the Linux lane's first screenshot). Plain paths rather than fontconfig,
+/// which would be a C dependency for one lookup.
+fn fallback_fonts() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if cfg!(windows) {
+        // Meiryo and friends are in `system_fonts`, in front, as they were.
+    } else if cfg!(target_os = "macos") {
+        for p in [
+            "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        ] {
+            out.push(PathBuf::from(p));
+        }
+    } else {
+        // Debian and Ubuntu, Arch, Fedora; then IPA and Droid, which older
+        // or smaller installs carry instead of Noto.
+        for p in [
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf",
+            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+        ] {
+            out.push(PathBuf::from(p));
+        }
+    }
+    out
+}
+
+/// The stock bold faces, after the bold siblings of the faces in use.
+/// Windows' only: a CJK bold in front would draw ASCII bold proportional, the
+/// same trap as the regular face; elsewhere bold is overstruck instead.
+fn system_bold_fonts() -> Vec<PathBuf> {
+    match cfg!(windows) {
+        true => ["meiryob.ttc", "YuGothB.ttc", "consolab.ttf"]
+            .iter()
+            .map(|n| PathBuf::from(r"C:\Windows\Fonts").join(n))
+            .collect(),
+        false => Vec::new(),
+    }
+}
+
 fn font_stem(path: &std::path::Path) -> String {
     path.file_stem()
         .map(|s| s.to_string_lossy().into_owned())
@@ -439,8 +511,11 @@ fn bold_siblings(path: &std::path::Path) -> Vec<PathBuf> {
     let stem = font_stem(path);
     let ext = path.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
     let mut out = Vec::new();
-    if let Some(base) = stem.strip_suffix("-Regular") {
-        out.push(dir.join(format!("{base}-Bold.{ext}")));
+    match stem.strip_suffix("-Regular") {
+        Some(base) => out.push(dir.join(format!("{base}-Bold.{ext}"))),
+        // `DejaVuSansMono.ttf` beside `DejaVuSansMono-Bold.ttf`: many Linux
+        // faces name the regular weight with no suffix at all (#131).
+        None => out.push(dir.join(format!("{stem}-Bold.{ext}"))),
     }
     match stem.to_lowercase().as_str() {
         "meiryo" => out.push(dir.join("meiryob.ttc")),
@@ -895,6 +970,30 @@ fn _unused(app: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #131: the bold face is found beside a regular face with no `-Regular`.
+    #[test]
+    fn a_bold_sibling_without_regular_in_the_name() {
+        let dir = std::path::Path::new("/fonts");
+        assert!(bold_siblings(&dir.join("DejaVuSansMono.ttf")).contains(&dir.join("DejaVuSansMono-Bold.ttf")));
+        assert!(bold_siblings(&dir.join("LiberationMono-Regular.ttf")).contains(&dir.join("LiberationMono-Bold.ttf")));
+    }
+
+    /// The Linux lane's first screenshot: Japanese names were boxes, because
+    /// only Windows' font folders were searched. Each platform now names its
+    /// own Japanese face.
+    #[test]
+    fn each_platform_looks_for_a_japanese_face() {
+        let all: Vec<PathBuf> = system_fonts().into_iter().chain(fallback_fonts()).collect();
+        let want = if cfg!(windows) {
+            r"C:\Windows\Fonts\meiryo.ttc"
+        } else if cfg!(target_os = "macos") {
+            "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc"
+        } else {
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+        };
+        assert!(all.iter().any(|p| p == std::path::Path::new(want)), "{all:?}");
+    }
 
     /// #126: one path, and a second refused with the likely reason rather than
     /// quietly taking the first one's place.

@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**220 / 428 済み。**（TESTING.md の全 597 件のうち、`cargo test` が見ている 169 件は
+**220 / 430 済み。**（TESTING.md の全 599 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -198,7 +198,7 @@ cd $HOME\Desktop\filer-fixtures
 
 `cargo test` が全部見ているので、押すものはありません。
 
-## 12. undo と redo — 7 / 12
+## 12. undo と redo — 7 / 14
 
 自動テスト済みなので下には出していない: 12.6, 12.7
 
@@ -214,6 +214,8 @@ cd $HOME\Desktop\filer-fixtures
 - [ ] **12.12** ロックされたファイルが無い状態で `d` → 以前のまま。そしてエクスプローラー自身の取り消し履歴に**項目が 1 つだけ**残る（まとめて渡す呼び出しが通常の経路であることの確認） — *`d` with nothing locked → Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path*
 - [ ] **12.13** 1 つのファイルで `d`、続けて 2 つで `d`（v0.57.3）→ そのたびにトーストが出る: `Trashed <名前> — u to undo`、次に `Trashed 2 item(s) — u to undo`。v0.57.3 まで `d` は何も言わず、`D` と見分けがつかなかった — *`d` on one file, then on two (v0.57.3) → A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D`*
 - [ ] **12.14** 5 つのファイルで `d` し、走っている間に `w`（v0.58.1）→ 行は `Trash 5 item(s)  [running]`（動詞は **1 回**）、その下の行は `0/5 files` で、`0 B / 0 B` は出ない — *`d` on five files, and `w` while it runs (v0.58.1) → The row reads `Trash 5 item(s)  [running]` -- the verb **once** -- and the line under it `0/5 files`, with no `0 B / 0 B`*
+- [ ] **12.15** 12.10 と同じく、5 件のうち 1 件を別のプログラムで開いたまま 5 件を `d`、続けて `u`（v0.59.7）→ エラーが開いているファイルを `it is open in another program` と名指しし、`u` で入った **4 件**が戻る。v0.59.7 までは `Some operations were aborted` とだけ言い、`u` は `Nothing to undo` だった — *As 12.10 -- one file of five held open elsewhere, `d` on all five -- then `u` (v0.59.7) → The error names the held file with `it is open in another program`, and `u` brings back the **four** that went. Until v0.59.7 the error said only `Some operations were aborted` and `u` said `Nothing to undo`*
+- [ ] **12.16** 12.9 をもう一度: ファイルを `d`、同じ名前のファイルを新しく作り、`u`（v0.59.7）→ エラーが `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` ではなく `a file by that name is already there. Move it away and press u again` と言う。新しいファイルをどけてからの `u` は通る — *12.9 again: `d` a file, make a new file by that name, then `u` (v0.59.7) → The error reads `a file by that name is already there. Move it away and press u again` -- not `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` -- and after moving the new file away, `u` works*
 
 ## 13. シンボリックリンクと `g`+`f` — 8 / 9
 
@@ -388,10 +390,10 @@ fsutil hardlink list <新しくできたパス>
 
 ## 25. `filer env` — 18 / 30
 
-- [x] **25.1** PowerShell から `filer env` → 4 つの節が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること** — *`filer env` from PowerShell → The four sections print. A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears***
+- [x] **25.1** PowerShell から `filer env` → 5 つの節（Filer、Config、Last run、Tools、Variables）が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること** — *`filer env` from PowerShell → The five sections print (Filer, Config, Last run, Tools, Variables). A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears***
 - [x] **25.2** Config の節 → 両方のディレクトリが出て、それぞれ中身か `nothing here` を述べ、`not here:` に残りが並ぶ — *The Config section → Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest*
 - [x] **25.3** `keymap.toml` にわざと打ち間違いを入れる → `Warnings` の下に警告が出て、複数行がそのキーの下に字下げされる — *With a deliberate typo in `keymap.toml` → The warning appears under `Warnings`, its several lines indented under the one key*
-- [ ] **25.4** Tools の節 → `pdftoppm` `ffmpeg` `ffprobe` `pwsh` `git` が並び、入っていれば版、無ければ `not found`。それぞれ何のためのものかも書かれている — *The Tools section → `pdftoppm`, `ffmpeg`, `ffprobe`, `pwsh`, `git` with versions where installed and `not found` where not, each naming what it is for*
+- [ ] **25.4** Tools の節 → `git` とその版、ペインが起動するシェル、`[[preview]]` の規則とオープナーが名指すプログラムが、それぞれパス（無ければ `not found`）と用途付きで並ぶ。filer が走らせないもの（`pdftoppm`、`ffmpeg`）は出ない — *The Tools section → `git` with its version, the shell the terminal pane starts, and every program a `[[preview]]` rule or an opener names -- each with its path (or `not found`) and what it is for. Nothing filer does not run (no `pdftoppm`, `ffmpeg`)*
 - [x] **25.4a** `[term] shell = "pwsh"` を設定した状態で → シェルとして `pwsh` が並ぶ。設定していなければ `powershell`。**実際に起動するほう**であって推測ではない — *With `[term] shell = "pwsh"` set (v0.29.1) → `pwsh` is the shell listed. Without it, `powershell` — the one that will actually launch, not a guess*
 - [x] **25.4b** オープナーを設定した状態で → 指定された各プログラムが、属するオープナーの種類とともに並ぶ（見つかったかどうかも） — *With openers configured → Each named program is listed with the opener kind it belongs to, found or not*
 - [x] **25.4c** **引用符付きのフルパス**を指定したオープナー（秀丸、サクラ）→ 最初の空白までではなく、パス全体が解決される — *An opener naming a **quoted full path** (秀丸, サクラ) → The whole path is resolved, not just up to the first space*
@@ -412,7 +414,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **25.16** ファイルのあるフォルダで `filer <フォルダ> --keys "<Tab>C"`、続けて `Get-Clipboard`（v0.54.0）→ 窓が開き、spot が勝手に先頭の行で開き、クリップボードにパネル全体が `ラベル<TAB>値` の行で入っている。`Name` と `Path` がその先頭の行を指している — *`filer <a folder with files> --keys "<Tab>C"`, then `Get-Clipboard` (v0.54.0) → The window opens, spot opens on the first row by itself, and the clipboard holds the whole panel as `Label<TAB>value` lines — `Name` and `Path` naming that first row*
 - [ ] **25.17** `filer --keys "<Tab"` と `filer --keys "<Bogus>"` → **窓は開かない。**問題を言う 1 行（`has no closing >` / `is not a key`）と、終了コード 2 — *`filer --keys "<Tab"` and `filer --keys "<Bogus>"` → **No window**: one line naming the problem (`has no closing >` / `is not a key`), exit code 2*
 - [ ] **25.18** release ビルドで `filer env \| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c "filer env > out2.txt"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた） — *Release build: `filer env \| Out-File out.txt`, then `Get-Content out.txt`; and `cmd /c "filer env > out2.txt"` (v0.54.4) → The whole report is **in both files**, and nothing is printed on screen. Before v0.54.4 both were empty. (PowerShell's own `filer env > out.txt` still gives an empty file: PowerShell does not connect a windowed program's output to a file. README says so)*
-- [ ] **25.19** `filer env \| Select-String arch` → **arch の 2 行だけ**が出る（レポート全体ではない）。`$v = & filer env; $v.Count` はレポートの行数で、0 ではない — *`filer env \| Select-String arch` → **Only the two arch lines**, not the whole report. `$v = & filer env; $v.Count` is the report's line count, not 0*
+- [ ] **25.19** `filer env \| Select-String arch` → **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない）。`$v = & filer env; $v.Count` はレポートの行数で、0 ではない — *`filer env \| Select-String arch` → **Only the two arch lines** (Windows; elsewhere there is one, `Process arch`), not the whole report. `$v = & filer env; $v.Count` is the report's line count, not 0*
 - [ ] **25.20** 何もリダイレクトせずに `filer env` と `filer --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない — *`filer env` with nothing redirected, and `filer --version` → Still printed on screen, as 25.1 has it — the console path is unchanged*
 - [ ] **25.21** `filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ — *`filer env` (v0.58.1) → An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone*
 - [ ] **25.22** `FILER_PTY_LOG` を設定して `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"`（v0.59.0）→ `echo` が届く前にシェルのプロンプトが出ている（ログの `out` の行が `in key` の行より前）、`hi` が表示され、1 秒後にペインが窓を取る。`filer --keys "<Wait:1.5s>"` はコマンド行で断られ、`<Wait:500>` と書き方を示す — *`filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `FILER_PTY_LOG` set (v0.59.0) → The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `filer --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>`*

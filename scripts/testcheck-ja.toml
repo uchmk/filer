@@ -376,6 +376,8 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "12.10" = '別のプログラムで開いてロックされたファイルを、**他の数件と一緒に**選んで `d` → 他は消える。メッセージが**消えなかったファイルの名前を挙げ**、タスクパネルの件数も実際に消えた数と合う（v0.27.1 まで `Trash: trash: Error … Some operations were aborted` と名前を挙げずに言い、全件成功として数えていた）'
 "12.13" = '1 つのファイルで `d`、続けて 2 つで `d`（v0.57.3）→ そのたびにトーストが出る: `Trashed <名前> — u to undo`、次に `Trashed 2 item(s) — u to undo`。v0.57.3 まで `d` は何も言わず、`D` と見分けがつかなかった'
 "12.14" = '5 つのファイルで `d` し、走っている間に `w`（v0.58.1）→ 行は `Trash 5 item(s)  [running]`（動詞は **1 回**）、その下の行は `0/5 files` で、`0 B / 0 B` は出ない'
+'12.15' = '''12.10 と同じく、5 件のうち 1 件を別のプログラムで開いたまま 5 件を `d`、続けて `u`（v0.59.7）→ エラーが開いているファイルを `it is open in another program` と名指しし、`u` で入った **4 件**が戻る。v0.59.7 までは `Some operations were aborted` とだけ言い、`u` は `Nothing to undo` だった'''
+'12.16' = '''12.9 をもう一度: ファイルを `d`、同じ名前のファイルを新しく作り、`u`（v0.59.7）→ エラーが `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` ではなく `a file by that name is already there. Move it away and press u again` と言う。新しいファイルをどけてからの `u` は通る'''
 "12.11" = 'ごみ箱を無効にしたドライブで `d` → 同じ形のメッセージが、ファイル名を挙げて出る'
 
 # 16. Word / Excel / PowerPoint
@@ -472,10 +474,10 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 '24.6' = '''新しいフォルダで `scripts\make-fixtures.ps1` を走らせる（v0.59.1）→ 警告は出ない。ただし普通の（大文字小文字を区別しない）NTFS のフォルダでは `awkward names: 5 entries on disk, expected 6` が出て、`fsutil file setCaseSensitiveInfo` を挙げる（24.3 がそこで押せない理由）'''
 
 # 25. filer env
-"25.1" = 'PowerShell から `filer env` → 4 つの節が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること**'
+"25.1" = 'PowerShell から `filer env` → 5 つの節（Filer、Config、Last run、Tools、Variables）が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること**'
 "25.2" = 'Config の節 → 両方のディレクトリが出て、それぞれ中身か `nothing here` を述べ、`not here:` に残りが並ぶ'
 "25.3" = '`keymap.toml` にわざと打ち間違いを入れる → `Warnings` の下に警告が出て、複数行がそのキーの下に字下げされる'
-"25.4" = 'Tools の節 → `pdftoppm` `ffmpeg` `ffprobe` `pwsh` `git` が並び、入っていれば版、無ければ `not found`。それぞれ何のためのものかも書かれている'
+"25.4" = 'Tools の節 → `git` とその版、ペインが起動するシェル、`[[preview]]` の規則とオープナーが名指すプログラムが、それぞれパス（無ければ `not found`）と用途付きで並ぶ。filer が走らせないもの（`pdftoppm`、`ffmpeg`）は出ない'
 "25.4a" = '`[term] shell = "pwsh"` を設定した状態で → シェルとして `pwsh` が並ぶ。設定していなければ `powershell`。**実際に起動するほう**であって推測ではない'
 "25.4b" = 'オープナーを設定した状態で → 指定された各プログラムが、属するオープナーの種類とともに並ぶ（見つかったかどうかも）'
 "25.4c" = '**引用符付きのフルパス**を指定したオープナー（秀丸、サクラ）→ 最初の空白までではなく、パス全体が解決される'
@@ -496,7 +498,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "25.16" = "ファイルのあるフォルダで `filer <フォルダ> --keys \"<Tab>C\"`、続けて `Get-Clipboard`（v0.54.0）→ 窓が開き、spot が勝手に先頭の行で開き、クリップボードにパネル全体が `ラベル<TAB>値` の行で入っている。`Name` と `Path` がその先頭の行を指している"
 "25.17" = "`filer --keys \"<Tab\"` と `filer --keys \"<Bogus>\"` → **窓は開かない。**問題を言う 1 行（`has no closing >` / `is not a key`）と、終了コード 2"
 "25.18" = "release ビルドで `filer env \\| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c \"filer env > out2.txt\"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた）"
-"25.19" = "`filer env \\| Select-String arch` → **arch の 2 行だけ**が出る（レポート全体ではない）。`$v = & filer env; $v.Count` はレポートの行数で、0 ではない"
+"25.19" = "`filer env \\| Select-String arch` → **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない）。`$v = & filer env; $v.Count` はレポートの行数で、0 ではない"
 "25.21" = '`filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ'
 '25.23' = '''ペインを開いて `<C-S-Enter>`、filer を閉じてから `filer env`（v0.59.4）→ `Last run` の下に `Terminal pane` の行があり、最後の大きさを `N x M (lines x columns)` で出す。ペインを一度も開かなかった run の後は `not opened in that run`'''
 '25.24' = '''どこかのフォルダのシェルから `filer .`、次に `filer ..`、次に引用符なしで `filer two words`（v0.59.5）→ `.` はそのフォルダを開き、タイトルが**絶対**パスで親の列があり、`h` で上がれる。`..` は 1 つ上を開く。引用符なしの 2 語は窓を開く前に `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` と断られる'''

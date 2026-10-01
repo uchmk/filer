@@ -162,8 +162,11 @@ fn link(path: &Path) -> Option<Section> {
 fn hard_links(path: &Path) -> (u64, Vec<String>) {
     use std::os::unix::fs::MetadataExt;
     // Unix counts them but cannot name them: finding the other entries would
-    // mean walking the filesystem for a matching inode.
-    (std::fs::symlink_metadata(path).map_or(1, |m| m.nlink()), Vec::new())
+    // mean walking the filesystem for a matching inode. A directory's count is
+    // its `.` and its subdirectories' `..`, never a hardlink, and read as one
+    // every folder came out `Kind: Hardlink, Links: 2` (#131).
+    let n = std::fs::symlink_metadata(path).map_or(1, |m| if m.is_dir() { 1 } else { m.nlink() });
+    (n, Vec::new())
 }
 
 #[cfg(windows)]
@@ -778,6 +781,16 @@ impl Spotter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #131: a folder's link count is its subfolders, not hardlinks, so a plain
+    /// folder gets no Link section at all.
+    #[cfg(unix)]
+    #[test]
+    fn a_folder_is_not_a_hardlink() {
+        let dir = crate::util::test_dir("spot-folder-links");
+        std::fs::create_dir_all(dir.join("a").join("b")).unwrap();
+        assert!(link(&dir.join("a")).is_none(), "a plain folder with a subfolder");
+    }
 
 
 

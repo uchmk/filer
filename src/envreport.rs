@@ -117,7 +117,7 @@ fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
 
     let shell = match cfg.term.shell.is_empty() {
         false => cfg.term.shell.clone(),
-        true => crate::terminal::default_shell().unwrap_or_else(|| DEFAULT_SHELL.to_string()),
+        true => crate::terminal::default_program(),
     };
     let what = match cfg.term.shell.is_empty() {
         false => "terminal pane, from [term] shell",
@@ -154,11 +154,6 @@ fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
     }
     rows
 }
-
-#[cfg(windows)]
-const DEFAULT_SHELL: &str = "powershell";
-#[cfg(not(windows))]
-const DEFAULT_SHELL: &str = "sh";
 
 fn row(exe: &str, flag: &str, what: &str) -> (String, String) {
     let said = match probe(exe, flag) {
