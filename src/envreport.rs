@@ -288,6 +288,12 @@ fn last_run() -> Vec<(String, String)> {
             [0, _] | [_, 0] => "not opened in that run".into(),
             [lines, cols] => format!("{lines} x {cols} (lines x columns)"),
         }),
+        // What was launched, as the command lines filer built (Q40): an opener
+        // that ran the wrong thing is visible here after the toast has gone.
+        ("Launched".into(), match info.launched.is_empty() {
+            true => "nothing in that run".into(),
+            false => info.launched.join("\n"),
+        }),
         ("Fonts".into(), list(&info.fonts, "none loaded — this is why icons are boxes")),
         ("Bold".into(), list(&info.bold, "none found; bold is faked by overstriking")),
     ];

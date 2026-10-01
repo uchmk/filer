@@ -502,6 +502,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "25.21" = '`filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ'
 '25.23' = '''ペインを開いて `<C-S-Enter>`、filer を閉じてから `filer env`（v0.59.4）→ `Last run` の下に `Terminal pane` の行があり、最後の大きさを `N x M (lines x columns)` で出す。ペインを一度も開かなかった run の後は `not opened in that run`'''
 '25.24' = '''どこかのフォルダのシェルから `filer .`、次に `filer ..`、次に引用符なしで `filer two words`（v0.59.5）→ `.` はそのフォルダを開き、タイトルが**絶対**パスで親の列があり、`h` で上がれる。`..` は 1 つ上を開く。引用符なしの 2 語は窓を開く前に `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` と断られる'''
+'25.25' = '''オープナーでファイルを開き（`<Enter>` か `<S-Enter>`）、`;` のシェルを 1 つ走らせ、filer を閉じてから `filer env`（v0.59.9）→ `Last run` の下の `Launched` の行に、filer が組み立てたとおりのコマンド行が 2 つ、新しいものが後で、最大 5 つ並ぶ。何も起動しなかった run の後は `nothing in that run`'''
 '25.22' = '''`FILER_PTY_LOG` を設定して `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"`（v0.59.0）→ `echo` が届く前にシェルのプロンプトが出ている（ログの `out` の行が `in key` の行より前）、`hi` が表示され、1 秒後にペインが窓を取る。`filer --keys "<Wait:1.5s>"` はコマンド行で断られ、`<Wait:500>` と書き方を示す'''
 "25.20" = "何もリダイレクトせずに `filer env` と `filer --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない"
 
