@@ -993,6 +993,8 @@ pub struct App {
     pub list_scroll_rows: f32,
     /// What the terminal was last searched for, so the key repeats it.
     term_needle: String,
+    /// The shell the pane started, as its first toast named it.
+    term_shell: String,
     /// A file to put the cursor on when its directory is next read, ahead of
     /// whatever was hovered: an archive that did not exist a moment ago, so
     /// the listing that is on screen cannot select it yet (Q25). Spent by the
@@ -1146,6 +1148,7 @@ impl App {
             preview_scroll_rows: 0.0,
             list_scroll_rows: 0.0,
             term_needle: String::new(),
+            term_shell: String::new(),
             land_on: None,
             cd_refused: None,
             drag: None,
@@ -1250,6 +1253,15 @@ impl App {
 
     pub fn error(&mut self, text: impl Into<String>) {
         self.raise(text.into(), Level::Error);
+    }
+
+    /// A toast that supersedes the others of its family -- those starting
+    /// with `family` -- rather than standing beside them. `At the last
+    /// difference` and `At the first difference` side by side contradicted
+    /// each other; the newer is the true one.
+    fn toast_instead(&mut self, family: &[&str], text: String) {
+        self.toasts.retain(|t| t.text == text || !family.iter().any(|f| t.text.starts_with(f)));
+        self.toast(text);
     }
 
     /// Put a line up, or tick the one already saying it.
@@ -2757,7 +2769,7 @@ impl App {
                 crate::config::cmd::ScaleTo::Out if next <= 0.2 => " (minimum)",
                 _ => "",
             };
-            self.toast(format!("Scale {}%{end}", (next * 100.0).round() as i32));
+            self.toast_instead(&["Scale "], format!("Scale {}%{end}", (next * 100.0).round() as i32));
     }
 
     /// Move the current tab along the bar.
@@ -3903,7 +3915,7 @@ impl App {
                     let now = ov.shown();
                     ov.cursor = now.iter().position(|&i| i >= at).unwrap_or(now.len().saturating_sub(1));
                     let what = if ov.hide_same { "Hiding matching rows" } else { "Showing matching rows" };
-                    self.toast(what);
+                    self.toast_instead(&["Hiding matching rows", "Showing matching rows"], what.into());
                 }
                 Act::Arrow(step) if len > 0 => ov.cursor = step.apply(ov.cursor, len, page),
                 Act::FindArrow { prev } if len > 0 => {
@@ -3917,7 +3929,7 @@ impl App {
                         Some(at) => ov.cursor = at,
                         None => {
                             let word = if prev { "first" } else { "last" };
-                            self.toast(format!("At the {word} difference"));
+                            self.toast_instead(&["At the "], format!("At the {word} difference"));
                         }
                     }
                 }
@@ -3946,7 +3958,7 @@ impl App {
                     Some(at) => ov.offset = at,
                     None => {
                         let word = if prev { "first" } else { "last" };
-                        self.toast(format!("At the {word} difference"));
+                        self.toast_instead(&["At the "], format!("At the {word} difference"));
                     }
                 }
             }
@@ -4317,6 +4329,7 @@ impl App {
                 self.term = Some(t);
                 self.term_focus = true;
                 self.toast(format!("Started {label} — <C-t> back to the list"));
+                self.term_shell = label;
             }
             Err(e) => self.error(format!("Terminal failed: {e}")),
         }
@@ -4432,10 +4445,8 @@ impl App {
             // actually run. The hook that does not is named here; the line to
             // paste is in the README, because a toast does not wrap and a
             // PowerShell one-liner is wider than any window.
-            self.error(
-                "The shell has not said where it is (no OSC 7). PowerShell: set \
-                 LocationChangedAction in $PROFILE — the line is in the README",
-            );
+            let said = no_osc7(&self.term_shell);
+            self.error(said);
             return;
         };
         if cwd == self.tabs[self.active].cwd {
@@ -6325,6 +6336,18 @@ mod diff_tree_keys {
     }
 }
 
+/// What `<A-Up>` says when the shell has never reported its directory. The
+/// shell is named, because the hook goes in *that* shell's profile: Windows
+/// PowerShell 5.1 and PowerShell 7 read different ones, and someone running
+/// 5.1 was sent to the same README line again and again (#101).
+fn no_osc7(shell: &str) -> String {
+    let who = if shell.is_empty() { "The shell".to_owned() } else { format!("`{shell}`") };
+    format!(
+        "{who} has not said where it is (no OSC 7). PowerShell: set LocationChangedAction in \
+         that shell's $PROFILE — the line is in the README"
+    )
+}
+
 /// The web page behind one row of spot's Git section. `From branch` sat
 /// between two rows that opened and was the one that did nothing (#119); its
 /// page is built from the pull request's, which already carries the
@@ -6340,6 +6363,18 @@ fn page_for(rows: &[(String, String)], key: &str) -> Option<String> {
             Some(format!("{repo}/tree/{branch}"))
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod no_osc7_message {
+    /// #101: the toast names the shell whose profile the hook belongs in.
+    #[test]
+    fn it_names_the_shell() {
+        let said = super::no_osc7("powershell (Windows PowerShell 5.1)");
+        assert!(said.starts_with("`powershell (Windows PowerShell 5.1)` has not said where it is"), "{said}");
+        assert!(said.contains("that shell's $PROFILE"), "{said}");
+        assert!(super::no_osc7("").starts_with("The shell has not said"));
     }
 }
 
@@ -7521,6 +7556,8 @@ mod said_out_loud {
         assert!(a.toasts.iter().any(|t| t.text == "Scale 20% (minimum)"));
         a.act(Act::Scale(ScaleTo::Reset));
         assert!(a.toasts.iter().any(|t| t.text == "Scale 100%"));
+        // One at a time: each step replaces the last rather than stacking.
+        assert_eq!(a.toasts.iter().filter(|t| t.text.starts_with("Scale ")).count(), 1);
     }
 
     /// #107: one failed jump, one toast. The parent columns it asked for fail

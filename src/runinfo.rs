@@ -56,6 +56,12 @@ pub struct RunInfo {
     pub window_pt: [f32; 2],
     /// Pixels per point, as egui had it for the frame this was written on.
     pub ppp: f32,
+    /// The terminal pane's grid as `[lines, columns]`, the last time the run
+    /// drew it; `[0, 0]` if the pane was never opened. Section 1 of
+    /// TESTING.md makes claims about this number that only the shell could
+    /// answer (#107). Defaulted, so a record from before it still loads.
+    #[serde(default)]
+    pub pane: [usize; 2],
 }
 
 impl RunInfo {
@@ -138,6 +144,14 @@ mod tests {
         assert_eq!(at(1000.0, 500.0, 1.25).as_deref(), Some("1250 x 625 px (1000 x 500 pt @ 1.25)"));
     }
 
+    /// A record written before `pane` existed still loads, with no pane.
+    #[test]
+    fn an_older_record_still_loads() {
+        let old = "version = \"0.58.0\"\nadapter = \"\"\nbackend = \"\"\ndevice = \"\"\nfonts = []\nbold = []\nwindow_pt = [1.0, 1.0]\nppp = 1.0\n";
+        let info: RunInfo = toml::from_str(old).expect("loads");
+        assert_eq!(info.pane, [0, 0]);
+    }
+
     /// Before the first frame there is no window, and the row says so rather
     /// than printing zeroes that read as a measurement.
     #[test]
@@ -168,6 +182,7 @@ mod tests {
             bold: Vec::new(),
             window_pt: [1360.0, 860.0],
             ppp: 1.5,
+            pane: [12, 159],
         };
         save_to(&p, &info);
         assert_eq!(load_from(&p).as_ref(), Some(&info));
