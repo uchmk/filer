@@ -248,21 +248,35 @@ fn slide_number(name: &str) -> u32 {
 
 // ----------------------------------------------------------------- text
 
-/// Every `<...:t>` run in a part, joined.
+/// Every `t` element in a part -- `<w:t>`, `<a:t>`, `<t>` -- joined.
 ///
 /// Word and PowerPoint both put the readable text in `t` elements and
 /// everything else in attributes, so a scan for those is the whole job.
+///
+/// By the element's name, attributes and all. This searched for the text
+/// `:t>`, which an opening tag with an attribute never contains, so every
+/// `<w:t xml:space="preserve">` was dropped whole: Word puts one on any run
+/// that starts or ends with a space -- the run either side of a bold word --
+/// and Excel on any string with a space at either end, whose cell then
+/// previewed as empty (#165).
 fn text_of(xml: &str) -> String {
     let mut out = String::new();
     let mut rest = xml;
-    while let Some(at) = rest.find(":t>").or_else(|| rest.find("<t>")) {
-        // Step over the tag: `<w:t>` and `<a:t>` both end at the `>` found.
-        let after = &rest[at..];
-        let Some(gt) = after.find('>') else { break };
-        let body = &after[gt + 1..];
-        let Some(end) = body.find("</") else { break };
-        out.push_str(&unescape(&body[..end]));
-        rest = &body[end..];
+    while let Some(lt) = rest.find('<') {
+        let tag = &rest[lt + 1..];
+        let Some(gt) = tag.find('>') else { break };
+        let head = &tag[..gt];
+        rest = &tag[gt + 1..];
+        // `<w:tab/>` and `<w:tbl>` are other elements; `</w:t>` and `<w:t/>`
+        // hold nothing.
+        let name = head.split(|c: char| c.is_whitespace()).next().unwrap_or("");
+        let is_t = name == "t" || name.ends_with(":t");
+        if !is_t || head.starts_with('/') || head.ends_with('/') {
+            continue;
+        }
+        let Some(end) = rest.find("</") else { break };
+        out.push_str(&unescape(&rest[..end]));
+        rest = &rest[end..];
     }
     out
 }
@@ -495,6 +509,21 @@ fn sheet_names(zip: &mut zip::ZipArchive<std::fs::File>) -> Vec<(String, String)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #165: a `t` with an attribute is read like one without. Word marks the
+    /// runs around a bold word `xml:space="preserve"`; Excel marks any string
+    /// with a space at either end.
+    #[test]
+    fn a_t_with_attributes_is_still_text() {
+        let word = r#"<w:p><w:r><w:t xml:space="preserve">This sentence has </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>bold</w:t></w:r><w:r><w:t xml:space="preserve"> and plain in one line.</w:t></w:r></w:p>"#;
+        assert_eq!(text_of(word), "This sentence has bold and plain in one line.");
+        let excel = r#"<si><t xml:space="preserve"> leading space</t></si>"#;
+        assert_eq!(text_of(excel), " leading space");
+        // Other elements whose names start with `t` are not text, and an
+        // empty `t` is nothing.
+        assert_eq!(text_of(r#"<w:r><w:tab/><w:t>a</w:t><w:t/></w:r><w:tbl><w:tr/></w:tbl>"#), "a");
+        assert_eq!(text_of(r#"<a:p><a:r><a:t>A &amp; B</a:t></a:r></a:p>"#), "A & B");
+    }
     use std::io::Write;
 
     /// Build a zip with the parts named, which is all these formats are.
