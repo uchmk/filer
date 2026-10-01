@@ -1355,3 +1355,15 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   1.37 は ConPTY が入力を溜めたので通ったが、待っている条件と消えない理由が別物。何を「プロンプトが出た」とするかは
   シェルごとに違う（要確認: Q39）。
 
+## Linux レーン（v0.59.6）
+
+- [x] クラウドのコンテナで Xvfb と lavapipe により filer が起動し、`--keys`・クリップボード・ペイン（bash）まで動くことを確かめた。
+  役割の定義（`.claude/linux-role.md`）、`TESTING-LINUX.md`（`make-testcheck --lane linux`）、`scripts/xrun.sh`、
+  `scripts/make-fixtures.sh` を足した。
+- [ ] 最初の 1 本を走らせる（順番表の先頭、25 節）。PR が来たら `merge-role.md` のとおりにマージする。
+- [ ] 定期実行の Routine にするか決める（今は手で `create_session` する）。Windows のレーンは 15 分おきの監視だが、
+  クラウドのセッションは走らせるたびに費用がかかる。
+- [ ] Linux で日本語の名前が □ になる（コンテナに CJK フォントが無いため。`fonts-noto-cjk` で直るかは未確認）。filer が
+  システムのフォントから CJK を拾っているかを、フォントを入れた状態で確かめる。
+- [ ] Wayland は確かめられない（コンテナに合成器が無い）。`weston --backend=headless` が apt で入るなら、それで試す。
+

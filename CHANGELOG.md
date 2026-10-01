@@ -9,6 +9,18 @@
 
 ## [未リリース]
 
+## [0.59.6] - 2026-10-01
+
+### 追加
+
+- **Linux レーン**（`.claude/linux-role.md`）。クラウドのセッションが、仮想ディスプレイ（Xvfb）と CPU 描画で filer を
+  Linux 上で起動し、`--keys` で押した結果をタイトル・クリップボード・ディスクで読んで確かめる。ブランチは `test/linux-*`、
+  マージは `.claude/merge-role.md` の側。
+- `TESTING-LINUX.md`: Linux レーンのチェック表。`cargo run --example make-testcheck -- --lane linux` が TESTING.md から
+  生成する。`[x]`（Linux で確かめた）のほかに `[-]`（Linux では対象外）を持ち、どちらも生成し直しても残る。CI が同期を見る。
+- `scripts/xrun.sh`（仮想ディスプレイで 1 回起動し、画面・窓のタイトル・クリップボードを残す）と、
+  `scripts/make-fixtures.sh`（`make-fixtures.ps1` の Linux 版。大文字小文字だけ違う 2 つの名前もここでは 2 つになる）。
+
 ## [0.59.5] - 2026-10-01
 
 ### 修正

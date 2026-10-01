@@ -270,6 +270,21 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   起こせる。チェックを付ける前に「**失敗していたら画面かディスクの何が違ったはずか**」を
   自問すること。「もっとよく見ていれば気づいた」なら、それは見た目の行。
 
+## Linux レーン（クラウドのセッション）
+
+クラウドのコンテナ（Ubuntu、x86_64）は画面が無いが、**Xvfb の仮想ディスプレイと CPU 描画（lavapipe）で filer を
+起動できる**（v0.59.6 で確認）。それを使って Linux での動作を確かめるのが Linux レーン。役割の定義は
+[.claude/linux-role.md](.claude/linux-role.md) に 1 か所だけ置いてある。
+
+- **チェック表は TESTING-LINUX.md**（`cargo run --example make-testcheck -- --lane linux` が生成）。TESTING.md と同じ行に、
+  Linux 用の印を別に付ける。`[x]` は Linux で確かめた、`[-]` は Linux では対象外（UNC、ConPTY、ごみ箱の Windows 側など）。
+  **TESTING-CHECKS.md と TESTING-KEYS.md は触らせない**（あちらの `[x]` は Windows 実機の印）。
+- 道具は `scripts/xrun.sh`（仮想ディスプレイで起動し、画面・タイトル・クリップボードを残す）と
+  `scripts/make-fixtures.sh`（`make-fixtures.ps1` の Linux 版）。`xdotool` などは `apt-get` で入る。
+- ブランチは `test/linux-*`。PR を開いたら止まり、マージ・版・CHANGELOG は `.claude/merge-role.md` の側がやる
+  （Windows の 2 レーンと同じ）。
+- **確かめられないもの**: Wayland、ARM64 Linux、macOS、速度と CPU（CPU 描画なので）、見た目（フォントが違う）。
+
 ## 確認事項（QUESTIONS.md）
 
 人の判断が要るときは、作業を止めて QUESTIONS.md に質問を書く。自動実行モードでも、対話中でも同じ。TODO.md には、どのタスクがどの質問で止まっているかだけを書く。

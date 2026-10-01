@@ -7,17 +7,20 @@ merge is also what starts that machine's next run (`scripts/auto-wintest.ps1`
 waits while one of its lane's is open), so a pull request left sitting stops
 the loop.
 
-There are two lanes, one per machine: `test/win-*` from the x64 machine and
-`test/arm-*` from the ARM64 laptop. Each has its own queue in
-`windows-role.md` -- "Where the work is" for `win`, "The ARM64 lane" for `arm`.
+There are three lanes: `test/win-*` from the x64 machine, `test/arm-*` from the
+ARM64 laptop, and `test/linux-*` from a cloud session running filer on a
+virtual X display (`.claude/linux-role.md`). The two Windows lanes have their
+queues in `windows-role.md` -- "Where the work is" for `win`, "The ARM64 lane"
+for `arm`; the Linux lane's is in `linux-role.md`, "Where the work is".
 
 Read [CLAUDE.md](../CLAUDE.md) first; its rules apply in full. Reply in Japanese;
 code, comments and commits in English. Nobody is watching: never wait for input.
 
 ## 1. Find the work
 
-- List open pull requests whose head branch starts with `test/win-` or
-  `test/arm-`. None: stop here and say so in one line. That is most runs.
+- List open pull requests whose head branch starts with `test/win-`,
+  `test/arm-` or `test/linux-`. None: stop here and say so in one line. That is
+  most runs.
 - **One per run, oldest first.** The next run takes the next one; two merged in
   one run conflict with each other at the end of QA-REPORT.md.
 
@@ -31,6 +34,9 @@ All of these, or it is not merged:
    `docs/`. Anything else -- `src/`, `Cargo.toml`, `CHANGELOG.md`, TESTING.md, or
    any other change to TESTING-KEYS.md -- and you do not merge: comment on the pull request naming
    the files, and add a line to QUESTIONS.md so the owner sees it.
+   **A `test/linux-*` pull request** may touch only `QA-REPORT.md`,
+   `TESTING-LINUX.md` and files under `docs/`. A Linux run that changed
+   TESTING-CHECKS.md or TESTING-KEYS.md claimed a Windows result: do not merge.
 2. **CI is green on its head**: `audit`, `clippy`, `smoke` and `test` all
    `success`. A pull request that only changes files in `ci.yml`'s
    `paths-ignore` (QA-REPORT.md, `.claude/**`, ...) runs `audit` alone, by
@@ -41,14 +47,17 @@ All of these, or it is not merged:
    reading of the cause into TODO.md (commit that as in 4), comment on the pull
    request, and stop. Never merge over red.
 3. **The checklists agree with their generators** on the pull request's head:
-   `cargo run --example make-testcheck -- --check` and
-   `cargo run --example make-keycheck -- --check`, both exit 0. One exception:
+   `cargo run --example make-testcheck -- --check`,
+   `cargo run --example make-testcheck -- --lane linux --check` and
+   `cargo run --example make-keycheck -- --check`, all exit 0. One exception:
    when `make-testcheck --check` says *"The checks all match; the difference is
    in the surrounding text"*, the ticks are right and only a count is stale --
    merge, then regenerate on `main` as part of 4 (CI's clippy job runs the same
    check, so it is red for this reason too; that red is not a reason to wait).
 4. **Every new tick has its evidence line** in the pull request body, and none
-   is an appearance row (`windows-role.md`, "Ticking TESTING-CHECKS.md"). A tick
+   is an appearance row (`windows-role.md`, "Ticking TESTING-CHECKS.md"). In
+   TESTING-LINUX.md every `[x]` needs its evidence line and every `[-]` its
+   reason (`linux-role.md`). A tick
    in TESTING-KEYS.md needs both halves on its line: what the key changed, and
    the before/after snapshot of what it did not (`windows-role.md`,
    "TESTING-KEYS.md"). A tick
@@ -57,7 +66,7 @@ All of these, or it is not merged:
 A conflict with `main` is not a reason to stop: merge `origin/main` into the
 pull request's branch with a merge commit (never rebase or force-push it),
 resolve, and push. QA-REPORT.md: keep both sections whole -- restore the markers
-with `git checkout --conflict=merge` and read the boundary first. TESTING-CHECKS.md:
+with `git checkout --conflict=merge` and read the boundary first. TESTING-CHECKS.md (or TESTING-LINUX.md, with `-- --lane linux`):
 take either side, then regenerate with `cargo run --example make-testcheck` (the
 ticks survive, the counts are rewritten) and check that every tick from both
 sides is still there. Then stop; the next run merges it once CI is green.
@@ -96,7 +105,11 @@ allowed because nothing in it can break a build:
   re-run against their x64 result -- not with appearance rows, which look the
   same on both.
 - **An ARM64 result that differs from x64** is a bug report, whatever the run
-  called it: it goes to TODO.md with both results side by side.
+  called it: it goes to TODO.md with both results side by side. So is **a Linux
+  result that differs from Windows**.
+- **The `linux` queue** (`linux-role.md`): apply the pull request's `## Queue`
+  section. When it is empty, refill it from TESTING-LINUX.md with sections whose
+  open rows apply on Linux and read as text or a file state.
 
 
 ## Never
