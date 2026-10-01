@@ -511,8 +511,11 @@ fn bold_siblings(path: &std::path::Path) -> Vec<PathBuf> {
     let stem = font_stem(path);
     let ext = path.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
     let mut out = Vec::new();
-    if let Some(base) = stem.strip_suffix("-Regular") {
-        out.push(dir.join(format!("{base}-Bold.{ext}")));
+    match stem.strip_suffix("-Regular") {
+        Some(base) => out.push(dir.join(format!("{base}-Bold.{ext}"))),
+        // `DejaVuSansMono.ttf` beside `DejaVuSansMono-Bold.ttf`: many Linux
+        // faces name the regular weight with no suffix at all (#131).
+        None => out.push(dir.join(format!("{stem}-Bold.{ext}"))),
     }
     match stem.to_lowercase().as_str() {
         "meiryo" => out.push(dir.join("meiryob.ttc")),
@@ -967,6 +970,14 @@ fn _unused(app: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #131: the bold face is found beside a regular face with no `-Regular`.
+    #[test]
+    fn a_bold_sibling_without_regular_in_the_name() {
+        let dir = std::path::Path::new("/fonts");
+        assert!(bold_siblings(&dir.join("DejaVuSansMono.ttf")).contains(&dir.join("DejaVuSansMono-Bold.ttf")));
+        assert!(bold_siblings(&dir.join("LiberationMono-Regular.ttf")).contains(&dir.join("LiberationMono-Bold.ttf")));
+    }
 
     /// The Linux lane's first screenshot: Japanese names were boxes, because
     /// only Windows' font folders were searched. Each platform now names its

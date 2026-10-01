@@ -1368,3 +1368,18 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   補いとして入れた。`fonts-noto-cjk` を入れたコンテナの Xvfb で、日本語が描かれ ASCII が等幅のままなのを画面で確かめた。
 - [ ] Wayland は確かめられない（コンテナに合成器が無い）。`weston --backend=headless` が apt で入るなら、それで試す。
 
+## Linux レーンの報告（v0.59.7 で受けた分: #131、25 節 `filer env`）
+
+- [x] 25 節を Linux（Xvfb、lavapipe）で回し、17 件を `[x]`、9 件を `[-]`（Windows 専用）にした。Linux レーンの最初の run。
+- [x] `filer env` がペインのシェルを `sh` と書くが、ペインは `$SHELL`（bash）で動く（所見 1）。**v0.59.7 で
+  `terminal::default_program` に 1 本化した**（トーストの `shell_label` と同じ答え）。25.4a は読み直せる。
+- [x] Linux と macOS でフォントを 1 つも探さない（所見 2）。**v0.59.7 で直した**（同じ版の別の修正と同じ件）。
+- [x] `-Regular` の付かないフォント名で太字の兄弟が見つからない（所見 3）。**v0.59.7 で `{stem}-Bold` も試すようにした。**
+- [x] spot がただのディレクトリを `Kind: Hardlink, Links: 2` と言う（所見 4、Unix のディレクトリのリンク数）。**v0.59.7 で、
+  ディレクトリはハードリンクとして数えないようにした。**
+- [x] keymap.toml の警告だけ、どのディレクトリのファイルかを言わず、Warnings の末尾に空行が付く（所見 5）。**v0.59.7 で
+  フルパスにし、4 ファイルとも末尾の改行を落とした。**
+- [x] `linux-role.md` の apt の行に描画のライブラリが無く、filer が起動時に panic した（提案 5）。**v0.59.7 で足し、`xrun.sh` が
+  ライブラリの欠けを 1 行で言うようにした。**
+- [x] TESTING.md 25.1 / 25.4 / 25.19 を今の出力に合わせた（提案 6）。
+

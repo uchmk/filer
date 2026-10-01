@@ -42,7 +42,10 @@ Reply in Japanese. Code, comments and commit messages in English.
 ## How to work
 
 ```bash
-apt-get install -y -q xvfb xdotool xclip x11-utils imagemagick fonts-noto-cjk   # once per container
+# once per container; the libraries are what winit and the Vulkan renderer load,
+# and without them filer panics on start (#131)
+apt-get install -y -q xvfb xdotool xclip x11-utils imagemagick fonts-noto-cjk \
+    libxkbcommon-x11-0 mesa-vulkan-drivers libvulkan1 libegl1 libgl1-mesa-dri
 cargo build                      # target/debug/filer
 cargo test                       # must be green before you start
 scripts/make-fixtures.sh "$TMPDIR/filer-fixtures"   # or /tmp/filer-fixtures
@@ -107,13 +110,14 @@ merging side updates it.
 
 | Section | Why it suits this lane |
 | --- | --- |
-| **25. `filer env`** | All text. The Windows-only rows (registry, ConPTY, `.exe` paths) are `[-]`; the rest must read right on Linux: config directories, `$SHELL`, the last-run record |
 | **24. awkward names** | Linux folders are case-sensitive, so 24.3's `UPPER.TXT` / `upper.txt` pair is two files here -- the row Windows cannot press. Names read back with `c f` |
-| **13. links** | Symlinks need no privilege here (13.8's Windows problem). `<Tab>` spot's `Kind` / `Target` / `Resolves` are text; `C` copies them |
+| **13. links** | Symlinks need no privilege here (13.8's Windows problem). `<Tab>` spot's `Kind` / `Target` / `Resolves` are text; `C` copies them. A plain folder no longer reads `Kind: Hardlink` (fixed in v0.59.7 after #131) |
 | **21. archives** | Pack with `E`, unpack with `e`, and read the result on disk (`unzip -l`, `tar tf`) |
 | **1. the terminal pane** | bash through a pty, logged by `FILER_PTY_LOG`. Rows about ConPTY or PowerShell are `[-]` |
 | **12. undo and redo** | `d` goes to the freedesktop trash: `~/.local/share/Trash/files` before and after `d`, and after `u` |
 | **44. disk usage** | `gu` on the fixtures and on `target/`; the totals read off `c c` and the header |
+
+Worked through before, and not in the table any more: 25 (#131; 25.4, 25.4a, 25.8b and 25.11 left open -- 25.4 and 25.4a can be read again since v0.59.7).
 
 ## Proposals
 

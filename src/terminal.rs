@@ -183,6 +183,22 @@ fn pick_default_shell(windows: bool, have_pwsh: bool) -> Option<String> {
     (windows && have_pwsh).then(|| "pwsh".to_owned())
 }
 
+/// The program the pane starts when `[term] shell` names none: `pwsh` on
+/// Windows where it is installed, else Windows PowerShell; elsewhere the
+/// login shell in `$SHELL`, which is what the pty starts. `filer env` asked
+/// this question with its own answer, `sh`, while the pane ran bash (#131).
+pub fn default_program() -> String {
+    default_program_from(default_shell(), cfg!(windows), std::env::var("SHELL").ok())
+}
+
+fn default_program_from(picked: Option<String>, windows: bool, env_shell: Option<String>) -> String {
+    match (picked, windows) {
+        (Some(p), _) => p,
+        (None, true) => "powershell".to_owned(),
+        (None, false) => env_shell.filter(|s| !s.is_empty()).unwrap_or_else(|| "sh".to_owned()),
+    }
+}
+
 /// What the pane is about to start, in the words its first toast uses. The
 /// difference between PowerShell 5.1 and 7 is where a shell hook quietly stops
 /// working, and until this it showed only in the banner or `filer env` (#107).
@@ -1433,6 +1449,15 @@ mod tests {
         assert_eq!(search_in(&mut t, &mut found, "hit", true), Some(true), "the fourth wraps to the newest");
         assert_eq!(search_in(&mut t, &mut found, "hit", true), Some(false), "and walks on from there");
         assert_eq!(search_in(&mut t, &mut found, "nowhere", true), None);
+    }
+
+    /// #131: `filer env` names the shell the pane really starts.
+    #[test]
+    fn the_default_program_is_the_login_shell_off_windows() {
+        assert_eq!(default_program_from(None, false, Some("/bin/bash".into())), "/bin/bash");
+        assert_eq!(default_program_from(None, false, None), "sh");
+        assert_eq!(default_program_from(None, true, None), "powershell");
+        assert_eq!(default_program_from(Some("pwsh".into()), true, None), "pwsh");
     }
 
     /// The pane's first toast names the shell, the default included.

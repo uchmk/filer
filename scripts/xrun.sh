@@ -28,6 +28,11 @@ wait_s="${XRUN_WAIT:-3}"
 for tool in Xvfb xdotool xclip import; do
     command -v "$tool" >/dev/null || { echo "xrun: $tool is missing (apt-get install -y xvfb xdotool xclip imagemagick)" >&2; exit 2; }
 done
+# What winit and the renderer load at start. Missing, filer panics with a
+# backtrace and this script could only say "no window appeared" (#131).
+for lib in libxkbcommon-x11.so libvulkan.so; do
+    ldconfig -p | grep -q "$lib" || { echo "xrun: $lib is missing (apt-get install -y libxkbcommon-x11-0 mesa-vulkan-drivers libvulkan1)" >&2; exit 2; }
+done
 
 # A display number nobody else holds.
 n=90

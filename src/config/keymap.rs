@@ -182,16 +182,28 @@ fn fold(base: Vec<Binding>, s: &Section, warnings: &mut Vec<String>) -> Vec<Bind
 pub const DEFAULT_KEYMAP: &str = include_str!("defaults/keymap.toml");
 
 impl Keymap {
-    /// Fold the built-in defaults and each user keymap file in turn.
+    /// Fold the built-in defaults and each user keymap file in turn, for a
+    /// test that has the text and no path to name.
+    #[cfg(test)]
     pub fn load(user_tomls: &[&str]) -> (Self, Vec<String>) {
+        let named: Vec<(&str, &str)> = user_tomls.iter().map(|t| ("keymap.toml", *t)).collect();
+        Self::load_named(&named)
+    }
+
+    /// The same, with each file's path to name in a parse error: there are two
+    /// config directories, and `keymap.toml: TOML parse error` did not say which
+    /// one's (#131), where the other three files' errors always did.
+    pub fn load_named(user_tomls: &[(&str, &str)]) -> (Self, Vec<String>) {
         let mut warnings = Vec::new();
         let mut files = vec![
             toml::from_str::<KeymapFile>(DEFAULT_KEYMAP).expect("built-in keymap must parse"),
         ];
-        for text in user_tomls {
+        for (path, text) in user_tomls {
             match toml::from_str::<KeymapFile>(text) {
                 Ok(k) => files.push(k),
-                Err(e) => warnings.push(format!("keymap.toml: {e}")),
+                // Trimmed: the parser's message ends in a newline, which left
+                // a blank line at the end of `filer env`'s Warnings.
+                Err(e) => warnings.push(format!("{path}: {}", e.to_string().trim_end())),
             }
         }
 
@@ -290,6 +302,16 @@ fn unreachable(layer: &str, bindings: &[Binding]) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #131: a broken keymap.toml is named by its path, like the other three
+    /// files, and the warning does not end in a blank line.
+    #[test]
+    fn a_broken_keymap_names_its_path() {
+        let (_, warnings) = Keymap::load_named(&[("/cfg/filer/keymap.toml", "[[mgr.keymap]\n")]);
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(warnings[0].starts_with("/cfg/filer/keymap.toml: TOML parse error"), "{}", warnings[0]);
+        assert!(!warnings[0].ends_with('\n'), "{:?}", warnings[0]);
+    }
 
     #[test]
     fn default_keymap_loads() {
