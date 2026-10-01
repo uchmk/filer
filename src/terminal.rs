@@ -207,12 +207,27 @@ pub fn shell_label(program: Option<&str>) -> String {
 }
 
 fn name_shell(program: Option<&str>, windows: bool, env_shell: Option<String>) -> String {
+    const PS51: &str = "powershell (Windows PowerShell 5.1)";
     match program {
+        // Named in the config, the same 5.1 gets the same words: writing
+        // `shell = "powershell"` is the ordinary way to get 5.1 on a machine
+        // that has 7, and it said only `powershell` -- the one case the
+        // version is there for (#136, 29.8). By file name, so a full path to
+        // `powershell.exe` reads the same.
+        Some(p) if windows && is_powershell_51(p) => PS51.to_owned(),
         Some(p) => crate::util::file_name(Path::new(p)),
         // The platform default, as `spawn` documents it.
-        None if windows => "powershell (Windows PowerShell 5.1)".to_owned(),
+        None if windows => PS51.to_owned(),
         None => env_shell.map_or_else(|| "sh".to_owned(), |s| crate::util::file_name(Path::new(&s))),
     }
+}
+
+/// `powershell`, `PowerShell.exe` or a full path to it, split on either
+/// separator so the rule reads the same whichever platform runs the test.
+fn is_powershell_51(program: &str) -> bool {
+    let name = program.rsplit(['/', '\\']).next().unwrap_or(program);
+    let stem = name.len().checked_sub(4).filter(|&i| name[i..].eq_ignore_ascii_case(".exe")).map_or(name, |i| &name[..i]);
+    stem.eq_ignore_ascii_case("powershell")
 }
 
 /// A key as a single win32-input-mode record, **pressed only**:
@@ -1464,6 +1479,11 @@ mod tests {
     #[test]
     fn the_shell_is_named() {
         assert_eq!(name_shell(Some("pwsh"), true, None), "pwsh");
+        // 29.8: written in the config, 5.1 still says which it is.
+        for p in ["powershell", "PowerShell.exe", r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"] {
+            assert_eq!(name_shell(Some(p), true, None), "powershell (Windows PowerShell 5.1)", "{p}");
+        }
+        assert_eq!(name_shell(Some("powershell"), false, None), "powershell", "not 5.1 off Windows");
         assert_eq!(name_shell(None, true, None), "powershell (Windows PowerShell 5.1)");
         assert_eq!(name_shell(None, false, Some("/usr/bin/zsh".into())), "zsh");
         assert_eq!(name_shell(None, false, None), "sh");
