@@ -430,12 +430,30 @@ pub fn set_clipboard(text: &str) -> Result<(), String> {
 /// all — another program holding it, mostly — which is worth saying out loud,
 /// because the paste silently did nothing.
 pub fn get_clipboard() -> Result<String, String> {
+    #[cfg(test)]
+    if let Some(text) = FAKE_CLIPBOARD.with(|c| c.borrow().clone()) {
+        return Ok(text);
+    }
     let mut cb = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     match cb.get_text() {
         Ok(text) => Ok(text),
         Err(arboard::Error::ContentNotAvailable) => Ok(String::new()),
         Err(e) => Err(e.to_string()),
     }
+}
+
+#[cfg(test)]
+thread_local! {
+    /// What [`get_clipboard`] returns in a test that set it, so a paste can be
+    /// driven without a desktop clipboard (CI has none on Linux). Per thread,
+    /// so parallel tests do not see each other's.
+    static FAKE_CLIPBOARD: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Have [`get_clipboard`] return `text` on this thread, for a test.
+#[cfg(test)]
+pub fn fake_clipboard(text: &str) {
+    FAKE_CLIPBOARD.with(|c| *c.borrow_mut() = Some(text.to_owned()));
 }
 
 #[cfg(test)]

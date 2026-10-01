@@ -481,6 +481,25 @@ fn walk(srcs: &[PathBuf], base: &Path) -> Vec<Member> {
     out
 }
 
+/// The file's own modification time, as a zip entry holds it: local time to
+/// the even second (the MS-DOS form). Without it every entry was stamped
+/// 1980-01-01, the format's zero, while `.7z` and `.tar.gz` kept the real
+/// times (#96). `None` for a time the format cannot hold, which then falls
+/// back to that zero rather than failing the whole archive.
+fn zip_time(path: &Path) -> Option<zip::DateTime> {
+    use chrono::{Datelike, Timelike};
+    let when: chrono::DateTime<chrono::Local> = std::fs::metadata(path).ok()?.modified().ok()?.into();
+    zip::DateTime::from_date_and_time(
+        u16::try_from(when.year()).ok()?,
+        when.month() as u8,
+        when.day() as u8,
+        when.hour() as u8,
+        when.minute() as u8,
+        when.second() as u8,
+    )
+    .ok()
+}
+
 fn write_zip<W: Write + io::Seek>(
     members: &[Member],
     out: W,
@@ -491,6 +510,10 @@ fn write_zip<W: Write + io::Seek>(
         .compression_method(zip::CompressionMethod::Deflated);
     for m in members {
         let to_io = |e: zip::result::ZipError| io::Error::other(e.to_string());
+        let opts = match zip_time(&m.path) {
+            Some(t) => opts.last_modified_time(t),
+            None => opts,
+        };
         if m.dir {
             zip.add_directory(&m.name, opts).map_err(to_io)?;
             continue;
@@ -603,6 +626,28 @@ mod tests {
         // Nothing to write: an entry that names the destination itself.
         assert_eq!(safe_dest(dest, ""), None);
         assert_eq!(safe_dest(dest, "."), None);
+    }
+
+    /// #96: a zip entry carries its file's own time, not 1980-01-01.
+    #[test]
+    fn a_zip_entry_keeps_its_files_time() {
+        let dir = crate::util::test_dir("zip-time");
+        let file = dir.join("dated.txt");
+        std::fs::write(&file, "x").unwrap();
+        // 2021-06-15 12:34:56 local time, a moment no other test would pick.
+        let when = chrono::NaiveDate::from_ymd_opt(2021, 6, 15)
+            .and_then(|d| d.and_hms_opt(12, 34, 56))
+            .and_then(|t| t.and_local_timezone(chrono::Local).single())
+            .unwrap();
+        std::fs::File::options().write(true).open(&file).unwrap().set_modified(when.into()).unwrap();
+
+        let archive = dir.join("out.zip");
+        compress(&[file], &dir, &archive, Format::Zip, &mut |_, _| true).unwrap();
+        let mut zip = zip::ZipArchive::new(File::open(&archive).unwrap()).unwrap();
+        let entry = zip.by_name("dated.txt").unwrap();
+        let t = entry.last_modified().expect("a time is stored");
+        assert_eq!((t.year(), t.month(), t.day()), (2021, 6, 15), "the file's day, not 1980-01-01");
+        assert_eq!((t.hour(), t.minute(), t.second()), (12, 34, 56), "to the even second");
     }
 
     #[test]

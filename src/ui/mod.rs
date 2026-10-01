@@ -672,7 +672,8 @@ fn draw_pane(
         false => wheel_whole(&mut app.list_scroll_rows, res.scroll_rows),
     };
     if scrolled != 0 {
-        app.tabs[idx].current.scroll(scrolled, rows);
+        let scrolloff = app.cfg.yazi.mgr.scrolloff as usize;
+        app.tabs[idx].current.scroll(scrolled, rows, scrolloff);
         app.tabs[idx].sync_visual();
     }
     // Shift / Ctrl (Cmd on macOS) turn a click into a selection gesture, so

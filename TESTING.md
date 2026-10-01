@@ -624,6 +624,7 @@ row needs which. 21.6 says something other than what it says here, which is writ
 | 21.10 | Pack a folder holding subfolders as `.7z`, watch the task panel | The count is of **files**, not folders, and it reaches the total rather than stopping short |
 | 21.11 | Compare the `.7z` and the `.zip` of the same input | The 7z is smaller; that is the reason to have it |
 | 21.12 | `E` with a name ending in something else (`.rar`) | `Name it .zip, .7z, .tar or .tar.gz to say which format` |
+| 21.13 | Pack `to-pack\` as `.zip`, then `7z l` the archive (v0.57.2) | Every entry carries its file's own date and time (to the even second), not `1980-01-01 00:00:00` |
 
 ## 22. Editors, at a line (needs the editors installed)
 
@@ -763,6 +764,7 @@ the unit tests alone.
 | 28.5 | Same in the **other pane** (`<C-w>`) and in the **preview** of a directory | Neither crashes |
 | 28.6 | Cursor on the last row, delete that file with `d` | Same — this is what Issue #5 reported |
 | 28.7 | Rename a file from outside while the cursor is on it | The cursor follows the name or stays put; no crash |
+| 28.8 | Leave the window alone -- no key, no mouse -- and delete a listed file from Explorer (v0.57.2) | The row goes within half a second, without a key being pressed. Until v0.57.2 the list kept it until the next key (#108) |
 
 ## 29. The terminal's directory, brought back (v0.14.0)
 
