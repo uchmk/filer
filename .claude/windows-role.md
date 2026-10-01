@@ -194,11 +194,10 @@ will answer a question**, so:
   still the tool for the mouse and for anything that must come through the real
   input queue -- then check the input desktop first. `PrintWindow` with
   `PW_RENDERFULLCONTENT` captures the window under a screen saver too.
-- **After a change made from outside, send two keys about a second apart** before
-  reading the listing. The watcher's rescan waits 150 ms and an idle window
-  schedules no frame for it, so the first key wakes the app and only the second
-  sees the new listing -- a single key returned the old one about half the time
-  (#108; the bug is in TODO.md, and this line goes when it is fixed).
+- **After a change made from outside, wait half a second before reading the
+  listing.** Since v0.57.2 an idle window reads a flagged directory by itself
+  (#108 found it did not); 28.8 is the row that checks it. On an older build,
+  send two keys about a second apart instead.
 - **In a `--keys` script, write a space as `<Space>`.** A plain space
   disappears, and in the pane every key after it goes to the list instead:
   `<C-t>echo hi<Enter>` sent the shell `echo` and walked the list (#110). This

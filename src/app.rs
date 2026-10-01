@@ -1380,8 +1380,12 @@ impl App {
         });
     }
 
-    /// Rescan directories the watcher flagged, once they have been quiet for a
-    /// moment — editors and installers touch a directory many times in a row.
+    /// How long a flagged directory waits for the watcher to go quiet before it
+    /// is read again — editors and installers touch a directory many times in a row.
+    const RESCAN_QUIET: Duration = Duration::from_millis(150);
+
+    /// Rescan directories the watcher flagged, once they have been quiet for
+    /// [`Self::RESCAN_QUIET`].
     fn flush_dirty(&mut self) {
         if self.dirty.is_empty() {
             return;
@@ -1389,7 +1393,7 @@ impl App {
         let ready: Vec<PathBuf> = self
             .dirty
             .iter()
-            .filter(|(_, t)| t.elapsed() > Duration::from_millis(150))
+            .filter(|(_, t)| t.elapsed() > Self::RESCAN_QUIET)
             .map(|(p, _)| p.clone())
             .collect();
         for p in ready {
@@ -1397,6 +1401,18 @@ impl App {
             self.cache.remove(&p);
             self.rescan(&p);
         }
+    }
+
+    /// When the next frame is owed to a flagged directory, if one is waiting.
+    ///
+    /// The watcher's own wake arrives the instant a change does, when the entry
+    /// is not yet quiet enough to read, and an idle window asks for no frame
+    /// after it -- so the change stayed off the screen until a key was pressed
+    /// (#108). The frame loop asks for one at this moment instead; with nothing
+    /// flagged it asks for none, and an idle window still costs nothing (47).
+    pub fn rescan_due(&self) -> Option<Duration> {
+        let oldest = self.dirty.values().map(|t| t.elapsed()).max()?;
+        Some(Self::RESCAN_QUIET.saturating_sub(oldest) + Duration::from_millis(10))
     }
 
     fn rescan(&mut self, path: &Path) {
@@ -3455,7 +3471,12 @@ impl App {
         }
         let sort = tab.sort;
         let show = tab.show_hidden;
-        tab.current.resort(&sort, show);
+        // The usage view counted hidden files and lists them whatever the tab
+        // shows; a re-sort that filtered them out left rows missing from the
+        // total it still printed (#109).
+        let in_usage = self.usage_linemode.is_some();
+        let tab = &mut self.tabs[self.active];
+        tab.current.resort(&sort, show || in_usage);
         if let Some(p) = tab.parent.as_mut() {
             p.resort(&sort, show);
         }
@@ -4485,7 +4506,7 @@ impl App {
 
     fn drain_usage(&mut self) {
         let Some(handle) = &self.usage else { return };
-        let mut batch: Vec<(PathBuf, u64, u64)> = Vec::new();
+        let mut batch: Vec<crate::fs::usage::Child> = Vec::new();
         let mut done: Option<(u64, bool)> = None;
         while let Ok(msg) = handle.rx.try_recv() {
             match msg {
@@ -4499,9 +4520,10 @@ impl App {
         if !batch.is_empty() {
             let f = &mut self.tabs[self.active].current;
             let entries = Arc::make_mut(&mut f.entries);
-            for (path, bytes, _files) in batch {
+            for (path, bytes, _files, whole) in batch {
                 if let Ok(mut e) = Entry::from_path(path) {
                     e.usage = Some(bytes);
+                    e.usage_cut = !whole;
                     entries.push(e);
                 }
             }
@@ -5604,6 +5626,30 @@ mod preview_delivery {
 }
 
 #[cfg(test)]
+mod watcher_frames {
+    use super::*;
+
+    /// #108: a directory the watcher flagged asks for the frame that will read
+    /// it, no sooner than the quiet period and not much later; with nothing
+    /// flagged, nothing is asked for, so an idle window stays idle (47).
+    #[test]
+    fn a_flagged_directory_asks_for_its_frame() {
+        let mut a = App::new(Config::load(), std::env::temp_dir(), egui::Context::default());
+        a.dirty.clear();
+        assert_eq!(a.rescan_due(), None, "nothing flagged, nothing owed");
+
+        a.dirty.insert(std::env::temp_dir(), Instant::now());
+        let due = a.rescan_due().expect("a frame is owed");
+        assert!(due >= App::RESCAN_QUIET, "not before the quiet period: {due:?}");
+        assert!(due < App::RESCAN_QUIET * 2, "and not long after it: {due:?}");
+
+        std::thread::sleep(App::RESCAN_QUIET + Duration::from_millis(20));
+        a.flush_dirty();
+        assert_eq!(a.rescan_due(), None, "read, so nothing more is owed");
+    }
+}
+
+#[cfg(test)]
 mod host_sizes {
     use super::*;
     use crate::fs::entry::{Entry, Kind, Linemode};
@@ -6223,6 +6269,36 @@ mod usage_view {
         assert_eq!(a.usage_max, 900, "the bars are drawn against the biggest row");
         let fat = a.tabs[a.active].current.entries.iter().find(|e| e.name == "fat").unwrap();
         assert_eq!(fat.usage_bytes(), 900, "a folder is worth what is under it");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// #109: re-sorting the usage view keeps the hidden rows it counted, and
+    /// `,s` sorts by the measured totals rather than by each entry's own length.
+    #[test]
+    fn re_sorting_keeps_every_row_and_sorts_by_total() {
+        use crate::fs::SortBy;
+        let dir = tree();
+        std::fs::write(dir.join(".hidden"), vec![b'x'; 500]).unwrap();
+        let mut a = app_in(&dir);
+        a.tabs[a.active].show_hidden = false;
+        a.start_usage();
+        for _ in 0..2000 {
+            a.drain_usage();
+            if a.usage.is_none() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        let rows = |a: &App| a.tabs[a.active].current.view.len();
+        assert_eq!(rows(&a), 4, "fat, .hidden, loose, thin");
+
+        a.act(Act::Sort { by: Some(SortBy::Alphabetical), reverse: Some(false), dir_first: Some(false) });
+        assert_eq!(rows(&a), 4, "the hidden row is still there after a re-sort");
+
+        a.act(Act::Sort { by: Some(SortBy::Size), reverse: Some(true), dir_first: Some(false) });
+        let names: Vec<String> =
+            (0..rows(&a)).filter_map(|i| a.tabs[a.active].current.at(i).map(|e| e.name.clone())).collect();
+        assert_eq!(names, ["fat", ".hidden", "loose", "thin"], "largest total first: {names:?}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

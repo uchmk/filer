@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**219 / 406 済み。**（TESTING.md の全 565 件のうち、`cargo test` が見ている 159 件は
+**218 / 404 済み。**（TESTING.md の全 567 件のうち、`cargo test` が見ている 163 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -335,7 +335,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **20.5** `filer.toml` に構文エラーを入れて `<C-F5>` → 問題を挙げたエラーのトーストが出て、**以前の設定がそのまま効き続ける** — *Put a syntax error in `filer.toml`, `<C-F5>` → An error toast naming the problem; the old config stays in force*
 - [ ] **20.6** `[ui] minimap = false` にして `<C-F5>` → ミニマップが出なくなる — *`[ui] minimap = false`, `<C-F5>` → No minimap*
 
-## 21. 書庫（zip / tar / 7z） — 8 / 8
+## 21. 書庫（zip / tar / 7z） — 8 / 9
 
 自動テスト済みなので下には出していない: 21.1, 21.4, 21.6, 21.12
 
@@ -347,6 +347,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **21.9** 同じ `.7z` を 7-Zip や エクスプローラーで開く → そちらでも開ける。他所へ持って行けることが、この形式を入れた理由 — *Open the same `.7z` in 7-Zip or Explorer → It opens there too — the point of the format is that it travels*
 - [x] **21.10** サブフォルダを含むフォルダを `.7z` に固めて、タスクパネルを見る → 件数は**ファイル**の数（フォルダではない）で、途中で止まらず総数まで届く — *Pack a folder holding subfolders as `.7z`, watch the task panel → The count is of **files**, not folders, and it reaches the total rather than stopping short*
 - [x] **21.11** 同じ入力の `.7z` と `.zip` を比べる → 7z のほうが小さい。それが持っている理由 — *Compare the `.7z` and the `.zip` of the same input → The 7z is smaller; that is the reason to have it*
+- [ ] **21.13** `to-pack\` を `.zip` に圧縮し、`7z l` で見る（v0.57.2）→ どのエントリも元のファイルの日時（偶数秒まで）を持つ。`1980-01-01 00:00:00` ではない — *Pack `to-pack\` as `.zip`, then `7z l` the archive (v0.57.2) → Every entry carries its file's own date and time (to the even second), not `1980-01-01 00:00:00`*
 
 ## 22. エディタを行番号付きで開く（エディタのインストールが要る） — 0 / 6
 
@@ -418,7 +419,7 @@ fsutil hardlink list <新しくできたパス>
 
 `cargo test` が全部見ているので、押すものはありません。
 
-## 28. 外から加えられた変更 — 7 / 7
+## 28. 外から加えられた変更 — 7 / 8
 
 - [x] **28.1** カーソルを**最終行**に置いて、そのファイルをエクスプローラーから削除 → 行が消え、カーソルは新しい最終行に乗る。**落ちない** — *Put the cursor on the **last** row, delete that file from Explorer → The row goes, the cursor lands on the new last row, **no crash***
 - [x] **28.2** カーソルを最終行に置いて、末尾の複数ファイルを一度に削除 → 同じ — *Cursor on the last row; delete several files at the end at once → Same*
@@ -427,21 +428,24 @@ fsutil hardlink list <新しくできたパス>
 - [x] **28.5** **もう一方のペイン**（`<C-w>`）と、ディレクトリの**プレビュー**で同じこと → どちらも落ちない — *Same in the **other pane** (`<C-w>`) and in the **preview** of a directory → Neither crashes*
 - [x] **28.6** カーソルを最終行に置いて、そのファイルを `d` で削除 → 同じ。これが Issue #5 の報告内容 — *Cursor on the last row, delete that file with `d` → Same — this is what Issue #5 reported*
 - [x] **28.7** カーソルが乗っているファイルを外から改名 → カーソルが名前に追従するか、その場に留まる。落ちない — *Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash*
+- [ ] **28.8** 窓に触らず（キーもマウスも使わず）、一覧にあるファイルをエクスプローラーから削除する（v0.57.2）→ キーを押さなくても 0.5 秒以内に行が消える。v0.57.2 までは次にキーを押すまで残っていた（#108） — *Leave the window alone -- no key, no mouse -- and delete a listed file from Explorer (v0.57.2) → The row goes within half a second, without a key being pressed. Until v0.57.2 the list kept it until the next key (#108)*
 
-## 29. ターミナルのカレントディレクトリを持ち帰る — 6 / 6
+## 29. ターミナルのカレントディレクトリを持ち帰る — 5 / 5
+
+自動テスト済みなので下には出していない: 29.4
 
 - [x] **29.1** `$PROFILE` にフックが**無い**状態でターミナルを開き（`<C-t>`）、`cd` してから `<A-Up>` → OSC 7 と `LocationChangedAction` を挙げ、README を指すトーストが出る。**無反応でも待ちでもない** — *With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` → A toast naming OSC 7 and `LocationChangedAction`, pointing at the README — **not** silence, and not a wait*
 - [x] **29.2** README のフックを `$PROFILE` に貼り、新しいターミナルを開いて `cd C:\dev`、`<A-Up>` → ファイル一覧が `C:\dev` へ移動する — *Paste the README hook into `$PROFILE`, open a new terminal, `cd C:\dev`, press `<A-Up>` → The file list moves to `C:\dev`*
 - [x] **29.3** 名前に**空白**を含むディレクトリと、**日本語**を含むディレクトリで同じこと → どちらも壊れずに届く — *Same with a directory whose name has a **space** and one with **Japanese** in it → Both arrive intact*
-- [x] **29.4** UNC パス（`\\server\share`）へ `cd` して `<A-Up>` → 追従するか、できない理由を述べる。落ちない — *`cd` to a UNC path (`\\server\share`) and press `<A-Up>` → Either it follows or it says why; no crash*
 - [x] **29.5** Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため） — *Run the hook line by hand in a shell that already has Starship → The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`)*
 - [x] **29.6** `[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`filer env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る — *With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` → 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again*
 
-## 30. プロンプトでの右クリック貼り付け — 10 / 15
+## 30. プロンプトでの右クリック貼り付け — 10 / 14
+
+自動テスト済みなので下には出していない: 30.3
 
 - [ ] **30.1** エクスプローラーのアドレスバーでパスをコピーし、`c`+`d` で `cd` のプロンプトを出し、入力欄を右クリック → パスが入る。`<Enter>` でそこへ移動する — *Copy a path in Explorer's address bar, press `c`+`d` (or whatever opens the `cd` prompt), right-click the field → The path appears; `<Enter>` goes there*
 - [x] **30.2** `abc` と打ち、`a` と `b` の間を**右**ボタンでクリック → そこに貼られる（末尾ではない） — *Type `abc`, click between `a` and `b` with the **right** button → The paste lands there, not at the end*
-- [ ] **30.3** ドラッグで一部を選択してから、**選択範囲の上**で右クリック → 選択が置き換わる — *Select part of the text with a drag, then right-click **on the selection** → The selection is replaced*
 - [ ] **30.4** 2 行のテキストをコピーして `s` に右クリック → 1 行になり、改行は空白として表示される（`<C-v>` と同じ） — *Copy two lines of text, right-click into `s` → One line, the break shown as a space — the same as `<C-v>`*
 - [x] **30.5** 日本語のパスをコピーして `cd` に右クリック → 壊れずに入り、カーソルはその後ろに来る — *Copy a Japanese path, right-click into `cd` → Intact, and the caret sits after it*
 - [x] **30.6** クリップボードに（文字ではなく）画像がある状態でプロンプトを右クリック → 何も起きない。**トーストも出ない** — *With an image (not text) on the clipboard, right-click a prompt → Nothing happens, **no toast***
@@ -543,7 +547,9 @@ fsutil hardlink list <新しくできたパス>
 
 `cargo test` が全部見ているので、押すものはありません。
 
-## 39. ターミナルペインでの `<A-j>` / `<A-k>` — 8 / 9
+## 39. ターミナルペインでの `<A-j>` / `<A-k>` — 8 / 8
+
+自動テスト済みなので下には出していない: 39.9
 
 - [x] **39.1** `<C-t>` で長いもの（`dir /s` や `ls -R`）を実行してから `<A-k>` → スクロールバックが 1 回につき 5 行**上**へ — *`<C-t>`, run something long (`dir /s` or `ls -R`), then `<A-k>` → The scrollback goes **up** five lines per press*
 - [x] **39.2** `<A-j>` → 5 行**下**へ戻る。ファイル一覧でプレビューをスクロールするのと同じ向き — *`<A-j>` → Back **down** five lines. Same direction as in the file list, where these scroll the preview*
@@ -553,7 +559,6 @@ fsutil hardlink list <新しくできたパス>
 - [x] **39.6** ペインの中で Alt+j を読むプログラムを動かす（`nnoremap <A-j> :m+1<CR>` を設定した `nvim`）→ v0.38.0 以降は**キーが届く**（40 節を参照）。それ以前は届かなかった — *In the pane, run a program that reads Alt+j — `nvim` with `nnoremap <A-j> :m+1<CR>` → **It does see the key** from v0.38.0 — see section 40. Before that it did not*
 - [x] **39.7** `[[term.prepend_keymap]]` で `<A-j>` を `noop` に割り当てて `<C-F5>` → キーは何もせず、**シェルにも届かない。**ここで割り当てたものは消費される。返すには `[term] keymap = [...]` を丸ごと置き換える必要がある — *`[[term.prepend_keymap]]` binding `<A-j>` to `noop`, then `<C-F5>` → The key does nothing **and still does not reach the shell** — anything bound here is consumed. Handing it back needs a full `[term] keymap = [...]` replacement*
 - [x] **39.8** シェルのプロンプトで Alt+b / Alt+f / Alt+d → これまでどおり readline に届く。取られたのは j と k だけ — *Alt+b / Alt+f / Alt+d at the shell prompt → Still reach readline. Only j and k were taken*
-- [ ] **39.9** ペインの中で `<F1>` → term レイヤーの一覧に `<A-j>` / `<A-k>` が説明付きで出る — *`<F1>` from inside the pane → The term layer's list shows `<A-j>` / `<A-k>` with their descriptions*
 
 ## 40. 全画面プログラムにスクロールのジェスチャーを渡す — 13 / 15
 
@@ -602,7 +607,9 @@ fsutil hardlink list <新しくできたパス>
 
 - [ ] **43.9** 50MB の CSV → すぐ開き、`max_text_bytes` で切られ、フッタが省略したと述べる — *A 50 MB CSV → Opens promptly, cut at `max_text_bytes`, footer says truncated*
 
-## 44. ディスク使用量 — 13 / 14
+## 44. ディスク使用量 — 13 / 13
+
+自動テスト済みなので下には出していない: 44.7
 
 - [x] **44.1** `node_modules` のあるプロジェクトで `gu` → 子が大きい順に棒付きで並ぶ。`node_modules` が上位に来て、合計が自身のエントリよりはるかに大きい — *`gu` in a project with a `node_modules` → Children largest first, with bars; `node_modules` near the top with a total far bigger than its own entry*
 - [x] **44.2** `gu` してから `<Esc>` → 元のディレクトリに戻り、カーソルも元の位置。走査は止まる（抜けたあと CPU を使わない） — *`gu`, then `<Esc>` → Back in the directory, cursor where it was. The walk stops (no CPU after leaving)*
@@ -610,7 +617,6 @@ fsutil hardlink list <新しくできたパス>
 - [x] **44.4** `.gitignore` された `target/` や `build/` を含むフォルダで `gu` → **数に入る**（除外されない） — *`gu` in a folder holding a `.gitignore`d `target/` or `build/` → It is **counted**, not skipped*
 - [x] **44.5** 容量の大半を隠しフォルダが占める場所で `gu` → 数に入り、表示もされる — *`gu` where a hidden folder holds most of the space → It is counted, and visible*
 - [x] **44.6** 大きなツリーへのシンボリックリンク / ジャンクションを含むフォルダで `gu` → リンクは 1 エントリ扱いでツリーの二重計上にならず、固まらない — *`gu` on a folder with a symlink/junction to a big tree → The link is one entry, not a second copy of the tree, and no hang*
-- [ ] **44.7** `C:\` で `gu` → 答えが出る。上位のフォルダが WizTree やエクスプローラーの表示と見比べて妥当 — *`gu` at `C:\` → Answers; the biggest folders are plausible against WizTree or Explorer's own*
 - [x] **44.8** ネットワーク共有（UNC）で `gu` → 答えるか、穏当に失敗する。走査の途中でも `<Esc>` で抜けられる — *`gu` on a network share (UNC) → Answers or fails gracefully; `<Esc>` still gets out mid-walk*
 - [x] **44.9** `gu` のあと `j`/`k`、`y`、`d`、スペースで選択 → 通常の一覧キーが全部効く。**パネルではなく一覧そのもの**だから — *`gu`, then `j`/`k`, `y`, `d`, space to select → All the ordinary list keys work — this is the list, not a panel*
 - [x] **44.10** `gu` のあとフォルダで `Enter` → 普通の移動（ビューを抜けてフォルダに入る）。そこでもう一度 `gu` すればそこから測り直す — *`gu`, then `Enter` on a folder → Ordinary navigation: it leaves the view and enters the folder. `gu` again measures from there*
