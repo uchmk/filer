@@ -8534,3 +8534,229 @@ piped into Out-String         : 1854  piped into Out-String         : 1854
      組み立てている。待てる形が 1 つあれば `Start-Sleep` の見積もりが要らなくなる
      （この run では 5〜18 秒を手で決めていた）。
    - 大きさ: Proposals 2 と同じ場所。フラグ 1 つとその分岐。
+
+## TESTING.md sections 32 / 37 — オープナーの残り 7 行を ARM64 で取りに行った（96f71bc / 0.67.2、ARM64 レーン、無人の run）
+
+ARM64 レーンの順番表の先頭「**32 / 37. openers**（7 open）」が担当。native の ARM64 ビルドで走らせた
+（`filer env` が `OS arch aarch64` / `Process arch aarch64`、`Executable :
+C:\dev\filer-armtest\target\release\filer.exe`、`filer 0.67.2 (aarch64)`）。`cargo test` は **594 / 0**
+（ネイティブ ARM64、4.76 s、96f71bc）。ConPTY は `fetch-conpty.ps1` で `1.24.260710001 (arm64)` を
+`target\release` へ。一時フォルダは `C:\Users\yuu06\AppData\Local\Temp\filer-scratch\arm32`
+（この機械に RAM ディスクは無く、`TEMP` / `TMP` はスクリプトがそこへ向けている）。
+**昇格していない**（この 2 節に昇格の要る行は無い）。
+
+**チェックは 1 つも付けていない。**開いていた 7 行（32.2 / 32.5 / 32.8a / 32.8b / 32.9、37.7 / 37.8）は
+**全部、秀丸・サクラ・IrfanView がこの機械に入っていないことで止まっている** —— 0.54.3 の run
+（この報告の「21 / 32 / 37」の節）と同じ理由で、**13 版を挟んでも状況は変わっていない。**
+`make-testcheck -- --check` は `in sync`（260 / 445）、`make-keycheck -- --check` も `in sync`（249 / 250）。
+
+ただし**今回は止まり方を変えた**。3 つの実行ファイルの**身代わり**を立て、filer 側の
+仕事（引用符付きフルパスの起動・`start` を通らないこと・行番号の構文）を**子プロセスが受け取った
+argv として**読んだ。これまでの run は filer が組んだコマンド行（`Win32_Process.CommandLine`）までしか
+読んでおらず、**`/j5` や `-Y=9` が本当に届くかは一度も測られていなかった。**
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `PROCESSOR_ARCHITECTURE=ARM64`、`Win32_ComputerSystem.SystemType` = `ARM64-based PC` |
+| OS | `Windows 11 Home 26H1 (build 28000.2956)` |
+| rustc | 1.98.1 (48a229cea 2026-09-01) / aarch64-pc-windows-msvc |
+| 昇格 | 無し（`IsInRole('Administrators')` = False） |
+| 入っている | Office 16.0.20430（Excel / Word / PowerPoint）、Edge 154、Chrome、VS Code、Neovim |
+| 入っていない | **秀丸・サクラ・IrfanView**。`App Paths`（HKLM / WOW6432Node / HKCU）にも `Get-Command` にも、`C:\Program Files` / `(x86)` / `%LOCALAPPDATA%\Programs` の 2 階層にも、Uninstall レジストリ 3 か所にも、`winget list` にも無い |
+| 画面 | 開始時に **ASUS OLED Care のスクリーンセーバーが入力デスクトップを握っていた**（`OpenInputDesktop` が `Screen-saver`）。`Get-Process \| Where-Object ProcessName -match 'OLED Care' \| Stop-Process -Force` で落として `Default` に戻してから測った。`SPI_GETSCREENSAVEACTIVE` は**終始 False** で、この画面保護を言い当てない（#88 と同じ） |
+
+`filer env` の Tools が、持ち主の実設定について同じことを言っている:
+
+```text
+    C:\Program Files (x86)\sakura\sakura.exe : not found   (opener [edit])
+    C:\Program Files\Hidemaru\Hidemaru.exe   : not found   (opener [edit])
+    C:\Program Files\IrfanView\i_view64.exe  : not found   (opener [image])
+```
+
+生の証拠は `C:\dev\filer-evidence\arm-32-37\`（`*.png`、`run.ps1`、`stub.rs`、`mkcfg.ps1`、`mkpdf.ps1`、
+`postkey.ps1` / `shot.ps1` / `watchwin.ps1`）。
+
+### 測り方
+
+- **キーは全部 `--keys` で入れた。**`<Wait:N>`・`<Shot:name>`・`FILER_KEYS_DONE` が揃ったので、
+  ピッカーの N 番目を選ぶところまで 1 本のコマンドで書ける。0.54.3 の run が `PostMessage` で
+  足していた部分が丸ごと要らなくなった。`PostMessage` はこの run では 1 度も使っていない。
+- **身代わりの実行ファイル**: `stub.rs`（`#![windows_subsystem = "windows"]` の 40 行）を `rustc -O` で
+  ネイティブ ARM64 に組み、**3 つの名前**で置いた。名前が効く —— `exec.rs` の `editor_key()` は
+  実行ファイルのベース名で引くので、`Hidemaru.exe` なら `/jN`、`sakura.exe` なら `-Y=N` を filer が組む。
+  置き場所は**空白と丸括弧を含むフルパス**（`…\arm32\Program Files\Hidemaru\Hidemaru.exe` と
+  `…\arm32\Program Files (x86)\sakura\sakura.exe`）で、実物の置き場所に合わせてある。
+  身代わりは `GetCommandLineW()` の生の文字列と `args()` を `STUB_LOG` に書いて即終了する。
+- **設定は 2 本**、どちらも run 限定の `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` に置いた。
+  `cfg-readme` は **README の `[opener]` / `[open]` の例を 1 文字も変えずに**抜いたもの
+  （`mkcfg.ps1` が README.md の 144-177 行をフェンスごと切り出す）。`cfg-stub` はその 3 つの
+  フルパスだけを身代わりに差し替え、`image` のリストを 1 本足したもの。
+- **コンソールが出ていないこと**は `watchwin.ps1` —— `EnumWindows` を回し続けて
+  `ConsoleWindowClass` / `CASCADIA_HOSTING_WINDOW_CLASS` / `PseudoConsoleWindow` の可視ウィンドウを集め、
+  **開く前の集合と同じであること**で測った。
+
+### filer 側は全部通っている（身代わりで読んだ argv）
+
+身代わりが受け取ったものを、そのまま貼る。`argc` は**ファイルパスが 1 引数に収まっているか**を言う。
+
+| 何を押したか | 身代わりが受け取ったもの |
+| --- | --- |
+| `a.txt` で `<Enter>`（先頭の項目 = 秀丸の位置） | `raw="…\Program Files\Hidemaru\Hidemaru.exe"  "…\open\a.txt"` / `argc=1` / `arg[0]=…\open\a.txt` |
+| `has space.txt` で `<Enter>` | `argc=1` / `arg[0]=…\open\has space.txt`。**プログラム側のパスにもファイル側にも空白があり、どちらも 1 引数のまま** |
+| `a.txt` で `<S-Enter>` → 1 番目 | `Hidemaru.exe` の身代わりに `argc=1` |
+| `a.txt` で `<S-Enter>` → 2 番目 | `"…\Program Files (x86)\sakura\sakura.exe"  "…\open\a.txt"` / `argc=1`。**丸括弧入りのパスも壊れない** |
+| `note.md` → `l` → `j` → `<Enter>`（アウトラインの 2 番目の見出し、11 行の md の 5 行目） | `raw="…\Hidemaru.exe"  /j5 "…\open\note.md"` / `argc=2` / `arg[0]=/j5`。**秀丸の構文そのもの** |
+| `note.md` → `l` → `jj` → `<S-Enter>` → 2 番目（3 番目の見出し、9 行目） | `raw="…\sakura.exe"  -Y=9 "…\open\note.md"` / `argc=2` / `arg[0]=-Y=9`。**サクラの構文そのもの**（`-L=` ではない） |
+| `pic.png` で `<Enter>`（`image` のフルパス） | `"…\Program Files\IrfanView\i_view64.exe"  "…\open\pic.png"` / `argc=1`。**コマンド行に `start` が 1 度も出ない**（37.7 の論点） |
+
+このうち **6 本すべてで、可視コンソールの集合は開く前と同じ**だった（`block = true` の Neovim を
+押した run だけは `CASCADIA_HOSTING_WINDOW_CLASS` が増える —— そちらは出るのが正しい）。
+
+### README の例そのままで押した分（ARM64 の記録、x64 で `[x]` の行）
+
+| 行 | ARM64 | 根拠 |
+| --- | --- | --- |
+| 32.1 | 合格 | `<S-Enter>` で `秀丸エディタ` / `サクラエディタ` / `VS Code` / `Neovim` / `Open with the default app` が**説明文**で左、コマンド行が右（`321-picker.png`） |
+| 32.3 | 合格 | `doc.pdf` で `O` → `Edge` / `Chrome` / `Open with the default app` / 秀丸 / サクラ / `VS Code` / `Neovim` の順（`378-O-picker.png`） |
+| 37.2 | 合格 | **v0.62.1 で README が `excel` / `word` / `powerpoint` の 3 本に割れた件の、ARM64 での答え合わせ。**`memo.docx` → `WINWORD.EXE "…\memo.docx"`・窓が `memo.docx - Word`、`deck.pptx` → `POWERPNT.EXE`・`deck.pptx - PowerPoint`、`book.xlsx` → `EXCEL.EXE`・`book.xlsx - Excel`。**0.54.3 の run が見つけた「docx で Excel が起動する」は、もう起きない** |
+| 37.4 | 合格 | `has space.txt` を `<S-Enter>` → VS Code で `Code.exe "…\open\has space.txt"` の **1 引数**、窓が `has space.txt - Visual Studio Code` |
+
+### 開いていた 7 行の、いまの立ち位置
+
+| 行 | 取れなかった理由 | filer 側について言えること |
+| --- | --- | --- |
+| 32.2 | 先頭の項目が秀丸で、**入っていない** | **先頭が選ばれていることは読めた。**README の例そのままで `<Enter>` を押すと、トーストが ``Open failed: `C:\Program Files\Hidemaru\Hidemaru.exe` was not found — "C:\Program Files\Hidemaru\Hidemaru.exe" "…\a.txt"``。2 番目以降に落ちていない。「コンソールが出ない」も合格（可視コンソールの集合が同一）。身代わりに差し替えると**開く** |
+| 32.5 | 「上のそれぞれ」に 32.2（秀丸）が入る | 空白入りの名前は、フルパスのオープナー（`argc=1`）でも `<S-Enter>` → VS Code（`argc=1`、窓のタイトル）でも 1 引数 |
+| 32.8a | 秀丸・サクラが無い | 引用符付きフルパス（空白あり・丸括弧あり）が**壊れずに起動し、失敗も無言ではない**ことを身代わりで読んだ |
+| 32.8b | 同上 | `<Enter>`（先頭項目）と `<S-Enter>`（1 番目・2 番目）の **3 経路とも**身代わりに届いた |
+| 32.9 | 同上 | `/j5` と `-Y=9` が**引数として届いている**。「その行に着地する」は秀丸・サクラ自身の仕事で、そこだけが残り |
+| 37.7 | IrfanView・サクラ・秀丸が無い | フルパスのオープナーのコマンド行に `start` が入らないことを、3 本とも身代わりで確かめた |
+| 37.8 | 7 項目のうち **4 つは表示どおり起動**（下）。残り 3 つが取れない | 並び順は合っている |
+
+**37.8 の 7 項目**（`doc.pdf` で `O`、README の例のまま）:
+
+| 項目 | 結果 |
+| --- | --- |
+| Edge | **起動した。**`msedge.exe  "…\doc.pdf"`、窓が `doc.pdf - 個人 - Microsoft Edge` |
+| Chrome | **起動した。**トーストが `$ start "" chrome "…\doc.pdf"`、窓が `doc.pdf - Google Chrome` |
+| Open with the default app | **この機械の `.pdf` の関連付けが壊れている**（下の「見つけたもの」1 番）。filer のせいではない |
+| 秀丸エディタ / サクラエディタ | 入っていない |
+| VS Code | **起動した。**`Code.exe …\doc.pdf`、窓が `doc.pdf - Visual Studio Code` |
+| Neovim | **起動した。**`cmd /S /C "nvim "…\doc.pdf""` → `nvim.exe`。`block = true` のとおり自前のコンソールが出る |
+
+### 見つけたもの
+
+#### 1. `.pdf` の「既定アプリ」は、何も起きないのではなく **Windows の「ファイルを開く方法を選んでください」が出る**
+
+0.54.3 の run が「トーストも出ないまま何も起きない」と書いた件（この報告の 4 番）を、今回
+追い直した。**filer の外でも同じ**なのは変わらないが、**起きていることはもう少し具体的**だった:
+
+```text
+HKCU:…\FileExts\.pdf\UserChoice\ProgId = MSEdgePDF
+filer の「既定アプリ」を選ぶ -> トースト `$ start "" "…\doc.pdf"`、そのあと OpenWith.exe が起動する
+  （Win32_Process: `C:\WINDOWS\system32\OpenWith.exe -Embedding`。doc.pdf を名乗る窓は 1 つも増えない）
+cmd /c start "" "…\doc.pdf"   -> msedge は 0 のまま
+Invoke-Item "…\doc.pdf"       -> 同じ
+```
+
+対照として `.png`（`AppX43hnxtbyyps62jhe9sqpdzxn1790zetc`）では、**同じ `cmd /c start ""` で Photos が
+起動し、窓のタイトルが `pic.png`** になる。つまり壊れているのは `.pdf` の `UserChoice` ひとつ
+（`MSEdgePDF` という ProgId が解決できず、シェルが選択ダイアログに落ちている）。
+**filer は正しいコマンドを投げていて、シェルがそれを捌けていない。**持ち主が関連付けを
+直すまで、37.8 の「既定アプリ」の項目はこの機械では取れない。
+
+#### 2. TESTING.md 32.9 が名指しする `<C-o>` は、**どのキーにも割り当てられていない**
+
+- **どこ**: TESTING.md 32.9 の「Do」欄 ——「Open from the outline (`<C-o>` at a line)」。
+- **実際**: `src/config/defaults/keymap.toml` に `C-o` は **1 件も無い**（`grep` で 0 件）。
+  アウトラインにキーを渡すのは `l` / `<Right>`（`enter`）か `<S-Tab>`（`toggle_outline`）で、
+  README の「Outline contents」の節もそう書いている。行が書かれた当時の割り当てが
+  残っているのだと思う。
+- **なぜ書くか**: この行を押しに来た人は、まず押せないキーを探すことになる。
+  今回も keymap を読んで `l` に行き着いた。
+- **直していない**（番号と文言は報告に回す規則）。`(`l` / `<S-Tab>`, then `<Enter>` at a line)`
+  に直すのが素直。
+
+#### 3. 「見つからない」トーストは、**引用符付きのフルパスでも**ちゃんと名前を言う
+
+0.54.3 の run の Proposals 3 番（`exit code 1` しか言わない）は v0.59.1 で入り、32.10 が
+`Hidemruu.exe` という**裸の名前**で見ている。今回は **README の例そのまま = 引用符付きの
+フルパス**で同じ経路を通り、
+
+```text
+Open failed: `C:\Program Files\Hidemaru\Hidemaru.exe` was not found — "C:\Program Files\Hidemaru\Hidemaru.exe" "…\open\a.txt"
+```
+
+が出た。**32.10 が試していない形**（空白入りの引用符付きフルパス）なので、記録しておく。不具合ではない。
+
+### Proposals
+
+#### 1. この 7 行を、**入っていないプログラムに縛られない形**に書き直してほしい
+
+- **何に当たったか**: 32.2 / 32.5 / 32.8a / 32.8b / 32.9 と 37.7 / 37.8 は、**0.54.3 と 0.67.2 の
+  2 回の run が同じ理由で止めている** —— 秀丸・サクラ・IrfanView がこの機械に無い。
+  その間に版は 13 回上がっていて、**行が測ろうとしている filer 側の仕組みは、今回
+  身代わりで全部通ることが読めた。**止まっているのは filer ではなく、行の書き方。
+- **何を変えるか**: 行の本体から製品名を外し、**性質**で書く。例えば 32.8a なら
+  「プログラムを**空白を含む引用符付きフルパス**で指定したオープナー → 起動し、引数が 1 つに
+  収まる」。秀丸・サクラは「例」として括弧に残す。32.9 は「**その編集器の行番号構文が引数として
+  渡る**」と「**その行に着地する**」を 2 行に割る —— 前者は機械が読め、後者だけが人の目に残る。
+  37.7 も同じで、「フルパスのオープナーは `start` を通らない」はコマンド行で読める。
+- **なぜ**: いまの書き方だと、**この 3 本を入れた機械が現れるまで永久に `[ ]` のまま**で、
+  レーンの順番表の先頭に居座り続ける（現にそうなっている）。性質で書けば、
+  同じ性質を持つ別のプログラム（VS Code のフルパス、あるいは今回のような身代わり）で settle できる。
+- **大きさ**: TESTING.md の 7 行の文言と、`make-testcheck` の再生成。番号は動かさない。
+
+#### 2. それが嫌なら、**サクラエディタだけでも入れてほしい**（持ち主の判断）
+
+- **何に当たったか**: 上と同じ。3 本のうち**サクラは無料のオープンソース**で、
+  `winget` にもある。秀丸はシェアウェア、IrfanView は寄付ウェア。
+- **何を変えるか**: この ARM64 機にサクラを入れる。そうすると 32.8a / 32.8b / 32.9 の
+  「サクラ側の半分」と 37.7 の 1/3 が**その場で取れる**（`-Y=N` で着地するかは、
+  今回 filer が正しく渡していることまで読めている）。
+- **なぜ**: 行を書き直さずに済み、「実物で確かめた」という checklist の意味も保てる。
+- **大きさ**: 判断 1 つ。**この run では入れていない** —— 機械にソフトを入れるのは持ち主の領分なので。
+
+#### 3. `--keys` のあとに**起動したものを閉じる**手立てが要る
+
+- **何に当たったか**: 32 / 37 はどの行も「何かが起動する」ことを見る節なので、1 run ごとに
+  Edge・Chrome・VS Code・Word・PowerPoint・Excel・nvim が残る。この run は
+  `Get-Process … | Stop-Process -Force` を**毎回手で書いて**掃除した（12 回）。
+  Office を `Stop-Process` で落とすのは本来やりたくない（次に開くとき「回復」が出る）。
+- **何を変えるか**: `filer env` の `Last run` が既に `Launched` を記録しているので、
+  **その PID も覚えてほしい** —— あるいは `--keys` の終了時に、その run が起動したプロセスの
+  PID を `FILER_KEYS_DONE` に `launched: 12345 WINWORD.EXE` の形で書く。
+  掃除する側が「この run が起こしたものだけ」を落とせる。
+- **なぜ**: いま掃除は名前で引くしかなく、**その人が前から開いていた Word まで巻き添えにする。**
+  無人の run が持ち主の作業中の文書を落とす事故は、まだ起きていないだけ。
+- **大きさ**: `FILER_KEYS_DONE` に 1 行足す（過去の run が出した「状態ファイル」の延長）。
+  起動したプロセスの PID は `exec.rs` の `Launch` が既に持っている。
+
+#### 4. `<S-Enter>` のピッカーが、**入っていないプログラムを入っているものと同じ顔で並べる**
+
+- **何に当たったか**: 32.1 のピッカーには秀丸・サクラが VS Code と並んで出る（`321-picker.png`）。
+  **この機械にはどちらも無い。**選ぶと初めて `was not found` のトーストが出る。
+  `filer env` の Tools は**同じ情報をすでに持っている**（`not found` と印字している）のに、
+  ピッカーはそれを使っていない。
+- **何を変えるか**: ピッカーの行で、解決できなかったプログラムは**薄く**出すか、末尾に送るか、
+  `(not found)` を添える。消してしまうと「設定したのに出ない」になるので、**消すのは反対**。
+- **なぜ**: オープナーの設定は使い回すもので、機械を変えると半分が死ぬ。
+  いまは**押してみるまで分からない。**今回のように 7 項目中 2 項目が死んでいる一覧は、
+  実際に使うと毎回 2 回空振りする。
+- **大きさ**: `filer env` の解決処理を 1 つ借りてきて、ピッカーを描くところで引く。
+  起動のたびに `App Paths` を引くのが重いなら、1 度だけ引いて run 中は覚えておけばよい。
+
+### 順番表（`.claude/windows-role.md`「The ARM64 lane」）
+
+無人実行は `.claude/` への書き込みを権限で拒否されるので、変更は PR 本文の `## Queue` に書いた。
+
+- **`32 / 37. openers` の行は、このままでは次の run も同じところで止まる。**0.54.3 と 0.67.2 が
+  同じ 7 行を同じ理由で残した。Proposals 1（行を書き直す）か 2（サクラを入れる）の
+  **どちらかが決まるまでは、順番表から外す**のが正しい。filer 側は今回すべて読めている。
+- `the test suite` の行はそのまま残す（この run も **594 / 0** を記録した）。
+- **代わりに足せるもの**: この機械で足場が揃っているのは **7. the config paths in the help panel**
+  （`YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` をこの run でも 2 本の設定に使った。8 行のうち
+  7.2 / 7.3 は見た目）と **36. `T`, and `q` from each layer**（`Get-Process filer` と窓のタイトルだけで
+  読める 5 行）。どちらも x64 側の順番表にあるが、ARM64 でも同じ道具で取れる。
