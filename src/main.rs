@@ -210,7 +210,7 @@ fn main() -> eframe::Result<()> {
             }
             let has_bold = apply_fonts(&cc.egui_ctx, &mut cfg, &mut used);
             crate::runinfo::save(&used);
-            cc.egui_ctx.set_visuals(egui::Visuals::dark());
+            cc.egui_ctx.set_visuals(ui::visuals());
             // egui zooms on Ctrl +/-/0 of its own accord, at the end of the
             // frame, without consuming the key first. Every one of those is a
             // key filer binds, so both would run -- `<C-->` hardlinked *and*

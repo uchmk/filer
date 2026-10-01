@@ -92,6 +92,17 @@ fn summary(total: usize, selected: usize, yank: Option<(usize, bool)>, hidden: b
     out
 }
 
+/// egui's dark look, with a caret that does not blink (Q38). A blinking one
+/// redraws the window twice a second for as long as a prompt is open, which
+/// was the 0.14-0.30 CPU-s per 10 s #103 and #110 measured with `f` left open
+/// and nothing touched; egui already confines it to the toggles and stops it
+/// in a background window, so not blinking was the only way to zero.
+pub fn visuals() -> egui::Visuals {
+    let mut v = egui::Visuals::dark();
+    v.text_cursor.blink = false;
+    v
+}
+
 pub fn draw(app: &mut App, ui: &mut Ui) {
     let mut queued: Vec<Act> = Vec::new();
     let size = app.cfg.ui.font_size;
@@ -1159,6 +1170,13 @@ mod summary_line {
     /// turns green to yellow and the register stops being visible anywhere on
     /// the row — and once the cursor is in another directory there is no row
     /// to look at in the first place.
+    /// Q38: the caret stays put, so an open prompt asks for no frames.
+    #[test]
+    fn the_caret_does_not_blink() {
+        assert!(!visuals().text_cursor.blink);
+        assert!(visuals().dark_mode, "still egui's dark look");
+    }
+
     #[test]
     fn it_names_the_register_and_the_selection_apart() {
         assert_eq!(summary(19, 0, None, false, false, None), "19 items");
@@ -1428,6 +1446,7 @@ pub(crate) mod harness {
             at: impl Into<std::path::PathBuf>,
         ) -> Self {
             let ctx = egui::Context::default();
+            ctx.set_visuals(super::visuals());
             let app = App::new(cfg, at.into(), ctx.clone());
             Self { app, ctx, size: Vec2::new(1280.0, 800.0), time: 0.0 }
         }

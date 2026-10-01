@@ -1340,3 +1340,4 @@ cause. Every expectation is a number from `Get-Process`.
 | 47.2 | `j` onto a file and at once `j` onto a subfolder (inside the 40 ms debounce), then hands off; read the CPU twice, 10 s apart | The same: **no rise**. Before v0.54.2 this was the sequence that left it drawing for ever |
 | 47.3 | The same as 47.2, then minimise the window | Still no rise while minimised |
 | 47.4 | If 47.1-47.3 still rise: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart | Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at |
+| 47.5 | Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3) | No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110) |
