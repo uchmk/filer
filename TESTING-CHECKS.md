@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**216 / 404 済み。**（TESTING.md の全 567 件のうち、`cargo test` が見ている 163 件は
+**218 / 404 済み。**（TESTING.md の全 567 件のうち、`cargo test` が見ている 163 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -459,7 +459,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **30.14** ターミナルで `<C-v>` → 右クリックと同じ（30.11 の挙動も含めて） — *`<C-v>` in the terminal → Same as the right-click, including 23.11*
 - [ ] **30.15** `report.txt` で `r`、2 つのファイルで `R`、`gSpace`（`cd`）、`a.txt` で `E`（v0.55.0）→ どれも入っている文字が選択された状態で開き、打つと置き換わる。`r` は `report`、`R` は `{name}{ext}` 全体、`cd` はパス全体、`E` は `.zip` の前の `a` を選ぶ。続けてクリップボードにパスを入れ、`cd` の選択範囲の**上**を右クリック → パスが選択範囲を置き換え、`<Enter>` でそこへ行く — *`r` on `report.txt`, `R` on two files, `gSpace` (`cd`), `E` on `a.txt` (v0.55.0); then, with a path on the clipboard, right-click **on** the `cd` prompt's selection → Each opens with its text selected, so typing replaces it: `r` selects `report`, `R` all of `{name}{ext}`, `cd` the whole path, `E` the `a` before `.zip`. The right-click's path replaces the selection, and `<Enter>` goes there*
 
-## 31. ホストの共有一覧 — 8 / 13
+## 31. ホストの共有一覧 — 9 / 13
 
 - [x] **31.1** `g`+`<Space>` で `\\<サーバのアドレス>` と入力して `<Enter>` → 共有が並ぶ。エクスプローラーが見せるものと同じ — *`g`+`<Space>`, type `\\<your server's address>`, `<Enter>` → The shares are listed, the same ones Explorer shows*
 - [ ] **31.2** アドレスではなくホスト**名**で、また `//` の綴りでも同じこと → どちらも届く。表示は `\\host` の綴りに戻される — *Same with a host **name** rather than an address, and with the `//` spelling → Both arrive; the path is shown back in the `\\host` spelling*
@@ -470,7 +470,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **31.6** この機械に資格情報を与えていないホスト → 同じく、拒否がトーストで名前付きで出る — *A host that needs a login the machine has not been given → Same: a refusal as a toast, naming it*
 - [ ] **31.7** 共有が**たくさん**あるホスト（1 画面に収まらない数）→ 全部出て、普通にスクロールできる — *A host with **many** shares (more than a screenful) → All of them, scrolling normally*
 - [ ] **31.8** 名前に空白や非 ASCII を含む共有 → 壊れずに出る — *A share name with a space or non-ASCII in it → Intact*
-- [ ] **31.9** 共有をホバーしてサイズの列を見る → 空。読むものが無く、**そこで数え続けてはいけない** — *Hover a share and look at the size column → Empty — there is nothing to read, and it must not sit there counting*
+- [x] **31.9** 共有をホバーしてサイズの列を見る → 空。読むものが無く、**そこで数え続けてはいけない** — *Hover a share and look at the size column → Empty — there is nothing to read, and it must not sit there counting*
 - [x] **31.10** ホストの一覧で `<C-r>` / 再読み込み → サーバに問い直す。落ちない — *`<C-r>` / refresh on the host listing → Re-asks the server; no crash*
 - [x] **31.11** **もう一方のペイン**（`<C-w>`）と 2 つ目のタブでホストを開く → どちらも問題なし — *Open the host in the **other pane** (`<C-w>`) and in a second tab → Both fine*
 - [x] **31.12** ホストへ行ってから、別のディレクトリへ移動する → 監視できなかったホストについて、ウォッチャが文句を言わない — *Go to a host, then change directory away → The watcher does not complain about the host it could not watch*
@@ -607,7 +607,7 @@ fsutil hardlink list <新しくできたパス>
 
 - [ ] **43.9** 50MB の CSV → すぐ開き、`max_text_bytes` で切られ、フッタが省略したと述べる — *A 50 MB CSV → Opens promptly, cut at `max_text_bytes`, footer says truncated*
 
-## 44. ディスク使用量 — 12 / 13
+## 44. ディスク使用量 — 13 / 13
 
 自動テスト済みなので下には出していない: 44.7
 
@@ -623,7 +623,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **44.11** 使用量ビューを開いたまま `gu` → メッセージを添えて断られる（戻れないビューにならない） — *`gu` while a usage view is already up → Refused with a message, not a view with no way back*
 - [x] **44.12** `gu` のあと `,` で並べ替え直す → 指示どおり順序が変わる。もう一度 `gu` すれば大きい順に戻る — *`gu`, then `,` to re-sort → The order changes (as asked); `gu` again restores largest-first*
 - [x] **44.13** フォルダの合計をエクスプローラーのプロパティと比べる → 丸め誤差の範囲で一致。**ハードリンクは多めに出るが、それは仕様として文書化してある** — *Compare a folder's total against Explorer's own properties → Within rounding. **Hard links read high — that is documented, not a bug***
-- [ ] **44.14** タブを `linemode mtime`（`m m`）にして `gu`、すぐ `<Esc>`（v0.56.0）→ 行には日付ではなくサイズ（`1.5 M`、`6.0 K`）が出る。`<Esc>` の後は日付に戻り、`Measuring…` のトーストもすぐ消える — *With the tab on `linemode mtime` (`m m`), `gu`, then `<Esc>` straight away (v0.56.0) → The rows show sizes (`1.5 M`, `6.0 K`), not dates; after `<Esc>` the list shows dates again, and the `Measuring…` toast is gone at once*
+- [x] **44.14** タブを `linemode mtime`（`m m`）にして `gu`、すぐ `<Esc>`（v0.56.0）→ 行には日付ではなくサイズ（`1.5 M`、`6.0 K`）が出る。`<Esc>` の後は日付に戻り、`Measuring…` のトーストもすぐ消える — *With the tab on `linemode mtime` (`m m`), `gu`, then `<Esc>` straight away (v0.56.0) → The rows show sizes (`1.5 M`, `6.0 K`), not dates; after `<Esc>` the list shows dates again, and the `Measuring…` toast is gone at once*
 
 ## 45. 2 つのフォルダを比べる — 11 / 12
 

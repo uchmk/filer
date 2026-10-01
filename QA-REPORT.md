@@ -6501,3 +6501,146 @@ if ($got -ne $want) { Write-Warning "awkward names: $got files, expected $want" 
 
 **大きさ**: 関数 1 つ。シェル起動は非同期なので、送るバイトを「開いたら流す」キューに
 積む形になる（`Terminal::send` の呼び出しを 1 段遅らせる）ので、設計の判断が 1 つ要る。
+
+---
+
+## TESTING.md 44.14 / 31.9 — v0.56.0 が Q32・Q33 で入れたものを ARM64 で確かめた（a07e5c2 / 0.56.2、ARM64 レーン、無人の run）
+
+ARM64 の Windows ノート PC（Windows 11 Home 26H1 build 28000.2956、`filer env` の
+`Process arch aarch64`）で、無人 run として ARM64 の順番表の先頭「v0.56.0, Q32 and Q33」を
+通した。ビルドは `target\release\filer.exe` 0.56.2（同梱 ConPTY 1.24.260710001 arm64 を
+`scripts\fetch-conpty.ps1` で配置）。スクラッチは RAM ディスクが無い機械なので
+`C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（`TEMP` / `TMP` もそこ）。設定は run ごとに
+`…\arm-v056\runs\<tag>\{cfg-filer,cfg-yazi,state}` に隔離して**既定のキーマップ**で回した。
+昇格なし（`IsInRole('Administrators')` = False）。スクリーンセーバーが入力デスクトップを
+握っていた（`Desk::Name()` = `Screen-saver`）ので、キーは `--keys` と `PostMessage`、画面は
+`PrintWindow(PW_RENDERFULLCONTENT)` だけで触っている（#88 以来の形）。
+
+`cargo test` はネイティブ ARM64 で **525 passed / 0 failed**（0.56.2）。
+
+**チェックしたのは 44.14 と 31.9 の 2 行**（順番表が挙げていた 2 行そのもの）。
+証拠一式は `C:\dev\filer-evidence\arm-v056\`（`lib.ps1`、`fx56.ps1`、`step1-4414.ps1`、
+`step2-4414-midwalk.ps1`、`step3-319.ps1`、`step4-inview-linemode.ps1`、`out-step*.txt`、
+`shots\*.png`）。
+
+### 44.14 — `gu` の間だけサイズになり、`<Esc>` で日付に戻る（チェックした）
+
+`fx56.ps1` が作った木で測った。行の文言が例に挙げている数字がそのまま出るように、
+中身の合計を合わせてある。
+
+| 行 | 中身 | バイト |
+| --- | --- | --- |
+| `big\` | `blob.bin` | 1572864（= `1.5 M`） |
+| `medium\` | `mid.bin` | 6144（= `6.0 K`） |
+| `loose.txt` | — | 2048（= `2.0 K`） |
+| `small\` | `tiny.bin` | 100（= `100 B`） |
+
+mtime は `2026-03-01 10:01` … `2026-03-04 10:04` を 1 日ずつずらして入れた（日付と
+サイズを取り違えようがない形にするため）。
+
+| 読んだもの | 画像 | 右の列 |
+| --- | --- | --- |
+| `--keys "mt"`（`linemode mtime`） | `a1-mtime-list.png` | `2026-03-01 10:01` / `2026-03-02 10:02` / `2026-03-03 10:03` / `2026-03-04 10:04` |
+| `--keys "mtgu"`（使用量ビュー） | `b1-usage.png` | `1.5 M` / `6.0 K` / `2.0 K` / `100 B`、大きい順、棒つき |
+| 上の窓に `<Esc>` を post、417 ms 後 | `b2-after-esc.png` | 日付に戻り、カーソルも `big` に戻っている |
+
+- トーストは `b1` の時点で **`1.5 M in total — <Esc> to leave` と `Measuring… <Esc> to leave` の
+  2 つ**が並んでいた（下の見つけたもの 2）。`b2` では `Measuring…` だけが消え、合計のほうは
+  残っている。トーストの寿命は 6 秒で、`b1` が起動から 1.5 秒・`b2` が 1.9 秒なので、
+  消えたのは時間切れではなく `<Esc>` による。
+- **歩いている最中の `<Esc>`** も別に測った（行の「すぐ `<Esc>`」はこちら）。`C:\dev` で
+  `--keys "mtgu"`、900 ms 後の `c1-midwalk.png` ではトーストは `Measuring… <Esc> to leave`
+  だけ、行は `4.5 G` / `1.5 K`。`<Esc>` を post して 322 ms 後の `c2-midwalk-esc.png` では
+  `Measuring…` は消え、`C:\dev` の普通の一覧（`Filer` / `filer-armtest` / `filer-evidence` /
+  `obsidian-notes`）が日付つきで戻っている。
+- 歩きが止まったことも読んだ: `<Esc>` の後の CPU は **1.0625 → 1.0625 s（10 秒で 0）**。
+
+### 31.9 — ホストの一覧ではサイズの列が空（チェックした）
+
+`\192.168.0.150`（LAN 上の Samba、`net view` が `Backup` / `backup-user` / `cache` /
+`VR_Video` の 4 つを返す）に `--keys "ms"`（`linemode size`）で入った。
+
+| 読んだもの | 画像 | 右の列 |
+| --- | --- | --- |
+| ホストの一覧、`linemode size` | `d1-host-size.png` | 4 つの共有すべて**空** |
+| `--keys "msjjj"` で 4 つの共有を順にホバー | `d2-host-hover.png` | 空のまま（カーソルは `VR_Video`、`4/4`） |
+| 同じビルド・同じ `m s` を普通のフォルダで（対照） | `d4-control-size.png` | `big 1` / `medium 1` / `small 1`、`loose.txt 2.0 K` |
+
+- **対照を取ったのは、空の列と「そもそも描かれていない列」を区別するため。**同じ
+  `m s` が普通のフォルダでは子の数を出しているので、ホストの一覧の空欄は空欄である。
+- #105（0.54.14）では同じサーバで `Backup 1` / `backup-user 3` / `cache 10` と出ていた。
+  Q32 の答え（`App::ensure_dir_sizes` が `util::host_only_unc` で早帰りする）が、実機でも
+  効いている。
+- 「そこで数え続けてはいけない」も読んだ: 一覧を出したまま放置して CPU は
+  **0.234375 → 0.234375 s（10 秒で 0）**。
+
+### 見つけたもの 1: 44.14 の行が言う `m m` は割り当てが無い（`m t`）
+
+TESTING.md 44.14（と TESTING-CHECKS.md の訳）は「タブを `linemode mtime`（`m m`）にして」と
+書いているが、既定のキーマップに `m m` は**無い**。`linemode mtime` は `m t`。
+
+- 根拠: `src/config/defaults/keymap.toml` の `m` 配下は `s` / `t` / `b` / `p` / `n` の 5 つだけ
+  （`out-step4.txt` に列挙を残した）。README 205 行も `m`+`t` と書いている。
+  `cargo run --example make-keycheck -- --check` は `in sync`（243 / 248）で、
+  TESTING-KEYS.md 側も `m t` と書いてある。
+- どちらの間違いか: **TESTING.md の行**。`m m` は yazi の綴り（yazi は mtime に `m m` を当てる）
+  なので、行がそこから来たのだと思う。
+- この run は `m t` で通した。番号を動かさない修正なので、行の `m m` を `m t` に直すだけで済む。
+  filer 側に `m m` を足すなら yazi 互換が増えるが、それはキーの割り当ての判断なので
+  持ち主のもの。
+
+### 見つけたもの 2: 歩き終わっても `Measuring…` のトーストが残る
+
+使用量ビューの歩きが終わると `X in total — <Esc> to leave` が出るが、`Measuring… <Esc> to
+leave` は消えず、画面に**同時に並ぶ**（`b1-usage.png`。合計が出ているのだから、もう
+measuring ではない）。残りは寿命（6 秒）で消える。
+
+- 根拠: `b1-usage.png`（起動から 1.5 秒、小さい木なので歩きは終わっている）。
+- どこ: `App::drain_usage` の `if let Some((total, capped)) = done` の枝。
+  `exit_search_view` は #109 の修正でここを `self.toasts.retain(|t| !t.text.starts_with("Measuring"))`
+  しているが、歩きが自然に終わる側には同じ行が無い。
+- #109 が直したのと**同じ食い違い**（「まだ測っている」と言い続ける）が、`<Esc>` ではなく
+  完走の経路に残っている。1 行で揃う。
+- 44.14 のチェックには影響しない（行が見ているのは `<Esc>` の後で、そこでは消えている）。
+
+### Proposals
+
+#### 1. `linemode usage` に既定のキーが無いので、ビューの中で列を変えると戻せない
+
+**何に出くわしたか**: `--keys "mtgumt"`（`linemode mtime` → `gu` → ビューの中で `m t`）。
+ビューの中で linemode を変えると、Q33 の答えどおりそのビューの間だけ効く——が、
+`e1-inview-mtime.png` のとおり**棒だけが残って数字が消え**、サイズに戻すキーが無い。
+`m` 配下は `s` / `t` / `b` / `p` / `n` の 5 つで、`usage` はどれでもない（`m s` を押すと
+フォルダは子の数になり、使用量ではない）。ビューを `<Esc>` で出て `gu` で入り直すしかなく、
+入り直すと歩きも最初からになる。
+
+**どう変えるべきか**: 既定のキーマップに `m u` = `linemode usage` を足す。
+`gu` が内部で使うモードに、人が戻れる入口を 1 つ付けるだけ。
+
+**なぜ**: v0.56.0 で `usage` は「設定を書かないと選べない内部モード」から「`gu` で
+日常的に入るモード」になった。入れるのに押せないモードが 1 つだけ残っているのは、
+`m` の列から見ると穴に見える。コストを払うのは、ビューの中で `m` を押してしまった人。
+
+**大きさ**: keymap.toml に 4 行（`[[mgr.keymap]]` / `on` / `run` / `desc`）。TESTING-KEYS.md が
+生成なので数が 1 つ増える。キーの割り当てなので、持ち主の判断が要る（`m u` でよいか）。
+
+#### 2. 歩いている間の「N items」が、測り終えた数であってフォルダの件数ではない
+
+**何に出くわしたか**: `C:\dev` で `gu`。900 ms の時点の `c1-midwalk.png` は右上が
+**`2 items`**、一覧も 2 行（`Filer` と `.claude`。隠しフォルダも数えるのは 44.5 のとおり）。
+`<Esc>` 後の `c2-midwalk-esc.png` は `4 items`（`Filer` / `filer-armtest` / `filer-evidence` /
+`obsidian-notes`）。歩きの途中では「このフォルダには 2 つある」と読める表示になっていて、
+**まだ測り終えていないだけの数が、何の断りもなく件数として出ている**。大きい木ほど
+長く嘘になる。
+
+**どう変えるべきか**: 歩いている間はカウンタを件数として出さない——`2 items` ではなく
+`2 measured` のように、まだ増えることが読める形にする。あるいは `Measuring…` の
+トースト側に進捗を持たせ（`Measuring… 2 so far`）、カウンタは歩きの間だけ伏せる。
+
+**なぜ**: いま画面には「終わったのか、まだ増えるのか」を言うものが `Measuring…` の
+トーストしかなく、それは 6 秒で消える。消えたあとの使用量ビューは、歩き終わったものと
+途中のものが見分けられない。`44.3`（30 万ファイルの木）のように数分かかる木で効く。
+
+**大きさ**: 言葉を変えるだけなら関数 1 つ（`drain_usage` が受け取っている件数を、
+歩きが終わるまで別の文言で出す）。`2 / 5` のような分母を出すなら、子の総数を歩きの
+最初に数えて `Msg` に 1 つ足す必要があるので、`fs::usage` の設計に 1 つ判断が要る。
