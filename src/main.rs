@@ -610,7 +610,7 @@ impl eframe::App for Filer {
         // settled, so what is on screen now is its result.
         if self.script.is_empty() {
             if let Some(done) = self.script_done.take() {
-                let _ = std::fs::write(done, "done\n");
+                let _ = std::fs::write(done, state_report(&self.app));
             }
             return;
         }
@@ -725,6 +725,39 @@ fn title_for(app: &App) -> String {
     // with one call from outside.
     let pane = app.term.as_ref().map_or(String::new(), |t| format!("{}x{}", t.size().lines, t.size().cols));
     fmt.replace("{cwd}", &cwd).replace("{rows}", &app.tab().page_rows.to_string()).replace("{pane}", &pane)
+}
+
+/// What `FILER_KEYS_DONE` holds once `--keys` is done: the state a check reads
+/// afterwards, one `name: value` per line. Reading it any other way meant
+/// pressing a key, and a key changes what it reads (#103, proposal 3).
+fn state_report(app: &App) -> String {
+    let tab = app.tab();
+    let overlay = match &app.overlay {
+        app::Overlay::None => "none",
+        app::Overlay::Input(_) => "input",
+        app::Overlay::Confirm(_) => "confirm",
+        app::Overlay::Pick(_) => "pick",
+        app::Overlay::Help => "help",
+        app::Overlay::Tasks(_) => "tasks",
+        app::Overlay::Spot(_) => "spot",
+        app::Overlay::Diff(_) => "diff",
+    };
+    let mut lines = vec![
+        format!("cwd: {}", tab.cwd.display()),
+        format!("hovered: {}", tab.current.hovered().map_or(String::new(), |e| e.path.display().to_string())),
+        format!("selected: {}", tab.selected.len()),
+        format!("tab: {} of {}", app.active + 1, app.tabs.len()),
+        format!("overlay: {overlay}"),
+    ];
+    if let app::Overlay::Input(ov) = &app.overlay {
+        lines.push(format!("input: {}", ov.text));
+    }
+    lines.push(format!(
+        "pane: {}",
+        app.term.as_ref().map_or("closed".into(), |t| format!("{}x{}", t.size().lines, t.size().cols))
+    ));
+    lines.push(format!("toast: {}", app.toasts.last().map_or("", |t| t.text.as_str())));
+    lines.join("\n") + "\n"
 }
 
 /// `pub(crate)` for [`crate::ui::harness`]: a test that drives the program with
@@ -998,6 +1031,22 @@ mod tests {
         app.cfg.yazi.mgr.title_format = "{cwd} [{rows}] <{pane}>".into();
         app.tabs[app.active].page_rows = 31;
         assert_eq!(title_for(&app), format!("{} [31] <>", app.tab().cwd.display()));
+    }
+
+    /// `FILER_KEYS_DONE`: what a check reads after `--keys`, without pressing
+    /// anything more to read it.
+    #[test]
+    fn the_state_after_the_keys_reads_as_lines() {
+        let dir = crate::util::test_dir("state-report");
+        std::fs::write(dir.join("a.txt"), b"").unwrap();
+        let mut app = App::new(crate::config::Config::load(), dir.clone(), egui::Context::default());
+        app.toast("Copied a.txt");
+        let report = state_report(&app);
+        assert!(report.starts_with(&format!("cwd: {}\n", app.tab().cwd.display())), "{report}");
+        for line in ["selected: 0", "tab: 1 of 1", "overlay: none", "pane: closed", "toast: Copied a.txt"] {
+            assert!(report.lines().any(|l| l == line), "{line:?} in {report}");
+        }
+        assert!(!report.contains("input:"), "only while a prompt is open");
     }
 
     /// #131: the bold face is found beside a regular face with no `-Regular`.
