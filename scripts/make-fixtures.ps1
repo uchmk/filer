@@ -142,7 +142,10 @@ foreach ($name in @(
     'a file with spaces.txt',
     'ひらがなとカタカナ.txt',
     "quote'in-name.txt",
-    'very-' + ('long-' * 30) + 'name.txt',
+    # In parentheses: inside an array literal `,` binds tighter than `+`, so
+    # without them this was three files (`very-`, `long-` x 30, `name.txt`) and
+    # the 163-character name 24.2 asks for was never made (#111).
+    ('very-' + ('long-' * 30) + 'name.txt'),
     'UPPER.TXT',
     'upper.txt'
 )) {
