@@ -775,7 +775,8 @@ While the view is up the right-hand column shows the sizes whatever line mode th
 tab gets its own back on the way out (v0.56.0; before that the bars were all you saw unless the
 config said `linemode = "usage"`, which made every ordinary folder read `0 B`).
 It is one level deep — entering a folder is ordinary navigation and leaves the view, so `gu` again
-measures from there.
+measures from there. Rows arrive as each child is measured, so while the walk runs the header counts
+them as `N measured so far` rather than `N items` (v0.57.3); the toast with the total says it is done.
 
 Hidden files and anything `.gitignore` covers are **counted**: a folder does not stop taking up room
 because git was told to overlook it. Symlinks are not followed, so a link to a directory is one entry
@@ -785,8 +786,8 @@ reads high — telling them apart needs bookkeeping this does not do. Very large
 walk did not finish reads `≥ 1.2 G`, and one it never reached reads `?` rather than `0 B` (v0.57.2).
 `,` re-sorts by the measured totals, and keeps the hidden rows the walk counted.
 
-The order is set when the results arrive, so re-sorting with `,` replaces it; `gu` again puts it
-back.
+The order is set when the results arrive, so re-sorting with `,` replaces it; `<Esc>` and `gu` again
+put it back.
 
 ## Archives
 
