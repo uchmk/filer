@@ -70,10 +70,16 @@ pub fn wheel_whole(acc: &mut f32, rows: f32) -> i64 {
 /// wins there and the yank goes invisible under it. The register also carries
 /// across directories, which is where it matters most: what `p` would paste
 /// here is a fact about the register, not about anything on screen.
-fn summary(total: usize, selected: usize, yank: Option<(usize, bool)>, hidden: bool, walking: bool) -> String {
+fn summary(total: usize, selected: usize, yank: Option<(usize, bool)>, hidden: bool, walking: bool, usage: Option<u64>) -> String {
     // While a usage walk runs the rows are the children measured so far, not
     // what the folder holds (#114), so the count says it is still growing.
     let mut out = if walking { format!("{total} measured so far") } else { format!("{total} items") };
+    // Once it is done, the total stays in the header: the toast that said it
+    // is gone in six seconds, and with it the only sign this is the usage view
+    // rather than the folder (#122).
+    if let Some(bytes) = usage.filter(|_| !walking) {
+        out.push_str(&format!(" · {} total", crate::util::human_size(bytes)));
+    }
     if let Some((n, cut)) = yank {
         out = format!("{n} {} · {out}", if cut { "cut" } else { "copied" });
     }
@@ -262,7 +268,8 @@ fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let total = tab.current.view.len();
     let sel = tab.selected.len();
     let yank = (!app.yank.paths.is_empty()).then_some((app.yank.paths.len(), app.yank.cut));
-    let right = summary(total, sel, yank, tab.show_hidden, app.usage.is_some());
+    let usage = app.in_usage_view().then(|| tab.current.entries.iter().map(|e| e.usage_bytes()).sum());
+    let right = summary(total, sel, yank, tab.show_hidden, app.usage.is_some(), usage);
     painter.text(
         egui::pos2(rect.right() - 10.0, y + row_h / 2.0),
         Align2::RIGHT_CENTER,
@@ -1154,20 +1161,23 @@ mod summary_line {
     /// to look at in the first place.
     #[test]
     fn it_names_the_register_and_the_selection_apart() {
-        assert_eq!(summary(19, 0, None, false, false), "19 items");
-        assert_eq!(summary(19, 1, None, false, false), "1 selected · 19 items");
-        assert_eq!(summary(19, 0, Some((1, false)), false, false), "1 copied · 19 items");
-        assert_eq!(summary(19, 0, Some((2, true)), false, false), "2 cut · 19 items");
+        assert_eq!(summary(19, 0, None, false, false, None), "19 items");
+        assert_eq!(summary(19, 1, None, false, false, None), "1 selected · 19 items");
+        assert_eq!(summary(19, 0, Some((1, false)), false, false, None), "1 copied · 19 items");
+        assert_eq!(summary(19, 0, Some((2, true)), false, false, None), "2 cut · 19 items");
 
         // Both at once is the case the colours cannot show.
         assert_eq!(
-            summary(19, 1, Some((1, false)), false, false),
+            summary(19, 1, Some((1, false)), false, false, None),
             "1 selected · 1 copied · 19 items",
         );
-        assert_eq!(summary(19, 3, Some((2, true)), true, false),
+        assert_eq!(summary(19, 3, Some((2, true)), true, false, None),
             "3 selected · 2 cut · 19 items · hidden shown");
         // #114: mid-walk the usage view's rows are only what has been measured.
-        assert_eq!(summary(2, 0, None, false, true), "2 measured so far");
+        assert_eq!(summary(2, 0, None, false, true, None), "2 measured so far");
+        // #122: once the walk is done the header keeps the total.
+        assert_eq!(summary(30, 0, None, false, false, Some(2048)), "30 items · 2.0 K total");
+        assert_eq!(summary(2, 0, None, false, true, Some(2048)), "2 measured so far", "not mid-walk");
     }
 }
 

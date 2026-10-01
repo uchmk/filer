@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**219 / 419 済み。**（TESTING.md の全 587 件のうち、`cargo test` が見ている 168 件は
+**219 / 420 済み。**（TESTING.md の全 589 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -625,9 +625,9 @@ fsutil hardlink list <新しくできたパス>
 
 - [ ] **43.9** 50MB の CSV → すぐ開き、`max_text_bytes` で切られ、フッタが省略したと述べる — *A 50 MB CSV → Opens promptly, cut at `max_text_bytes`, footer says truncated*
 
-## 44. ディスク使用量 — 14 / 15
+## 44. ディスク使用量 — 14 / 16
 
-自動テスト済みなので下には出していない: 44.7, 44.15
+自動テスト済みなので下には出していない: 44.7, 44.15, 44.18
 
 - [x] **44.1** `node_modules` のあるプロジェクトで `gu` → 子が大きい順に棒付きで並ぶ。`node_modules` が上位に来て、合計が自身のエントリよりはるかに大きい — *`gu` in a project with a `node_modules` → Children largest first, with bars; `node_modules` near the top with a total far bigger than its own entry*
 - [x] **44.2** `gu` してから `<Esc>` → 元のディレクトリに戻り、カーソルも元の位置。走査は止まる（抜けたあと CPU を使わない） — *`gu`, then `<Esc>` → Back in the directory, cursor where it was. The walk stops (no CPU after leaving)*
@@ -644,6 +644,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **44.14** タブを `linemode mtime`（`m t`）にして `gu`、すぐ `<Esc>`（v0.56.0）→ 行には日付ではなくサイズ（`1.5 M`、`6.0 K`）が出る。`<Esc>` の後は日付に戻り、`Measuring…` のトーストもすぐ消える — *With the tab on `linemode mtime` (`m t`), `gu`, then `<Esc>` straight away (v0.56.0) → The rows show sizes (`1.5 M`, `6.0 K`), not dates; after `<Esc>` the list shows dates again, and the `Measuring…` toast is gone at once*
 - [ ] **44.16** 数秒かかる大きさの木で `gu` して、見出しを見る（v0.57.3）→ 歩いている間は `N measured so far` で増えていき、合計のトーストが出たら `N items` になる — *`gu` on a tree big enough to take seconds, and watch the header (v0.57.3) → `N measured so far`, growing, while it walks; `N items` once the total's toast is up*
 - [x] **44.17** `gu` のあと、ビューの中で `m t`、続けて `m u`（v0.58.0）→ `m t` で数字が日付に替わり棒だけが残る。`m u` で**歩き直さずに**サイズが戻る（`Measuring…` が出ない）。`<Esc>` でタブ自身の表示に戻るのは今までどおり — *`gu`, then `m t` inside the view, then `m u` (v0.58.0) → `m t` swaps the numbers for dates with the bars left; `m u` brings the sizes back **without** walking again (no `Measuring…`). `<Esc>` still gives the tab its own mode back*
+- [ ] **44.19** 数秒かかる木で `gu` し、合計のトーストが消えるまで待つ（v0.59.2）→ ビューを開いている間ずっと、見出しが `N items · <大きさ> total` と言う（ここが使用量ビューだと分かる唯一の印）。その木で `filer --keys "gu<Wait:0>j"` とすると、カーソルは歩きが終わってから動く — *`gu` on a tree that takes seconds, then wait past the total's toast (v0.59.2) → The header reads `N items · <size> total` for as long as the view is up -- the one sign left that this is the usage view. And `filer --keys "gu<Wait:0>j"` on that tree moves the cursor only after the walk is done*
 
 ## 45. 2 つのフォルダを比べる — 11 / 12
 

@@ -417,6 +417,9 @@ pub fn linemode_text(entry: &Entry, mode: crate::fs::entry::Linemode) -> String 
         L::Size => entry.display_size().unwrap_or_default(),
         // The usage view's own mode: the measured total, files included, so a
         // folder and a file read on the same scale.
+        // A folder nothing has measured -- `m u` outside `gu`'s view -- is
+        // blank, as `size` leaves it: `0 B` read as an empty folder (#122).
+        L::Usage if entry.usage.is_none() && entry.is_dir_like() => String::new(),
         L::Usage => match (entry.usage_cut, entry.usage_bytes()) {
             (true, 0) => "?".to_owned(),
             (true, n) => format!("≥ {}", crate::util::human_size(n)),
@@ -602,5 +605,28 @@ mod empty {
         use std::path::Path;
         assert_eq!(empty_label(Path::new(r"\\fileserver")), "(no shares)");
         assert_eq!(empty_label(Path::new(r"\\fileserver\share")), "(empty)");
+    }
+}
+
+#[cfg(test)]
+mod usage_column {
+    use super::linemode_text;
+    use crate::fs::entry::Linemode;
+    use crate::fs::Entry;
+
+    /// TESTING.md 44.18 — `m u` outside `gu`'s view: a folder nothing has
+    /// measured is blank rather than `0 B`, and a file still shows its size.
+    #[test]
+    fn an_unmeasured_folder_is_blank_not_empty() {
+        let dir = crate::util::test_dir("usage-column");
+        std::fs::create_dir_all(dir.join("big")).unwrap();
+        std::fs::write(dir.join("big").join("x"), vec![b'x'; 2048]).unwrap();
+        std::fs::write(dir.join("note.txt"), vec![b'x'; 1024]).unwrap();
+        let mut big = Entry::from_path(dir.join("big")).unwrap();
+        let note = Entry::from_path(dir.join("note.txt")).unwrap();
+        assert_eq!(linemode_text(&big, Linemode::Usage), "");
+        assert_eq!(linemode_text(&note, Linemode::Usage), "1.0 K");
+        big.usage = Some(2048);
+        assert_eq!(linemode_text(&big, Linemode::Usage), "2.0 K", "measured, it shows");
     }
 }

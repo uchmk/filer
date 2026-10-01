@@ -1226,6 +1226,8 @@ The walk and the ordering are unit-tested on a small tree. What needs a machine 
 | 44.15 | `gu` on a small tree and let it finish (v0.57.3) | Only the total's toast is left; `Measuring…` goes when it arrives rather than sitting beside it |
 | 44.16 | `gu` on a tree big enough to take seconds, and watch the header (v0.57.3) | `N measured so far`, growing, while it walks; `N items` once the total's toast is up |
 | 44.17 | `gu`, then `m t` inside the view, then `m u` (v0.58.0) | `m t` swaps the numbers for dates with the bars left; `m u` brings the sizes back **without** walking again (no `Measuring…`). `<Esc>` still gives the tab its own mode back |
+| 44.18 | In an ordinary listing (no `gu`), `m u` (v0.59.2) | Folders are **blank**, as under `m s`; files show their own size. Until v0.59.2 every folder read `0 B` |
+| 44.19 | `gu` on a tree that takes seconds, then wait past the total's toast (v0.59.2) | The header reads `N items · <size> total` for as long as the view is up -- the one sign left that this is the usage view. And `filer --keys "gu<Wait:0>j"` on that tree moves the cursor only after the walk is done |
 
 ## 45. Comparing two folders (v0.43.0)
 
