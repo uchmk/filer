@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**219 / 420 済み。**（TESTING.md の全 589 件のうち、`cargo test` が見ている 169 件は
+**219 / 421 済み。**（TESTING.md の全 590 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -695,9 +695,10 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [ ] **46.20** `origin/HEAD` の無いリポジトリ（`git remote set-head origin -d`）で同じこと → `Not merged` の行は出ない。既定のブランチを推測しない — *The same in a repository with no `origin/HEAD` (`git remote set-head origin -d`) → No `Not merged` row at all — filer does not guess the default branch*
 - [ ] **46.21** プルリクエストで入ったファイルで `<Tab>`、カーソルを `From branch` に置いて `<Enter>`（v0.59.1）→ ブラウザが枝のページ（`…/tree/<枝>`）を開き、トーストが `Opened …` と言う。マージ後に消された枝なら GitHub 自身の 404 が開くが、アドレスとしては正しい — *On a file that came in through a pull request, `<Tab>`, the cursor on `From branch`, `<Enter>` (v0.59.1) → The browser opens the branch's page (`…/tree/<branch>`), and the toast says `Opened …`. A branch deleted after the merge opens GitHub's own 404, which is still the right address*
 
-## 47. 放置した窓は CPU を使わない — 3 / 4
+## 47. 放置した窓は CPU を使わない — 3 / 5
 
 - [x] **47.1** ファイルとサブフォルダのあるフォルダで filer を開き、10 秒何も触らない。`(Get-Process filer).CPU` を 10 秒あけて 2 回読む → 2 つの差は **1 秒よりずっと小さい**（100 分の数秒なら普通） — *Open filer on a folder of files and subfolders, touch nothing for 10 s, then read `(Get-Process filer).CPU` twice, 10 s apart → The two readings differ by **well under 1 s** (a few hundredths is normal)*
 - [x] **47.2** `j` でファイルに乗り、すぐ（40 ms のデバウンスの内に）`j` でサブフォルダに乗って手を離す。CPU を 10 秒あけて 2 回読む → 同じく**増えない**。v0.54.2 より前は、これが描き続けたまま止まらなくなる手順だった — *`j` onto a file and at once `j` onto a subfolder (inside the 40 ms debounce), then hands off; read the CPU twice, 10 s apart → The same: **no rise**. Before v0.54.2 this was the sequence that left it drawing for ever*
 - [x] **47.3** 47.2 のあと窓を最小化する → 最小化していても増えない — *The same as 47.2, then minimise the window → Still no rise while minimised*
 - [ ] **47.4** 47.1〜47.3 でまだ増えるとき: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime` を 10 秒あけて 2 回 → どのスレッドの時間が増えるかと、分かれば開始アドレスを報告する。次に調べるのはそのスレッド — *If 47.1-47.3 still rise: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart → Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at*
+- [ ] **47.5** `f` のプロンプトを開いて 10 秒何も触らず、前後で CPU を読む（v0.59.3）→ プロンプトを開いていないとき（47.1）と同じく増えない。キャレットは点滅せず常に出ている。v0.59.3 までは点滅のために毎秒 2 回描いていて、10 秒で 0.14〜0.30 CPU 秒（#103、#110） — *Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3) → No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110)*
