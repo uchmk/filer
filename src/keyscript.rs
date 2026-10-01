@@ -27,6 +27,12 @@ pub enum Step {
     /// that drove the pane filled the gap with harmless keys instead and
     /// guessed how long they took (#93, #119 and five more).
     Wait(Duration),
+    /// `<Now>`: the key after it goes in on the next frame, without waiting
+    /// for what the key before started to settle. For the rows that measure
+    /// something halfway -- a trash still running (12.14), two keys inside the
+    /// preview's 40 ms debounce (47.2) -- which the settled wait otherwise
+    /// waits out (Q41).
+    Now,
 }
 
 /// What a step becomes in the frame loop.
@@ -34,6 +40,7 @@ pub enum Step {
 pub enum Press {
     Events(Vec<egui::Event>),
     Wait(Duration),
+    Now,
 }
 
 /// A step as the frame loop takes it; `None` for a key no keyboard can type.
@@ -41,6 +48,7 @@ pub fn press(step: &Step) -> Option<Press> {
     match step {
         Step::Key(k) => events(k).map(Press::Events),
         Step::Wait(d) => Some(Press::Wait(*d)),
+        Step::Now => Some(Press::Now),
     }
 }
 
@@ -54,7 +62,8 @@ fn wait(token: &str) -> Option<Result<Duration, String>> {
 }
 
 /// `<Tab>C<C-S-t>gg` as the keys it names, in yazi's notation: `<…>` is one
-/// key, anything else is one key per character. `<Wait:N>` pauses N ms.
+/// key, anything else is one key per character. `<Wait:N>` pauses N ms, and
+/// `<Now>` presses the next key without waiting for the last one to settle.
 pub fn parse(script: &str) -> Result<Vec<Step>, String> {
     let mut out = Vec::new();
     let mut rest = script;
@@ -75,10 +84,17 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
         };
         let step = match wait(token) {
             Some(d) => Step::Wait(d?),
+            None if token == "<Now>" => Step::Now,
             None => Step::Key(Key::parse(token).ok_or_else(|| format!("`{token}` is not a key"))?),
         };
         out.push(step);
         rest = &rest[token.len()..];
+    }
+    // `<Now>` is about the key after it, so there has to be one.
+    for (i, step) in out.iter().enumerate() {
+        if *step == Step::Now && !matches!(out.get(i + 1), Some(Step::Key(_))) {
+            return Err("`<Now>` has to come right before a key, as `d<Now>w`".into());
+        }
     }
     Ok(out)
 }
@@ -116,6 +132,19 @@ pub fn events(key: &Key) -> Option<Vec<egui::Event>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Q41: `<Now>` marks the key after it, and only a key can follow it.
+    #[test]
+    fn now_marks_the_next_key() {
+        let got = parse("d<Now>w").unwrap();
+        assert_eq!(got[1], Step::Now);
+        assert!(matches!(got[2], Step::Key(_)));
+        assert_eq!(press(&got[1]), Some(Press::Now));
+        for bad in ["d<Now>", "<Now><Wait:100>x", "<Now><Now>x"] {
+            let err = parse(bad).unwrap_err();
+            assert!(err.contains("<Now>"), "{bad}: {err}");
+        }
+    }
 
     /// Named keys, chords and plain characters, in one run of text.
     #[test]

@@ -1310,6 +1310,12 @@ settle — a shell in the terminal pane, a program running there (v0.59.0):
 filer --keys "<C-t><Wait:1500>git<Space>status<Enter><Wait:1000><C-S-Enter>"
 ```
 
+`<Now>` is the other way round: the key right after it goes in on the next frame, without waiting
+for what the key before started to settle (v0.65.0). That is how a check reaches something
+halfway — `d<Now>w` opens the task panel while the trash is still running, and `j<Now>j` lands two
+moves inside the preview's 40 ms debounce. It has to come right before a key; anything else is
+refused on the command line.
+
 A space is written `<Space>`; a plain one is refused.
 
 A script driving filer from outside needs to know when the keys are done, and guessing from the

@@ -126,7 +126,8 @@ fn parse_cli() -> Cli {
                      -V, --version    the version and the architecture\n    \
                      --keys KEYS      press these keys once started, in keymap notation:\n                     \
                      \"<Tab>C\" opens spot and copies it; <Wait:500> pauses\n                     \
-                     500 ms. For scripted checks\n\n\
+                     500 ms; <Now> presses the next key without waiting\n                     \
+                     for the last to settle. For scripted checks\n\n\
                      COMMANDS:\n    env              config files, outside tools and environment,\n                     \
                      for pasting into a bug report\n\n\
                      Config is read from yazi's config directory, then from filer's own.\n\
@@ -258,6 +259,7 @@ fn main() -> eframe::Result<()> {
                 last_geometry: None,
                 script: cli.keys.iter().filter_map(keyscript::press).collect(),
                 script_at: (0, std::time::Instant::now()),
+                script_now: false,
                 script_done: std::env::var_os("FILER_KEYS_DONE").filter(|_| !cli.keys.is_empty()).map(PathBuf::from),
             }))
         }),
@@ -542,6 +544,9 @@ struct Filer {
     script: std::collections::VecDeque<keyscript::Press>,
     /// The frame and the moment the last scripted key went in.
     script_at: (u64, std::time::Instant),
+    /// `<Now>` was read: the next key goes in a frame after the last, without
+    /// the settled wait.
+    script_now: bool,
     /// `FILER_KEYS_DONE`: a file to write once the last scripted key has been
     /// pressed and what it started has landed. A script that drives filer
     /// from outside (`scripts/xrun.sh`) waits for it instead of guessing how
@@ -603,7 +608,18 @@ impl eframe::App for Filer {
         let frame = ctx.cumulative_frame_nr();
         let (last_frame, last_at) = self.script_at;
         let waited_long = last_at.elapsed() > Duration::from_secs(5);
-        if frame < last_frame + 2 || !(self.app.settled() || waited_long) {
+        if self.script.front() == Some(&keyscript::Press::Now) {
+            self.script.pop_front();
+            self.script_now = true;
+        }
+        // `<Now>`: one frame after the last key is enough -- it has been
+        // handed to the app, which is all the next one needs.
+        let ready = if self.script_now {
+            frame > last_frame
+        } else {
+            frame >= last_frame + 2 && (self.app.settled() || waited_long)
+        };
+        if !ready {
             return;
         }
         // The same wait as before a key: the last one has been drawn and has
@@ -629,8 +645,10 @@ impl eframe::App for Filer {
             Some(keyscript::Press::Events(events)) => {
                 raw_input.events.extend(events);
                 self.script_at = (frame, std::time::Instant::now());
+                self.script_now = false;
             }
-            None => {}
+            // Taken before the wait above; `parse` puts a key after every one.
+            Some(keyscript::Press::Now) | None => {}
         }
     }
 
