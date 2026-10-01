@@ -364,7 +364,7 @@ impl Ctx<'_> {
                     let link = Link { at: dest, target, dir: src.is_dir(), hard: false };
                     match link.make() {
                         Ok(()) => self.linked.push(link),
-                        Err(e) => self.errors.push(format!("{}: {}", short(src), explain(&e))),
+                        Err(e) => self.errors.push(format!("{}: {}", short(src), symlink_error(&e, &link, src))),
                     }
                     self.files_done += 1;
                 }
@@ -811,21 +811,27 @@ fn relative_to(from_dir: &Path, target: &Path) -> Option<PathBuf> {
 /// for. Only 1314 gets the extra line: telling someone to turn on Developer
 /// Mode when the real problem was a read-only folder would be worse than
 /// saying nothing.
-#[cfg(windows)]
-fn explain(e: &std::io::Error) -> String {
+///
+/// A folder gets one more line (#168): a junction needs neither, and most
+/// links people want on Windows are to folders. It names the command with
+/// both paths, absolute because a junction cannot be relative.
+fn symlink_error(e: &std::io::Error, link: &Link, src: &Path) -> String {
     const ERROR_PRIVILEGE_NOT_HELD: i32 = 1314;
-    if e.raw_os_error() == Some(ERROR_PRIVILEGE_NOT_HELD) {
-        return format!(
-            "{e} — Windows needs Developer Mode for symlinks \
-             (Settings > System > For developers), or run filer as administrator"
+    if !cfg!(windows) || e.raw_os_error() != Some(ERROR_PRIVILEGE_NOT_HELD) {
+        return e.to_string();
+    }
+    let mut said = format!(
+        "{e} — Windows needs Developer Mode for symlinks \
+         (Settings > System > For developers), or run filer as administrator"
+    );
+    if link.dir {
+        said += &format!(
+            ". A junction needs neither: mklink /J \"{}\" \"{}\"",
+            link.at.display(),
+            src.display()
         );
     }
-    e.to_string()
-}
-
-#[cfg(not(windows))]
-fn explain(e: &std::io::Error) -> String {
-    e.to_string()
+    said
 }
 
 /// Whether another program holds `p` open so that it cannot be removed:
@@ -949,6 +955,33 @@ fn symlink(target: &Path, link: &Path, dir: bool) -> std::io::Result<()> {
 #[cfg(not(windows))]
 fn symlink(target: &Path, link: &Path, _dir: bool) -> std::io::Result<()> {
     std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(test)]
+mod symlink_message {
+    use super::*;
+
+    /// #168: refused for want of the privilege, a folder is told about the
+    /// junction it can make instead, a file is not (a junction is folders
+    /// only), and any other failure keeps the OS's own words.
+    #[test]
+    fn a_refused_folder_link_names_the_junction() {
+        let refused = std::io::Error::from_raw_os_error(1314);
+        let (src, at) = (Path::new("C:/work/src"), Path::new("C:/work/dst/src"));
+        let folder = Link { at: at.to_path_buf(), target: PathBuf::from("../src"), dir: true, hard: false };
+        let file = Link { dir: false, ..folder.clone() };
+        let said = symlink_error(&refused, &folder, src);
+        if cfg!(windows) {
+            assert!(said.contains("needs Developer Mode"), "{said}");
+            assert!(said.ends_with(r#"A junction needs neither: mklink /J "C:/work/dst/src" "C:/work/src""#), "{said}");
+            let said = symlink_error(&refused, &file, src);
+            assert!(said.contains("needs Developer Mode") && !said.contains("junction"), "{said}");
+        } else {
+            assert_eq!(said, refused.to_string(), "only Windows asks for the privilege");
+        }
+        let other = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+        assert_eq!(symlink_error(&other, &folder, src), other.to_string());
+    }
 }
 
 #[cfg(test)]
