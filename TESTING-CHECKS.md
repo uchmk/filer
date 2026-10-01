@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**252 / 443 済み。**（TESTING.md の全 612 件のうち、`cargo test` が見ている 169 件は
+**253 / 443 済み。**（TESTING.md の全 612 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -350,7 +350,7 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **20.6** `[ui] minimap = false` にして `<C-F5>` → ミニマップが出なくなる — *`[ui] minimap = false`, `<C-F5>` → No minimap*
 - [x] **20.7** `keymap.toml` に `[[mgr.prepend_keymap]]` で `on = "<F8>"`、`run = 'cd C:\Windows\System32'`（コマンドの中に引用符なし）を書く（v0.59.0）→ `<F8>` で `C:\Windows\System32` に着く。v0.59.0 までは `\` が落ち、エラーが `C:WindowsSystem32` を挙げていた — *In `keymap.toml`, `[[mgr.prepend_keymap]]` `on = "<F8>"`, `run = 'cd C:\Windows\System32'` -- no quotes inside the command (v0.59.0) → `<F8>` lands in `C:\Windows\System32`. Until v0.59.0 the backslashes were dropped and the error named `C:WindowsSystem32`*
 
-## 21. 書庫（zip / tar / 7z） — 8 / 9
+## 21. 書庫（zip / tar / 7z） — 9 / 9
 
 自動テスト済みなので下には出していない: 21.1, 21.4, 21.6, 21.12
 
@@ -362,7 +362,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **21.9** 同じ `.7z` を 7-Zip や エクスプローラーで開く → そちらでも開ける。他所へ持って行けることが、この形式を入れた理由 — *Open the same `.7z` in 7-Zip or Explorer → It opens there too — the point of the format is that it travels*
 - [x] **21.10** サブフォルダを含むフォルダを `.7z` に固めて、タスクパネルを見る → 件数は**ファイル**の数（フォルダではない）で、途中で止まらず総数まで届く — *Pack a folder holding subfolders as `.7z`, watch the task panel → The count is of **files**, not folders, and it reaches the total rather than stopping short*
 - [x] **21.11** 同じ入力の `.7z` と `.zip` を比べる → 7z のほうが小さい。それが持っている理由 — *Compare the `.7z` and the `.zip` of the same input → The 7z is smaller; that is the reason to have it*
-- [ ] **21.13** `to-pack\` を `.zip` に圧縮し、`7z l` で見る（v0.57.2）→ どのエントリも元のファイルの日時（偶数秒まで）を持つ。`1980-01-01 00:00:00` ではない — *Pack `to-pack\` as `.zip`, then `7z l` the archive (v0.57.2) → Every entry carries its file's own date and time (to the even second), not `1980-01-01 00:00:00`*
+- [x] **21.13** `to-pack\` を `.zip` に圧縮し、`7z l` で見る（v0.57.2）→ どのエントリも元のファイルの日時（偶数秒まで）を持つ。`1980-01-01 00:00:00` ではない — *Pack `to-pack\` as `.zip`, then `7z l` the archive (v0.57.2) → Every entry carries its file's own date and time (to the even second), not `1980-01-01 00:00:00`*
 
 ## 22. エディタを行番号付きで開く（エディタのインストールが要る） — 2 / 6
 
