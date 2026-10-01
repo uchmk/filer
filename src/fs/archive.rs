@@ -613,6 +613,35 @@ fn write_tar<W: Write>(members: &[Member], out: W, on_entry: OnEntry<'_>) -> io:
 
 /// Where an archive unpacks: a folder in `into` named after it, with the
 /// extension dropped. `report.tar.gz` gives `report`, not `report.tar`.
+/// An archive whose top level is one folder and nothing else is unpacked as
+/// that folder, not inside a second one named after the archive: most archives
+/// that are downloaded have exactly that shape, and `e` gave `to-pack_1\to-pack\`
+/// two levels down (Q43, #156). `into` is the folder it was unpacked into; the
+/// result is where the contents are now. A name already taken beside it is
+/// stepped past (`unique` decides how), as the wrapper's own name was.
+///
+/// Anything else -- loose files, two folders, a lone file -- stays wrapped,
+/// which is the case the wrapper is for: an archive that would scatter.
+pub fn lift_lone_folder(into: &Path, unique: impl Fn(&Path) -> PathBuf) -> std::io::Result<PathBuf> {
+    let mut entries = std::fs::read_dir(into)?;
+    let (Some(only), None) = (entries.next().transpose()?, entries.next()) else {
+        return Ok(into.to_path_buf());
+    };
+    if !only.file_type()?.is_dir() {
+        return Ok(into.to_path_buf());
+    }
+    let Some(parent) = into.parent() else { return Ok(into.to_path_buf()) };
+    // Out of the wrapper under a name nothing has, then the wrapper goes, and
+    // only then the real name is chosen -- the wrapper is often called exactly
+    // what is inside it, and has to be gone before that name is free.
+    let parked = unique(&parent.join(format!(".{}.unpacking", only.file_name().to_string_lossy())));
+    std::fs::rename(only.path(), &parked)?;
+    std::fs::remove_dir(into)?;
+    let target = unique(&parent.join(only.file_name()));
+    std::fs::rename(&parked, &target)?;
+    Ok(target)
+}
+
 pub fn extract_dir(archive: &Path, into: &Path) -> PathBuf {
     let name = archive.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
     let lower = name.to_ascii_lowercase();
@@ -711,6 +740,39 @@ mod tests {
                 assert_eq!(got.timestamp(), when.timestamp(), "{name}: {f} keeps 12:34:56, not the time it was unpacked");
             }
         }
+    }
+
+    /// Q43: one folder at the top comes out as that folder; anything else
+    /// keeps the wrapper.
+    #[test]
+    fn a_lone_top_folder_is_not_wrapped_again() {
+        let unique = |p: &Path| crate::fs::ops::unique_name(p);
+        let dir = crate::util::test_dir("lift");
+
+        // The wrapper has the same name as what is inside it.
+        let into = dir.join("to-pack");
+        std::fs::create_dir_all(into.join("to-pack").join("sub")).unwrap();
+        std::fs::write(into.join("to-pack").join("a.txt"), "a").unwrap();
+        let got = lift_lone_folder(&into, unique).unwrap();
+        assert_eq!(got, dir.join("to-pack"));
+        assert!(got.join("a.txt").is_file() && got.join("sub").is_dir(), "the contents, one level up");
+        assert!(!got.join("to-pack").exists(), "no second level");
+
+        // The name beside it is taken: stepped past, like the wrapper's.
+        let into = dir.join("again");
+        std::fs::create_dir_all(into.join("to-pack")).unwrap();
+        assert_eq!(lift_lone_folder(&into, unique).unwrap(), dir.join("to-pack_1"));
+        assert!(!into.exists(), "the empty wrapper is gone");
+
+        // Loose files, or more than one thing, stay wrapped.
+        let loose = dir.join("loose");
+        std::fs::create_dir_all(&loose).unwrap();
+        std::fs::write(loose.join("x.txt"), "x").unwrap();
+        assert_eq!(lift_lone_folder(&loose, unique).unwrap(), loose);
+        let two = dir.join("two");
+        std::fs::create_dir_all(two.join("a")).unwrap();
+        std::fs::create_dir_all(two.join("b")).unwrap();
+        assert_eq!(lift_lone_folder(&two, unique).unwrap(), two);
     }
 
     #[test]

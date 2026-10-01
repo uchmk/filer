@@ -430,12 +430,23 @@ impl Ctx<'_> {
                 self.report_entry(name);
                 !self.cancelled
             });
-            if let Err(e) = r {
-                self.errors.push(format!("{}: {e}", short(src)));
-                // A refused entry leaves the rest in place; an empty folder
-                // from a job that got nowhere is just litter.
-                if seen == 0 {
-                    let _ = std::fs::remove_dir(&into);
+            match r {
+                // Whole and not cancelled: an archive that is one folder comes
+                // out as that folder (Q43). A cancelled one stays wrapped, so
+                // what was left half-done is all in one place.
+                Ok(()) if !self.cancelled => {
+                    if let Err(e) = archive::lift_lone_folder(&into, unique_name) {
+                        self.errors.push(format!("{}: {e}", short(src)));
+                    }
+                }
+                Ok(()) => {}
+                Err(e) => {
+                    self.errors.push(format!("{}: {e}", short(src)));
+                    // A refused entry leaves the rest in place; an empty folder
+                    // from a job that got nowhere is just litter.
+                    if seen == 0 {
+                        let _ = std::fs::remove_dir(&into);
+                    }
                 }
             }
             self.files_done += 1;

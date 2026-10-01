@@ -828,8 +828,11 @@ v0.27.0 — the encoder had been in the binary the whole time, since the 7z crat
 
 `e` gives each archive a folder of its own, named after it with the extension dropped
 (`report.tar.gz` unpacks into `report`), and steps the name past anything already there rather
-than merging into it. A selection holding things that are not archives extracts the ones that are
-and says how many it skipped.
+than merging into it. An archive whose top level is a single folder comes out as that folder
+instead of inside a second one named after the archive (v0.66.0): `to-pack.zip` holding `to-pack\…`
+gives `to-pack\`, not `to-pack\to-pack\` — the way 7-Zip's "Extract Here" does it. Loose files, or
+more than one thing at the top, keep the wrapper so nothing scatters. A selection holding things that
+are not archives extracts the ones that are and says how many it skipped.
 
 `E` asks what to call the archive, prefilled with `<name>.zip`. **The extension you type decides
 the format** — change it to `.tar.gz` and that is what you get. Names inside the archive are

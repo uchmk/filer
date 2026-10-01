@@ -641,6 +641,7 @@ row needs which. 21.6 says something other than what it says here, which is writ
 | 21.12 | `E` with a name ending in something else (`.rar`) | `Name it .zip, .7z, .tar or .tar.gz to say which format` |
 | 21.13 | Pack `to-pack\` as `.zip`, then `7z l` the archive (v0.57.2) | Every entry carries its file's own date and time (to the even second), not `1980-01-01 00:00:00` |
 | 21.14 | Give `to-pack\` files with old dates (`(Get-Item f).LastWriteTime = "2021-06-15 12:34:56"`), pack it with `E` as `.zip`, `.tar.gz` and `.7z`, then `e` each one (v0.65.7) | Every unpacked file has its original `LastWriteTime` back (a zip to the even second), not the moment it was unpacked. Before v0.65.7 every one read the time of the `e` (#156) |
+| 21.15 | `E` on `to-pack\` alone (the archive's top level is one folder), then `e` on `to-pack.zip`; then the same with `sample.zip`, whose top level is loose files (v0.66.0) | `to-pack_1\` holds the files directly -- no `to-pack_1\to-pack\` (Q43). `sample.zip` still unpacks into its own `sample\` (or `sample_1\`) folder |
 
 ## 22. Editors, at a line (needs the editors installed)
 
