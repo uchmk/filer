@@ -27,9 +27,13 @@ const BUDGET: usize = 200_000;
 /// a name search, so this is the throttle `ops` reports progress through.
 const TICK: Duration = Duration::from_millis(50);
 
+/// A child and what is under it: bytes, the number of files counted, and
+/// whether the walk got to the end of it. A child the budget ran out in, or
+/// never reached, is a floor and not an answer (44.7, #109).
+pub type Child = (PathBuf, u64, u64, bool);
+
 pub enum Msg {
-    /// A child and what is under it: bytes, then the number of files counted.
-    Sized(Vec<(PathBuf, u64, u64)>),
+    Sized(Vec<Child>),
     Done {
         total: u64,
         /// Whether the walk ran out of budget, so the totals are floors rather
@@ -66,7 +70,7 @@ pub fn spawn(root: &Path, wake: impl Fn() + Send + 'static) -> Handle {
         .spawn(move || {
             let mut budget = BUDGET;
             let mut total = 0u64;
-            let mut batch: Vec<(PathBuf, u64, u64)> = Vec::new();
+            let mut batch: Vec<Child> = Vec::new();
             let mut last = Instant::now();
             let children: Vec<PathBuf> = match std::fs::read_dir(&walk_root) {
                 Ok(rd) => rd.filter_map(|e| e.ok()).map(|e| e.path()).collect(),
@@ -76,9 +80,9 @@ pub fn spawn(root: &Path, wake: impl Fn() + Send + 'static) -> Handle {
                 if stop.load(Ordering::Relaxed) {
                     return;
                 }
-                let (bytes, files) = measure(&child, &mut budget, &stop);
+                let (bytes, files, whole) = measure(&child, &mut budget, &stop);
                 total += bytes;
-                batch.push((child, bytes, files));
+                batch.push((child, bytes, files, whole));
                 if last.elapsed() >= TICK {
                     let _ = tx.send(Msg::Sized(std::mem::take(&mut batch)));
                     wake();
@@ -95,19 +99,20 @@ pub fn spawn(root: &Path, wake: impl Fn() + Send + 'static) -> Handle {
     Handle { rx, cancel }
 }
 
-/// Everything under `path`, as bytes and a file count.
+/// Everything under `path`, as bytes, a file count, and whether all of it was
+/// reached before the budget ran out.
 ///
 /// An explicit stack rather than recursion, and `symlink_metadata` so a link to
 /// a directory is one entry rather than a second copy of a tree -- or a loop.
 /// Hard links are counted once per name, so a tree that uses them reads high;
 /// telling them apart needs inode bookkeeping this does not do.
-fn measure(path: &Path, budget: &mut usize, stop: &AtomicBool) -> (u64, u64) {
+fn measure(path: &Path, budget: &mut usize, stop: &AtomicBool) -> (u64, u64, bool) {
     let mut bytes = 0u64;
     let mut files = 0u64;
     let mut stack = vec![path.to_path_buf()];
     while let Some(p) = stack.pop() {
         if *budget == 0 || stop.load(Ordering::Relaxed) {
-            break;
+            return (bytes, files, false);
         }
         *budget -= 1;
         let Ok(md) = std::fs::symlink_metadata(&p) else { continue };
@@ -120,7 +125,7 @@ fn measure(path: &Path, budget: &mut usize, stop: &AtomicBool) -> (u64, u64) {
             bytes += md.len();
         }
     }
-    (bytes, files)
+    (bytes, files, true)
 }
 
 #[cfg(test)]
@@ -138,7 +143,7 @@ mod tests {
         dir
     }
 
-    fn collect(root: &Path) -> (Vec<(PathBuf, u64, u64)>, u64, bool) {
+    fn collect(root: &Path) -> (Vec<Child>, u64, bool) {
         let h = spawn(root, || {});
         let mut all = Vec::new();
         let (mut total, mut capped) = (0, false);
@@ -180,6 +185,26 @@ mod tests {
         assert_eq!(files("big"), Some(2));
         assert_eq!(files("small"), Some(1));
         assert_eq!(files("loose"), Some(1));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// 44.7: a child the budget ran out in says so, and so does one it never
+    /// reached -- the second used to come back as a plain 0 B, which is what
+    /// `C:\Windows` read at the root of a drive.
+    #[test]
+    fn a_walk_cut_short_says_so() {
+        let dir = tree();
+        let stop = AtomicBool::new(false);
+        let mut budget = 2;
+        let (_, _, whole) = measure(&dir.join("big"), &mut budget, &stop);
+        assert!(!whole, "four entries under `big`, two allowed");
+        let (bytes, files, whole) = measure(&dir.join("small"), &mut budget, &stop);
+        assert_eq!((bytes, files, whole), (0, 0, false), "nothing left for `small`: unknown, not empty");
+
+        let mut budget = 1000;
+        assert!(measure(&dir.join("small"), &mut budget, &stop).2, "with room, the walk ends");
+        let (all, ..) = collect(&dir);
+        assert!(all.iter().all(|t| t.3), "and a whole walk marks every child whole: {all:?}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

@@ -106,7 +106,9 @@ impl SortSpec {
                 SortBy::Mtime => cmp_time(a.modified, b.modified),
                 SortBy::Btime => cmp_time(a.created, b.created),
                 SortBy::Atime => cmp_time(a.accessed, b.accessed),
-                SortBy::Size => a.len.cmp(&b.len),
+                // A measured total when there is one (the usage view), so a
+                // folder sorts by what is in it rather than by its own entry.
+                SortBy::Size => a.usage.unwrap_or(a.len).cmp(&b.usage.unwrap_or(b.len)),
                 SortBy::Extension => match (a.ext.as_deref(), b.ext.as_deref()) {
                     (Some(x), Some(y)) => util::alpha_cmp(x, y, sensitive),
                     (None, Some(_)) => Ordering::Less,

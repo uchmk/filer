@@ -21,6 +21,12 @@ pub fn parse(script: &str) -> Result<Vec<Key>, String> {
     let mut out = Vec::new();
     let mut rest = script;
     while let Some(c) = rest.chars().next() {
+        // A plain space never arrived as one: the rest of the script went to
+        // the list instead of the pane, so `<C-t>echo hi<Enter>` typed `echo`
+        // and walked the list (#110). Refused before the window opens.
+        if c.is_whitespace() {
+            return Err(format!("a plain space cannot be typed here; write `<Space>` (at `{rest}`)"));
+        }
         let token = if c == '<' {
             match rest.find('>') {
                 Some(end) => &rest[..=end],
@@ -79,6 +85,10 @@ mod tests {
         assert!(parse("<Tab").is_err(), "an unclosed key is refused, not guessed at");
         assert!(parse("<Nonsense>").is_err());
         assert_eq!(parse("").unwrap(), Vec::new());
+        // #110: a space is written `<Space>`; a plain one is refused, naming where.
+        let err = parse("<C-t>echo hi<Enter>").unwrap_err();
+        assert!(err.contains("<Space>") && err.contains("hi<Enter>"), "{err}");
+        assert_eq!(parse("a<Space>b").unwrap().len(), 3);
     }
 
     /// Every key produces events that `from_egui` reads back as the same key --

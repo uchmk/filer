@@ -410,7 +410,11 @@ pub fn linemode_text(entry: &Entry, mode: crate::fs::entry::Linemode) -> String 
         L::Size => entry.display_size().unwrap_or_default(),
         // The usage view's own mode: the measured total, files included, so a
         // folder and a file read on the same scale.
-        L::Usage => crate::util::human_size(entry.usage_bytes()),
+        L::Usage => match (entry.usage_cut, entry.usage_bytes()) {
+            (true, 0) => "?".to_owned(),
+            (true, n) => format!("≥ {}", crate::util::human_size(n)),
+            (false, n) => crate::util::human_size(n),
+        },
         L::Mtime => util::fmt_time(entry.modified, "%Y-%m-%d %H:%M"),
         L::Btime => util::fmt_time(entry.created, "%Y-%m-%d %H:%M"),
         L::Permissions => permissions(entry),

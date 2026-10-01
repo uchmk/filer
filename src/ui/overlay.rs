@@ -122,6 +122,23 @@ fn selection(ui: &Ui, id: egui::Id) -> Option<std::ops::Range<usize>> {
     Some(usize::from(r.start)..usize::from(r.end))
 }
 
+/// The selection as it was when the right button went **down**.
+///
+/// A right-click is a press in one frame and a release in a later one, and the
+/// paste happens on the release. egui collapses the selection on the press, so
+/// by the release the frame before holds a caret, not the range: v0.55.0 read
+/// that and pasted at the click on a real mouse, while a press and release sent
+/// together (one frame) replaced as meant (#107). So the range is kept from the
+/// frame the button went down.
+fn selection_at_press(ui: &Ui, id: egui::Id) -> Option<std::ops::Range<usize>> {
+    let key = id.with("selection-at-press");
+    if ui.input(|i| i.pointer.button_pressed(egui::PointerButton::Secondary)) {
+        let now = selection(ui, id);
+        ui.data_mut(|d| d.insert_temp(key, now));
+    }
+    ui.data(|d| d.get_temp::<Option<std::ops::Range<usize>>>(key)).flatten().or_else(|| selection(ui, id))
+}
+
 /// `text` with the character range `at` replaced by `add`.
 ///
 /// Characters, not bytes. egui counts the caret in characters, while `&str`
@@ -165,7 +182,7 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
     );
     let id = egui::Id::new("filer-input");
     let before = ov.text.clone();
-    let selected = selection(ui, id);
+    let selected = selection_at_press(ui, id);
     let resp = ui.put(
         field,
         egui::TextEdit::singleline(&mut ov.text)
@@ -546,16 +563,25 @@ pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
         lines.push(HelpRow::said("(nothing found in either; the defaults are in use)".into()));
     }
     lines.push(HelpRow::blank());
-    lines.push(HelpRow::heading("keys"));
-    for b in &app.cfg.keymap.mgr {
-        lines.push(HelpRow {
-            keys: crate::config::keys::render_seq(&b.on),
-            text: if b.desc.is_empty() { b.raw.clone() } else { b.desc.clone() },
-            raw: b.raw.clone(),
-            warning: false,
-            goes_to: None,
-        });
+    let row = |b: &crate::config::keymap::Binding| HelpRow {
+        keys: crate::config::keys::render_seq(&b.on),
+        text: if b.desc.is_empty() { b.raw.clone() } else { b.desc.clone() },
+        raw: b.raw.clone(),
+        warning: false,
+        goes_to: None,
+    };
+    // Opened from the pane, the keys that work there come first. The list's
+    // alone gave the wrong answer in the one place it was asked: `<A-k>` read
+    // "Scroll the preview up", which in the pane scrolls the terminal (39.9).
+    if app.term_focus {
+        lines.push(HelpRow::heading("keys in the terminal pane"));
+        lines.extend(app.cfg.keymap.term.iter().map(row));
+        lines.push(HelpRow::blank());
+        lines.push(HelpRow::heading("keys in the list (<C-t> to get there)"));
+    } else {
+        lines.push(HelpRow::heading("keys"));
     }
+    lines.extend(app.cfg.keymap.mgr.iter().map(row));
 
     let rows = ((inner.height() / row_h).floor() as usize).max(1);
     // What the keys need to know to page and to stop; only the renderer knows
@@ -827,7 +853,7 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
 
     let before = p.query.clone();
     let pick_id = egui::Id::new("filer-pick");
-    let selected = selection(ui, pick_id);
+    let selected = selection_at_press(ui, pick_id);
     let resp = ui.put(
         field,
         egui::TextEdit::singleline(&mut p.query)
@@ -1590,6 +1616,27 @@ mod help_frame {
         s.typed("~");
         assert!(matches!(s.app.overlay, Overlay::Help), "`~` opened the panel");
         s
+    }
+
+    /// 39.9: opened from the terminal pane, the panel lists the pane's own keys
+    /// first, under their own heading, and the list's after them.
+    #[test]
+    fn help_from_the_pane_lists_the_panes_keys_first() {
+        let mut s = Screen::open(crate::util::test_dir("help-pane"));
+        s.app.term_focus = true;
+        s.app.act(crate::config::cmd::Act::Help);
+        let f = s.draw();
+        let at = |needle: &str| f.texts.iter().position(|t| t == needle);
+        let pane = at("keys in the terminal pane").expect("the pane's heading");
+        let term_up = at("Scroll the terminal up").expect("the pane's own `<A-k>`");
+        let list = at("keys in the list (<C-t> to get there)").expect("the list's heading");
+        assert!(pane < term_up && term_up < list, "the pane's keys come first: {:?}", f.texts);
+
+        // From the list, nothing changes.
+        let mut s = showing_help("help-list");
+        let f = s.draw();
+        assert!(f.texts.iter().any(|t| t == "keys"));
+        assert!(!f.texts.iter().any(|t| t == "keys in the terminal pane"));
     }
 
     /// A directory of `n` files, listed. Long enough that the list underneath
@@ -2808,6 +2855,32 @@ mod prompt_selection {
         s.typed("x-{name}");
         s.draw();
         assert_eq!(field(&s), "x-{name}");
+    }
+
+    /// 30.3 / #107: a right-click on the selection replaces it, with the press
+    /// and the release in **different** frames, as a real mouse sends them.
+    /// v0.55.0 read the selection the frame before the release, which egui had
+    /// already collapsed on the press, and pasted at the click instead.
+    #[test]
+    fn a_right_click_over_the_selection_replaces_it() {
+        let (_dir, mut s) = showing("q31-rclick", &["report.txt"]);
+        s.typed("r");
+        let f = s.draw();
+        assert_eq!(field(&s), "report.txt");
+        // On the field's text, which `r` opened with `report` selected.
+        let i = f.texts.iter().rposition(|t| t == "report.txt").expect("the field is drawn, after the list");
+        let at = f.places[i] + egui::vec2(8.0, 6.0);
+        crate::exec::fake_clipboard("notes");
+        let press = |pressed| egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Secondary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        };
+        s.feed(vec![egui::Event::PointerMoved(at), press(true)]);
+        s.feed(vec![press(false)]);
+        s.draw();
+        assert_eq!(field(&s), "notes.txt", "the selected stem was replaced, not added to");
     }
 
     /// The archive's name selects the part before `.zip`.

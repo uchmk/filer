@@ -460,6 +460,13 @@ fn from_file_url(bytes: &[u8]) -> Option<PathBuf> {
     if decoded.is_empty() {
         return Some(PathBuf::from("/"));
     }
+    // A share: PowerShell writes `\\host\share` as `file://///host/share`, and
+    // a UNC prefix needs exactly two slashes -- with three it read as
+    // `\host\share`, a path on the current drive (#101, 29.4).
+    if decoded.starts_with("//") {
+        let unc = format!("//{}", decoded.trim_start_matches('/'));
+        return Some(crate::util::normalize(Path::new(&unc)));
+    }
     // Windows spells it `file:///C:/dir`, which is a path once the slash goes.
     let trimmed = match decoded.as_bytes() {
         [b'/', c, b':', ..] if c.is_ascii_alphabetic() => &decoded[1..],
@@ -1715,6 +1722,18 @@ mod tests {
         // Anything that is not a file URL is not a directory.
         assert_eq!(from_file_url(b"http://example.com/"), None);
         assert_eq!(from_file_url(b"nonsense"), None);
+    }
+
+    /// 29.4 / #101: a share comes back as a share, however many slashes the
+    /// shell put in front of the host. Windows only: elsewhere `//x` is an
+    /// ordinary path and `normalize` folds it, so both sides would agree
+    /// whether the slashes were kept or not.
+    #[cfg(windows)]
+    #[test]
+    fn a_share_keeps_its_two_leading_slashes() {
+        let want = crate::util::normalize(Path::new("//localhost/C$/dev"));
+        assert_eq!(from_file_url(b"file://///localhost/C$/dev"), Some(want.clone()), "PowerShell's five");
+        assert_eq!(from_file_url(b"file:////localhost/C$/dev"), Some(want), "and four");
     }
 
     /// A paste is bracketed only when the program on the other end asked, and

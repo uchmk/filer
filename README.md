@@ -781,7 +781,9 @@ Hidden files and anything `.gitignore` covers are **counted**: a folder does not
 because git was told to overlook it. Symlinks are not followed, so a link to a directory is one entry
 rather than a second copy of a tree. Hard links are counted once per name, so a tree that uses them
 reads high — telling them apart needs bookkeeping this does not do. Very large trees stop after
-200,000 entries and say so, in which case the totals are floors rather than answers.
+200,000 entries and say so, in which case the totals are floors rather than answers: a folder the
+walk did not finish reads `≥ 1.2 G`, and one it never reached reads `?` rather than `0 B` (v0.57.2).
+`,` re-sorts by the measured totals, and keeps the hidden rows the walk counted.
 
 The order is set when the results arrive, so re-sorting with `,` replaces it; `gu` again puts it
 back.

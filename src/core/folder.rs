@@ -184,16 +184,27 @@ impl Folder {
     }
 
     /// Scroll without moving the cursor off screen (mouse wheel).
-    pub fn scroll(&mut self, delta: i64, rows: usize) {
+    ///
+    /// The cursor is kept `scrolloff` rows inside the new window, not on its
+    /// edge: [`Self::clamp_offset`] runs before every frame, and a cursor on
+    /// the edge made it pull the window straight back to `cursor - scrolloff`.
+    /// The two were a fixed point, so the wheel moved the cursor two rows and
+    /// the view not at all (#110, 19.3). At either end of the list there is no
+    /// margin to keep, as there is none in `clamp_offset` either.
+    pub fn scroll(&mut self, delta: i64, rows: usize, scrolloff: usize) {
         let len = self.view.len();
         if len <= rows {
             return;
         }
-        let max_offset = (len - rows) as i64;
-        self.offset = (self.offset as i64 + delta).clamp(0, max_offset) as usize;
-        let lo = self.offset;
-        let hi = (self.offset + rows).saturating_sub(1);
-        self.cursor = self.cursor.clamp(lo, hi);
+        let max_offset = len - rows;
+        self.offset = (self.offset as i64 + delta).clamp(0, max_offset as i64) as usize;
+        let pad = scrolloff.min(rows.saturating_sub(1) / 2);
+        let lo = if self.offset == 0 { 0 } else { self.offset + pad };
+        let hi = match self.offset == max_offset {
+            true => len - 1,
+            false => (self.offset + rows).saturating_sub(1 + pad),
+        };
+        self.cursor = self.cursor.clamp(lo, hi.max(lo));
     }
 }
 
@@ -262,5 +273,57 @@ mod stale_view {
         let mut f = Folder::from_entries(PathBuf::from("d"), listing(12), true);
         f.entries = listing(3);
         assert!(f.at(11).is_none());
+    }
+}
+
+/// #110 / 19.3: the wheel scrolls the list with `scrolloff` set.
+#[cfg(test)]
+mod wheel {
+    use super::*;
+    use crate::fs::entry::{Entry, Kind};
+
+    fn folder(n: usize) -> Folder {
+        let entries = (0..n)
+            .map(|i| Entry { path: PathBuf::from(format!("f{i}")), name: format!("f{i}"), kind: Kind::File, ..Default::default() })
+            .collect();
+        Folder::from_entries(PathBuf::from("/"), Arc::new(entries), true)
+    }
+
+    /// One frame is `scroll` then the next frame's `clamp_offset`. Before, the
+    /// second undid the first and the view never moved off the top.
+    #[test]
+    fn the_wheel_moves_the_view_and_the_next_frame_keeps_it() {
+        let (rows, scrolloff) = (20, 5);
+        let mut f = folder(500);
+        f.clamp_offset(rows, scrolloff);
+        for _ in 0..10 {
+            f.scroll(3, rows, scrolloff);
+            f.clamp_offset(rows, scrolloff);
+        }
+        assert_eq!(f.offset, 30, "ten notches of three rows: {}", f.offset);
+        assert!(f.cursor >= f.offset + scrolloff, "the cursor is inside the margin: {}", f.cursor);
+
+        for _ in 0..10 {
+            f.scroll(-3, rows, scrolloff);
+            f.clamp_offset(rows, scrolloff);
+        }
+        assert_eq!(f.offset, 0, "and back up to the top");
+    }
+
+    /// At the ends there is no margin: the cursor can reach the first and the
+    /// last row, as it can with the keys.
+    #[test]
+    fn at_the_ends_the_cursor_reaches_the_edge() {
+        let (rows, scrolloff) = (20, 5);
+        let mut f = folder(100);
+        f.cursor = 99;
+        f.clamp_offset(rows, scrolloff);
+        f.scroll(10, rows, scrolloff);
+        f.clamp_offset(rows, scrolloff);
+        assert_eq!((f.offset, f.cursor), (80, 99), "at the bottom, the last row");
+        f.cursor = 0;
+        f.clamp_offset(rows, scrolloff);
+        f.scroll(-10, rows, scrolloff);
+        assert_eq!((f.offset, f.cursor), (0, 0), "at the top, the first row");
     }
 }

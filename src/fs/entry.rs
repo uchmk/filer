@@ -107,6 +107,10 @@ pub struct Entry {
     /// entry on disk and `dir_size` counts children one level down, so neither
     /// can answer "how much room does this folder take".
     pub usage: Option<u64>,
+    /// The usage walk stopped before the end of this one, so `usage` is a
+    /// floor: shown as `≥` when something was counted and `?` when nothing was
+    /// -- never as a plain `0 B`, which reads as empty (44.7).
+    pub usage_cut: bool,
 }
 
 impl Entry {
