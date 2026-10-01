@@ -459,7 +459,7 @@ run = "plugin bookmarks save"
         let w = about_m[0];
         assert!(w.contains("plugin bookmarks save"), "must name what took the key: {w}");
         assert!(w.contains("`ms`"), "must name a key that was lost: {w}");
-        assert!(w.contains('5'), "must count them: {w}");
+        assert!(w.contains('6'), "must count them: {w}");
     }
 
     /// The same key twice is the other way a line goes missing, and it reads

@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**248 / 248 checked.**
+**248 / 249 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 152 / 152
+## `[mgr]` — 152 / 153
 
 The file list: what is in front of you unless an overlay is.
 
@@ -149,6 +149,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `m t` — Line mode: modified time · `linemode mtime`
 - [x] `m b` — Line mode: created time · `linemode btime`
 - [x] `m p` — Line mode: permissions · `linemode permissions`
+- [ ] `m u` — Line mode: disk usage (gu) · `linemode usage`
 - [x] `m n` — Line mode: none · `linemode none`
 
 ### Goto

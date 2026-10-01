@@ -951,10 +951,12 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     let theme = app.cfg.theme.clone();
     let Overlay::Diff(ov) = &mut app.overlay else { return };
     // `z` is offered only where it does something: a tree has rows to hide.
+    // Each key is named with what it does: `n/N differences` read as a count
+    // of differences that had not been filled in (#98).
     let keys = if matches!(ov.outcome, Some(Outcome::Tree { .. })) {
-        "n/N differences, z hides matches, q to close"
+        "n / N: next / previous difference · z: hide matches · q: close"
     } else {
-        "n/N differences, q to close"
+        "n / N: next / previous difference · q: close"
     };
     let title = format!(
         "{}  ↔  {} — {keys}",
@@ -1481,7 +1483,7 @@ mod diff_frame {
         assert!(!f.says("same.txt"), "the match is gone from the list: {:?}", f.texts);
         assert!(f.says("1 match"), "and still counted: {:?}", f.texts);
         assert!(f.says("matches hidden (z)"), "and the footer says why it is missing: {:?}", f.texts);
-        assert!(f.says("z hides matches"), "the title offers the key: {:?}", f.texts);
+        assert!(f.says("z: hide matches"), "the title offers the key: {:?}", f.texts);
 
         let f = s.typed("z");
         assert!(f.says("same.txt"), "back: {:?}", f.texts);
@@ -2455,11 +2457,13 @@ mod compare_frame {
             "the title names both files: {:?}",
             f.texts,
         );
-        assert!(f.says("q to close"), "and the key that closes it: {:?}", f.texts);
+        assert!(f.says("q: close"), "and the key that closes it: {:?}", f.texts);
+        // #98: `n/N differences` read as a count; the keys say what they do.
+        assert!(f.says("n / N: next / previous difference"), "{:?}", f.texts);
 
         s.typed("q");
         assert!(matches!(s.app.overlay, Overlay::None), "`q` closed the comparison");
-        assert!(!s.draw().says("q to close"), "and the panel is gone");
+        assert!(!s.draw().says("q: close"), "and the panel is gone");
     }
 }
 

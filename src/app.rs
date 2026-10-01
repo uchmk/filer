@@ -972,6 +972,10 @@ pub struct App {
     /// the listing that is on screen cannot select it yet (Q25). Spent by the
     /// next read of the current directory, so leaving that directory drops it.
     land_on: Option<PathBuf>,
+    /// The last jump that failed and was taken back. The parent columns it
+    /// asked for fail too, for the same reason, and each one used to add its
+    /// own toast naming a fragment of the path (#107).
+    cd_refused: Option<PathBuf>,
     /// A drag in flight between the panes.
     pub drag: Option<Drag>,
     /// Where each pane was drawn this frame, so a drop can be placed.
@@ -1117,6 +1121,7 @@ impl App {
             list_scroll_rows: 0.0,
             term_needle: String::new(),
             land_on: None,
+            cd_refused: None,
             drag: None,
             pane_rects: Vec::new(),
             differ,
@@ -1186,7 +1191,7 @@ impl App {
             return;
         }
         self.tabs[self.active].pending_cd =
-            Some(PendingCd { from: home, pushed: false, fallback: true });
+            Some(PendingCd { from: home, pushed: false, fallback: true, reveal: None });
     }
 
     // ------------------------------------------------------------- accessors
@@ -1493,7 +1498,11 @@ impl App {
                 // opening `C:\` says it three times at once -- one per system
                 // folder Windows refuses -- with the toasts stacked over the
                 // pane that already explained itself.
-                if !hit {
+                // A folder above a jump still waiting, or above the one just
+                // taken back, fails for the same reason; that jump says it.
+                let explained = self.tabs.iter().any(|t| t.pending_cd.is_some() && t.cwd.starts_with(&path))
+                    || self.cd_refused.as_ref().is_some_and(|p| p.starts_with(&path));
+                if !hit && !explained {
                     self.error(format!("{}: {error}", util::file_name(&path)));
                 }
             }
@@ -1523,7 +1532,13 @@ impl App {
 
         if self.tabs[self.active].cwd == path {
             // The directory answered, so the jump that led here stands.
-            self.tabs[self.active].pending_cd = None;
+            let reveal = self.tabs[self.active].pending_cd.take().and_then(|p| p.reveal);
+            if let Some(name) = reveal.filter(|n| !entries.iter().any(|e| &e.name == n)) {
+                // A typed path that named a file lands here with the file under
+                // the cursor. One that named nothing used to land here too, in
+                // silence, and looked like the place that was asked for.
+                self.error(format!("No such file or folder: {name} — showing {}", path.display()));
+            }
             let keep = self.tabs[self.active].current.hovered_name().map(str::to_owned);
             let filter = self.tabs[self.active].current.filter.clone();
             let cursor = self.tabs[self.active].current.cursor;
@@ -2216,6 +2231,7 @@ impl App {
             return;
         }
         let from = self.tabs[self.active].cwd.clone();
+        self.cd_refused = None;
         {
             let tab = &mut self.tabs[self.active];
             tab.remember_cursor();
@@ -2229,7 +2245,7 @@ impl App {
         }
 
         let active = self.active;
-        let pending = PendingCd { from, pushed: push_history, fallback };
+        let pending = PendingCd { from, pushed: push_history, fallback, reveal: None };
         self.arrive(active, target.clone(), Some(pending));
 
         self.remember_history(&target);
@@ -2290,6 +2306,7 @@ impl App {
                 self.arrive(idx, to, None);
                 self.kick_scans();
                 self.error(format!("{}: {error}", path.display()));
+                self.cd_refused = Some(path.to_path_buf());
             }
         }
     }
@@ -2688,7 +2705,14 @@ impl App {
             let next = (next.clamp(0.2, 5.0) * 10.0).round() / 10.0;
             self.scale = next;
             self.ctx.set_zoom_factor(next);
-            self.toast(format!("Scale {}%", (next * 100.0).round() as i32));
+            // Held down, the toast's `×N` keeps counting after the scale has
+            // stopped moving; saying so is what tells the two apart.
+            let end = match to {
+                crate::config::cmd::ScaleTo::In if next >= 5.0 => " (maximum)",
+                crate::config::cmd::ScaleTo::Out if next <= 0.2 => " (minimum)",
+                _ => "",
+            };
+            self.toast(format!("Scale {}%{end}", (next * 100.0).round() as i32));
     }
 
     /// Move the current tab along the bar.
@@ -2878,7 +2902,7 @@ impl App {
         // `switch_tab` fills the tab from the cache when the directory has been
         // listed before; one that is still loading has yet to prove it exists.
         if target != base && self.tabs[at].current.state == LoadState::Loading {
-            self.tabs[at].pending_cd = Some(PendingCd { from: base, pushed: false, fallback });
+            self.tabs[at].pending_cd = Some(PendingCd { from: base, pushed: false, fallback, reveal: None });
         }
     }
 
@@ -3338,7 +3362,10 @@ impl App {
                         let said = match how {
                             Land::Undone => Some(step.undone_label()),
                             Land::Redone => Some(step.redone_label()),
-                            Land::Fresh => None,
+                            // `d` looks the same as `D` on screen, so the trash
+                            // says what went and how to get it back (#108).
+                            Land::Fresh => matches!(step, UndoStep::Trash { .. })
+                                .then(|| format!("{} — u to undo", step.redone_label())),
                         };
                         self.undos.land(step, how);
                         if let Some(said) = said {
@@ -3405,7 +3432,12 @@ impl App {
     }
 
     fn copy_text(&mut self, what: CopyWhat) {
-        let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return };
+        let Some(e) = self.tabs[self.active].current.hovered().cloned() else {
+            // Quietly doing nothing left the last thing copied on the
+            // clipboard, which looks like a valid path when pasted (#108).
+            self.error("Nothing to copy — the list is empty");
+            return;
+        };
         let text = match what {
             // Outside the spot panel the hovered path is the only cell.
             CopyWhat::Path | CopyWhat::Cell | CopyWhat::All => e.path.display().to_string(),
@@ -4229,12 +4261,14 @@ impl App {
             false => Some((self.cfg.term.shell.clone(), self.cfg.term.args.clone())),
             true => crate::terminal::default_shell().map(|s| (s, Vec::new())),
         };
+        let label = crate::terminal::shell_label(shell.as_ref().map(|(p, _)| p.as_str()));
         match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), shell, move || {
             ctx.request_repaint()
         }) {
             Ok(t) => {
                 self.term = Some(t);
                 self.term_focus = true;
+                self.toast(format!("Started {label} — <C-t> back to the list"));
             }
             Err(e) => self.error(format!("Terminal failed: {e}")),
         }
@@ -4295,14 +4329,16 @@ impl App {
         }
         self.term_needle = needle.to_owned();
         let Some(term) = &mut self.term else { return };
-        if term.search(needle, back) {
-            return;
+        match term.search(needle, back) {
+            Some(false) => return,
+            Some(true) => return self.toast("Wrapped"),
+            None => {}
         }
         // Nothing from here on; start again from the view.
         term.end_search();
         match term.search(needle, back) {
-            true => self.toast("Wrapped"),
-            false => self.error(format!("No match for {needle}")),
+            Some(_) => self.toast("Wrapped"),
+            None => self.error(format!("No match for {needle}")),
         }
     }
 
@@ -4537,6 +4573,7 @@ impl App {
         }
         if let Some((total, capped)) = done {
             self.usage = None;
+            self.toasts.retain(|t| !t.text.starts_with("Measuring"));
             self.toast(format!(
                 "{} in total{} — <Esc> to leave",
                 crate::util::human_size(total),
@@ -6247,7 +6284,8 @@ mod usage_view {
     }
 
     /// Largest first, folders measured through their children, and the bars'
-    /// scale taken from the biggest row.
+    /// scale taken from the biggest row. Also TESTING.md 44.15 — once the walk
+    /// is done only the total's toast is left.
     #[test]
     fn the_biggest_thing_comes_first() {
         let dir = tree();
@@ -6263,6 +6301,9 @@ mod usage_view {
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
         assert!(a.usage.is_none(), "the walk finished");
+        // #114: the total replaces "Measuring…" rather than standing beside it.
+        assert!(a.toasts.iter().any(|t| t.text.contains("in total")));
+        assert!(!a.toasts.iter().any(|t| t.text.starts_with("Measuring")), "no longer measuring");
         let names: Vec<&str> =
             a.tabs[a.active].current.entries.iter().map(|e| e.name.as_str()).collect();
         assert_eq!(names, ["fat", "loose", "thin"], "largest first: {names:?}");
@@ -7124,6 +7165,18 @@ mod escape_and_max_preview {
         assert_eq!(run(Key::parse("<Enter>").unwrap()), Some(vec![Act::Enter]));
     }
 
+    /// Q36: `m u` puts the usage numbers back inside `gu`'s view after another
+    /// `m` key took them away; before it there was no key for them at all.
+    #[test]
+    fn m_u_is_the_usage_line_mode() {
+        use crate::config::keys::Key;
+        use crate::fs::entry::Linemode;
+        let km = &Config::load().keymap;
+        let on = vec![Key::parse("m").unwrap(), Key::parse("u").unwrap()];
+        let run = km.mgr.iter().find(|b| b.on == on).map(|b| b.run.clone());
+        assert_eq!(run, Some(vec![Act::Linemode(Linemode::Usage)]));
+    }
+
     /// `escape --filter` is aimed at one thing and must stay aimed at it.
     #[test]
     fn a_targeted_escape_leaves_it_alone() {
@@ -7275,5 +7328,140 @@ mod alt_jk_scrolls_every_pane {
         };
         assert!(matches!(step(&down), Step::Pct(n) if n > 0), "{down:?}");
         assert!(matches!(step(&up), Step::Pct(n) if n < 0), "{up:?}");
+    }
+}
+
+/// Keys that used to finish without a word, which on screen is the same as a
+/// key bound to nothing (#108).
+#[cfg(test)]
+mod said_out_loud {
+    use super::*;
+
+    fn app_in(dir: &Path) -> App {
+        let mut a = App::new(Config::load(), dir.to_path_buf(), egui::Context::default());
+        a.tabs[a.active].cwd = dir.to_path_buf();
+        a.tabs[a.active].current = Folder::loading(dir.to_path_buf(), None);
+        a
+    }
+
+    /// TESTING.md 10.10 — `c c` in an empty folder. The clipboard still holds
+    /// the last path, so staying quiet lets the old one be pasted as this one.
+    #[test]
+    fn copying_from_an_empty_list_says_there_is_nothing() {
+        let dir = crate::util::test_dir("said-copy");
+        let mut a = app_in(&dir);
+        a.act(Act::Copy(CopyWhat::Path));
+        assert!(a.toasts.iter().any(|t| t.text.starts_with("Nothing to copy")), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// `d` names what went to the trash and how to get it back; `D` asks first
+    /// and so needs no such line.
+    #[test]
+    fn a_finished_trash_says_what_went() {
+        let dir = crate::util::test_dir("said-trash");
+        let mut a = app_in(&dir);
+        let gone = dir.join("a.txt");
+        a.record_job(7, UndoStep::Trash { paths: vec![gone], dir: dir.clone() }, Land::Fresh);
+        a.on_op_event(ops::OpEvent::Finished {
+            id: 7,
+            kind: OpKind::Trash,
+            errors: Vec::new(),
+            cancelled: false,
+            moved: Vec::new(),
+            made: None,
+        });
+        assert!(a.toasts.iter().any(|t| t.text == "Trashed a.txt — u to undo"), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// TESTING.md 15.8 — a held zoom key stops at the ends, and the toast says
+    /// it has stopped.
+    #[test]
+    fn the_scale_says_when_it_hits_an_end() {
+        use crate::config::cmd::ScaleTo;
+        let dir = crate::util::test_dir("said-scale");
+        let mut a = app_in(&dir);
+        a.act(Act::Scale(ScaleTo::In));
+        assert!(a.toasts.iter().any(|t| t.text == "Scale 110%"));
+        for _ in 0..60 {
+            a.act(Act::Scale(ScaleTo::In));
+        }
+        assert!(a.toasts.iter().any(|t| t.text == "Scale 500% (maximum)"));
+        for _ in 0..60 {
+            a.act(Act::Scale(ScaleTo::Out));
+        }
+        assert!(a.toasts.iter().any(|t| t.text == "Scale 20% (minimum)"));
+        a.act(Act::Scale(ScaleTo::Reset));
+        assert!(a.toasts.iter().any(|t| t.text == "Scale 100%"));
+    }
+
+    /// #107: one failed jump, one toast. The parent columns it asked for fail
+    /// for the same reason, before and after the jump itself is taken back,
+    /// and each used to add a toast naming only a fragment of the path.
+    #[test]
+    fn a_failed_jump_says_so_once() {
+        let dir = crate::util::test_dir("said-cd");
+        let mut a = app_in(&dir);
+        let mid = dir.join("no").join("such");
+        let bad = mid.join("place");
+        a.cd(bad.clone(), true);
+        let fail = |path: &Path| ScanResult::Failed { id: 0, path: path.to_path_buf(), error: "os error 123".into() };
+        a.toasts.clear();
+        a.on_scan(fail(&mid));
+        a.on_scan(fail(&bad));
+        a.on_scan(fail(&dir.join("no")));
+        let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
+        assert_eq!(said.len(), 1, "{said:?}");
+        assert!(said[0].contains("place"), "the whole path is named: {said:?}");
+        assert_eq!(a.tabs[a.active].cwd, dir, "taken back");
+
+        // A failure that has nothing to do with the jump is still heard.
+        a.on_scan(fail(&std::env::temp_dir().join("elsewhere")));
+        assert_eq!(a.toasts.len(), 2);
+    }
+
+    /// TESTING.md 23.6 — a typed path that names nothing falls back to its
+    /// parent as before, and now says so; one naming a file stays quiet.
+    #[test]
+    fn a_path_that_names_nothing_says_where_it_landed() {
+        let dir = crate::util::test_dir("said-reveal");
+        std::fs::write(dir.join("here.txt"), "x").unwrap();
+        let listing = || Arc::new(vec![Entry::from_path(dir.join("here.txt")).unwrap()]);
+
+        let mut a = app_in(&dir.join("elsewhere"));
+        a.cd_or_reveal(dir.join("here.txt"));
+        a.on_scan(ScanResult::Failed { id: 0, path: dir.join("here.txt"), error: "not a dir".into() });
+        a.apply_listing(&dir, listing());
+        assert!(a.toasts.is_empty(), "the file is under the cursor: {:?}", a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+        assert_eq!(a.tabs[a.active].current.hovered_name(), Some("here.txt"));
+
+        let mut a = app_in(&dir.join("elsewhere"));
+        a.cd_or_reveal(dir.join("tpyo"));
+        a.on_scan(ScanResult::Failed { id: 0, path: dir.join("tpyo"), error: "not found".into() });
+        a.apply_listing(&dir, listing());
+        let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
+        assert_eq!(said.len(), 1, "{said:?}");
+        assert!(said[0].starts_with("No such file or folder: tpyo"), "{said:?}");
+    }
+
+    /// The same through a typed path, which first falls back to the parent in
+    /// case it named a file: the parent then fails and is the one taken back.
+    #[test]
+    fn a_failed_typed_jump_says_so_once() {
+        let dir = crate::util::test_dir("said-cd-typed");
+        let mut a = app_in(&dir);
+        let mid = dir.join("no").join("such");
+        let bad = mid.join("place");
+        a.cd_or_reveal(bad.clone());
+        let fail = |path: &Path| ScanResult::Failed { id: 0, path: path.to_path_buf(), error: "os error 123".into() };
+        a.toasts.clear();
+        a.on_scan(fail(&mid));
+        a.on_scan(fail(&bad));
+        a.on_scan(fail(&mid));
+        a.on_scan(fail(&dir.join("no")));
+        let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
+        assert_eq!(said.len(), 1, "{said:?}");
+        assert_eq!(a.tabs[a.active].cwd, dir, "taken back");
     }
 }
