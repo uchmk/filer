@@ -158,11 +158,31 @@ fn parse_cli() -> Cli {
                 ));
                 std::process::exit(0);
             }
-            other if !other.starts_with('-') => cli.path = Some(PathBuf::from(other)),
+            other if !other.starts_with('-') => {
+                if let Err(why) = take_path(&mut cli, other) {
+                    say(&format!("filer: {why}"));
+                    std::process::exit(2);
+                }
+            }
             _ => {}
         }
     }
     cli
+}
+
+/// The one path the command line may name. A second used to replace the
+/// first in silence, and that is exactly what a path with a space in it looks
+/// like when its quotes are forgotten: `filer C:\x\awkward names` opened
+/// somewhere else with no word as to why (#126).
+fn take_path(cli: &mut Cli, arg: &str) -> Result<(), String> {
+    if let Some(first) = &cli.path {
+        return Err(format!(
+            "more than one path: {:?} and {arg:?} (a path with a space in it needs quotes)",
+            first.display().to_string()
+        ));
+    }
+    cli.path = Some(PathBuf::from(arg));
+    Ok(())
 }
 
 fn main() -> eframe::Result<()> {
@@ -177,7 +197,10 @@ fn main() -> eframe::Result<()> {
         .ok()
         .or_else(dirs::home_dir)
         .unwrap_or_else(|| PathBuf::from("."));
-    let start = cli.path.as_deref().map(util::normalize).unwrap_or_else(|| home.clone());
+    // Against the directory filer was started in, as `g<Space>` resolves what
+    // is typed there: `filer .` and `filer ..\other` are how a shell names a
+    // place, and a relative one left the tab with no parent column (#126).
+    let start = cli.path.as_deref().map(|p| util::resolve_path(&home, p)).unwrap_or_else(|| home.clone());
 
     let mut viewport = egui::ViewportBuilder::default()
         .with_inner_size([cfg.ui.window_width, cfg.ui.window_height])
@@ -872,6 +895,17 @@ fn _unused(app: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #126: one path, and a second refused with the likely reason rather than
+    /// quietly taking the first one's place.
+    #[test]
+    fn a_second_path_is_refused() {
+        let mut cli = Cli { path: None, cwd_file: None, chooser_file: None, keys: Vec::new() };
+        assert!(take_path(&mut cli, "awkward").is_ok());
+        let why = take_path(&mut cli, "names").unwrap_err();
+        assert!(why.contains("\"awkward\"") && why.contains("\"names\"") && why.contains("quotes"), "{why}");
+        assert_eq!(cli.path.as_deref(), Some(std::path::Path::new("awkward")), "the first is kept");
+    }
 
     /// A square icon out of a non-square drawing: the art keeps its shape and
     /// the leftover is transparent, rather than being stretched to fit.
