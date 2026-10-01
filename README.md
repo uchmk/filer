@@ -708,7 +708,7 @@ file, so the keys that move fastest are the ones that change file.
 
 ## Undo
 
-`u` takes back the last thing that can be taken back, `U` does it again. Two things qualify:
+`u` takes back the last thing that can be taken back, `U` does it again. These qualify:
 
 | Step | `u` | `U` |
 | --- | --- | --- |
@@ -716,11 +716,17 @@ file, so the keys that move fastest are the ones that change file.
 | `r` — a rename | renames it back | renames it again |
 | `R` — a bulk rename | puts every name back, in one step | renames them again |
 | `x` then `p` — a move | puts the files back where they were | moves them again |
+| `a` — a new file or folder | removes it, and the folders made on the way to it, while it is still empty | makes it again |
+| `-` `_` `=` — links | removes the links, never what they point at | makes them again |
 
 A move is here and a copy is not, which is the line the rest of the list follows: putting a moved
 file back is a rename across directories and deletes nothing, while undoing a copy would mean
 deleting the new files to tidy up — a worse thing to get wrong than the operation it was undoing.
-`D` asks before it deletes and then means it, so it stays out too.
+`D` asks before it deletes and then means it, so it stays out too. A new file and a link come under
+the same line: removing an empty file you just made, or a link, loses nothing. So the file has to
+still be empty — once something has been written into it, `u` says so and leaves it — and a link has
+to still be the link that was made: a symlink, or for a hardlink the same file as its source, not
+something else that has taken the name since.
 
 Undoing a move starts from where each file actually landed, not from where it was sent: a paste onto
 a name already taken lands as `name_1`, and an undo built from the name you asked for would go
@@ -982,7 +988,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `<Space>` `v` `V` `<C-a>` `<C-S-r>` | toggle / visual / visual-unset / select all / invert |
 | `y` `x` `Y` `p` `P` `-` `_` `<C-S-->` | yank / cut / cancel the yank / paste / paste-force / symlink / relative symlink / hardlink |
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
-| `u` `U` (or `<C-r>`) | undo the last rename or delete / do it again |
+| `u` `U` (or `<C-r>`) | undo the last rename, delete, move, create or link / do it again |
 | `a` `r` | create (trailing `/` makes a directory) / rename |
 | `R` | bulk rename: one rule over everything selected, previewed as you type |
 | `<A-d>` | compare two files side by side |
@@ -1370,8 +1376,8 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.
 - Git signs need `git` on `PATH`; without it the rows are simply unmarked. Only the status and the
   branch name are shown — there is no staging, diffing or committing here.
-- Undo covers renames (single and bulk) and trips to the recycle bin, nothing else, and on macOS
-  only renames — see [Undo](#undo). It is not written to disk, so closing the window forgets it.
+- Undo covers renames (single and bulk), trips to the recycle bin, moves, new files and folders,
+  and links — not copies, archives or `D` — and on macOS not the recycle bin — see [Undo](#undo). It is not written to disk, so closing the window forgets it.
 - Comparing files is line-level and read-only: no word-level highlighting inside a changed line and
   no editing from the view. Comparing folders lists the paths and says which differ; it does not open
   a pair from a row, and it has no filter for showing only the differences.
