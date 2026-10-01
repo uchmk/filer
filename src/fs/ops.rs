@@ -77,9 +77,16 @@ pub enum OpEvent {
         /// caller asked to move to `x.pdf` can land as `x_1.pdf`, and an undo
         /// that went looking for `x.pdf` would find nothing.
         moved: Vec<(PathBuf, PathBuf)>,
+        /// For a symlink or hardlink job: each link made, under the name it
+        /// really got. What `u` removes.
+        linked: Vec<Link>,
         /// For a compress: the archive written, under the name it really got
         /// (a name already taken can be resolved to `x_1.zip` here).
         made: Option<PathBuf>,
+        /// For a trash: the paths that went. When some did not, these are what
+        /// `u` can bring back -- the whole step was thrown away before, so four
+        /// files of five in the bin and `u` said "Nothing to undo" (#83).
+        trashed: Vec<PathBuf>,
     },
 }
 
@@ -137,7 +144,9 @@ impl Runner {
                         paused: false,
                         last_report: std::time::Instant::now(),
                         moved: Vec::new(),
+                        linked: Vec::new(),
                         made: None,
+                        trashed: Vec::new(),
                     };
                     ctx.run(&req);
                     let _ = ev_tx.send(OpEvent::Finished {
@@ -146,7 +155,9 @@ impl Runner {
                         errors: std::mem::take(&mut ctx.errors),
                         cancelled: ctx.cancelled,
                         moved: std::mem::take(&mut ctx.moved),
+                        linked: std::mem::take(&mut ctx.linked),
                         made: ctx.made.take(),
+                        trashed: std::mem::take(&mut ctx.trashed),
                     });
                     wake();
                 }
@@ -234,8 +245,12 @@ struct Ctx<'a> {
     last_report: std::time::Instant,
     /// Where each moved file ended up. Empty for everything but a move.
     moved: Vec<(PathBuf, PathBuf)>,
+    /// The links a link job made. Empty for everything else.
+    linked: Vec<Link>,
     /// The archive a compress wrote, once it is whole.
     made: Option<PathBuf>,
+    /// What a trash sent to the bin. Empty for everything else.
+    trashed: Vec<PathBuf>,
 }
 
 impl Ctx<'_> {
@@ -267,20 +282,37 @@ impl Ctx<'_> {
             // file it is about. Costly, but only on the path that has already
             // failed.
             OpKind::Trash => match trash::delete_all(&req.srcs) {
-                Ok(()) => self.files_done = req.srcs.len() as u64,
+                Ok(()) => {
+                    self.files_done = req.srcs.len() as u64;
+                    self.trashed = req.srcs.clone();
+                }
                 Err(_) => {
                     for p in &req.srcs {
                         // `symlink_metadata`, so a link whose target has gone
                         // still counts as present -- it is, and it can be
-                        // trashed.
+                        // trashed. One that is gone already went with the
+                        // batch call before it gave up.
                         if std::fs::symlink_metadata(p).is_err() {
                             self.files_done += 1;
+                            self.trashed.push(p.clone());
                             continue;
                         }
                         self.report(&p.to_string_lossy());
                         match trash::delete(p) {
-                            Ok(()) => self.files_done += 1,
-                            Err(e) => self.errors.push(format!("{}: {e}", crate::util::file_name(p))),
+                            Ok(()) => {
+                                self.files_done += 1;
+                                self.trashed.push(p.clone());
+                            }
+                            Err(e) => {
+                                // The trash says "Some operations were aborted"
+                                // and nothing about which or why; a file held
+                                // open elsewhere is by far the usual reason (#83).
+                                let why = match held_open(p) {
+                                    true => "it is open in another program".to_owned(),
+                                    false => e.to_string(),
+                                };
+                                self.errors.push(format!("{}: {why}", crate::util::file_name(p)));
+                            }
                         }
                     }
                 }
@@ -329,8 +361,10 @@ impl Ctx<'_> {
                     } else {
                         src.clone()
                     };
-                    if let Err(e) = symlink(&target, &dest, src.is_dir()) {
-                        self.errors.push(format!("{}: {}", short(src), explain(&e)));
+                    let link = Link { at: dest, target, dir: src.is_dir(), hard: false };
+                    match link.make() {
+                        Ok(()) => self.linked.push(link),
+                        Err(e) => self.errors.push(format!("{}: {}", short(src), explain(&e))),
                     }
                     self.files_done += 1;
                 }
@@ -339,8 +373,10 @@ impl Ctx<'_> {
                 for src in &req.srcs {
                     let dest = req.dest_dir.join(file_name(src));
                     let Some(dest) = self.resolve_dest(src, dest) else { continue };
-                    if let Err(e) = std::fs::hard_link(src, &dest) {
-                        self.errors.push(format!("{}: {}", short(src), hardlink_error(&e, src, &req.dest_dir)));
+                    let link = Link { at: dest, target: src.clone(), dir: false, hard: true };
+                    match link.make() {
+                        Ok(()) => self.linked.push(link),
+                        Err(e) => self.errors.push(format!("{}: {}", short(src), hardlink_error(&e, src, &req.dest_dir))),
                     }
                     self.files_done += 1;
                 }
@@ -781,6 +817,23 @@ fn explain(e: &std::io::Error) -> String {
     e.to_string()
 }
 
+/// Whether another program holds `p` open so that it cannot be removed:
+/// opening it with no sharing at all fails with a sharing violation (32).
+#[cfg(windows)]
+fn held_open(p: &Path) -> bool {
+    use std::os::windows::fs::OpenOptionsExt;
+    const ERROR_SHARING_VIOLATION: i32 = 32;
+    p.is_file()
+        && std::fs::OpenOptions::new().read(true).share_mode(0).open(p).err().and_then(|e| e.raw_os_error())
+            == Some(ERROR_SHARING_VIOLATION)
+}
+
+/// Elsewhere a file open in another program can be removed all the same.
+#[cfg(not(windows))]
+fn held_open(_: &Path) -> bool {
+    false
+}
+
 /// Why a hardlink failed, in words that say what to do when the reason is
 /// the one every hardlink across drives hits: "The system cannot move the
 /// file to a different disk drive" (os error 17) named neither drive nor the
@@ -804,6 +857,71 @@ fn volume(p: &Path) -> String {
     match p.components().next() {
         Some(std::path::Component::Prefix(pre)) => pre.as_os_str().to_string_lossy().into_owned(),
         _ => p.components().take(2).collect::<std::path::PathBuf>().display().to_string(),
+    }
+}
+
+/// A link a job made: enough to take it away again and to make it again,
+/// which is what `u` and `U` do with it.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Link {
+    /// The link itself.
+    pub at: PathBuf,
+    /// What it points at, as written into it: relative for `-` with
+    /// `relative`, and the source path for a hardlink.
+    pub target: PathBuf,
+    /// A symlink to a folder, which Windows makes and removes differently.
+    pub dir: bool,
+    pub hard: bool,
+}
+
+impl Link {
+    pub fn make(&self) -> std::io::Result<()> {
+        match self.hard {
+            true => std::fs::hard_link(&self.target, &self.at),
+            false => symlink(&self.target, &self.at, self.dir),
+        }
+    }
+
+    /// Remove the link and nothing it points at. Whatever stands at `at` must
+    /// still be a link of this kind: a symlink for a symlink, and for a
+    /// hardlink a file that is still the same file as its source -- not
+    /// something that has taken the name since.
+    pub fn remove(&self) -> std::io::Result<()> {
+        let meta = std::fs::symlink_metadata(&self.at)?;
+        let still = match self.hard {
+            true => meta.is_file() && same_file(&self.at, &self.target),
+            false => meta.file_type().is_symlink(),
+        };
+        if !still {
+            return Err(std::io::Error::other(format!("{} is no longer the link that was made", short(&self.at))));
+        }
+        // A folder symlink on Windows is a directory entry and goes with
+        // `remove_dir`; on Unix every symlink is removed as a file.
+        match cfg!(windows) && self.dir && !self.hard {
+            true => std::fs::remove_dir(&self.at),
+            false => std::fs::remove_file(&self.at),
+        }
+    }
+}
+
+/// Whether two paths name one file on disk.
+#[cfg(unix)]
+fn same_file(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match (std::fs::metadata(a), std::fs::metadata(b)) {
+        (Ok(a), Ok(b)) => (a.dev(), a.ino()) == (b.dev(), b.ino()),
+        _ => false,
+    }
+}
+
+/// Windows has no stable file id in `std` yet; the size and the time last
+/// written agree for two names of one file, and a file that took the name
+/// since would have to match both.
+#[cfg(not(unix))]
+fn same_file(a: &Path, b: &Path) -> bool {
+    match (std::fs::metadata(a), std::fs::metadata(b)) {
+        (Ok(a), Ok(b)) => a.len() == b.len() && a.modified().ok() == b.modified().ok(),
+        _ => false,
     }
 }
 

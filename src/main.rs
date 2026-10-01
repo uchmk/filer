@@ -258,6 +258,7 @@ fn main() -> eframe::Result<()> {
                 last_geometry: None,
                 script: cli.keys.iter().filter_map(keyscript::press).collect(),
                 script_at: (0, std::time::Instant::now()),
+                script_done: std::env::var_os("FILER_KEYS_DONE").filter(|_| !cli.keys.is_empty()).map(PathBuf::from),
             }))
         }),
     )
@@ -332,22 +333,7 @@ fn install_fonts(
     used: &mut crate::runinfo::RunInfo,
 ) -> (bool, bool) {
     let mut candidates: Vec<PathBuf> = cfg.ui.fonts.iter().map(PathBuf::from).collect();
-    if let Some(local) = dirs::data_local_dir() {
-        let user_fonts = local.join("Microsoft").join("Windows").join("Fonts");
-        for name in [
-            "HackGen35ConsoleNF-Regular.ttf",
-            "HackGenConsoleNF-Regular.ttf",
-            "HackGen35Console-Regular.ttf",
-            "FiraCodeNerdFont-Regular.ttf",
-            "CaskaydiaCoveNerdFont-Regular.ttf",
-            "JetBrainsMonoNerdFont-Regular.ttf",
-        ] {
-            candidates.push(user_fonts.join(name));
-        }
-    }
-    for name in ["meiryo.ttc", "YuGothM.ttc", "YuGothR.ttc", "msgothic.ttc", "consola.ttf"] {
-        candidates.push(PathBuf::from(r"C:\Windows\Fonts").join(name));
-    }
+    candidates.extend(system_fonts());
 
     let mut fonts = egui::FontDefinitions::default();
     let mut installed: Vec<String> = Vec::new();
@@ -377,6 +363,20 @@ fn install_fonts(
             list.insert(i, name.clone());
         }
     }
+    // A Japanese face for what the faces above cannot draw, behind them and
+    // egui's own monospace: Noto Sans CJK in front made every ASCII name
+    // proportional, and the columns stopped lining up.
+    for path in fallback_fonts() {
+        let name = font_stem(&path);
+        if installed.contains(&name) || !load_face(&mut fonts, &path, &name) {
+            continue;
+        }
+        for family in [egui::FontFamily::Monospace, egui::FontFamily::Proportional] {
+            fonts.families.entry(family).or_default().push(name.clone());
+        }
+        loaded.push(path);
+        break;
+    }
 
     used.fonts = loaded.clone();
 
@@ -386,9 +386,7 @@ fn install_fonts(
     for path in &loaded {
         bold_candidates.extend(bold_siblings(path));
     }
-    for name in ["meiryob.ttc", "YuGothB.ttc", "consolab.ttf"] {
-        bold_candidates.push(PathBuf::from(r"C:\Windows\Fonts").join(name));
-    }
+    bold_candidates.extend(system_bold_fonts());
     let mut bold: Vec<String> = Vec::new();
     let mut bold_used: Vec<PathBuf> = Vec::new();
     for path in bold_candidates {
@@ -419,6 +417,81 @@ fn install_fonts(
     (has_nerd, has_bold)
 }
 
+/// The user's Nerd Fonts, where each platform keeps a user's fonts.
+const NERD_FONTS: [&str; 6] = [
+    "HackGen35ConsoleNF-Regular.ttf",
+    "HackGenConsoleNF-Regular.ttf",
+    "HackGen35Console-Regular.ttf",
+    "FiraCodeNerdFont-Regular.ttf",
+    "CaskaydiaCoveNerdFont-Regular.ttf",
+    "JetBrainsMonoNerdFont-Regular.ttf",
+];
+
+/// Where to look for faces, in order: the user's Nerd Fonts, then Windows'
+/// own. The faces found here go in front of egui's.
+fn system_fonts() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    // `font_dir` is `~/.local/share/fonts` on Linux and `~/Library/Fonts` on
+    // macOS; Windows has none, and keeps a user's fonts under LOCALAPPDATA.
+    let user = dirs::font_dir()
+        .or_else(|| dirs::data_local_dir().map(|d| d.join("Microsoft").join("Windows").join("Fonts")));
+    if let Some(dir) = user {
+        out.extend(NERD_FONTS.iter().map(|n| dir.join(n)));
+    }
+    if cfg!(windows) {
+        for name in ["meiryo.ttc", "YuGothM.ttc", "YuGothR.ttc", "msgothic.ttc", "consola.ttf"] {
+            out.push(PathBuf::from(r"C:\Windows\Fonts").join(name));
+        }
+    }
+    out
+}
+
+/// A system face that covers Japanese on Linux and macOS, used only for what
+/// the faces in front cannot draw. Only Windows' folders were searched before,
+/// so on Linux a Japanese name was a row of boxes even with Noto CJK installed
+/// (the Linux lane's first screenshot). Plain paths rather than fontconfig,
+/// which would be a C dependency for one lookup.
+fn fallback_fonts() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if cfg!(windows) {
+        // Meiryo and friends are in `system_fonts`, in front, as they were.
+    } else if cfg!(target_os = "macos") {
+        for p in [
+            "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        ] {
+            out.push(PathBuf::from(p));
+        }
+    } else {
+        // Debian and Ubuntu, Arch, Fedora; then IPA and Droid, which older
+        // or smaller installs carry instead of Noto.
+        for p in [
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf",
+            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+        ] {
+            out.push(PathBuf::from(p));
+        }
+    }
+    out
+}
+
+/// The stock bold faces, after the bold siblings of the faces in use.
+/// Windows' only: a CJK bold in front would draw ASCII bold proportional, the
+/// same trap as the regular face; elsewhere bold is overstruck instead.
+fn system_bold_fonts() -> Vec<PathBuf> {
+    match cfg!(windows) {
+        true => ["meiryob.ttc", "YuGothB.ttc", "consolab.ttf"]
+            .iter()
+            .map(|n| PathBuf::from(r"C:\Windows\Fonts").join(n))
+            .collect(),
+        false => Vec::new(),
+    }
+}
+
 fn font_stem(path: &std::path::Path) -> String {
     path.file_stem()
         .map(|s| s.to_string_lossy().into_owned())
@@ -439,8 +512,11 @@ fn bold_siblings(path: &std::path::Path) -> Vec<PathBuf> {
     let stem = font_stem(path);
     let ext = path.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
     let mut out = Vec::new();
-    if let Some(base) = stem.strip_suffix("-Regular") {
-        out.push(dir.join(format!("{base}-Bold.{ext}")));
+    match stem.strip_suffix("-Regular") {
+        Some(base) => out.push(dir.join(format!("{base}-Bold.{ext}"))),
+        // `DejaVuSansMono.ttf` beside `DejaVuSansMono-Bold.ttf`: many Linux
+        // faces name the regular weight with no suffix at all (#131).
+        None => out.push(dir.join(format!("{stem}-Bold.{ext}"))),
     }
     match stem.to_lowercase().as_str() {
         "meiryo" => out.push(dir.join("meiryob.ttc")),
@@ -466,6 +542,11 @@ struct Filer {
     script: std::collections::VecDeque<keyscript::Press>,
     /// The frame and the moment the last scripted key went in.
     script_at: (u64, std::time::Instant),
+    /// `FILER_KEYS_DONE`: a file to write once the last scripted key has been
+    /// pressed and what it started has landed. A script that drives filer
+    /// from outside (`scripts/xrun.sh`) waits for it instead of guessing how
+    /// long the keys take -- a guess that read half-pressed results (#134).
+    script_done: Option<PathBuf>,
 }
 
 impl Filer {
@@ -515,7 +596,7 @@ impl eframe::App for Filer {
     /// key opened has been drawn once; and never more than five seconds behind,
     /// so a thing that never settles delays the script rather than stopping it.
     fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
-        if self.script.is_empty() {
+        if self.script.is_empty() && self.script_done.is_none() {
             return;
         }
         ctx.request_repaint();
@@ -523,6 +604,14 @@ impl eframe::App for Filer {
         let (last_frame, last_at) = self.script_at;
         let waited_long = last_at.elapsed() > Duration::from_secs(5);
         if frame < last_frame + 2 || !(self.app.settled() || waited_long) {
+            return;
+        }
+        // The same wait as before a key: the last one has been drawn and has
+        // settled, so what is on screen now is its result.
+        if self.script.is_empty() {
+            if let Some(done) = self.script_done.take() {
+                let _ = std::fs::write(done, state_report(&self.app));
+            }
             return;
         }
         match self.script.pop_front() {
@@ -627,11 +716,48 @@ impl eframe::App for Filer {
 fn title_for(app: &App) -> String {
     let fmt = &app.cfg.yazi.mgr.title_format;
     let cwd = app.tab().cwd.display().to_string();
-    if fmt.contains("{cwd}") {
-        fmt.replace("{cwd}", &cwd)
-    } else {
-        format!("Filer: {cwd}")
+    if !fmt.contains("{cwd}") {
+        return format!("Filer: {cwd}");
     }
+    // `{rows}` and `{pane}` are filer's own: how many list rows are on screen,
+    // and the terminal pane's grid (`12x159`, empty when closed). A test run
+    // measured them with five key presses (TESTING.md 1.30); a title is read
+    // with one call from outside.
+    let pane = app.term.as_ref().map_or(String::new(), |t| format!("{}x{}", t.size().lines, t.size().cols));
+    fmt.replace("{cwd}", &cwd).replace("{rows}", &app.tab().page_rows.to_string()).replace("{pane}", &pane)
+}
+
+/// What `FILER_KEYS_DONE` holds once `--keys` is done: the state a check reads
+/// afterwards, one `name: value` per line. Reading it any other way meant
+/// pressing a key, and a key changes what it reads (#103, proposal 3).
+fn state_report(app: &App) -> String {
+    let tab = app.tab();
+    let overlay = match &app.overlay {
+        app::Overlay::None => "none",
+        app::Overlay::Input(_) => "input",
+        app::Overlay::Confirm(_) => "confirm",
+        app::Overlay::Pick(_) => "pick",
+        app::Overlay::Help => "help",
+        app::Overlay::Tasks(_) => "tasks",
+        app::Overlay::Spot(_) => "spot",
+        app::Overlay::Diff(_) => "diff",
+    };
+    let mut lines = vec![
+        format!("cwd: {}", tab.cwd.display()),
+        format!("hovered: {}", tab.current.hovered().map_or(String::new(), |e| e.path.display().to_string())),
+        format!("selected: {}", tab.selected.len()),
+        format!("tab: {} of {}", app.active + 1, app.tabs.len()),
+        format!("overlay: {overlay}"),
+    ];
+    if let app::Overlay::Input(ov) = &app.overlay {
+        lines.push(format!("input: {}", ov.text));
+    }
+    lines.push(format!(
+        "pane: {}",
+        app.term.as_ref().map_or("closed".into(), |t| format!("{}x{}", t.size().lines, t.size().cols))
+    ));
+    lines.push(format!("toast: {}", app.toasts.last().map_or("", |t| t.text.as_str())));
+    lines.join("\n") + "\n"
 }
 
 /// `pub(crate)` for [`crate::ui::harness`]: a test that drives the program with
@@ -895,6 +1021,57 @@ fn _unused(app: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `{rows}` and `{pane}` in `title_format`: what is on screen, readable
+    /// from the window title, with no pane open an empty `{pane}`.
+    #[test]
+    fn the_title_can_say_how_much_is_on_screen() {
+        let dir = crate::util::test_dir("title-rows");
+        let mut app = App::new(crate::config::Config::load(), dir.clone(), egui::Context::default());
+        app.cfg.yazi.mgr.title_format = "{cwd} [{rows}] <{pane}>".into();
+        app.tabs[app.active].page_rows = 31;
+        assert_eq!(title_for(&app), format!("{} [31] <>", app.tab().cwd.display()));
+    }
+
+    /// `FILER_KEYS_DONE`: what a check reads after `--keys`, without pressing
+    /// anything more to read it.
+    #[test]
+    fn the_state_after_the_keys_reads_as_lines() {
+        let dir = crate::util::test_dir("state-report");
+        std::fs::write(dir.join("a.txt"), b"").unwrap();
+        let mut app = App::new(crate::config::Config::load(), dir.clone(), egui::Context::default());
+        app.toast("Copied a.txt");
+        let report = state_report(&app);
+        assert!(report.starts_with(&format!("cwd: {}\n", app.tab().cwd.display())), "{report}");
+        for line in ["selected: 0", "tab: 1 of 1", "overlay: none", "pane: closed", "toast: Copied a.txt"] {
+            assert!(report.lines().any(|l| l == line), "{line:?} in {report}");
+        }
+        assert!(!report.contains("input:"), "only while a prompt is open");
+    }
+
+    /// #131: the bold face is found beside a regular face with no `-Regular`.
+    #[test]
+    fn a_bold_sibling_without_regular_in_the_name() {
+        let dir = std::path::Path::new("/fonts");
+        assert!(bold_siblings(&dir.join("DejaVuSansMono.ttf")).contains(&dir.join("DejaVuSansMono-Bold.ttf")));
+        assert!(bold_siblings(&dir.join("LiberationMono-Regular.ttf")).contains(&dir.join("LiberationMono-Bold.ttf")));
+    }
+
+    /// The Linux lane's first screenshot: Japanese names were boxes, because
+    /// only Windows' font folders were searched. Each platform now names its
+    /// own Japanese face.
+    #[test]
+    fn each_platform_looks_for_a_japanese_face() {
+        let all: Vec<PathBuf> = system_fonts().into_iter().chain(fallback_fonts()).collect();
+        let want = if cfg!(windows) {
+            r"C:\Windows\Fonts\meiryo.ttc"
+        } else if cfg!(target_os = "macos") {
+            "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc"
+        } else {
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+        };
+        assert!(all.iter().any(|p| p == std::path::Path::new(want)), "{all:?}");
+    }
 
     /// #126: one path, and a second refused with the likely reason rather than
     /// quietly taking the first one's place.

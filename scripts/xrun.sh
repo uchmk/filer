@@ -5,14 +5,21 @@
 #   scripts/xrun.sh OUTDIR [filer arguments...]
 #
 # Starts its own Xvfb, launches filer with the arguments (`--keys` included),
-# waits for the window and then XRUN_WAIT seconds (default 3) more, and writes
-# into OUTDIR:
+# waits for the window, and writes into OUTDIR what it shows. With `--keys` it
+# waits until filer says the last key has been pressed and has settled
+# (FILER_KEYS_DONE, at most XRUN_KEYS_TIMEOUT seconds, default 120), then
+# XRUN_WAIT seconds more (default 1) for anything a key started in the
+# background. Without `--keys` it waits XRUN_WAIT seconds (default 3). Until
+# v0.60.1 it only ever waited XRUN_WAIT, and a script with more `<Wait:N>` in it
+# than that was read half-pressed (#134). Writes into OUTDIR:
 #
 #   shot.png     the whole screen
 #   title.txt    the window's title, which names the folder the list is in
 #   clip.txt     the clipboard, read while filer still owns it (an X clipboard
 #                dies with its owner, so reading it afterwards gets nothing)
 #   filer.log    what filer printed
+#   keys.done    there when every `--keys` key went in; missing means the
+#                script timed out and the result is of a half-pressed script
 #
 # The clipboard is armed with XRUN-SENTINEL first, so an unchanged clipboard
 # reads as that rather than as the previous run's. FILER_BIN overrides the
@@ -23,10 +30,19 @@ out="${1:?usage: scripts/xrun.sh OUTDIR [filer arguments...]}"
 shift
 mkdir -p -- "$out"
 bin="${FILER_BIN:-target/debug/filer}"
-wait_s="${XRUN_WAIT:-3}"
+keyed=0
+for a in "$@"; do [ "$a" = "--keys" ] && keyed=1; done
+if [ "$keyed" = 1 ]; then wait_s="${XRUN_WAIT:-1}"; else wait_s="${XRUN_WAIT:-3}"; fi
+keys_timeout="${XRUN_KEYS_TIMEOUT:-120}"
+rm -f -- "$out/keys.done"
 
 for tool in Xvfb xdotool xclip import; do
     command -v "$tool" >/dev/null || { echo "xrun: $tool is missing (apt-get install -y xvfb xdotool xclip imagemagick)" >&2; exit 2; }
+done
+# What winit and the renderer load at start. Missing, filer panics with a
+# backtrace and this script could only say "no window appeared" (#131).
+for lib in libxkbcommon-x11.so libvulkan.so; do
+    ldconfig -p | grep -q "$lib" || { echo "xrun: $lib is missing (apt-get install -y libxkbcommon-x11-0 mesa-vulkan-drivers libvulkan1)" >&2; exit 2; }
 done
 
 # A display number nobody else holds.
@@ -41,7 +57,7 @@ for _ in $(seq 1 50); do xdotool getdisplaygeometry >/dev/null 2>&1 && break; sl
 printf 'XRUN-SENTINEL' | xclip -selection clipboard -i -loops 1 &
 sleep 0.2
 
-"$bin" "$@" >"$out/filer.log" 2>&1 &
+FILER_KEYS_DONE="$out/keys.done" "$bin" "$@" >"$out/filer.log" 2>&1 &
 pid=$!
 win=""
 for _ in $(seq 1 100); do
@@ -54,6 +70,14 @@ if [ -z "$win" ]; then
     echo "xrun: no window appeared; see $out/filer.log" >&2
     kill "$pid" 2>/dev/null
     exit 1
+fi
+if [ "$keyed" = 1 ]; then
+    for _ in $(seq 1 $((keys_timeout * 5))); do
+        [ -e "$out/keys.done" ] && break
+        kill -0 "$pid" 2>/dev/null || break
+        sleep 0.2
+    done
+    [ -e "$out/keys.done" ] || echo "xrun: --keys did not finish within ${keys_timeout}s; this is a half-pressed result" >&2
 fi
 sleep "$wait_s"
 

@@ -35,23 +35,32 @@ Reply in Japanese. Code, comments and commit messages in English.
 - **ARM64 Linux, macOS.** x86_64 only.
 - **Speed and CPU.** Rendering is lavapipe on the CPU, so section 47 and any
   "smooth" or "instant" claim is not yours.
-- **Looks.** Fonts differ from a desktop (CJK names show as boxes until
-  `fonts-noto-cjk` is installed, and the icon column has no Nerd Font). A row
+- **Looks.** Fonts differ from a desktop (the icon column has no Nerd Font;
+  Japanese needs `fonts-noto-cjk`, which filer picks up since v0.59.7). A row
   about colour, alignment, clipping or smoothness stays unticked.
 
 ## How to work
 
 ```bash
-apt-get install -y -q xvfb xdotool xclip x11-utils imagemagick   # once per container
+# once per container; the libraries are what winit and the Vulkan renderer load,
+# and without them filer panics on start (#131)
+apt-get install -y -q xvfb xdotool xclip x11-utils imagemagick fonts-noto-cjk \
+    libxkbcommon-x11-0 mesa-vulkan-drivers libvulkan1 libegl1 libgl1-mesa-dri
 cargo build                      # target/debug/filer
 cargo test                       # must be green before you start
 scripts/make-fixtures.sh "$TMPDIR/filer-fixtures"   # or /tmp/filer-fixtures
 ```
 
 `scripts/xrun.sh OUT [filer args...]` starts its own X display, runs filer,
-waits for the window and `XRUN_WAIT` seconds (default 3), and leaves
-`OUT/shot.png`, `OUT/title.txt`, `OUT/clip.txt` (armed with `XRUN-SENTINEL`
-first, read while filer still owns it) and `OUT/filer.log`:
+waits for the window -- and with `--keys`, until filer has pressed the last key
+and it has settled (`OUT/keys.done`), then `XRUN_WAIT` seconds more (default 1;
+without `--keys`, 3) -- and leaves `OUT/shot.png`, `OUT/title.txt`,
+`OUT/clip.txt` (armed with `XRUN-SENTINEL` first, read while filer still owns
+it) and `OUT/filer.log`. No `OUT/keys.done` means the keys timed out: that
+result is of a half-pressed script, so do not tick from it. `OUT/keys.done`
+itself holds the state after the last key -- `cwd`, `hovered`, `selected`,
+`tab`, `overlay`, `input`, `pane`, `toast`, one `name: value` per line
+(README, `--keys`) -- so read it rather than pressing a key to find out.
 
 ```bash
 scripts/xrun.sh /tmp/r1 "/tmp/filer-fixtures/awkward names" --keys "jjcf"
@@ -107,13 +116,14 @@ merging side updates it.
 
 | Section | Why it suits this lane |
 | --- | --- |
-| **25. `filer env`** | All text. The Windows-only rows (registry, ConPTY, `.exe` paths) are `[-]`; the rest must read right on Linux: config directories, `$SHELL`, the last-run record |
 | **24. awkward names** | Linux folders are case-sensitive, so 24.3's `UPPER.TXT` / `upper.txt` pair is two files here -- the row Windows cannot press. Names read back with `c f` |
-| **13. links** | Symlinks need no privilege here (13.8's Windows problem). `<Tab>` spot's `Kind` / `Target` / `Resolves` are text; `C` copies them |
+| **13. links** | Symlinks need no privilege here (13.8's Windows problem). `<Tab>` spot's `Kind` / `Target` / `Resolves` are text; `C` copies them. A plain folder no longer reads `Kind: Hardlink` (fixed in v0.59.7 after #131) |
 | **21. archives** | Pack with `E`, unpack with `e`, and read the result on disk (`unzip -l`, `tar tf`) |
 | **1. the terminal pane** | bash through a pty, logged by `FILER_PTY_LOG`. Rows about ConPTY or PowerShell are `[-]` |
 | **12. undo and redo** | `d` goes to the freedesktop trash: `~/.local/share/Trash/files` before and after `d`, and after `u` |
 | **44. disk usage** | `gu` on the fixtures and on `target/`; the totals read off `c c` and the header |
+
+Worked through before, and not in the table any more: 25 (#131; 25.4, 25.4a, 25.8b and 25.11 left open -- 25.4 and 25.4a can be read again since v0.59.7).
 
 ## Proposals
 

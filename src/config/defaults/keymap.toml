@@ -1170,6 +1170,11 @@ desc = "To the previous difference"
 # Window scale, as in `[mgr]` and `[help]`: the size of the window is not a
 # property of which difference the comparison is parked on.
 [[diff.keymap]]
+on = "<Enter>"
+run = "enter"
+desc = "Compare the files on this row (folders)"
+
+[[diff.keymap]]
 on = "z"
 run = "hide_same"
 desc = "Hide or show the matching rows of a folder comparison"

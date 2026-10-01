@@ -958,8 +958,11 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     // `z` is offered only where it does something: a tree has rows to hide.
     // Each key is named with what it does: `n/N differences` read as a count
     // of differences that had not been filled in (#98).
+    // A pair opened from a folder comparison goes back to it, and says so.
     let keys = if matches!(ov.outcome, Some(Outcome::Tree { .. })) {
-        "n / N: next / previous difference · z: hide matches · q: close"
+        "n / N: next / previous difference · z: hide matches · Enter: compare files · q: close"
+    } else if ov.back.is_some() {
+        "n / N: next / previous difference · q: back to the folders"
     } else {
         "n / N: next / previous difference · q: close"
     };
@@ -1033,17 +1036,36 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         for (side, x, mark) in sides {
             // Nothing on this side: the line exists only in the other file.
             let Some(l) = side else { continue };
+            let number = format!("{:>4} ", l.no);
             if !row.same {
                 painter.rect_filled(
                     Rect::from_min_size(egui::pos2(x - 2.0, y), Vec2::new(half, row_h)),
                     CornerRadius::same(2),
                     mark.gamma_multiply(0.22),
                 );
+                // The words that changed, stronger. Measured with the font
+                // rather than counted in cells, so a wide character before
+                // them does not push the mark off its word. A line cut to fit
+                // has lost the positions they refer to, so it keeps the tint.
+                let chars: Vec<char> = l.text.chars().collect();
+                if chars.len() <= cols {
+                    let width = |t: String| painter.layout_no_wrap(t, f.clone(), theme.fg).size().x;
+                    for r in &l.changed {
+                        let before: String = number.chars().chain(chars[..r.start].iter().copied()).collect();
+                        let x0 = x + width(before);
+                        let w = width(chars[r.clone()].iter().collect());
+                        painter.rect_filled(
+                            Rect::from_min_size(egui::pos2(x0, y), Vec2::new(w, row_h)),
+                            CornerRadius::same(2),
+                            mark.gamma_multiply(0.6),
+                        );
+                    }
+                }
             }
             painter.text(
                 egui::pos2(x, y),
                 Align2::LEFT_TOP,
-                format!("{:>4} {}", l.no, crate::util::ellipsize_middle(&l.text, cols)),
+                format!("{number}{}", crate::util::ellipsize_middle(&l.text, cols)),
                 f.clone(),
                 theme.fg,
             );
@@ -1487,7 +1509,7 @@ mod diff_frame {
             offset: 0,
             rows: 10,
             cursor: 0,
-            hide_same: false,
+            hide_same: false, back: None,
         });
         s
     }
@@ -2259,7 +2281,7 @@ mod compare_frame {
             // number of rows that fit, which is what these tests are here for.
             rows: 1,
             cursor: 0,
-            hide_same: false,
+            hide_same: false, back: None,
         });
         s
     }

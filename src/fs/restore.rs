@@ -117,7 +117,21 @@ fn list_trash() -> Result<Vec<TrashItem>, String> {
     )
 ))]
 fn restore_one(item: TrashItem) -> Result<(), String> {
-    trash::os_limited::restore_all([item]).map_err(|e| e.to_string())
+    trash::os_limited::restore_all([item]).map_err(|e| say(&e))
+}
+
+/// The trash crate's error, in words. `RestoreCollision`'s own rendering is
+/// its Debug form, recycle-bin ids and all; what it means is plain, and the
+/// step is kept, so a second `u` works once the way is clear (#83).
+// Only restoring calls it, and macOS has no restoring to call it from.
+#[cfg_attr(any(target_os = "macos", target_os = "ios", target_os = "android"), allow(dead_code))]
+fn say(e: &trash::Error) -> String {
+    match e {
+        trash::Error::RestoreCollision { .. } => {
+            "a file by that name is already there. Move it away and press u again".to_owned()
+        }
+        other => other.to_string(),
+    }
 }
 
 #[cfg(not(any(
@@ -144,6 +158,13 @@ mod tests {
             original_parent: PathBuf::from(parent),
             time_deleted,
         }
+    }
+
+    /// #83: a collision reads as what to do, not as the bin's internal ids.
+    #[test]
+    fn a_collision_says_what_to_do() {
+        let e = trash::Error::RestoreCollision { path: PathBuf::from("x"), remaining_items: Vec::new() };
+        assert_eq!(say(&e), "a file by that name is already there. Move it away and press u again");
     }
 
     #[test]

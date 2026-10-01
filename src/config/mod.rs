@@ -196,7 +196,7 @@ impl Config {
 
         let dirs = dirs_to_read();
         let mut yazi_cfg = YaziToml::default();
-        let mut keymap_texts: Vec<String> = Vec::new();
+        let mut keymap_texts: Vec<(String, String)> = Vec::new();
         let mut theme = Theme::default();
         let mut ui = Ui::default();
         let mut term = TermCfg::default();
@@ -215,16 +215,16 @@ impl Config {
                     // documentation spells it. `wrong` has already said which
                     // key it is and which file it goes in.
                     Err(_) if wrong.breaks_parse => {}
-                    Err(e) => warnings.push(format!("{}: {e}", at(dir, "yazi.toml"))),
+                    Err(e) => warnings.push(format!("{}: {}", at(dir, "yazi.toml"), e.to_string().trim_end())),
                 }
             }
             if let Some(text) = read(dir, "keymap.toml", &mut loaded) {
-                keymap_texts.push(text);
+                keymap_texts.push((at(dir, "keymap.toml"), text));
             }
             if let Some(text) = read(dir, "theme.toml", &mut loaded) {
                 match toml::from_str::<theme::ThemeToml>(&text) {
                     Ok(v) => theme.apply(&v),
-                    Err(e) => warnings.push(format!("{}: {e}", at(dir, "theme.toml"))),
+                    Err(e) => warnings.push(format!("{}: {}", at(dir, "theme.toml"), e.to_string().trim_end())),
                 }
             }
             if let Some(text) = read(dir, "filer.toml", &mut loaded) {
@@ -247,13 +247,13 @@ impl Config {
                         }
                     }
                     Err(_) if wrong.breaks_parse => {}
-                    Err(e) => warnings.push(format!("{}: {e}", at(dir, "filer.toml"))),
+                    Err(e) => warnings.push(format!("{}: {}", at(dir, "filer.toml"), e.to_string().trim_end())),
                 }
             }
         }
 
-        let refs: Vec<&str> = keymap_texts.iter().map(String::as_str).collect();
-        let (keymap, mut km_warnings) = Keymap::load(&refs);
+        let refs: Vec<(&str, &str)> = keymap_texts.iter().map(|(p, t)| (p.as_str(), t.as_str())).collect();
+        let (keymap, mut km_warnings) = Keymap::load_named(&refs);
         warnings.append(&mut km_warnings);
 
         let theme = std::sync::Arc::new(theme);

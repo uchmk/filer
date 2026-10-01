@@ -62,6 +62,36 @@ pub struct RunInfo {
     /// answer (#107). Defaulted, so a record from before it still loads.
     #[serde(default)]
     pub pane: [usize; 2],
+    /// The last command lines `<Enter>` or `:` / `!` ran, newest last, at
+    /// most [`LAUNCHES_KEPT`]. A launch was a toast for a few seconds and then
+    /// nothing; the opener bug in the README was found only because a
+    /// screenshot happened to catch one (Q40).
+    #[serde(default)]
+    pub launched: Vec<String>,
+}
+
+/// How many launches `filer env` shows.
+pub const LAUNCHES_KEPT: usize = 5;
+
+/// Add `line` to `list`, dropping the oldest past [`LAUNCHES_KEPT`].
+fn push_launch(list: &mut Vec<String>, line: &str) {
+    list.push(line.to_owned());
+    let over = list.len().saturating_sub(LAUNCHES_KEPT);
+    list.drain(..over);
+}
+
+/// Record a launch in `last-run.toml`, off the UI thread.
+pub fn remember_launch(line: &str) {
+    // A test launching something must not write into the real state folder.
+    if cfg!(test) {
+        return;
+    }
+    let line = line.to_owned();
+    std::thread::spawn(move || {
+        let mut info = load().unwrap_or_default();
+        push_launch(&mut info.launched, &line);
+        save(&info);
+    });
 }
 
 impl RunInfo {
@@ -144,6 +174,16 @@ mod tests {
         assert_eq!(at(1000.0, 500.0, 1.25).as_deref(), Some("1250 x 625 px (1000 x 500 pt @ 1.25)"));
     }
 
+    /// Q40: the last five launches are kept, newest last.
+    #[test]
+    fn the_last_five_launches_are_kept() {
+        let mut list = Vec::new();
+        for i in 1..=7 {
+            push_launch(&mut list, &format!("run {i}"));
+        }
+        assert_eq!(list, ["run 3", "run 4", "run 5", "run 6", "run 7"]);
+    }
+
     /// A record written before `pane` existed still loads, with no pane.
     #[test]
     fn an_older_record_still_loads() {
@@ -183,6 +223,7 @@ mod tests {
             window_pt: [1360.0, 860.0],
             ppp: 1.5,
             pane: [12, 159],
+            launched: vec!["code -g a.txt:3".into()],
         };
         save_to(&p, &info);
         assert_eq!(load_from(&p).as_ref(), Some(&info));

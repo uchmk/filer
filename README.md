@@ -108,6 +108,10 @@ Honored: `[mgr]` (`ratio`, `sort_by`, `sort_reverse`, `sort_dir_first`, `sort_se
 `max_width`, `max_height`), `[opener]`, `[open].rules`, `[tasks].micro_workers`.
 `[manager]` is accepted as an alias for `[mgr]`. Unknown keys are ignored rather than rejected.
 
+`title_format` takes yazi's `{cwd}`, and two of filer's own (v0.59.8): `{rows}`, the list rows on
+screen, and `{pane}`, the terminal pane's grid as `12x159` (empty while it is closed). A script that
+reads the window title gets both without pressing a key: `title_format = "Filer: {cwd} [{rows}] {pane}"`.
+
 Opener placeholders `$@`, `$0`, `%*`, `%0` and `%s` all expand to the selected paths.
 
 The terminal pane takes a third of the window, which suits a shell and is too little for a
@@ -234,7 +238,7 @@ this project's own). `select` and `select_all` are accepted as `toggle --state=o
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe`, `enter`, `copy cell` and `copy all` (this project's own: the whole panel, `Label<TAB>value` per row); in `[term]`:
 `close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
-`close`, `arrow`, `find_arrow` and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too) and `arrow`.
+`close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too) and `arrow`.
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -629,11 +633,14 @@ is not.
 | `j` `k` `<C-d>` `<C-u>` `gg` `G` | scroll (move the selection, comparing folders) |
 | `n` `N` | to the next / previous difference |
 | `z` | comparing folders: hide the matching rows, or bring them back |
-| `q` `<Esc>` | close |
+| `<Enter>` | comparing folders: compare the two files on this row, line by line; `q` comes back to the folders, on the same row |
+| `q` `<Esc>` | close (back to the folders, from a pair opened with `<Enter>`) |
 
 Each side carries its own line numbers, so a line found here can be found in the file. An edited
 line sits opposite the line it replaced rather than being listed as a removal and an addition far
-apart.
+apart, and the words that changed inside it are painted stronger than the rest of the row (v0.62.0):
+`price` → `cost` in a long line shows as just those two words. A pair of lines with nothing in common
+but spaces is a change of the whole line, and is left at the row's tint.
 
 Reading the files and lining them up happens on a worker, so a big file or a slow share never holds
 the window. Identical files say so rather than drawing thousands of matching rows, and two files
@@ -704,7 +711,7 @@ file, so the keys that move fastest are the ones that change file.
 
 ## Undo
 
-`u` takes back the last thing that can be taken back, `U` does it again. Two things qualify:
+`u` takes back the last thing that can be taken back, `U` does it again. These qualify:
 
 | Step | `u` | `U` |
 | --- | --- | --- |
@@ -712,11 +719,17 @@ file, so the keys that move fastest are the ones that change file.
 | `r` — a rename | renames it back | renames it again |
 | `R` — a bulk rename | puts every name back, in one step | renames them again |
 | `x` then `p` — a move | puts the files back where they were | moves them again |
+| `a` — a new file or folder | removes it, and the folders made on the way to it, while it is still empty | makes it again |
+| `-` `_` `=` — links | removes the links, never what they point at | makes them again |
 
 A move is here and a copy is not, which is the line the rest of the list follows: putting a moved
 file back is a rename across directories and deletes nothing, while undoing a copy would mean
 deleting the new files to tidy up — a worse thing to get wrong than the operation it was undoing.
-`D` asks before it deletes and then means it, so it stays out too.
+`D` asks before it deletes and then means it, so it stays out too. A new file and a link come under
+the same line: removing an empty file you just made, or a link, loses nothing. So the file has to
+still be empty — once something has been written into it, `u` says so and leaves it — and a link has
+to still be the link that was made: a symlink, or for a hardlink the same file as its source, not
+something else that has taken the name since.
 
 Undoing a move starts from where each file actually landed, not from where it was sent: a paste onto
 a name already taken lands as `name_1`, and an undo built from the name you asked for would go
@@ -978,7 +991,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `<Space>` `v` `V` `<C-a>` `<C-S-r>` | toggle / visual / visual-unset / select all / invert |
 | `y` `x` `Y` `p` `P` `-` `_` `<C-S-->` | yank / cut / cancel the yank / paste / paste-force / symlink / relative symlink / hardlink |
 | `d` `D` | recycle bin / permanent delete (with confirmation) |
-| `u` `U` (or `<C-r>`) | undo the last rename or delete / do it again |
+| `u` `U` (or `<C-r>`) | undo the last rename, delete, move, create or link / do it again |
 | `a` `r` | create (trailing `/` makes a directory) / rename |
 | `R` | bulk rename: one rule over everything selected, previewed as you type |
 | `<A-d>` | compare two files side by side |
@@ -1286,6 +1299,29 @@ filer --keys "<C-t><Wait:1500>git<Space>status<Enter><Wait:1000><C-S-Enter>"
 
 A space is written `<Space>`; a plain one is refused.
 
+A script driving filer from outside needs to know when the keys are done, and guessing from the
+`<Wait:N>` it wrote misses the time each key spends waiting to settle. Set `FILER_KEYS_DONE` to a
+file path and filer writes that file once the last key has gone in and what it started has landed —
+the same wait the keys themselves take (v0.60.1). `scripts/xrun.sh` waits for it.
+
+The file holds the state at that moment, one `name: value` per line (v0.60.2), so a check can read
+it without pressing another key — which would change what it reads:
+
+```text
+cwd: /tmp/work
+hovered: /tmp/work/b.txt
+selected: 2
+tab: 1 of 1
+overlay: input
+input: draft
+pane: closed
+toast: Yanked 1 item(s)
+```
+
+`overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `input` is
+there only while a prompt is open; `pane` is the terminal's grid (`12x159`) or `closed`; `toast` is
+the newest message still on screen, empty when there is none.
+
 ## Platform Support (Roadmap)
 
 Development currently centers on Windows, but the goal is cross-platform support across the
@@ -1366,11 +1402,11 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.
 - Git signs need `git` on `PATH`; without it the rows are simply unmarked. Only the status and the
   branch name are shown — there is no staging, diffing or committing here.
-- Undo covers renames (single and bulk) and trips to the recycle bin, nothing else, and on macOS
-  only renames — see [Undo](#undo). It is not written to disk, so closing the window forgets it.
-- Comparing files is line-level and read-only: no word-level highlighting inside a changed line and
-  no editing from the view. Comparing folders lists the paths and says which differ; it does not open
-  a pair from a row, and it has no filter for showing only the differences.
+- Undo covers renames (single and bulk), trips to the recycle bin, moves, new files and folders,
+  and links — not copies, archives or `D` — and on macOS not the recycle bin — see [Undo](#undo). It is not written to disk, so closing the window forgets it.
+- Comparing files is read-only: no editing from the view. Words are marked inside an edited line
+  only while it fits on screen; a line cut short to fit keeps the whole-row tint. Comparing folders opens a pair of files from a row
+  (`<Enter>`), but not a pair of folders: a subfolder's rows are already in the same list.
 - The minimap stops where the file was cut off at `max_text_bytes` rather than describing the rest,
   so on a truncated file the strip describes only the head and silently rescales it to the full
   height.
