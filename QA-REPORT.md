@@ -7076,3 +7076,179 @@ a running program is asked about
 ビューを抜けている。測り直すには `gu` をもう一度打つしかない（ビューの中では断られる、44.11）。
 
 **大きさ**: 見出しに足すだけなら `ui::summary` に 1 引数と 1 行。札を増やすなら見た目の決めが要る。
+
+## TESTING.md 24.2 と 1.37 — v0.57.0 が Q34・Q35 で入れたものを ARM64 で確かめた（a219071 / 0.59.2、ARM64 レーン、無人の run）
+
+ARM64 の Windows ノート PC（Windows 11 Home 26H1 build 28000.2956、`filer env` の
+`Process arch aarch64`、Adreno X2-90 / Vulkan）で、無人 run として ARM64 の順番表の先頭
+「v0.57.0, Q34 and Q35」を通した。ビルドは worktree `C:\dev\filer-armtest` の
+`target\release\filer.exe` 0.59.2（同梱 ConPTY 1.24.260710001 arm64 を
+`scripts\fetch-conpty.ps1` で配置）。スクラッチは RAM ディスクの無い機械なので
+`C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（`TEMP` / `TMP` もそこ）。昇格なし
+（`IsInRole('Administrators')` = False）。
+
+起動時はスクリーンセーバーが入力デスクトップを握っていた（`OpenInputDesktop` →
+`Screen-saver`、`SPI_GETSCREENSAVERRUNNING` = True）。止めてから
+`Default` / False に戻ったことを確かめ、以降の押下はすべて **`--keys`**、画面は
+`PrintWindow(PW_RENDERFULLCONTENT)` だけで触っている（`PostMessage` は使っていない）。
+
+`cargo test` はネイティブ ARM64 で **558 passed / 0 failed**（0.59.2）。
+#122 で 1 度だけ落ちた `ending_a_busy_shell_asks_first` は、この run では落ちていない。
+
+**チェックを入れたのは 1.37 の 1 行。**24.2 は TESTING-CHECKS.md に箱が無い
+（「自動テスト済みなので下には出していない: 24.1, 24.2, 24.3」）ので、結果はここに置く。
+`cargo run --example make-testcheck` を回して数を取り直し、`-- --check` は
+`in sync with TESTING.md (220 / 420 checked, 0 untranslated)`。
+`make-keycheck -- --check` も `in sync (249 / 249 checked)` のまま。
+
+証拠一式は `C:\dev\filer-evidence\arm-q34-q35\`（`shots\*.png`、`1-37-pty.log`、
+`1-37-proof.txt`、`win.ps1`）。
+
+### 24.2 長い名前は語幹の中で省略され、拡張子が残る（Q34、v0.57.0）— 通った
+
+`scripts\make-fixtures.ps1 -Path …\filer-scratch\filer-fixtures` で作った
+`awkward names\` を、1360x860 の既定の窓で開いた（`shots\24-2-full.png`、
+その行を 3 倍に拡大したものが `shots\24-2-row.png`）。
+
+| 読んだもの | 値 |
+| --- | --- |
+| 画面に描かれた名前 | `very-long-long-long-long-long…long-long-name.txt` |
+| 同じ行で `c` `f`（`--keys "jjj<Wait:500>cf"`） | `very-long-…(略)…-long-name.txt` **163 文字**（`Get-Clipboard`、押す前は `SENTINEL-24-2-B`） |
+
+- **拡張子 `.txt` が残っている。**v0.45.0 以来この行が残っていた理由（末尾を切って
+  `.txt` が消える）は無くなった。
+- `…` は語幹の中（先頭 `very-long-long-long-long-long`、末尾 `long-long-name.txt`）。
+  `elide_at` の「残す文字の 2/3 を前に、1/3 を後ろに」のとおり。
+- おまけに**同じ窓の親の列**で `compare-left.txt` / `compare-right.txt` が
+  `compar…ft.txt` / `compar…ht.txt` と出ていて、**狭い列でも 2 つが別物として読める**
+  （Q34 が `report-….pdf` と `report-….docx` で挙げていた狙いが、実際の窓で見えている）。
+
+**TESTING.md 24 節の前書きが古くなった（直していない）。**「**24.2 は半分だけ確かめられている**
+… 実装は末尾を切って拡張子を落とすので、この行が求めているものではない。決まるまでこの行は残る
+（QA-REPORT.md）」は v0.57.0 で解決済み。マージする側で書き換えてほしい。
+24.2 の文言「Elided in the middle, with the extension still readable」は**そのままで合っている。**
+
+### 1.37 ペインを閉じたまま `<A-t>`（Q35、v0.57.0）— 通った（チェックした）
+
+`…\filer-scratch\t137\` に `a file 137.txt`（名前に空白）を 1 つ置き、`FILER_PTY_LOG` を
+立てて、**ペインを一度も開かずに** `--keys "<A-t><Wait:8000>|<Space>Out-File<Space>proof.txt<Enter><Wait:3000>"`
+で起動した。
+
+| 行の半分 | 読んだもの |
+| --- | --- |
+run は 2 本。**run A** が上の `--keys` 一本道（`t137\`、`pty.log` と `proof.txt` を残す）、
+**run B** が `--keys "<A-t>"` だけで止めて 1.5 秒後に撮ったもの（`t137b\`、トーストを読むため）。
+
+| 行の半分 | 読んだもの |
+| --- | --- |
+| ペインが開く | run A: `pty.log` が生まれ、`== pane opened at 1790823247835` から始まる。run B: `shots\1-37-t1500.png` にペインが写っている |
+| 「The terminal is not open」と言わない | run B の `<A-t>` 1.5 秒後の画面に出ているトーストは `Started pwsh — <C-t> back to the list` だけ（`shots\1-37-t1500.png`） |
+| 引用されたパスが行に入る | run A: `pty.log` 10 行目 `90 in key 'C:\Users\…\t137\a file 137.txt'`。run B の画面のプロンプトにも同じ 1 行が入ったまま（`shots\1-37-t1500.png`） |
+| プロファイル読み込み中に消えない | run A のシェルは `個人プロファイルとシステム プロファイルの読み込みに 2488 ミリ秒かかりました。`（`shots\1-37-after.png`）。パスが送られたのはその **90 ms** の時点なのに、**8 秒後に `<Enter>` した時点で行は無傷**で、`proof.txt` の中身が `C:\Users\yuu06\AppData\Local\Temp\filer-scratch\t137\a file 137.txt`（69 バイト、1 行）。run B（プロファイル 530 ms）でも 1.5 秒後の行は無傷 |
+| キーはペインに移る | run A で `<A-t>` の後に打った `| Out-File proof.txt` が**ディスクに `proof.txt` を作った。**一覧に届いていればファイルはできない。`pty.log` の `in key` も 1 文字ずつ並んでいる（122〜359 行） |
+
+- **送られた時刻**: ペインが開いて **90 ms**。その 14 ms 前（76 ms）にシェルが
+  `PowerShell 7.6.6\r\n` を書いている。`has_drawn()` が見ているのはこれで、
+  **プロンプトではない**（run A ではプロファイルだけで 2488 ms かかっている）。それでも
+  ConPTY が入力を溜めてくれるので行は無傷だった。下の「提案 1」を参照。
+- 他に何も: 窓のタイトルは前後とも `Filer: C:\…\t137`、作業フォルダに増えたのは
+  `proof.txt` と `pty.log`（どちらもこの検査が作らせたもの）だけ。
+
+### 見つけたもの
+
+#### 1. 相対パスを引数にすると、タブが相対パスのまま動けなくなる（この run で踏んだ）
+
+`filer t137`（cwd は `…\filer-scratch`）で起動すると、**中身は正しく出るのに**
+タブが相対パス `t137` を持ったままになる（`shots\arg-e-rel-good.png`）。
+
+| 読んだもの | 出たもの | 出るべきもの |
+| --- | --- | --- |
+| 窓のタイトル | `Filer: t137` | `Filer: C:\Users\yuu06\AppData\Local\Temp\filer-scratch\t137` |
+| 見出しのパス | `t137\a file 137.txt` | 絶対パス |
+| 親の列 | **空**（1 行も無い） | `filer-scratch\` の中身 |
+| `c` `c`（`--keys "<Wait:1200>cc"`） | `t137\a file 137.txt` | 絶対パス |
+| `h`（上の階層へ）を押した後のタイトル | `Filer: t137` のまま（`shots\arg-f-rel-up.png`） | 親へ移る |
+
+**`h` が効かないので、この窓はキーでは上に抜けられない。**
+
+読んだ原因（ソース、走らせて確かめたわけではない）: `main.rs:180` が
+`cli.path.as_deref().map(util::normalize)` で、`util::normalize` は**字面だけを整える**ので
+cwd と繋がない。`g<Space>` の側は `util::resolve(base, input)` を通るので絶対パスになる。
+同じ `resolve` を起動時にも通せば済むように見える。
+
+#### 2. 存在しない**相対**パスを引数にすると、名前の無いエラーが出る（23.6 の抜け）
+
+同じ原因の表の面。cwd を `…\filer-scratch\t137` にして:
+
+| 起動の仕方 | 出たトースト |
+| --- | --- |
+| `filer "C:\…\filer-scratch\t137\tpyo"`（絶対） | `No such file or folder: tpyo — showing C:\Users\yuu06\AppData\Local\Temp\filer-scratch\t137`（`shots\arg-c-abs-bad-toast.png`）— **23.6 のとおり** |
+| `filer zzz-not-a-thing`（相対） | `: 指定されたパスが見つかりません。 (os error 3)`（`shots\arg-d-rel-bad-toast.png`）— **コロンの前が空で、OS の生のメッセージ** |
+
+窓はどちらも cwd に落ちるので、**間違っているのは言い方だけ**。
+読んだ原因: 相対パス 1 要素の親は `""` で、その走査が失敗し、
+`app.rs:1532` の `format!("{}: {error}", util::file_name(&path))` の
+`util::file_name(Path::new(""))` が空文字列を返す（`util.rs:336`、`file_name()` が `None`、
+UNC 共有でもないので「パスそのもの」＝空が返る）。1 を直せば 2 も消えるはず。
+
+#### 3. 2 つ目の位置引数が黙って無視される（1 の入り口）
+
+`filer <good dir> zzz` は**後から来たほうを採る**（`main.rs:161` が毎回 `cli.path` を
+上書きする）ので、窓は cwd に落ちる（`shots\extra-arg.png`、タイトル `Filer: C:\dev\filer-armtest`）。
+**引用し忘れた空白入りのパスがちょうどこの形になる。**この run でも
+`filer C:\…\awkward names` を引用せずに投げて、窓が別の場所に開いた
+（`shots\arg-b-unquoted.png`）。`--keys` が「打てないキー」を起動前に断るのと同じ扱いで、
+2 つ目の位置引数も断ってよいはず。
+
+### Proposals
+
+#### 提案 1: `<A-t>` が待つのは「何か描かれた」ではなく「プロンプトが出た」にする
+
+**踏んだこと**: 1.37 の `pty.log` で、パスが送られたのはペインが開いて **90 ms** のところ。
+その直前にシェルが書いたのは**バージョンの行**（`PowerShell 7.6.6`）だけで、プロンプトが
+出たのはずっと後（同じ機械の別の run ではプロファイルに **2488 ms** かかっている）。
+今回は ConPTY が入力を溜めてくれたので行は無傷だったが、**待っている条件と、消えない
+理由が別物**になっている。
+
+**どう変えるべきか**: `has_drawn()` を「最初の文字が来た」から、**OSC 7 かシェルの最初の
+プロンプト**（`Terminal::shell_cwd` が埋まる、または `in reply` の後の最初の入力待ち）まで
+引く。あるいは今の条件を残したうえで、**プロンプトが出るまでは送らずに溜め続ける**
+上限 5 秒を、`has_drawn` ではなくプロンプトに掛ける。
+
+**なぜ**: 今のままだと、プロファイルの長いシェル、バナーを先に出すシェル（nu、starship を
+積んだ pwsh）、`Read-Host` を踏むプロファイルで、**たまたま消える**日が来る。
+`<A-t>` は「送ったのに消えた」が一番分かりにくい壊れ方で、しかも再現が環境依存になる。
+TESTING.md 1.37 の文言も「once the shell's prompt is up」と書いているので、**行のほうが
+実装より正しい。**
+
+**大きさ**: `Terminal::has_drawn` の隣にもう 1 つ述語を足して `pump_terminal` の条件を
+差し替える程度。プロンプトの検出をどう定義するかが設計の判断（OSC 7 に寄せるなら
+pwsh / bash / zsh で違う）。
+
+#### 提案 2: 起動時のパスを `g<Space>` と同じ `resolve` に通す
+
+**踏んだこと**: 上の「見つけたもの 1」。`filer t137` で親の列が空になり、`h` が効かず、
+`c` `c` が相対パスを配った。
+
+**どう変えるべきか**: `main.rs:180` の `util::normalize` を
+`util::resolve(&home, p)` にする。`home` はその 4 行上で既に組んである。
+
+**なぜ**: シェルから `filer .` や `filer ..\other` と打つのは**一番自然な呼び方**で、
+補完が出すのも相対パス。今はそれが「上に戻れない窓」になる。`c` `c` が相対パスを
+配るのは、貼った先で意味が変わるので実害もある。
+
+**大きさ**: 1 行。`util::resolve` には既にテストがある。
+
+#### 提案 3: 位置引数は 1 つだけ受け、2 つ目は起動前に断る
+
+**踏んだこと**: 上の「見つけたもの 3」。引用し忘れで窓が黙って別の場所に開いた。
+
+**どう変えるべきか**: `parse_cli` で `cli.path` が既に `Some` なら
+`filer: too many paths: "names" (did you forget to quote a path with a space?)` と
+言って `exit(2)`。`--keys` が打てないキーを起動前に断っているのと同じ形。
+
+**なぜ**: 空白入りのパスは Windows では普通（`C:\Program Files`、`awkward names`）で、
+引用し忘れは**必ず起きる**。今は「開いた、でも場所が違う」で、原因が引数だと気づくのに
+時間がかかる。断れば 1 行で分かる。
+
+**大きさ**: `parse_cli` に 4 行。
