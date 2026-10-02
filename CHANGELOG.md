@@ -9,6 +9,21 @@
 
 ## [未リリース]
 
+## [0.71.2] - 2026-10-02
+
+### 変更
+
+- TESTING.md 29.12（`[term] shell` より `FILER_TERM_SHELL` が優先される）を x64 の実機で再テストした。合格（#190）。
+  `filer env` で `[term] args` を使わなかったことを言う案と、29.12 の文言の直しを TODO.md に回した
+
+## [0.71.1] - 2026-10-02
+
+### 変更
+
+- TESTING.md 25.19 と 25.19a を ARM64 の実機で確かめた（`filer env | Select-String arch` は arch の 2 行だけ、
+  `$v = & filer env | Write-Output; $v.Count` はレポートの行数）（#189）。確かめ方の `Select-String arch` が他の行にも当たりうる件、
+  レポート末尾の空行、キーの重複の警告にファイル名を出す案（Q57）を TODO.md と QUESTIONS.md に回した
+
 ## [0.71.0] - 2026-10-02
 
 ### 追加
