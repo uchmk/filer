@@ -9,6 +9,14 @@
 
 ## [未リリース]
 
+## [0.71.1] - 2026-10-02
+
+### 変更
+
+- TESTING.md 25.19 と 25.19a を ARM64 の実機で確かめた（`filer env | Select-String arch` は arch の 2 行だけ、
+  `$v = & filer env | Write-Output; $v.Count` はレポートの行数）（#189）。確かめ方の `Select-String arch` が他の行にも当たりうる件、
+  レポート末尾の空行、キーの重複の警告にファイル名を出す案（Q57）を TODO.md と QUESTIONS.md に回した
+
 ## [0.71.0] - 2026-10-02
 
 ### 追加

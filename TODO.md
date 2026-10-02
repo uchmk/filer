@@ -1718,3 +1718,18 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   再生成を禁じられているので、印を付けたあと件数を手で直すしかなかった。`make-testcheck` の「The checks all match; the difference is
   in the surrounding text」と同じ区別を入れ、正しい件数を出す（あるいは件数だけを書き直す `--counts`）。
 
+## 実機のセッションの報告（v0.71.1 で受けた分: #189、ARM64 の 25.19 / 25.19a）
+
+- [x] 25.19 と 25.19a に印（ARM64 のネイティブ版 0.70.1）。`filer env | Select-String arch` は arch の 2 行だけ、
+  `$v = & filer env | Write-Output; $v.Count` は 49（`cmd /c >` で取った行数と同じで、中身も一致）。後ろに何も置かない形は 0 行。
+  ARM64 の順番表から 25.19 の行を外した。
+- [ ] **25.19 の確かめ方 `Select-String arch` が、どこにでもある `arch` に当たる**（#189 の所見、提案 2）。`C:\Archive\…` を名指す
+  オープナーが 1 つあるだけで 3 行目（Tools の行）に当たり、filer は正しいのに確かめ方が失敗に見える。`arch\s+:` なら 2 行のまま
+  （両方のレポートで確かめ済み）。TESTING.md 25.19 の式を `arch\s+:` にする（人か QA セッション）。README の「Reporting a problem」の
+  例も同じ式にする（短さは落ちるが、例のとおりに打った人が同じ 3 行目を見る）。
+- [x] （v0.71.0 で済んだ）README の「`>` が唯一の例外」を「パイプラインの最後」に広げる（#189 の提案 1、#183 の提案 1）。
+  v0.71.0 で「Reporting a problem」を `filer.com` の形に書き直し、`filer.exe` を直接呼ぶときの空振りもまとめて書いた。
+- [ ] **`filer env` の末尾を空行 1 つにする**（#189 の提案 3）。今は `FILER_TERM_SHELL : unset<LF><LF><LF>` で終わり、「レポートの行数」が
+  数え方で 47・48・49 と変わる。`envreport::text` の最後の節で空行を足しすぎている。
+- [ ] `is bound more than once` の警告に、どのファイルの束縛かを書く（#189 の提案 4）。設計の選択があるので Q57。（要確認: Q57）
+
