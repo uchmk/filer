@@ -9926,3 +9926,169 @@ window_height = 860.0
 - **なぜ**: 設定を直している最中は `<C-F5>` を何度も押す。そのたびに画面の上半分が
   数秒隠れるのは、直している対象が見えなくなるということ。
 - **大きさ**: トーストに入れる文字列を切るところ 1 か所。警告の全文は既に 2 か所にある。
+
+## TESTING.md section 8 — ペインのシェルを ARM64 で（b466bbc / 0.67.13、ARM64 レーン、無人の run）
+
+`cargo test` はネイティブ ARM64 で **602 passed; 0 failed**（3.74s）。`filer env` は
+`OS arch aarch64` / `Process arch aarch64`、`pwsh` は
+`C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.6.0_arm64__8wekyb3d8bbwe\pwsh.exe`
+（**ARM64 ネイティブの pwsh**で、x64 が代わりを務められない唯一のところ）。ConPTY は
+`scripts\fetch-conpty.ps1` が置いた同梱版（`ConPTY 1.24.260710001 (arm64)`）で、
+子プロセスの `OpenConsole.exe` のパスが `target\release\OpenConsole.exe` になっていることで
+確かめた（2026-09 の x64 の run は `PATH` 上の WezTerm 版を引いていた）。
+
+**人の設定は 1 文字も触っていない。**`FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` /
+`FILER_STATE_HOME` を run 専用のフォルダ（`…\filer-scratch\s8\{cfg,yazi,state}`）に向け、
+`filer.toml` だけをそこに置いた。シェルは `--keys` でペインに文字を打たせ、**答えをファイルに
+書かせて**読んでいる（`$PSVersionTable.PSVersion.ToString()|Set-Content v.txt` と
+`(Get-Process -Id $PID).Path|Set-Content p.txt`）。キーがリストではなくペインに届いたことは、
+**そのファイルが存在すること自体**が示す。`FILER_PTY_LOG` も全 run で取った。
+
+キースクリプトと画面・ログは `C:\dev\filer-evidence\arm-8\`（`run8.ps1`、`*-keys.txt`、
+`*-pty.log`、`*-done.txt`、`*.png`）。
+
+| run | `filer.toml` | 押したもの | 出たシェル |
+| --- | --- | --- | --- |
+| a | `shell = "pwsh"` | `<C-t>` | **7.6.6** / `…_arm64__…\pwsh.exe`、トースト `Started pwsh` |
+| b1 | `shell = "powershell"` | `<C-t>` | 5.1.28000.2952 / `System32\WindowsPowerShell\v1.0\powershell.exe` |
+| b2 | （ペインの中から `filer.toml` を削除） | `<C-S-t>` `<C-t>` | **5.1 のまま**、トーストも `Started powershell (Windows PowerShell 5.1)` |
+| b3 | 同上 | `<C-S-t>` `<C-F5>` `<C-t>` | **7.6.6**（既定の pwsh）、トースト `Reloaded 0 config file(s)` → `Started pwsh` |
+| c | `powershell` →（削除） | `<C-F5>`（**ペインの中で**）`<C-S-t>` `<C-t>` | 5.1 → **7.6.6** |
+| d1 | `shell = "powershell"` | `<C-t>` | 5.1 |
+| d2 | （ペインの中から `shell = "pwsh"` に差し替え） | `<C-S-t>` `<C-t>` | **5.1 のまま** |
+| d3 | 同上 | `<C-F5>` `<C-S-t>` `<C-t>` | **7.6.6** |
+| e | `shell = "pwsh"`, `args = ["-NoLogo"]` | `<C-t>` | 7.6.6、子は `pwsh -NoLogo`、PTY ログにバナー 0 行（a は 2 行） |
+| f | `shell = "powershell"` | `<C-t>` | 5.1 |
+| g | `shell = "nosuchshell-arm8"` | `<C-t>` ×3 | ペインは開かず（`pane: closed`）、トースト `Terminal failed: 指定されたファイルが見つかりません。 (os error 2)` |
+
+### 見つけたもの 1 —— 8.2 と 8.7 の Do は**どちらも**成り立たない（0.67.13、ARM64 で再現）
+
+2026-09 の x64 の run（eb80fc9 / 0.47.25、この報告の上の方）が 8.7 について書いたことが、
+**版をいくつも跨いでそのまま残っている。今回は 8.2 も同じだと分かった。**
+
+- **行が言うこと**: 8.2「`[term]` / `shell = "pwsh"` を足して `<C-S-t>`、`<C-t>`、もう一度聞く → `7.x`」、
+  8.7「`[term]` を消して `<C-S-t>`、`<C-t>` → 既定に戻る」。TESTING-CHECKS.md の 8 節の注記も
+  「設定を変えたら `<C-S-t>` でシェルを終わらせてから `<C-t>` で開き直すこと」と書いている。
+- **実際に押した結果**: どちらも**前の設定のシェルがもう一度起動する**。
+  - 8.2 の形（run d）: 5.1 のペインを開いたまま `shell = "pwsh"` を書き、`<C-S-t>` `<C-t>` →
+    `vd2.txt` は `5.1.28000.2952`。
+  - 8.7 の形（run b）: `filer.toml` を消して `<C-S-t>` `<C-t>` → `vb2.txt` は `5.1.28000.2952`、
+    トーストも `Started powershell (Windows PowerShell 5.1)`（`b2-open.png`）。
+  - **`<C-F5>` を 1 つ挟めば、どちらも行の期待どおりになる**（`vd3.txt` = `7.6.6`、
+    `vb3.txt` = `7.6.6`）。
+- **なぜ**: シェルは `self.cfg.term.shell` から取る（`src/app.rs:4571` 付近）。`self.cfg` が
+  変わるのは `config_reload` だけで、`<C-S-t>`（`terminal close`）はシェルを終わらせるだけ。
+  **プログラムは設計どおりに動いている。**
+- **2026-09 の報告から変わったところ**: あのときの但し書き「ペインにフォーカスがあるあいだは
+  `<C-F5>` がシェルに渡る」は**もう当てはまらない**。Q30 で `[term]` に `<C-F5>` が入ったので、
+  **ペインの中から押しても設定が読み直される**（run c: `<C-F5>` をペインで押して
+  `Reloaded 0 config file(s)` のトースト、`c2-reload.png`。PTY ログに `15;5~` は **0 行**、
+  つまりシェルには 1 バイトも漏れていない）。だから直す文言は、前回の提案より 1 つ短くなる。
+- **チェックは付けていない。**行の手順を押して期待が外れたので、`[x]` は嘘になる。
+  **ただし「正しい手順なら成り立つ」ことは、この run が両方向から押して示している**ので、
+  行の Do を直せば 8.2 / 8.7 はこの証拠でそのまま埋まる（下の提案 1）。
+
+### 見つけたもの 2 —— 8.1 の期待値が v0.55.0 で古くなっていて、`[x]` が残っている
+
+- **行**: 8.1「`[term]` が無い状態で `<C-t>` → `5.1.x`（Windows PowerShell。**以前の版から
+  変わっていない**）」。チェックは 2026-09 の x64 の run（0.47.25）で付いた。
+- **実際（0.67.13、ARM64）**: `[term]` が無いと**既定は pwsh 7.6.6** になる（run b3 / c2。
+  `filer env` も `pwsh … (terminal pane, the platform default)` と書く）。Q29 の答えで
+  v0.55.0 から変えたもので、**プログラムは正しい。行の文が古い。**
+- **影響**: いまの `[x]` は、**今はもう起きないこと**を「実機で確かめた」と言っている。
+  v0.55.0 を入れた側がこの行のチェックを外すはずだった（CLAUDE.md「直した分は再テストに回す」）。
+- **直していない**（行の文言は報告に回す規則）。
+
+### 見つけたもの 3 —— シェルの起動に失敗するたびに `OpenConsole.exe` が 1 つ残る（ARM64 でも、同梱 ConPTY でも）
+
+- **再現**（run g）: `shell = "nosuchshell-arm8"` で `<C-t>` を 3 回。8.6 の期待どおり毎回
+  トーストが出てペインは開かないが、**filer の子として `OpenConsole.exe --headless …` が
+  3 つ**残った（同じ run の `Win32_Process`）。filer を終わらせると 3 つとも消えた。
+- **2026-09 の報告との違い**: あのときの `OpenConsole.exe` は `C:\Program Files\WezTerm\` の
+  ものだった。**今回は filer に同梱した `target\release\OpenConsole.exe`** で、つまり
+  **リリースを落とした人の機械で起きる形**で再現している。原因は前回の分析どおり
+  `alacritty_terminal` の `Conpty` が作られる前に `return Err` する経路（`Drop` が走らない）。
+
+### 見つけたもの 4 —— 8.6 のメッセージが、やはりシェルの名前を言わない
+
+- トーストは `Terminal failed: 指定されたファイルが見つかりません。 (os error 2)`（`g1.png`）。
+  **何が見つからないのかが書いていない。**2026-09 の提案がそのまま残っている。
+  8.6 の期待（「その旨が出る」）は満たしているので、見つけたものとしてだけ残す。
+
+### ARM64 で確かめた行（チェックは x64 で付いているので、ここに記録）
+
+- **8.3**（$PROFILE が 2 つ）: pwsh 7.6.6 →
+  `C:\Users\yuu06\OneDrive\ドキュメント\PowerShell\Microsoft.PowerShell_profile.ps1`、
+  powershell 5.1 → 同じ親の `WindowsPowerShell\Microsoft.PowerShell_profile.ps1`（run e / f）。
+  期待どおり `PowerShell\` と `WindowsPowerShell\` で分かれる。
+- **8.5**（`args = ["-NoLogo"]`）: 子プロセスは `pwsh -NoLogo`、PTY ログの `out` に
+  `PowerShell 7.6.6` のバナーも「個人プロファイル…ミリ秒かかりました」の行も **0 行**。
+  同じ機械で `args` 無し（run a）は同じ検索で **2 行**。
+- **8.6**（入っていないシェル）: 上の見つけたもの 3 / 4 のとおり、`pane: closed` と
+  赤いトースト。**無言の空ペインにはならない。**
+- **8.4 はこの run ではやっていない。**OSC 7 のフックを入れる先が**人の `$PROFILE`**
+  （この機械では OneDrive 上の、git で管理されたファイル）なので、無人の run で触るべき
+  ものではないと判断した。29 節の ARM64 の run が同じフックを扱っている。
+
+### Proposals
+
+#### 提案 1: 8.2 / 8.7 の Do を `<C-F5>`、`<C-S-t>`、`<C-t>` に直す（または `<C-S-t>` に読み直させる）
+
+- **踏んだこと**: 見つけたもの 1。**2 つの実機 run（x64 と ARM64）が、版をいくつも跨いで
+  同じ行で止まった。**行が直らない限り、3 回目も同じところで止まる。
+- **どう変えるべきか**: 2 つある。
+  1. **行を直す（小さい）**: 8.2 / 8.7 の Do を「`<C-F5>`、`<C-S-t>`、`<C-t>`」にし、
+     TESTING-CHECKS.md 8 節の注記も同じにする。順番はこれでよい——**`<C-F5>` はペインの中でも
+     効く**ことを run c が示したので、前回の提案にあった「先にリストへ戻ってから」は要らない。
+     8.1 の期待値も `pwsh`（入っていなければ `powershell`）に直す（見つけたもの 2）。
+  2. **プログラムを変える（設計の話なので持ち主）**: `<C-S-t>`（`terminal close`）が設定ファイルを
+     読み直す。「シェルを終わらせる」のは**シェルの設定を変えた直後にしか押さないキー**なので、
+     そこで読み直すのは理屈が通る。ただし `<C-F5>` はテーマもキーも読み直すので、
+     副作用の範囲が広がる。
+- **なぜ**: いまの文のままだと、**行どおりに押した人は「設定が効かない」というバグ報告を書く。**
+  実際この run が 2 度そう読んだ。1 を入れれば、8.2 / 8.7 はこの run の b3 / c / d3 の証拠で
+  そのまま埋められる（押したのは実機、読んだのはファイルの中身）。
+- **大きさ**: 1 は Markdown 3 行。2 は `end_shell` に 1 呼び出しと、持ち主の判断。
+
+#### 提案 2: `filer env` の「Last run」に、ペインが起動したシェルを書く
+
+- **踏んだこと**: この run の全部。**どのシェルが動いたのかを知る手段が、外からの
+  `Win32_Process` か `FILER_PTY_LOG` しかない。**filer 自身は `App::term_shell` に
+  `pwsh` / `powershell (Windows PowerShell 5.1)` という文字列を持っていて、トーストにも出す。
+  なのに `filer env` の `Terminal pane` は `12 x 159 (lines x columns)` としか言わない。
+- **どう変えるべきか**: `Terminal pane : 12 x 159 (lines x columns) — pwsh` のように、
+  その run で起動したシェルの表示名（起動に失敗したならその旨）を足す。記録先は
+  `Launched` と同じ仕組みで足りる。
+- **なぜ**: 「設定したシェルで動いているか」は、**設定を書いた人が一番よく疑うこと**で、
+  いま答えられるのは外から見ている人だけ。バグ報告に `filer env` を貼る運用（`--help` が
+  そう言っている）なら、ここに 1 語あるだけで「どのシェルの話か」が最初から分かる。
+- **大きさ**: 記録 1 か所（`term_shell` を run info に）と表示 1 行。
+
+#### 提案 3: シェルが見つからないときは、ConPTY を作る前に落とす
+
+- **踏んだこと**: 見つけたもの 3。`<C-t>` を 3 回押しただけで `OpenConsole.exe` が 3 つ残り、
+  filer を終わらせるまで消えない。**今回は同梱 ConPTY で起きたので、リリースを落とした人に
+  そのまま起きる。**
+- **どう変えるべきか**: spawn の前に `[term] shell` を `PATH` で解決し（`envreport.rs` が
+  同じ解決をもう持っている）、見つからなければ ConPTY を作らずにエラーにする。
+  ついでに**トーストにその名前を入れる**（見つけたもの 4 / 2026-09 の提案）——
+  `Terminal failed: nosuchshell-arm8 is not on PATH` なら、設定を書いた本人が綴りの間違いに
+  すぐ気づく。
+- **なぜ**: 設定を書き間違えて `<C-t>` を何度か押すのは**普通の操作**で、そのたびに
+  プロセスが 1 つ増える。根っこは `alacritty_terminal` 側（上流への報告が本筋）だが、
+  **「見つからない」だけならフィラー側で漏れなく防げる。**
+- **大きさ**: `open_terminal` に解決 1 回と分岐 1 つ。メッセージは文字列 1 つ。
+
+#### 提案 4: `<C-F5>` のトーストに「ペインのシェルは次に開いたときから」と書く
+
+- **踏んだこと**: run b3 / c。`<C-F5>` のトーストは `Reloaded 0 config file(s)` で、
+  **読み直したこと**しか言わない。`[term] shell` を書き換えた人が知りたいのは
+  「**いま動いているペインは古い設定のまま**」で、それはどこにも出ない（見つけたもの 1 を
+  2 つの run が踏んだのは、まさにこれが出ないから）。
+- **どう変えるべきか**: 読み直しで `[term] shell` / `args` が**変わったときだけ**、
+  トーストを `Reloaded N config file(s) — <C-S-t> to restart the shell` にする。
+  ついでに `0 config file(s)` という言い方も、設定ファイルを消した直後に出ると
+  「読めなかった」と区別がつかない。
+- **なぜ**: 設定をいじっている最中に押すキーなので、**次に何を押せばよいかを言える唯一の場所**。
+  いまは「効かない」と見えてから `<C-S-t>` を探すことになる。
+- **大きさ**: `reload_config` で新旧の `term` を比べる `if` 1 つと文字列 1 つ。
