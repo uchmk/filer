@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**307 / 447 済み。**（TESTING.md の全 616 件のうち、`cargo test` が見ている 169 件は
+**306 / 447 済み。**（TESTING.md の全 616 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -169,19 +169,19 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **7.7** `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う — *With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set → The listed directories follow them*
 - [x] **7.8** 設定の警告行 → 黄色のまま。クリックできない — *A config warning line → Still yellow, and not clickable*
 
-## 8. ターミナルペインが起動するシェル — 5 / 7
+## 8. ターミナルペインが起動するシェル — 4 / 7
 
 **`[term]` は `filer.toml` に書く。**`yazi.toml` に書いても黙って無視される
 （v0.33.13 でそれを警告するようにした）。設定を変えたら `<C-S-t>` でシェルを終わらせてから
 `<C-t>` で開き直すこと。`<C-t>` の往復では同じシェルが生き続ける（1.5 / 1.6）。
 
-- [x] **8.1** `filer.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `5.1.x`（Windows PowerShell。以前の版から変わっていない） — *`<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` → `5.1.x` — Windows PowerShell, unchanged from every earlier version*
-- [ ] **8.2** `[term]` / `shell = "pwsh"` を足して `<C-S-t>` → `<C-t>` → もう一度聞く → `7.x` — *Add `[term]` / `shell = "pwsh"`, `<C-S-t>`, `<C-t>`, ask again → `7.x`*
+- [ ] **8.1** `filer.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `7.x`（`pwsh`。v0.55.0 から、入っていればこれが既定。Q29）。`pwsh` の無い機械でだけ `5.1.x`（Windows PowerShell） — *`<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` → `7.x` — `pwsh`, the default since v0.55.0 wherever it is installed (Q29). `5.1.x`, Windows PowerShell, only on a machine without `pwsh`*
+- [ ] **8.2** ペインを開いたまま `[term]` / `shell = "powershell"` を足し、`<C-F5>`、続けて `<C-S-t>` → `<C-t>` → もう一度聞く（v0.67.17）→ `<C-F5>` のトーストの末尾が `— the pane keeps its shell until <C-S-t> closes it`。`<C-S-t>` `<C-t>` のあとは `5.1.x` — *With the pane open, add `[term]` / `shell = "powershell"`, `<C-F5>`, then `<C-S-t>`, `<C-t>`, ask again (v0.67.17) → The `<C-F5>` toast ends `— the pane keeps its shell until <C-S-t> closes it`; after `<C-S-t>` `<C-t>`, `5.1.x`*
 - [x] **8.3** それぞれで `$PROFILE` → 別のパスが出る（5.1 は `WindowsPowerShell\`、7 は `PowerShell\`） — *`$PROFILE` in each → Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7*
 - [x] **8.4** OSC 7 のフックを pwsh のプロファイルにだけ入れて、それぞれで `cd` して `<A-Up>` → pwsh では追従し、5.1 ではその旨が出る。**この非対称そのものが報告の中身** — *With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each → Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report*
 - [x] **8.5** `args = ["-NoLogo"]` → 起動時のバナーが消える — *`args = ["-NoLogo"]` → The banner is gone*
 - [x] **8.6** インストールされていない `shell` を指定 → 起動に失敗し、その旨が出る（無言の空ペインにならない） — *A `shell` that is not installed → It fails to start and says so — no silent empty pane*
-- [ ] **8.7** `[term]` を消して `<C-S-t>` → `<C-t>` → 既定に戻る — *Remove `[term]` again, `<C-S-t>`, `<C-t>` → Back to the default*
+- [ ] **8.7** `[term]` を消して `<C-F5>` → `<C-S-t>` → `<C-t>`（v0.67.17）→ 既定に戻る（`pwsh` が入っていれば `7.x`）。`<C-F5>` を抜くと、`<C-S-t>` `<C-t>` は前のシェルをまた起動する（誰もファイルを読み直していない） — *Remove `[term]` again, `<C-F5>`, `<C-S-t>`, `<C-t>` (v0.67.17) → Back to the default (`7.x` where `pwsh` is installed). Without the `<C-F5>`, `<C-S-t>` `<C-t>` starts the old shell again: nothing has re-read the file*
 
 ## 9. ファイル末尾のアウトライン — 全 5 件が自動
 

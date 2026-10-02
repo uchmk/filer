@@ -1182,8 +1182,13 @@ optional rather than required.
 `pwsh` — PowerShell 7 — when it is installed, and `powershell`, Windows PowerShell 5.1, only when it
 is not (since v0.55.0; before that it was always 5.1). **The hook needs 7**: 5.1 has no
 `LocationChangedAction` at all, so the lines above fail there every time the shell starts. On
-a machine with only 5.1, `winget install Microsoft.PowerShell` and a new pane. The two read
-different files:
+a machine with only 5.1, `winget install Microsoft.PowerShell` and a new pane.
+
+To change the shell, set `[term] shell` in `filer.toml`, then `<C-F5>`, `<C-S-t>` and `<C-t>`. The
+config is read only at start and on `<C-F5>`, and a pane that is running keeps the shell it started
+with; the `<C-F5>` toast says so when a pane is open (v0.67.17).
+
+The two shells read different files:
 
 | Shell | `$PROFILE` |
 | --- | --- |
