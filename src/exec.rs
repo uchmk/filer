@@ -429,9 +429,33 @@ pub fn open_url(url: &str) -> std::io::Result<()> {
     open::that_detached(url)
 }
 
+/// Put `text` on the clipboard, with Windows line endings on Windows.
+///
+/// Every copy builds its text with `\n`, and the Windows clipboard is read as
+/// CRLF: `Get-Clipboard` split an LF-only help panel into nothing and handed
+/// back one string, so 34.15's own check found no line at all (#180, #182), and
+/// older programs paste it as one long line (Q52). Elsewhere LF is the norm.
 pub fn set_clipboard(text: &str) -> Result<(), String> {
     let mut cb = arboard::Clipboard::new().map_err(|e| e.to_string())?;
-    cb.set_text(text.to_owned()).map_err(|e| e.to_string())
+    cb.set_text(line_endings(text, cfg!(windows)).into_owned()).map_err(|e| e.to_string())
+}
+
+/// `text` with every line ending as CRLF when `crlf`, and untouched otherwise.
+/// A `\r\n` already there stays one, rather than growing a second `\r`.
+fn line_endings(text: &str, crlf: bool) -> std::borrow::Cow<'_, str> {
+    if !crlf || !text.contains('\n') {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len() + text.len() / 16);
+    let mut prev = '\0';
+    for c in text.chars() {
+        if c == '\n' && prev != '\r' {
+            out.push('\r');
+        }
+        out.push(c);
+        prev = c;
+    }
+    std::borrow::Cow::Owned(out)
 }
 
 /// What is on the clipboard, as text.
@@ -476,6 +500,17 @@ pub fn fake_clipboard(text: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Q52: CRLF for the Windows clipboard, one `\r` per line however the
+    /// text arrived, and nothing changed where LF is the norm.
+    #[test]
+    fn the_clipboard_gets_crlf_only_when_asked() {
+        assert_eq!(line_endings("keys\nj\tdown\tarrow 1\n", true), "keys\r\nj\tdown\tarrow 1\r\n");
+        assert_eq!(line_endings("a\r\nb\nc", true), "a\r\nb\r\nc", "an existing CRLF is not doubled");
+        assert_eq!(line_endings("one line", true), "one line");
+        assert_eq!(line_endings("a\nb\n", false), "a\nb\n");
+        assert!(matches!(line_endings("a\nb", false), std::borrow::Cow::Borrowed(_)));
+    }
 
     /// The `[opener]` example in the README is pasted as is, so it has to open
     /// each Office file in its own program: one shared list handed every Word

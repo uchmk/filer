@@ -1659,8 +1659,8 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 - [x] （v0.67.21、#181）**テストがペインのシェルを 1 回ごとに残す**（#180 の所見 2）。`Terminal` の `Drop` が、Windows ではシェルとその下を
   終わらせ、読み取りスレッドを待つようにした。#182 が実機で確かめた（`cargo test` の前後で 89 → 88、run 全体でも増えない）。
-- [ ] **ヘルプのコピーが LF だけで、34.15 の確かめ方 `Get-Clipboard | Select-String "^j\t"` が 0 件**（#180 の所見 1、提案 1）。
-  Windows のクリップボードは CRLF が普通。どちらで直すかは Q52（要確認: Q52）。#182 も同じ所で止まった。
+- [x] （v0.67.24、Q52 の 1）**ヘルプのコピーが LF だけで、34.15 の確かめ方 `Get-Clipboard | Select-String "^j\t"` が 0 件**（#180 の所見 1、提案 1）。
+  Windows のクリップボードは CRLF が普通。#182 も同じ所で止まった。Windows ではクリップボードに CRLF で書くようにした。
 - [ ] **`FILER_CONFIG_HOME` と `YAZI_CONFIG_HOME` が同じフォルダだと、同じ `filer.toml` を 2 回読む**（#180 の所見 3、提案 4）。
   `filer env` とヘルプの設定の節にフォルダが 2 回出て、`<C-F5>` は `Reloaded 2 config file(s)`（#182 では 4）と数える。`prepend_keymap` が 2 重になるかは未確認。
   探すフォルダを正規化して重複を落とす（`src/config/mod.rs` の `config_dirs`）。テストを足す。
