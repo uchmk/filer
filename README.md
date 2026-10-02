@@ -140,6 +140,12 @@ appended to it — what the shell side wrote (`out`), and what filer wrote back,
 shows the other end: the console key records a program receives, read the way tcell reads them, and
 with `-Query` it sends tcell's startup queries and prints the replies as they arrive.
 `block = true` gets its own console window (so `nvim` works); everything else starts without one.
+On Linux and macOS, where a GUI program has no console to give, `block = true` opens a terminal
+window instead: `$TERMINAL` if set (arguments allowed, e.g. `TERMINAL="kitty --single-instance"`),
+then Terminal.app on macOS, then the first installed of `x-terminal-emulator`, `gnome-terminal`,
+`konsole`, `xfce4-terminal`, `kitty`, `alacritty`, `wezterm`, `foot`, `ghostty` and `xterm`.
+If the program fails, the window stays open on its exit code until you press Enter. `filer env`
+names the terminal it will use.
 Rule patterns take `*`, `?`, `[abc]` and `{jpg,png}`, which is what yazi's own rules are written
 with.
 
@@ -1499,8 +1505,9 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
 - Windows-first. Every release carries macOS and Linux builds for both architectures, and CI
   compiles and links all six on every push — but only Windows is tested, and nobody has started
   the program on the other two. The shell thumbnail (HEIC / AVIF / PDF / video) and a file
-  server's share listing are Windows-only and say so elsewhere; `block = true` openers and the
-  hidden-file attribute are Windows-specific paths too.
+  server's share listing are Windows-only and say so elsewhere; the hidden-file attribute is a
+  Windows-specific path too. `block = true` openers open a terminal on Linux (tried in the
+  development container under X11) and on macOS (not tried on a Mac yet).
 - No Lua plugin runtime — see the plugin table above for what is emulated natively, and the
   [context menu](#context-menu) for how a custom action reaches the screen without one.
 - An archive's preview lists what is inside but does not browse it: no entering a folder, and

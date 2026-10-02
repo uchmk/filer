@@ -125,6 +125,10 @@ fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
         (true, _) => "terminal pane, the platform default",
     };
     rows.push((shell.clone(), found(&shell, what)));
+    // Where a `block = true` opener runs. Windows gives it a console of its
+    // own; anywhere else a terminal emulator has to be there to open.
+    #[cfg(not(windows))]
+    rows.push(terminal_row());
 
     // What `<Enter>` will try to run. An opener naming something that is not
     // installed fails at the moment it is pressed and not before, which is
@@ -154,6 +158,24 @@ fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
         }
     }
     rows
+}
+
+/// The terminal a `block = true` opener will open, found the way
+/// `exec::shell` finds it: the first of the list that is there.
+#[cfg(not(windows))]
+fn terminal_row() -> (String, String) {
+    let what = "block = true openers";
+    let env = std::env::var("TERMINAL").ok();
+    for term in crate::exec::terminals(env.as_deref(), cfg!(target_os = "macos")) {
+        if term == crate::exec::MAC_TERMINAL {
+            return (term, format!("via osascript   ({what})"));
+        }
+        let exe = term.split_whitespace().next().unwrap_or_default();
+        if let Some(p) = crate::util::locate(exe) {
+            return (term, format!("{}   ({what})", p.display()));
+        }
+    }
+    ("terminal".into(), format!("none found, set TERMINAL   ({what})"))
 }
 
 fn row(exe: &str, flag: &str, what: &str) -> (String, String) {

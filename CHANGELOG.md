@@ -9,6 +9,20 @@
 
 ## [未リリース]
 
+## [0.72.0] - 2026-10-02
+
+### 追加
+
+- Linux と macOS でも、`block = true` のオープナーを端末の窓で開くようにした（持ち主の依頼）。これまでは Windows でだけ専用の
+  コンソールが開き、ほかでは端末が無いまま起動して、nvim などは何も表示されなかった。使う端末は `$TERMINAL`（引数付きでよい）、
+  macOS なら Terminal.app（`osascript` で操作する）、そのあと `x-terminal-emulator` / `gnome-terminal` / `konsole` /
+  `xfce4-terminal` / `kitty` / `alacritty` / `wezterm` / `foot` / `ghostty` / `xterm` のうち最初に入っているもの。
+  端末の中では一覧のフォルダに `cd` してから実行し、失敗したら `[exit N] Press Enter to close.` で窓を止める
+  （入っていないエディタが一瞬で消える窓にならないように）。コマンド行は引数として渡して `eval` するので、こちらの引用は挟まらない。
+  `filer env` の Tools に `block = true openers` の行を足し、使う端末を名指す。Linux は開発コンテナの X11（xterm）で、空白と `'`
+  を含むパスが 1 引数で届き、作業フォルダも一覧のものになることを確かめた。macOS は未確認。TESTING.md 32.11〜32.14 に書き、
+  Linux レーンの順番表に積んだ
+
 ## [0.71.11] - 2026-10-02
 
 ### 変更
