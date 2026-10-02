@@ -610,6 +610,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 
 # 34. ヘルプパネル自身のスクロール
 "34.14" = '最下部に着けた状態で `<C-->` でフォントを小さくする → 最下部に着いたまま、パネルも埋まっている。行がより多く入るので、止まる位置が動いたということ'
+"34.15" = '`C`（v0.67.16）→ トースト `Copied the help panel: N keys`。クリップボードにパネルが文字で入る: `config` とパス、続いて 1 行だけの `keys`、そのあと 1 キー 1 行の `キー<TAB>説明<TAB>コマンド`。`Get-Clipboard | Select-String "^j\t"` で `j<TAB>Move cursor down<TAB>arrow 1` が見つかる。パネルは開いたまま'
 
 # 35. 設定の探索場所（OS ごと）
 "35.1" = '[Windows] 両方の環境変数を未設定にして `filer env` → `%APPDATA%\yazi\config` と `%APPDATA%\filer`。**v0.34.0 から変わっていないこと。**動いていてはいけない行'

@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**307 / 446 済み。**（TESTING.md の全 615 件のうち、`cargo test` が見ている 169 件は
+**307 / 447 済み。**（TESTING.md の全 616 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -539,9 +539,11 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **33.17** `<C-F5>` してから、もう一度 `~` → 普通に読み込まれたファイルの行になり、印が消える — *`<C-F5>`, then `~` again → The row is now an ordinary loaded file, no marker*
 - [ ] **33.18** `config_reload` を `<F9>` に割り当て直して 33.16 を繰り返す → 行が `<C-F5>` ではなく `<F9>` を示す。メッセージに埋め込まれているのではなく、keymap から読んでいるため — *Rebind `config_reload` to `<F9>` and repeat 33.16 → The row names `<F9>`, not `<C-F5>` — it is read from the keymap, not written into the message*
 
-## 34. ヘルプパネル自身のスクロール — 全 14 件が自動
+## 34. ヘルプパネル自身のスクロール — 0 / 1
 
-`cargo test` が全部見ているので、押すものはありません。
+自動テスト済みなので下には出していない: 34.1, 34.2, 34.3, 34.4, 34.5, 34.6, 34.7, 34.8, 34.9, 34.10, 34.11, 34.12, 34.13, 34.14
+
+- [ ] **34.15** `C`（v0.67.16）→ トースト `Copied the help panel: N keys`。クリップボードにパネルが文字で入る: `config` とパス、続いて 1 行だけの `keys`、そのあと 1 キー 1 行の `キー<TAB>説明<TAB>コマンド`。`Get-Clipboard | Select-String "^j\t"` で `j<TAB>Move cursor down<TAB>arrow 1` が見つかる。パネルは開いたまま — *`C` (v0.67.16) → Toast `Copied the help panel: N keys`. The clipboard holds the panel as text: `config` and the paths, then `keys` on a line of its own, then one `keys<TAB>description<TAB>command` line per key -- `Get-Clipboard \| Select-String "^j\t"` finds `j<TAB>Move cursor down<TAB>arrow 1`. The panel stays open*
 
 ## 35. 設定ファイルの探索場所（OS ごと） — 3 / 10
 

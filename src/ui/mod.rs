@@ -3,7 +3,7 @@
 //! checker never gets in the way of the layout code.
 
 mod list;
-mod overlay;
+pub(crate) mod overlay;
 mod preview;
 mod term;
 

@@ -2284,6 +2284,14 @@ impl App {
                 let stop = self.help_lines.saturating_sub(page) + 1;
                 self.help_scroll = step.apply(self.help_scroll, stop, page);
             }
+            // The whole list as text, as spot's `C` does (Q48).
+            Act::Copy(CopyWhat::All) => {
+                let (text, keys) = crate::ui::overlay::help_text(self);
+                match exec::set_clipboard(&text) {
+                    Ok(()) => self.toast(format!("Copied the help panel: {keys} keys")),
+                    Err(err) => self.error(format!("Clipboard: {err}")),
+                }
+            }
             _ => {}
         }
     }
@@ -7898,6 +7906,26 @@ mod escape_and_max_preview {
         let run = |k: Key| km.spot.iter().find(|b| b.on == vec![k]).map(|b| b.run.clone());
         assert_eq!(run(Key::parse("C").unwrap()), Some(vec![Act::Copy(CopyWhat::All)]));
         assert_eq!(run(Key::parse("<Enter>").unwrap()), Some(vec![Act::Enter]));
+    }
+
+    /// Q48: `C` in the help panel copies the list it shows, as text -- every
+    /// list key as `keys<TAB>description<TAB>command` under its heading, so a
+    /// check can ask "is my new key listed" without a screenshot (#171).
+    #[test]
+    fn the_help_panel_copies_as_text() {
+        use crate::config::keys::{render_seq, Key};
+        let a = App::new(Config::load(), std::env::temp_dir(), egui::Context::default());
+        let km = &a.cfg.keymap;
+        let run = km.help.iter().find(|b| b.on == vec![Key::parse("C").unwrap()]).map(|b| b.run.clone());
+        assert_eq!(run, Some(vec![Act::Copy(CopyWhat::All)]));
+
+        let (text, keys) = crate::ui::overlay::help_text(&a);
+        assert_eq!(keys, km.mgr.len(), "one line per list key");
+        assert!(text.lines().any(|l| l == "keys"), "the heading on its own line");
+        let b = &km.mgr[0];
+        let want = format!("{}\t{}\t{}", render_seq(&b.on), if b.desc.is_empty() { &b.raw } else { &b.desc }, b.raw);
+        assert!(text.lines().any(|l| l == want), "{want:?} in the copy");
+        assert!(text.lines().any(|l| l == "config"), "the config section comes too");
     }
 
     /// Q36: `m u` puts the usage numbers back inside `gu`'s view after another

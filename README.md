@@ -237,7 +237,7 @@ this project's own). `select` and `select_all` are accepted as `toggle --state=o
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe`, `enter`, `copy cell` and `copy all` (this project's own: the whole panel, `Label<TAB>value` per row); in `[term]`:
 `close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
-`close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too) and `arrow`.
+`close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too), `arrow` and `copy all` (the whole panel as text, as in `[spot]`).
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -983,7 +983,8 @@ on the `PATH`.
 
 `~` / `F1` shows the full list. Inside that panel, `j` / `k` and the arrows move a line, `<A-j>` /
 `<A-k>` (or `<C-d>` / `<C-u>`) half a panel, `<PageDown>` / `<PageUp>` a whole one, `gg` / `G` jump
-to either end, the wheel scrolls, and `~`, `<F1>`, `q` or `<Esc>` closes it — all of it the `[help]`
+to either end, the wheel scrolls, `C` copies the whole list as text (one `keys<TAB>description<TAB>command`
+line per key, under its heading), and `~`, `<F1>`, `q` or `<Esc>` closes it — all of it the `[help]`
 keymap layer, so it rebinds like everything else. The essentials:
 
 | | |

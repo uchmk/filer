@@ -565,14 +565,9 @@ pub(crate) fn shown_config_dirs() -> Vec<std::path::PathBuf> {
     crate::config::CONFIG_VARS.iter().map(|v| std::env::temp_dir().join("filer-test-no-config").join(v)).collect()
 }
 
-pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queued: &mut Vec<Act>) {
-    dim(ui, full);
-    let rect = modal_rect(full, 0.86, 0.86);
-    let title =
-        "Keys — <Esc> close, j/k scroll, <A-j>/<A-k> half a page, click a config path to go to it";
-    let inner = modal_frame(ui, rect, &app.cfg.theme, title, f, row_h);
-    let theme = app.cfg.theme.clone();
-
+/// What the help panel lists, top to bottom: drawn by [`help`], and copied as
+/// text by [`help_text`] so the two cannot disagree.
+fn help_lines(app: &App) -> Vec<HelpRow> {
     // Config provenance first — it answers "did it pick up my yazi config?"
     // before the key list answers "what is bound to what".
     let mut lines = config_rows(app, &shown_config_dirs());
@@ -607,6 +602,39 @@ pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
         lines.push(HelpRow::heading("keys"));
     }
     lines.extend(app.cfg.keymap.mgr.iter().map(row));
+    lines
+}
+
+/// The help panel as text, for `C` (Q48): a heading on a line of its own, then
+/// one `keys<TAB>description<TAB>command` line per binding, the way spot's
+/// `copy all` lays out its rows. "Is my new key listed" is a question about
+/// text, and before this it could only be answered from a screenshot (#171).
+/// Also the number of key lines, for the toast.
+pub(crate) fn help_text(app: &App) -> (String, usize) {
+    let mut keys = 0;
+    let text: Vec<String> = help_lines(app)
+        .iter()
+        .map(|r| match (r.keys.is_empty(), r.text.is_empty()) {
+            (false, true) => r.keys.clone(),
+            (false, false) => {
+                keys += 1;
+                format!("{}\t{}\t{}", r.keys, r.text, r.raw)
+            }
+            _ if r.raw.is_empty() => r.text.clone(),
+            _ => format!("{}\t{}", r.text, r.raw),
+        })
+        .collect();
+    (text.join("\n") + "\n", keys)
+}
+
+pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queued: &mut Vec<Act>) {
+    dim(ui, full);
+    let rect = modal_rect(full, 0.86, 0.86);
+    let title =
+        "Keys — <Esc> close, j/k scroll, <A-j>/<A-k> half a page, C copies it all, click a config path to go to it";
+    let inner = modal_frame(ui, rect, &app.cfg.theme, title, f, row_h);
+    let theme = app.cfg.theme.clone();
+    let lines = help_lines(app);
 
     let rows = ((inner.height() / row_h).floor() as usize).max(1);
     // What the keys need to know to page and to stop; only the renderer knows
