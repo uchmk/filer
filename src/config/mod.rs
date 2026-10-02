@@ -104,6 +104,22 @@ pub struct TermCfg {
     /// Arguments for it, e.g. `["-NoLogo"]`. Ignored without a `shell`.
     #[serde(default)]
     pub args: Vec<String>,
+    /// The shell came from `FILER_TERM_SHELL`, not from a file.
+    #[serde(skip)]
+    pub from_env: bool,
+}
+
+impl TermCfg {
+    /// `FILER_TERM_SHELL` names the pane's shell for this run, over
+    /// `[term] shell` (Q51). Checking a row in another shell meant pointing
+    /// `FILER_CONFIG_HOME` at an empty folder and losing every other setting
+    /// with it (#176). The whole value is the program, a path with spaces
+    /// included, and `[term] args` are dropped: they were written for the
+    /// shell this one replaces.
+    fn take_env(&mut self, var: Option<std::ffi::OsString>) {
+        let Some(shell) = var.and_then(|v| v.into_string().ok()).filter(|v| !v.trim().is_empty()) else { return };
+        *self = Self { shell: shell.trim().to_owned(), args: Vec::new(), from_env: true };
+    }
 }
 
 /// `[[preview]]`: a command that draws a file filer cannot draw itself.
@@ -210,7 +226,9 @@ impl Broken {
 
 impl Config {
     pub fn load() -> Self {
-        Self::read(&dirs_to_read()).0
+        let mut cfg = Self::read(&dirs_to_read()).0;
+        cfg.term.take_env(std::env::var_os("FILER_TERM_SHELL"));
+        cfg
     }
 
     /// `<C-F5>`: read the files again, but a file that no longer parses keeps
@@ -222,7 +240,9 @@ impl Config {
     ///
     /// `prev` is emptied of what is kept: it is the config being replaced.
     pub fn reload(prev: &mut Config) -> Self {
-        Self::reload_from(prev, &dirs_to_read())
+        let mut cfg = Self::reload_from(prev, &dirs_to_read());
+        cfg.term.take_env(std::env::var_os("FILER_TERM_SHELL"));
+        cfg
     }
 
     fn reload_from(prev: &mut Config, dirs: &[PathBuf]) -> Self {
@@ -692,6 +712,21 @@ mod shared_theme {
 #[cfg(test)]
 mod files {
     use super::*;
+
+    /// Q51: `FILER_TERM_SHELL` wins over `[term]`, drops the args written for
+    /// the other shell, and an empty or blank value is no value.
+    #[test]
+    fn the_variable_names_the_shell_for_one_run() {
+        let file = || TermCfg { shell: "pwsh".into(), args: vec!["-NoLogo".into()], from_env: false };
+        let mut t = file();
+        t.take_env(Some(r"C:\Program Files\Git\bin\bash.exe ".into()));
+        assert_eq!((t.shell.as_str(), t.args.len(), t.from_env), (r"C:\Program Files\Git\bin\bash.exe", 0, true));
+        for unset in [None, Some("".into()), Some("  ".into())] {
+            let mut t = file();
+            t.take_env(unset);
+            assert_eq!((t.shell.as_str(), t.args.len(), t.from_env), ("pwsh", 1, false));
+        }
+    }
 
     /// `[term]` decides what the pane starts, and says nothing by default.
     ///

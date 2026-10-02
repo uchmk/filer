@@ -1267,6 +1267,16 @@ shell = "powershell"
 Leaving `[term]` out keeps the default above. The same setting names a shell on macOS and Linux,
 where the default is the login shell.
 
+For one run only, set `FILER_TERM_SHELL` before starting filer (v0.70.0). It wins over
+`[term] shell`, leaves every other setting as it is, and drops `[term] args`, which were written for
+the shell it replaces. The whole value is the program, so a path with spaces needs no quotes:
+
+```powershell
+$env:FILER_TERM_SHELL = 'powershell'; filer; Remove-Item Env:FILER_TERM_SHELL
+```
+
+`<C-F5>` reads it again with the files, and `filer env` says which of the two the shell came from.
+
 ## Reporting a problem
 
 `<F12>` opens a report form with the version, both architectures and the OS build already filled

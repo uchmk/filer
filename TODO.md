@@ -1670,6 +1670,8 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `App` に直近 16 本ほどの履歴を持ち、`state_report` に `|` 区切りで 1 行。今の `toast:` 行は残す。
 - [x] （v0.69.0、Q50 の 1）**README の OSC 7 フックを filer から出す**（#176 の提案 3）。`filer shell-hook [pwsh|bash|zsh]` を足し、
   フックが無いときの `<A-Up>` のトーストが `filer shell-hook | Add-Content $PROFILE` を挙げる。README のブロックとの一致はテストで保つ。
+- [x] （v0.70.0、Q51 の 1）**ペインのシェルを 1 回の起動だけ変える `FILER_TERM_SHELL`**（#176 の提案 4）。`[term] shell` より優先し、
+  他の設定は落とさない。29.7 / 8.2 のように別のシェルで確かめる行は、`FILER_CONFIG_HOME` を空のフォルダに向けなくてよくなった。
 
 ## 実機のセッションの報告（v0.67.22 で受けた分: #180 / #182、x64 の再テスト）
 

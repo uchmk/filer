@@ -9,6 +9,17 @@
 
 ## [未リリース]
 
+## [0.70.0] - 2026-10-02
+
+### 追加
+
+- 環境変数 `FILER_TERM_SHELL` を足した（Q51、#176 の提案 4）。あれば `[term] shell` より優先して、ペインのシェルをその起動だけ変える。
+  他の設定はそのまま使い、`[term] args` は置き換えたシェル用なので落とす。値全体をプログラムとして扱うので、空白入りのパスも引用符なしで書ける。
+  空や空白だけの値は無いものとして扱う。`<C-F5>` でも読み直し、`filer env` はシェルがどちらから来たか（`from FILER_TERM_SHELL` /
+  `from [term] shell`）と、変数の欄の `FILER_TERM_SHELL` を出す。これまでは `FILER_CONFIG_HOME` を空のフォルダに向けるしかなく、
+  他の設定も全部落ちていた。README の「Bringing the terminal's directory back」と TESTING.md 29.12 に書いた。
+  Linux の仮想ディスプレイで、`[term] shell = "bash"` の上から `FILER_TERM_SHELL=zsh` で zsh が起動することを確かめた
+
 ## [0.69.1] - 2026-10-02
 
 ### 変更

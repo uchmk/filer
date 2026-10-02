@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**318 / 453 済み。**（TESTING.md の全 622 件のうち、`cargo test` が見ている 169 件は
+**318 / 454 済み。**（TESTING.md の全 623 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -461,7 +461,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **28.7** カーソルが乗っているファイルを外から改名 → カーソルが名前に追従するか、その場に留まる。落ちない — *Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash*
 - [ ] **28.8** 窓に触らず（キーもマウスも使わず）、一覧にあるファイルをエクスプローラーから削除する（v0.57.2）→ キーを押さなくても 0.5 秒以内に行が消える。v0.57.2 までは次にキーを押すまで残っていた（#108） — *Leave the window alone -- no key, no mouse -- and delete a listed file from Explorer (v0.57.2) → The row goes within half a second, without a key being pressed. Until v0.57.2 the list kept it until the next key (#108)*
 
-## 29. ターミナルのカレントディレクトリを持ち帰る — 6 / 10
+## 29. ターミナルのカレントディレクトリを持ち帰る — 6 / 11
 
 自動テスト済みなので下には出していない: 29.4
 
@@ -475,6 +475,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **29.9** `$PROFILE` に別のツールのハンドラを先に置き（`mise activate pwsh`、または代わりに `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`）、その後に README のフックを置いて、新しいペインで `cd C:\dev`、`<A-Up>`（v0.64.2）→ 両方動く: 一覧が `C:\dev` に移り、**かつ**別のツールのハンドラも働いている（代わりのものならタイトルが `other: C:\dev`）。v0.64.2 より前は README のフックが別のものを置き換えていた — *Put a handler of another tool's in `$PROFILE` first (`mise activate pwsh`, or a stand-in: `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`), the README hook after it, open a new pane, `cd C:\dev`, `<A-Up>` (v0.64.2) → Both run: the list moves to `C:\dev` **and** the other tool's handler still does its job (the stand-in's title reads `other: C:\dev`). Before v0.64.2 the README hook replaced the other one*
 - [ ] **29.10** フックの無い状態で、ペイン（`pwsh`）で 29.1 のトーストのとおりに打ち、`<C-S-t>`、`<C-t>`、`cd C:\dev`、`<A-Up>`（v0.69.0、Q50）→ 一覧が `C:\dev` に移る。`Get-Content $PROFILE` の末尾が `filer shell-hook` の出力（先頭は `# filer:` のコメント）で、プロファイルの最後の行にくっつかず別の行になっている。`filer shell-hook powershell` と `filer shell-hook fish` は問題を 1 行で言い、終了コード 2 — *With no hook, in the pane (`pwsh`): exactly what the 29.1 toast says, then `<C-S-t>`, `<C-t>`, `cd C:\dev`, `<A-Up>` (v0.69.0, Q50) → The list moves to `C:\dev`. `Get-Content $PROFILE` ends with the lines `filer shell-hook` prints (a `# filer:` comment first), on lines of their own -- not glued to the profile's last line. `filer shell-hook powershell` and `filer shell-hook fish` print one line naming the problem, exit code 2*
 - [ ] **29.11** Linux で `filer shell-hook bash >> ~/.bashrc`（と、`[term] shell = "zsh"` で `zsh >> ~/.zshrc`）、新しいペインで名前に空白と日本語を含むフォルダへ `cd`、`<A-Up>`（v0.69.0、Q50）→ 一覧がそこへ移り、名前はどちらも崩れない。フックが無いとトーストが `shell-hook bash >> ~/.bashrc` を挙げる — *Linux: `filer shell-hook bash >> ~/.bashrc` (and `zsh >> ~/.zshrc` with `[term] shell = "zsh"`), new pane, `cd` to a folder with a space and Japanese in its name, `<A-Up>` (v0.69.0, Q50) → The list moves there, both names intact. Without the hook the toast names `shell-hook bash >> ~/.bashrc`*
+- [ ] **29.12** `filer.toml` に `[term] shell = "pwsh"` と `args` を書いた状態で、`$env:FILER_TERM_SHELL = 'powershell'` にして filer を起動し `<C-t>`、同じシェルから `filer env`。次に `Remove-Item Env:FILER_TERM_SHELL` してもう一度（v0.70.0、Q51）→ 変数があるときはトーストが `Started powershell (Windows PowerShell 5.1) — …` で、`filer env` は `powershell` を `terminal pane, from FILER_TERM_SHELL` と出し、変数の欄に `FILER_TERM_SHELL` がある。無いときは `pwsh` と `from [term] shell` に戻る。どちらでも `filer.toml` の他の設定（フォント、テーマ）は効いている — *With `[term] shell = "pwsh"` and `args` in `filer.toml`: `$env:FILER_TERM_SHELL = 'powershell'`, start filer, `<C-t>`, then `filer env` from the same shell; then `Remove-Item Env:FILER_TERM_SHELL` and again (v0.70.0, Q51) → With the variable: the toast is `Started powershell (Windows PowerShell 5.1) — …`, and `filer env` lists `powershell` as `terminal pane, from FILER_TERM_SHELL` with `FILER_TERM_SHELL` among the variables. Without it: `pwsh` and `from [term] shell` again, and the rest of `filer.toml` (font, theme) took effect both times*
 
 ## 30. プロンプトでの右クリック貼り付け — 10 / 14
 
