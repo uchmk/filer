@@ -1665,7 +1665,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] **`say()` が標準出力への書き込みに失敗したとき、黙って捨てずにコンソールへ回す**（#183 の提案 2）。今は `let _ = writeln!` で戻る。
   まず、パイプの最後に置いたときに書き込みが本当にエラーを返しているのかを Windows で測る（#183 は測っていない）。返していなければ
   この直しは効かないので、その結果を書いて閉じる。
-- [ ] **`FILER_KEYS_DONE` に、その実行で出たトーストを全部残す `toasts:` 行を足す**（#176 の提案 2）。今の `toast:` は書く時点で出ているもの
+- [ ] **`FILER_KEYS_DONE` に、その実行で出たトーストを全部残す `toasts:` 行を足す**（#190 の提案 2 も同じ。#176 の提案 2）。今の `toast:` は書く時点で出ているもの
   だけなので、トーストが期待値の行（29.7、12.17 / 12.18、13.8a など）は消える前に `<Shot:>` を撮って画像から読むしかない。
   `App` に直近 16 本ほどの履歴を持ち、`state_report` に `|` 区切りで 1 行。今の `toast:` 行は残す。
 - [x] （v0.69.0、Q50 の 1）**README の OSC 7 フックを filer から出す**（#176 の提案 3）。`filer shell-hook [pwsh|bash|zsh]` を足し、
@@ -1732,4 +1732,13 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] **`filer env` の末尾を空行 1 つにする**（#189 の提案 3）。今は `FILER_TERM_SHELL : unset<LF><LF><LF>` で終わり、「レポートの行数」が
   数え方で 47・48・49 と変わる。`envreport::text` の最後の節で空行を足しすぎている。
 - [ ] `is bound more than once` の警告に、どのファイルの束縛かを書く（#189 の提案 4）。設計の選択があるので Q57。（要確認: Q57）
+
+## 実機のセッションの報告（v0.71.2 で受けた分: #190、x64 の 29.12）
+
+- [x] 29.12 を x64 で再テストし、合格（`FILER_TERM_SHELL=powershell` で 5.1、外すと `pwsh -NoLogo -NoProfile`。フォントの大きさは
+  ペインの桁数で、テーマの色は画素数で、他の設定が効いていることを確かめた）。x64 の再テストの欄から 29.12 を外した。
+- [ ] TESTING.md 29.12 の「`filer.toml` の他の設定（フォント、テーマ）」を直す（#190 の所見。人か QA セッション）。テーマは `filer.toml` ではなく
+  同じフォルダの `theme.toml` に書く。
+- [ ] **`FILER_TERM_SHELL` が `[term] args` を落としたことを `filer env` で言う**（#190 の提案 1）。今は `Win32_Process` のコマンドラインを
+  見ないと分からない。`terminal pane, from FILER_TERM_SHELL ([term] args not used)` のように、`args` があるときだけ足す。
 
