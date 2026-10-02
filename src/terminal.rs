@@ -589,6 +589,9 @@ pub struct Terminal {
     /// The shell's process, to ask whether it has started anything. `None`
     /// where the PTY did not say, which reads as "nothing running".
     shell_pid: Option<u32>,
+    /// The reader thread. It hands the PTY back when it ends, and dropping
+    /// that is what ends the shell -- so [`Drop`] waits for it.
+    io: Option<std::thread::JoinHandle<(EventLoop<Tapped, Proxy>, alacritty_terminal::event_loop::State)>>,
 }
 
 impl Terminal {
@@ -641,8 +644,8 @@ impl Terminal {
         let event_loop = EventLoop::new(term.clone(), proxy, pty, false, false)?;
         let sender = event_loop.channel();
         // The reader thread owns the PTY from here; it parses into `term` and
-        // ends when the shell does.
-        let _ = event_loop.spawn();
+        // ends when the shell does, or when `Drop` asks.
+        let io = Some(event_loop.spawn());
 
         Ok(Self {
             term,
@@ -659,6 +662,7 @@ impl Terminal {
             log,
             shell_pid,
             win32,
+            io,
         })
     }
 
@@ -852,10 +856,23 @@ impl Terminal {
 }
 
 impl Drop for Terminal {
+    /// Ask the reader thread to stop, and wait a moment for it: the PTY it
+    /// hands back is dropped here, which closes the pseudoconsole and ends the
+    /// shell. Without the wait a process that exits right after -- a test, or
+    /// filer closed with the pane open -- went before the thread did, and on
+    /// Windows its OpenConsole and shell lived on with no parent: one pair per
+    /// test run on the x64 machine (#180). Bounded, because this runs on the
+    /// UI thread and an old ConPTY can block in `ClosePseudoConsole`.
     fn drop(&mut self) {
-        // Ask the reader thread to stop; without this it sits on a PTY whose
-        // pane is gone.
         let _ = self.sender.send(Msg::Shutdown);
+        let Some(io) = self.io.take() else { return };
+        let deadline = Instant::now() + std::time::Duration::from_secs(2);
+        while !io.is_finished() && Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        if io.is_finished() {
+            drop(io.join());
+        }
     }
 }
 
@@ -1488,6 +1505,23 @@ mod tests {
         assert_eq!(name_shell(None, false, Some("/usr/bin/zsh".into())), "zsh");
         assert_eq!(name_shell(None, false, None), "sh");
         assert_eq!(name_shell(Some("/bin/bash"), false, None), "bash");
+    }
+
+    /// Ending the pane ends the shell before `drop` returns, not whenever the
+    /// reader thread gets round to it: a test that returned first left a shell
+    /// and its OpenConsole behind on Windows, one pair per run (#180).
+    #[test]
+    fn dropping_the_pane_ends_the_shell() {
+        let dir = crate::util::test_dir("term-drop");
+        let t = match Terminal::spawn(&dir, Size::new(80, 24), (8, 16), None, || {}) {
+            Ok(t) => t,
+            Err(e) if cfg!(any(windows, target_os = "linux")) => panic!("the terminal did not start: {e}"),
+            Err(_) => return,
+        };
+        let pid = t.shell_pid.expect("the PTY says which process the shell is");
+        assert!(children(std::process::id()).contains(&pid), "the shell is running first");
+        drop(t);
+        assert!(!children(std::process::id()).contains(&pid), "the shell {pid} outlived its pane");
     }
 
     /// `children` finds a process this one started: the question `<C-S-t>`
