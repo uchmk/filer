@@ -70,6 +70,8 @@ pub enum ConfirmAction {
     BookmarkDeleteAll,
     /// `<C-S-t>` while a program runs under the shell.
     EndShell,
+    /// Folder symlinks Windows refused, offered again as junctions (Q46).
+    Junctions { links: Vec<ops::Link> },
 }
 
 pub struct ConfirmOverlay {
@@ -3541,7 +3543,7 @@ impl App {
                     dest: Some(dest),
                 });
             }
-            ops::OpEvent::Finished { id, errors, cancelled, kind, moved, linked, made, trashed } => {
+            ops::OpEvent::Finished { id, errors, cancelled, kind, moved, linked, junctions, made, trashed } => {
                 // A move that actually moved something is a step `u` can take
                 // back. A cancelled one is not: half a move is not a state
                 // worth offering to reverse in one keystroke.
@@ -3573,6 +3575,9 @@ impl App {
                 }
                 if !errors.is_empty() {
                     self.error(format!("{}: {}", kind.verb(), errors[0]));
+                }
+                if !junctions.is_empty() {
+                    self.offer_junctions(junctions);
                 }
                 if let Some((step, how)) = self.op_undo.remove(&id) {
                     if errors.is_empty() && !cancelled {
@@ -4304,13 +4309,14 @@ impl App {
     /// surprise. The fonts are the one thing this cannot do itself — installing
     /// a face belongs to the frame loop — so it asks for it with a flag.
     fn reload_config(&mut self) {
-        let cfg = Config::load();
+        let old_term = self.cfg.term.clone();
+        let cfg = Config::reload(&mut self.cfg);
         let files = cfg.loaded.len();
         let warning = cfg.warnings.first().cloned();
         // A pane already running keeps the shell it started with; the new
         // `[term]` is for the next one. Two real-machine runs edited the shell,
         // reloaded, and read the old one back because nothing said so (#173).
-        let shell_waits = self.term.is_some() && cfg.term != self.cfg.term;
+        let shell_waits = self.term.is_some() && cfg.term != old_term;
         self.cfg = cfg;
         self.refont = true;
         // A theme change can turn every row a different color, and the preview
@@ -4323,6 +4329,54 @@ impl App {
                 self.term_close_key().map_or("it is closed".into(), |k| format!("{k} closes it"))
             )),
             None => self.toast(format!("Reloaded {files} config file(s)")),
+        }
+    }
+
+    /// `-` on a folder without Developer Mode: Windows refused the symlink, and
+    /// a junction would do without the privilege. Asked rather than done,
+    /// because a junction is not the same thing -- it holds the full path where
+    /// `-` would have written a relative one, and cannot reach a network
+    /// location -- and swapping one kind for the other in silence would leave
+    /// that to be found out later (Q46).
+    fn offer_junctions(&mut self, links: Vec<ops::Link>) {
+        const SHOWN: usize = 5;
+        let mut body = vec![
+            "Windows would not make the symlink: that needs Developer Mode or administrator.".to_owned(),
+            "A junction needs neither. Unlike the symlink it holds the full path, not a relative one,".to_owned(),
+            "and it cannot point at a network location.".to_owned(),
+            String::new(),
+        ];
+        body.extend(links.iter().take(SHOWN).map(|l| format!("{}  →  {}", l.at.display(), l.target.display())));
+        if links.len() > SHOWN {
+            body.push(format!("… and {} more", links.len() - SHOWN));
+        }
+        let what = if links.len() == 1 { "Make the junction".to_owned() } else { format!("Make {} junctions", links.len()) };
+        self.overlay = Overlay::Confirm(ConfirmOverlay {
+            title: "Make a junction instead?".into(),
+            body,
+            options: vec![('y', what), ('n', "No".into())],
+            action: ConfirmAction::Junctions { links },
+            dest: None,
+        });
+    }
+
+    /// The `y` to [`App::offer_junctions`]: made like any link, so `u` takes
+    /// them back and `U` makes them again, as junctions.
+    fn make_junctions(&mut self, links: Vec<ops::Link>) {
+        let (done, left, err) = each_link(links, ops::Link::make);
+        if let Some(l) = done.first().or(left.first()) {
+            self.refresh_parent(&l.at.clone());
+        }
+        if !done.is_empty() {
+            let said = match done.len() {
+                1 => format!("Made a junction {} — u to undo", util::file_name(&done[0].at)),
+                n => format!("Made {n} junctions — u to undo"),
+            };
+            self.undos.land(UndoStep::Link { links: done }, Land::Fresh);
+            self.toast(said);
+        }
+        if let (Some(e), Some(l)) = (err, left.first()) {
+            self.error(format!("Junction: {}: {e}", util::file_name(&l.at)));
         }
     }
 
@@ -5227,6 +5281,11 @@ impl App {
             ConfirmAction::EndShell => {
                 if ch == 'y' {
                     self.end_shell();
+                }
+            }
+            ConfirmAction::Junctions { links } => {
+                if ch == 'y' {
+                    self.make_junctions(links);
                 }
             }
             ConfirmAction::BookmarkDeleteAll => {
@@ -6334,6 +6393,7 @@ mod create_and_link_undo {
             cancelled: false,
             moved: Vec::new(),
             linked,
+            junctions: Vec::new(),
             made: None,
             trashed: Vec::new(),
         }
@@ -6345,7 +6405,7 @@ mod create_and_link_undo {
     fn a_finished_link_says_what_it_made() {
         let dir = util::test_dir("link-said");
         let mut a = app(&dir);
-        let link = |name: &str| ops::Link { at: dir.join(name), target: dir.join("src.txt"), dir: false, hard: true };
+        let link = |name: &str| ops::Link { at: dir.join(name), target: dir.join("src.txt"), dir: false, hard: true, junction: false };
         a.on_op_event(finished(vec![link("one.txt")], Vec::new()));
         assert!(toasts(&a).contains(&"Linked one.txt — u to undo"), "{:?}", toasts(&a));
 
@@ -6359,10 +6419,56 @@ mod create_and_link_undo {
     fn a_link_that_partly_failed_says_only_the_error() {
         let dir = util::test_dir("link-said-partial");
         let mut a = app(&dir);
-        let link = ops::Link { at: dir.join("one.txt"), target: dir.join("src.txt"), dir: false, hard: true };
+        let link = ops::Link { at: dir.join("one.txt"), target: dir.join("src.txt"), dir: false, hard: true, junction: false };
         a.on_op_event(finished(vec![link], vec!["two.txt: denied".into()]));
         assert!(!toasts(&a).iter().any(|t| t.contains("u to undo")), "{:?}", toasts(&a));
         assert_eq!(a.undos.undo.len(), 1);
+    }
+
+    /// Q46: folder symlinks Windows refused come back as junctions to offer.
+    /// The question names both paths and what a junction is not; `n` leaves
+    /// everything as it was.
+    #[test]
+    fn a_refused_folder_link_is_offered_as_a_junction() {
+        let dir = util::test_dir("junction-offer");
+        let mut a = app(&dir);
+        let offered = ops::Link { at: dir.join("alias"), target: dir.join("real"), dir: true, hard: false, junction: true };
+        let mut ev = finished(Vec::new(), vec!["real: refused".into()]);
+        if let ops::OpEvent::Finished { junctions, .. } = &mut ev {
+            junctions.push(offered.clone());
+        }
+        a.on_op_event(ev);
+        let Overlay::Confirm(c) = &a.overlay else { panic!("no question: {:?}", toasts(&a)) };
+        assert!(matches!(&c.action, ConfirmAction::Junctions { links } if links == &vec![offered.clone()]));
+        let body = c.body.join("\n");
+        assert!(body.contains("not a relative one") && body.contains("network"), "{body}");
+        assert!(body.contains(&format!("{}  →  {}", offered.at.display(), offered.target.display())), "{body}");
+        assert_eq!(c.options[0], ('y', "Make the junction".into()));
+
+        a.answer_confirm('n');
+        assert!(a.overlay.is_none() && a.undos.undo.is_empty() && !offered.at.exists());
+    }
+
+    /// The `y`: a real junction on Windows, which `u` removes without touching
+    /// the folder and `U` makes again. Only Windows has junctions.
+    #[cfg(windows)]
+    #[test]
+    fn a_junction_is_made_undone_and_redone() {
+        let dir = util::test_dir("junction-made");
+        std::fs::create_dir(dir.join("real")).unwrap();
+        std::fs::write(dir.join("real/inside.txt"), b"x").unwrap();
+        let mut a = app(&dir);
+        let link = ops::Link { at: dir.join("alias"), target: dir.join("real"), dir: true, hard: false, junction: true };
+        a.make_junctions(vec![link.clone()]);
+        assert!(toasts(&a).contains(&"Made a junction alias — u to undo"), "{:?}", toasts(&a));
+        assert!(dir.join("alias/inside.txt").is_file(), "through the junction");
+
+        a.undo_step();
+        assert!(!ops::exists(&link.at), "the junction is gone");
+        assert!(dir.join("real/inside.txt").is_file(), "the folder and its file are not");
+
+        a.redo_step();
+        assert!(dir.join("alias/inside.txt").is_file(), "U makes the junction again");
     }
 
     /// A file written in since is not a slip any more: `u` keeps it, says
@@ -6396,7 +6502,7 @@ mod create_and_link_undo {
         let dir = util::test_dir("link-undo-hard");
         let src = dir.join("data.txt");
         std::fs::write(&src, b"data").unwrap();
-        let link = ops::Link { at: dir.join("again.txt"), target: src.clone(), dir: false, hard: true };
+        let link = ops::Link { at: dir.join("again.txt"), target: src.clone(), dir: false, hard: true, junction: false };
         link.make().unwrap();
 
         let mut a = app(&dir);
@@ -6416,7 +6522,7 @@ mod create_and_link_undo {
         let dir = util::test_dir("link-undo-replaced");
         let src = dir.join("data.txt");
         std::fs::write(&src, b"data").unwrap();
-        let link = ops::Link { at: dir.join("again.txt"), target: src.clone(), dir: false, hard: true };
+        let link = ops::Link { at: dir.join("again.txt"), target: src.clone(), dir: false, hard: true, junction: false };
         std::fs::write(&link.at, b"another file of a different size").unwrap();
 
         let mut a = app(&dir);
@@ -6434,7 +6540,7 @@ mod create_and_link_undo {
         let dir = util::test_dir("link-undo-sym");
         std::fs::create_dir(dir.join("real")).unwrap();
         std::fs::write(dir.join("real/inside.txt"), b"x").unwrap();
-        let link = ops::Link { at: dir.join("alias"), target: PathBuf::from("real"), dir: true, hard: false };
+        let link = ops::Link { at: dir.join("alias"), target: PathBuf::from("real"), dir: true, hard: false, junction: false };
         link.make().unwrap();
 
         let mut a = app(&dir);
@@ -8176,6 +8282,7 @@ mod said_out_loud {
             cancelled: false,
             moved: Vec::new(),
             linked: Vec::new(),
+            junctions: Vec::new(),
             made: None,
             trashed: vec![dir.join("a.txt")],
         });
@@ -8198,6 +8305,7 @@ mod said_out_loud {
             cancelled: false,
             moved: Vec::new(),
             linked: Vec::new(),
+            junctions: Vec::new(),
             made: None,
             trashed: vec![gone.clone()],
         });

@@ -730,6 +730,12 @@ still be empty — once something has been written into it, `u` says so and leav
 to still be the link that was made: a symlink, or for a hardlink the same file as its source, not
 something else that has taken the name since.
 
+On Windows a symlink needs Developer Mode or an elevated filer. When `-` on a **folder** is refused
+for that, filer asks whether to make a junction instead (v0.67.19): a junction needs no privilege,
+but it always holds the full path — never a relative one — and cannot point at a network location,
+which is why it is asked and not done. `y` makes it, and `u` / `U` take it back and make it again
+like any other link.
+
 Undoing a move starts from where each file actually landed, not from where it was sent: a paste onto
 a name already taken lands as `name_1`, and an undo built from the name you asked for would go
 looking for a file that was never created.
@@ -1467,7 +1473,8 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   font specimen or a shell thumbnail is its own source, so those go soft past 1:1.
 - `<C-F5>` re-reads the config, including fonts and the theme, but leaves what you have changed by
   hand since — the sort a `,` key chose, whether Markdown is rendered — as you set it. The window
-  size is only read at startup.
+  size is only read at startup. A file that no longer parses keeps what it set last time until it
+  parses again, and the error toast says so (v0.67.18) — a reload is usually pressed mid-edit.
 - The terminal pane has no tabs and no split of its own, and `cd` following types a line into the
   shell, so it lands in whatever is running if something is — unless the shell reports its
   directory, in which case it is usually not sent at all.

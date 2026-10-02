@@ -1583,9 +1583,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 - [x] 20 節の 20.1 / 20.2 / 20.3 / 20.4 / 20.6 にチェック（300 → 305）。`FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` を走らせる間だけ別のフォルダにし、
   `title_format` に `{rows}` を入れて文字の大きさを数で、`<Shot:>` の画素の数で色とミニマップを測った。ARM64 の順番表から 20 節を外した。
-- [ ] **20.5: 壊れた `filer.toml` で `<C-F5>` を押すと、`[ui]` が既定値に戻る**（所見 1）。トーストは正しいが、`font_size = 28.0` が
+- [x] **20.5: 壊れた `filer.toml` で `<C-F5>` を押すと、`[ui]` が既定値に戻る**（所見 1）。トーストは正しいが、`font_size = 28.0` が
   効かなくなる（タイトルの `rows=17` → `33`）。`Config::load()` が `ui` を `Ui::default()` から始め、読めたときだけ入れ替える
-  （`src/config/mod.rs`）のを、`reload_config` がそのまま使う。読めた他のファイル（`theme.toml`、`keymap.toml`）は残る。直すか文言を変えるかは Q47。
+  （`src/config/mod.rs`）のを、`reload_config` がそのまま使う。読めた他のファイル（`theme.toml`、`keymap.toml`）は残る。v0.67.18 で Q47 の 1 のとおり直した。
 - [ ] **`--keys` の実行が 7 回に 1 回、何も残さずに消えた**（所見 2）。`<Shot:before>` のあと 9 秒でプロセスが無くなり、`FILER_KEYS_DONE` も
   Windows のエラー報告も無い（#166 の所見 3 と同じ形）。v0.67.12 の見張りは「止まった」場合しか拾わないので、パニックのフック（提案 3）:
   `FILER_KEYS_DONE` の横に `<名前>.panic` を書き、0 でない終了コードで終わる。
@@ -1627,3 +1627,24 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   結果の名前が中のフォルダの名前になり、書庫の名前から当てられないので効く。`ops.rs` の `extract()` は `lift_lone_folder()` から最終の
   パスを受け取って捨てている。
 - [ ] `e` が終わったらトーストで行き先を言う（提案 2）: `Unpacked into to-pack_1\ (6 files)`。いまは何も言わない。
+
+## x64 の無人実行が 2 日黙って止まっていた（2026-10-02）
+
+- [ ] `scripts/auto-wintest.ps1` は作業コピーが汚れていると、前の実行が途中で切れたものとして何もせずに抜ける（人が判断するため）。
+  9/30 に 44 節の実行が `TESTING-CHECKS.md` を書きかけたまま切れ、そこから 15 分ごとに起動しては抜けて、2 日 PR が来なかった。
+  外からは「何も来ない」としか見えず、タスク スケジューラの `LastTaskResult` が `1` なだけで、既定の場所にログも無かった。
+  止まっている理由を外から見えるようにする。案は 2 つ: 汚れで抜けるたびにログ（`-LogDir` の有無に関わらず状態フォルダ）へ理由を書き、
+  そのことを Windows のトースト通知で出す。または、汚れが 24 時間を超えたら差分を状態フォルダに退避して作業コピーを戻し、次の実行を始める。
+  後者は人の判断を省くので、決める前に持ち主に聞く。
+
+## 実機のセッションの報告（v0.67.20 で受けた分: #176、ARM64 の 29 節）
+
+- [ ] **`filer env > out.txt` が PowerShell では 0 バイトのファイルになる**（#176 の所見と提案 1）。PowerShell の `>` は GUI サブシステムの
+  プロセスを待たずにパイプを閉じる（`>` は 25 ms で戻り、パイプ渡しは 85 ms）。パイプ、`cmd /c "filer.exe env > out.txt"`、
+  `Start-Process -Wait -RedirectStandardOutput` は取れる。`src/main.rs` の `say()` の doc コメントは「ファイルにもパイプにも出る」と言っている。
+  `filer --help` の末尾と README の `filer env` の所に 1 行
+  `Windows: PowerShell's > does not wait for a GUI binary; use a pipe, cmd /c, or Start-Process -Wait` を足し、doc コメントも直す。
+- [ ] **`FILER_KEYS_DONE` に、その実行で出たトーストを全部残す `toasts:` 行を足す**（#176 の提案 2）。今の `toast:` は書く時点で出ているもの
+  だけなので、トーストが期待値の行（29.7、12.17 / 12.18、13.8a など）は消える前に `<Shot:>` を撮って画像から読むしかない。
+  `App` に直近 16 本ほどの履歴を持ち、`state_report` に `|` 区切りで 1 行。今の `toast:` 行は残す。
+
