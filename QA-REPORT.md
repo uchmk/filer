@@ -11244,3 +11244,75 @@ x64（Windows 11 Pro, build 26200）で `target\release\filer.exe` 0.70.2 を、
 スクリーンショットの撮り時に頼らず読める。
 
 **大きさ**: `state_report` とトーストの追加箇所に関数 1 つ。
+
+## TESTING.md の再テスト（5 回目）— 48.6 / 48.7（DLL の探し場所）と 25.19c（`filer.com`）（e98dc5b / 0.71.2、win レーン、無人の run）
+
+x64（Windows 11 Pro, build 26200）で `target\release\filer.exe` 0.71.2 を、`fetch-conpty.ps1` の ConPTY 1.24.260710001 と並べて動かした。昇格なし（この 3 行には要らない）。
+順番表の先頭「Re-tests of changed behaviour」で x64 に残っていたのは 48.6・48.7・25.19c（13.8a / 13.8b は ARM64 のみ、48.1 / 48.3 と 48.6 の zip の半分は次のリリース待ち。最新のリリースはまだ v0.64.2）。
+証拠は `C:\dev\filer-evidence\win-retests5-20261003`（`run48.ps1` / `run2519c.ps1` / `exitprobe.ps1`、run ごとの `FILER_KEYS_DONE`・`FILER_PTY_LOG`・スクリーンショット、全出力）。
+
+- `cargo test`: **618 + 1 passed / 0 failed**。前後で親のいない `OpenConsole` / `pwsh` / `powershell` は **88 → 88**（OpenConsole 44、powershell 24、pwsh 20 のまま）。
+- 本物の設定には触れていない。`FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` / `FILER_STATE_HOME` をすべて `R:` の作業フォルダ（空の設定）に向けた。
+- この機械の `PATH` には最初から `C:\Program Files\WezTerm`（`conpty.dll` と `OpenConsole.exe` がある）が入っている。`C:\Windows\System32\conpty.dll` は無い。
+
+### 48.6 / 48.7
+
+キーはどれも `<C-t><Wait:3000><Shot:pane>`。ペインが開いてから `(Get-Process -Id $p.Id).Modules | ? ModuleName -eq conpty.dll` と、filer の子（`Win32_Process` の `ExecutablePath`）を読んだ。
+対照に、修正前の **v0.64.2 の x64 リリース**（`gh release download`）の `filer.exe` を同じ形で動かした（`<Shot:>` は 0.67.0 からなので、そちらは `<C-t><Wait:3000>`）。
+
+| run | exe | 作業フォルダ | `conpty.dll` のモジュール | ペインの console host（filer の子） | `toast:` |
+| --- | --- | --- | --- | --- | --- |
+| 48.7 1 回目 | 0.71.2、空のフォルダに **単独** | `withdll\`（zip と同じ `conpty.dll` + `OpenConsole.exe`） | **無し**（count=0） | `C:\WINDOWS\system32\conhost.exe` | `Started pwsh — <C-t> back to the list` |
+| 48.7 2 回目 | 同上 | `nodll\`（空。`PATH` に WezTerm） | **無し**（count=0） | `C:\WINDOWS\system32\conhost.exe` | 同上 |
+| 48.6（手元ビルド） | 0.71.2、`target\release`（横に `conpty.dll`） | `nodll\` | `C:\dev\filer-wintest\target\release\conpty.dll` | `C:\dev\filer-wintest\target\release\OpenConsole.exe` | 同上 |
+| 対照 1 | **0.64.2**、単独 | `withdll\` | `R:\…\withdll\conpty.dll` | `R:\…\withdll\OpenConsole.exe` | 同上 |
+| 対照 2 | **0.64.2**、単独 | `nodll\` | `C:\Program Files\WezTerm\conpty.dll` | `C:\Program Files\WezTerm\OpenConsole.exe` | 同上 |
+
+- **48.7 合。**どちらの回も `conpty.dll` は読まれず、ペインは Windows 標準の conhost で開いた（`toast:` と `pane: 12x159`）。同じ手順で 0.64.2 は作業フォルダのものと `PATH`（WezTerm）のものを読んだので、この測り方は失敗を見分けられる。行の「v0.70.3 より前は」の両方の半分を、そのまま再現した。
+- **48.6 は手元ビルドの半分だけ合**（exe の横の `conpty.dll` を読み、OpenConsole もその横のもの。`PATH` の WezTerm は読まない）。行は「zip の各フォルダ」なので、**チェックは付けていない**。次のリリースの zip で同じ `run48.ps1` を回せば済む。
+
+### 25.19c — 不合: 拒否された引数の終了コードが 2 ではなく 0
+
+`cargo build --release` のあと `filer-com.exe` を `target\release\filer.com` に写し、`target\release` を `PATH` の先頭に入れた `pwsh -NoProfile` で回した（`run2519c.ps1`）。
+
+| 手順 | 読んだもの | 期待 | |
+| --- | --- | --- | --- |
+| `(Get-Command filer).Source` | `C:\dev\filer-wintest\target\release\filer.com`（`PATHEXT` は `.COM;.EXE;…`） | `filer.com` で終わる | 合 |
+| `$v = & filer env; $v.Count` | **41**。`$w = & filer.exe env \| Write-Output` も 41 で、`Compare-Object` で行ごとに一致。後ろに何も無い `& filer.exe env` は **0**（対照）。`filer env --out` のファイルは 40 行（末尾の空行 1 つの差。#188 の 25.19b と同じ） | レポートの行数 | 合 |
+| `filer --version > v.txt; Get-Content v.txt` | `filer 0.71.2 (x86_64)`、exit 0 | 版の行 | 合 |
+| `filer --keys "<Tab"; $LASTEXITCODE` | 1 行 ``filer: --keys: `<Tab` has no closing `>` ``、**exit 0** | 1 行、**2** | **不合** |
+| `filer` だけ | 519 ms で戻り exit 0。その後も `filer.exe` が 1 つ、タイトル `Filer: R:\…\list`。`filer.com` は残っていない | 窓が開き、開いたままプロンプトが戻る | 合 |
+
+**不具合（直していない）**: `filer.com` は、`filer.exe` が窓を開く前に断ったときも **0** を返す。10 回中 10 回（どれも 75〜91 ms）。2 つのパス（`filer C:\dev C:\Windows`）でも同じく exit 0。
+`filer.exe` を直接（`Start-Process -Wait`、または `& filer.exe … | Write-Output`）なら 2。
+
+原因は `src/bin/filer-com.rs` の `until_the_window_is_up` と見ている: **`WaitForInputIdle` は、相手のプロセスが終了したときにも 0 を返す。**PowerShell から `WaitForInputIdle(filer.exe --keys "<Tab", 5000)` を 5 回呼ぶと、
+5 回とも 57〜71 ms で **0** を返し、その時点で `HasExited` は **True**、終了コードは 2 だった（`exitprobe.ps1` と同じフォルダの記録）。
+ループは `try_wait()` → `WaitForInputIdle(50)` の順なので、断る `filer.exe` はほぼ必ず 50 ms の待ちの中で終わり、`0 => return 0` に落ちる。
+直すなら、`WaitForInputIdle` が 0 を返したあとにもう一度 `child.try_wait()` を見て、終わっていればその終了コードを返す（数行）。行の期待（`$LASTEXITCODE` が 2）はそのままでよい。
+
+### Proposals
+
+#### 提案 1: `filer.com` は、窓を開くときに標準ハンドルを `filer.exe` に渡さない
+
+**踏んだこと**: `pwsh -File run2519c.ps1 | Tee-Object …` で 25.19c を回すと、スクリプトの最後の行を出したあとも **パイプが終わらず**、外側のコマンドが 180 s のタイムアウトに掛かった。
+`filer` だけの手順で開いた `filer.exe` を止めた途端に終わった。`filer.com` は戻っているのに、`Command::spawn` が引き継がせた標準出力のパイプを `filer.exe` が持ち続けていたため。
+
+**どう変えるべきか**: 窓を開く側（`answers_in_text` が偽）では `cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())` で起動する。
+ただし断ったときの 1 行は要るので、stderr だけはパイプで受けて `filer.com` が中継し、窓が上がったら閉じる形にする。
+
+**なぜ**: `filer` を出力を取るスクリプト（タスク スケジューラ、`… | Tee-Object`、CI のログ）から開くと、窓を閉じるまで呼んだ側が終わらない。
+対話中のコンソールでは見えないので、気づかれにくい。
+
+**大きさ**: `filer-com.rs` の `main` に 10 行ほど。
+
+#### 提案 2: `filer.com` に、拒否の経路を通るテストを 1 本置く
+
+**踏んだこと**: 上の不具合は `cargo test` が緑のまま入った。`filer-com.rs` のテストは `answers_in_text` の判定だけで、終了コードを返す経路は 1 度も走っていない。
+
+**どう変えるべきか**: `#[cfg(windows)]` のテストで、`env!("CARGO_BIN_EXE_filer")` を断る引数（`--keys "<Tab"`）で起動し、`until_the_window_is_up` が 2 を返すことを確かめる。
+窓は開かないので、CI の Windows ランナーでも走る。
+
+**なぜ**: 終了コードは `filer.com` が約束していることの半分で、壊れても画面には何も出ない。実機の run を待たずに捕まえられる。
+
+**大きさ**: テスト 1 本（`until_the_window_is_up` を子プロセスで呼べる形にするなら関数の引数を少し変える）。
