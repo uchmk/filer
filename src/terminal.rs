@@ -589,6 +589,9 @@ pub struct Terminal {
     /// The shell's process, to ask whether it has started anything. `None`
     /// where the PTY did not say, which reads as "nothing running".
     shell_pid: Option<u32>,
+    /// The reader thread. It hands the PTY back when it ends, and dropping
+    /// that is what ends the shell -- so [`Drop`] waits for it.
+    io: Option<std::thread::JoinHandle<(EventLoop<Tapped, Proxy>, alacritty_terminal::event_loop::State)>>,
 }
 
 impl Terminal {
@@ -641,8 +644,8 @@ impl Terminal {
         let event_loop = EventLoop::new(term.clone(), proxy, pty, false, false)?;
         let sender = event_loop.channel();
         // The reader thread owns the PTY from here; it parses into `term` and
-        // ends when the shell does.
-        let _ = event_loop.spawn();
+        // ends when the shell does, or when `Drop` asks.
+        let io = Some(event_loop.spawn());
 
         Ok(Self {
             term,
@@ -659,6 +662,7 @@ impl Terminal {
             log,
             shell_pid,
             win32,
+            io,
         })
     }
 
@@ -852,10 +856,31 @@ impl Terminal {
 }
 
 impl Drop for Terminal {
+    /// End the shell, then ask the reader thread to stop and wait a moment
+    /// for it, so the PTY it hands back is closed here. A test, or filer closed
+    /// with the pane open, used to exit before any of that happened, and on
+    /// Windows the shell and its OpenConsole lived on with no parent: one pair
+    /// per test run on the x64 machine (#180).
+    ///
+    /// On Windows closing the pseudoconsole only asks the shell to go, and
+    /// pwsh takes its time or does not go at all, so the shell and whatever
+    /// runs under it are ended outright first -- which is what `<C-S-t>`
+    /// promises. On Unix dropping the PTY hangs up and reaps the shell.
+    /// The wait is bounded because this runs on the UI thread.
     fn drop(&mut self) {
-        // Ask the reader thread to stop; without this it sits on a PTY whose
-        // pane is gone.
+        #[cfg(windows)]
+        if let Some(pid) = self.shell_pid.filter(|_| !self.exited) {
+            end_tree(pid);
+        }
         let _ = self.sender.send(Msg::Shutdown);
+        let Some(io) = self.io.take() else { return };
+        let deadline = Instant::now() + std::time::Duration::from_secs(2);
+        while !io.is_finished() && Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        if io.is_finished() {
+            drop(io.join());
+        }
     }
 }
 
@@ -1301,6 +1326,26 @@ pub struct CellView {
     pub selected: bool,
 }
 
+/// End `pid` and everything under it, children first so none is left to be
+/// re-parented, and wait briefly for each to be gone.
+#[cfg(windows)]
+fn end_tree(pid: u32) {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{
+        OpenProcess, TerminateProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
+    };
+    for child in children(pid) {
+        end_tree(child);
+    }
+    let Ok(h) = (unsafe { OpenProcess(PROCESS_TERMINATE | PROCESS_SYNCHRONIZE, false, pid) }) else { return };
+    unsafe {
+        if TerminateProcess(h, 1).is_ok() {
+            WaitForSingleObject(h, 1000);
+        }
+        let _ = CloseHandle(h);
+    }
+}
+
 /// The processes whose parent is `pid`. Read when a key asks, not every frame:
 /// one snapshot of the process table on Windows, `/proc` on Linux, `pgrep` on
 /// macOS. Empty when the platform will not say.
@@ -1488,6 +1533,23 @@ mod tests {
         assert_eq!(name_shell(None, false, Some("/usr/bin/zsh".into())), "zsh");
         assert_eq!(name_shell(None, false, None), "sh");
         assert_eq!(name_shell(Some("/bin/bash"), false, None), "bash");
+    }
+
+    /// Ending the pane ends the shell before `drop` returns, not whenever the
+    /// reader thread gets round to it: a test that returned first left a shell
+    /// and its OpenConsole behind on Windows, one pair per run (#180).
+    #[test]
+    fn dropping_the_pane_ends_the_shell() {
+        let dir = crate::util::test_dir("term-drop");
+        let t = match Terminal::spawn(&dir, Size::new(80, 24), (8, 16), None, || {}) {
+            Ok(t) => t,
+            Err(e) if cfg!(any(windows, target_os = "linux")) => panic!("the terminal did not start: {e}"),
+            Err(_) => return,
+        };
+        let pid = t.shell_pid.expect("the PTY says which process the shell is");
+        assert!(children(std::process::id()).contains(&pid), "the shell is running first");
+        drop(t);
+        assert!(!children(std::process::id()).contains(&pid), "the shell {pid} outlived its pane");
     }
 
     /// `children` finds a process this one started: the question `<C-S-t>`

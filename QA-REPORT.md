@@ -10444,6 +10444,123 @@ ARM64 レーンの順番表の先頭「**29. the terminal's directory, brought b
    - 大きさ: 読み込みの最後に `if let Ok(s) = env::var("FILER_TERM_SHELL")` を 1 つ。
      `filer env` の Tools 節が既に「実際に起動するほう」を出す作りなので、表示はついてくる。
 
+## TESTING.md の再テスト（2 回目）— 直した分を x64 で 10 行（30836e6 / 0.67.21、win レーン、無人の run）
+
+順番表の先頭「**Re-tests of changed behaviour**」が担当。#180（1 回目の再テスト）は main に入らずに
+閉じられ、その間に v0.67.21（ペインを閉じたときシェルを確実に終わらせる）が入ったので、
+**0.67.21 で全部取り直した。**
+
+- 表に挙がっている行のうち、**21.14 / 21.15 と 29.2 / 29.3 / 29.5 / 29.7 / 29.8 / 29.9 は
+  ARM64 の run（#176 ほか）で既に `[x]`** だった。印のある行は触っていない（29.9 だけ x64 でも
+  取ったので下に書いた）。29.4 は自動テスト済みで表に出ていない。
+- `[ ]` だった 13 行のうち **10 行にチェックを付けた**: **8.1 / 8.2 / 8.7 / 12.17 / 12.18 /
+  16.1 / 16.2 / 20.5 / 44.10 / 45.18**。これで節 8・20・44 は満了。
+- 付けなかった 3 行: **34.15**（中身は合うが、行の書いた確かめ方が通らない。下の見つけたもの 1）、
+  **13.8a / 13.8b**（この機械は開発者モードが**オン**で昇格も無いので、行の前提が作れない）。
+
+`make-testcheck -- --check` は `in sync`（**321 / 448**）。
+`cargo test` は **608 passed; 0 failed**。見つけたもの 4 件、提案 5 件。
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `OS arch x86_64` / `Process arch x86_64`、`AMD Radeon RX 9070 XT`（Vulkan、DiscreteGpu） |
+| OS | `Windows 11 Pro 25H2 (build 26200.9457)` |
+| filer | 手元ビルド 0.67.21（`cargo build --release`、`Debug false`）。ConPTY は `scripts/fetch-conpty.ps1` で `target\release` へ |
+| シェル | ペインの既定は **`pwsh` 7.6.6**、`powershell` は **5.1.26100.9444** |
+| 昇格 | 無し（`IsInRole('Administrators')` = False）。**開発者モードはオン** |
+| 一時ディレクトリ | `R:\Temp\run-20261002-122206`（RAM ディスク） |
+| 設定 | 行ごとに `FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` をスクラッチのフォルダへ向けた（`cfg-8`、`cfg-20`、`cfg-29np` など）。持ち主の設定は読ませていない |
+
+証拠は `C:\Users\yuu06\AppData\Local\Temp\filer-retests-2\evidence\`（`done\<名前>\` に
+`FILER_KEYS_DONE` のファイルと `<Shot:>` の PNG、`lib.ps1` / `fx16.ps1` / `title.ps1` / `hook.ps1` /
+`other.ps1`、8 節の版のファイル、`orphans-before.json`。計 68 ファイル）。
+
+### 測り方
+
+- **キーは全部 `--keys`**、状態は `FILER_KEYS_DONE`（`cwd` / `hovered` / `selected` / `overlay` /
+  `view` / `compare` / `toast`）で読んだ。トーストが消えてから done が書かれる行は `<Shot:>` を挟み、
+  PNG の文字を**テキストとして**読んだ。
+- **8 節のシェルの版**は、ペインに `$PSVersionTable.PSVersion.ToString() | Set-Content <ファイル>` を
+  打たせて、そのファイルを読んだ。
+- **20.5 の「前の設定が効き続ける」**は `font_size` で見た。`title_format = "Filer: {cwd} [{rows}] {pane}"`
+  にしておくと、窓のタイトル（`EnumWindows` でクラス `Window Class`）に**見えている行数**が出るので、
+  文字の大きさがテキストで読める: 既定で `[33]`、`font_size = 24` で `[20]`。
+- **ファイルの状態**は `Get-Item` の `LinkType` / `Target`、`fsutil hardlink list`、`Get-FileHash` で。
+
+### 行ごとの結果
+
+| 行 | 結果 | 根拠 |
+| --- | --- | --- |
+| 8.1 | **合** → `[x]` | `[term]` の無い `filer.toml` で `<C-t>` → ペインが書いた版が **`7.6.6`**（`pwsh`） |
+| 8.2 | **合** → `[x]` | ペインを開いたまま `shell = "powershell"` を足して `<C-F5>` → トーストが `Reloaded 2 config file(s) — the pane keeps its shell until <C-S-t> closes it`。前の版が **`7.6.6`**、ペインで `<C-S-t>` `<C-t>` のあとが **`5.1.26100.9444`**。（`<C-S-t>` は一覧からではなくペインで押す必要がある。提案 1） |
+| 8.7 | **合** → `[x]` | `powershell` で始めて `[term]` を消し、`<C-F5>` `<C-S-t>` `<C-t>` → `5.1.26100.9444` から **`7.6.6`** へ。`<C-F5>` を抜いた対照は `5.1.26100.9444` → **`5.1.26100.9444`**（前のシェルのまま） |
+| 12.17 | **合** → `[x]` | `a` `new/deep/note.txt` `<Enter>` `u` → トースト `Removed note.txt and 2 folder(s)`、`new` ごと無い。`U` → `Created note.txt`、`new\deep\note.txt` が戻る。`u` の 1.6 秒前にファイルへ書くと `Undo: note.txt has been written to since` で、ファイルは中身 `written` のまま残る |
+| 12.18 | **合** → `[x]` | シンボリックリンク（`-`）: `Linked f.txt — u to undo`、`LinkType SymbolicLink` で `src\f.txt` を指す。`u` → `Removed the link f.txt`、`dst` は空、元のハッシュは不変。`U` → `Linked f.txt`、また `SymbolicLink`。ハードリンク（`=`）: 同じ 3 つのトーストで `HardLink`、`fsutil hardlink list` に 2 つの名前。フォルダへの `-`: `Linked folder — u to undo`、`u` → `Removed the link folder`、元の `folder\g.txt` は `in folder` のまま、`U` → `Linked folder` |
+| 16.1 | **合** → `[x]` | Word の COM で書いた `doc.docx` をホバー → プレビューが段落ごとの 3 行の本文（16 進でもメタデータでもない）。`done\o1\` の PNG |
+| 16.2 | **合** → `[x]` | 同じ `doc.docx` の 2 段落目は `This sentence has `（preserve）／`bold`（太字）／` and plain in one line.`（preserve）の 3 つの run。プレビューは **`This sentence has bold and plain in one line.` の 1 行**。`preserve.docx`（`RUN WITH THE ATTRIBUTE` ほか）と `spaces.xlsx`（` leading space` の字下げ、`trailing space`）も空白が保たれている |
+| 20.5 | **合** → `[x]` | `font_size = 24`（`[20]`）で起動し、途中でファイルを壊して `<C-F5>` → トーストが `Config: …cfg-20\filer.toml: TOML parse error at line 4, column 6 … key with no value, expected '=' (the last settings read from it stay in force until it parses again)`、**タイトルは `[20]` のまま**。対照（壊さずに 14 へ書き換え）は `Reloaded 4 config file(s)` でタイトルが `[33]` |
+| 44.10 | **合** → `[x]` | `gu` → `view: usage`、トースト `4.1 M in total — <Esc> to leave`。`big` で `<Enter>` → `cwd …\t44\big`、`view: usage`、`3.0 M in total`。1 回目の `h` → `cwd …\t44`、`view: usage`、`hovered …\big`。2 回目の `h` → `view: list`、トースト無し |
+| 45.18 | **合** → `[x]` | `compare: folders …\t45\L \| …\t45\R` で差のある行に `<Enter>` → `compare: files …\L\m-diff.txt \| …\R\m-diff.txt`、`q` → `compare: folders`。同じ行に戻ることは `n` `<Enter>` `q` `<Enter>` → `compare: files …n-diff.txt` で確かめた。片側だけの `o-only.txt` で `<Enter>` → `Compare: it is on one side only`、`compare: folders` のまま。題に両方のフルパス（`done\c6\files.png`）。印は `≠` ではなく `~`（見つけたもの 3） |
+| 34.15 | **付けない** | 下の見つけたもの 1 |
+| 13.8a / 13.8b | **付けない** | 開発者モードがオンなので、「モードがオフで昇格も無い」前提が作れない。ARM64 のノート PC 向けに順番表へ残す |
+
+### 29.9 —— x64 でも 2 つのハンドラが両方走った（チェックは ARM64 の run で済み）
+
+`-NoProfile` のペインで `. other.ps1`（`LocationChangedAction` の代わりのハンドラ。`t29\other.txt` に
+新しいパスを書く）→ `. hook.ps1`（README のフックをそのまま切り出したもの）→ `cd C:\dev` → `<A-Up>`。
+done が `cwd: C:\dev`、`other.txt` が `other: C:\dev`。**一覧も動き、前のハンドラも動いた。**
+
+### 見つけたもの
+
+1. **ヘルプのコピー（34.15）は Windows でも LF だけで、行の書いた確かめ方が通らない。**
+   トーストは `Copied the help panel: 153 keys` で、オーバーレイは help のまま（ここまでは合）。
+   クリップボードは **CR 0 個、LF 162 個**。PowerShell の `Get-Clipboard` は CRLF でしか行に割らないので、
+   **1 本の文字列**が返り、`Get-Clipboard | Select-String "^j\t"` は **0 件**。手で LF で割ると
+   タブ区切りの行が 153 行あり、`j<TAB>Move cursor down<TAB>arrow 1` もある。**中身は正しく、
+   確かめ方が届かない。**#180 で報告したものと同じで、TODO.md にはまだ無い（提案 2）。
+2. **`FILER_CONFIG_HOME` と `YAZI_CONFIG_HOME` が同じフォルダだと、そのフォルダが 2 回数えられる。**
+   `filer env` に同じフォルダが 2 回並び、`<C-F5>` のトーストが `Reloaded 4 config file(s)`
+   （別々のフォルダにすると `Reloaded 2 config file(s)`）。ヘルプの設定の節にも `cfg-empty\` が 2 回出る。
+   害は数と表示だけ（提案 4）。
+3. **45.18 の行は差のある行を `≠` と書いているが、画面の印は `~`。**行の文言の修正で足りる。
+4. **v0.67.21 の直し（ペインを閉じたらシェルを終わらせる）は x64 で効いている。**親の無い
+   `OpenConsole` / `pwsh` / `powershell` / `conhost` を `Win32_Process` で数えると、`cargo test` の前が 89、
+   後が 88（**増えたのは 0**）。行のテストを全部終えたあとも**この run で増えたものは 0**。
+   ペインを開いたまま `Stop-Process -Force` した filer も含めて。
+
+### `$PROFILE`
+
+**触っていない。**この機械の `$PROFILE` は
+`C:\dev\obsidian-notes\notes\config\PowerShell\Microsoft.PowerShell_profile.ps1` へのシンボリックリンクで、
+run の後も **14308 B、SHA-256 `4A83D6A21FAFF79E0E482C4CD3068221FCEFC199E99DC3312D6E9BBC96A5B213`**
+（#180 の記録と同じ）。29.9 のペインは `-NoProfile`、8 節のペインは読み込むだけ。
+
+### Proposals
+
+1. **一覧で押した `<C-S-t>` が黙って何もしないのをやめてほしい。**
+   - 何が起きたか: 8.2 の 1 回目は `<C-t>` で一覧に戻ってから `<C-F5>` `<C-S-t>` と押し、ペインが
+     閉じずに**古いシェル（7.6.6）のまま**だった。`<C-S-t>` は term のキーマップにしか無い。
+     トーストも出ないので、「設定の読み直しが効いていない」と見分けがつかない。
+   - どう変えるか: mgr にも `<C-S-t>` = terminal close を置く（ペインが無ければ何もしないとトーストで言う）。
+     置かないなら、8.2 / 8.7 の行に「ペインにフォーカスがある状態で」と足す。
+   - なぜ: 行の手順どおり押した人が、**不具合ではない所で不具合を疑う。**
+   - 大きさ: 既定のキーマップに 1 行、または TESTING.md の 2 行。
+2. **Windows ではヘルプのコピーを CRLF で書いてほしい（34.15）。**
+   - どう変えるか: クリップボードに置く直前に `#[cfg(windows)]` で `\n` → `\r\n`。
+     変えないなら、34.15 の確かめ方を `(Get-Clipboard -Raw) -split "\n"` にする。
+   - なぜ: Windows のテキストの行は CRLF が前提（メモ帳以外の貼り先、PowerShell）。2 回続けて同じ所で止まった。
+   - 大きさ: 1 行か、TESTING.md の 1 行。
+3. **役割の定義の「Unattended runs」に、`cargo test` の前後で孤児のシェルを数える 1 行を足してほしい。**
+   - なぜ: v0.67.21 の直しを確かめる唯一の数字で、Win32_Process を 2 回数えるだけで取れる。
+     戻ったときに最初に気づけるのが実機の run。
+   - 大きさ: `windows-role.md` に 1 行（持ち主の判断）。
+4. （任意）**設定フォルダの一覧から同じフォルダを除いてほしい**（見つけたもの 2）。
+   `filer env` とトーストの数とヘルプの設定の節が、実際に読んだファイルの数と合うようになる。
+5. （任意）**`cargo test` が一時ディレクトリに `filer-*` のフォルダを大量に残す。**この run でも
+   スクラッチに残った。`util::test_dir` の外で作っているテストがあるかを QA に見てもらう価値がある。
+
 ---
 
 ## TESTING.md 25.19 — 前半は合、**後半は否**（`$v = & filer env` は `$null` になる）（c1d554c / 0.67.19、ARM64 レーン、無人の run）

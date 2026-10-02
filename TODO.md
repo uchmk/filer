@@ -1637,3 +1637,28 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   そのことを Windows のトースト通知で出す。または、汚れが 24 時間を超えたら差分を状態フォルダに退避して作業コピーを戻し、次の実行を始める。
   後者は人の判断を省くので、決める前に持ち主に聞く。
 
+## 実機のセッションの報告（v0.67.20 で受けた分: #176、ARM64 の 29 節）
+
+- [ ] **`filer env > out.txt` が PowerShell では 0 バイトのファイルになる**（#176 の所見と提案 1）。PowerShell の `>` は GUI サブシステムの
+  プロセスを待たずにパイプを閉じる（`>` は 25 ms で戻り、パイプ渡しは 85 ms）。パイプ、`cmd /c "filer.exe env > out.txt"`、
+  `Start-Process -Wait -RedirectStandardOutput` は取れる。`src/main.rs` の `say()` の doc コメントは「ファイルにもパイプにも出る」と言っている。
+  `filer --help` の末尾と README の `filer env` の所に 1 行
+  `Windows: PowerShell's > does not wait for a GUI binary; use a pipe, cmd /c, or Start-Process -Wait` を足し、doc コメントも直す。
+- [ ] **`FILER_KEYS_DONE` に、その実行で出たトーストを全部残す `toasts:` 行を足す**（#176 の提案 2）。今の `toast:` は書く時点で出ているもの
+  だけなので、トーストが期待値の行（29.7、12.17 / 12.18、13.8a など）は消える前に `<Shot:>` を撮って画像から読むしかない。
+  `App` に直近 16 本ほどの履歴を持ち、`state_report` に `|` 区切りで 1 行。今の `toast:` 行は残す。
+
+## 実機のセッションの報告（v0.67.22 で受けた分: #180 / #182、x64 の再テスト）
+
+- [x] （v0.67.21、#181）**テストがペインのシェルを 1 回ごとに残す**（#180 の所見 2）。`Terminal` の `Drop` が、Windows ではシェルとその下を
+  終わらせ、読み取りスレッドを待つようにした。#182 が実機で確かめた（`cargo test` の前後で 89 → 88、run 全体でも増えない）。
+- [ ] **ヘルプのコピーが LF だけで、34.15 の確かめ方 `Get-Clipboard | Select-String "^j\t"` が 0 件**（#180 の所見 1、提案 1）。
+  Windows のクリップボードは CRLF が普通。どちらで直すかは Q52（要確認: Q52）。#182 も同じ所で止まった。
+- [ ] **`FILER_CONFIG_HOME` と `YAZI_CONFIG_HOME` が同じフォルダだと、同じ `filer.toml` を 2 回読む**（#180 の所見 3、提案 4）。
+  `filer env` とヘルプの設定の節にフォルダが 2 回出て、`<C-F5>` は `Reloaded 2 config file(s)`（#182 では 4）と数える。`prepend_keymap` が 2 重になるかは未確認。
+  探すフォルダを正規化して重複を落とす（`src/config/mod.rs` の `config_dirs`）。テストを足す。
+- [ ] **TESTING.md 45.18 は「`≠` のファイルの行」と言うが、比較の一覧の印は `~`**（#180 の所見 4）。行の文を `~` に直し、日本語の行
+  （`scripts/testcheck-ja.toml`）も合わせる。動きは変わらないので印は外さない。
+- [ ] **`cargo test` が一時ディレクトリに `filer-*` のフォルダを残す**（#182 の提案 5）。`util::test_dir` は呼ぶたびに中身を消すが、
+  終わったあとには残る。`util::test_dir` の外で一時フォルダを作っているテストが無いかを探し（QA セッション向き）、残す理由の無いものは消す。
+- [ ] 一覧で押した `<C-S-t>` が黙って何もしない（#182 の提案 1）。どうするかは Q53（要確認: Q53）。
