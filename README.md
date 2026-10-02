@@ -30,9 +30,18 @@ A [release](https://github.com/uchmk/filer/releases) carries a `.zip` for Window
 a `.tar.gz` for macOS and Linux. No account needed.
 
 The Windows zip holds `filer.exe` with `conpty.dll` and `OpenConsole.exe` — a newer ConPTY, from
-Microsoft's own package, with its MIT notice. **Keep the three in one folder.** filer runs without
-the other two, but then the terminal pane falls back to the ConPTY built into Windows, which is old
-enough to break programs run in it: lazygit starts with a menu nobody opened. Building filer
+Microsoft's own package, with its MIT notice — and `filer.com` (v0.71.0). **Keep them in one folder.**
+filer runs without the ConPTY pair, but then the terminal pane falls back to the one built into
+Windows, which is old enough to break programs run in it: lazygit starts with a menu nobody opened.
+
+`filer.com` is a small console program that makes `filer` behave like any other command in a
+terminal. `filer.exe` is a windowed program, and PowerShell neither waits for one at the end of a
+pipeline nor connects its `>` to one, so `$v = & filer.exe env` comes back empty. Windows tries
+`.com` before `.exe` when you type `filer`, so `filer.com` answers. For `env`, `--version`, `--help`
+and `shell-hook` it runs `filer.exe` and waits; for anything else it opens the window and gives the
+prompt back once the window is up. Visual Studio ships `devenv.com` beside `devenv.exe` for the same
+reason. Building filer yourself, `cargo build --release` makes `filer-com.exe`: copy it to
+`filer.com` beside `filer.exe`. Building filer
 yourself, `pwsh -File scripts\fetch-conpty.ps1` puts the pinned version beside
 `target\release\filer.exe` (and `-Dest target\debug` beside a debug build).
 
@@ -1295,9 +1304,12 @@ a windowed program, so the prompt can come back a moment before the file is ther
 under another name and renamed into place, so it is never seen half written.
 
 Since v0.54.4 the text goes wherever standard output is sent; before that it went only to the
-screen. One exception is PowerShell's own `>`: it does not connect a windowed program's output to
-the file at all, so `filer env > out.txt` still gives an empty file there. Pipe into `Out-File` (or
-`Set-Content`) instead, or use `cmd /c "filer env > out.txt"`, where `>` works as usual. If a non-ASCII
+screen. With `filer.com` beside `filer.exe` (v0.71.0, see [Getting a build](#getting-a-build)),
+`filer` is a console command and every shell form works: `filer env > out.txt`,
+`$v = & filer env`. Calling `filer.exe` itself, PowerShell does not wait for it at the end of a
+pipeline and its `>` connects nothing, so `filer.exe env > out.txt` gives an empty file and
+`$v = & filer.exe env` an empty variable. Put something after it (`| Out-File`, `| Write-Output`),
+use `cmd /c "filer.exe env > out.txt"`, or `--out`. If a non-ASCII
 path comes out garbled in PowerShell, that is PowerShell decoding the bytes with the console's code
 page: `[Console]::OutputEncoding = [Text.Encoding]::UTF8` first, or go through `cmd`, which writes
 the UTF-8 as it is.
