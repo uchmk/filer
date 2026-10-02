@@ -538,15 +538,17 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "28.8" = "窓に触らず（キーもマウスも使わず）、一覧にあるファイルをエクスプローラーから削除する（v0.57.2）→ キーを押さなくても 0.5 秒以内に行が消える。v0.57.2 までは次にキーを押すまで残っていた（#108）"
 
 # 29. ターミナルのディレクトリを持ち帰る
-"29.1" = '`$PROFILE` にフックが**無い**状態でターミナルを開き（`<C-t>`）、`cd` してから `<A-Up>` → OSC 7 と `LocationChangedAction` を挙げ、README を指すトーストが出る。**無反応でも待ちでもない**'
+"29.1" = '''`$PROFILE` にフックが**無い**状態でターミナルを開き（`<C-t>`）、`cd` してから `<A-Up>` → OSC 7 と、フックを足すコマンド `filer shell-hook \| Add-Content $PROFILE, then <C-S-t> and <C-t>` を挙げるトーストが出る（v0.69.0、Q50）。**無反応でも待ちでもない**。zip の `filer.exe` が `PATH` に無いときは、`filer` の所がフルパス（`& 'C:\…\filer.exe' shell-hook …`）になる'''
 "29.2" = 'README のフックを `$PROFILE` に貼り、新しいターミナルを開いて `cd C:\dev`、`<A-Up>` → ファイル一覧が `C:\dev` へ移動する'
 "29.3" = '名前に**空白**を含むディレクトリと、**日本語**を含むディレクトリで同じこと → どちらも壊れずに届く'
 "29.4" = 'UNC パス（`\\server\share`）へ `cd` して `<A-Up>` → 追従するか、できない理由を述べる。落ちない'
 "29.5" = 'Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため）'
 "29.6" = '`[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`filer env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る'
 "29.7" = '`[term] shell` なしで `<C-t>`、次に `shell = "powershell"` にしてもう一度（v0.57.4）→ 最初のトーストがシェルの名前を言う: `Started pwsh — <C-t> back to the list`、次に `Started powershell (Windows PowerShell 5.1) — …`（v0.65.3。それ以前は設定で書いたときは `powershell` だけだった）。`$PSVersionTable.PSVersion` の答えと合っていること'
-'29.8' = '''フックの無い `powershell`（5.1）で開いたペインで `<A-Up>`（v0.59.4）→ 赤いトーストがシェルの名前を挙げる（`` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE ``）。フックを 7 ではなく 5.1 のプロファイルに入れればよいと分かる'''
+'29.8' = '''フックの無い `powershell`（5.1）で開いたペインで `<A-Up>`（v0.59.4）→ 赤いトーストがシェルの名前を挙げ、フックを**持てない**と言う（`` `powershell (Windows PowerShell 5.1)` has not said where it is (no OSC 7), and cannot: the hook needs PowerShell 7 (winget install Microsoft.PowerShell) ``。v0.69.0、Q50。それまでは 5.1 の `$PROFILE` に案内していたが、そこではフックが起動のたびに失敗する）'''
 '29.9' = '''`$PROFILE` に別のツールのハンドラを先に置き（`mise activate pwsh`、または代わりに `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`）、その後に README のフックを置いて、新しいペインで `cd C:\dev`、`<A-Up>`（v0.64.2）→ 両方動く: 一覧が `C:\dev` に移り、**かつ**別のツールのハンドラも働いている（代わりのものならタイトルが `other: C:\dev`）。v0.64.2 より前は README のフックが別のものを置き換えていた'''
+'29.10' = '''フックの無い状態で、ペイン（`pwsh`）で 29.1 のトーストのとおりに打ち、`<C-S-t>`、`<C-t>`、`cd C:\dev`、`<A-Up>`（v0.69.0、Q50）→ 一覧が `C:\dev` に移る。`Get-Content $PROFILE` の末尾が `filer shell-hook` の出力（先頭は `# filer:` のコメント）で、プロファイルの最後の行にくっつかず別の行になっている。`filer shell-hook powershell` と `filer shell-hook fish` は問題を 1 行で言い、終了コード 2'''
+'29.11' = '''Linux で `filer shell-hook bash >> ~/.bashrc`（と、`[term] shell = "zsh"` で `zsh >> ~/.zshrc`）、新しいペインで名前に空白と日本語を含むフォルダへ `cd`、`<A-Up>`（v0.69.0、Q50）→ 一覧がそこへ移り、名前はどちらも崩れない。フックが無いとトーストが `shell-hook bash >> ~/.bashrc` を挙げる'''
 
 # 30. プロンプトでの右クリック貼り付け
 "30.1" = 'エクスプローラーのアドレスバーでパスをコピーし、`c`+`d` で `cd` のプロンプトを出し、入力欄を右クリック → パスが入る。`<Enter>` でそこへ移動する'

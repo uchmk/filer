@@ -1162,9 +1162,22 @@ shell has to announce itself with **OSC 7**, and filer only believes what it is 
 PowerShell sends nothing by default. Most recipes for it replace `prompt`, which breaks Starship and
 every other prompt generator; this hook runs on each `cd` instead and leaves the prompt alone.
 
-**These lines go at the end of `$PROFILE`**, and nothing else does:
+**Run this in the pane**, and the hook goes at the end of `$PROFILE` (v0.69.0):
 
 ```powershell
+filer shell-hook | Add-Content $PROFILE
+```
+
+`filer shell-hook` prints the lines; nothing else needs to go in the profile. Through a pipe and
+`Add-Content`, not `>>`: PowerShell's `>>`, like its `>`, gets nothing from a windowed program
+(see [Reporting a problem](#reporting-a-problem)). If `filer` is not on the `PATH`, give its full
+path, `& 'C:\tools\filer\filer.exe' shell-hook | Add-Content $PROFILE` — the `<A-Up>` toast
+names it that way when it has to. These are the lines it prints, to read before trusting them or
+to paste by hand:
+
+```powershell
+
+# filer: report the directory to filer's terminal pane (OSC 7)
 $prev = $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
 $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
     param($sender, $e)
@@ -1215,26 +1228,33 @@ $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
 
 An empty third line means the hook is not loaded here.
 
-To append it without opening an editor, **run this in the pane** — it is a command, not something to
-put in the profile. Pasting it into the file leaves `@'` and `'@ | Add-Content …` in there, and the
-shell then fails to parse its own profile:
+Running `filer shell-hook | Add-Content $PROFILE` **in the pane** is what makes this right:
+whichever file *this* shell reads is the one that gets the hook, so the 5.1-or-7 question above
+cannot be answered wrongly. Then `<C-S-t>` and `<C-t>` as before. Before v0.69.0 the same was done
+with a `@' … '@ | Add-Content` here-string copied out of this page.
 
-```powershell
-@'
+bash and zsh on Linux and macOS: most distributions' bash does not send OSC 7, and zsh does not
+either unless a framework does it for it. `filer shell-hook bash >> ~/.bashrc` and
+`filer shell-hook zsh >> ~/.zshrc` add these (`>>` works there; filer is an ordinary program
+outside Windows):
 
-$prev = $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
-$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
-    param($sender, $e)
-    if ($prev) { $prev.Invoke($sender, $e) }
-    $p = $e.NewPath.ProviderPath -replace '\\', '/' -replace '^(?!/)', '/'
-    [Console]::Write("$([char]27)]7;file://$p$([char]27)\")
-}.GetNewClosure()
-'@ | Add-Content -Path $PROFILE -Encoding UTF8
+```bash
+
+# filer: report the directory to filer's terminal pane (OSC 7)
+__filer_osc7() { printf '\e]7;file://%s%s\e\\' "$HOSTNAME" "$PWD"; }
+PROMPT_COMMAND="__filer_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 ```
 
-Writing through `$PROFILE` rather than a typed path is the point of it: whichever file *this* shell
-reads is the one that gets the hook, so the 5.1-or-7 question above cannot be answered wrongly.
-Then `<C-S-t>` and `<C-t>` as before.
+```zsh
+
+# filer: report the directory to filer's terminal pane (OSC 7)
+__filer_osc7() { printf '\e]7;file://%s%s\e\\' "$HOST" "$PWD" }
+autoload -Uz add-zsh-hook
+add-zsh-hook chpwd __filer_osc7
+__filer_osc7
+```
+
+`filer shell-hook powershell` refuses rather than print a hook 5.1 cannot run.
 
 To choose the shell yourself — 5.1 on a machine that has 7, say, or `cmd` — name it in `filer.toml`:
 

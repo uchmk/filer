@@ -15,6 +15,7 @@ mod mime;
 mod preview;
 mod rename;
 mod search;
+mod shellhook;
 mod spot;
 mod terminal;
 mod ui;
@@ -131,7 +132,10 @@ fn parse_cli() -> Cli {
                      as name.png. For scripted checks\n\n\
                      COMMANDS:\n    env              config files, outside tools and environment,\n                     \
                      for pasting into a bug report\n    \
-                     env --out FILE   the same, written to FILE as UTF-8\n\n\
+                     env --out FILE   the same, written to FILE as UTF-8\n    \
+                     shell-hook [pwsh|bash|zsh]\n                     \
+                     the lines that let <A-Up> in the terminal pane\n                     \
+                     follow the shell; filer shell-hook | Add-Content $PROFILE\n\n\
                      Config is read from yazi's config directory, then from filer's own.\n\
                      Press ~ or F1 inside the app for the key list.",
                 );
@@ -171,6 +175,19 @@ fn parse_cli() -> Cli {
                 },
                 Err(why) => {
                     say(&format!("filer: env: {why}"));
+                    std::process::exit(2);
+                }
+            },
+            // The hook `<A-Up>` needs, printed to go straight into a profile
+            // (Q50). With PowerShell that is `| Add-Content $PROFILE`: its
+            // `>>`, like its `>`, gets nothing from a windowed program.
+            "shell-hook" => match crate::shellhook::text(args.next().as_deref()) {
+                Ok(hook) => {
+                    say(hook.trim_end());
+                    std::process::exit(0);
+                }
+                Err(why) => {
+                    say(&format!("filer: shell-hook: {why}"));
                     std::process::exit(2);
                 }
             },

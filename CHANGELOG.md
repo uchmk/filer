@@ -9,6 +9,26 @@
 
 ## [未リリース]
 
+## [0.69.0] - 2026-10-02
+
+### 追加
+
+- `filer shell-hook [pwsh|bash|zsh]` を足した（Q50、#176 の提案 3）。`<A-Up>` に要る OSC 7 のフックを標準出力に出す。
+  名前を省くと PowerShell 7 のもの。README の 3 つのブロックはこの出力と 1 文字ずつ同じで、テスト
+  （`shellhook::tests::the_readme_shows_the_same_hooks`）が一致を保つ。bash と zsh のフックはこれまで README にも無かった。
+  `powershell`（5.1）には、起動のたびに失敗するフックを渡さず断る。`--help` にも載せた
+
+### 変更
+
+- フックが無いときの `<A-Up>` のトーストが、README を指す代わりにフックを足すコマンドを挙げるようにした:
+  `filer shell-hook | Add-Content $PROFILE, then <C-S-t> and <C-t>`（bash / zsh なら `>> ~/.bashrc` / `~/.zshrc`）。
+  Q50 の案は `>> $PROFILE` だったが、PowerShell の `>>` は `>` と同じく窓のプログラムの出力を受け取らないのでパイプにした。
+  `filer` が `PATH` に無いとき（zip を展開しただけ）は、フルパスで書く。ペインが 5.1 なら、フックは 7 にしか載らないと言う
+  （これまでは 5.1 の `$PROFILE` に案内していた）。README の「Bringing the terminal's directory back」をこの形に書き直した
+- TESTING.md の 29.1 と 29.8 の期待値を新しいトーストに合わせ、印を外して再テストに回した。29.10（トーストのとおりに打って
+  `<A-Up>` が効く）と 29.11（Linux の bash / zsh）を足した。bash では Linux の仮想ディスプレイで、フック無しのトーストと、
+  フックを入れたあと空白入り・日本語入りのフォルダに一覧が移ることを確かめた
+
 ## [0.68.0] - 2026-10-02
 
 ### 追加

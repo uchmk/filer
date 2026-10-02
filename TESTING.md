@@ -799,21 +799,23 @@ the unit tests alone.
 ## 29. The terminal's directory, brought back (v0.14.0)
 
 `<A-Up>` in the terminal pane (`term_cd`) asks the shell where it is, which only
-works if the shell says so with OSC 7. PowerShell says nothing unless the hook in
-the README is in `$PROFILE`, so what is being tested here is mostly the
-instructions.
+works if the shell says so with OSC 7. PowerShell says nothing unless the hook
+is in `$PROFILE` -- `filer shell-hook` prints it since v0.69.0, and the README shows
+the same lines -- so what is being tested here is mostly the instructions.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 29.1 | With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` | A toast naming OSC 7 and `LocationChangedAction`, pointing at the README — **not** silence, and not a wait |
+| 29.1 | With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` | A toast naming OSC 7 and the command that adds the hook, `filer shell-hook \| Add-Content $PROFILE, then <C-S-t> and <C-t>` (v0.69.0, Q50) — **not** silence, and not a wait. With the zip's `filer.exe` not on the `PATH`, `filer` is its full path: `& 'C:\…\filer.exe' shell-hook …` |
 | 29.2 | Paste the README hook into `$PROFILE`, open a new terminal, `cd C:\dev`, press `<A-Up>` | The file list moves to `C:\dev` |
 | 29.3 | Same with a directory whose name has a **space** and one with **Japanese** in it | Both arrive intact |
 | 29.4 | `cd` to a UNC path (`\\server\share`) and press `<A-Up>` | Either it follows or it says why; no crash |
 | 29.5 | Run the hook line by hand in a shell that already has Starship | The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`) |
 | 29.6 | With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` | 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again |
 | 29.7 | `<C-t>` with no `[term] shell`, then again with `shell = "powershell"` (v0.57.4) | The first toast names the shell: `Started pwsh — <C-t> back to the list`, then `Started powershell (Windows PowerShell 5.1) — …` (v0.65.3; before that the configured one said only `powershell`). It has to match what `$PSVersionTable.PSVersion` says |
-| 29.8 | In a pane started as `powershell` (5.1) with no hook, `<A-Up>` (v0.59.4) | The red toast names the shell -- `` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE `` -- so the hook goes into 5.1's profile, not 7's |
+| 29.8 | In a pane started as `powershell` (5.1) with no hook, `<A-Up>` (v0.59.4) | The red toast names the shell and says it **cannot** have the hook -- `` `powershell (Windows PowerShell 5.1)` has not said where it is (no OSC 7), and cannot: the hook needs PowerShell 7 (winget install Microsoft.PowerShell) `` (v0.69.0, Q50; before that it sent you to 5.1's `$PROFILE`, where the hook fails at every start) |
 | 29.9 | Put a handler of another tool's in `$PROFILE` first (`mise activate pwsh`, or a stand-in: `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`), the README hook after it, open a new pane, `cd C:\dev`, `<A-Up>` (v0.64.2) | Both run: the list moves to `C:\dev` **and** the other tool's handler still does its job (the stand-in's title reads `other: C:\dev`). Before v0.64.2 the README hook replaced the other one |
+| 29.10 | With no hook, in the pane (`pwsh`): exactly what the 29.1 toast says, then `<C-S-t>`, `<C-t>`, `cd C:\dev`, `<A-Up>` (v0.69.0, Q50) | The list moves to `C:\dev`. `Get-Content $PROFILE` ends with the lines `filer shell-hook` prints (a `# filer:` comment first), on lines of their own -- not glued to the profile's last line. `filer shell-hook powershell` and `filer shell-hook fish` print one line naming the problem, exit code 2 |
+| 29.11 | Linux: `filer shell-hook bash >> ~/.bashrc` (and `zsh >> ~/.zshrc` with `[term] shell = "zsh"`), new pane, `cd` to a folder with a space and Japanese in its name, `<A-Up>` (v0.69.0, Q50) | The list moves there, both names intact. Without the hook the toast names `shell-hook bash >> ~/.bashrc` |
 
 ## 30. Right-click paste in a prompt (v0.14.0)
 
