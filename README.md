@@ -140,6 +140,12 @@ appended to it — what the shell side wrote (`out`), and what filer wrote back,
 shows the other end: the console key records a program receives, read the way tcell reads them, and
 with `-Query` it sends tcell's startup queries and prints the replies as they arrive.
 `block = true` gets its own console window (so `nvim` works); everything else starts without one.
+On Linux and macOS, where a GUI program has no console to give, `block = true` opens a terminal
+window instead: `$TERMINAL` if set (arguments allowed, e.g. `TERMINAL="kitty --single-instance"`),
+then Terminal.app on macOS, then the first installed of `x-terminal-emulator`, `gnome-terminal`,
+`konsole`, `xfce4-terminal`, `kitty`, `alacritty`, `wezterm`, `foot`, `ghostty` and `xterm`.
+If the program fails, the window stays open on its exit code until you press Enter. `filer env`
+names the terminal it will use.
 Rule patterns take `*`, `?`, `[abc]` and `{jpg,png}`, which is what yazi's own rules are written
 with.
 
@@ -154,10 +160,9 @@ which list a file gets.
 [opener]
 # The list `<Enter>` reaches for on a text file. Order matters: the first entry wins.
 edit = [
-  { run = '"C:\Program Files\Hidemaru\Hidemaru.exe" %*', desc = "秀丸エディタ" },
-  { run = '"C:\Program Files (x86)\sakura\sakura.exe" %*', desc = "サクラエディタ" },
-  { run = 'code %*', desc = "VS Code" },
   { run = 'nvim %*', desc = "Neovim", block = true },
+  { run = 'code %*', desc = "VS Code" },
+  { run = '"C:\Program Files (x86)\sakura\sakura.exe" %*', desc = "サクラエディタ" },
 ]
 
 # Anything the OS already knows how to open.
@@ -201,7 +206,7 @@ Two Windows details worth knowing, both of which turn "it does nothing" into "it
   substitutes are quoted for you, so a name with a space stays one argument either way.
 
 An editor listed here also gets the line number when you open from the outline, if filer knows
-its syntax — 秀丸, サクラ, EmEditor, Notepad++, VS Code and the vim family are known already, and
+its syntax — サクラ, EmEditor, Notepad++, VS Code and the vim family are known already, and
 [line_args](#line_args-opening-an-editor-at-a-line) covers the rest.
 
 ### keymap.toml
@@ -346,7 +351,7 @@ when the file has no outline. While the outline has the keys the file list's cur
 `<Enter>` opens the file at the selected entry's line, and `<S-Enter>` does the same with the
 editor you pick. The line is passed as `+N` to nvim / vim / nano / emacs / micro / kak, as
 `-g file:N` to VS Code / Cursor / Windsurf, as `file:N` to Helix / Sublime / Zed, and on Windows
-as `/jN` to Hidemaru, `-Y=N` to Sakura, `/l N` to EmEditor and `-nN` to Notepad++; other openers
+as `-Y=N` to Sakura, `/l N` to EmEditor and `-nN` to Notepad++; other openers
 (Notepad among them) just open the file. Any editor can be taught the syntax — or an entry of the
 list above overridden — with [`[line_args]` in filer.toml](#line_args-opening-an-editor-at-a-line). `<Esc>`, `h` / `←` or `<S-Tab>` gives the keys back to the file list,
 and any other key does so too before doing its usual job. In a narrow pane the outline shows as an
@@ -1500,8 +1505,9 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
 - Windows-first. Every release carries macOS and Linux builds for both architectures, and CI
   compiles and links all six on every push — but only Windows is tested, and nobody has started
   the program on the other two. The shell thumbnail (HEIC / AVIF / PDF / video) and a file
-  server's share listing are Windows-only and say so elsewhere; `block = true` openers and the
-  hidden-file attribute are Windows-specific paths too.
+  server's share listing are Windows-only and say so elsewhere; the hidden-file attribute is a
+  Windows-specific path too. `block = true` openers open a terminal on Linux (tried in the
+  development container under X11) and on macOS (not tried on a Mac yet).
 - No Lua plugin runtime — see the plugin table above for what is emulated natively, and the
   [context menu](#context-menu) for how a custom action reaches the screen without one.
 - An archive's preview lists what is inside but does not browse it: no entering a folder, and

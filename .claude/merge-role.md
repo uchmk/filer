@@ -16,11 +16,31 @@ for `arm`; the Linux lane's is in `linux-role.md`, "Where the work is".
 Read [CLAUDE.md](../CLAUDE.md) first; its rules apply in full. Reply in Japanese;
 code, comments and commits in English. Nobody is watching: never wait for input.
 
+## 0. Count the votes (every run, before anything else)
+
+CLAUDE.md, "多数決で進める質問". For each question in QUESTIONS.md on `main`
+whose `状態` is `投票中`:
+
+- **Two votes on the same option, no `多数決` line yet**: add
+  `- 多数決: <option>（<today> に揃った。<today + 1 day> から進めてよい）`.
+- **A `多数決` line whose date has come, and the `回答` field still empty**: set
+  `状態` to `多数決で決定` and take `（要確認: Qn）` off its TODO.md task. You
+  do not implement it -- that is code, and the development session picks it up.
+- **Three votes, all different**: set `状態` back to `未回答` and add
+  `- 多数決: 割れた（<today>）。持ち主を待つ`.
+- **The owner wrote an answer**: that wins; the question leaves the vote.
+- An `owner` vote counts for no option, and so does a Windows vote whose reason
+  does not rest on something seen on the machine (copy it with `（数えない: 理由が実機に無い）`).
+
+Changes here are Markdown: commit them as in 4 (with the merger's share when a
+pull request is merged in this run, alone otherwise) and push to `main`. The
+reply names what changed (`Q57: 多数決 1`).
+
 ## 1. Find the work
 
 - List open pull requests whose head branch starts with `test/win-`,
-  `test/arm-` or `test/linux-`. None: stop here and say so in one line. That is
-  most runs.
+  `test/arm-` or `test/linux-`. None: stop here and say so in one line (after
+  the votes in 0). That is most runs.
 - **One per run, oldest first.** The next run takes the next one; two merged in
   one run conflict with each other at the end of QA-REPORT.md.
 
@@ -89,6 +109,10 @@ allowed because nothing in it can break a build:
   every bug in its QA-REPORT.md section goes somewhere -- TODO.md for what needs
   no decision, QUESTIONS.md (CLAUDE.md's format, with a recommendation) for a
   key, a default or a design choice. Merging without this is half the job.
+  A new question that has an arguable technical answer goes out as `投票中`,
+  with your own vote and no "（推奨）" (CLAUDE.md, "多数決で進める質問").
+- **Votes**: copy each line under the run's `### Votes` into that question's
+  `投票` field as `- win: …` or `- arm: …` with `（#NN）`, then count as in 0.
 - **The queue of the pull request's lane** in `windows-role.md`: the section just
   run must be out of the table, or cut down to what is left and why. **The run
   cannot edit the table itself** (writes under `.claude/` are refused to it), so
@@ -116,6 +140,7 @@ allowed because nothing in it can break a build:
 
 - Merge a pull request that touches anything outside the list in 2.1.
 - Tick a row yourself, or edit TESTING.md's rows or numbering.
+- Vote for a lane, or count a question that is not `投票中`.
 - Push to the pull request's branch except to resolve a conflict.
 - Change code, workflows or scripts. Anything that needs it goes to TODO.md.
 - Cut a release, run `cargo fmt`, or force-push anything.

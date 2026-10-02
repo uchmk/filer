@@ -245,6 +245,12 @@ pub fn at_line(run: &str, paths: &[PathBuf], line: usize, custom: &LineArgs) -> 
 /// The returned [`Launch`] carries the failures that arrive after `spawn` has
 /// already said yes; see its docs.
 pub fn shell(cmdline: &str, cwd: &Path, block: bool, orphan: bool) -> std::io::Result<Launch> {
+    // Windows gives a blocking opener a console of its own (`configure`).
+    // Elsewhere a GUI app has no terminal to lend, so one is opened for it.
+    #[cfg(not(windows))]
+    if block {
+        return in_terminal(cmdline, cwd);
+    }
     let mut cmd = shell_command(cmdline);
     cmd.current_dir(cwd);
     configure(&mut cmd, block, orphan);
@@ -415,6 +421,131 @@ fn configure(cmd: &mut Command, block: bool, _orphan: bool) {
 
 #[cfg(not(windows))]
 fn configure(_cmd: &mut Command, _block: bool, _orphan: bool) {}
+
+/// The terminal emulators a `block = true` opener is tried in off Windows,
+/// after `$TERMINAL`. Debian's alternatives name comes first: it is the one the
+/// system was set up to prefer. xterm is last because it is everywhere and
+/// nobody's favourite.
+#[cfg_attr(windows, allow(dead_code))]
+pub const TERMINALS: [&str; 10] = [
+    "x-terminal-emulator",
+    "gnome-terminal",
+    "konsole",
+    "xfce4-terminal",
+    "kitty",
+    "alacritty",
+    "wezterm",
+    "foot",
+    "ghostty",
+    "xterm",
+];
+
+/// macOS's own terminal, which is driven through `osascript` rather than run.
+#[cfg_attr(windows, allow(dead_code))]
+pub const MAC_TERMINAL: &str = "Terminal.app";
+
+/// The terminals to try, in order: `$TERMINAL` when set, then Terminal.app on
+/// macOS (always there), then [`TERMINALS`].
+#[cfg_attr(windows, allow(dead_code))]
+pub fn terminals(env: Option<&str>, macos: bool) -> Vec<String> {
+    let mut out: Vec<String> = env.map(str::trim).filter(|t| !t.is_empty()).map(str::to_owned).into_iter().collect();
+    if macos {
+        out.push(MAC_TERMINAL.into());
+    }
+    out.extend(TERMINALS.iter().map(|t| t.to_string()));
+    out
+}
+
+/// What runs inside the terminal: `cd` to `$1`, run `$2`, and if it failed,
+/// keep the window open long enough to read why. Without the hold, an editor
+/// that is not installed is a window that flashes and is gone -- the same
+/// "the key does nothing" that [`Launch`] exists to prevent. The command line
+/// is `eval`ed from an argument rather than pasted in, so no quoting of ours
+/// can break it.
+#[cfg_attr(windows, allow(dead_code))]
+const TERMINAL_SCRIPT: &str = r#"cd -- "$1" || exit; eval "$2"; s=$?; if [ "$s" -ne 0 ]; then printf '\n[exit %s] Press Enter to close. ' "$s"; read -r _; fi"#;
+
+/// The argv that opens `term` running `cmdline` in `cwd`.
+///
+/// `term` may carry its own arguments (`TERMINAL="kitty --single-instance"`).
+/// Each emulator is told "run this" in its own way; the ones not listed take
+/// xterm's `-e`, which is the convention Debian requires of
+/// `x-terminal-emulator`.
+#[cfg_attr(windows, allow(dead_code))]
+pub fn terminal_argv(term: &str, cwd: &Path, cmdline: &str) -> Vec<String> {
+    let cwd = cwd.to_string_lossy();
+    if term == MAC_TERMINAL {
+        // `do script` types into the user's login shell, whatever it is, so
+        // all it is given is one `exec` of `sh`; from there it is the same
+        // script as everywhere else.
+        let line = login_shell_line(&cwd, cmdline);
+        let tell = |what: &str| format!("tell application \"Terminal\" to {what}");
+        return vec![
+            "osascript".into(),
+            "-e".into(),
+            tell(&format!("do script {}", applescript_string(&line))),
+            "-e".into(),
+            tell("activate"),
+        ];
+    }
+    let mut argv: Vec<String> = term.split_whitespace().map(str::to_owned).collect();
+    let name = Path::new(&argv[0]).file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let run: &[&str] = match name.as_str() {
+        "gnome-terminal" => &["--"],
+        "wezterm" => &["start", "--"],
+        "xfce4-terminal" => &["-x"],
+        "kitty" | "foot" => &[],
+        _ => &["-e"],
+    };
+    argv.extend(run.iter().map(|s| s.to_string()));
+    argv.extend(["sh", "-c", TERMINAL_SCRIPT, "sh", &cwd, cmdline].map(str::to_owned));
+    argv
+}
+
+/// The one line Terminal.app types into the login shell.
+#[cfg_attr(windows, allow(dead_code))]
+fn login_shell_line(cwd: &str, cmdline: &str) -> String {
+    ["exec sh -c", &sh_quote(TERMINAL_SCRIPT), "sh", &sh_quote(cwd), &sh_quote(cmdline)].join(" ")
+}
+
+/// `s` as one word to a POSIX shell.
+#[cfg_attr(windows, allow(dead_code))]
+fn sh_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', r"'\''"))
+}
+
+/// `s` as an AppleScript string literal.
+#[cfg_attr(windows, allow(dead_code))]
+fn applescript_string(s: &str) -> String {
+    format!("\"{}\"", s.replace('\\', r"\\").replace('"', "\\\""))
+}
+
+/// Run `cmdline` in a new terminal window: the first of [`terminals`] that is
+/// installed. Trying them by spawning, rather than looking along `PATH` first,
+/// keeps the lookup to the one the OS does anyway.
+#[cfg(not(windows))]
+fn in_terminal(cmdline: &str, cwd: &Path) -> std::io::Result<Launch> {
+    use std::io::{Error, ErrorKind};
+    let env = std::env::var("TERMINAL").ok();
+    for term in terminals(env.as_deref(), cfg!(target_os = "macos")) {
+        let argv = terminal_argv(&term, cwd, cmdline);
+        let mut cmd = Command::new(&argv[0]);
+        cmd.args(&argv[1..]).current_dir(cwd);
+        // `osascript` is gone in a moment either way, and says why when
+        // Terminal refuses; a terminal emulator lives as long as its window
+        // and its failures show in it.
+        let osa = term == MAC_TERMINAL;
+        if osa {
+            cmd.stderr(Stdio::piped());
+        }
+        match cmd.spawn() {
+            Ok(child) => return Ok(if osa { Launch::watch(child, cmdline) } else { Launch::none() }),
+            Err(e) if e.kind() == ErrorKind::NotFound => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Err(Error::new(ErrorKind::NotFound, format!("no terminal to run it in — set TERMINAL, or install one of {}", TERMINALS[1..].join(", "))))
+}
 
 /// Open with whatever the OS considers the default handler.
 pub fn open_default(path: &Path) -> std::io::Result<()> {
@@ -716,6 +847,78 @@ mod tests {
         assert_eq!(at("mikan").as_deref(), Some(format!(r#"mikan -l 123 "{p}""#).as_str()));
         // Editors outside both the table and the config are unchanged.
         assert_eq!(at("explorer %s"), None);
+    }
+
+    /// `$TERMINAL` wins, Terminal.app comes next on macOS, and a blank
+    /// variable is no choice at all.
+    #[test]
+    fn terminals_are_tried_in_order() {
+        assert_eq!(terminals(None, false), TERMINALS.map(String::from).to_vec());
+        assert_eq!(terminals(Some("kitty -1"), false)[..2], ["kitty -1".to_string(), "x-terminal-emulator".into()]);
+        assert_eq!(terminals(Some("  "), true)[0], MAC_TERMINAL);
+        assert_eq!(terminals(Some("wezterm"), true)[..2], ["wezterm".to_string(), MAC_TERMINAL.into()]);
+    }
+
+    /// Each emulator is told to run the script its own way, and the script
+    /// gets the folder and the command line as arguments, untouched.
+    #[test]
+    fn each_terminal_is_told_to_run_the_script_its_own_way() {
+        let cwd = Path::new("/home/me/a b");
+        let tail = |argv: &[String], at: usize| argv[at..].to_vec();
+        let script = ["sh", "-c", TERMINAL_SCRIPT, "sh", "/home/me/a b", "nvim \"x y\""].map(String::from).to_vec();
+        for (term, head) in [
+            ("gnome-terminal", vec!["gnome-terminal", "--"]),
+            ("wezterm", vec!["wezterm", "start", "--"]),
+            ("xfce4-terminal", vec!["xfce4-terminal", "-x"]),
+            ("kitty", vec!["kitty"]),
+            ("/usr/bin/foot", vec!["/usr/bin/foot"]),
+            ("xterm", vec!["xterm", "-e"]),
+            ("x-terminal-emulator", vec!["x-terminal-emulator", "-e"]),
+            ("kitty --single-instance", vec!["kitty", "--single-instance"]),
+            ("Alacritty", vec!["Alacritty", "-e"]),
+        ] {
+            let argv = terminal_argv(term, cwd, "nvim \"x y\"");
+            assert_eq!(argv[..head.len()], head.iter().map(|s| s.to_string()).collect::<Vec<_>>(), "{term}");
+            assert_eq!(tail(&argv, head.len()), script, "{term}");
+        }
+    }
+
+    /// Terminal.app is driven by `osascript`, and what it types is one line
+    /// the login shell turns into the same script.
+    #[test]
+    fn terminal_app_gets_one_escaped_line() {
+        let argv = terminal_argv(MAC_TERMINAL, Path::new("/Users/me"), "nvim \"a\\b\"");
+        assert_eq!(argv[0], "osascript");
+        let line = login_shell_line("/Users/me", "nvim \"a\\b\"");
+        assert_eq!(argv[2], format!("tell application \"Terminal\" to do script {}", applescript_string(&line)));
+        assert_eq!(argv[4], "tell application \"Terminal\" to activate");
+        assert_eq!(applescript_string(r#"say "hi" \ bye"#), r#""say \"hi\" \\ bye""#);
+    }
+
+    /// The script really does go to the folder, run the line, and come back
+    /// with its status -- through `sh` itself, and through the login-shell
+    /// line macOS uses, with a folder name that needs quoting twice over.
+    #[cfg(unix)]
+    #[test]
+    fn the_terminal_script_runs_the_line_in_the_folder() {
+        let dir = crate::util::test_dir("terminal-script");
+        let cwd = dir.join("it's a dir");
+        std::fs::create_dir(&cwd).unwrap();
+        let cwd_s = cwd.to_string_lossy().into_owned();
+        let run = |argv: &[&str]| Command::new(argv[0]).args(&argv[1..]).stdin(Stdio::null()).output().unwrap();
+
+        let out = run(&["sh", "-c", TERMINAL_SCRIPT, "sh", &cwd_s, "pwd > here.txt # a comment"]);
+        assert!(out.status.success(), "{out:?}");
+        assert_eq!(std::fs::read_to_string(cwd.join("here.txt")).unwrap().trim(), cwd_s);
+
+        // A failure says so and waits for Enter; with no input, `read` returns at once.
+        let out = run(&["sh", "-c", TERMINAL_SCRIPT, "sh", &cwd_s, "exit_with_7() { return 7; }; exit_with_7"]);
+        assert!(String::from_utf8_lossy(&out.stdout).contains("[exit 7] Press Enter to close."), "{out:?}");
+
+        let line = login_shell_line(&cwd_s, "echo 'from the login shell' > mac.txt");
+        let out = run(&["sh", "-c", &line]);
+        assert!(out.status.success(), "{out:?}");
+        assert_eq!(std::fs::read_to_string(cwd.join("mac.txt")).unwrap().trim(), "from the login shell");
     }
 
     /// The case that sent this looking: an opener whose program is quoted
