@@ -4304,13 +4304,14 @@ impl App {
     /// surprise. The fonts are the one thing this cannot do itself — installing
     /// a face belongs to the frame loop — so it asks for it with a flag.
     fn reload_config(&mut self) {
-        let cfg = Config::load();
+        let old_term = self.cfg.term.clone();
+        let cfg = Config::reload(&mut self.cfg);
         let files = cfg.loaded.len();
         let warning = cfg.warnings.first().cloned();
         // A pane already running keeps the shell it started with; the new
         // `[term]` is for the next one. Two real-machine runs edited the shell,
         // reloaded, and read the old one back because nothing said so (#173).
-        let shell_waits = self.term.is_some() && cfg.term != self.cfg.term;
+        let shell_waits = self.term.is_some() && cfg.term != old_term;
         self.cfg = cfg;
         self.refont = true;
         // A theme change can turn every row a different color, and the preview

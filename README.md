@@ -1467,7 +1467,8 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   font specimen or a shell thumbnail is its own source, so those go soft past 1:1.
 - `<C-F5>` re-reads the config, including fonts and the theme, but leaves what you have changed by
   hand since — the sort a `,` key chose, whether Markdown is rendered — as you set it. The window
-  size is only read at startup.
+  size is only read at startup. A file that no longer parses keeps what it set last time until it
+  parses again, and the error toast says so (v0.67.18) — a reload is usually pressed mid-edit.
 - The terminal pane has no tabs and no split of its own, and `cd` following types a line into the
   shell, so it lands in whatever is running if something is — unless the shell reports its
   directory, in which case it is usually not sent at all.

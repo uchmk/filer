@@ -1583,9 +1583,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 - [x] 20 節の 20.1 / 20.2 / 20.3 / 20.4 / 20.6 にチェック（300 → 305）。`FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` を走らせる間だけ別のフォルダにし、
   `title_format` に `{rows}` を入れて文字の大きさを数で、`<Shot:>` の画素の数で色とミニマップを測った。ARM64 の順番表から 20 節を外した。
-- [ ] **20.5: 壊れた `filer.toml` で `<C-F5>` を押すと、`[ui]` が既定値に戻る**（所見 1）。トーストは正しいが、`font_size = 28.0` が
+- [x] **20.5: 壊れた `filer.toml` で `<C-F5>` を押すと、`[ui]` が既定値に戻る**（所見 1）。トーストは正しいが、`font_size = 28.0` が
   効かなくなる（タイトルの `rows=17` → `33`）。`Config::load()` が `ui` を `Ui::default()` から始め、読めたときだけ入れ替える
-  （`src/config/mod.rs`）のを、`reload_config` がそのまま使う。読めた他のファイル（`theme.toml`、`keymap.toml`）は残る。直すか文言を変えるかは Q47。
+  （`src/config/mod.rs`）のを、`reload_config` がそのまま使う。読めた他のファイル（`theme.toml`、`keymap.toml`）は残る。v0.67.18 で Q47 の 1 のとおり直した。
 - [ ] **`--keys` の実行が 7 回に 1 回、何も残さずに消えた**（所見 2）。`<Shot:before>` のあと 9 秒でプロセスが無くなり、`FILER_KEYS_DONE` も
   Windows のエラー報告も無い（#166 の所見 3 と同じ形）。v0.67.12 の見張りは「止まった」場合しか拾わないので、パニックのフック（提案 3）:
   `FILER_KEYS_DONE` の横に `<名前>.panic` を書き、0 でない終了コードで終わる。
