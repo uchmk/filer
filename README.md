@@ -92,7 +92,8 @@ reason: that is where yazi reads from. Run `filer env` to print the directories 
 which files were actually found.
 
 Press `~` or `F1` in the app: the help panel lists which config files were actually loaded, any
-warnings, and every key binding in effect.
+warnings, and every key binding in effect. `C` there copies it as text, one key per line. On Windows
+everything filer copies ends its lines with CRLF, as Windows programs expect (v0.67.24).
 
 The two files are not interchangeable: `[ui]`, `[term]`, `[[preview]]` and `[line_args]` are read
 only from `filer.toml`, and `[mgr]`, `[opener]`, `[open]`, `[tasks]` and `[preview]` only from
@@ -518,7 +519,8 @@ bound to anything here, `noop` included, is consumed rather than forwarded.
 `<C-t>` is the way in and the way back out, and it leaves the shell alone: going to and fro is
 something you do all day, while ending a shell is something you do a few times, so the destructive
 one is the harder chord. The shell's own `<C-t>` — readline's transpose, or fzf's file widget — is
-the cost of that, and moving it is one line of `keymap.toml` away.
+the cost of that, and moving it is one line of `keymap.toml` away. `<C-S-t>` works from the list too,
+so the shell can be ended without going back into the pane; with no pane open it says so (v0.67.25).
 
 `Shift` is what keeps those out of the shell's way: a program reading the keyboard sees `PageUp`,
 never `Shift`+`PageUp`. Typing anything brings the view back to the bottom, and while it is not

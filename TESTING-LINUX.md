@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**17 / 448 済み。**（TESTING.md の全 617 件のうち、`cargo test` が見ている 169 件は
+**17 / 450 済み。**（TESTING.md の全 619 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ほかに 9 件が `[-]`（Linux では対象外）。
@@ -21,7 +21,7 @@
 - `[-]`: Linux では対象外（UNC、ConPTY、ごみ箱の Windows 側など）。理由は PR に書く。
 - 見た目の行（色、滑らかさ、フォント）は付けない。CPU 描画では実機の代わりにならない。
 
-## 1. ターミナルペイン — 0 / 49
+## 1. ターミナルペイン — 0 / 50
 
 自動テスト済みなので下には出していない: 1.9i
 
@@ -74,6 +74,7 @@
 - [ ] **1.35** ペインで `lazygit`（または長く動くコマンド）を動かしたまま `<C-S-t>`（v0.52.0）→ **End the shell?** と聞かれ、動いているものの名前が出る。`n` でシェルもプログラムも残り、`y` で両方終わって **Ended the shell** とトーストが出る — *Run `lazygit` (or any long command) in the pane, then `<C-S-t>` (v0.52.0) → A dialog asks **End the shell?** and names what is running. `n` keeps the shell and the program; `y` ends both, and a toast says **Ended the shell***
 - [ ] **1.36** 何も動いていないプロンプトで `<C-S-t>` → **確認は出ない。**ペインはすぐ消え、トーストに **Ended the shell** と出る。`<C-t>` で隠しただけのようには見えなくなった — *At a bare prompt with nothing running, `<C-S-t>` → **No dialog**: the pane goes at once, and the toast says **Ended the shell** — so it no longer looks like `<C-t>` merely hiding it*
 - [ ] **1.37** ペインを**閉じた**まま、ファイルを選んで `<A-t>`（v0.57.0）→ ペインが開き、シェルのプロンプトが出たところで引用されたパスが行に入る。「The terminal is not open」とは言わず、プロファイル読み込み中のシェルに打って消えることもない。キーはペインに移る — *With the pane **closed**, select a file and `<A-t>` (v0.57.0) → The pane opens and, once the shell's prompt is up, the quoted path is on its line -- not "The terminal is not open", and not lost to a shell still loading its profile. The keys are in the pane*
+- [ ] **1.38** シェルを開いたまま `<C-t>` で一覧に戻り、`<C-S-t>`。続けてもう一度 `<C-S-t>`（v0.67.25、Q53）→ 1 回目は一覧からシェルを終える。ペインが消え、トーストは **Ended the shell**（何か動いていれば 1.35 と同じく先に **End the shell?** と聞く）。2 回目はペインが無いので **No terminal to close** と言う（以前は何も起きなかった） — *With a shell open, `<C-t>` back to the list, then `<C-S-t>`; then `<C-S-t>` again (v0.67.25, Q53) → The first ends the shell from the list: the pane goes and the toast is **Ended the shell** (with a program running, the **End the shell?** question first, as in 1.35). The second, with no pane left, says **No terminal to close** — it used to do nothing at all*
 
 ## 2. ミニマップ — 0 / 10
 
@@ -357,7 +358,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
 - [ ] **24.6** 新しいフォルダで `scripts\make-fixtures.ps1` を走らせる（v0.59.1）→ 警告は出ない。ただし普通の（大文字小文字を区別しない）NTFS のフォルダでは `awkward names: 5 entries on disk, expected 6` が出て、`fsutil file setCaseSensitiveInfo` を挙げる（24.3 がそこで押せない理由） — *Run `scripts\make-fixtures.ps1` in a fresh folder (v0.59.1) → No warning, except on an ordinary (case-insensitive) NTFS folder: `awkward names: 5 entries on disk, expected 6`, naming `fsutil file setCaseSensitiveInfo` -- the reason 24.3 cannot be pressed there*
 
-## 25. `filer env` — 26 / 31
+## 25. `filer env` — 26 / 32
 
 - [-] **25.1** PowerShell から `filer env` → 5 つの節（Filer、Config、Last run、Tools、Variables）が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること** — *`filer env` from PowerShell → The five sections print (Filer, Config, Last run, Tools, Variables). A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears***
 - [x] **25.2** Config の節 → 両方のディレクトリが出て、それぞれ中身か `nothing here` を述べ、`not here:` に残りが並ぶ — *The Config section → Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest*
@@ -383,7 +384,8 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [x] **25.16** ファイルのあるフォルダで `filer <フォルダ> --keys "<Tab>C"`、続けて `Get-Clipboard`（v0.54.0）→ 窓が開き、spot が勝手に先頭の行で開き、クリップボードにパネル全体が `ラベル<TAB>値` の行で入っている。`Name` と `Path` がその先頭の行を指している — *`filer <a folder with files> --keys "<Tab>C"`, then `Get-Clipboard` (v0.54.0) → The window opens, spot opens on the first row by itself, and the clipboard holds the whole panel as `Label<TAB>value` lines — `Name` and `Path` naming that first row*
 - [x] **25.17** `filer --keys "<Tab"` と `filer --keys "<Bogus>"` → **窓は開かない。**問題を言う 1 行（`has no closing >` / `is not a key`）と、終了コード 2 — *`filer --keys "<Tab"` and `filer --keys "<Bogus>"` → **No window**: one line naming the problem (`has no closing >` / `is not a key`), exit code 2*
 - [-] **25.18** release ビルドで `filer env \| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c "filer env > out2.txt"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた） — *Release build: `filer env \| Out-File out.txt`, then `Get-Content out.txt`; and `cmd /c "filer env > out2.txt"` (v0.54.4) → The whole report is **in both files**, and nothing is printed on screen. Before v0.54.4 both were empty. (PowerShell's own `filer env > out.txt` still gives an empty file: PowerShell does not connect a windowed program's output to a file. README says so)*
-- [-] **25.19** `filer env \| Select-String arch` → **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない）。`$v = & filer env; $v.Count` はレポートの行数で、0 ではない — *`filer env \| Select-String arch` → **Only the two arch lines** (Windows; elsewhere there is one, `Process arch`), not the whole report. `$v = & filer env; $v.Count` is the report's line count, not 0*
+- [-] **25.19** `filer env \| Select-String arch` → **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない） — *`filer env \| Select-String arch` → **Only the two arch lines** (Windows; elsewhere there is one, `Process arch`), not the whole report*
+- [ ] **25.19a** PowerShell で `$v = & filer env \| Write-Output; $v.Count`（v0.67.26、Q54）→ レポートの行数で、0 ではない。**後ろに何も置かない** `$v = & filer env` だと、PowerShell はパイプラインの最後にある窓のプログラムを待たず、`$v` は空になる。filer ではなく PowerShell の動き（#183）なので、行には `\| Write-Output` を付けてある — *`$v = & filer env \| Write-Output; $v.Count` in PowerShell (v0.67.26, Q54) → The report's line count, not 0. **With nothing after it** -- `$v = & filer env` -- PowerShell does not wait for a windowed program at the end of a pipeline, and `$v` is empty: that is PowerShell, not filer (#183), and why the row has the `\| Write-Output`*
 - [-] **25.20** 何もリダイレクトせずに `filer env` と `filer --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない — *`filer env` with nothing redirected, and `filer --version` → Still printed on screen, as 25.1 has it — the console path is unchanged*
 - [x] **25.21** `filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ — *`filer env` (v0.58.1) → An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone*
 - [x] **25.22** `FILER_PTY_LOG` を設定して `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"`（v0.59.0）→ `echo` が届く前にシェルのプロンプトが出ている（ログの `out` の行が `in key` の行より前）、`hi` が表示され、1 秒後にペインが窓を取る。`filer --keys "<Wait:1.5s>"` はコマンド行で断られ、`<Wait:500>` と書き方を示す — *`filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `FILER_PTY_LOG` set (v0.59.0) → The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `filer --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>`*

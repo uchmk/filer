@@ -4633,7 +4633,11 @@ impl App {
                 });
                 return;
             }
+            let none = self.term.is_none();
             self.end_shell();
+            if none {
+                self.toast("No terminal to close");
+            }
             return;
         }
         if self.term.is_some() {
@@ -7885,14 +7889,6 @@ mod escape_and_max_preview {
         assert!(!a.max_term, "no pane left to be maximised");
     }
 
-    /// `<C-S-t>` asks before ending a shell that is running something, and
-    /// does what the answer says (Q21).
-    ///
-    /// A real shell on a real PTY, because the question is about a real child
-    /// process: the shell is given a long-running command and the test waits,
-    /// with a deadline, until that command shows up under it. Only the busy
-    /// path is asserted -- whether an idle shell keeps a helper process of its
-    /// own is the platform's business, and "busy" errs toward asking anyway.
     /// Q49: `<C-F5>` that changes `[term]` while a pane runs says the pane keeps
     /// its shell until `<C-S-t>`. Without a pane, or with `[term]` unchanged,
     /// the toast is the plain one -- the next `<C-t>` picks the new shell up.
@@ -7921,6 +7917,43 @@ mod escape_and_max_preview {
         assert!(!last(&a).contains("shell"), "no pane to keep one: {}", last(&a));
     }
 
+    /// Q53: `<C-S-t>` from the list ends the shell too, not only from inside
+    /// the pane: `<C-t>` back to the list and then `<C-S-t>` did nothing, and a
+    /// re-test took the old shell for a reload that had not worked (#182). With
+    /// no pane it says so rather than nothing.
+    #[test]
+    fn ending_the_shell_from_the_list() {
+        let mut a = app();
+        let key = |a: &mut App| a.feed_key(crate::config::keys::Key::parse("<C-S-t>").unwrap());
+        key(&mut a);
+        assert_eq!(a.toasts.last().map(|t| t.text.as_str()), Some("No terminal to close"));
+
+        a.act(Act::Terminal(Some(true)));
+        if a.term.is_none() {
+            if cfg!(any(windows, target_os = "linux")) {
+                panic!("the terminal did not start");
+            }
+            return;
+        }
+        a.term_focus = false;
+        key(&mut a);
+        // A shell still reading its profile has children of its own, and then
+        // the question comes first -- the same as from inside the pane.
+        if matches!(&a.overlay, Overlay::Confirm(c) if matches!(c.action, ConfirmAction::EndShell)) {
+            a.answer_confirm('y');
+        }
+        assert!(a.term.is_none(), "the list's `<C-S-t>` ended the shell");
+        assert_eq!(a.toasts.last().map(|t| t.text.as_str()), Some("Ended the shell"));
+    }
+
+    /// `<C-S-t>` asks before ending a shell that is running something, and
+    /// does what the answer says (Q21).
+    ///
+    /// A real shell on a real PTY, because the question is about a real child
+    /// process: the shell is given a long-running command and the test waits,
+    /// with a deadline, until that command shows up under it. Only the busy
+    /// path is asserted -- whether an idle shell keeps a helper process of its
+    /// own is the platform's business, and "busy" errs toward asking anyway.
     #[test]
     fn ending_a_busy_shell_asks_first() {
         let mut a = app();
