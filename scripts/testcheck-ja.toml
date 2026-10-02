@@ -504,7 +504,8 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "25.16" = "ファイルのあるフォルダで `filer <フォルダ> --keys \"<Tab>C\"`、続けて `Get-Clipboard`（v0.54.0）→ 窓が開き、spot が勝手に先頭の行で開き、クリップボードにパネル全体が `ラベル<TAB>値` の行で入っている。`Name` と `Path` がその先頭の行を指している"
 "25.17" = "`filer --keys \"<Tab\"` と `filer --keys \"<Bogus>\"` → **窓は開かない。**問題を言う 1 行（`has no closing >` / `is not a key`）と、終了コード 2"
 "25.18" = "release ビルドで `filer env \\| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c \"filer env > out2.txt\"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた）"
-"25.19" = "`filer env \\| Select-String arch` → **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない）。`$v = & filer env; $v.Count` はレポートの行数で、0 ではない"
+"25.19" = "`filer env \\| Select-String arch` → **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない）"
+"25.19a" = "PowerShell で `$v = & filer env \\| Write-Output; $v.Count`（v0.67.26、Q54）→ レポートの行数で、0 ではない。**後ろに何も置かない** `$v = & filer env` だと、PowerShell はパイプラインの最後にある窓のプログラムを待たず、`$v` は空になる。filer ではなく PowerShell の動き（#183）なので、行には `\\| Write-Output` を付けてある"
 "25.21" = '`filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ'
 '25.23' = '''ペインを開いて `<C-S-Enter>`、filer を閉じてから `filer env`（v0.59.4）→ `Last run` の下に `Terminal pane` の行があり、最後の大きさを `N x M (lines x columns)` で出す。ペインを一度も開かなかった run の後は `not opened in that run`'''
 '25.24' = '''どこかのフォルダのシェルから `filer .`、次に `filer ..`、次に引用符なしで `filer two words`（v0.59.5）→ `.` はそのフォルダを開き、タイトルが**絶対**パスで親の列があり、`h` で上がれる。`..` は 1 つ上を開く。引用符なしの 2 語は窓を開く前に `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` と断られる'''

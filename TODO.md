@@ -1672,7 +1672,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 ## 実機のセッションの報告（v0.67.23 で受けた分: #183、ARM64 の 25.19）
 
-- [ ] **TESTING.md 25.19 の後半「`$v = & filer env; $v.Count` はレポートの行数で 0 ではない」が Windows では成り立たない**（#183 の所見）。
-  前半（`filer env | Select-String arch` が arch の 2 行だけ）は ARM64 で通った。行の直し方は Q54（要確認: Q54）。
+- [x] （v0.67.26、Q54 の 1。後半は 25.19a に分けた）**TESTING.md 25.19 の後半「`$v = & filer env; $v.Count` はレポートの行数で 0 ではない」が Windows では成り立たない**（#183 の所見）。
+  前半（`filer env | Select-String arch` が arch の 2 行だけ）は ARM64 で通った。
 - [ ] `filer env --out <file>` を足すか（#183 の提案 3）。Q55（要確認: Q55）。
 
