@@ -120,7 +120,7 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
     // Rebuilt every frame as the panes are laid out.
     app.pane_rects.clear();
 
-    let header_h = row_h * 2.0 + 8.0;
+    let header_h = header_height(row_h);
     let status_h = row_h + 8.0;
     let which_h = if app.which.is_empty() || !app.overlay.is_none() {
         0.0
@@ -964,6 +964,11 @@ fn clip_lines(s: &str, max: usize) -> String {
     }
 }
 
+/// The tab strip and the breadcrumb, one row each.
+fn header_height(row_h: f32) -> f32 {
+    row_h * 2.0 + 8.0
+}
+
 fn draw_toasts(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     if app.toasts.is_empty() {
         return;
@@ -974,8 +979,10 @@ fn draw_toasts(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     // carries the item count and, when there is one, "N selected" — and a
     // selection left over from an earlier command is exactly what makes a
     // message like "none of the 2 selected item(s) is an archive" worth
-    // reading. Covering the answer with the question is a poor trade.
-    let mut y = full.top() + row_h + 14.0;
+    // reading. Covering the answer with the question is a poor trade. Below
+    // the whole header: one row down cleared the tab strip and landed on the
+    // breadcrumb, cutting a long path in half (#191).
+    let mut y = full.top() + header_height(row_h) + 6.0;
     // As wide as the message needs, up to half the window, and wrapped after
     // that. `layout_no_wrap` was fine while every message was one short line
     // and wrong the moment one was not: a config error carries the offending
@@ -1685,6 +1692,31 @@ mod whole_frame {
             f.says(&dir.join("one.txt").display().to_string()),
             "the header spells a path this platform would accept: {:?}",
             f.texts,
+        );
+    }
+
+    /// #191: a toast starts below the breadcrumb, not on it. The breadcrumb
+    /// is the header's second row; a toast one row down cleared the tab strip
+    /// and cut a long path in half.
+    #[test]
+    fn a_toast_leaves_the_breadcrumb_alone() {
+        let dir = crate::util::test_dir("frame-toast-crumb");
+        std::fs::write(dir.join("one.txt"), "1").unwrap();
+        let entries = std::sync::Arc::new(vec![crate::fs::Entry::from_path(dir.join("one.txt")).unwrap()]);
+        let mut s = Screen::open(dir.clone());
+        s.app.tabs[s.app.active].current = crate::core::folder::Folder::from_entries(dir.clone(), entries, true);
+        s.app.toast("a message for the corner");
+
+        let f = s.draw();
+        let crumb = dir.join("one.txt").display().to_string();
+        let at = |needle: &str| f.texts.iter().position(|t| t.contains(needle)).map(|i| f.places[i]);
+        let crumb_y = at(&crumb).expect("the breadcrumb is drawn").y;
+        let toast_y = at("a message for the corner").expect("the toast is drawn").y;
+        let hovered = s.app.cfg.theme.hovered_bg;
+        let row_h = f.rects.iter().find(|(_, c)| *c == hovered).expect("the cursor row").0.height();
+        assert!(
+            toast_y >= crumb_y + row_h,
+            "the toast's text ({toast_y}) is a row below the breadcrumb's ({crumb_y}, row {row_h})",
         );
     }
 
