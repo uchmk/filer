@@ -4,7 +4,7 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**249 / 250 checked.**
+**249 / 251 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
@@ -249,7 +249,7 @@ A chooser — the command palette, the context menu.
 - [x] `<Enter>` — Submit · `close --submit`
 - [x] `<Esc>` — Cancel · `close`
 
-## `[help]` — 20 / 20
+## `[help]` — 20 / 21
 
 This panel (`~` or `<F1>`).
 
@@ -259,6 +259,7 @@ This panel (`~` or `<F1>`).
 - [x] `q` — Close help · `close`
 - [x] `~` — Close help · `help`
 - [x] `<F1>` — Close help · `help`
+- [ ] `C` — Copy the whole list as text · `copy all`
 - [x] `k` — Up one line · `arrow -1`
 - [x] `j` — Down one line · `arrow 1`
 - [x] `<Up>` — Up one line · `arrow -1`
