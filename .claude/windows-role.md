@@ -135,7 +135,7 @@ still on the human's list when it was written.
 
 | Section | Rows | Why it suits you |
 | --- | --- | --- |
-| **Re-tests of changed behaviour** | 1 | First, always: these rows were changed by a fix, so an earlier result no longer stands (an old `[x]` was taken off). (8.x, 12.17, 12.18, 16.x, 20.5, 44.10 and 45.18 were settled on x64 by #182; 29.x by #176 on ARM64; 21.14 and 21.15 by #174; 1.38, 25.6, 25.19b, 29.1, 29.8, 29.10 and 34.15 by #188; 29.12 by #190.) A row that needs another shell can use `FILER_TERM_SHELL` (v0.70.0) instead of pointing `FILER_CONFIG_HOME` at an empty folder. **13.8a and 13.8b** go to **the ARM64 laptop only** (its row in "The ARM64 lane"); this x64 machine has Developer Mode on (#180, #182). **48.6 and 48.7** (v0.70.3, #184, 48.7 new): a DLL loaded by name now comes only from `filer.exe`'s folder or System32. 48.7: the release build's `filer.exe` copied **alone** to an empty folder, started by full path from a folder holding the zip's `conpty.dll` + `OpenConsole.exe`, `<C-t>`, then `(Get-Process filer).Modules | ? ModuleName -eq conpty.dll` -- empty; again with a `conpty.dll` on the `PATH` (WezTerm's counts). 48.6: the same command from a folder with `conpty.dll` beside the exe (`fetch-conpty.ps1 -Dest` into `target\release`) -- that folder's. Both can use the local build; the zip half of 48.6 waits for the next release. **25.19c** (v0.71.0, Q44, new): `filer.com`, the console front the zip now ships. Locally: `cargo build --release`, then `Copy-Item target\release\filer-com.exe target\release\filer.com` and put `target\release` first on the `PATH` for the run. `(Get-Command filer).Source`, `$v = & filer env; $v.Count` with nothing after the call, `filer --version > v.txt`, `filer --keys "<Tab"; $LASTEXITCODE` (2), and `filer` alone: the window opens and the prompt returns with it open (close it after). **48.1 and 48.3** (five files, four binaries) wait for the next release's zip. |
+| **Re-tests of changed behaviour** | 1 | First, always: these rows were changed by a fix, so an earlier result no longer stands (an old `[x]` was taken off). (8.x, 12.17, 12.18, 16.x, 20.5, 44.10 and 45.18 were settled on x64 by #182; 29.x by #176 on ARM64; 21.14 and 21.15 by #174; 1.38, 25.6, 25.19b, 29.1, 29.8, 29.10 and 34.15 by #188; 29.12 by #190.) A row that needs another shell can use `FILER_TERM_SHELL` (v0.70.0) instead of pointing `FILER_CONFIG_HOME` at an empty folder. **48.6 and 48.7** (v0.70.3, #184, 48.7 new): a DLL loaded by name now comes only from `filer.exe`'s folder or System32. 48.7: the release build's `filer.exe` copied **alone** to an empty folder, started by full path from a folder holding the zip's `conpty.dll` + `OpenConsole.exe`, `<C-t>`, then `(Get-Process filer).Modules | ? ModuleName -eq conpty.dll` -- empty; again with a `conpty.dll` on the `PATH` (WezTerm's counts). 48.6: the same command from a folder with `conpty.dll` beside the exe (`fetch-conpty.ps1 -Dest` into `target\release`) -- that folder's. Both can use the local build; the zip half of 48.6 waits for the next release. **25.19c** (v0.71.0, Q44, new): `filer.com`, the console front the zip now ships. Locally: `cargo build --release`, then `Copy-Item target\release\filer-com.exe target\release\filer.com` and put `target\release` first on the `PATH` for the run. `(Get-Command filer).Source`, `$v = & filer env; $v.Count` with nothing after the call, `filer --version > v.txt`, `filer --keys "<Tab"; $LASTEXITCODE` (2), and `filer` alone: the window opens and the prompt returns with it open (close it after). **48.1 and 48.3** (five files, four binaries) wait for the next release's zip. |
 | **v0.55.0 on x64** | -- | ARM64 ticked 29.2, 29.6, 40.14-40.16 and 45.16 (#107); press the Q27 ones again on x64 -- 1.31-1.34, 40.15, 40.16 -- and record them in QA-REPORT.md under an x64 heading, since ConPTY's input path is where the two machines could differ. 30.1 / 30.15 wait on the right-click fix in TODO.md |
 | **47. an idle window uses no CPU** | 4 | First, because a fix waits on it: v0.54.2 stopped a redraw loop that is the likeliest cause of the 1.0 CPU-s/s #86 measured. Every row is `(Get-Process filer).CPU` read twice, 10 s apart; 47.2 is the sequence that used to start the loop. **Since v0.65.0 `--keys` can do 47.2**: `j<Now>j` puts the second key in on the next frame instead of waiting for `App::settled()`, which is false while the preview debounce is pending. One frame is well inside the 40 ms debounce while the script runs (it asks for a frame every frame); if you want the gap as a number, the `PostMessageW` + `Stopwatch` way still works (#103 got 22-25 ms). `sort_dir_first` is on by default, so start on a file above a folder only with it off in a run-only `FILER_CONFIG_HOME`. An open prompt used to read 0.14-0.27 CPU-s per 10 s from the caret's blink; since v0.59.3 the caret is steady, and 47.5 checks that it now reads 0. Take a positive control (keys at 100 ms for 10 s) so a 0 is a reading. On ARM64 all three rows read 0 (#103). If it still rises, 47.4 says which thread |
 | **29. the terminal's directory, brought back** | 5 | Where the list went reads off the window title (`(Get-Process filer).MainWindowTitle`). OSC 7 through ConPTY -- nobody else can run it |
@@ -179,6 +179,8 @@ will answer a question**, so:
   after); this is how a new one would show.
 - **Never wait for input.** A choice that is the owner's goes in QA-REPORT.md,
   as a finding or a proposal, and the run carries on with what it can settle.
+- **Vote on every open `投票中` question** ([Votes](#votes-questionsmd-items-marked-投票中)),
+  queue or no queue.
 - **Your checkout is the worktree the prompt names**, not `C:\dev\filer`: read
   every path in this file with that swap. Make your branch there with
   `git checkout -B test/<lane>-<section> origin/main`; if git refuses because the
@@ -239,7 +241,8 @@ will answer a question**, so:
 - **Close every `filer.exe` you started** before you finish.
 - **The last line you print** is one of these, alone, so the script can log it:
   - `WINTEST_DONE <pull request URL>`
-  - `WINTEST_NOTHING` -- the queue is empty, or every section left needs a person
+  - `WINTEST_NOTHING` -- the queue is empty, or every section left needs a person,
+    and there was no open vote to cast
   - `WINTEST_FAILED <one line: why>` -- and commit nothing in that case
 
 ## The ARM64 lane
@@ -273,9 +276,9 @@ these differences:
 
 | Section | Rows | What it is on ARM64 |
 | --- | --- | --- |
-| **13.8a, 13.8b** | 2 open | Only here: no Developer Mode and not elevated. **Re-test, both changed in v0.70.3 (#185):** the junction question's body now wraps instead of losing its middle, so 13.8a's last half -- the question names both paths -- can be read: take a `<Shot:>` of the question and read the full `<link>  →  <folder>` line and the whole sentence `… it holds the full path, not a relative one,`. 13.8b's `u` and `U` now say `Removed the junction <name>` and `Made the junction <name> again` (`toast:` in `FILER_KEYS_DONE`); the rest of 13.8b is as #185 measured it |
+| **13.8c** | 1 open | v0.71.4 (Q56), only here (no Developer Mode, not elevated): as 13.8a, then `c` at the question -- `overlay: none`, the destination folder still empty, `toast: Copied the mklink command — paste it into cmd`, and `Get-Clipboard` equal to the `mklink /J` tail of 13.8a's refusal toast. Paste it into `cmd /d /c` and `g` `f` follows the junction. **Also re-run #191's `deep` tree** (127- and 122-character paths): v0.72.2 moved toasts below the whole header, so the refusal toast must no longer cut the breadcrumb -- crop the breadcrumb row as #191 did and say whether its last component is whole (a look, so it goes in the report, not a tick) |
 | **25.19c** | 1 open | v0.71.0 (Q44): the same as in the x64 re-tests row, natively on ARM64 -- `filer.com` is a second ARM64 binary, and `WaitForInputIdle` on an emulated or native window is what decides when the prompt returns. Build it here (`cargo build --release`, copy `filer-com.exe` to `filer.com` beside `filer.exe`), never the x64 one |
-| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104), 0.54.14 (509 / 0, #105), 0.55.1 (523 / 0, #107), 0.55.2 (523 / 0, #108), 0.55.3 (523 / 0, #109), 0.55.4 (523 / 0, #110), 0.55.5 (523 / 0, #111), 0.56.2 (525 / 0, #114), 0.57.2 (538 / 0, #119) and 0.58.2 (553 / 0, #122; one run of `ending_a_busy_shell_asks_first` failed under load, steadied in 0.59.2 -- report it if it comes back) and 0.59.2 (558 / 0, #126). Any failure here and not on the x64 runner is the finding; paste the test name and the panic 0.65.2 (591 / 0, #154 -- the first ARM64 run where #136's help test passed against the machine's real config), 0.67.3 (594 / 0, #163), 0.67.4 (594 / 0, #164, #165), 0.67.5 (594 / 0, #166), 0.67.7 (594 / 0, #168), 0.67.9 (595 / 0, #171), 0.67.13 (602 / 0, #173), 0.67.14 (602 / 0, #174), 0.70.1 (616 / 0, #189). 1.2 and 1.8 are all that is left of section 1, and both are looks (#154) |
+| **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104), 0.54.14 (509 / 0, #105), 0.55.1 (523 / 0, #107), 0.55.2 (523 / 0, #108), 0.55.3 (523 / 0, #109), 0.55.4 (523 / 0, #110), 0.55.5 (523 / 0, #111), 0.56.2 (525 / 0, #114), 0.57.2 (538 / 0, #119) and 0.58.2 (553 / 0, #122; one run of `ending_a_busy_shell_asks_first` failed under load, steadied in 0.59.2 -- report it if it comes back) and 0.59.2 (558 / 0, #126). Any failure here and not on the x64 runner is the finding; paste the test name and the panic 0.65.2 (591 / 0, #154 -- the first ARM64 run where #136's help test passed against the machine's real config), 0.67.3 (594 / 0, #163), 0.67.4 (594 / 0, #164, #165), 0.67.5 (594 / 0, #166), 0.67.7 (594 / 0, #168), 0.67.9 (595 / 0, #171), 0.67.13 (602 / 0, #173), 0.67.14 (602 / 0, #174), 0.70.1 (616 / 0, #189), 0.71.0 (619 / 0, #191). 1.2 and 1.8 are all that is left of section 1, and both are looks (#154) |
 
 ## Proposals: say what should change
 
@@ -303,6 +306,31 @@ this is for the things that work as written and should not.
 **Do not implement them.** The session that merges your pull request turns the
 ones worth doing into TODO.md tasks, or into QUESTIONS.md when there is a choice
 for the owner to make.
+
+## Votes: QUESTIONS.md items marked `投票中`
+
+Since 2026-10-02 the owner lets some questions be settled by a majority of three
+votes: the cloud session that wrote the question, the x64 machine and the ARM64
+laptop (CLAUDE.md, "多数決で進める質問"). The owner's own answer still wins.
+**Every run votes**, in both lanes:
+
+- Read QUESTIONS.md on `origin/main` for questions whose `状態` is `投票中` and
+  whose `投票` field has no line for your lane (`win` or `arm`) yet.
+- **Decide before you read the other votes**, from the background and the
+  options. Then write one line per question in `QA-REPORT.md`, under a
+  `### Votes` heading inside your run's section:
+  `- Q57: 1 -- <why>`. Do not edit QUESTIONS.md; the merger copies the line.
+- **The reason must rest on something you did or saw on this machine** -- a
+  measurement, a run of the feature, how a related part behaved in this run or an
+  earlier one (name the pull request). That is the whole point of your vote: a
+  reason that only restates the code is the cloud session's vote again, and the
+  merger does not count it. Try the thing first when you can.
+- **None of the options is right, or it is the owner's to decide** (a look, a
+  default key, something to install): vote `owner` with the reason. It counts
+  for no option.
+- A run with an empty queue and an open vote still opens a pull request, with
+  the votes as its only content (QA-REPORT.md alone).
+- Count the votes in the pull request body (`Votes: Q57`).
 
 ## How to work
 

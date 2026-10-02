@@ -86,7 +86,8 @@ fn main() {
 fn until_the_window_is_up(child: &mut std::process::Child) -> i32 {
     use std::os::windows::io::AsRawHandle;
     use windows::Win32::Foundation::HANDLE;
-    use windows::Win32::System::Threading::WaitForInputIdle;
+    use windows::Win32::Foundation::WAIT_OBJECT_0;
+    use windows::Win32::System::Threading::{WaitForInputIdle, WaitForSingleObject};
 
     let process = HANDLE(child.as_raw_handle());
     let start = std::time::Instant::now();
@@ -97,8 +98,20 @@ fn until_the_window_is_up(child: &mut std::process::Child) -> i32 {
             Err(_) => return 0,
         }
         match unsafe { WaitForInputIdle(process, 50) } {
-            // Idle: its message loop is running and waiting for input.
-            0 => return 0,
+            // Idle: its message loop is running and waiting for input -- or
+            // it has exited, which WaitForInputIdle also answers with 0. CI
+            // caught that: `--keys "<Tab"` printed its refusal, filer.exe
+            // exited 2, and this returned 0. So look again, giving an exit
+            // that is already under way a moment to land.
+            0 => {
+                if unsafe { WaitForSingleObject(process, 250) } == WAIT_OBJECT_0 {
+                    return match child.try_wait() {
+                        Ok(Some(status)) => status.code().unwrap_or(1),
+                        _ => 1,
+                    };
+                }
+                return 0;
+            }
             // WAIT_TIMEOUT: not yet.
             0x102 => {}
             // WAIT_FAILED: no message queue to wait on, which is a debug

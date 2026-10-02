@@ -11245,6 +11245,133 @@ x64（Windows 11 Pro, build 26200）で `target\release\filer.exe` 0.70.2 を、
 
 **大きさ**: `state_report` とトーストの追加箇所に関数 1 つ。
 
+## TESTING.md 13.8a / 13.8b — v0.70.3 の再テスト。**#185 の 2 件はどちらも直っており、2 行とも合**（92d0fa7 / 0.71.0、ARM64 レーン、無人の run）
+
+ARM64 レーンの順番表の「**13.8a, 13.8b**」（2 行）が担当。25.19 / 25.19a は #189 で `[x]` に
+なったので、表の先頭はもうここ。**この 2 行はこの機械でしか測れない** — 開発者モードが無く、
+昇格もしていない Windows が要る。#185（0.67.23）は 13.8b を取ったが
+**13.8a は「両方のパスを挙げ」が画面から読めず付けなかった**。v0.70.3 がその 2 件を直したので、
+CLAUDE.md の規則どおり**どちらの行も `[ ]` に戻っていた**（13.8b は `u` / `U` の文が変わったため）。
+
+**2 行とも合。チェックを 2 つ付けた**（13. は 8 / 11 → **10 / 11**）。`make-testcheck` を回して
+`-- --check` は `in sync`（**326 / 456**）、`make-keycheck -- --check` も `in sync`（250 / 252）。
+`cargo test` は **619 passed; 0 failed**（ネイティブ ARM64、`filer` 618 が 3.94 s、`filer-com` 1 件）。
+親の居ないシェルは `cargo test` の前後で **48 → 48**（`powershell` 22 / `pwsh` 26、変化なし）。
+見つけたもの 0 件（**#185 の 2 件はどちらも解消を確認**）、提案 2 件。
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `Snapdragon(R) X2 Elite - X2E88100 - Qualcomm Oryon(TM) CPU`、`ARM64-based PC`、`Qualcomm(R) Adreno(TM) X2-90 GPU`（Vulkan、IntegratedGpu） |
+| OS | `Windows 11 Home 26H1 (build 28000.2956)` |
+| filer | 手元ビルド 0.71.0（`target\release`）、`filer env` が `OS arch aarch64` / `Process arch aarch64`。**x64 のエミュレーションではない** |
+| rustc | 1.98.1、host `aarch64-pc-windows-msvc` / pwsh 7.6.6（ARM64 ネイティブ） |
+| ConPTY | `scripts/fetch-conpty.ps1` で 1.24.260710001 (arm64) を `target\release` へ（この 2 行では使わない） |
+| 前提（この 2 行の要) | **開発者モード無し**: `HKLM:\…\AppModelUnlock` はキーはあるが**値が 1 つも無い**（`GetValueNames()` が空）。**昇格無し**: `IsInRole('Administrators')` = False。`whoami /priv` に `SeCreateSymbolicLinkPrivilege` の行は**無い**。実際に `New-Item -ItemType SymbolicLink` を打つと `この操作には管理者特権が必要です。`（HResult `-2147024891` = 0x80070522 = 1314）で断られる |
+| 一時ディレクトリ | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（この機械に RAM ディスクは無い。`TEMP` / `TMP` もそこ） |
+| 設定 | 持ち主の実物（`%APPDATA%\filer\keymap.toml` が `T` を 1 つ prepend するだけ。`y` `j` `<Enter>` `-` `u` `U` `g` `f` はいずれも既定のまま）。持ち主の設定は触っていない |
+| キー | すべて `--keys`。`LogonUI` は 0、スクリーンセーバーは動いていない |
+
+証拠は `C:\dev\filer-evidence\arm-13.8-retest\`（`run.ps1`、`env.txt`、各 run の `keys.done` と
+`<Shot:>` の PNG: `a1` `a2` `a3` `a4` `a4follow` `b1` `b2` `b3` `b4` `deep`）。
+
+### 測り方
+
+雛形は #185 と同じ: `w\<ラベル>\real\{inside.txt, also.txt}` と空の `w\<ラベル>\zdst`。
+`real` が 1 行目、`zdst` が 2 行目なので `yj<Enter>-` で「フォルダを `y` → 別のディレクトリで `-`」。
+`FILER_KEYS_DONE` の `toast:` 行が**最後のトーストの文そのもの**なので、トーストは文字として比べられる。
+問いの中身だけは画面にしか無いので `<Shot:>` を撮り、**字として読んだ**。
+
+### 13.8a — 5 つの主張すべて合（**前回読めなかった 1 つを含む**）
+
+| 主張 | どう測ったか | 結果 |
+| --- | --- | --- |
+| 同じ拒否のあとに `A junction needs neither: mklink /J "<リンク>" "<フォルダ>"` が続き、両方とも絶対パス | `a1/keys.done` の `toast:` | **合**。`Link: real: クライアントは要求された特権を保有していません。 (os error 1314) — Windows needs Developer Mode for symlinks (Settings > System > For developers), or run filer as administrator. A junction needs neither: mklink /J "C:\…\w\a1\zdst\real" "C:\…\w\a1\real"` |
+| それを `cmd` に貼るとジャンクションができ、`g` `f` でたどれる | トーストから `mklink /J` 以降を切り出して `cmd /d /c` に渡した | **合**。`Junction created for …\a4\zdst\real <<===>> …\a4\real`、`LinkType=Junction` / `Target=C:\…\w\a4\real` / `Attributes=Directory, ReparsePoint`。続けて `filer …\a4\zdst --keys "gf"` → `cwd: C:\…\w\a4\real`、`hovered: …\a4\real\also.txt`（`a4follow/keys.done`） |
+| ファイルへの `-` ではジャンクションのことは言わない | `a.txt` を `y` して `zdst` で `-`（`jyk<Enter>-`） | **合**。`toast: Link: a.txt: …(os error 1314) — Windows needs Developer Mode for symlinks (…), or run filer as administrator` で終わり、`junction` の語は無く `overlay: none`（問いも出ない）。`zdst` は 0 件 |
+| 続けて `Make a junction instead?` と聞き、**両方のパスを挙げ**、相対にならずネットワークを指せないと言う | `a1/keys.done` の `overlay: confirm` と `a1/a1-confirm.png` を字として読んだ | **合（#185 で読めなかった半分）**。下に全文 |
+| `n` なら何も残らない | `yj<Enter>-n` のあと `Get-ChildItem -Force` | **合**。`overlay: none`、`zdst` は **0 件**、`real` は `also.txt` / `inside.txt` が 6 バイトずつ |
+
+`a1/a1-confirm.png` から読んだ問いの全文。**4 行とも端まで出ており、`…` は 1 つも無い**:
+
+```
+Make a junction instead?
+Windows would not make the symlink: that needs Developer Mode or administrator.
+A junction needs neither. Unlike the symlink it holds the full path, not a relative
+one,
+and it cannot point at a network location.
+
+C:\Users\yuu06\AppData\Local\Temp\filer-scratch\w\a1\zdst\real  →
+C:\Users\yuu06\AppData\Local\Temp\filer-scratch\w\a1\real
+ [y] Make the junction   [n] No
+```
+
+- #185 で `it holds the…ull path` と**単語が壊れていた 2 行目**は、`not a relative` / `one,` と
+  **折り返され、文が全部読める**。
+- #185 で `→` ごと消えていた**パスの対**は、リンク側の行末に `→` が残り、
+  続く行に**行き先が丸ごと**出る。**124 文字が両方読める。**
+- **もっと長いパスでも確かめた**（`deep/deep-confirm.png`）。
+  `…\w\deep\a_very_long_directory_name_x1x\another_long_directory_name_y2y\` の下で、
+  リンク側 **127 文字**・行き先 **122 文字**（対で 252 文字）。
+  箱が縦に伸びて **3 行 + 2 行**に折り返し、やはり `…` は無く、`→` も両端の名前も残る。
+  つまり**この機械のパスの長さに依らず読める。**
+
+### 13.8b — 5 つの主張すべて合（`u` / `U` の文も新しいほうに合う）
+
+| 主張 | どう測ったか | 結果 |
+| --- | --- | --- |
+| トースト `Made a junction <名前> — u to undo` | `b1/keys.done` | **合**。`toast: Made a junction real — u to undo` |
+| `(Get-Item <リンク>).LinkType` が `Junction` | `Get-Item …\b1\zdst\real -Force` | **合**。`LinkType=Junction` / `Target=C:\…\w\b1\real` / `Attributes=Directory, ReparsePoint`。中も通る（`also.txt` / `inside.txt` が 6 バイトずつ） |
+| `g` `f` でたどれる | `yj<Enter>-ygf` を 1 本の `--keys` で | **合**。`cwd: C:\…\w\b2\real`、`hovered: …\b2\real\also.txt`（`b2/keys.done`） |
+| `u` はジャンクションだけを消し、**`Removed the junction <名前>`** と言う | `yj<Enter>-y<Shot:b3-made>u<Shot:b3-undone>` | **合**。`toast: Removed the junction real`（#185 は `Removed the link real`）。`zdst` は **0 件**、`real` は `Attributes=Directory` / `LinkType=` の素のフォルダに戻り、`also.txt` / `inside.txt` が 6 バイトずつ残る |
+| `U` でまたジャンクションとして作られ、**`Made the junction <名前> again`** と言う | `yj<Enter>-yu<Shot:b4-undone>U<Shot:b4-redone>` | **合**。`toast: Made the junction real again`（#185 は `Linked real`）。`LinkType=Junction` / `Target=C:\…\w\b4\real` / `Attributes=Directory, ReparsePoint`、中も通る |
+
+`b4/b4-redone.png` には 3 つのトーストが重なって残っており、**画面の字としても**
+`Made the junction real again` / `Removed the junction real` / `Made a junction real — u to undo` の
+3 つが読める。一覧は `real  ->` とリンク印で、フッタは `1/1`。
+
+### 見つけたもの
+
+**無し。**#185 の 2 件はどちらも解消している。
+
+1. ~~確認ダイアログの本文が `…` で潰れる~~ → **直っている**（上の 13.8a の全文。252 文字のパスの対でも）。
+2. ~~`u` / `U` のトーストが「ジャンクション」を忘れる~~ → **直っている**（上の 13.8b の表）。
+
+### Proposals
+
+1. **長いトーストが、ヘッダ 2 行目のパス（breadcrumb）を覆って読めなくする。**
+   - 何が起きたか: `deep` の run（パスが深い）で、右上のエラートーストが 6 行に伸び、
+     **現在地の行に重なった** —— 行を切り出して 2 倍に拡大して読むと
+     （`deep/deep-breadcrumb-crop.png`）、`…\w\deep\a_very_long_directory_name_x1x\` までは
+     普通に読めるが、そこから先（`another_long_directory_name_y2y\zdst`）は
+     **トーストの枠が字の高さの真ん中を横切り、上半分だけが残る。**
+     読めると言えば読めるが、確かめるために拡大した。元画像は `deep/deep-confirm.png`。
+   - 何がそうしているか: `src/ui/mod.rs:978` がトーストの起点を `full.top() + row_h + 14.0`
+     に置いている。コメントは「ヘッダの上に乗せない」と言っていて、**ヘッダ 1 行目
+     （タブ帯と `N selected · M items`）は確かに避けている。**けれどヘッダは 2 行で、
+     breadcrumb は `:306` の `y2 = rect.top() + row_h + 6.0`。**起点はその 8 px 下**なので、
+     2 行目には毎回重なる。
+   - どう変えるか: 起点を `row_h * 2` ぶん下げてヘッダ全体を避ける。1 行の変更。
+   - なぜ: 今は「エラーが出ると現在地が読めない」。しかも**出たばかりのトーストほど長い**
+     （このトーストは `mklink` のコマンドで、絶対パスを 2 つ含む）ので、
+     パスを一番確かめたい瞬間にパスが隠れる。1 行目を避ける判断と同じ理由が、2 行目にも効く。
+   - 大きさ: 1 行（`:978` の起点）。`toast_tests` に 1 件足せる形。
+
+2. **`Make a junction instead?` の問いに、`mklink` の行をクリップボードへ置く選択肢を足す**
+   （#185 の提案 3 の繰り返し。**今回も同じところで困った**ので、もう一度書く）。
+   - 何が起きたか: トーストは `mklink /J "…" "…"` を正しく出し、貼れば確かに動く（13.8a の表）。
+     ただし**貼るにはトーストから文字を取り出す必要がある。**この run は
+     `FILER_KEYS_DONE` の `toast:` 行を `Substring` で切って `cmd /d /c` に渡したが、
+     **人にはその道が無い** — トーストは数秒で消え、選択もできない。
+     今回は `deep` の run で**そのパスが 127 文字 + 122 文字**になり、
+     「手で打てば済む」とは言えない長さだと確かめた。
+   - どう変えるか: 問いの 3 つ目の選択肢 `[c] Copy the mklink command`、
+     または「`C` でコマンドをコピー」をトーストの末尾に足す。
+   - なぜ: ネットワークの場所や相対リンクが要る人は `n` を選ぶが、そのあとに手で打つのは
+     250 文字の絶対パス 2 本。**メッセージがコマンドを出している以上、使えるようにするところまでが 1 組。**
+   - 大きさ: 選択肢 1 つとクリップボード呼び出し 1 行。`offer_junctions` の中。
+
 ## TESTING.md の再テスト（5 回目）— 48.6 / 48.7（DLL の探し場所）と 25.19c（`filer.com`）（e98dc5b / 0.71.2、win レーン、無人の run）
 
 x64（Windows 11 Pro, build 26200）で `target\release\filer.exe` 0.71.2 を、`fetch-conpty.ps1` の ConPTY 1.24.260710001 と並べて動かした。昇格なし（この 3 行には要らない）。
