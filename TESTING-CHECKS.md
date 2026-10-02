@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**321 / 450 済み。**（TESTING.md の全 619 件のうち、`cargo test` が見ている 169 件は
+**320 / 451 済み。**（TESTING.md の全 620 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -396,7 +396,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
 - [x] **24.6** 新しいフォルダで `scripts\make-fixtures.ps1` を走らせる（v0.59.1）→ 警告は出ない。ただし普通の（大文字小文字を区別しない）NTFS のフォルダでは `awkward names: 5 entries on disk, expected 6` が出て、`fsutil file setCaseSensitiveInfo` を挙げる（24.3 がそこで押せない理由） — *Run `scripts\make-fixtures.ps1` in a fresh folder (v0.59.1) → No warning, except on an ordinary (case-insensitive) NTFS folder: `awkward names: 5 entries on disk, expected 6`, naming `fsutil file setCaseSensitiveInfo` -- the reason 24.3 cannot be pressed there*
 
-## 25. `filer env` — 29 / 32
+## 25. `filer env` — 28 / 33
 
 - [x] **25.1** PowerShell から `filer env` → 5 つの節（Filer、Config、Last run、Tools、Variables）が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること** — *`filer env` from PowerShell → The five sections print (Filer, Config, Last run, Tools, Variables). A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears***
 - [x] **25.2** Config の節 → 両方のディレクトリが出て、それぞれ中身か `nothing here` を述べ、`not here:` に残りが並ぶ — *The Config section → Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest*
@@ -407,7 +407,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **25.4c** **引用符付きのフルパス**を指定したオープナー（秀丸、サクラ）→ 最初の空白までではなく、パス全体が解決される — *An opener naming a **quoted full path** (秀丸, サクラ) → The whole path is resolved, not just up to the first space*
 - [x] **25.4d** `filer env` の実行中に画面を見る → **エディタやビューアが 1 つも起動しない。**`PATH` を調べるだけで、実行はしない — *Watch the screen while `filer env` runs → **No editor or viewer opens.** The programs are looked up on `PATH`, never executed*
 - [x] **25.5** ARM 版 Windows で x64 ビルドを使う → `OS arch` と `Process arch` が**食い違う。**その食い違いを見せることが、両方を出している理由 — *On Windows on ARM with the x64 build → `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed*
-- [x] **25.6** `filer --help` → COMMANDS の下に `env` が並ぶ — *`filer --help` → `env` is listed under COMMANDS*
+- [ ] **25.6** `filer --help` → COMMANDS の下に `env` が並び、その下に `env --out FILE` も並ぶ（v0.68.0） — *`filer --help` → `env` is listed under COMMANDS, and `env --out FILE` under it (v0.68.0)*
 - [x] **25.7** `filer.exe` をダブルクリック（コンソール無し）→ 以前のまま。ウィンドウが開き、どこにも何も出力されない — *Double-click `filer.exe` (no console) → Unchanged: the window opens, nothing is printed anywhere*
 - [x] **25.8** filer を一度開いて終了し、そのあと `filer env` → **Last run** の節が出る。アダプタとそのバックエンド・デバイス種別、読み込まれた全フォントファイル — *Open filer once, quit, then `filer env` (v0.29.0) → A **Last run** section: the adapter with its backend and device type, and every font file that was loaded*
 - [x] **25.9** 新しい機械で、filer を一度も開かずに `filer env` → `not recorded — filer has not opened a window on this machine yet` と出る（空の節ではない） — *On a fresh machine, `filer env` **before** ever opening filer → `not recorded — filer has not opened a window on this machine yet`, not an empty section*
@@ -424,6 +424,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **25.18** release ビルドで `filer env \| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c "filer env > out2.txt"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた） — *Release build: `filer env \| Out-File out.txt`, then `Get-Content out.txt`; and `cmd /c "filer env > out2.txt"` (v0.54.4) → The whole report is **in both files**, and nothing is printed on screen. Before v0.54.4 both were empty. (PowerShell's own `filer env > out.txt` still gives an empty file: PowerShell does not connect a windowed program's output to a file. README says so)*
 - [ ] **25.19** `filer env \| Select-String arch` → **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない） — *`filer env \| Select-String arch` → **Only the two arch lines** (Windows; elsewhere there is one, `Process arch`), not the whole report*
 - [ ] **25.19a** PowerShell で `$v = & filer env \| Write-Output; $v.Count`（v0.67.26、Q54）→ レポートの行数で、0 ではない。**後ろに何も置かない** `$v = & filer env` だと、PowerShell はパイプラインの最後にある窓のプログラムを待たず、`$v` は空になる。filer ではなく PowerShell の動き（#183）なので、行には `\| Write-Output` を付けてある — *`$v = & filer env \| Write-Output; $v.Count` in PowerShell (v0.67.26, Q54) → The report's line count, not 0. **With nothing after it** -- `$v = & filer env` -- PowerShell does not wait for a windowed program at the end of a pipeline, and `$v` is empty: that is PowerShell, not filer (#183), and why the row has the `\| Write-Output`*
+- [ ] **25.19b** PowerShell で、パスに日本語を含むフォルダから `filer env --out out3.txt`、続けて `Get-Content -Encoding utf8 out3.txt`（v0.68.0、Q55）→ `filer: wrote <フルパス>` の 1 行が出て、ファイルにレポート全体が入り、日本語がコンソールのコードページに関係なく**読める**。`filer env --out`（名前なし）と `filer env --outt x` は問題を 1 行で言い、終了コード 2 で、何も書かない — *`filer env --out out3.txt` from PowerShell, in a folder whose path has Japanese in it, then `Get-Content -Encoding utf8 out3.txt` (v0.68.0, Q55) → One line `filer: wrote <full path>`, and the file holds the whole report with the Japanese **readable**, whatever the console's code page. `filer env --out` with no name, and `filer env --outt x`, print one line naming the problem, exit code 2, and write nothing*
 - [x] **25.20** 何もリダイレクトせずに `filer env` と `filer --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない — *`filer env` with nothing redirected, and `filer --version` → Still printed on screen, as 25.1 has it — the console path is unchanged*
 - [x] **25.21** `filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ — *`filer env` (v0.58.1) → An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone*
 - [x] **25.22** `FILER_PTY_LOG` を設定して `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"`（v0.59.0）→ `echo` が届く前にシェルのプロンプトが出ている（ログの `out` の行が `in key` の行より前）、`hi` が表示され、1 秒後にペインが窓を取る。`filer --keys "<Wait:1.5s>"` はコマンド行で断られ、`<Wait:500>` と書き方を示す — *`filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `FILER_PTY_LOG` set (v0.59.0) → The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `filer --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>`*

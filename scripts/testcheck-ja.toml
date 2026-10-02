@@ -489,7 +489,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "25.4c" = '**引用符付きのフルパス**を指定したオープナー（秀丸、サクラ）→ 最初の空白までではなく、パス全体が解決される'
 "25.4d" = '`filer env` の実行中に画面を見る → **エディタやビューアが 1 つも起動しない。**`PATH` を調べるだけで、実行はしない'
 "25.5" = 'ARM 版 Windows で x64 ビルドを使う → `OS arch` と `Process arch` が**食い違う。**その食い違いを見せることが、両方を出している理由'
-"25.6" = '`filer --help` → COMMANDS の下に `env` が並ぶ'
+"25.6" = '`filer --help` → COMMANDS の下に `env` が並び、その下に `env --out FILE` も並ぶ（v0.68.0）'
 "25.7" = '`filer.exe` をダブルクリック（コンソール無し）→ 以前のまま。ウィンドウが開き、どこにも何も出力されない'
 "25.8" = 'filer を一度開いて終了し、そのあと `filer env` → **Last run** の節が出る。アダプタとそのバックエンド・デバイス種別、読み込まれた全フォントファイル'
 "25.9" = '新しい機械で、filer を一度も開かずに `filer env` → `not recorded — filer has not opened a window on this machine yet` と出る（空の節ではない）'
@@ -506,6 +506,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "25.18" = "release ビルドで `filer env \\| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c \"filer env > out2.txt\"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた）"
 "25.19" = "`filer env \\| Select-String arch` → **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない）"
 "25.19a" = "PowerShell で `$v = & filer env \\| Write-Output; $v.Count`（v0.67.26、Q54）→ レポートの行数で、0 ではない。**後ろに何も置かない** `$v = & filer env` だと、PowerShell はパイプラインの最後にある窓のプログラムを待たず、`$v` は空になる。filer ではなく PowerShell の動き（#183）なので、行には `\\| Write-Output` を付けてある"
+"25.19b" = "PowerShell で、パスに日本語を含むフォルダから `filer env --out out3.txt`、続けて `Get-Content -Encoding utf8 out3.txt`（v0.68.0、Q55）→ `filer: wrote <フルパス>` の 1 行が出て、ファイルにレポート全体が入り、日本語がコンソールのコードページに関係なく**読める**。`filer env --out`（名前なし）と `filer env --outt x` は問題を 1 行で言い、終了コード 2 で、何も書かない"
 "25.21" = '`filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ'
 '25.23' = '''ペインを開いて `<C-S-Enter>`、filer を閉じてから `filer env`（v0.59.4）→ `Last run` の下に `Terminal pane` の行があり、最後の大きさを `N x M (lines x columns)` で出す。ペインを一度も開かなかった run の後は `not opened in that run`'''
 '25.24' = '''どこかのフォルダのシェルから `filer .`、次に `filer ..`、次に引用符なしで `filer two words`（v0.59.5）→ `.` はそのフォルダを開き、タイトルが**絶対**パスで親の列があり、`h` で上がれる。`..` は 1 つ上を開く。引用符なしの 2 語は窓を開く前に `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` と断られる'''

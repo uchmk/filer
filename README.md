@@ -1254,10 +1254,15 @@ in. If no browser can be opened, the form's link â€” every field travels in it â
 clipboard instead, to paste into one. For everything else a report tends to need, `filer env` prints it:
 
 ```
-filer env
-filer env | Out-File filer-env.txt   # into a file, to attach
+filer env --out filer-env.txt        # into a file, to attach
+filer env                            # on screen
 filer env | Select-String arch       # or through a pipe
 ```
+
+`--out` (v0.68.0) is the way to get a file to attach: filer writes it itself, as UTF-8, so neither
+the shell's redirection rules nor the console's code page has a say. PowerShell does not wait for
+a windowed program, so the prompt can come back a moment before the file is there; it is written
+under another name and renamed into place, so it is never seen half written.
 
 Since v0.54.4 the text goes wherever standard output is sent; before that it went only to the
 screen. One exception is PowerShell's own `>`: it does not connect a windowed program's output to

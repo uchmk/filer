@@ -111,9 +111,16 @@ jobs:
           if (-not ($e -match 'Process arch')) { throw "cmd's > gave: '$e'" }
           $arch = & $exe env | Select-String 'Process arch'
           if (-not $arch) { throw "filer env | Select-String found no 'Process arch' line" }
+          # `env --out` (v0.68.0): filer writes the file itself. Start-Process
+          # -Wait because PowerShell would not wait for it otherwise.
+          $p = Start-Process -FilePath $exe -ArgumentList 'env','--out','env-out.txt' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "env --out exited $($p.ExitCode)" }
+          $o = Get-Content -Raw -Encoding utf8 env-out.txt
+          if (-not ($o -match 'Process arch')) { throw "env --out gave: '$o'" }
           "Out-File: $v"
           "cmd >:    $((Get-Item env.txt).Length) bytes"
           "piped:    $arch"
+          "--out:    $((Get-Item env-out.txt).Length) bytes"
 
       - name: Gather the files
         shell: bash
