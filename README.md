@@ -730,6 +730,12 @@ still be empty — once something has been written into it, `u` says so and leav
 to still be the link that was made: a symlink, or for a hardlink the same file as its source, not
 something else that has taken the name since.
 
+On Windows a symlink needs Developer Mode or an elevated filer. When `-` on a **folder** is refused
+for that, filer asks whether to make a junction instead (v0.67.19): a junction needs no privilege,
+but it always holds the full path — never a relative one — and cannot point at a network location,
+which is why it is asked and not done. `y` makes it, and `u` / `U` take it back and make it again
+like any other link.
+
 Undoing a move starts from where each file actually landed, not from where it was sent: a paste onto
 a name already taken lands as `name_1`, and an undo built from the name you asked for would go
 looking for a file that was never created.

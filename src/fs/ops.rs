@@ -80,6 +80,9 @@ pub enum OpEvent {
         /// For a symlink or hardlink job: each link made, under the name it
         /// really got. What `u` removes.
         linked: Vec<Link>,
+        /// Folder symlinks Windows refused for want of the privilege, as the
+        /// junctions that could stand in for them (Q46). The app asks.
+        junctions: Vec<Link>,
         /// For a compress: the archive written, under the name it really got
         /// (a name already taken can be resolved to `x_1.zip` here).
         made: Option<PathBuf>,
@@ -145,6 +148,7 @@ impl Runner {
                         last_report: std::time::Instant::now(),
                         moved: Vec::new(),
                         linked: Vec::new(),
+                        junctions: Vec::new(),
                         made: None,
                         trashed: Vec::new(),
                     };
@@ -156,6 +160,7 @@ impl Runner {
                         cancelled: ctx.cancelled,
                         moved: std::mem::take(&mut ctx.moved),
                         linked: std::mem::take(&mut ctx.linked),
+                        junctions: std::mem::take(&mut ctx.junctions),
                         made: ctx.made.take(),
                         trashed: std::mem::take(&mut ctx.trashed),
                     });
@@ -247,6 +252,8 @@ struct Ctx<'a> {
     moved: Vec<(PathBuf, PathBuf)>,
     /// The links a link job made. Empty for everything else.
     linked: Vec<Link>,
+    /// See `OpEvent::Finished::junctions`.
+    junctions: Vec<Link>,
     /// The archive a compress wrote, once it is whole.
     made: Option<PathBuf>,
     /// What a trash sent to the bin. Empty for everything else.
@@ -361,10 +368,16 @@ impl Ctx<'_> {
                     } else {
                         src.clone()
                     };
-                    let link = Link { at: dest, target, dir: src.is_dir(), hard: false };
+                    let link = Link { at: dest, target, dir: src.is_dir(), hard: false, junction: false };
                     match link.make() {
                         Ok(()) => self.linked.push(link),
-                        Err(e) => self.errors.push(format!("{}: {}", short(src), symlink_error(&e, &link, src))),
+                        Err(e) => {
+                            if refused_privilege(&e) && link.dir {
+                                let target = src.clone();
+                                self.junctions.push(Link { target, junction: true, ..link.clone() });
+                            }
+                            self.errors.push(format!("{}: {}", short(src), symlink_error(&e, &link, src)));
+                        }
                     }
                     self.files_done += 1;
                 }
@@ -373,7 +386,7 @@ impl Ctx<'_> {
                 for src in &req.srcs {
                     let dest = req.dest_dir.join(file_name(src));
                     let Some(dest) = self.resolve_dest(src, dest) else { continue };
-                    let link = Link { at: dest, target: src.clone(), dir: false, hard: true };
+                    let link = Link { at: dest, target: src.clone(), dir: false, hard: true, junction: false };
                     match link.make() {
                         Ok(()) => self.linked.push(link),
                         Err(e) => self.errors.push(format!("{}: {}", short(src), hardlink_error(&e, src, &req.dest_dir))),
@@ -816,8 +829,7 @@ fn relative_to(from_dir: &Path, target: &Path) -> Option<PathBuf> {
 /// links people want on Windows are to folders. It names the command with
 /// both paths, absolute because a junction cannot be relative.
 fn symlink_error(e: &std::io::Error, link: &Link, src: &Path) -> String {
-    const ERROR_PRIVILEGE_NOT_HELD: i32 = 1314;
-    if !cfg!(windows) || e.raw_os_error() != Some(ERROR_PRIVILEGE_NOT_HELD) {
+    if !refused_privilege(e) {
         return e.to_string();
     }
     let mut said = format!(
@@ -832,6 +844,45 @@ fn symlink_error(e: &std::io::Error, link: &Link, src: &Path) -> String {
         );
     }
     said
+}
+
+/// Windows' "the client does not hold the required privilege" (1314): a
+/// symlink without Developer Mode or elevation.
+fn refused_privilege(e: &std::io::Error) -> bool {
+    const ERROR_PRIVILEGE_NOT_HELD: i32 = 1314;
+    cfg!(windows) && e.raw_os_error() == Some(ERROR_PRIVILEGE_NOT_HELD)
+}
+
+/// A junction at `at` to the folder `target`, which must be absolute.
+///
+/// `mklink /J` rather than the reparse-point ioctl by hand: it is one line,
+/// it is what the error message already tells people to type, and it needs no
+/// new crate. `cmd` expands `%NAME%` even inside quotes, so a path with a `%`
+/// in it is refused rather than handed over to be rewritten.
+#[cfg(windows)]
+fn junction(target: &Path, at: &Path) -> std::io::Result<()> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    for p in [target, at] {
+        if p.to_string_lossy().contains('%') {
+            return Err(std::io::Error::other(format!("{} has a % in it; make the junction by hand", short(p))));
+        }
+    }
+    let out = std::process::Command::new("cmd")
+        .raw_arg(format!("/d /c mklink /J \"{}\" \"{}\"", at.display(), target.display()))
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()?;
+    match out.status.success() && at.exists() {
+        true => Ok(()),
+        // `cmd` answers in the console's code page, which is not UTF-8 on a
+        // Japanese Windows; the exit code is what can be read reliably.
+        false => Err(std::io::Error::other(format!("mklink /J failed (exit {})", out.status.code().unwrap_or(-1)))),
+    }
+}
+
+#[cfg(not(windows))]
+fn junction(_target: &Path, _at: &Path) -> std::io::Result<()> {
+    Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "junctions are a Windows thing"))
 }
 
 /// Whether another program holds `p` open so that it cannot be removed:
@@ -889,13 +940,18 @@ pub struct Link {
     /// A symlink to a folder, which Windows makes and removes differently.
     pub dir: bool,
     pub hard: bool,
+    /// A Windows junction rather than a symlink: what a folder link can be
+    /// without Developer Mode (Q46). `target` is absolute, as a junction's
+    /// has to be.
+    pub junction: bool,
 }
 
 impl Link {
     pub fn make(&self) -> std::io::Result<()> {
-        match self.hard {
-            true => std::fs::hard_link(&self.target, &self.at),
-            false => symlink(&self.target, &self.at, self.dir),
+        match (self.hard, self.junction) {
+            (true, _) => std::fs::hard_link(&self.target, &self.at),
+            (false, true) => junction(&self.target, &self.at),
+            (false, false) => symlink(&self.target, &self.at, self.dir),
         }
     }
 
@@ -968,7 +1024,7 @@ mod symlink_message {
     fn a_refused_folder_link_names_the_junction() {
         let refused = std::io::Error::from_raw_os_error(1314);
         let (src, at) = (Path::new("C:/work/src"), Path::new("C:/work/dst/src"));
-        let folder = Link { at: at.to_path_buf(), target: PathBuf::from("../src"), dir: true, hard: false };
+        let folder = Link { at: at.to_path_buf(), target: PathBuf::from("../src"), dir: true, hard: false, junction: false };
         let file = Link { dir: false, ..folder.clone() };
         let said = symlink_error(&refused, &folder, src);
         if cfg!(windows) {
