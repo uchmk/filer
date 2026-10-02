@@ -725,6 +725,13 @@ desc = "Open the context menu"
 on = "<C-t>"
 run = "terminal"
 desc = "Open the terminal pane"
+# Here too, not only in [term]: `<C-t>` back to the list and then `<C-S-t>`
+# did nothing at all, and a re-test read that as a reload that had not taken
+# (#182, Q53). With no pane open it says so.
+[[mgr.keymap]]
+on = "<C-S-t>"
+run = "terminal close"
+desc = "Close the terminal and end the shell"
 [[mgr.keymap]]
 on = "<A-t>"
 run = "term_send"
