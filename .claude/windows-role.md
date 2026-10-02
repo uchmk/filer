@@ -179,6 +179,8 @@ will answer a question**, so:
   after); this is how a new one would show.
 - **Never wait for input.** A choice that is the owner's goes in QA-REPORT.md,
   as a finding or a proposal, and the run carries on with what it can settle.
+- **Vote on every open `投票中` question** ([Votes](#votes-questionsmd-items-marked-投票中)),
+  queue or no queue.
 - **Your checkout is the worktree the prompt names**, not `C:\dev\filer`: read
   every path in this file with that swap. Make your branch there with
   `git checkout -B test/<lane>-<section> origin/main`; if git refuses because the
@@ -239,7 +241,8 @@ will answer a question**, so:
 - **Close every `filer.exe` you started** before you finish.
 - **The last line you print** is one of these, alone, so the script can log it:
   - `WINTEST_DONE <pull request URL>`
-  - `WINTEST_NOTHING` -- the queue is empty, or every section left needs a person
+  - `WINTEST_NOTHING` -- the queue is empty, or every section left needs a person,
+    and there was no open vote to cast
   - `WINTEST_FAILED <one line: why>` -- and commit nothing in that case
 
 ## The ARM64 lane
@@ -304,6 +307,31 @@ this is for the things that work as written and should not.
 **Do not implement them.** The session that merges your pull request turns the
 ones worth doing into TODO.md tasks, or into QUESTIONS.md when there is a choice
 for the owner to make.
+
+## Votes: QUESTIONS.md items marked `投票中`
+
+Since 2026-10-02 the owner lets some questions be settled by a majority of three
+votes: the cloud session that wrote the question, the x64 machine and the ARM64
+laptop (CLAUDE.md, "多数決で進める質問"). The owner's own answer still wins.
+**Every run votes**, in both lanes:
+
+- Read QUESTIONS.md on `origin/main` for questions whose `状態` is `投票中` and
+  whose `投票` field has no line for your lane (`win` or `arm`) yet.
+- **Decide before you read the other votes**, from the background and the
+  options. Then write one line per question in `QA-REPORT.md`, under a
+  `### Votes` heading inside your run's section:
+  `- Q57: 1 -- <why>`. Do not edit QUESTIONS.md; the merger copies the line.
+- **The reason must rest on something you did or saw on this machine** -- a
+  measurement, a run of the feature, how a related part behaved in this run or an
+  earlier one (name the pull request). That is the whole point of your vote: a
+  reason that only restates the code is the cloud session's vote again, and the
+  merger does not count it. Try the thing first when you can.
+- **None of the options is right, or it is the owner's to decide** (a look, a
+  default key, something to install): vote `owner` with the reason. It counts
+  for no option.
+- A run with an empty queue and an open vote still opens a pull request, with
+  the votes as its only content (QA-REPORT.md alone).
+- Count the votes in the pull request body (`Votes: Q57`).
 
 ## How to work
 
