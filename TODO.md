@@ -1644,6 +1644,13 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `Start-Process -Wait -RedirectStandardOutput` は取れる。`src/main.rs` の `say()` の doc コメントは「ファイルにもパイプにも出る」と言っている。
   `filer --help` の末尾と README の `filer env` の所に 1 行
   `Windows: PowerShell's > does not wait for a GUI binary; use a pipe, cmd /c, or Start-Process -Wait` を足し、doc コメントも直す。
+  **#183 で範囲が広がった**: `>` だけでなく、filer が**パイプラインの最後**にあると PowerShell は待たない。`$v = & filer env` は 13 ms で
+  0 行（`$null`）を返し、`@(& filer env)`、`& filer env 2>&1`、`& filer --version` / `--help` も同じ。後ろに何か 1 つ置けば
+  （`| Write-Output`、`| Out-String -Stream`、`| Out-File`）48 行とも届く。README の例外（1260〜1263 行あたり）を「`>`」から
+  「filer をパイプラインの最後に置かない」に広げ、`$v = & filer env | Write-Output` の形を例に挙げる（#183 の提案 1）。
+- [ ] **`say()` が標準出力への書き込みに失敗したとき、黙って捨てずにコンソールへ回す**（#183 の提案 2）。今は `let _ = writeln!` で戻る。
+  まず、パイプの最後に置いたときに書き込みが本当にエラーを返しているのかを Windows で測る（#183 は測っていない）。返していなければ
+  この直しは効かないので、その結果を書いて閉じる。
 - [ ] **`FILER_KEYS_DONE` に、その実行で出たトーストを全部残す `toasts:` 行を足す**（#176 の提案 2）。今の `toast:` は書く時点で出ているもの
   だけなので、トーストが期待値の行（29.7、12.17 / 12.18、13.8a など）は消える前に `<Shot:>` を撮って画像から読むしかない。
   `App` に直近 16 本ほどの履歴を持ち、`state_report` に `|` 区切りで 1 行。今の `toast:` 行は残す。
@@ -1662,3 +1669,10 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] **`cargo test` が一時ディレクトリに `filer-*` のフォルダを残す**（#182 の提案 5）。`util::test_dir` は呼ぶたびに中身を消すが、
   終わったあとには残る。`util::test_dir` の外で一時フォルダを作っているテストが無いかを探し（QA セッション向き）、残す理由の無いものは消す。
 - [ ] 一覧で押した `<C-S-t>` が黙って何もしない（#182 の提案 1）。どうするかは Q53（要確認: Q53）。
+
+## 実機のセッションの報告（v0.67.23 で受けた分: #183、ARM64 の 25.19）
+
+- [ ] **TESTING.md 25.19 の後半「`$v = & filer env; $v.Count` はレポートの行数で 0 ではない」が Windows では成り立たない**（#183 の所見）。
+  前半（`filer env | Select-String arch` が arch の 2 行だけ）は ARM64 で通った。行の直し方は Q54（要確認: Q54）。
+- [ ] `filer env --out <file>` を足すか（#183 の提案 3）。Q55（要確認: Q55）。
+

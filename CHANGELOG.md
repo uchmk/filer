@@ -9,6 +9,14 @@
 
 ## [未リリース]
 
+## [0.67.23] - 2026-10-02
+
+### 変更
+
+- TESTING.md 25.19 の後半（`$v = & filer env` でレポートが取れる）が Windows では成り立たないことを QA-REPORT.md に記録した。前半
+  （`filer env | Select-String arch` が arch の 2 行だけを出す）は ARM64 実機で通っている。filer がパイプラインの最後にあると PowerShell は
+  待たないので、README の例外を `>` から広げる直しを TODO.md に、行の直し方と `filer env --out` を Q54 / Q55 にした（#183）。
+
 ## [0.67.22] - 2026-10-02
 
 ### 変更
