@@ -11049,6 +11049,148 @@ TESTING-KEYS.md `[mgr]` `<C-S-t>`: 1.38 と同じ run。変わったのは `pane
 
 **大きさ**: 生成器に関数 1 つ。
 
+## TESTING.md 25.19 と 25.19a — ARM64 でどちらも通した（4e41505 / 0.70.1、ARM64 レーン、無人の run）
+
+ARM64 レーンの順番表の先頭「**25.19, 25.19a**」（2 行）が担当。#183 が 1 行 2 主張のまま
+取りきれなかった行を Q54 が 2 行に割ったので、**今回はそれぞれに箱がある。**
+
+**2 行とも合。チェックを 2 つ付けた。**`make-testcheck` を回して
+`-- --check` は `in sync`（**321 / 454**）、`make-keycheck -- --check` も `in sync`（249 / 252）。
+`cargo test` は **616 passed; 0 failed**（ネイティブ ARM64、4.17 s、全体 34.8 s）。
+親の無いシェルは `cargo test` の前後で **48 → 48**（`powershell` 22 / `pwsh` 26、変化なし）。
+見つけたもの 1 件、提案 4 件。
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `PROCESSOR_ARCHITECTURE=ARM64`、`Qualcomm(R) Adreno(TM) X2-90 GPU`（Vulkan、IntegratedGpu） |
+| OS | `Windows 11 Home 26H1 (build 28000.2956)` |
+| filer | 手元ビルド 0.70.1（`target\release`）、`--version` が `filer 0.70.1 (aarch64)`、`filer env` が `OS arch aarch64` / `Process arch aarch64`。**x64 のエミュレーションではない** |
+| rustc | 1.98.1、host `aarch64-pc-windows-msvc` |
+| シェル | `pwsh` **7.6.6**（ARM64 ネイティブ）と `powershell` **5.1 (10.0.28000.2804)** の両方で測った |
+| ConPTY | `scripts/fetch-conpty.ps1` で 1.24.260710001 (arm64) を `target\release` へ（この 2 行では使わない） |
+| 昇格 | 無し（`IsInRole('Administrators')` = False）。この 2 行に昇格の要る所は無い |
+| 一時ディレクトリ | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（この機械に RAM ディスクは無い。`TEMP` / `TMP` もそこ） |
+| 設定 | 持ち主の実物。測るスクリプトは全部 `-NoProfile` なので `$PROFILE` は読まれてもいない。持ち主の設定は触っていない |
+| キー | 1 つも押していない。全部シェルから読めるテキストなので、入力デスクトップもスクリーンセーバーも関係しない |
+
+証拠は `C:\dev\filer-evidence\arm-25.19a\`（`caseA.ps1` / `caseB.ps1` / `caseC.ps1`、
+`A-pipe.txt` / `A51-pipe.txt` / `A-console-pipe.txt`、`B-var.txt` / `B51-var.txt` /
+`B-console-var.txt` / `B-var.txt.body.txt`、`C-tail.txt`、`env-cmd.txt`、`env-archpath.txt`、
+`version.txt`、各 run の `*-stdout.txt`）。
+
+### 測り方 —— #183 の作法をそのまま踏んだ
+
+filer は GUI サブシステムの実行ファイルで、**PowerShell はパイプの末尾にいる窓つきプログラムを
+待たない。**だから素直に 1 つのシェルで続けて打つと、前の run の出力が次の run の見出しの後に
+流れ込み、**自分の測り方が壊れているのに合否が出る**（#183 の 1 回目がそれ）。
+
+> **各ケースを `pwsh -NoProfile -File` の別プロセスに閉じ込め、結果はそのスクリプト自身が
+> ファイルに書く。**外側のシェルは「どのファイルに何が入ったか」しか読まない。
+> スクリプト自身の標準出力も別ファイルに落とし、**0 行であること**（レポート本体がどこにも
+> 漏れていないこと）まで確かめた。
+
+さらに **3 通りで回して同じ結果になることを見た**: `pwsh -File`（標準出力はファイル）、
+`powershell` 5.1、`Start-Process pwsh -Wait`（本物のコンソールの窓）。
+
+### 行ごとの結果
+
+| 行 | 結果 | 根拠 |
+| --- | --- | --- |
+| **25.19** `filer env \| Select-String arch` は arch の 2 行だけ | **合** | `A-pipe.txt` が `matches=2` と `    OS arch      : aarch64` / `    Process arch : aarch64` の 2 行。スクリプト自身の標準出力は **0 行**。5.1（`A51-pipe.txt`）も本物のコンソール（`A-console-pipe.txt`）も同じ |
+| **25.19** 「レポート全体ではない」 | **合** | レポートは **49 行**（`env-cmd.txt`、`cmd /c "filer env > …"` 経由）。その 49 行のうち `arch` を含む行は**ちょうど 2 行**。2 行は偶然ではない |
+| **25.19a** `$v = & filer env \| Write-Output; $v.Count` がレポートの行数 | **合** | `B-var.txt` が `count=49` / `null=False` / `ms=491`。**49 は `cmd /c >` で取ったレポートの行数と一致**し、`Compare-Object` で**中身も 1 行も違わない**（`B-var.txt.body.txt` 対 `env-cmd.txt`）。5.1 は `count=49` / `ms=345`、本物のコンソールは `count=49` / `ms=414` |
+| **25.19a** 後ろに何も置かないと `$v` は空 | **合**（行の書いているとおり） | `C-tail.txt` が `count=0` / `null=True` / `ms=187`。**代入が返った時点で filer はまだ生きていて**（`filer alive right after the assignment=1`）、1.5 s 後にはいない。レポートを組むのに 0.25〜0.5 s かかるので、187 ms の時点で出力は 1 バイトも出ていない。**filer ではなく PowerShell** |
+
+**#183 の 48 行が今回 49 行になったのは v0.70.0 のぶん** —— `Variables` 節に
+`FILER_TERM_SHELL : unset` が 1 行増えた。順番表に「48 on #183's build」と書いてあるが、
+**行の文言は「レポートの行数」なので数を固定していない。**そこは直さなくてよい。
+
+### 見つけたもの —— `Select-String arch` は絞り込みが緩く、人の設定次第で 3 行になる
+
+25.19 の期待値は「**arch の 2 行だけ**」で、持ち主の実物の設定ではそのとおりになる（上の表）。
+ただし**パターンが `arch` という裸の部分一致**なので、**レポートのどこかに `arch` を含む
+文字列があれば増える。**実際に作って確かめた（`env-archpath.txt`）:
+
+```
+FILER_CONFIG_HOME = <scratch の使い捨てフォルダ。yazi.toml に opener を 1 つだけ書いた>
+#   [opener]
+#   image = [{ run = '"C:\Archive\tools\viewer.exe" "%*"', desc = "…" }]
+filer env | Select-String arch   ->  matches=3
+      OS arch      : aarch64
+      Process arch : aarch64
+      C:\Archive\tools\viewer.exe              : not found   (opener [image])
+```
+
+`Archive`、`March`、`search`、`arch` を含むフォント名やユーザー名 —— どれでも同じことが起きる。
+**filer の欠陥ではない**（レポートは正しい）。欠陥は**確かめ方の側**にあって、
+TESTING.md 25.19 の `Select-String arch` と、同じコマンドを例に出している
+README 1289 行目の 2 か所が、**人の設定によっては「否」と読める。**
+
+パターンに `:` を足すだけで両方とも 2 行で安定する（3 つ試した）:
+
+| パターン | 実物の設定 | `C:\Archive` の opener 入り |
+| --- | --- | --- |
+| `arch` | 2 | **3** |
+| `arch\s+:` | 2 | 2 |
+| `^\s+(OS\|Process) arch\s+:` | 2 | 2 |
+
+**行は直していない**（役割どおり）。`arch\s+:` への差し替えを薦める。README 1289 行目は
+「人が打つ例」なので、そちらは短いままでもよいか**持ち主の判断**。
+
+### Proposals
+
+1. **README の「例外は `>` だけ」を、やはり広げてほしい（#183 の提案 1 の再提出）。**
+   - 何が起きたか: README 1297〜1300 行は今も「One exception is PowerShell's own `>`」と書く。
+     ところが**この run でもう一度測ったとおり、`$v = & filer env` は 187 ms で `$null` を返す**
+     （`C-tail.txt`）。`>` だけが例外だと読むと、代入で空が返ったときに人は filer を疑う。
+     **TESTING.md 25.19a が存在する理由そのものが、この挙動**なのに、README はまだ `>` しか挙げていない。
+   - どう変えるか: あの段落を「**PowerShell では `filer env` をパイプの末尾に置くと出力が捕れない**
+     （`>`、`>>`、変数への代入、`@()`、`()`、`2>&1`）。後ろにコマンドを 1 つ足せば捕れる」に書き換え、
+     `$v = filer env | Write-Output` の 1 行を例に足す。`--out` が一番楽であることは今の書き方で足りている。
+   - なぜ: 原因は 1 つなので 1 つの規則として書けば迷いが消える。今は `>` を避けた人が
+     次に代入を試して、また沈黙に当たる。
+   - 大きさ: 段落 1 つの書き換えと、例 1 行。
+
+2. **レポートの `arch` 行に、grep しやすい形を保証する（上の「見つけたもの」の裏返し）。**
+   - 何が起きたか: 25.19 の確かめ方が `Select-String arch` で、`C:\Archive\…` の opener が
+     1 つあるだけで 3 行になった。
+   - どう変えるか: **TESTING.md と README の 2 か所のパターンを `arch\s+:` にする**のが一番安い
+     （filer は触らない）。もし filer 側で保証したいなら、`filer env --arch` のような
+     「2 行だけ出す」入口を足す手もあるが、`--out` が入った今は過剰だと思う。
+   - なぜ: バグ報告で一番よく聞かれるのが「どっちの arch か」で、その 1 行を取る手順が
+     人の設定で壊れるのは割に合わない。
+   - 大きさ: チェック表と README の 2 行。filer 側は不要。
+
+3. **レポートの末尾の空行を 1 つにする。**
+   - 何が起きたか: `filer env` の出力は `… FILER_TERM_SHELL  : unset<LF><LF><LF>` で終わる ——
+     **最後のデータ行のあとに空行が 2 つ。**この run で 25.19a の「レポートの行数」を言うのに、
+     47 / 48 / 49 のどれを指すのかを自分で決める必要があった（`cmd /c >` と
+     `| Write-Output` が同じ 49 を返したのでそれにした）。
+   - どう変えるか: 最後の節のあとの空行を 1 つにする（節の区切りに入れている空行を、
+     最後の節では入れない）。
+   - なぜ: このレポートは**人が報告フォームに貼るもの**で、末尾の空行 2 つはそのままノイズになる。
+     「レポートの行数」を期待値にしている行が 1 つある以上、末尾は決まっていたほうがいい。
+   - 大きさ: 出力を組んでいる所の 1 行。
+
+4. **`[mgr] T is bound more than once` の警告に、どのファイルかを入れてほしい。**
+   - 何が起きたか: この機械の `filer env` の `Warnings` 欄は
+     `[mgr] 'T' is bound more than once; only 'plugin toggle-pane max-preview' runs` の 1 行
+     （実物は `T` と `plugin …` をバッククォートで囲んでいる）。
+     **直しに行こうとして、どの `keymap.toml` を開くのか分からなかった。**同じレポートの
+     `Config` 欄は `…\yazi\config\keymap.toml`（0 B）と `…\filer\keymap.toml`（124 B）の 2 本を挙げる。
+     今回は 0 B のほうがありえないので消去法で分かったが、**両方に中身があれば分からない。**
+     負けた側のコマンドも出ないので、探す手がかりは勝った側の文字列だけ。
+   - どう変えるか: 警告に**負けた側のコマンドと、その定義があったファイル**を足す
+     （`…; 'plugin toggle-pane max-preview' runs, not '…' (…\filer\keymap.toml)`）。
+     せめて**ファイル名だけでも**付ける。
+   - なぜ: この警告の目的は「直せるようにすること」で、今は「何かが重なっている」までしか言わない。
+     yazi 由来と自分の上書きが混ざる作りなので、**どちらの層の話かが一番知りたいところ。**
+   - 大きさ: 設計の判断。`config/keymap.rs:291` が見ているのは**マージ後の binding の列**で、
+     出どころを持っていない（`Binding` に由来のファイルを持たせる必要がある）。
+     1 行では済まないので、やるかどうかは持ち主に。
+
 ## TESTING.md の再テスト（4 回目）— 29.12 `FILER_TERM_SHELL`（0d1ca52 / 0.70.2、win レーン、無人の run）
 
 x64（Windows 11 Pro, build 26200）で `target\release\filer.exe` 0.70.2 を、`fetch-conpty.ps1` の ConPTY 1.24.260710001 と並べて動かした。昇格なし（この行には要らない）。

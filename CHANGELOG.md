@@ -9,6 +9,44 @@
 
 ## [未リリース]
 
+## [0.71.1] - 2026-10-02
+
+### 変更
+
+- TESTING.md 25.19 と 25.19a を ARM64 の実機で確かめた（`filer env | Select-String arch` は arch の 2 行だけ、
+  `$v = & filer env | Write-Output; $v.Count` はレポートの行数）（#189）。確かめ方の `Select-String arch` が他の行にも当たりうる件、
+  レポート末尾の空行、キーの重複の警告にファイル名を出す案（Q57）を TODO.md と QUESTIONS.md に回した
+
+## [0.71.0] - 2026-10-02
+
+### 追加
+
+- **Windows の zip に `filer.com` を同梱する**（Q44）。`src/bin/filer-com.rs` のコンソール サブシステムの小さな前段で、zip には
+  `filer-com.exe` を `filer.com` の名前で入れる。`PATHEXT` では `.COM` が `.EXE` より先なので、`filer` と打つとこちらが選ばれる
+  （Visual Studio の `devenv.com` と同じ形）。`env` / `--version` / `--help` / `shell-hook` は `filer.exe` を同じ引数・同じ標準ハンドルで
+  起動して終わるまで待ち、終了コードを返す。コンソールのプログラムなので PowerShell が待ち、`$v = & filer env` や
+  `filer env > out.txt` がそのまま効く（#160 / #176 / #183）。それ以外は窓を開き、窓が入力を受け付けるようになった時点
+  （`WaitForInputIdle`）で戻る。窓の前に断る引数（`--keys "<Tab"` など）は、その 1 行と終了コードがそのまま届く。中身は
+  `filer.exe` が出すので、2 つが食い違うことはない。CI の `build.yml` で release ビルドの `filer.com` を実際に動かして確かめる。
+  README の「Getting a build」と「Reporting a problem」、リリースノートの文、TESTING.md 25.19c、48.1（5 ファイル）、
+  48.3（4 つのバイナリ）を直した（48.1 / 48.3 は印を外し、次のリリースの zip で確かめる）
+
+## [0.70.3] - 2026-10-02
+
+### 修正
+
+- **`filer.exe` の横に `conpty.dll` が無いと、作業フォルダや `PATH` にある `conpty.dll` を読み込んでいた**（#184）。
+  `alacritty_terminal` が `conpty.dll` を名前だけで読むので、Windows の既定の探し方が効いていた。手元のビルドや zip から取り出した exe が、
+  WezTerm の `conpty.dll` や、起動したフォルダに置かれた `conpty.dll` で動いていた（作業フォルダからの DLL の差し込み）。起動の最初に
+  `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)` を呼び、名前で読む DLL を exe のフォルダと System32 に限った。リリースの zip は
+  横のものが勝つので元から無事で、横に無いときは Windows 標準の ConPTY で動く。TESTING.md に 48.7 を足し、48.6 の期待値を
+  「フルパスが exe と同じフォルダ」に直した（#151 / #184 の提案 2）
+- **確認画面の本文が、約 87 文字を超えると途中を `…` にして省かれていた**（#185）。ジャンクションにするかの質問では 2 行目が
+  どの機械でも `holds the…ull path` になり、パスの組は `→` とリンク自身の名前が消えていた。本文は箱の幅で折り返し、箱の高さも
+  それに合わせるようにした。13.8a を ARM64 の再テストに回した
+- ジャンクションを `u` / `U` したときのトーストが `Removed the link` / `Linked` で、シンボリックリンクと同じ言い方だった（#185）。
+  `Removed the junction <名前>` / `Made the junction <名前> again` にした。13.8b の印を外して再テストに回した
+
 ## [0.70.2] - 2026-10-02
 
 ### 変更

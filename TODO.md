@@ -1425,7 +1425,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   テストは描いた行ではなく行の一覧全体（`help_lines` の元）を探すか、見出しまでスクロールしてから見る形にする。
 - [ ] `filer env` に、読み込んだ ConPTY を 1 行出す（提案 1。#184 の提案 1 も同じ。下の DLL の探し方の件があるので、なおさら要る）。`ConPTY : <パス> (1.24.260710001, AA64)` か `built into Windows`。
   ペインの不具合の多くは「古い ConPTY で動いていた」なので、不具合報告の出力に要る。
-- [ ] TESTING.md 48.6 の「x64 のフォルダ」を「それぞれのフォルダ」にする（提案 2。人か QA セッション）。混ざった zip（48.3 が探すもの）は
+- [x] （v0.70.3）TESTING.md 48.6 の「x64 のフォルダ」を「それぞれのフォルダ」にする（提案 2。人か QA セッション）。混ざった zip（48.3 が探すもの）は
   ちょうどここで見つかるので、両方で押す。
 - [ ] `scripts/verify-release.ps1 -Tag vX.Y.Z`（提案 3）: ダウンロード・展開・ファイル数・`--version`・PE machine・リリースページの表との
   ハッシュと大きさの照合を 1 本でやる。48 節の 6 行のうち 5 行が 1 コマンドになり、表が載らなかったことにも次のリリースで気づける。
@@ -1433,13 +1433,13 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 ## 実機のセッションの報告（v0.69.1 で受けた分: #184、x64 の 48 節）
 
 - [x] 48.2 と 48.6 を x64 の実機で v0.64.2 の zip から読み直した（どちらも合格。印は #151 で付いていた）。x64 の順番表から外した。次は「v0.55.0 on x64」。
-- [ ] **`filer.exe` の横に `conpty.dll` が無いと、作業フォルダか `PATH` にある `conpty.dll` を読み込む**（#184 の所見 1）。`alacritty_terminal` 0.26 が
+- [x] （v0.70.3 で直した。`restrict_dll_search`。実機で 48.7）**`filer.exe` の横に `conpty.dll` が無いと、作業フォルダか `PATH` にある `conpty.dll` を読み込む**（#184 の所見 1）。`alacritty_terminal` 0.26 が
   `LoadLibraryW("conpty.dll")` を名前だけで呼ぶので、既定の探し方になる。実測: 単独の exe は WezTerm の `conpty.dll`（`PATH` 経由）を読み、
   `conpty.dll` と `OpenConsole.exe` を置いたフォルダで起動すると**そのフォルダの**ものを読んだ（作業フォルダからの DLL の差し込み）。zip の中の
   exe は横のものが勝つので、リリースは無事。手元のビルド、`cargo install`、zip から取り出した exe が該当し、CLAUDE.md の「標準の ConPTY で動く」
   という前提とも違う。直し方の案: 起動時に `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)`（アプリのフォルダと System32 だけ）、
   または横の DLL をフルパスで先に読む。どちらでも、横に無ければ Windows 標準の ConPTY（`kernel32` の `CreatePseudoConsole`）に落ちるかを確かめる。
-- [ ] TESTING.md 48.6 の期待値を「`C:\Windows` の下ではない」から「フルパスが zip のフォルダと同じ」にする（#184 の提案 2。人か QA セッション）。
+- [x] （v0.70.3）TESTING.md 48.6 の期待値を「`C:\Windows` の下ではない」から「フルパスが zip のフォルダと同じ」にする（#184 の提案 2。人か QA セッション）。
   失敗すると別のアプリの DLL が出るし、`C:\Windows\System32\conpty.dll` はそもそも存在しない。
 - [ ] `windows-role.md` の「How to work」に、ペインを測る実行は読み込んだ `conpty.dll` を記録する、と 1 行足す（#184 の提案 3）。
   `(Get-Process filer).Modules | ? ModuleName -eq conpty.dll | % FileName`。
@@ -1493,9 +1493,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 - [x] 25 節（`filer env`）の残り 9 行のうち 7 行にチェック（253 → 260）。25.11 は Windows では起こせない（標準の太字フォントが必ず見つかる）ので
   Linux レーンの順番表に移した。ARM64 の次の節は 32 / 37 節（オープナー）。
-- [ ] **25.19: `$v = & filer env` で変数に何も入らない**（不具合）。PowerShell 7.6 でも 5.1 でも、本物のコンソールで `$v.Count` が 0 で、画面にも出ない。
+- [x] （v0.71.0、Q44 の 1。`filer.com` を同梱した。実機で 25.19c）**25.19: `$v = & filer env` で変数に何も入らない**（不具合）。PowerShell 7.6 でも 5.1 でも、本物のコンソールで `$v.Count` が 0 で、画面にも出ない。
   `| Select-String` や `| Out-String` を挟むと受け取れる。`$g = & filer --version` も空。GUI サブシステムの exe なので、PowerShell が
-  標準出力を待たずに次へ進む。提案は、コンソール サブシステムの `filer.com` を `filer.exe` の横に同梱する形（要確認: Q44）。
+  標準出力を待たずに次へ進む。提案は、コンソール サブシステムの `filer.com` を `filer.exe` の横に同梱する形（Q44）。
 - [ ] **`--keys` の最後のキーでアプリが終わると、`FILER_KEYS_DONE` が書かれない**（不具合）。`--keys "jq"` で状態ファイルが作られない。
   書くのが「スクリプトが空になった次のフレーム」で、終了するキーにはその次が無い。`on_exit` でも書く（提案 2）。
   終わる前に書いて閉じる `--quit` も提案されている（提案 4）が、`on_exit` で書けば `q` を最後に置けば足りる。
@@ -1698,11 +1698,11 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 - [x] 13.8b に印（開発者モード無し・管理者でない ARM64 で、ジャンクションの提案から `y`・`g` `f`・`u`・`U` まで）。13.8a は 5 つのうち 4 つ合格で、
   残る 1 つ（確認画面が両方のパスを示す）が下の不具合で読めず、印なし。ARM64 の順番表は 13.8a だけに縮め、直しを待つと書いた。
-- [ ] **確認画面の本文を省略せず折り返す**（#185 の所見 1、提案 1）。`src/ui/overlay.rs` の確認画面は箱の幅を `(全体の幅 * 0.6).min(760.0)` に抑え、
+- [x] （v0.70.3 で直した。本文は箱の幅で折り返す。13.8a を ARM64 の再テストに回した）**確認画面の本文を省略せず折り返す**（#185 の所見 1、提案 1）。`src/ui/overlay.rs` の確認画面は箱の幅を `(全体の幅 * 0.6).min(760.0)` に抑え、
   各行を約 87 文字で途中を `…` にして省く。ジャンクションの質問の 2 行目（88 文字）は**どの機械でも** `it holds the…ull path` になり、
   パスの組（124 文字）は `→` とリンク自身の名前が消える。どこにジャンクションを作るかを示すのがこの質問の目的なので、本文は折り返す。
   パスの行を省くしかないなら、`→` の両側をそれぞれ省いて矢印と両方の末尾の名前を残す。直したら 13.8a を再テスト（ARM64 の機械だけ）に回す。
-- [ ] **`u` / `U` のトーストがジャンクションと言わない**（#185 の所見 2、提案 2）。`y` は `Made a junction real — u to undo` と言うが、`u` は
+- [x] （v0.70.3 で直した。`Removed the junction <名前>` / `Made the junction <名前> again`。13.8b の印を外した）**`u` / `U` のトーストがジャンクションと言わない**（#185 の所見 2、提案 2）。`y` は `Made a junction real — u to undo` と言うが、`u` は
   `Removed the link real`、`U` は `Linked real` で、シンボリックリンクと同じ文になる。`UndoStep::Link` の `undone_label` / `redone_label` が
   `ops::Link::junction` を見ていない。直したら 13.8b を再テストに回す（印を外す）。
 - [ ] `n` を選んだ人のために、`mklink /J` のコマンドをクリップボードに渡す（#185 の提案 3）。キーを決める必要があるので Q56。（要確認: Q56）
@@ -1717,4 +1717,19 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] **`make-keycheck -- --check` が、件数だけが違うときにそう言う**（#188 の提案 2）。今は「再生成せよ」とだけ言うが、実機のセッションは
   再生成を禁じられているので、印を付けたあと件数を手で直すしかなかった。`make-testcheck` の「The checks all match; the difference is
   in the surrounding text」と同じ区別を入れ、正しい件数を出す（あるいは件数だけを書き直す `--counts`）。
+
+## 実機のセッションの報告（v0.71.1 で受けた分: #189、ARM64 の 25.19 / 25.19a）
+
+- [x] 25.19 と 25.19a に印（ARM64 のネイティブ版 0.70.1）。`filer env | Select-String arch` は arch の 2 行だけ、
+  `$v = & filer env | Write-Output; $v.Count` は 49（`cmd /c >` で取った行数と同じで、中身も一致）。後ろに何も置かない形は 0 行。
+  ARM64 の順番表から 25.19 の行を外した。
+- [ ] **25.19 の確かめ方 `Select-String arch` が、どこにでもある `arch` に当たる**（#189 の所見、提案 2）。`C:\Archive\…` を名指す
+  オープナーが 1 つあるだけで 3 行目（Tools の行）に当たり、filer は正しいのに確かめ方が失敗に見える。`arch\s+:` なら 2 行のまま
+  （両方のレポートで確かめ済み）。TESTING.md 25.19 の式を `arch\s+:` にする（人か QA セッション）。README の「Reporting a problem」の
+  例も同じ式にする（短さは落ちるが、例のとおりに打った人が同じ 3 行目を見る）。
+- [x] （v0.71.0 で済んだ）README の「`>` が唯一の例外」を「パイプラインの最後」に広げる（#189 の提案 1、#183 の提案 1）。
+  v0.71.0 で「Reporting a problem」を `filer.com` の形に書き直し、`filer.exe` を直接呼ぶときの空振りもまとめて書いた。
+- [ ] **`filer env` の末尾を空行 1 つにする**（#189 の提案 3）。今は `FILER_TERM_SHELL : unset<LF><LF><LF>` で終わり、「レポートの行数」が
+  数え方で 47・48・49 と変わる。`envreport::text` の最後の節で空行を足しすぎている。
+- [ ] `is bound more than once` の警告に、どのファイルの束縛かを書く（#189 の提案 4）。設計の選択があるので Q57。（要確認: Q57）
 

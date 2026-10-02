@@ -885,8 +885,8 @@ impl UndoStep {
             },
             Self::Create { paths, .. } => format!("Removed {}", created_name(paths)),
             Self::Link { links } => match links.len() {
-                1 => format!("Removed the link {}", util::file_name(&links[0].at)),
-                n => format!("Removed {n} link(s)"),
+                1 => format!("Removed the {} {}", link_word(links), util::file_name(&links[0].at)),
+                n => format!("Removed {n} {}(s)", link_word(links)),
             },
         }
     }
@@ -905,12 +905,23 @@ impl UndoStep {
                 n => format!("Moved {n} item(s)"),
             },
             Self::Create { paths, .. } => format!("Created {}", created_name(paths)),
+            Self::Link { links } if links.iter().all(|l| l.junction) => match links.len() {
+                1 => format!("Made the junction {} again", util::file_name(&links[0].at)),
+                n => format!("Made {n} junctions again"),
+            },
             Self::Link { links } => match links.len() {
                 1 => format!("Linked {}", util::file_name(&links[0].at)),
                 n => format!("Made {n} link(s)"),
             },
         }
     }
+}
+
+/// What `u` calls the links it took back. A junction stays a junction in the
+/// toast: `y` said `Made a junction`, and `u` then `U` used to say `link`, the
+/// word for the symlink Windows had refused (#185).
+fn link_word(links: &[ops::Link]) -> &'static str {
+    if links.iter().all(|l| l.junction) { "junction" } else { "link" }
 }
 
 /// The name a create is known by: the thing asked for, the last of its paths.
@@ -6415,6 +6426,20 @@ mod create_and_link_undo {
 
         a.on_op_event(finished(vec![link("two.txt"), link("three.txt")], Vec::new()));
         assert!(toasts(&a).contains(&"Made 2 link(s) — u to undo"), "{:?}", toasts(&a));
+    }
+
+    /// #185: `u` and `U` on junctions say junction, as `y` did; on links,
+    /// link, as before.
+    #[test]
+    fn undoing_a_junction_says_junction() {
+        let made = |junction| ops::Link { at: PathBuf::from("w/alias"), target: PathBuf::from("w/real"), dir: true, hard: false, junction };
+        let step = UndoStep::Link { links: vec![made(true)] };
+        assert_eq!(step.undone_label(), "Removed the junction alias");
+        assert_eq!(step.redone_label(), "Made the junction alias again");
+        let step = UndoStep::Link { links: vec![made(true), made(true)] };
+        assert_eq!((step.undone_label().as_str(), step.redone_label().as_str()), ("Removed 2 junction(s)", "Made 2 junctions again"));
+        let step = UndoStep::Link { links: vec![made(false)] };
+        assert_eq!((step.undone_label().as_str(), step.redone_label().as_str()), ("Removed the link alias", "Linked alias"));
     }
 
     /// Some made and some not: the error is what to read, so no success line

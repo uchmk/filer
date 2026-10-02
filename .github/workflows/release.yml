@@ -102,6 +102,9 @@ jobs:
             $stage = "stage/$name"
             New-Item -ItemType Directory -Force $stage | Out-Null
             Copy-Item "target/$target/release/filer.exe" $stage
+            # The console front (v0.71.0, Q44): `filer env` and `--version`
+            # typed in PowerShell find filer.com first and are waited for.
+            Copy-Item "target/$target/release/filer-com.exe" "$stage/filer.com"
             pwsh -File scripts/fetch-conpty.ps1 -Arch $arch -Dest $stage
             if ($LASTEXITCODE -ne 0) { throw "fetching ConPTY for $arch failed" }
             Compress-Archive -Path $stage -DestinationPath "dist/$name.zip" -Force
@@ -218,8 +221,10 @@ jobs:
 
           The Windows downloads are `.zip`: `filer.exe` comes with `conpty.dll` and
           `OpenConsole.exe`, a newer ConPTY from Microsoft's own package (MIT, notice
-          included). The table at the end lists each zip's files with their hashes.
-          **Keep the three together.** filer runs without the other two, but on
+          included), and `filer.com`, which makes `filer env` and `filer --version`
+          typed in a terminal behave like any console command. The table at the end
+          lists each zip's files with their hashes.
+          **Keep them together.** filer runs without the others, but on
           the older ConPTY built into Windows, programs in the terminal pane such as
           lazygit misread keys.
           NOTE
