@@ -10988,3 +10988,63 @@ ARM64 レーンの順番表の次の節「**13.8a, 13.8b**」（2 行）が担�
      124 文字の 2 つの絶対パス**。メッセージがコマンドを出している以上、
      それを使えるようにするところまでが 1 組だと思う。
    - 大きさ: 選択肢 1 つとクリップボード呼び出し 1 行。`offer_junctions` の中。
+
+## TESTING.md の再テスト（3 回目）— 残っていた x64 の 7 行と `[mgr]` `<C-S-t>`（d8f4d2d / 0.69.1、win レーン、無人の run）
+
+x64（Windows 11 Pro 25H2, build 26200.9457）で `target\release\filer.exe` 0.69.1 を、`fetch-conpty.ps1` の ConPTY 1.24.260710001 と並べて動かした
+（ペインを開いた filer の `Modules` に `C:\dev\filer-wintest\target\release\conpty.dll` が載っているのを確かめた）。昇格なし。
+証拠は `C:\dev\filer-evidence\win-retests3-20261002`（`FILER_KEYS_DONE` の写し、スクリーンショット、`FILER_PTY_LOG`、`out3.txt`、使った `run-keys.ps1`）。
+
+- `cargo test`: **615 passed / 0 failed**。前後で親のいない `OpenConsole` / `pwsh` / `powershell` は **88 → 88**（増えていない）。
+- 13.8a / 13.8b は順番表どおり ARM64 に残した（この機械は開発者モードが有効）。
+
+| 行 | 結果 | 根拠 |
+| --- | --- | --- |
+| 34.15 | 合 | `<F1>C` → `toast: Copied the help panel: 154 keys`、`overlay: help`。**行に書いてあるとおりの** `Get-Clipboard \| Select-String "^j\t"` が `j<TAB>Move cursor down<TAB>arrow 1` を返した（v0.67.24 の CRLF が効いている。`-Raw` に裸の LF は 0 個）。`config` とパス、10 行目に `keys` だけの行、その後にタブ 2 つの行が 154 行 |
+| 1.38 | 合 | `j<C-t><Wait:2500><C-t><C-S-t>` → `pane: closed`、`toast: Ended the shell`。もう一度 `<C-S-t>` → `toast: No terminal to close`。閉じたあと filer の子プロセスは 0 |
+| 25.6 | 合 | `filer --help` の COMMANDS に `env` と `env --out FILE   the same, written to FILE as UTF-8` |
+| 25.19b | 合 | `R:\…\日本語フォルダ` で `filer env --out out3.txt` → `filer: wrote R:\Temp\run-20261002-160706\日本語フォルダ\out3.txt` の 1 行、終了コード 0。`chcp 932` の `cmd` から回しても、ファイルは UTF-8 として厳密に読め（U+FFFD なし）、`日本語フォルダ\設定`（`FILER_CONFIG_HOME` に入れた）と `—` がそのまま入っていた。`env --out` → `filer: env: --out needs a file name`、`env --outt x` → `filer: env: unknown argument "--outt" (try --out FILE)`、どちらも 1 行・終了コード 2・フォルダは空のまま |
+| 29.1 | 合 | フックの無い仮の `$PROFILE` で `<C-t>`、`cd C:\dev`、`<A-Up>` → PATH に無いとき `` `pwsh` has not said where it is (no OSC 7). In that shell: & 'C:\dev\filer-wintest\target\release\filer.exe' shell-hook \| Add-Content $PROFILE, then <C-S-t> and <C-t> ``、PATH に置くと `… In that shell: filer shell-hook \| Add-Content $PROFILE, then <C-S-t> and <C-t>` |
+| 29.8 | 合 | `FILER_CONFIG_HOME` に `[term] shell = "powershell"` だけを置き、ペインで `$PSVersionTable` が `5.1.26100.9444`。`<A-Up>` → `` `powershell (Windows PowerShell 5.1)` has not said where it is (no OSC 7), and cannot: the hook needs PowerShell 7 (winget install Microsoft.PowerShell) ``。「赤い」は文言の根拠にしていない（スクリーンショットに赤系の画素が 55 点、ヘルプの絵には 0 点、という補助の読みだけ） |
+| 29.10 | 合 | ペインで `filer shell-hook \| Add-Content $PROFILE`、`<C-S-t>`、`<C-t>`、`cd C:\dev`、`<A-Up>` → `cwd: C:\dev`、タイトル `Filer: C:\dev`、PTY ログに `\e]7;file:///C:/dev\e\`。仮のプロファイルは**末尾に改行の無い 1 行**にしておいたが、`# filer:` の行は 2 行目に別の行として入り、末尾 8 行が `filer shell-hook` の出力（先頭の空行を除く）と一致。`shell-hook powershell` / `shell-hook fish` は 1 行・終了コード 2 |
+
+TESTING-KEYS.md `[mgr]` `<C-S-t>`: 1.38 と同じ run。変わったのは `pane: 12x159` → `closed` とトーストだけ。
+`cwd` / `hovered`（`a.txt`）/ `selected: 0` / `overlay: none` / タイトル / クリップボードの番兵 / 作業フォルダのハッシュ一覧は前後で同じで、
+`FILER_PTY_LOG` に `in key` の行は 0（`<C-S-t>` はペインに届いていない）。
+
+**本物の `$PROFILE` について**: `C:\Users\yuu06\Documents\PowerShell\Microsoft.PowerShell_profile.ps1` は
+`C:\dev\obsidian-notes\notes\config\PowerShell\Microsoft.PowerShell_profile.ps1` へのシンボリックリンクで、**すでに OSC 7 のフックを持っていた**
+（210 行目、自前の `LocationChangedAction`）。だから 29.x は「フックの無い状態」から始められない。リンクの先には一度も書かず、
+**リンクそのものを別名に移し**、同じ場所に仮の 1 行のファイルを置いて回し、最後に仮のファイルを消してリンクを戻した。
+リンク先の SHA-256 は前後とも `4A83D6A21FAFF79E0E482C4CD3068221FCEFC199E99DC3312D6E9BBC96A5B213`、戻したリンクは同じ先を指している。
+
+### Proposals
+
+#### 提案 1: `env --out` と `shell-hook` を**スクリプトから**呼ぶときの待ち方を、`--help` と 25.19b に書く
+
+**踏んだこと**: 25.19b を行のとおりに 2 行続けて回すと、`filer env --out out3.txt; Test-Path out3.txt` が `False` で、1.5 秒後に `True`。
+`filer: wrote …` の行は**次のコマンドの出力のあとに**出た。`env --outt x` を素で呼ぶと `$LASTEXITCODE` は `0` のまま（本当は 2）で、
+エラー文はやはり後から出た。`| Out-Null` か `| Write-Output` を付けると PowerShell が待ち、ファイルはすぐあり、`$LASTEXITCODE` は 2 になった。
+`write_whole` のコメントはこの「待たない」を知っていて半端なファイルを防いでいるが、**ファイルがまだ無い**ほうは防げない。
+
+**どう変えるべきか**: `--help` の `env --out FILE` の説明に「in a script, `filer env --out r.txt | Out-Null` waits for it」を足す。
+25.19b の終了コードの確かめ方も `| Out-Null; $LASTEXITCODE` と書く。
+
+**なぜ**: 人が対話で打つ分には次のプロンプトまでに終わるので気づかないが、報告を集めるスクリプトや CI では
+「ファイルが無い」「終了コード 0」と嘘を読む。この run もそれで一度失敗を読みかけた。
+
+**大きさ**: `--help` に 1 行、TESTING.md に半行。
+
+#### 提案 2: `make-keycheck -- --check` は、件数だけが違うときにそう言う
+
+**踏んだこと**: `<C-S-t>` の `[ ]` を `[x]` にしただけで `--check` は
+「The bindings all match; the difference is in the surrounding text. … Regenerate it」と言って落ちた。違いは `249 / 252` と `[mgr] — 153 / 154` の件数だけ。
+役割定義は「再生成するな、`[ ]` を `[x]` にするだけ」と言うので、手で件数を直して `in sync` にした。
+
+**どう変えるべきか**: 違いが件数の行だけなら「only the counts differ: expected 250 / 252 and `[mgr]` 154 / 154」と、正しい数を出す。
+あるいは `make-testcheck` と同じく、チェックを保ったまま件数だけ書き直す `--counts` を足し、役割定義はそれを指す。
+
+**なぜ**: いまは実機のセッションが「再生成しろ」と「再生成するな」の板挟みになる。手で数を合わせるのは、
+最初の ARM64 run が見出しだけ直して合計を直し忘れた失敗と同じ形。
+
+**大きさ**: 生成器に関数 1 つ。

@@ -4,13 +4,13 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**249 / 252 checked.**
+**250 / 252 checked.**
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 153 / 154
+## `[mgr]` — 154 / 154
 
 The file list: what is in front of you unless an overlay is.
 
@@ -195,7 +195,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<C-S-p>` — Open the command palette · `palette`
 - [x] `<S-F10>` — Open the context menu · `menu`
 - [x] `<C-t>` — Open the terminal pane · `terminal`
-- [ ] `<C-S-t>` — Close the terminal and end the shell · `terminal close`
+- [x] `<C-S-t>` — Close the terminal and end the shell · `terminal close`
 - [x] `<A-t>` — Type the selected paths into the terminal · `term_send`
 - [x] `<C-S-Enter>` — Give the terminal pane the window (the same key in the pane gives it back) · `term_max`
 
