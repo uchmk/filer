@@ -825,22 +825,25 @@ pub fn confirm(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, q
         used += w + 8.0;
     }
 
-    let lines = c.body.len() as f32 + 3.0 + button_rows;
-    let rect = Rect::from_center_size(full.center(), Vec2::new(width, row_h * lines + 48.0));
+    // The body wraps to the box rather than losing its middle. It used to be
+    // elided at a character count, and the junction question's second line
+    // came out `holds the…ull path` on every machine while its path pair lost
+    // the arrow and the link's own name -- the one thing that question is
+    // there to show (#185).
+    let body: Vec<_> =
+        c.body.iter().map(|l| ui.painter().layout(l.clone(), f.clone(), fg, inner_w)).collect();
+    let body_h: f32 = body.iter().map(|g| g.size().y.max(row_h)).sum();
+    let height = body_h + row_h * (3.0 + button_rows) + 48.0;
+    let rect = Rect::from_center_size(full.center(), Vec2::new(width, height));
     let inner = modal_frame(ui, rect, &app.cfg.theme, &c.title, f, row_h);
     let theme = &app.cfg.theme;
     let painter = ui.painter_at(inner);
 
     let mut y = inner.top();
-    for l in &c.body {
-        painter.text(
-            egui::pos2(inner.left(), y),
-            Align2::LEFT_TOP,
-            crate::util::ellipsize_middle(l, (inner.width() / (f.size * 0.6)) as usize),
-            f.clone(),
-            theme.fg,
-        );
-        y += row_h;
+    for g in body {
+        let h = g.size().y.max(row_h);
+        painter.galley(egui::pos2(inner.left(), y), g, theme.fg);
+        y += h;
     }
     y += row_h * 0.5;
 
@@ -3023,3 +3026,40 @@ mod prompt_selection {
         assert_eq!(field(&s), "bundle.zip");
     }
 }
+
+#[cfg(test)]
+mod confirm_frame {
+    use crate::app::{ConfirmAction, ConfirmOverlay, Overlay};
+    use crate::ui::harness::Screen;
+
+    /// #185: a body line longer than the box wraps, every character drawn.
+    /// It used to be cut in the middle at ~87 characters, so the junction
+    /// question read `holds the…ull path` and its path pair lost the arrow
+    /// and the link's own name.
+    #[test]
+    fn a_long_body_line_wraps_rather_than_losing_its_middle() {
+        let long = format!("{}  →  {}", "C:/Users/someone/AppData/Local/Temp/filer-scratch/w/a1/zdst/the-link", "C:/Users/someone/AppData/Local/Temp/filer-scratch/w/a1/real");
+        let sentence = "A junction needs neither. Unlike the symlink it holds the full path, not a relative one,";
+        let mut s = Screen::open(crate::util::test_dir("confirm-wrap")).sized(1000.0, 700.0);
+        // 1000 px wide puts the box at 600: both lines are longer than that.
+        s.app.overlay = Overlay::Confirm(ConfirmOverlay {
+            title: "Make a junction instead?".into(),
+            body: vec![sentence.to_owned(), long.clone()],
+            options: vec![('y', "Make the junction".into()), ('n', "No".into())],
+            action: ConfirmAction::Junctions { links: Vec::new() },
+            dest: None,
+        });
+        let f = s.draw();
+        for line in [sentence, long.as_str()] {
+            let drawn = f.drawn(line).unwrap_or_else(|| panic!("{line:?} not drawn: {:?}", f.texts));
+            let squeezed: String = line.chars().filter(|c| !c.is_whitespace()).collect();
+            let got: String = drawn.chars().filter(|c| !c.is_whitespace()).collect();
+            assert_eq!(got, squeezed, "every character of {line:?} reaches the screen");
+        }
+        let (a, b) = (f.placed(sentence).unwrap(), f.placed(&long).unwrap());
+        let button = f.placed(" [y] Make the junction ").expect("the button is drawn");
+        assert!(a.y < b.y && b.y < button.y, "sentence, path, then buttons, top to bottom: {a:?} {b:?} {button:?}");
+        assert!(f.says(" [n] No "), "the buttons are still there: {:?}", f.texts);
+    }
+}
+
