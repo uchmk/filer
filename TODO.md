@@ -1637,3 +1637,14 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   そのことを Windows のトースト通知で出す。または、汚れが 24 時間を超えたら差分を状態フォルダに退避して作業コピーを戻し、次の実行を始める。
   後者は人の判断を省くので、決める前に持ち主に聞く。
 
+## 実機のセッションの報告（v0.67.20 で受けた分: #176、ARM64 の 29 節）
+
+- [ ] **`filer env > out.txt` が PowerShell では 0 バイトのファイルになる**（#176 の所見と提案 1）。PowerShell の `>` は GUI サブシステムの
+  プロセスを待たずにパイプを閉じる（`>` は 25 ms で戻り、パイプ渡しは 85 ms）。パイプ、`cmd /c "filer.exe env > out.txt"`、
+  `Start-Process -Wait -RedirectStandardOutput` は取れる。`src/main.rs` の `say()` の doc コメントは「ファイルにもパイプにも出る」と言っている。
+  `filer --help` の末尾と README の `filer env` の所に 1 行
+  `Windows: PowerShell's > does not wait for a GUI binary; use a pipe, cmd /c, or Start-Process -Wait` を足し、doc コメントも直す。
+- [ ] **`FILER_KEYS_DONE` に、その実行で出たトーストを全部残す `toasts:` 行を足す**（#176 の提案 2）。今の `toast:` は書く時点で出ているもの
+  だけなので、トーストが期待値の行（29.7、12.17 / 12.18、13.8a など）は消える前に `<Shot:>` を撮って画像から読むしかない。
+  `App` に直近 16 本ほどの履歴を持ち、`state_report` に `|` 区切りで 1 行。今の `toast:` 行は残す。
+
