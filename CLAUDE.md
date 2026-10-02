@@ -71,7 +71,8 @@ main に入れず**別 SHA の複製**を入れるので、グラフから枝線
     `git describe --tags --abbrev=0 HEAD^` で探すので、**タグができる前に次を投げると、
     さらに前のタグまで遡って、前回と丸ごと重複したノートになる。**
     タグは workflow の最後に作られるため、投げた直後にはまだ無い。
-  - 成果物は 6 つ。Windows は `.zip`、macOS / Linux は `.tar.gz`
+  - 成果物は 6 つ。Windows は `.zip`（v0.71.0 から `filer.com` も入る。`src/bin/filer-com.rs` のコンソール用の前段で、
+    `filer env` などを PowerShell が待てるようにする。Q44）、macOS / Linux は `.tar.gz`
     （リリースのアセットは**実行ビットを保持しない**ので、生のバイナリだと
     `chmod +x` が要る。tar は保持する）。
   - **Windows の zip には、新しい ConPTY（`conpty.dll` と `OpenConsole.exe`）を同梱する**

@@ -9,6 +9,20 @@
 
 ## [未リリース]
 
+## [0.71.0] - 2026-10-02
+
+### 追加
+
+- **Windows の zip に `filer.com` を同梱する**（Q44）。`src/bin/filer-com.rs` のコンソール サブシステムの小さな前段で、zip には
+  `filer-com.exe` を `filer.com` の名前で入れる。`PATHEXT` では `.COM` が `.EXE` より先なので、`filer` と打つとこちらが選ばれる
+  （Visual Studio の `devenv.com` と同じ形）。`env` / `--version` / `--help` / `shell-hook` は `filer.exe` を同じ引数・同じ標準ハンドルで
+  起動して終わるまで待ち、終了コードを返す。コンソールのプログラムなので PowerShell が待ち、`$v = & filer env` や
+  `filer env > out.txt` がそのまま効く（#160 / #176 / #183）。それ以外は窓を開き、窓が入力を受け付けるようになった時点
+  （`WaitForInputIdle`）で戻る。窓の前に断る引数（`--keys "<Tab"` など）は、その 1 行と終了コードがそのまま届く。中身は
+  `filer.exe` が出すので、2 つが食い違うことはない。CI の `build.yml` で release ビルドの `filer.com` を実際に動かして確かめる。
+  README の「Getting a build」と「Reporting a problem」、リリースノートの文、TESTING.md 25.19c、48.1（5 ファイル）、
+  48.3（4 つのバイナリ）を直した（48.1 / 48.3 は印を外し、次のリリースの zip で確かめる）
+
 ## [0.70.3] - 2026-10-02
 
 ### 修正

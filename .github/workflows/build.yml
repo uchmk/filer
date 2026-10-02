@@ -121,6 +121,21 @@ jobs:
           "cmd >:    $((Get-Item env.txt).Length) bytes"
           "piped:    $arch"
           "--out:    $((Get-Item env-out.txt).Length) bytes"
+          # filer.com (v0.71.0, Q44): the console front the zip ships beside
+          # filer.exe. Being a console program, PowerShell waits for it, so the
+          # bare forms that come back empty from filer.exe have to work here.
+          $com = "target/${{ matrix.target }}/release/filer.com"
+          Copy-Item "target/${{ matrix.target }}/release/filer-com.exe" $com
+          $lines = & $com env
+          if ($lines.Count -lt 10) { throw "`$v = & filer.com env gave $($lines.Count) line(s)" }
+          $ver = & $com --version
+          if (-not ($ver -match '^filer \d')) { throw "& filer.com --version gave: '$ver'" }
+          & $com --keys "<Tab"
+          $refused = $LASTEXITCODE
+          # The step ends with `exit $LASTEXITCODE`, and this 2 is the pass.
+          $global:LASTEXITCODE = 0
+          if ($refused -ne 2) { throw "filer.com --keys `"<Tab`" exited $refused, not filer.exe's 2" }
+          "filer.com: $($lines.Count) lines, $ver, refusal exit $refused"
 
       - name: Gather the files
         shell: bash
@@ -128,6 +143,9 @@ jobs:
           mkdir -p dist
           # Windows is the only one that names the binary `filer.exe`.
           cp target/${{ matrix.target }}/release/filer${{ runner.os == 'Windows' && '.exe' || '' }} dist/
+          # And it gets the console front beside it, under the name that makes
+          # `filer` find it first (v0.71.0, src/bin/filer-com.rs).
+          if [ "${{ runner.os }}" = Windows ]; then cp target/${{ matrix.target }}/release/filer-com.exe dist/filer.com; fi
 
       # Windows ships a newer ConPTY beside filer.exe; see
       # scripts/fetch-conpty.ps1 for why.
