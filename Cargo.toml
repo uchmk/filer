@@ -1,6 +1,6 @@
 [package]
 name = "filer"
-version = "0.70.2"
+version = "0.70.3"
 edition = "2021"
 rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"
@@ -74,7 +74,7 @@ codegen-units = 1
 strip = true
 
 [target."cfg(windows)".dependencies]
-windows = { version = "0.62", features = ["Wdk_System_SystemServices", "Win32_Foundation", "Win32_NetworkManagement_WNet", "Win32_System_Com", "Win32_System_Console", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Registry", "Win32_System_SystemInformation", "Win32_System_Threading", "Win32_UI_Shell", "Win32_Graphics_Gdi", "Win32_Storage_FileSystem"] }
+windows = { version = "0.62", features = ["Wdk_System_SystemServices", "Win32_Foundation", "Win32_NetworkManagement_WNet", "Win32_System_Com", "Win32_System_Console", "Win32_System_Diagnostics_ToolHelp", "Win32_System_LibraryLoader", "Win32_System_Registry", "Win32_System_SystemInformation", "Win32_System_Threading", "Win32_UI_Shell", "Win32_Graphics_Gdi", "Win32_Storage_FileSystem"] }
 
 # The host, not the target: compiling a Windows resource needs the SDK's rc.exe,
 # so this is only pulled in where it can actually run.

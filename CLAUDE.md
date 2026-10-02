@@ -79,6 +79,8 @@ main に入れず**別 SHA の複製**を入れるので、グラフから枝線
     取得は `scripts/fetch-conpty.ps1` の 1 か所で、版と SHA-256 はそこで固定している。
     **版を上げるときは、実機で新しい版を試してから、版とハッシュを一緒に変えること。**
     手元でビルドしたときも、このスクリプトで `target\release` に置かないと古い ConPTY で動く。
+    **`filer.exe` の横に無いとき、作業フォルダや `PATH` の `conpty.dll` は読まない**（v0.70.3、#184。`main` の最初で
+    `SetDefaultDllDirectories` を呼び、名前で読む DLL を exe のフォルダと System32 に限っている）。
   - **最後に `sums` ジョブが、全成果物と Windows の zip の中身（ファイルごと）の SHA-256 表をノートの末尾に足す**
     （v0.64.0、`scripts/release-sums.sh`。`<!-- checksums -->` から後ろを置き換えるので再実行しても重ならない）。
     手元で試すときは、成果物を置いたフォルダでこのスクリプトを回す。

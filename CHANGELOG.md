@@ -9,6 +9,22 @@
 
 ## [未リリース]
 
+## [0.70.3] - 2026-10-02
+
+### 修正
+
+- **`filer.exe` の横に `conpty.dll` が無いと、作業フォルダや `PATH` にある `conpty.dll` を読み込んでいた**（#184）。
+  `alacritty_terminal` が `conpty.dll` を名前だけで読むので、Windows の既定の探し方が効いていた。手元のビルドや zip から取り出した exe が、
+  WezTerm の `conpty.dll` や、起動したフォルダに置かれた `conpty.dll` で動いていた（作業フォルダからの DLL の差し込み）。起動の最初に
+  `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)` を呼び、名前で読む DLL を exe のフォルダと System32 に限った。リリースの zip は
+  横のものが勝つので元から無事で、横に無いときは Windows 標準の ConPTY で動く。TESTING.md に 48.7 を足し、48.6 の期待値を
+  「フルパスが exe と同じフォルダ」に直した（#151 / #184 の提案 2）
+- **確認画面の本文が、約 87 文字を超えると途中を `…` にして省かれていた**（#185）。ジャンクションにするかの質問では 2 行目が
+  どの機械でも `holds the…ull path` になり、パスの組は `→` とリンク自身の名前が消えていた。本文は箱の幅で折り返し、箱の高さも
+  それに合わせるようにした。13.8a を ARM64 の再テストに回した
+- ジャンクションを `u` / `U` したときのトーストが `Removed the link` / `Linked` で、シンボリックリンクと同じ言い方だった（#185）。
+  `Removed the junction <名前>` / `Made the junction <名前> again` にした。13.8b の印を外して再テストに回した
+
 ## [0.70.2] - 2026-10-02
 
 ### 変更

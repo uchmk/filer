@@ -250,7 +250,24 @@ fn take_path(cli: &mut Cli, arg: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Where a DLL loaded by name may come from: the folder `filer.exe` is in and
+/// System32, and nowhere else. `alacritty_terminal` loads `conpty.dll` by name,
+/// and the default search also tries the working directory and every folder on
+/// the `PATH`. A `filer.exe` with no `conpty.dll` beside it ran on WezTerm's
+/// from the `PATH`, or on one left in the folder it was started from (#184).
+/// The release zip was safe only because its own copy wins. Without one beside
+/// the exe, the pane now uses the ConPTY built into Windows.
+#[cfg(windows)]
+fn restrict_dll_search() {
+    use windows::Win32::System::LibraryLoader::{SetDefaultDllDirectories, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS};
+    // Fails only before Windows 8 (or 7 without KB2533623), which egui does
+    // not run on either; there the old search order simply stays.
+    let _ = unsafe { SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS) };
+}
+
 fn main() -> eframe::Result<()> {
+    #[cfg(windows)]
+    restrict_dll_search();
     let cli = parse_cli();
     let cfg = Config::load();
 
