@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**318 / 454 済み。**（TESTING.md の全 623 件のうち、`cargo test` が見ている 169 件は
+**319 / 454 済み。**（TESTING.md の全 623 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -221,7 +221,7 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **12.17** `a` で `new/deep/note.txt` を作り、`u`、続けて `U`（v0.60.0）→ `u` で `note.txt` と、そのために作った 2 つのフォルダが消え、トーストは `Removed note.txt and 2 folder(s)`（v0.67.10。それまでは `Removed note.txt` で、フォルダのことを言わなかった）。`U` で 3 つとも戻る。ファイルに何か書いてから `u` すると残り、書き込まれたというエラーが出る — *`a`, type `new/deep/note.txt`, `<Enter>`, then `u`; then `U` (v0.60.0) → `u` removes `note.txt` and both folders made for it, toast `Removed note.txt and 2 folder(s)` (v0.67.10; before, `Removed note.txt` said nothing of the folders); `U` makes all three again. Write something into the file and press `u`: it stays, and the error says it has been written to since*
 - [x] **12.18** ファイルをヤンクし、別のフォルダで `-`、続けて `u`、`U`（v0.60.0）→ `-` が `Linked <名前> — u to undo` と言う（v0.67.10。それまではヤンクのトーストが残るだけだった）。`u` はリンクだけを消し、元のファイルと中身はそのまま。`U` でリンクが戻る。Windows では `=`（ハードリンク）とフォルダへの `-` でも — *Yank a file, `-` in another folder, then `u`; then `U` (v0.60.0) → `-` says `Linked <name> — u to undo` (v0.67.10; before, the yank's toast stayed up). `u` removes the link and only the link: the source file and its contents are untouched. `U` makes the link again. On Windows, also with `=` (hardlink) and with a folder (`-` on a directory)*
 
-## 13. シンボリックリンクと `g`+`f` — 8 / 11
+## 13. シンボリックリンクと `g`+`f` — 9 / 11
 
 Windows ではリンクを作るのが面倒。**ジャンクション**は管理者権限が要らない
 （`mklink /J linktest C:\dev`）。**ファイルへのシンボリックリンクは開発者モードか管理者権限**が要る
@@ -242,7 +242,7 @@ fsutil hardlink list locked.txt        # 期待値の答え合わせ用
 - [x] **13.7** ジャンクション（`mklink /J`）で試す → シンボリックリンクと同じ扱い（名前の後ろに `->` が付き、`g`+`f` で追える） — *A junction (`mklink /J`), not just a symlink → Treated the same: `->`, and `g`+`f` follows it*
 - [x] **13.8** `y` してから、別のディレクトリで `-` → シンボリックリンクができる。**Windows では開発者モードが要る**（設定 > システム > 開発者向け）。無いと `os error 1314` で失敗し、トーストが対処法を 2 つ示す — *`y`, then `-` in another directory → The symlink appears. **On Windows this needs Developer Mode on** (Settings > System > For developers) — without it, and without running filer elevated, it fails with `os error 1314` and the toast says which two remedies there are. The privilege is the OS's, not the app's: `std` already passes `SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, which is what makes Developer Mode enough*
 - [ ] **13.8a** 開発者モードが無く昇格もしていない状態で、**フォルダ**を `y` し、別のディレクトリで `-`（v0.67.11）→ 同じ拒否のあとに `A junction needs neither: mklink /J "<リンク>" "<フォルダ>"` が続き、パスは両方とも絶対パス。それを `cmd` に貼るとジャンクションができ、`g` `f` でたどれる。ファイルへの `-` ではジャンクションのことは言わない（フォルダ専用なので）。v0.67.19 からは続けて `Make a junction instead?` と聞く（両方のパスを挙げ、ジャンクションは相対にならずネットワークの場所を指せないと言う）。`n` なら何も残らない — *Without Developer Mode and not elevated: `y` on a **folder**, then `-` in another directory (v0.67.11) → The same refusal, and after it `A junction needs neither: mklink /J "<the link>" "<the folder>"`, both paths absolute. Pasting that into `cmd` makes a junction that `g` `f` follows. `-` on a file says nothing of junctions (they are folders only). Since v0.67.19 a question follows: `Make a junction instead?`, naming both paths and saying a junction is not relative and cannot reach a network location; `n` leaves nothing behind*
-- [ ] **13.8b** 13.8a に続けて `y`（v0.67.19、Q46）→ トースト `Made a junction <名前> — u to undo`。`(Get-Item <リンク>).LinkType` が `Junction` で、`g` `f` でたどれる。`u` はジャンクションだけを消し（フォルダと中身は残る）、`U` でまたジャンクションとして作られる — *As 13.8a, then `y` (v0.67.19, Q46) → Toast `Made a junction <name> — u to undo`; `(Get-Item <link>).LinkType` reads `Junction` and `g` `f` follows it. `u` removes the junction and only the junction (the folder and its files stay); `U` makes it again, still a junction*
+- [x] **13.8b** 13.8a に続けて `y`（v0.67.19、Q46）→ トースト `Made a junction <名前> — u to undo`。`(Get-Item <リンク>).LinkType` が `Junction` で、`g` `f` でたどれる。`u` はジャンクションだけを消し（フォルダと中身は残る）、`U` でまたジャンクションとして作られる — *As 13.8a, then `y` (v0.67.19, Q46) → Toast `Made a junction <name> — u to undo`; `(Get-Item <link>).LinkType` reads `Junction` and `g` `f` follows it. `u` removes the junction and only the junction (the folder and its files stay); `U` makes it again, still a junction*
 - [x] **13.9** `y` してから、**隣の**ディレクトリで `_` → 同じリンクが相対パス（`..\other\file`）で作られる。`g`+`f` で追え、両方のディレクトリを一緒に移動しても壊れない（これが `-` に対する `_` の利点） — *`y`, then `_` in a **sibling** directory → The same link, written relative (`..\other\file`). `g`+`f` follows it, and it survives moving both directories together — which is the point of `_` over `-`*
 - [x] **13.10** シンボリックリンクの上で `<Tab>` → **Link** セクションが出る。`Kind` が `Symlink`、`Target` が保存されたパス、`Resolves` が実際の着地点 — *`<Tab>` on a symlink (v0.46.0) → A **Link** section: `Kind` reads `Symlink`, `Target` the stored path, `Resolves` where it lands*
 - [x] **13.11** `_` で作ったリンクの上で `<Tab>` → `Kind` が `Symlink (relative)`。`Target` は相対パス、`Resolves` は絶対パスで、**2 行が食い違うことがこの対の要点** — *`<Tab>` on a link made with `_` → `Kind` reads `Symlink (relative)`, and `Target` is the relative path while `Resolves` is absolute — the two rows differ, which is the whole point of the pair*
