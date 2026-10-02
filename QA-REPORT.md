@@ -10270,3 +10270,157 @@ ARM64 レーンの順番表の先頭「**21.14 and 21.15**」が担当。節 21 
    - なぜ: **毎回同じ内容が毎回出る。**一度読んだ人には情報が無く、そのぶん
      プレビューという毎回使う面積を数秒隠す。
    - 大きさ: 出す先を変えるだけなら数行。どこに出すかは見た目なので持ち主へ。
+
+## Re-tests of changed behaviour — 直しの答え合わせを x64 で（f8f4300 / 0.67.17、win レーン、無人の run）
+
+win レーンの順番表の先頭「**Re-tests of changed behaviour**」（20 行）が担当。直しで動きが変わり
+`[x]` を外された行の答え合わせ。
+
+**チェックは 14 個付けた: 8.1、8.2、8.7、12.17、12.18、16.1、16.2、29.2、29.3、29.5、29.7、29.9、44.10、45.18。**
+節 8 は **7 / 7**、節 29 は **8 / 8**、節 44 は **16 / 16**。`make-testcheck -- --check` は
+`in sync`（320 / 447）。
+
+付けなかったもの:
+
+| 行 | 理由 |
+| --- | --- |
+| 34.15 | 中身は行どおりだが、行が挙げる確かめ方 `Get-Clipboard \| Select-String "^j\t"` が Windows では **0 件**になる（見つけたもの 1） |
+| 13.8a | この機械は**開発者モードが有効**（`AllowDevelopmentWithoutDevLicense = 1`）なので `-` が成功してしまい、行の前提が作れない。ARM64 のノート PC に残す |
+| 29.4 | TESTING-CHECKS.md では自動テスト済みとして出していない行（`自動テスト済みなので下には出していない: 29.4`）。付ける場所が無い |
+| 29.8 / 21.14 / 21.15 | 既に `[x]`（21.x は ARM64 の #174）。29.8 は x64 でも 1 回回し、同じ答えだった（下） |
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | x64、`AMD Radeon RX 9070 XT`（Vulkan） |
+| OS | `Windows 11 Pro 25H2 (build 26200.9457)` |
+| filer | 手元の release ビルド 0.67.17（`filer env` が `Process arch x86_64` / `Debug false`） |
+| 昇格 | 無し。開発者モードは有効 |
+| `cargo test` | **604 passed; 0 failed** |
+| ConPTY | `scripts/fetch-conpty.ps1` の 1.24.260710001 (x64) を `target\release` に置いて使った |
+| シェル | pwsh 7.6.6、Windows PowerShell 5.1.26100.9444、Starship 1.26.0 |
+| 設定 | 全部の run で `FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` を一時ディレクトリの設定フォルダに向けた。持ち主の設定は読ませていない |
+| 一時ディレクトリ | `R:\Temp\run-20261002-105721`。ごみ箱とリンクを使う 12.x は C: の `%LOCALAPPDATA%\Temp\filer-retests\` |
+
+証拠は `%LOCALAPPDATA%\Temp\filer-retests\evidence\`（`done\<run>\done.txt` が `FILER_KEYS_DONE` の写し、
+PNG 20 枚、`files\` にフック・下ごしらえのスクリプトとシェルが書いた版のファイル）。
+
+### 測り方
+
+- **キーは全部 `--keys`。**状態は `FILER_KEYS_DONE`（`cwd` / `hovered` / `view` / `compare` / `overlay` / `toast`）
+  から読んだ。トーストはすぐ消えるので、トーストを読む run は**そのキーで終わる**ように分けた。
+- **ペインのシェルが答えを自分でファイルに書く**（#173 の形）。`$PSVersionTable.PSVersion.ToString() | Set-Content <file>`。
+  ファイルができたこと自体が、キーがペインに届いた証拠になる。
+- **`$PROFILE` は触っていない。**このプロファイルは `C:\dev\obsidian-notes\notes\config\PowerShell\…` への
+  シンボリックリンクで、run の最後でも 14308 B、SHA-256 `4A83D6A2…96A5B213` のまま。29.x は
+  `[term] shell = "pwsh"`、`args = ["-NoLogo", "-NoProfile"]` の設定でペインを開き、README のフックを
+  **README の 1160–1166 行から機械的に切り出した** `hook.ps1` に入れて、ペインで `. hook.ps1` した。
+  `-NoProfile` にしたのは、持ち主のプロファイルの末尾に**古いフック**があるため（見つけたもの 5）。
+
+### 結果
+
+| 行 | 押したもの | 読んだもの |
+| --- | --- | --- |
+| 44.10 | `t44\`（`big\` 4.1 M の中に `inner\` 3 M）で `gu` → `<Enter>` → `h` → `h` | `gu`: `view: usage`、toast `4.1 M in total — <Esc> to leave`。`<Enter>`: `cwd: …\t44\big`、`view: usage`、hovered `big\inner`、toast `3.1 M in total`。1 回目の `h`: `cwd: …\t44`、`view: usage`、hovered `t44\big`。2 回目: `view: list`、toast は空 |
+| 45.18 | `L\` と `R\` を選んで `<A-d>`、`<Enter>`、`q` | `<Enter>`: `compare: files …\L\m-diff.txt \| …\R\m-diff.txt`。`n` で 2 つ目の差分に動いてから `<Enter>` `q` `<Enter>`: また `n-diff.txt` の組 —— `q` が**同じ行**に戻した。片側だけの `z-left.txt` で `<Enter>`: toast `Compare: it is on one side only`、`compare: folders` のまま |
+| 12.17 | `anew/deep/note.txt<Enter>` → `u` → `U`。別のフォルダで、作ったあとに書き込んでから `u` | `u`: toast `Removed note.txt and 2 folder(s)`、ディスクは空。`U`: toast `Created note.txt`、`new`、`new\deep`、`new\deep\note.txt` がある。書き込んだほう: toast `Undo: note.txt has been written to since`、ファイルは中身 `written` のまま残る |
+| 12.18 | ファイルとフォルダを `y`、別フォルダで `-` / `=`、`u`、`U` | `-`: `Linked f.txt — u to undo`、`LinkType = SymbolicLink`。`u`: `Removed the link f.txt`、リンクだけ消える。`U`: `Linked f.txt`。`=`: 同じトーストで `HardLink`（`fsutil hardlink list` が 2 件）。フォルダの `-`: `Linked folder — u to undo`、`SymbolicLink`。元ファイルの SHA-256 は全ケースで不変 |
+| 16.1 / 16.2 | Word（COM）が書いた `doc.docx`、#165 の `preserve.docx`、Excel が書いた `spaces.xlsx` をホバー | `doc.docx`: `First paragraph, plain text.` / `This sentence has bold and plain in one line.`（**1 行**。`bold` は Word で太字にした run）/ `Third paragraph after it.`。`preserve.docx`: 3 段落とも出る（`RUN WITH THE ATTRIBUTE` / `RUN WITHOUT IT` / `SECOND ATTRIBUTE RUN AND A PLAIN ONE`）。`spaces.xlsx`: ` leading space` と `trailing space ` が端の空白つきで出る。どの XML にも `xml:space="preserve"` が入っていることは先に確かめた |
+| 29.2 | フックを読み、`cd C:\dev`、`<A-Up>` | `cwd: C:\dev`。**フック無しの対照**では toast `` `pwsh` has not said where it is (no OSC 7)… `` で `cwd` は動かない |
+| 29.3 | `cd '…\t29\with space'`、`cd '…\t29\j-日本語フォルダ'`、それぞれ `<A-Up>` | `cwd: …\t29\with space`、`cwd: …\t29\j-日本語フォルダ`（`FILER_KEYS_DONE` は UTF-8 で読んだ） |
+| 29.9 | 代役のハンドラ（タイトルを変え、同じ文字列をファイルにも書く）を先に読み、次にフック、`cd C:\dev`、`<A-Up>` | `cwd: C:\dev` **かつ** 代役が書いたファイルが `other: C:\dev`。両方動いた |
+| 29.5 | `-NoProfile` のペインで `Invoke-Expression (&starship init powershell)`、フック、`cd C:\dev` | フックのあとも `(Get-Command prompt).ScriptBlock` が Starship のもの（`prompt-is-starship: True`）、`<A-Up>` で `cwd: C:\dev`。フック有りと無しで同じ操作を撮った 2 枚（`k295h\hook.png` / `k295n\nohook.png`）は、プロンプトの行が一致する |
+| 29.7 | `<C-t>` を `[term]` 無しで、次に `shell = "powershell"` で | `Started pwsh — <C-t> back to the list`（シェルが書いた版 `7.6.6`）。`Started powershell (Windows PowerShell 5.1) — <C-t> back to the list`（`5.1.26100.9444`） |
+| 29.8（既に `[x]`） | 5.1 のペインでフック無しの `<A-Up>` | `` `powershell (Windows PowerShell 5.1)` has not said where it is (no OSC 7). PowerShell: set LocationChangedAction in that shell's $PROFILE — the line is in the README `` |
+| 8.1 | `[term]` 無しで `<C-t>` | シェルが書いた版 `7.6.6` |
+| 8.2 | 空の `filer.toml` で起動して `<C-t>`、開いたまま別プロセスが `[term]` / `shell = "powershell"` を書く、`<C-F5>`、`<C-S-t>`、`<C-t>` | `<C-F5>` で終える run の toast: `Reloaded 2 config file(s) — the pane keeps its shell until <C-S-t> closes it`（「2」は見つけたもの 3）。通しの run: 前 `7.6.6`、後 `5.1.26100.9444` |
+| 8.7 | `shell = "powershell"` で起動、開いたまま `filer.toml` を空にする、`<C-F5>` `<C-S-t>` `<C-t>`。対照は `<C-F5>` 抜き | `<C-F5>` 有り: 前 `5.1.26100.9444`、後 `7.6.6`。抜き: 前後とも `5.1.26100.9444` —— 何も読み直していない |
+| 34.15（付けない） | `<F1>C` | toast `Copied the help panel: 153 keys`、`overlay: help` のまま。中身は `keys` だけの行のあとに**タブ 2 つの行がちょうど 153 行**で、`j<TAB>Move cursor down<TAB>arrow 1` を含む |
+
+### 見つけたもの
+
+#### 1. 34.15: ヘルプのコピーは LF だけなので、行の `Get-Clipboard | Select-String "^j\t"` が Windows で 0 件
+
+- **実測**: `<F1>C` のあとの `Get-Clipboard` は**文字列 1 個**を返す（`.Count = 1`）。中に CR は無く、LF だけ。
+  `Select-String "^j\t"` は 1 個の文字列の先頭しか見ないので、pwsh 7.6.6 でも Windows PowerShell 5.1 でも
+  **0 件**。`(Get-Clipboard -Raw) -split "`n" | Select-String "^j\t"` なら `j<TAB>Move cursor down<TAB>arrow 1` が出る。
+- **どこ**: `src/` のクリップボードに書く所はどれも LF のまま渡していて、CRLF にする所が無い。
+  Windows のクリップボードでは CRLF が普通なので、`Get-Clipboard` は CRLF で行に分ける。
+- **行の不合格かどうか**: 中身（パネルが文字で入っている、`keys` の行、1 キー 1 行、タブ区切り）は行どおり。
+  ただし行の文が挙げる確かめ方そのものが通らないので、**チェックは付けなかった**。
+  直し方は 2 つあり、どちらにするかは持ち主の判断（提案 1）。
+
+#### 2. テスト `a_reload_that_changes_the_shell_says_the_pane_keeps_its_own` が、回すたびに pwsh を 1 つ残す
+
+- **実測**: `cargo test --bin filer -- --exact app::escape_and_max_preview::a_reload_that_changes_the_shell_says_the_pane_keeps_its_own`
+  を 1 回回すと、親が無い `OpenConsole.exe --headless` と `pwsh.exe` が**1 組増える**（90 → 92）。
+  同じモジュールの `ending_a_busy_shell_asks_first` 単独では増えない（92 → 92）。モジュール全体だと 1 組（92 → 94）。
+  今朝の `cargo test` 全体（PID 60408。一時フォルダ名の `-60408` と同じ）が残したのも 1 組だった。
+- **どこ**: `src/app.rs:7812` の `a.term = None;` が、シェルが動いているペインを `end_shell()` を通さずに捨てている。
+  捨てられた `Terminal` は子のシェルを止めず、テストのプロセスが終わったあとも残る。
+- **この機械には、それより前の分が 88 個残っている**（`OpenConsole` 44、`pwsh` 20、`powershell` 24。どれも親は既に無く、
+  作られたのは 9/28〜9/30）。このテストは v0.67.17 からなので、それより前は**別のテスト**が同じことをしていた
+  。今日の run が作った 6 個だけを止め、前の分は持ち主の判断のために残した。
+- **残るのは WezTerm の ConPTY**（`C:\Program Files\WezTerm\OpenConsole.exe`）。テストのバイナリの隣には
+  `conpty.dll` が無いので、`PATH` の上にある WezTerm のものが読まれている。release の filer.exe は隣に置いた
+  1.24 を使うので、こちらは**テストだけ**の話。`Stop-Process -Force` で止めた filer.exe（今日 20 回以上）は 1 つも残していない。
+
+#### 3. `FILER_CONFIG_HOME` と `YAZI_CONFIG_HOME` が同じフォルダだと、同じ `filer.toml` を 2 回読む
+
+- **実測**: 両方を `R:\…\cfg-82` に向けると、`filer env` の Config の節に**同じフォルダが 2 回**出て、
+  どちらにも `filer.toml 28 B` と書かれる。`<C-F5>` のトーストも `Reloaded 2 config file(s)`（ファイルは 1 つ）。
+- **大きさ**: 小さい。分けて置く人には起きない。ただしこの run のように両方を同じ一時フォルダに向けると毎回起き、
+  2 回読むことで足し合わせる種類の設定（`prepend_keymap` など）が 2 重になるかは確かめていない。
+  `Config::load` で同じパスを 1 回にまとめれば済む。
+
+#### 4. 45.18 の行は「`≠` のファイルの行」と言うが、画面の印は `~`
+
+- 比較の一覧では、中身の違う行の頭は `~`（`~ m-diff.txt  261 B → 266 B`）。同じものは `=`、片側だけは `<` / `>`。
+  `≠` はどこにも出ない（`k45b\cmp1.png`）。行の文を `~` に直すだけ。
+
+#### 5. 持ち主の pwsh プロファイルに、v0.64.2 より前のフックが残っている（filer の不具合ではない）
+
+- `Microsoft.PowerShell_profile.ps1` の 208–211 行が古い形（`$PWD.ProviderPath`、`$prev` 無し、`file:///`）で、
+  168–169 行の `mise activate` の**あと**にある。つまりこの機械では、v0.64.2 が直した「README のフックが
+  mise のハンドラを置き換える」が、**いまも起きている**。29.9 が直ったのは README の文で、
+  プロファイルに貼ったものは貼った時のまま。持ち主が README の新しい 7 行に差し替える必要がある。
+  （このファイルは git 管理のメモの中にあるので、run からは触っていない。）
+
+### Proposals
+
+1. **Windows ではクリップボードに CRLF で書いてほしい（見つけたもの 1）。**
+   - 何が起きたか: 34.15 の行が挙げる `Get-Clipboard | Select-String "^j\t"` が 0 件だった。中身は正しい。
+   - どう変えるか: Windows でクリップボードに渡す直前で `\n` を `\r\n` にする（ヘルプのコピーだけでなく、
+     パスを複数コピーするものも同じ口を通っているはず）。採らないなら、行の文を
+     `(Get-Clipboard -Raw) -split "\n"` に直す。
+   - なぜ: `Get-Clipboard` もメモ帳以外の古いアプリも、Windows のクリップボードは CRLF だと思って読む。
+     「表として貼れる」が 34.15 の狙いなら、貼る先が行に分けられないと用を成さない。
+   - 大きさ: `exec.rs` のクリップボード関数に `#[cfg(windows)]` の 1 行。TESTING.md の 34.15 はそのままで通る。
+
+2. **ペインを開くテストは、最後に必ず `end_shell()` を通してほしい（見つけたもの 2）。**
+   - 何が起きたか: `cargo test` を回すたびに、見えない pwsh と OpenConsole が 1 組ずつ溜まる。
+     この機械には 4 日で 88 個溜まっていた。
+   - どう変えるか: `a.term = None` の代わりに `a.end_shell()`、またはテスト用の `App` に、ペインが残っていたら
+     止める `Drop` を付ける。いちばん根っこは、`Terminal` の `Drop` で子のシェルを止めること。
+   - なぜ: テストは何百回も回る。1 回 1 組でも、実機のセッションが毎回 `cargo test` を回すこのレーンでは
+     溜まり続ける。
+   - 大きさ: テスト 1 行。`Drop` にするなら `terminal.rs` に数行。
+
+3. **実機の役割定義に「`cargo test` のあとに親の無いシェルを数える」1 行を足してほしい。**
+   - 何が起きたか: 2 は、プロセス一覧に 90 個並んでいたから気づいた。どの run の報告にも出ていなかった。
+   - どう変えるか: `.claude/windows-role.md` の「Unattended runs」に、`cargo test` の前後で
+     「親の無い `OpenConsole` / `pwsh` / `powershell`」の数を比べ、増えたら報告する、と書く。
+   - なぜ: 残ったプロセスは画面に何も出さないので、探さないと見つからない。
+   - 大きさ: 文 1 つ（`.claude/` なので run からは書けない。下の `## Queue` に書いた）。
+
+4. **`FILER_CONFIG_HOME` と `YAZI_CONFIG_HOME` が同じなら 1 回だけ読んでほしい（見つけたもの 3）。**
+   - 何が起きたか: 1 つの `filer.toml` が `Reloaded 2 config file(s)` と数えられた。
+   - どう変えるか: 探すフォルダの一覧から、正規化して同じになるものを落とす。
+   - なぜ: 両方を同じ一時フォルダに向ける run では、毎回この形で動く。
+     足し合わせる設定が 2 重になっていれば、テストの結果がそれに引きずられる。
+   - 大きさ: `Config::load` の探し方に数行。
+
+5. **持ち主へ: プロファイルの 208–211 行を README の新しいフックに差し替えてほしい（見つけたもの 5）。**
+   - なぜ: いまのままだと mise の `cd` フックが効いていない。filer の側で直すものではない。
+   - 大きさ: 4 行を 7 行に。
