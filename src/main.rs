@@ -15,6 +15,7 @@ mod mime;
 mod preview;
 mod rename;
 mod search;
+mod shellhook;
 mod spot;
 mod terminal;
 mod ui;
@@ -130,7 +131,11 @@ fn parse_cli() -> Cli {
                      for the last to settle; <Shot:name> saves the window\n                     \
                      as name.png. For scripted checks\n\n\
                      COMMANDS:\n    env              config files, outside tools and environment,\n                     \
-                     for pasting into a bug report\n\n\
+                     for pasting into a bug report\n    \
+                     env --out FILE   the same, written to FILE as UTF-8\n    \
+                     shell-hook [pwsh|bash|zsh]\n                     \
+                     the lines that let <A-Up> in the terminal pane\n                     \
+                     follow the shell; filer shell-hook | Add-Content $PROFILE\n\n\
                      Config is read from yazi's config directory, then from filer's own.\n\
                      Press ~ or F1 inside the app for the key list.",
                 );
@@ -148,10 +153,44 @@ fn parse_cli() -> Cli {
             // Printed rather than opened in a browser, unlike `<F12>`: this
             // is text to paste into a report that already exists, and the
             // questions it answers are ones only the machine can.
-            "env" | "--env" => {
-                say(&crate::envreport::text());
-                std::process::exit(0);
-            }
+            // `--out` writes the report itself, as UTF-8, because every way a
+            // shell has of doing that went wrong somewhere: PowerShell's `>`
+            // and a bare `$v = & filer env` get nothing from a windowed
+            // program, and what does arrive is decoded with the console's code
+            // page (#81, #84, #88, #93, #176, #183; Q55).
+            "env" | "--env" => match env_out(args.next().as_deref(), args.next()) {
+                Ok(None) => {
+                    say(&crate::envreport::text());
+                    std::process::exit(0);
+                }
+                Ok(Some(path)) => match write_whole(&path, &crate::envreport::text()) {
+                    Ok(()) => {
+                        say(&format!("filer: wrote {}", std::path::absolute(&path).unwrap_or(path).display()));
+                        std::process::exit(0);
+                    }
+                    Err(why) => {
+                        say(&format!("filer: env --out {}: {why}", path.display()));
+                        std::process::exit(1);
+                    }
+                },
+                Err(why) => {
+                    say(&format!("filer: env: {why}"));
+                    std::process::exit(2);
+                }
+            },
+            // The hook `<A-Up>` needs, printed to go straight into a profile
+            // (Q50). With PowerShell that is `| Add-Content $PROFILE`: its
+            // `>>`, like its `>`, gets nothing from a windowed program.
+            "shell-hook" => match crate::shellhook::text(args.next().as_deref()) {
+                Ok(hook) => {
+                    say(hook.trim_end());
+                    std::process::exit(0);
+                }
+                Err(why) => {
+                    say(&format!("filer: shell-hook: {why}"));
+                    std::process::exit(2);
+                }
+            },
             "--version" | "-V" => {
                 say(&format!(
                     "filer {} ({})",
@@ -170,6 +209,30 @@ fn parse_cli() -> Cli {
         }
     }
     cli
+}
+
+/// What follows `env`: nothing, or `--out FILE`. Anything else is refused
+/// rather than ignored, so a misspelt `--out` does not print to the screen
+/// while its file never appears.
+fn env_out(flag: Option<&str>, file: Option<String>) -> Result<Option<PathBuf>, String> {
+    match (flag, file) {
+        (None, _) => Ok(None),
+        (Some("--out"), Some(f)) if !f.is_empty() => Ok(Some(PathBuf::from(f))),
+        (Some("--out"), _) => Err("--out needs a file name".into()),
+        (Some(other), _) => Err(format!("unknown argument {other:?} (try --out FILE)")),
+    }
+}
+
+/// Writes beside the target and renames over it, so the file is never seen
+/// half written. PowerShell does not wait for a windowed program, and the
+/// next command reading the file can start before this one has finished.
+fn write_whole(path: &std::path::Path, text: &str) -> std::io::Result<()> {
+    let mut part = path.as_os_str().to_owned();
+    part.push(".part");
+    let part = PathBuf::from(part);
+    std::fs::write(&part, text).and_then(|()| std::fs::rename(&part, path)).inspect_err(|_| {
+        let _ = std::fs::remove_file(&part);
+    })
 }
 
 /// The one path the command line may name. A second used to replace the
@@ -1201,6 +1264,31 @@ mod tests {
         app.cfg.yazi.mgr.title_format = "{cwd} [{rows}] <{pane}>".into();
         app.tabs[app.active].page_rows = 31;
         assert_eq!(title_for(&app), format!("{} [31] <>", app.tab().cwd.display()));
+    }
+
+    /// Q55: `env --out FILE` writes the report itself; a misspelt or
+    /// half-given `--out` is refused rather than printing to the screen.
+    #[test]
+    fn env_takes_out_and_nothing_else() {
+        assert_eq!(env_out(None, None), Ok(None));
+        assert_eq!(env_out(Some("--out"), Some("r.txt".into())), Ok(Some(PathBuf::from("r.txt"))));
+        assert!(env_out(Some("--out"), None).unwrap_err().contains("file name"));
+        assert!(env_out(Some("--out"), Some(String::new())).is_err());
+        assert!(env_out(Some("--outt"), Some("r.txt".into())).unwrap_err().contains("--outt"));
+    }
+
+    /// The report lands whole, as UTF-8, over whatever was there, and leaves
+    /// no `.part` behind.
+    #[test]
+    fn env_out_replaces_the_file_whole() {
+        let dir = crate::util::test_dir("env-out");
+        let path = dir.join("レポート.txt");
+        std::fs::write(&path, "old and longer than the new text").unwrap();
+        write_whole(&path, "Filer\n  名前: ü\n").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), "Filer\n  名前: ü\n".as_bytes());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+        assert!(write_whole(&dir.join("no-such-dir").join("r.txt"), "x").is_err());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
     }
 
     /// `FILER_KEYS_DONE`: what a check reads after `--keys`, without pressing

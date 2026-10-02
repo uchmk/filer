@@ -1423,12 +1423,26 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] ヘルプのテスト（`help_from_the_pane_lists_the_panes_keys_first`）は、設定が無くても余裕がほとんど無い（所見）。パネルは 180 行のうち
   27 行を描き、見ている見出しがちょうどその端にある。`[term]` のキーが 1 つ増えれば同じように落ちる。v0.65.1 で設定の分は消えたが、
   テストは描いた行ではなく行の一覧全体（`help_lines` の元）を探すか、見出しまでスクロールしてから見る形にする。
-- [ ] `filer env` に、読み込んだ ConPTY を 1 行出す（提案 1）。`ConPTY : <パス> (1.24.260710001, AA64)` か `built into Windows`。
+- [ ] `filer env` に、読み込んだ ConPTY を 1 行出す（提案 1。#184 の提案 1 も同じ。下の DLL の探し方の件があるので、なおさら要る）。`ConPTY : <パス> (1.24.260710001, AA64)` か `built into Windows`。
   ペインの不具合の多くは「古い ConPTY で動いていた」なので、不具合報告の出力に要る。
 - [ ] TESTING.md 48.6 の「x64 のフォルダ」を「それぞれのフォルダ」にする（提案 2。人か QA セッション）。混ざった zip（48.3 が探すもの）は
   ちょうどここで見つかるので、両方で押す。
 - [ ] `scripts/verify-release.ps1 -Tag vX.Y.Z`（提案 3）: ダウンロード・展開・ファイル数・`--version`・PE machine・リリースページの表との
   ハッシュと大きさの照合を 1 本でやる。48 節の 6 行のうち 5 行が 1 コマンドになり、表が載らなかったことにも次のリリースで気づける。
+
+## 実機のセッションの報告（v0.69.1 で受けた分: #184、x64 の 48 節）
+
+- [x] 48.2 と 48.6 を x64 の実機で v0.64.2 の zip から読み直した（どちらも合格。印は #151 で付いていた）。x64 の順番表から外した。次は「v0.55.0 on x64」。
+- [ ] **`filer.exe` の横に `conpty.dll` が無いと、作業フォルダか `PATH` にある `conpty.dll` を読み込む**（#184 の所見 1）。`alacritty_terminal` 0.26 が
+  `LoadLibraryW("conpty.dll")` を名前だけで呼ぶので、既定の探し方になる。実測: 単独の exe は WezTerm の `conpty.dll`（`PATH` 経由）を読み、
+  `conpty.dll` と `OpenConsole.exe` を置いたフォルダで起動すると**そのフォルダの**ものを読んだ（作業フォルダからの DLL の差し込み）。zip の中の
+  exe は横のものが勝つので、リリースは無事。手元のビルド、`cargo install`、zip から取り出した exe が該当し、CLAUDE.md の「標準の ConPTY で動く」
+  という前提とも違う。直し方の案: 起動時に `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)`（アプリのフォルダと System32 だけ）、
+  または横の DLL をフルパスで先に読む。どちらでも、横に無ければ Windows 標準の ConPTY（`kernel32` の `CreatePseudoConsole`）に落ちるかを確かめる。
+- [ ] TESTING.md 48.6 の期待値を「`C:\Windows` の下ではない」から「フルパスが zip のフォルダと同じ」にする（#184 の提案 2。人か QA セッション）。
+  失敗すると別のアプリの DLL が出るし、`C:\Windows\System32\conpty.dll` はそもそも存在しない。
+- [ ] `windows-role.md` の「How to work」に、ペインを測る実行は読み込んだ `conpty.dll` を記録する、と 1 行足す（#184 の提案 3）。
+  `(Get-Process filer).Modules | ? ModuleName -eq conpty.dll | % FileName`。
 
 ## 実機のセッションの報告（v0.65.4 で受けた分: #154、ARM64 の 1 節のマウス）
 
@@ -1654,13 +1668,17 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] **`FILER_KEYS_DONE` に、その実行で出たトーストを全部残す `toasts:` 行を足す**（#176 の提案 2）。今の `toast:` は書く時点で出ているもの
   だけなので、トーストが期待値の行（29.7、12.17 / 12.18、13.8a など）は消える前に `<Shot:>` を撮って画像から読むしかない。
   `App` に直近 16 本ほどの履歴を持ち、`state_report` に `|` 区切りで 1 行。今の `toast:` 行は残す。
+- [x] （v0.69.0、Q50 の 1）**README の OSC 7 フックを filer から出す**（#176 の提案 3）。`filer shell-hook [pwsh|bash|zsh]` を足し、
+  フックが無いときの `<A-Up>` のトーストが `filer shell-hook | Add-Content $PROFILE` を挙げる。README のブロックとの一致はテストで保つ。
+- [x] （v0.70.0、Q51 の 1）**ペインのシェルを 1 回の起動だけ変える `FILER_TERM_SHELL`**（#176 の提案 4）。`[term] shell` より優先し、
+  他の設定は落とさない。29.7 / 8.2 のように別のシェルで確かめる行は、`FILER_CONFIG_HOME` を空のフォルダに向けなくてよくなった。
 
 ## 実機のセッションの報告（v0.67.22 で受けた分: #180 / #182、x64 の再テスト）
 
 - [x] （v0.67.21、#181）**テストがペインのシェルを 1 回ごとに残す**（#180 の所見 2）。`Terminal` の `Drop` が、Windows ではシェルとその下を
   終わらせ、読み取りスレッドを待つようにした。#182 が実機で確かめた（`cargo test` の前後で 89 → 88、run 全体でも増えない）。
-- [ ] **ヘルプのコピーが LF だけで、34.15 の確かめ方 `Get-Clipboard | Select-String "^j\t"` が 0 件**（#180 の所見 1、提案 1）。
-  Windows のクリップボードは CRLF が普通。どちらで直すかは Q52（要確認: Q52）。#182 も同じ所で止まった。
+- [x] （v0.67.24、Q52 の 1）**ヘルプのコピーが LF だけで、34.15 の確かめ方 `Get-Clipboard | Select-String "^j\t"` が 0 件**（#180 の所見 1、提案 1）。
+  Windows のクリップボードは CRLF が普通。#182 も同じ所で止まった。Windows ではクリップボードに CRLF で書くようにした。
 - [ ] **`FILER_CONFIG_HOME` と `YAZI_CONFIG_HOME` が同じフォルダだと、同じ `filer.toml` を 2 回読む**（#180 の所見 3、提案 4）。
   `filer env` とヘルプの設定の節にフォルダが 2 回出て、`<C-F5>` は `Reloaded 2 config file(s)`（#182 では 4）と数える。`prepend_keymap` が 2 重になるかは未確認。
   探すフォルダを正規化して重複を落とす（`src/config/mod.rs` の `config_dirs`）。テストを足す。
@@ -1668,11 +1686,11 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   （`scripts/testcheck-ja.toml`）も合わせる。動きは変わらないので印は外さない。
 - [ ] **`cargo test` が一時ディレクトリに `filer-*` のフォルダを残す**（#182 の提案 5）。`util::test_dir` は呼ぶたびに中身を消すが、
   終わったあとには残る。`util::test_dir` の外で一時フォルダを作っているテストが無いかを探し（QA セッション向き）、残す理由の無いものは消す。
-- [ ] 一覧で押した `<C-S-t>` が黙って何もしない（#182 の提案 1）。どうするかは Q53（要確認: Q53）。
+- [x] （v0.67.25、Q53 の 1）一覧で押した `<C-S-t>` が黙って何もしない（#182 の提案 1）。`[mgr]` にも置き、ペインが無ければそう言う。
 
 ## 実機のセッションの報告（v0.67.23 で受けた分: #183、ARM64 の 25.19）
 
-- [ ] **TESTING.md 25.19 の後半「`$v = & filer env; $v.Count` はレポートの行数で 0 ではない」が Windows では成り立たない**（#183 の所見）。
-  前半（`filer env | Select-String arch` が arch の 2 行だけ）は ARM64 で通った。行の直し方は Q54（要確認: Q54）。
-- [ ] `filer env --out <file>` を足すか（#183 の提案 3）。Q55（要確認: Q55）。
+- [x] （v0.67.26、Q54 の 1。後半は 25.19a に分けた）**TESTING.md 25.19 の後半「`$v = & filer env; $v.Count` はレポートの行数で 0 ではない」が Windows では成り立たない**（#183 の所見）。
+  前半（`filer env | Select-String arch` が arch の 2 行だけ）は ARM64 で通った。
+- [x] `filer env --out <file>` を足すか（#183 の提案 3）。Q55 の 1 で v0.68.0 に足した。
 

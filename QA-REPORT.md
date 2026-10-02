@@ -10735,6 +10735,120 @@ Out-File form: 277 ms, file has 48 lines
      印の無い行は「まだ測っていない行」と区別が付かないので、測った事実が消える。
    - 大きさ: 設計の判断（番号の振り方は持ち主の方針）。行の分割自体は TESTING.md の 2 行。
 
+## TESTING.md section 48 — 48.2 と 48.6 を x64 実機で（cd57dea / 0.67.22、win レーン）
+
+順番表の先頭「Re-tests of changed behaviour」は、x64 で進められる行が残っていなかった（34.15 は Q52 が未回答、
+13.8a / 13.8b は Developer Mode の無い ARM64 機専用）。なので 2 番目の **「48.2 and 48.6 on real x64」**を進めた。
+#151 は ARM64 機の x64 エミュレーションで両方に印を付けている。今回はそれを **x64 の実機で読み直した**。
+印はもう付いているので、TESTING-CHECKS.md は触っていない。
+
+### 走らせたもの
+
+| | |
+| --- | --- |
+| 機械 | x64（`Win32_Processor.Architecture` = 9、`PROCESSOR_ARCHITECTURE` = `AMD64`）、Windows 11 Pro 10.0.26200、PowerShell 7.6.6（x64） |
+| 昇格 | **なし**（`IsInRole('Administrators')` = `False`）。48.2 と 48.6 に昇格は要らない |
+| 走らせた binary | **リリース v0.64.2 の `filer-v0.64.2-windows-x64.zip` の中身だけ**（Releases の Latest。`Invoke-WebRequest` で落とし、空のフォルダに `Expand-Archive`） |
+| zip | SHA-256 `5843B7C2…5A08D80D`。中の `filer.exe` は `17013E10…0F7F9CBB`（25351680 B）。どちらも #151 が表と照合した値と同じ。PE machine は 3 つとも `8664` |
+| `cargo test` | **608 passed; 0 failed**（0.67.22）。親のないシェル（`OpenConsole` / `pwsh` / `powershell`）は前後とも **88**（44 / 20 / 24）。増えていない |
+| 証拠の写し | `C:\dev\filer-evidence\win-48-20261002\`（`evidence.txt` と `FILER_KEYS_DONE` のファイル 5 つ） |
+
+### x64 の実機で読んだ結果
+
+- **48.2** zip のフォルダで `.\filer.exe --version` → `filer 0.64.2 (x86_64)`。タグ `v0.64.2` から `v` を除いた版と一致。
+  #151 のエミュレーションでの値と同じ。
+- **48.6** zip の `filer.exe` を `--keys "<C-t><Wait:3000>"` で起動（`FILER_KEYS_DONE` は `pane: 12x159` /
+  `toast: Started pwsh — <C-t> back to the list`）→
+  `(Get-Process filer).Modules | ? ModuleName -eq conpty.dll | % FileName` が
+  `R:\Temp\run-20261002-130706\s48\ex-x64\filer-v0.64.2-windows-x64\conpty.dll`。`C:\Windows` の下ではない。
+  子プロセスの `OpenConsole.exe` も同じフォルダのもの（`Win32_Process.ExecutablePath`）。シェルは pwsh 7.6.6。
+
+**どちらも合格。x64 の実機とエミュレーションとで違いは無かった。**
+
+### 対照: 隣に `conpty.dll` が無いとき —— 見つけたもの（不具合 1 件）
+
+48.6 の読み方が「隣の DLL が読まれた」と「読まれなかった」を本当に見分けられるかを確かめるため、
+**同じ `filer.exe` だけ**を別のフォルダ（`alone\`）に写して同じ手順を踏んだ。
+48.6 の説明（「でなければ `C:\Windows` の下のものになる」）を信じると、`conpty.dll` は 1 つも出ないはず。
+**実際は次のようになった。**
+
+| exe の場所 | 起動時の作業フォルダ | 読み込まれた `conpty.dll` | 起動された `OpenConsole.exe` |
+| --- | --- | --- | --- |
+| zip のフォルダ | `work\`（DLL 無し） | zip のフォルダのもの | zip のフォルダのもの |
+| zip のフォルダ | `plant\`（zip の `conpty.dll` と `OpenConsole.exe` を写した） | **zip のフォルダのもの**（exe の隣が勝つ） | zip のフォルダのもの |
+| `alone\`（exe だけ） | `work\` | **`C:\Program Files\WezTerm\conpty.dll`** | **`C:\Program Files\WezTerm\OpenConsole.exe`** |
+| `alone\`（exe だけ） | `plant\` | **`plant\conpty.dll`**（作業フォルダのもの） | **`plant\OpenConsole.exe`** |
+
+原因は `alacritty_terminal` 0.26 の `tty/windows/conpty.rs` にある。`LoadLibraryW(w!("conpty.dll"))` を**名前だけで**
+呼んでいて、Windows の既定の検索順（exe のフォルダ → System32 → Windows → **作業フォルダ** → **`PATH`**）で
+最初に見つかったものを読む。読めなかったときだけ Windows 標準の `CreatePseudoConsole` に戻る。
+filer は `set_current_dir` を呼ばない（`src/` に 1 か所も無い）ので、効くのは **filer を起動したときの作業フォルダ**だけ。
+
+何が困るか:
+
+1. **リリースの zip は守られている。**exe の隣が最初に探されるので、上の 2 行目のとおり、作業フォルダに何があっても
+   同梱の DLL が勝つ。48.6 の合格はそのまま正しい。
+2. **zip を使わない filer（手元の `cargo build`、`cargo install`、exe だけ取り出した人）は、隣に DLL が無い。**
+   その場合は**作業フォルダか `PATH` に `conpty.dll` があればそれを読み、そこから見つかった `OpenConsole.exe` を起動する。**
+   作業フォルダの DLL を読むのは、いわゆる DLL の植え込み（DLL planting）の形。たとえば落としてきたフォルダで
+   `filer` と打ってから `<C-t>` を押すと、そのフォルダの `conpty.dll` が filer のプロセスの中で動く。
+3. **CLAUDE.md と TODO.md の前提が違う。**CLAUDE.md は「手元でビルドしたときも、このスクリプトで `target\release` に
+   置かないと**古い ConPTY で動く**」と書き、TODO.md の「Windows 版を exe 1 つで配れるようにする」の 1 は
+   「無ければ**今までどおり Windows 標準の ConPTY を使う**」と書いている。この機械では、どちらも
+   **WezTerm の同梱品（版の情報なし、99328 B）**で動いていた。ほかの機械でも、`PATH` に何が入っているか次第。
+   **これまでこの機械で `fetch-conpty.ps1` を回さずにペインの行を測った run があれば、WezTerm の ConPTY を測っていた。**
+
+直し方の案（実装はしていない）: filer の `main` の最初で `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)` を呼ぶ
+（作業フォルダと `PATH` が検索から外れ、exe のフォルダと System32 だけになる）。または TODO.md の 3 と同じく、
+exe の隣の `conpty.dll` を**フルパスで**先に `LoadLibraryW` し、無ければ何も読まずに Windows 標準に任せる。
+どちらでも `alacritty_terminal` は改造しなくて済む。前者はほかの遅延読み込みの DLL にも効く。
+
+再現の手順: zip の `filer.exe` だけを空のフォルダに写す。別のフォルダに zip の `conpty.dll` と `OpenConsole.exe` を写し、
+そこを `Start-Process -WorkingDirectory` に渡して `--keys "<C-t><Wait:3000>"` で起動する。そのうえで
+`(Get-Process -Id $p.Id).Modules | ? ModuleName -eq conpty.dll`。
+
+### Proposals
+
+#### 提案 1: `filer env` にどの ConPTY を読んだかを出す（#151 の提案 1 を、理由を足して推す）
+
+**踏んだこと**: 上の対照を取るまで、この機械の手元ビルドが WezTerm の ConPTY で動いていることは分からなかった。
+分かったのは、filer を起動したまま**別のシェルから `Modules` を覗いた**から。`filer env` は ConPTY について何も言わない。
+
+**どう変えるべきか**: `filer env` に `ConPTY : C:\Program Files\WezTerm\conpty.dll (from PATH)` /
+`... (beside filer.exe, 1.24.2607.10001)` / `built into Windows` の 1 行を出す。`GetModuleHandleW("conpty.dll")` →
+`GetModuleFileNameW` で取れる。ペインをまだ開いていなければ、`SearchPathW` でどれが読まれるかを先に言う形でもよい。
+
+**なぜ**: ペインの不具合の報告が「どの ConPTY で動いていたか」を必ず含むようになる。いまは同梱を外した人や手元ビルドの人の
+報告が、**本人も知らない第三者の DLL** の上で取られている。
+
+**大きさ**: `env` の出力に数行。
+
+#### 提案 2: 48.6 の「Expect」に、隣に DLL が無いときの姿を足す
+
+**踏んだこと**: 48.6 は「`C:\Windows` の下のものではない」を合格の条件にしているが、外れたときに出るのは
+`C:\Windows` ではなく `PATH` 上の別アプリのもの（ここでは WezTerm）か、何も出ないかだった。
+`C:\Windows\System32\conpty.dll` はこの機械に無い（Windows 標準の ConPTY は `kernelbase.dll` の中にある）。
+
+**どう変えるべきか**: 「`conpty.dll` のフルパスが zip のフォルダと一致すること。ほかの場所（別アプリのフォルダ、作業フォルダ）
+や、何も出ないのは不合格」と書く。
+
+**なぜ**: 今の文だと、WezTerm の DLL が出たときに「`C:\Windows` ではないから合格」と読めてしまう。
+
+**大きさ**: 1 行。この役割は TESTING.md を直さないので提案にとどめる。
+
+#### 提案 3: ペインの行を測る run は、最初に読んだ `conpty.dll` を記録する
+
+**踏んだこと**: 役割定義の「How to work」は `fetch-conpty.ps1` を回せと書いているが、回したかどうかは結果に残らない。
+この run が見つけたとおり、回し忘れても**何かの** ConPTY で動いてしまい、失敗しない。
+
+**どう変えるべきか**: `windows-role.md` の「How to work」に、ペインを開いた直後に
+`(Get-Process filer).Modules | ? ModuleName -eq conpty.dll | % FileName` を読み、`target\release` のものであることを
+確かめる 1 行を足す。提案 1 が入れば `filer env` の 1 行で済む。
+
+**なぜ**: どの ConPTY で動いていたかで、ペインの行の結果が変わりうる（v0.49.0 で同梱した理由そのもの）。
+
+**大きさ**: 役割定義に 1 行（持ち主の判断）。
+
 ## TESTING.md 13.8a / 13.8b — ジャンクションの提案。**13.8b は合、13.8a は箱の中の字が読めない**（31303c1 / 0.67.23、ARM64 レーン、無人の run）
 
 ARM64 レーンの順番表の次の節「**13.8a, 13.8b**」（2 行）が担当。25.19 は #183（0.67.23）で

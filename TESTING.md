@@ -165,6 +165,7 @@ drawing has been seen. `<C-t>` opens it.
 | 1.35 | Run `lazygit` (or any long command) in the pane, then `<C-S-t>` (v0.52.0) | A dialog asks **End the shell?** and names what is running. `n` keeps the shell and the program; `y` ends both, and a toast says **Ended the shell** |
 | 1.36 | At a bare prompt with nothing running, `<C-S-t>` | **No dialog**: the pane goes at once, and the toast says **Ended the shell** — so it no longer looks like `<C-t>` merely hiding it |
 | 1.37 | With the pane **closed**, select a file and `<A-t>` (v0.57.0) | The pane opens and, once the shell's prompt is up, the quoted path is on its line -- not "The terminal is not open", and not lost to a shell still loading its profile. The keys are in the pane |
+| 1.38 | With a shell open, `<C-t>` back to the list, then `<C-S-t>`; then `<C-S-t>` again (v0.67.25, Q53) | The first ends the shell from the list: the pane goes and the toast is **Ended the shell** (with a program running, the **End the shell?** question first, as in 1.35). The second, with no pane left, says **No terminal to close** — it used to do nothing at all |
 
 ## 2. The minimap (v0.5.0)
 
@@ -709,7 +710,7 @@ Run from a shell, not from inside the app.
 | 25.4c | An opener naming a **quoted full path** (秀丸, サクラ) | The whole path is resolved, not just up to the first space |
 | 25.4d | Watch the screen while `filer env` runs | **No editor or viewer opens.** The programs are looked up on `PATH`, never executed |
 | 25.5 | On Windows on ARM with the x64 build | `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed |
-| 25.6 | `filer --help` | `env` is listed under COMMANDS |
+| 25.6 | `filer --help` | `env` is listed under COMMANDS, and `env --out FILE` under it (v0.68.0) |
 | 25.7 | Double-click `filer.exe` (no console) | Unchanged: the window opens, nothing is printed anywhere |
 | 25.8 | Open filer once, quit, then `filer env` (v0.29.0) | A **Last run** section: the adapter with its backend and device type, and every font file that was loaded |
 | 25.9 | On a fresh machine, `filer env` **before** ever opening filer | `not recorded — filer has not opened a window on this machine yet`, not an empty section |
@@ -724,7 +725,9 @@ Run from a shell, not from inside the app.
 | 25.16 | `filer <a folder with files> --keys "<Tab>C"`, then `Get-Clipboard` (v0.54.0) | The window opens, spot opens on the first row by itself, and the clipboard holds the whole panel as `Label<TAB>value` lines — `Name` and `Path` naming that first row |
 | 25.17 | `filer --keys "<Tab"` and `filer --keys "<Bogus>"` | **No window**: one line naming the problem (`has no closing >` / `is not a key`), exit code 2 |
 | 25.18 | Release build: `filer env \| Out-File out.txt`, then `Get-Content out.txt`; and `cmd /c "filer env > out2.txt"` (v0.54.4) | The whole report is **in both files**, and nothing is printed on screen. Before v0.54.4 both were empty. (PowerShell's own `filer env > out.txt` still gives an empty file: PowerShell does not connect a windowed program's output to a file. README says so) |
-| 25.19 | `filer env \| Select-String arch` | **Only the two arch lines** (Windows; elsewhere there is one, `Process arch`), not the whole report. `$v = & filer env; $v.Count` is the report's line count, not 0 |
+| 25.19 | `filer env \| Select-String arch` | **Only the two arch lines** (Windows; elsewhere there is one, `Process arch`), not the whole report |
+| 25.19a | `$v = & filer env \| Write-Output; $v.Count` in PowerShell (v0.67.26, Q54) | The report's line count, not 0. **With nothing after it** -- `$v = & filer env` -- PowerShell does not wait for a windowed program at the end of a pipeline, and `$v` is empty: that is PowerShell, not filer (#183), and why the row has the `\| Write-Output` |
+| 25.19b | `filer env --out out3.txt` from PowerShell, in a folder whose path has Japanese in it, then `Get-Content -Encoding utf8 out3.txt` (v0.68.0, Q55) | One line `filer: wrote <full path>`, and the file holds the whole report with the Japanese **readable**, whatever the console's code page. `filer env --out` with no name, and `filer env --outt x`, print one line naming the problem, exit code 2, and write nothing |
 | 25.20 | `filer env` with nothing redirected, and `filer --version` | Still printed on screen, as 25.1 has it — the console path is unchanged |
 | 25.21 | `filer env` (v0.58.1) | An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone |
 | 25.22 | `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `FILER_PTY_LOG` set (v0.59.0) | The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `filer --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>` |
@@ -796,21 +799,24 @@ the unit tests alone.
 ## 29. The terminal's directory, brought back (v0.14.0)
 
 `<A-Up>` in the terminal pane (`term_cd`) asks the shell where it is, which only
-works if the shell says so with OSC 7. PowerShell says nothing unless the hook in
-the README is in `$PROFILE`, so what is being tested here is mostly the
-instructions.
+works if the shell says so with OSC 7. PowerShell says nothing unless the hook
+is in `$PROFILE` -- `filer shell-hook` prints it since v0.69.0, and the README shows
+the same lines -- so what is being tested here is mostly the instructions.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 29.1 | With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` | A toast naming OSC 7 and `LocationChangedAction`, pointing at the README — **not** silence, and not a wait |
+| 29.1 | With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` | A toast naming OSC 7 and the command that adds the hook, `filer shell-hook \| Add-Content $PROFILE, then <C-S-t> and <C-t>` (v0.69.0, Q50) — **not** silence, and not a wait. With the zip's `filer.exe` not on the `PATH`, `filer` is its full path: `& 'C:\…\filer.exe' shell-hook …` |
 | 29.2 | Paste the README hook into `$PROFILE`, open a new terminal, `cd C:\dev`, press `<A-Up>` | The file list moves to `C:\dev` |
 | 29.3 | Same with a directory whose name has a **space** and one with **Japanese** in it | Both arrive intact |
 | 29.4 | `cd` to a UNC path (`\\server\share`) and press `<A-Up>` | Either it follows or it says why; no crash |
 | 29.5 | Run the hook line by hand in a shell that already has Starship | The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`) |
 | 29.6 | With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` | 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again |
 | 29.7 | `<C-t>` with no `[term] shell`, then again with `shell = "powershell"` (v0.57.4) | The first toast names the shell: `Started pwsh — <C-t> back to the list`, then `Started powershell (Windows PowerShell 5.1) — …` (v0.65.3; before that the configured one said only `powershell`). It has to match what `$PSVersionTable.PSVersion` says |
-| 29.8 | In a pane started as `powershell` (5.1) with no hook, `<A-Up>` (v0.59.4) | The red toast names the shell -- `` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE `` -- so the hook goes into 5.1's profile, not 7's |
+| 29.8 | In a pane started as `powershell` (5.1) with no hook, `<A-Up>` (v0.59.4) | The red toast names the shell and says it **cannot** have the hook -- `` `powershell (Windows PowerShell 5.1)` has not said where it is (no OSC 7), and cannot: the hook needs PowerShell 7 (winget install Microsoft.PowerShell) `` (v0.69.0, Q50; before that it sent you to 5.1's `$PROFILE`, where the hook fails at every start) |
 | 29.9 | Put a handler of another tool's in `$PROFILE` first (`mise activate pwsh`, or a stand-in: `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`), the README hook after it, open a new pane, `cd C:\dev`, `<A-Up>` (v0.64.2) | Both run: the list moves to `C:\dev` **and** the other tool's handler still does its job (the stand-in's title reads `other: C:\dev`). Before v0.64.2 the README hook replaced the other one |
+| 29.10 | With no hook, in the pane (`pwsh`): exactly what the 29.1 toast says, then `<C-S-t>`, `<C-t>`, `cd C:\dev`, `<A-Up>` (v0.69.0, Q50) | The list moves to `C:\dev`. `Get-Content $PROFILE` ends with the lines `filer shell-hook` prints (a `# filer:` comment first), on lines of their own -- not glued to the profile's last line. `filer shell-hook powershell` and `filer shell-hook fish` print one line naming the problem, exit code 2 |
+| 29.11 | Linux: `filer shell-hook bash >> ~/.bashrc` (and `zsh >> ~/.zshrc` with `[term] shell = "zsh"`), new pane, `cd` to a folder with a space and Japanese in its name, `<A-Up>` (v0.69.0, Q50) | The list moves there, both names intact. Without the hook the toast names `shell-hook bash >> ~/.bashrc` |
+| 29.12 | With `[term] shell = "pwsh"` and `args` in `filer.toml`: `$env:FILER_TERM_SHELL = 'powershell'`, start filer, `<C-t>`, then `filer env` from the same shell; then `Remove-Item Env:FILER_TERM_SHELL` and again (v0.70.0, Q51) | With the variable: the toast is `Started powershell (Windows PowerShell 5.1) — …`, and `filer env` lists `powershell` as `terminal pane, from FILER_TERM_SHELL` with `FILER_TERM_SHELL` among the variables. Without it: `pwsh` and `from [term] shell` again, and the rest of `filer.toml` (font, theme) took effect both times |
 
 ## 30. Right-click paste in a prompt (v0.14.0)
 

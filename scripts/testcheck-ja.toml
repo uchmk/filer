@@ -281,6 +281,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "1.35" = "ペインで `lazygit`（または長く動くコマンド）を動かしたまま `<C-S-t>`（v0.52.0）→ **End the shell?** と聞かれ、動いているものの名前が出る。`n` でシェルもプログラムも残り、`y` で両方終わって **Ended the shell** とトーストが出る"
 "1.36" = "何も動いていないプロンプトで `<C-S-t>` → **確認は出ない。**ペインはすぐ消え、トーストに **Ended the shell** と出る。`<C-t>` で隠しただけのようには見えなくなった"
 "1.37" = "ペインを**閉じた**まま、ファイルを選んで `<A-t>`（v0.57.0）→ ペインが開き、シェルのプロンプトが出たところで引用されたパスが行に入る。「The terminal is not open」とは言わず、プロファイル読み込み中のシェルに打って消えることもない。キーはペインに移る"
+"1.38" = 'シェルを開いたまま `<C-t>` で一覧に戻り、`<C-S-t>`。続けてもう一度 `<C-S-t>`（v0.67.25、Q53）→ 1 回目は一覧からシェルを終える。ペインが消え、トーストは **Ended the shell**（何か動いていれば 1.35 と同じく先に **End the shell?** と聞く）。2 回目はペインが無いので **No terminal to close** と言う（以前は何も起きなかった）'
 "1.18" = 'OSC 7 を報告するシェル（PowerShell 7、または `PROMPT_COMMAND` を設定した bash）で、一覧側のディレクトリを変える → シェルに余計な `cd` が打ち込まれない'
 
 # 2. ミニマップ
@@ -488,7 +489,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "25.4c" = '**引用符付きのフルパス**を指定したオープナー（秀丸、サクラ）→ 最初の空白までではなく、パス全体が解決される'
 "25.4d" = '`filer env` の実行中に画面を見る → **エディタやビューアが 1 つも起動しない。**`PATH` を調べるだけで、実行はしない'
 "25.5" = 'ARM 版 Windows で x64 ビルドを使う → `OS arch` と `Process arch` が**食い違う。**その食い違いを見せることが、両方を出している理由'
-"25.6" = '`filer --help` → COMMANDS の下に `env` が並ぶ'
+"25.6" = '`filer --help` → COMMANDS の下に `env` が並び、その下に `env --out FILE` も並ぶ（v0.68.0）'
 "25.7" = '`filer.exe` をダブルクリック（コンソール無し）→ 以前のまま。ウィンドウが開き、どこにも何も出力されない'
 "25.8" = 'filer を一度開いて終了し、そのあと `filer env` → **Last run** の節が出る。アダプタとそのバックエンド・デバイス種別、読み込まれた全フォントファイル'
 "25.9" = '新しい機械で、filer を一度も開かずに `filer env` → `not recorded — filer has not opened a window on this machine yet` と出る（空の節ではない）'
@@ -503,7 +504,9 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "25.16" = "ファイルのあるフォルダで `filer <フォルダ> --keys \"<Tab>C\"`、続けて `Get-Clipboard`（v0.54.0）→ 窓が開き、spot が勝手に先頭の行で開き、クリップボードにパネル全体が `ラベル<TAB>値` の行で入っている。`Name` と `Path` がその先頭の行を指している"
 "25.17" = "`filer --keys \"<Tab\"` と `filer --keys \"<Bogus>\"` → **窓は開かない。**問題を言う 1 行（`has no closing >` / `is not a key`）と、終了コード 2"
 "25.18" = "release ビルドで `filer env \\| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c \"filer env > out2.txt\"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた）"
-"25.19" = "`filer env \\| Select-String arch` → **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない）。`$v = & filer env; $v.Count` はレポートの行数で、0 ではない"
+"25.19" = "`filer env \\| Select-String arch` → **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない）"
+"25.19a" = "PowerShell で `$v = & filer env \\| Write-Output; $v.Count`（v0.67.26、Q54）→ レポートの行数で、0 ではない。**後ろに何も置かない** `$v = & filer env` だと、PowerShell はパイプラインの最後にある窓のプログラムを待たず、`$v` は空になる。filer ではなく PowerShell の動き（#183）なので、行には `\\| Write-Output` を付けてある"
+"25.19b" = "PowerShell で、パスに日本語を含むフォルダから `filer env --out out3.txt`、続けて `Get-Content -Encoding utf8 out3.txt`（v0.68.0、Q55）→ `filer: wrote <フルパス>` の 1 行が出て、ファイルにレポート全体が入り、日本語がコンソールのコードページに関係なく**読める**。`filer env --out`（名前なし）と `filer env --outt x` は問題を 1 行で言い、終了コード 2 で、何も書かない"
 "25.21" = '`filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ'
 '25.23' = '''ペインを開いて `<C-S-Enter>`、filer を閉じてから `filer env`（v0.59.4）→ `Last run` の下に `Terminal pane` の行があり、最後の大きさを `N x M (lines x columns)` で出す。ペインを一度も開かなかった run の後は `not opened in that run`'''
 '25.24' = '''どこかのフォルダのシェルから `filer .`、次に `filer ..`、次に引用符なしで `filer two words`（v0.59.5）→ `.` はそのフォルダを開き、タイトルが**絶対**パスで親の列があり、`h` で上がれる。`..` は 1 つ上を開く。引用符なしの 2 語は窓を開く前に `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` と断られる'''
@@ -535,15 +538,18 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "28.8" = "窓に触らず（キーもマウスも使わず）、一覧にあるファイルをエクスプローラーから削除する（v0.57.2）→ キーを押さなくても 0.5 秒以内に行が消える。v0.57.2 までは次にキーを押すまで残っていた（#108）"
 
 # 29. ターミナルのディレクトリを持ち帰る
-"29.1" = '`$PROFILE` にフックが**無い**状態でターミナルを開き（`<C-t>`）、`cd` してから `<A-Up>` → OSC 7 と `LocationChangedAction` を挙げ、README を指すトーストが出る。**無反応でも待ちでもない**'
+"29.1" = '''`$PROFILE` にフックが**無い**状態でターミナルを開き（`<C-t>`）、`cd` してから `<A-Up>` → OSC 7 と、フックを足すコマンド `filer shell-hook \| Add-Content $PROFILE, then <C-S-t> and <C-t>` を挙げるトーストが出る（v0.69.0、Q50）。**無反応でも待ちでもない**。zip の `filer.exe` が `PATH` に無いときは、`filer` の所がフルパス（`& 'C:\…\filer.exe' shell-hook …`）になる'''
 "29.2" = 'README のフックを `$PROFILE` に貼り、新しいターミナルを開いて `cd C:\dev`、`<A-Up>` → ファイル一覧が `C:\dev` へ移動する'
 "29.3" = '名前に**空白**を含むディレクトリと、**日本語**を含むディレクトリで同じこと → どちらも壊れずに届く'
 "29.4" = 'UNC パス（`\\server\share`）へ `cd` して `<A-Up>` → 追従するか、できない理由を述べる。落ちない'
 "29.5" = 'Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため）'
 "29.6" = '`[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`filer env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る'
 "29.7" = '`[term] shell` なしで `<C-t>`、次に `shell = "powershell"` にしてもう一度（v0.57.4）→ 最初のトーストがシェルの名前を言う: `Started pwsh — <C-t> back to the list`、次に `Started powershell (Windows PowerShell 5.1) — …`（v0.65.3。それ以前は設定で書いたときは `powershell` だけだった）。`$PSVersionTable.PSVersion` の答えと合っていること'
-'29.8' = '''フックの無い `powershell`（5.1）で開いたペインで `<A-Up>`（v0.59.4）→ 赤いトーストがシェルの名前を挙げる（`` `powershell (Windows PowerShell 5.1)` has not said where it is … that shell's $PROFILE ``）。フックを 7 ではなく 5.1 のプロファイルに入れればよいと分かる'''
+'29.8' = '''フックの無い `powershell`（5.1）で開いたペインで `<A-Up>`（v0.59.4）→ 赤いトーストがシェルの名前を挙げ、フックを**持てない**と言う（`` `powershell (Windows PowerShell 5.1)` has not said where it is (no OSC 7), and cannot: the hook needs PowerShell 7 (winget install Microsoft.PowerShell) ``。v0.69.0、Q50。それまでは 5.1 の `$PROFILE` に案内していたが、そこではフックが起動のたびに失敗する）'''
 '29.9' = '''`$PROFILE` に別のツールのハンドラを先に置き（`mise activate pwsh`、または代わりに `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`）、その後に README のフックを置いて、新しいペインで `cd C:\dev`、`<A-Up>`（v0.64.2）→ 両方動く: 一覧が `C:\dev` に移り、**かつ**別のツールのハンドラも働いている（代わりのものならタイトルが `other: C:\dev`）。v0.64.2 より前は README のフックが別のものを置き換えていた'''
+'29.10' = '''フックの無い状態で、ペイン（`pwsh`）で 29.1 のトーストのとおりに打ち、`<C-S-t>`、`<C-t>`、`cd C:\dev`、`<A-Up>`（v0.69.0、Q50）→ 一覧が `C:\dev` に移る。`Get-Content $PROFILE` の末尾が `filer shell-hook` の出力（先頭は `# filer:` のコメント）で、プロファイルの最後の行にくっつかず別の行になっている。`filer shell-hook powershell` と `filer shell-hook fish` は問題を 1 行で言い、終了コード 2'''
+'29.11' = '''Linux で `filer shell-hook bash >> ~/.bashrc`（と、`[term] shell = "zsh"` で `zsh >> ~/.zshrc`）、新しいペインで名前に空白と日本語を含むフォルダへ `cd`、`<A-Up>`（v0.69.0、Q50）→ 一覧がそこへ移り、名前はどちらも崩れない。フックが無いとトーストが `shell-hook bash >> ~/.bashrc` を挙げる'''
+'29.12' = '''`filer.toml` に `[term] shell = "pwsh"` と `args` を書いた状態で、`$env:FILER_TERM_SHELL = 'powershell'` にして filer を起動し `<C-t>`、同じシェルから `filer env`。次に `Remove-Item Env:FILER_TERM_SHELL` してもう一度（v0.70.0、Q51）→ 変数があるときはトーストが `Started powershell (Windows PowerShell 5.1) — …` で、`filer env` は `powershell` を `terminal pane, from FILER_TERM_SHELL` と出し、変数の欄に `FILER_TERM_SHELL` がある。無いときは `pwsh` と `from [term] shell` に戻る。どちらでも `filer.toml` の他の設定（フォント、テーマ）は効いている'''
 
 # 30. プロンプトでの右クリック貼り付け
 "30.1" = 'エクスプローラーのアドレスバーでパスをコピーし、`c`+`d` で `cd` のプロンプトを出し、入力欄を右クリック → パスが入る。`<Enter>` でそこへ移動する'

@@ -92,7 +92,8 @@ reason: that is where yazi reads from. Run `filer env` to print the directories 
 which files were actually found.
 
 Press `~` or `F1` in the app: the help panel lists which config files were actually loaded, any
-warnings, and every key binding in effect.
+warnings, and every key binding in effect. `C` there copies it as text, one key per line. On Windows
+everything filer copies ends its lines with CRLF, as Windows programs expect (v0.67.24).
 
 The two files are not interchangeable: `[ui]`, `[term]`, `[[preview]]` and `[line_args]` are read
 only from `filer.toml`, and `[mgr]`, `[opener]`, `[open]`, `[tasks]` and `[preview]` only from
@@ -518,7 +519,8 @@ bound to anything here, `noop` included, is consumed rather than forwarded.
 `<C-t>` is the way in and the way back out, and it leaves the shell alone: going to and fro is
 something you do all day, while ending a shell is something you do a few times, so the destructive
 one is the harder chord. The shell's own `<C-t>` — readline's transpose, or fzf's file widget — is
-the cost of that, and moving it is one line of `keymap.toml` away.
+the cost of that, and moving it is one line of `keymap.toml` away. `<C-S-t>` works from the list too,
+so the shell can be ended without going back into the pane; with no pane open it says so (v0.67.25).
 
 `Shift` is what keeps those out of the shell's way: a program reading the keyboard sees `PageUp`,
 never `Shift`+`PageUp`. Typing anything brings the view back to the bottom, and while it is not
@@ -1160,9 +1162,22 @@ shell has to announce itself with **OSC 7**, and filer only believes what it is 
 PowerShell sends nothing by default. Most recipes for it replace `prompt`, which breaks Starship and
 every other prompt generator; this hook runs on each `cd` instead and leaves the prompt alone.
 
-**These lines go at the end of `$PROFILE`**, and nothing else does:
+**Run this in the pane**, and the hook goes at the end of `$PROFILE` (v0.69.0):
 
 ```powershell
+filer shell-hook | Add-Content $PROFILE
+```
+
+`filer shell-hook` prints the lines; nothing else needs to go in the profile. Through a pipe and
+`Add-Content`, not `>>`: PowerShell's `>>`, like its `>`, gets nothing from a windowed program
+(see [Reporting a problem](#reporting-a-problem)). If `filer` is not on the `PATH`, give its full
+path, `& 'C:\tools\filer\filer.exe' shell-hook | Add-Content $PROFILE` — the `<A-Up>` toast
+names it that way when it has to. These are the lines it prints, to read before trusting them or
+to paste by hand:
+
+```powershell
+
+# filer: report the directory to filer's terminal pane (OSC 7)
 $prev = $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
 $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
     param($sender, $e)
@@ -1213,26 +1228,33 @@ $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
 
 An empty third line means the hook is not loaded here.
 
-To append it without opening an editor, **run this in the pane** — it is a command, not something to
-put in the profile. Pasting it into the file leaves `@'` and `'@ | Add-Content …` in there, and the
-shell then fails to parse its own profile:
+Running `filer shell-hook | Add-Content $PROFILE` **in the pane** is what makes this right:
+whichever file *this* shell reads is the one that gets the hook, so the 5.1-or-7 question above
+cannot be answered wrongly. Then `<C-S-t>` and `<C-t>` as before. Before v0.69.0 the same was done
+with a `@' … '@ | Add-Content` here-string copied out of this page.
 
-```powershell
-@'
+bash and zsh on Linux and macOS: most distributions' bash does not send OSC 7, and zsh does not
+either unless a framework does it for it. `filer shell-hook bash >> ~/.bashrc` and
+`filer shell-hook zsh >> ~/.zshrc` add these (`>>` works there; filer is an ordinary program
+outside Windows):
 
-$prev = $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
-$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
-    param($sender, $e)
-    if ($prev) { $prev.Invoke($sender, $e) }
-    $p = $e.NewPath.ProviderPath -replace '\\', '/' -replace '^(?!/)', '/'
-    [Console]::Write("$([char]27)]7;file://$p$([char]27)\")
-}.GetNewClosure()
-'@ | Add-Content -Path $PROFILE -Encoding UTF8
+```bash
+
+# filer: report the directory to filer's terminal pane (OSC 7)
+__filer_osc7() { printf '\e]7;file://%s%s\e\\' "$HOSTNAME" "$PWD"; }
+PROMPT_COMMAND="__filer_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 ```
 
-Writing through `$PROFILE` rather than a typed path is the point of it: whichever file *this* shell
-reads is the one that gets the hook, so the 5.1-or-7 question above cannot be answered wrongly.
-Then `<C-S-t>` and `<C-t>` as before.
+```zsh
+
+# filer: report the directory to filer's terminal pane (OSC 7)
+__filer_osc7() { printf '\e]7;file://%s%s\e\\' "$HOST" "$PWD" }
+autoload -Uz add-zsh-hook
+add-zsh-hook chpwd __filer_osc7
+__filer_osc7
+```
+
+`filer shell-hook powershell` refuses rather than print a hook 5.1 cannot run.
 
 To choose the shell yourself — 5.1 on a machine that has 7, say, or `cmd` — name it in `filer.toml`:
 
@@ -1245,6 +1267,16 @@ shell = "powershell"
 Leaving `[term]` out keeps the default above. The same setting names a shell on macOS and Linux,
 where the default is the login shell.
 
+For one run only, set `FILER_TERM_SHELL` before starting filer (v0.70.0). It wins over
+`[term] shell`, leaves every other setting as it is, and drops `[term] args`, which were written for
+the shell it replaces. The whole value is the program, so a path with spaces needs no quotes:
+
+```powershell
+$env:FILER_TERM_SHELL = 'powershell'; filer; Remove-Item Env:FILER_TERM_SHELL
+```
+
+`<C-F5>` reads it again with the files, and `filer env` says which of the two the shell came from.
+
 ## Reporting a problem
 
 `<F12>` opens a report form with the version, both architectures and the OS build already filled
@@ -1252,10 +1284,15 @@ in. If no browser can be opened, the form's link — every field travels in it �
 clipboard instead, to paste into one. For everything else a report tends to need, `filer env` prints it:
 
 ```
-filer env
-filer env | Out-File filer-env.txt   # into a file, to attach
+filer env --out filer-env.txt        # into a file, to attach
+filer env                            # on screen
 filer env | Select-String arch       # or through a pipe
 ```
+
+`--out` (v0.68.0) is the way to get a file to attach: filer writes it itself, as UTF-8, so neither
+the shell's redirection rules nor the console's code page has a say. PowerShell does not wait for
+a windowed program, so the prompt can come back a moment before the file is there; it is written
+under another name and renamed into place, so it is never seen half written.
 
 Since v0.54.4 the text goes wherever standard output is sent; before that it went only to the
 screen. One exception is PowerShell's own `>`: it does not connect a windowed program's output to

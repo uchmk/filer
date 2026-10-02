@@ -119,9 +119,10 @@ fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
         false => cfg.term.shell.clone(),
         true => crate::terminal::default_program(),
     };
-    let what = match cfg.term.shell.is_empty() {
-        false => "terminal pane, from [term] shell",
-        true => "terminal pane, the platform default",
+    let what = match (cfg.term.shell.is_empty(), cfg.term.from_env) {
+        (false, true) => "terminal pane, from FILER_TERM_SHELL",
+        (false, false) => "terminal pane, from [term] shell",
+        (true, _) => "terminal pane, the platform default",
     };
     rows.push((shell.clone(), found(&shell, what)));
 
@@ -306,7 +307,7 @@ fn last_run() -> Vec<(String, String)> {
 }
 
 fn variables() -> Vec<(String, String)> {
-    ["EDITOR", "VISUAL", "SHELL", "TERM", "YAZI_CONFIG_HOME", "FILER_CONFIG_HOME", "FILER_STATE_HOME"]
+    ["EDITOR", "VISUAL", "SHELL", "TERM", "YAZI_CONFIG_HOME", "FILER_CONFIG_HOME", "FILER_STATE_HOME", "FILER_TERM_SHELL"]
         .iter()
         .map(|k| (k.to_string(), std::env::var(k).unwrap_or_else(|_| "unset".into())))
         .collect()

@@ -4633,7 +4633,11 @@ impl App {
                 });
                 return;
             }
+            let none = self.term.is_none();
             self.end_shell();
+            if none {
+                self.toast("No terminal to close");
+            }
             return;
         }
         if self.term.is_some() {
@@ -4773,10 +4777,10 @@ impl App {
             // Naming the obstacle alone leaves nowhere to go: "OSC 7" is
             // hard to search for, and most of what comes back overrides
             // `prompt`, which breaks Starship and the other generators people
-            // actually run. The hook that does not is named here; the line to
-            // paste is in the README, because a toast does not wrap and a
-            // PowerShell one-liner is wider than any window.
-            let said = no_osc7(&self.term_shell);
+            // actually run. The hook that does not is named here, and the
+            // command that prints it (Q50): a toast does not wrap, and the
+            // hook itself is wider than any window.
+            let said = no_osc7(&self.term_shell, &filer_command());
             self.error(said);
             return;
         };
@@ -6993,13 +6997,48 @@ mod diff_tree_keys {
 /// What `<A-Up>` says when the shell has never reported its directory. The
 /// shell is named, because the hook goes in *that* shell's profile: Windows
 /// PowerShell 5.1 and PowerShell 7 read different ones, and someone running
-/// 5.1 was sent to the same README line again and again (#101).
-fn no_osc7(shell: &str) -> String {
+/// 5.1 was sent to the same README line again and again (#101). Where there
+/// is a hook for it, the command that adds it is the rest of the message
+/// (Q50); 5.1 is told it cannot have one rather than handed one that fails.
+fn no_osc7(shell: &str, filer: &str) -> String {
     let who = if shell.is_empty() { "The shell".to_owned() } else { format!("`{shell}`") };
-    format!(
-        "{who} has not said where it is (no OSC 7). PowerShell: set LocationChangedAction in \
-         that shell's $PROFILE — the line is in the README"
-    )
+    let name = shell.split(' ').next().unwrap_or("").to_ascii_lowercase();
+    let what = match name.trim_end_matches(".exe") {
+        "powershell" => {
+            return format!(
+                "{who} has not said where it is (no OSC 7), and cannot: the hook needs PowerShell 7 \
+                 (winget install Microsoft.PowerShell)"
+            )
+        }
+        "bash" => format!("{filer} shell-hook bash >> ~/.bashrc"),
+        "zsh" => format!("{filer} shell-hook zsh >> ~/.zshrc"),
+        "" | "pwsh" => format!("{filer} shell-hook | Add-Content $PROFILE"),
+        _ => return format!("{who} has not said where it is (no OSC 7). `filer shell-hook` has hooks for {}", crate::shellhook::SHELLS),
+    };
+    format!("{who} has not said where it is (no OSC 7). In that shell: {what}, then <C-S-t> and <C-t>")
+}
+
+/// How the pane's shell can run this filer: by name when that is what the
+/// `PATH` finds, by its full path when it is not (a zip unpacked anywhere).
+fn filer_command() -> String {
+    let Ok(me) = std::env::current_exe() else { return "filer".into() };
+    let name = if cfg!(windows) { "filer.exe" } else { "filer" };
+    let found = std::env::var_os("PATH")
+        .is_some_and(|p| std::env::split_paths(&p).any(|d| same_file(&d.join(name), &me)));
+    if found {
+        "filer".into()
+    } else if cfg!(windows) {
+        format!("& '{}'", me.display())
+    } else {
+        format!("'{}'", me.display())
+    }
+}
+
+fn same_file(a: &std::path::Path, b: &std::path::Path) -> bool {
+    match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
+    }
 }
 
 /// The web page behind one row of spot's Git section. `From branch` sat
@@ -7025,10 +7064,21 @@ mod no_osc7_message {
     /// #101: the toast names the shell whose profile the hook belongs in.
     #[test]
     fn it_names_the_shell() {
-        let said = super::no_osc7("powershell (Windows PowerShell 5.1)");
+        let said = super::no_osc7("powershell (Windows PowerShell 5.1)", "filer");
         assert!(said.starts_with("`powershell (Windows PowerShell 5.1)` has not said where it is"), "{said}");
-        assert!(said.contains("that shell's $PROFILE"), "{said}");
-        assert!(super::no_osc7("").starts_with("The shell has not said"));
+        assert!(said.contains("needs PowerShell 7"), "{said}");
+        assert!(super::no_osc7("", "filer").starts_with("The shell has not said"));
+    }
+
+    /// Q50: the command that adds the hook, for the shell the pane runs.
+    #[test]
+    fn it_gives_the_command_for_that_shell() {
+        let said = super::no_osc7("pwsh", "& 'C:\\x\\filer.exe'");
+        assert!(said.contains("In that shell: & 'C:\\x\\filer.exe' shell-hook | Add-Content $PROFILE, then"), "{said}");
+        assert!(super::no_osc7("bash", "filer").contains("filer shell-hook bash >> ~/.bashrc"));
+        assert!(super::no_osc7("zsh", "filer").contains("filer shell-hook zsh >> ~/.zshrc"));
+        assert!(super::no_osc7("cmd.exe", "filer").contains("hooks for pwsh, bash, zsh"));
+        assert!(super::no_osc7("", "filer").contains("filer shell-hook | Add-Content $PROFILE"));
     }
 }
 
@@ -7885,14 +7935,6 @@ mod escape_and_max_preview {
         assert!(!a.max_term, "no pane left to be maximised");
     }
 
-    /// `<C-S-t>` asks before ending a shell that is running something, and
-    /// does what the answer says (Q21).
-    ///
-    /// A real shell on a real PTY, because the question is about a real child
-    /// process: the shell is given a long-running command and the test waits,
-    /// with a deadline, until that command shows up under it. Only the busy
-    /// path is asserted -- whether an idle shell keeps a helper process of its
-    /// own is the platform's business, and "busy" errs toward asking anyway.
     /// Q49: `<C-F5>` that changes `[term]` while a pane runs says the pane keeps
     /// its shell until `<C-S-t>`. Without a pane, or with `[term]` unchanged,
     /// the toast is the plain one -- the next `<C-t>` picks the new shell up.
@@ -7921,6 +7963,43 @@ mod escape_and_max_preview {
         assert!(!last(&a).contains("shell"), "no pane to keep one: {}", last(&a));
     }
 
+    /// Q53: `<C-S-t>` from the list ends the shell too, not only from inside
+    /// the pane: `<C-t>` back to the list and then `<C-S-t>` did nothing, and a
+    /// re-test took the old shell for a reload that had not worked (#182). With
+    /// no pane it says so rather than nothing.
+    #[test]
+    fn ending_the_shell_from_the_list() {
+        let mut a = app();
+        let key = |a: &mut App| a.feed_key(crate::config::keys::Key::parse("<C-S-t>").unwrap());
+        key(&mut a);
+        assert_eq!(a.toasts.last().map(|t| t.text.as_str()), Some("No terminal to close"));
+
+        a.act(Act::Terminal(Some(true)));
+        if a.term.is_none() {
+            if cfg!(any(windows, target_os = "linux")) {
+                panic!("the terminal did not start");
+            }
+            return;
+        }
+        a.term_focus = false;
+        key(&mut a);
+        // A shell still reading its profile has children of its own, and then
+        // the question comes first -- the same as from inside the pane.
+        if matches!(&a.overlay, Overlay::Confirm(c) if matches!(c.action, ConfirmAction::EndShell)) {
+            a.answer_confirm('y');
+        }
+        assert!(a.term.is_none(), "the list's `<C-S-t>` ended the shell");
+        assert_eq!(a.toasts.last().map(|t| t.text.as_str()), Some("Ended the shell"));
+    }
+
+    /// `<C-S-t>` asks before ending a shell that is running something, and
+    /// does what the answer says (Q21).
+    ///
+    /// A real shell on a real PTY, because the question is about a real child
+    /// process: the shell is given a long-running command and the test waits,
+    /// with a deadline, until that command shows up under it. Only the busy
+    /// path is asserted -- whether an idle shell keeps a helper process of its
+    /// own is the platform's business, and "busy" errs toward asking anyway.
     #[test]
     fn ending_a_busy_shell_asks_first() {
         let mut a = app();
