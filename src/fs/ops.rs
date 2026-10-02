@@ -837,13 +837,16 @@ fn symlink_error(e: &std::io::Error, link: &Link, src: &Path) -> String {
          (Settings > System > For developers), or run filer as administrator"
     );
     if link.dir {
-        said += &format!(
-            ". A junction needs neither: mklink /J \"{}\" \"{}\"",
-            link.at.display(),
-            src.display()
-        );
+        said += &format!(". A junction needs neither: {}", mklink_line(&link.at, src));
     }
     said
+}
+
+/// The `cmd` line that makes a junction at `at` to `target`: what the refusal
+/// above tells people to type, and what the junction question's `c` copies
+/// (Q56), spelled the same in both.
+pub fn mklink_line(at: &Path, target: &Path) -> String {
+    format!("mklink /J \"{}\" \"{}\"", at.display(), target.display())
 }
 
 /// Windows' "the client does not hold the required privilege" (1314): a
