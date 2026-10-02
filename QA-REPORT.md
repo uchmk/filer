@@ -10734,3 +10734,143 @@ Out-File form: 277 ms, file has 48 lines
    - なぜ: 1 箱に 2 主張だと、**半分通ったという最も多い結果が記録できない。**
      印の無い行は「まだ測っていない行」と区別が付かないので、測った事実が消える。
    - 大きさ: 設計の判断（番号の振り方は持ち主の方針）。行の分割自体は TESTING.md の 2 行。
+
+## TESTING.md 13.8a / 13.8b — ジャンクションの提案。**13.8b は合、13.8a は箱の中の字が読めない**（31303c1 / 0.67.23、ARM64 レーン、無人の run）
+
+ARM64 レーンの順番表の次の節「**13.8a, 13.8b**」（2 行）が担当。25.19 は #183（0.67.23）で
+片付いたので、表の先頭はもうここ。**この 2 行はこの機械でしか測れない** — 開発者モードが無く、
+昇格もしていない Windows が要る。
+
+**前提をまず測った。**`HKLM:\…\AppModelUnlock` はキーこそあるが**値が 1 つも無い**
+（`AllowDevelopmentWithoutDevLicense` は未設定 = 0）。昇格は `False`。
+`whoami /priv` に `SeCreateSymbolicLinkPrivilege` の行は**無い**。
+実際に `New-Item -ItemType SymbolicLink` を打つと
+`この操作には管理者特権が必要です。`（HResult `-2147024891` = 0x80070522 = 1314）で断られる。
+つまり 13.8a / 13.8b が要求する状態そのもの。
+
+**13.8b は全部通ったので `[x]` を付けた。13.8a は付けていない** —
+「両方のパスを挙げ」の半分が、**この run が実際に使ったパスでは画面から読めない**（下の「見つけたもの」1）。
+
+`make-testcheck -- --check` は `in sync`（**322 / 448**）、`make-keycheck -- --check` も
+`in sync`（249 / 251）。`cargo test` は **608 passed; 0 failed**（ネイティブ ARM64、4.16 s）。
+`cargo test` の前後で**親の居ないシェル**（`OpenConsole` / `pwsh` / `powershell`）は
+**48 → 48** で増えていない。
+見つけたもの 2 件、提案 3 件。
+
+### この機械
+
+- Windows 11 Home 10.0.28000.0、Snapdragon(R) X2 Elite - X2E88100 (Qualcomm Oryon)、PowerShell 7.6.6
+- `filer env`: Version 0.67.23 / **OS arch aarch64 / Process arch aarch64**（ネイティブ ARM64）
+- ConPTY 1.24.260710001 (arm64) を `target\release` に置いた（この節では使っていない）
+- 設定は**この機械の本物**（`%APPDATA%\filer\keymap.toml` は `T` を 1 つ prepend するだけ、
+  `%APPDATA%\yazi\config\keymap.toml` は空）。`y` `j` `<Enter>` `-` `u` `U` `g` `f` はいずれも既定のまま。
+- 作業場所は `%LOCALAPPDATA%\Temp\filer-scratch\w\<ラベル>`（`TEMP` / `TMP` もそこ）。
+  生の `keys.done` とスクリーンショットは `C:\dev\filer-evidence\arm-13.8\` に写してある
+  （`run.ps1`、`a1` `a2` `a3` `a4` `a4follow` `b1` `b2` `b3` `b4` `short`）。
+- キーはすべて `--keys` で押した。`LogonUI` は 0、スクリーンセーバーは動いていない。
+
+### 測り方
+
+雛形はどの run も同じ: `w\<ラベル>\real\{inside.txt, also.txt}` と空の `w\<ラベル>\zdst`。
+`real` が 1 行目、`zdst` が 2 行目なので `y` `j` `<Enter>` `-` で
+「フォルダを `y` → 別のディレクトリで `-`」になる。`FILER_KEYS_DONE` の `toast:` 行が
+**最後のトーストの文そのもの**なので、トーストは画像を読まずに**文字として**比べられる。
+
+### 13.8a — 4 つの主張のうち 3 つが合、1 つが読めない
+
+| 主張 | どう測ったか | 結果 |
+| --- | --- | --- |
+| 同じ拒否のあとに `A junction needs neither: mklink /J "<リンク>" "<フォルダ>"` が続き、両方とも絶対パス | `a1/keys.done` の `toast:` | **合**。`Link: real: クライアントは要求された特権を保有していません。 (os error 1314) — Windows needs Developer Mode for symlinks (Settings > System > For developers), or run filer as administrator. A junction needs neither: mklink /J "C:\…\w\a1\zdst\real" "C:\…\w\a1\real"` |
+| それを `cmd` に貼るとジャンクションができ、`g` `f` でたどれる | トーストから `mklink /J` 以降を切り出して `cmd /d /c` にそのまま渡した | **合**。`Junction created for …\a4\zdst\real <<===>> …\a4\real`。`(Get-Item).LinkType` = `Junction`。続けて `filer …\a4\zdst --keys "gf"` → `cwd: …\w\a4\real`（`a4follow/keys.done`） |
+| ファイルへの `-` ではジャンクションのことは言わない | `a.txt` を `y` して `zdst` で `-` | **合**。`toast: Link: a.txt: …(os error 1314) — Windows needs Developer Mode for symlinks (…), or run filer as administrator` で終わり、`junction` の語は無く `overlay: none`（問いも出ない） |
+| `n` なら何も残らない | `yj<Enter>-n` のあと `Get-ChildItem -Force` | **合**。`overlay: none`、`zdst` は **0 件**、`real` は `also.txt` / `inside.txt` のまま |
+| 続けて `Make a junction instead?` と聞く | `a1/keys.done` の `overlay: confirm` と `a1/a1-confirm.png` | **題と文は合、しかしパスの行が読めない** → 下の「見つけたもの」1 |
+
+問い自体は出る（題は `Make a junction instead?`、ボタンは `[y] Make the junction` と `[n] No`、
+`overlay: confirm`）。「相対にならない」「ネットワークの場所を指せない」も画面に出ている。
+**出ないのは両方のパス**で、箱の幅が足りず**真ん中が `…` で潰される**。
+
+### 13.8b — 5 つの主張すべて合（`[x]` を付けた）
+
+| 主張 | どう測ったか | 結果 |
+| --- | --- | --- |
+| トースト `Made a junction <名前> — u to undo` | `b1/keys.done` | **合**。`toast: Made a junction real — u to undo` |
+| `(Get-Item <リンク>).LinkType` が `Junction` | `Get-Item …\b1\zdst\real -Force` | **合**。`LinkType=Junction`、`Target=C:\…\w\b1\real`、`Attributes=Directory, ReparsePoint`。中も通る（`also.txt` / `inside.txt`） |
+| `g` `f` でたどれる | `yj<Enter>-ygf` を 1 本の `--keys` で | **合**。`cwd: C:\…\w\b2\real`、`hovered: …\b2\real\also.txt`（`b2/keys.done`） |
+| `u` はジャンクションだけを消す（フォルダと中身は残る） | `yj<Enter>-y<Shot:b3-made>u<Shot:b3-undone>` | **合**。`toast: Removed the link real`、`zdst` は **0 件**、`real` は `also.txt` / `inside.txt` が残り `inside.txt` は 6 バイトのまま |
+| `U` でまたジャンクションとして作られる | `yj<Enter>-yu<Shot:b4-undone>U<Shot:b4-redone>` | **合**。`toast: Linked real`、`LinkType=Junction`、`Target=C:\…\w\b4\real`、`Attributes=Directory, ReparsePoint`、中も通る |
+
+### 見つけたもの
+
+1. **`Make a junction instead?` の中身が箱に入りきらず、`…` で潰れる。
+   2 行目は常に 1 文字あふれて `holds the…ull path` と出る。**
+
+   `src/ui/overlay.rs:815` が箱の幅を `(full.width() * 0.6).min(760.0)` で**760 px に頭打ち**にし、
+   `:839` が各行を `ellipsize_middle(l, (inner.width() / (f.size * 0.6)) as usize)` で**真ん中から**削る。
+   `760 - 28 = 732` px ÷ `14 * 0.6 = 8.4` = **87 文字**が 1 行の上限。
+
+   - **本文 2 行目は 88 文字**（`A junction needs neither. Unlike the symlink it holds the full path, not a relative one,`）。
+     1 文字あふれるので真ん中の 2 文字が `…` に置き換わり、画面には
+     **`it holds the…ull path`** と出る。**パスの長さに依らず、どの機械でもこうなる**
+     （`short/short-confirm.png`、`X:\` に `subst` した短いパスでも同じ）。
+   - **パスの対の行は 124 文字**（`C:\…\w\a1\zdst\real  →  C:\…\w\a1\real`）。
+     37 文字が真ん中から消えるので、**`→` もリンク側の名前も消え**、
+     `C:\Users\yuu06\AppData\Local\Temp\filer-scratch\w\a1\zdst…\Temp\filer-scratch\w\a1\real`
+     という 1 本の読めない文字列になる（`a1/a1-confirm.png`）。
+     **どこに何を作るのかを示すのがこの問いの存在理由**なので、ここが読めないのは効く。
+     短いパス（`X:\zdst\real  →  X:\real`）なら全部読める。
+
+   窓を広げても直らない（760 px の上限は窓の幅と無関係）。**13.8a に `[x]` を付けなかったのはこれが理由。**
+   行の文言「両方のパスを挙げ」は、この機械が実際に使ったパスでは満たされていない。
+   直したら 13.8a を再テストに回してほしい。
+
+2. **`u` と `U` のトーストが、作ったときの言い方（「ジャンクション」）を忘れる。**
+
+   `y` で作ったときは `Made a junction real — u to undo` と**ジャンクションだと言う**のに、
+   `u` は `Removed the link real`、`U` は `Linked real` としか言わない
+   （`b3/keys.done`、`b4/keys.done`）。`U` の `Linked real` は**シンボリックリンクを作ったときと同じ文**で、
+   実際にできるのはジャンクション（`LinkType=Junction` を確かめた）。
+   `src/app.rs:4372` が `make_junctions` 専用の文を持っているのに対し、
+   `u` / `U` は `UndoStep::Link` の共通の `undone_label` / `redone_label` を通るため、
+   **`ops::Link::junction` の真偽が文に出ない**。TESTING.md 13.8b の文言は `u` / `U` の
+   トーストに触れていないので**行としては合**だが、**画面の言葉としては嘘に近い**。
+
+### Proposals
+
+1. **確認ダイアログの本文を、窓の幅に合わせて折り返す（`…` で潰さない）。**
+   - 何が起きたか: `Make a junction instead?` の問いが、**1360 px の窓**で
+     `it holds the…ull path` と出て、パスの対は `→` ごと消えた。
+     1360 px あれば 160 文字入るのに、使っているのは 87 文字分。
+   - どう変えるか: `overlay.rs:835-844` の `painter.text` + `ellipsize_middle` をやめ、
+     `layout` で**折り返す**（`egui::text::LayoutJob` の `wrap.max_width = inner.width()`）。
+     行数は折り返し後の高さから採る。**パスの行だけは**真ん中省略のままでもよいが、
+     そのときは `→` の左右を別々に省略して、`→` と**両端の名前**は必ず残す。
+   - なぜ: 今の作りは**文の途中で 1 文字を食う**ので、読めないだけでなく
+     **間違った単語を表示する**（`the…ull path`）。確認ダイアログは
+     「これで合っているか」を人に聞く場所なので、ここで字が欠けるのは一番まずい。
+     しかも `760.0` の頭打ちのせいで、窓を広げても人は直せない。
+   - 大きさ: 関数 1 つ（`confirm`）の描画部分。10〜20 行。
+
+2. **`u` / `U` のトーストに、作ったものの種類を出す。**
+   - 何が起きたか: ジャンクションを `U` で作り直したのに `Linked real` としか言わない。
+     シンボリックリンクができたのかジャンクションができたのか、**トーストからは区別が付かない**。
+     この run は毎回 `(Get-Item).LinkType` を外から読んで確かめた。
+   - どう変えるか: `UndoStep::Link` の `undone_label` / `redone_label` が
+     `ops::Link::junction` を見て、`Linked real` / `Made a junction real`、
+     `Removed the link real` / `Removed the junction real` を出し分ける。
+   - なぜ: Q46 が「黙って別物にすり替えない」ために問いを足したのに、
+     **`u` を 1 回押して `U` で戻した瞬間に、その区別が画面から消える。**
+     問いを足した理由と矛盾する。
+   - 大きさ: `UndoStep::Link` のラベル 2 つ、数行。
+
+3. **`-` でフォルダが拒否されたとき、`mklink /J` の行を**クリップボードに置ける**ようにする。**
+   - 何が起きたか: トーストは `mklink /J "…" "…"` を**正しく**出し、それを `cmd` にそのまま
+     貼れば確かに動いた（上の表）。**ただし貼るには、まずトーストから文字を取り出す必要がある。**
+     この run は `FILER_KEYS_DONE` の `toast:` 行を切って使ったが、**人にはその道が無い** —
+     トーストは数秒で消えるし、選択もできない。
+   - どう変えるか: トーストの最後に「`C` でコマンドをコピー」を足すか、
+     **`Make a junction instead?` の問いに 3 つ目の選択肢** `[c] Copy the mklink command` を足す。
+   - なぜ: ネットワークの場所や相対リンクが要る人は `n` を選ぶが、**そのあとに手で打つのは
+     124 文字の 2 つの絶対パス**。メッセージがコマンドを出している以上、
+     それを使えるようにするところまでが 1 組だと思う。
+   - 大きさ: 選択肢 1 つとクリップボード呼び出し 1 行。`offer_junctions` の中。
