@@ -10270,3 +10270,176 @@ ARM64 レーンの順番表の先頭「**21.14 and 21.15**」が担当。節 21 
    - なぜ: **毎回同じ内容が毎回出る。**一度読んだ人には情報が無く、そのぶん
      プレビューという毎回使う面積を数秒隠す。
    - 大きさ: 出す先を変えるだけなら数行。どこに出すかは見た目なので持ち主へ。
+
+## TESTING.md section 29 — 残っていた 5 行を ARM64 で全部通した（3177566 / 0.67.15、ARM64 レーン、無人の run）
+
+ARM64 レーンの順番表の先頭「**29. the terminal's directory, brought back**」が担当。
+`[ ]` だった 5 行（**29.2 / 29.3 / 29.5 / 29.7 / 29.9**）は、どれも
+**v0.64.2 と v0.65.3 で中身が変わったので印を外された行**で、0.54.9 のこの節の run
+（上の「section 29」の節）の結果はもう使えない。5 行とも通ったので **5 つともチェックを付けた。**
+これで節 29 は **8 / 8**（29.4 は自動テスト済みで表に出ていない）。
+
+`make-testcheck -- --check` は `in sync`（**312 / 446**）、`make-keycheck -- --check` も `in sync`。
+`cargo test` は **602 passed; 0 failed**（ネイティブ ARM64、3.86 s）。見つけたもの 1 件、提案 4 件。
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `PROCESSOR_ARCHITECTURE=ARM64`、`Qualcomm(R) Adreno(TM) X2-90 GPU`（Vulkan、IntegratedGpu）、窓 1360x860 |
+| OS | `Windows 11 Home 26H1 (build 28000.2956)` |
+| filer | 手元ビルド 0.67.15、`filer env` が `OS arch aarch64` / `Process arch aarch64` / `Debug false`、`--version` が `filer 0.67.15 (aarch64)` |
+| シェル | ペインの既定は **`pwsh` 7.6.6**（ARM64 ネイティブ、`C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.6.0_arm64__…`）。`powershell` は **5.1.28000.2952** |
+| Starship | 入っている（`…\WinGet\Packages\Starship.Starship_…\starship.exe`）。**持ち主の `$PROFILE` が既に `Invoke-Expression (&starship init powershell)` を読む**ので、ペインは最初から Starship |
+| ConPTY | `scripts/fetch-conpty.ps1` で 1.24.260710001 (arm64) を `target\release` へ |
+| 昇格 | 無し（`IsInRole('Administrators')` = False）。この 5 行に昇格の要る所は無い |
+| 一時ディレクトリ | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch\s29`（この機械に RAM ディスクは無い） |
+| 設定 | 29.7 の後半以外は**持ち主の実物**（`filer` 側の `keymap.toml` は `T` を 1 つ足すだけで、`<C-t>` / `<A-Up>` には何も当たっていない） |
+
+証拠は `C:\dev\filer-evidence\arm-29b\`（PNG 3 枚、`done-*.txt` 7 本、`pty-*.log` 7 本、
+`hook.ps1` / `other.ps1` / `run.ps1`、プロンプトの捕獲 3 本、`ver-a.txt` / `ver-b.txt` / `title.txt`）。
+0.54.9 の run の証拠は `arm-29\` のままにしてある。
+
+### 測り方
+
+- **キーは全部 `--keys`。**`PostMessage` も `SendInput` も 1 回も使っていない。ペインを開く
+  `<C-t>` から、シェルに打つ `cd` や `. hook.ps1` まで、全部 1 本の `--keys` に入れて
+  `<Wait:N>` で間を空けた。**0.54.9 の run が必要とした足場（`lib.ps1`、入力デスクトップの確認、
+  PTY ログが伸び止まるのを待つ判定）は 1 つも要らなかった。**
+- **一覧がどこへ行ったか**は `FILER_KEYS_DONE` の `cwd:` と `hovered:` で読み、
+  窓のタイトル（`EnumWindows` でクラス `Window Class` のもの。`MainWindowHandle` は
+  winit の無題の窓を指すことがある、#88）でも確かめた。**2 つは毎回一致した。**
+- **シェルが現在地を言ったか**は `FILER_PTY_LOG` の `out` 行の `\e]7;file://…`。
+- **トーストの文面**は `<Shot:名前>`（v0.67.0）で撮った PNG を**テキストとして**読んだ。
+- **`$PROFILE` は 1 バイトも触っていない。**この機械の `$PROFILE` は OneDrive の中の
+  git 管理下のファイル（#173）なので、README のフックは `README.md` の 1159〜1165 行目を
+  **そのまま切り出して** `s29\hook.ps1` に書き、ペインで `. …\hook.ps1` と打った
+  （順番表の指示どおり）。`Get-Content README.md` から作っているので、写し間違いは起こらない。
+
+### 行ごとの結果
+
+| 行 | 結果 | 根拠 |
+| --- | --- | --- |
+| 29.2 | **合** → `[x]` | ペイン（`pwsh`）で `. hook.ps1` → `cd C:\dev` → `<A-Up>`。PTY ログの `out` に `\e]7;file:///C:/dev`、`done-29-2.txt` が `cwd: C:\dev` / `hovered: C:\dev\Filer`、窓のタイトルが `Filer: C:\dev`、`toast:` は空（エラー無し） |
+| 29.3（空白） | **合** → `[x]` | `cd 'C:\…\s29\a space dir'` → OSC 7 は `file:///C:/Users/…/s29/a space dir`（**空白は生のまま、%20 ではない**）。`cwd: C:\…\s29\a space dir`、`hovered: …\a space dir\in-space.txt`（中身まで読めている）、タイトルも同じ |
+| 29.3（日本語） | **合** → `[x]` | `cd C:\…\s29\日本語ディレクトリ` → OSC 7 は `file:///C:/Users/…/s29/日本語ディレクトリ`（**生の UTF-8**）。`cwd` / `hovered: …\日本語ディレクトリ\in-jp.txt` / タイトルとも壊れていない |
+| 29.5 | **合** → `[x]` | 下の「29.5」を参照。**フックの前後で Starship のプロンプトが 1 バイトも変わらなかった**（SHA-256 一致） |
+| 29.7 | **合** → `[x]` | 既定: トーストが `Started pwsh — <C-t> back to the list`（`started-a.png`）、ペインの `$PSVersionTable.PSVersion` が **7.6.6**。`shell = "powershell"`: トーストが `Started powershell (Windows PowerShell 5.1) — <C-t> back to the list`（`started-b.png`）、同じく **5.1.28000.2952**。**両方ともトーストの括弧の中と `$PSVersionTable` が一致** |
+| 29.9 | **合** → `[x]` | 下の「29.9」を参照。**一覧も動き、別のツールのハンドラも動いた** |
+
+### 29.5 —— Starship のプロンプトは「変わらなかった」を数字で
+
+持ち主の `$PROFILE` が Starship を読むので、ペインは**最初から Starship**（起動直後の
+`started-a.png` のペインが 2 行プロンプト `filer-scratch\s29\work` / `❯`）。そこへ
+`. hook.ps1` を打ち、**同じフォルダのまま** `(prompt)` の戻り値をファイルに落として比べた。
+
+| いつ | `(prompt)` の中身（`\e` は ESC） | SHA-256 |
+| --- | --- | --- |
+| フックの**前**（`…\s29\work`） | `\e[1;36mfiler-scratch\s29\work\e[0m` と `\e[1;32m❯\e[0m` の 2 行 | `2E683E20…47071CD9` |
+| フックの**後**（同じフォルダ） | 同左 | `2E683E20…47071CD9`（**一致**） |
+| `cd C:\dev` の後 | `\e[1;36mC:\dev\e[0m` と `\e[1;32m❯\e[0m` の 2 行 | `4E6232BB…B2A8140F` |
+
+- **前後が同一ハッシュ**なので、「プロンプトはこれまでどおり」は見た目ではなく**バイト列の一致**で言える。
+  フックが `prompt` ではなく `LocationChangedAction` を使っている、という行の主張そのもの。
+- `cd` の後は**パスだけが変わって形は同じ**なので、Starship が死んでいるのでもない。
+- 同じ run の `<A-Up>` で `cwd: C:\dev` になった（`\e]7;file:///C:/dev`）。
+  **Starship と同居したままフックが働く**ことも、ついでに確かめたことになる。
+- `starship.png` が同じことを画面で言っている（`❯` の 2 行プロンプトが 3 回並んでいる）。
+
+### 29.9 —— 2 つのハンドラは、順番どおり両方走った
+
+`. other.ps1`（行が挙げている代わりのハンドラ、`[Console]::Title = "other: $($e.NewPath)"`）→
+`. hook.ps1`（README のフック）→ `cd C:\dev` → `<A-Up>`。
+
+- **一覧は動いた**: `done-29-9.txt` が `cwd: C:\dev`、タイトルが `Filer: C:\dev`。
+- **別のツールのハンドラも働いた**: ペインで読んだ `[Console]::Title` が **`other: C:\dev`**
+  （`title.txt`）。
+- **順番まで読める**: PTY ログの `out` 行が
+  `13425 ms` の `\e]0;other: C:\dev` → `13427 ms` の `\e]7;file:///C:/dev`。
+  **タイトル（前のハンドラ）が先、OSC 7（フック）が後**で、README の
+  「keeps whatever was there before and calls it first」のとおり。1 回の `cd` で 2 ms 差。
+
+### 見つけたもの —— `filer env > out.txt` が PowerShell では**空のファイル**になる（0 バイト）
+
+`src/main.rs` の `say()` の説明（54〜60 行目）は「**Redirected output comes first**」として、
+`filer env > out.txt` が空になるのを v0.54.4 で直したと書いている（#81 / #84 / #88 / #93 が
+4 回報告した件）。**パイプは直っているが、PowerShell の `>` は直っていない。**
+
+| 書き方 | 結果 |
+| --- | --- |
+| `filer env` をパイプで `Select-String arch` へ | **通る**（`OS arch : aarch64` / `Process arch : aarch64` の 2 行） |
+| `cmd /c "filer.exe env > out.txt"` | **通る**（48 行） |
+| `Start-Process -Wait -RedirectStandardOutput out.txt` | **通る**（48 行） |
+| `filer env > out.txt`（pwsh 7.6.6） | **0 バイト。**4 秒待っても 0 バイト |
+| `filer --version > out.txt`（pwsh 7.6.6） | **0 バイト** |
+
+- **理由はリダイレクト先の種類ではなく、待たないこと。**`Measure-Command` で計ると
+  `filer --version > t1.txt` は **25 ms で戻り**（ファイルは 0 バイト）、
+  パイプで `Out-Null` へ渡す形は **85 ms** かかる。PowerShell は GUI サブシステムの
+  プロセスを待たないので、`>` の側は filer が書く前にパイプを畳んでしまう。
+  パイプの側はパイプラインが読み切るまで待つので間に合う。
+- **どちらの間違いか**: プログラム側とは言い切れない（PowerShell の挙動）。ただし
+  `say()` の doc コメントは「a file or a pipe」と**両方直ったように書いている**ので、
+  そこは実際と違う。そして**これは不具合報告の捕獲そのものが静かに消える形**なので、
+  README か `--help` に 1 行欲しい（提案 1）。
+- 25.19（`filer env` をパイプで絞ると arch の 2 行だけが出る）は**この run の中で
+  実際に満たしていた**が、担当の節ではないのでチェックは付けていない。順番表の
+  **25.19 はこのまま残してよい**（次の run が 1 コマンドで終わる）。
+
+### Proposals
+
+1. **GUI バイナリの出力を「ファイルに取る」方法を、`--help` か README に 1 行で書いてほしい。**
+   - 何が起きたか: この run の最初に `filer env > env.txt` を打って**空のファイル**を受け取り、
+     「`filer env` が壊れたか」を疑って 4 通り試すまで時間を溶かした（上の「見つけたもの」）。
+     `say()` の doc コメントが「redirected output comes first」と言っているので、
+     **ソースを読んだ側ほど引っかかる。**
+   - どう変えるか: `filer --help` の末尾（COMMANDS の下）に 1 行。
+     `Windows: PowerShell's > does not wait for a GUI binary; use a pipe, cmd /c, or Start-Process -Wait`。
+     同じ 1 行を README の `filer env` の所にも。
+   - なぜ: **消えるのは不具合報告の中身**で、消えたことが画面に出ない。
+     #81 / #84 / #88 / #93 が 4 回報告したのと同じ失敗が、形を変えて残っている。
+   - 大きさ: 文字列 1 つとドキュメント 1 行。
+
+2. **`FILER_KEYS_DONE` に、その run で出たトーストを全部残してほしい（`toasts:`）。**
+   - 何が起きたか: 29.7 はトーストの文面そのものが期待値なのに、`<C-t>` の 5 秒後に書かれた
+     `done-29-7a.txt` の `toast:` は**空**だった（トーストが消えたあとなので当然）。
+     結局 `<Shot:started-a>` を撮って**画像からテキストを読む**ことになった。
+     1 行で済むものに PNG 120 KB と目視が要る。
+   - どう変えるか: `state_report` に `toasts:` を 1 行足し、その run で raise された
+     トーストを順に `|` 区切りで並べる（いまの `toast:` は「最後に**出ている**もの」なので残す）。
+     リングバッファ 16 本もあれば足りる。
+   - なぜ: **トーストが期待値の行は多い**（29.1 / 29.7 / 29.8、12.17 / 12.18、13.8a、21 節…）。
+     いまはどれも「キーの直後に `<Shot:>` を挟む」か「消える前に読めることに賭ける」しかなく、
+     前者は run を長くし、後者は**たまたま通る**。
+   - 大きさ: `App` にトーストの履歴を 1 本と、`state_report` に 1 行。
+
+3. **`<A-Up>` のトーストから、フックを入れる所まで届いてほしい。**
+   - 何が起きたか: 29.1 のトーストは
+     `` `pwsh` has not said where it is (no OSC 7). PowerShell: set LocationChangedAction in that shell's $PROFILE — the line is in the README ``
+     と、**シェルの名前まで言う**（v0.59.4 / v0.65.3 の改善はよく効いている）。
+     それでも次にすることは「GitHub で README を開く」「7 行のブロックを探す」
+     「`Add-Content` の形に貼り替える」で、**この run では写し間違いを避けるために
+     `README.md` の 1159〜1165 行目をスクリプトで切り出した。**人は手で写す。
+   - どう変えるか: `filer --print-shell-hook` を足す（引数なしでペインのシェルに合わせる）。
+     標準出力に README と同じ 7 行を出すだけ。トーストの文面を
+     `… — run: filer --print-shell-hook | Add-Content $PROFILE` に変える。
+   - なぜ: **この節の前書きが「what is being tested here is mostly the instructions」と
+     自分で言っている。**指示が 7 行の手写しである限り、間違いの余地は消えない。
+     フックの中身は 1 か所（README）にあるので、そこを `include_str!` できる形に
+     移せば二重管理にもならない。
+   - 大きさ: CLI のフラグ 1 つと、フックを別ファイルに切り出して `include_str!`。
+     README はその所を参照に変える。設計の判断が要るのは「ファイルをどこに置くか」だけ。
+
+4. **ペインのシェルを、設定ディレクトリを丸ごと差し替えずに 1 回だけ変えたい（`FILER_TERM_SHELL`）。**
+   - 何が起きたか: 29.7 の後半（`shell = "powershell"`）のために、`filer.toml` を 2 行だけ書いた
+     スクラッチのフォルダを作り、`FILER_CONFIG_HOME` でそこを指した。
+     **そのぶん持ち主の `keymap.toml` と `theme.toml` も落ちる**ので、
+     「この run は既定のキーマップで走った」と報告に書く必要が出る。
+     29.8 や 8 節のように「5.1 で 1 回だけ見たい」行は、これからも出る。
+   - どう変えるか: `[term] shell` を環境変数 `FILER_TERM_SHELL` で上書きできるようにする
+     （`args` も `FILER_TERM_ARGS` で）。設定の読み込みの最後に 1 回見るだけ。
+   - なぜ: **シェルは「設定」より「このセッション」の性質**に近い。
+     `SHELL` や `EDITOR` を 1 回だけ変えて起動するのと同じことを、ペインにもしたい。
+     テストの側では「他の設定を道連れにしない」ことがそのまま証拠の質になる。
+   - 大きさ: 読み込みの最後に `if let Ok(s) = env::var("FILER_TERM_SHELL")` を 1 つ。
+     `filer env` の Tools 節が既に「実際に起動するほう」を出す作りなので、表示はついてくる。
