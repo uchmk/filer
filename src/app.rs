@@ -4362,10 +4362,14 @@ impl App {
             body.push(format!("… and {} more", links.len() - SHOWN));
         }
         let what = if links.len() == 1 { "Make the junction".to_owned() } else { format!("Make {} junctions", links.len()) };
+        // `c` for someone who would rather make it themselves, or somewhere
+        // else: the line is two absolute paths long, and a toast cannot be
+        // copied from (#185, #191; Q56).
+        let copy = if links.len() == 1 { "Copy the mklink command" } else { "Copy the mklink commands" };
         self.overlay = Overlay::Confirm(ConfirmOverlay {
             title: "Make a junction instead?".into(),
             body,
-            options: vec![('y', what), ('n', "No".into())],
+            options: vec![('y', what), ('c', copy.into()), ('n', "No".into())],
             action: ConfirmAction::Junctions { links },
             dest: None,
         });
@@ -4388,6 +4392,19 @@ impl App {
         }
         if let (Some(e), Some(l)) = (err, left.first()) {
             self.error(format!("Junction: {}: {e}", util::file_name(&l.at)));
+        }
+    }
+
+    /// The junction question's `c`: the `mklink /J` lines for `cmd`, one per
+    /// link, and nothing made.
+    fn copy_mklink(&mut self, links: &[ops::Link]) {
+        let lines: Vec<String> = links.iter().map(|l| ops::mklink_line(&l.at, &l.target)).collect();
+        match exec::set_clipboard(&lines.join("\n")) {
+            Ok(()) => self.toast(match lines.len() {
+                1 => "Copied the mklink command — paste it into cmd".to_owned(),
+                n => format!("Copied {n} mklink commands — paste them into cmd"),
+            }),
+            Err(e) => self.error(format!("Clipboard: {e}")),
         }
     }
 
@@ -5298,11 +5315,11 @@ impl App {
                     self.end_shell();
                 }
             }
-            ConfirmAction::Junctions { links } => {
-                if ch == 'y' {
-                    self.make_junctions(links);
-                }
-            }
+            ConfirmAction::Junctions { links } => match ch {
+                'y' => self.make_junctions(links),
+                'c' => self.copy_mklink(&links),
+                _ => {}
+            },
             ConfirmAction::BookmarkDeleteAll => {
                 if ch == 'y' {
                     self.bookmarks.clear();
@@ -6473,9 +6490,36 @@ mod create_and_link_undo {
         assert!(body.contains("not a relative one") && body.contains("network"), "{body}");
         assert!(body.contains(&format!("{}  →  {}", offered.at.display(), offered.target.display())), "{body}");
         assert_eq!(c.options[0], ('y', "Make the junction".into()));
+        assert_eq!(c.options[1], ('c', "Copy the mklink command".into()));
 
         a.answer_confirm('n');
         assert!(a.overlay.is_none() && a.undos.undo.is_empty() && !offered.at.exists());
+    }
+
+    /// Q56: `c` copies the `mklink /J` line -- the one the refusal names --
+    /// and makes nothing. Where there is no clipboard (a headless test run)
+    /// it says so instead.
+    #[test]
+    fn c_copies_the_mklink_line_and_makes_nothing() {
+        let dir = util::test_dir("junction-copy");
+        let mut a = app(&dir);
+        let offered = ops::Link { at: dir.join("alias"), target: dir.join("real"), dir: true, hard: false, junction: true };
+        let mut ev = finished(Vec::new(), vec!["real: refused".into()]);
+        if let ops::OpEvent::Finished { junctions, .. } = &mut ev {
+            junctions.push(offered.clone());
+        }
+        a.on_op_event(ev);
+        a.answer_confirm('c');
+        assert!(a.overlay.is_none() && a.undos.undo.is_empty() && !offered.at.exists());
+        let said = toasts(&a);
+        assert!(
+            said.contains(&"Copied the mklink command — paste it into cmd") || said.iter().any(|t| t.starts_with("Clipboard:")),
+            "{said:?}"
+        );
+        assert_eq!(
+            ops::mklink_line(&offered.at, &offered.target),
+            format!("mklink /J \"{}\" \"{}\"", offered.at.display(), offered.target.display())
+        );
     }
 
     /// The `y`: a real junction on Windows, which `u` removes without touching

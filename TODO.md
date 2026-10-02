@@ -1705,7 +1705,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.70.3 で直した。`Removed the junction <名前>` / `Made the junction <名前> again`。13.8b の印を外した）**`u` / `U` のトーストがジャンクションと言わない**（#185 の所見 2、提案 2）。`y` は `Made a junction real — u to undo` と言うが、`u` は
   `Removed the link real`、`U` は `Linked real` で、シンボリックリンクと同じ文になる。`UndoStep::Link` の `undone_label` / `redone_label` が
   `ops::Link::junction` を見ていない。直したら 13.8b を再テストに回す（印を外す）。
-- [ ] `n` を選んだ人のために、`mklink /J` のコマンドをクリップボードに渡す（#185 の提案 3）。キーを決める必要があるので Q56。（要確認: Q56）
+- [x] （v0.71.4、Q56 の 1。質問に `[c] Copy the mklink command`。実機で 13.8c）`n` を選んだ人のために、`mklink /J` のコマンドをクリップボードに渡す（#185 の提案 3、#191 の提案 2）。
 
 ## 実機のセッションの報告（v0.70.2 で受けた分: #188、x64 の再テスト）
 
