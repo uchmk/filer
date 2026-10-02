@@ -314,17 +314,19 @@ job's progress, its speed, and cancelling it from `w` all need a copy big enough
 ## 8. Which shell the pane runs (v0.24.0)
 
 The setting is one line; the point of the section is that the **default** is the
-thing that surprises people.
+thing that surprises people. filer reads the config only at start and on `<C-F5>`
+(Q49), and a pane already running keeps the shell it started with, so a change to
+`[term]` takes `<C-F5>`, then `<C-S-t>` to end the old shell, then `<C-t>`.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 8.1 | `<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` | `5.1.x` — Windows PowerShell, unchanged from every earlier version |
-| 8.2 | Add `[term]` / `shell = "pwsh"`, `<C-S-t>`, `<C-t>`, ask again | `7.x` |
+| 8.1 | `<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` | `7.x` — `pwsh`, the default since v0.55.0 wherever it is installed (Q29). `5.1.x`, Windows PowerShell, only on a machine without `pwsh` |
+| 8.2 | With the pane open, add `[term]` / `shell = "powershell"`, `<C-F5>`, then `<C-S-t>`, `<C-t>`, ask again (v0.67.17) | The `<C-F5>` toast ends `— the pane keeps its shell until <C-S-t> closes it`; after `<C-S-t>` `<C-t>`, `5.1.x` |
 | 8.3 | `$PROFILE` in each | Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7 |
 | 8.4 | With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each | Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report |
 | 8.5 | `args = ["-NoLogo"]` | The banner is gone |
 | 8.6 | A `shell` that is not installed | It fails to start and says so — no silent empty pane |
-| 8.7 | Remove `[term]` again, `<C-S-t>`, `<C-t>` | Back to the default |
+| 8.7 | Remove `[term]` again, `<C-F5>`, `<C-S-t>`, `<C-t>` (v0.67.17) | Back to the default (`7.x` where `pwsh` is installed). Without the `<C-F5>`, `<C-S-t>` `<C-t>` starts the old shell again: nothing has re-read the file |
 
 ## 9. The outline at the end of a file (v0.23.1)
 
@@ -613,7 +615,7 @@ was that a gentle turn moved nothing at all.
 | 20.2 | Change `[ui] font_size` in `filer.toml`, `<C-F5>` | The text resizes |
 | 20.3 | Add a `keymap.toml` binding, `<C-F5>` | The new key works, and `<F1>` lists it |
 | 20.4 | Sort with `,s`, then `<C-F5>` | The sort **stays** as you set it — a reload does not undo what you changed by hand |
-| 20.5 | Put a syntax error in `filer.toml`, `<C-F5>` | An error toast naming the problem; the old config stays in force |
+| 20.5 | Put a syntax error in `filer.toml`, `<C-F5>` | An error toast naming the problem; the old config stays in force -- **including what the broken file itself set** (v0.67.18, Q47: before, its `[ui]` fell back to the defaults), and the toast ends `(the last settings read from it stay in force until it parses again)` |
 | 20.6 | `[ui] minimap = false`, `<C-F5>` | No minimap |
 | 20.7 | In `keymap.toml`, `[[mgr.prepend_keymap]]` `on = "<F8>"`, `run = 'cd C:\Windows\System32'` -- no quotes inside the command (v0.59.0) | `<F8>` lands in `C:\Windows\System32`. Until v0.59.0 the backslashes were dropped and the error named `C:WindowsSystem32` |
 
@@ -964,6 +966,7 @@ size the panel comes out.
 | 34.12 | `q`, then `~` again, then `<F1>`, then `<Esc>` | Each one closes the panel |
 | 34.13 | Rebind: `[[help.keymap]]` with `on = "n"`, `run = "arrow 1"`, `<C-F5>` | `n` scrolls. Before v0.34.0 the panel's keys were read off the event loop and could not be rebound at all |
 | 34.14 | Shrink the font with `<C-->` while parked at the bottom | Still parked at the bottom, panel full — more lines fit, so the stop moved |
+| 34.15 | `C` (v0.67.16) | Toast `Copied the help panel: N keys`. The clipboard holds the panel as text: `config` and the paths, then `keys` on a line of its own, then one `keys<TAB>description<TAB>command` line per key -- `Get-Clipboard \| Select-String "^j\t"` finds `j<TAB>Move cursor down<TAB>arrow 1`. The panel stays open |
 
 ---
 

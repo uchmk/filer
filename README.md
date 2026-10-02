@@ -237,7 +237,7 @@ this project's own). `select` and `select_all` are accepted as `toggle --state=o
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe`, `enter`, `copy cell` and `copy all` (this project's own: the whole panel, `Label<TAB>value` per row); in `[term]`:
 `close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
-`close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too) and `arrow`.
+`close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too), `arrow` and `copy all` (the whole panel as text, as in `[spot]`).
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -983,7 +983,8 @@ on the `PATH`.
 
 `~` / `F1` shows the full list. Inside that panel, `j` / `k` and the arrows move a line, `<A-j>` /
 `<A-k>` (or `<C-d>` / `<C-u>`) half a panel, `<PageDown>` / `<PageUp>` a whole one, `gg` / `G` jump
-to either end, the wheel scrolls, and `~`, `<F1>`, `q` or `<Esc>` closes it — all of it the `[help]`
+to either end, the wheel scrolls, `C` copies the whole list as text (one `keys<TAB>description<TAB>command`
+line per key, under its heading), and `~`, `<F1>`, `q` or `<Esc>` closes it — all of it the `[help]`
 keymap layer, so it rebinds like everything else. The essentials:
 
 | | |
@@ -1181,8 +1182,13 @@ optional rather than required.
 `pwsh` — PowerShell 7 — when it is installed, and `powershell`, Windows PowerShell 5.1, only when it
 is not (since v0.55.0; before that it was always 5.1). **The hook needs 7**: 5.1 has no
 `LocationChangedAction` at all, so the lines above fail there every time the shell starts. On
-a machine with only 5.1, `winget install Microsoft.PowerShell` and a new pane. The two read
-different files:
+a machine with only 5.1, `winget install Microsoft.PowerShell` and a new pane.
+
+To change the shell, set `[term] shell` in `filer.toml`, then `<C-F5>`, `<C-S-t>` and `<C-t>`. The
+config is read only at start and on `<C-F5>`, and a pane that is running keeps the shell it started
+with; the `<C-F5>` toast says so when a pane is open (v0.67.17).
+
+The two shells read different files:
 
 | Shell | `$PROFILE` |
 | --- | --- |
@@ -1461,7 +1467,8 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   font specimen or a shell thumbnail is its own source, so those go soft past 1:1.
 - `<C-F5>` re-reads the config, including fonts and the theme, but leaves what you have changed by
   hand since — the sort a `,` key chose, whether Markdown is rendered — as you set it. The window
-  size is only read at startup.
+  size is only read at startup. A file that no longer parses keeps what it set last time until it
+  parses again, and the error toast says so (v0.67.18) — a reload is usually pressed mid-edit.
 - The terminal pane has no tabs and no split of its own, and `cd` following types a line into the
   shell, so it lands in whatever is running if something is — unless the shell reports its
   directory, in which case it is usually not sent at all.

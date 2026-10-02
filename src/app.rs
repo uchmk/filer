@@ -2284,6 +2284,14 @@ impl App {
                 let stop = self.help_lines.saturating_sub(page) + 1;
                 self.help_scroll = step.apply(self.help_scroll, stop, page);
             }
+            // The whole list as text, as spot's `C` does (Q48).
+            Act::Copy(CopyWhat::All) => {
+                let (text, keys) = crate::ui::overlay::help_text(self);
+                match exec::set_clipboard(&text) {
+                    Ok(()) => self.toast(format!("Copied the help panel: {keys} keys")),
+                    Err(err) => self.error(format!("Clipboard: {err}")),
+                }
+            }
             _ => {}
         }
     }
@@ -4296,9 +4304,14 @@ impl App {
     /// surprise. The fonts are the one thing this cannot do itself — installing
     /// a face belongs to the frame loop — so it asks for it with a flag.
     fn reload_config(&mut self) {
-        let cfg = Config::load();
+        let old_term = self.cfg.term.clone();
+        let cfg = Config::reload(&mut self.cfg);
         let files = cfg.loaded.len();
         let warning = cfg.warnings.first().cloned();
+        // A pane already running keeps the shell it started with; the new
+        // `[term]` is for the next one. Two real-machine runs edited the shell,
+        // reloaded, and read the old one back because nothing said so (#173).
+        let shell_waits = self.term.is_some() && cfg.term != old_term;
         self.cfg = cfg;
         self.refont = true;
         // A theme change can turn every row a different color, and the preview
@@ -4306,8 +4319,19 @@ impl App {
         self.preview = PreviewSlot::default();
         match warning {
             Some(w) => self.warn(format!("Config: {w}")),
+            None if shell_waits => self.toast(format!(
+                "Reloaded {files} config file(s) — the pane keeps its shell until {}",
+                self.term_close_key().map_or("it is closed".into(), |k| format!("{k} closes it"))
+            )),
             None => self.toast(format!("Reloaded {files} config file(s)")),
         }
+    }
+
+    /// How the pane's keymap spells `terminal close`, for a message that tells
+    /// someone to press it.
+    fn term_close_key(&self) -> Option<String> {
+        let b = self.cfg.keymap.term.iter().find(|b| b.raw == "terminal close")?;
+        Some(crate::config::keys::render_seq(&b.on))
     }
 
     /// Take back the newest step. A step that will not go back stays on the
@@ -7764,6 +7788,34 @@ mod escape_and_max_preview {
     /// with a deadline, until that command shows up under it. Only the busy
     /// path is asserted -- whether an idle shell keeps a helper process of its
     /// own is the platform's business, and "busy" errs toward asking anyway.
+    /// Q49: `<C-F5>` that changes `[term]` while a pane runs says the pane keeps
+    /// its shell until `<C-S-t>`. Without a pane, or with `[term]` unchanged,
+    /// the toast is the plain one -- the next `<C-t>` picks the new shell up.
+    #[test]
+    fn a_reload_that_changes_the_shell_says_the_pane_keeps_its_own() {
+        let mut a = app();
+        let last = |a: &App| a.toasts.last().map(|t| t.text.clone()).unwrap_or_default();
+        a.act(Act::Terminal(Some(true)));
+        if a.term.is_none() {
+            if cfg!(any(windows, target_os = "linux")) {
+                panic!("the terminal did not start: {}", last(&a));
+            }
+            return;
+        }
+        // What the files on disk will not say, whatever they hold.
+        a.cfg.term.shell = "not-the-configured-shell".into();
+        a.reload_config();
+        assert!(last(&a).ends_with("— the pane keeps its shell until <C-S-t> closes it"), "{}", last(&a));
+
+        a.reload_config();
+        assert!(last(&a).starts_with("Reloaded") && !last(&a).contains("shell"), "unchanged: {}", last(&a));
+
+        a.term = None;
+        a.cfg.term.shell = "not-the-configured-shell".into();
+        a.reload_config();
+        assert!(!last(&a).contains("shell"), "no pane to keep one: {}", last(&a));
+    }
+
     #[test]
     fn ending_a_busy_shell_asks_first() {
         let mut a = app();
@@ -7898,6 +7950,26 @@ mod escape_and_max_preview {
         let run = |k: Key| km.spot.iter().find(|b| b.on == vec![k]).map(|b| b.run.clone());
         assert_eq!(run(Key::parse("C").unwrap()), Some(vec![Act::Copy(CopyWhat::All)]));
         assert_eq!(run(Key::parse("<Enter>").unwrap()), Some(vec![Act::Enter]));
+    }
+
+    /// Q48: `C` in the help panel copies the list it shows, as text -- every
+    /// list key as `keys<TAB>description<TAB>command` under its heading, so a
+    /// check can ask "is my new key listed" without a screenshot (#171).
+    #[test]
+    fn the_help_panel_copies_as_text() {
+        use crate::config::keys::{render_seq, Key};
+        let a = App::new(Config::load(), std::env::temp_dir(), egui::Context::default());
+        let km = &a.cfg.keymap;
+        let run = km.help.iter().find(|b| b.on == vec![Key::parse("C").unwrap()]).map(|b| b.run.clone());
+        assert_eq!(run, Some(vec![Act::Copy(CopyWhat::All)]));
+
+        let (text, keys) = crate::ui::overlay::help_text(&a);
+        assert_eq!(keys, km.mgr.len(), "one line per list key");
+        assert!(text.lines().any(|l| l == "keys"), "the heading on its own line");
+        let b = &km.mgr[0];
+        let want = format!("{}\t{}\t{}", render_seq(&b.on), if b.desc.is_empty() { &b.raw } else { &b.desc }, b.raw);
+        assert!(text.lines().any(|l| l == want), "{want:?} in the copy");
+        assert!(text.lines().any(|l| l == "config"), "the config section comes too");
     }
 
     /// Q36: `m u` puts the usage numbers back inside `gu`'s view after another

@@ -193,6 +193,12 @@ impl Keymap {
     /// The same, with each file's path to name in a parse error: there are two
     /// config directories, and `keymap.toml: TOML parse error` did not say which
     /// one's (#131), where the other three files' errors always did.
+    /// Whether `text` reads as a keymap file at all. A file that does not is
+    /// skipped by [`Keymap::load_named`], with a warning first among its own.
+    pub fn parses(text: &str) -> bool {
+        toml::from_str::<KeymapFile>(text).is_ok()
+    }
+
     pub fn load_named(user_tomls: &[(&str, &str)]) -> (Self, Vec<String>) {
         let mut warnings = Vec::new();
         let mut files = vec![
