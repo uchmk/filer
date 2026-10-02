@@ -615,7 +615,7 @@ was that a gentle turn moved nothing at all.
 | 20.2 | Change `[ui] font_size` in `filer.toml`, `<C-F5>` | The text resizes |
 | 20.3 | Add a `keymap.toml` binding, `<C-F5>` | The new key works, and `<F1>` lists it |
 | 20.4 | Sort with `,s`, then `<C-F5>` | The sort **stays** as you set it — a reload does not undo what you changed by hand |
-| 20.5 | Put a syntax error in `filer.toml`, `<C-F5>` | An error toast naming the problem; the old config stays in force |
+| 20.5 | Put a syntax error in `filer.toml`, `<C-F5>` | An error toast naming the problem; the old config stays in force -- **including what the broken file itself set** (v0.67.18, Q47: before, its `[ui]` fell back to the defaults), and the toast ends `(the last settings read from it stay in force until it parses again)` |
 | 20.6 | `[ui] minimap = false`, `<C-F5>` | No minimap |
 | 20.7 | In `keymap.toml`, `[[mgr.prepend_keymap]]` `on = "<F8>"`, `run = 'cd C:\Windows\System32'` -- no quotes inside the command (v0.59.0) | `<F8>` lands in `C:\Windows\System32`. Until v0.59.0 the backslashes were dropped and the error named `C:WindowsSystem32` |
 

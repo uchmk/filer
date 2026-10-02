@@ -189,12 +189,74 @@ pub struct Config {
     pub warnings: Vec<String>,
 }
 
+/// Which kinds of file failed to parse in one read, and where their messages
+/// are in `warnings` -- what [`Config::reload`] needs to keep the last good
+/// values in their place.
+#[derive(Default)]
+struct Broken {
+    yazi: bool,
+    keymap: bool,
+    theme: bool,
+    filer: bool,
+    /// Indices into `warnings` of the parse errors, to say what was kept.
+    said: Vec<usize>,
+}
+
+impl Broken {
+    fn any(&self) -> bool {
+        self.yazi || self.keymap || self.theme || self.filer
+    }
+}
+
 impl Config {
     pub fn load() -> Self {
+        Self::read(&dirs_to_read()).0
+    }
+
+    /// `<C-F5>`: read the files again, but a file that no longer parses keeps
+    /// what it gave last time rather than falling back to the defaults (Q47).
+    /// The reload is pressed while a file is being edited, which is exactly
+    /// when it is most likely to be half-written; a `[ui] font_size` that
+    /// jumped back to 14 at every typo made the edit impossible to check (#171).
+    /// At start there is nothing to keep, and a broken file means defaults.
+    ///
+    /// `prev` is emptied of what is kept: it is the config being replaced.
+    pub fn reload(prev: &mut Config) -> Self {
+        Self::reload_from(prev, &dirs_to_read())
+    }
+
+    fn reload_from(prev: &mut Config, dirs: &[PathBuf]) -> Self {
+        let (mut cfg, broken) = Self::read(dirs);
+        if !broken.any() {
+            return cfg;
+        }
+        use std::mem::take;
+        if broken.yazi {
+            cfg.yazi = take(&mut prev.yazi);
+        }
+        if broken.keymap {
+            cfg.keymap = take(&mut prev.keymap);
+        }
+        if broken.theme {
+            cfg.theme = prev.theme.clone();
+        }
+        if broken.filer {
+            cfg.ui = take(&mut prev.ui);
+            cfg.term = take(&mut prev.term);
+            cfg.preview = take(&mut prev.preview);
+            cfg.line_args = take(&mut prev.line_args);
+        }
+        for &i in &broken.said {
+            cfg.warnings[i] += "\n(the last settings read from it stay in force until it parses again)";
+        }
+        cfg
+    }
+
+    fn read(dirs: &[PathBuf]) -> (Self, Broken) {
+        let mut broken = Broken::default();
         let mut warnings = Vec::new();
         let mut loaded = Vec::new();
 
-        let dirs = dirs_to_read();
         let mut yazi_cfg = YaziToml::default();
         let mut keymap_texts: Vec<(String, String)> = Vec::new();
         let mut theme = Theme::default();
@@ -203,7 +265,7 @@ impl Config {
         let mut preview: Vec<PreviewRule> = Vec::new();
         let mut line_args: HashMap<String, String> = HashMap::new();
 
-        for dir in &dirs {
+        for dir in dirs {
             if let Some(text) = read(dir, "yazi.toml", &mut loaded) {
                 let wrong = Misplaced::in_file(&text, ConfigFile::Yazi);
                 wrong.warn(&at(dir, "yazi.toml"), "filer.toml", &mut warnings);
@@ -214,8 +276,12 @@ impl Config {
                     // whose `[[preview]]` is spelled exactly as its own
                     // documentation spells it. `wrong` has already said which
                     // key it is and which file it goes in.
-                    Err(_) if wrong.breaks_parse => {}
-                    Err(e) => warnings.push(format!("{}: {}", at(dir, "yazi.toml"), e.to_string().trim_end())),
+                    Err(_) if wrong.breaks_parse => broken.yazi = true,
+                    Err(e) => {
+                        broken.yazi = true;
+                        broken.said.push(warnings.len());
+                        warnings.push(format!("{}: {}", at(dir, "yazi.toml"), e.to_string().trim_end()));
+                    }
                 }
             }
             if let Some(text) = read(dir, "keymap.toml", &mut loaded) {
@@ -224,7 +290,11 @@ impl Config {
             if let Some(text) = read(dir, "theme.toml", &mut loaded) {
                 match toml::from_str::<theme::ThemeToml>(&text) {
                     Ok(v) => theme.apply(&v),
-                    Err(e) => warnings.push(format!("{}: {}", at(dir, "theme.toml"), e.to_string().trim_end())),
+                    Err(e) => {
+                        broken.theme = true;
+                        broken.said.push(warnings.len());
+                        warnings.push(format!("{}: {}", at(dir, "theme.toml"), e.to_string().trim_end()));
+                    }
                 }
             }
             if let Some(text) = read(dir, "filer.toml", &mut loaded) {
@@ -246,18 +316,27 @@ impl Config {
                             }
                         }
                     }
-                    Err(_) if wrong.breaks_parse => {}
-                    Err(e) => warnings.push(format!("{}: {}", at(dir, "filer.toml"), e.to_string().trim_end())),
+                    Err(_) if wrong.breaks_parse => broken.filer = true,
+                    Err(e) => {
+                        broken.filer = true;
+                        broken.said.push(warnings.len());
+                        warnings.push(format!("{}: {}", at(dir, "filer.toml"), e.to_string().trim_end()));
+                    }
                 }
             }
         }
 
         let refs: Vec<(&str, &str)> = keymap_texts.iter().map(|(p, t)| (p.as_str(), t.as_str())).collect();
+        // `load_named` puts the parse errors first among its warnings, one per
+        // file that failed, in file order.
+        let km_broken = refs.iter().filter(|(_, t)| !Keymap::parses(t)).count();
+        broken.keymap = km_broken > 0;
+        broken.said.extend(warnings.len()..warnings.len() + km_broken);
         let (keymap, mut km_warnings) = Keymap::load_named(&refs);
         warnings.append(&mut km_warnings);
 
         let theme = std::sync::Arc::new(theme);
-        Self { yazi: yazi_cfg, keymap, theme, ui, term, preview, line_args, loaded, warnings }
+        (Self { yazi: yazi_cfg, keymap, theme, ui, term, preview, line_args, loaded, warnings }, broken)
     }
 
     pub fn state_dir() -> PathBuf {
@@ -801,5 +880,43 @@ mod files {
         let text = std::fs::read_to_string("filer.example.toml").expect("the shipped example");
         let cfg: FilerToml = toml::from_str(&text).expect("the example has to parse");
         assert_eq!(cfg.ui.font_size, 14.0);
+    }
+}
+
+/// Q47: what `<C-F5>` does with a file that stopped parsing.
+#[cfg(test)]
+mod reload_tests {
+    use super::*;
+
+    /// A `filer.toml` broken mid-edit keeps the `[ui]` it gave last time, and
+    /// the warning says so; a fresh start on the same file gets the defaults.
+    /// The files that still parse are read as usual.
+    #[test]
+    fn a_broken_file_keeps_what_it_gave_last_time() {
+        let dir = crate::util::test_dir("reload-broken");
+        std::fs::write(dir.join("filer.toml"), "[ui]\nfont_size = 28.0\n").unwrap();
+        std::fs::write(dir.join("keymap.toml"), "[[mgr.prepend_keymap]]\non = \"<F9>\"\nrun = \"quit\"\n").unwrap();
+        let dirs = vec![dir.clone()];
+        let f9 = |c: &Config| c.keymap.mgr.iter().any(|b| crate::config::keys::render_seq(&b.on) == "<F9>");
+        let mut cfg = Config::read(&dirs).0;
+        assert_eq!(cfg.ui.font_size, 28.0);
+        assert!(f9(&cfg));
+
+        std::fs::write(dir.join("filer.toml"), "[ui]\nfont_size = 28.0\nthis line is not toml\n").unwrap();
+        let mut cfg = Config::reload_from(&mut cfg, &dirs);
+        assert_eq!(cfg.ui.font_size, 28.0, "kept from the last good read");
+        assert!(f9(&cfg), "the keymap still parses and is read as usual");
+        let said = cfg.warnings.first().cloned().unwrap_or_default();
+        assert!(said.contains("filer.toml") && said.ends_with("stay in force until it parses again)"), "{said}");
+        assert_eq!(Config::read(&dirs).0.ui.font_size, Ui::default().font_size, "at start there is nothing to keep");
+
+        // The keymap the same way, while the fixed `filer.toml` is read again.
+        std::fs::write(dir.join("filer.toml"), "[ui]\nfont_size = 20.0\n").unwrap();
+        std::fs::write(dir.join("keymap.toml"), "[[mgr.prepend_keymap]\n").unwrap();
+        let cfg = Config::reload_from(&mut cfg, &dirs);
+        assert_eq!(cfg.ui.font_size, 20.0, "fixed, so read again");
+        assert!(f9(&cfg), "the last keymap that parsed");
+        let said = cfg.warnings.iter().find(|w| w.contains("keymap.toml")).cloned().unwrap_or_default();
+        assert!(said.ends_with("stay in force until it parses again)"), "{said}");
     }
 }
