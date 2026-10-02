@@ -200,7 +200,7 @@ Two Windows details worth knowing, both of which turn "it does nothing" into "it
   substitutes are quoted for you, so a name with a space stays one argument either way.
 
 An editor listed here also gets the line number when you open from the outline, if filer knows
-its syntax — 秀丸, サクラ, EmEditor, Notepad++, VS Code and the vim family are known already, and
+its syntax — サクラ, EmEditor, Notepad++, VS Code and the vim family are known already, and
 [line_args](#line_args-opening-an-editor-at-a-line) covers the rest.
 
 ### keymap.toml
@@ -345,7 +345,7 @@ when the file has no outline. While the outline has the keys the file list's cur
 `<Enter>` opens the file at the selected entry's line, and `<S-Enter>` does the same with the
 editor you pick. The line is passed as `+N` to nvim / vim / nano / emacs / micro / kak, as
 `-g file:N` to VS Code / Cursor / Windsurf, as `file:N` to Helix / Sublime / Zed, and on Windows
-as `/jN` to Hidemaru, `-Y=N` to Sakura, `/l N` to EmEditor and `-nN` to Notepad++; other openers
+as `-Y=N` to Sakura, `/l N` to EmEditor and `-nN` to Notepad++; other openers
 (Notepad among them) just open the file. Any editor can be taught the syntax — or an entry of the
 list above overridden — with [`[line_args]` in filer.toml](#line_args-opening-an-editor-at-a-line). `<Esc>`, `h` / `←` or `<S-Tab>` gives the keys back to the file list,
 and any other key does so too before doing its usual job. In a narrow pane the outline shows as an
