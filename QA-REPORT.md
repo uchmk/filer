@@ -11190,3 +11190,57 @@ README 1289 行目の 2 か所が、**人の設定によっては「否」と読
    - 大きさ: 設計の判断。`config/keymap.rs:291` が見ているのは**マージ後の binding の列**で、
      出どころを持っていない（`Binding` に由来のファイルを持たせる必要がある）。
      1 行では済まないので、やるかどうかは持ち主に。
+
+## TESTING.md の再テスト（4 回目）— 29.12 `FILER_TERM_SHELL`（0d1ca52 / 0.70.2、win レーン、無人の run）
+
+x64（Windows 11 Pro, build 26200）で `target\release\filer.exe` 0.70.2 を、`fetch-conpty.ps1` の ConPTY 1.24.260710001 と並べて動かした。昇格なし（この行には要らない）。
+順番表の先頭「Re-tests of changed behaviour」で x64 に残っていたのは 29.12 だけ（13.8a は ARM64 のみ）。
+証拠は `C:\dev\filer-evidence\win-29.12-20261002`（使った `run.ps1`、設定フォルダ 2 つ、run ごとの `FILER_KEYS_DONE`・`filer env` の全文・スクリーンショット）。
+
+- `cargo test`: **616 passed / 0 failed**。前後で親のいない `OpenConsole` / `pwsh` / `powershell` は **88 → 88**。filer の run を 4 回強制終了したあとも 88、ペインのシェルは残っていない。
+- 本物の設定には触れていない。`FILER_CONFIG_HOME` / `YAZI_CONFIG_HOME` / `FILER_STATE_HOME` をすべて `R:` の作業フォルダに向けた。
+
+設定フォルダ `cfg\`: `filer.toml` = `[ui] font_size = 28.0`、`window_width = 1200.0`、`window_height = 800.0`、`[term] shell = "pwsh"`、`args = ["-NoLogo", "-NoProfile"]`。
+`theme.toml` = `[mgr] hovered = { bg = "#ff00ff" }`。対照の `cfg-plain\` は `font_size` と `theme.toml` だけを抜いたもの。キーはどれも `<C-t><Wait:2500><Shot:started>`。
+
+| run | `FILER_TERM_SHELL` | `toast:`（`FILER_KEYS_DONE`） | filer の子（`Win32_Process`） | `filer env`（同じシェルから） | `pane:` | `#ff00ff` の画素 |
+| --- | --- | --- | --- | --- | --- | --- |
+| A | `powershell` | `Started powershell (Windows PowerShell 5.1) — <C-t> back to the list` | `powershell`（**引数なし**: `[term] args` は落ちている） | `powershell : C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe   (terminal pane, from FILER_TERM_SHELL)`、`FILER_TERM_SHELL  : powershell` | 6x70 | 9301 |
+| B | 消した | `Started pwsh — <C-t> back to the list` | `pwsh -NoLogo -NoProfile` | `pwsh : C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.6.0_x64__8wekyb3d8bbwe\pwsh.exe   (terminal pane, from [term] shell)`、`FILER_TERM_SHELL  : unset` | 6x70 | 9235 |
+| C（対照） | 消した | `Started pwsh — …` | `pwsh -NoLogo -NoProfile` | `from [term] shell`、フォルダの行は `filer.toml 106 B` と `not here: yazi.toml, keymap.toml, theme.toml` | 11x140 | 0 |
+
+- **29.12 合。**トースト・`filer env` の 2 行・変数の欄は行の期待どおり。「他の設定も効いている」は見た目ではなく数で読んだ: 窓は 3 回とも 1200x800（スクリーンショットの寸法）で、
+  ペインの格子は 28pt の A / B が **6x70**、既定 14pt の C が **11x140**。テーマは A / B のスクリーンショットに `#ff00ff` ちょうどの画素が 9301 / 9235 点（1 列おきに数えた）、C は 0 点。
+- 補強: 変数ありで `<C-t><Wait:3000>$PSVersionTable.PSVersion.ToString()>R:\…\v51.txt<Enter>` → ファイルの中身は `5.1.26100.9444`（ペインで動いたのは本当に 5.1）。
+
+**行の文言について（報告だけ、直していない）**: 期待欄は「`filer.toml` の他の設定（フォント、テーマ）」と言うが、テーマは `filer.toml` には書けない（`theme.toml`）。
+この run は同じ `FILER_CONFIG_HOME` に置いた `theme.toml` で読んだ。「`filer.toml` の `[ui] font_size` と、同じフォルダの `theme.toml`」と書くのが正確で、
+読み方（`FILER_KEYS_DONE` の `pane:`）も添えると次の人が迷わない。
+
+### Proposals
+
+#### 提案 1: `filer env` は、`FILER_TERM_SHELL` が `[term] args` を落としたことを言う
+
+**踏んだこと**: run A の `filer env` はシェルが `from FILER_TERM_SHELL` だとは言うが、`filer.toml` に書いた `-NoLogo -NoProfile` が**使われていない**ことは
+どこにも出ない。それを知るには filer の子プロセスの `CommandLine` を `Get-CimInstance Win32_Process` で読むしかなかった（`powershell` だけ）。
+
+**どう変えるべきか**: シェルの行に引数も出す。変数のときは `(terminal pane, from FILER_TERM_SHELL; [term] args -NoLogo -NoProfile not used)`、
+`[term]` のときは `(terminal pane, from [term] shell, args -NoLogo -NoProfile)`。
+
+**なぜ**: 落とすのは仕様（Q51）だが、`-NoProfile` を書いていた人が変数で 5.1 に切り替えると、5.1 ではプロファイルが**読まれる**ようになる。
+挙動が変わった理由が `filer env` に無いと、報告を受ける側も気づけない。
+
+**大きさ**: `envreport.rs` の `tools()` に数行。
+
+#### 提案 2: `FILER_KEYS_DONE` に、script の間に出たトーストを全部残す
+
+**踏んだこと**: トーストとペインの中身を 1 回の run で確かめようと `<C-t><Wait:3000>…<Enter><Wait:2000>` にすると、`toast:` は**空**になった（`Started …` は消えた後）。
+だからトーストの run とペインの run を分けて 2 回起動した。
+
+**どう変えるべきか**: 最後の 1 つの `toast:` はそのままにして、`toasts:` の行を足し、script の間に出たトーストを古い順にすべて書く（または `<Toast>` のような印で
+その時点のトーストを `FILER_KEYS_DONE` に追記する）。
+
+**なぜ**: トーストは数秒で消えるので、待ちを含む script では「最後のトースト」が読めないことの方が多い。起動の回数が減り、トーストが本当に出たかを
+スクリーンショットの撮り時に頼らず読める。
+
+**大きさ**: `state_report` とトーストの追加箇所に関数 1 つ。
