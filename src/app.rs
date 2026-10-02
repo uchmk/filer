@@ -4307,6 +4307,10 @@ impl App {
         let cfg = Config::load();
         let files = cfg.loaded.len();
         let warning = cfg.warnings.first().cloned();
+        // A pane already running keeps the shell it started with; the new
+        // `[term]` is for the next one. Two real-machine runs edited the shell,
+        // reloaded, and read the old one back because nothing said so (#173).
+        let shell_waits = self.term.is_some() && cfg.term != self.cfg.term;
         self.cfg = cfg;
         self.refont = true;
         // A theme change can turn every row a different color, and the preview
@@ -4314,8 +4318,19 @@ impl App {
         self.preview = PreviewSlot::default();
         match warning {
             Some(w) => self.warn(format!("Config: {w}")),
+            None if shell_waits => self.toast(format!(
+                "Reloaded {files} config file(s) — the pane keeps its shell until {}",
+                self.term_close_key().map_or("it is closed".into(), |k| format!("{k} closes it"))
+            )),
             None => self.toast(format!("Reloaded {files} config file(s)")),
         }
+    }
+
+    /// How the pane's keymap spells `terminal close`, for a message that tells
+    /// someone to press it.
+    fn term_close_key(&self) -> Option<String> {
+        let b = self.cfg.keymap.term.iter().find(|b| b.raw == "terminal close")?;
+        Some(crate::config::keys::render_seq(&b.on))
     }
 
     /// Take back the newest step. A step that will not go back stays on the
@@ -7772,6 +7787,34 @@ mod escape_and_max_preview {
     /// with a deadline, until that command shows up under it. Only the busy
     /// path is asserted -- whether an idle shell keeps a helper process of its
     /// own is the platform's business, and "busy" errs toward asking anyway.
+    /// Q49: `<C-F5>` that changes `[term]` while a pane runs says the pane keeps
+    /// its shell until `<C-S-t>`. Without a pane, or with `[term]` unchanged,
+    /// the toast is the plain one -- the next `<C-t>` picks the new shell up.
+    #[test]
+    fn a_reload_that_changes_the_shell_says_the_pane_keeps_its_own() {
+        let mut a = app();
+        let last = |a: &App| a.toasts.last().map(|t| t.text.clone()).unwrap_or_default();
+        a.act(Act::Terminal(Some(true)));
+        if a.term.is_none() {
+            if cfg!(any(windows, target_os = "linux")) {
+                panic!("the terminal did not start: {}", last(&a));
+            }
+            return;
+        }
+        // What the files on disk will not say, whatever they hold.
+        a.cfg.term.shell = "not-the-configured-shell".into();
+        a.reload_config();
+        assert!(last(&a).ends_with("— the pane keeps its shell until <C-S-t> closes it"), "{}", last(&a));
+
+        a.reload_config();
+        assert!(last(&a).starts_with("Reloaded") && !last(&a).contains("shell"), "unchanged: {}", last(&a));
+
+        a.term = None;
+        a.cfg.term.shell = "not-the-configured-shell".into();
+        a.reload_config();
+        assert!(!last(&a).contains("shell"), "no pane to keep one: {}", last(&a));
+    }
+
     #[test]
     fn ending_a_busy_shell_asks_first() {
         let mut a = app();

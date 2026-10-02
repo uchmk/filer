@@ -314,17 +314,19 @@ job's progress, its speed, and cancelling it from `w` all need a copy big enough
 ## 8. Which shell the pane runs (v0.24.0)
 
 The setting is one line; the point of the section is that the **default** is the
-thing that surprises people.
+thing that surprises people. filer reads the config only at start and on `<C-F5>`
+(Q49), and a pane already running keeps the shell it started with, so a change to
+`[term]` takes `<C-F5>`, then `<C-S-t>` to end the old shell, then `<C-t>`.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 8.1 | `<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` | `5.1.x` — Windows PowerShell, unchanged from every earlier version |
-| 8.2 | Add `[term]` / `shell = "pwsh"`, `<C-S-t>`, `<C-t>`, ask again | `7.x` |
+| 8.1 | `<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` | `7.x` — `pwsh`, the default since v0.55.0 wherever it is installed (Q29). `5.1.x`, Windows PowerShell, only on a machine without `pwsh` |
+| 8.2 | With the pane open, add `[term]` / `shell = "powershell"`, `<C-F5>`, then `<C-S-t>`, `<C-t>`, ask again (v0.67.17) | The `<C-F5>` toast ends `— the pane keeps its shell until <C-S-t> closes it`; after `<C-S-t>` `<C-t>`, `5.1.x` |
 | 8.3 | `$PROFILE` in each | Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7 |
 | 8.4 | With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each | Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report |
 | 8.5 | `args = ["-NoLogo"]` | The banner is gone |
 | 8.6 | A `shell` that is not installed | It fails to start and says so — no silent empty pane |
-| 8.7 | Remove `[term]` again, `<C-S-t>`, `<C-t>` | Back to the default |
+| 8.7 | Remove `[term]` again, `<C-F5>`, `<C-S-t>`, `<C-t>` (v0.67.17) | Back to the default (`7.x` where `pwsh` is installed). Without the `<C-F5>`, `<C-S-t>` `<C-t>` starts the old shell again: nothing has re-read the file |
 
 ## 9. The outline at the end of a file (v0.23.1)
 
