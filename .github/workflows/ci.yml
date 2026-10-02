@@ -43,18 +43,13 @@ jobs:
   test:
     # Windows is the target platform, so that is where the build has to hold.
     #
-    # Pull requests only. A pull request's checks run on the *merged* tree, so a
-    # green one has already been built and tested here; running it again on the
-    # push that merges it measures the same thing a second time, and it is the
-    # slowest thing in this file by far (a Windows build is ~160s, the whole
-    # Linux job is under a minute).
-    #
-    # The gap this leaves: a commit pushed straight to `main`, which skips pull
-    # requests entirely, is never built on Windows -- so `#[cfg(windows)]` code
-    # and tests are not checked for it. That is survivable while direct commits
-    # are ticks in TESTING-KEYS.md. **Put this back the moment code starts going
-    # to `main` directly.**
-    if: github.event_name == 'pull_request'
+    # Pull requests and pushes to `main` alike. This was pull requests only for
+    # a while -- a pull request's checks already ran on the merged tree, and this
+    # is the slowest job here (a Windows build is ~160s) -- but code goes to
+    # `main` directly too, and such a commit was then never built or tested on
+    # Windows at all: `#[cfg(windows)]` code and tests went unchecked until a
+    # release ran them (v0.72.3). A merge now tests the same tree twice; that is
+    # the price of the direct pushes being checked.
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
