@@ -154,7 +154,6 @@ which list a file gets.
 [opener]
 # The list `<Enter>` reaches for on a text file. Order matters: the first entry wins.
 edit = [
-  { run = '"C:\Program Files\Hidemaru\Hidemaru.exe" %*', desc = "秀丸エディタ" },
   { run = '"C:\Program Files (x86)\sakura\sakura.exe" %*', desc = "サクラエディタ" },
   { run = 'code %*', desc = "VS Code" },
   { run = 'nvim %*', desc = "Neovim", block = true },
