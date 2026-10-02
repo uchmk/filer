@@ -10560,3 +10560,177 @@ run の後も **14308 B、SHA-256 `4A83D6A21FAFF79E0E482C4CD3068221FCEFC199E99DC
    `filer env` とトーストの数とヘルプの設定の節が、実際に読んだファイルの数と合うようになる。
 5. （任意）**`cargo test` が一時ディレクトリに `filer-*` のフォルダを大量に残す。**この run でも
    スクラッチに残った。`util::test_dir` の外で作っているテストがあるかを QA に見てもらう価値がある。
+
+---
+
+## TESTING.md 25.19 — 前半は合、**後半は否**（`$v = & filer env` は `$null` になる）（c1d554c / 0.67.19、ARM64 レーン、無人の run）
+
+ARM64 レーンの順番表の次の節「**25.19**」（1 行）が担当。節 29 は #176（0.67.15）で
+**8 / 8** になったので、表の先頭はもうここ。
+
+**この行は 2 つの主張からなる。**
+
+1. `filer env | Select-String arch` → **arch の 2 行だけ**が出る（レポート全体ではない）。
+2. `$v = & filer env; $v.Count` は**レポートの行数**で、0 ではない。
+
+**1 は合、2 は否。**1 行 1 箱なので **チェックは付けていない**（25.19 は `[ ]` のまま）。
+2 は filer の側で直せる話ではなく**行の文言が誤っている**（下の「見つけたもの」）。
+
+`make-testcheck -- --check` は `in sync`（**311 / 448**）、`make-keycheck -- --check` も
+`in sync`（249 / 251）。`cargo test` は **607 passed; 0 failed**（ネイティブ ARM64、5.90 s）。
+見つけたもの 1 件、提案 4 件。
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `PROCESSOR_ARCHITECTURE=ARM64`、`Qualcomm(R) Adreno(TM) X2-90 GPU`（Vulkan、IntegratedGpu） |
+| OS | `Windows 11 Home 26H1 (build 28000.2956)` |
+| filer | 手元ビルド 0.67.19（`target\release`）、`--version` が `filer 0.67.19 (aarch64)`、`filer env` が `OS arch aarch64` / `Process arch aarch64`。**x64 のエミュレーションではない** |
+| rustc | 1.98.1、host `aarch64-pc-windows-msvc` |
+| シェル | `pwsh` **7.6.6**（ARM64 ネイティブ）と `powershell` **5.1.28000.2952**（Windows PowerShell）の両方で測った |
+| ConPTY | `scripts/fetch-conpty.ps1` で 1.24.260710001 (arm64) を `target\release` へ（この行では使わない） |
+| 昇格 | 無し（`IsInRole('Administrators')` = False）。この行に昇格の要る所は無い |
+| 一時ディレクトリ | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch\s2519`（この機械に RAM ディスクは無い） |
+| 設定 | 持ち主の実物。測るスクリプトは全部 `-NoProfile` で回したので、`$PROFILE` は**読まれてもいない** |
+
+証拠は `C:\dev\filer-evidence\arm-25.19\`（`caseA.ps1`〜`caseD.ps1`、`A-pipe.txt` /
+`A51-pipe.txt`、`B-var.txt` / `B51-var.txt` / `B-console-var.txt`、`C-matrix.txt` /
+`C-console-matrix.txt`、`D-why.txt`、`env-full.txt`、`env-cmd.txt`、`version.txt`）。
+
+### 測り方 —— 最初の 1 回は**自分の測り方が壊れていた**
+
+素直に 1 つのシェルで続けて打つと、**前の run の出力が次の run の見出しの後に流れ込む。**
+最初にやったのがそれで、`filer env | Select-String arch` が**レポート全体を出した**ように見えた
+（v0.54.4 以前のバグそのものの見え方）。原因は filer が GUI サブシステムの実行ファイルで、
+**PowerShell はパイプの末尾にいる窓つきプログラムを待たない**こと。待たれなかった 1 回目の
+出力が、2 回目の見出しの後に遅れて届いていた。
+
+> **だから各ケースを `pwsh -NoProfile -File` の別プロセスに閉じ込め、結果はそのスクリプト自身が
+> ファイルに書く。**外側のシェルは「どのファイルに何行入ったか」しか読まない。
+
+### 行ごとの結果
+
+| 主張 | 結果 | 根拠 |
+| --- | --- | --- |
+| 1. `\| Select-String arch` は arch の 2 行だけ | **合** | `caseA.ps1` → `A-pipe.txt` が `matches=2` と `    OS arch      : aarch64` / `    Process arch : aarch64` の 2 行。**スクリプトの標準出力（ファイルに落とした）は 0 行**で、レポート本体はどこにも漏れていない。5.1 でも同じ（`A51-pipe.txt`） |
+| 1'. そもそも絞れているのか | **合** | レポートは **48 行**（`env-cmd.txt`、`cmd /c "filer env > …"` 経由）。その 48 行のうち `arch` を含む行は**ちょうど 2 行**（`Select-String -Path env-cmd.txt -Pattern arch`）。2 行は偶然ではない |
+| 2. `$v = & filer env; $v.Count` がレポートの行数 | **否** | `caseB.ps1` → `B-var.txt` が `count=0` / `null=True`。**pwsh 7.6.6 でも Windows PowerShell 5.1 でも、標準出力がファイルでも本物のコンソールでも同じ**（`B-var.txt` / `B51-var.txt` / `B-console-var.txt`、3 本とも `count=0`） |
+
+### 2 が否である理由を、時間と生きているプロセスで
+
+`caseD.ps1`（`D-why.txt`）:
+
+```
+assign returned after 13 ms, captured 0 lines
+filer processes alive right after the assignment: 1
+filer processes alive 1.5 s later: 0
+Out-File form: 277 ms, file has 48 lines
+```
+
+- **代入は 13 ms で返り、そのとき filer はまだ生きている。**レポートを組むのに 0.25〜0.5 s かかる
+  （Tools 節が `git` / `pwsh` / `nvim` / `code` を探す）ので、**13 ms の時点で出力は 1 バイトも
+  出ていない。**PowerShell は待たずに `$null` を返している。
+- 同じスクリプトの `& filer env | Out-File …` は **277 ms かけて 48 行**。パイプの先に
+  コマンドが 1 つあると、PowerShell は読み切るまで待つ。
+
+**どの書き方が届き、どの書き方が届かないか**（`C-matrix.txt` と `C-console-matrix.txt`。
+左が `pwsh -File`（標準出力はファイル）、右が本物のコンソールの窓）:
+
+| 書き方 | 捕れた行数 | かかった時間 | 判定 |
+| --- | --- | --- | --- |
+| `$v = & filer env` | 0 / 0 | 21 ms / 12 ms | **届かない** |
+| `$v = & filer env`（2 回目） | 0 / 0 | 5 ms / 3 ms | **届かない** |
+| `$v = & filer --version` | 0 / 0 | 15 ms / 6 ms | **届かない** |
+| `$v = & filer --help` | 0 / 0 | 18 ms / 10 ms | **届かない** |
+| `$v = @(& filer env)` | 0 / 0 | 12 ms / 5 ms | **届かない** |
+| `$v = (& filer env)` | 0 / 0 | 10 ms / 4 ms | **届かない** |
+| `$v = & filer env 2>&1` | 0 / 0 | 29 ms / 13 ms | **届かない** |
+| `$v = & filer env \| Select-String arch` | 2 / 2 | 512 ms / 525 ms | 届く |
+| `$v = & filer env \| Write-Output` | 48 / 48 | 264 ms / 248 ms | 届く |
+| `$v = & filer env \| Out-String -Stream` | 48 / 48 | 265 ms / 235 ms | 届く |
+| `cmd /c "filer env > out.txt"` | 48 | — | 届く |
+| `cmd /c "filer env \| findstr arch"` | 2 | — | 届く |
+
+**規則は 1 つ**: filer がパイプの**末尾**にいると届かず、**後ろにコマンドが 1 つでもある**と届く。
+`>` だけの話ではない。コンソールの有無でも、PowerShell の版でも変わらない。
+
+### 見つけたもの —— 25.19 の後半は、README と `build.yml` が否定している文言
+
+- TESTING.md 25.19 の 2 文目「`$v = & filer env; $v.Count` はレポートの行数で、0 ではない」は
+  **この機械では成り立たない**（上の表）。filer に直せる欠陥ではなく、**行の期待値が誤っている。**
+- この行は v0.54.4（`e0074df`、Linux のクラウドセッション）で足された。**その run は
+  Windows でこの形を一度も走らせていない**（走らせられない）。
+- しかも**同じコミットの `build.yml` のコメントが、もう答えを知っている**:
+  「PowerShell's own `>` does not connect a GUI-subsystem program's output to the file at all
+  (found here: 0 bytes, process already gone)」。だから CI が確かめているのは
+  `| Out-File` / `cmd /c >` / `| Select-String` の **3 つだけ**で、代入の形は入っていない。
+  README（1260〜1263 行目）も `>` を例外として挙げている。
+  **つまり TESTING.md 25.19 だけが、プロジェクトの他の 2 か所と食い違っている。**
+- **行をどう書き換えるかは持ち主の判断**なので、ここに置く（役割定義どおり、行は直していない）。
+  文言の案:
+
+  > 25.19 | `filer env \| Select-String arch`、そして `$v = & filer env \| Write-Output; $v.Count` |
+  > **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）。`$v.Count` は
+  > レポートの行数。**`$v = & filer env` は `$null`** になる — PowerShell は末尾にいる
+  > 窓つきプログラムを待たないので、`>` と同じく代入でも捕れない（README）
+
+  こう直せば、前半の結果（この run で通っている）はそのまま使える。
+
+### Proposals
+
+1. **README の「例外は `>` だけ」を広げる。`>` ではなく「filer がパイプの末尾にいるとき」が例外。**
+   - 何が起きたか: README 1260〜1263 行は PowerShell の `>` だけを例外として挙げ、
+     「`Out-File` か `Set-Content` にパイプしろ」と言う。**ところが同じ理由で
+     `$v = & filer env` も `@(& filer env)` も `(& filer env)` も `2>&1` も空になる**
+     （上の表、7 つ）。バグ報告を集める人が最初に打つのは `$v = & filer env` で、
+     **返ってくるのは `$null`、エラーも警告も無い。**この run の 1 回目がまさにそれで、
+     自分の測り方を疑うまでに回り道をした。
+   - どう変えるか: あの段落を `>` 限定から
+     「**PowerShell では `filer env` をパイプの末尾に置くと出力が捕れない**（`>`、変数への代入、
+     `@()`、`()`、`2>&1`）。後ろにコマンドを 1 つ足せば捕れる: `filer env | Write-Output`、
+     `filer env | Out-File …`、または `cmd /c "filer env > out.txt"`」に書き換える。
+     `| Write-Output` を変数に入れる例を 1 行足す。
+   - なぜ: 今の書き方は**「`>` を避ければ大丈夫」と読める**ので、代入で空が返ったときに
+     人は filer のバグを疑う。原因は同じ 1 つなので、1 つの規則として書けば迷いが消える。
+   - 大きさ: 段落 1 つの書き換えと、例を 1 行。
+
+2. **標準出力への書き込みが失敗したら、黙って捨てずにコンソールへ落とす（`say()`）。**
+   - 何が起きたか: `src/main.rs` の `say()` は、標準出力がパイプかファイルなら
+     `let _ = writeln!(out, …)` で書いて**そのまま return する**（76〜81 行目）。
+     代入の形では PowerShell が読み手を用意しないまま filer を放すので、
+     **人の画面にも、どのファイルにも、1 文字も出ない。**
+   - どう変えるか: `writeln!` と `flush` の結果を見て、**失敗したら return せず**、
+     下の `AttachConsole` → `CONOUT$` の道に落ちる。成功したときの挙動は変わらない。
+   - なぜ: 今の失敗の形が**完全な沈黙**で、これはバグ報告を集めるための機能としては一番悪い形。
+     画面に出れば人はコピーできる。
+   - 大きさ: `say()` の中の数行。**ただし「書き込みが本当に error を返すか」はこの run では
+     測っていない**（パイプの読み手が閉じていれば `ERROR_BROKEN_PIPE` になるが、
+     PowerShell が読まないまま開いているだけなら成功して捨てられる。レポートは約 2.5 KB で
+     パイプのバッファに収まるので、どちらでも filer は止まらない）。
+     **最初の 1 歩はそこを 1 回測ること。**成功して捨てられているなら、この案は効かないので、
+     代わりに提案 3 が要る。
+
+3. **`filer env --out <file>` を足して、シェルのリダイレクトを要らなくする。**
+   - 何が起きたか: この run で確実にレポートを 48 行取れた書き方は
+     `cmd /c "filer env > out.txt"` と `| Out-File` の 2 つだけ。**どちらもシェルの作法の話**で、
+     filer のことではない。README はそれを 4 行かけて説明している。
+   - どう変えるか: `filer env --out filer-env.txt` を足す。filer 自身が UTF-8 で書くので、
+     シェルのリダイレクトも、コードページも、`[Console]::OutputEncoding` も関係なくなる
+     （README が同じ段落で警告している文字化けも、ここでは起こらない）。
+     `<F12>` の報告フォームから「ファイルに出す」導線にもなる。
+   - なぜ: バグ報告を出す人は**シェルに詳しいとは限らない**。「このコマンドを打つと
+     このファイルができる」が 1 行で言えるのが一番強い。今は「PowerShell なら」「cmd なら」
+     「非 ASCII なら」の 3 分岐を読ませている。
+   - 大きさ: 引数 1 つと `fs::write` 1 回。`say()` は触らない。
+
+4. **主張が 2 つある行は、箱も 2 つにほしい（チェック表の作り）。**
+   - 何が起きたか: 25.19 は**独立した 2 つのコマンド**を 1 行に入れていて、箱は 1 つ。
+     この run は**前半を実機で通した**のに、後半が否なので**何も記録できない**。
+     次に誰かがこの行を取るとき、前半をもう一度測ることになる。
+   - どう変えるか: `make-testcheck` が 1 行 1 箱なのは変えなくていいので、**TESTING.md の側で
+     行を割る**。番号の振り直しは順番表や過去の報告の参照を壊すので、**末尾に足す形**
+     （`25.19` を前半だけに縮め、後半を新しい番号で節の末尾へ）が安い。
+   - なぜ: 1 箱に 2 主張だと、**半分通ったという最も多い結果が記録できない。**
+     印の無い行は「まだ測っていない行」と区別が付かないので、測った事実が消える。
+   - 大きさ: 設計の判断（番号の振り方は持ち主の方針）。行の分割自体は TESTING.md の 2 行。
