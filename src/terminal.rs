@@ -856,14 +856,22 @@ impl Terminal {
 }
 
 impl Drop for Terminal {
-    /// Ask the reader thread to stop, and wait a moment for it: the PTY it
-    /// hands back is dropped here, which closes the pseudoconsole and ends the
-    /// shell. Without the wait a process that exits right after -- a test, or
-    /// filer closed with the pane open -- went before the thread did, and on
-    /// Windows its OpenConsole and shell lived on with no parent: one pair per
-    /// test run on the x64 machine (#180). Bounded, because this runs on the
-    /// UI thread and an old ConPTY can block in `ClosePseudoConsole`.
+    /// End the shell, then ask the reader thread to stop and wait a moment
+    /// for it, so the PTY it hands back is closed here. A test, or filer closed
+    /// with the pane open, used to exit before any of that happened, and on
+    /// Windows the shell and its OpenConsole lived on with no parent: one pair
+    /// per test run on the x64 machine (#180).
+    ///
+    /// On Windows closing the pseudoconsole only asks the shell to go, and
+    /// pwsh takes its time or does not go at all, so the shell and whatever
+    /// runs under it are ended outright first -- which is what `<C-S-t>`
+    /// promises. On Unix dropping the PTY hangs up and reaps the shell.
+    /// The wait is bounded because this runs on the UI thread.
     fn drop(&mut self) {
+        #[cfg(windows)]
+        if let Some(pid) = self.shell_pid.filter(|_| !self.exited) {
+            end_tree(pid);
+        }
         let _ = self.sender.send(Msg::Shutdown);
         let Some(io) = self.io.take() else { return };
         let deadline = Instant::now() + std::time::Duration::from_secs(2);
@@ -1316,6 +1324,26 @@ pub struct CellView {
     /// was drawn at all -- a drag copied text with no sign of what it took,
     /// and a search that worked was indistinguishable from one that did not.
     pub selected: bool,
+}
+
+/// End `pid` and everything under it, children first so none is left to be
+/// re-parented, and wait briefly for each to be gone.
+#[cfg(windows)]
+fn end_tree(pid: u32) {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{
+        OpenProcess, TerminateProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
+    };
+    for child in children(pid) {
+        end_tree(child);
+    }
+    let Ok(h) = (unsafe { OpenProcess(PROCESS_TERMINATE | PROCESS_SYNCHRONIZE, false, pid) }) else { return };
+    unsafe {
+        if TerminateProcess(h, 1).is_ok() {
+            WaitForSingleObject(h, 1000);
+        }
+        let _ = CloseHandle(h);
+    }
 }
 
 /// The processes whose parent is `pid`. Read when a key asks, not every frame:
