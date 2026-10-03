@@ -953,6 +953,7 @@ apart), that it is legible on a light theme (33.6), the parse error's own wordin
 | 33.17 | `<C-F5>`, then `~` again | The row is now an ordinary loaded file, no marker |
 | 33.18 | Rebind `config_reload` to `<F9>` and repeat 33.16 | The row names `<F9>`, not `<C-F5>` — it is read from the keymap, not written into the message |
 | 33.19 | Bind `Q` to `quit` in `%APPDATA%\yazi\config\keymap.toml` and to `hidden toggle` in `%APPDATA%\filer\keymap.toml`, then run `filer env` (v0.73.33, Q57) | Warnings: `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<filer's path>) runs, not \`quit\` (<yazi's path>)`, both full paths. Bind `T` in the filer file only: the other side reads `(the built-in defaults)` |
+| 33.20 | With 33.11's `yazi.toml` (only `[[preview]]`) press `~`; then empty both config folders, start filer, create `filer.toml` and press `~` again (v0.73.41, #203) | The first time, the `yazi.toml` row is in the warning colour with `nothing in it was read — see below`, not listed as an ordinary read file. The second time, under the `on disk, not read yet` row: `(nothing read yet; the defaults are in use)`, not `(nothing found in either; …)` |
 
 ---
 

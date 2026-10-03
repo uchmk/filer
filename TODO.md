@@ -1494,8 +1494,8 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `smooth_scroll_delta` を 0 にする。`image_input`（`src/ui/mod.rs:568`）は `smooth_scroll_delta` を読んでいる。`i.zoom_delta()` を読む。直したら 19.6 を x64 の再テストへ。
 - [x] （v0.73.34。`list_scroll_rows` を描く場所ごとの 2 つにした）**2 分割の左右の一覧が、ホイールの端数を共有している**（#202 の所見、19.7）。`app.list_scroll_rows`（`src/ui/mod.rs:704`）が 1 つなので、左で 1/4、
   右で 1/4 回すと右が 1 行動く。一覧ごとに持つ。直したら 19.7 を x64 の再テストへ。
-- [ ] ヘルプのパネルで、節がすべて置き場所違いで何も読まれなかった設定ファイルにも、読む前のファイルと同じように印を付ける（#203 の所見 2、提案 1）。
-- [ ] ヘルプの `(nothing found in either; the defaults are in use)` が、ファイルがあるのに出る（#203 の所見 3、提案 2）。`app.cfg.loaded.is_empty()`
+- [x] （v0.73.41。`Config::unread` に、読んだが何も効かなかったファイル（解析できない、または置き場所違いの節で全体が読めない）を記録し、パネルの行を警告色で `nothing in it was read — see below` にする）ヘルプのパネルで、節がすべて置き場所違いで何も読まれなかった設定ファイルにも、読む前のファイルと同じように印を付ける（#203 の所見 2、提案 1）。
+- [x] （v0.73.41。読む前のファイルがあれば `(nothing read yet; the defaults are in use)`）ヘルプの `(nothing found in either; the defaults are in use)` が、ファイルがあるのに出る（#203 の所見 3、提案 2）。`app.cfg.loaded.is_empty()`
   （`overlay.rs:574`）は、見つけたが読まなかったファイルを数えない。
 - [ ] `theme.toml` で窓の背景色を決められない（#203 の提案 3）。`Theme::bg` は `Theme::apply()` のどこでも代入されない。33.6 はこれが無いと押せない。
   yazi の theme に対応する鍵があるかを見てから足す。

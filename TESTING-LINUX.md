@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 472 件（TESTING.md の全 641 件のうち、`cargo test` が見ている 169 件は外してある）。
+押すものは 473 件（TESTING.md の全 642 件のうち、`cargo test` が見ている 169 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -524,6 +524,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **33.17** `<C-F5>` してから、もう一度 `~` → 普通に読み込まれたファイルの行になり、印が消える — *`<C-F5>`, then `~` again → The row is now an ordinary loaded file, no marker*
 - [ ] **33.18** `config_reload` を `<F9>` に割り当て直して 33.16 を繰り返す → 行が `<C-F5>` ではなく `<F9>` を示す。メッセージに埋め込まれているのではなく、keymap から読んでいるため — *Rebind `config_reload` to `<F9>` and repeat 33.16 → The row names `<F9>`, not `<C-F5>` — it is read from the keymap, not written into the message*
 - [ ] **33.19** `%APPDATA%\yazi\config\keymap.toml` で `Q` を `quit` に、`%APPDATA%\filer\keymap.toml` で `hidden toggle` に割り当て、`filer env` を回す（v0.73.33、Q57）→ Warnings が `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<filer のパス>) runs, not \`quit\` (<yazi のパス>)` と、両方のファイルをフルパスで言う。`T` を filer のファイルだけに書くと、相手は `(the built-in defaults)` になる — *Bind `Q` to `quit` in `%APPDATA%\yazi\config\keymap.toml` and to `hidden toggle` in `%APPDATA%\filer\keymap.toml`, then run `filer env` (v0.73.33, Q57) → Warnings: `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<filer's path>) runs, not \`quit\` (<yazi's path>)`, both full paths. Bind `T` in the filer file only: the other side reads `(the built-in defaults)`*
+- [ ] **33.20** 33.11 の `yazi.toml`（`[[preview]]` だけ）で `~` を押す。次に両方の設定フォルダを空にして起動し、`filer.toml` を作ってからもう一度 `~`（v0.73.41、#203）→ 1 回目は `yazi.toml` の行が警告色で `nothing in it was read — see below` と出て、普通に読んだファイルとしては並ばない。2 回目は `on disk, not read yet` の行の下が `(nothing read yet; the defaults are in use)` で、`(nothing found in either; …)` ではない — *With 33.11's `yazi.toml` (only `[[preview]]`) press `~`; then empty both config folders, start filer, create `filer.toml` and press `~` again (v0.73.41, #203) → The first time, the `yazi.toml` row is in the warning colour with `nothing in it was read — see below`, not listed as an ordinary read file. The second time, under the `on disk, not read yet` row: `(nothing read yet; the defaults are in use)`, not `(nothing found in either; …)`*
 
 ## 34. ヘルプパネル自身のスクロール
 
