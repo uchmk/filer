@@ -702,8 +702,11 @@ fn watch_script(watch: Arc<Mutex<ScriptWatch>>, labels: Vec<String>, done: PathB
             if !told && quiet > w.due + keyscript::STALL {
                 told = true;
                 let report = keyscript::stalled_report(&labels, w.left, quiet);
-                eprintln!("filer --keys: {}", report.lines().collect::<Vec<_>>().join("; "));
-                let _ = std::fs::write(&done, report);
+                let _ = std::fs::write(&done, &report);
+                use std::io::Write;
+                // Not `eprintln!`: started from `filer.com`, this is a pipe
+                // nobody reads once the window is up, and that would panic.
+                let _ = writeln!(std::io::stderr(), "filer --keys: {}", report.lines().collect::<Vec<_>>().join("; "));
             }
         }
     });
