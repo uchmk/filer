@@ -497,7 +497,7 @@ pub(super) fn draw_preview(
             };
             let drawn = preview::draw(
                 ui,
-                rect.shrink(2.0),
+                rect.shrink(PREVIEW_INSET),
                 other,
                 app.preview.texture.as_ref(),
                 app.tabs[app.active].preview_offset,
@@ -546,6 +546,9 @@ pub(super) fn draw_preview(
 ///
 /// Separate from the painting because it is the only part that writes: the
 /// painter sees a scale and an offset and draws them.
+/// How far the preview's contents sit inside its column.
+const PREVIEW_INSET: f32 = 2.0;
+
 fn image_input(app: &mut App, ui: &mut Ui, rect: Rect) {
     let PreviewState::Ready(Payload::Image { source, .. }) = &app.preview.state else {
         return;
@@ -553,7 +556,10 @@ fn image_input(app: &mut App, ui: &mut Ui, rect: Rect) {
     // The picture's own size, not the texture's: a re-decode at a higher
     // resolution must not change how big it looks.
     let (w, h) = (source.0 as f32, source.1 as f32);
-    let avail = rect.shrink(8.0);
+    // The very rectangle the picture is drawn and clipped to: the pan was
+    // clamped against one 2 px wider a side, so a picture pushed into a
+    // corner stopped with its edge cut off (#218).
+    let avail = preview::image_area(rect.shrink(PREVIEW_INSET));
     // The pane is the only one that knows how big it is, so it leaves the fit
     // scale behind for `zoom in` to start from.
     app.preview.fit = app::image_fit(avail.size(), w, h);
@@ -3113,11 +3119,16 @@ mod config_warning_frame {
 
     /// A `keymap.toml` binding `'` to something the defaults already bind it
     /// to, which is 33.1's own example.
-    const ONE_DUPLICATE: &str = "[[mgr.prepend_keymap]]\non = [\"'\"]\nrun = \"plugin bookmarks jump\"\n";
+    /// One key bound twice in the user's own file. Against a default it would
+    /// be an override, not a warning (Q60).
+    const ONE_DUPLICATE: &str = "[[mgr.prepend_keymap]]\non = [\"'\"]\nrun = \"plugin bookmarks jump\"\n\
+         [[mgr.prepend_keymap]]\non = [\"'\"]\nrun = \"quit\"\n";
 
     /// Three lines the loader complains about, for 33.2's count.
     const THREE_COMPLAINTS: &str = "[[mgr.prepend_keymap]]\non = [\"'\"]\nrun = \"plugin bookmarks jump\"\n\
-         [[mgr.prepend_keymap]]\non = [\"z\"]\nrun = \"quit\"\n\
+         [[mgr.prepend_keymap]]\non = [\"'\"]\nrun = \"quit\"\n\
+         [[mgr.prepend_keymap]]\non = [\"<C-F11>\"]\nrun = \"quit\"\n\
+         [[mgr.prepend_keymap]]\non = [\"<C-F11>\"]\nrun = \"close\"\n\
          [[mgr.prepend_keymap]]\non = [\"g\"]\nrun = \"quit\"\n";
 
     /// A window whose config carries exactly the warnings `user` provokes.
@@ -3151,7 +3162,7 @@ mod config_warning_frame {
         assert_eq!(
             warnings[0],
             "[mgr] `'` is bound more than once; only `plugin bookmarks jump` (keymap.toml) runs, \
-             not `plugin bookmarks jump` (the built-in defaults)",
+             not `quit` (keymap.toml)",
             "the wording TESTING.md 33.1 quotes",
         );
         assert!(f.says(&format!("Config: {}", warnings[0])), "on screen: {:?}", f.texts);

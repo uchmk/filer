@@ -45,6 +45,10 @@ pub struct Keymap {
     pub term: Vec<Binding>,
     /// Commands that parsed but aren't implemented, for the help panel.
     pub unsupported: Vec<String>,
+    /// A key of the built-in defaults that a user's file binds to something
+    /// else: meant, so not a warning, but kept where "what did my `T`
+    /// displace?" can be looked up -- the help panel and `filer env` (Q60).
+    pub overrides: Vec<String>,
 }
 
 pub enum Match<'a> {
@@ -237,9 +241,13 @@ impl Keymap {
             km.term = fold(std::mem::take(&mut km.term), &f.term, from, &mut warnings);
             let _ = &f.cmp; // parsed for compatibility; completion is native here
         }
+        let mut overrides = Vec::new();
         for (name, bindings) in km.layers() {
-            warnings.extend(unreachable(name, bindings));
+            let (warned, replaced) = unreachable(name, bindings);
+            warnings.extend(warned);
+            overrides.extend(replaced);
         }
+        km.overrides = overrides;
         km.unsupported = warnings.clone();
         (km, warnings)
     }
@@ -274,8 +282,17 @@ impl Keymap {
 /// One warning per key that shadows, not per binding shadowed: a prefix with
 /// five chords under it is one mistake, and five lines would push everything
 /// else out of the panel that shows them.
-fn unreachable(layer: &str, bindings: &[Binding]) -> Vec<String> {
+///
+/// A key bound twice is split by where the bindings came from (Q60). The same
+/// command on both sides loses nothing and is not mentioned. A user's file
+/// taking a key from the built-in defaults is what `prepend_keymap` is for, so
+/// it goes in the second list, the overrides, not among the warnings: it was
+/// the only warning a config with one rebound key had, standing beside the
+/// ones that mattered (#210, #215, #217). Two of the user's own bindings, or
+/// one of theirs that a default shuts out, stay warnings.
+fn unreachable(layer: &str, bindings: &[Binding]) -> (Vec<String>, Vec<String>) {
     let mut out = Vec::new();
+    let mut replaced = Vec::new();
     let mut lost = vec![false; bindings.len()];
     for i in 0..bindings.len() {
         // Something earlier already swallows this one, and said so.
@@ -298,6 +315,14 @@ fn unreachable(layer: &str, bindings: &[Binding]) -> Vec<String> {
         }
         let key = super::keys::render_seq(on);
         let run = &bindings[i].raw;
+        let winner = &bindings[i];
+        losers.retain(|b| b.raw != winner.raw);
+        if &*winner.from != BUILT_IN {
+            for b in losers.iter().filter(|b| &*b.from == BUILT_IN) {
+                replaced.push(format!("[{layer}] `{key}`: `{run}` ({}) instead of the default `{}`", winner.from, b.raw));
+            }
+            losers.retain(|b| &*b.from != BUILT_IN);
+        }
         if !losers.is_empty() {
             // Each side with the file it came from, the winner first: the
             // line alone says which file to open and what to take out of it
@@ -324,7 +349,7 @@ fn unreachable(layer: &str, bindings: &[Binding]) -> Vec<String> {
             ));
         }
     }
-    out
+    (out, replaced)
 }
 
 #[cfg(test)]
@@ -547,11 +572,29 @@ run = "plugin bookmarks save"
              not `quit` (/cfg/yazi/keymap.toml)",
         );
 
-        // One file against the defaults: `T` is a default binding.
+        // A default bound again in a user's own file wins over it on purpose:
+        // not a warning, an override (Q60).
         let one = "[[mgr.prepend_keymap]]\non = \"T\"\nrun = \"quit\"\n";
-        let (_, warnings) = Keymap::load_named(&[("/cfg/filer/keymap.toml", one)]);
+        let (km, warnings) = Keymap::load_named(&[("/cfg/filer/keymap.toml", one)]);
+        assert!(!warnings.iter().any(|w| w.contains("`T`")), "{warnings:?}");
+        let o = km.overrides.iter().find(|o| o.contains("`T`")).unwrap_or_else(|| panic!("{:?}", km.overrides));
+        assert!(o.starts_with("[mgr] `T`: `quit` (/cfg/filer/keymap.toml) instead of the default `"), "{o}");
+    }
+
+    /// Q60: the same command on both sides loses nothing and says nothing;
+    /// a user's binding that a default shuts out is still a warning, since
+    /// the user's line never runs.
+    #[test]
+    fn a_rebinding_to_the_same_command_is_silent() {
+        let same = "[[mgr.prepend_keymap]]\non = \"T\"\nrun = \"plugin toggle-pane max-preview\"\n";
+        let (km, warnings) = Keymap::load_named(&[("/cfg/filer/keymap.toml", same)]);
+        assert!(!warnings.iter().any(|w| w.contains("`T`")), "{warnings:?}");
+        assert!(!km.overrides.iter().any(|o| o.contains("`T`")), "{:?}", km.overrides);
+
+        let shut_out = "[[mgr.append_keymap]]\non = \"T\"\nrun = \"quit\"\n";
+        let (km, warnings) = Keymap::load_named(&[("/cfg/filer/keymap.toml", shut_out)]);
         let w = warnings.iter().find(|w| w.contains("`T`")).unwrap_or_else(|| panic!("{warnings:?}"));
-        assert!(w.contains("only `quit` (/cfg/filer/keymap.toml) runs, not `"), "{w}");
-        assert!(w.ends_with(&format!("({BUILT_IN})")), "the other side is the defaults: {w}");
+        assert!(w.contains(&format!("({BUILT_IN}) runs, not `quit` (/cfg/filer/keymap.toml)")), "{w}");
+        assert!(km.overrides.is_empty(), "{:?}", km.overrides);
     }
 }

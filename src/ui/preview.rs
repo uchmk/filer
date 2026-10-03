@@ -156,7 +156,7 @@ pub fn draw(
             }
             Payload::Image { source, caption, .. } => {
                 if let Some(tex) = texture {
-                    let avail = rect.shrink(8.0);
+                    let avail = image_area(rect);
                     // The picture's own size decides the geometry; the texture
                     // is only how finely it is sampled, and a re-decode for a
                     // zoom must not move anything.
@@ -167,7 +167,10 @@ pub fn draw(
                     // Centred and clipped rather than UV-sliced: zooming out
                     // letterboxes on its own, and panning needs no bookkeeping
                     // about which corner of the texture is showing.
-                    let shown = Rect::from_center_size(avail.center() + st.pan, size);
+                    let shown = on_pixels(
+                        Rect::from_center_size(avail.center() + st.pan, size),
+                        painter.ctx().pixels_per_point(),
+                    );
                     painter.with_clip_rect(avail).image(
                         tex.id(),
                         shown,
@@ -194,6 +197,21 @@ pub fn draw(
         },
     };
     Drawn { lines, jump: None, scroll_to: None }
+}
+
+/// Where a picture is drawn, and clipped, inside the rectangle the preview is
+/// given. The mouse handling clamps the pan against this same rectangle.
+pub fn image_area(rect: Rect) -> Rect {
+    rect.shrink(8.0)
+}
+
+/// `r` moved so its corner sits on a whole physical pixel. Centring puts it on
+/// a half pixel as often as not, and at 1:1 every source pixel was then spread
+/// over two screen pixels: a grid line drawn 2 px wide in a mixed colour,
+/// never its own (#218).
+fn on_pixels(r: Rect, ppp: f32) -> Rect {
+    let snap = |v: f32| (v * ppp).round() / ppp;
+    Rect::from_min_size(pos2(snap(r.min.x), snap(r.min.y)), r.size())
 }
 
 /// Take the minimap's strip off the right of the pane.
@@ -1732,3 +1750,23 @@ mod archive_frame {
         assert!(said(&s, &into), "{:?}", s.app.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 }
+
+#[cfg(test)]
+mod pixel_grid {
+    use super::*;
+
+    /// #218: a picture centred on a half pixel is moved onto whole pixels,
+    /// at the display's own scale, and keeps its size.
+    #[test]
+    fn a_picture_starts_on_a_whole_pixel() {
+        let r = Rect::from_min_size(pos2(10.26, 20.5), egui::vec2(3200.0, 2400.0));
+        let at1 = on_pixels(r, 1.0);
+        assert_eq!(at1.min, pos2(10.0, 21.0));
+        assert_eq!(at1.size(), r.size(), "the size is the picture's");
+        // At 150% a whole pixel is two thirds of a point.
+        let at15 = on_pixels(r, 1.5);
+        assert!(((at15.min.x * 1.5).fract()).abs() < 1e-4 && ((at15.min.y * 1.5).fract()).abs() < 1e-4, "{:?}", at15.min);
+        assert!((at15.min.x - r.min.x).abs() <= 1.0 / 3.0 + 1e-4, "moved by at most half a pixel");
+    }
+}
+

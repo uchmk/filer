@@ -553,6 +553,10 @@ fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
     for w in &app.cfg.warnings {
         out.push(HelpRow { text: w.clone(), warning: true, ..HelpRow::blank() });
     }
+    // Default keys a file of yours rebinds: meant, so plain, not yellow (Q60).
+    for o in &app.cfg.keymap.overrides {
+        out.push(HelpRow::said(o.clone()));
+    }
     out
 }
 

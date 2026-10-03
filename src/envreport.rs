@@ -102,6 +102,11 @@ fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
         0 => "none".into(),
         _ => cfg.warnings.join("\n"),
     }));
+    // Not warnings: a default key a file of yours rebinds, listed so what it
+    // displaced can be looked up (Q60).
+    if !cfg.keymap.overrides.is_empty() {
+        rows.push(("Overrides".into(), cfg.keymap.overrides.join("\n")));
+    }
     rows
 }
 
