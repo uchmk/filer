@@ -181,6 +181,15 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
         egui::pos2(rect.right() - 10.0 - gutter, rect.bottom() - 5.0),
     );
     let id = egui::Id::new("filer-input");
+    // The field keeps the keys for as long as the prompt is open. `<Tab>`
+    // completes, but egui also takes it as "focus the next widget", and the
+    // focus was only taken back when a completion arrived late: answered
+    // from the cache, or with nothing to offer, the prompt went deaf and
+    // every character typed after it vanished (#220). Taken back before the
+    // field is shown, so the very next frame's typing lands.
+    if ov.focused && !ui.memory(|m| m.has_focus(id)) {
+        ui.memory_mut(|m| m.request_focus(id));
+    }
     let before = ov.text.clone();
     let selected = selection_at_press(ui, id);
     let resp = ui.put(
@@ -213,12 +222,14 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
     if (resp.changed() || matches!(clip, Ok(true))) && ov.text != before {
         app.input_changed();
     }
+    // In the accent, as the title is: in the border's colour it was all but
+    // invisible on the dark theme, read only at 4x (#220).
     if waiting {
-        let g = ui.painter().layout_no_wrap("…".into(), f.clone(), theme_border);
+        let g = ui.painter().layout_no_wrap("…".into(), f.clone(), accent);
         ui.painter().galley(
             egui::pos2(rect.right() - 10.0 - g.size().x, rect.center().y - g.size().y / 2.0),
             g,
-            theme_border,
+            accent,
         );
     }
     // Said out loud because the right-click looked like it did nothing.
@@ -3112,6 +3123,81 @@ mod confirm_frame {
         let button = f.placed(" [y] Make the junction ").expect("the button is drawn");
         assert!(a.y < b.y && b.y < button.y, "sentence, path, then buttons, top to bottom: {a:?} {b:?} {button:?}");
         assert!(f.says(" [n] No "), "the buttons are still there: {:?}", f.texts);
+    }
+}
+
+/// The `cd` prompt keeps the keys through a `<Tab>` (#220).
+#[cfg(test)]
+mod prompt_focus {
+    use crate::app::Overlay;
+    use crate::config::cmd::Act;
+    use crate::ui::harness::Screen;
+
+    fn tab() -> egui::Event {
+        egui::Event::Key {
+            key: egui::Key::Tab,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        }
+    }
+
+    fn text(s: &Screen) -> String {
+        match &s.app.overlay {
+            Overlay::Input(ov) => ov.text.clone(),
+            other => panic!("the prompt closed: {}", matches!(other, Overlay::None)),
+        }
+    }
+
+    /// Typing after `<Tab>` lands in the prompt, whether the completion had
+    /// a match from the listing already read or nothing to offer: either way
+    /// egui's own Tab took the focus away and nothing gave it back, so every
+    /// later character was dropped without a word.
+    #[test]
+    fn typing_after_tab_still_reaches_the_prompt() {
+        let dir = crate::util::test_dir("prompt-tab");
+        std::fs::create_dir_all(dir.join("alpha")).unwrap();
+        let mut s = Screen::open(dir.clone());
+        for _ in 0..50 {
+            s.turn();
+            if s.app.tabs[0].current.entries.len() == 1 {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        s.app.act(Act::Cd { target: String::new(), interactive: true });
+        s.draw();
+
+        // Nothing to complete.
+        s.typed("zz");
+        s.feed(vec![tab()]);
+        s.draw();
+        s.typed("y");
+        assert!(text(&s).ends_with("zzy"), "the y after Tab arrived: {:?}", text(&s));
+
+        // A match, from the listing the window already holds.
+        for _ in 0..3 {
+            s.feed(vec![egui::Event::Key {
+                key: egui::Key::Backspace,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            }]);
+        }
+        s.typed("al");
+        s.feed(vec![tab()]);
+        for _ in 0..20 {
+            s.turn();
+            if text(&s).contains("alpha") {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(text(&s).contains("alpha"), "completed: {:?}", text(&s));
+        s.typed("q");
+        assert!(text(&s).ends_with('q'), "the q after the completion arrived: {:?}", text(&s));
     }
 }
 
