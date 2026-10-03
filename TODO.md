@@ -1838,6 +1838,8 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   ペインの桁数で、テーマの色は画素数で、他の設定が効いていることを確かめた）。x64 の再テストの欄から 29.12 を外した。
 - [ ] TESTING.md 29.12 の「`filer.toml` の他の設定（フォント、テーマ）」を直す（#190 の所見。人か QA セッション）。テーマは `filer.toml` ではなく
   同じフォルダの `theme.toml` に書く。
-- [ ] **`FILER_TERM_SHELL` が `[term] args` を落としたことを `filer env` で言う**（#190 の提案 1）。今は `Win32_Process` のコマンドラインを
+- [x] **`FILER_TERM_SHELL` が `[term] args` を落としたことを `filer env` で言う**（#190 の提案 1）。今は `Win32_Process` のコマンドラインを
   見ないと分からない。`terminal pane, from FILER_TERM_SHELL ([term] args not used)` のように、`args` があるときだけ足す。
+  v0.73.11 で入れた。`TermCfg::dropped_args` に覚え、`terminal pane, from FILER_TERM_SHELL; [term] args not used: -NoLogo` のように中身も挙げる。
+  Linux の本物のバイナリで、`args` があるときだけ付くのを確かめた。29.12 の期待値に足し、印を外して x64 の再テストに回した。
 

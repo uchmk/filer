@@ -9,6 +9,14 @@
 
 ## [未リリース]
 
+## [0.73.11] - 2026-10-03
+
+### 追加
+
+- `FILER_TERM_SHELL` がペインのシェルを決めて `[term] args` を使わなかったとき、`filer env` のシェルの行がそう言う（#190 の提案 1）:
+  `terminal pane, from FILER_TERM_SHELL; [term] args not used: -NoLogo -NoProfile`。`args` が無ければ今までどおり。
+  今まではプロセスのコマンドラインを見ないと分からなかった。TESTING.md 29.12 の期待値に足し、実機の再テストに回した
+
 ## [0.73.10] - 2026-10-03
 
 ### 修正

@@ -107,6 +107,11 @@ pub struct TermCfg {
     /// The shell came from `FILER_TERM_SHELL`, not from a file.
     #[serde(skip)]
     pub from_env: bool,
+    /// The `[term] args` that `FILER_TERM_SHELL` set aside, for `filer env`
+    /// to name: without it, seeing them gone took the process's command line
+    /// (#190).
+    #[serde(skip)]
+    pub dropped_args: Vec<String>,
 }
 
 impl TermCfg {
@@ -118,7 +123,8 @@ impl TermCfg {
     /// shell this one replaces.
     fn take_env(&mut self, var: Option<std::ffi::OsString>) {
         let Some(shell) = var.and_then(|v| v.into_string().ok()).filter(|v| !v.trim().is_empty()) else { return };
-        *self = Self { shell: shell.trim().to_owned(), args: Vec::new(), from_env: true };
+        let dropped_args = std::mem::take(&mut self.args);
+        *self = Self { shell: shell.trim().to_owned(), args: Vec::new(), from_env: true, dropped_args };
     }
 }
 
@@ -717,10 +723,11 @@ mod files {
     /// the other shell, and an empty or blank value is no value.
     #[test]
     fn the_variable_names_the_shell_for_one_run() {
-        let file = || TermCfg { shell: "pwsh".into(), args: vec!["-NoLogo".into()], from_env: false };
+        let file = || TermCfg { shell: "pwsh".into(), args: vec!["-NoLogo".into()], ..TermCfg::default() };
         let mut t = file();
         t.take_env(Some(r"C:\Program Files\Git\bin\bash.exe ".into()));
         assert_eq!((t.shell.as_str(), t.args.len(), t.from_env), (r"C:\Program Files\Git\bin\bash.exe", 0, true));
+        assert_eq!(t.dropped_args, ["-NoLogo"], "kept for `filer env` to name (#190)");
         for unset in [None, Some("".into()), Some("  ".into())] {
             let mut t = file();
             t.take_env(unset);

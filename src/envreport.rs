@@ -124,12 +124,7 @@ fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
         false => cfg.term.shell.clone(),
         true => crate::terminal::default_program(),
     };
-    let what = match (cfg.term.shell.is_empty(), cfg.term.from_env) {
-        (false, true) => "terminal pane, from FILER_TERM_SHELL",
-        (false, false) => "terminal pane, from [term] shell",
-        (true, _) => "terminal pane, the platform default",
-    };
-    rows.push((shell.clone(), found(&shell, what)));
+    rows.push((shell.clone(), found(&shell, &shell_source(&cfg.term))));
     // Where a `block = true` opener runs. Windows gives it a console of its
     // own; anywhere else a terminal emulator has to be there to open.
     #[cfg(not(windows))]
@@ -200,6 +195,17 @@ fn row(exe: &str, flag: &str, what: &str) -> (String, String) {
 /// an opener is a command line out of the user's own config -- running it to
 /// see if it exists would launch their editor, or their image viewer, or
 /// whatever else they have put there, every time they asked what was wrong.
+/// Where the pane's shell came from, and the `[term] args` that
+/// `FILER_TERM_SHELL` left out, when there were any (#190).
+fn shell_source(term: &crate::config::TermCfg) -> String {
+    match (term.shell.is_empty(), term.from_env) {
+        (false, true) if term.dropped_args.is_empty() => "terminal pane, from FILER_TERM_SHELL".into(),
+        (false, true) => format!("terminal pane, from FILER_TERM_SHELL; [term] args not used: {}", term.dropped_args.join(" ")),
+        (false, false) => "terminal pane, from [term] shell".into(),
+        (true, _) => "terminal pane, the platform default".into(),
+    }
+}
+
 fn found(exe: &str, what: &str) -> String {
     if shell_builtin(exe) {
         return format!("built into {SHELL_NAME}   ({what})");
@@ -445,6 +451,27 @@ mod tests {
         // And something that certainly does not.
         assert_eq!(locate("filer-no-such-program-anywhere"), None);
         assert_eq!(locate("/no/such/path/at/all"), None);
+    }
+
+    /// #190: the args `FILER_TERM_SHELL` set aside are named, and only when
+    /// there were some.
+    #[test]
+    fn the_shell_row_names_the_args_the_variable_dropped() {
+        use crate::config::TermCfg;
+        let env = |dropped: &[&str]| TermCfg {
+            shell: "bash".into(),
+            from_env: true,
+            dropped_args: dropped.iter().map(|a| a.to_string()).collect(),
+            ..TermCfg::default()
+        };
+        assert_eq!(shell_source(&env(&[])), "terminal pane, from FILER_TERM_SHELL");
+        assert_eq!(
+            shell_source(&env(&["-NoLogo", "-NoProfile"])),
+            "terminal pane, from FILER_TERM_SHELL; [term] args not used: -NoLogo -NoProfile"
+        );
+        let file = TermCfg { shell: "pwsh".into(), args: vec!["-NoLogo".into()], ..TermCfg::default() };
+        assert_eq!(shell_source(&file), "terminal pane, from [term] shell");
+        assert_eq!(shell_source(&TermCfg::default()), "terminal pane, the platform default");
     }
 
     /// Nothing in the report may be a guess.
