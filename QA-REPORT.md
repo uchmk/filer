@@ -12036,6 +12036,59 @@ filer は `tX\base` で起動し、キーは **`yhjl-`**（`thefolder` を `y`�
 - **Q57 はこのレーンの票が既に `origin/main` の QUESTIONS.md に写っており（`arm: 1`、#193 の行）、
   `多数決: 1` も立っている。**`投票中` でこのレーンの行が無い質問は他に無いので、新しい票は入れない。
 
+## TESTING.md 32.9a — サクラのキャレットをステータスバーの文字で読む（8f1ae4e / 0.73.2、win レーン、無人の run）
+
+順番表の「32.9a, Sakura's caret」の行。v0.73.2 で書き直された 32.9a を、#196 の `sb.ps1`（`SB_GETPARTS` / `SB_GETTEXTW` をプロセスをまたいで送る）で読んだ。
+
+| | |
+| --- | --- |
+| 機械 | x64、Windows 11 Pro 10.0.26200、PowerShell 7。サクラエディタ 2.4.2.6048（32bit） |
+| 昇格 | **なし**（`IsInRole('Administrators')` = `False`）。この行には要らない |
+| ビルド | `cargo build --release`（0.73.2）、`scripts/fetch-conpty.ps1` 済み。`cargo test` は 624 / 0 |
+| 親のないシェル | `cargo test` の前 **88**、後 **88**。増えていない |
+| 設定 | `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を一時ディレクトリの `cfg\` に向け、`yazi.toml` は README の `[opener]` / `[open]` の例（#196 と同じ写し） |
+| 持ち主の設定 | サクラは MRU とキャレット位置を `%APPDATA%\sakura\sakura.ini` に書くので、run の前に写しを取り、終わりに戻した。前 `80536C6D…FA75`（119924 B、リンクではない）、run 後 `7727872D…6B0A`、戻した後 `80536C6D…FA75` |
+| 証拠の写し | `C:\dev\filer-evidence\win-32-9a-20261003\`（`run.ps1` / `sb.ps1`、各手順の `done.txt` と `<Shot>` の png、ステータスバーの読み取り結果） |
+
+### 結果
+
+`outline.md` は見出しが 1 / 6 / 11 / 16 行目（`# Top`、`## Second`、`## Third`、`### Fourth`）。キーは
+`l<Wait:500>` + `j` を N 回 + `<S-Enter><Wait:500><Down><Down><Enter><Wait:1500>`（ピッカーの 3 番目がサクラ）。
+手順ごとにサクラを `CloseMainWindow` で閉じてから次を押した。
+
+| 手順 | `toast:`（`FILER_KEYS_DONE`） | サクラのコマンドライン | ステータスバー |
+| --- | --- | --- | --- |
+| 対照 A: 一度も開いていない写し（`ctl\outline.md`）を `-Y` 無しで直接開く | — | `sakura.exe "…\ctl\outline.md"` | `1 行 1 桁`、`U+0023` |
+| 「Second」（`j` 1 回） | `$ "C:\Program Files (x86)\sakura\sakura.exe" -Y=6 "…\op\outline.md"` | `sakura.exe  -Y=6 "…\op\outline.md"` | `6 行 1 桁`、`U+0023` |
+| 「Fourth」（`j` 3 回） | `… -Y=16 …` | `sakura.exe  -Y=16 …` | `16 行 1 桁`、`U+0023` |
+| 「Third」（`j` 2 回） | `… -Y=11 …` | `sakura.exe  -Y=11 …` | `11 行 1 桁`、`U+0023` |
+| 対照 B: 同じ `op\outline.md` を `-Y` 無しで直接開く | — | `sakura.exe "…\op\outline.md"` | `11 行 1 桁`、`U+0023` |
+
+- `U+0023` は `#`、つまりキャレットの下は見出しの最初の文字。
+- サクラはファイルごとに前回のキャレット位置を覚えて戻す（`sakura.ini` の `m_bRestoreCurPosition=1`、MRU の `nY`）。
+  「Fourth」は覚えていた 6 行目を、「Third」は覚えていた 16 行目を `-Y=` が上書きしているので、行がサクラの記憶から来たのではないことも分かる。
+- **32.9a はチェックした。**
+
+### TESTING.md の文言（32.9a の対照）
+
+行の対照は「the same file opened without `-Y=` reads `1 行 1 桁`」だが、この機械では**同じファイルを `-Y=` 無しで開くと前回の行（11）に戻る**（対照 B）。
+サクラの「カーソル位置を復元する」が有効なら、同じファイルの対照は 1 行にならない。対照 A のように**サクラが一度も開いていないパスの写し**を使えば `1 行 1 桁` になる。
+文言を「a copy Sakura has never opened reads `1 行 1 桁`」に直すべき（直していない。報告のみ）。#196 の対照が `1 行` だったのは、その時点でそのファイルを覚えていなかったからと考える。
+
+### Proposals
+
+1. **ピッカーで絞り込みが空のまま `<Enter>` を押したら、何か言う。**最初の試行で `<S-Enter>` のあと `jj<Enter>` と押したら、`jj` が絞り込みの文字になり、
+   一致なしのまま `<Enter>` でピッカーが閉じ、何も起動せず `toast:` も空だった（`y6` の 1 回目）。持ち主が `j` で下りるつもりで押しても同じことになる。
+   `<Enter>` は「No opener matches `jj`」とトーストを出すか、ピッカーを開いたままにするべき。**大きさ**: 小（ピッカーの確定処理に 1 分岐）。
+2. **`FILER_KEYS_DONE` にアウトラインの位置を書く。**今は見出しを `j` の回数で数えるしかなく、どれが選ばれているかは `<Shot>` を見ないと分からない
+   （`outline: Second (line 6)` のような行があれば、32.9 / 32.9a の手前が文字で確かめられる）。**大きさ**: 小（done ファイルに 1 行）。
+3. **`sb.ps1` を `scripts/` に置く。**#196 と今回の 2 回、証拠フォルダから持ち出して使った。`scripts/read-statusbar.ps1 -Process sakura` のようにしておけば、
+   ほかの Win32 エディタ（秀丸のステータスバーも `msctls_statusbar32`）の行も同じ道具で読める。**大きさ**: 小（ファイル 1 つ）。
+
+### Votes
+
+なし（投票中の Q57 には win の票が既にある）。
+
 ## TESTING.md 48.6（リリース zip の ConPTY）— 両方の zip をこの機械で（8de946d / 0.73.9、arm レーン、無人の run）
 
 ARM64 の順番表の先頭は **48.6（ARM64 の zip）**。#194 が x64 の zip で合格させたが
