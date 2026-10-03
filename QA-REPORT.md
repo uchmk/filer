@@ -12088,3 +12088,131 @@ filer は `tX\base` で起動し、キーは **`yhjl-`**（`thefolder` を `y`�
 ### Votes
 
 なし（投票中の Q57 には win の票が既にある）。
+
+## TESTING.md 48.6（リリース zip の ConPTY）— 両方の zip をこの機械で（8de946d / 0.73.9、arm レーン、無人の run）
+
+ARM64 の順番表の先頭は **48.6（ARM64 の zip）**。#194 が x64 の zip で合格させたが
+「x64 の機械では ARM64 の `filer.exe` が起動しない」のでチェックが付かずに残っていた半分。
+**この機械では両方の半分が押せた**（ARM64 の zip はネイティブ、x64 の zip はエミュレーション）ので、
+48.6 は 1 回の run で閉じた。
+
+| | |
+| --- | --- |
+| 機械 | ARM64、Windows 11 Home 10.0.28000、PowerShell 7.6.6、`PROCESSOR_ARCHITECTURE=ARM64` |
+| 昇格 | **なし**（`IsInRole('Administrators')` = `False`）。48.6 に昇格は要らない |
+| 入力デスクトップ | `OpenInputDesktop` → `Default`、`SPI_GETSCREENSAVERRUNNING` → `False`、`LogonUI` 0 個（run の後に確認） |
+| zip | `filer-v0.72.2-windows-arm64.zip` `e7412a5c…fa3b99980f`、`filer-v0.72.2-windows-x64.zip` `e9352ace…d707055bd`。展開した 5 ファイルずつもリリースページの SHA-256 表と**全部一致** |
+| PE machine | ARM64 の zip は 4 つとも `AA64`、x64 の zip は 3 つ（`conpty.dll` / `filer.exe` / `OpenConsole.exe`）とも `8664` |
+| `cargo test`（0.73.9、ネイティブ ARM64） | **625 passed; 0 failed**（ほかに `filer-com` の 1 passed）。親のないシェルは前後とも **48**（powershell 22 / pwsh 26）。増えていない |
+| 証拠の写し | `C:\dev\filer-evidence\arm-48.6\`（`run48.ps1`、`48.6-arm64-zip.txt`、`48.6-x64-zip-emulated.txt`、`keysdone-*.txt`、`ptylog-*.txt`、`filer-env-zip.txt`、`cargo-test.txt`、`orphans-{before,after}.csv`） |
+
+ネイティブであることの確認（レーンの規則）: zip の `filer.exe env --out` が
+`Version : 0.72.2` / `Executable : …\filer-v0.72.2-windows-arm64\filer.exe` /
+`OS arch : aarch64` / **`Process arch : aarch64`**。
+
+### やったこと
+
+`run48.ps1` を書き直した（#192 のものはあちらの機械の証拠フォルダにしかなく、この機械には無い。提案 3）。
+やることは行のとおり: **`PATH` に別のプログラムの `conpty.dll` を置いた状態で** zip の `filer.exe` を
+`--keys "<C-t><Wait:3000>"` で起動し、`FILER_KEYS_DONE` が出たらプロセスを生かしたまま
+`(Get-Process filer).Modules` の `conpty.dll` と、子の `OpenConsole.exe` の `ExecutablePath` を読む。
+作業フォルダを 2 通り（`conpty.dll` の無い `cwd-none\` と zip のフォルダ自身）。
+
+**`PATH` の囮は 2 つ置いた**:
+
+| 囮 | PE machine | その run の filer にとって |
+| --- | --- | --- |
+| `C:\Users\yuu06\AppData\Local\Programs\Zed\conpty.dll` `8cb3db66…` | `AA64` | ARM64 の run では**読み込める**囮 |
+| `C:\Program Files\WezTerm\conpty.dll` `2f09eaa5…` | `8664` | x64 の run では読み込める囮。ARM64 の run では**読み込めない** |
+
+行が名指す WezTerm のものは、この機械では x64 だった。ARM64 の `filer.exe` はそれを
+**読み込めない**ので、名前で探しに行っていたとしても失敗して気づけない。だから Zed の
+`AA64` の `conpty.dll`（zip のものとは別のハッシュ）を囮に足した。これで
+「隣のものを読んだ」と「`PATH` のものを読んだ」が本当に見分けられる（提案 1）。
+
+### 結果
+
+- **48.6 合（チェックを付けた）。**4 回の起動（2 つの zip × 2 つの作業フォルダ）すべてで:
+
+| run | `conpty.dll` のモジュール | 子の `OpenConsole.exe` | `FILER_KEYS_DONE` |
+| --- | --- | --- | --- |
+| ARM64 zip、`cwd-none\` | **1 つ**、`…\x\filer-v0.72.2-windows-arm64\conpty.dll` | 同じフォルダのもの（pid 31976、`--headless --width 80 --height 24`） | `pane: 12x159` / `toast: Started pwsh — <C-t> back to the list` / `keys: done` |
+| ARM64 zip、zip のフォルダ | **1 つ**、同上 | 同上（pid 3284） | 同上 |
+| x64 zip（エミュレーション）、`cwd-none\` | **1 つ**、`…\x64\filer-v0.72.2-windows-x64\conpty.dll` | 同じフォルダのもの（pid 28628） | 同上 |
+| x64 zip（エミュレーション）、zip のフォルダ | **1 つ**、同上 | 同上（pid 14348） | 同上 |
+
+  どの run でも、`conpty|OpenConsole` に当たるモジュールは**その 1 つだけ**。囮（Zed / WezTerm）は
+  読まれていない。孫の `OpenConsole.exe` を全部並べても、filer の子になっているのは zip のフォルダの
+  ものだけで、残り 3 つは Windows Terminal 自身のもの（親 23980 / 2616）だった。
+  ペインは実際に開いており（`pane: 12x159`、子に `pwsh.exe`、窓のタイトルは `Filer: …\list`）、
+  「起動はしたがペインは開かなかった」ではない。
+- **失敗していたら何が違ったか**: `conpty.dll` のモジュールが **0 個**（隣のものを読まず、Windows 内蔵の
+  ConPTY で動いた。48.7 がその姿を見ている行）か、**`…\Zed\conpty.dll` / `…\WezTerm\conpty.dll`**
+  （`PATH` を見に行った。v0.70.3 より前の姿）。どちらもフルパスの文字列として読める。
+- **48.6 は「each folder」なので、x64 の半分と ARM64 の半分の両方が要る。**x64 の半分は #194 が
+  x64 実機で合格させていたが、この run でもエミュレーションで同じ結果を得た（`exe:` が x64 の
+  フォルダの `filer.exe`、モジュールもそのフォルダの `conpty.dll`）。**チェックはこの run の 4 回の
+  起動だけで足りる**ので、#194 の結果に依存していない。
+
+### 不具合
+
+無し。4 回とも行の期待どおり。
+
+### Proposals
+
+#### 提案 1: 48.6 の囮は「exe と同じ machine の `conpty.dll`」と書く
+
+**踏んだこと**: 行の「間違っているときに出るのは別のアプリ（WezTerm など）のもの」を
+そのまま使うと、この機械では**検査にならない**。WezTerm の `conpty.dll` は `8664` で、
+ARM64 の `filer.exe` のプロセスには載らない。`PATH` を名前で探す実装でも、見つけて
+失敗するだけで、モジュールの一覧は「隣のものを読んだ」ときと**同じ 0 個か 1 個**になる。
+Zed の `AA64` のものを足して初めて、2 つの結果が別の文字列になった。
+
+**どう変えるべきか**: 48.6 の Do に「`PATH` に置く囮は、試す `filer.exe` と同じ PE machine の
+`conpty.dll` にする（節の冒頭の式で確かめる）」を足す。例を「WezTerm など」から
+「同じ machine のもの（この機械では Zed のものが `AA64`）」にする。
+
+**なぜ**: 今の文言のまま ARM64 で押すと、**合格のように見えて何も見ていない**。
+48.6 は zip の存在理由そのものを見る行なので、ここが空振りするのは一番困る。
+
+**大きさ**: 行の文言 1 文。コードは触らない。
+
+#### 提案 2: 48.6 と 48.2 を ARM64 レーンの行として一本化する
+
+**踏んだこと**: 順番表は 48.6 を「x64 の半分は #194、ARM64 の半分はこのレーン」と割っているが、
+**ARM64 の機械は x64 の zip も動かせた**（エミュレーション、この run の表の下 2 行）。逆は成り立たない
+（x64 の機械では ARM64 の `filer.exe` が「not a valid application」で起動しない。#194 がそう書いている）。
+つまり「両方のフォルダで起動する」行は、**ARM64 の機械だけが 1 回で閉じられる。**
+
+**どう変えるべきか**: 48.6（と同じ形の 48.2）を ARM64 レーンの常設行にし、x64 レーンの
+再テスト欄からは外す。順番表の 48.6 の説明を「リリースのたびに ARM64 レーンが両方の zip で押す
+（x64 の zip はエミュレーションで動く）」にする。
+
+**なぜ**: 今は版が変わるたびに 48.6 が 2 つのレーンに割れ、片方が押しても「半分済み」で
+レーン間を渡っていく（#192 → #194 → この run で 3 回渡った）。1 レーンに寄せれば
+1 回で閉じる。x64 レーンは、その分を自分だけができる行に使える。
+
+**大きさ**: 順番表の 2 行と、48.6 / 48.2 の文言。設計の話ではない。
+
+#### 提案 3: 順番表が名指すスクリプトは `scripts/` に置く
+
+**踏んだこと**: ARM64 の順番表は「#192 の `run48.ps1` を回せ」と書いているが、**その
+ファイルはリポジトリに無い。**`C:\dev\filer-evidence\win-retests5-20261003\` にあり、そこは
+**x64 の機械**で、この機械からは読めない（`C:\dev\filer-evidence` を再帰で探しても出ない）。
+結局、行から書き直した。書き直したものは同じスクリプトではないので、
+「同じ `run48.ps1` の結果」という比較が成り立たない。
+
+**どう変えるべきか**: 順番表がスクリプト名で指示するなら、そのスクリプトを
+`scripts/`（例: `scripts/check-48.ps1`）に入れて、レーンを問わず `git pull` で届くようにする。
+入れないなら、順番表はスクリプト名を出さず手順を書く。
+
+**なぜ**: 無人の run は質問できない。「あのスクリプトを回せ」が**その機械に無い**とき、
+run は黙って別のものを回すことになる。今回は行の文言が十分だったので同じ検査になったが、
+それは運で、`fx45.ps1`（45.11 の木を作り直すスクリプト）も同じ形で証拠フォルダにしかない。
+
+**大きさ**: ファイルを 1 つ移して、順番表の 1 行。
+
+### Votes
+
+- `origin/main` の QUESTIONS.md で `状態: 投票中` は **Q57 だけ**で、その `投票` 欄には
+  既にこのレーンの行がある（`arm: 1`、#193）。`多数決: 1` も立っている。**新しく入れる票は無い。**
