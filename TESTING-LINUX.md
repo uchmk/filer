@@ -513,7 +513,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 
 自動テスト済みなので下には出していない: 33.1, 33.2, 33.3, 33.4, 33.5, 33.7, 33.8, 33.10
 
-- [ ] **33.6** 背景の明るいテーマ → 黄色がそれでも読める。読めなければそう報告すること（いまは固定の既定値で、テーマから変えられない） — *A theme with a light background → The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable*
+- [ ] **33.6** 背景の明るいテーマ（`theme.toml` に `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }`。v0.73.42 より前は窓の背景を決める手段が無かった）→ 黄色がそれでも読める。読めなければそう報告すること（いまは固定の既定値で、テーマから変えられない） — *A theme with a light background: `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }` in `theme.toml` (v0.73.42; nothing could set the window's background before) → The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable*
 - [ ] **33.9** 設定ファイルを**3 つ同時に**壊す → 箱が最大 5 つまで下へ積まれ、それぞれ自分の文章の大きさになり、重ならない — *Break **three** config files at once → Up to five boxes stack downward, each sized to its own text, none overlapping the next*
 - [ ] **33.11** `[[preview]]` を `yazi.toml` に入れて（本来は `filer.toml`）起動 → **1 行で** `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`。以前の `invalid type: map, expected a string` ではない（v0.33.13） — *Put `[[preview]]` into `yazi.toml` (it belongs in `filer.toml`) and start → **One line**: `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13)*
 - [ ] **33.12** `[term]` も `yazi.toml` に入れる → それについても同じ形の行が 1 つ増える。どちらも「このファイルは読まれなかった」と述べる。実際そうだから — *Put `[term]` into `yazi.toml` as well → A second line for it, same shape. Both say the file went unread, because it did*

@@ -1497,7 +1497,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.73.41。`Config::unread` に、読んだが何も効かなかったファイル（解析できない、または置き場所違いの節で全体が読めない）を記録し、パネルの行を警告色で `nothing in it was read — see below` にする）ヘルプのパネルで、節がすべて置き場所違いで何も読まれなかった設定ファイルにも、読む前のファイルと同じように印を付ける（#203 の所見 2、提案 1）。
 - [x] （v0.73.41。読む前のファイルがあれば `(nothing read yet; the defaults are in use)`）ヘルプの `(nothing found in either; the defaults are in use)` が、ファイルがあるのに出る（#203 の所見 3、提案 2）。`app.cfg.loaded.is_empty()`
   （`overlay.rs:574`）は、見つけたが読まなかったファイルを数えない。
-- [ ] `theme.toml` で窓の背景色を決められない（#203 の提案 3）。`Theme::bg` は `Theme::apply()` のどこでも代入されない。33.6 はこれが無いと押せない。
+- [x] （v0.73.42。yazi の `[app] overall` の `bg` / `fg` を読む。二番目の背景 `bg_alt` は `bg` から文字色へ 3% 寄せる。Linux の仮想ディスプレイで白い背景になることを確かめた。33.6 の行に書き方を足した）`theme.toml` で窓の背景色を決められない（#203 の提案 3）。`Theme::bg` は `Theme::apply()` のどこでも代入されない。33.6 はこれが無いと押せない。
   yazi の theme に対応する鍵があるかを見てから足す。
 - [ ] TESTING.md 33.9 の文言を、実際の動き（トーストは 1 つで `(+N more)`）に合わせる（#203 の提案 4）。 【QA】
 - [ ] TESTING.md 25.4a が古い（#203 の所見 4）。`[term] shell` が無いとき、`pwsh` が `PATH` にあればそちらを使う（Q29）。 【QA】

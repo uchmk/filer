@@ -273,8 +273,10 @@ registered: the menu is read back out of the config every time it opens.
 
 ### theme.toml
 
-`[mgr]` colors, `[status]` modes, `[which]`, `[git]`, `[filetype].rules` and `[icon]` (`globs`,
-`dirs`, `exts`, `files`, `conds`) are applied on top of a built-in dark theme. Colors may be ANSI names
+`[app] overall` (the window's background and text), `[mgr]` colors, `[status]` modes, `[which]`,
+`[git]`, `[filetype].rules` and `[icon]` (`globs`, `dirs`, `exts`, `files`, `conds`) are applied on
+top of a built-in dark theme. A light theme starts with `[app]` / `overall = { bg = "#ffffff", fg =
+"#222222" }`; the preview's text keeps its own colours, from `syntect_theme` below. Colors may be ANSI names
 (`lightblue`, `darkgray`, `reset`) or hex (`#7ab8f5`). `syntect_theme` selects the preview's
 syntax theme.
 
