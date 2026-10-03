@@ -893,6 +893,12 @@ desc = "Close help"
 on = "C"
 run = "copy all"
 desc = "Copy the whole list as text"
+# The panel's own config rows say "<C-F5> re-reads config", so the key has to
+# work with the panel open; it stays open, showing what was read.
+[[help.keymap]]
+on = "<C-F5>"
+run = "config_reload"
+desc = "Read the config files again (theme, icons, keys)"
 [[help.keymap]]
 on = "k"
 run = "arrow -1"

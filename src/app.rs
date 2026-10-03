@@ -2339,6 +2339,8 @@ impl App {
                 let stop = self.help_lines.saturating_sub(page) + 1;
                 self.help_scroll = step.apply(self.help_scroll, stop, page);
             }
+            // What the panel's own config rows tell you to press (#163).
+            Act::ConfigReload => self.act(Act::ConfigReload),
             // The whole list as text, as spot's `C` does (Q48).
             Act::Copy(CopyWhat::All) => {
                 let (text, keys) = crate::ui::overlay::help_text(self);
@@ -8605,6 +8607,19 @@ mod said_out_loud {
         a.drop_drag(Some(1), false);
         assert!(a.tasks.is_empty(), "no job");
         assert!(a.toasts.iter().any(|t| t.text == "Both panes are in the same directory"), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// #163: `<C-F5>` with the help panel open re-reads the config, as the
+    /// panel's own rows say it does, and the panel stays open to show it.
+    #[test]
+    fn the_reload_key_works_with_help_open() {
+        let dir = crate::util::test_dir("help-reload");
+        let mut a = app_in(&dir);
+        a.overlay = Overlay::Help;
+        a.feed_overlay_key(Key::parse("<C-F5>").unwrap());
+        assert!(matches!(a.overlay, Overlay::Help), "still open");
+        assert!(a.toasts.iter().any(|t| t.text.starts_with("Reloaded")), "{:?}",
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 
