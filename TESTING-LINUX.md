@@ -628,7 +628,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 
 自動テスト済みなので下には出していない: 43.1, 43.2, 43.3, 43.4, 43.5, 43.6, 43.7, 43.8, 43.10, 43.11, 43.12, 43.13
 
-- [ ] **43.9** 50MB の CSV → すぐ開き、`max_text_bytes` で切られ、フッタが省略したと述べる — *A 50 MB CSV → Opens promptly, cut at `max_text_bytes`, footer says truncated*
+- [ ] **43.9** 50MB の CSV → すぐ開き、`max_text_bytes` で切られる。フッタがどの上限で止まったかを言う（例 `… the table stops at 4000 rows; N lines read, and the file goes on`。v0.73.39、#205。以前は読んだ分だけの N で `N lines total (truncated)` と言っていた）。spot の `Lines` は `N+` で、`Table  first 4000 rows only` の行が出る — *A 50 MB CSV → Opens promptly, cut at `max_text_bytes`. The footer says which cap it met, e.g. `… the table stops at 4000 rows; N lines read, and the file goes on` (v0.73.39, #205 -- it used to say `N lines total (truncated)`, N being only what was read), and spot's `Lines` reads `N+` with a `Table  first 4000 rows only` row*
 
 ## 44. ディスク使用量
 

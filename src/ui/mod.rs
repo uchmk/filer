@@ -1876,7 +1876,7 @@ mod whole_frame {
             map: (0..400)
                 .map(|i| MapRow { indent: (i % 8) as u16, len: 40, color: None })
                 .collect(),
-            extent: Extent { truncated: false, total: 400 },
+            extent: Extent { truncated: false, total: 400, ..Default::default() },
             outline: Vec::new(),
         });
         s
@@ -2148,7 +2148,7 @@ mod panes {
                 .map(|i| vec![Span { text: format!("line {i}"), ..Default::default() }])
                 .collect(),
             map: Vec::new(),
-            extent: Extent { truncated: false, total: 200 },
+            extent: Extent { truncated: false, total: 200, ..Default::default() },
             outline: Vec::new(),
         })
     }

@@ -713,7 +713,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "41.14" = '遅いネットワークドライブ上のフォルダで `<Tab>` → パネルはカーソルに追従し続ける（spot ワーカーは newest-wins）'
 
 # 43. CSV / TSV を表として
-"43.9" = '50MB の CSV → すぐ開き、`max_text_bytes` で切られ、フッタが省略したと述べる'
+"43.9" = '50MB の CSV → すぐ開き、`max_text_bytes` で切られる。フッタがどの上限で止まったかを言う（例 `… the table stops at 4000 rows; N lines read, and the file goes on`。v0.73.39、#205。以前は読んだ分だけの N で `N lines total (truncated)` と言っていた）。spot の `Lines` は `N+` で、`Table  first 4000 rows only` の行が出る'
 
 # 44. ディスク使用量
 "44.1" = '`node_modules` のあるプロジェクトで `gu` → 子が大きい順に棒付きで並ぶ。`node_modules` が上位に来て、合計が自身のエントリよりはるかに大きい'

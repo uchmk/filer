@@ -2192,7 +2192,7 @@ impl App {
         };
         match payload {
             Payload::Text { extent, outline, .. } => {
-                row("Lines", extent.total.to_string());
+                row("Lines", extent.lines());
                 if !outline.is_empty() {
                     row("Outline", format!("{} entries", outline.len()));
                 }
@@ -2201,8 +2201,12 @@ impl App {
                 }
             }
             Payload::Markdown { doc, extent, .. } => {
-                row("Lines", extent.total.to_string());
-                row("Headings", doc.toc.len().to_string());
+                row("Lines", extent.lines());
+                // A table stopped at its row cap says so here too (#205).
+                match extent.rows {
+                    Some(n) => row("Table", format!("first {n} rows only")),
+                    None => row("Headings", doc.toc.len().to_string()),
+                }
                 if let Some(r) = read(extent.truncated) {
                     row("Read", r);
                 }
@@ -7603,7 +7607,7 @@ mod outline_jump {
         a.preview.state = PreviewState::Ready(Payload::Text {
             lines: Vec::new(),
             map: Vec::new(),
-            extent: crate::preview::Extent { truncated: false, total: 500 },
+            extent: crate::preview::Extent { truncated: false, total: 500, ..Default::default() },
             outline: vec![toc(0), toc(120), toc(480)],
         });
         // The furthest the pane can be scrolled, as the last draw worked out.

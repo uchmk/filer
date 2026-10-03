@@ -1238,7 +1238,7 @@ minimap at all — see QA-REPORT.md.
 | 43.6 | A file with a quoted field holding a comma and a newline | One cell, on one row — not split |
 | 43.7 | A CSV saved by Excel as "CSV UTF-8" (has a BOM) | The first column's header is not prefixed with a stray character |
 | 43.8 | A ragged file (rows with different column counts) | Lays out; short rows are padded, no panic |
-| 43.9 | A 50 MB CSV | Opens promptly, cut at `max_text_bytes`, footer says truncated |
+| 43.9 | A 50 MB CSV | Opens promptly, cut at `max_text_bytes`. The footer says which cap it met, e.g. `… the table stops at 4000 rows; N lines read, and the file goes on` (v0.73.39, #205 -- it used to say `N lines total (truncated)`, N being only what was read), and spot's `Lines` reads `N+` with a `Table  first 4000 rows only` row |
 | 43.10 | A one-line CSV | One row and **no rule** under it |
 | 43.11 | The minimap with a table up | It maps **the file**, not the table, and its hover card shows raw CSV lines |
 | 43.12 | A `.csv` that is actually binary | Still a hex dump, as before |

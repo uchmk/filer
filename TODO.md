@@ -1474,7 +1474,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   47.1 の印を外し、x64 の再テストの先頭に回した（3 つのバックエンドで測り、ドライバの版と、v0.72.2 の zip との比較も）。結果を見て、
   wgpu の present mode（`Fifo` など）やバックエンドを選べるようにするかを決める（#204 の提案 1）。ドライバの更新が原因なら filer では直せない。
 - [x] （v0.73.36。`Packed into <書庫>`、`Unpacked into <フォルダ>\`。展開先は持ち上げたあとの名前を、ジョブが `made` で返す）`E` / `e` が終わってもトーストが出ない（#205 の所見 2。#174 の提案 2「`e` が終わったら行き先を言う」と同じ）。両方で言う。
-- [ ] 切り詰めの注記 `… 5237 lines total (truncated)` と spot の `Lines` が、ファイルの行数ではなく読んだ分の行数（#205 の所見 3）。
+- [x] （v0.73.39。`Extent` に `cut`（読み込みが `max_text_bytes` で止まった）と `rows`（表が止まった行数）を足し、注記は `N lines read, and the file goes on` / `the table stops at 4000 rows`、spot は `Lines  N+` と `Table  first 4000 rows only`）切り詰めの注記 `… 5237 lines total (truncated)` と spot の `Lines` が、ファイルの行数ではなく読んだ分の行数（#205 の所見 3）。
   「読んだ分」と分かる文言にする。CSV が `MAX_RECORDS`（4000 行）で止まったことも言う（#205 の提案 4）。
 - [ ] README の `--keys` の節に、スクリプトが終わりを待つ方法（`FILER_KEYS_DONE`、または `q` で終えて `Start-Process -Wait`）を 1 行書く
   （#205 の所見 4、提案 1）。`filer.exe` も `filer.com` も、窓が入力を受け付けた時点で戻る。
