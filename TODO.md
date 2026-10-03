@@ -1723,7 +1723,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] **`--keys` が断られたときも `FILER_KEYS_DONE` を書く**（#193 の提案 1）。空白区切りで書いたスクリプトは `keyscript::parse` が正しく断るが、
   `main.rs` は `say` して `exit(2)` するだけで、窓から切り離して起動した側には何も届かず、done ファイルが来ないことしか分からなかった。
   止まったとき（`keys: stalled`）は書いているので、断ったときも `keys: refused` と理由を書く。関数 1 つ分。
-- [ ] **コピーする `mklink` の行を `cmd /d /c mklink /J …` にする**（#193 の提案 2）。トーストは「cmd に貼る」と言うが、`<C-t>` の
+- [x] （v0.72.6 で直した。13.8a / 13.8c の印を外して ARM64 の再テストに回した）**コピーする `mklink` の行を `cmd /d /c mklink /J …` にする**（#193 の提案 2）。トーストは「cmd に貼る」と言うが、`<C-t>` の
   ペインは PowerShell で、`mklink` は cmd の組み込みなので `mklink: 用語 'mklink' は … 認識されません` になった（pwsh 7 でも 5.1 でも）。
   `cmd /d /c` を付けた形は pwsh 7 でジャンクションを作った。`ops::mklink_line` の `format!` 1 つで、13.8a の拒否のトーストも同時に直る。
   トーストの文言（`paste it into cmd`）も合わせて変える。直したら 13.8a と 13.8c の印を外して ARM64 の再テストに回す。

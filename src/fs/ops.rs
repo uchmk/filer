@@ -842,11 +842,17 @@ fn symlink_error(e: &std::io::Error, link: &Link, src: &Path) -> String {
     said
 }
 
-/// The `cmd` line that makes a junction at `at` to `target`: what the refusal
-/// above tells people to type, and what the junction question's `c` copies
-/// (Q56), spelled the same in both.
+/// The line that makes a junction at `at` to `target`: what the refusal above
+/// tells people to type, and what the junction question's `c` copies (Q56),
+/// spelled the same in both.
+///
+/// Through `cmd /d /c` because `mklink` is built into `cmd` and is nothing
+/// anywhere else: pasted bare into filer's own pane, which runs PowerShell,
+/// it answered "the term 'mklink' is not recognized" (#193). With the prefix
+/// the same line works in `cmd`, `pwsh` and Windows PowerShell alike, and it
+/// is what [`junction`] runs.
 pub fn mklink_line(at: &Path, target: &Path) -> String {
-    format!("mklink /J \"{}\" \"{}\"", at.display(), target.display())
+    format!("cmd /d /c mklink /J \"{}\" \"{}\"", at.display(), target.display())
 }
 
 /// Windows' "the client does not hold the required privilege" (1314): a
@@ -1032,7 +1038,7 @@ mod symlink_message {
         let said = symlink_error(&refused, &folder, src);
         if cfg!(windows) {
             assert!(said.contains("needs Developer Mode"), "{said}");
-            assert!(said.ends_with(r#"A junction needs neither: mklink /J "C:/work/dst/src" "C:/work/src""#), "{said}");
+            assert!(said.ends_with(r#"A junction needs neither: cmd /d /c mklink /J "C:/work/dst/src" "C:/work/src""#), "{said}");
             let said = symlink_error(&refused, &file, src);
             assert!(said.contains("needs Developer Mode") && !said.contains("junction"), "{said}");
         } else {
