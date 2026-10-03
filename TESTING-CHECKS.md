@@ -120,16 +120,16 @@ cd $HOME\Desktop\filer-fixtures
 # zoom-me.png（3200x2400、グリッド入り）と tiny.png（48x48）を使う
 ```
 
-- [ ] **3.1** `zoom-me.png` をホバー → ペインに収まる。説明に `3200 × 2400 · fit NN%` と出る — *Hover `zoom-me.png` → It fits the pane. The caption reads `3200 × 2400 · fit NN%`*
-- [ ] **3.2** `<A-1>`（等倍）→ ペインよりはるかに大きくなり、中央部分が見える。**グリッド線がくっきりしている**こと（再デコードが効いている証拠。収めた画像を引き伸ばしたぼけた絵なら、それがこの機能の避けたかったバグ） — *`<A-1>` (1:1) → It fills far more than the pane, showing the middle. **The grid lines are crisp** — this is the re-decode working; if it is a blurred enlargement of the fitted copy, that is the bug this was built to avoid*
-- [ ] **3.3** くっきりする瞬間を見る → **画像が飛んだり大きさが変わったりしてはいけない。**変わるのは鮮明さだけ — *Watch the moment it sharpens → The picture must **not jump or change size** when the sharper copy arrives. Only its sharpness changes*
-- [ ] **3.4** ドラッグする → 移動でき、端がペインの端に来たら止まる。画面外へ放り出せない — *Drag it → It pans, and stops when its edge reaches the pane's edge — it cannot be thrown off screen*
-- [ ] **3.5** グリッドの交点にポインタを置いて `Ctrl`+ホイール → **ポインタを中心に**拡大縮小し、カーソル下の交点がその位置に留まる — *`Ctrl` and the wheel, pointer on a grid intersection → It zooms **about the pointer**: the intersection under the cursor stays under it*
-- [ ] **3.6** Ctrl 無しのホイール → ペインがスクロールする。拡大はしない — *Plain wheel (no Ctrl) → Scrolls the pane, does not zoom*
-- [ ] **3.7** ダブルクリック → 収まる大きさに戻り、中央に来る — *Double-click → Back to fitting, centred*
-- [ ] **3.8** `<A-i>` / `<A-o>` → 段階的に拡大縮小。説明のパーセント表示も追従する — *`<A-i>` / `<A-o>` → In and out in steps. The caption's percentage follows*
-- [ ] **3.9** 拡大してから `j` で次のファイルへ行き、戻る → また収まった状態になっている（拡大率はファイルごとのもの） — *Zoom in, then `j` to the next file and back → It is fitted again — a zoom belongs to the file it was set on*
-- [ ] **3.10** `tiny.png`（48×48）をホバー → 元の大きさのまま表示される。**ペインを埋めるように引き伸ばされない** — *Hover `tiny.png` (48×48) → Shown at its own size, **not blown up** to fill the pane*
+- [x] **3.1** `zoom-me.png` をホバー → ペインに収まる。説明に `3200 × 2400 · fit NN%` と出る — *Hover `zoom-me.png` → It fits the pane. The caption reads `3200 × 2400 · fit NN%`*
+- [x] **3.2** `<A-1>`（等倍）→ ペインよりはるかに大きくなり、中央部分が見える。**グリッド線がくっきりしている**こと（再デコードが効いている証拠。収めた画像を引き伸ばしたぼけた絵なら、それがこの機能の避けたかったバグ） — *`<A-1>` (1:1) → It fills far more than the pane, showing the middle. **The grid lines are crisp** — this is the re-decode working; if it is a blurred enlargement of the fitted copy, that is the bug this was built to avoid*
+- [x] **3.3** くっきりする瞬間を見る → **画像が飛んだり大きさが変わったりしてはいけない。**変わるのは鮮明さだけ — *Watch the moment it sharpens → The picture must **not jump or change size** when the sharper copy arrives. Only its sharpness changes*
+- [x] **3.4** ドラッグする → 移動でき、端がペインの端に来たら止まる。画面外へ放り出せない — *Drag it → It pans, and stops when its edge reaches the pane's edge — it cannot be thrown off screen*
+- [x] **3.5** グリッドの交点にポインタを置いて `Ctrl`+ホイール → **ポインタを中心に**拡大縮小し、カーソル下の交点がその位置に留まる — *`Ctrl` and the wheel, pointer on a grid intersection → It zooms **about the pointer**: the intersection under the cursor stays under it*
+- [x] **3.6** Ctrl 無しのホイール → ペインがスクロールする。拡大はしない — *Plain wheel (no Ctrl) → Scrolls the pane, does not zoom*
+- [x] **3.7** ダブルクリック → 収まる大きさに戻り、中央に来る — *Double-click → Back to fitting, centred*
+- [x] **3.8** `<A-i>` / `<A-o>` → 段階的に拡大縮小。説明のパーセント表示も追従する — *`<A-i>` / `<A-o>` → In and out in steps. The caption's percentage follows*
+- [x] **3.9** 拡大してから `j` で次のファイルへ行き、戻る → また収まった状態になっている（拡大率はファイルごとのもの） — *Zoom in, then `j` to the next file and back → It is fitted again — a zoom belongs to the file it was set on*
+- [x] **3.10** `tiny.png`（48×48）をホバー → 元の大きさのまま表示される。**ペインを埋めるように引き伸ばされない** — *Hover `tiny.png` (48×48) → Shown at its own size, **not blown up** to fill the pane*
 
 ## 4. SVG と、その中の文字
 
