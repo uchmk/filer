@@ -11444,6 +11444,127 @@ x64（Windows 11 Pro, build 26200）で `target\release\filer.exe` 0.71.2 を、
 
 **大きさ**: テスト 1 本（`until_the_window_is_up` を子プロセスで呼べる形にするなら関数の引数を少し変える）。
 
+---
+
+## TESTING.md 13.8c — `c` が `mklink` の行をクリップボードへ置く（5b3a0e2 / 0.72.1、ARM64 レーン、無人の run）
+
+ARM64 のキューの先頭、13.8c（v0.71.4、Q56）を 1 節だけ進めた。この行は
+**#191（前回の ARM64 の run）の提案 2 がそのまま実装されたもの**なので、提案を出した側が
+実機で受け取り直した形になる。**4 つの主張すべてと、貼ったあとの追従まで合。**
+
+機械と前提:
+
+- `filer env` → `Version 0.72.1` / `OS arch aarch64` / `Process arch aarch64`（**ネイティブの ARM64**）。
+- 昇格していない（`IsInRole('Administrators')` → `False`）。
+- 開発者モードは**無し**（`HKLM:\…\AppModelUnlock` の `AllowDevelopmentWithoutDevLicense` が無い）。
+  13.8c の前提（Developer Mode 無し・昇格無し）を満たしている。
+- 作業場所は `C:\Users\yuu06\AppData\Local\Temp\filer-scratch\c138c`（この機械に RAM ディスクは無い）。
+  `base\thefolder\inside.txt` と空の `dst\` を作り、`base` で filer を起動した。
+- 押したのはすべて `--keys`。`FILER_KEYS_DONE` と `<Shot:>` で読んでいる。
+
+### 13.8c — 4 つの主張すべて合
+
+| 主張 | どう測ったか | 結果 |
+| --- | --- | --- |
+| 質問の `y` と `n` の**間**に `[c] Copy the mklink command` がある | `yhjl-<Shot:question>` の `question.png` | **合**。選択肢の行は `[y] Make the junction` `[c] Copy the mklink command` `[n] No` の順で、`c` は真ん中 |
+| `c` で質問が閉じる | `yhjl-c<Shot:after-c>` の `doneB.txt` | **合**。`overlay: none`（押す前は `doneA.txt` が `overlay: confirm`） |
+| **何も作られない**（作り先のフォルダは空のまま） | `(Get-ChildItem …\dst -Force).Count` | **合**。`0`。`question.png` のプレビュー欄も `(empty)` |
+| トースト `Copied the mklink command — paste it into cmd` | `doneB.txt` の `toast:` 行 | **合**。一字一句同じ |
+| `Get-Clipboard` が**拒否のトーストが出すのと同じ 1 行** | 下の表 | **合**。`-ceq` で真（大文字小文字まで一致） |
+
+クリップボードの比較は、13.8a の拒否のトースト（`doneA.txt`）から `mklink /J` 以降を切り出して
+`c` のあとの `Get-Clipboard` と突き合わせた。**どちらも 1 行で、全く同じ:**
+
+```
+mklink /J "C:\Users\yuu06\AppData\Local\Temp\filer-scratch\c138c\dst\thefolder" "C:\Users\yuu06\AppData\Local\Temp\filer-scratch\c138c\base\thefolder"
+```
+
+- 押す前にクリップボードへ番兵（`SENTINEL-13-8C-RUNB`）を入れてある。
+  `c` を押す**まで**は番兵のまま（run A は `-` まで押しても `SENTINEL-13-8C-RUNA` が残っていた）ので、
+  **書いたのは `c` であって `y`（yank）でも `-` でもない。**
+- 13.8a の拒否のトースト全文（`doneA.txt`）も読めた。ARM64 の Windows なので OS の文言は日本語:
+  `Link: thefolder: クライアントは要求された特権を保有していません。 (os error 1314) — Windows needs
+  Developer Mode for symlinks (Settings > System > For developers), or run filer as administrator.
+  A junction needs neither: mklink /J "…" "…"`
+
+### 貼ったあと — ジャンクションができ、`g` `f` が追う
+
+```
+> cmd /d /c <Get-Clipboard の中身>
+Junction created for …\c138c\dst\thefolder <<===>> …\c138c\base\thefolder
+(exit 0)
+> Get-Item …\c138c\dst\thefolder
+Name=thefolder  LinkType=Junction  Target=C:\…\c138c\base\thefolder
+> Get-ChildItem …\c138c\dst\thefolder   →  inside.txt   （中も通る）
+```
+
+そのうえで `dst` で filer を起動し `gf` を 1 本の `--keys` で押すと（`doneC.txt`）:
+
+```
+cwd:     C:\…\c138c\base\thefolder
+hovered: C:\…\c138c\base\thefolder\inside.txt
+```
+
+窓のタイトルも `Filer: C:\…\c138c\base\thefolder`。**ジャンクションをたどって行き先に入っている。**
+
+### テスト一式と、親のいないシェル
+
+- `cargo test`（ネイティブ ARM64、0.72.1）→ **622 passed / 0 failed**（+ doctest 1 / 0）。
+- 親のいない `OpenConsole` / `pwsh` / `powershell` の数（#180 の数え方）: **前 48 → 後 48。増えていない。**
+
+### 見つけたもの
+
+**無し。**13.8c の主張はすべて合っている。
+
+### Proposals
+
+1. **`--keys` が受け付けないスクリプトは `FILER_KEYS_DONE` に何も残さない。**
+   - 何が起きたか: この run の最初、キーを `y h j l - <Shot:question>` と**空白で区切って**書いた。
+     `keyscript::parse` は空白を正しく拒否する（#110 の判断で、これ自体は正しい）が、
+     `src/main.rs:116` は `say(…)` して `exit(2)` するだけなので、
+     **`Start-Process` で切り離して起動した窓からは、その文が誰にも届かない。**
+     こちらから見えたのは「`FILER_KEYS_DONE` が 30 秒待っても現れない」ことだけで、
+     `Get-Process filer` が空なのを見て初めて「起動すらしていない」と分かった。1 往復を無駄にした。
+   - どう変えるか: `--keys` を拒否するとき、`FILER_KEYS_DONE` が指定されていればそこへ理由を書く。
+     止まった run が `keys: stalled` を書く経路（`keyscript::stalled_report`）がもうあるので、
+     同じ形で `keys: refused` + 拒否の文の 2 行を書けばよい。
+   - なぜ: 無人の run は**この 1 ファイルだけを待つように作られている**（役割定義も「A stalled file is
+     not a result」と、ファイルが来る前提で書かれている）。来ない場合だけが例外になっていて、
+     しかもそれが**人の打ち間違いという一番起きやすい失敗**に当たっている。
+     ファイルが来れば、待ち側はタイムアウトではなく理由を読める。
+   - 大きさ: `main.rs` の拒否の 2 か所（`:111` と `:117`）で、環境変数を見て 1 行書くだけ。関数 1 つぶん。
+
+2. **コピーされるのは素の `mklink /J …` で、filer 自身のペインでは動かない。**
+   - 何が起きたか: トーストは `paste it into cmd` と言う。けれど `<C-t>` で開く filer のペインは
+     **cmd ではない。**この機械で開いて `mklink` と打つと（`pane.png`、`doneD.txt` が `pane: 12x159`）、
+     `PowerShell 7.6.6` が
+     `mklink: 用語 'mklink' は、コマンドレット、関数、スクリプト ファイル、または実行可能プログラムの名前として認識されません。`
+     と答える。`mklink` は cmd の内部コマンドなので、**既定の `powershell`（5.1）でも同じ。**
+     つまり `c` でコピーしたあと、**一番近くにある貼り先では失敗する。**
+   - どう変えるか: `ops::mklink_line` が出す行を `cmd /d /c mklink /J "…" "…"` にする。
+     この run で、その形を **pwsh 7 にそのまま打って通ることを確かめた**（`Junction created for …`、exit 0、
+     `LinkType=Junction`）。cmd に貼っても通る形なので、**1 つの文字列がどこでも動く。**
+   - なぜ: filer 自身は**すでにこの形で呼んでいる**（`ops.rs` の `junction()` が
+     `cmd /d /c mklink /J …`）。人に渡す行だけが、そこから `cmd /d /c` を落としている。
+     `c` の値打ちは「打ち直さずに済む」ことなので、貼り先を選ばせた時点で半分戻ってしまう。
+     拒否のトーストの文（13.8a）も同じ行を出しているので、両方が一度に直る。
+   - 大きさ: `ops::mklink_line` の `format!` 1 行。合わせてトーストの文言（`paste it into cmd`）を
+     「貼って実行する」側に寄せるかは文言の判断。`ops.rs` のテスト（`:1035`）と `app.rs` の `:6520` が
+     文字列を直接見ているので、そこも 1 行ずつ。
+
+### Votes
+
+- Q57: 1 — **この run の最中に、まさにその警告が出た。**`filer env` の Warnings は
+  ``[mgr] `T` is bound more than once; only `plugin toggle-pane max-preview` runs`` で、
+  Config の節は `…\yazi\config\ : keymap.toml 0 B` と `…\filer\ : keymap.toml 124 B` の 2 つを挙げる。
+  **ところが重複は、そのどちらか 2 つの間にあるのではなかった** — `filer\keymap.toml` を開くと
+  `[[mgr.prepend_keymap]] on = "T"` が 1 つあるだけで、相方は**組み込みの既定**
+  （`src/config/defaults/keymap.toml:149` の `[[mgr.keymap]] on = "T"`）だった。
+  選択肢 2（各 `keymap.toml` の束縛の数を出す）は、この場合 `0` と `1` を並べることになり、
+  **どちらを見ても重複が説明できない。**#189 で当てられたのが「片方が 0 B だったから」なのと同じく、
+  推し量りが当たるかどうかの話になる。選択肢 1 なら、**出どころに組み込みの既定も含める**という条件つきで、
+  警告の文がそのまま開く先（または「既定と衝突している」という事実）になる。
+
 ## TESTING.md の再テスト（6 回目）— 48.1 / 48.3 / 48.6（v0.72.2 の zip）と 25.19c の終了コード（38a5c4b / 0.72.4、win レーン、無人の run）
 
 順番表の先頭「Re-tests of changed behaviour」に残っていた x64 の分: 48.6 の zip の半分、48.1、48.3、25.19c の終了コードの半分。
