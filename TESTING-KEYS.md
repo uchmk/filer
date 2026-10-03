@@ -262,7 +262,7 @@ This panel (`~` or `<F1>`).
 - [x] `~` — Close help · `help`
 - [x] `<F1>` — Close help · `help`
 - [ ] `C` — Copy the whole list as text · `copy all`
-- [ ] `<C-F5>` — Read the config files again (theme, icons, keys) · `config_reload`
+- [x] `<C-F5>` — Read the config files again (theme, icons, keys) · `config_reload`
 - [x] `k` — Up one line · `arrow -1`
 - [x] `j` — Down one line · `arrow 1`
 - [x] `<Up>` — Up one line · `arrow -1`
