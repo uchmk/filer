@@ -1430,11 +1430,13 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （#200 で確かめた。R: の上で `cargo test` 630 / 0、ビルドも通った）**R: の上で cargo が通るかを、最初の無人実行のログで確かめる**。ImDisk の RAM ディスクでは `canonicalize` が `os error 1` で落ちる
   （13 節の `Resolves`、`d` の件）。cargo か rustc がどこかで正規化していれば、ビルドがそこで失敗する。失敗していたら `-TargetOnDisk` で
   登録し直し、`R:` ではなく NTFS の別ドライブか、`subst` で切ったドライブを試す。
-- [ ] 古い作業フォルダ（`C:\dev\filer-win13`・`-win32`・`-win41`・`-win35`・`-win1d`・`-win21`・`-w8`、合わせて約 11 GB）を消す。
+- [x] （2026-10-03、持ち主が消した。win21 / win41 は使用中で消せず、再起動のあとに消した。残りは `filer` と `filer-wintest`）古い作業フォルダ（`C:\dev\filer-win13`・`-win32`・`-win41`・`-win35`・`-win1d`・`-win21`・`-w8`、合わせて約 11 GB）を消す。
   `git -C C:\dev\filer worktree list` で確かめてから `git worktree remove --force <パス>`。 【人】
 - [x] （2026-10-03、持ち主が移した。ImDisk の「Run after mounting」に `cmd /c mkdir R:\cargo-target\filer` を入れ、再起動のあとも
   行き先ができる。Defender の除外に `R:\cargo-target` を足した）手元の `C:\dev\filer\target`（15.6 GB）も R: に移すなら、`cargo clean` のあと
   `New-Item -ItemType Junction -Path C:\dev\filer\target -Target R:\cargo-target\filer`（R: に先にフォルダを作る。再起動のあとも作り直す）。 【人】
+- [x] 再起動のあとも、R: と `R:\cargo-target\filer` ができるのを確かめた（2026-10-03）。後者はログオン時のタスク `filer-ramdisk-target`
+  （`cmd /c mkdir R:\cargo-target\filer`）が作る。ImDisk の「Run after mounting」は、設定画面の OK で作り直したときには走らなかった。
 - [x] v0.73.19 で、無人の実行のログが文字化けしていたのを直した。`claude` の UTF-8 の出力を PowerShell がコンソールの CP932 で
   読んでいたので、`claude` を呼ぶ前に `[Console]::OutputEncoding` を UTF-8 にした。
 
