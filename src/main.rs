@@ -94,6 +94,15 @@ fn say(text: &str) {
     println!("{text}");
 }
 
+/// PowerShell does not wait for a windowed program, so a script that calls
+/// `filer.exe env --out` itself reads the file before it is there and sees
+/// `$LASTEXITCODE` 0 (#188). `filer env --out` goes through `filer.com`,
+/// which the shell waits for; this is for the other way.
+#[cfg(windows)]
+const ENV_OUT_WAIT: &str = "\n                     (filer.exe in a script: add | Out-Null to wait)";
+#[cfg(not(windows))]
+const ENV_OUT_WAIT: &str = "";
+
 fn parse_cli() -> Cli {
     let mut cli = Cli { path: None, cwd_file: None, chooser_file: None, keys: Vec::new() };
     let mut args = std::env::args().skip(1);
@@ -114,7 +123,7 @@ fn parse_cli() -> Cli {
                 }
             }
             "--help" | "-h" => {
-                say(
+                say(&format!(
                     "filer — a yazi-flavored file manager\n\n\
                      USAGE:\n    filer [PATH] [--cwd-file FILE] [--chooser-file FILE] [--keys KEYS]\n\n\
                      OPTIONS:\n    -h, --help       this text\n    \
@@ -126,13 +135,13 @@ fn parse_cli() -> Cli {
                      as name.png. For scripted checks\n\n\
                      COMMANDS:\n    env              config files, outside tools and environment,\n                     \
                      for pasting into a bug report\n    \
-                     env --out FILE   the same, written to FILE as UTF-8\n    \
+                     env --out FILE   the same, written to FILE as UTF-8{ENV_OUT_WAIT}\n    \
                      shell-hook [pwsh|bash|zsh]\n                     \
                      the lines that let <A-Up> in the terminal pane\n                     \
                      follow the shell; filer shell-hook | Add-Content $PROFILE\n\n\
                      Config is read from yazi's config directory, then from filer's own.\n\
                      Press ~ or F1 inside the app for the key list.",
-                );
+                ));
                 std::process::exit(0);
             }
             // A bug report needs to name a version, and a downloaded binary can

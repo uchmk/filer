@@ -1307,9 +1307,14 @@ filer env | Select-String arch       # or through a pipe
 ```
 
 `--out` (v0.68.0) is the way to get a file to attach: filer writes it itself, as UTF-8, so neither
-the shell's redirection rules nor the console's code page has a say. PowerShell does not wait for
-a windowed program, so the prompt can come back a moment before the file is there; it is written
-under another name and renamed into place, so it is never seen half written.
+the shell's redirection rules nor the console's code page has a say. It is written under another
+name and renamed into place, so it is never seen half written. Typed as `filer env --out …`, it
+runs through `filer.com`, which the shell waits for: the file is there on the next line and
+`$LASTEXITCODE` is filer's own. **Calling `filer.exe` itself from a script, add `| Out-Null`**
+(`& filer.exe env --out r.txt | Out-Null`): PowerShell does not wait for a windowed program, so
+without it the next line runs before the file exists and `$LASTEXITCODE` still reads 0 even when
+filer refused with 2 (#188). `Start-Process -Wait -PassThru` works too, with the exit code in
+`.ExitCode`.
 
 Since v0.54.4 the text goes wherever standard output is sent; before that it went only to the
 screen. With `filer.com` beside `filer.exe` (v0.71.0, see [Getting a build](#getting-a-build)),

@@ -1802,9 +1802,11 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 - [x] v0.67.24〜v0.69.0 で変わった行を x64 で再テスト: 1.38、25.6、25.19b、29.1、29.8、29.10、34.15 と、TESTING-KEYS.md の `[mgr]` `<C-S-t>`。
   すべて合格（318 → 326、キーは 249 → 250）。x64 の再テストの欄は 29.12（v0.70.0、この実行より後に足した）と、ARM64 だけの 13.8a が残る。
-- [ ] **`filer env --out` をスクリプトから呼ぶときの待ち方を書く**（#188 の提案 1）。PowerShell は窓のプログラムを待たないので、続けて
+- [x] **`filer env --out` をスクリプトから呼ぶときの待ち方を書く**（#188 の提案 1）。PowerShell は窓のプログラムを待たないので、続けて
   `Get-Content` するとファイルがまだ無く、`$LASTEXITCODE` も実際の 2 ではなく 0 のまま見えた。`| Out-Null` を付けると待つ。
   `--help` の `env --out` の行と README の「Reporting a problem」、TESTING.md 25.19b に 1 行足す（25.19b の文言は人か QA セッション）。
+  v0.73.8 で書いた。`filer env --out`（`filer.com` 経由）はもう待つので、待たないのは `filer.exe` を直接呼ぶときだけ、と書き分けた。
+  `--help` の行は Windows だけ。25.19b は触らず、書いた待ち方を確かめる 25.19e（新）を x64 の再テストに回した。
 - [ ] **`make-keycheck -- --check` が、件数だけが違うときにそう言う**（#188 の提案 2）。今は「再生成せよ」とだけ言うが、実機のセッションは
   再生成を禁じられているので、印を付けたあと件数を手で直すしかなかった。`make-testcheck` の「The checks all match; the difference is
   in the surrounding text」と同じ区別を入れ、正しい件数を出す（あるいは件数だけを書き直す `--counts`）。
