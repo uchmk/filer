@@ -1401,7 +1401,9 @@ one run. The name is letters, digits, `-` and `_`.
 A space is written `<Space>`; a plain one is refused.
 
 A script driving filer from outside needs to know when the keys are done, and guessing from the
-`<Wait:N>` it wrote misses the time each key spends waiting to settle. Set `FILER_KEYS_DONE` to a
+`<Wait:N>` it wrote misses the time each key spends waiting to settle. Nor does the command itself
+wait: `filer.exe`, and `filer.com` too, return as soon as the window is up, keys still to come. Wait
+on `FILER_KEYS_DONE` below, or end the keys with `q` and start filer with `Start-Process -Wait`. Set `FILER_KEYS_DONE` to a
 file path and filer writes that file once the last key has gone in and what it started has landed —
 the same wait the keys themselves take (v0.60.1). `scripts/xrun.sh` waits for it. "Landed" includes
 a file job: since v0.67.12 a key waits for a trash, copy, move, link or undo it started to finish,
