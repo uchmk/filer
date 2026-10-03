@@ -128,6 +128,7 @@ struct SectionNote {
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let check = args.iter().any(|a| a == "--check");
+    let stats = args.iter().any(|a| a == "--stats");
     let lane = match args.iter().position(|a| a == "--lane").and_then(|i| args.get(i + 1)).map(String::as_str) {
         None | Some("windows") => Lane::Windows,
         Some("linux") => Lane::Linux,
@@ -159,7 +160,15 @@ fn main() {
     let untranslated = manual.iter().filter(|c| !notes.row.contains_key(&c.id)).count();
 
     let mut out = String::new();
-    preamble(&mut out, lane, &all, &manual, Counts { ticked, skipped, looked, untranslated });
+    preamble(&mut out, lane, &all, &manual, untranslated);
+    // The progress, for `--stats` and the last line of a run. Not written into
+    // the file: every pull request that ticked a box also rewrote the total and
+    // its section's heading, so any two open at once conflicted on lines no
+    // tick was on, and each conflict held a lane up for an hour.
+    let mut progress = vec![format!(
+        "{ticked} / {} checked, {skipped} not applicable, {looked} looked at ([~]), {untranslated} untranslated",
+        manual.len()
+    )];
 
     for s in &sections {
         let mine: Vec<&Check> = s.checks.iter().filter(|c| !automated.contains(&c.id)).collect();
@@ -172,7 +181,10 @@ fn main() {
         };
         let d = mine.iter().filter(|c| done.contains(&c.id)).count();
         let seen = mine.iter().filter(|c| marks.get(&c.id) == Some(&'~')).count();
-        let seen = if seen > 0 { format!("（画像で {seen}）") } else { String::new() };
+        let seen = if seen > 0 { format!(", {seen} looked at") } else { String::new() };
+        if !mine.is_empty() {
+            progress.push(format!("{:>3}. {d} / {}{seen}  {}", s.n, mine.len(), s.title));
+        }
 
         if mine.is_empty() {
             // Every row automated. Say so and move on: a heading with nothing
@@ -181,7 +193,7 @@ fn main() {
             writeln!(out, "`cargo test` が全部見ているので、押すものはありません。").unwrap();
             continue;
         }
-        writeln!(out, "\n## {}. {title} — {d} / {}{seen}\n", s.n, mine.len()).unwrap();
+        writeln!(out, "\n## {}. {title}\n", s.n).unwrap();
         if let Some(note) = n.map(|n| n.note.trim()).filter(|s| !s.is_empty()) {
             writeln!(out, "{note}\n").unwrap();
         }
@@ -244,9 +256,17 @@ fn main() {
         );
     }
 
+    if stats {
+        println!("{out_path}:");
+        for line in &progress {
+            println!("  {line}");
+        }
+        return;
+    }
     if check {
         // Byte comparison, and tick-insensitive for free: `out` carried the
-        // existing ticks forward, so a tick can never be what differs.
+        // existing ticks forward, so a tick can never be what differs -- and
+        // with no counts in the file, neither can a number a tick moved.
         let old = std::fs::read_to_string(out_path).unwrap_or_default();
         if old == out {
             println!(
@@ -271,16 +291,10 @@ fn main() {
     );
 }
 
-/// How the rows on the list stand, for the paragraph at the top.
-struct Counts {
-    ticked: usize,
-    skipped: usize,
-    looked: usize,
-    untranslated: usize,
-}
-
-fn preamble(out: &mut String, lane: Lane, all: &[&Check], manual: &[&&Check], counts: Counts) {
-    let Counts { ticked, skipped, looked, untranslated } = counts;
+/// The paragraph at the top. Only numbers a tick cannot move go in it: how
+/// many rows there are, and how many lack a translation. Both change on
+/// `main` alone, so a pull request that only ticks never touches this.
+fn preamble(out: &mut String, lane: Lane, all: &[&Check], manual: &[&&Check], untranslated: usize) {
     let flag = if lane == Lane::Linux { " -- --lane linux" } else { "" };
     writeln!(out, "{}", match lane {
         Lane::Windows => "# 実機チェックリスト",
@@ -301,23 +315,16 @@ fn preamble(out: &mut String, lane: Lane, all: &[&Check], manual: &[&&Check], co
     writeln!(out).unwrap();
     writeln!(
         out,
-        "**{ticked} / {} 済み。**（{SRC} の全 {} 件のうち、`cargo test` が見ている {} 件は\n\
-         「押すもの」から外してある）",
+        "押すものは {} 件（{SRC} の全 {} 件のうち、`cargo test` が見ている {} 件は外してある）。\n\
+         **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が\n\
+         必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- {lane_arg}--stats` で出る。\n\
+         `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。",
         manual.len(),
         all.len(),
         all.len() - manual.len(),
+        lane_arg = if lane == Lane::Linux { "--lane linux " } else { "" },
     )
     .unwrap();
-    if skipped > 0 {
-        writeln!(out, "\nほかに {skipped} 件が `[-]`（Linux では対象外）。").unwrap();
-    }
-    if looked > 0 {
-        writeln!(
-            out,
-            "\nほかに {looked} 件が `[~]`（Agent が画像で見て判断した。持ち主が同じ画像を見て `[x]` にするまで済みに数えない）。"
-        )
-        .unwrap();
-    }
     if untranslated > 0 {
         writeln!(out, "\n未訳 {untranslated} 件は原文のまま `〔未訳〕` を付けて出している。").unwrap();
     }
@@ -342,9 +349,8 @@ fn preamble(out: &mut String, lane: Lane, all: &[&Check], manual: &[&&Check], co
          2. 節ごとに「準備」を走らせてから、上から押していく。\n\
          3. 期待どおりなら `[ ]` を `[x]` にする。違ったら `<F12>` で issue を出すか、\
          そのまま書き留める。\n\
-         `[~]` は、見た目の行を Agent が画面の画像で判断したもの（証拠の画像は PR と QA-REPORT.md にある）。\
-         同じ画像を見て正しければ `[x]` に変える。\n\
-         4. 節の見出しの `3 / 12` は、その節で人が押す分の進捗。\n\n\
+         `[~]` は、見た目の行を Agent が画面の画像で判断したもの（証拠の画像は PR と、その実行の\
+         `qa-reports/` の報告にある）。同じ画像を見て正しければ `[x]` に変える。\n\n\
          キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、\
          こちらは「1 つのキーでは\n確かめられない振る舞い」の側。"
     )

@@ -120,7 +120,7 @@ fn extract_zip(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result
             std::fs::create_dir_all(parent)?;
         }
         let size = entry.size();
-        let when = entry.last_modified().and_then(from_zip_time);
+        let when = zip_entry_time(entry.extra_data_fields(), entry.last_modified());
         let mut out = BufWriter::new(File::create(&path)?);
         io::copy(&mut entry, &mut out)?;
         out.flush()?;
@@ -141,6 +141,42 @@ fn set_time(out: BufWriter<File>, when: Option<std::time::SystemTime>) -> io::Re
         out.into_inner().map_err(|e| e.into_error())?.set_modified(when)?;
     }
     Ok(())
+}
+
+/// The entry's modification time, from the most exact field it carries: NTFS
+/// (`0x000a`, to 100 ns, what 7-Zip writes on Windows), then the extended
+/// timestamp (`0x5455`, to the second, what Info-ZIP and filer write), then
+/// the MS-DOS field every zip has. The DOS field alone is two-second steps in
+/// local time, and 7-Zip rounds it *up*: `2019-02-28 23:59:59` came back as
+/// `2019-03-01 00:00:00`, a day and a month later, where 7-Zip and Explorer
+/// both read the exact time from the same archive (#174).
+fn zip_entry_time<'a>(
+    extra: impl Iterator<Item = &'a zip::ExtraField>,
+    dos: Option<zip::DateTime>,
+) -> Option<std::time::SystemTime> {
+    let extra: Vec<&zip::ExtraField> = extra.collect();
+    let ntfs = extra.iter().find_map(|f| match f {
+        zip::ExtraField::Ntfs(n) if n.mtime() != 0 => from_filetime(n.mtime()),
+        _ => None,
+    });
+    let unix = || {
+        extra.iter().find_map(|f| match f {
+            zip::ExtraField::ExtendedTimestamp(t) => {
+                t.mod_time().map(|s| std::time::UNIX_EPOCH + std::time::Duration::from_secs(u64::from(s)))
+            }
+            _ => None,
+        })
+    };
+    ntfs.or_else(unix).or_else(|| dos.and_then(from_zip_time))
+}
+
+/// A Windows FILETIME: 100 ns ticks since 1601-01-01 UTC.
+fn from_filetime(ticks: u64) -> Option<std::time::SystemTime> {
+    const TO_UNIX: u64 = 11_644_473_600;
+    let (secs, rest) = (ticks / 10_000_000, ticks % 10_000_000);
+    let gap = std::time::Duration::new(secs.abs_diff(TO_UNIX), 0);
+    let at = if secs >= TO_UNIX { std::time::UNIX_EPOCH.checked_add(gap)? } else { std::time::UNIX_EPOCH.checked_sub(gap)? };
+    at.checked_add(std::time::Duration::from_nanos(rest * 100))
 }
 
 /// A zip's MS-DOS time, which is local time with no zone -- the way `zip_time`
@@ -534,20 +570,36 @@ fn zip_time(path: &Path) -> Option<zip::DateTime> {
     .ok()
 }
 
+/// The file's modification time as the extended timestamp holds it: whole
+/// seconds since 1970, in 32 bits. `None` outside that range, and the entry
+/// then has the DOS field only.
+fn unix_secs(path: &Path) -> Option<u32> {
+    let modified = std::fs::metadata(path).ok()?.modified().ok()?;
+    u32::try_from(modified.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs()).ok()
+}
+
 fn write_zip<W: Write + io::Seek>(
     members: &[Member],
     out: W,
     on_entry: OnEntry<'_>,
 ) -> io::Result<W> {
     let mut zip = zip::ZipWriter::new(out);
-    let opts = zip::write::SimpleFileOptions::default()
+    let opts = zip::write::FullFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated);
     for m in members {
         let to_io = |e: zip::result::ZipError| io::Error::other(e.to_string());
-        let opts = match zip_time(&m.path) {
-            Some(t) => opts.last_modified_time(t),
-            None => opts,
+        let mut opts = match zip_time(&m.path) {
+            Some(t) => opts.clone().last_modified_time(t),
+            None => opts.clone(),
         };
+        // The exact second as well, in the extended timestamp: the DOS field
+        // alone is two-second steps, so another tool unpacking filer's zip got
+        // every odd second one lower (#174).
+        if let Some(secs) = unix_secs(&m.path) {
+            let mut field = vec![1u8];
+            field.extend_from_slice(&secs.to_le_bytes());
+            opts.add_extra_data(0x5455, field, false).map_err(to_io)?;
+        }
         if m.dir {
             zip.add_directory(&m.name, opts).map_err(to_io)?;
             continue;
@@ -740,6 +792,60 @@ mod tests {
                 assert_eq!(got.timestamp(), when.timestamp(), "{name}: {f} keeps 12:34:56, not the time it was unpacked");
             }
         }
+    }
+
+    /// #174: an odd second survives filer's own zip, through the extended
+    /// timestamp; the DOS field alone came back one second low.
+    #[test]
+    fn a_zip_keeps_an_odd_second() {
+        let dir = crate::util::test_dir("zip-odd");
+        let file = dir.join("odd.txt");
+        std::fs::write(&file, "x").unwrap();
+        let when = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_623_760_497); // ...:57, odd
+        std::fs::File::options().write(true).open(&file).unwrap().set_modified(when).unwrap();
+        let archive = dir.join("odd.zip");
+        compress(std::slice::from_ref(&file), &dir, &archive, Format::Zip, &mut |_, _| true).unwrap();
+        let out = dir.join("out");
+        extract(&archive, &out, &mut |_, _| true).unwrap();
+        assert_eq!(std::fs::metadata(out.join("odd.txt")).unwrap().modified().unwrap(), when);
+    }
+
+    /// #174: a zip as 7-Zip writes it -- the DOS field rounded up past
+    /// midnight, the exact time in an NTFS field -- unpacks to the exact time,
+    /// not to the next day and month.
+    #[test]
+    fn another_tools_exact_time_wins_over_the_rounded_one() {
+        let dir = crate::util::test_dir("zip-ntfs");
+        // 2019-02-28 23:59:59.5 UTC as a FILETIME.
+        let exact = std::time::UNIX_EPOCH + std::time::Duration::new(1_551_398_399, 500_000_000);
+        let ticks = (1_551_398_399u64 + 11_644_473_600) * 10_000_000 + 5_000_000;
+        let mut ntfs = Vec::new();
+        ntfs.extend_from_slice(&0u32.to_le_bytes()); // reserved
+        ntfs.extend_from_slice(&1u16.to_le_bytes()); // attribute 1: the three times
+        ntfs.extend_from_slice(&24u16.to_le_bytes());
+        for t in [ticks, ticks, ticks] {
+            ntfs.extend_from_slice(&t.to_le_bytes());
+        }
+        let mut opts = zip::write::FullFileOptions::default()
+            .last_modified_time(zip::DateTime::from_date_and_time(2019, 3, 1, 0, 0, 0).unwrap());
+        opts.add_extra_data(0x000a, ntfs, false).unwrap();
+        let archive = dir.join("7z-made.zip");
+        let mut zip = zip::ZipWriter::new(File::create(&archive).unwrap());
+        zip.start_file("late.txt", opts).unwrap();
+        zip.write_all(b"x").unwrap();
+        zip.finish().unwrap();
+
+        let out = dir.join("out");
+        extract(&archive, &out, &mut |_, _| true).unwrap();
+        assert_eq!(std::fs::metadata(out.join("late.txt")).unwrap().modified().unwrap(), exact);
+    }
+
+    /// The FILETIME epoch is 1601; the arithmetic is the whole of it.
+    #[test]
+    fn a_filetime_is_read_from_1601() {
+        assert_eq!(from_filetime(116_444_736_000_000_000), Some(std::time::UNIX_EPOCH));
+        let one_and_a_bit = std::time::UNIX_EPOCH + std::time::Duration::new(1, 100);
+        assert_eq!(from_filetime(116_444_736_010_000_001), Some(one_and_a_bit));
     }
 
     /// Q43: one folder at the top comes out as that folder; anything else

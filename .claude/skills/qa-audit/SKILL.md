@@ -10,7 +10,7 @@ the run produced something worth landing, an open pull request.
 
 Your role and its limits are in [.claude/qa-role.md](../../qa-role.md). Read it
 before anything else here. The short version: you write only inside
-`#[cfg(test)]` modules, and anything else you find goes in `QA-REPORT.md` as a
+`#[cfg(test)]` modules, and anything else you find goes in your report (`qa-reports/<date>-<branch>.md`, a file per run; `.claude/qa-role.md`) as a
 proposal.
 
 ---
@@ -60,7 +60,7 @@ Then the file's own structure:
 6. **The "what is covered automatically" paragraph** at the top matches what
    `cargo test` actually covers now.
 
-**Write the findings to `QA-REPORT.md`.** What you may change in TESTING.md is in
+**Write the findings to your report** (`qa-reports/`, never QA-REPORT.md). What you may change in TESTING.md is in
 `.claude/qa-role.md` and only there: the note under a section heading, never a
 number or a row. Renumbering a section renumbers everything after it — TESTING.md
 says so, and it is why 11 is followed by 28.
@@ -93,7 +93,7 @@ cargo run --example make-keycheck -- --check
 
 - **exit 0** — in sync. Nothing to do; say so.
 - **exit 1** — it prints the keys that were added, removed, or whose description
-  changed. **Put that list in `QA-REPORT.md` verbatim** and stop. Running the
+  changed. **Put that list in your report verbatim** and stop. Running the
   generator without `--check` writes the file, so do not run it that way at all.
 
 `--check` ignores the `[x]` ticks, because those are the owner's. Name in the report
@@ -129,7 +129,7 @@ is the expensive order. Three things put a row out of reach:
   preview, archive or usage workers. A row whose expectation only appears after a
   worker answers cannot be driven without building that state by hand first.
 
-**Say what you found in `QA-REPORT.md` either way.** A section that turns out to
+**Say what you found in your report either way.** A section that turns out to
 be two rows deep rather than ten is a finding: it moves the rest back to the
 person at the machine honestly, instead of leaving them on a list labelled
 "automatable" that nobody has checked. Do not stretch a test to cover a row it
@@ -219,7 +219,7 @@ request body instead, in English and ready to paste; whoever merges bumps the
 PATCH.
 
 If verification does not pass and you cannot fix it inside a `#[cfg(test)]`
-module, `git restore` / `git clean` and write why in `QA-REPORT.md`. A red commit
+module, `git restore` / `git clean` and write why in your report. A red commit
 is worse than no commit.
 
 ---

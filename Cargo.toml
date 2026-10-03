@@ -1,6 +1,6 @@
 [package]
 name = "filer"
-version = "0.73.12"
+version = "0.73.17"
 edition = "2021"
 rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"
@@ -66,6 +66,12 @@ default-features = false
 
 [profile.dev]
 opt-level = 1
+
+# No debug info for the dependencies, only for filer itself: a backtrace still
+# names filer's own lines, and the 500-odd crates underneath stop being most of
+# `target` (a cloud session filled its disk twice on 2026-10-03).
+[profile.dev.package."*"]
+debug = false
 
 [profile.release]
 opt-level = 3
