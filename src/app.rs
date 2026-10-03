@@ -1177,6 +1177,8 @@ pub struct App {
     /// Jobs whose step joins a stack once they finish, and where it goes. A job
     /// that fails puts its step back rather than losing it.
     op_undo: HashMap<u64, (UndoStep, Land)>,
+    /// What each running `D` is deleting, for the toast its end replaces.
+    deleting: HashMap<u64, Vec<PathBuf>>,
 
     pub search: Option<crate::search::Handle>,
     /// The disk-usage walk, while one is running. Dropping it stops the walk, so
@@ -1310,6 +1312,7 @@ impl App {
             history: Vec::new(),
             undos: Undos::default(),
             op_undo: HashMap::new(),
+            deleting: HashMap::new(),
             search: None,
             usage: None,
             usage_max: 0,
@@ -3509,8 +3512,30 @@ impl App {
             sampled_at: Instant::now(),
             sampled_bytes: 0,
         });
+        if kind == OpKind::Delete {
+            self.deleting.insert(id, srcs.clone());
+        }
         self.ops.submit(OpRequest { id, kind, srcs, dest_dir, dest_file, force });
         id
+    }
+
+    /// `D` went through: a red `Trash: <name>: …` still up about one of the
+    /// files it took -- the `d` that failed and said to press `D` -- is no
+    /// longer true, so it gives way to `Deleted <name>` (#207). Only that:
+    /// a `D` with nothing to answer stays as quiet as it was.
+    fn deleted(&mut self, paths: &[PathBuf]) {
+        let names: Vec<String> = paths.iter().map(|p| util::file_name(p)).collect();
+        let before = self.toasts.len();
+        self.toasts.retain(|t| {
+            t.level != Level::Error || !names.iter().any(|n| t.text.starts_with(&format!("Trash: {n}: ")))
+        });
+        if self.toasts.len() == before {
+            return;
+        }
+        match names.as_slice() {
+            [one] => self.toast(format!("Deleted {one}")),
+            many => self.toast(format!("Deleted {} item(s)", many.len())),
+        }
     }
 
     /// Remember that finishing job `id` leaves `step` on one of the undo
@@ -3603,6 +3628,11 @@ impl App {
                 }
                 if !errors.is_empty() {
                     self.error(format!("{}: {}", kind.verb(), errors[0]));
+                }
+                if let Some(paths) = self.deleting.remove(&id) {
+                    if errors.is_empty() && !cancelled {
+                        self.deleted(&paths);
+                    }
                 }
                 if !junctions.is_empty() {
                     self.offer_junctions(junctions);
@@ -8165,7 +8195,7 @@ mod escape_and_max_preview {
         std::fs::write(&file, "x").unwrap();
         let mut a = app();
         a.tabs[a.active].cwd = dir.clone();
-        let entries = vec![crate::fs::Entry::from_path(file).unwrap()];
+        let entries = vec![crate::fs::Entry::from_path(file.clone()).unwrap()];
         a.tabs[a.active].current = Folder::from_entries(dir, Arc::new(entries), true);
         assert!(a.term.is_none());
 
@@ -8185,22 +8215,36 @@ mod escape_and_max_preview {
         // with a long `TEMP` the echoed path wraps, putting the name across
         // two rows. Looked for row by row, it was never found -- always, on a
         // machine with no RAM disk, whose scratch path is long (#203).
-        let echoed = |a: &App| {
-            a.term.as_ref().is_some_and(|t| {
+        // The pane's text, joined, and how wide each row it came from is: on
+        // a failure, the two say whether the name never arrived or arrived
+        // wrapped. #203 and #206 each had to add a print to tell (#206).
+        let pane = |a: &App| {
+            a.term.as_ref().map_or((String::new(), Vec::new()), |t| {
                 t.with_grid(|g| {
-                    crate::terminal::snapshot(g)
-                        .iter()
-                        .flat_map(|row| row.iter().map(|c| c.c))
-                        .collect::<String>()
-                        .contains("q35-marker.txt")
+                    let rows = crate::terminal::snapshot(g);
+                    let text = rows.iter().flat_map(|row| row.iter().map(|c| c.c)).collect::<String>();
+                    let widths = rows.iter().map(|row| row.iter().filter(|c| c.c != ' ').count()).collect();
+                    (text, widths)
                 })
             })
         };
-        while !(a.term_pending.is_none() && echoed(&a)) {
-            assert!(std::time::Instant::now() < deadline, "the name never reached the shell");
+        while !(a.term_pending.is_none() && pane(&a).0.contains("q35-marker.txt")) {
+            if std::time::Instant::now() >= deadline {
+                let (text, widths) = pane(&a);
+                panic!(
+                    "the name never reached the shell; the pane held {:?}, rows {widths:?} wide",
+                    text.split_whitespace().collect::<Vec<_>>().join(" "),
+                );
+            }
             a.pump_terminal();
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
+        // The whole path, not only its end: with a scratch longer than a row
+        // this holds only because the rows were joined, so a re-test can read
+        // that from the test passing instead of undoing the fix to see (#206).
+        let (text, _) = pane(&a);
+        let sent = file.display().to_string();
+        assert!(text.contains(&sent), "the whole path arrived ({} characters): {sent}", sent.len());
         a.act(Act::Terminal(Some(false)));
         if a.term.is_some() {
             a.answer_confirm('y');
@@ -8460,6 +8504,39 @@ mod said_out_loud {
         });
         assert!(a.toasts.iter().any(|t| t.text == "Trashed a.txt — u to undo"), "{:?}",
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// #207: `d` failed and said to use `D`; once `D` has gone through, the
+    /// red line about that file gives way to `Deleted <name>`. A `D` with no
+    /// such line to answer says nothing, as before.
+    #[test]
+    fn a_delete_replaces_the_trash_error_it_answers() {
+        let dir = crate::util::test_dir("said-delete");
+        let mut a = app_in(&dir);
+        let finished = |id| ops::OpEvent::Finished {
+            id,
+            kind: OpKind::Delete,
+            errors: Vec::new(),
+            cancelled: false,
+            moved: Vec::new(),
+            linked: Vec::new(),
+            junctions: Vec::new(),
+            made: None,
+            trashed: Vec::new(),
+        };
+        a.error("Trash: a.txt: the Recycle Bin can't take files from R: (…). Use D to delete permanently");
+        a.error("Trash: b.txt: it is open in another program");
+        let id = a.submit_op_to(OpKind::Delete, vec![dir.join("a.txt")], dir.clone(), None, false);
+        a.on_op_event(finished(id));
+        let said: Vec<&str> = a.toasts.iter().map(|t| t.text.as_str()).collect();
+        assert!(!said.iter().any(|t| t.starts_with("Trash: a.txt")), "the answered line is gone: {said:?}");
+        assert!(said.contains(&"Trash: b.txt: it is open in another program"), "another file's stays: {said:?}");
+        assert!(said.contains(&"Deleted a.txt"), "{said:?}");
+
+        let quiet = a.toasts.len();
+        let id = a.submit_op_to(OpKind::Delete, vec![dir.join("c.txt")], dir.clone(), None, false);
+        a.on_op_event(finished(id));
+        assert_eq!(a.toasts.len(), quiet, "nothing to answer, nothing said");
     }
 
     /// #83: a trash where four of five went leaves a step for the four, so
