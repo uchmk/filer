@@ -333,11 +333,11 @@ fsutil hardlink list <新しくできたパス>
 
 自動テスト済みなので下には出していない: 18.1, 18.2, 18.3, 18.4, 18.8, 18.9, 18.10
 
-- [ ] **18.5** `<C-w>` → 2 分割になり、キーのあるほうが枠で囲まれ、もう一方のカーソルは淡くなる — *`<C-w>` → The view splits into two panes; the one with the keys is framed, the other's cursor is dimmed*
-- [ ] **18.6** ファイルを選んで `<A-c>` → もう一方のペインへコピーされる — *Select files, `<A-c>` → Copied into the other pane*
-- [ ] **18.7** ファイルをもう一方のペインへドラッグ → 対象が枠で示され、ポインタの横に「copy」と出る（`Shift` で「move」）。**離す前に**出ること — *Drag files onto the other pane → A frame marks the target, and a label by the pointer says "copy" — `Shift` makes it "move" — **before** you let go*
-- [ ] **18.11** `B` で保存しておいた場所へ、`'` に続けて文字を押す → そこへ飛ぶ。**`b` はブックマークの*管理*の前置キー**（`bb` 一覧、`bs` 保存、`bd` 削除）なので、`b` + 文字では何にも届かない — *`'` then a letter, having saved one with `B` → Jumps there. **`b` is the prefix bookmark *management* hangs off** (`bb` lists, `bs` saves, `bd` deletes), so `b` and a letter reaches nothing*
-- [ ] **18.12** `z` → ジャンプ一覧が出る。ブックマークが先、そのあと最近のディレクトリが「2h ago」付きで並ぶ — *`z` → The jump list: bookmarks first, then recent directories with "2h ago" beside them*
+- [x] **18.5** `<C-w>` → 2 分割になり、キーのあるほうが枠で囲まれ、もう一方のカーソルは淡くなる — *`<C-w>` → The view splits into two panes; the one with the keys is framed, the other's cursor is dimmed*
+- [x] **18.6** ファイルを選んで `<A-c>` → もう一方のペインへコピーされる — *Select files, `<A-c>` → Copied into the other pane*
+- [~] **18.7** ファイルをもう一方のペインへドラッグ → 対象が枠で示され、ポインタの横に「copy」と出る（`Shift` で「move」）。**離す前に**出ること — *Drag files onto the other pane → A frame marks the target, and a label by the pointer says "copy" — `Shift` makes it "move" — **before** you let go*
+- [x] **18.11** `B` で保存しておいた場所へ、`'` に続けて文字を押す → そこへ飛ぶ。**`b` はブックマークの*管理*の前置キー**（`bb` 一覧、`bs` 保存、`bd` 削除）なので、`b` + 文字では何にも届かない — *`'` then a letter, having saved one with `B` → Jumps there. **`b` is the prefix bookmark *management* hangs off** (`bb` lists, `bs` saves, `bd` deletes), so `b` and a letter reaches nothing*
+- [x] **18.12** `z` → ジャンプ一覧が出る。ブックマークが先、そのあと最近のディレクトリが「2h ago」付きで並ぶ — *`z` → The jump list: bookmarks first, then recent directories with "2h ago" beside them*
 
 ## 19. ホイール、ペインごとの挙動
 
