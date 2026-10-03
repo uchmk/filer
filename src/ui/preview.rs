@@ -76,14 +76,13 @@ pub fn draw(
         }
         PreviewState::Dir(_) => 0, // drawn by the caller as a list
         PreviewState::Ready(payload) => match payload {
+            // Wrapped to the pane: the end of the message -- where an SVG
+            // broke off, which file a path names -- is the useful part, and
+            // on one line it ran off the right edge (#219).
             Payload::Error(e) => {
-                painter.text(
-                    rect.left_top() + Vec2::new(PAD, 8.0),
-                    Align2::LEFT_TOP,
-                    e,
-                    st.font.clone(),
-                    st.theme.progress_error,
-                );
+                let width = (rect.width() - 2.0 * PAD).max(40.0);
+                let g = painter.layout(e.clone(), st.font.clone(), st.theme.progress_error, width);
+                painter.galley(rect.left_top() + Vec2::new(PAD, 8.0), g, st.theme.progress_error);
                 0
             }
             Payload::Text { lines, map, extent, outline } => {
@@ -693,14 +692,12 @@ fn outline(
 
 fn truncation_note(painter: &Painter, rect: Rect, shown: usize, extent: &Extent, st: &PreviewStyle<'_>) {
     let y = rect.top() + shown as f32 * st.row_h;
+    // Wrapped, as the error above is: in a narrow pane the note's end -- how
+    // many lines, where the table stopped -- was cut off (#213).
     if y < rect.bottom() {
-        painter.text(
-            pos2(rect.left() + PAD, y),
-            Align2::LEFT_TOP,
-            extent.note(),
-            st.font.clone(),
-            st.theme.fg_dim,
-        );
+        let width = (rect.width() - 2.0 * PAD).max(40.0);
+        let g = painter.layout(extent.note(), st.font.clone(), st.theme.fg_dim, width);
+        painter.galley(pos2(rect.left() + PAD, y), g, st.theme.fg_dim);
     }
 }
 
