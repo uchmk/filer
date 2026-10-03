@@ -339,11 +339,11 @@ fsutil hardlink list <新しくできたパス>
 
 ## 19. ホイール、ペインごとの挙動
 
-- [ ] **19.1** 長いテキストの**プレビュー**の上でホイール → 強く回さなくても 1 ノッチずつスクロールする（v0.26.5 の修正） — *Wheel over the **preview** of a long text file → It scrolls, one notch at a time, without spinning hard. This is the v0.26.5 fix*
-- [ ] **19.2** プレビューの上でできる限りゆっくり回す → それでも動く。端数も捨てずに積算される — *Turn the wheel as slowly as you can over the preview → It still moves. Every fraction counts; nothing is discarded*
-- [ ] **19.3** **ファイル一覧**の上でホイール → 同じ。分割しているときは、それぞれのペインの上で — *Wheel over the **file list** → The same, and with the split open, over each pane in turn*
-- [ ] **19.4** **ターミナル**ペインの上でホイール → 同じく正しい（v0.20.4 で先に直してあり、いまは同じコードを共有している） — *Wheel over the **terminal** pane → Still right — fixed earlier, in v0.20.4, and now sharing the same code*
-- [ ] **19.5** 一方に回してすぐ逆に回す → 即座に反転する。取り残された端数による空走りが無い — *Turn one way then straight back → It reverses at once, with no dead travel from a stranded remainder*
+- [x] **19.1** 長いテキストの**プレビュー**の上でホイール → 強く回さなくても 1 ノッチずつスクロールする（v0.26.5 の修正） — *Wheel over the **preview** of a long text file → It scrolls, one notch at a time, without spinning hard. This is the v0.26.5 fix*
+- [x] **19.2** プレビューの上でできる限りゆっくり回す → それでも動く。端数も捨てずに積算される — *Turn the wheel as slowly as you can over the preview → It still moves. Every fraction counts; nothing is discarded*
+- [x] **19.3** **ファイル一覧**の上でホイール → 同じ。分割しているときは、それぞれのペインの上で — *Wheel over the **file list** → The same, and with the split open, over each pane in turn*
+- [x] **19.4** **ターミナル**ペインの上でホイール → 同じく正しい（v0.20.4 で先に直してあり、いまは同じコードを共有している） — *Wheel over the **terminal** pane → Still right — fixed earlier, in v0.20.4, and now sharing the same code*
+- [x] **19.5** 一方に回してすぐ逆に回す → 即座に反転する。取り残された端数による空走りが無い — *Turn one way then straight back → It reverses at once, with no dead travel from a stranded remainder*
 - [ ] **19.6** 画像の上で `Ctrl`+ホイール → 拡大縮小し、同じ操作でペインが**スクロールしない** — *`Ctrl` and the wheel over an image → Zooms, and does **not** scroll the pane with the same turn*
 - [ ] **19.7** 回している途中でポインタを別のペインへ移す → どちらも飛ばない。端数はペインごとに別々に持っている — *Move the pointer between panes mid-turn → Neither jumps: each keeps its own remainder*
 
