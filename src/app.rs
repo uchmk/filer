@@ -72,6 +72,8 @@ pub enum ConfirmAction {
     EndShell,
     /// Folder symlinks Windows refused, offered again as junctions (Q46).
     Junctions { links: Vec<ops::Link> },
+    /// `<F12>`'s report, shown before anything leaves the machine (Q62).
+    BugReport { url: String },
 }
 
 pub struct ConfirmOverlay {
@@ -526,6 +528,13 @@ pub enum Level {
     Info,
     Warn,
     Error,
+}
+
+/// How many keys [`App::recent_keys`] keeps.
+const RECENT_KEYS: usize = 20;
+
+fn keymap_render(k: &Key) -> String {
+    crate::config::keys::render_seq(std::slice::from_ref(k))
 }
 
 /// How many toasts [`App::toast_log`] keeps.
@@ -1183,6 +1192,13 @@ pub struct App {
     /// out, so a check whose expected result is a toast does not have to
     /// catch it on screen before it goes (#176, #190, #196).
     pub toast_log: std::collections::VecDeque<String>,
+    /// The last keys pressed, rendered, newest last, for `<F12>`'s report
+    /// (Q64). Keys only: text typed into a prompt is not kept.
+    pub recent_keys: std::collections::VecDeque<String>,
+    /// The newest error raised, for the same report.
+    pub last_error: Option<String>,
+    /// The report link `<F12>` last opened or copied, for the state file.
+    pub last_report: Option<String>,
     /// Openers still young enough to fail on us; drained in
     /// [`App::drain_channels`].
     launches: Vec<exec::Launch>,
@@ -1325,6 +1341,9 @@ impl App {
             tasks: Vec::new(),
             toasts: Vec::new(),
             toast_log: std::collections::VecDeque::new(),
+            recent_keys: std::collections::VecDeque::new(),
+            last_error: None,
+            last_report: None,
             launches: Vec::new(),
             bookmarks: Vec::new(),
             history: Vec::new(),
@@ -1409,7 +1428,17 @@ impl App {
     }
 
     pub fn error(&mut self, text: impl Into<String>) {
-        self.raise(text.into(), Level::Error);
+        let text = text.into();
+        self.last_error = Some(text.clone());
+        self.raise(text, Level::Error);
+    }
+
+    /// Keep `k` among the last keys pressed.
+    fn note_key(&mut self, k: &Key) {
+        if self.recent_keys.len() == RECENT_KEYS {
+            self.recent_keys.pop_front();
+        }
+        self.recent_keys.push_back(keymap_render(k));
     }
 
     /// A toast that supersedes the others of its family -- those starting
@@ -2230,6 +2259,7 @@ impl App {
     /// pending bookmark) and keep their own.
     pub fn feed_overlay_key(&mut self, k: Key) {
         let Some(layer) = PanelLayer::of(&self.overlay) else { return };
+        self.note_key(&k);
         self.pending.push(k);
         let acts = match keymap::resolve(layer.bindings(&self.cfg.keymap), &self.pending) {
             keymap::Match::Exact(b) => b.run.clone(),
@@ -3710,14 +3740,45 @@ impl App {
         }
     }
 
-    /// `<F12>`: the issue form in the browser, already filled in.
-    ///
-    /// When the browser cannot be opened, the URL goes on the clipboard so it
-    /// can be pasted into one by hand -- only then, so a report that worked
-    /// never overwrites what was on the clipboard (Q22). The form's fields
-    /// travel in the URL, so the pasted link is the whole report.
+    /// `<F12>`: what a bug report would carry, shown before anything leaves
+    /// the machine (Q62). `o` / `<Enter>` opens the issue form with it filled
+    /// in, `c` copies the link, `n` / `<Esc>` drops it. It used to open the
+    /// browser on the press, and nobody saw what went with it -- which is
+    /// fine for a version and an OS, and not for the keys and names Q64 adds.
     fn bug_report(&mut self) {
-        let url = crate::bugreport::url();
+        // The `<F12>` itself is not part of what happened.
+        let keys: Vec<String> = self.recent_keys.iter().rev().skip(1).rev().cloned().collect();
+        let keys = keys.join(" ");
+        let context = crate::bugreport::context(self.last_error.as_deref(), &self.cfg.loaded);
+        let url = crate::bugreport::url(&[
+            ("keys", if keys.is_empty() { String::new() } else { format!("Last keys, oldest first: {keys}") }),
+            ("context", context.clone()),
+        ]);
+        let mut body = vec![crate::bugreport::version_line()];
+        body.extend(crate::bugreport::os_line().lines().map(str::to_owned));
+        body.push(format!("Last keys: {}", if keys.is_empty() { "(none)" } else { &keys }));
+        body.extend(context.lines().map(str::to_owned));
+        body.push(String::new());
+        body.push("The form opens with these filled in; nothing is sent until you submit it there.".into());
+        self.overlay = Overlay::Confirm(ConfirmOverlay {
+            title: "Report a bug".into(),
+            body,
+            options: vec![
+                ('o', "Open the form in your browser".into()),
+                ('c', "Copy the link".into()),
+                ('n', "Cancel".into()),
+            ],
+            action: ConfirmAction::BugReport { url },
+            dest: None,
+        });
+    }
+
+    /// The `o` to [`App::bug_report`]. When the browser cannot be opened,
+    /// the URL goes on the clipboard so it can be pasted into one by hand --
+    /// only then, so a report that worked never overwrites what was on the
+    /// clipboard (Q22). The form's fields travel in the URL, so the pasted
+    /// link is the whole report.
+    fn open_report(&mut self, url: String) {
         match exec::open_url(&url) {
             Ok(()) => self.toast("Opened a bug report in your browser"),
             Err(e) => match exec::set_clipboard(&url) {
@@ -3727,6 +3788,7 @@ impl App {
                 Err(_) => self.error(format!("could not open the browser: {e}")),
             },
         }
+        self.last_report = Some(url);
     }
 
     fn start_rename(&mut self, cursor: RenameCursor) {
@@ -5409,6 +5471,17 @@ impl App {
                 'c' => self.copy_mklink(&links),
                 _ => {}
             },
+            ConfirmAction::BugReport { url } => match ch {
+                'o' => self.open_report(url),
+                'c' => {
+                    match exec::set_clipboard(&url) {
+                        Ok(()) => self.toast("Copied the bug report's link -- paste it into a browser"),
+                        Err(e) => self.error(format!("Clipboard: {e}")),
+                    }
+                    self.last_report = Some(url);
+                }
+                _ => {}
+            },
             ConfirmAction::BookmarkDeleteAll => {
                 if ch == 'y' {
                     self.bookmarks.clear();
@@ -5464,6 +5537,7 @@ impl App {
     // ------------------------------------------------------------ key input
 
     pub fn feed_key(&mut self, k: Key) {
+        self.note_key(&k);
         if let Some(_op) = self.pending_bookmark {
             match k.code {
                 Code::Char(c) if k.is_bare_char() => {
@@ -8625,6 +8699,33 @@ mod said_out_loud {
         assert!(matches!(a.overlay, Overlay::Help), "still open");
         assert!(a.toasts.iter().any(|t| t.text.starts_with("Reloaded")), "{:?}",
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// Q62 / Q64: `<F12>` shows what the report carries before anything is
+    /// opened -- the keys before it, the last error, the config by name --
+    /// with opening first, so `<Enter>` opens and `<Esc>` drops it.
+    #[test]
+    fn f12_shows_the_report_before_opening_it() {
+        let dir = crate::util::test_dir("f12-panel");
+        std::fs::write(dir.join("a.txt"), "a").unwrap();
+        let mut a = app_in(&dir);
+        a.error("Copy: a.txt: denied");
+        for k in ["j", "k", "<F12>"] {
+            a.feed_key(Key::parse(k).unwrap());
+        }
+        let Overlay::Confirm(c) = &a.overlay else { panic!("no panel: {:?}", a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>()) };
+        let ConfirmAction::BugReport { url } = &c.action else { panic!("not the report") };
+        assert_eq!(c.options.first().map(|o| o.0), Some('o'), "<Enter> opens");
+        assert!(c.body.iter().any(|l| l == "Last keys: j k"), "the keys before <F12>, not <F12>: {:?}", c.body);
+        assert!(c.body.iter().any(|l| l == "Last error: Copy: a.txt: denied"), "{:?}", c.body);
+        assert!(url.contains("&keys=Last%20keys%2C%20oldest%20first%3A%20j%20k"), "{url}");
+        assert!(url.contains("&context=Last%20error%3A%20Copy%3A%20a.txt%3A%20denied"), "{url}");
+        let url = url.clone();
+
+        // `c` copies the link and leaves it where the state file can read it.
+        a.answer_confirm('c');
+        assert!(matches!(a.overlay, Overlay::None));
+        assert_eq!(a.last_report.as_deref(), Some(url.as_str()));
     }
 
     /// #83: a trash where four of five went leaves a step for the four, so

@@ -755,8 +755,8 @@ tests cover the encoding and the shape of the URL, not what GitHub does with it.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 26.1 | `<F12>` | The default browser opens GitHub's new-issue form, and a toast says so |
-| 26.2 | Look at the form | **Version** and **OS とアーキテクチャ** are already filled in; the rest is empty |
+| 26.1 | `<F12>`, then `<Enter>` (or `o`) | `<F12>` first shows **Report a bug**: the version, the OS lines, the last keys, the last error, the rendering, the scale and the config files by name (v0.73.58, Q62). Nothing opens until `<Enter>`; then the default browser opens GitHub's new-issue form, and a toast says so |
+| 26.2 | Look at the form | Every heading is in English and Japanese (`What happened / 何が起きたか`, Q63). **filer version**, **OS and architecture**, **Keys that reproduce it** (`Last keys, oldest first: …`) and **What filer knew** (the panel's lines) are filled in; the rest is empty. No path with the user's name in it appears anywhere (Q64) |
 | 26.3 | Compare the filled version against `filer --version` in a terminal | The same string, architecture included |
 | 26.4 | Compare the filled OS line against `winver` | Edition, feature update and build all match, UBR included (`Windows 11 Pro 25H2 (build 26200.9457)`) |
 | 26.4b | Compare it against the form's own PowerShell snippet | The same facts. Nothing left worth pasting over the top |
@@ -766,6 +766,7 @@ tests cover the encoding and the shape of the URL, not what GitHub does with it.
 | 26.8 | `<F12>` with no browser set as default (or a broken association) | An error toast naming the failure. **The window keeps working** |
 | 26.9 | `<F12>` from the terminal pane (`<C-t>` first) | Nothing: `[term]` passes it to the shell, which is correct |
 | 26.10 | `<F12>` with the browser association broken, as in 26.8 (v0.52.0) | The error toast also says the report's link is **on the clipboard**; pasting it into a browser opens the same pre-filled form. When the browser *does* open, the clipboard is left alone |
+| 26.11 | `<F12>`, then `c`; again `<F12>`, then `<Esc>` (v0.73.58, Q62) | `c` puts the same link on the clipboard and says so, and `FILER_KEYS_DONE` has a `report:` line with it; no browser opens. `<Esc>` (or `n`) closes the panel and nothing opens or is copied |
 
 ## 27. The preview that would not arrive (v0.12.0)
 

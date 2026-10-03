@@ -18,13 +18,49 @@ const REPO: &str = "https://github.com/uchmk/filer";
 /// it does not recognise, and the field simply comes up empty.
 const TEMPLATE: &str = "bug_report.yml";
 
-/// The URL that opens a pre-filled report.
-pub fn url() -> String {
-    format!(
+/// The URL that opens a pre-filled report: the version and OS lines, and
+/// any `extra` fields as `(id, text)`, ids from the template.
+pub fn url(extra: &[(&str, String)]) -> String {
+    let mut u = format!(
         "{REPO}/issues/new?template={TEMPLATE}&version={}&os={}",
         encode(&version_line()),
         encode(&os_line()),
-    )
+    );
+    for (id, text) in extra.iter().filter(|(_, t)| !t.is_empty()) {
+        u.push_str(&format!("&{id}={}", encode(text)));
+    }
+    u
+}
+
+/// What the program knew when `<F12>` was pressed, beyond the version and
+/// the OS (Q64): the last error it raised, how it was drawing, and which
+/// config files it read -- by name, `yazi\keymap.toml`, never by path, since
+/// a path carries the user's name onto a public tracker.
+pub fn context(last_error: Option<&str>, loaded: &[std::path::PathBuf]) -> String {
+    let mut lines = Vec::new();
+    if let Some(e) = last_error {
+        lines.push(format!("Last error: {e}"));
+    }
+    if let Some(info) = crate::runinfo::load() {
+        if !info.adapter.is_empty() {
+            lines.push(format!("Rendering: {} ({}, {})", info.adapter, info.backend, info.device));
+        }
+        if info.ppp > 0.0 {
+            lines.push(format!("Scale: {:.0}%", info.ppp * 100.0));
+        }
+    }
+    let names: Vec<String> = loaded.iter().map(|p| short_name(p)).collect();
+    lines.push(format!("Config: {}", if names.is_empty() { "defaults only".into() } else { names.join(", ") }));
+    lines.join("\n")
+}
+
+/// `…\yazi\config\keymap.toml` as `yazi\config\keymap.toml` -- the folders
+/// that say whose file it is, without the home directory above them.
+fn short_name(p: &std::path::Path) -> String {
+    let parts: Vec<String> = p.components().rev().take(3).map(|c| c.as_os_str().to_string_lossy().into_owned()).collect();
+    let tail: Vec<&String> = parts.iter().rev().skip_while(|c| !matches!(c.as_str(), "yazi" | "filer")).collect();
+    let keep = if tail.is_empty() { parts.iter().rev().skip(1).collect() } else { tail };
+    keep.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(std::path::MAIN_SEPARATOR_STR)
 }
 
 /// What `--version` prints, and for the same reason: with more than one Windows
@@ -288,9 +324,30 @@ mod tests {
         assert_eq!(encode("あ"), "%E3%81%82");
     }
 
+    /// Q64: a config file is named by its folder and name, never its path.
+    #[test]
+    fn a_config_file_is_named_without_its_path() {
+        let sep = std::path::MAIN_SEPARATOR;
+        let p = |s: &str| std::path::PathBuf::from(s.replace('/', &sep.to_string()));
+        assert_eq!(short_name(&p("/home/someone/.config/yazi/keymap.toml")), format!("yazi{sep}keymap.toml"));
+        assert_eq!(short_name(&p("/Users/someone/AppData/Roaming/yazi/config/yazi.toml")), format!("yazi{sep}config{sep}yazi.toml"));
+        assert_eq!(short_name(&p("/somewhere/else/conf/filer.toml")), format!("conf{sep}filer.toml"));
+        let c = context(Some("Copy: a.txt: denied"), &[p("/home/someone/.config/filer/filer.toml")]);
+        assert!(c.starts_with("Last error: Copy: a.txt: denied\n"), "{c}");
+        assert!(c.ends_with(&format!("Config: filer{sep}filer.toml")), "{c}");
+        assert!(!c.contains("someone"), "no home directory: {c}");
+    }
+
+    #[test]
+    fn the_url_carries_extra_fields_by_id() {
+        let u = url(&[("keys", "j j".into()), ("context", String::new())]);
+        assert!(u.ends_with("&keys=j%20j"), "{u}");
+        assert!(!u.contains("context="), "an empty field is left out: {u}");
+    }
+
     #[test]
     fn the_url_carries_the_template_and_both_fields() {
-        let u = url();
+        let u = url(&[]);
         assert!(u.starts_with("https://github.com/uchmk/filer/issues/new?"), "{u}");
         assert!(u.contains("template=bug_report.yml"), "{u}");
         assert!(u.contains("&version=filer%20"), "{u}");

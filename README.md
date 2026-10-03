@@ -1054,7 +1054,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `<Tab>` | spot: details of the hovered file |
 | `<C-S-p>` | command palette: fuzzy-search every key binding and run it |
 | `<S-F10>` | context menu for the file under the cursor |
-| `<F12>` | bug report, with the version, architecture and OS build filled in |
+| `<F12>` | bug report: shows what it would carry, then `<Enter>` opens the form with it filled in, `c` copies the link |
 | `w` `q` | tasks (`p` pause, `x` cancel, `t` to the front) / quit |
 
 #### Yank, copy, and sending to the other pane
@@ -1298,8 +1298,11 @@ $env:FILER_TERM_SHELL = 'powershell'; filer; Remove-Item Env:FILER_TERM_SHELL
 
 ## Reporting a problem
 
-`<F12>` opens a report form with the version, both architectures and the OS build already filled
-in. If no browser can be opened, the form's link — every field travels in it — is put on the
+`<F12>` first shows what a report would carry: the version, both architectures and the OS build,
+the last keys pressed, the last error, how filer is drawing (adapter, backend, scale) and the config
+files it read — by name, never by path. `<Enter>` opens the report form with all of it filled in,
+`c` copies its link instead, `<Esc>` drops it; nothing leaves the machine until you submit the
+form. If no browser can be opened, the form's link — every field travels in it — is put on the
 clipboard instead, to paste into one. For everything else a report tends to need, `filer env` prints it:
 
 ```
@@ -1625,8 +1628,8 @@ pass there.
 
 ## Reporting a bug
 
-Press `<F12>` in the app. It opens the report form in your browser with the version, the
-architecture and the Windows build already filled in, which is the part of a report most
+Press `<F12>` in the app, then `<Enter>`. It opens the report form in your browser with the version, the
+architecture, the Windows build and what filer knew already filled in, which is the part of a report most
 likely to be looked up wrongly or not at all — and on Windows on ARM the program is better
 placed to answer than you are, since an x64 build running under emulation will tell the
 shell it is on x64 while knowing perfectly well what it is.

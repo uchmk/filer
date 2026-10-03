@@ -1,10 +1,13 @@
-name: 不具合報告
-description: 動かない、落ちる、思っているのと違う挙動をする
+name: Bug report / 不具合報告
+description: It does not work, it crashes, or it does something you did not expect / 動かない、落ちる、思っているのと違う挙動をする
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
+        English or Japanese, whichever you write more easily. `<F12>` in filer opens this form
+        with the version, the OS and what filer knew already filled in.
+
         最初の往復で必要になるものを先に聞きます。空欄でも出せますが、
         埋まっているほど調べ始めるのが早くなります。
 
@@ -14,7 +17,7 @@ body:
   - type: textarea
     id: what
     attributes:
-      label: 何が起きたか
+      label: What happened / 何が起きたか
       description: 期待した挙動と、実際の挙動。
       placeholder: |
         d を押したらファイルはごみ箱に入ったが、そのあと filer のウィンドウが消えた。
@@ -25,7 +28,7 @@ body:
   - type: textarea
     id: keys
     attributes:
-      label: 再現するキー操作
+      label: Keys that reproduce it / 再現するキー操作
       description: >
         キーボードで動かすプログラムなので、押したキーの並びがそのまま再現手順になります。
         どのフォルダで始めたか、どの行にカーソルがあったかも書いてください。
@@ -40,7 +43,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: filer の版
+      label: filer version / filer の版
       description: >
         `filer --version` の出力。v0.9.0 より前には `--version` が無いので、
         その場合はダウンロードしたファイル名（`filer-v0.8.0-windows-x64.exe` など）か、
@@ -52,7 +55,7 @@ body:
   - type: textarea
     id: os
     attributes:
-      label: OS とアーキテクチャ
+      label: OS and architecture / OS とアーキテクチャ
       description: |
         **filer が起動するなら `<F12>` を押すのが早いです** —— この欄も版の欄も
         埋まった状態でこのフォームが開きます。以下は、filer が起動しないときや、
@@ -84,9 +87,21 @@ body:
       required: true
 
   - type: textarea
+    id: context
+    attributes:
+      label: What filer knew / filer が知っていたこと
+      description: |
+        Filled in by `<F12>`: the last error filer raised, how it was drawing (adapter and backend), the display
+        scale, and the config files it read -- by name, never by path.
+        `<F12>` が埋めます: 最後に出たエラー、描画のアダプタとバックエンド、画面の倍率、読んだ設定ファイルの名前（パスは入れない）。
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
     id: backtrace
     attributes:
-      label: バックトレース（落ちる場合）
+      label: Backtrace, if it crashes / バックトレース（落ちる場合）
       description: |
         落ちる不具合では、これがあるかないかで原因究明の速さがまったく変わります。
         PowerShell で環境変数を立ててから起動してください。
@@ -105,7 +120,7 @@ body:
   - type: textarea
     id: files
     attributes:
-      label: 対象のファイルやフォルダ
+      label: Files or folders involved / 対象のファイルやフォルダ
       description: >
         中身そのものではなく、性質を書いてください。長さ・件数・名前の癖で
         通る経路が変わります。4000 行のソース、500 件のフォルダ、名前に空白や
@@ -117,7 +132,7 @@ body:
   - type: textarea
     id: config
     attributes:
-      label: 設定
+      label: Config / 設定
       description: >
         yazi の設定（`yazi.toml` / `keymap.toml` / `theme.toml`）や `filer.toml` を
         使っている場合、関係しそうな部分を貼ってください。既定のままなら「既定」と。

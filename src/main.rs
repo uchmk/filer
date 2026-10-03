@@ -1062,6 +1062,11 @@ fn state_report(app: &App) -> String {
         "pane: {}",
         app.term.as_ref().map_or("closed".into(), |t| format!("{}x{}", t.size().lines, t.size().cols))
     ));
+    // The report link `<F12>` opened or copied: the one key whose effect
+    // leaves the program could not be read back (#221, #222).
+    if let Some(u) = &app.last_report {
+        lines.push(format!("report: {u}"));
+    }
     // Lines scrolled back into the pane's history, of how many it holds:
     // half of 19.4 could only be read off pictures (#209).
     if let Some(t) = &app.term {
