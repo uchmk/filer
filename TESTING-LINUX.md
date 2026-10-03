@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**16 / 461 済み。**（TESTING.md の全 630 件のうち、`cargo test` が見ている 169 件は
+**16 / 462 済み。**（TESTING.md の全 631 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ほかに 9 件が `[-]`（Linux では対象外）。
@@ -479,20 +479,21 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **31.14** `g<Space>` で自分のサブネットの何も応答しないアドレスを打って `<Enter>`、諦める前に `<Esc>`（v0.58.1）→ すぐ元の場所に戻り、`Stopped waiting for \\<アドレス>` のトーストが出て、`j` / `k` が効く。取りやめた試みが後で時間切れになっても何も言わない — *`g<Space>` an address on your subnet that nothing answers on, `<Enter>`, then `<Esc>` before it gives up (v0.58.1) → Back where you were at once, a toast `Stopped waiting for \\<address>`, `j` / `k` work again -- and nothing more is said when the abandoned attempt times out later*
 - [ ] **31.15** `g<Space>` で応答しないアドレスを打って `<Enter>`、諦める前に見出しを読む（v0.59.8）→ 見出しの件数が `listing…`、位置が `…`。空のホストに着いたように読める `0 items` と `0/0` ではない。応答が来るか `<Esc>` で戻る（31.14）と、件数が戻る — *`g<Space>` an address that does not answer, `<Enter>`, and read the header before it gives up (v0.59.8) → The header's count reads `listing…` and the position `…` -- not `0 items` and `0/0`, which read as having arrived at an empty host. Once it answers, or `<Esc>` takes the tab back (31.14), the counts return*
 
-## 32. オープナー — 0 / 17
+## 32. オープナー — 0 / 18
 
-- [ ] **32.1** README の `[opener]` / `[open]` の例を `yazi.toml` に貼って再起動し、`.txt` で `<S-Enter>` → 秀丸 / サクラ / VS Code / Neovim / 既定 が、コマンド行ではなく**説明文**で並ぶ — *Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` → 秀丸 / サクラ / VS Code / Neovim / default — with the descriptions, not the command lines*
-- [ ] **32.2** 同じファイルで `<Enter>` → 先頭の項目（秀丸）で開く。コンソールが一瞬も出ない — *`<Enter>` on the same file → Opens in the first entry (秀丸), no console flash*
+- [ ] **32.1** README の `[opener]` / `[open]` の例を `yazi.toml` に貼って再起動し、`.txt` で `<S-Enter>` → Neovim / VS Code / サクラエディタ / Open with the default app がこの順に、コマンド行ではなく**説明文**で並ぶ（v0.71.11 からの例の並び） — *Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` → Neovim / VS Code / サクラエディタ / Open with the default app, in that order, by their descriptions rather than the command lines (the example's order since v0.71.11)*
+- [ ] **32.2** 同じファイルで `<Enter>` → 先頭の Neovim で開く。`block = true` なので専用のコンソールの窓で、`nvim` のプロセスのコマンド行がファイルの引用符付きパスで終わる — *`<Enter>` on the same file → Opens in the first entry, Neovim, in a console window of its own (`block = true`): a `nvim` process whose command line ends in the file's quoted path*
 - [ ] **32.3** `.pdf` で `<S-Enter>` → Edge と Chrome が先に、そのあと既定アプリの項目 — *`<S-Enter>` on a `.pdf` → Edge and Chrome first, then the default-app entry*
 - [ ] **32.4** `.xlsx` で `<S-Enter>` して Excel を選ぶ → Excel が開く。これが `start ""` の場合で、それが無いと失敗する — *`<S-Enter>` on a `.xlsx`, pick Excel → Excel opens it — this is the `start ""` case that fails without it*
 - [ ] **32.5** 名前に**空白**を含むファイルで、上のそれぞれを試す → 1 つの引数として渡り、正しく開く — *A file whose name has a **space**, through each of the above → One argument, opens correctly*
 - [ ] **32.6** 複数選択してから `<Enter>` → 全部がひとつの起動に渡される — *Several files selected, then `<Enter>` → All of them go to one invocation*
 - [ ] **32.7** `*.{xlsx,xls,csv}` と書いたルール → 3 つとも一致する（v0.17.0 以前はこれが効かなかった） — *A rule written `*.{xlsx,xls,csv}` → Matches all three (this is what did not work before v0.17.0)*
 - [ ] **32.8** 入っていないプログラムを指定したオープナー → 数秒以内にエラーのトースト。固まらない — *An opener naming a program that is not installed → An error toast within a few seconds, no hang*
-- [ ] **32.8a** プログラムを**引用符付きのフルパス**で指定したオープナー（秀丸、サクラ）→ 開く。これが v0.17.0 のバグで、`cmd` が行を壊し、しかも失敗が無言だった — *An opener whose program is a **quoted full path** (秀丸, サクラ) → It opens. This is the v0.17.0 bug: `cmd` mangled the line and the failure was silent*
-- [ ] **32.8b** 秀丸とサクラを、`<S-Enter>` から**と**先頭項目としての `<Enter>` から、両方試す → どちらも開く。同じ起動処理へ別の経路で入るため — *秀丸 and サクラ from `<S-Enter>` **and** from `<Enter>` as the first entry → Both, since they take different code paths to the same launcher*
+- [ ] **32.8a** プログラムを空白と丸括弧を含む**引用符付きのフルパス**で指定したオープナー（`"C:\Program Files (x86)\sakura\sakura.exe" %*`）→ 開く。`Win32_Process` で `sakura.exe` がファイルの引用符付きパスを 1 つの引数として受け取っている。これが v0.17.0 のバグで、`cmd` が行を壊し、しかも失敗が無言だった — *An opener whose program is a **quoted full path** holding a space and parentheses: `"C:\Program Files (x86)\sakura\sakura.exe" %*` → It opens: `Win32_Process` shows `sakura.exe` with the file's quoted path as its one argument. This is the v0.17.0 bug: `cmd` mangled the line and the failure was silent*
+- [ ] **32.8b** 同じオープナーを `<S-Enter>` から**と**、`edit` の先頭に移して `<Enter>` から、両方試す → どちらもファイルで `sakura.exe` が起動する。同じ起動処理へ別の経路で入るため — *The same opener from `<S-Enter>` **and** from `<Enter>` with it moved to the top of `edit` → Both start `sakura.exe` on the file, since they take different code paths to the same launcher*
 - [ ] **32.8c** パスにわざと打ち間違いを入れたオープナー → 失敗を述べるトースト。日本語版 Windows では `cmd` の文言ではなく終了コードが出るはずで、**それは仕様であって報告すべきバグではない** — *An opener with a deliberate typo in the path → A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report*
-- [ ] **32.9** アウトラインから（行の上で `<C-o>`）秀丸とサクラで開く → その行に着地する — *Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ → Lands on the line*
+- [ ] **32.9** Markdown のファイルで `l` でアウトラインに入り、`j` で下の見出しへ動いて `<S-Enter>`、サクラエディタを選ぶ（v0.47.29 でスイッチを `-L=` から `-Y=` に直した）→ `Win32_Process` に `sakura.exe -Y=<その見出しの行> "<ファイル>"` が出る。行はプレビューと同じく 1 から数える — *`l` into a Markdown file's outline, `j` to a heading further down, `<S-Enter>` and pick サクラエディタ (v0.47.29 changed its switch from `-L=` to `-Y=`) → `Win32_Process` shows `sakura.exe -Y=<the heading's line> "<file>"`, the line counted from 1 as the preview counts it*
+- [ ] **32.9a** 同じことをして、サクラエディタの画面を見る → カーソルがその見出しの行にある。サクラは `-L=` を無視するので、v0.47.29 より前は 1 行目か前回の位置で開いた。見た目の行: 持ち主か、エディタの行を別の手段で読める実行のもの — *The same, looking at サクラエディタ → Its caret sits on that heading's line. Sakura ignored `-L=`, so before v0.47.29 it opened at line 1 or where the file was last left. A look: the owner's, or a run that can read the editor's line another way*
 - [ ] **32.10** プログラム名を打ち間違えたオープナー（`run = 'Hidemruu.exe %s'`）を `<S-Enter>` で選ぶ（v0.59.1）→ エラーが `exit code 1` ではなく ``Open failed: `Hidemruu.exe` was not found — …`` と言う。プログラムはあるが失敗したときは今までどおり終了コードを言う — *An opener whose program is misspelled (`run = 'Hidemruu.exe %s'`), `<S-Enter>` and pick it (v0.59.1) → The error reads ``Open failed: `Hidemruu.exe` was not found — …``, not `exit code 1`. An opener whose program exists but fails still gives its exit code*
 - [ ] **32.11** Linux: `block = true` のオープナー（`run = 'nvim %*'`。`vim` でもよい）で、フォルダ名とファイル名に空白と `'` を含むファイルを `<Enter>`（v0.72.0）→ 端末の窓が開いてエディタが動く。`ps` でエディタがパス全体を 1 つの引数で受け取ったこと、`/proc/<pid>/cwd` が一覧のフォルダであることが読める — *Linux: a `block = true` opener (`run = 'nvim %*'`; `vim` will do), `<Enter>` on a file whose folder and name hold a space and a `'` (v0.72.0) → A terminal window opens with the editor in it. `ps` shows the editor got the whole path as one argument, and `/proc/<pid>/cwd` is the list's folder*
 - [ ] **32.12** Linux: 同じことを `TERMINAL="xterm -title picked"` で → 窓のタイトルが `picked`（`xdotool getwindowname`）。`filer env` の `block = true openers` の行が `xterm -title picked` を名指す。`TERMINAL` が無ければ、組み込みの一覧で最初に入っているものを名指す — *Linux: the same with `TERMINAL="xterm -title picked"` → The window is titled `picked` (`xdotool getwindowname`). `filer env` names `xterm -title picked` on the `block = true openers` row; with `TERMINAL` unset it names the first of the built-in list that is installed*
@@ -551,7 +552,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **37.4** **名前に空白を含む**ファイルで、上のそれぞれを試す → 2 つではなく 1 つのファイルとして開く。パスの引用符が保たれている — *A file whose **name contains a space**, through any of the above → Opens as one file, not two. The path keeps its quotes*
 - [ ] **37.5** `start "" msedge "%*"` と書いたオープナー（プレースホルダを手で引用したもの）→ 37.1 と同じ結果。プレースホルダを囲む対は変わらず吸収される — *An opener written `start "" msedge "%*"` (placeholder quoted by hand) → Same result as 37.1 — the pair around the placeholder is still absorbed*
 - [ ] **37.6** PDF を 2 つ選んで `<Enter>` → 引用符でひと塊にならず、別々の引数として両方開く — *Select two PDFs, `<Enter>` → Both open as separate arguments, not one quoted blob*
-- [ ] **37.7** フルパスで指定したオープナー（IrfanView、サクラ、秀丸）→ 以前のまま。これらは `start` を通っていない — *Openers given as a full path (IrfanView, sakura, Hidemaru) → Unchanged — these never went through `start`*
+- [ ] **37.7** `start` を通らないフルパスのオープナー（サクラエディタの `"C:\Program Files (x86)\sakura\sakura.exe" %*`）→ `start` の扱いで変わらない。`Win32_Process` で `sakura.exe` が `start` も余分なコンソールも挟まずに直接起動している — *An opener given as a full path that does not go through `start`: サクラエディタ's `"C:\Program Files (x86)\sakura\sakura.exe" %*` → Unchanged by the `start` handling: `Win32_Process` shows `sakura.exe` started directly, with no `start` and no extra console*
 - [ ] **37.8** PDF で `O` → Edge、Chrome、既定アプリ、そのあとエディタ群が並ぶ。それぞれ表示どおりのものが起動する — *`O` on a PDF → The picker lists Edge, Chrome, the default app, then the editors; each entry launches what it says*
 
 ## 38. フォーカスの規則、それを描く 2 つのペインで — 全 9 件が自動

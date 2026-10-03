@@ -871,18 +871,19 @@ instructions are wrong, which is worse than a missing feature.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 32.1 | Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` | 秀丸 / サクラ / VS Code / Neovim / default — with the descriptions, not the command lines |
-| 32.2 | `<Enter>` on the same file | Opens in the first entry (秀丸), no console flash |
+| 32.1 | Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` | Neovim / VS Code / サクラエディタ / Open with the default app, in that order, by their descriptions rather than the command lines (the example's order since v0.71.11) |
+| 32.2 | `<Enter>` on the same file | Opens in the first entry, Neovim, in a console window of its own (`block = true`): a `nvim` process whose command line ends in the file's quoted path |
 | 32.3 | `<S-Enter>` on a `.pdf` | Edge and Chrome first, then the default-app entry |
 | 32.4 | `<S-Enter>` on a `.xlsx`, pick Excel | Excel opens it — this is the `start ""` case that fails without it |
 | 32.5 | A file whose name has a **space**, through each of the above | One argument, opens correctly |
 | 32.6 | Several files selected, then `<Enter>` | All of them go to one invocation |
 | 32.7 | A rule written `*.{xlsx,xls,csv}` | Matches all three (this is what did not work before v0.17.0) |
 | 32.8 | An opener naming a program that is not installed | An error toast within a few seconds, no hang |
-| 32.8a | An opener whose program is a **quoted full path** (秀丸, サクラ) | It opens. This is the v0.17.0 bug: `cmd` mangled the line and the failure was silent |
-| 32.8b | 秀丸 and サクラ from `<S-Enter>` **and** from `<Enter>` as the first entry | Both, since they take different code paths to the same launcher |
+| 32.8a | An opener whose program is a **quoted full path** holding a space and parentheses: `"C:\Program Files (x86)\sakura\sakura.exe" %*` | It opens: `Win32_Process` shows `sakura.exe` with the file's quoted path as its one argument. This is the v0.17.0 bug: `cmd` mangled the line and the failure was silent |
+| 32.8b | The same opener from `<S-Enter>` **and** from `<Enter>` with it moved to the top of `edit` | Both start `sakura.exe` on the file, since they take different code paths to the same launcher |
 | 32.8c | An opener with a deliberate typo in the path | A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report |
-| 32.9 | Open from the outline (`<C-o>` at a line) into 秀丸 and サクラ | Lands on the line |
+| 32.9 | `l` into a Markdown file's outline, `j` to a heading further down, `<S-Enter>` and pick サクラエディタ (v0.47.29 changed its switch from `-L=` to `-Y=`) | `Win32_Process` shows `sakura.exe -Y=<the heading's line> "<file>"`, the line counted from 1 as the preview counts it |
+| 32.9a | The same, looking at サクラエディタ | Its caret sits on that heading's line. Sakura ignored `-L=`, so before v0.47.29 it opened at line 1 or where the file was last left. A look: the owner's, or a run that can read the editor's line another way |
 | 32.10 | An opener whose program is misspelled (`run = 'Hidemruu.exe %s'`), `<S-Enter>` and pick it (v0.59.1) | The error reads ``Open failed: `Hidemruu.exe` was not found — …``, not `exit code 1`. An opener whose program exists but fails still gives its exit code |
 | 32.11 | Linux: a `block = true` opener (`run = 'nvim %*'`; `vim` will do), `<Enter>` on a file whose folder and name hold a space and a `'` (v0.72.0) | A terminal window opens with the editor in it. `ps` shows the editor got the whole path as one argument, and `/proc/<pid>/cwd` is the list's folder |
 | 32.12 | Linux: the same with `TERMINAL="xterm -title picked"` | The window is titled `picked` (`xdotool getwindowname`). `filer env` names `xterm -title picked` on the `block = true openers` row; with `TERMINAL` unset it names the first of the built-in list that is installed |
@@ -1066,7 +1067,7 @@ needs a machine is that the program really starts.
 | 37.4 | A file whose **name contains a space**, through any of the above | Opens as one file, not two. The path keeps its quotes |
 | 37.5 | An opener written `start "" msedge "%*"` (placeholder quoted by hand) | Same result as 37.1 — the pair around the placeholder is still absorbed |
 | 37.6 | Select two PDFs, `<Enter>` | Both open as separate arguments, not one quoted blob |
-| 37.7 | Openers given as a full path (IrfanView, sakura, Hidemaru) | Unchanged — these never went through `start` |
+| 37.7 | An opener given as a full path that does not go through `start`: サクラエディタ's `"C:\Program Files (x86)\sakura\sakura.exe" %*` | Unchanged by the `start` handling: `Win32_Process` shows `sakura.exe` started directly, with no `start` and no extra console |
 | 37.8 | `O` on a PDF | The picker lists Edge, Chrome, the default app, then the editors; each entry launches what it says |
 
 ---
