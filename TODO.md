@@ -1467,9 +1467,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.73.29 で直した。Linux でも長い `TMPDIR` で再現し、直したあとは全 631 件が通った。ARM64 の再テストの行に回した）**`app::escape_and_max_preview::sending_a_name_opens_a_closed_pane` が、`TEMP` が長いと必ず落ちる**（#203 の所見 1）。ペインは 80×24 のままで、
   打ったパスが折り返し、`q35-marker.txt` が行の境目をまたぐ。テストは 1 行ずつ `contains` で探している。`snapshot(g)` の行をつないでから探す。
   RAM ディスクの無い ARM64 のレーンは一時フォルダが必ず長いので、**直すまでこのレーンの `cargo test` は緑にならない**。直したら ARM64 の再テストの行へ。
-- [ ] **Ctrl を押しながらホイールを回しても画像が拡大しない**（#202 の所見、19.6）。egui 0.36 は Ctrl 付きのホイールを `zoom_factor_delta` にし、
+- [x] （v0.73.34。`i.zoom_delta()` を読む。タッチパッドのピンチも同じ道で効く）**Ctrl を押しながらホイールを回しても画像が拡大しない**（#202 の所見、19.6）。egui 0.36 は Ctrl 付きのホイールを `zoom_factor_delta` にし、
   `smooth_scroll_delta` を 0 にする。`image_input`（`src/ui/mod.rs:568`）は `smooth_scroll_delta` を読んでいる。`i.zoom_delta()` を読む。直したら 19.6 を x64 の再テストへ。
-- [ ] **2 分割の左右の一覧が、ホイールの端数を共有している**（#202 の所見、19.7）。`app.list_scroll_rows`（`src/ui/mod.rs:704`）が 1 つなので、左で 1/4、
+- [x] （v0.73.34。`list_scroll_rows` を描く場所ごとの 2 つにした）**2 分割の左右の一覧が、ホイールの端数を共有している**（#202 の所見、19.7）。`app.list_scroll_rows`（`src/ui/mod.rs:704`）が 1 つなので、左で 1/4、
   右で 1/4 回すと右が 1 行動く。一覧ごとに持つ。直したら 19.7 を x64 の再テストへ。
 - [ ] ヘルプのパネルで、節がすべて置き場所違いで何も読まれなかった設定ファイルにも、読む前のファイルと同じように印を付ける（#203 の所見 2、提案 1）。
 - [ ] ヘルプの `(nothing found in either; the defaults are in use)` が、ファイルがあるのに出る（#203 の所見 3、提案 2）。`app.cfg.loaded.is_empty()`

@@ -1108,7 +1108,11 @@ pub struct App {
     /// See [`crate::ui::wheel_whole`] for why the remainder has to be kept.
     pub term_scroll_rows: f32,
     pub preview_scroll_rows: f32,
-    pub list_scroll_rows: f32,
+    /// One per place a file list is drawn: the left of the split, and the
+    /// middle column (the right of the split). The two lists of a split are
+    /// two surfaces, and sharing one remainder let a quarter turn over the
+    /// left finish a quarter turn over the right (#202, 19.7).
+    pub list_scroll_rows: [f32; 2],
     /// What the terminal was last searched for, so the key repeats it.
     term_needle: String,
     /// The shell the pane started, as its first toast named it.
@@ -1275,7 +1279,7 @@ impl App {
             spot_asked: None,
             term_scroll_rows: 0.0,
             preview_scroll_rows: 0.0,
-            list_scroll_rows: 0.0,
+            list_scroll_rows: [0.0; 2],
             term_needle: String::new(),
             term_shell: String::new(),
             land_on: None,

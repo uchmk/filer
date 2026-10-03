@@ -401,15 +401,15 @@ fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, que
     if let Some(sp) = app.split {
         let left = if sp.right { sp.other } else { app.active };
         if widths[0] > 24.0 {
-            draw_pane(app, ui, rects[0], left, &ctx, queued);
+            draw_pane(app, ui, rects[0], 0, left, &ctx, queued);
         }
         let right = if sp.right { app.active } else { sp.other };
-        draw_pane(app, ui, rects[1], right, &ctx, queued);
+        draw_pane(app, ui, rects[1], 1, right, &ctx, queued);
     } else {
         if widths[0] > 24.0 {
             draw_parent(app, ui, rects[0], &ctx, queued);
         }
-        draw_pane(app, ui, rects[1], app.active, &ctx, queued);
+        draw_pane(app, ui, rects[1], 1, app.active, &ctx, queued);
     }
 
     // --- preview ---
@@ -565,13 +565,16 @@ fn image_input(app: &mut App, ui: &mut Ui, rect: Rect) {
         app.preview.pan += resp.drag_delta();
     }
     if let Some(p) = resp.hover_pos() {
-        let (scroll, ctrl) = ui.ctx().input(|i| (i.smooth_scroll_delta.y, i.modifiers.command));
         // A plain wheel keeps scrolling the pane, as it does over text; `Ctrl`
-        // is the zoom, the way it is everywhere else.
-        if ctrl && scroll.abs() > 0.5 {
+        // is the zoom, the way it is everywhere else. egui turns a turn with
+        // `Ctrl` held into a zoom factor and leaves the scroll at zero, so the
+        // factor is what to read: reading the scroll with `Ctrl` held, as this
+        // did, never saw a turn at all (#202, 19.6). A pinch on a touchpad
+        // arrives the same way.
+        let factor = ui.ctx().input(|i| i.zoom_delta());
+        if (factor - 1.0).abs() > 1e-4 {
             let zoom = *app.preview.zoom.get_or_insert(fit);
-            let (next, pan) =
-                app::zoom_at(zoom, app.preview.pan, avail.center(), p, 1.0 + scroll * 0.004);
+            let (next, pan) = app::zoom_at(zoom, app.preview.pan, avail.center(), p, factor);
             app.preview.zoom = Some(next);
             app.preview.pan = pan;
         }
@@ -642,11 +645,14 @@ fn draw_parent(app: &mut App, ui: &mut Ui, rect: Rect, ctx: &PaneCtx, queued: &m
 
 /// One file list: the middle column, or one side of the split. The pane with
 /// the keys is the one showing `app.active`; a click on the other pane takes
-/// the keys first, so the gesture still lands on the focused tab.
+/// the keys first, so the gesture still lands on the focused tab. `place` is
+/// which column it is drawn in (0 the left, 1 the middle), for the state that
+/// belongs to the place rather than to the tab shown there.
 fn draw_pane(
     app: &mut App,
     ui: &mut Ui,
     rect: Rect,
+    place: usize,
     idx: usize,
     ctx: &PaneCtx,
     queued: &mut Vec<Act>,
@@ -701,7 +707,7 @@ fn draw_pane(
     // A panel over the list owns the wheel; see `Overlay::is_modal`.
     let scrolled = match app.overlay.is_modal() {
         true => 0,
-        false => wheel_whole(&mut app.list_scroll_rows, res.scroll_rows),
+        false => wheel_whole(&mut app.list_scroll_rows[place], res.scroll_rows),
     };
     if scrolled != 0 {
         let scrolloff = app.cfg.yazi.mgr.scrolloff as usize;
@@ -2178,6 +2184,56 @@ mod panes {
 #[cfg(test)]
 mod split_panes_frame {
     use super::panes::*;
+
+    /// 19.7: each list of a split keeps its own part of a turn.
+    ///
+    /// A turn too small to move a row is kept for the next one, so that slow
+    /// turns add up. It was kept once for both lists, so most of a row over the
+    /// left and most of a row over the right moved the right by one (#202).
+    #[test]
+    fn each_side_of_a_split_keeps_its_own_part_of_a_turn() {
+        let (left, right, mut s) = two("panes-wheel");
+        let names: Vec<String> = (0..200).map(|i| format!("f{i:03}.txt")).collect();
+        for dir in [&left, &right] {
+            for n in &names {
+                std::fs::write(dir.join(n), "x").unwrap();
+            }
+        }
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        use crate::core::folder::Folder;
+        s.app.tabs[0].current = Folder::from_entries(left.clone(), listing(&left, &refs), true);
+        s.app.tabs[1].current = Folder::from_entries(right.clone(), listing(&right, &refs), true);
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        assert!(s.app.split.is_some(), "the view split");
+        let hovered = s.app.cfg.theme.hovered_bg;
+        let f = s.draw();
+        let row_h = f.rects.iter().find(|(_, c)| *c == hovered).expect("the cursor row").0.height();
+        let panes = pane_rects(&s);
+        let offsets = |s: &super::harness::Screen| (s.app.tabs[0].current.offset, s.app.tabs[1].current.offset);
+
+        // Two thirds of a row, toward you, with the pointer over `place`; then
+        // frames enough for egui's smoothing to hand all of it over.
+        let turn = |s: &mut super::harness::Screen, place: egui::Rect| {
+            s.feed(vec![
+                egui::Event::PointerMoved(place.center()),
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(0.0, -row_h * (2.0 / 3.0) / 1.5),
+                    phase: egui::TouchPhase::Move,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ]);
+            for _ in 0..60 {
+                s.draw();
+            }
+        };
+        turn(&mut s, panes[0]);
+        assert_eq!(offsets(&s), (0, 0), "two thirds of a row moves nothing");
+        turn(&mut s, panes[1]);
+        assert_eq!(offsets(&s), (0, 0), "nor does the same over the other list");
+        turn(&mut s, panes[1]);
+        assert_eq!(offsets(&s), (0, 1), "but a second one there makes a row, there");
+    }
 
     /// 6.1, 6.2, 6.3 and 6.14: one press splits, the next moves the keys, the
     /// pane without them is dimmer, and `<C-S-w>` puts the parent column back.
@@ -4016,6 +4072,42 @@ mod preview_arrival_frame {
             (step - fit * 1.25).abs() < 1e-4,
             "one step up from *this* picture's fit ({fit}), not from the last one's 100%: {step}",
         );
+    }
+
+    /// 19.6: `Ctrl` and the wheel over a picture zooms it about the pointer,
+    /// and the plain wheel does not.
+    ///
+    /// egui hands a turn with `Ctrl` held over as a zoom factor and leaves the
+    /// scroll at zero; the pane read the scroll, so the turn did nothing on
+    /// either machine (#202). The events here are the ones a window sends, the
+    /// modifiers on the wheel event included -- that is what egui looks at.
+    #[test]
+    fn ctrl_and_the_wheel_zoom_a_picture() {
+        let dir = room("wheel-zoom");
+        image::RgbaImage::from_pixel(1600, 1200, image::Rgba([9u8, 8, 7, 255]))
+            .save(dir.join("big.png"))
+            .unwrap();
+        let mut s = open(dir);
+        listed(&mut s, 1);
+        let f = look_at(&mut s, "big.png");
+        assert!(f.says("1600 × 1200"), "the picture is up: {:?}", f.texts);
+        let fit = s.app.preview.fit;
+        // Well inside the preview column, the right-hand part of the window.
+        let at = egui::Pos2::new(s.rect().width() * 0.8, s.rect().height() * 0.5);
+        let turn = |modifiers| egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(0.0, 50.0),
+            phase: egui::TouchPhase::Move,
+            modifiers,
+        };
+
+        s.feed(vec![egui::Event::PointerMoved(at), turn(egui::Modifiers::NONE)]);
+        assert_eq!(s.app.preview.zoom, None, "the plain wheel is not a zoom");
+
+        let ctrl = egui::Modifiers { ctrl: true, command: true, ..Default::default() };
+        s.feed(vec![egui::Event::PointerMoved(at), turn(ctrl)]);
+        let zoom = s.app.preview.zoom.expect("`Ctrl` and the wheel set a zoom");
+        assert!(zoom > fit * 1.05, "a turn away from you zooms in: {zoom} from {fit}");
     }
 
     /// 27.5: ten different files in a row, none revisited, all arrive.
