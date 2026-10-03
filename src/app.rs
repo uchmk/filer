@@ -5537,6 +5537,7 @@ mod tests {
             run: vec![crate::config::cmd::parse(run)],
             desc: desc.into(),
             raw: run.into(),
+            from: keymap::BUILT_IN.into(),
         }
     }
 

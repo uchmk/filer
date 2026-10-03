@@ -625,6 +625,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "33.16" = 'filer を**起動したまま** `%APPDATA%\filer\filer.toml` を作り、`~` を押す → そのファイルが 1 行として、警告色で `on disk, not read yet — <C-F5> re-reads config` と出る。ディレクトリは `nothing here` に**ならない**（v0.34.0）'
 "33.17" = '`<C-F5>` してから、もう一度 `~` → 普通に読み込まれたファイルの行になり、印が消える'
 "33.18" = '`config_reload` を `<F9>` に割り当て直して 33.16 を繰り返す → 行が `<C-F5>` ではなく `<F9>` を示す。メッセージに埋め込まれているのではなく、keymap から読んでいるため'
+"33.19" = '`%APPDATA%\yazi\config\keymap.toml` で `Q` を `quit` に、`%APPDATA%\filer\keymap.toml` で `hidden toggle` に割り当て、`filer env` を回す（v0.73.33、Q57）→ Warnings が `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<filer のパス>) runs, not \`quit\` (<yazi のパス>)` と、両方のファイルをフルパスで言う。`T` を filer のファイルだけに書くと、相手は `(the built-in defaults)` になる'
 
 # 34. ヘルプパネル自身のスクロール
 "34.14" = '最下部に着けた状態で `<C-->` でフォントを小さくする → 最下部に着いたまま、パネルも埋まっている。行がより多く入るので、止まる位置が動いたということ'

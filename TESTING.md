@@ -932,7 +932,7 @@ apart), that it is legible on a light theme (33.6), the parse error's own wordin
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 33.1 | Start with a `keymap.toml` that binds a key the defaults also bind (e.g. `'` to `plugin bookmarks jump`) | A **yellow** toast, not red: `Config: [mgr] \`'\` is bound more than once; only ... runs` |
+| 33.1 | Start with a `keymap.toml` that binds a key the defaults also bind (e.g. `'` to `plugin bookmarks jump`) | A **yellow** toast, not red: `Config: [mgr] \`'\` is bound more than once; only ... (<file>) runs, not ... (the built-in defaults)` |
 | 33.2 | With three or more such lines | The toast ends `(+2 more, see \`~\`)` |
 | 33.3 | Press `~` | The loaded config files, then every warning, all in the same yellow |
 | 33.4 | Make something actually fail (an opener naming a program that is not installed, 25.8) | Still **red**, so the two are told apart at a glance |
@@ -950,6 +950,7 @@ apart), that it is legible on a light theme (33.6), the parse error's own wordin
 | 33.16 | With filer **already running**, create `%APPDATA%\filer\filer.toml`, then press `~` | The file is a row of its own, in the warning colour, reading `on disk, not read yet — <C-F5> re-reads config`. The directory is **not** `nothing here` (v0.34.0) |
 | 33.17 | `<C-F5>`, then `~` again | The row is now an ordinary loaded file, no marker |
 | 33.18 | Rebind `config_reload` to `<F9>` and repeat 33.16 | The row names `<F9>`, not `<C-F5>` — it is read from the keymap, not written into the message |
+| 33.19 | Bind `Q` to `quit` in `%APPDATA%\yazi\config\keymap.toml` and to `hidden toggle` in `%APPDATA%\filer\keymap.toml`, then run `filer env` (v0.73.33, Q57) | Warnings: `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<filer's path>) runs, not \`quit\` (<yazi's path>)`, both full paths. Bind `T` in the filer file only: the other side reads `(the built-in defaults)` |
 
 ---
 

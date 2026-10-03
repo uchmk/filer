@@ -5,6 +5,8 @@
 //! `append_keymap`. The first exact match wins, which is what makes a
 //! prepended single-key binding shadow a default prefix.
 
+use std::sync::Arc;
+
 use serde::Deserialize;
 
 use super::cmd::{self, Act};
@@ -17,7 +19,15 @@ pub struct Binding {
     pub desc: String,
     /// The command text, shown in the help panel.
     pub raw: String,
+    /// Where it was written: a keymap file's path, or [`BUILT_IN`]. A key
+    /// bound twice is warned about by naming both, so the warning says which
+    /// file to open (Q57).
+    pub from: Arc<str>,
 }
+
+/// What [`Binding::from`] says for a binding from the built-in defaults --
+/// one of the two sides of a duplicate as often as not (#193).
+pub const BUILT_IN: &str = "the built-in defaults";
 
 #[derive(Default, Debug)]
 pub struct Keymap {
@@ -130,7 +140,7 @@ fn tokenize(s: &str) -> Vec<String> {
     out
 }
 
-fn build(raw: &RawBinding, warnings: &mut Vec<String>) -> Option<Binding> {
+fn build(raw: &RawBinding, from: &Arc<str>, warnings: &mut Vec<String>) -> Option<Binding> {
     let tokens: Vec<String> = if raw.on.0.len() == 1 {
         tokenize(&raw.on.0[0])
     } else {
@@ -156,25 +166,25 @@ fn build(raw: &RawBinding, warnings: &mut Vec<String>) -> Option<Binding> {
             warnings.push(format!("unsupported command `{s}`"));
         }
     }
-    Some(Binding { on, run, desc: raw.desc.clone(), raw: raw_text })
+    Some(Binding { on, run, desc: raw.desc.clone(), raw: raw_text, from: from.clone() })
 }
 
 /// Apply one file's layers on top of what previous files produced.
-fn fold(base: Vec<Binding>, s: &Section, warnings: &mut Vec<String>) -> Vec<Binding> {
+fn fold(base: Vec<Binding>, s: &Section, from: &Arc<str>, warnings: &mut Vec<String>) -> Vec<Binding> {
     let mut out = Vec::new();
     for r in &s.prepend_keymap {
-        out.extend(build(r, warnings));
+        out.extend(build(r, from, warnings));
     }
     match &s.keymap {
         Some(list) => {
             for r in list {
-                out.extend(build(r, warnings));
+                out.extend(build(r, from, warnings));
             }
         }
         None => out.extend(base),
     }
     for r in &s.append_keymap {
-        out.extend(build(r, warnings));
+        out.extend(build(r, from, warnings));
     }
     out
 }
@@ -201,12 +211,13 @@ impl Keymap {
 
     pub fn load_named(user_tomls: &[(&str, &str)]) -> (Self, Vec<String>) {
         let mut warnings = Vec::new();
-        let mut files = vec![
+        let mut files = vec![(
+            Arc::<str>::from(BUILT_IN),
             toml::from_str::<KeymapFile>(DEFAULT_KEYMAP).expect("built-in keymap must parse"),
-        ];
+        )];
         for (path, text) in user_tomls {
             match toml::from_str::<KeymapFile>(text) {
-                Ok(k) => files.push(k),
+                Ok(k) => files.push((Arc::from(*path), k)),
                 // Trimmed: the parser's message ends in a newline, which left
                 // a blank line at the end of `filer env`'s Warnings.
                 Err(e) => warnings.push(format!("{path}: {}", e.to_string().trim_end())),
@@ -214,16 +225,16 @@ impl Keymap {
         }
 
         let mut km = Keymap::default();
-        for f in &files {
-            km.mgr = fold(std::mem::take(&mut km.mgr), &f.mgr, &mut warnings);
-            km.input = fold(std::mem::take(&mut km.input), &f.input, &mut warnings);
-            km.confirm = fold(std::mem::take(&mut km.confirm), &f.confirm, &mut warnings);
-            km.pick = fold(std::mem::take(&mut km.pick), &f.pick, &mut warnings);
-            km.help = fold(std::mem::take(&mut km.help), &f.help, &mut warnings);
-            km.tasks = fold(std::mem::take(&mut km.tasks), &f.tasks, &mut warnings);
-            km.spot = fold(std::mem::take(&mut km.spot), &f.spot, &mut warnings);
-            km.diff = fold(std::mem::take(&mut km.diff), &f.diff, &mut warnings);
-            km.term = fold(std::mem::take(&mut km.term), &f.term, &mut warnings);
+        for (from, f) in &files {
+            km.mgr = fold(std::mem::take(&mut km.mgr), &f.mgr, from, &mut warnings);
+            km.input = fold(std::mem::take(&mut km.input), &f.input, from, &mut warnings);
+            km.confirm = fold(std::mem::take(&mut km.confirm), &f.confirm, from, &mut warnings);
+            km.pick = fold(std::mem::take(&mut km.pick), &f.pick, from, &mut warnings);
+            km.help = fold(std::mem::take(&mut km.help), &f.help, from, &mut warnings);
+            km.tasks = fold(std::mem::take(&mut km.tasks), &f.tasks, from, &mut warnings);
+            km.spot = fold(std::mem::take(&mut km.spot), &f.spot, from, &mut warnings);
+            km.diff = fold(std::mem::take(&mut km.diff), &f.diff, from, &mut warnings);
+            km.term = fold(std::mem::take(&mut km.term), &f.term, from, &mut warnings);
             let _ = &f.cmp; // parsed for compatibility; completion is native here
         }
         for (name, bindings) in km.layers() {
@@ -273,11 +284,11 @@ fn unreachable(layer: &str, bindings: &[Binding]) -> Vec<String> {
         }
         let on = &bindings[i].on;
         let mut hidden: Vec<String> = Vec::new();
-        let mut twice = false;
+        let mut losers: Vec<&Binding> = Vec::new();
         for j in i + 1..bindings.len() {
             let other = &bindings[j].on;
             if other == on {
-                twice = true;
+                losers.push(&bindings[j]);
             } else if other.len() > on.len() && other[..on.len()] == on[..] {
                 hidden.push(super::keys::render_seq(other));
             } else {
@@ -287,8 +298,19 @@ fn unreachable(layer: &str, bindings: &[Binding]) -> Vec<String> {
         }
         let key = super::keys::render_seq(on);
         let run = &bindings[i].raw;
-        if twice {
-            out.push(format!("[{layer}] `{key}` is bound more than once; only `{run}` runs"));
+        if !losers.is_empty() {
+            // Each side with the file it came from, the winner first: the
+            // line alone says which file to open and what to take out of it
+            // (Q57). The run that loses is named too, since a duplicate is
+            // usually noticed as a key that stopped doing what it did (#194).
+            let n = losers.len();
+            let not: Vec<String> = losers.iter().take(3).map(|b| format!("`{}` ({})", b.raw, b.from)).collect();
+            let more = if n > 3 { format!(", and {} more", n - 3) } else { String::new() };
+            out.push(format!(
+                "[{layer}] `{key}` is bound more than once; only `{run}` ({}) runs, not {}{more}",
+                bindings[i].from,
+                not.join(", "),
+            ));
         }
         if !hidden.is_empty() {
             let n = hidden.len();
@@ -508,5 +530,28 @@ run = "plugin bookmarks save"
         let w = warnings.iter().find(|w| w.contains("more than once"));
         let w = w.unwrap_or_else(|| panic!("no duplicate reported: {warnings:?}"));
         assert!(w.contains("quit"), "must name the one that wins: {w}");
+    }
+
+    /// Q57: the warning names the file of each side, the built-in defaults
+    /// included (#193 found the other side was neither of the two files the
+    /// Config section listed), and the run that lost (#194).
+    #[test]
+    fn a_duplicate_names_each_sides_file() {
+        let yazi = "[[mgr.prepend_keymap]]\non = \"Q\"\nrun = \"quit\"\n";
+        let filer = "[[mgr.prepend_keymap]]\non = \"Q\"\nrun = \"hidden toggle\"\n";
+        let (_, warnings) = Keymap::load_named(&[("/cfg/yazi/keymap.toml", yazi), ("/cfg/filer/keymap.toml", filer)]);
+        let w = warnings.iter().find(|w| w.contains("`Q`")).unwrap_or_else(|| panic!("{warnings:?}"));
+        assert_eq!(
+            w,
+            "[mgr] `Q` is bound more than once; only `hidden toggle` (/cfg/filer/keymap.toml) runs, \
+             not `quit` (/cfg/yazi/keymap.toml)",
+        );
+
+        // One file against the defaults: `T` is a default binding.
+        let one = "[[mgr.prepend_keymap]]\non = \"T\"\nrun = \"quit\"\n";
+        let (_, warnings) = Keymap::load_named(&[("/cfg/filer/keymap.toml", one)]);
+        let w = warnings.iter().find(|w| w.contains("`T`")).unwrap_or_else(|| panic!("{warnings:?}"));
+        assert!(w.contains("only `quit` (/cfg/filer/keymap.toml) runs, not `"), "{w}");
+        assert!(w.ends_with(&format!("({BUILT_IN})")), "the other side is the defaults: {w}");
     }
 }

@@ -3024,7 +3024,9 @@ mod config_warning_frame {
 
         let f = s.draw();
         assert_eq!(
-            warnings[0], "[mgr] `'` is bound more than once; only `plugin bookmarks jump` runs",
+            warnings[0],
+            "[mgr] `'` is bound more than once; only `plugin bookmarks jump` (keymap.toml) runs, \
+             not `plugin bookmarks jump` (the built-in defaults)",
             "the wording TESTING.md 33.1 quotes",
         );
         assert!(f.says(&format!("Config: {}", warnings[0])), "on screen: {:?}", f.texts);
