@@ -22,10 +22,13 @@ CLAUDE.md, "多数決で進める質問". For each question in QUESTIONS.md on `
 whose `状態` is `投票中`:
 
 - **Two votes on the same option, no `多数決` line yet**: add
-  `- 多数決: <option>（<today> に揃った。<today + 1 day> から進めてよい）`.
-- **A `多数決` line whose date has come, and the `回答` field still empty**: set
-  `状態` to `多数決で決定` and take `（要確認: Qn）` off its TODO.md task. You
-  do not implement it -- that is code, and the development session picks it up.
+  `- 多数決: <option>（<today> に揃った）`, and in the same run set `状態` to
+  `多数決で決定` and take `（要確認: Qn）` off its TODO.md task -- no waiting
+  (the owner's word, 2026-10-03; there used to be 24 hours for the owner to
+  answer first). An answer the owner writes later still wins. You do not
+  implement it -- that is code, and the development session picks it up.
+- **A lane votes again on a question it already voted on**: the newer vote
+  replaces the older; copy it with the pull request's number and count again.
 - **Three votes, all different**: set `状態` back to `未回答` and add
   `- 多数決: 割れた（<today>）。持ち主を待つ`.
 - **The owner wrote an answer**: that wins; the question leaves the vote.
