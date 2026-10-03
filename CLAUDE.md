@@ -294,6 +294,9 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   スクリプトの冒頭。**実機の PR をマージすることが次の実行の引き金になる**ので、マージする側は
   順番表（`windows-role.md` の「Where the work is」）が次の節を指しているかを確かめてからマージする。
   無人のときの規則は役割定義の「Unattended runs」の節。
+  **ビルドの成果物は RAM ディスクに置く**（v0.73.17）。R: があれば、作業フォルダの `target` を `R:\cargo-target\<作業フォルダ名>` への
+  ジャンクションにする（パスは変わらない）。2026-10-03 に `C:\dev` が 45 GB になり、うち 33 GB が 2 つの `target` だった。
+  R: の空きが 8 GB を切っていれば C: のまま。`-TargetOnDisk` で止める。
   **実行の間はスクリーンセーバーを止める**（v0.64.3。ノート PC の ASUS OLED Care が入力を握って `SendInput` を潰していた）。
   止め方と戻し方はスクリプトの冒頭。`-KeepScreenSaver` で止めない。
 - **マージする側も無人で回っている（v0.50.2 から）。**クラウドの Routine が 1 時間おきに

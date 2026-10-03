@@ -31,6 +31,7 @@
 #   pwsh -File scripts\auto-wintest.ps1 -Force   # run even if nothing changed
 #   ... -LogDir R:\Temp                           # the log on the RAM disk
 #   ... -Lane arm                                 # the ARM64 machine's lane
+#   ... -TargetOnDisk                             # keep the build output on C:
 #
 # Lanes. The x64 machine runs lane `win` (the default), the ARM64 laptop lane
 # `arm`. Each has its own queue in windows-role.md, its own branch prefix
@@ -72,6 +73,16 @@
 # on R: it would be gone after a reboot, and the next firing would start a run
 # for a trigger that was already used.
 #
+# Build output. The worktree's `target` is made a junction to a folder on the
+# RAM disk, R:\cargo-target\<worktree name> (or -TargetDir), so the role's
+# paths (`target\release\filer.exe`) still work and the bytes live in memory.
+# On 2026-10-03 C:\dev held 45 GB, and the two `target` folders were 33 GB of
+# it. After a reboot the RAM disk is empty: the folder is made again and the
+# first build takes a few minutes longer, nothing worse. With less than 8 GB
+# free on R: the run builds on C: as before, and says so in the log.
+# -TargetOnDisk turns all of this off. Incremental compilation is off for the
+# run as well: an unattended run builds once, and its caches were 6 GB.
+#
 # The run works in its own worktree ($Work), not in the checkout you use, so
 # it never meets your uncommitted changes and you can keep working while it
 # runs. Needs `claude` and an authenticated `gh` on PATH.
@@ -86,7 +97,9 @@ param(
     [string]$LogDir,
     [string]$Scratch,
     [switch]$Force,
-    [switch]$KeepScreenSaver
+    [switch]$KeepScreenSaver,
+    [string]$TargetDir,
+    [switch]$TargetOnDisk
 )
 
 $ErrorActionPreference = 'Stop'
@@ -118,6 +131,34 @@ New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 New-Item -ItemType Directory -Force -Path $Scratch | Out-Null
 $log = Join-Path $LogDir "auto-wintest$suffix.log"
 $last = Join-Path $state "last-trigger$suffix"
+
+# Points $Work\target at the RAM disk (see the top). Returns where the build
+# output goes, for the log.
+function Set-BuildTarget {
+    $link = Join-Path $Work 'target'
+    if ($TargetOnDisk) { return $link }
+    $dir = if ($TargetDir) { $TargetDir } elseif (Test-Path 'R:\') { Join-Path 'R:\cargo-target' (Split-Path -Leaf $Work) } else { $null }
+    if (-not $dir) { return $link }
+    $drive = Get-PSDrive -Name ($dir.Substring(0, 1)) -ErrorAction SilentlyContinue
+    $item = Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
+    $isLink = $item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)
+    if (-not $isLink -and $drive -and $drive.Free -lt 8GB) {
+        # Out-Host: Say also writes to the output, which here is the return value.
+        Say ("Only {0:N1} GB free on {1}: building in {2} this time." -f ($drive.Free / 1GB), $drive.Root, $link) | Out-Host
+        return $link
+    }
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    if ($isLink -and ("$($item.Target)" -eq $dir)) { return $dir }
+    if ($isLink) {
+        [IO.Directory]::Delete($link)                    # the junction only, not what it points at
+    } elseif ($item) {
+        $gb = (Get-ChildItem -LiteralPath $link -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum / 1GB
+        Remove-Item -Recurse -Force -LiteralPath $link   # build output: the next build makes it again
+        Say ("Removed {0} ({1:N1} GB) to build on {2} instead." -f $link, $gb, $dir) | Out-Host
+    }
+    New-Item -ItemType Junction -Path $link -Target $dir | Out-Null
+    return $dir
+}
 
 function Say([string]$line) {
     $stamped = '[{0:yyyy-MM-dd HH:mm:ss}] {1}' -f (Get-Date), $line
@@ -281,6 +322,8 @@ try {
     $prompt = "無人実行です。人は見ていません。.claude/windows-role.md を読み、その「Unattended runs」の節に従って、$queue の次の節を 1 つだけ進めてください。レーンは $Lane で、ブランチは test/$Lane-<節> です。チェックアウトは $Work です（役割定義に出てくる C:\dev\filer は、すべてここに読み替えてください）。作業用の一時ディレクトリは $Scratch で、TEMP / TMP も既にそこを指しています（役割定義に出てくる R:\Temp は、すべてここに読み替えてください）。"
     $env:TEMP = $Scratch
     $env:TMP = $Scratch
+    $env:CARGO_INCREMENTAL = '0'
+    Say "Build output: $(Set-BuildTarget)"
 
     if (-not $KeepScreenSaver) {
         Suspend-ScreenSaver

@@ -1402,6 +1402,21 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   パスを受け取って捨てている。
 - [ ] `e` が終わったらトーストで行き先を言う（提案 2）: `Unpacked into to-pack_1\ (6 files)`。いまは何も言わない。
 
+## Windows の機械のディスク（2026-10-03、持ち主の報告）
+
+`C:\dev` が 45 GB で、`filer-wintest\target` 17.4 GB と `filer\target` 15.6 GB が大半だった（WizTree）。
+
+- [x] v0.73.15 で依存クレートのデバッグ情報を切った（クラウドで `target` が 8 GB 前後から 2〜5 GB に）。
+- [x] v0.73.17 で、`auto-wintest.ps1` が作業フォルダの `target` を RAM ディスク（`R:\cargo-target\<名前>`）へのジャンクションにし、
+  実行の間は増分ビルドを切る。R: の空きが 8 GB 未満なら C: のまま。
+- [ ] **R: の上で cargo が通るかを、最初の無人実行のログで確かめる**。ImDisk の RAM ディスクでは `canonicalize` が `os error 1` で落ちる
+  （13 節の `Resolves`、`d` の件）。cargo か rustc がどこかで正規化していれば、ビルドがそこで失敗する。失敗していたら `-TargetOnDisk` で
+  登録し直し、`R:` ではなく NTFS の別ドライブか、`subst` で切ったドライブを試す。 【実機】
+- [ ] 古い作業フォルダ（`C:\dev\filer-win13`・`-win32`・`-win41`・`-win35`・`-win1d`・`-win21`・`-w8`、合わせて約 11 GB）を消す。
+  `git -C C:\dev\filer worktree list` で確かめてから `git worktree remove --force <パス>`。 【人】
+- [ ] 手元の `C:\dev\filer\target`（15.6 GB）も R: に移すなら、`cargo clean` のあと
+  `New-Item -ItemType Junction -Path C:\dev\filer\target -Target R:\cargo-target\filer`（R: に先にフォルダを作る。再起動のあとも作り直す）。 【人】
+
 ## x64 の無人実行が 2 日黙って止まっていた（2026-10-02）
 
 - [ ] `scripts/auto-wintest.ps1` は作業コピーが汚れていると、前の実行が途中で切れたものとして何もせずに抜ける（人が判断するため）。 【人】
