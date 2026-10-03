@@ -84,8 +84,11 @@ pub enum OpEvent {
         /// junctions that could stand in for them (Q46). The app asks.
         junctions: Vec<Link>,
         /// For a compress: the archive written, under the name it really got
-        /// (a name already taken can be resolved to `x_1.zip` here).
-        made: Option<PathBuf>,
+        /// (a name already taken can be resolved to `x_1.zip` here). For an
+        /// unpack: each folder the contents are now in, after a lone folder
+        /// inside was lifted out (Q43) -- the name to give back to the reader,
+        /// since it is often not the archive's own.
+        made: Vec<PathBuf>,
         /// For a trash: the paths that went. When some did not, these are what
         /// `u` can bring back -- the whole step was thrown away before, so four
         /// files of five in the bin and `u` said "Nothing to undo" (#83).
@@ -149,7 +152,7 @@ impl Runner {
                         moved: Vec::new(),
                         linked: Vec::new(),
                         junctions: Vec::new(),
-                        made: None,
+                        made: Vec::new(),
                         trashed: Vec::new(),
                     };
                     ctx.run(&req);
@@ -161,7 +164,7 @@ impl Runner {
                         moved: std::mem::take(&mut ctx.moved),
                         linked: std::mem::take(&mut ctx.linked),
                         junctions: std::mem::take(&mut ctx.junctions),
-                        made: ctx.made.take(),
+                        made: std::mem::take(&mut ctx.made),
                         trashed: std::mem::take(&mut ctx.trashed),
                     });
                     wake();
@@ -254,8 +257,9 @@ struct Ctx<'a> {
     linked: Vec<Link>,
     /// See `OpEvent::Finished::junctions`.
     junctions: Vec<Link>,
-    /// The archive a compress wrote, once it is whole.
-    made: Option<PathBuf>,
+    /// The archive a compress wrote, once it is whole; the folders an unpack
+    /// filled.
+    made: Vec<PathBuf>,
     /// What a trash sent to the bin. Empty for everything else.
     trashed: Vec<PathBuf>,
 }
@@ -447,11 +451,10 @@ impl Ctx<'_> {
                 // Whole and not cancelled: an archive that is one folder comes
                 // out as that folder (Q43). A cancelled one stays wrapped, so
                 // what was left half-done is all in one place.
-                Ok(()) if !self.cancelled => {
-                    if let Err(e) = archive::lift_lone_folder(&into, unique_name) {
-                        self.errors.push(format!("{}: {e}", short(src)));
-                    }
-                }
+                Ok(()) if !self.cancelled => match archive::lift_lone_folder(&into, unique_name) {
+                    Ok(at) => self.made.push(at),
+                    Err(e) => self.errors.push(format!("{}: {e}", short(src))),
+                },
                 Ok(()) => {}
                 Err(e) => {
                     self.errors.push(format!("{}: {e}", short(src)));
@@ -493,7 +496,7 @@ impl Ctx<'_> {
             !self.cancelled
         });
         match r {
-            Ok(()) if !self.cancelled => self.made = Some(dest),
+            Ok(()) if !self.cancelled => self.made.push(dest),
             Ok(()) => {}
             Err(e) => {
                 self.errors.push(format!("{}: {e}", short(&dest)));

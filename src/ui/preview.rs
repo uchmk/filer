@@ -1713,5 +1713,22 @@ mod archive_frame {
             "the cursor went to the archive, not {:?}",
             s.app.tabs[0].current.hovered_name(),
         );
+        let said = |s: &crate::ui::harness::Screen, text: &str| s.app.toasts.iter().any(|t| t.text == text);
+        // #205: the end of a pack says what it made.
+        assert!(said(&s, "Packed into out.zip"), "{:?}", s.app.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+
+        // And `e` on it says where the contents went: two loose files stay in
+        // a folder named after the archive.
+        s.typed("e");
+        let into = format!("Unpacked into out{}", std::path::MAIN_SEPARATOR);
+        for _ in 0..1000 {
+            s.turn();
+            if said(&s, &into) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(dir.join("out").join("a.txt").exists(), "unpacked");
+        assert!(said(&s, &into), "{:?}", s.app.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 }

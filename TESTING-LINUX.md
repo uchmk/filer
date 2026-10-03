@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 470 件（TESTING.md の全 639 件のうち、`cargo test` が見ている 169 件は外してある）。
+押すものは 471 件（TESTING.md の全 640 件のうち、`cargo test` が見ている 169 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -335,6 +335,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **21.14** `to-pack\` のファイルを古い日時にし（`(Get-Item f).LastWriteTime = "2021-06-15 12:34:56"`）、`E` で `.zip`・`.tar.gz`・`.7z` に固めて、それぞれ `e` で展開する（v0.65.7）→ 展開したどのファイルも元の `LastWriteTime` に戻っている（3 形式とも秒まで。v0.73.16 より前の zip は偶数秒まで）。展開した時刻ではない。v0.65.7 より前は、どれも `e` の時刻になっていた（#156） — *Give `to-pack\` files with old dates (`(Get-Item f).LastWriteTime = "2021-06-15 12:34:56"`), pack it with `E` as `.zip`, `.tar.gz` and `.7z`, then `e` each one (v0.65.7) → Every unpacked file has its original `LastWriteTime` back, to the second in all three (a zip only to the even second before v0.73.16), not the moment it was unpacked. Before v0.65.7 every one read the time of the `e` (#156)*
 - [ ] **21.14a** `2019-02-28 23:59:59` の日時のファイルを**他のツール**で zip にする（7-Zip の `7z a x.zip f` と、エクスプローラーの「圧縮 (zip 形式) フォルダー」）。それぞれを filer の `e` で展開する。逆向きに、奇数秒のファイルを filer の `E` で `.zip` にし、7-Zip とエクスプローラーで展開する（v0.73.16、#174）→ filer の `e` は `2019-02-28 23:59:59` に戻す（`2019-03-01 00:00:00` ではない）。他のツールも filer の zip から奇数秒のまま戻す（1 秒下がらない） — *A file dated `2019-02-28 23:59:59` (`(Get-Item f).LastWriteTime = …`), zipped by **another tool** -- 7-Zip (`7z a x.zip f`) and Explorer's "Compressed (zipped) folder" -- then `e` on each in filer. And the other way: an odd-second file packed with filer's `E` as `.zip`, unpacked by 7-Zip and by Explorer (v0.73.16, #174) → filer's `e` gives `2019-02-28 23:59:59` back, not `2019-03-01 00:00:00`. The other tools give the odd second back from filer's zip, not one second lower*
 - [ ] **21.15** `to-pack\` だけを選んで `E`（書庫の一番上がフォルダ 1 つ）、`to-pack.zip` で `e`。続けて一番上がファイルの `sample.zip` でも同じ（v0.66.0）→ `to-pack_1\` の中に直接ファイルが入る。`to-pack_1\to-pack\` にはならない（Q43）。`sample.zip` は今までどおり自分の `sample\`（か `sample_1\`）フォルダに展開される — *`E` on `to-pack\` alone (the archive's top level is one folder), then `e` on `to-pack.zip`; then the same with `sample.zip`, whose top level is loose files (v0.66.0) → `to-pack_1\` holds the files directly -- no `to-pack_1\to-pack\` (Q43). `sample.zip` still unpacks into its own `sample\` (or `sample_1\`) folder*
+- [ ] **21.16** `to-pack\` を `E` で `.zip` にし、その書庫を `e` で展開する。次に書庫を 2 つ選んで `e`（v0.73.36、#205）→ 固め終わると `Packed into to-pack.zip`、展開し終わると `Unpacked into to-pack\` のトーストが出る（21.15 の持ち上げのあとの、中身が実際に入ったフォルダの名前）。2 つなら `Unpacked 2 archives into <最初>\ and 1 more`。以前はどちらも何も言わなかった — *`E` on `to-pack\` as `.zip`, then `e` on the archive; then `e` on two archives selected together (v0.73.36, #205) → A toast `Packed into to-pack.zip` when the pack ends, `Unpacked into to-pack\` when the unpack does -- the folder the contents really landed in, after 21.15's lifting -- and `Unpacked 2 archives into <first>\ and 1 more` for two. Before, neither said anything*
 
 ## 22. エディタを行番号付きで開く（エディタのインストールが要る）
 

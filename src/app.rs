@@ -964,6 +964,20 @@ fn unmake(paths: &[PathBuf], file: bool) -> std::io::Result<usize> {
     Ok(parents.iter().rev().take_while(|dir| std::fs::remove_dir(dir).is_ok()).count())
 }
 
+/// What a finished `E` or `e` says it made. An unpacked folder ends in a
+/// separator, so it reads as a folder and not as one more file.
+fn made_says(kind: OpKind, made: &[PathBuf]) -> Option<String> {
+    let folder = |p: &PathBuf| format!("{}{}", util::file_name(p), std::path::MAIN_SEPARATOR);
+    match (kind, made) {
+        (OpKind::Compress(_), [archive]) => Some(format!("Packed into {}", util::file_name(archive))),
+        (OpKind::Extract, [one]) => Some(format!("Unpacked into {}", folder(one))),
+        (OpKind::Extract, [first, rest @ ..]) => {
+            Some(format!("Unpacked {} archives into {} and {} more", rest.len() + 1, folder(first), rest.len()))
+        }
+        _ => None,
+    }
+}
+
 /// The toast for a create taken back. The folders made on the way go with it,
 /// and the toast counts them, so that `u` after `a new/deep/note.txt` does not
 /// read as if only the file went.
@@ -3663,8 +3677,19 @@ impl App {
                 // The archive just packed is what you want to look at next
                 // (Q25) -- but only where you still are: a compress that ends
                 // after you moved on does not pull you back.
-                if let Some(archive) = made.filter(|p| p.parent() == Some(cwd.as_path())) {
-                    self.land_on = Some(archive);
+                if let (OpKind::Compress(_), Some(archive)) = (kind, made.first()) {
+                    if archive.parent() == Some(cwd.as_path()) {
+                        self.land_on = Some(archive.clone());
+                    }
+                }
+                // Packing and unpacking change the listing by one name each,
+                // easily missed, so the end says what was made (#174, #205).
+                // Not over an error or a cancel: the toast above is the one
+                // to read then.
+                if errors.is_empty() && !cancelled {
+                    if let Some(said) = made_says(kind, &made) {
+                        self.toast(said);
+                    }
                 }
                 self.cache.remove(&cwd);
                 self.rescan(&cwd);
@@ -6474,7 +6499,7 @@ mod create_and_link_undo {
             moved: Vec::new(),
             linked,
             junctions: Vec::new(),
-            made: None,
+            made: Vec::new(),
             trashed: Vec::new(),
         }
     }
@@ -8499,7 +8524,7 @@ mod said_out_loud {
             moved: Vec::new(),
             linked: Vec::new(),
             junctions: Vec::new(),
-            made: None,
+            made: Vec::new(),
             trashed: vec![dir.join("a.txt")],
         });
         assert!(a.toasts.iter().any(|t| t.text == "Trashed a.txt — u to undo"), "{:?}",
@@ -8521,7 +8546,7 @@ mod said_out_loud {
             moved: Vec::new(),
             linked: Vec::new(),
             junctions: Vec::new(),
-            made: None,
+            made: Vec::new(),
             trashed: Vec::new(),
         };
         a.error("Trash: a.txt: the Recycle Bin can't take files from R: (…). Use D to delete permanently");
@@ -8537,6 +8562,22 @@ mod said_out_loud {
         let id = a.submit_op_to(OpKind::Delete, vec![dir.join("c.txt")], dir.clone(), None, false);
         a.on_op_event(finished(id));
         assert_eq!(a.toasts.len(), quiet, "nothing to answer, nothing said");
+    }
+
+    /// #205: a finished pack names its archive, an unpack the folder the
+    /// contents are in -- several of them by the first and a count.
+    #[test]
+    fn a_pack_and_an_unpack_say_what_they_made() {
+        let sep = std::path::MAIN_SEPARATOR;
+        let zip = OpKind::Compress(crate::fs::archive::Format::Zip);
+        assert_eq!(made_says(zip, &[PathBuf::from("x/out.zip")]).as_deref(), Some("Packed into out.zip"));
+        assert_eq!(made_says(OpKind::Extract, &[PathBuf::from("x/out")]), Some(format!("Unpacked into out{sep}")));
+        assert_eq!(
+            made_says(OpKind::Extract, &[PathBuf::from("x/a"), PathBuf::from("x/b"), PathBuf::from("x/c")]),
+            Some(format!("Unpacked 3 archives into a{sep} and 2 more")),
+        );
+        assert_eq!(made_says(OpKind::Extract, &[]), None, "nothing unpacked, nothing said");
+        assert_eq!(made_says(OpKind::Copy, &[PathBuf::from("x/a")]), None);
     }
 
     /// #83: a trash where four of five went leaves a step for the four, so
@@ -8555,7 +8596,7 @@ mod said_out_loud {
             moved: Vec::new(),
             linked: Vec::new(),
             junctions: Vec::new(),
-            made: None,
+            made: Vec::new(),
             trashed: vec![gone.clone()],
         });
         match a.undos.undo.last() {
