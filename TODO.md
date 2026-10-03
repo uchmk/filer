@@ -680,10 +680,12 @@
 - [x] （v0.59.7 で直した。ジョブが入ったパスを `Finished.trashed` で返し、それだけで手順を積む。実機で 12.15）**一部だけ失敗した削除で、取り消しの手順が残らない**（バグ）。12.10 で 5 件中 4 件がごみ箱に入ったのに、
   直後の `u` は `Nothing to undo`。失敗した `Fresh` の手順が `Undos::keep` で捨てられている。通ったパスだけで
   手順を積む（ジョブは何が通ったかを知っている。タスクの `4/5` がそれ）。
-- [ ] `d` が正規化できないボリューム（ImDisk の RAM ディスク、仮想ドライブ）で必ず失敗する
+- [x] （v0.73.28 で、何が起きたかと `D` を言うようにした。12.11a を x64 の再テストに回した）`d` が正規化できないボリューム（ImDisk の RAM ディスク、仮想ドライブ）で必ず失敗する
   （`CanonicalizePath { original: "R:\\Temp\\…" }`）。13 節の `Resolves: no (os error 1)` と同じ根。
   少なくとも `this drive can't use the Recycle Bin (R:). Use D to delete permanently.` と言う。正規化が
   落ちたら生のパスで trash に渡す退路は要設計。
+  - 退路は入れていない。ごみ箱の無いボリュームでは、Windows が確認無しに完全削除に切り替えることがあり（今の `FOF_NO_UI`）、
+    `d` は取り消せるはずのキーなので。R: がごみ箱を持てるかを実機で確かめてから考える。 【実機】
 - [x] （v0.59.7 で直した。実機で 12.16）`RestoreCollision { path: …, remaining_items: [TrashItem { id: "C:\\$Recycle.Bin\\S-1-5-21-…` を
   人の言葉にする: `a file by that name is already there. Move it away and press u again.`（手順は残っている）。
 - [x] （v0.59.7 で直した。実機で 12.15）ロックで削除が止まったとき（`Unknown { description: "Some operations were aborted" }`）、そのファイルを

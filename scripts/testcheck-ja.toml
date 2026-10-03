@@ -384,6 +384,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 '12.17' = '''`a` で `new/deep/note.txt` を作り、`u`、続けて `U`（v0.60.0）→ `u` で `note.txt` と、そのために作った 2 つのフォルダが消え、トーストは `Removed note.txt and 2 folder(s)`（v0.67.10。それまでは `Removed note.txt` で、フォルダのことを言わなかった）。`U` で 3 つとも戻る。ファイルに何か書いてから `u` すると残り、書き込まれたというエラーが出る'''
 '12.18' = '''ファイルをヤンクし、別のフォルダで `-`、続けて `u`、`U`（v0.60.0）→ `-` が `Linked <名前> — u to undo` と言う（v0.67.10。それまではヤンクのトーストが残るだけだった）。`u` はリンクだけを消し、元のファイルと中身はそのまま。`U` でリンクが戻る。Windows では `=`（ハードリンク）とフォルダへの `-` でも'''
 "12.11" = 'ごみ箱を無効にしたドライブで `d` → 同じ形のメッセージが、ファイル名を挙げて出る'
+'12.11a' = '''RAM ディスク（`R:\Temp`、ImDisk）の上のファイルで `d`（v0.73.28）→ ファイルは残り、`<名前>: the Recycle Bin can't take files from R: (this drive can't report its own paths: a RAM disk or a virtual drive). Use D to delete permanently` と出る。以前は `CanonicalizePath { original: "R:\Temp\…" }` だった。そのあと `D` なら消せる'''
 
 # 16. Word / Excel / PowerPoint
 "16.1" = '`.docx` をホバー → 段落ごとの本文が出る。16 進ダンプでもメタデータの一覧でもない'

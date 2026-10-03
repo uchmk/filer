@@ -316,7 +316,7 @@ impl Ctx<'_> {
                                 // open elsewhere is by far the usual reason (#83).
                                 let why = match held_open(p) {
                                     true => "it is open in another program".to_owned(),
-                                    false => e.to_string(),
+                                    false => trash_error(&e),
                                 };
                                 self.errors.push(format!("{}: {why}", crate::util::file_name(p)));
                             }
@@ -894,6 +894,31 @@ fn junction(_target: &Path, _at: &Path) -> std::io::Result<()> {
     Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "junctions are a Windows thing"))
 }
 
+/// Why the trash refused a path, in words. One case gets more than the
+/// crate's own text: it normalizes every path before handing it to the
+/// Recycle Bin, and a volume that cannot report its final paths -- an ImDisk
+/// RAM disk, some virtual drives -- fails that with os error 1, so `d` there
+/// always failed with `CanonicalizePath { original: "R:\\Temp\\…" }`. Handing
+/// the raw path on instead is not done: on a volume with no Recycle Bin the
+/// shell may delete for good without asking, and `d` is the key that can be
+/// undone. So it says what happened and points at `D`.
+fn trash_error(e: &trash::Error) -> String {
+    match e {
+        trash::Error::CanonicalizePath { original } => {
+            // The drive (`R:`) where there is one, the folder otherwise.
+            let drive = match original.components().next() {
+                Some(std::path::Component::Prefix(p)) => p.as_os_str().to_string_lossy().into_owned(),
+                _ => original.display().to_string(),
+            };
+            format!(
+                "the Recycle Bin can't take files from {drive} (this drive can't report its own paths: \
+                 a RAM disk or a virtual drive). Use D to delete permanently"
+            )
+        }
+        e => e.to_string(),
+    }
+}
+
 /// Whether another program holds `p` open so that it cannot be removed:
 /// opening it with no sharing at all fails with a sharing violation (32).
 #[cfg(windows)]
@@ -1070,5 +1095,23 @@ mod hardlink_message {
         assert!(said.contains(drives), "{said}");
         let other = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
         assert_eq!(hardlink_error(&other, src, dest), other.to_string());
+    }
+}
+
+#[cfg(test)]
+mod trash_message {
+    use super::*;
+
+    /// A drive whose paths cannot be normalized (an ImDisk RAM disk) gets a
+    /// sentence naming it and `D`, not the crate's `CanonicalizePath { … }`;
+    /// any other refusal keeps the crate's own words.
+    #[test]
+    fn a_drive_the_trash_cannot_use_is_named() {
+        let (at, drive) = if cfg!(windows) { (r"R:\Temp\run-1", "R:") } else { ("/mnt/ram/run-1", "/mnt/ram/run-1") };
+        let said = trash_error(&trash::Error::CanonicalizePath { original: PathBuf::from(at) });
+        assert!(said.starts_with(&format!("the Recycle Bin can't take files from {drive} (")), "{said}");
+        assert!(said.ends_with("Use D to delete permanently"), "{said}");
+        let other = trash::Error::Unknown { description: "Some operations were aborted".into() };
+        assert_eq!(trash_error(&other), other.to_string());
     }
 }
