@@ -59,6 +59,13 @@ struct Cli {
 /// inherits whatever handles its parent redirected, so when standard output is
 /// a file or a pipe, the text goes there; the console path is only for a real
 /// console. Reported four times by the real-machine runs (#81, #84, #88, #93).
+///
+/// **What reaches it is up to the shell.** `cmd`'s `>` and a pipe into another
+/// command hand it the file or the pipe. PowerShell does not wait for a
+/// windowed program at the end of a pipeline, so its own `>` and a bare
+/// `$v = & filer.exe env` connect nothing and come back empty, whatever this
+/// does (#176, #183). That is why the release zip has `filer.com`, the console
+/// front PowerShell does wait for (v0.71.0, `src/bin/filer-com.rs`).
 #[cfg(windows)]
 fn say(text: &str) {
     use std::io::Write;

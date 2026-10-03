@@ -1661,7 +1661,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 ## 実機のセッションの報告（v0.67.20 で受けた分: #176、ARM64 の 29 節）
 
-- [ ] **`filer env > out.txt` が PowerShell では 0 バイトのファイルになる**（#176 の所見と提案 1）。PowerShell の `>` は GUI サブシステムの
+- [x] **`filer env > out.txt` が PowerShell では 0 バイトのファイルになる**（#176 の所見と提案 1）。PowerShell の `>` は GUI サブシステムの
   プロセスを待たずにパイプを閉じる（`>` は 25 ms で戻り、パイプ渡しは 85 ms）。パイプ、`cmd /c "filer.exe env > out.txt"`、
   `Start-Process -Wait -RedirectStandardOutput` は取れる。`src/main.rs` の `say()` の doc コメントは「ファイルにもパイプにも出る」と言っている。
   `filer --help` の末尾と README の `filer env` の所に 1 行
@@ -1670,6 +1670,8 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   0 行（`$null`）を返し、`@(& filer env)`、`& filer env 2>&1`、`& filer --version` / `--help` も同じ。後ろに何か 1 つ置けば
   （`| Write-Output`、`| Out-String -Stream`、`| Out-File`）48 行とも届く。README の例外（1260〜1263 行あたり）を「`>`」から
   「filer をパイプラインの最後に置かない」に広げ、`$v = & filer env | Write-Output` の形を例に挙げる（#183 の提案 1）。
+  v0.71.0 の `filer.com` で `filer env > out.txt` も `$v = & filer env` も届くようになり、README は同じ版で書き直した（`filer.exe` を直接呼ぶときの
+  空振りと `| Write-Output` の例も）。`--help` の 1 行は v0.73.8 の `| Out-Null` の行が代わる。残っていた `say()` の doc コメントを v0.73.13 で直した。
 - [ ] **`say()` が標準出力への書き込みに失敗したとき、黙って捨てずにコンソールへ回す**（#183 の提案 2）。今は `let _ = writeln!` で戻る。
   まず、パイプの最後に置いたときに書き込みが本当にエラーを返しているのかを Windows で測る（#183 は測っていない）。返していなければ
   この直しは効かないので、その結果を書いて閉じる。
