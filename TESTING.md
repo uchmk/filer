@@ -591,6 +591,7 @@ QA-REPORT.md.
 | 18.5 | `<C-w>` | The view splits into two panes; the one with the keys is framed, the other's cursor is dimmed |
 | 18.6 | Select files, `<A-c>` | Copied into the other pane |
 | 18.7 | Drag files onto the other pane | A frame marks the target, and a label by the pointer says "copy" — `Shift` makes it "move" — **before** you let go |
+| 18.7a | Let go: left pane onto the right, right onto the left, and once with `Shift` held; then once with both panes in the same folder (v0.73.38, #208) | The files are copied into the pane let go over (moved with `Shift`), **both ways round** -- before v0.73.38 left onto right did nothing. Same folder: `Both panes are in the same directory`, as `<A-c>` says, and no job |
 | 18.8 | `<Tab>` on a file | The spot panel, with the file's details |
 | 18.9 | `<S-F10>` or right-click | The context menu, with the openers from your config |
 | 18.10 | `<C-S-p>` | The palette, listing every binding; typing filters it |

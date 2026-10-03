@@ -1144,6 +1144,9 @@ pub struct App {
     pub drag: Option<Drag>,
     /// Where each pane was drawn this frame, so a drop can be placed.
     pub pane_rects: Vec<(usize, egui::Rect)>,
+    /// A drag let go this frame, and whether Shift was held: placed once
+    /// every pane has been drawn, not by the pane it started in (#208).
+    pub drag_released: Option<bool>,
     /// What git says about each directory on screen, by directory.
     git_status: Lru<PathBuf, Arc<git::Status>>,
     pub differ: diff::Differ,
@@ -1302,6 +1305,7 @@ impl App {
             cd_refused: None,
             drag: None,
             pane_rects: Vec::new(),
+            drag_released: None,
             differ,
             spotter,
             spotted: None,
@@ -3309,7 +3313,10 @@ impl App {
         let Some(drag) = self.drag.take() else { return };
         let Some(onto) = onto.filter(|&i| i != drag.from && i < self.tabs.len()) else { return };
         let dest = self.tabs[onto].cwd.clone();
+        // Said, as `<A-c>` says it: let go over a list that showed the same
+        // folder, the drop did nothing and nothing told you why (#208).
         if dest == self.tabs[drag.from].cwd {
+            self.error("Both panes are in the same directory");
             return;
         }
         let kind = if cut { OpKind::Move } else { OpKind::Copy };
@@ -8578,6 +8585,23 @@ mod said_out_loud {
         );
         assert_eq!(made_says(OpKind::Extract, &[]), None, "nothing unpacked, nothing said");
         assert_eq!(made_says(OpKind::Copy, &[PathBuf::from("x/a")]), None);
+    }
+
+    /// #208: a drop onto a list showing the same folder says why it did
+    /// nothing, in `<A-c>`'s words, and queues no job.
+    #[test]
+    fn a_drop_into_the_same_folder_says_so() {
+        let dir = crate::util::test_dir("said-drop");
+        std::fs::write(dir.join("a.txt"), "a").unwrap();
+        let mut a = app_in(&dir);
+        let mut other = crate::core::tab::Tab::new(dir.clone(), a.tabs[0].sort, false, crate::fs::entry::Linemode::None);
+        other.cwd = dir.clone();
+        a.tabs.push(other);
+        a.drag = Some(Drag { from: 0, paths: vec![dir.join("a.txt")], label: "a.txt".into() });
+        a.drop_drag(Some(1), false);
+        assert!(a.tasks.is_empty(), "no job");
+        assert!(a.toasts.iter().any(|t| t.text == "Both panes are in the same directory"), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 
     /// #83: a trash where four of five went leaves a step for the four, so

@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 471 件（TESTING.md の全 640 件のうち、`cargo test` が見ている 169 件は外してある）。
+押すものは 472 件（TESTING.md の全 641 件のうち、`cargo test` が見ている 169 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -336,6 +336,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **18.5** `<C-w>` → 2 分割になり、キーのあるほうが枠で囲まれ、もう一方のカーソルは淡くなる — *`<C-w>` → The view splits into two panes; the one with the keys is framed, the other's cursor is dimmed*
 - [x] **18.6** ファイルを選んで `<A-c>` → もう一方のペインへコピーされる — *Select files, `<A-c>` → Copied into the other pane*
 - [~] **18.7** ファイルをもう一方のペインへドラッグ → 対象が枠で示され、ポインタの横に「copy」と出る（`Shift` で「move」）。**離す前に**出ること — *Drag files onto the other pane → A frame marks the target, and a label by the pointer says "copy" — `Shift` makes it "move" — **before** you let go*
+- [ ] **18.7a** 離す。左のペインから右へ、右から左へ、`Shift` を押したままでも 1 回。最後に両方のペインを同じフォルダにして 1 回（v0.73.38、#208）→ 離したペインへコピーされる（`Shift` なら移動）。**どちらの向きでも**。v0.73.38 より前は左→右で何も起きなかった。同じフォルダなら `<A-c>` と同じ `Both panes are in the same directory` が出て、ジョブは立たない — *Let go: left pane onto the right, right onto the left, and once with `Shift` held; then once with both panes in the same folder (v0.73.38, #208) → The files are copied into the pane let go over (moved with `Shift`), **both ways round** -- before v0.73.38 left onto right did nothing. Same folder: `Both panes are in the same directory`, as `<A-c>` says, and no job*
 - [x] **18.11** `B` で保存しておいた場所へ、`'` に続けて文字を押す → そこへ飛ぶ。**`b` はブックマークの*管理*の前置キー**（`bb` 一覧、`bs` 保存、`bd` 削除）なので、`b` + 文字では何にも届かない — *`'` then a letter, having saved one with `B` → Jumps there. **`b` is the prefix bookmark *management* hangs off** (`bb` lists, `bs` saves, `bd` deletes), so `b` and a letter reaches nothing*
 - [x] **18.12** `z` → ジャンプ一覧が出る。ブックマークが先、そのあと最近のディレクトリが「2h ago」付きで並ぶ — *`z` → The jump list: bookmarks first, then recent directories with "2h ago" beside them*
 
