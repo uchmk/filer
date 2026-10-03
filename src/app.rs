@@ -8176,12 +8176,18 @@ mod escape_and_max_preview {
         assert!(!a.toasts.iter().any(|t| t.text.contains("not open")), "no refusal");
 
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        // The rows joined before searching: the pane is 80 columns here, and
+        // with a long `TEMP` the echoed path wraps, putting the name across
+        // two rows. Looked for row by row, it was never found -- always, on a
+        // machine with no RAM disk, whose scratch path is long (#203).
         let echoed = |a: &App| {
             a.term.as_ref().is_some_and(|t| {
                 t.with_grid(|g| {
                     crate::terminal::snapshot(g)
                         .iter()
-                        .any(|row| row.iter().map(|c| c.c).collect::<String>().contains("q35-marker.txt"))
+                        .flat_map(|row| row.iter().map(|c| c.c))
+                        .collect::<String>()
+                        .contains("q35-marker.txt")
                 })
             })
         };

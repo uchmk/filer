@@ -1427,7 +1427,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] #202: 19.1〜19.5 に印（ホイールで、プレビュー・一覧・2 分割・ペインがそれぞれ動く。1/4 ノッチの端数もたまる）。x64 の順番表から 19 節を外した。
 - [x] #203: 33.11〜33.18 に印（設定の置き場所の間違いの警告、`<C-F5>` で消える、読む前のファイルの印）。ARM64 の順番表から 22 節（4 つのエディタが
   どれも入っていない。Q45）と 33 節を外し、x64 と同じ「Re-tests of changed behaviour」の行を足した。
-- [ ] **`app::escape_and_max_preview::sending_a_name_opens_a_closed_pane` が、`TEMP` が長いと必ず落ちる**（#203 の所見 1）。ペインは 80×24 のままで、
+- [x] （v0.73.29 で直した。Linux でも長い `TMPDIR` で再現し、直したあとは全 631 件が通った。ARM64 の再テストの行に回した）**`app::escape_and_max_preview::sending_a_name_opens_a_closed_pane` が、`TEMP` が長いと必ず落ちる**（#203 の所見 1）。ペインは 80×24 のままで、
   打ったパスが折り返し、`q35-marker.txt` が行の境目をまたぐ。テストは 1 行ずつ `contains` で探している。`snapshot(g)` の行をつないでから探す。
   RAM ディスクの無い ARM64 のレーンは一時フォルダが必ず長いので、**直すまでこのレーンの `cargo test` は緑にならない**。直したら ARM64 の再テストの行へ。
 - [ ] **Ctrl を押しながらホイールを回しても画像が拡大しない**（#202 の所見、19.6）。egui 0.36 は Ctrl 付きのホイールを `zoom_factor_delta` にし、
