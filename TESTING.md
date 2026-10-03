@@ -490,6 +490,7 @@ machines do not have.
 | 13.10 | `<Tab>` on a symlink (v0.46.0) | A **Link** section: `Kind` reads `Symlink`, `Target` the stored path, `Resolves` where it lands |
 | 13.11 | `<Tab>` on a link made with `_` | `Kind` reads `Symlink (relative)`, and `Target` is the relative path while `Resolves` is absolute — the two rows differ, which is the whole point of the pair |
 | 13.12 | `<Tab>` on a **broken** link | `Resolves` reads `no (…)` with the OS's reason, and the section still appears |
+| 13.12a | `<Tab>` on a junction into the RAM disk -- `C:\dev\filer\target`, which points at `R:\cargo-target\filer` (v0.73.27) | `Resolves` reads `R:\cargo-target\filer (as written: this volume cannot normalize it, … (os error 1))`, not `no (…)`: the link works, only the volume cannot give its final path. Before, it read `no (…os error 1)`, the look of a broken link |
 | 13.13 | `<Tab>` on a hardlink (make one with `=`, or `fsutil hardlink create`) | `Kind` reads `Hardlink` and `Links` reads `2`. **This is the only place in the app a hardlink is visible** |
 | 13.14 | The same, on Windows | `Also at` lists the other path. Check it against `fsutil hardlink list` — the same set, with the file's own path left out |
 | 13.15 | `<Tab>` on an ordinary file with one name | **No Link section at all** — not a section saying "1", which would be noise on every file |

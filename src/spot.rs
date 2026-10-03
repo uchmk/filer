@@ -135,10 +135,7 @@ fn link(path: &Path) -> Option<Section> {
             };
             s.row("Kind", kind);
             s.row("Target", t.display().to_string());
-            s.row("Resolves", match std::fs::canonicalize(path) {
-                Ok(real) => plain(&real),
-                Err(e) => format!("no ({e})"),
-            });
+            s.row("Resolves", resolves(path, t, std::fs::canonicalize(path)));
         }
         // The only place in the app a hardlink is visible. It *is* an ordinary
         // entry -- same bytes, no marker, nothing in the row to see -- so
@@ -152,6 +149,30 @@ fn link(path: &Path) -> Option<Section> {
         }
     }
     Some(s)
+}
+
+/// Where a link leads, for the `Resolves` row.
+///
+/// `canonicalize` asks the volume for the final path, and a volume that cannot
+/// answer -- an ImDisk RAM disk, some virtual drives -- fails with os error 1
+/// for a link that works: a junction to `R:\cargo-target` read `no (os error
+/// 1)`, the look of a broken link (13.12), while `g` `f` went through it. So
+/// when that fails, the target as written (taken from the link's folder when
+/// relative) is checked by opening it, and named with the reason it could not
+/// be normalized. `no` is kept for a link whose target really is not there.
+fn resolves(path: &Path, target: &Path, canonical: std::io::Result<PathBuf>) -> String {
+    let err = match canonical {
+        Ok(real) => return plain(&real),
+        Err(e) => e,
+    };
+    if std::fs::metadata(path).is_ok() {
+        let at = match target.is_relative() {
+            true => path.parent().map_or_else(|| target.to_path_buf(), |dir| dir.join(target)),
+            false => target.to_path_buf(),
+        };
+        return format!("{} (as written: this volume cannot normalize it, {err})", plain(&at));
+    }
+    format!("no ({err})")
 }
 
 /// How many names point at these bytes, and (on Windows) what the others are.
@@ -790,6 +811,27 @@ mod tests {
         let dir = crate::util::test_dir("spot-folder-links");
         std::fs::create_dir_all(dir.join("a").join("b")).unwrap();
         assert!(link(&dir.join("a")).is_none(), "a plain folder with a subfolder");
+    }
+
+    /// A link that works but whose volume cannot normalize paths (an ImDisk
+    /// RAM disk answers os error 1) is named as written, not called broken;
+    /// a link whose target is gone is still `no`.
+    #[cfg(unix)]
+    #[test]
+    fn a_link_the_volume_cannot_normalize_still_resolves() {
+        let dir = crate::util::test_dir("spot-resolves");
+        std::fs::create_dir_all(dir.join("real")).unwrap();
+        std::os::unix::fs::symlink("real", dir.join("live")).unwrap();
+        std::os::unix::fs::symlink("gone", dir.join("dead")).unwrap();
+        let refused = || Err(std::io::Error::other("Incorrect function. (os error 1)"));
+
+        let live = resolves(&dir.join("live"), Path::new("real"), refused());
+        assert!(live.starts_with(&plain(&dir.join("real"))), "{live}");
+        assert!(live.contains("cannot normalize") && live.contains("os error 1"), "{live}");
+        let dead = resolves(&dir.join("dead"), Path::new("gone"), refused());
+        assert!(dead.starts_with("no ("), "{dead}");
+        let normal = resolves(&dir.join("live"), Path::new("real"), std::fs::canonicalize(dir.join("live")));
+        assert!(!normal.contains("cannot normalize"), "{normal}");
     }
 
 

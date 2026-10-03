@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 467 件（TESTING.md の全 636 件のうち、`cargo test` が見ている 169 件は外してある）。
+押すものは 468 件（TESTING.md の全 637 件のうち、`cargo test` が見ている 169 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -251,6 +251,7 @@ fsutil hardlink list locked.txt        # 期待値の答え合わせ用
 - [x] **13.10** シンボリックリンクの上で `<Tab>` → **Link** セクションが出る。`Kind` が `Symlink`、`Target` が保存されたパス、`Resolves` が実際の着地点 — *`<Tab>` on a symlink (v0.46.0) → A **Link** section: `Kind` reads `Symlink`, `Target` the stored path, `Resolves` where it lands*
 - [x] **13.11** `_` で作ったリンクの上で `<Tab>` → `Kind` が `Symlink (relative)`。`Target` は相対パス、`Resolves` は絶対パスで、**2 行が食い違うことがこの対の要点** — *`<Tab>` on a link made with `_` → `Kind` reads `Symlink (relative)`, and `Target` is the relative path while `Resolves` is absolute — the two rows differ, which is the whole point of the pair*
 - [x] **13.12** **壊れた**リンクの上で `<Tab>` → `Resolves` が `no (…)` と OS の理由を出し、セクション自体は表示される — *`<Tab>` on a **broken** link → `Resolves` reads `no (…)` with the OS's reason, and the section still appears*
+- [ ] **13.12a** RAM ディスクへのジャンクション（`R:\cargo-target\filer` を指す `C:\dev\filer\target`）の上で `<Tab>`（v0.73.27）→ `Resolves` が `R:\cargo-target\filer (as written: this volume cannot normalize it, … (os error 1))` と出て、`no (…)` にならない。リンクは生きていて、ボリュームが最終的なパスを返せないだけ。以前は `no (…os error 1)` と、壊れたリンクと同じ見た目だった — *`<Tab>` on a junction into the RAM disk -- `C:\dev\filer\target`, which points at `R:\cargo-target\filer` (v0.73.27) → `Resolves` reads `R:\cargo-target\filer (as written: this volume cannot normalize it, … (os error 1))`, not `no (…)`: the link works, only the volume cannot give its final path. Before, it read `no (…os error 1)`, the look of a broken link*
 - [x] **13.14** 同じものを Windows で → `Also at` に別名のパスが並ぶ。`fsutil hardlink list` と突き合わせる（自分自身のパスを除いた同じ集合になる） — *The same, on Windows → `Also at` lists the other path. Check it against `fsutil hardlink list` — the same set, with the file's own path left out*
 - [x] **13.16** ハードリンクを作り、別のプログラムに共有なしの書き込みロックを握らせた状態で `<Tab>`（コマンドは上の「準備」）→ `Links` は `2` のまま、`Also at` も出る。ハンドルがアクセス権を一切要求しないので、排他ロックでも数えられる — *Hardlink a file, then have another program hold it open for writing with no sharing, and `<Tab>` it (commands in the preamble above) → `Links` still reads `2` and `Also at` still lists the other name. The handle asks for **no** access rights, so an exclusive write lock does not hide the count*
 - [ ] **13.17** ジャンクション（`mklink /J`）で `<Tab>`（v0.59.4）→ `Kind` が `Symlink` ではなく `Junction`。同じフォルダへのシンボリックリンク（`mklink /D`）は今までどおり `Symlink`。一覧の `->` はどちらも変わらない（13.7） — *`<Tab>` on a junction (`mklink /J`) (v0.59.4) → `Kind` reads `Junction`, not `Symlink`. A symlink to the same folder (`mklink /D`) still reads `Symlink`. The list's `->` is unchanged for both (13.7)*
