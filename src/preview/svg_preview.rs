@@ -48,7 +48,7 @@ fn render_bytes(data: &[u8], dir: Option<&Path>, box_size: (u32, u32)) -> Result
     let caption = format!("SVG · {} × {}", size.width().round(), size.height().round());
     let source = vector_source(size.width(), size.height());
     let own = source.0 as f32 / size.width().max(1.0);
-    Ok(Payload::Image { width, height, source, own, rgba, caption })
+    Ok(Payload::Image { width, height, source, own, vector: true, rgba, caption })
 }
 
 /// The size an SVG is laid out at, whatever box it was rendered into.

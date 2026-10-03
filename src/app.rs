@@ -4446,14 +4446,15 @@ impl App {
     /// Scale the image preview. Stepping in or out from *fit* starts from the
     /// scale on screen, so the first press does not jump.
     fn zoom_preview(&mut self, to: ZoomTo) {
-        let PreviewState::Ready(Payload::Image { own, .. }) = self.preview.state else {
+        let PreviewState::Ready(Payload::Image { own, vector, .. }) = self.preview.state else {
             return;
         };
         let from = self.preview.zoom.unwrap_or(self.preview.fit);
         self.preview.zoom = match to {
             ZoomTo::Fit => None,
-            // The file's own size: for an SVG, not the size it is laid out at.
-            ZoomTo::Actual => Some(1.0 / own),
+            // An SVG at its own size in logical pixels, a raster one pixel to
+            // one of the screen's (Q65).
+            ZoomTo::Actual => Some(crate::preview::actual_zoom(own, vector, self.ctx.pixels_per_point())),
             ZoomTo::In => Some((from * 1.25).clamp(ZOOM_MIN, ZOOM_MAX)),
             ZoomTo::Out => Some((from / 1.25).clamp(ZOOM_MIN, ZOOM_MAX)),
         };

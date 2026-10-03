@@ -28,7 +28,7 @@ pub fn render(path: &Path, box_size: (u32, u32)) -> Result<Payload, String> {
 
     let (cw, ch) = shown_size(sw, sh, orientation);
     let (width, height, rgba) = finish(fit(img, box_size).to_rgba8());
-    Ok(Payload::Image { width, height, source: (cw, ch), own: 1.0, rgba, caption: format!("{cw} × {ch}") })
+    Ok(Payload::Image { width, height, source: (cw, ch), own: 1.0, vector: false, rgba, caption: format!("{cw} × {ch}") })
 }
 
 /// Shrink into `box_size`. Never enlarge: upscaling is the renderer's job and

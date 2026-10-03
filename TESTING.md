@@ -197,7 +197,7 @@ everything about how the picture *looks* and how it answers the mouse.
 | # | Do | Expect |
 | --- | --- | --- |
 | 3.1 | Hover `zoom-me.png` | It fits the pane. The caption reads `3200 × 2400 · fit NN%` |
-| 3.2 | `<A-1>` (1:1) | It fills far more than the pane, showing the middle. **The grid lines are crisp** — this is the re-decode working; if it is a blurred enlargement of the fitted copy, that is the bug this was built to avoid |
+| 3.2 | `<A-1>` (1:1) | It fills far more than the pane, showing the middle. **The grid lines are crisp** — this is the re-decode working; if it is a blurred enlargement of the fitted copy, that is the bug this was built to avoid. At a display scale other than 100% too, one image pixel is one **physical** screen pixel (v0.73.62, Q65) |
 | 3.3 | Watch the moment it sharpens | The picture must **not jump or change size** when the sharper copy arrives. Only its sharpness changes |
 | 3.4 | Drag it | It pans, and stops when its edge reaches the pane's edge — it cannot be thrown off screen |
 | 3.5 | `Ctrl` and the wheel, pointer on a grid intersection | It zooms **about the pointer**: the intersection under the cursor stays under it |
@@ -234,7 +234,7 @@ for commit `f2b30c5` is it, for as long as the 90 days last.
 | 4.6 | An SVG using a font **file next to it** rather than a system font: `font-family` names the family inside the file (v0.73.54) | The text is set in that font, not the Times fallback. filer reads `.ttf` / `.otf` / `.ttc` / `.otc` in the SVG's own folder (not below it); an `@font-face` `url()` is not followed, so the family name is what matches |
 | 4.7 | A **malformed** SVG (truncate one) | `bad SVG: …` on the preview, and the window keeps working |
 | 4.8 | Compare 4.2 and 4.3 against v0.33.5's build | Any difference in the glyphs is the new shaper; say what changed and attach both |
-| 4.9 | An SVG of a known size (a 100 × 100 with a circle of radius 40): `<A-i>` once, wait two seconds; then `<A-1>` (v0.73.53, #219) | `<A-i>` grows the picture by one step (1.25×) and it stays there -- before v0.73.53 it kept growing to the 4096 px cap as each sharper render lowered the fit. `<A-1>` shows the SVG at its own size (the circle 80 px across), caption `· 1:1`, `zoom: 100%` |
+| 4.9 | An SVG of a known size (a 100 × 100 with a circle of radius 40): `<A-i>` once, wait two seconds; then `<A-1>` (v0.73.53, #219) | `<A-i>` grows the picture by one step (1.25×) and it stays there -- before v0.73.53 it kept growing to the 4096 px cap as each sharper render lowered the fit. `<A-1>` shows the SVG at its own size in logical pixels, as a browser shows it (the circle 80 px across at 100% display scale, 120 at 150%; v0.73.62, Q65), caption `· 1:1`, `zoom: 100%` |
 
 ## 5. Compare, side by side (v0.4.0)
 

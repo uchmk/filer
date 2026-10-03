@@ -1080,11 +1080,12 @@ fn state_report(app: &App) -> String {
     lines.push(format!("preview top: {} of {}", tab.preview_offset, app.preview.max_offset));
     // Against the file's own size, as the caption says it (an SVG is laid
     // out larger than it is).
-    let own = match &app.preview.state {
-        app::PreviewState::Ready(preview::Payload::Image { own, .. }) => *own,
-        _ => 1.0,
+    let ppp = app.ctx.pixels_per_point();
+    let scale = |z: f32| match &app.preview.state {
+        app::PreviewState::Ready(preview::Payload::Image { own, vector, .. }) => preview::shown_scale(z, *own, *vector, ppp),
+        _ => z,
     };
-    lines.push(format!("zoom: {}", app.preview.zoom.map_or("fit".into(), |z| format!("{:.0}%", z * own * 100.0))));
+    lines.push(format!("zoom: {}", app.preview.zoom.map_or("fit".into(), |z| format!("{:.0}%", scale(z) * 100.0))));
     // The setting `<A-n>` flips. Whether a strip was actually drawn (it is
     // not on rendered Markdown, a two-line file or a narrow pane) is a
     // picture's question.

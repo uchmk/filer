@@ -20,7 +20,7 @@ pub fn init_thread() {}
 pub fn render(path: &Path, box_size: (u32, u32)) -> Result<Payload, String> {
     let img = imp::thumbnail(path, box_size)?;
     let (width, height, rgba) = image_preview::finish(image_preview::fit(img.into(), box_size).to_rgba8());
-    Ok(Payload::Image { width, height, source: (width, height), own: 1.0, rgba, caption: "thumbnail".into() })
+    Ok(Payload::Image { width, height, source: (width, height), own: 1.0, vector: false, rgba, caption: "thumbnail".into() })
 }
 
 #[cfg(windows)]

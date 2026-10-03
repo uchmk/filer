@@ -153,7 +153,7 @@ pub fn draw(
                 }
                 0
             }
-            Payload::Image { source, own, caption, .. } => {
+            Payload::Image { source, own, vector, caption, .. } => {
                 if let Some(tex) = texture {
                     let avail = image_area(rect);
                     // The picture's own size decides the geometry; the texture
@@ -180,8 +180,10 @@ pub fn draw(
                     // screen is the real pixels is the first thing to know.
                     // Against the file's own size, which for an SVG is not
                     // the size it is laid out at.
-                    let note = match st.zoom.map(|z| z * own) {
-                        None => format!("{caption}  ·  fit {:.0}%", fit * own * 100.0),
+                    let ppp = painter.ctx().pixels_per_point();
+                    let scale = |z: f32| crate::preview::shown_scale(z, *own, *vector, ppp);
+                    let note = match st.zoom.map(scale) {
+                        None => format!("{caption}  ·  fit {:.0}%", scale(fit) * 100.0),
                         Some(z) if (z - 1.0).abs() < 0.005 => format!("{caption}  ·  1:1"),
                         Some(z) => format!("{caption}  ·  {:.0}%", z * 100.0),
                     };

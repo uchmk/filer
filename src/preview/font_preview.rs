@@ -79,7 +79,7 @@ fn render_bytes(data: &[u8], file_name: &str, box_size: (u32, u32)) -> Result<Pa
     }
     let (width, height, rgba) = sheet.finish(y.ceil() as u32 + pad as u32);
     // A rendered specimen is its own source: there is nothing sharper to ask for.
-    Ok(Payload::Image { width, height, source: (width, height), own: 1.0, rgba, caption })
+    Ok(Payload::Image { width, height, source: (width, height), own: 1.0, vector: false, rgba, caption })
 }
 
 /// The English full name if there is one, else any readable full or family name.

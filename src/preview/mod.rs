@@ -195,6 +195,20 @@ pub fn outline_cols(widest: usize, cols: u16) -> u16 {
     (widest.min(100) as u16 + 1).clamp(16.min(max), max)
 }
 
+/// An image's scale as the reader means it: 1.0 at its 1:1. `zoom` is points
+/// per `source` pixel; `ppp` the display's physical pixels per point (Q65).
+pub fn shown_scale(zoom: f32, own: f32, vector: bool, ppp: f32) -> f32 {
+    match vector {
+        true => zoom * own,
+        false => zoom * ppp,
+    }
+}
+
+/// The zoom that is an image's 1:1 (see [`shown_scale`]).
+pub fn actual_zoom(own: f32, vector: bool, ppp: f32) -> f32 {
+    1.0 / shown_scale(1.0, own, vector, ppp).max(f32::EPSILON)
+}
+
 /// The largest side a zoomed image is decoded or rendered at.
 pub const MAX_DECODE: u32 = 4096;
 
@@ -272,6 +286,11 @@ pub enum Payload {
         /// `svg_preview::vector_source`), and its scale and its 1:1 are
         /// reckoned against its own size, not that one.
         own: f32,
+        /// Drawn from a vector (an SVG): its 1:1 is its own units as the
+        /// display's logical pixels, as a browser shows it. A raster's 1:1 is
+        /// one of its pixels to one of the screen's, the only scale at which
+        /// it is sharp (Q65).
+        vector: bool,
         rgba: Arc<Vec<u8>>,
         caption: String,
     },
@@ -518,11 +537,12 @@ fn external_picture(rule: &crate::config::PreviewRule, req: &Request) -> Payload
         Err(e) => return Payload::Error(format!("{}: {e}", caption(rule, n))),
     };
     match image_preview::render(&drawn.png, req.key.box_size) {
-        Ok(Payload::Image { width, height, source, own, rgba, .. }) => Payload::Image {
+        Ok(Payload::Image { width, height, source, own, vector, rgba, .. }) => Payload::Image {
             width,
             height,
             source,
             own,
+            vector,
             rgba,
             caption: caption(rule, n),
         },
@@ -600,6 +620,21 @@ mod tests {
     /// A unit that could only go in front turned fifty seconds into `s 50`.
     /// `{n}` says where the number belongs, which is in front for a page and
     /// behind for a second.
+    /// Q65: on a 150% display a raster's 1:1 is one of its pixels to one of
+    /// the screen's, and an SVG's is its own units as logical pixels -- as a
+    /// browser shows it. At 100% the two agree.
+    #[test]
+    fn one_to_one_is_physical_for_a_raster_and_logical_for_an_svg() {
+        let raster = actual_zoom(1.0, false, 1.5);
+        assert!((raster - 1.0 / 1.5).abs() < 1e-6, "a 100 px PNG is 66.7 points, 100 screen pixels");
+        assert!((shown_scale(raster, 1.0, false, 1.5) - 1.0).abs() < 1e-6, "and says 1:1");
+        let own = 40.96; // a 100-unit SVG laid out at 4096
+        let svg = actual_zoom(own, true, 1.5);
+        assert!((svg * 4096.0 - 100.0).abs() < 1e-3, "100 points, 150 screen pixels");
+        assert!((shown_scale(svg, own, true, 1.5) - 1.0).abs() < 1e-6);
+        assert_eq!(actual_zoom(1.0, false, 1.0), 1.0, "at 100% nothing changes");
+    }
+
     /// #214: a UTF-16 file (Notepad's "Unicode" save) is previewed as text,
     /// both byte orders, not hex-dumped for its NUL bytes.
     #[test]
