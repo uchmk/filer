@@ -294,6 +294,9 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   スクリプトの冒頭。**実機の PR をマージすることが次の実行の引き金になる**ので、マージする側は
   順番表（`windows-role.md` の「Where the work is」）が次の節を指しているかを確かめてからマージする。
   無人のときの規則は役割定義の「Unattended runs」の節。
+  **タスクは作業フォルダの中のスクリプトを動かす**（v0.73.24）。`-File C:\dev\filer-wintest\scripts\auto-wintest.ps1`（ARM64 は
+  `filer-armtest`）。作業フォルダは起動のたびに `origin/main` に合わせるので、いつも最新のスクリプトが動き、持ち主の `C:\dev\filer` は触らない。
+  手元のスクリプトを動かしていた頃、ARM64 のノート PC は v0.51.1 のまま何日も回っていた（#201）。
   **ビルドの成果物は RAM ディスクに置く**（v0.73.17）。R: があれば、作業フォルダの `target` を `R:\cargo-target\<作業フォルダ名>` への
   ジャンクションにする（パスは変わらない）。2026-10-03 に `C:\dev` が 45 GB になり、うち 33 GB が 2 つの `target` だった。
   R: の空きが 8 GB を切っていれば C: のまま。`-TargetOnDisk` で止める。

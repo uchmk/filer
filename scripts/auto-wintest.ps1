@@ -18,12 +18,29 @@
 # It is meant to be run by Task Scheduler every 15 minutes, as you, "only when
 # the user is logged on" -- the run drives a real window:
 #
-#   $a = New-ScheduledTaskAction -Execute pwsh -Argument '-NoProfile -WindowStyle Hidden -File C:\dev\filer\scripts\auto-wintest.ps1'
+#   $a = New-ScheduledTaskAction -Execute pwsh -Argument '-NoProfile -WindowStyle Hidden -File C:\dev\filer-wintest\scripts\auto-wintest.ps1'
 #   $t = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 15)
 #   $s = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 4)
 #   Register-ScheduledTask -TaskName filer-auto-wintest -Action $a -Trigger $t -Settings $s
 #
 #   Unregister-ScheduledTask -TaskName filer-auto-wintest    # to stop it
+#
+# Run the worktree's copy, not this one: register the task with
+# -File C:\dev\filer-wintest\scripts\auto-wintest.ps1 (C:\dev\filer-armtest\...
+# for -Lane arm). The worktree is moved to origin/main at every firing, so the
+# script that runs is always the newest, and the checkout you work in is never
+# touched. Until v0.73.24 the task ran the copy in that checkout, which only
+# moved when someone pulled: the ARM64 laptop ran v0.51.1 for days (#201). The
+# very first time, before the worktree exists, run this copy once by hand to
+# make it (without -Force it makes the worktree and stops if there is nothing
+# to run). To move an existing task over:
+#
+#   # x64:   filer-auto-wintest,     C:\dev\filer-wintest
+#   # ARM64: filer-auto-wintest-arm, C:\dev\filer-armtest
+#   $t = Get-ScheduledTask filer-auto-wintest
+#   $a = $t.Actions[0]
+#   $a.Arguments = $a.Arguments -replace [regex]::Escape('C:\dev\filer\scripts'), 'C:\dev\filer-wintest\scripts'
+#   Set-ScheduledTask -TaskName $t.TaskName -Action $a
 #
 # By hand:
 #
@@ -290,6 +307,11 @@ try {
 
     git -C $Work fetch -q origin main
     if ($LASTEXITCODE -ne 0) { Say 'git fetch failed. Trying again next time.'; exit 0 }
+    # Kept on origin/main at every firing, not only when a run starts, so the
+    # copy of this script inside it is the newest by the next firing (see the
+    # top: the task runs that copy). A worktree with changes in it is left to
+    # the check further down.
+    if (-not (git -C $Work status --porcelain)) { git -C $Work checkout -q --detach origin/main }
 
     $trigger = (git -C $Work log -1 --format=%H origin/main -- $watched).Trim()
     $seen = if (Test-Path $last) { (Get-Content -Raw $last).Trim() } else { '' }
@@ -311,6 +333,15 @@ try {
     git -C $Work checkout -q --detach origin/main
     $head = (git -C $Work rev-parse --short HEAD).Trim()
     Say "[$Lane] Starting a run on $head (trigger $($trigger.Substring(0, 7)))."
+    # Which copy of this script is running, and how old it is: the ARM64
+    # laptop ran one pinned at v0.51.1 for days, found only from a side effect
+    # (#201).
+    $self = (git -C $PSScriptRoot log -1 --format='%h %s' -- auto-wintest.ps1 2>$null) -join ''
+    Say "Script: $PSCommandPath ($self)"
+    $inWork = [IO.Path]::GetFullPath($PSScriptRoot).StartsWith([IO.Path]::GetFullPath($Work), [StringComparison]::OrdinalIgnoreCase)
+    if (-not $inWork) {
+        Say "This script is not the worktree's copy, so it does not follow origin/main. Point the task at $Work\scripts\auto-wintest.ps1 (see the top of the script)."
+    }
 
     # This run's own scratch folder, and the oldest ones beyond three gone.
     Get-ChildItem -Directory -Path $Scratch -Filter 'run-*' -ErrorAction SilentlyContinue |
