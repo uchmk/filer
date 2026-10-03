@@ -1414,6 +1414,11 @@ overlay: input
 view: list
 input: draft
 pane: closed
+list top: 0
+preview top: 12 of 480
+zoom: fit
+minimap setting: on
+split: no
 toast: Yanked 1 item(s)
 keys: done
 ```
@@ -1422,7 +1427,10 @@ keys: done
 `usage` or `search` while one of those views stands in for the listing, else `list` (v0.64.0); `input` is
 there only while a prompt is open; `compare: folders <left> | <right>` (or `files`) only while a
 comparison is open; `pane` is the terminal's grid (`12x159`) or `closed`; `toast` is
-the newest message still on screen, empty when there is none.
+the newest message still on screen, empty when there is none. Since v0.73.1: `list top` is the first
+row of the list on screen, `preview top: N of M` the preview's first line against the furthest it can
+scroll, `zoom` the image's scale (`fit` or `250%`), `minimap setting` what `<A-n>` flips, and `split`
+whether the second pane is open and which side has the keys.
 
 A script that stops part way still leaves the file (v0.67.12). If nothing has been pressed for 30
 seconds past any `<Wait:N>` due -- the window stopped getting frames -- filer writes this instead,

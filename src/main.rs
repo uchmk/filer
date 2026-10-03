@@ -1017,6 +1017,20 @@ fn state_report(app: &App) -> String {
         "pane: {}",
         app.term.as_ref().map_or("closed".into(), |t| format!("{}x{}", t.size().lines, t.size().cols))
     ));
+    // Where the list and the preview are scrolled, and how the preview is
+    // shown: what the wheel, zoom and minimap rows of TESTING.md move, read
+    // as numbers instead of judged from a picture (2026-10-03).
+    lines.push(format!("list top: {}", tab.current.offset));
+    lines.push(format!("preview top: {} of {}", tab.preview_offset, app.preview.max_offset));
+    lines.push(format!("zoom: {}", app.preview.zoom.map_or("fit".into(), |z| format!("{:.0}%", z * 100.0))));
+    // The setting `<A-n>` flips. Whether a strip was actually drawn (it is
+    // not on rendered Markdown, a two-line file or a narrow pane) is a
+    // picture's question.
+    lines.push(format!("minimap setting: {}", if app.cfg.ui.minimap { "on" } else { "off" }));
+    lines.push(format!(
+        "split: {}",
+        app.split.map_or("no".into(), |s| format!("yes, keys {}", if s.right { "right" } else { "left" }))
+    ));
     lines.push(format!("toast: {}", app.toasts.last().map_or("", |t| t.text.as_str())));
     lines.join("\n") + "\n"
 }
@@ -1329,7 +1343,17 @@ mod tests {
         app.toast("Copied a.txt");
         let report = state_report(&app);
         assert!(report.starts_with(&format!("cwd: {}\n", app.tab().cwd.display())), "{report}");
-        for line in ["selected: 0", "tab: 1 of 1", "overlay: none", "pane: closed", "toast: Copied a.txt"] {
+        for line in [
+            "selected: 0",
+            "tab: 1 of 1",
+            "overlay: none",
+            "pane: closed",
+            "list top: 0",
+            "preview top: 0 of 0",
+            "zoom: fit",
+            "split: no",
+            "toast: Copied a.txt",
+        ] {
             assert!(report.lines().any(|l| l == line), "{line:?} in {report}");
         }
         assert!(!report.contains("input:"), "only while a prompt is open");

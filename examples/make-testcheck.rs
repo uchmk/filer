@@ -38,6 +38,12 @@
 //! honestly add to that. The Linux file also knows a third mark, `[-]`: the
 //! row does not apply on Linux (a UNC share, ConPTY, the recycle bin's
 //! Windows half). It is carried over like a tick and counted apart from one.
+//!
+//! **The Windows file also knows `[~]`** (2026-10-03, the owner's call): an
+//! appearance row an agent judged from a screenshot it took. It is carried
+//! over like a tick and counted apart from one, and it is **not** done -- a
+//! `[x]` still means read as text or a file state. The owner turns a `[~]`
+//! into `[x]` after looking at the same picture.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
@@ -141,16 +147,19 @@ fn main() {
     }
     let marks = previous_marks(out_path, lane);
     // `done` is what counts as finished: ticked, or (on Linux) not applicable.
-    let done: BTreeSet<String> = marks.keys().cloned().collect();
+    // A `[~]` is a judgement from a picture, waiting on the owner, so it is
+    // counted on its own and not as done.
+    let done: BTreeSet<String> = marks.iter().filter(|(_, m)| **m != '~').map(|(id, _)| id.clone()).collect();
 
     let all: Vec<&Check> = sections.iter().flat_map(|s| s.checks.iter()).collect();
     let manual: Vec<&&Check> = all.iter().filter(|c| !automated.contains(&c.id)).collect();
     let ticked = manual.iter().filter(|c| marks.get(&c.id) == Some(&'x')).count();
     let skipped = manual.iter().filter(|c| marks.get(&c.id) == Some(&'-')).count();
+    let looked = manual.iter().filter(|c| marks.get(&c.id) == Some(&'~')).count();
     let untranslated = manual.iter().filter(|c| !notes.row.contains_key(&c.id)).count();
 
     let mut out = String::new();
-    preamble(&mut out, lane, &all, &manual, ticked, skipped, untranslated);
+    preamble(&mut out, lane, &all, &manual, Counts { ticked, skipped, looked, untranslated });
 
     for s in &sections {
         let mine: Vec<&Check> = s.checks.iter().filter(|c| !automated.contains(&c.id)).collect();
@@ -162,6 +171,8 @@ fn main() {
             ja => ja.to_owned(),
         };
         let d = mine.iter().filter(|c| done.contains(&c.id)).count();
+        let seen = mine.iter().filter(|c| marks.get(&c.id) == Some(&'~')).count();
+        let seen = if seen > 0 { format!("（画像で {seen}）") } else { String::new() };
 
         if mine.is_empty() {
             // Every row automated. Say so and move on: a heading with nothing
@@ -170,7 +181,7 @@ fn main() {
             writeln!(out, "`cargo test` が全部見ているので、押すものはありません。").unwrap();
             continue;
         }
-        writeln!(out, "\n## {}. {title} — {d} / {}\n", s.n, mine.len()).unwrap();
+        writeln!(out, "\n## {}. {title} — {d} / {}{seen}\n", s.n, mine.len()).unwrap();
         if let Some(note) = n.map(|n| n.note.trim()).filter(|s| !s.is_empty()) {
             writeln!(out, "{note}\n").unwrap();
         }
@@ -197,7 +208,7 @@ fn main() {
     // moves a tick onto a different check -- which is the one failure this file
     // must not have.
     let live: BTreeSet<&str> = all.iter().map(|c| c.id.as_str()).collect();
-    let orphans: Vec<&String> = done.iter().filter(|id| !live.contains(id.as_str())).collect();
+    let orphans: Vec<&String> = marks.keys().filter(|id| !live.contains(id.as_str())).collect();
     if !orphans.is_empty() {
         writeln!(out, "\n## 済みだが TESTING.md に無い項目\n").unwrap();
         writeln!(
@@ -239,7 +250,7 @@ fn main() {
         let old = std::fs::read_to_string(out_path).unwrap_or_default();
         if old == out {
             println!(
-                "{out_path}: in sync with {SRC} ({ticked} / {} checked, {untranslated} untranslated)",
+                "{out_path}: in sync with {SRC} ({ticked} / {} checked, {looked} looked at, {untranslated} untranslated)",
                 manual.len(),
             );
             return;
@@ -254,21 +265,22 @@ fn main() {
     }
     std::fs::write(out_path, out).expect("write the checklist");
     println!(
-        "{out_path}: {ticked} / {} checked ({} automated, {untranslated} untranslated)",
+        "{out_path}: {ticked} / {} checked, {looked} looked at ({} automated, {untranslated} untranslated)",
         manual.len(),
         all.len() - manual.len(),
     );
 }
 
-fn preamble(
-    out: &mut String,
-    lane: Lane,
-    all: &[&Check],
-    manual: &[&&Check],
+/// How the rows on the list stand, for the paragraph at the top.
+struct Counts {
     ticked: usize,
     skipped: usize,
+    looked: usize,
     untranslated: usize,
-) {
+}
+
+fn preamble(out: &mut String, lane: Lane, all: &[&Check], manual: &[&&Check], counts: Counts) {
+    let Counts { ticked, skipped, looked, untranslated } = counts;
     let flag = if lane == Lane::Linux { " -- --lane linux" } else { "" };
     writeln!(out, "{}", match lane {
         Lane::Windows => "# 実機チェックリスト",
@@ -299,6 +311,13 @@ fn preamble(
     if skipped > 0 {
         writeln!(out, "\nほかに {skipped} 件が `[-]`（Linux では対象外）。").unwrap();
     }
+    if looked > 0 {
+        writeln!(
+            out,
+            "\nほかに {looked} 件が `[~]`（Agent が画像で見て判断した。持ち主が同じ画像を見て `[x]` にするまで済みに数えない）。"
+        )
+        .unwrap();
+    }
     if untranslated > 0 {
         writeln!(out, "\n未訳 {untranslated} 件は原文のまま `〔未訳〕` を付けて出している。").unwrap();
     }
@@ -323,6 +342,8 @@ fn preamble(
          2. 節ごとに「準備」を走らせてから、上から押していく。\n\
          3. 期待どおりなら `[ ]` を `[x]` にする。違ったら `<F12>` で issue を出すか、\
          そのまま書き留める。\n\
+         `[~]` は、見た目の行を Agent が画面の画像で判断したもの（証拠の画像は PR と QA-REPORT.md にある）。\
+         同じ画像を見て正しければ `[x]` に変える。\n\
          4. 節の見出しの `3 / 12` は、その節で人が押す分の進捗。\n\n\
          キーの網羅は別ファイル（[TESTING-KEYS.md](TESTING-KEYS.md)）で、\
          こちらは「1 つのキーでは\n確かめられない振る舞い」の側。"
@@ -488,17 +509,24 @@ fn collect_rs(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
     }
 }
 
-/// The marks already in the file on disk, by id: `x` for done, and on the
-/// Linux lane `-` for not applicable. A `[-]` written into the Windows file is
-/// not carried over -- every row there applies, so it would only hide one.
+/// The marks already in the file on disk, by id: `x` for done, on the Linux
+/// lane `-` for not applicable, and on the Windows lane `~` for an appearance
+/// row judged from a screenshot. A `[-]` written into the Windows file is not
+/// carried over -- every row there applies, so it would only hide one -- and a
+/// `[~]` in the Linux file is not either: CPU rendering is no stand-in for a
+/// machine's own drawing.
 fn previous_marks(path: &str, lane: Lane) -> BTreeMap<String, char> {
     let Ok(text) = std::fs::read_to_string(path) else { return BTreeMap::new() };
     let mut out = BTreeMap::new();
     for line in text.lines() {
-        let (mark, rest) = match (line.strip_prefix("- [x] **"), line.strip_prefix("- [-] **")) {
-            (Some(rest), _) => ('x', rest),
-            (None, Some(rest)) if lane == Lane::Linux => ('-', rest),
-            _ => continue,
+        let (mark, rest) = if let Some(rest) = line.strip_prefix("- [x] **") {
+            ('x', rest)
+        } else if let (Some(rest), Lane::Linux) = (line.strip_prefix("- [-] **"), lane) {
+            ('-', rest)
+        } else if let (Some(rest), Lane::Windows) = (line.strip_prefix("- [~] **"), lane) {
+            ('~', rest)
+        } else {
+            continue;
         };
         if let Some(end) = rest.find("**") {
             out.insert(rest[..end].to_owned(), mark);
@@ -558,6 +586,7 @@ fn rows_of_file(text: &str) -> BTreeMap<&str, String> {
             .strip_prefix("- [x] **")
             .or_else(|| line.strip_prefix("- [ ] **"))
             .or_else(|| line.strip_prefix("- [-] **"))
+            .or_else(|| line.strip_prefix("- [~] **"))
         else {
             continue;
         };
