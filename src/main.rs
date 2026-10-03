@@ -94,6 +94,15 @@ fn say(text: &str) {
     println!("{text}");
 }
 
+/// PowerShell does not wait for a windowed program, so a script that calls
+/// `filer.exe env --out` itself reads the file before it is there and sees
+/// `$LASTEXITCODE` 0 (#188). `filer env --out` goes through `filer.com`,
+/// which the shell waits for; this is for the other way.
+#[cfg(windows)]
+const ENV_OUT_WAIT: &str = "\n                     (filer.exe in a script: add | Out-Null to wait)";
+#[cfg(not(windows))]
+const ENV_OUT_WAIT: &str = "";
+
 fn parse_cli() -> Cli {
     let mut cli = Cli { path: None, cwd_file: None, chooser_file: None, keys: Vec::new() };
     let mut args = std::env::args().skip(1);
@@ -114,7 +123,7 @@ fn parse_cli() -> Cli {
                 }
             }
             "--help" | "-h" => {
-                say(
+                say(&format!(
                     "filer — a yazi-flavored file manager\n\n\
                      USAGE:\n    filer [PATH] [--cwd-file FILE] [--chooser-file FILE] [--keys KEYS]\n\n\
                      OPTIONS:\n    -h, --help       this text\n    \
@@ -126,13 +135,13 @@ fn parse_cli() -> Cli {
                      as name.png. For scripted checks\n\n\
                      COMMANDS:\n    env              config files, outside tools and environment,\n                     \
                      for pasting into a bug report\n    \
-                     env --out FILE   the same, written to FILE as UTF-8\n    \
+                     env --out FILE   the same, written to FILE as UTF-8{ENV_OUT_WAIT}\n    \
                      shell-hook [pwsh|bash|zsh]\n                     \
                      the lines that let <A-Up> in the terminal pane\n                     \
                      follow the shell; filer shell-hook | Add-Content $PROFILE\n\n\
                      Config is read from yazi's config directory, then from filer's own.\n\
                      Press ~ or F1 inside the app for the key list.",
-                );
+                ));
                 std::process::exit(0);
             }
             // A bug report needs to name a version, and a downloaded binary can
@@ -154,7 +163,9 @@ fn parse_cli() -> Cli {
             // page (#81, #84, #88, #93, #176, #183; Q55).
             "env" | "--env" => match env_out(args.next().as_deref(), args.next()) {
                 Ok(None) => {
-                    say(&crate::envreport::text());
+                    // `say` ends the line itself; the report's own newline
+                    // would leave a blank one after it.
+                    say(crate::envreport::text().trim_end_matches('\n'));
                     std::process::exit(0);
                 }
                 Ok(Some(path)) => match write_whole(&path, &crate::envreport::text()) {
@@ -232,12 +243,13 @@ fn write_whole(path: &std::path::Path, text: &str) -> std::io::Result<()> {
 /// The one path the command line may name. A second used to replace the
 /// first in silence, and that is exactly what a path with a space in it looks
 /// like when its quotes are forgotten: `filer C:\x\awkward names` opened
-/// somewhere else with no word as to why (#126).
+/// somewhere else with no word as to why (#126). The paths go in quotes as
+/// typed: `{:?}` doubled every `\` of a Windows path (#194).
 fn take_path(cli: &mut Cli, arg: &str) -> Result<(), String> {
     if let Some(first) = &cli.path {
         return Err(format!(
-            "more than one path: {:?} and {arg:?} (a path with a space in it needs quotes)",
-            first.display().to_string()
+            "more than one path: \"{}\" and \"{arg}\" (a path with a space in it needs quotes)",
+            first.display()
         ));
     }
     cli.path = Some(PathBuf::from(arg));
@@ -701,8 +713,11 @@ fn watch_script(watch: Arc<Mutex<ScriptWatch>>, labels: Vec<String>, done: PathB
             if !told && quiet > w.due + keyscript::STALL {
                 told = true;
                 let report = keyscript::stalled_report(&labels, w.left, quiet);
-                eprintln!("filer --keys: {}", report.lines().collect::<Vec<_>>().join("; "));
-                let _ = std::fs::write(&done, report);
+                let _ = std::fs::write(&done, &report);
+                use std::io::Write;
+                // Not `eprintln!`: started from `filer.com`, this is a pipe
+                // nobody reads once the window is up, and that would panic.
+                let _ = writeln!(std::io::stderr(), "filer --keys: {}", report.lines().collect::<Vec<_>>().join("; "));
             }
         }
     });
@@ -1008,6 +1023,20 @@ fn state_report(app: &App) -> String {
     if let app::Overlay::Input(ov) = &app.overlay {
         lines.push(format!("input: {}", ov.text));
     }
+    // What a picker is offering, in the order on screen, and the row under
+    // its cursor (#196): `overlay: pick` alone said a list was open, not what
+    // was in it, and the README's opener order could only be read off a
+    // picture. A long one -- the palette lists every binding -- is cut.
+    if let app::Overlay::Pick(ov) = &app.overlay {
+        const MAX: usize = 40;
+        let shown: Vec<&str> = ov.matches.iter().map(|m| ov.items[m.0].as_str()).collect();
+        let mut line = shown.iter().take(MAX).copied().collect::<Vec<_>>().join(" | ");
+        if shown.len() > MAX {
+            line.push_str(&format!(" | … +{} more", shown.len() - MAX));
+        }
+        lines.push(format!("pick: {line}"));
+        lines.push(format!("picked: {}", ov.selected().map_or("", |i| ov.items[i].as_str())));
+    }
     // Two folders or two files, and the pair: `overlay: diff` is both.
     if let app::Overlay::Diff(ov) = &app.overlay {
         let what = if matches!(ov.outcome, Some(diff::Outcome::Tree { .. })) { "folders" } else { "files" };
@@ -1032,6 +1061,10 @@ fn state_report(app: &App) -> String {
         app.split.map_or("no".into(), |s| format!("yes, keys {}", if s.right { "right" } else { "left" }))
     ));
     lines.push(format!("toast: {}", app.toasts.last().map_or("", |t| t.text.as_str())));
+    // Every toast of the run, the faded ones too, oldest first; a toast's own
+    // line breaks become ` / ` so the report stays one line per name.
+    let all: Vec<String> = app.toast_log.iter().map(|t| t.lines().collect::<Vec<_>>().join(" / ")).collect();
+    lines.push(format!("toasts: {}", all.join(" | ")));
     lines.join("\n") + "\n"
 }
 
@@ -1359,6 +1392,37 @@ mod tests {
         assert!(!report.contains("input:"), "only while a prompt is open");
         assert!(report.lines().any(|l| l == "view: list"), "{report}");
         assert!(!report.contains("compare:"), "only while a comparison is open");
+        assert!(!report.contains("pick:"), "only while a picker is open");
+        // Ends with: a machine's own config may have raised a warning first.
+        let toasts = |r: &str| r.lines().find(|l| l.starts_with("toasts: ")).map(str::to_owned).unwrap_or_default();
+        assert!(toasts(&report).ends_with("Copied a.txt"), "{report}");
+
+        // A toast that has already gone is still in `toasts:`, and a two-line
+        // one stays on one line.
+        app.toasts.clear();
+        app.error("Open failed\nexit code 1");
+        app.toasts.clear();
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "toast: "), "{report}");
+        assert!(toasts(&report).ends_with("Copied a.txt | Open failed / exit code 1"), "{report}");
+
+        // A picker lists what it offers, in its order, and the row under the cursor.
+        let items: Vec<String> = ["Neovim", "VS Code", "サクラエディタ"].map(String::from).into();
+        let mut ov = app::PickOverlay {
+            title: "Open with".into(),
+            details: vec![String::new(); items.len()],
+            items,
+            query: String::new(),
+            matches: Vec::new(),
+            cursor: 1,
+            action: app::PickAction::Jump { paths: Vec::new() },
+            focused: true,
+        };
+        ov.refilter();
+        app.overlay = app::Overlay::Pick(ov);
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "pick: Neovim | VS Code | サクラエディタ"), "{report}");
+        assert!(report.lines().any(|l| l == "picked: VS Code"), "{report}");
     }
 
     /// #168, proposal 5: a script nothing has moved for longer than the stall
@@ -1417,6 +1481,15 @@ mod tests {
         let why = take_path(&mut cli, "names").unwrap_err();
         assert!(why.contains("\"awkward\"") && why.contains("\"names\"") && why.contains("quotes"), "{why}");
         assert_eq!(cli.path.as_deref(), Some(std::path::Path::new("awkward")), "the first is kept");
+    }
+
+    /// #194: a Windows path is named as typed, not with every `\` doubled.
+    #[test]
+    fn a_refused_path_keeps_its_backslashes() {
+        let mut cli = Cli { path: None, cwd_file: None, chooser_file: None, keys: Vec::new() };
+        assert!(take_path(&mut cli, r"C:\dev").is_ok());
+        let why = take_path(&mut cli, r"C:\Windows").unwrap_err();
+        assert!(why.starts_with(r#"more than one path: "C:\dev" and "C:\Windows" ("#), "{why}");
     }
 
     /// A square icon out of a non-square drawing: the art keeps its shape and

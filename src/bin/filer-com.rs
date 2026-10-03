@@ -16,6 +16,12 @@
 //! opening a window (`--keys "<Tab"`, two paths) still prints its one line
 //! here and passes on its exit code.
 //!
+//! The window does not get this console's standard handles. When they are a
+//! pipe (`pwsh -File x.ps1 | Tee-Object`), the reader waits until every
+//! process holding the pipe has let go, and with the window holding it that
+//! was until the window closed (#192). The window writes into pipes of this
+//! program's own instead, copied out here until the window is up.
+//!
 //! It holds no logic of its own beyond that choice: the report, the help and
 //! the hooks all come from `filer.exe`, so the two cannot disagree.
 
@@ -67,14 +73,63 @@ fn main() {
             }
         }
     }
-    let mut child = match cmd.spawn() {
+    keep_own_handles();
+    let piped = std::process::Stdio::piped;
+    let mut child = match cmd.stdin(std::process::Stdio::null()).stdout(piped()).stderr(piped()).spawn() {
         Ok(c) => c,
         Err(e) => {
             eprintln!("filer.com: {}: {e}", exe.display());
             std::process::exit(2);
         }
     };
-    std::process::exit(until_the_window_is_up(&mut child));
+    let copied = [copy_out(child.stdout.take(), std::io::stdout), copy_out(child.stderr.take(), std::io::stderr)];
+    let code = until_the_window_is_up(&mut child);
+    if let Ok(Some(_)) = child.try_wait() {
+        // It refused: let its words reach the console before the exit code.
+        // Bounded, because a program it started may still hold the pipe.
+        for done in copied {
+            let _ = done.recv_timeout(std::time::Duration::from_secs(2));
+        }
+    }
+    std::process::exit(code);
+}
+
+/// Makes this program's standard handles stay here. `Command` starts
+/// `filer.exe` with every inheritable handle, not only the three it is given,
+/// so the pipe of a `| Tee-Object` would reach the window all the same.
+#[cfg(windows)]
+fn keep_own_handles() {
+    use windows::Win32::Foundation::{SetHandleInformation, HANDLE_FLAGS, HANDLE_FLAG_INHERIT};
+    use windows::Win32::System::Console::{GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE};
+
+    for which in [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE] {
+        if let Ok(h) = unsafe { GetStdHandle(which) } {
+            if !h.is_invalid() {
+                let _ = unsafe { SetHandleInformation(h, HANDLE_FLAG_INHERIT.0, HANDLE_FLAGS(0)) };
+            }
+        }
+    }
+}
+
+/// Copies what the window writes to this console, on a thread of its own so
+/// that a long refusal cannot fill the pipe and stall `filer.exe`. The
+/// receiver hears once the pipe is closed and everything is copied.
+#[cfg(windows)]
+fn copy_out<R, W>(from: Option<R>, to: fn() -> W) -> std::sync::mpsc::Receiver<()>
+where
+    R: std::io::Read + Send + 'static,
+    W: std::io::Write + 'static,
+{
+    let (done, finished) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        if let Some(mut from) = from {
+            let mut out = to();
+            let _ = std::io::copy(&mut from, &mut out);
+            let _ = out.flush();
+        }
+        let _ = done.send(());
+    });
+    finished
 }
 
 /// Waits for the window to start taking input, then lets it be: the prompt

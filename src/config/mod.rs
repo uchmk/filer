@@ -107,6 +107,11 @@ pub struct TermCfg {
     /// The shell came from `FILER_TERM_SHELL`, not from a file.
     #[serde(skip)]
     pub from_env: bool,
+    /// The `[term] args` that `FILER_TERM_SHELL` set aside, for `filer env`
+    /// to name: without it, seeing them gone took the process's command line
+    /// (#190).
+    #[serde(skip)]
+    pub dropped_args: Vec<String>,
 }
 
 impl TermCfg {
@@ -118,7 +123,8 @@ impl TermCfg {
     /// shell this one replaces.
     fn take_env(&mut self, var: Option<std::ffi::OsString>) {
         let Some(shell) = var.and_then(|v| v.into_string().ok()).filter(|v| !v.trim().is_empty()) else { return };
-        *self = Self { shell: shell.trim().to_owned(), args: Vec::new(), from_env: true };
+        let dropped_args = std::mem::take(&mut self.args);
+        *self = Self { shell: shell.trim().to_owned(), args: Vec::new(), from_env: true, dropped_args };
     }
 }
 
@@ -440,7 +446,33 @@ pub fn config_home(var: &str) -> Option<PathBuf> {
 
 /// Later directories override earlier ones.
 pub fn config_dirs() -> Vec<PathBuf> {
-    CONFIG_VARS.iter().filter_map(|v| config_home(v)).collect()
+    distinct(CONFIG_VARS.iter().filter_map(|v| config_home(v)).collect())
+}
+
+/// The directories, each once. With `YAZI_CONFIG_HOME` and `FILER_CONFIG_HOME`
+/// naming one folder, its `filer.toml` was read twice, the help panel and
+/// `filer env` listed the folder twice, and `<C-F5>` counted every file double
+/// (#180). Every layer reads the same files, so the first of two is enough.
+/// Two spellings of one folder (`C:\cfg` and `c:\cfg\`) are one folder too.
+fn distinct(dirs: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut seen: Vec<PathBuf> = Vec::new();
+    let mut out = Vec::new();
+    for dir in dirs {
+        let key = comparable(&dir);
+        if !seen.contains(&key) {
+            seen.push(key);
+            out.push(dir);
+        }
+    }
+    out
+}
+
+/// A folder as it is on disk when it is there, and with its `.` and trailing
+/// separators dropped when it is not. Letter case does not tell two Windows
+/// folders apart.
+fn comparable(dir: &Path) -> PathBuf {
+    let p = std::fs::canonicalize(dir).unwrap_or_else(|_| dir.components().collect());
+    if cfg!(windows) { PathBuf::from(p.to_string_lossy().to_lowercase()) } else { p }
 }
 
 /// The directories [`Config::load`] actually opens files in.
@@ -640,6 +672,23 @@ mod dirs_tests {
         assert_ne!(dirs[0], dirs[1], "a layer that overrode itself would merge nothing");
     }
 
+    /// #180: one folder named by both variables is read once, however it is
+    /// spelled, and two folders stay two.
+    #[test]
+    fn a_folder_named_twice_is_read_once() {
+        let root = crate::util::test_dir("cfgtwice");
+        let (a, b) = (root.join("a"), root.join("b"));
+        std::fs::create_dir_all(&a).unwrap();
+        std::fs::create_dir_all(&b).unwrap();
+        let spelled = PathBuf::from(format!("{}{}", a.join(".").display(), std::path::MAIN_SEPARATOR));
+        assert_eq!(distinct(vec![a.clone(), spelled]), vec![a.clone()]);
+        assert_eq!(distinct(vec![a.clone(), b.clone()]), vec![a.clone(), b]);
+        let gone = root.join("missing");
+        assert_eq!(distinct(vec![gone.clone(), gone.join(".")]), vec![gone], "not there yet is still one folder");
+        #[cfg(windows)]
+        assert_eq!(distinct(vec![a.clone(), PathBuf::from(a.display().to_string().to_uppercase())]), vec![a]);
+    }
+
     /// `XDG_CONFIG_HOME` is only honored when absolute, and an unset or empty
     /// value falls back to `~/.config` rather than dropping the layer entirely.
     #[cfg(not(windows))]
@@ -717,10 +766,11 @@ mod files {
     /// the other shell, and an empty or blank value is no value.
     #[test]
     fn the_variable_names_the_shell_for_one_run() {
-        let file = || TermCfg { shell: "pwsh".into(), args: vec!["-NoLogo".into()], from_env: false };
+        let file = || TermCfg { shell: "pwsh".into(), args: vec!["-NoLogo".into()], ..TermCfg::default() };
         let mut t = file();
         t.take_env(Some(r"C:\Program Files\Git\bin\bash.exe ".into()));
         assert_eq!((t.shell.as_str(), t.args.len(), t.from_env), (r"C:\Program Files\Git\bin\bash.exe", 0, true));
+        assert_eq!(t.dropped_args, ["-NoLogo"], "kept for `filer env` to name (#190)");
         for unset in [None, Some("".into()), Some("  ".into())] {
             let mut t = file();
             t.take_env(unset);

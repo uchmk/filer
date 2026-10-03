@@ -528,6 +528,9 @@ pub enum Level {
     Error,
 }
 
+/// How many toasts [`App::toast_log`] keeps.
+pub const TOAST_LOG: usize = 16;
+
 pub struct Toast {
     pub text: String,
     pub level: Level,
@@ -1154,6 +1157,11 @@ pub struct App {
 
     pub tasks: Vec<Task>,
     pub toasts: Vec<Toast>,
+    /// Every toast raised, newest last, at most [`TOAST_LOG`] of them --
+    /// including those that have already faded. `FILER_KEYS_DONE` writes it
+    /// out, so a check whose expected result is a toast does not have to
+    /// catch it on screen before it goes (#176, #190, #196).
+    pub toast_log: std::collections::VecDeque<String>,
     /// Openers still young enough to fail on us; drained in
     /// [`App::drain_channels`].
     launches: Vec<exec::Launch>,
@@ -1292,6 +1300,7 @@ impl App {
             refont: false,
             tasks: Vec::new(),
             toasts: Vec::new(),
+            toast_log: std::collections::VecDeque::new(),
             launches: Vec::new(),
             bookmarks: Vec::new(),
             history: Vec::new(),
@@ -1393,6 +1402,10 @@ impl App {
     /// news, and stacking it spends the five slots the toast area has on one
     /// message. The timer restarts so a repeat stays up as long as a first.
     fn raise(&mut self, text: String, level: Level) {
+        if self.toast_log.len() == TOAST_LOG {
+            self.toast_log.pop_front();
+        }
+        self.toast_log.push_back(text.clone());
         if let Some(t) = self.toasts.iter_mut().rev().find(|t| t.text == text && t.level == level)
         {
             t.count += 1;

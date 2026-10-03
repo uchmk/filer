@@ -1303,13 +1303,18 @@ clipboard instead, to paste into one. For everything else a report tends to need
 ```
 filer env --out filer-env.txt        # into a file, to attach
 filer env                            # on screen
-filer env | Select-String arch       # or through a pipe
+filer env | Select-String "arch\s+:" # or through a pipe
 ```
 
 `--out` (v0.68.0) is the way to get a file to attach: filer writes it itself, as UTF-8, so neither
-the shell's redirection rules nor the console's code page has a say. PowerShell does not wait for
-a windowed program, so the prompt can come back a moment before the file is there; it is written
-under another name and renamed into place, so it is never seen half written.
+the shell's redirection rules nor the console's code page has a say. It is written under another
+name and renamed into place, so it is never seen half written. Typed as `filer env --out …`, it
+runs through `filer.com`, which the shell waits for: the file is there on the next line and
+`$LASTEXITCODE` is filer's own. **Calling `filer.exe` itself from a script, add `| Out-Null`**
+(`& filer.exe env --out r.txt | Out-Null`): PowerShell does not wait for a windowed program, so
+without it the next line runs before the file exists and `$LASTEXITCODE` still reads 0 even when
+filer refused with 2 (#188). `Start-Process -Wait -PassThru` works too, with the exit code in
+`.ExitCode`.
 
 Since v0.54.4 the text goes wherever standard output is sent; before that it went only to the
 screen. With `filer.com` beside `filer.exe` (v0.71.0, see [Getting a build](#getting-a-build)),
@@ -1420,6 +1425,7 @@ zoom: fit
 minimap setting: on
 split: no
 toast: Yanked 1 item(s)
+toasts: Copied: /tmp/work/a.txt | Yanked 1 item(s)
 keys: done
 ```
 
@@ -1430,7 +1436,11 @@ comparison is open; `pane` is the terminal's grid (`12x159`) or `closed`; `toast
 the newest message still on screen, empty when there is none. Since v0.73.1: `list top` is the first
 row of the list on screen, `preview top: N of M` the preview's first line against the furthest it can
 scroll, `zoom` the image's scale (`fit` or `250%`), `minimap setting` what `<A-n>` flips, and `split`
-whether the second pane is open and which side has the keys.
+whether the second pane is open and which side has the keys. Since v0.73.3, while a picker is open
+(`<S-Enter>`, `O`, the palette), `pick: Neovim | VS Code | …` lists what it offers in the order shown
+(after any filter typed into it, cut at 40) and `picked:` the row under its cursor. Since v0.73.4 `toasts:` lists every toast of the run, the
+faded ones too (the last 16, oldest first, `|` between them and ` / ` for a toast's own line breaks),
+so a check whose result is a toast need not catch it on screen.
 
 A script that stops part way still leaves the file (v0.67.12). If nothing has been pressed for 30
 seconds past any `<Wait:N>` due -- the window stopped getting frames -- filer writes this instead,
@@ -1590,7 +1600,8 @@ is rebuilt, and that the artwork is not covered by the code's license.
 
 Every key binding has a tickable line in [TESTING-KEYS.md](TESTING-KEYS.md),
 generated from the default keymap by `cargo run --example make-keycheck` and
-keeping its ticks when regenerated.
+keeping its ticks when regenerated. After ticking keys by hand, `-- --counts` corrects the totals
+and touches nothing else; it refuses when anything besides a count differs (v0.73.9).
 
 ## Building
 

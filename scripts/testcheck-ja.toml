@@ -326,6 +326,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "7.5" = '**ディレクトリ**をクリック → パネルが閉じ、空でもそこへ移動する'
 "7.6" = '空のほうをクリックし、そこに `filer.toml` を作って `<C-F5>` → 次に開いたとき `nothing here` が消えている'
 "7.7" = '`YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う'
+'7.7a' = '''2 つの変数に、`filer.toml` のある**同じ**フォルダを綴りを変えて渡す: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`、`$env:FILER_CONFIG_HOME = 'c:\CFG\'`（v0.73.12、#180）。それから `~`、`filer env`、`<C-F5>` → パネルにも `filer env` の Config の節にもフォルダは **1 回**だけ出て、`<C-F5>` は `Reloaded 1 config file(s)`。以前は 2 回出て 2 と数えた'''
 "7.8" = '設定の警告行 → 黄色のまま。クリックできない'
 
 # 8. ターミナルペインが起動するシェル
@@ -508,9 +509,12 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "25.19a" = "PowerShell で `$v = & filer env \\| Write-Output; $v.Count`（v0.67.26、Q54）→ レポートの行数で、0 ではない。**後ろに何も置かない** `$v = & filer env` だと、PowerShell はパイプラインの最後にある窓のプログラムを待たず、`$v` は空になる。filer ではなく PowerShell の動き（#183）なので、行には `\\| Write-Output` を付けてある"
 "25.19b" = "PowerShell で、パスに日本語を含むフォルダから `filer env --out out3.txt`、続けて `Get-Content -Encoding utf8 out3.txt`（v0.68.0、Q55）→ `filer: wrote <フルパス>` の 1 行が出て、ファイルにレポート全体が入り、日本語がコンソールのコードページに関係なく**読める**。`filer env --out`（名前なし）と `filer env --outt x` は問題を 1 行で言い、終了コード 2 で、何も書かない"
 '25.19c' = '''zip のフォルダを `PATH` に入れた状態で（v0.71.0、Q44）: `(Get-Command filer).Source`、`$v = & filer env; $v.Count`、`filer --version > v.txt; Get-Content v.txt`、`filer --keys "<Tab"; $LASTEXITCODE`、最後に `filer` だけ → `Source` は `filer.com` で終わる。行数は**後ろに何も置かない**形（25.19a から `Write-Output` を除いた形）でレポートの行数になる。`v.txt` に版の行が入る。拒否は 1 行出て `$LASTEXITCODE` が 2。`filer` だけなら窓が開き、窓が開いたままプロンプトが戻る'''
+'25.19d' = '''zip のフォルダを `PATH` に入れ、`filer` の 1 行だけの `w.ps1` を作って `pwsh -File w.ps1 | Tee-Object t.txt; "back"`（v0.73.6、#192）。次に `w.ps1` を `filer C:\dev C:\Windows` にして同じことをする → 窓が開き、**窓を開いたまま** `back` が出る（以前は窓を閉じるまでパイプラインが終わらなかった）。2 つのパスでは窓が出ず、拒否の 1 行が画面に出て `t.txt` にも入る'''
+'25.19e' = '''空のフォルダで `pwsh -File` から走らせる `.ps1` の中で（v0.73.8、#188）: `filer env --out a.txt; Test-Path a.txt; $LASTEXITCODE`、次に `& <zip のフォルダ>\filer.exe env --out b.txt | Out-Null; Test-Path b.txt`、次に `& <zip のフォルダ>\filer.exe env --out | Out-Null; $LASTEXITCODE`。それと `filer --help` → `True` と `0`、次に `True`、次に `2`。README の待ち方が `filer.com` でも `filer.exe` でも効く。`--help` の `env --out FILE` の下に `(filer.exe in a script: add | Out-Null to wait)` がある'''
 "25.21" = '`filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ'
 '25.23' = '''ペインを開いて `<C-S-Enter>`、filer を閉じてから `filer env`（v0.59.4）→ `Last run` の下に `Terminal pane` の行があり、最後の大きさを `N x M (lines x columns)` で出す。ペインを一度も開かなかった run の後は `not opened in that run`'''
 '25.24' = '''どこかのフォルダのシェルから `filer .`、次に `filer ..`、次に引用符なしで `filer two words`（v0.59.5）→ `.` はそのフォルダを開き、タイトルが**絶対**パスで親の列があり、`h` で上がれる。`..` は 1 つ上を開く。引用符なしの 2 語は窓を開く前に `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` と断られる'''
+'25.24a' = '''PowerShell から引用符なしで `filer C:\dev C:\Windows`（v0.73.5、#194）→ 窓を開く前に断られ、パスは打ったとおり: `filer: more than one path: "C:\dev" and "C:\Windows" (a path with a space in it needs quotes)`。`\` は 1 つずつ。以前は `\` が全部二重に出た（`"C:\\dev"`）。Linux では `filer 'a\b' c` が同じように `"a\b"` と出す'''
 '25.25' = '''オープナーでファイルを開き（`<Enter>` か `<S-Enter>`）、`;` のシェルを 1 つ走らせ、filer を閉じてから `filer env`（v0.59.9）→ `Last run` の下の `Launched` の行に、filer が組み立てたとおりのコマンド行が 2 つ、新しいものが後で、最大 5 つ並ぶ。何も起動しなかった run の後は `nothing in that run`'''
 '25.22' = '''`FILER_PTY_LOG` を設定して `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"`（v0.59.0）→ `echo` が届く前にシェルのプロンプトが出ている（ログの `out` の行が `in key` の行より前）、`hi` が表示され、1 秒後にペインが窓を取る。`filer --keys "<Wait:1.5s>"` はコマンド行で断られ、`<Wait:500>` と書き方を示す'''
 "25.20" = "何もリダイレクトせずに `filer env` と `filer --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない"
@@ -550,7 +554,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 '29.9' = '''`$PROFILE` に別のツールのハンドラを先に置き（`mise activate pwsh`、または代わりに `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`）、その後に README のフックを置いて、新しいペインで `cd C:\dev`、`<A-Up>`（v0.64.2）→ 両方動く: 一覧が `C:\dev` に移り、**かつ**別のツールのハンドラも働いている（代わりのものならタイトルが `other: C:\dev`）。v0.64.2 より前は README のフックが別のものを置き換えていた'''
 '29.10' = '''フックの無い状態で、ペイン（`pwsh`）で 29.1 のトーストのとおりに打ち、`<C-S-t>`、`<C-t>`、`cd C:\dev`、`<A-Up>`（v0.69.0、Q50）→ 一覧が `C:\dev` に移る。`Get-Content $PROFILE` の末尾が `filer shell-hook` の出力（先頭は `# filer:` のコメント）で、プロファイルの最後の行にくっつかず別の行になっている。`filer shell-hook powershell` と `filer shell-hook fish` は問題を 1 行で言い、終了コード 2'''
 '29.11' = '''Linux で `filer shell-hook bash >> ~/.bashrc`（と、`[term] shell = "zsh"` で `zsh >> ~/.zshrc`）、新しいペインで名前に空白と日本語を含むフォルダへ `cd`、`<A-Up>`（v0.69.0、Q50）→ 一覧がそこへ移り、名前はどちらも崩れない。フックが無いとトーストが `shell-hook bash >> ~/.bashrc` を挙げる'''
-'29.12' = '''`filer.toml` に `[term] shell = "pwsh"` と `args` を書いた状態で、`$env:FILER_TERM_SHELL = 'powershell'` にして filer を起動し `<C-t>`、同じシェルから `filer env`。次に `Remove-Item Env:FILER_TERM_SHELL` してもう一度（v0.70.0、Q51）→ 変数があるときはトーストが `Started powershell (Windows PowerShell 5.1) — …` で、`filer env` は `powershell` を `terminal pane, from FILER_TERM_SHELL` と出し、変数の欄に `FILER_TERM_SHELL` がある。無いときは `pwsh` と `from [term] shell` に戻る。どちらでも `filer.toml` の他の設定（フォント、テーマ）は効いている'''
+'29.12' = '''`filer.toml` に `[term] shell = "pwsh"` と `args` を書いた状態で、`$env:FILER_TERM_SHELL = 'powershell'` にして filer を起動し `<C-t>`、同じシェルから `filer env`。次に `Remove-Item Env:FILER_TERM_SHELL` してもう一度（v0.70.0、Q51）→ 変数があるときはトーストが `Started powershell (Windows PowerShell 5.1) — …` で、`filer env` は `powershell` を `terminal pane, from FILER_TERM_SHELL; [term] args not used: <args>` と出し（`filer.toml` の `args`。v0.73.11 から、#190）、変数の欄に `FILER_TERM_SHELL` がある。無いときは `pwsh` と `from [term] shell` に戻る。どちらでも `filer.toml` の他の設定（フォント、テーマ）は効いている'''
 
 # 30. プロンプトでの右クリック貼り付け
 "30.1" = 'エクスプローラーのアドレスバーでパスをコピーし、`c`+`d` で `cd` のプロンプトを出し、入力欄を右クリック → パスが入る。`<Enter>` でそこへ移動する'
@@ -589,7 +593,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 
 # 32. オープナー
 "32.1" = 'README の `[opener]` / `[open]` の例を `yazi.toml` に貼って再起動し、`.txt` で `<S-Enter>` → Neovim / VS Code / サクラエディタ / Open with the default app がこの順に、コマンド行ではなく**説明文**で並ぶ（v0.71.11 からの例の並び）'
-"32.2" = '同じファイルで `<Enter>` → 先頭の Neovim で開く。`block = true` なので専用のコンソールの窓で、`nvim` のプロセスのコマンド行がファイルの引用符付きパスで終わる'
+"32.2" = '同じファイルで `<Enter>` → 先頭の Neovim で開く。`block = true` なので専用のコンソールで（既定の端末が Windows Terminal なら新しいタブ）、`nvim` のプロセスのコマンド行がファイルの引用符付きパスで終わる'
 "32.3" = '`.pdf` で `<S-Enter>` → Edge と Chrome が先に、そのあと既定アプリの項目'
 "32.4" = '`.xlsx` で `<S-Enter>` して Excel を選ぶ → Excel が開く。これが `start ""` の場合で、それが無いと失敗する'
 "32.5" = '名前に**空白**を含むファイルで、上のそれぞれを試す → 1 つの引数として渡り、正しく開く'

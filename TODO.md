@@ -1410,7 +1410,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] spot パネルの見出しが `<Esc> to close` だけで、行を動かす `<A-j>` / `<A-k>` が書いていない（提案 2）。`C` と `<Enter>` で行に
   できることが増えたので、見出しに行の動かし方を出す。`j` / `k` はファイルを替える。
 - [ ] 「Open with」の選択（`O`）も同じで、`j` が絞り込みに入る（提案 3）。見出しに `<Down>/<Up> choose, type to filter, <Enter> open`。
-- [ ] `filer env` が、`YAZI_CONFIG_HOME` と `FILER_CONFIG_HOME` が同じ場所のとき、設定ディレクトリと警告を 2 回ずつ出す（提案 4）。
+- [x] （v0.73.12 で直した。#180 の所見 3 と同じ件）`filer env` が、`YAZI_CONFIG_HOME` と `FILER_CONFIG_HOME` が同じ場所のとき、設定ディレクトリと警告を 2 回ずつ出す（提案 4）。
   設定を隔離して試すときの普通の形なので、1 行にまとめて両方の変数を名指す。
 - [ ] TESTING.md 12.14 に、`[running]` を見るにはファイルがどれだけ大きくないといけないかを書く（提案 5。人か QA セッション）。
   同じボリュームのごみ箱は名前の付け替えなので、40 MB や 120 MB では 1 コマで終わる。400 MB × 5 で見えた。
@@ -1673,7 +1673,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] **`say()` が標準出力への書き込みに失敗したとき、黙って捨てずにコンソールへ回す**（#183 の提案 2）。今は `let _ = writeln!` で戻る。
   まず、パイプの最後に置いたときに書き込みが本当にエラーを返しているのかを Windows で測る（#183 は測っていない）。返していなければ
   この直しは効かないので、その結果を書いて閉じる。
-- [ ] **`FILER_KEYS_DONE` に、その実行で出たトーストを全部残す `toasts:` 行を足す**（#190 の提案 2 も同じ。#176 の提案 2）。今の `toast:` は書く時点で出ているもの
+- [x] （v0.73.4 で足した。直近 16 本、消えたものも）**`FILER_KEYS_DONE` に、その実行で出たトーストを全部残す `toasts:` 行を足す**（#190 の提案 2 も同じ。#176 の提案 2）。今の `toast:` は書く時点で出ているもの
   だけなので、トーストが期待値の行（29.7、12.17 / 12.18、13.8a など）は消える前に `<Shot:>` を撮って画像から読むしかない。
   `App` に直近 16 本ほどの履歴を持ち、`state_report` に `|` 区切りで 1 行。今の `toast:` 行は残す。
 - [x] （v0.69.0、Q50 の 1）**README の OSC 7 フックを filer から出す**（#176 の提案 3）。`filer shell-hook [pwsh|bash|zsh]` を足し、
@@ -1687,9 +1687,12 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   終わらせ、読み取りスレッドを待つようにした。#182 が実機で確かめた（`cargo test` の前後で 89 → 88、run 全体でも増えない）。
 - [x] （v0.67.24、Q52 の 1）**ヘルプのコピーが LF だけで、34.15 の確かめ方 `Get-Clipboard | Select-String "^j\t"` が 0 件**（#180 の所見 1、提案 1）。
   Windows のクリップボードは CRLF が普通。#182 も同じ所で止まった。Windows ではクリップボードに CRLF で書くようにした。
-- [ ] **`FILER_CONFIG_HOME` と `YAZI_CONFIG_HOME` が同じフォルダだと、同じ `filer.toml` を 2 回読む**（#180 の所見 3、提案 4）。
+- [x] **`FILER_CONFIG_HOME` と `YAZI_CONFIG_HOME` が同じフォルダだと、同じ `filer.toml` を 2 回読む**（#180 の所見 3、提案 4）。
   `filer env` とヘルプの設定の節にフォルダが 2 回出て、`<C-F5>` は `Reloaded 2 config file(s)`（#182 では 4）と数える。`prepend_keymap` が 2 重になるかは未確認。
   探すフォルダを正規化して重複を落とす（`src/config/mod.rs` の `config_dirs`）。テストを足す。
+  v0.73.12 で直した。`config_dirs` が正規化（あれば `canonicalize`、無ければ `.` と末尾の区切りを落とす、Windows は大文字小文字を無視）で
+  重複を落とし、先の層を残す（どの層も同じファイルを読むので中身は変わらない）。Linux の仮想ディスプレイで `<C-F5>` が
+  `Reloaded 1 config file(s)` になり、`filer env` に 1 回だけ出るのを確かめた。TESTING.md に 7.7a を足して x64 の再テストに回した。
 - [ ] **TESTING.md 45.18 は「`≠` のファイルの行」と言うが、比較の一覧の印は `~`**（#180 の所見 4）。行の文を `~` に直し、日本語の行
   （`scripts/testcheck-ja.toml`）も合わせる。動きは変わらないので印は外さない。
 - [ ] **`cargo test` が一時ディレクトリに `filer-*` のフォルダを残す**（#182 の提案 5）。`util::test_dir` は呼ぶたびに中身を消すが、
@@ -1715,6 +1718,31 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `ops::Link::junction` を見ていない。直したら 13.8b を再テストに回す（印を外す）。
 - [x] （v0.71.4、Q56 の 1。質問に `[c] Copy the mklink command`。実機で 13.8c）`n` を選んだ人のために、`mklink /J` のコマンドをクリップボードに渡す（#185 の提案 3、#191 の提案 2）。
 
+## 実機のセッションの報告（v0.72.11 で受けた分: #197、ARM64 の 13.8a / 13.8c の再テスト）
+
+- [x] v0.72.6 の `cmd /d /c mklink /J` の形で 13.8a / 13.8c に印を戻した（337）。拒否のトーストの行を `cmd` にも filer のペイン（pwsh 7.6.6）にも
+  貼ってジャンクションができ、`g` `f` でたどれた。`c` のクリップボードは拒否の行と `-ceq` で一致。所見なし。`cargo test` は 624 / 0（ARM64）。
+  ARM64 の順番表から 13.8a / 13.8c を消した（次は 48.6 の ARM64 の zip）。
+- [ ] `--keys` に `<Paste>` の手順を足す（#197 の提案 1）。`--keys` の `<C-v>` はシェルの PSReadLine が自分でクリップボードを読むだけで、
+  filer の `Terminal::paste`（`egui::Event::Paste`）は通らない。それを試すのに `SetForegroundWindow` + `SendInput` を 54 行書いた。
+  `keyscript.rs` のパーサに 1 手順、押す側に 1 腕。
+- [ ] ジャンクションの質問の本文にも `mklink` の行を出す（#197 の提案 2）。今は `at → target` だけなので、トーストが消えたあとは
+  `[c] Copy the mklink command` が画面に無いものをコピーすると言っている。`App::offer_junctions` に 1 行。
+- [ ] `FILER_KEYS_DONE` に `clipboard:` 行を足す（#197 の提案 3）。`c` の系統のキーはクリップボードに書くが、外から読むには
+  番兵を置いて、機械に 1 つのクリップボードを他のセッションと取り合うしかない。`state_report` に 1 行。
+
+## 実機のセッションの報告（v0.72.10 で受けた分: #196、x64 の 32 / 37 節）
+
+- [x] v0.72.7 で書き直した行のうち 6 行に印（335）: 32.1（README の例の並び）、32.2（`<Enter>` で Neovim が専用のコンソールで開く）、
+  32.8a / 32.8b（空白と丸括弧入りのフルパスのサクラが 1 引数で受け取る）、32.9（`-Y=6` / `-Y=11` / `-Y=16` が届く。v0.47.29 の直しを実機で初めて確認）、
+  37.7（どのコマンド行にも `start` が無い）。32.5 は Chrome 以外で合格、Chrome の半分と 37.8 は持ち主が Chrome を使っていないときに
+  （持ち主の行として順番表に書いた）。
+- [x] `FILER_KEYS_DONE` に picker の中身を出す（提案 1）: v0.73.3 で `pick:` と `picked:` を足した。
+- 提案 2（消えたトーストも残す）は、下の #190 / #176 の「`toasts:` 行」と同じ。
+- [x] 32.9a をステータスバーの文字で測る（提案 3）: v0.73.2 で書き直した。読み取りのスクリプト（#196 の証拠の `sb.ps1`）を `scripts/` に置くかは、
+  次に 32.9a を取る実行の結果を見てから決める。
+- [x] 32.2 に「既定の端末が Windows Terminal なら新しいタブ」と足した（提案 4、v0.73.3。印はそのまま: 動きではなく言い方の補足）。
+
 ## 実機のセッションの報告（v0.72.4 で受けた分: #195、ARM64 の 13.8c の残りと 25.19c）
 
 - [x] #191 と同じ機械・同じ木で、トーストの枠の上端が y 37 から y 60 に下がり、パンくず（y 30..44）に 8 px 重なっていたのが 16 px 離れた。
@@ -1728,8 +1756,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] v0.72.2 の zip で 48.1（5 ファイル）、48.3（PE machine が x64 は `8664` ×4、ARM64 は `AA64` ×4）、25.19c（`filer.com` の終了コードが
   `--keys "<Tab"` でも 2 つのパスでも 2、10 回ずつ）に印（329）。48.6 は x64 の zip で合格、ARM64 の zip の半分を ARM64 の順番表に積んだ（提案 2 は
   行を分けずに順番表で持つ形にした）。`cargo test` は 623 / 0。Q57 に win の票（1）が入り、3 票とも 1。
-- [ ] **2 つのパスを断るメッセージがパスの `\` を二重に出す**（#194 の所見）。``more than one path: "C:\\dev" and "C:\\Windows"`` になる。
+- [x] **2 つのパスを断るメッセージがパスの `\` を二重に出す**（#194 の所見）。``more than one path: "C:\\dev" and "C:\\Windows"`` になる。
   `main.rs` の `take_path` が `{:?}` で書いている。引用符だけ付けて `\` はそのまま出す。
+  v0.73.5 で直した。TESTING.md の 25.24a（新）を両レーンの再テストに回した。
 - [ ] Q57 を実装するとき、負けた束縛の `run` も警告に並べる（#194 の提案 1）: ``… only `hidden toggle` runs, not `quit` ``。出どころのファイルと一緒に。
 - [ ] **CI の Windows の `test` が 1 回、`cargo test` の中で 30 分以上止まった**（2026-10-03、#194 の CI、run 37088219242）。同じコードは main で
   4 分で通り、取り消して流し直すと 5 分で通った。取り消した実行のログは取れなかった（404）。また起きたら、取り消す前に
@@ -1754,9 +1783,11 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   48.6 は手元のビルドの半分が合格で、zip の半分は v0.72.2 のリリースで取れるようになった（順番表に積んだ）。
 - [x] 25.19c の所見（`filer.com` が `filer.exe` の終了コード 2 ではなく 0 を返す）は、この実行（0.71.2）のあとの v0.71.3 で直している。
   #192 の読み（`WaitForInputIdle` が終わったプロセスにも 0 を返す）と同じ原因。終了コードの半分だけを再テストに積んだ。
-- [ ] **`filer.com` が標準ハンドルを窓の `filer.exe` に渡さないようにする**（#192 の提案 1）。`pwsh -File … | Tee-Object` のように出力を
+- [x] **`filer.com` が標準ハンドルを窓の `filer.exe` に渡さないようにする**（#192 の提案 1）。`pwsh -File … | Tee-Object` のように出力を
   受け取る形で `filer` を呼ぶと、窓を閉じるまで終わらなかった。窓を開く起動では、`filer.exe` の標準出力・エラーを継がせない
   （`filer env` など窓を開かないコマンドは今までどおり継ぐ）。直したら 25.19c に 1 行足す。
+  v0.73.6 で直した。`filer.com` 自身の標準ハンドルの継承フラグも外す（`Command` は継承可能なハンドルを全部渡すので）。
+  25.19d（新）を x64 の再テストに回した。Linux では確かめられない（`filer.com` は Windows 専用）。
 - [x] 断られる経路を本物のバイナリで試すテスト（#192 の提案 2）: v0.71.3 から `build.yml` の windows-x64 が `filer --keys "<Tab"` の
   終了コードを確かめていて、0.71.0〜0.71.2 の間はそこで落ちていた。`cargo test` の中には無いが、main への push ごとに走る。
 
@@ -1774,12 +1805,16 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 - [x] v0.67.24〜v0.69.0 で変わった行を x64 で再テスト: 1.38、25.6、25.19b、29.1、29.8、29.10、34.15 と、TESTING-KEYS.md の `[mgr]` `<C-S-t>`。
   すべて合格（318 → 326、キーは 249 → 250）。x64 の再テストの欄は 29.12（v0.70.0、この実行より後に足した）と、ARM64 だけの 13.8a が残る。
-- [ ] **`filer env --out` をスクリプトから呼ぶときの待ち方を書く**（#188 の提案 1）。PowerShell は窓のプログラムを待たないので、続けて
+- [x] **`filer env --out` をスクリプトから呼ぶときの待ち方を書く**（#188 の提案 1）。PowerShell は窓のプログラムを待たないので、続けて
   `Get-Content` するとファイルがまだ無く、`$LASTEXITCODE` も実際の 2 ではなく 0 のまま見えた。`| Out-Null` を付けると待つ。
   `--help` の `env --out` の行と README の「Reporting a problem」、TESTING.md 25.19b に 1 行足す（25.19b の文言は人か QA セッション）。
-- [ ] **`make-keycheck -- --check` が、件数だけが違うときにそう言う**（#188 の提案 2）。今は「再生成せよ」とだけ言うが、実機のセッションは
+  v0.73.8 で書いた。`filer env --out`（`filer.com` 経由）はもう待つので、待たないのは `filer.exe` を直接呼ぶときだけ、と書き分けた。
+  `--help` の行は Windows だけ。25.19b は触らず、書いた待ち方を確かめる 25.19e（新）を x64 の再テストに回した。
+- [x] **`make-keycheck -- --check` が、件数だけが違うときにそう言う**（#188 の提案 2）。今は「再生成せよ」とだけ言うが、実機のセッションは
   再生成を禁じられているので、印を付けたあと件数を手で直すしかなかった。`make-testcheck` の「The checks all match; the difference is
   in the surrounding text」と同じ区別を入れ、正しい件数を出す（あるいは件数だけを書き直す `--counts`）。
+  v0.73.9 で両方入れた。`--check` は件数の行だけが違えば `was` / `now` で正しい件数を挙げ、`--counts` を勧める（exit 1 のまま）。
+  `--counts` は件数の行だけを書き直し、他に違いがあれば何も書かずに断る。`windows-role.md` の手順も `--counts` に変えた。
 
 ## 実機のセッションの報告（v0.71.1 で受けた分: #189、ARM64 の 25.19 / 25.19a）
 
@@ -1790,10 +1825,14 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   オープナーが 1 つあるだけで 3 行目（Tools の行）に当たり、filer は正しいのに確かめ方が失敗に見える。`arch\s+:` なら 2 行のまま
   （両方のレポートで確かめ済み）。TESTING.md 25.19 の式を `arch\s+:` にする（人か QA セッション）。README の「Reporting a problem」の
   例も同じ式にする（短さは落ちるが、例のとおりに打った人が同じ 3 行目を見る）。
+  v0.73.10 で README の例は `Select-String "arch\s+:"` にした（Linux で `Process arch` の 1 行だけに当たるのを確かめた）。
+  残りは TESTING.md 25.19 の式だけ（人か QA セッション）。
 - [x] （v0.71.0 で済んだ）README の「`>` が唯一の例外」を「パイプラインの最後」に広げる（#189 の提案 1、#183 の提案 1）。
   v0.71.0 で「Reporting a problem」を `filer.com` の形に書き直し、`filer.exe` を直接呼ぶときの空振りもまとめて書いた。
-- [ ] **`filer env` の末尾を空行 1 つにする**（#189 の提案 3）。今は `FILER_TERM_SHELL : unset<LF><LF><LF>` で終わり、「レポートの行数」が
+- [x] **`filer env` の末尾を空行 1 つにする**（#189 の提案 3）。今は `FILER_TERM_SHELL : unset<LF><LF><LF>` で終わり、「レポートの行数」が
   数え方で 47・48・49 と変わる。`envreport::text` の最後の節で空行を足しすぎている。
+  v0.73.10 で直した。空行は残さず、最後の行の改行で終わる（画面・パイプ・`--out` のどれも 36 行で `unset\n` で終わるのを Linux で確かめた）。
+  行数を数える 25.19a / 25.19c の印を外して x64 の再テストに回した。
 - [ ] `is bound more than once` の警告に、どのファイルの束縛かを書く（#189 の提案 4）。設計の選択があるので Q57。（要確認: Q57）
 
 ## 実機のセッションの報告（v0.71.2 で受けた分: #190、x64 の 29.12）
@@ -1802,6 +1841,8 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   ペインの桁数で、テーマの色は画素数で、他の設定が効いていることを確かめた）。x64 の再テストの欄から 29.12 を外した。
 - [ ] TESTING.md 29.12 の「`filer.toml` の他の設定（フォント、テーマ）」を直す（#190 の所見。人か QA セッション）。テーマは `filer.toml` ではなく
   同じフォルダの `theme.toml` に書く。
-- [ ] **`FILER_TERM_SHELL` が `[term] args` を落としたことを `filer env` で言う**（#190 の提案 1）。今は `Win32_Process` のコマンドラインを
+- [x] **`FILER_TERM_SHELL` が `[term] args` を落としたことを `filer env` で言う**（#190 の提案 1）。今は `Win32_Process` のコマンドラインを
   見ないと分からない。`terminal pane, from FILER_TERM_SHELL ([term] args not used)` のように、`args` があるときだけ足す。
+  v0.73.11 で入れた。`TermCfg::dropped_args` に覚え、`terminal pane, from FILER_TERM_SHELL; [term] args not used: -NoLogo` のように中身も挙げる。
+  Linux の本物のバイナリで、`args` があるときだけ付くのを確かめた。29.12 の期待値に足し、印を外して x64 の再テストに回した。
 

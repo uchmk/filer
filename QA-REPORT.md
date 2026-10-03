@@ -11897,6 +11897,140 @@ ote.txt"`） | 合（チェック） |
 
 なし（Q57 には win の票が既にある）。
 
+## TESTING.md 13.8a / 13.8c — v0.72.6 の `cmd /d /c mklink /J` の再テスト。**2 行とも合、チェックを 2 つ付けた**（42dc906 / 0.72.11、arm レーン、無人の run）
+
+ARM64 のキューの先頭 13.8a / 13.8c は、**v0.72.6 が #193 の提案 2 を実装した**ことで、
+拒否のトーストもクリップボードの行も `mklink /J …` から **`cmd /d /c mklink /J …`** に変わり、
+前の `[x]` が外されていた行。提案を出した側が、同じ機械で受け取り直した形になる。
+**13.8a の 7 つの主張と 13.8c の 6 つの主張がすべて合い、TESTING-CHECKS.md の `[ ]` 2 つを `[x]` にした。**
+
+`make-testcheck -- --check` は `in sync`（**331 / 462**、13. の節は 9 / 12 → **11 / 12**）、
+`make-keycheck -- --check` も `in sync`（250 / 252、こちらは触っていない）。
+`cargo test` は **624 passed; 0 failed**（ネイティブ ARM64、release、+ doctest 1 / 0）。
+親の居ないシェルは `cargo test` の前後で **48 → 48**（増えていない）。
+**見つけたもの 0 件、提案 3 件。**
+
+### この機械
+
+| | |
+| --- | --- |
+| 機械 | `Snapdragon(R) X2 Elite - X2E88100 - Qualcomm Oryon(TM) CPU`、`ARM64-based PC` |
+| OS | `Microsoft Windows 11 Home` build 10.0.28000.2956（`cmd` のバナーから） |
+| filer | 手元ビルド **0.72.11**（`target\release`、2026-10-03 13:05）。`filer env` が `OS arch aarch64` / `Process arch aarch64`。**x64 のエミュレーションではない** |
+| rustc | 1.98.1、host `aarch64-pc-windows-msvc` / pwsh 7.6.6（ARM64 ネイティブ） |
+| ConPTY | `scripts/fetch-conpty.ps1` で 1.24.260710001 (arm64) を `target\release` へ |
+| 昇格 | **無し**（`IsInRole('Administrators')` = False） |
+| 開発者モード | **無し**（`HKLM:\…\AppModelUnlock` に `AllowDevelopmentWithoutDevLicense` が無い）。13.8a / 13.8c の前提を満たしている |
+| 入力デスクトップ | 全区間で `Default`、`SPI_GETSCREENSAVERRUNNING` は `False`、`LogonUI` は 0。スクリーンセーバーは一度も割り込んでいない |
+| 一時ディレクトリ | `C:\Users\yuu06\AppData\Local\Temp\filer-scratch`（この機械に RAM ディスクは無い） |
+| キー | `--keys` が 10 本。`SendInput` は **1 回だけ**（D1 の本物の `Ctrl+V`。理由は下の「貼る 3 通り」）。`PostMessage` は使っていない |
+
+木は 1 節につき 1 本ずつ、同じ形で作った（#193 と同じ）: `tX\base\thefolder\inside.txt` と空の `tX\dst`。
+filer は `tX\base` で起動し、キーは **`yhjl-`**（`thefolder` を `y`、`h` で親へ、`j` で `dst`、`l` で入り、`-`）。
+
+証拠は `C:\dev\filer-evidence\arm-13.8a\`（`lib.ps1`、`sendinput.ps1`、run ごとの `*.done.txt`、
+`tail-*.txt` / `clip-C2.txt`、PTY ログ 3 本、PNG 5 枚）。
+
+### 13.8a — 7 つの主張すべて合
+
+| 主張 | どう測ったか | 結果 |
+| --- | --- | --- |
+| 同じ拒否が出る（`os error 1314` と対処法 2 つ） | `A1.done.txt` の `toast:` | **合**。`Link: thefolder: クライアントは要求された特権を保有していません。 (os error 1314) — Windows needs Developer Mode for symlinks (Settings > System > For developers), or run filer as administrator` |
+| そのあとに **`A junction needs neither: cmd /d /c mklink /J "<リンク>" "<フォルダ>"`** | 同じ `toast:` 行の尾（`tail-A1.txt`、**164 文字**） | **合**。`cmd /d /c mklink /J ` で始まる（v0.72.6 の形）|
+| **パスは両方とも絶対** | 尾の `"…"` を 2 つ取り出して `[IO.Path]::IsPathRooted` | **合**。`True`,`True` |
+| それを **`cmd`** に貼るとジャンクションができる | 尾をそのまま `cmd.exe` の標準入力へ（＝プロンプトに貼るのと同じ）。`Junction created for …\tA\dst\thefolder <<===>> …\tA\base\thefolder`、exit 0 | **合**。`Get-Item` が `LinkType=Junction`、`Target=…\tA\base\thefolder`、中に `inside.txt` |
+| それを **filer のペイン**（`<C-t>`、pwsh）に打ってもできる | `tB` で `<C-t><Wait:4000>` のあと尾を 1 文字ずつ打ち（空白は `<Space>`）`<Enter>`。`pane-typed.png` に `PowerShell 7.6.6` が `… のジャンクションが作成されました` と答えている | **合**。`LinkType=Junction`。**#193 で `mklink` が「認識されません」と断られたのと同じペイン・同じ shell** |
+| どちらのジャンクションも **`g` `f` でたどれる** | `dst` で filer を起動して `gf`（`A2.done.txt` / `B3.done.txt`） | **合**。`cwd:` も窓のタイトル（`Window Class` / `Filer:` で引いたもの）も `…\tA\base\thefolder` / `…\tB\base\thefolder` |
+| **ファイルへの `-` ではジャンクションのことを言わない** | `tF`（`base` に `afile.txt` だけ）で同じ `yhjl-`（`F1.done.txt`、`file-link.png`） | **合**。`toast:` は 1314 と対処法 2 つで終わり、`junction` も `mklink` も**含まない**（`-match` が両方 False）。`overlay: none` ＝質問も出ない |
+| `Make a junction instead?` が両方のパスと 2 つの但し書きを挙げる | `question-a.png` | **合**。`Windows would not make the symlink: that needs Developer Mode or administrator.` / `A junction needs neither. Unlike the symlink it holds the full path, not a relative one,` / `and it cannot point at a network location.` と、`…\tA\dst\thefolder  →  …\tA\base\thefolder` |
+| **`n` なら何も残らない** | `tN` で `yhjl-n`（`N1.done.txt`、`after-n.png`） | **合**。`overlay: none`、`dst` の数は **0**、`base\thefolder\inside.txt` はそのまま |
+
+### 13.8c — 6 つの主張すべて合
+
+| 主張 | どう測ったか | 結果 |
+| --- | --- | --- |
+| 質問の `y` と `n` の**間**に `[c] Copy the mklink command` | `question-a.png` / `q-c.png` | **合**。`[y] Make the junction` `[c] Copy the mklink command` `[n] No` の順 |
+| `c` で質問が閉じる | `C2.done.txt` | **合**。`overlay: none`（押す前の `C1.done.txt` は `overlay: confirm`） |
+| **何も作られない** | `(Get-ChildItem …\tC\dst -Force).Count` | **合**。`0` |
+| トースト `Copied the mklink command — it runs in cmd or PowerShell` | `C2.done.txt` の `toast:` を `-ceq` | **合**。一字一句同じ（大文字小文字まで） |
+| `Get-Clipboard` が**拒否のトーストが出すのと同じ 1 行だけ** | `clip-C2.txt` を `tail-C1.txt` と `-ceq` | **合**。`True`、`(Get-Clipboard).Count` は **1** |
+| それを **ペインに貼るとジャンクションができる** | 下の「貼る 3 通り」 | **合**。`LinkType=Junction`、`gf` で `…\tC\base\thefolder` へ（`C4.done.txt`） |
+
+- **書いたのは `c` であって `y`（yank）でも `-` でもない。**押す前にクリップボードへ番兵を入れてある
+  （`SENTINEL-C1-138C`）。`-` まで押して質問が開いた `C1` の時点では**まだ番兵のまま**で、
+  `c` を押した `C2` で初めて `mklink` の行に変わった。
+
+### 貼る 3 通り — どれも通るが、filer のコードを通るのは 1 つだけ
+
+`--keys` は `egui::Event::Paste` を作れない（`keyscript::events` が作るのは `Text` と `Key` だけ）。
+そこで 3 通りを分けて確かめ、**PTY ログの行の種類で、どこを通ったかを読み分けた。**
+
+| やり方 | PTY ログ | 作られたか |
+| --- | --- | --- |
+| `cmd` の標準入力へ（13.8a） | — | **合**（`tA`） |
+| `--keys` で 1 文字ずつ**打つ**（13.8a、`B2-pty.log`） | filer がテキストとして送る | **合**（`tB`） |
+| `--keys` の `<C-v>`（`C3-pty.log`） | `in key \e[86;47;22;1;8;1_` **だけ**。＝ Ctrl+V はただのキーとして shell に届き、**PSReadLine が自分でクリップボードを読んだ** | **合**（`tC`） |
+| **本物の `Ctrl+V`**（`SendInput`、`D1-pty.log`） | `in paste  cmd /d /c mklink /J "…" "…"` ＝ **filer 自身の `Terminal::paste` を通った** | **合**（`tD`） |
+
+- 本物の `Ctrl+V` の前に、`OpenInputDesktop` が `Default`・`SPI_GETSCREENSAVERRUNNING` が `False`・
+  前面の窓が filer 自身（`GetForegroundWindow` が `Window Class` / `Filer:` の窓と一致）であることを確かめてから送った。
+  `INPUT` は **40 バイト**、`SendInput` の戻りは 4 と 2（送った個数と一致）。
+- `D1-pty.log` の `in paste` に `\e[200~` は無い。**これは正しい** —— `out` の 154 行に `\e[?2004h` が
+  1 つも無く、ペインの中の pwsh が bracketed paste を要求していないので、`Terminal::paste` が括らないのは設計どおり。
+
+### 見つけたもの
+
+**無し。**13.8a と 13.8c の主張はすべて合っている。#193 が報告した
+「素の `mklink` は filer のペインで認識されない」は、**同じペイン・同じ pwsh 7.6.6 で再現しなくなった。**
+
+### Proposals
+
+1. **`--keys` に `<Paste>` が無い。**
+   - 何に出くわしたか: 13.8c の「ペインに**貼る**とジャンクションができる」を、filer 自身の貼り付けの道
+     （`egui::Event::Paste` → `Terminal::paste`）で確かめたかった。`--keys` の `<C-v>` では届かない
+     —— `C3-pty.log` が `in key` しか書いておらず、実際に貼ったのは PSReadLine だった。
+     そのため `Add-Type` で `SetForegroundWindow` + `SendInput` を組み直した（`sendinput.ps1`、54 行）。
+   - どう変えるか: `<Paste>` を 1 ステップ足し、`Press::Events(vec![egui::Event::Paste(<システムのクリップボード>)])` を入れる。
+     `<Shot:>` と同じ形で `keyscript::parse` と `press` に 1 本ずつ。
+   - なぜ: `keyscript.rs` の冒頭が「毎回この Win32 の足場を組み直していたのをやめるために作った」と
+     書いているのに、**貼り付けだけが足場に戻る。**しかもこのノート PC では `SendInput` が一番壊れやすい経路
+     （OLED Care のスクリーンセーバーが入力デスクトップを握る、#88 / #103）で、前面化も要るので
+     他の窓に漏れうる。`<Paste>` があれば、貼り付けを使う行が全部ヘッドレスで回る。
+   - 大きさ: 関数 1 つぶん（パーサ 1 行、`press` 1 行、クリップボード読みは `exec` に既にある）。
+
+2. **ジャンクションの質問の本文に、`mklink` の行そのものを出す。**
+   - 何に出くわしたか: `question-a.png` を見ると、質問の箱は `…\dst\thefolder  →  …\base\thefolder` と
+     **2 つのパスしか出していない。**`cmd /d /c mklink /J …` の行が出ているのは**後ろのトーストだけ**で、
+     トーストは消える。つまり少し待つと、`[c] Copy the mklink command` は
+     **画面のどこにも見えないものをコピーする提案**になる。この run でも、尾を取るのに毎回
+     `FILER_KEYS_DONE` の `toast:` を英語の `A junction needs neither: ` で切り出していて、
+     箱の中からは取れなかった。
+   - どう変えるか: `App::offer_junctions` の `body` に、パスの対の代わりに（または後ろに）
+     `ops::mklink_line(&l.at, &l.target)` を 1 行入れる。箱は消えないので、`c` を押す前に読める。
+   - なぜ: `c` は「打ち直さずに済む」ための選択肢で、**何がコピーされるのかが見えているときに一番効く。**
+     v0.72.6 で行の中身（`cmd /d /c` が付くかどうか）が変わったばかりなのに、
+     その行は決める場所に出ていない。拒否のトーストと質問で**同じ文字列が 2 度出る**ことになるが、
+     13.8c はまさに「その 2 つが同じであること」を主張している行なので、並べて見えるほうが筋が通る。
+   - 大きさ: `app.rs` の `offer_junctions` の `body.extend(…)` 1 行。`app.rs:6493` 近辺のテストに 1 件足せる。
+
+3. **`FILER_KEYS_DONE` に `clipboard:` の行が無い。**
+   - 何に出くわしたか: 13.8c は「`c` がクリップボードに何を置いたか」の行なので、`Get-Clipboard` を
+     外から読むしかない。そのために毎回 `Set-Clipboard` で番兵を入れ（`SENTINEL-C1-138C` など 3 回）、
+     filer を落としてから読んでいる。**クリップボードはこの機械で唯一の共有資源**で、
+     役割定義じたいが「2026-09-30 に 2 つのセッションが互いの `c` を拾った」と書いている。
+   - どう変えるか: `state_report` に `clipboard: <先頭 1 行、長ければ切る>` を 1 行足す。
+     `--keys` のスクリプトが終わった**その瞬間**の値になるので、外から読む競走が消える。
+   - なぜ: `state_report` は既に `toast:` `overlay:` `hovered:` と「押したあとに読みたいもの」を並べていて、
+     `c` 系のキー（`c f`、`c c`、`C`、この行の `c`）は**全部クリップボードに出す。**
+     役割定義の「Measure before you call it a look」の表も、3 行が `Get-Clipboard` で終わっている。
+     1 行足すだけで、その 3 行が filer 自身の報告だけで閉じる。
+   - 大きさ: `main.rs` の `state_report` に 1 行（読みは `exec` のクリップボードを使う）。
+
+### Votes
+
+- **Q57 はこのレーンの票が既に `origin/main` の QUESTIONS.md に写っており（`arm: 1`、#193 の行）、
+  `多数決: 1` も立っている。**`投票中` でこのレーンの行が無い質問は他に無いので、新しい票は入れない。
+
 ## TESTING.md 32.9a — サクラのキャレットをステータスバーの文字で読む（8f1ae4e / 0.73.2、win レーン、無人の run）
 
 順番表の「32.9a, Sakura's caret」の行。v0.73.2 で書き直された 32.9a を、#196 の `sb.ps1`（`SB_GETPARTS` / `SB_GETTEXTW` をプロセスをまたいで送る）で読んだ。
