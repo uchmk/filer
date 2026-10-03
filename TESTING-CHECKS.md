@@ -137,13 +137,13 @@ cd $HOME\Desktop\filer-fixtures
 保存したものが良い（手書きの単純なものより、実際に使う形に近い）。文字入り・日本語入り・
 太字斜体入りの 3 つが要る。**4.8 だけは v0.33.5 のビルドが要るので、今は飛ばしてよい。**
 
-- [ ] **4.1** 文字の入っていない SVG（アイコンやロゴ）をホバー → 描画され、ペインに合わせて拡大され、どの大きさでもくっきりしている — *Hover an SVG with no text in it (an icon, a logo) → Drawn, scaled to fill the pane, sharp at any pane size*
-- [ ] **4.2** **文字の入った** SVG → 文字が正しい位置に正しい大きさで描かれる。**消えていない・豆腐になっていない・重なっていない** — *An SVG containing **text** → The text is drawn, in the right place, at the right size — **not missing, not boxes, not overlapping***
-- [ ] **4.3** **日本語**の入った SVG → 同じ。かなと漢字のあるフォントが選ばれる（文字が消えない） — *An SVG with **Japanese** text → Same. A font with kana and kanji is picked, rather than the text vanishing*
-- [ ] **4.4** **インストールされていない**フォントを指定した SVG → 代替フォントが使われて読める形で出る。描画全体が失敗しない — *An SVG naming a font that is **not installed** → A fallback is used and something readable appears; it does not fail the whole render*
-- [ ] **4.5** **太字**や*斜体*の文字が入った SVG → 太さと傾きが反映される（普通の字に潰れない） — *An SVG with **bold** or *italic* text → The weight and slant are there, not flattened to regular*
+- [x] **4.1** 文字の入っていない SVG（アイコンやロゴ）をホバー → 描画され、ペインに合わせて拡大され、どの大きさでもくっきりしている — *Hover an SVG with no text in it (an icon, a logo) → Drawn, scaled to fill the pane, sharp at any pane size*
+- [x] **4.2** **文字の入った** SVG → 文字が正しい位置に正しい大きさで描かれる。**消えていない・豆腐になっていない・重なっていない** — *An SVG containing **text** → The text is drawn, in the right place, at the right size — **not missing, not boxes, not overlapping***
+- [x] **4.3** **日本語**の入った SVG → 同じ。かなと漢字のあるフォントが選ばれる（文字が消えない） — *An SVG with **Japanese** text → Same. A font with kana and kanji is picked, rather than the text vanishing*
+- [x] **4.4** **インストールされていない**フォントを指定した SVG → 代替フォントが使われて読める形で出る。描画全体が失敗しない — *An SVG naming a font that is **not installed** → A fallback is used and something readable appears; it does not fail the whole render*
+- [x] **4.5** **太字**や*斜体*の文字が入った SVG → 太さと傾きが反映される（普通の字に潰れない） — *An SVG with **bold** or *italic* text → The weight and slant are there, not flattened to regular*
 - [ ] **4.6** システムフォントではなく**隣に置いたフォントファイル**を使う SVG → そのディレクトリから読まれる（`resources_dir` の意図どおり） — *An SVG using a font **file next to it** rather than a system font → Loaded from the directory, as `resources_dir` intends*
-- [ ] **4.7** **壊れた** SVG（途中で切ったもの）→ プレビューに `bad SVG: …` と出て、ウィンドウは動き続ける — *A **malformed** SVG (truncate one) → `bad SVG: …` on the preview, and the window keeps working*
+- [x] **4.7** **壊れた** SVG（途中で切ったもの）→ プレビューに `bad SVG: …` と出て、ウィンドウは動き続ける — *A **malformed** SVG (truncate one) → `bad SVG: …` on the preview, and the window keeps working*
 - [ ] **4.8** 4.2 と 4.3 を v0.33.5 のビルドと見比べる → 字形の違いがあれば新しいシェイパーの影響。何が変わったかを書いて両方添える（**v0.33.5 のビルドが要るので、無ければ飛ばす**） — *Compare 4.2 and 4.3 against v0.33.5's build → Any difference in the glyphs is the new shaper; say what changed and attach both*
 
 ## 5. 2 ファイルの差分表示
