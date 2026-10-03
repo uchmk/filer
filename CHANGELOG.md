@@ -9,6 +9,14 @@
 
 ## [未リリース]
 
+## [0.73.19] - 2026-10-03
+
+### 修正
+
+- `scripts/auto-wintest.ps1` のログで、無人の実行の答えの日本語が文字化けしていた。`claude` は UTF-8 で書くが、PowerShell は
+  外部のコマンドの出力をコンソールのコードページ（日本語の Windows では CP932）で読む。`claude` を呼ぶ前に
+  `[Console]::OutputEncoding` と `$OutputEncoding` を UTF-8 にした
+
 ## [0.73.18] - 2026-10-03
 
 ### 変更

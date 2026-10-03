@@ -337,6 +337,13 @@ try {
     if ($desk -ne 'Default') {
         $prompt += " 起動時の入力デスクトップは `"$desk`" で、Default ではありません。SendInput のキーとマウスは届かないので、そういう行は測らずに理由を書いて残し、--keys と PostMessage で進められる行だけを進めてください。"
     }
+    # claude writes UTF-8, and PowerShell decodes a native command's output
+    # with the console's code page -- CP932 on a Japanese Windows -- so every
+    # Japanese line of the run's answer reached the log as mojibake
+    # (2026-10-03). Decoded as UTF-8 here, it is written to the log as it was.
+    $utf8 = [Text.UTF8Encoding]::new($false)
+    [Console]::OutputEncoding = $utf8
+    $OutputEncoding = $utf8
     Push-Location $Work
     try {
         $out = claude -p $prompt --permission-mode acceptEdits --allowedTools $Tools --disallowedTools $Denied 2>&1 | Out-String
