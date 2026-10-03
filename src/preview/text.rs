@@ -52,11 +52,16 @@ const MAX_LINES: usize = 4000;
 const MAX_LINE_CHARS: usize = 2000;
 
 pub fn render(bytes: &[u8], req: &Request, hl: &mut Highlighter) -> Payload {
+    render_cut(bytes, bytes.len() >= req.max_bytes, req, hl)
+}
+
+/// The same, told whether the read stopped short: for text decoded from
+/// another encoding, whose length no longer says so.
+pub fn render_cut(bytes: &[u8], cut: bool, req: &Request, hl: &mut Highlighter) -> Payload {
     let text = String::from_utf8_lossy(bytes);
     let text = strip_bom(&text);
     let expanded = expand_tabs(text, req.tab_size.max(1) as usize);
     let total_lines = expanded.lines().count();
-    let cut = bytes.len() >= req.max_bytes;
     let extent = Extent { truncated: total_lines > MAX_LINES || cut, total: total_lines, cut, rows: None };
 
     hl.ensure(&req.syntect_theme);

@@ -1333,7 +1333,16 @@ pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     ov.scroll = ov.scroll.min(lines.len().saturating_sub(visible));
 
     let accent = theme.cwd.fg.unwrap_or(theme.fg);
-    let key_w = 130.0;
+    // Measured, over every row and not only the visible ones, so the column
+    // does not jump while scrolling. A fixed 130 pt held 13 characters at the
+    // default size with one to spare, and at `font_size = 20` `Line endings`
+    // was painted over its value (#214).
+    let widest = lines
+        .iter()
+        .filter(|l| l.0.is_some())
+        .map(|l| painter.layout_no_wrap(l.1.to_string(), f.clone(), theme.fg_dim).size().x)
+        .fold(0.0, f32::max);
+    let key_w = spot_key_width(widest, inner.width());
     let value_chars = ((inner.width() - key_w) / (f.size * 0.6)).max(4.0) as usize;
     for (i, (row, key, value)) in lines.iter().skip(ov.scroll).take(visible).enumerate() {
         let y = inner.top() + i as f32 * row_h;
@@ -1365,9 +1374,26 @@ pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     }
 }
 
+/// Where the spot panel's values start: past the widest key, its indent and a
+/// gap, and never nearer than the 130 pt the column always had, so a panel of
+/// short keys looks as it did. Held to under half the panel, where a long key
+/// is better cut than the values squeezed out.
+fn spot_key_width(widest_key: f32, panel: f32) -> f32 {
+    (widest_key + 12.0 + 16.0).max(130.0).min((panel * 0.45).max(130.0))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{one_line, paste_over, splice};
+    use super::{one_line, paste_over, spot_key_width, splice};
+
+    /// #214: the value column moves out past the widest key at any font size,
+    /// and keeps its old place for short keys.
+    #[test]
+    fn the_spot_key_column_fits_its_widest_key() {
+        assert_eq!(spot_key_width(60.0, 900.0), 130.0, "short keys keep the old column");
+        assert_eq!(spot_key_width(150.0, 900.0), 178.0, "a key 150 wide is cleared, with its indent and a gap");
+        assert_eq!(spot_key_width(600.0, 900.0), 405.0, "and never past 45% of the panel");
+    }
 
     /// A paste goes where the caret is, and a selection is replaced rather than
     /// pushed aside — the same two cases every text field has.

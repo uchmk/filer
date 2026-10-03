@@ -388,6 +388,14 @@ fn render(req: &Request, syntax: &mut text::Highlighter) -> Payload {
         Err(e) => return Payload::Error(e),
     };
 
+    // Before the binary test: UTF-16 is full of NUL bytes, and a Notepad
+    // "Unicode" save was hex-dumped as `binary` while spot, which asks in
+    // this order, called it text (#214).
+    if let Some(text) = utf16_text(&head) {
+        let cut = head.len() >= req.max_bytes;
+        return text::render_cut(text.as_bytes(), cut, req, syntax);
+    }
+
     if looks_binary(&head) {
         if crate::mime::is_text(mime) {
             // Mis-guessed by extension; fall through to a hex dump anyway.
@@ -411,6 +419,22 @@ fn read_head(path: &std::path::Path, max: usize) -> Result<Vec<u8>, String> {
     let mut buf = Vec::with_capacity(max.min(64 * 1024));
     f.take(max as u64).read_to_end(&mut buf).map_err(|e| e.to_string())?;
     Ok(buf)
+}
+
+/// Text behind a UTF-16 byte-order mark, as UTF-8. `None` without one.
+pub(crate) fn utf16_text(bytes: &[u8]) -> Option<String> {
+    let big = match bytes.first_chunk::<2>()? {
+        [0xff, 0xfe] => false,
+        [0xfe, 0xff] => true,
+        _ => return None,
+    };
+    let units: Vec<u16> = bytes[2..]
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|c| if big { u16::from_be_bytes(*c) } else { u16::from_le_bytes(*c) })
+        .collect();
+    Some(String::from_utf16_lossy(&units))
 }
 
 pub(crate) fn looks_binary(bytes: &[u8]) -> bool {
@@ -576,6 +600,28 @@ mod tests {
     /// A unit that could only go in front turned fifty seconds into `s 50`.
     /// `{n}` says where the number belongs, which is in front for a page and
     /// behind for a second.
+    /// #214: a UTF-16 file (Notepad's "Unicode" save) is previewed as text,
+    /// both byte orders, not hex-dumped for its NUL bytes.
+    #[test]
+    fn utf16_previews_as_text() {
+        let dir = crate::util::test_dir("preview-utf16");
+        for (name, big) in [("le.txt", false), ("be.txt", true)] {
+            let mut bytes = if big { vec![0xfe, 0xff] } else { vec![0xff, 0xfe] };
+            for u in "hello\r\nworld\r\n".encode_utf16() {
+                bytes.extend(if big { u.to_be_bytes() } else { u.to_le_bytes() });
+            }
+            std::fs::write(dir.join(name), bytes).unwrap();
+            match super::for_tests::render(&dir.join(name)) {
+                Payload::Text { lines, .. } => {
+                    let first: String = lines[0].iter().map(|s| s.text.as_str()).collect();
+                    assert_eq!(first.trim_end(), "hello", "{name}");
+                    assert_eq!(lines.len(), 2, "{name}");
+                }
+                other => panic!("{name}: not text: {other:?}"),
+            }
+        }
+    }
+
     #[test]
     fn the_caption_puts_the_number_where_it_belongs() {
         let rule = |unit: &str| crate::config::PreviewRule {

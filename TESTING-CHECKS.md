@@ -658,7 +658,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **41.9** `C:\Windows\explorer.exe` と、`.dll` で `<Tab>` → `Windows GUI` / `DLL` — *`<Tab>` on `C:\Windows\explorer.exe`, then on a `.dll` → `Windows GUI` / `DLL`*
 - [x] **41.10** Office で保存した本物の `.docx` / `.xlsx` / `.pptx` で `<Tab>` → 作成者、リビジョン、**UTC** と明記された時刻、語数 / ページ数 / スライド数 — *`<Tab>` on a real `.docx` / `.xlsx` / `.pptx` saved by Office → Author, revision, times marked **UTC**, word / page / slide counts*
 - [x] **41.11** 古い `.doc` で `<Tab>` → **Document セクションが出ず、エラーも出ない** — *`<Tab>` on an old `.doc` → **No Document section, and no error***
-- [x] **41.12** 新しい各セクションのキーの列を見る → キーが値の列にはみ出していない（`overlay.rs` が `key_w = 130.0` で固定している） — *Look at the key column on every new section → No key runs into the value column (`overlay.rs` hard-codes `key_w = 130.0`)*
+- [ ] **41.12** 新しい各セクションのキーの列を見る → キーが値の列にはみ出していない（`overlay.rs` が `key_w = 130.0` で固定している） — *Look at the key column on every new section → No key runs into the value column (`overlay.rs` hard-codes `key_w = 130.0`)*
 - [x] **41.13** 新しいセクションの行まで `<A-j>` で下り、`y` → 正しい値がコピーされる。**`Act::Copy` は全セクションを通して行を数えるので、セクションが増えると添字がずれる** — *`<A-j>` down into a new section's rows, then `y` → The right value is copied. **`Act::Copy` counts rows across every section, so the new sections shift the indices***
 - [ ] **41.14** 遅いネットワークドライブ上のフォルダで `<Tab>` → パネルはカーソルに追従し続ける（spot ワーカーは newest-wins） — *`<Tab>` on a folder on a slow network drive → The panel still follows the cursor; the spot worker is newest-wins*
 
