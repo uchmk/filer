@@ -261,12 +261,12 @@ fsutil hardlink list locked.txt        # 期待値の答え合わせ用
 
 左端の列（いまいるディレクトリの親）をマウスで操作する節。キーボードでは触らない。
 
-- [ ] **14.1** そこの**ディレクトリ**をクリック → 従来どおり中へ入る — *Click a **directory** there → The list goes into it, as it always has*
-- [ ] **14.2** そこの**ファイル**をクリック → そのファイルのある階層まで上がり、**カーソルがそのファイルに乗る**（v0.26.7 までは何も起きなかった） — *Click a **file** there (v0.26.7) → The list goes up to where that file lives, **with the file under the cursor**. Until v0.26.7 nothing happened at all*
-- [ ] **14.3** そのあと `<Enter>` → 開く。カーソルが「近く」ではなく本当にそのファイルに乗っている確認 — *Then press `<Enter>` → It opens — the cursor really is on it, not merely near it*
-- [ ] **14.4** どちらかをダブルクリック → シングルクリックと同じ。2 つ目の別の意味は無い — *Double-click either → The same as a single click; no second, different meaning*
-- [ ] **14.5** いま自分がいるディレクトリの行をクリック → その場に留まり、カーソルが飛び回らない — *Click the row for the directory you are already in → You stay there, and the cursor does not jump about*
-- [ ] **14.6** ドライブ直下（親の列が無い場所）で → クリックするものが無く、何もおかしくならない — *At a drive root, where there is no parent column → Nothing to click, and nothing misbehaves*
+- [x] **14.1** そこの**ディレクトリ**をクリック → 従来どおり中へ入る — *Click a **directory** there → The list goes into it, as it always has*
+- [x] **14.2** そこの**ファイル**をクリック → そのファイルのある階層まで上がり、**カーソルがそのファイルに乗る**（v0.26.7 までは何も起きなかった） — *Click a **file** there (v0.26.7) → The list goes up to where that file lives, **with the file under the cursor**. Until v0.26.7 nothing happened at all*
+- [x] **14.3** そのあと `<Enter>` → 開く。カーソルが「近く」ではなく本当にそのファイルに乗っている確認 — *Then press `<Enter>` → It opens — the cursor really is on it, not merely near it*
+- [x] **14.4** どちらかをダブルクリック → シングルクリックと同じ。2 つ目の別の意味は無い — *Double-click either → The same as a single click; no second, different meaning*
+- [x] **14.5** いま自分がいるディレクトリの行をクリック → その場に留まり、カーソルが飛び回らない — *Click the row for the directory you are already in → You stay there, and the cursor does not jump about*
+- [x] **14.6** ドライブ直下（親の列が無い場所）で → クリックするものが無く、何もおかしくならない — *At a drive root, where there is no parent column → Nothing to click, and nothing misbehaves*
 
 ## 15. ウィンドウの拡大縮小と、取り返したキー
 
