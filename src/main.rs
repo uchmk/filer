@@ -1008,6 +1008,20 @@ fn state_report(app: &App) -> String {
     if let app::Overlay::Input(ov) = &app.overlay {
         lines.push(format!("input: {}", ov.text));
     }
+    // What a picker is offering, in the order on screen, and the row under
+    // its cursor (#196): `overlay: pick` alone said a list was open, not what
+    // was in it, and the README's opener order could only be read off a
+    // picture. A long one -- the palette lists every binding -- is cut.
+    if let app::Overlay::Pick(ov) = &app.overlay {
+        const MAX: usize = 40;
+        let shown: Vec<&str> = ov.matches.iter().map(|m| ov.items[m.0].as_str()).collect();
+        let mut line = shown.iter().take(MAX).copied().collect::<Vec<_>>().join(" | ");
+        if shown.len() > MAX {
+            line.push_str(&format!(" | … +{} more", shown.len() - MAX));
+        }
+        lines.push(format!("pick: {line}"));
+        lines.push(format!("picked: {}", ov.selected().map_or("", |i| ov.items[i].as_str())));
+    }
     // Two folders or two files, and the pair: `overlay: diff` is both.
     if let app::Overlay::Diff(ov) = &app.overlay {
         let what = if matches!(ov.outcome, Some(diff::Outcome::Tree { .. })) { "folders" } else { "files" };
@@ -1359,6 +1373,25 @@ mod tests {
         assert!(!report.contains("input:"), "only while a prompt is open");
         assert!(report.lines().any(|l| l == "view: list"), "{report}");
         assert!(!report.contains("compare:"), "only while a comparison is open");
+        assert!(!report.contains("pick:"), "only while a picker is open");
+
+        // A picker lists what it offers, in its order, and the row under the cursor.
+        let items: Vec<String> = ["Neovim", "VS Code", "サクラエディタ"].map(String::from).into();
+        let mut ov = app::PickOverlay {
+            title: "Open with".into(),
+            details: vec![String::new(); items.len()],
+            items,
+            query: String::new(),
+            matches: Vec::new(),
+            cursor: 1,
+            action: app::PickAction::Jump { paths: Vec::new() },
+            focused: true,
+        };
+        ov.refilter();
+        app.overlay = app::Overlay::Pick(ov);
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "pick: Neovim | VS Code | サクラエディタ"), "{report}");
+        assert!(report.lines().any(|l| l == "picked: VS Code"), "{report}");
     }
 
     /// #168, proposal 5: a script nothing has moved for longer than the stall

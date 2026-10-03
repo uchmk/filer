@@ -872,7 +872,7 @@ instructions are wrong, which is worse than a missing feature.
 | # | Do | Expect |
 | --- | --- | --- |
 | 32.1 | Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` | Neovim / VS Code / サクラエディタ / Open with the default app, in that order, by their descriptions rather than the command lines (the example's order since v0.71.11) |
-| 32.2 | `<Enter>` on the same file | Opens in the first entry, Neovim, in a console window of its own (`block = true`): a `nvim` process whose command line ends in the file's quoted path |
+| 32.2 | `<Enter>` on the same file | Opens in the first entry, Neovim, in a console of its own (`block = true`; a new Windows Terminal tab when WT is the default terminal): a `nvim` process whose command line ends in the file's quoted path |
 | 32.3 | `<S-Enter>` on a `.pdf` | Edge and Chrome first, then the default-app entry |
 | 32.4 | `<S-Enter>` on a `.xlsx`, pick Excel | Excel opens it — this is the `start ""` case that fails without it |
 | 32.5 | A file whose name has a **space**, through each of the above | One argument, opens correctly |

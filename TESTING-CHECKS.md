@@ -521,7 +521,7 @@ fsutil hardlink list <新しくできたパス>
 ## 32. オープナー — 12 / 18
 
 - [x] **32.1** README の `[opener]` / `[open]` の例を `yazi.toml` に貼って再起動し、`.txt` で `<S-Enter>` → Neovim / VS Code / サクラエディタ / Open with the default app がこの順に、コマンド行ではなく**説明文**で並ぶ（v0.71.11 からの例の並び） — *Paste the README's `[opener]` / `[open]` example into `yazi.toml`, restart, `<S-Enter>` on a `.txt` → Neovim / VS Code / サクラエディタ / Open with the default app, in that order, by their descriptions rather than the command lines (the example's order since v0.71.11)*
-- [x] **32.2** 同じファイルで `<Enter>` → 先頭の Neovim で開く。`block = true` なので専用のコンソールの窓で、`nvim` のプロセスのコマンド行がファイルの引用符付きパスで終わる — *`<Enter>` on the same file → Opens in the first entry, Neovim, in a console window of its own (`block = true`): a `nvim` process whose command line ends in the file's quoted path*
+- [x] **32.2** 同じファイルで `<Enter>` → 先頭の Neovim で開く。`block = true` なので専用のコンソールで（既定の端末が Windows Terminal なら新しいタブ）、`nvim` のプロセスのコマンド行がファイルの引用符付きパスで終わる — *`<Enter>` on the same file → Opens in the first entry, Neovim, in a console of its own (`block = true`; a new Windows Terminal tab when WT is the default terminal): a `nvim` process whose command line ends in the file's quoted path*
 - [x] **32.3** `.pdf` で `<S-Enter>` → Edge と Chrome が先に、そのあと既定アプリの項目 — *`<S-Enter>` on a `.pdf` → Edge and Chrome first, then the default-app entry*
 - [x] **32.4** `.xlsx` で `<S-Enter>` して Excel を選ぶ → Excel が開く。これが `start ""` の場合で、それが無いと失敗する — *`<S-Enter>` on a `.xlsx`, pick Excel → Excel opens it — this is the `start ""` case that fails without it*
 - [ ] **32.5** 名前に**空白**を含むファイルで、上のそれぞれを試す → 1 つの引数として渡り、正しく開く — *A file whose name has a **space**, through each of the above → One argument, opens correctly*
