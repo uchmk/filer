@@ -1438,6 +1438,12 @@ left: u <Shot:after>
 Should the keys go on after all, the usual report replaces it. So read the last line: `keys: done`
 is a finished script, and anything else is not.
 
+Two more endings leave the file too (v0.72.8). A script whose last key quits filer (`jq`) writes its
+report as the window closes, with `quit: yes` just before `keys: done`; a quit with keys still to go
+ends `keys: quit` and `left: N not pressed`. A script refused before the window opens (a plain
+space, a key that cannot be typed) writes `keys: refused` and `why: …`, the same reason the command
+line gets -- which a run started detached never sees.
+
 ## Platform Support (Roadmap)
 
 Development currently centers on Windows, but the goal is cross-platform support across the

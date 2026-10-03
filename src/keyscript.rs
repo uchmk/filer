@@ -89,6 +89,25 @@ pub fn stalled_report(labels: &[String], left: usize, quiet: Duration) -> String
     )
 }
 
+/// The last line of `FILER_KEYS_DONE` when the app quit while the script ran
+/// (`q` as its last key, say): the frame that would have written `keys: done`
+/// never comes for a window that has closed, so the file was missing and read
+/// as a stall. A quit with keys still to go says how many.
+pub fn quit_report(left: usize) -> String {
+    match left {
+        // `keys: done` stays the last line, which is what readers look at.
+        0 => "quit: yes\nkeys: done\n".to_owned(),
+        n => format!("keys: quit\nleft: {n} not pressed\n"),
+    }
+}
+
+/// What `FILER_KEYS_DONE` holds for a script refused before any window opened
+/// (#193, proposal 1): a run started detached never sees the message on the
+/// command line, and without this the file simply never arrived.
+pub fn refused_report(why: &str) -> String {
+    format!("keys: refused\nwhy: {why}\n")
+}
+
 /// `<Shot:name>`'s name: letters, digits, `-` and `_`, so it is a file name on
 /// every platform and cannot climb out of the folder it is saved in.
 fn shot(token: &str) -> Result<String, String> {
@@ -180,6 +199,16 @@ pub fn events(key: &Key) -> Option<Vec<egui::Event>> {
 
 #[cfg(test)]
 mod tests {
+    /// The two endings that used to leave no `FILER_KEYS_DONE` at all: a
+    /// script whose last key quits, and one refused before the window opened.
+    #[test]
+    fn a_quit_or_a_refusal_still_says_how_the_script_ended() {
+        assert_eq!(quit_report(0), "quit: yes\nkeys: done\n");
+        assert_eq!(quit_report(3), "keys: quit\nleft: 3 not pressed\n");
+        let why = parse("j k").unwrap_err();
+        assert_eq!(refused_report(&why), format!("keys: refused\nwhy: {why}\n"));
+    }
+
     use super::*;
 
     /// #168: a script that stopped says how far it got, in the notation it

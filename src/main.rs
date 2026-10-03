@@ -107,16 +107,10 @@ fn parse_cli() -> Cli {
                 let script = args.next().unwrap_or_default();
                 match keyscript::parse(&script) {
                     Ok(keys) => match keys.iter().find(|k| keyscript::press(k).is_none()) {
-                        Some(k) => {
-                            say(&format!("filer: --keys: {k:?} cannot be typed"));
-                            std::process::exit(2);
-                        }
+                        Some(k) => refuse_keys(&format!("{k:?} cannot be typed")),
                         None => cli.keys = keys,
                     },
-                    Err(why) => {
-                        say(&format!("filer: --keys: {why}"));
-                        std::process::exit(2);
-                    }
+                    Err(why) => refuse_keys(&why),
                 }
             }
             "--help" | "-h" => {
@@ -365,6 +359,17 @@ fn main() -> eframe::Result<()> {
             }))
         }),
     )
+}
+
+/// A `--keys` script that cannot be pressed: said on the command line, and
+/// written to `FILER_KEYS_DONE` for a run started detached, which has no
+/// command line to read (#193).
+fn refuse_keys(why: &str) -> ! {
+    say(&format!("filer: --keys: {why}"));
+    if let Some(done) = std::env::var_os("FILER_KEYS_DONE") {
+        let _ = std::fs::write(done, keyscript::refused_report(why));
+    }
+    std::process::exit(2);
 }
 
 /// The window's icon, rasterized from SVG at `px` square.
@@ -925,6 +930,12 @@ impl eframe::App for Filer {
         }
 
         if self.app.quit {
+            // The frame that writes `keys: done` never comes for a closed
+            // window, so a script ending in `q` is reported here instead.
+            if let Some(done) = self.script_done.take() {
+                let _ = std::fs::write(done, state_report(&self.app) + &keyscript::quit_report(self.script.len()));
+                self.note_progress();
+            }
             self.app.on_quit();
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
