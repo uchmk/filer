@@ -21,6 +21,11 @@ pub fn text() -> String {
     section(&mut out, "Last run", &last_run());
     section(&mut out, "Tools", &tools(&cfg));
     section(&mut out, "Variables", &variables());
+    // One newline after the last row, not the blank line every section ends
+    // with: the report's line count came out 47, 48 or 49 depending on how it
+    // was counted (#189).
+    out.truncate(out.trim_end_matches('\n').len());
+    out.push('\n');
     out
 }
 
@@ -464,5 +469,7 @@ mod tests {
         for never_run in ["pdftoppm", "ffmpeg", "ffprobe"] {
             assert!(!text.contains(never_run), "{never_run} is not used yet:\n{text}");
         }
+        // It ends at its last row: no blank lines to count or not (#189).
+        assert!(text.ends_with('\n') && !text.ends_with("\n\n"), "{:?}", &text[text.len().saturating_sub(40)..]);
     }
 }

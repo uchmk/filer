@@ -1303,7 +1303,7 @@ clipboard instead, to paste into one. For everything else a report tends to need
 ```
 filer env --out filer-env.txt        # into a file, to attach
 filer env                            # on screen
-filer env | Select-String arch       # or through a pipe
+filer env | Select-String "arch\s+:" # or through a pipe
 ```
 
 `--out` (v0.68.0) is the way to get a file to attach: filer writes it itself, as UTF-8, so neither

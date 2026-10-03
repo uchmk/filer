@@ -163,7 +163,9 @@ fn parse_cli() -> Cli {
             // page (#81, #84, #88, #93, #176, #183; Q55).
             "env" | "--env" => match env_out(args.next().as_deref(), args.next()) {
                 Ok(None) => {
-                    say(&crate::envreport::text());
+                    // `say` ends the line itself; the report's own newline
+                    // would leave a blank one after it.
+                    say(crate::envreport::text().trim_end_matches('\n'));
                     std::process::exit(0);
                 }
                 Ok(Some(path)) => match write_whole(&path, &crate::envreport::text()) {

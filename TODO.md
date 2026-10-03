@@ -1822,10 +1822,14 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   オープナーが 1 つあるだけで 3 行目（Tools の行）に当たり、filer は正しいのに確かめ方が失敗に見える。`arch\s+:` なら 2 行のまま
   （両方のレポートで確かめ済み）。TESTING.md 25.19 の式を `arch\s+:` にする（人か QA セッション）。README の「Reporting a problem」の
   例も同じ式にする（短さは落ちるが、例のとおりに打った人が同じ 3 行目を見る）。
+  v0.73.10 で README の例は `Select-String "arch\s+:"` にした（Linux で `Process arch` の 1 行だけに当たるのを確かめた）。
+  残りは TESTING.md 25.19 の式だけ（人か QA セッション）。
 - [x] （v0.71.0 で済んだ）README の「`>` が唯一の例外」を「パイプラインの最後」に広げる（#189 の提案 1、#183 の提案 1）。
   v0.71.0 で「Reporting a problem」を `filer.com` の形に書き直し、`filer.exe` を直接呼ぶときの空振りもまとめて書いた。
-- [ ] **`filer env` の末尾を空行 1 つにする**（#189 の提案 3）。今は `FILER_TERM_SHELL : unset<LF><LF><LF>` で終わり、「レポートの行数」が
+- [x] **`filer env` の末尾を空行 1 つにする**（#189 の提案 3）。今は `FILER_TERM_SHELL : unset<LF><LF><LF>` で終わり、「レポートの行数」が
   数え方で 47・48・49 と変わる。`envreport::text` の最後の節で空行を足しすぎている。
+  v0.73.10 で直した。空行は残さず、最後の行の改行で終わる（画面・パイプ・`--out` のどれも 36 行で `unset\n` で終わるのを Linux で確かめた）。
+  行数を数える 25.19a / 25.19c の印を外して x64 の再テストに回した。
 - [ ] `is bound more than once` の警告に、どのファイルの束縛かを書く（#189 の提案 4）。設計の選択があるので Q57。（要確認: Q57）
 
 ## 実機のセッションの報告（v0.71.2 で受けた分: #190、x64 の 29.12）
