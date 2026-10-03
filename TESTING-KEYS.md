@@ -4,13 +4,14 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-**250 / 252 checked.**
+252 keys. How many are checked is not written here, so that two pull requests ticking
+keys do not conflict over a total: `cargo run --example make-keycheck -- --stats`.
 
 A key is checked when it did what the description says _and_ did nothing else —
 `<A-m>` once ran its own command and the unmodified `m` as well, and both halves
 looked correct on their own. Anything surprising goes in an issue (`<F12>`).
 
-## `[mgr]` — 154 / 154
+## `[mgr]`
 
 The file list: what is in front of you unless an overlay is.
 
@@ -199,7 +200,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<A-t>` — Type the selected paths into the terminal · `term_send`
 - [x] `<C-S-Enter>` — Give the terminal pane the window (the same key in the pane gives it back) · `term_max`
 
-## `[term]` — 16 / 16
+## `[term]`
 
 While the terminal pane holds the keys. Everything not listed here goes to the shell.
 
@@ -222,7 +223,7 @@ While the terminal pane holds the keys. Everything not listed here goes to the s
 - [x] `<C-S-n>` — Find the next match · `term_find --repeat`
 - [x] `<C-S-b>` — Find the previous match · `term_find --repeat --prev`
 
-## `[input]` — 3 / 3
+## `[input]`
 
 The one-line prompt — `cd`, rename, filter, search.
 
@@ -232,7 +233,7 @@ The one-line prompt — `cd`, rename, filter, search.
 - [x] `<Esc>` — Cancel · `close`
 - [x] `<Tab>` — Complete the path · `complete`
 
-## `[confirm]` — 2 / 2
+## `[confirm]`
 
 A yes/no prompt.
 
@@ -241,7 +242,7 @@ A yes/no prompt.
 - [x] `<Enter>` — Confirm · `close --submit`
 - [x] `<Esc>` — Cancel · `close`
 
-## `[pick]` — 2 / 2
+## `[pick]`
 
 A chooser — the command palette, the context menu.
 
@@ -250,7 +251,7 @@ A chooser — the command palette, the context menu.
 - [x] `<Enter>` — Submit · `close --submit`
 - [x] `<Esc>` — Cancel · `close`
 
-## `[help]` — 20 / 21
+## `[help]`
 
 This panel (`~` or `<F1>`).
 
@@ -278,7 +279,7 @@ This panel (`~` or `<F1>`).
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 
-## `[tasks]` — 13 / 13
+## `[tasks]`
 
 The task manager (`w`).
 
@@ -298,7 +299,7 @@ The task manager (`w`).
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 
-## `[spot]` — 23 / 23
+## `[spot]`
 
 The details panel (`<Tab>`).
 
@@ -328,7 +329,7 @@ The details panel (`<Tab>`).
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 
-## `[diff]` — 17 / 18
+## `[diff]`
 
 The side-by-side comparison (`<A-d>`).
 

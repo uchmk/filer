@@ -22,7 +22,11 @@ Reply in Japanese. Code, comments and commit messages in English.
 
 ## What you may write
 
-**Only inside `#[cfg(test)]` modules, plus `QA-REPORT.md` and TODO.md.**
+**Only inside `#[cfg(test)]` modules, plus your report and TODO.md.**
+Your report is a file of its own, `qa-reports/<YYYY-MM-DD>-<branch without test/>.md`
+(`qa-reports/2026-10-03-harness-preview.md`). Never add to QA-REPORT.md: every run used to
+append to its end, and any two pull requests open at once conflicted there. It stays as
+the record of the runs before 2026-10-03.
 Never `Cargo.toml`, and never `CHANGELOG.md` -- see "Branch and hand-off" for why.
 **Never TESTING-KEYS.md either: its ticks belong to the owner and the Windows machine's session.** Its `[x]` marks mean
 "tried on a real machine", which is not something you can do or undo, so you report
@@ -42,7 +46,7 @@ be — the rule is about *where in a file* you write:
 
 **Check this yourself with `git diff` before you run `cargo test`**, not after.
 If a change you want is outside one, it is not yours to make — write it in
-`QA-REPORT.md` as a proposal and carry on.
+your report as a proposal and carry on.
 
 ## What you report instead of fixing
 

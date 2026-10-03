@@ -75,7 +75,11 @@ cat /tmp/r1/title.txt /tmp/r1/clip.txt
   line in the pull request body, in English; whoever merges bumps the PATCH.
 - **Never run `cargo fmt`.**
 - A bug in the program, a Linux-only difference, or a TESTING.md row that is
-  wrong goes in `QA-REPORT.md` under a heading that says `Linux lane`. Do not fix
+  wrong goes in your report. **Each run writes a file of its own,
+  `qa-reports/<YYYY-MM-DD>-<branch without test/>.md`**
+  (`qa-reports/2026-10-03-linux-24.md`), with `Linux lane` in its first heading,
+  and never adds to QA-REPORT.md: runs that all appended to its end conflicted
+  with each other whenever two pull requests were open (2026-10-03). Do not fix
   code and do not edit TESTING.md -- renumbering is how a checklist loses its
   place.
 - Open the pull request and stop. **Do not watch it** (no subscription, no
@@ -105,7 +109,7 @@ which must say `in sync`. Put the evidence in the pull request body, one line pe
 `[x]`: the command, and the text or file state it produced.
 
 A row that passes here and failed on Windows, or the other way round, is a
-finding: say so in QA-REPORT.md with both results.
+finding: say so in your report with both results.
 
 ## Where the work is
 
@@ -130,7 +134,7 @@ Worked through before, and not in the table any more: 25 (#131; 25.4, 25.4a, 25.
 
 ## Proposals
 
-Finish your QA-REPORT.md section with `### Proposals`: what should change,
+Finish your report with `### Proposals`: what should change,
 from what you ran into this run -- the same shape as the Windows lane's
 (`windows-role.md`, "Proposals"). Do not implement them.
 
@@ -138,7 +142,7 @@ from what you ran into this run -- the same shape as the Windows lane's
 
 You may be started by a scheduled routine with nobody watching. Nothing above
 changes, except that **nobody will answer a question**: when a row needs a
-decision, leave it `[ ]`, say why in QA-REPORT.md, and move on. When the queue
+decision, leave it `[ ]`, say why in your report, and move on. When the queue
 is empty, or every section in it is done, say so in one line and stop without
 opening a pull request.
 

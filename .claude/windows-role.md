@@ -48,7 +48,7 @@ two keys comes from the same run (`<Shot:focused><C-t><Shot:unfocused>`).
 toast without a `<Wait:>` -- use `<Now>` to catch a job mid-run. And the `FILER_KEYS_DONE` file always comes: its last line
 is `keys: done`, or it starts `keys: stalled` with the keys pressed, the last one and the rest, when nothing went in for
 30 s past any wait. Since v0.72.8 a script ending in `q` still writes it (`quit: yes`, then `keys: done`), and a refused one
-writes `keys: refused` and `why: …` before any window opens (#193). **A stalled file is not a result** -- say so in QA-REPORT.md with its lines.
+writes `keys: refused` and `why: …` before any window opens (#193). **A stalled file is not a result** -- say so in your report with its lines.
 
 | The row says | What you can read instead |
 | --- | --- |
@@ -149,10 +149,10 @@ same way as everything else here: as state, before and after.
   meant to change may differ.
 - **In the pull request, one line per key**: the key, what changed (the
   description's half), and the snapshot that did not (the "nothing else" half).
-- Tick only with both halves. Then `cargo run --example make-keycheck -- --counts`
-  (v0.73.9: it corrects the totals your ticks moved, and refuses to write if
-  anything else differs), and `-- --check` must say `in sync`. Never regenerate
-  the file; flip `[ ]` to `[x]` and let `--counts` do the arithmetic.
+- Tick only with both halves. Then `cargo run --example make-keycheck -- --check`
+  must still say `in sync`; never regenerate the file, only flip `[ ]` to `[x]`.
+  The file holds no counts (v0.73.14), so a tick is the only line you change;
+  `-- --stats` prints them.
 
 ## Where the work is
 
@@ -171,7 +171,7 @@ still on the human's list when it was written.
 | **2. the minimap** | 12 | Measured in pixels on a `<Shot:>` of `long.rs` (the strip is the rightmost 70 px of the preview, bars 2 px high): 2.1 non-background pixels in that strip, 2.3 more than one distinct bar colour, 2.4 / 2.5 the viewport box's top edge (the lighter fill) moves down after `<A-j>`, 2.6 a `SendInput` click halfway down sets `preview top` near half of `M`, 2.7 a drag changes it continuously, 2.8 / 2.10 / 2.12 the strip has no bar pixels (narrow window, rendered `notes.md`, `same-a.txt`), 2.9 `minimap setting` flips and the strip empties, 2.11 `M` brings the bars back. 2.2 ("it looks like the file") is the one `[~]`: say which comment headers and blank lines you matched to which bars |
 | **3. image zoom and pan** | 10 | `zoom` in the state file and the caption's text (`3200 × 2400 · fit NN%`) are the numbers: 3.1 the caption, 3.8 `<A-i>` / `<A-o>` step `zoom`, 3.9 `j` and back is `zoom: fit` again, 3.10 `tiny.png`'s drawn size in pixels is 48 × 48 times the display scale. 3.4 / 3.5 / 3.7 read the picture's position in pixels before and after (a grid intersection's pixel stays under the pointer for 3.5). 3.2 (crisp grid lines: count the pixels across one line, 1-2 is crisp, a soft ramp is not) can be measured; 3.3 (no jump when the sharper copy lands) needs two `<Shot:>`s a frame apart and is `[~]` if they cannot be taken close enough. 3.6 plain wheel moves `preview top`, not `zoom` |
 | **4. SVG text** | 8 | 4.7 is text (`bad SVG: …`). The rest are looks, so `[~]`, each with the failure named first: 4.2 boxes, overlap or missing words; 4.3 kana and kanji as boxes; 4.4 nothing drawn at all; 4.5 bold or italic flattened to regular; 4.6 the fallback face instead of the file next to it. 4.1's sharpness can be measured as in 3.2. 4.8 needs v0.33.5's build next to this one and is the owner's |
-| **v0.55.0 on x64** | -- | ARM64 ticked 29.2, 29.6, 40.14-40.16 and 45.16 (#107); press the Q27 ones again on x64 -- 1.31-1.34, 40.15, 40.16 -- and record them in QA-REPORT.md under an x64 heading, since ConPTY's input path is where the two machines could differ. 30.1 / 30.15 wait on the right-click fix in TODO.md |
+| **v0.55.0 on x64** | -- | ARM64 ticked 29.2, 29.6, 40.14-40.16 and 45.16 (#107); press the Q27 ones again on x64 -- 1.31-1.34, 40.15, 40.16 -- and record them in your report under an x64 heading, since ConPTY's input path is where the two machines could differ. 30.1 / 30.15 wait on the right-click fix in TODO.md |
 | **47. an idle window uses no CPU** | 4 | First, because a fix waits on it: v0.54.2 stopped a redraw loop that is the likeliest cause of the 1.0 CPU-s/s #86 measured. Every row is `(Get-Process filer).CPU` read twice, 10 s apart; 47.2 is the sequence that used to start the loop. **Since v0.65.0 `--keys` can do 47.2**: `j<Now>j` puts the second key in on the next frame instead of waiting for `App::settled()`, which is false while the preview debounce is pending. One frame is well inside the 40 ms debounce while the script runs (it asks for a frame every frame); if you want the gap as a number, the `PostMessageW` + `Stopwatch` way still works (#103 got 22-25 ms). `sort_dir_first` is on by default, so start on a file above a folder only with it off in a run-only `FILER_CONFIG_HOME`. An open prompt used to read 0.14-0.27 CPU-s per 10 s from the caret's blink; since v0.59.3 the caret is steady, and 47.5 checks that it now reads 0. Take a positive control (keys at 100 ms for 10 s) so a 0 is a reading. On ARM64 all three rows read 0 (#103). If it still rises, 47.4 says which thread |
 | **29. the terminal's directory, brought back** | 5 | Where the list went reads off the window title (`(Get-Process filer).MainWindowTitle`). OSC 7 through ConPTY -- nobody else can run it |
 | **14. the parent column, with the mouse** | 6 | Click with `SendInput`; the window title says where the list went and `c` `f` which row the cursor is on |
@@ -183,7 +183,8 @@ Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8
 46.16 is still open: it needs the firewall rules, so an elevated run -- or a person. So is 13.17's `mklink /D` half (its junction half passed on ARM64, #136), and so is 45.11:
 symbolic links need elevation or developer mode (#98 passed its junction form on ARM64).
 Rows still open there were left by those runs on purpose -- ARM, another platform, or eyes -- so
-read that section's entry in QA-REPORT.md before taking one.
+read that section's entry before taking one -- in `qa-reports/` (one file per run since 2026-10-03), or in
+QA-REPORT.md for the runs before that.
 
 **One section per run, and one session at a time** -- and that includes an
 unattended run: `auto-wintest.ps1` only knows about the runs it started itself,
@@ -212,7 +213,7 @@ will answer a question**, so:
   (`Get-CimInstance Win32_Process` and a parent id that no process has). Any increase
   is a finding, with the counts. v0.67.21 fixed the one #180 found (#182 counted 89 before and 88
   after); this is how a new one would show.
-- **Never wait for input.** A choice that is the owner's goes in QA-REPORT.md,
+- **Never wait for input.** A choice that is the owner's goes in your report,
   as a finding or a proposal, and the run carries on with what it can settle.
 - **Vote on every open `投票中` question** ([Votes](#votes-questionsmd-items-marked-投票中)),
   queue or no queue.
@@ -297,7 +298,7 @@ these differences:
   aarch64` for the native build. A run that tested the x64 build by accident
   proved nothing about ARM64.
 - **Ticks.** TESTING-CHECKS.md has one box per row. A row already `[x]` from
-  the x64 machine stays as it is: record the ARM64 result in QA-REPORT.md
+  the x64 machine stays as it is: record the ARM64 result in your report
   under a heading that says ARM64, one line per row with its evidence -- a
   row that *fails* on ARM64 is a finding, and the most valuable kind this lane
   can produce. Tick only rows still `[ ]` that you verified here.
@@ -325,8 +326,7 @@ should work differently, not only things that are broken. Be direct: "this
 should", "this would be better if", "this gets in the way". An opinion you can
 ground in something you just did is worth more than a hedged one.
 
-Write them in `QA-REPORT.md`, under a `### Proposals` heading inside your run's
-section, and count them in the pull request body. For each:
+Write them in your report, under a `### Proposals` heading, and count them in the pull request body. For each:
 
 - **What you ran into**: the steps, and what happened. It must come from this
   run -- a proposal nobody can reproduce is a wish.
@@ -354,8 +354,8 @@ laptop (CLAUDE.md, "多数決で進める質問"). The owner's own answer still 
 - Read QUESTIONS.md on `origin/main` for questions whose `状態` is `投票中` and
   whose `投票` field has no line for your lane (`win` or `arm`) yet.
 - **Decide before you read the other votes**, from the background and the
-  options. Then write one line per question in `QA-REPORT.md`, under a
-  `### Votes` heading inside your run's section:
+  options. Then write one line per question in your report, under a
+  `### Votes` heading:
   `- Q57: 1 -- <why>`. Do not edit QUESTIONS.md; the merger copies the line.
 - **The reason must rest on something you did or saw on this machine** -- a
   measurement, a run of the feature, how a related part behaved in this run or an
@@ -366,7 +366,7 @@ laptop (CLAUDE.md, "多数決で進める質問"). The owner's own answer still 
   default key, something to install): vote `owner` with the reason. It counts
   for no option.
 - A run with an empty queue and an open vote still opens a pull request, with
-  the votes as its only content (QA-REPORT.md alone).
+  the votes as its only content (the report file alone).
 - Count the votes in the pull request body (`Votes: Q57`).
 
 ## How to work
@@ -403,7 +403,7 @@ pwsh -File C:\dev\filer\scripts\fetch-conpty.ps1 -Dest C:\dev\filer\target\relea
 - **Never run `cargo fmt`.** This tree is hand-formatted; one run rewrites 47
   files.
 - Anything you find that is a bug in the program, or a row in TESTING.md that is
-  wrong, goes in `QA-REPORT.md`. Do not fix it and do not quietly correct the
+  wrong, goes in your report. Do not fix it and do not quietly correct the
   row -- renumbering is how a checklist loses its place.
 - **Kill a running `filer.exe` without asking.** CLAUDE.md says the build wins.
 
@@ -450,8 +450,14 @@ prevent. So the moment you have it, copy it out:
 
 - **The pull request body** is the primary home, one line per tick. It is on
   GitHub, not on this machine at all.
-- **`QA-REPORT.md`**, in the repository, for anything longer -- a failing
-  command's full output, a `filer env` dump you are comparing against.
+- **Your report**, in the repository, for anything longer -- a failing
+  command's full output, a `filer env` dump you are comparing against. **Each
+  run writes a file of its own: `qa-reports/<YYYY-MM-DD>-<branch without
+  test/>.md`** (`qa-reports/2026-10-03-win-32-9a.md`), never QA-REPORT.md.
+  Until 2026-10-03 every run appended to the end of QA-REPORT.md, so any two
+  pull requests open at once conflicted there, and each conflict held this
+  lane up for an hour. A new file conflicts with nothing. QA-REPORT.md stays
+  as the record of the runs before; read it, do not add to it.
 - **Screenshots and captured files**: `C:\dev\filer\docs\` if they belong in the
   repository, otherwise somewhere on `C:`. Never leave the only copy on `R:`.
 

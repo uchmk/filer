@@ -18,5 +18,5 @@ Two things about being invoked as a subagent rather than as a session:
   section 12", do the audit, report, and name the conversion as the next step
   rather than doing both.
 - **Say what you did not do.** Your report is the only thing that reaches the
-  caller, so a proposal you left in `QA-REPORT.md` is invisible unless you
+  caller, so a proposal you left in the `qa-reports/` file is invisible unless you
   repeat it.

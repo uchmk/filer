@@ -21,12 +21,11 @@
 //! change with no regeneration leaves a checklist that certifies keys nobody
 //! tried, which is worse than having none.
 //!
-//! With `--counts` it rewrites the counts and nothing else, and only when the
-//! counts are all that differ. A Windows session that ticked a key may not
-//! regenerate the file, since that would also take in whatever else changed
-//! in the keymap, and so had to correct the totals by hand (#188).
+//! **No counts in the file.** Every pull request that ticked a key rewrote the
+//! total and its layer's heading, so two open at once always conflicted on
+//! lines no tick was on. With `--stats` it prints them instead.
 //!
-//!     cargo run --example make-keycheck -- --counts
+//!     cargo run --example make-keycheck -- --stats
 
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write as _;
@@ -44,7 +43,7 @@ struct Binding {
 
 fn main() {
     let check = std::env::args().skip(1).any(|a| a == "--check");
-    let counts = std::env::args().skip(1).any(|a| a == "--counts");
+    let stats = std::env::args().skip(1).any(|a| a == "--stats");
     let text = std::fs::read_to_string(KEYMAP).expect("read the default keymap");
     let bindings = parse(&text);
     let done = previous_ticks();
@@ -62,7 +61,13 @@ fn main() {
     )
     .unwrap();
     writeln!(out).unwrap();
-    writeln!(out, "**{ticked} / {} checked.**", bindings.len()).unwrap();
+    writeln!(
+        out,
+        "{} keys. How many are checked is not written here, so that two pull requests ticking\n\
+         keys do not conflict over a total: `cargo run --example make-keycheck -- --stats`.",
+        bindings.len()
+    )
+    .unwrap();
     writeln!(out).unwrap();
     writeln!(
         out,
@@ -74,6 +79,7 @@ fn main() {
 
     let mut layer = String::new();
     let mut section = String::new();
+    let mut progress = vec![format!("{ticked} / {} checked", bindings.len())];
     for b in &bindings {
         if b.layer != layer {
             layer = b.layer.clone();
@@ -83,7 +89,8 @@ fn main() {
                 .iter()
                 .filter(|x| x.layer == layer && done.contains(&key_of(x)))
                 .count();
-            writeln!(out, "\n## `[{layer}]` — {d} / {n}\n").unwrap();
+            progress.push(format!("[{layer}] {d} / {n}"));
+            writeln!(out, "\n## `[{layer}]`\n").unwrap();
             writeln!(out, "{}\n", layer_note(&layer)).unwrap();
         }
         if b.section != section {
@@ -132,35 +139,23 @@ fn main() {
             b.layer,
         );
     }
-    if check || counts {
+    if stats {
+        println!("{OUT}:");
+        for line in &progress {
+            println!("  {line}");
+        }
+        return;
+    }
+    if check {
         // A byte comparison is the whole test, and it is tick-insensitive for
         // free: `out` carried the existing ticks forward, so a tick can never
-        // be what differs. Anything that does differ came from the keymap, or
-        // is a count that a new tick moved.
+        // be what differs. Anything that does differ came from the keymap.
         let old = std::fs::read_to_string(OUT).unwrap_or_default();
         if old == out {
             println!("{OUT}: in sync with {KEYMAP} ({ticked} / {} checked)", bindings.len());
             return;
         }
-        if let Some(stale) = only_counts_differ(&old, &out) {
-            if counts {
-                // Every other line is the same, so writing `out` changes
-                // exactly these lines.
-                std::fs::write(OUT, &out).expect("write the checklist");
-                println!("{OUT}: corrected {} count line(s) ({ticked} / {} checked)", stale.len(), bindings.len());
-                return;
-            }
-            println!("Only the counts are stale; every row and tick matches. The right counts:");
-            for (was, now) in &stale {
-                println!("    was: {was}\n    now: {now}");
-            }
-            eprintln!("\nCorrect them, and nothing else, with:\n\n    cargo run --example make-keycheck -- --counts\n");
-            std::process::exit(1);
-        }
         report_drift(&bindings, &old);
-        if counts {
-            eprintln!("\n--counts rewrites the counts only, and more than the counts differs: nothing written.");
-        }
         eprintln!(
             "\n{OUT} is out of date. Regenerate it, read the diff, and commit it:\n\n    \
              cargo run --example make-keycheck\n"
@@ -200,36 +195,10 @@ fn report_drift(bindings: &[Binding], old: &str) {
         quiet = false;
     }
     if quiet {
-        // Every binding matches, so what differs is the prose or the counts in
-        // the headings -- a wording change in this file, not a keymap change.
+        // Every binding matches, so what differs is the prose -- a wording
+        // change in this file, not a keymap change.
         println!("The bindings all match; the difference is in the surrounding text.");
     }
-}
-
-/// The lines that differ, as (in the file, as it should be), when every one of
-/// them is a count: the total under the title or a layer heading's `d / n`.
-/// `None` when anything else differs, since then a row or the prose moved.
-fn only_counts_differ(old: &str, new: &str) -> Option<Vec<(String, String)>> {
-    let (old, new): (Vec<&str>, Vec<&str>) = (old.lines().collect(), new.lines().collect());
-    if old.len() != new.len() {
-        return None;
-    }
-    let stale: Vec<(String, String)> =
-        old.iter().zip(&new).filter(|(a, b)| a != b).map(|(a, b)| (a.to_string(), b.to_string())).collect();
-    let same_but_count = |a: &str, b: &str| is_count_line(a) && is_count_line(b) && heading_of(a) == heading_of(b);
-    stale.iter().all(|(a, b)| same_but_count(a, b)).then_some(stale)
-}
-
-/// `**12 / 252 checked.**`, or ``## `[mgr]` — 3 / 140``.
-fn is_count_line(line: &str) -> bool {
-    (line.starts_with("**") && line.ends_with(" checked.**")) || (line.starts_with("## `[") && line.contains("]` \u{2014} "))
-}
-
-/// What a count line counts, without the numbers: the layer of a heading, or
-/// nothing for the total. Two lines with different layers are not one count
-/// that moved.
-fn heading_of(line: &str) -> &str {
-    line.split_once(" \u{2014} ").map_or("", |(layer, _)| layer)
 }
 
 /// The rows this run would write, keyed the way [`key_of`] keys them.
