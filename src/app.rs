@@ -4395,14 +4395,14 @@ impl App {
         }
     }
 
-    /// The junction question's `c`: the `mklink /J` lines for `cmd`, one per
-    /// link, and nothing made.
+    /// The junction question's `c`: the `mklink /J` lines, one per link, and
+    /// nothing made. Each runs in any shell (see `ops::mklink_line`).
     fn copy_mklink(&mut self, links: &[ops::Link]) {
         let lines: Vec<String> = links.iter().map(|l| ops::mklink_line(&l.at, &l.target)).collect();
         match exec::set_clipboard(&lines.join("\n")) {
             Ok(()) => self.toast(match lines.len() {
-                1 => "Copied the mklink command — paste it into cmd".to_owned(),
-                n => format!("Copied {n} mklink commands — paste them into cmd"),
+                1 => "Copied the mklink command — it runs in cmd or PowerShell".to_owned(),
+                n => format!("Copied {n} mklink commands — they run in cmd or PowerShell"),
             }),
             Err(e) => self.error(format!("Clipboard: {e}")),
         }
@@ -6513,12 +6513,12 @@ mod create_and_link_undo {
         assert!(a.overlay.is_none() && a.undos.undo.is_empty() && !offered.at.exists());
         let said = toasts(&a);
         assert!(
-            said.contains(&"Copied the mklink command — paste it into cmd") || said.iter().any(|t| t.starts_with("Clipboard:")),
+            said.contains(&"Copied the mklink command — it runs in cmd or PowerShell") || said.iter().any(|t| t.starts_with("Clipboard:")),
             "{said:?}"
         );
         assert_eq!(
             ops::mklink_line(&offered.at, &offered.target),
-            format!("mklink /J \"{}\" \"{}\"", offered.at.display(), offered.target.display())
+            format!("cmd /d /c mklink /J \"{}\" \"{}\"", offered.at.display(), offered.target.display())
         );
     }
 

@@ -89,7 +89,20 @@ resolve, and push. QA-REPORT.md: keep both sections whole -- restore the markers
 with `git checkout --conflict=merge` and read the boundary first. TESTING-CHECKS.md (or TESTING-LINUX.md, with `-- --lane linux`):
 take either side, then regenerate with `cargo run --example make-testcheck` (the
 ticks survive, the counts are rewritten) and check that every tick from both
-sides is still there. Then stop; the next run merges it once CI is green.
+sides is still there.
+
+Then, which of two:
+
+- **Only the generated checklists conflicted** (TESTING-CHECKS.md and/or
+  TESTING-LINUX.md, nothing else), and after resolving, the pull request's diff
+  against `main` names the same files and the same tick lines as before: **wait
+  for CI on the new head in this run** -- look every few minutes, for up to 30
+  minutes -- and once all of 2.2 is green, go on to 3 and merge it now. Such a
+  conflict is only a count line that `main` moved; making it wait an hour each
+  time held one pull request back three times over on 2026-10-02. Red, or not
+  finished within the 30 minutes: stop, as below.
+- **Anything else conflicted** (QA-REPORT.md included, whose boundary you had to
+  read): stop; the next run merges it once CI is green.
 
 ## 3. Merge
 

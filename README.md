@@ -750,8 +750,10 @@ On Windows a symlink needs Developer Mode or an elevated filer. When `-` on a **
 for that, filer asks whether to make a junction instead (v0.67.19): a junction needs no privilege,
 but it always holds the full path — never a relative one — and cannot point at a network location,
 which is why it is asked and not done. `y` makes it, and `u` / `U` take it back and make it again
-like any other link. `c` makes nothing and copies the `mklink /J` line instead, for pasting into
-`cmd` yourself (v0.71.4): two absolute paths are too long to retype, and a toast cannot be copied.
+like any other link. `c` makes nothing and copies the `cmd /d /c mklink /J …` line instead, for
+pasting into a shell yourself (v0.71.4): two absolute paths are too long to retype, and a toast cannot
+be copied. The `cmd /d /c` is there because `mklink` exists only inside `cmd`; with it the line runs
+in PowerShell too, filer's own pane included (v0.72.6).
 
 Undoing a move starts from where each file actually landed, not from where it was sent: a paste onto
 a name already taken lands as `name_1`, and an undo built from the name you asked for would go
@@ -1435,6 +1437,12 @@ left: u <Shot:after>
 
 Should the keys go on after all, the usual report replaces it. So read the last line: `keys: done`
 is a finished script, and anything else is not.
+
+Two more endings leave the file too (v0.72.8). A script whose last key quits filer (`jq`) writes its
+report as the window closes, with `quit: yes` just before `keys: done`; a quit with keys still to go
+ends `keys: quit` and `left: N not pressed`. A script refused before the window opens (a plain
+space, a key that cannot be typed) writes `keys: refused` and `why: …`, the same reason the command
+line gets -- which a run started detached never sees.
 
 ## Platform Support (Roadmap)
 

@@ -11565,6 +11565,85 @@ hovered: C:\…\c138c\base\thefolder\inside.txt
   推し量りが当たるかどうかの話になる。選択肢 1 なら、**出どころに組み込みの既定も含める**という条件つきで、
   警告の文がそのまま開く先（または「既定と衝突している」という事実）になる。
 
+## TESTING.md の再テスト（6 回目）— 48.1 / 48.3 / 48.6（v0.72.2 の zip）と 25.19c の終了コード（38a5c4b / 0.72.4、win レーン、無人の run）
+
+順番表の先頭「Re-tests of changed behaviour」に残っていた x64 の分: 48.6 の zip の半分、48.1、48.3、25.19c の終了コードの半分。
+リリース v0.72.2 が出たので、`gh release download v0.72.2 -p "*windows*"` で **両方の Windows の zip** を落とし、空のフォルダに `Expand-Archive` した。
+
+| | |
+| --- | --- |
+| 機械 | x64、Windows 11 Pro 10.0.26200、PowerShell 7.6.6 |
+| 昇格 | **なし**（`IsInRole('Administrators')` = `False`）。今回の行に昇格は要らない |
+| zip | `filer-v0.72.2-windows-x64.zip` `e9352ace…a707055bd`、`filer-v0.72.2-windows-arm64.zip` `e7412a5c…fa3b99980f`。どちらもリリースページの SHA-256 表と一致 |
+| `cargo test`（0.72.4） | **623 passed; 0 failed**（ほかに 1 passed）。親のないシェルは前後とも **88**（OpenConsole 44 / powershell 24 / pwsh 20）。増えていない |
+| 証拠の写し | `C:\dev\filer-evidence\win-retests6-20261003\`（`48.1-48.3.txt`、`48.6-zip.txt`、`exitprobe-zip.txt`、`25.19c-zip.txt`、スクリプト） |
+
+### 結果
+
+- **48.1 合（チェック）**: どちらの zip も最上位は `filer-v0.72.2-windows-x64`（`-arm64`）のフォルダ 1 つだけで、中は
+  `ConPTY-LICENSE.txt` / `conpty.dll` / `filer.com` / `filer.exe` / `OpenConsole.exe` の **5 つちょうど**。`Expand-Archive` 後の
+  `Get-ChildItem -Recurse` と、`ZipFile.OpenRead` で読んだ zip のエントリ一覧の両方で同じ（zip にフォルダのエントリも余計なファイルも無い）。
+- **48.3 合（チェック）**: PE machine は x64 の zip の 4 つ（`conpty.dll` / `filer.com` / `filer.exe` / `OpenConsole.exe`）がすべて `8664`、
+  ARM64 の zip の 4 つがすべて `AA64`。混ざっていない。参考: x64 の `filer.exe --version` は `filer 0.72.2 (x86_64)`。ARM64 の `filer.exe` は
+  この機械では「not a valid application for this OS platform」で起動しない（x64 の Windows なので当然。48.2 の ARM64 の半分はこのレーンでは見られない）。
+- **48.6 x64 の zip で合、チェックは付けていない**: #192 の `run48.ps1` を zip の `filer.exe` で 2 回（作業フォルダ = DLL の無い `cwd-none\`、
+  作業フォルダ = zip のフォルダ）。`PATH` には WezTerm の `conpty.dll` がある状態。どちらも `FILER_KEYS_DONE` は `keys: done` /
+  `pane: 12x159` / `toast: Started pwsh — <C-t> back to the list`、`conpty.dll` のモジュールは **1 つ**で
+  `R:\…\x-x64\filer-v0.72.2-windows-x64\conpty.dll`。子の `OpenConsole.exe` も同じフォルダのもの。WezTerm のものは読んでいない。
+  行は「each folder」なので **ARM64 の zip のフォルダが残っている**。この機械では ARM64 の `filer.exe` が起動しないため、ARM64 レーンに回す（PR の Queue に書いた）。
+- **25.19c 合（チェック）**: zip のフォルダを `PATH` の先頭に入れ、zip の `filer.com` で 25.19c をすべて回し直した（#192 では終了コード以外は合格済み）。
+
+| 手順 | 読んだもの | 期待 | |
+| --- | --- | --- | --- |
+| `(Get-Command filer).Source` | `R:\…\x-x64\filer-v0.72.2-windows-x64\filer.com` | `filer.com` で終わる | 合 |
+| `$v = & filer env; $v.Count` | **40**。`$w = & filer.exe env \| Write-Output` も 40 で行ごとに一致。`& filer.exe env`（対照）は 0。`--out` のファイルは 39 行（#192 と同じ、末尾の空行 1 つの差） | レポートの行数 | 合 |
+| `filer --version > v.txt; Get-Content v.txt` | `filer 0.72.2 (x86_64)`、exit 0 | 版の行 | 合 |
+| `filer --keys "<Tab"; $LASTEXITCODE` | 1 行 ``filer: --keys: `<Tab` has no closing `>` ``、**exit 2**。**10 回中 10 回 exit 2**（75〜100 ms、毎回 1 行） | 1 行、2 | 合 |
+| `filer C:\dev C:\Windows`（2 つのパス） | **10 回中 10 回 exit 2**（77〜91 ms、毎回 1 行） | 2 | 合 |
+| `filer` だけ | 663 ms で戻り exit 0。`filer.exe` が 1 つ残り、タイトル `Filer: R:\…\list`。`filer.com` は残っていない | 窓が開き、開いたままプロンプトが戻る | 合 |
+
+#192 の不具合（拒否でも 0）は v0.72.2 の zip で直っている。
+
+**#192 の提案 1（TODO.md に積まれている）は v0.72.2 でもそのまま**: スクリプトを `Start-Job` で回すと、`filer` だけの手順で開いた窓が
+ジョブの出力パイプを持ち続け、`Wait-Job -Timeout 120` が切れても終わらず、窓を閉じた時点で終わった。
+
+### 不具合（直していない）
+
+- **2 つのパスを断る文が、Windows のパスの `\` を 2 つにして出す**: `filer C:\dev C:\Windows` →
+  ``filer: more than one path: "C:\\dev" and "C:\\Windows" (a path with a space in it needs quotes)``。`src/main.rs:245` が `{:?}` で書いているため。
+  25.24 の例（`"two"` / `"words"`）には `\` が無いので、行の文言からは見えない。打ったものと違うパスが出るので、コピーして使うと `C:\\dev` になる。
+  `"{}"` で囲めば足りる（1 行）。
+
+### Proposals
+
+#### 提案 1: キーの重複の警告に、負けた束縛の `run` も書く
+
+**踏んだこと**: Q57 の票のために、`yazi\keymap.toml` に `Q` → `quit`、`filer\keymap.toml` に `Q` → `hidden toggle` を置いて `filer env | Write-Output` を読んだ。
+Config の節は `keymap.toml 56 B` と `keymap.toml 65 B` の 2 つで、Warnings は ``[mgr] `Q` is bound more than once; only `hidden toggle` runs`` の 1 行だけ。
+**負けた `quit` はどこにも出ない。**勝った方の `run` を知っているのは自分で書いたからで、知らなければ、どの行を消せばよいかがこの 1 行からは分からない。
+
+**どう変えるべきか**: ``… only `hidden toggle` runs, not `quit` `` のように負けた側の `run` も並べる（複数なら全部）。Q57 で出どころのファイルを記録するなら、同じ所でファイルと一緒に出す。
+
+**なぜ**: 警告を読んだ人がやりたいのは「要らない方を消す」こと。消す側の名前が無いと、ファイルを開いて `Q` を探すことになる。
+
+**大きさ**: `config/keymap.rs` の 1 か所（`bindings[j].raw` を集めるだけ）。
+
+#### 提案 2: 48 節は ARM64 の zip の起動だけ ARM64 レーンに分ける
+
+**踏んだこと**: 48.6 は「each folder」だが、x64 の機械では ARM64 の `filer.exe` が起動しない。48.1 / 48.3 / 48.5 はファイルを読むだけなので、
+どちらの機械でも両方の zip を確かめられる。結果、x64 で全部見られたのに 48.6 だけ半分残った。
+
+**どう変えるべきか**: 48.2 と 48.6 を「x64 の zip」と「ARM64 の zip」の 2 行（例: 48.6a / 48.6b）に分けるか、ARM64 の順番表に「48.6（ARM64 の zip）」を常設する。
+ARM64 の機械は x64 をエミュレーションで動かせるので両方を見られるが、x64 の実機の結果はこちらにしか出せない。
+
+**なぜ**: 版が変わるたびに 48.6 は外れて再テストに戻る。片方のレーンで閉じられない行は、毎回「半分済み」で残る。
+
+**大きさ**: TESTING.md の行の分け方（設計の判断）。
+
+### Votes
+
+- Q57: 1 -- この機械で `yazi\` と `filer\` の両方の `keymap.toml` に `Q` を書くと（56 B / 65 B、どちらも 0 B ではない）、警告は勝った `hidden toggle` しか言わず、Config の節の 2 行からは負けた `quit` がどちらにあるか分からなかった。2 の束縛数は「両方 1」で、何も当てられない。
+
 ---
 
 ## 13.8c の残り（`deep` ツリーの breadcrumb）と 25.19c（`filer.com`）（02452d2 / 0.72.4、arm レーン、無人の run）
