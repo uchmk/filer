@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 473 件（TESTING.md の全 642 件のうち、`cargo test` が見ている 169 件は外してある）。
+押すものは 474 件（TESTING.md の全 643 件のうち、`cargo test` が見ている 169 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -122,6 +122,7 @@
 - [ ] **4.6** システムフォントではなく**隣に置いたフォントファイル**を使う SVG → そのディレクトリから読まれる（`resources_dir` の意図どおり） — *An SVG using a font **file next to it** rather than a system font → Loaded from the directory, as `resources_dir` intends*
 - [ ] **4.7** **壊れた** SVG（途中で切ったもの）→ プレビューに `bad SVG: …` と出て、ウィンドウは動き続ける — *A **malformed** SVG (truncate one) → `bad SVG: …` on the preview, and the window keeps working*
 - [ ] **4.8** 4.2 と 4.3 を v0.33.5 のビルドと見比べる → 字形の違いがあれば新しいシェイパーの影響。何が変わったかを書いて両方添える（**v0.33.5 のビルドが要るので、無ければ飛ばす**） — *Compare 4.2 and 4.3 against v0.33.5's build → Any difference in the glyphs is the new shaper; say what changed and attach both*
+- [ ] **4.9** 大きさの分かる SVG（100 × 100 に半径 40 の円）で `<A-i>` を 1 回押して 2 秒待つ。次に `<A-1>`（v0.73.53、#219）→ `<A-i>` で 1 段（1.25 倍）大きくなり、そこで止まる。v0.73.53 より前は、くっきり描き直すたびに収まる倍率が下がり、4096 px の上限まで大きくなり続けた。`<A-1>` は SVG 自身の大きさ（円の直径 80 px）で、注記は `· 1:1`、`zoom: 100%` — *An SVG of a known size (a 100 × 100 with a circle of radius 40): `<A-i>` once, wait two seconds; then `<A-1>` (v0.73.53, #219) → `<A-i>` grows the picture by one step (1.25×) and it stays there -- before v0.73.53 it kept growing to the 4096 px cap as each sharper render lowered the fit. `<A-1>` shows the SVG at its own size (the circle 80 px across), caption `· 1:1`, `zoom: 100%`*
 
 ## 5. 2 ファイルの差分表示
 

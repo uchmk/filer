@@ -154,7 +154,7 @@ pub fn draw(
                 }
                 0
             }
-            Payload::Image { source, caption, .. } => {
+            Payload::Image { source, own, caption, .. } => {
                 if let Some(tex) = texture {
                     let avail = image_area(rect);
                     // The picture's own size decides the geometry; the texture
@@ -179,8 +179,10 @@ pub fn draw(
                     );
                     // The scale belongs in the caption: whether what is on
                     // screen is the real pixels is the first thing to know.
-                    let note = match st.zoom {
-                        None => format!("{caption}  ·  fit {:.0}%", fit * 100.0),
+                    // Against the file's own size, which for an SVG is not
+                    // the size it is laid out at.
+                    let note = match st.zoom.map(|z| z * own) {
+                        None => format!("{caption}  ·  fit {:.0}%", fit * own * 100.0),
                         Some(z) if (z - 1.0).abs() < 0.005 => format!("{caption}  ·  1:1"),
                         Some(z) => format!("{caption}  ·  {:.0}%", z * 100.0),
                     };

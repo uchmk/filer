@@ -46,9 +46,24 @@ fn render_bytes(data: &[u8], dir: Option<&Path>, box_size: (u32, u32)) -> Result
     let img = image::RgbaImage::from_raw(w, h, straight).ok_or("SVG buffer size mismatch")?;
     let (width, height, rgba) = image_preview::finish(img);
     let caption = format!("SVG · {} × {}", size.width().round(), size.height().round());
-    // Vector art is re-rendered into a bigger box as the zoom grows, so what
-    // came back is the source for now.
-    Ok(Payload::Image { width, height, source: (width, height), rgba, caption })
+    let source = vector_source(size.width(), size.height());
+    let own = source.0 as f32 / size.width().max(1.0);
+    Ok(Payload::Image { width, height, source, own, rgba, caption })
+}
+
+/// The size an SVG is laid out at, whatever box it was rendered into.
+///
+/// The picture's geometry -- its fit, its zoom, where a pan stops -- is worked
+/// out from `source`, and a re-render for a zoom must not move it. This used
+/// to be the size just rendered, so each re-render shrank `fit`, which asked
+/// for a bigger box, which shrank `fit` again: one `<A-i>` ran on to the
+/// decode cap (#219). A vector has no pixels of its own, so it is given as
+/// many as the largest render can have: big enough that fitting it to the pane
+/// fills the pane, as an icon should, and 1:1 is the sharpest render there is.
+fn vector_source(w: f32, h: f32) -> (u32, u32) {
+    let cap = super::MAX_DECODE as f32;
+    let k = cap / w.max(h).max(1.0);
+    (((w * k).round() as u32).max(1), ((h * k).round() as u32).max(1))
 }
 
 fn system_fonts() -> Arc<usvg::fontdb::Database> {
@@ -70,6 +85,23 @@ mod tests {
         let Payload::Image { width, rgba, .. } = p else { panic!("not an image: {p:?}") };
         let i = (y * width + x) as usize * 4;
         rgba[i..i + 4].try_into().unwrap()
+    }
+
+    /// #219: the size the geometry is worked out from does not follow the box
+    /// a zoom re-rendered into, so a zoom cannot feed on itself.
+    #[test]
+    fn the_source_size_does_not_follow_the_render_box() {
+        let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20">
+            <rect width="10" height="20" fill="red"/></svg>"#;
+        let source = |b| match render_bytes(svg, None, b).unwrap() {
+            Payload::Image { source, width, height, .. } => (source, (width, height)),
+            p => panic!("{p:?}"),
+        };
+        let (small, drawn_small) = source((400, 400));
+        let (big, drawn_big) = source((1600, 1600));
+        assert_ne!(drawn_small, drawn_big, "it was rendered twice as big");
+        assert_eq!(small, big, "and is laid out the same");
+        assert_eq!(small, (2048, 4096), "the icon's shape, at the decode cap");
     }
 
     #[test]

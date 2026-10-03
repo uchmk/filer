@@ -643,7 +643,7 @@ pub fn clamp_pan(pan: egui::Vec2, shown: egui::Vec2, avail: egui::Vec2) -> egui:
 /// fits at 5% is already asking for twice the pane's detail at 10%, while a
 /// small icon at 2x is asking for nothing that exists.
 pub fn zoom_box(pane: (u32, u32), zoom: Option<f32>, fit: f32) -> (u32, u32) {
-    const CAP: u32 = 4096;
+    const CAP: u32 = crate::preview::MAX_DECODE;
     let want = match zoom {
         Some(z) if fit > 0.0 => (z / fit).max(1.0),
         _ => 1.0,
@@ -4384,13 +4384,14 @@ impl App {
     /// Scale the image preview. Stepping in or out from *fit* starts from the
     /// scale on screen, so the first press does not jump.
     fn zoom_preview(&mut self, to: ZoomTo) {
-        if !matches!(self.preview.state, PreviewState::Ready(Payload::Image { .. })) {
+        let PreviewState::Ready(Payload::Image { own, .. }) = self.preview.state else {
             return;
-        }
+        };
         let from = self.preview.zoom.unwrap_or(self.preview.fit);
         self.preview.zoom = match to {
             ZoomTo::Fit => None,
-            ZoomTo::Actual => Some(1.0),
+            // The file's own size: for an SVG, not the size it is laid out at.
+            ZoomTo::Actual => Some(1.0 / own),
             ZoomTo::In => Some((from * 1.25).clamp(ZOOM_MIN, ZOOM_MAX)),
             ZoomTo::Out => Some((from / 1.25).clamp(ZOOM_MIN, ZOOM_MAX)),
         };

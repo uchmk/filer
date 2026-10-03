@@ -234,6 +234,7 @@ for commit `f2b30c5` is it, for as long as the 90 days last.
 | 4.6 | An SVG using a font **file next to it** rather than a system font | Loaded from the directory, as `resources_dir` intends |
 | 4.7 | A **malformed** SVG (truncate one) | `bad SVG: …` on the preview, and the window keeps working |
 | 4.8 | Compare 4.2 and 4.3 against v0.33.5's build | Any difference in the glyphs is the new shaper; say what changed and attach both |
+| 4.9 | An SVG of a known size (a 100 × 100 with a circle of radius 40): `<A-i>` once, wait two seconds; then `<A-1>` (v0.73.53, #219) | `<A-i>` grows the picture by one step (1.25×) and it stays there -- before v0.73.53 it kept growing to the 4096 px cap as each sharper render lowered the fit. `<A-1>` shows the SVG at its own size (the circle 80 px across), caption `· 1:1`, `zoom: 100%` |
 
 ## 5. Compare, side by side (v0.4.0)
 

@@ -195,6 +195,9 @@ pub fn outline_cols(widest: usize, cols: u16) -> u16 {
     (widest.min(100) as u16 + 1).clamp(16.min(max), max)
 }
 
+/// The largest side a zoomed image is decoded or rendered at.
+pub const MAX_DECODE: u32 = 4096;
+
 /// How much of a file a payload holds.
 ///
 /// The two always travel together -- nothing reads one without the other, and
@@ -264,6 +267,11 @@ pub enum Payload {
         width: u32,
         height: u32,
         source: (u32, u32),
+        /// One of the file's own pixels, in `source` pixels: 1 for a raster.
+        /// An SVG is laid out far larger than it says it is (see
+        /// `svg_preview::vector_source`), and its scale and its 1:1 are
+        /// reckoned against its own size, not that one.
+        own: f32,
         rgba: Arc<Vec<u8>>,
         caption: String,
     },
@@ -486,10 +494,11 @@ fn external_picture(rule: &crate::config::PreviewRule, req: &Request) -> Payload
         Err(e) => return Payload::Error(format!("{}: {e}", caption(rule, n))),
     };
     match image_preview::render(&drawn.png, req.key.box_size) {
-        Ok(Payload::Image { width, height, source, rgba, .. }) => Payload::Image {
+        Ok(Payload::Image { width, height, source, own, rgba, .. }) => Payload::Image {
             width,
             height,
             source,
+            own,
             rgba,
             caption: caption(rule, n),
         },

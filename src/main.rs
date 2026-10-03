@@ -1073,7 +1073,13 @@ fn state_report(app: &App) -> String {
     // as numbers instead of judged from a picture (2026-10-03).
     lines.push(format!("list top: {}", tab.current.offset));
     lines.push(format!("preview top: {} of {}", tab.preview_offset, app.preview.max_offset));
-    lines.push(format!("zoom: {}", app.preview.zoom.map_or("fit".into(), |z| format!("{:.0}%", z * 100.0))));
+    // Against the file's own size, as the caption says it (an SVG is laid
+    // out larger than it is).
+    let own = match &app.preview.state {
+        app::PreviewState::Ready(preview::Payload::Image { own, .. }) => *own,
+        _ => 1.0,
+    };
+    lines.push(format!("zoom: {}", app.preview.zoom.map_or("fit".into(), |z| format!("{:.0}%", z * own * 100.0))));
     // The setting `<A-n>` flips. Whether a strip was actually drawn (it is
     // not on rendered Markdown, a two-line file or a narrow pane) is a
     // picture's question.
