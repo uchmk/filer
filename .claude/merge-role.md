@@ -41,9 +41,14 @@ reply names what changed (`Q57: 多数決 1`).
 - List open pull requests whose head branch starts with `test/win-`,
   `test/arm-` or `test/linux-`. None: stop here and say so in one line (after
   the votes in 0). That is most runs.
-- **One per run, oldest first.** The next run takes the next one. Each merge
-  moves `main`, and the merger's share in 4 is written against the one just
-  merged.
+- **Every one that may be merged, oldest first** (since v0.73.15). Take them one
+  at a time through 2 and 3, fetching `origin/main` again before each, since the
+  one before moved it. A pull request that cannot be merged yet (CI running, a
+  conflict to stop on, a tick without evidence) is passed over, not waited on:
+  go on to the next. With three lanes and one merge an hour, pull requests
+  queued behind each other while their lanes sat idle; since the reports and
+  the checklists stopped conflicting (v0.73.14), two in one run no longer get in
+  each other's way.
 
 ## 2. Decide whether it may be merged
 
@@ -63,10 +68,11 @@ All of these, or it is not merged:
    pull request opened before then (#198, #199) may still do that, adding at
    the end and changing nothing above it; one opened after it may not. A Linux run that changed
    TESTING-CHECKS.md or TESTING-KEYS.md claimed a Windows result: do not merge.
-2. **CI is green on its head**: `audit`, `clippy`, `smoke` and `test` all
-   `success`. A pull request that only changes files in `ci.yml`'s
-   `paths-ignore` (`qa-reports/**`, QA-REPORT.md, `.claude/**`, ...) runs `audit` alone, by
-   design: that is green. Still running: stop, the next run will look again. Red: read the
+2. **CI is green on its head**: every check run on it is `success`. Which ones
+   run depends on the files: a pull request that changes only the checklists,
+   `qa-reports/` and other files in `ci.yml`'s `paths-ignore` runs `audit` and
+   `checklists` (v0.73.15) and nothing else, by design -- those two green is
+   green. Anything else runs `audit`, `clippy`, `smoke` and `test` as well. Still running: stop, the next run will look again. Red: read the
    log. A documentation-only pull request cannot break a build, so a red test is
    a flaky test on `main`. **Do not fix code from here** -- nobody reviews what an
    unattended run pushes to `main`. Write the failing test, the log line and your
@@ -124,21 +130,26 @@ Then, which of two:
 ## 3. Merge
 
 `merge_pull_request` with `merge_method: "merge"` and the **full 40-character**
-head SHA as `expectedHeadSha`. Never squash, never rebase.
+head SHA as `expectedHeadSha`. Never squash, never rebase. Then back to 2 for
+the next pull request in the list.
 
 ## 4. The merger's share, straight on `main`
 
-One commit, pushed to `main`. It holds **Markdown, `Cargo.toml` and `Cargo.lock`
+One commit for the run, however many were merged, pushed to `main` after the
+last merge (CLAUDE.md: one version per push). Each pull request gets its own
+CHANGELOG line, proposals and queue edit inside it. It holds **Markdown, `Cargo.toml` and `Cargo.lock`
 only** -- this is the one push to `main` an unattended run may make, and it is
 allowed because nothing in it can break a build:
 
 - **Version**: PATCH up in `Cargo.toml`, `cargo build` for `Cargo.lock`.
-- **CHANGELOG.md**: a new section, with the pull request's changelog line in
-  the file's own style (Japanese), and `（#NN）`.
+- **CHANGELOG.md**: a new section, with each merged pull request's changelog line
+  in the file's own style (Japanese), and its `（#NN）`.
 - **Proposals and findings**: every item under the run's `### Proposals` and
   every bug in its report (its `qa-reports/` file, or its QA-REPORT.md section
   for a pull request from before 2026-10-03) goes somewhere -- TODO.md for what needs
-  no decision, QUESTIONS.md (CLAUDE.md's format, with a recommendation) for a
+  no decision (ending the line with `【QA】` for a TESTING.md wording change and
+  `【実機】` for what only a Windows machine can measure, so the development
+  session's "next item" passes over them; CLAUDE.md, 作業ルール), QUESTIONS.md (CLAUDE.md's format, with a recommendation) for a
   key, a default or a design choice. Merging without this is half the job.
   A new question that has an arguable technical answer goes out as `投票中`,
   with your own vote and no "（推奨）" (CLAUDE.md, "多数決で進める質問").
