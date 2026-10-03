@@ -72,7 +72,16 @@ All of these, or it is not merged:
    run depends on the files: a pull request that changes only the checklists,
    `qa-reports/` and other files in `ci.yml`'s `paths-ignore` runs `audit` and
    `checklists` (v0.73.15) and nothing else, by design -- those two green is
-   green. Anything else runs `audit`, `clippy`, `smoke` and `test` as well. Still running: stop, the next run will look again. Red: read the
+   green. Anything else runs `audit`, `clippy`, `smoke` and `test` as well.
+   **Still running: subscribe to the pull request** (`subscribe_pr_activity`,
+   since v0.73.21) and go on to the next one. When its checks finish, the
+   session is woken with the result: green, take it through 2 and 3 and do its
+   share in 4 then and there; red, as below. Without this a pull request whose
+   CI was still running waited for the next run, an hour, though its CI took
+   minutes. **Unsubscribe** (`unsubscribe_pr_activity`) once it is merged, or
+   once you stop on it for any other reason -- a subscription left behind wakes
+   the session for nothing. A wake for a pull request that is already merged or
+   closed: unsubscribe and stop. Red: read the
    log. A documentation-only pull request cannot break a build, so a red test is
    a flaky test on `main`. **Do not fix code from here** -- nobody reviews what an
    unattended run pushes to `main`. Write the failing test, the log line and your
@@ -119,11 +128,11 @@ Then, which of two:
   section, nothing above the pull request's section changed), and after
   resolving, the pull request's diff against `main` names the same files, the
   same tick lines and the same added section as before: **wait for CI on the
-  new head in this run** -- look every few minutes, for up to 30 minutes -- and
+  new head in this run** -- subscribe to it as in 2.2 rather than polling -- and
   once all of 2.2 is green, go on to 3 and merge it now. Such a conflict is two
   appends meeting, or a count line `main` moved; making it wait an hour each
-  time held #197 back three runs on 2026-10-03, and the lane with it. Red, or
-  not finished within the 30 minutes: stop, as below.
+  time held #197 back three runs on 2026-10-03, and the lane with it. Red:
+  stop, as below.
 - **Anything else conflicted** (a marker inside a section, a tick line both
   sides changed, any other file): stop; the next run merges it once CI is green.
 
