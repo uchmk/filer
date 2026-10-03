@@ -107,6 +107,31 @@ it never will be.
 **Never tick an appearance row.** If you are unsure which kind a row is, it is an
 appearance row.
 
+**But you may mark one `[~]` (since 2026-10-03, the owner's call).** `[~]` means
+"an agent judged this from a screenshot it took" -- not done, counted apart from
+`[x]`, and turned into `[x]` only by the owner after looking at the same picture.
+It exists so that rows nothing but an eye can settle (the minimap's shape, a
+glyph's weight, a picture's sharpness) get a first look instead of none. Mark a
+row `[~]` only when all of these hold:
+
+1. **It cannot be measured.** Try first: a position or a colour is pixels, a
+   count is text, a scroll is `FILER_KEYS_DONE`. A row you could have measured and
+   only looked at is the wrong mark -- measure it and tick it `[x]`.
+2. You performed the action on the real `filer.exe` in this run and took the
+   picture yourself (`<Shot:name>` in `--keys`, or `PrintWindow`), at the moment
+   the row is about.
+3. **Before looking, write down what a failure would look like** ("boxes instead
+   of kana", "the grid lines blurred, two pixels wide"), then look for exactly
+   that. A judgement with no failure named in advance is an impression.
+4. The evidence is kept: the picture under `C:\dev\filer-evidence\<run>\` (crop
+   it to the part the row is about, and keep the full one too), and in the pull
+   request one line per `[~]`: the picture's path, what you saw, and the failure
+   you looked for and did not find.
+
+A `[~]` is never turned into `[x]` by you, and a picture that shows the failure
+is a finding, not a mark. Then `cargo run --example make-testcheck`, as for a tick:
+it carries `[~]` over and counts it on its own line.
+
 **TESTING-KEYS.md: you may tick it too (since 2026-10-01, the owner's call).**
 A tick there means the key *did what its description says and nothing else* --
 `<A-m>` once ran its own command and the plain `m` as well, and each half looked
