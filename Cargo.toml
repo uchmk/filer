@@ -1,6 +1,6 @@
 [package]
 name = "filer"
-version = "0.73.49"
+version = "0.73.50"
 edition = "2021"
 rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"
@@ -22,7 +22,7 @@ crossbeam-channel = "0.5"
 dirs = "7"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 unicode-width = "0.2"
-open = "5"
+open = { version = "5", features = ["shellexecute-on-windows"] }
 trash = "5"
 arboard = "3"
 notify = "8"
