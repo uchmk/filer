@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-**334 / 465 済み。**（TESTING.md の全 634 件のうち、`cargo test` が見ている 169 件は
+**334 / 466 済み。**（TESTING.md の全 635 件のうち、`cargo test` が見ている 169 件は
 「押すもの」から外してある）
 
 ## 使い方
@@ -158,7 +158,7 @@ cd $HOME\Desktop\filer-fixtures
 
 - [ ] **6.15** 大きなディレクトリを `<A-c>` して、ステータスバーを見る → 他のコピーと同じジョブ扱い。進捗と速度が出て、`w` から中止できる — *`<A-c>` a large directory, then watch the status bar → It is a job like any other copy: progress, speed, and cancellable from `w`*
 
-## 7. ヘルプパネルの設定ファイルパス — 8 / 8
+## 7. ヘルプパネルの設定ファイルパス — 8 / 9
 
 `~` か `<F1>` でヘルプを開く。上部の設定パスの並びが対象。
 
@@ -169,6 +169,7 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **7.5** **ディレクトリ**をクリック → パネルが閉じ、空でもそこへ移動する — *Click a **directory** → The panel closes and the list goes there, empty or not*
 - [x] **7.6** 空のほうをクリックし、そこに `filer.toml` を作って `<C-F5>` → 次に開いたとき `nothing here` が消えている — *Click the empty one, then create `filer.toml` there and `<C-F5>` → It appears in the panel next time, without `nothing here`*
 - [x] **7.7** `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う — *With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set → The listed directories follow them*
+- [ ] **7.7a** 2 つの変数に、`filer.toml` のある**同じ**フォルダを綴りを変えて渡す: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`、`$env:FILER_CONFIG_HOME = 'c:\CFG\'`（v0.73.12、#180）。それから `~`、`filer env`、`<C-F5>` → パネルにも `filer env` の Config の節にもフォルダは **1 回**だけ出て、`<C-F5>` は `Reloaded 1 config file(s)`。以前は 2 回出て 2 と数えた — *Both variables naming **one** folder that holds a `filer.toml`, spelled differently: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`, `$env:FILER_CONFIG_HOME = 'c:\CFG\'` (v0.73.12, #180); then `~`, `filer env`, and `<C-F5>` → The folder is listed **once** in the panel and in `filer env`'s Config section, and `<C-F5>` says `Reloaded 1 config file(s)`. Before, it was listed twice and counted 2*
 - [x] **7.8** 設定の警告行 → 黄色のまま。クリックできない — *A config warning line → Still yellow, and not clickable*
 
 ## 8. ターミナルペインが起動するシェル — 7 / 7

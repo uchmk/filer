@@ -310,6 +310,7 @@ job's progress, its speed, and cancelling it from `w` all need a copy big enough
 | 7.5 | Click a **directory** | The panel closes and the list goes there, empty or not |
 | 7.6 | Click the empty one, then create `filer.toml` there and `<C-F5>` | It appears in the panel next time, without `nothing here` |
 | 7.7 | With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set | The listed directories follow them |
+| 7.7a | Both variables naming **one** folder that holds a `filer.toml`, spelled differently: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`, `$env:FILER_CONFIG_HOME = 'c:\CFG\'` (v0.73.12, #180); then `~`, `filer env`, and `<C-F5>` | The folder is listed **once** in the panel and in `filer env`'s Config section, and `<C-F5>` says `Reloaded 1 config file(s)`. Before, it was listed twice and counted 2 |
 | 7.8 | A config warning line | Still yellow, and not clickable |
 
 ## 8. Which shell the pane runs (v0.24.0)

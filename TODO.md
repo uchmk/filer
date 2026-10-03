@@ -1410,7 +1410,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] spot パネルの見出しが `<Esc> to close` だけで、行を動かす `<A-j>` / `<A-k>` が書いていない（提案 2）。`C` と `<Enter>` で行に
   できることが増えたので、見出しに行の動かし方を出す。`j` / `k` はファイルを替える。
 - [ ] 「Open with」の選択（`O`）も同じで、`j` が絞り込みに入る（提案 3）。見出しに `<Down>/<Up> choose, type to filter, <Enter> open`。
-- [ ] `filer env` が、`YAZI_CONFIG_HOME` と `FILER_CONFIG_HOME` が同じ場所のとき、設定ディレクトリと警告を 2 回ずつ出す（提案 4）。
+- [x] （v0.73.12 で直した。#180 の所見 3 と同じ件）`filer env` が、`YAZI_CONFIG_HOME` と `FILER_CONFIG_HOME` が同じ場所のとき、設定ディレクトリと警告を 2 回ずつ出す（提案 4）。
   設定を隔離して試すときの普通の形なので、1 行にまとめて両方の変数を名指す。
 - [ ] TESTING.md 12.14 に、`[running]` を見るにはファイルがどれだけ大きくないといけないかを書く（提案 5。人か QA セッション）。
   同じボリュームのごみ箱は名前の付け替えなので、40 MB や 120 MB では 1 コマで終わる。400 MB × 5 で見えた。
@@ -1687,9 +1687,12 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   終わらせ、読み取りスレッドを待つようにした。#182 が実機で確かめた（`cargo test` の前後で 89 → 88、run 全体でも増えない）。
 - [x] （v0.67.24、Q52 の 1）**ヘルプのコピーが LF だけで、34.15 の確かめ方 `Get-Clipboard | Select-String "^j\t"` が 0 件**（#180 の所見 1、提案 1）。
   Windows のクリップボードは CRLF が普通。#182 も同じ所で止まった。Windows ではクリップボードに CRLF で書くようにした。
-- [ ] **`FILER_CONFIG_HOME` と `YAZI_CONFIG_HOME` が同じフォルダだと、同じ `filer.toml` を 2 回読む**（#180 の所見 3、提案 4）。
+- [x] **`FILER_CONFIG_HOME` と `YAZI_CONFIG_HOME` が同じフォルダだと、同じ `filer.toml` を 2 回読む**（#180 の所見 3、提案 4）。
   `filer env` とヘルプの設定の節にフォルダが 2 回出て、`<C-F5>` は `Reloaded 2 config file(s)`（#182 では 4）と数える。`prepend_keymap` が 2 重になるかは未確認。
   探すフォルダを正規化して重複を落とす（`src/config/mod.rs` の `config_dirs`）。テストを足す。
+  v0.73.12 で直した。`config_dirs` が正規化（あれば `canonicalize`、無ければ `.` と末尾の区切りを落とす、Windows は大文字小文字を無視）で
+  重複を落とし、先の層を残す（どの層も同じファイルを読むので中身は変わらない）。Linux の仮想ディスプレイで `<C-F5>` が
+  `Reloaded 1 config file(s)` になり、`filer env` に 1 回だけ出るのを確かめた。TESTING.md に 7.7a を足して x64 の再テストに回した。
 - [ ] **TESTING.md 45.18 は「`≠` のファイルの行」と言うが、比較の一覧の印は `~`**（#180 の所見 4）。行の文を `~` に直し、日本語の行
   （`scripts/testcheck-ja.toml`）も合わせる。動きは変わらないので印は外さない。
 - [ ] **`cargo test` が一時ディレクトリに `filer-*` のフォルダを残す**（#182 の提案 5）。`util::test_dir` は呼ぶたびに中身を消すが、

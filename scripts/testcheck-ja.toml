@@ -326,6 +326,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "7.5" = '**ディレクトリ**をクリック → パネルが閉じ、空でもそこへ移動する'
 "7.6" = '空のほうをクリックし、そこに `filer.toml` を作って `<C-F5>` → 次に開いたとき `nothing here` が消えている'
 "7.7" = '`YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う'
+'7.7a' = '''2 つの変数に、`filer.toml` のある**同じ**フォルダを綴りを変えて渡す: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`、`$env:FILER_CONFIG_HOME = 'c:\CFG\'`（v0.73.12、#180）。それから `~`、`filer env`、`<C-F5>` → パネルにも `filer env` の Config の節にもフォルダは **1 回**だけ出て、`<C-F5>` は `Reloaded 1 config file(s)`。以前は 2 回出て 2 と数えた'''
 "7.8" = '設定の警告行 → 黄色のまま。クリックできない'
 
 # 8. ターミナルペインが起動するシェル
