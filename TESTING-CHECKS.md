@@ -394,7 +394,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **23.1** `g<Space>` から `\\server\share` と入力 → 開く — *`g<Space>`, type `\\server\share` → It opens*
 - [x] **23.2** そこへファイルをコピー、そこからコピー → どちらも動き、進捗が出る — *Copy a file to and from it → Works, with progress*
 - [x] **23.3** 一覧の取得中にネットワークを抜く、または応答しないホストを指定する → **ウィンドウが固まらない。**エラーのトーストが出て、タブは元の場所に戻る — *Unplug the network mid-listing, or point at a dead host → **The window keeps responding.** An error toast, and the tab goes back where it was*
-- [ ] **23.4** 共有上のパスを Tab 補完する → プロンプトが固まらず、待っている間 `…` が出る — *Tab-complete a path on the share → The prompt stays responsive; a `…` shows while it waits*
+- [x] **23.4** 共有上のパスを Tab 補完する → プロンプトが固まらず、待っている間 `…` が出る — *Tab-complete a path on the share → The prompt stays responsive; a `…` shows while it waits*
 - [x] **23.5** `g<Space>` で、途中のフォルダ名に `|` を含むパス（`C:\Temp\a|b\c\d`）を打って `<Enter>`（v0.57.3）→ エラーのトーストは **1 つ**で、パス全体を挙げる。v0.57.3 までは親の列がそれぞれ自分のトーストを足し、断片（`b: …`、`c: …`）だけを挙げていた — *`g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) → **One** error toast, naming a whole path. Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`)*
 
 ## 24. 扱いにくい名前
