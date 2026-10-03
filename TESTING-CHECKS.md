@@ -98,7 +98,7 @@ cd $HOME\Desktop\filer-fixtures
 # long.rs は 4000 行。コメント見出し・インデント・40 行ごとの空行で形が出るように作ってある
 ```
 
-- [ ] **2.2** 形を見る → コメント見出しが長い帯、インデントされた塊は右から始まる帯、40 行ごとの空行が隙間。**元のファイルの形に見えること** — *Look at the shape → Comment headers read as long bars, indented blocks as bars starting further right, the blank line every 40 as a gap. It should look like the file*
+- [ ] **2.2** 形を見る → コメント見出しが長い帯、インデントされた塊は右から始まる帯、40 行ごとの空行が薄い帯（帯 1 本が約 2 行なので、空行 1 本では丸ごとの隙間にならない。v0.73.59 から）。それ以外の縞は無い（v0.73.59 より前は、ファイルに関係なく丸めから 17〜19 px ごとに 1 px の隙間が出た）。**元のファイルの形に見えること** — *Look at the shape → Comment headers read as long bars, indented blocks as bars starting further right, the blank line every 40 as a fainter band (one band holds about two lines, so a lone blank line cannot be a whole gap; since v0.73.59). No other stripes: before v0.73.59 a one-pixel gap fell every 17-19 px from rounding, whatever the file held. It should look like the file*
 - [x] **2.3** 色を見る → 帯に構文色が乗っている（文字列とコメントがコードと違う色）。単色の塗りつぶしではない — *Look at the colors → The bars carry syntax colors — strings and comments differ from code — not one flat color*
 - [x] **2.4** ビューポートの枠を探す → 画面に出ている範囲を覆う、明るめの枠線付きの箱がある — *Find the viewport box → A lighter box with a border, covering the part of the file on screen*
 - [x] **2.5** `<A-j>` を数回 → 箱が本文と同じだけ下がる — *`<A-j>` a few times → The box moves down in step with the text*

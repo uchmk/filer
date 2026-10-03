@@ -178,7 +178,7 @@ everything about how the picture *looks* and how it answers the mouse.
 | # | Do | Expect |
 | --- | --- | --- |
 | 2.1 | Hover `long.rs` | A narrow strip down the right of the preview, made of short horizontal bars |
-| 2.2 | Look at the shape | Comment headers read as long bars, indented blocks as bars starting further right, the blank line every 40 as a gap. It should look like the file |
+| 2.2 | Look at the shape | Comment headers read as long bars, indented blocks as bars starting further right, the blank line every 40 as a fainter band (one band holds about two lines, so a lone blank line cannot be a whole gap; since v0.73.59). No other stripes: before v0.73.59 a one-pixel gap fell every 17-19 px from rounding, whatever the file held. It should look like the file |
 | 2.3 | Look at the colors | The bars carry syntax colors — strings and comments differ from code — not one flat color |
 | 2.4 | Find the viewport box | A lighter box with a border, covering the part of the file on screen |
 | 2.5 | `<A-j>` a few times | The box moves down in step with the text |

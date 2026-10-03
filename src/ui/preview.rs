@@ -344,6 +344,15 @@ fn minimap_hover(
     painter.galley(card.left_top() + Vec2::new(6.0, 2.0), galley, st.theme.fg);
 }
 
+/// A band from `top` to `bottom`, in points, on whole physical pixels and at
+/// least one pixel high. Rounding both ends the same way makes each band end
+/// exactly where the next begins.
+fn band_pixels(top: f32, bottom: f32, ppp: f32) -> (f32, f32) {
+    let t = (top * ppp).round();
+    let b = (bottom * ppp).round().max(t + 1.0);
+    (t / ppp, b / ppp)
+}
+
 /// Deliberately not text: at two pixels a line a glyph is a smudge, and laying
 /// out ten thousand of them would cost the frame. Each band is one rectangle
 /// spanning the widest line in it, so a block of code reads as a block and a
@@ -374,6 +383,7 @@ fn minimap(
     // One cell of source maps to this much width, so a line of about 80
     // columns fills the strip and anything longer is simply clamped.
     let unit = rect.width() / 80.0;
+    let ppp = painter.ctx().pixels_per_point();
     for (b, band) in map.chunks(per).enumerate() {
         let Some(lead) = band.iter().filter(|r| r.len > 0).max_by_key(|r| r.len) else {
             continue; // an all-blank band leaves a gap, which is the point
@@ -387,11 +397,19 @@ fn minimap(
         if y + band_h > rect.bottom() + 0.5 {
             break;
         }
+        // Whole pixels, top and bottom, each band meeting the next. A band is
+        // about 2.1 px, and drawn at that height less half a pixel the
+        // remainders added up to a one-pixel gap every 17-19 px: stripes that
+        // came from the arithmetic, not the file, while the file's own blank
+        // lines never showed (#215, 2.2). A band's blank lines now show as a
+        // fainter band instead.
+        let (top, bottom) = band_pixels(y, at((b + 1) * per).min(rect.bottom()), ppp);
+        let filled = band.iter().filter(|r| r.len > 0).count() as f32 / band.len() as f32;
         let color = lead.color.map_or(theme.fg, |[r, g, b]| Color32::from_rgb(r, g, b));
         painter.rect_filled(
-            Rect::from_min_max(pos2(x0, y), pos2(x1.max(x0 + 1.0), y + band_h - 0.5)),
+            Rect::from_min_max(pos2(x0, top), pos2(x1.max(x0 + 1.0), bottom)),
             CornerRadius::ZERO,
-            color.gamma_multiply(0.7),
+            color.gamma_multiply(0.7 * filled.max(0.35)),
         );
     }
 
@@ -1766,6 +1784,30 @@ mod pixel_grid {
         let at15 = on_pixels(r, 1.5);
         assert!(((at15.min.x * 1.5).fract()).abs() < 1e-4 && ((at15.min.y * 1.5).fract()).abs() < 1e-4, "{:?}", at15.min);
         assert!((at15.min.x - r.min.x).abs() <= 1.0 / 3.0 + 1e-4, "moved by at most half a pixel");
+    }
+}
+
+#[cfg(test)]
+mod minimap_bands {
+    use super::band_pixels;
+
+    /// #215: bands of a fractional height tile the strip with no gap and no
+    /// overlap, on whole pixels, however the fractions fall.
+    #[test]
+    fn bands_meet_on_whole_pixels() {
+        let h = 2.11_f32;
+        for ppp in [1.0_f32, 1.25, 1.5, 2.0] {
+            let mut last: Option<f32> = None;
+            for i in 0..200 {
+                let (t, b) = band_pixels(i as f32 * h, (i + 1) as f32 * h, ppp);
+                assert!(((t * ppp).fract()).abs() < 1e-4 && ((b * ppp).fract()).abs() < 1e-4, "whole pixels at {ppp}");
+                assert!(b > t, "at least a pixel");
+                if let Some(prev) = last {
+                    assert!((t - prev).abs() < 1e-4, "band {i} starts where {} ended, at {ppp}: {t} vs {prev}", i - 1);
+                }
+                last = Some(b);
+            }
+        }
     }
 }
 
