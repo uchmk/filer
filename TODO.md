@@ -1283,7 +1283,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.73.44。`[help]` に `<C-F5>` = `config_reload`。パネルは開いたまま、読み直した結果を出す）**ヘルプのパネルを開いたまま `<C-F5>` を押しても何も起きない**（所見 1）。パネル自身が「`<C-F5>` で読み直す」と書いているのに、
   `[help]` の層にそのキーが無いので黙って消える。既定のキーマップの `[help]` に `<C-F5>` = `config_reload` を足す（`[term]` に足した Q30 と同じ形。
   既定のキーが増えるので CHANGELOG は「変更」）。
-- [ ] **オープナーが設定されていないファイルで `<Enter>` を押すと、何も言わない**（所見 2）。`exec::open_default()` に落ちて、成功でも黙る。
+- [x] （v0.73.45。`Opened <名前> with the system's default app`）**オープナーが設定されていないファイルで `<Enter>` を押すと、何も言わない**（所見 2）。`exec::open_default()` に落ちて、成功でも黙る。
   `<S-Enter>` は「No opener configured for this file type」と言う。既定のアプリに渡したことをトーストで言う。
 - [ ] ヘルプのパネルの設定パスに、キーで行ける道を作る（提案 3）: `help` の層にカーソルを持ち、`<Enter>` でその行の `goes_to` を実行する。
   今はクリックでしか行けない唯一の場所で、4 行を測るのに P/Invoke が 180 行要った。

@@ -3911,8 +3911,11 @@ impl App {
                 let (block, orphan) = (*block, *orphan);
                 self.launch(&line, &cwd, block, orphan, "Open failed");
             }
+            // Said, as an opener's launch is: handed to the system, a file
+            // whose app takes a while to appear looked as if `<Enter>` had
+            // done nothing (#163).
             None => match exec::open_default(&entry.path) {
-                Ok(()) => {}
+                Ok(()) => self.toast(format!("Opened {} with the system's default app", entry.name)),
                 Err(e) => self.error(format!("Open failed: {e}")),
             },
         }
