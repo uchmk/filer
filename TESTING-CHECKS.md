@@ -99,15 +99,15 @@ cd $HOME\Desktop\filer-fixtures
 ```
 
 - [ ] **2.2** 形を見る → コメント見出しが長い帯、インデントされた塊は右から始まる帯、40 行ごとの空行が隙間。**元のファイルの形に見えること** — *Look at the shape → Comment headers read as long bars, indented blocks as bars starting further right, the blank line every 40 as a gap. It should look like the file*
-- [ ] **2.3** 色を見る → 帯に構文色が乗っている（文字列とコメントがコードと違う色）。単色の塗りつぶしではない — *Look at the colors → The bars carry syntax colors — strings and comments differ from code — not one flat color*
-- [ ] **2.4** ビューポートの枠を探す → 画面に出ている範囲を覆う、明るめの枠線付きの箱がある — *Find the viewport box → A lighter box with a border, covering the part of the file on screen*
-- [ ] **2.5** `<A-j>` を数回 → 箱が本文と同じだけ下がる — *`<A-j>` a few times → The box moves down in step with the text*
-- [ ] **2.6** 帯の中ほどをクリック → プレビューがそこへ飛び、**クリックした行がペインの中央**に来る（上端ではない） — *Click halfway down the strip → The preview jumps there, with the clicked line in the **middle** of the pane, not at its top*
-- [ ] **2.7** 帯の上を上下にドラッグ → プレビューが連続して追従する — *Drag up and down the strip → The preview follows continuously*
-- [ ] **2.9** `<A-n>` → ミニマップが消え、もう一度で戻る — *`<A-n>` → The map toggles off and on*
-- [ ] **2.10** `notes.md` を（レンダリング表示で）開く → **ミニマップは出ない。**これは意図的で、描画された行はファイルの行と一致しないため — *Open `notes.md` (rendered) → **No map** — this is deliberate, the rendered lines are not the file's lines*
-- [ ] **2.11** `M` でソース表示にする → ミニマップが出る — *Press `M` for source → The map appears*
-- [ ] **2.12** 短いファイル（`same-a.txt`）→ 出ない。2 行を地図にしても意味がない — *A short file (`same-a.txt`) → No map: two lines are not worth mapping*
+- [x] **2.3** 色を見る → 帯に構文色が乗っている（文字列とコメントがコードと違う色）。単色の塗りつぶしではない — *Look at the colors → The bars carry syntax colors — strings and comments differ from code — not one flat color*
+- [x] **2.4** ビューポートの枠を探す → 画面に出ている範囲を覆う、明るめの枠線付きの箱がある — *Find the viewport box → A lighter box with a border, covering the part of the file on screen*
+- [x] **2.5** `<A-j>` を数回 → 箱が本文と同じだけ下がる — *`<A-j>` a few times → The box moves down in step with the text*
+- [x] **2.6** 帯の中ほどをクリック → プレビューがそこへ飛び、**クリックした行がペインの中央**に来る（上端ではない） — *Click halfway down the strip → The preview jumps there, with the clicked line in the **middle** of the pane, not at its top*
+- [x] **2.7** 帯の上を上下にドラッグ → プレビューが連続して追従する — *Drag up and down the strip → The preview follows continuously*
+- [x] **2.9** `<A-n>` → ミニマップが消え、もう一度で戻る — *`<A-n>` → The map toggles off and on*
+- [x] **2.10** `notes.md` を（レンダリング表示で）開く → **ミニマップは出ない。**これは意図的で、描画された行はファイルの行と一致しないため — *Open `notes.md` (rendered) → **No map** — this is deliberate, the rendered lines are not the file's lines*
+- [x] **2.11** `M` でソース表示にする → ミニマップが出る — *Press `M` for source → The map appears*
+- [x] **2.12** 短いファイル（`same-a.txt`）→ 出ない。2 行を地図にしても意味がない — *A short file (`same-a.txt`) → No map: two lines are not worth mapping*
 
 ## 3. 画像の拡大と移動
 
