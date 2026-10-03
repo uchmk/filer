@@ -130,12 +130,15 @@ jobs:
           if ($lines.Count -lt 10) { throw "`$v = & filer.com env gave $($lines.Count) line(s)" }
           $ver = & $com --version
           if (-not ($ver -match '^filer \d')) { throw "& filer.com --version gave: '$ver'" }
-          & $com --keys "<Tab"
+          # The refusal comes through filer.com's own pipe since v0.73.6 (#192):
+          # the window no longer gets this console's handles.
+          $said = & $com --keys "<Tab"
           $refused = $LASTEXITCODE
+          if (-not ("$said" -match 'filer: --keys')) { throw "filer.com --keys `"<Tab`" said: '$said'" }
           # The step ends with `exit $LASTEXITCODE`, and this 2 is the pass.
           $global:LASTEXITCODE = 0
           if ($refused -ne 2) { throw "filer.com --keys `"<Tab`" exited $refused, not filer.exe's 2" }
-          "filer.com: $($lines.Count) lines, $ver, refusal exit $refused"
+          "filer.com: $($lines.Count) lines, $ver, refusal exit $refused ($said)"
 
       - name: Gather the files
         shell: bash
