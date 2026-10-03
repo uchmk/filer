@@ -1008,6 +1008,20 @@ fn state_report(app: &App) -> String {
     if let app::Overlay::Input(ov) = &app.overlay {
         lines.push(format!("input: {}", ov.text));
     }
+    // What a picker is offering, in the order on screen, and the row under
+    // its cursor (#196): `overlay: pick` alone said a list was open, not what
+    // was in it, and the README's opener order could only be read off a
+    // picture. A long one -- the palette lists every binding -- is cut.
+    if let app::Overlay::Pick(ov) = &app.overlay {
+        const MAX: usize = 40;
+        let shown: Vec<&str> = ov.matches.iter().map(|m| ov.items[m.0].as_str()).collect();
+        let mut line = shown.iter().take(MAX).copied().collect::<Vec<_>>().join(" | ");
+        if shown.len() > MAX {
+            line.push_str(&format!(" | … +{} more", shown.len() - MAX));
+        }
+        lines.push(format!("pick: {line}"));
+        lines.push(format!("picked: {}", ov.selected().map_or("", |i| ov.items[i].as_str())));
+    }
     // Two folders or two files, and the pair: `overlay: diff` is both.
     if let app::Overlay::Diff(ov) = &app.overlay {
         let what = if matches!(ov.outcome, Some(diff::Outcome::Tree { .. })) { "folders" } else { "files" };
@@ -1017,7 +1031,25 @@ fn state_report(app: &App) -> String {
         "pane: {}",
         app.term.as_ref().map_or("closed".into(), |t| format!("{}x{}", t.size().lines, t.size().cols))
     ));
+    // Where the list and the preview are scrolled, and how the preview is
+    // shown: what the wheel, zoom and minimap rows of TESTING.md move, read
+    // as numbers instead of judged from a picture (2026-10-03).
+    lines.push(format!("list top: {}", tab.current.offset));
+    lines.push(format!("preview top: {} of {}", tab.preview_offset, app.preview.max_offset));
+    lines.push(format!("zoom: {}", app.preview.zoom.map_or("fit".into(), |z| format!("{:.0}%", z * 100.0))));
+    // The setting `<A-n>` flips. Whether a strip was actually drawn (it is
+    // not on rendered Markdown, a two-line file or a narrow pane) is a
+    // picture's question.
+    lines.push(format!("minimap setting: {}", if app.cfg.ui.minimap { "on" } else { "off" }));
+    lines.push(format!(
+        "split: {}",
+        app.split.map_or("no".into(), |s| format!("yes, keys {}", if s.right { "right" } else { "left" }))
+    ));
     lines.push(format!("toast: {}", app.toasts.last().map_or("", |t| t.text.as_str())));
+    // Every toast of the run, the faded ones too, oldest first; a toast's own
+    // line breaks become ` / ` so the report stays one line per name.
+    let all: Vec<String> = app.toast_log.iter().map(|t| t.lines().collect::<Vec<_>>().join(" / ")).collect();
+    lines.push(format!("toasts: {}", all.join(" | ")));
     lines.join("\n") + "\n"
 }
 
@@ -1329,12 +1361,53 @@ mod tests {
         app.toast("Copied a.txt");
         let report = state_report(&app);
         assert!(report.starts_with(&format!("cwd: {}\n", app.tab().cwd.display())), "{report}");
-        for line in ["selected: 0", "tab: 1 of 1", "overlay: none", "pane: closed", "toast: Copied a.txt"] {
+        for line in [
+            "selected: 0",
+            "tab: 1 of 1",
+            "overlay: none",
+            "pane: closed",
+            "list top: 0",
+            "preview top: 0 of 0",
+            "zoom: fit",
+            "split: no",
+            "toast: Copied a.txt",
+        ] {
             assert!(report.lines().any(|l| l == line), "{line:?} in {report}");
         }
         assert!(!report.contains("input:"), "only while a prompt is open");
         assert!(report.lines().any(|l| l == "view: list"), "{report}");
         assert!(!report.contains("compare:"), "only while a comparison is open");
+        assert!(!report.contains("pick:"), "only while a picker is open");
+        // Ends with: a machine's own config may have raised a warning first.
+        let toasts = |r: &str| r.lines().find(|l| l.starts_with("toasts: ")).map(str::to_owned).unwrap_or_default();
+        assert!(toasts(&report).ends_with("Copied a.txt"), "{report}");
+
+        // A toast that has already gone is still in `toasts:`, and a two-line
+        // one stays on one line.
+        app.toasts.clear();
+        app.error("Open failed\nexit code 1");
+        app.toasts.clear();
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "toast: "), "{report}");
+        assert!(toasts(&report).ends_with("Copied a.txt | Open failed / exit code 1"), "{report}");
+
+        // A picker lists what it offers, in its order, and the row under the cursor.
+        let items: Vec<String> = ["Neovim", "VS Code", "サクラエディタ"].map(String::from).into();
+        let mut ov = app::PickOverlay {
+            title: "Open with".into(),
+            details: vec![String::new(); items.len()],
+            items,
+            query: String::new(),
+            matches: Vec::new(),
+            cursor: 1,
+            action: app::PickAction::Jump { paths: Vec::new() },
+            focused: true,
+        };
+        ov.refilter();
+        app.overlay = app::Overlay::Pick(ov);
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "pick: Neovim | VS Code | サクラエディタ"), "{report}");
+        assert!(report.lines().any(|l| l == "picked: VS Code"), "{report}");
     }
 
     /// #168, proposal 5: a script nothing has moved for longer than the stall

@@ -107,6 +107,31 @@ it never will be.
 **Never tick an appearance row.** If you are unsure which kind a row is, it is an
 appearance row.
 
+**But you may mark one `[~]` (since 2026-10-03, the owner's call).** `[~]` means
+"an agent judged this from a screenshot it took" -- not done, counted apart from
+`[x]`, and turned into `[x]` only by the owner after looking at the same picture.
+It exists so that rows nothing but an eye can settle (the minimap's shape, a
+glyph's weight, a picture's sharpness) get a first look instead of none. Mark a
+row `[~]` only when all of these hold:
+
+1. **It cannot be measured.** Try first: a position or a colour is pixels, a
+   count is text, a scroll is `FILER_KEYS_DONE`. A row you could have measured and
+   only looked at is the wrong mark -- measure it and tick it `[x]`.
+2. You performed the action on the real `filer.exe` in this run and took the
+   picture yourself (`<Shot:name>` in `--keys`, or `PrintWindow`), at the moment
+   the row is about.
+3. **Before looking, write down what a failure would look like** ("boxes instead
+   of kana", "the grid lines blurred, two pixels wide"), then look for exactly
+   that. A judgement with no failure named in advance is an impression.
+4. The evidence is kept: the picture under `C:\dev\filer-evidence\<run>\` (crop
+   it to the part the row is about, and keep the full one too), and in the pull
+   request one line per `[~]`: the picture's path, what you saw, and the failure
+   you looked for and did not find.
+
+A `[~]` is never turned into `[x]` by you, and a picture that shows the failure
+is a finding, not a mark. Then `cargo run --example make-testcheck`, as for a tick:
+it carries `[~]` over and counts it on its own line.
+
 **TESTING-KEYS.md: you may tick it too (since 2026-10-01, the owner's call).**
 A tick there means the key *did what its description says and nothing else* --
 `<A-m>` once ran its own command and the plain `m` as well, and each half looked
@@ -137,7 +162,13 @@ still on the human's list when it was written.
 | Section | Rows | Why it suits you |
 | --- | --- | --- |
 | **Re-tests of changed behaviour** | 1 | First, always: these rows were changed by a fix, so an earlier result no longer stands (an old `[x]` was taken off). (8.x, 12.17, 12.18, 16.x, 20.5, 44.10 and 45.18 were settled on x64 by #182; 29.x by #176 on ARM64; 21.14 and 21.15 by #174; 1.38, 25.6, 25.19b, 29.1, 29.8, 29.10 and 34.15 by #188; 29.12 by #190.) A row that needs another shell can use `FILER_TERM_SHELL` (v0.70.0) instead of pointing `FILER_CONFIG_HOME` at an empty folder. Nothing else is open in this row right now (48.1, 48.3, 25.19c and 48.6's x64 zip were settled by #194); go on to the next row. |
-| **32 / 37 with サクラ** | 7 | Rewritten in v0.72.7 around what can be read rather than which editor is named: Hidemaru and IrfanView are gone from the rows (the owner has neither), and サクラエディタ, which this machine has (2.4.2.6048, seen in the 0.47.26 run), stands in. 32.1 (re-test: the README's example now reads Neovim / VS Code / サクラ / default) and 32.2 (`<Enter>` opens Neovim in its own console) paste the README's example; 32.8a, 32.8b, 32.9 and 37.7 read `Win32_Process` command lines -- 32.9 is `-Y=<line>`, never yet seen on a machine since v0.47.29 fixed it from `-L=`. 32.9a (the caret on the line) is a look: say what you saw, do not tick |
+| **32.9a, Sakura's caret** | 1 | Rewritten in v0.73.2 after #196 found Sakura's status bar readable: open from the outline as 32.9 did (headings at lines 6 / 11 / 16 of `outline.md`), then `SendMessage` `SB_GETTEXTW` to Sakura's `msctls_statusbar32` -- `16 行 1 桁` and so on, with the control (no `-Y=`) reading `1 行 1 桁`. A `[x]`, not a look. The rest of 32 / 37 was settled by #196; 32.5's Chrome half and 37.8 need Chrome while the owner is not using it, so they are the owner's |
+| **19. the wheel, over each pane** | 7 | Since v0.73.1 `FILER_KEYS_DONE` has `preview top: N of M` and `list top: N`. Wheel with `SendInput` (`MOUSEEVENTF_WHEEL`, one notch = 120, a slow turn = 30 four times), pointer over the pane, then read the state with `--keys "<Wait:300>"` after: 19.1 / 19.2 every notch (and every four slow quarters) moves `preview top`; 19.3 `list top` over the list and over each pane of the split (`split: yes`); 19.5 one notch down then one up returns `preview top` to where it was; 19.6 Ctrl+wheel over an image changes `zoom` and not `preview top`; 19.7 half a turn over one pane, half over the other, neither moves. 19.4 is the pane: `FILER_PTY_LOG`. All `[x]` |
+| **14. the parent column, with the mouse** | 6 | Click with `SendInput` on a row of the parent column (find its y from a `<Shot:>`: rows are `row_h` apart under the header), then read `cwd` / `hovered` from the state file: 14.1 into the folder, 14.2 up to the file's folder with it `hovered`, 14.3 then `<Enter>` opens it (the opener's command line in `filer env`'s `Launched`), 14.4 a double click gives the same state, 14.5 the same `cwd` and `hovered` as before, 14.6 at a drive root nothing changes. All `[x]` |
+| **18. quick look, the split and the rest** | 12 | Mostly state, not looks: 18.1 / 18.4 `<F3>` opens and closes (the panel's title text in a `<Shot:>`, and `j` still moves `hovered` with it open, 18.2), 18.3 `<A-j>` moves `preview top` with it open, 18.5 `<C-w>` gives `split: yes`, 18.6 `<A-c>` copies (the other pane's folder listing), 18.8 `overlay: spot`, 18.9 / 18.10 / 18.12 the menu, palette and jump list are text in a `<Shot:>` (read the words, they are the check), 18.11 `cwd` after `'` and a letter. 18.7 (the drop label while dragging) is a look: `[~]` with a `<Shot:>` taken mid-drag |
+| **2. the minimap** | 12 | Measured in pixels on a `<Shot:>` of `long.rs` (the strip is the rightmost 70 px of the preview, bars 2 px high): 2.1 non-background pixels in that strip, 2.3 more than one distinct bar colour, 2.4 / 2.5 the viewport box's top edge (the lighter fill) moves down after `<A-j>`, 2.6 a `SendInput` click halfway down sets `preview top` near half of `M`, 2.7 a drag changes it continuously, 2.8 / 2.10 / 2.12 the strip has no bar pixels (narrow window, rendered `notes.md`, `same-a.txt`), 2.9 `minimap setting` flips and the strip empties, 2.11 `M` brings the bars back. 2.2 ("it looks like the file") is the one `[~]`: say which comment headers and blank lines you matched to which bars |
+| **3. image zoom and pan** | 10 | `zoom` in the state file and the caption's text (`3200 × 2400 · fit NN%`) are the numbers: 3.1 the caption, 3.8 `<A-i>` / `<A-o>` step `zoom`, 3.9 `j` and back is `zoom: fit` again, 3.10 `tiny.png`'s drawn size in pixels is 48 × 48 times the display scale. 3.4 / 3.5 / 3.7 read the picture's position in pixels before and after (a grid intersection's pixel stays under the pointer for 3.5). 3.2 (crisp grid lines: count the pixels across one line, 1-2 is crisp, a soft ramp is not) can be measured; 3.3 (no jump when the sharper copy lands) needs two `<Shot:>`s a frame apart and is `[~]` if they cannot be taken close enough. 3.6 plain wheel moves `preview top`, not `zoom` |
+| **4. SVG text** | 8 | 4.7 is text (`bad SVG: …`). The rest are looks, so `[~]`, each with the failure named first: 4.2 boxes, overlap or missing words; 4.3 kana and kanji as boxes; 4.4 nothing drawn at all; 4.5 bold or italic flattened to regular; 4.6 the fallback face instead of the file next to it. 4.1's sharpness can be measured as in 3.2. 4.8 needs v0.33.5's build next to this one and is the owner's |
 | **v0.55.0 on x64** | -- | ARM64 ticked 29.2, 29.6, 40.14-40.16 and 45.16 (#107); press the Q27 ones again on x64 -- 1.31-1.34, 40.15, 40.16 -- and record them in QA-REPORT.md under an x64 heading, since ConPTY's input path is where the two machines could differ. 30.1 / 30.15 wait on the right-click fix in TODO.md |
 | **47. an idle window uses no CPU** | 4 | First, because a fix waits on it: v0.54.2 stopped a redraw loop that is the likeliest cause of the 1.0 CPU-s/s #86 measured. Every row is `(Get-Process filer).CPU` read twice, 10 s apart; 47.2 is the sequence that used to start the loop. **Since v0.65.0 `--keys` can do 47.2**: `j<Now>j` puts the second key in on the next frame instead of waiting for `App::settled()`, which is false while the preview debounce is pending. One frame is well inside the 40 ms debounce while the script runs (it asks for a frame every frame); if you want the gap as a number, the `PostMessageW` + `Stopwatch` way still works (#103 got 22-25 ms). `sort_dir_first` is on by default, so start on a file above a folder only with it off in a run-only `FILER_CONFIG_HOME`. An open prompt used to read 0.14-0.27 CPU-s per 10 s from the caret's blink; since v0.59.3 the caret is steady, and 47.5 checks that it now reads 0. Take a positive control (keys at 100 ms for 10 s) so a 0 is a reading. On ARM64 all three rows read 0 (#103). If it still rises, 47.4 says which thread |
 | **29. the terminal's directory, brought back** | 5 | Where the list went reads off the window title (`(Get-Process filer).MainWindowTitle`). OSC 7 through ConPTY -- nobody else can run it |

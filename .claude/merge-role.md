@@ -49,8 +49,9 @@ reply names what changed (`Q57: 多数決 1`).
 All of these, or it is not merged:
 
 1. **It only touches what the Windows session may write**: `QA-REPORT.md`,
-   `TESTING-CHECKS.md`, `TESTING-KEYS.md` (ticks only: every changed line is a
-   `[ ]` turned `[x]`), `.claude/windows-role.md` (its queue), and files under
+   `TESTING-CHECKS.md` (every changed line is a `[ ]` turned `[x]` or `[~]`, or a
+   `[~]` turned `[x]` -- the last only by the owner, never by a run),
+   `TESTING-KEYS.md` (ticks only: every changed line is a `[ ]` turned `[x]`), `.claude/windows-role.md` (its queue), and files under
    `docs/`. Anything else -- `src/`, `Cargo.toml`, `CHANGELOG.md`, TESTING.md, or
    any other change to TESTING-KEYS.md -- and you do not merge: comment on the pull request naming
    the files, and add a line to QUESTIONS.md so the owner sees it.
@@ -80,7 +81,10 @@ All of these, or it is not merged:
    reason (`linux-role.md`). A tick
    in TESTING-KEYS.md needs both halves on its line: what the key changed, and
    the before/after snapshot of what it did not (`windows-role.md`,
-   "TESTING-KEYS.md"). A tick
+   "TESTING-KEYS.md"). A `[~]` (an appearance row judged from a screenshot)
+   needs the picture's path, what was seen, and the failure that was looked for
+   and not found, and its row must be one that cannot be measured
+   (`windows-role.md`, "Ticking TESTING-CHECKS.md"). A tick or a `[~]`
    you cannot match to evidence: comment, do not merge.
 
 A conflict with `main` is not a reason to stop: merge `origin/main` into the

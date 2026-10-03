@@ -11818,6 +11818,85 @@ ARM64 の順番表（`windows-role.md` の「The ARM64 lane」）から、**13.8
    この機械に入っているエディタだけでよい（Q45 でサクラエディタの話が済んでいる）。
 3. **33. 設定の警告** — `filer env` の Warnings がそのまま読める。10 行のうち 33.6 / 33.9 の 2 つだけが見た目。
 
+## TESTING.md 32 / 37 — サクラエディタと README の例のオープナー（09aeb95 / 0.72.10、win レーン、無人の run）
+
+順番表の「32 / 37 with サクラ」の行: 32.1（再テスト）、32.2、32.8a、32.8b、32.9、37.7、それに 32.9a（見た目なのでチェックしない）。
+サクラエディタ 2.4.2.6048（32bit、`C:\Program Files (x86)\sakura\sakura.exe`）、Neovim、VS Code がこの機械に入っている。
+
+| | |
+| --- | --- |
+| 機械 | x64、Windows 11 Pro 10.0.26200、PowerShell 7 |
+| 昇格 | **なし**（`IsInRole('Administrators')` = `False`） |
+| ビルド | `cargo build --release`（0.72.10）、`scripts/fetch-conpty.ps1` 済み。`cargo test` は全件合格 |
+| 親のないシェル | `cargo test` の前 **88**、後 **88**、run の終わりも **88**。増えていない |
+| 設定 | `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を一時ディレクトリの `cfg\` に向け、`yazi.toml` は README の `[opener]` / `[open]` の例を**そのまま**貼ったもの。32.8b だけ `edit` の先頭をサクラにした写し。持ち主の設定には触っていない |
+| 動かし方 | `filer.exe <dir> --keys "<script>"` と `FILER_KEYS_DONE`。起動後に `Win32_Process` で filer の子孫のコマンドラインを読み、`EnumWindows` で窓の持ち主を読んだ |
+| 証拠の写し | `C:\deviler-evidence\win-32-37-20261003\`（`run.ps1` / `win.ps1` / `sb.ps1`、2 つの `yazi.toml`、各手順の `done.txt` と `<Shot>` の png） |
+
+### 結果
+
+| 行 | 押したもの | 読んだもの | |
+| --- | --- | --- | --- |
+| 32.1 | `note.txt` で `O` | `overlay: pick`。`picker.png` の一覧は README の `edit` の順: Neovim（`nvim %*`）、VS Code（`code %*`）、サクラエディタ（`"C:\Program Files …a.exe" %*`）、Open with the default app（`start "" %*`） | 合（チェック） |
+| 32.2 | `note.txt` で `<Enter>` | トースト `$ nvim "R:\…\op
+ote.txt"`。子孫は `cmd.exe "cmd" /S /C "nvim "R:\…\op
+ote.txt""` → 自前の `conhost.exe 0x4` → `nvim.exe  "R:\…\op
+ote.txt"`（引数 1 つ） | 合（チェック） |
+| 32.8a | `O` → サクラを選んで `<Enter>` | トースト `$ "C:\Program Files (x86)\sakura\sakura.exe" "R:\…\op
+ote.txt"`。子孫は `cmd /S /C ""C:\Program Files (x86)\sakura\sakura.exe" "…
+ote.txt""` → `sakura.exe "C:\Program Files (x86)\sakura\sakura.exe"  "R:\…\op
+ote.txt"`（とその `-NOWIN`）。窓のタイトルは `TEMP\op
+ote.txt - サクラエディタ32bit 2.4.2.6048` | 合（チェック） |
+| 37.7 | 32.8a と同じ起動 | どのコマンドラインにも `start` が無い。`cmd` と `conhost` は生きているが `EnumWindows` で**窓を 1 つも持たない**（`CREATE_NO_WINDOW`）。対照: `sakura.exe` は見える `TextEditorWindowWP177` を持つ | 合（チェック） |
+| 32.8b | `edit` の先頭をサクラにした設定で `<Enter>` | 32.8a と同じトーストと同じ子孫（`sakura.exe … "R:\…\op
+ote.txt"`） | 合（チェック） |
+| 32.9 | `outline.md` でアウトラインを開き、見出しの上で `<Enter>` | 「Second」→ `sakura.exe  -Y=6 "R:\…\op\outline.md"`、「Third」→ `-Y=11`、「Fourth」→ `-Y=16`。トーストもそれぞれ同じ行。見出しはファイルの 6 / 11 / 16 行目（1 始まり） | 合（チェック） |
+
+- 32.2 の補足: この機械の既定の端末は Windows Terminal なので、`CREATE_NEW_CONSOLE` のコンソールは**新しい窓ではなく既存の WT の新しいタブ**に出た。
+  WT の窓のタイトルは nvim の間 `C:\WINDOWS\system32\cmd.exe`、nvim を止めると元に戻った。行の「new console window」は WT が既定なら「タブ」と読むことになる（提案 4）。
+- サクラは手順ごとに止めてから起動した。既に開いているサクラがあると、新しい `sakura.exe` は引数を渡して**すぐ消える**（1 回目の `-Y=16` がそれで、子孫が空だった）。
+
+### 32.9a — チェックしていない（順番表の指示どおり）
+
+順番表は 32.9a を「見た目。見たことを書き、チェックしない」としているので付けていない。ただ、行が許している「エディタの行を別の手段で読む」は
+テキストでできた: サクラのステータスバー（`msctls_statusbar32`）を `SB_GETPARTS` / `SB_GETTEXTW` でプロセスをまたいで読む（`sb.ps1`。UI Automation では名前が空で読めなかった）。
+
+| 起動 | ステータスバー |
+| --- | --- |
+| `-Y=16` | `16 行 1 桁`、`U+0023` |
+| `-Y=11` | `11 行 1 桁`、`U+0023` |
+| `-Y=6` | `6 行 1 桁`、`U+0023` |
+| 対照: `-Y` 無しで手で開く | `1 行 1 桁` |
+
+`U+0023` は `#`、つまりカーソルは見出しの行頭にある。読み取りは窓の見た目ではなく文字列なので、次の run からは行に付けてよいと考える（提案 3）。
+
+### 手を付けなかった行
+
+- **32.5**: 「each opener」に Chrome が含まれるが、持ち主の Chrome が動いていた（69 プロセス）ので押していない。ほかはすべて `space name.txt` / `space book.csv` で**引数 1 つ**だった:
+  nvim（`nvim  "…\op5\space name.txt"`）、VS Code（`Code.exe "…\space name.txt"`、窓 `space name.txt - Visual Studio Code`）、サクラ、
+  既定のアプリ（`cmd /S /C "start "" "…space name.txt""`。関連付けの `SakuraEditor.Document` 経由でサクラが受け取った）、
+  Excel（`EXCEL.EXE  "…\space book.csv"`、窓 `space book.csv - Excel`）。Chrome が残るのでチェックしない。
+- **37.8**: Chrome と、既定のアプリが Chrome の PDF（ChromePDF）を要するので押していない。人の行。
+- VS Code は run の前に動いていなかったので止めた（強制終了）。次に開くとき、この窓を復元するかもしれない。
+
+### Proposals
+
+1. **`FILER_KEYS_DONE` に pick の中身を書く。**32.1 は一覧の中身を png でしか読めない（`overlay: pick` だけでは何が並んだか分からない）。
+   `pick: Neovim | VS Code | サクラエディタ | Open with the default app` のような行があれば、32.1 はテキストで確かめられる。
+   **大きさ**: 小（done ファイルを書く所に 1 行）。
+2. **消えたトーストも done ファイルに残す。**Excel の手順は 6 秒待つ間にトーストが消え、`toast:` が空だった。最後に出たトーストを `last toast:` として残すと、待ち時間に左右されない。
+   **大きさ**: 小。
+3. **32.9a を「ステータスバーの文字列」で書き直す。**サクラの行と桁は `SB_GETTEXTW` で読める文字列なので、見た目の行から外せる。
+   TESTING.md の 32.9a を「サクラのステータスバーが `N 行 1 桁` を示す（対照: `-Y` 無しは `1 行`）」にし、順番表の「do not tick」を外す。
+   **大きさ**: 小（文言と順番表）。読み取りのスクリプトは `C:\deviler-evidence\win-32-37-20261003\sb.ps1`。`scripts/` に置くかは判断が要る。
+4. **32.2 の文言に WT を足す。**Windows 11 の既定の端末が Windows Terminal だと、`block = true` のコンソールは新しい窓ではなく WT のタブになる。
+   「新しいコンソール（WT が既定ならタブ）」と書いておくと、次の人が「窓が出ない」と迷わない。
+   **大きさ**: 小（文言）。
+
+### Votes
+
+なし（Q57 には win の票が既にある）。
+
 ## TESTING.md 13.8a / 13.8c — v0.72.6 の `cmd /d /c mklink /J` の再テスト。**2 行とも合、チェックを 2 つ付けた**（42dc906 / 0.72.11、arm レーン、無人の run）
 
 ARM64 のキューの先頭 13.8a / 13.8c は、**v0.72.6 が #193 の提案 2 を実装した**ことで、
