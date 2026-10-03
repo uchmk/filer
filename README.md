@@ -1436,13 +1436,16 @@ keys: done
 `overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `view` is
 `usage` or `search` while one of those views stands in for the listing, else `list` (v0.64.0); `input` is
 there only while a prompt is open; `compare: folders <left> | <right>` (or `files`) only while a
-comparison is open; `pane` is the terminal's grid (`12x159`) or `closed`; `toast` is
+comparison is open; `pane` is the terminal's grid (`12x159`) or `closed`, and while it is open
+`pane back: 6 of 190` says how many lines the view is scrolled back into its history, of how many
+there are (v0.73.43); `toast` is
 the newest message still on screen, empty when there is none. Since v0.73.1: `list top` is the first
 row of the list on screen, `preview top: N of M` the preview's first line against the furthest it can
 scroll, `zoom` the image's scale (`fit` or `250%`), `minimap setting` what `<A-n>` flips, and `split`
 whether the second pane is open and which side has the keys. Since v0.73.3, while a picker is open
 (`<S-Enter>`, `O`, the palette), `pick: Neovim | VS Code | …` lists what it offers in the order shown
-(after any filter typed into it, cut at 40) and `picked:` the row under its cursor. Since v0.73.4 `toasts:` lists every toast of the run, the
+(after any filter typed into it, cut at 40), with the note a row shows on its right in brackets --
+`…\repo (2h ago)` in the jump list (v0.73.43) and `picked:` the row under its cursor. Since v0.73.4 `toasts:` lists every toast of the run, the
 faded ones too (the last 16, oldest first, `|` between them and ` / ` for a toast's own line breaks),
 so a check whose result is a toast need not catch it on screen.
 

@@ -749,6 +749,13 @@ impl Terminal {
         self.term.lock().grid().display_offset()
     }
 
+    /// How far back the view is, against how far back it could go: the
+    /// scrollback lines above the screen.
+    pub fn scrollback(&self) -> (usize, usize) {
+        let term = self.term.lock();
+        (term.grid().display_offset(), term.grid().history_size())
+    }
+
     /// Begin a selection at a cell, or carry one on to it. `start` is the
     /// press; everything after is the drag.
     pub fn select(&self, cell: (usize, usize), right_half: bool, start: bool) {
@@ -1547,6 +1554,7 @@ mod tests {
             Err(_) => return,
         };
         let pid = t.shell_pid.expect("the PTY says which process the shell is");
+        assert_eq!(t.scrollback().0, 0, "a fresh pane is at the bottom of its history");
         assert!(children(std::process::id()).contains(&pid), "the shell is running first");
         drop(t);
         assert!(!children(std::process::id()).contains(&pid), "the shell {pid} outlived its pane");
