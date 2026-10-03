@@ -1,6 +1,6 @@
 [package]
 name = "filer"
-version = "0.73.21"
+version = "0.73.22"
 edition = "2021"
 rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"
@@ -9,6 +9,9 @@ repository = "https://github.com/uchmk/filer"
 readme = "README.md"
 # Only for the Windows resource that carries the icon; see build.rs.
 build = "build.rs"
+# `filer-com` (src/bin/filer-com.rs, v0.71.0) made two binaries, and a bare
+# `cargo run` stopped knowing which one to start.
+default-run = "filer"
 
 [dependencies]
 eframe = "0.36"
