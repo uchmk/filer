@@ -1046,6 +1046,10 @@ fn state_report(app: &App) -> String {
         app.split.map_or("no".into(), |s| format!("yes, keys {}", if s.right { "right" } else { "left" }))
     ));
     lines.push(format!("toast: {}", app.toasts.last().map_or("", |t| t.text.as_str())));
+    // Every toast of the run, the faded ones too, oldest first; a toast's own
+    // line breaks become ` / ` so the report stays one line per name.
+    let all: Vec<String> = app.toast_log.iter().map(|t| t.lines().collect::<Vec<_>>().join(" / ")).collect();
+    lines.push(format!("toasts: {}", all.join(" | ")));
     lines.join("\n") + "\n"
 }
 
@@ -1374,6 +1378,18 @@ mod tests {
         assert!(report.lines().any(|l| l == "view: list"), "{report}");
         assert!(!report.contains("compare:"), "only while a comparison is open");
         assert!(!report.contains("pick:"), "only while a picker is open");
+        // Ends with: a machine's own config may have raised a warning first.
+        let toasts = |r: &str| r.lines().find(|l| l.starts_with("toasts: ")).map(str::to_owned).unwrap_or_default();
+        assert!(toasts(&report).ends_with("Copied a.txt"), "{report}");
+
+        // A toast that has already gone is still in `toasts:`, and a two-line
+        // one stays on one line.
+        app.toasts.clear();
+        app.error("Open failed\nexit code 1");
+        app.toasts.clear();
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "toast: "), "{report}");
+        assert!(toasts(&report).ends_with("Copied a.txt | Open failed / exit code 1"), "{report}");
 
         // A picker lists what it offers, in its order, and the row under the cursor.
         let items: Vec<String> = ["Neovim", "VS Code", "サクラエディタ"].map(String::from).into();

@@ -1420,6 +1420,7 @@ zoom: fit
 minimap setting: on
 split: no
 toast: Yanked 1 item(s)
+toasts: Copied: /tmp/work/a.txt | Yanked 1 item(s)
 keys: done
 ```
 
@@ -1432,7 +1433,9 @@ row of the list on screen, `preview top: N of M` the preview's first line agains
 scroll, `zoom` the image's scale (`fit` or `250%`), `minimap setting` what `<A-n>` flips, and `split`
 whether the second pane is open and which side has the keys. Since v0.73.3, while a picker is open
 (`<S-Enter>`, `O`, the palette), `pick: Neovim | VS Code | …` lists what it offers in the order shown
-(after any filter typed into it, cut at 40) and `picked:` the row under its cursor.
+(after any filter typed into it, cut at 40) and `picked:` the row under its cursor. Since v0.73.4 `toasts:` lists every toast of the run, the
+faded ones too (the last 16, oldest first, `|` between them and ` / ` for a toast's own line breaks),
+so a check whose result is a toast need not catch it on screen.
 
 A script that stops part way still leaves the file (v0.67.12). If nothing has been pressed for 30
 seconds past any `<Wait:N>` due -- the window stopped getting frames -- filer writes this instead,
