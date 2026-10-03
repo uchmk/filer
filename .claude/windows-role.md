@@ -149,8 +149,10 @@ same way as everything else here: as state, before and after.
   meant to change may differ.
 - **In the pull request, one line per key**: the key, what changed (the
   description's half), and the snapshot that did not (the "nothing else" half).
-- Tick only with both halves. Then `cargo run --example make-keycheck -- --check`
-  must still say `in sync`; never regenerate the file, only flip `[ ]` to `[x]`.
+- Tick only with both halves. Then `cargo run --example make-keycheck -- --counts`
+  (v0.73.9: it corrects the totals your ticks moved, and refuses to write if
+  anything else differs), and `-- --check` must say `in sync`. Never regenerate
+  the file; flip `[ ]` to `[x]` and let `--counts` do the arithmetic.
 
 ## Where the work is
 

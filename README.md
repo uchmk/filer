@@ -1600,7 +1600,8 @@ is rebuilt, and that the artwork is not covered by the code's license.
 
 Every key binding has a tickable line in [TESTING-KEYS.md](TESTING-KEYS.md),
 generated from the default keymap by `cargo run --example make-keycheck` and
-keeping its ticks when regenerated.
+keeping its ticks when regenerated. After ticking keys by hand, `-- --counts` corrects the totals
+and touches nothing else; it refuses when anything besides a count differs (v0.73.9).
 
 ## Building
 

@@ -1807,9 +1807,11 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `--help` の `env --out` の行と README の「Reporting a problem」、TESTING.md 25.19b に 1 行足す（25.19b の文言は人か QA セッション）。
   v0.73.8 で書いた。`filer env --out`（`filer.com` 経由）はもう待つので、待たないのは `filer.exe` を直接呼ぶときだけ、と書き分けた。
   `--help` の行は Windows だけ。25.19b は触らず、書いた待ち方を確かめる 25.19e（新）を x64 の再テストに回した。
-- [ ] **`make-keycheck -- --check` が、件数だけが違うときにそう言う**（#188 の提案 2）。今は「再生成せよ」とだけ言うが、実機のセッションは
+- [x] **`make-keycheck -- --check` が、件数だけが違うときにそう言う**（#188 の提案 2）。今は「再生成せよ」とだけ言うが、実機のセッションは
   再生成を禁じられているので、印を付けたあと件数を手で直すしかなかった。`make-testcheck` の「The checks all match; the difference is
   in the surrounding text」と同じ区別を入れ、正しい件数を出す（あるいは件数だけを書き直す `--counts`）。
+  v0.73.9 で両方入れた。`--check` は件数の行だけが違えば `was` / `now` で正しい件数を挙げ、`--counts` を勧める（exit 1 のまま）。
+  `--counts` は件数の行だけを書き直し、他に違いがあれば何も書かずに断る。`windows-role.md` の手順も `--counts` に変えた。
 
 ## 実機のセッションの報告（v0.71.1 で受けた分: #189、ARM64 の 25.19 / 25.19a）
 
