@@ -557,8 +557,19 @@ fn walk(srcs: &[PathBuf], base: &Path) -> Vec<Member> {
 /// times (#96). `None` for a time the format cannot hold, which then falls
 /// back to that zero rather than failing the whole archive.
 fn zip_time(path: &Path) -> Option<zip::DateTime> {
-    use chrono::{Datelike, Timelike};
     let when: chrono::DateTime<chrono::Local> = std::fs::metadata(path).ok()?.modified().ok()?.into();
+    dos_time(when.naive_local())
+}
+
+/// A local time in the MS-DOS form. An odd second is rounded up, as 7-Zip and
+/// Explorer write it, so a tool that reads only this field sees the same time
+/// in all three zips (Q58, decided by vote; it used to be rounded down, one
+/// second older than theirs). `23:59:59` becomes the next day's `00:00:00`.
+/// The exact second is in the extended timestamp beside it.
+fn dos_time(when: chrono::NaiveDateTime) -> Option<zip::DateTime> {
+    use chrono::{Datelike, Timelike};
+    let when = when.with_nanosecond(0)?;
+    let when = if when.second() % 2 == 1 { when + chrono::Duration::seconds(1) } else { when };
     zip::DateTime::from_date_and_time(
         u16::try_from(when.year()).ok()?,
         when.month() as u8,
@@ -763,6 +774,20 @@ mod tests {
         let t = entry.last_modified().expect("a time is stored");
         assert_eq!((t.year(), t.month(), t.day()), (2021, 6, 15), "the file's day, not 1980-01-01");
         assert_eq!((t.hour(), t.minute(), t.second()), (12, 34, 56), "to the even second");
+    }
+
+    /// Q58: an odd second is rounded up in the DOS field, as 7-Zip and
+    /// Explorer write it, and the carry runs through the minute, the day and
+    /// the month. An even second and the fraction below it stay as they were.
+    #[test]
+    fn the_dos_field_rounds_an_odd_second_up() {
+        let at = |y, mo, d, h, mi, s, ms| {
+            chrono::NaiveDate::from_ymd_opt(y, mo, d).and_then(|d| d.and_hms_milli_opt(h, mi, s, ms)).unwrap()
+        };
+        let fields = |t: zip::DateTime| (t.year(), t.month(), t.day(), t.hour(), t.minute(), t.second());
+        assert_eq!(fields(dos_time(at(2021, 6, 15, 12, 34, 57, 0)).unwrap()), (2021, 6, 15, 12, 34, 58));
+        assert_eq!(fields(dos_time(at(2021, 6, 15, 12, 34, 56, 900)).unwrap()), (2021, 6, 15, 12, 34, 56));
+        assert_eq!(fields(dos_time(at(2019, 2, 28, 23, 59, 59, 500)).unwrap()), (2019, 3, 1, 0, 0, 0));
     }
 
     /// #156: unpacking puts each entry's time back, for all three formats.
