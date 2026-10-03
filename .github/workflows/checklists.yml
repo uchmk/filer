@@ -1,0 +1,60 @@
+name: Checklists
+
+# The generated checklists, on their own. A testing session's pull request
+# changes nothing but tick lines and a report under qa-reports/, which cannot
+# break a build -- yet ticking two boxes in TESTING-CHECKS.md used to run the
+# whole of ci.yml, the Windows `test` job included, 25 minutes and more for
+# #197 on 2026-10-03, with the lane waiting on it. ci.yml now ignores the
+# checklists, and this runs the one thing that can be wrong in such a change:
+# whether each file still matches what it is generated from.
+#
+# ci.yml's clippy job keeps running the same three steps, for the changes that
+# move the sources (TESTING.md, the keymap, the generators) along with code.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'TESTING.md'
+      - 'TESTING-CHECKS.md'
+      - 'TESTING-LINUX.md'
+      - 'TESTING-KEYS.md'
+      - 'scripts/testcheck-ja.toml'
+      - 'src/config/defaults/keymap.toml'
+      - 'examples/make-testcheck.rs'
+      - 'examples/make-keycheck.rs'
+      - '.github/workflows/checklists.yml'
+  pull_request:
+    paths:
+      - 'TESTING.md'
+      - 'TESTING-CHECKS.md'
+      - 'TESTING-LINUX.md'
+      - 'TESTING-KEYS.md'
+      - 'scripts/testcheck-ja.toml'
+      - 'src/config/defaults/keymap.toml'
+      - 'examples/make-testcheck.rs'
+      - 'examples/make-keycheck.rs'
+      - '.github/workflows/checklists.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  checklists:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: checklists
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: The key checklist matches the keymap
+        run: cargo run --locked --example make-keycheck -- --check
+      - name: The manual checklist matches TESTING.md
+        run: cargo run --locked --example make-testcheck -- --check
+      - name: The Linux checklist matches TESTING.md
+        run: cargo run --locked --example make-testcheck -- --lane linux --check

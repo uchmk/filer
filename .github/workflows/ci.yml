@@ -1,9 +1,11 @@
 name: CI
 
-# Files that cannot change what the build does. TESTING-KEYS.md and TESTING.md are
-# deliberately not here -- they are what `make-keycheck --check` and
-# `make-testcheck --check` compare against, so a change to either is exactly when
-# those steps have to run. Neither is `Cargo.toml`, which carries the version
+# Files that cannot change what the build does. TESTING.md is deliberately not
+# here -- it is what `make-testcheck --check` compares against, so a change to it
+# is exactly when those steps have to run. The generated checklists are (since
+# v0.73.15): a pull request that only ticks them cannot break a build, and
+# checklists.yml runs the one check that applies to it in a minute rather than
+# the Windows test job's half hour. Neither is `Cargo.toml`, which carries the version
 # `--locked` checks, nor `.github/**`, since a change to CI should be run by CI.
 on:
   push:
@@ -14,6 +16,10 @@ on:
       - 'TODO.md'
       - 'QUESTIONS.md'
       - 'QA-REPORT.md'
+      - 'qa-reports/**'
+      - 'TESTING-CHECKS.md'
+      - 'TESTING-LINUX.md'
+      - 'TESTING-KEYS.md'
       - '.claude/**'
       - 'LICENSE'
   pull_request:
@@ -26,6 +32,10 @@ on:
       - 'TODO.md'
       - 'QUESTIONS.md'
       - 'QA-REPORT.md'
+      - 'qa-reports/**'
+      - 'TESTING-CHECKS.md'
+      - 'TESTING-LINUX.md'
+      - 'TESTING-KEYS.md'
       - '.claude/**'
       - 'LICENSE'
 

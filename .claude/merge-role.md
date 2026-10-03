@@ -41,27 +41,38 @@ reply names what changed (`Q57: 多数決 1`).
 - List open pull requests whose head branch starts with `test/win-`,
   `test/arm-` or `test/linux-`. None: stop here and say so in one line (after
   the votes in 0). That is most runs.
-- **One per run, oldest first.** The next run takes the next one; two merged in
-  one run conflict with each other at the end of QA-REPORT.md.
+- **Every one that may be merged, oldest first** (since v0.73.15). Take them one
+  at a time through 2 and 3, fetching `origin/main` again before each, since the
+  one before moved it. A pull request that cannot be merged yet (CI running, a
+  conflict to stop on, a tick without evidence) is passed over, not waited on:
+  go on to the next. With three lanes and one merge an hour, pull requests
+  queued behind each other while their lanes sat idle; since the reports and
+  the checklists stopped conflicting (v0.73.14), two in one run no longer get in
+  each other's way.
 
 ## 2. Decide whether it may be merged
 
 All of these, or it is not merged:
 
-1. **It only touches what the Windows session may write**: `QA-REPORT.md`,
-   `TESTING-CHECKS.md` (every changed line is a `[ ]` turned `[x]` or `[~]`, or a
+1. **It only touches what the Windows session may write**: **one new file under
+   `qa-reports/`** (its report; added, not edited -- another run's file is not
+   its to change), `TESTING-CHECKS.md` (every changed line is a `[ ]` turned `[x]` or `[~]`, or a
    `[~]` turned `[x]` -- the last only by the owner, never by a run),
    `TESTING-KEYS.md` (ticks only: every changed line is a `[ ]` turned `[x]`), `.claude/windows-role.md` (its queue), and files under
    `docs/`. Anything else -- `src/`, `Cargo.toml`, `CHANGELOG.md`, TESTING.md, or
    any other change to TESTING-KEYS.md -- and you do not merge: comment on the pull request naming
    the files, and add a line to QUESTIONS.md so the owner sees it.
-   **A `test/linux-*` pull request** may touch only `QA-REPORT.md`,
-   `TESTING-LINUX.md` and files under `docs/`. A Linux run that changed
+   **A `test/linux-*` pull request** may touch only its one new `qa-reports/`
+   file, `TESTING-LINUX.md` and files under `docs/`.
+   **Until 2026-10-03 every run appended its report to QA-REPORT.md instead.** A
+   pull request opened before then (#198, #199) may still do that, adding at
+   the end and changing nothing above it; one opened after it may not. A Linux run that changed
    TESTING-CHECKS.md or TESTING-KEYS.md claimed a Windows result: do not merge.
-2. **CI is green on its head**: `audit`, `clippy`, `smoke` and `test` all
-   `success`. A pull request that only changes files in `ci.yml`'s
-   `paths-ignore` (QA-REPORT.md, `.claude/**`, ...) runs `audit` alone, by
-   design: that is green. Still running: stop, the next run will look again. Red: read the
+2. **CI is green on its head**: every check run on it is `success`. Which ones
+   run depends on the files: a pull request that changes only the checklists,
+   `qa-reports/` and other files in `ci.yml`'s `paths-ignore` runs `audit` and
+   `checklists` (v0.73.15) and nothing else, by design -- those two green is
+   green. Anything else runs `audit`, `clippy`, `smoke` and `test` as well. Still running: stop, the next run will look again. Red: read the
    log. A documentation-only pull request cannot break a build, so a red test is
    a flaky test on `main`. **Do not fix code from here** -- nobody reviews what an
    unattended run pushes to `main`. Write the failing test, the log line and your
@@ -70,11 +81,11 @@ All of these, or it is not merged:
 3. **The checklists agree with their generators** on the pull request's head:
    `cargo run --example make-testcheck -- --check`,
    `cargo run --example make-testcheck -- --lane linux --check` and
-   `cargo run --example make-keycheck -- --check`, all exit 0. One exception:
-   when `make-testcheck --check` says *"The checks all match; the difference is
-   in the surrounding text"*, the ticks are right and only a count is stale --
-   merge, then regenerate on `main` as part of 4 (CI's clippy job runs the same
-   check, so it is red for this reason too; that red is not a reason to wait).
+   `cargo run --example make-keycheck -- --check`, all exit 0. Since v0.73.14 the
+   checklists hold no counts (they come from `-- --stats`), so a pull request
+   that only ticks changes only its tick lines. One made before that still
+   edits the count lines and the section headings: that is the conflict below,
+   and once it is resolved the check passes.
 4. **Every new tick has its evidence line** in the pull request body, and none
    is an appearance row (`windows-role.md`, "Ticking TESTING-CHECKS.md"). In
    TESTING-LINUX.md every `[x]` needs its evidence line and every `[-]` its
@@ -89,42 +100,56 @@ All of these, or it is not merged:
 
 A conflict with `main` is not a reason to stop: merge `origin/main` into the
 pull request's branch with a merge commit (never rebase or force-push it),
-resolve, and push. QA-REPORT.md: keep both sections whole -- restore the markers
-with `git checkout --conflict=merge` and read the boundary first. TESTING-CHECKS.md (or TESTING-LINUX.md, with `-- --lane linux`):
-take either side, then regenerate with `cargo run --example make-testcheck` (the
-ticks survive, the counts are rewritten) and check that every tick from both
-sides is still there.
+resolve, and push. A pull request that follows the current roles conflicts
+only where two runs ticked the same row, which should not happen. The older
+ones conflict in two places:
+
+- **QA-REPORT.md** (a report appended there, before 2026-10-03): keep both
+  sections whole -- restore the markers with `git checkout --conflict=merge` and
+  read the boundary first. `main`'s side first, then the pull request's.
+- **TESTING-CHECKS.md** (or TESTING-LINUX.md, with `-- --lane linux`): take
+  `main`'s side, put the pull request's ticks back on it, regenerate with
+  `cargo run --example make-testcheck`, and check that every tick from both
+  sides is still there.
 
 Then, which of two:
 
-- **Only the generated checklists conflicted** (TESTING-CHECKS.md and/or
-  TESTING-LINUX.md, nothing else), and after resolving, the pull request's diff
-  against `main` names the same files and the same tick lines as before: **wait
-  for CI on the new head in this run** -- look every few minutes, for up to 30
-  minutes -- and once all of 2.2 is green, go on to 3 and merge it now. Such a
-  conflict is only a count line that `main` moved; making it wait an hour each
-  time held one pull request back three times over on 2026-10-02. Red, or not
-  finished within the 30 minutes: stop, as below.
-- **Anything else conflicted** (QA-REPORT.md included, whose boundary you had to
-  read): stop; the next run merges it once CI is green.
+- **Only the checklists and QA-REPORT.md conflicted**, every QA-REPORT.md
+  conflict was two whole sections meeting at the end (no marker inside a
+  section, nothing above the pull request's section changed), and after
+  resolving, the pull request's diff against `main` names the same files, the
+  same tick lines and the same added section as before: **wait for CI on the
+  new head in this run** -- look every few minutes, for up to 30 minutes -- and
+  once all of 2.2 is green, go on to 3 and merge it now. Such a conflict is two
+  appends meeting, or a count line `main` moved; making it wait an hour each
+  time held #197 back three runs on 2026-10-03, and the lane with it. Red, or
+  not finished within the 30 minutes: stop, as below.
+- **Anything else conflicted** (a marker inside a section, a tick line both
+  sides changed, any other file): stop; the next run merges it once CI is green.
 
 ## 3. Merge
 
 `merge_pull_request` with `merge_method: "merge"` and the **full 40-character**
-head SHA as `expectedHeadSha`. Never squash, never rebase.
+head SHA as `expectedHeadSha`. Never squash, never rebase. Then back to 2 for
+the next pull request in the list.
 
 ## 4. The merger's share, straight on `main`
 
-One commit, pushed to `main`. It holds **Markdown, `Cargo.toml` and `Cargo.lock`
+One commit for the run, however many were merged, pushed to `main` after the
+last merge (CLAUDE.md: one version per push). Each pull request gets its own
+CHANGELOG line, proposals and queue edit inside it. It holds **Markdown, `Cargo.toml` and `Cargo.lock`
 only** -- this is the one push to `main` an unattended run may make, and it is
 allowed because nothing in it can break a build:
 
 - **Version**: PATCH up in `Cargo.toml`, `cargo build` for `Cargo.lock`.
-- **CHANGELOG.md**: a new section, with the pull request's changelog line in
-  the file's own style (Japanese), and `（#NN）`.
+- **CHANGELOG.md**: a new section, with each merged pull request's changelog line
+  in the file's own style (Japanese), and its `（#NN）`.
 - **Proposals and findings**: every item under the run's `### Proposals` and
-  every bug in its QA-REPORT.md section goes somewhere -- TODO.md for what needs
-  no decision, QUESTIONS.md (CLAUDE.md's format, with a recommendation) for a
+  every bug in its report (its `qa-reports/` file, or its QA-REPORT.md section
+  for a pull request from before 2026-10-03) goes somewhere -- TODO.md for what needs
+  no decision (ending the line with `【QA】` for a TESTING.md wording change and
+  `【実機】` for what only a Windows machine can measure, so the development
+  session's "next item" passes over them; CLAUDE.md, 作業ルール), QUESTIONS.md (CLAUDE.md's format, with a recommendation) for a
   key, a default or a design choice. Merging without this is half the job.
   A new question that has an arguable technical answer goes out as `投票中`,
   with your own vote and no "（推奨）" (CLAUDE.md, "多数決で進める質問").
@@ -134,7 +159,7 @@ allowed because nothing in it can break a build:
   run must be out of the table, or cut down to what is left and why. **The run
   cannot edit the table itself** (writes under `.claude/` are refused to it), so
   apply the `## Queue` section of its pull request body here, or work it out from
-  QA-REPORT.md if there is none -- otherwise the next run takes the same section.
+  its report if there is none -- otherwise the next run takes the same section.
 - **The `win` queue is empty**: refill it. Read TESTING-CHECKS.md for sections with
   unticked rows that are not in the table or the "worked through" line, and add
   the ones whose rows can be read as text, a file state or a process state,

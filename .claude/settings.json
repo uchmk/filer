@@ -11,11 +11,27 @@
     "work there and not granting it was half an instruction.",
     "",
     "It does nothing on a machine with no R: drive: a path that does not exist",
-    "simply never matches, so this is inert on Linux and macOS."
+    "simply never matches, so this is inert on Linux and macOS.",
+    "",
+    "The SessionStart hook keeps a cloud session's disk from filling with build",
+    "output (scripts/cloud-session-start.sh). It exits at once anywhere else, and",
+    "`|| true` keeps a machine without bash from seeing it fail."
   ],
   "permissions": {
     "additionalDirectories": [
       "R:\\Temp"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/cloud-session-start.sh || true"
+          }
+        ]
+      }
     ]
   }
 }

@@ -4,6 +4,11 @@ Findings from the QA session (`.claude/qa-role.md`). Nothing here is fixed by th
 session: it writes tests, and everything else is a proposal for whoever owns the
 code.
 
+**This file is the record of the runs up to 2026-10-03, and nothing is added to it
+any more.** Each run since writes a file of its own under [`qa-reports/`](qa-reports/):
+runs that all appended to the end of this one conflicted whenever two pull requests
+were open, and each conflict held a lane up for an hour.
+
 ---
 
 ## TESTING.md section 10 — audited against c08b2d2

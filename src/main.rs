@@ -59,6 +59,13 @@ struct Cli {
 /// inherits whatever handles its parent redirected, so when standard output is
 /// a file or a pipe, the text goes there; the console path is only for a real
 /// console. Reported four times by the real-machine runs (#81, #84, #88, #93).
+///
+/// **What reaches it is up to the shell.** `cmd`'s `>` and a pipe into another
+/// command hand it the file or the pipe. PowerShell does not wait for a
+/// windowed program at the end of a pipeline, so its own `>` and a bare
+/// `$v = & filer.exe env` connect nothing and come back empty, whatever this
+/// does (#176, #183). That is why the release zip has `filer.com`, the console
+/// front PowerShell does wait for (v0.71.0, `src/bin/filer-com.rs`).
 #[cfg(windows)]
 fn say(text: &str) {
     use std::io::Write;
@@ -163,7 +170,9 @@ fn parse_cli() -> Cli {
             // page (#81, #84, #88, #93, #176, #183; Q55).
             "env" | "--env" => match env_out(args.next().as_deref(), args.next()) {
                 Ok(None) => {
-                    say(&crate::envreport::text());
+                    // `say` ends the line itself; the report's own newline
+                    // would leave a blank one after it.
+                    say(crate::envreport::text().trim_end_matches('\n'));
                     std::process::exit(0);
                 }
                 Ok(Some(path)) => match write_whole(&path, &crate::envreport::text()) {

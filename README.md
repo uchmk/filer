@@ -1303,7 +1303,7 @@ clipboard instead, to paste into one. For everything else a report tends to need
 ```
 filer env --out filer-env.txt        # into a file, to attach
 filer env                            # on screen
-filer env | Select-String arch       # or through a pipe
+filer env | Select-String "arch\s+:" # or through a pipe
 ```
 
 `--out` (v0.68.0) is the way to get a file to attach: filer writes it itself, as UTF-8, so neither
@@ -1600,8 +1600,8 @@ is rebuilt, and that the artwork is not covered by the code's license.
 
 Every key binding has a tickable line in [TESTING-KEYS.md](TESTING-KEYS.md),
 generated from the default keymap by `cargo run --example make-keycheck` and
-keeping its ticks when regenerated. After ticking keys by hand, `-- --counts` corrects the totals
-and touches nothing else; it refuses when anything besides a count differs (v0.73.9).
+keeping its ticks when regenerated. It holds no counts, so that two pull requests ticking keys never
+conflict over a total; `-- --stats` prints them (v0.73.14).
 
 ## Building
 

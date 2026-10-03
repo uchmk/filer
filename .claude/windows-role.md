@@ -48,7 +48,7 @@ two keys comes from the same run (`<Shot:focused><C-t><Shot:unfocused>`).
 toast without a `<Wait:>` -- use `<Now>` to catch a job mid-run. And the `FILER_KEYS_DONE` file always comes: its last line
 is `keys: done`, or it starts `keys: stalled` with the keys pressed, the last one and the rest, when nothing went in for
 30 s past any wait. Since v0.72.8 a script ending in `q` still writes it (`quit: yes`, then `keys: done`), and a refused one
-writes `keys: refused` and `why: …` before any window opens (#193). **A stalled file is not a result** -- say so in QA-REPORT.md with its lines.
+writes `keys: refused` and `why: …` before any window opens (#193). **A stalled file is not a result** -- say so in your report with its lines.
 
 | The row says | What you can read instead |
 | --- | --- |
@@ -149,10 +149,10 @@ same way as everything else here: as state, before and after.
   meant to change may differ.
 - **In the pull request, one line per key**: the key, what changed (the
   description's half), and the snapshot that did not (the "nothing else" half).
-- Tick only with both halves. Then `cargo run --example make-keycheck -- --counts`
-  (v0.73.9: it corrects the totals your ticks moved, and refuses to write if
-  anything else differs), and `-- --check` must say `in sync`. Never regenerate
-  the file; flip `[ ]` to `[x]` and let `--counts` do the arithmetic.
+- Tick only with both halves. Then `cargo run --example make-keycheck -- --check`
+  must still say `in sync`; never regenerate the file, only flip `[ ]` to `[x]`.
+  The file holds no counts (v0.73.14), so a tick is the only line you change;
+  `-- --stats` prints them.
 
 ## Where the work is
 
@@ -163,7 +163,7 @@ still on the human's list when it was written.
 
 | Section | Rows | Why it suits you |
 | --- | --- | --- |
-| **Re-tests of changed behaviour** | 1 | First, always: these rows were changed by a fix, so an earlier result no longer stands (an old `[x]` was taken off). (8.x, 12.17, 12.18, 16.x, 20.5, 44.10 and 45.18 were settled on x64 by #182; 29.x by #176 on ARM64; 21.14 and 21.15 by #174; 1.38, 25.6, 25.19b, 29.1, 29.8, 29.10 and 34.15 by #188; 29.12 by #190.) A row that needs another shell can use `FILER_TERM_SHELL` (v0.70.0) instead of pointing `FILER_CONFIG_HOME` at an empty folder. **25.19e** (v0.73.8, new, #188): the README's `| Out-Null` -- three lines of a `.ps1`, read `Test-Path` and `$LASTEXITCODE`; `--help` has the new line. **25.19d** (v0.73.6, new, #192): `pwsh -File w.ps1 | Tee-Object t.txt; "back"` with `filer` in `w.ps1` -- `back` arrives with the window still open (`Get-Process filer` still lists it); with two paths in `w.ps1`, the refusal is in `t.txt`. **25.24a** (v0.73.5, new, #194): `filer C:\dev C:\Windows` unquoted from PowerShell -- the refusal names `"C:\dev"` and `"C:\Windows"` with one `\` each, exit 2, no window. (48.1, 48.3, 25.19c and 48.6's x64 zip were settled by #194.) |
+| **Re-tests of changed behaviour** | all | First, always, and **every row listed here in one run** (v0.73.15): each is a short check of one fix, and taking them one per run left the rest of the queue waiting a run per row. Group them by what they set up (the zip on the `PATH`, a `filer.toml`, PowerShell scripts) rather than by number. These rows were changed by a fix, so an earlier result no longer stands (an old `[x]` was taken off). (8.x, 12.17, 12.18, 16.x, 20.5, 44.10 and 45.18 were settled on x64 by #182; 29.x by #176 on ARM64; 21.14 and 21.15 by #174; 1.38, 25.6, 25.19b, 29.1, 29.8, 29.10 and 34.15 by #188; 29.12 by #190.) A row that needs another shell can use `FILER_TERM_SHELL` (v0.70.0) instead of pointing `FILER_CONFIG_HOME` at an empty folder. **21.14 and 21.14a** (v0.73.16, #174): a zip now carries the exact second both ways -- 21.14 as written (the zip to the second now), 21.14a with 7-Zip and Explorer making and unpacking the zips; `(Get-Item f).LastWriteTime.ToString("o")` for each. **7.7a** (v0.73.12, new, #180): one folder under both variables, spelled `C:\cfg` and `c:\CFG\` -- listed once in `~` and `filer env`, and `toast: Reloaded 1 config file(s)` after `<C-F5>` in `FILER_KEYS_DONE`. **29.12** (v0.73.11, #190): as written, with `args` in `filer.toml` -- `filer env`'s shell row now ends `[term] args not used: <those args>` while the variable is set, and says nothing of them once it is removed. **25.19a and 25.19c** (v0.73.10, #189): `filer env` now ends at its last row, with no blank lines after it, so `$v.Count` should equal `(cmd /c "filer env" | Measure-Object -Line).Lines` and `(Get-Content (filer env --out r.txt; "r.txt")).Count` exactly -- give all three numbers. **25.19e** (v0.73.8, new, #188): the README's `| Out-Null` -- three lines of a `.ps1`, read `Test-Path` and `$LASTEXITCODE`; `--help` has the new line. **25.19d** (v0.73.6, new, #192): `pwsh -File w.ps1 | Tee-Object t.txt; "back"` with `filer` in `w.ps1` -- `back` arrives with the window still open (`Get-Process filer` still lists it); with two paths in `w.ps1`, the refusal is in `t.txt`. **25.24a** (v0.73.5, new, #194): `filer C:\dev C:\Windows` unquoted from PowerShell -- the refusal names `"C:\dev"` and `"C:\Windows"` with one `\` each, exit 2, no window. (48.1, 48.3, 25.19c and 48.6's x64 zip were settled by #194.) |
 | **32.9a, Sakura's caret** | 1 | Rewritten in v0.73.2 after #196 found Sakura's status bar readable: open from the outline as 32.9 did (headings at lines 6 / 11 / 16 of `outline.md`), then `SendMessage` `SB_GETTEXTW` to Sakura's `msctls_statusbar32` -- `16 行 1 桁` and so on, with the control (no `-Y=`) reading `1 行 1 桁`. A `[x]`, not a look. The rest of 32 / 37 was settled by #196; 32.5's Chrome half and 37.8 need Chrome while the owner is not using it, so they are the owner's |
 | **19. the wheel, over each pane** | 7 | Since v0.73.1 `FILER_KEYS_DONE` has `preview top: N of M` and `list top: N`. Wheel with `SendInput` (`MOUSEEVENTF_WHEEL`, one notch = 120, a slow turn = 30 four times), pointer over the pane, then read the state with `--keys "<Wait:300>"` after: 19.1 / 19.2 every notch (and every four slow quarters) moves `preview top`; 19.3 `list top` over the list and over each pane of the split (`split: yes`); 19.5 one notch down then one up returns `preview top` to where it was; 19.6 Ctrl+wheel over an image changes `zoom` and not `preview top`; 19.7 half a turn over one pane, half over the other, neither moves. 19.4 is the pane: `FILER_PTY_LOG`. All `[x]` |
 | **14. the parent column, with the mouse** | 6 | Click with `SendInput` on a row of the parent column (find its y from a `<Shot:>`: rows are `row_h` apart under the header), then read `cwd` / `hovered` from the state file: 14.1 into the folder, 14.2 up to the file's folder with it `hovered`, 14.3 then `<Enter>` opens it (the opener's command line in `filer env`'s `Launched`), 14.4 a double click gives the same state, 14.5 the same `cwd` and `hovered` as before, 14.6 at a drive root nothing changes. All `[x]` |
@@ -171,7 +171,7 @@ still on the human's list when it was written.
 | **2. the minimap** | 12 | Measured in pixels on a `<Shot:>` of `long.rs` (the strip is the rightmost 70 px of the preview, bars 2 px high): 2.1 non-background pixels in that strip, 2.3 more than one distinct bar colour, 2.4 / 2.5 the viewport box's top edge (the lighter fill) moves down after `<A-j>`, 2.6 a `SendInput` click halfway down sets `preview top` near half of `M`, 2.7 a drag changes it continuously, 2.8 / 2.10 / 2.12 the strip has no bar pixels (narrow window, rendered `notes.md`, `same-a.txt`), 2.9 `minimap setting` flips and the strip empties, 2.11 `M` brings the bars back. 2.2 ("it looks like the file") is the one `[~]`: say which comment headers and blank lines you matched to which bars |
 | **3. image zoom and pan** | 10 | `zoom` in the state file and the caption's text (`3200 × 2400 · fit NN%`) are the numbers: 3.1 the caption, 3.8 `<A-i>` / `<A-o>` step `zoom`, 3.9 `j` and back is `zoom: fit` again, 3.10 `tiny.png`'s drawn size in pixels is 48 × 48 times the display scale. 3.4 / 3.5 / 3.7 read the picture's position in pixels before and after (a grid intersection's pixel stays under the pointer for 3.5). 3.2 (crisp grid lines: count the pixels across one line, 1-2 is crisp, a soft ramp is not) can be measured; 3.3 (no jump when the sharper copy lands) needs two `<Shot:>`s a frame apart and is `[~]` if they cannot be taken close enough. 3.6 plain wheel moves `preview top`, not `zoom` |
 | **4. SVG text** | 8 | 4.7 is text (`bad SVG: …`). The rest are looks, so `[~]`, each with the failure named first: 4.2 boxes, overlap or missing words; 4.3 kana and kanji as boxes; 4.4 nothing drawn at all; 4.5 bold or italic flattened to regular; 4.6 the fallback face instead of the file next to it. 4.1's sharpness can be measured as in 3.2. 4.8 needs v0.33.5's build next to this one and is the owner's |
-| **v0.55.0 on x64** | -- | ARM64 ticked 29.2, 29.6, 40.14-40.16 and 45.16 (#107); press the Q27 ones again on x64 -- 1.31-1.34, 40.15, 40.16 -- and record them in QA-REPORT.md under an x64 heading, since ConPTY's input path is where the two machines could differ. 30.1 / 30.15 wait on the right-click fix in TODO.md |
+| **v0.55.0 on x64** | -- | ARM64 ticked 29.2, 29.6, 40.14-40.16 and 45.16 (#107); press the Q27 ones again on x64 -- 1.31-1.34, 40.15, 40.16 -- and record them in your report under an x64 heading, since ConPTY's input path is where the two machines could differ. 30.1 / 30.15 wait on the right-click fix in TODO.md |
 | **47. an idle window uses no CPU** | 4 | First, because a fix waits on it: v0.54.2 stopped a redraw loop that is the likeliest cause of the 1.0 CPU-s/s #86 measured. Every row is `(Get-Process filer).CPU` read twice, 10 s apart; 47.2 is the sequence that used to start the loop. **Since v0.65.0 `--keys` can do 47.2**: `j<Now>j` puts the second key in on the next frame instead of waiting for `App::settled()`, which is false while the preview debounce is pending. One frame is well inside the 40 ms debounce while the script runs (it asks for a frame every frame); if you want the gap as a number, the `PostMessageW` + `Stopwatch` way still works (#103 got 22-25 ms). `sort_dir_first` is on by default, so start on a file above a folder only with it off in a run-only `FILER_CONFIG_HOME`. An open prompt used to read 0.14-0.27 CPU-s per 10 s from the caret's blink; since v0.59.3 the caret is steady, and 47.5 checks that it now reads 0. Take a positive control (keys at 100 ms for 10 s) so a 0 is a reading. On ARM64 all three rows read 0 (#103). If it still rises, 47.4 says which thread |
 | **29. the terminal's directory, brought back** | 5 | Where the list went reads off the window title (`(Get-Process filer).MainWindowTitle`). OSC 7 through ConPTY -- nobody else can run it |
 | **14. the parent column, with the mouse** | 6 | Click with `SendInput`; the window title says where the list went and `c` `f` which row the cursor is on |
@@ -183,7 +183,8 @@ Worked through before, and not in the table any more: 25, 41, 35, 32 / 37, 21, 8
 46.16 is still open: it needs the firewall rules, so an elevated run -- or a person. So is 13.17's `mklink /D` half (its junction half passed on ARM64, #136), and so is 45.11:
 symbolic links need elevation or developer mode (#98 passed its junction form on ARM64).
 Rows still open there were left by those runs on purpose -- ARM, another platform, or eyes -- so
-read that section's entry in QA-REPORT.md before taking one.
+read that section's entry before taking one -- in `qa-reports/` (one file per run since 2026-10-03), or in
+QA-REPORT.md for the runs before that.
 
 **One section per run, and one session at a time** -- and that includes an
 unattended run: `auto-wintest.ps1` only knows about the runs it started itself,
@@ -212,7 +213,7 @@ will answer a question**, so:
   (`Get-CimInstance Win32_Process` and a parent id that no process has). Any increase
   is a finding, with the counts. v0.67.21 fixed the one #180 found (#182 counted 89 before and 88
   after); this is how a new one would show.
-- **Never wait for input.** A choice that is the owner's goes in QA-REPORT.md,
+- **Never wait for input.** A choice that is the owner's goes in your report,
   as a finding or a proposal, and the run carries on with what it can settle.
 - **Vote on every open `投票中` question** ([Votes](#votes-questionsmd-items-marked-投票中)),
   queue or no queue.
@@ -297,7 +298,7 @@ these differences:
   aarch64` for the native build. A run that tested the x64 build by accident
   proved nothing about ARM64.
 - **Ticks.** TESTING-CHECKS.md has one box per row. A row already `[x]` from
-  the x64 machine stays as it is: record the ARM64 result in QA-REPORT.md
+  the x64 machine stays as it is: record the ARM64 result in your report
   under a heading that says ARM64, one line per row with its evidence -- a
   row that *fails* on ARM64 is a finding, and the most valuable kind this lane
   can produce. Tick only rows still `[ ]` that you verified here.
@@ -325,8 +326,7 @@ should work differently, not only things that are broken. Be direct: "this
 should", "this would be better if", "this gets in the way". An opinion you can
 ground in something you just did is worth more than a hedged one.
 
-Write them in `QA-REPORT.md`, under a `### Proposals` heading inside your run's
-section, and count them in the pull request body. For each:
+Write them in your report, under a `### Proposals` heading, and count them in the pull request body. For each:
 
 - **What you ran into**: the steps, and what happened. It must come from this
   run -- a proposal nobody can reproduce is a wish.
@@ -354,8 +354,8 @@ laptop (CLAUDE.md, "多数決で進める質問"). The owner's own answer still 
 - Read QUESTIONS.md on `origin/main` for questions whose `状態` is `投票中` and
   whose `投票` field has no line for your lane (`win` or `arm`) yet.
 - **Decide before you read the other votes**, from the background and the
-  options. Then write one line per question in `QA-REPORT.md`, under a
-  `### Votes` heading inside your run's section:
+  options. Then write one line per question in your report, under a
+  `### Votes` heading:
   `- Q57: 1 -- <why>`. Do not edit QUESTIONS.md; the merger copies the line.
 - **The reason must rest on something you did or saw on this machine** -- a
   measurement, a run of the feature, how a related part behaved in this run or an
@@ -366,7 +366,7 @@ laptop (CLAUDE.md, "多数決で進める質問"). The owner's own answer still 
   default key, something to install): vote `owner` with the reason. It counts
   for no option.
 - A run with an empty queue and an open vote still opens a pull request, with
-  the votes as its only content (QA-REPORT.md alone).
+  the votes as its only content (the report file alone).
 - Count the votes in the pull request body (`Votes: Q57`).
 
 ## How to work
@@ -403,7 +403,7 @@ pwsh -File C:\dev\filer\scripts\fetch-conpty.ps1 -Dest C:\dev\filer\target\relea
 - **Never run `cargo fmt`.** This tree is hand-formatted; one run rewrites 47
   files.
 - Anything you find that is a bug in the program, or a row in TESTING.md that is
-  wrong, goes in `QA-REPORT.md`. Do not fix it and do not quietly correct the
+  wrong, goes in your report. Do not fix it and do not quietly correct the
   row -- renumbering is how a checklist loses its place.
 - **Kill a running `filer.exe` without asking.** CLAUDE.md says the build wins.
 
@@ -450,8 +450,14 @@ prevent. So the moment you have it, copy it out:
 
 - **The pull request body** is the primary home, one line per tick. It is on
   GitHub, not on this machine at all.
-- **`QA-REPORT.md`**, in the repository, for anything longer -- a failing
-  command's full output, a `filer env` dump you are comparing against.
+- **Your report**, in the repository, for anything longer -- a failing
+  command's full output, a `filer env` dump you are comparing against. **Each
+  run writes a file of its own: `qa-reports/<YYYY-MM-DD>-<branch without
+  test/>.md`** (`qa-reports/2026-10-03-win-32-9a.md`), never QA-REPORT.md.
+  Until 2026-10-03 every run appended to the end of QA-REPORT.md, so any two
+  pull requests open at once conflicted there, and each conflict held this
+  lane up for an hour. A new file conflicts with nothing. QA-REPORT.md stays
+  as the record of the runs before; read it, do not add to it.
 - **Screenshots and captured files**: `C:\dev\filer\docs\` if they belong in the
   repository, otherwise somewhere on `C:`. Never leave the only copy on `R:`.
 
