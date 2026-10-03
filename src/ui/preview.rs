@@ -259,8 +259,11 @@ fn line_at_y(y: f32, rect: Rect, lines: usize) -> usize {
 
 /// Where the hover card goes: against the strip, beside the pointer, inside the
 /// pane. Apart from the painting so the geometry can be tested without a window.
+/// How much of the pane the hover card may take.
+const HOVER_CARD_SHARE: f32 = 0.6;
+
 fn hover_card(pointer_y: f32, pane: Rect, strip: Rect, w: f32, h: f32) -> Rect {
-    let w = w.min(pane.width() * 0.6);
+    let w = w.min(pane.width() * HOVER_CARD_SHARE);
     let right = strip.left() - 4.0;
     let top = (pointer_y - h / 2.0).clamp(pane.top(), (pane.bottom() - h).max(pane.top()));
     Rect::from_min_size(pos2(right - w, top), Vec2::new(w, h))
@@ -335,7 +338,13 @@ fn minimap_hover(
         let color = hov.fg.unwrap_or_else(|| span_color(&span, st));
         job.append(&text, 0.0, format(&span, color, st));
     }
-    job.wrap.max_width = f32::INFINITY;
+    // Cut to the card, on one row. The card is held to 60% of the pane but
+    // the text was laid out unbounded, so a long line ran out of the card
+    // and over the minimap being dragged (#215).
+    job.wrap.max_width = (body.width() * HOVER_CARD_SHARE - 12.0).max(40.0);
+    job.wrap.max_rows = 1;
+    job.wrap.break_anywhere = true;
+    job.wrap.overflow_character = Some('…');
     let galley = painter.layout_job(job);
 
     let card = hover_card(p.y, body, strip, galley.size().x + 12.0, st.row_h + 4.0);
@@ -1477,6 +1486,11 @@ mod minimap_hover_frame {
         assert_eq!(long.chars().count(), 204, "two hundred characters and the number: {}", long.len());
         assert_eq!(long.lines().count(), 1, "on one row");
         assert!(f.filled(fill)[0].width() > narrow, "and a wider card than the blank one's");
+        // #215: what reaches the screen stops at the card's edge, marked as cut,
+        // instead of running on over the minimap.
+        let shown = f.drawn(long).unwrap_or_else(|| panic!("the card's glyphs"));
+        assert!(shown.ends_with('…'), "cut, and says so: {shown:?}");
+        assert!(shown.chars().count() < long.chars().count(), "fewer glyphs than laid out");
     }
 
     /// 42.9: `[mgr] preview_hovered` reaches the card -- the key that did
