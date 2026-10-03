@@ -232,12 +232,13 @@ fn write_whole(path: &std::path::Path, text: &str) -> std::io::Result<()> {
 /// The one path the command line may name. A second used to replace the
 /// first in silence, and that is exactly what a path with a space in it looks
 /// like when its quotes are forgotten: `filer C:\x\awkward names` opened
-/// somewhere else with no word as to why (#126).
+/// somewhere else with no word as to why (#126). The paths go in quotes as
+/// typed: `{:?}` doubled every `\` of a Windows path (#194).
 fn take_path(cli: &mut Cli, arg: &str) -> Result<(), String> {
     if let Some(first) = &cli.path {
         return Err(format!(
-            "more than one path: {:?} and {arg:?} (a path with a space in it needs quotes)",
-            first.display().to_string()
+            "more than one path: \"{}\" and \"{arg}\" (a path with a space in it needs quotes)",
+            first.display()
         ));
     }
     cli.path = Some(PathBuf::from(arg));
@@ -1466,6 +1467,15 @@ mod tests {
         let why = take_path(&mut cli, "names").unwrap_err();
         assert!(why.contains("\"awkward\"") && why.contains("\"names\"") && why.contains("quotes"), "{why}");
         assert_eq!(cli.path.as_deref(), Some(std::path::Path::new("awkward")), "the first is kept");
+    }
+
+    /// #194: a Windows path is named as typed, not with every `\` doubled.
+    #[test]
+    fn a_refused_path_keeps_its_backslashes() {
+        let mut cli = Cli { path: None, cwd_file: None, chooser_file: None, keys: Vec::new() };
+        assert!(take_path(&mut cli, r"C:\dev").is_ok());
+        let why = take_path(&mut cli, r"C:\Windows").unwrap_err();
+        assert!(why.starts_with(r#"more than one path: "C:\dev" and "C:\Windows" ("#), "{why}");
     }
 
     /// A square icon out of a non-square drawing: the art keeps its shape and
