@@ -502,7 +502,7 @@ fn text(
         }
     }
     if extent.truncated && end >= lines.len() {
-        truncation_note(painter, rect, end - start, extent.total, st);
+        truncation_note(painter, rect, end - start, &extent, st);
     }
     lines.len()
 }
@@ -577,7 +577,7 @@ fn markdown(
         }
     }
     if extent.truncated && end >= doc.lines.len() {
-        truncation_note(painter, rect, end - start, extent.total, st);
+        truncation_note(painter, rect, end - start, &extent, st);
     }
 
     let jump = if doc.toc_cols > 0 && !doc.toc.is_empty() {
@@ -671,13 +671,13 @@ fn outline(
     jump
 }
 
-fn truncation_note(painter: &Painter, rect: Rect, shown: usize, total_lines: usize, st: &PreviewStyle<'_>) {
+fn truncation_note(painter: &Painter, rect: Rect, shown: usize, extent: &Extent, st: &PreviewStyle<'_>) {
     let y = rect.top() + shown as f32 * st.row_h;
     if y < rect.bottom() {
         painter.text(
             pos2(rect.left() + PAD, y),
             Align2::LEFT_TOP,
-            format!("… {total_lines} lines total (truncated)"),
+            extent.note(),
             st.font.clone(),
             st.theme.fg_dim,
         );
@@ -1014,7 +1014,7 @@ mod chrome {
         crate::app::PreviewState::Ready(Payload::Text {
             map: rows(n),
             lines,
-            extent: Extent { truncated: total != n, total },
+            extent: Extent { truncated: total != n, total, ..Default::default() },
             outline,
         })
     }
@@ -1509,7 +1509,7 @@ mod minimap_hover_frame {
             doc,
             source: plain(n),
             map: rows(n),
-            extent: Extent { truncated: false, total: n },
+            extent: Extent { truncated: false, total: n, ..Default::default() },
         });
         let mut s = screen("hover-md", state);
         let theme = s.app.cfg.theme.clone();

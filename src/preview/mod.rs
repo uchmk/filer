@@ -204,8 +204,38 @@ pub fn outline_cols(widest: usize, cols: u16) -> u16 {
 pub struct Extent {
     /// Whether what is held stops short of the whole file.
     pub truncated: bool,
-    /// Lines the whole file has, counted before any cap was applied.
+    /// Lines counted, before any cap on lines was applied. The whole file's
+    /// count unless `cut`.
     pub total: usize,
+    /// The read itself stopped at `max_text_bytes`, so `total` is the lines
+    /// in what was read and the file goes on past them. Said as such: "5237
+    /// lines total" for a file cut at 1 MiB was the count of the first MiB,
+    /// and read as the file's (#205).
+    pub cut: bool,
+    /// A table that stopped at this many rows, however long the file.
+    pub rows: Option<usize>,
+}
+
+impl Extent {
+    /// The line under the last one shown.
+    pub fn note(&self) -> String {
+        let lines = match self.cut {
+            true => format!("{} lines read, and the file goes on", self.total),
+            false => format!("{} lines total", self.total),
+        };
+        match self.rows {
+            Some(n) => format!("… the table stops at {n} rows; {lines}"),
+            None => format!("… {lines} (truncated)"),
+        }
+    }
+
+    /// The count for spot's `Lines` row: `5237+` when the read was cut.
+    pub fn lines(&self) -> String {
+        match self.cut {
+            true => format!("{}+", self.total),
+            false => self.total.to_string(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -430,7 +460,7 @@ fn office_text(
     // Plain, not highlighted: there is no grammar for "the text that was in a
     // spreadsheet", and guessing one by extension would colour it as XML --
     // which is what it was stored as and not what is being shown.
-    match text::plain(&doc.lines.join("\n"), doc.truncated, total) {
+    match text::plain(&doc.lines.join("\n"), Extent { truncated: doc.truncated, total, ..Default::default() }) {
         // The extent `plain` worked out is the one to keep -- it counted the
         // lines it was actually handed.
         Payload::Text { lines, map, extent, .. } => {
@@ -517,7 +547,7 @@ fn archive_listing(path: &std::path::Path) -> Payload {
         })
         .collect();
     let map = minimap(&lines);
-    Payload::Text { lines, map, extent: Extent { truncated: more, total }, outline: Vec::new() }
+    Payload::Text { lines, map, extent: Extent { truncated: more, total, ..Default::default() }, outline: Vec::new() }
 }
 
 fn meta(path: &std::path::Path, _req: &Request, note: &str) -> Payload {

@@ -56,14 +56,15 @@ pub fn render(bytes: &[u8], req: &Request, hl: &mut Highlighter) -> Payload {
     let text = strip_bom(&text);
     let expanded = expand_tabs(text, req.tab_size.max(1) as usize);
     let total_lines = expanded.lines().count();
-    let truncated = total_lines > MAX_LINES || bytes.len() >= req.max_bytes;
+    let cut = bytes.len() >= req.max_bytes;
+    let extent = Extent { truncated: total_lines > MAX_LINES || cut, total: total_lines, cut, rows: None };
 
     hl.ensure(&req.syntect_theme);
     let Some((syntaxes, _)) = hl.sets.as_ref() else {
-        return plain(&expanded, truncated, total_lines);
+        return plain(&expanded, extent);
     };
     let Some(theme) = hl.theme.as_ref() else {
-        return plain(&expanded, truncated, total_lines);
+        return plain(&expanded, extent);
     };
 
     let syntax = req
@@ -83,7 +84,7 @@ pub fn render(bytes: &[u8], req: &Request, hl: &mut Highlighter) -> Payload {
         .or_else(|| syntaxes.find_syntax_by_first_line(expanded.lines().next().unwrap_or("")));
 
     let Some(syntax) = syntax else {
-        return plain(&expanded, truncated, total_lines);
+        return plain(&expanded, extent);
     };
 
     // The Markdown grammar paints fenced code as one flat color, so fence
@@ -142,11 +143,11 @@ pub fn render(bytes: &[u8], req: &Request, hl: &mut Highlighter) -> Payload {
     if is_markdown {
         let (doc, clipped) = super::markdown::render(&expanded, req.key.cols, theme, syntaxes);
         let map = super::minimap(&lines);
-        let extent = Extent { truncated: truncated || clipped, total: total_lines };
+        let extent = Extent { truncated: extent.truncated || clipped, ..extent };
         return Payload::Markdown { doc, source: lines, map, extent };
     }
     let map = super::minimap(&lines);
-    Payload::Text { lines, map, extent: Extent { truncated, total: total_lines }, outline: symbols.finish() }
+    Payload::Text { lines, map, extent, outline: symbols.finish() }
 }
 
 /// Resolve a language name as people write it after a fence or in a hint.
@@ -259,10 +260,10 @@ pub fn plain_lines(text: &str) -> Vec<Vec<Span>> {
         .collect()
 }
 
-pub fn plain(text: &str, truncated: bool, total_lines: usize) -> Payload {
+pub fn plain(text: &str, extent: Extent) -> Payload {
     let lines = plain_lines(text);
     let map = super::minimap(&lines);
-    Payload::Text { lines, map, extent: Extent { truncated, total: total_lines }, outline: Vec::new() }
+    Payload::Text { lines, map, extent, outline: Vec::new() }
 }
 
 fn clip(s: &str, max: usize) -> String {

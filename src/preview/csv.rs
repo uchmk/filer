@@ -115,11 +115,15 @@ pub fn render(
 ) -> Payload {
     let text = String::from_utf8_lossy(bytes);
     let text = text.strip_prefix('\u{feff}').unwrap_or(&text);
-    let (records, mut truncated) = records(text, delim);
-    truncated |= bytes.len() >= max_bytes;
+    let (records, capped) = records(text, delim);
+    let cut = bytes.len() >= max_bytes;
     let total_lines = text.lines().count();
+    // The table's own cap is said as such: the rows past it are in the file,
+    // and "truncated" alone read as the read having stopped (#205).
+    let rows = capped.then_some(MAX_RECORDS);
+    let extent = Extent { truncated: capped || cut, total: total_lines, cut, rows };
     if records.is_empty() {
-        return super::text::plain(text, truncated, total_lines);
+        return super::text::plain(text, extent);
     }
 
     let ncols = records.iter().map(|(f, _)| f.len()).max().unwrap_or(0).min(MAX_COLS);
@@ -165,7 +169,7 @@ pub fn render(
     let doc = Doc { lines, toc: Vec::new(), toc_cols: 0, body_cols: avail as u16 };
     let source = super::text::plain_lines(text);
     let map = super::minimap(&source);
-    Payload::Markdown { doc, source, map, extent: Extent { truncated, total: total_lines } }
+    Payload::Markdown { doc, source, map, extent }
 }
 
 #[cfg(test)]
@@ -185,6 +189,27 @@ mod tests {
                 .collect(),
             other => panic!("a table is a Markdown-shaped payload, got {other:?}"),
         }
+    }
+
+    /// #205: a table that stopped at its row cap says that, and a read cut
+    /// at `max_text_bytes` says its count is of what was read.
+    #[test]
+    fn a_capped_table_and_a_cut_read_say_which() {
+        let long: String = (0..MAX_RECORDS + 10).map(|i| format!("{i},x\n")).collect();
+        let extent = |p: Payload| match p {
+            Payload::Markdown { extent, .. } => extent,
+            other => panic!("{other:?}"),
+        };
+        let e = extent(render(long.as_bytes(), ',', 80, None, usize::MAX));
+        assert_eq!(e.rows, Some(MAX_RECORDS));
+        assert!(!e.cut);
+        assert_eq!(e.note(), format!("… the table stops at {MAX_RECORDS} rows; {} lines total", MAX_RECORDS + 10));
+
+        let short = "a,b\n1,2\n3,4\n";
+        let e = extent(render(short.as_bytes(), ',', 80, None, short.len()));
+        assert!(e.cut && e.truncated && e.rows.is_none());
+        assert_eq!(e.note(), "… 3 lines read, and the file goes on (truncated)");
+        assert_eq!(e.lines(), "3+");
     }
 
     #[test]

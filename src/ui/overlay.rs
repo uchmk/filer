@@ -513,8 +513,16 @@ fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
             ..HelpRow::blank()
         });
         for p in here {
+            // Read, and none of it took effect: marked like a file not read
+            // yet, with the warning below saying why (#203).
+            let unused = app.cfg.unread.contains(p);
             out.push(HelpRow {
                 text: format!("    {}", crate::util::file_name(p)),
+                raw: match unused {
+                    true => "nothing in it was read — see below".into(),
+                    false => String::new(),
+                },
+                warning: unused,
                 goes_to: Some(Act::Reveal(p.display().to_string())),
                 ..HelpRow::blank()
             });
@@ -565,15 +573,27 @@ pub(crate) fn shown_config_dirs() -> Vec<std::path::PathBuf> {
     crate::config::CONFIG_VARS.iter().map(|v| std::env::temp_dir().join("filer-test-no-config").join(v)).collect()
 }
 
+/// The line under the config rows when nothing was read. Nothing read is not
+/// the same as nothing there: a file written since filer started is on disk,
+/// listed just above, and "nothing found" under it said the opposite (#203).
+fn defaults_note(app: &App, rows: &[HelpRow]) -> Option<HelpRow> {
+    if !app.cfg.loaded.is_empty() {
+        return None;
+    }
+    let waiting = rows.iter().any(|r| r.raw.starts_with("on disk, not read yet"));
+    Some(HelpRow::said(match waiting {
+        true => "(nothing read yet; the defaults are in use)".into(),
+        false => "(nothing found in either; the defaults are in use)".into(),
+    }))
+}
+
 /// What the help panel lists, top to bottom: drawn by [`help`], and copied as
 /// text by [`help_text`] so the two cannot disagree.
 fn help_lines(app: &App) -> Vec<HelpRow> {
     // Config provenance first — it answers "did it pick up my yazi config?"
     // before the key list answers "what is bound to what".
     let mut lines = config_rows(app, &shown_config_dirs());
-    if app.cfg.loaded.is_empty() {
-        lines.push(HelpRow::said("(nothing found in either; the defaults are in use)".into()));
-    }
+    lines.extend(defaults_note(app, &lines));
     lines.push(HelpRow::blank());
     // What the mouse does that no key does, so it is in no key list: the
     // right-click paste was only in the README (#104). Above the keys, which
@@ -1408,6 +1428,34 @@ mod help_config_rows {
         let warned = rows.iter().find(|r| r.warning).unwrap();
         assert!(warned.goes_to.is_none(), "nor is a warning");
     }
+    /// #203: a file read but none of whose settings took effect is marked,
+    /// and a file waiting on disk turns "nothing found" into "nothing read
+    /// yet".
+    #[test]
+    fn a_file_nothing_was_read_from_is_marked() {
+        let dir = crate::util::test_dir("help-none-read");
+        let broken = dir.join("yazi.toml");
+        std::fs::write(&broken, "[[preview]]\nname = \"*.md\"\n").expect("write the config");
+        let ctx = egui::Context::default();
+        let mut app = App::new(crate::config::Config::load(), dir.clone(), ctx);
+        app.cfg.loaded = vec![broken.clone()];
+        app.cfg.unread = vec![broken.clone()];
+        let rows = config_rows(&app, std::slice::from_ref(&dir));
+        let row = rows.iter().find(|r| r.text.trim() == "yazi.toml").expect("listed");
+        assert!(row.warning, "marked");
+        assert_eq!(row.raw, "nothing in it was read — see below");
+
+        // Nothing read at startup, and a file there now.
+        app.cfg.loaded.clear();
+        app.cfg.unread.clear();
+        let rows = config_rows(&app, std::slice::from_ref(&dir));
+        let note = defaults_note(&app, &rows).expect("nothing was read");
+        assert_eq!(note.text, "(nothing read yet; the defaults are in use)");
+        let empty = crate::util::test_dir("help-none-there");
+        let rows = config_rows(&app, std::slice::from_ref(&empty));
+        assert_eq!(defaults_note(&app, &rows).unwrap().text, "(nothing found in either; the defaults are in use)");
+    }
+
     /// A config file written after the window opened is named, not hidden.
     ///
     /// `filer.toml` created while filer is running is the ordinary way to reach

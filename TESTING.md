@@ -591,6 +591,7 @@ QA-REPORT.md.
 | 18.5 | `<C-w>` | The view splits into two panes; the one with the keys is framed, the other's cursor is dimmed |
 | 18.6 | Select files, `<A-c>` | Copied into the other pane |
 | 18.7 | Drag files onto the other pane | A frame marks the target, and a label by the pointer says "copy" — `Shift` makes it "move" — **before** you let go |
+| 18.7a | Let go: left pane onto the right, right onto the left, and once with `Shift` held; then once with both panes in the same folder (v0.73.38, #208) | The files are copied into the pane let go over (moved with `Shift`), **both ways round** -- before v0.73.38 left onto right did nothing. Same folder: `Both panes are in the same directory`, as `<A-c>` says, and no job |
 | 18.8 | `<Tab>` on a file | The spot panel, with the file's details |
 | 18.9 | `<S-F10>` or right-click | The context menu, with the openers from your config |
 | 18.10 | `<C-S-p>` | The palette, listing every binding; typing filters it |
@@ -938,7 +939,7 @@ apart), that it is legible on a light theme (33.6), the parse error's own wordin
 | 33.3 | Press `~` | The loaded config files, then every warning, all in the same yellow |
 | 33.4 | Make something actually fail (an opener naming a program that is not installed, 25.8) | Still **red**, so the two are told apart at a glance |
 | 33.5 | Remove the duplicate lines, `<C-F5>` | `Reloaded N config file(s)` in the plain colour; no yellow |
-| 33.6 | A theme with a light background | The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable |
+| 33.6 | A theme with a light background: `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }` in `theme.toml` (v0.73.42; nothing could set the window's background before) | The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable |
 | 33.7 | Put a real syntax error in `yazi.toml` (`[mgr` with no `]`) and start | A **five-line** parse error, naming the line and pointing at it. **Inside its box**: nothing over the header, nothing over the file list, nothing past either edge of the window (v0.33.11) |
 | 33.8 | Narrow the window to about a third of the screen, with 33.7 still broken | The message wraps rather than running off; the box stays against the right edge |
 | 33.9 | Break **three** config files at once | Up to five boxes stack downward, each sized to its own text, none overlapping the next |
@@ -952,6 +953,7 @@ apart), that it is legible on a light theme (33.6), the parse error's own wordin
 | 33.17 | `<C-F5>`, then `~` again | The row is now an ordinary loaded file, no marker |
 | 33.18 | Rebind `config_reload` to `<F9>` and repeat 33.16 | The row names `<F9>`, not `<C-F5>` — it is read from the keymap, not written into the message |
 | 33.19 | Bind `Q` to `quit` in `%APPDATA%\yazi\config\keymap.toml` and to `hidden toggle` in `%APPDATA%\filer\keymap.toml`, then run `filer env` (v0.73.33, Q57) | Warnings: `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<filer's path>) runs, not \`quit\` (<yazi's path>)`, both full paths. Bind `T` in the filer file only: the other side reads `(the built-in defaults)` |
+| 33.20 | With 33.11's `yazi.toml` (only `[[preview]]`) press `~`; then empty both config folders, start filer, create `filer.toml` and press `~` again (v0.73.41, #203) | The first time, the `yazi.toml` row is in the warning colour with `nothing in it was read — see below`, not listed as an ordinary read file. The second time, under the `on disk, not read yet` row: `(nothing read yet; the defaults are in use)`, not `(nothing found in either; …)` |
 
 ---
 
@@ -1237,7 +1239,7 @@ minimap at all — see QA-REPORT.md.
 | 43.6 | A file with a quoted field holding a comma and a newline | One cell, on one row — not split |
 | 43.7 | A CSV saved by Excel as "CSV UTF-8" (has a BOM) | The first column's header is not prefixed with a stray character |
 | 43.8 | A ragged file (rows with different column counts) | Lays out; short rows are padded, no panic |
-| 43.9 | A 50 MB CSV | Opens promptly, cut at `max_text_bytes`, footer says truncated |
+| 43.9 | A 50 MB CSV | Opens promptly, cut at `max_text_bytes`. The footer says which cap it met, e.g. `… the table stops at 4000 rows; N lines read, and the file goes on` (v0.73.39, #205 -- it used to say `N lines total (truncated)`, N being only what was read), and spot's `Lines` reads `N+` with a `Table  first 4000 rows only` row |
 | 43.10 | A one-line CSV | One row and **no rule** under it |
 | 43.11 | The minimap with a table up | It maps **the file**, not the table, and its hover card shows raw CSV lines |
 | 43.12 | A `.csv` that is actually binary | Still a hex dump, as before |

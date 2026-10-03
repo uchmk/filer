@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 471 件（TESTING.md の全 640 件のうち、`cargo test` が見ている 169 件は外してある）。
+押すものは 473 件（TESTING.md の全 642 件のうち、`cargo test` が見ている 169 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -296,6 +296,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **18.5** `<C-w>` → 2 分割になり、キーのあるほうが枠で囲まれ、もう一方のカーソルは淡くなる — *`<C-w>` → The view splits into two panes; the one with the keys is framed, the other's cursor is dimmed*
 - [ ] **18.6** ファイルを選んで `<A-c>` → もう一方のペインへコピーされる — *Select files, `<A-c>` → Copied into the other pane*
 - [ ] **18.7** ファイルをもう一方のペインへドラッグ → 対象が枠で示され、ポインタの横に「copy」と出る（`Shift` で「move」）。**離す前に**出ること — *Drag files onto the other pane → A frame marks the target, and a label by the pointer says "copy" — `Shift` makes it "move" — **before** you let go*
+- [ ] **18.7a** 離す。左のペインから右へ、右から左へ、`Shift` を押したままでも 1 回。最後に両方のペインを同じフォルダにして 1 回（v0.73.38、#208）→ 離したペインへコピーされる（`Shift` なら移動）。**どちらの向きでも**。v0.73.38 より前は左→右で何も起きなかった。同じフォルダなら `<A-c>` と同じ `Both panes are in the same directory` が出て、ジョブは立たない — *Let go: left pane onto the right, right onto the left, and once with `Shift` held; then once with both panes in the same folder (v0.73.38, #208) → The files are copied into the pane let go over (moved with `Shift`), **both ways round** -- before v0.73.38 left onto right did nothing. Same folder: `Both panes are in the same directory`, as `<A-c>` says, and no job*
 - [ ] **18.11** `B` で保存しておいた場所へ、`'` に続けて文字を押す → そこへ飛ぶ。**`b` はブックマークの*管理*の前置キー**（`bb` 一覧、`bs` 保存、`bd` 削除）なので、`b` + 文字では何にも届かない — *`'` then a letter, having saved one with `B` → Jumps there. **`b` is the prefix bookmark *management* hangs off** (`bb` lists, `bs` saves, `bd` deletes), so `b` and a letter reaches nothing*
 - [ ] **18.12** `z` → ジャンプ一覧が出る。ブックマークが先、そのあと最近のディレクトリが「2h ago」付きで並ぶ — *`z` → The jump list: bookmarks first, then recent directories with "2h ago" beside them*
 
@@ -512,7 +513,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 
 自動テスト済みなので下には出していない: 33.1, 33.2, 33.3, 33.4, 33.5, 33.7, 33.8, 33.10
 
-- [ ] **33.6** 背景の明るいテーマ → 黄色がそれでも読める。読めなければそう報告すること（いまは固定の既定値で、テーマから変えられない） — *A theme with a light background → The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable*
+- [ ] **33.6** 背景の明るいテーマ（`theme.toml` に `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }`。v0.73.42 より前は窓の背景を決める手段が無かった）→ 黄色がそれでも読める。読めなければそう報告すること（いまは固定の既定値で、テーマから変えられない） — *A theme with a light background: `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }` in `theme.toml` (v0.73.42; nothing could set the window's background before) → The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable*
 - [ ] **33.9** 設定ファイルを**3 つ同時に**壊す → 箱が最大 5 つまで下へ積まれ、それぞれ自分の文章の大きさになり、重ならない — *Break **three** config files at once → Up to five boxes stack downward, each sized to its own text, none overlapping the next*
 - [ ] **33.11** `[[preview]]` を `yazi.toml` に入れて（本来は `filer.toml`）起動 → **1 行で** `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`。以前の `invalid type: map, expected a string` ではない（v0.33.13） — *Put `[[preview]]` into `yazi.toml` (it belongs in `filer.toml`) and start → **One line**: `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13)*
 - [ ] **33.12** `[term]` も `yazi.toml` に入れる → それについても同じ形の行が 1 つ増える。どちらも「このファイルは読まれなかった」と述べる。実際そうだから — *Put `[term]` into `yazi.toml` as well → A second line for it, same shape. Both say the file went unread, because it did*
@@ -523,6 +524,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **33.17** `<C-F5>` してから、もう一度 `~` → 普通に読み込まれたファイルの行になり、印が消える — *`<C-F5>`, then `~` again → The row is now an ordinary loaded file, no marker*
 - [ ] **33.18** `config_reload` を `<F9>` に割り当て直して 33.16 を繰り返す → 行が `<C-F5>` ではなく `<F9>` を示す。メッセージに埋め込まれているのではなく、keymap から読んでいるため — *Rebind `config_reload` to `<F9>` and repeat 33.16 → The row names `<F9>`, not `<C-F5>` — it is read from the keymap, not written into the message*
 - [ ] **33.19** `%APPDATA%\yazi\config\keymap.toml` で `Q` を `quit` に、`%APPDATA%\filer\keymap.toml` で `hidden toggle` に割り当て、`filer env` を回す（v0.73.33、Q57）→ Warnings が `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<filer のパス>) runs, not \`quit\` (<yazi のパス>)` と、両方のファイルをフルパスで言う。`T` を filer のファイルだけに書くと、相手は `(the built-in defaults)` になる — *Bind `Q` to `quit` in `%APPDATA%\yazi\config\keymap.toml` and to `hidden toggle` in `%APPDATA%\filer\keymap.toml`, then run `filer env` (v0.73.33, Q57) → Warnings: `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<filer's path>) runs, not \`quit\` (<yazi's path>)`, both full paths. Bind `T` in the filer file only: the other side reads `(the built-in defaults)`*
+- [ ] **33.20** 33.11 の `yazi.toml`（`[[preview]]` だけ）で `~` を押す。次に両方の設定フォルダを空にして起動し、`filer.toml` を作ってからもう一度 `~`（v0.73.41、#203）→ 1 回目は `yazi.toml` の行が警告色で `nothing in it was read — see below` と出て、普通に読んだファイルとしては並ばない。2 回目は `on disk, not read yet` の行の下が `(nothing read yet; the defaults are in use)` で、`(nothing found in either; …)` ではない — *With 33.11's `yazi.toml` (only `[[preview]]`) press `~`; then empty both config folders, start filer, create `filer.toml` and press `~` again (v0.73.41, #203) → The first time, the `yazi.toml` row is in the warning colour with `nothing in it was read — see below`, not listed as an ordinary read file. The second time, under the `on disk, not read yet` row: `(nothing read yet; the defaults are in use)`, not `(nothing found in either; …)`*
 
 ## 34. ヘルプパネル自身のスクロール
 
@@ -627,7 +629,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 
 自動テスト済みなので下には出していない: 43.1, 43.2, 43.3, 43.4, 43.5, 43.6, 43.7, 43.8, 43.10, 43.11, 43.12, 43.13
 
-- [ ] **43.9** 50MB の CSV → すぐ開き、`max_text_bytes` で切られ、フッタが省略したと述べる — *A 50 MB CSV → Opens promptly, cut at `max_text_bytes`, footer says truncated*
+- [ ] **43.9** 50MB の CSV → すぐ開き、`max_text_bytes` で切られる。フッタがどの上限で止まったかを言う（例 `… the table stops at 4000 rows; N lines read, and the file goes on`。v0.73.39、#205。以前は読んだ分だけの N で `N lines total (truncated)` と言っていた）。spot の `Lines` は `N+` で、`Table  first 4000 rows only` の行が出る — *A 50 MB CSV → Opens promptly, cut at `max_text_bytes`. The footer says which cap it met, e.g. `… the table stops at 4000 rows; N lines read, and the file goes on` (v0.73.39, #205 -- it used to say `N lines total (truncated)`, N being only what was read), and spot's `Lines` reads `N+` with a `Table  first 4000 rows only` row*
 
 ## 44. ディスク使用量
 

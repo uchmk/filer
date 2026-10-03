@@ -209,6 +209,7 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
         _ => {}
     }
 
+    drop_drag_here(app, ui);
     draw_drag(app, ui, &f);
 
     if app.pending_bookmark.is_some() {
@@ -753,14 +754,31 @@ fn draw_pane(
         app.start_drag(idx, row);
     }
     if res.drag_stopped && app.drag.is_some() {
-        let pos = ui.ctx().input(|i| i.pointer.interact_pos());
-        let onto = pos.and_then(|p| {
-            app.pane_rects.iter().find(|(_, r)| r.contains(p)).map(|(i, _)| *i)
-        });
         // Shift is the move modifier, as it is in Explorer; a plain drag copies.
-        let cut = ui.ctx().input(|i| i.modifiers.shift);
-        app.drop_drag(onto, cut);
+        // Where it landed is worked out in `drop_drag_here`, after both panes
+        // are drawn: from here, the left pane -- drawn first -- knew only its
+        // own place, so a drop on the right one landed nowhere (#208).
+        // The release's own modifiers, so Shift is read as it was when the
+        // button came up; the frame's are the fallback.
+        let shift = ui.ctx().input(|i| {
+            i.events
+                .iter()
+                .find_map(|e| match e {
+                    egui::Event::PointerButton { pressed: false, modifiers, .. } => Some(modifiers.shift),
+                    _ => None,
+                })
+                .unwrap_or(i.modifiers.shift)
+        });
+        app.drag_released = Some(shift);
     }
+}
+
+/// Place a drag let go this frame, now that every pane has said where it is.
+fn drop_drag_here(app: &mut App, ui: &Ui) {
+    let Some(cut) = app.drag_released.take() else { return };
+    let pos = ui.ctx().input(|i| i.pointer.interact_pos());
+    let onto = pos.and_then(|p| app.pane_rects.iter().find(|(_, r)| r.contains(p)).map(|(i, _)| *i));
+    app.drop_drag(onto, cut);
 }
 
 /// What a drag in flight looks like: the pane it would land in outlined, and
@@ -1858,7 +1876,7 @@ mod whole_frame {
             map: (0..400)
                 .map(|i| MapRow { indent: (i % 8) as u16, len: 40, color: None })
                 .collect(),
-            extent: Extent { truncated: false, total: 400 },
+            extent: Extent { truncated: false, total: 400, ..Default::default() },
             outline: Vec::new(),
         });
         s
@@ -2130,7 +2148,7 @@ mod panes {
                 .map(|i| vec![Span { text: format!("line {i}"), ..Default::default() }])
                 .collect(),
             map: Vec::new(),
-            extent: Extent { truncated: false, total: 200 },
+            extent: Extent { truncated: false, total: 200, ..Default::default() },
             outline: Vec::new(),
         })
     }
@@ -2184,6 +2202,57 @@ mod panes {
 #[cfg(test)]
 mod split_panes_frame {
     use super::panes::*;
+
+    /// 18.7's drop: a file dragged from one list and let go over the other
+    /// is copied there, or moved with Shift -- both ways round. From left to
+    /// right it did nothing at all (#208): the left list, drawn first, placed
+    /// the drop before the right one had said where it was.
+    #[test]
+    fn a_drop_lands_in_the_other_list_both_ways() {
+        let (_left, _right, mut s) = two("panes-drop");
+        s.feed(vec![key(egui::Key::W, ctrl())]);
+        assert!(s.app.split.is_some(), "the view split");
+        let hovered = s.app.cfg.theme.hovered_bg;
+        let f = s.draw();
+        let row_h = f.rects.iter().find(|(_, c)| *c == hovered).expect("the cursor row").0.height();
+        let panes = pane_rects(&s);
+        // The first row of a list, and somewhere empty in the other.
+        let row = |r: egui::Rect| egui::pos2(r.left() + 60.0, r.top() + row_h * 0.5);
+        let drag = |s: &mut super::harness::Screen, from: egui::Pos2, to: egui::Pos2, modifiers: egui::Modifiers| {
+            let button = |pressed| egui::Event::PointerButton {
+                pos: from,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers,
+            };
+            s.feed(vec![egui::Event::PointerMoved(from), button(true)]);
+            for k in 1..=8 {
+                s.feed(vec![egui::Event::PointerMoved(from + (to - from) * (k as f32 / 8.0))]);
+            }
+            s.feed(vec![egui::Event::PointerButton {
+                pos: to,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers,
+            }]);
+            s.draw();
+        };
+        let jobs = |s: &super::harness::Screen| {
+            s.app.tasks.iter().map(|t| (t.kind, t.label.clone())).collect::<Vec<_>>()
+        };
+        use crate::fs::ops::OpKind;
+        drag(&mut s, row(panes[0]), panes[1].center(), egui::Modifiers::NONE);
+        assert_eq!(jobs(&s), [(OpKind::Copy, "Copy 1 item(s)".to_owned())], "left onto right copies");
+
+        let shift = egui::Modifiers { shift: true, ..Default::default() };
+        drag(&mut s, row(panes[1]), panes[0].center(), shift);
+        assert_eq!(jobs(&s).len(), 2, "{:?}", jobs(&s));
+        assert_eq!(jobs(&s)[1].0, OpKind::Move, "right onto left, with Shift, moves");
+
+        // Let go over the list it came from: nothing.
+        drag(&mut s, row(panes[0]), panes[0].center(), egui::Modifiers::NONE);
+        assert_eq!(jobs(&s).len(), 2, "a drop on its own list is no job: {:?}", jobs(&s));
+    }
 
     /// 19.7: each list of a split keeps its own part of a turn.
     ///

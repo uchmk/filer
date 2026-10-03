@@ -261,11 +261,20 @@ pub fn draw(
             } else if resp.secondary_clicked() {
                 out.secondary_clicked = Some(row);
             }
-            if resp.drag_started() {
-                out.drag_started = Some(row);
-            }
+
             if out.clicked.is_some() || out.double_clicked.is_some() {
                 out.mods = ui.ctx().input(|i| i.modifiers);
+            }
+        }
+    }
+    // The row the button went down on, not the one under the pointer now:
+    // egui calls it a drag only once the pointer has moved, and a quick pull
+    // is rows away by then -- or past the last row, which started nothing.
+    if resp.drag_started() {
+        if let Some(at) = ui.ctx().input(|i| i.pointer.press_origin()) {
+            let row = start + (((at.y - rect.top()) / st.row_h).floor().max(0.0) as usize);
+            if row < end {
+                out.drag_started = Some(row);
             }
         }
     }

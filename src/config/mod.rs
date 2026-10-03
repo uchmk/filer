@@ -208,6 +208,12 @@ pub struct Config {
     pub line_args: HashMap<String, String>,
     /// Config files that were actually read, for the help panel.
     pub loaded: Vec<PathBuf>,
+    /// Those of them none of whose settings took effect: a parse error, or a
+    /// section in the other file's shape that stops the whole file parsing.
+    /// The panel marks them, as it marks a file not read yet; listed plainly
+    /// beside the warning that said nothing was read, the panel said both
+    /// (#203).
+    pub unread: Vec<PathBuf>,
     pub warnings: Vec<String>,
 }
 
@@ -282,6 +288,7 @@ impl Config {
         let mut broken = Broken::default();
         let mut warnings = Vec::new();
         let mut loaded = Vec::new();
+        let mut unread = Vec::new();
 
         let mut yazi_cfg = YaziToml::default();
         let mut keymap_texts: Vec<(String, String)> = Vec::new();
@@ -302,15 +309,22 @@ impl Config {
                     // whose `[[preview]]` is spelled exactly as its own
                     // documentation spells it. `wrong` has already said which
                     // key it is and which file it goes in.
-                    Err(_) if wrong.breaks_parse => broken.yazi = true,
+                    Err(_) if wrong.breaks_parse => {
+                        broken.yazi = true;
+                        unread.push(dir.join("yazi.toml"));
+                    }
                     Err(e) => {
                         broken.yazi = true;
+                        unread.push(dir.join("yazi.toml"));
                         broken.said.push(warnings.len());
                         warnings.push(format!("{}: {}", at(dir, "yazi.toml"), e.to_string().trim_end()));
                     }
                 }
             }
             if let Some(text) = read(dir, "keymap.toml", &mut loaded) {
+                if !Keymap::parses(&text) {
+                    unread.push(dir.join("keymap.toml"));
+                }
                 keymap_texts.push((at(dir, "keymap.toml"), text));
             }
             if let Some(text) = read(dir, "theme.toml", &mut loaded) {
@@ -318,6 +332,7 @@ impl Config {
                     Ok(v) => theme.apply(&v),
                     Err(e) => {
                         broken.theme = true;
+                        unread.push(dir.join("theme.toml"));
                         broken.said.push(warnings.len());
                         warnings.push(format!("{}: {}", at(dir, "theme.toml"), e.to_string().trim_end()));
                     }
@@ -342,9 +357,13 @@ impl Config {
                             }
                         }
                     }
-                    Err(_) if wrong.breaks_parse => broken.filer = true,
+                    Err(_) if wrong.breaks_parse => {
+                        broken.filer = true;
+                        unread.push(dir.join("filer.toml"));
+                    }
                     Err(e) => {
                         broken.filer = true;
+                        unread.push(dir.join("filer.toml"));
                         broken.said.push(warnings.len());
                         warnings.push(format!("{}: {}", at(dir, "filer.toml"), e.to_string().trim_end()));
                     }
@@ -362,7 +381,7 @@ impl Config {
         warnings.append(&mut km_warnings);
 
         let theme = std::sync::Arc::new(theme);
-        (Self { yazi: yazi_cfg, keymap, theme, ui, term, preview, line_args, loaded, warnings }, broken)
+        (Self { yazi: yazi_cfg, keymap, theme, ui, term, preview, line_args, loaded, unread, warnings }, broken)
     }
 
     pub fn state_dir() -> PathBuf {
@@ -873,6 +892,23 @@ mod files {
         m.warn(r"C:\x\yazi.toml", "filer.toml", &mut w);
         let said = r"C:\x\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read";
         assert_eq!(w, [said]);
+    }
+
+    /// #203: a file none of whose settings took effect is recorded as such,
+    /// for the help panel; a file with one misplaced section and the rest
+    /// read is not.
+    #[test]
+    fn files_nothing_was_read_from_are_recorded() {
+        let dir = crate::util::test_dir("cfg-unread");
+        std::fs::write(dir.join("yazi.toml"), "[[preview]]\nmatch = \"*.pdf\"\nrun = \"x\"\n").unwrap();
+        std::fs::write(dir.join("theme.toml"), "[mgr\n").unwrap();
+        std::fs::write(dir.join("keymap.toml"), "[[mgr.keymap]\n").unwrap();
+        std::fs::write(dir.join("filer.toml"), "[ui]\nfont_size = 16.0\n[opener]\nedit = []\n").unwrap();
+        let (cfg, _) = Config::read(std::slice::from_ref(&dir));
+        let mut unread: Vec<String> = cfg.unread.iter().map(|p| crate::util::file_name(p)).collect();
+        unread.sort();
+        assert_eq!(unread, ["keymap.toml", "theme.toml", "yazi.toml"], "filer.toml was read, [opener] aside");
+        assert_eq!(cfg.loaded.len(), 4, "all four were read from disk");
     }
 
     /// Each file's own `preview` shape is left alone.

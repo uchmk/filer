@@ -29,6 +29,10 @@ pub struct RawStyle {
 
 #[derive(Deserialize, Debug, Default)]
 pub struct ThemeToml {
+    /// yazi's `[app]`: `overall` is the whole window's style, its background
+    /// above all -- the one colour a light theme has to change first (#203).
+    #[serde(default)]
+    pub app: AppTheme,
     #[serde(default, alias = "manager")]
     pub mgr: MgrTheme,
     #[serde(default)]
@@ -41,6 +45,13 @@ pub struct ThemeToml {
     pub which: WhichTheme,
     #[serde(default)]
     pub git: GitTheme,
+}
+
+/// yazi's `[app]` section.
+#[derive(Deserialize, Debug, Default)]
+pub struct AppTheme {
+    #[serde(default)]
+    pub overall: RawStyle,
 }
 
 /// yazi's `[git]` section, which its git plugin colors its signs with.
@@ -170,6 +181,12 @@ pub struct WhichTheme {
 
 /// ANSI-ish palette used when a theme names a color instead of giving a hex.
 /// Tuned for a dark background.
+/// `from` moved `by` of the way to `to`, per channel.
+fn toward(from: Color32, to: Color32, by: f32) -> Color32 {
+    let step = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * by).round() as u8;
+    Color32::from_rgb(step(from.r(), to.r()), step(from.g(), to.g()), step(from.b(), to.b()))
+}
+
 pub fn parse_color(s: &str) -> Option<Color32> {
     let s = s.trim();
     if let Some(hex) = s.strip_prefix('#') {
@@ -451,6 +468,16 @@ impl Theme {
     }
 
     pub fn apply(&mut self, t: &ThemeToml) {
+        // First, so the rest of the file can still set its own colours over a
+        // background chosen here. The second background -- panels, the help
+        // box -- follows it a step towards the text, as the built-in pair do.
+        if let Some(fg) = t.app.overall.fg.as_deref().and_then(parse_color) {
+            self.fg = fg;
+        }
+        if let Some(bg) = t.app.overall.bg.as_deref().and_then(parse_color) {
+            self.bg = bg;
+            self.bg_alt = toward(bg, self.fg, 0.03);
+        }
         self.cwd = self.cwd.overlay(&t.mgr.cwd);
         self.hovered = self.hovered.overlay(&t.mgr.hovered);
         if let Some(bg) = self.hovered.bg {
@@ -788,4 +815,26 @@ fn default_ext_icons() -> Vec<(String, Icon)> {
     .into_iter()
     .map(|(n, g, col)| (n.to_owned(), icon(g, col)))
     .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// #203: yazi's `[app] overall` sets the window's background and text,
+    /// and the second background follows the first.
+    #[test]
+    fn overall_sets_the_window_colours() {
+        let t: ThemeToml = toml::from_str("[app]\noverall = { bg = \"#ffffff\", fg = \"#000000\" }\n").unwrap();
+        let mut theme = Theme::default();
+        theme.apply(&t);
+        assert_eq!(theme.bg, Color32::WHITE);
+        assert_eq!(theme.fg, Color32::BLACK);
+        assert_eq!(theme.bg_alt, Color32::from_rgb(247, 247, 247), "a step towards the text");
+
+        // Without it, nothing moves.
+        let mut plain = Theme::default();
+        plain.apply(&toml::from_str::<ThemeToml>("").unwrap());
+        assert_eq!((plain.bg, plain.fg), (Theme::default().bg, Theme::default().fg));
+    }
 }

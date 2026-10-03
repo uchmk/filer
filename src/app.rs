@@ -1144,6 +1144,9 @@ pub struct App {
     pub drag: Option<Drag>,
     /// Where each pane was drawn this frame, so a drop can be placed.
     pub pane_rects: Vec<(usize, egui::Rect)>,
+    /// A drag let go this frame, and whether Shift was held: placed once
+    /// every pane has been drawn, not by the pane it started in (#208).
+    pub drag_released: Option<bool>,
     /// What git says about each directory on screen, by directory.
     git_status: Lru<PathBuf, Arc<git::Status>>,
     pub differ: diff::Differ,
@@ -1302,6 +1305,7 @@ impl App {
             cd_refused: None,
             drag: None,
             pane_rects: Vec::new(),
+            drag_released: None,
             differ,
             spotter,
             spotted: None,
@@ -2188,7 +2192,7 @@ impl App {
         };
         match payload {
             Payload::Text { extent, outline, .. } => {
-                row("Lines", extent.total.to_string());
+                row("Lines", extent.lines());
                 if !outline.is_empty() {
                     row("Outline", format!("{} entries", outline.len()));
                 }
@@ -2197,8 +2201,12 @@ impl App {
                 }
             }
             Payload::Markdown { doc, extent, .. } => {
-                row("Lines", extent.total.to_string());
-                row("Headings", doc.toc.len().to_string());
+                row("Lines", extent.lines());
+                // A table stopped at its row cap says so here too (#205).
+                match extent.rows {
+                    Some(n) => row("Table", format!("first {n} rows only")),
+                    None => row("Headings", doc.toc.len().to_string()),
+                }
                 if let Some(r) = read(extent.truncated) {
                     row("Read", r);
                 }
@@ -2331,6 +2339,8 @@ impl App {
                 let stop = self.help_lines.saturating_sub(page) + 1;
                 self.help_scroll = step.apply(self.help_scroll, stop, page);
             }
+            // What the panel's own config rows tell you to press (#163).
+            Act::ConfigReload => self.act(Act::ConfigReload),
             // The whole list as text, as spot's `C` does (Q48).
             Act::Copy(CopyWhat::All) => {
                 let (text, keys) = crate::ui::overlay::help_text(self);
@@ -3309,7 +3319,10 @@ impl App {
         let Some(drag) = self.drag.take() else { return };
         let Some(onto) = onto.filter(|&i| i != drag.from && i < self.tabs.len()) else { return };
         let dest = self.tabs[onto].cwd.clone();
+        // Said, as `<A-c>` says it: let go over a list that showed the same
+        // folder, the drop did nothing and nothing told you why (#208).
         if dest == self.tabs[drag.from].cwd {
+            self.error("Both panes are in the same directory");
             return;
         }
         let kind = if cut { OpKind::Move } else { OpKind::Copy };
@@ -3898,8 +3911,11 @@ impl App {
                 let (block, orphan) = (*block, *orphan);
                 self.launch(&line, &cwd, block, orphan, "Open failed");
             }
+            // Said, as an opener's launch is: handed to the system, a file
+            // whose app takes a while to appear looked as if `<Enter>` had
+            // done nothing (#163).
             None => match exec::open_default(&entry.path) {
-                Ok(()) => {}
+                Ok(()) => self.toast(format!("Opened {} with the system's default app", entry.name)),
                 Err(e) => self.error(format!("Open failed: {e}")),
             },
         }
@@ -7596,7 +7612,7 @@ mod outline_jump {
         a.preview.state = PreviewState::Ready(Payload::Text {
             lines: Vec::new(),
             map: Vec::new(),
-            extent: crate::preview::Extent { truncated: false, total: 500 },
+            extent: crate::preview::Extent { truncated: false, total: 500, ..Default::default() },
             outline: vec![toc(0), toc(120), toc(480)],
         });
         // The furthest the pane can be scrolled, as the last draw worked out.
@@ -8578,6 +8594,36 @@ mod said_out_loud {
         );
         assert_eq!(made_says(OpKind::Extract, &[]), None, "nothing unpacked, nothing said");
         assert_eq!(made_says(OpKind::Copy, &[PathBuf::from("x/a")]), None);
+    }
+
+    /// #208: a drop onto a list showing the same folder says why it did
+    /// nothing, in `<A-c>`'s words, and queues no job.
+    #[test]
+    fn a_drop_into_the_same_folder_says_so() {
+        let dir = crate::util::test_dir("said-drop");
+        std::fs::write(dir.join("a.txt"), "a").unwrap();
+        let mut a = app_in(&dir);
+        let mut other = crate::core::tab::Tab::new(dir.clone(), a.tabs[0].sort, false, crate::fs::entry::Linemode::None);
+        other.cwd = dir.clone();
+        a.tabs.push(other);
+        a.drag = Some(Drag { from: 0, paths: vec![dir.join("a.txt")], label: "a.txt".into() });
+        a.drop_drag(Some(1), false);
+        assert!(a.tasks.is_empty(), "no job");
+        assert!(a.toasts.iter().any(|t| t.text == "Both panes are in the same directory"), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// #163: `<C-F5>` with the help panel open re-reads the config, as the
+    /// panel's own rows say it does, and the panel stays open to show it.
+    #[test]
+    fn the_reload_key_works_with_help_open() {
+        let dir = crate::util::test_dir("help-reload");
+        let mut a = app_in(&dir);
+        a.overlay = Overlay::Help;
+        a.feed_overlay_key(Key::parse("<C-F5>").unwrap());
+        assert!(matches!(a.overlay, Overlay::Help), "still open");
+        assert!(a.toasts.iter().any(|t| t.text.starts_with("Reloaded")), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 
     /// #83: a trash where four of five went leaves a step for the four, so

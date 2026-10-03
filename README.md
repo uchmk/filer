@@ -252,7 +252,7 @@ this project's own). `select` and `select_all` are accepted as `toggle --state=o
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe`, `enter`, `copy cell` and `copy all` (this project's own: the whole panel, `Label<TAB>value` per row); in `[term]`:
 `close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
-`close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too), `arrow` and `copy all` (the whole panel as text, as in `[spot]`).
+`close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too), `arrow`, `copy all` (the whole panel as text, as in `[spot]`) and `config_reload` (`<C-F5>`, the key the panel's config rows name; the panel stays open).
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -273,8 +273,10 @@ registered: the menu is read back out of the config every time it opens.
 
 ### theme.toml
 
-`[mgr]` colors, `[status]` modes, `[which]`, `[git]`, `[filetype].rules` and `[icon]` (`globs`,
-`dirs`, `exts`, `files`, `conds`) are applied on top of a built-in dark theme. Colors may be ANSI names
+`[app] overall` (the window's background and text), `[mgr]` colors, `[status]` modes, `[which]`,
+`[git]`, `[filetype].rules` and `[icon]` (`globs`, `dirs`, `exts`, `files`, `conds`) are applied on
+top of a built-in dark theme. A light theme starts with `[app]` / `overall = { bg = "#ffffff", fg =
+"#222222" }`; the preview's text keeps its own colours, from `syntect_theme` below. Colors may be ANSI names
 (`lightblue`, `darkgray`, `reset`) or hex (`#7ab8f5`). `syntect_theme` selects the preview's
 syntax theme.
 
@@ -1401,7 +1403,9 @@ one run. The name is letters, digits, `-` and `_`.
 A space is written `<Space>`; a plain one is refused.
 
 A script driving filer from outside needs to know when the keys are done, and guessing from the
-`<Wait:N>` it wrote misses the time each key spends waiting to settle. Set `FILER_KEYS_DONE` to a
+`<Wait:N>` it wrote misses the time each key spends waiting to settle. Nor does the command itself
+wait: `filer.exe`, and `filer.com` too, return as soon as the window is up, keys still to come. Wait
+on `FILER_KEYS_DONE` below, or end the keys with `q` and start filer with `Start-Process -Wait`. Set `FILER_KEYS_DONE` to a
 file path and filer writes that file once the last key has gone in and what it started has landed —
 the same wait the keys themselves take (v0.60.1). `scripts/xrun.sh` waits for it. "Landed" includes
 a file job: since v0.67.12 a key waits for a trash, copy, move, link or undo it started to finish,
@@ -1432,13 +1436,16 @@ keys: done
 `overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `view` is
 `usage` or `search` while one of those views stands in for the listing, else `list` (v0.64.0); `input` is
 there only while a prompt is open; `compare: folders <left> | <right>` (or `files`) only while a
-comparison is open; `pane` is the terminal's grid (`12x159`) or `closed`; `toast` is
+comparison is open; `pane` is the terminal's grid (`12x159`) or `closed`, and while it is open
+`pane back: 6 of 190` says how many lines the view is scrolled back into its history, of how many
+there are (v0.73.43); `toast` is
 the newest message still on screen, empty when there is none. Since v0.73.1: `list top` is the first
 row of the list on screen, `preview top: N of M` the preview's first line against the furthest it can
 scroll, `zoom` the image's scale (`fit` or `250%`), `minimap setting` what `<A-n>` flips, and `split`
 whether the second pane is open and which side has the keys. Since v0.73.3, while a picker is open
 (`<S-Enter>`, `O`, the palette), `pick: Neovim | VS Code | …` lists what it offers in the order shown
-(after any filter typed into it, cut at 40) and `picked:` the row under its cursor. Since v0.73.4 `toasts:` lists every toast of the run, the
+(after any filter typed into it, cut at 40), with the note a row shows on its right in brackets --
+`…\repo (2h ago)` in the jump list (v0.73.43) and `picked:` the row under its cursor. Since v0.73.4 `toasts:` lists every toast of the run, the
 faded ones too (the last 16, oldest first, `|` between them and ` / ` for a toast's own line breaks),
 so a check whose result is a toast need not catch it on screen.
 

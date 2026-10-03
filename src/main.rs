@@ -1036,8 +1036,17 @@ fn state_report(app: &App) -> String {
     // picture. A long one -- the palette lists every binding -- is cut.
     if let app::Overlay::Pick(ov) = &app.overlay {
         const MAX: usize = 40;
-        let shown: Vec<&str> = ov.matches.iter().map(|m| ov.items[m.0].as_str()).collect();
-        let mut line = shown.iter().take(MAX).copied().collect::<Vec<_>>().join(" | ");
+        // With the note a row carries on its right, in brackets: the jump
+        // list's `2h ago` was only in the picture (#208).
+        let shown: Vec<String> = ov
+            .matches
+            .iter()
+            .map(|m| match ov.details.get(m.0).filter(|d| !d.is_empty()) {
+                Some(d) => format!("{} ({d})", ov.items[m.0]),
+                None => ov.items[m.0].clone(),
+            })
+            .collect();
+        let mut line = shown.iter().take(MAX).cloned().collect::<Vec<_>>().join(" | ");
         if shown.len() > MAX {
             line.push_str(&format!(" | … +{} more", shown.len() - MAX));
         }
@@ -1053,6 +1062,12 @@ fn state_report(app: &App) -> String {
         "pane: {}",
         app.term.as_ref().map_or("closed".into(), |t| format!("{}x{}", t.size().lines, t.size().cols))
     ));
+    // Lines scrolled back into the pane's history, of how many it holds:
+    // half of 19.4 could only be read off pictures (#209).
+    if let Some(t) = &app.term {
+        let (back, of) = t.scrollback();
+        lines.push(format!("pane back: {back} of {of}"));
+    }
     // Where the list and the preview are scrolled, and how the preview is
     // shown: what the wheel, zoom and minimap rows of TESTING.md move, read
     // as numbers instead of judged from a picture (2026-10-03).
@@ -1417,7 +1432,7 @@ mod tests {
         let items: Vec<String> = ["Neovim", "VS Code", "サクラエディタ"].map(String::from).into();
         let mut ov = app::PickOverlay {
             title: "Open with".into(),
-            details: vec![String::new(); items.len()],
+            details: vec![String::new(), "2h ago".into(), String::new()],
             items,
             query: String::new(),
             matches: Vec::new(),
@@ -1428,7 +1443,7 @@ mod tests {
         ov.refilter();
         app.overlay = app::Overlay::Pick(ov);
         let report = state_report(&app);
-        assert!(report.lines().any(|l| l == "pick: Neovim | VS Code | サクラエディタ"), "{report}");
+        assert!(report.lines().any(|l| l == "pick: Neovim | VS Code (2h ago) | サクラエディタ"), "{report}");
         assert!(report.lines().any(|l| l == "picked: VS Code"), "{report}");
     }
 
