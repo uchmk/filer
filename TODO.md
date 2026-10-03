@@ -1715,6 +1715,19 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `ops::Link::junction` を見ていない。直したら 13.8b を再テストに回す（印を外す）。
 - [x] （v0.71.4、Q56 の 1。質問に `[c] Copy the mklink command`。実機で 13.8c）`n` を選んだ人のために、`mklink /J` のコマンドをクリップボードに渡す（#185 の提案 3、#191 の提案 2）。
 
+## 実機のセッションの報告（v0.72.11 で受けた分: #197、ARM64 の 13.8a / 13.8c の再テスト）
+
+- [x] v0.72.6 の `cmd /d /c mklink /J` の形で 13.8a / 13.8c に印を戻した（337）。拒否のトーストの行を `cmd` にも filer のペイン（pwsh 7.6.6）にも
+  貼ってジャンクションができ、`g` `f` でたどれた。`c` のクリップボードは拒否の行と `-ceq` で一致。所見なし。`cargo test` は 624 / 0（ARM64）。
+  ARM64 の順番表から 13.8a / 13.8c を消した（次は 48.6 の ARM64 の zip）。
+- [ ] `--keys` に `<Paste>` の手順を足す（#197 の提案 1）。`--keys` の `<C-v>` はシェルの PSReadLine が自分でクリップボードを読むだけで、
+  filer の `Terminal::paste`（`egui::Event::Paste`）は通らない。それを試すのに `SetForegroundWindow` + `SendInput` を 54 行書いた。
+  `keyscript.rs` のパーサに 1 手順、押す側に 1 腕。
+- [ ] ジャンクションの質問の本文にも `mklink` の行を出す（#197 の提案 2）。今は `at → target` だけなので、トーストが消えたあとは
+  `[c] Copy the mklink command` が画面に無いものをコピーすると言っている。`App::offer_junctions` に 1 行。
+- [ ] `FILER_KEYS_DONE` に `clipboard:` 行を足す（#197 の提案 3）。`c` の系統のキーはクリップボードに書くが、外から読むには
+  番兵を置いて、機械に 1 つのクリップボードを他のセッションと取り合うしかない。`state_report` に 1 行。
+
 ## 実機のセッションの報告（v0.72.10 で受けた分: #196、x64 の 32 / 37 節）
 
 - [x] v0.72.7 で書き直した行のうち 6 行に印（335）: 32.1（README の例の並び）、32.2（`<Enter>` で Neovim が専用のコンソールで開く）、
