@@ -474,7 +474,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **28.5** **もう一方のペイン**（`<C-w>`）と、ディレクトリの**プレビュー**で同じこと → どちらも落ちない — *Same in the **other pane** (`<C-w>`) and in the **preview** of a directory → Neither crashes*
 - [x] **28.6** カーソルを最終行に置いて、そのファイルを `d` で削除 → 同じ。これが Issue #5 の報告内容 — *Cursor on the last row, delete that file with `d` → Same — this is what Issue #5 reported*
 - [x] **28.7** カーソルが乗っているファイルを外から改名 → カーソルが名前に追従するか、その場に留まる。落ちない — *Rename a file from outside while the cursor is on it → The cursor follows the name or stays put; no crash*
-- [ ] **28.8** 窓に触らず（キーもマウスも使わず）、一覧にあるファイルをエクスプローラーから削除する（v0.57.2）→ キーを押さなくても 0.5 秒以内に行が消える。v0.57.2 までは次にキーを押すまで残っていた（#108） — *Leave the window alone -- no key, no mouse -- and delete a listed file from Explorer (v0.57.2) → The row goes within half a second, without a key being pressed. Until v0.57.2 the list kept it until the next key (#108)*
+- [x] **28.8** 窓に触らず（キーもマウスも使わず）、一覧にあるファイルをエクスプローラーから削除する（v0.57.2）→ キーを押さなくても 0.5 秒以内に行が消える。v0.57.2 までは次にキーを押すまで残っていた（#108） — *Leave the window alone -- no key, no mouse -- and delete a listed file from Explorer (v0.57.2) → The row goes within half a second, without a key being pressed. Until v0.57.2 the list kept it until the next key (#108)*
 
 ## 29. ターミナルのカレントディレクトリを持ち帰る
 
