@@ -9,6 +9,21 @@
 
 ## [未リリース]
 
+## [0.78.29] - 2026-10-04
+
+### 変更
+
+- `filer env --out` の `filer: wrote <パス>` を標準エラーに出す。`$p = & filer env --out x.txt` の `$p` に混ざり、
+  パスとして次のコマンドに渡っていた（#200 の提案 2。TESTING.md 25.19b）。コンソールでの見た目は変わらない。
+- spot パネルの `Resolves` の理由を、OS の言語の文ではなく `os error N` で出す（見つからない・拒否のときは
+  `not found` / `access denied` を添える）。日本語の Windows で `ファンクションが間違っています。 (os error 1)` が
+  英語のパネルに混ざっていた（#255 の所見 3。TESTING.md 13.12 / 13.12a）。
+
+### 修正
+
+- フォルダの上で `e` を押すと「カーソルの下のファイルは書庫ではない」と言っていた。
+  `<名前>\ is a folder -- e unpacks an archive (…); to pack it, press E` と言う（キーは keymap から読む。#262 の提案 1。TESTING.md 21.6a）。
+
 ## [0.78.28] - 2026-10-04
 
 ### 変更

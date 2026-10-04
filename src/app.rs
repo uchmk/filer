@@ -3646,6 +3646,17 @@ impl App {
             // makes a stale selection visible — the count in the header is
             // behind the toast saying this.
             let n = self.tabs[self.active].selected.len();
+            // A folder is the one thing `e` is pressed on by someone who meant
+            // to pack it (#262): say which key does that.
+            if n == 0 && rest.first().is_some_and(|p| p.is_dir()) {
+                let name = rest[0].file_name().map_or_else(|| rest[0].display().to_string(), |n| n.to_string_lossy().into_owned());
+                let pack = match self.compress_key() {
+                    Some(k) => format!("; to pack it, press {k}"),
+                    None => String::new(),
+                };
+                self.error(format!("{name}{} is a folder -- e unpacks an archive (zip, tar, tar.gz, tgz, 7z){pack}", std::path::MAIN_SEPARATOR));
+                return;
+            }
             let what = if n == 0 {
                 "The file under the cursor is not".to_owned()
             } else {
@@ -4774,6 +4785,13 @@ impl App {
             }),
             Err(e) => self.error(format!("Clipboard: {e}")),
         }
+    }
+
+    /// How the list's keymap spells `compress`, for a message that tells
+    /// someone to press it.
+    fn compress_key(&self) -> Option<String> {
+        let b = self.cfg.keymap.mgr.iter().find(|b| b.run.as_slice() == [Act::Compress])?;
+        Some(crate::config::keys::render_seq(&b.on))
     }
 
     /// How the pane's keymap spells `terminal close`, for a message that tells

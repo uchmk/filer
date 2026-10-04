@@ -465,6 +465,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "21.3" = 'もう一度 `e` → 2 つ目は別の名前になる。1 つ目は上書きされない'
 "21.4" = '`to-pack\` を選んで `E`、`to-pack.zip` をそのまま受け入れる → 圧縮され、終わるとカーソルが `to-pack.zip` の上に来る（v0.55.0）。途中で別のフォルダへ移っていれば、そのまま動かない'
 "21.5" = '`E` で名前を `.tar.gz` で終わるように変える → zip ではなく gzip 圧縮した tar になる'
+"21.6a" = 'フォルダ（`to-pack\`）の上で `e`（v0.78.29、#262）→ トーストが `to-pack\ is a folder -- e unpacks an archive (zip, tar, tar.gz, tgz, 7z); to pack it, press E` と言い、ファイルが書庫ではない、とは言わない。何も書かれない'
 "21.7" = '`E` で名前を **`.7z`** で終わるように変える → 本物の 7z ができる（v0.27.0 まで読み取り専用として断られていた）'
 "21.8" = 'その `.7z` で `e` → 展開でき、中身が入れたものと一致する'
 "21.9" = '同じ `.7z` を 7-Zip や エクスプローラーで開く → そちらでも開ける。他所へ持って行けることが、この形式を入れた理由'
@@ -535,7 +536,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "25.18" = "release ビルドで `filer env \\| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c \"filer env > out2.txt\"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた）"
 '25.19' = '''`filer env \| Select-String "arch\s+:"`（ただの `arch` だと、オープナーなどの `Archive` を含むパスにも当たる）→ **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない）'''
 "25.19a" = "PowerShell で `$v = & filer env \\| Write-Output; $v.Count`（v0.67.26、Q54）→ レポートの行数で、0 ではない。**後ろに何も置かない** `$v = & filer env` だと、PowerShell はパイプラインの最後にある窓のプログラムを待たず、`$v` は空になる。filer ではなく PowerShell の動き（#183）なので、行には `\\| Write-Output` を付けてある"
-"25.19b" = "PowerShell で、パスに日本語を含むフォルダから `filer env --out out3.txt`、続けて `Get-Content -Encoding utf8 out3.txt`（v0.68.0、Q55）→ `filer: wrote <フルパス>` の 1 行が出て、ファイルにレポート全体が入り、日本語がコンソールのコードページに関係なく**読める**。`filer env --out`（名前なし）と `filer env --outt x` は問題を 1 行で言い、終了コード 2 で、何も書かない"
+"25.19b" = "PowerShell で、パスに日本語を含むフォルダから `filer env --out out3.txt`、続けて `Get-Content -Encoding utf8 out3.txt`（v0.68.0、Q55）→ `filer: wrote <フルパス>` の 1 行が標準エラーに出て（v0.78.29。`$p = & filer env --out out3.txt` で `$p` は空、#200）、ファイルにレポート全体が入り、日本語がコンソールのコードページに関係なく**読める**。`filer env --out`（名前なし）と `filer env --outt x` は問題を 1 行で言い、終了コード 2 で、何も書かない"
 '25.19c' = '''zip のフォルダを `PATH` に入れた状態で（v0.71.0、Q44）: `(Get-Command filer).Source`、`$v = & filer env; $v.Count`、`filer --version > v.txt; Get-Content v.txt`、`filer --keys "<Tab"; $LASTEXITCODE`、最後に `filer` だけ → `Source` は `filer.com` で終わる。行数は**後ろに何も置かない**形（25.19a から `Write-Output` を除いた形）でレポートの行数になる。`v.txt` に版の行が入る。拒否は 1 行出て `$LASTEXITCODE` が 2。`filer` だけなら窓が開き、窓が開いたままプロンプトが戻る'''
 '25.19d' = '''zip のフォルダを `PATH` に入れ、`filer` の 1 行だけの `w.ps1` を作って `pwsh -File w.ps1 | Tee-Object t.txt; "back"`（v0.73.6、#192）。次に `w.ps1` を `filer C:\dev C:\Windows` にして同じことをする → 窓が開き、**窓を開いたまま** `back` が出る（以前は窓を閉じるまでパイプラインが終わらなかった）。2 つのパスでは窓が出ず、拒否の 1 行が画面に出て `t.txt` にも入る'''
 '25.19e' = '''空のフォルダで `pwsh -File` から走らせる `.ps1` の中で（v0.73.8、#188）: `filer env --out a.txt; Test-Path a.txt; $LASTEXITCODE`、次に `& <zip のフォルダ>\filer.exe env --out b.txt | Out-Null; Test-Path b.txt`、次に `& <zip のフォルダ>\filer.exe env --out | Out-Null; $LASTEXITCODE`。それと `filer --help` → `True` と `0`、次に `True`、次に `2`。README の待ち方が `filer.com` でも `filer.exe` でも効く。`--help` の `env --out FILE` の下に `(filer.exe in a script: add | Out-Null to wait)` がある'''
@@ -813,8 +814,8 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "13.9" = '`y` してから、**隣の**ディレクトリで `_` → 同じリンクが相対パス（`..\other\file`）で作られる。`g`+`f` で追え、両方のディレクトリを一緒に移動しても壊れない（これが `-` に対する `_` の利点）'
 "13.10" = 'シンボリックリンクの上で `<Tab>` → **Link** セクションが出る。`Kind` が `Symlink`、`Target` が保存されたパス、`Resolves` が実際の着地点'
 "13.11" = '`_` で作ったリンクの上で `<Tab>` → `Kind` が `Symlink (relative)`。`Target` は相対パス、`Resolves` は絶対パスで、**2 行が食い違うことがこの対の要点**'
-"13.12" = '**壊れた**リンクの上で `<Tab>` → `Resolves` が `no (…)` と OS の理由を出し、セクション自体は表示される'
-'13.12a' = '''RAM ディスクへのジャンクション（`R:\cargo-target\filer` を指す `C:\dev\filer\target`）の上で `<Tab>`（v0.73.27）→ `Resolves` が `R:\cargo-target\filer (as written: this volume cannot normalize it, … (os error 1))` と出て、`no (…)` にならない。リンクは生きていて、ボリュームが最終的なパスを返せないだけ。以前は `no (…os error 1)` と、壊れたリンクと同じ見た目だった'''
+"13.12" = '**壊れた**リンクの上で `<Tab>` → `Resolves` が `no (not found, os error 2)` と出る。OS の言語の文ではなく誤りの番号（v0.78.29、#255）。セクション自体は表示される'
+'13.12a' = '''RAM ディスクへのジャンクション（`R:\cargo-target\filer` を指す `C:\dev\filer\target`）の上で `<Tab>`（v0.73.27）→ `Resolves` が `R:\cargo-target\filer (as written: this volume cannot normalize it, os error 1)` と出て（v0.78.29 から番号の前に日本語の文が入らない）、`no (…)` にならない。リンクは生きていて、ボリュームが最終的なパスを返せないだけ。以前は `no (…os error 1)` と、壊れたリンクと同じ見た目だった'''
 "13.13" = 'ハードリンクの上で `<Tab>`（`=` か `fsutil hardlink create` で作る）→ `Kind` が `Hardlink`、`Links` が `2`。**アプリ内でハードリンクが見えるのはここだけ**'
 "13.14" = '同じものを Windows で → `Also at` に別名のパスが並ぶ。`fsutil hardlink list` と突き合わせる（自分自身のパスを除いた同じ集合になる）'
 "13.16" = 'ハードリンクを作り、別のプログラムに共有なしの書き込みロックを握らせた状態で `<Tab>`（コマンドは上の「準備」）→ `Links` は `2` のまま、`Also at` も出る。ハンドルがアクセス権を一切要求しないので、排他ロックでも数えられる'
