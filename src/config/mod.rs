@@ -79,16 +79,29 @@ impl Ui {
     /// `[ui] backend` as the wgpu name it stands for: `None` for `auto` (or
     /// empty), an error naming the value for anything else unknown.
     pub fn backend_name(&self) -> Result<Option<&'static str>, String> {
-        match self.backend.trim().to_ascii_lowercase().as_str() {
-            "" | "auto" => Ok(None),
-            "vulkan" | "vk" => Ok(Some("vulkan")),
-            "dx12" | "d3d12" => Ok(Some("dx12")),
-            "metal" | "mtl" => Ok(Some("metal")),
-            "gl" | "opengl" | "gles" => Ok(Some("gl")),
-            _ => Err(format!(
-                "[ui] backend = \"{}\" is not one of auto, vulkan, dx12, metal, gl; drawing with the default",
-                self.backend
-            )),
+        let name = match self.backend.trim().to_ascii_lowercase().as_str() {
+            "" | "auto" => return Ok(None),
+            "vulkan" | "vk" => "vulkan",
+            "dx12" | "d3d12" => "dx12",
+            "metal" | "mtl" => "metal",
+            "gl" | "opengl" | "gles" => "gl",
+            _ => {
+                return Err(format!(
+                    "[ui] backend = \"{}\" is not one of auto, vulkan, dx12, metal, gl; drawing with the default",
+                    self.backend
+                ))
+            }
+        };
+        // Two of them exist on one platform only, which needs no adapter
+        // search to say: "no adapter for it" read as "install a driver" (#239).
+        let only = match name {
+            "metal" if !cfg!(target_os = "macos") => Some("macOS"),
+            "dx12" if !cfg!(windows) => Some("Windows"),
+            _ => None,
+        };
+        match only {
+            Some(os) => Err(format!("[ui] backend = \"{name}\" is {os} only; drawing with the default")),
+            None => Ok(Some(name)),
         }
     }
 }
@@ -367,6 +380,12 @@ impl Config {
                 wrong.warn(&at(dir, "filer.toml"), "yazi.toml", &mut warnings);
                 match toml::from_str::<FilerToml>(&text) {
                     Ok(v) => {
+                        // Here rather than at start-up only, so `filer env`
+                        // says it too: it printed `Warnings : none` while the
+                        // window warned (#239, #240).
+                        if let Err(e) = v.ui.backend_name() {
+                            warnings.push(format!("{}: {e}", at(dir, "filer.toml")));
+                        }
                         ui = v.ui;
                         term = v.term;
                         preview = v.preview;
@@ -1025,6 +1044,21 @@ mod files {
         let text = std::fs::read_to_string("filer.example.toml").expect("the shipped example");
         let cfg: FilerToml = toml::from_str(&text).expect("the example has to parse");
         assert_eq!(cfg.ui.font_size, 14.0);
+    }
+
+    /// #239, #240: a `[ui] backend` filer cannot use is a warning when the
+    /// file is read, so `filer env` says it as the window does.
+    #[test]
+    fn a_bad_backend_is_warned_about_when_the_file_is_read() {
+        let dir = crate::util::test_dir("backend-warn");
+        std::fs::write(dir.join("filer.toml"), "[ui]\nbackend = \"directx\"\n").unwrap();
+        let (cfg, _) = Config::read(std::slice::from_ref(&dir));
+        let said: Vec<_> = cfg.warnings.iter().filter(|w| w.contains("\"directx\"")).collect();
+        assert_eq!(said.len(), 1, "{:?}", cfg.warnings);
+        assert!(said[0].contains("filer.toml: [ui] backend"), "names the file: {}", said[0]);
+        std::fs::write(dir.join("filer.toml"), "[ui]\nbackend = \"gl\"\n").unwrap();
+        let (cfg, _) = Config::read(std::slice::from_ref(&dir));
+        assert!(!cfg.warnings.iter().any(|w| w.contains("backend")), "{:?}", cfg.warnings);
     }
 }
 

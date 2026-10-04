@@ -1160,14 +1160,8 @@ fn wgpu_options(cfg: &mut Config) -> eframe::WgpuConfiguration {
     if std::env::var_os("WGPU_BACKEND").is_some_and(|v| !v.is_empty()) {
         return options;
     }
-    let name = match cfg.ui.backend_name() {
-        Ok(Some(name)) => name,
-        Ok(None) => return options,
-        Err(e) => {
-            cfg.warnings.push(e);
-            return options;
-        }
-    };
+    // A name it does not know was already warned about when the file was read.
+    let Ok(Some(name)) = cfg.ui.backend_name() else { return options };
     let backends = eframe::wgpu::Backends::from_comma_list(name);
     if !has_adapter(backends) {
         cfg.warnings.push(format!(
@@ -1599,18 +1593,17 @@ mod tests {
         assert_eq!(ui("GL").backend_name(), Ok(Some("gl")));
         assert_eq!(ui("opengl").backend_name(), Ok(Some("gl")));
         assert_eq!(ui("vulkan").backend_name(), Ok(Some("vulkan")));
+        #[cfg(windows)]
         assert_eq!(ui("d3d12").backend_name(), Ok(Some("dx12")));
+        #[cfg(target_os = "macos")]
         assert_eq!(ui("metal").backend_name(), Ok(Some("metal")));
         let err = ui("directx").backend_name().unwrap_err();
         assert!(err.contains("\"directx\"") && err.contains("auto, vulkan, dx12, metal, gl"), "{err}");
 
-        // The unknown name goes among the config warnings, and the setup is
-        // wgpu's own -- unless `WGPU_BACKEND` is set, which wins before this.
-        if std::env::var_os("WGPU_BACKEND").is_none() {
-            let mut cfg = Config { ui: ui("directx"), ..Config::load() };
-            let _ = wgpu_options(&mut cfg);
-            assert!(cfg.warnings.iter().any(|w| w.contains("\"directx\"")), "{:?}", cfg.warnings);
-        }
+        // A backend of another platform says so, rather than "no adapter".
+        let other = if cfg!(target_os = "macos") { "dx12" } else { "metal" };
+        let err = ui(other).backend_name().unwrap_err();
+        assert!(err.ends_with("only; drawing with the default"), "{err}");
     }
 
     /// #168, proposal 5: a script nothing has moved for longer than the stall

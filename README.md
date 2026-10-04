@@ -310,7 +310,9 @@ busy: on some AMD GPUs a driver thread does that under Vulkan and DX12, and `gl`
 `WGPU_BACKEND` environment variable still wins for one run. On Windows `gl` may come through a
 translation layer, so `filer env`'s `Adapter` can read `D3D12 (…) (Gl, Other)` and still be GL (the
 ARM64 laptop's does, #239). A backend this machine has no adapter
-for falls back to `auto` and says so among the config warnings, rather than leaving no window.
+for falls back to `auto` and says so among the config warnings, rather than leaving no window; a
+name filer does not know, or `metal` off macOS and `dx12` off Windows, is warned about when the file
+is read, so `filer env` shows it too, beside a `Backend` row with the value in force.
 
 Fonts are auto-detected: a Nerd Font from your user font directory (HackGen, FiraCode,
 CaskaydiaCove, JetBrainsMono) first, then Meiryo / Yu Gothic for CJK coverage. If no Nerd Font is

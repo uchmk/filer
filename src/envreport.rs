@@ -98,6 +98,13 @@ fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
     // the jump history and the window size are written here, and "delete this
     // and try again" is a step a report is often asked to take.
     rows.push(("State".into(), crate::config::Config::state_dir().display().to_string()));
+    // What draws the window next time, and what decides it: the env var wins
+    // for a run, then `[ui] backend` (Q70). The adapter it got is the `Adapter`
+    // row of the last run, below.
+    rows.push(("Backend".into(), match std::env::var("WGPU_BACKEND").ok().filter(|v| !v.is_empty()) {
+        Some(v) => format!("{v} (from WGPU_BACKEND; [ui] backend = \"{}\" not used)", cfg.ui.backend),
+        None => format!("[ui] backend = \"{}\"", cfg.ui.backend),
+    }));
     rows.push(("Warnings".into(), match cfg.warnings.len() {
         0 => "none".into(),
         _ => cfg.warnings.join("\n"),

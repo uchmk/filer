@@ -9,6 +9,14 @@
 
 ## [未リリース]
 
+## [0.74.8] - 2026-10-04
+
+### 修正
+
+- `filer env` が `[ui] backend` の誤りを言わず、`Warnings : none` と出ていた（#239、#240）。知らない名前は設定を読むときに警告し、`filer env` にも出す。
+  `Backend` の行で、効いている値（`WGPU_BACKEND` があればそちら）も出す
+- macOS 以外の `"metal"` と Windows 以外の `"dx12"` は、`this machine has no adapter for it`（ドライバを入れろと読めた）ではなく `is macOS only` / `is Windows only` と言う（#239）
+
 ## [0.74.7] - 2026-10-04
 
 ### 変更
