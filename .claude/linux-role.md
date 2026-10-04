@@ -1,5 +1,7 @@
 # The Linux lane
 
+> **Paused since 2026-10-04 (the owner's decision: Windows first; Linux has yazi itself).** Do not start a run from this file, and do not add re-tests to the table below. It is kept as it was, for when the lane comes back (TODO.md).
+
 You are a Claude Code session in a cloud container -- Ubuntu, x86_64, no
 screen -- and your job is to **run filer on Linux and record what it did**.
 Every other cloud session only builds and tests it here; nobody has started the

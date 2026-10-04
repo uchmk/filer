@@ -15,8 +15,8 @@ yazi 風のキーボード操作ファイルマネージャーを Rust + egui 0.
     これも飛ばす。今週の目標は、TODO.md の未完了が `【人】` と `【後】` だけになること。
   - **節の項目が全部済んだら、その節を [TODO-DONE.md](TODO-DONE.md) の末尾に移す**（TODO.md を開いて進める項目だけにしておくため）。
 - **直した分は再テストに回す（2026-10-01、持ち主の指示）。**修正で動きが変わった行は、チェック表の `[x]` を外し
-  （TESTING-CHECKS.md / TESTING-LINUX.md。前の動きを確かめた印なので残すと嘘になる）、`.claude/windows-role.md` と
-  `.claude/linux-role.md` の順番表の先頭の「Re-tests of changed behaviour」にその行を足す。印の無い行でも、
+  （TESTING-CHECKS.md / TESTING-LINUX.md。前の動きを確かめた印なので残すと嘘になる）、`.claude/windows-role.md` の
+  2 つの順番表（x64 と ARM64）の先頭の「Re-tests of changed behaviour」にその行を足す（Linux レーンは 2026-10-04 から止めている。下の節）。印の無い行でも、
   修正が直したはずの行（実機の報告から来た不具合など）は同じ所に足す。自分でも Linux の仮想ディスプレイで
   `--keys` と `FILER_KEYS_DONE` を使って先に確かめること。
 - **実機でしか確かめられないことは [TESTING.md](TESTING.md) に積む。**画面の無い環境で書いた機能は、
@@ -327,7 +327,11 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   起こせる。チェックを付ける前に「**失敗していたら画面かディスクの何が違ったはずか**」を
   自問すること。「もっとよく見ていれば気づいた」なら、それは見た目の行。
 
-## Linux レーン（クラウドのセッション）
+## Linux レーン（クラウドのセッション）— 2026-10-04 から止めている
+
+**持ち主の判断で、Windows に集中するために止めた**（Linux には yazi 本体があり、GUI 版の需要は小さい）。新しい Linux レーンの実行は立てず、
+`linux-role.md` の順番表にも再テストを積まない。TESTING-LINUX.md と道具はそのまま残す。再開は TODO.md の `【後】` の項目。
+開発のセッションが自分の修正を Xvfb で確かめるのは続ける（「作業ルール」）。CI の `test-linux` も残す（安く、移植の崩れを捕まえる）。
 
 クラウドのコンテナ（Ubuntu、x86_64）は画面が無いが、**Xvfb の仮想ディスプレイと CPU 描画（lavapipe）で filer を
 起動できる**（v0.59.6 で確認）。それを使って Linux での動作を確かめるのが Linux レーン。役割の定義は

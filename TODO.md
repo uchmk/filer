@@ -1163,8 +1163,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   役割の定義（`.claude/linux-role.md`）、`TESTING-LINUX.md`（`make-testcheck --lane linux`）、`scripts/xrun.sh`、
   `scripts/make-fixtures.sh` を足した。
 - [x] （2026-10-04 に閉じた。TESTING-LINUX.md に 16 行の印があり、もう回っている）最初の 1 本を走らせる（順番表の先頭、25 節）。PR が来たら `merge-role.md` のとおりにマージする。
-- [ ] 定期実行の Routine にするか決める（今は手で `create_session` する）。Windows のレーンは 15 分おきの監視だが、 【人】
+- [x] （2026-10-04、持ち主の判断: 定期実行にせず、Linux レーンそのものを止めて Windows に集中する。Linux には yazi があり、GUI 版の需要は小さい）定期実行の Routine にするか決める（今は手で `create_session` する）。Windows のレーンは 15 分おきの監視だが、
   クラウドのセッションは走らせるたびに費用がかかる。
+- [ ] 【後】Linux レーンを再開する（今後の開発。`linux-role.md` の順番表は 2026-10-04 の時点のまま残してある。再開するなら Routine にするかも合わせて決める）
 - [x] Linux で日本語の名前が □ になる。**フォントを入れても □ のままだった**（filer は Windows のフォント置き場しか探して
   いなかった）。v0.59.7 で、Linux（Noto CJK、IPA、Droid）と macOS（ヒラギノ）の置き場を足し、等幅の ASCII の後ろに
   補いとして入れた。`fonts-noto-cjk` を入れたコンテナの Xvfb で、日本語が描かれ ASCII が等幅のままなのを画面で確かめた。

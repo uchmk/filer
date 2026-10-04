@@ -190,7 +190,7 @@ allowed because nothing in it can break a build:
 - **An ARM64 result that differs from x64** is a bug report, whatever the run
   called it: it goes to TODO.md with both results side by side. So is **a Linux
   result that differs from Windows**.
-- **The `linux` queue** (`linux-role.md`): apply the pull request's `## Queue`
+- **The `linux` queue** (`linux-role.md`) -- **paused since 2026-10-04**: a `test/linux-*` pull request that is still open is merged as before, but do not refill the queue. Otherwise: apply the pull request's `## Queue`
   section. When it is empty, refill it from TESTING-LINUX.md with sections whose
   open rows apply on Linux and read as text or a file state.
 
