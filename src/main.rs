@@ -319,6 +319,9 @@ fn main() -> eframe::Result<()> {
             // it: `filer env` cannot work either of these out for itself.
             let mut used = crate::runinfo::RunInfo {
                 version: env!("CARGO_PKG_VERSION").into(),
+                started: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |d| d.as_secs()),
                 ..Default::default()
             };
             if let Some(rs) = cc.wgpu_render_state.as_ref() {
