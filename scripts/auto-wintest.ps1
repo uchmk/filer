@@ -49,6 +49,7 @@
 #   ... -LogDir R:\Temp                           # the log on the RAM disk
 #   ... -Lane arm                                 # the ARM64 machine's lane
 #   ... -TargetOnDisk                             # keep the build output on C:
+#   ... -Model claude-sonnet-5-5                  # another model for this run
 #
 # Lanes. The x64 machine runs lane `win` (the default), the ARM64 laptop lane
 # `arm`. Each has its own queue in windows-role.md, its own branch prefix
@@ -100,6 +101,13 @@
 # -TargetOnDisk turns all of this off. Incremental compilation is off for the
 # run as well: an unattended run builds once, and its caches were 6 GB.
 #
+# Model. The run is given --model $Model, claude-opus-5-5 by default, so the
+# lanes do not follow whatever model the machine's own `claude` was last set to
+# (2026-10-04, the owner's choice: the real-machine lanes stay on Opus -- a
+# wrong [x] here is the one mistake nothing downstream catches -- while the
+# cloud's development routine may run on a cheaper one). To change it, add
+# -Model to the task's arguments; the log names the model of every run.
+#
 # The run works in its own worktree ($Work), not in the checkout you use, so
 # it never meets your uncommitted changes and you can keep working while it
 # runs. Needs `claude` and an authenticated `gh` on PATH.
@@ -116,7 +124,8 @@ param(
     [switch]$Force,
     [switch]$KeepScreenSaver,
     [string]$TargetDir,
-    [switch]$TargetOnDisk
+    [switch]$TargetOnDisk,
+    [string]$Model = 'claude-opus-5-5'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -338,6 +347,7 @@ try {
     # (#201).
     $self = (git -C $PSScriptRoot log -1 --format='%h %s' -- auto-wintest.ps1 2>$null) -join ''
     Say "Script: $PSCommandPath ($self)"
+    Say "Model: $Model"
     $inWork = [IO.Path]::GetFullPath($PSScriptRoot).StartsWith([IO.Path]::GetFullPath($Work), [StringComparison]::OrdinalIgnoreCase)
     if (-not $inWork) {
         Say "This script is not the worktree's copy, so it does not follow origin/main. Point the task at $Work\scripts\auto-wintest.ps1 (see the top of the script)."
@@ -377,7 +387,7 @@ try {
     $OutputEncoding = $utf8
     Push-Location $Work
     try {
-        $out = claude -p $prompt --permission-mode acceptEdits --allowedTools $Tools --disallowedTools $Denied 2>&1 | Out-String
+        $out = claude -p $prompt --model $Model --permission-mode acceptEdits --allowedTools $Tools --disallowedTools $Denied 2>&1 | Out-String
         $code = $LASTEXITCODE
     } finally {
         Pop-Location
