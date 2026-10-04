@@ -1422,6 +1422,17 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] ARM64 の順番表の 48.6 は、「48.2 / 48.6 at each release」としてリリースごとに ARM64 のレーンが両方の zip を押す行にした（#199 の提案 2）。
   x64 の順番表から 32.9a を外した（次は 19 節）。
 
+## QA の子（サブエージェント）の初回: TESTING.md 26 節（v0.74.5 で取り込み）
+
+- [x] 26.12 を丸ごと自動化し、26.1 / 26.2 / 26.9 / 26.11 の filer の側の半分もテストにした（`main.rs` の `bug_report_f12`、`bugreport::tests` に 2 件）。テストは 662 → 669。
+  差分はすべて `#[cfg(test)]` と TESTING.md の注記・チェック表だけだった。26.12 は順番表の再テストから外した
+- [ ] **バグ報告にユーザー名の入ったパスが出る**（所見 1。Q64 の約束が守られていない）。`bugreport::context()` は最新のエラーをそのまま入れ、`No such file or folder: … — showing {path}`
+  （`app.rs` の 1785 行付近）や `{path}: {error}`（2574 行付近）のようにフルパスを含むエラーがあると、リンクにも報告にもホームが入る。エラーの文のホームを `~` に置き換える。
+  テスト: `a.error(format!("{}: denied", home.join("x").display()))` のあと `<F12>` で、URL にホームが無いこと
+- [ ] `--version`（`main.rs` の 208 行付近）が `bugreport::version_line()` を使わず自分で組んでいる（所見 2）。呼ぶ形にすれば 26.3 が作りで成り立ち、テストで押さえられる
+- [ ] 既存のテスト `app::f12_shows_the_report_before_opening_it` の `answer_confirm('c')` が本物のクリップボードを書き換える（所見 3）。持ち主の Windows 機で
+  `cargo test` を回すたびにクリップボードが上書きされる。テストのときは書かない口（`exec::set_clipboard` の差し替え）を作る
+
 ## 実機のセッションの報告（v0.74.3 で受けた分: #237 ARM64 と #238 x64 の 10 節）
 
 - [x] #237 / #238: 2 台とも 10.9 を押して合格（同じ行に 1 つの印）。上書きの確認に Skip でも Cancel でも答えると、切り取ったファイルは元の場所に残り、
