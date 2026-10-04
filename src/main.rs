@@ -1060,7 +1060,7 @@ fn state_report(app: &App) -> String {
     if let app::Overlay::Confirm(c) = &app.overlay {
         let body = c.body.iter().filter(|l| !l.trim().is_empty()).map(|l| l.as_str());
         lines.push(format!("confirm: {}", std::iter::once(c.title.as_str()).chain(body).collect::<Vec<_>>().join(" | ")));
-        let keys: Vec<String> = c.options.iter().map(|(k, l)| format!("[{k}] {l}")).collect();
+        let keys: Vec<String> = (0..c.options.len()).map(|i| c.button_label(i)).collect();
         lines.push(format!("confirm keys: {}", keys.join(" | ")));
     }
     // Two folders or two files, and the pair: `overlay: diff` is both.
@@ -1487,7 +1487,7 @@ mod tests {
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "overlay: confirm"), "{report}");
         assert!(report.lines().any(|l| l == "confirm: Report a bug | filer 0.0.0 | Nothing is sent."), "{report}");
-        assert!(report.lines().any(|l| l == "confirm keys: [o] Open the form | [n] Cancel"), "{report}");
+        assert!(report.lines().any(|l| l == "confirm keys: [o] / <Enter> Open the form | [n] Cancel"), "{report}");
 
         // The scale the run is at, filer's own beside egui's (#227, #228).
         assert!(report.lines().any(|l| l == "scale: 100% (ppp 1)"), "{report}");

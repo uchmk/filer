@@ -85,6 +85,19 @@ pub struct ConfirmOverlay {
     pub dest: Option<PathBuf>,
 }
 
+impl ConfirmOverlay {
+    /// What button `i` says. The first one also names `<Enter>`, which picks
+    /// it: on the Report a bug panel that opens a browser, the one key in the
+    /// box that leaves the program, and nothing on screen said so (Q69, #230).
+    pub fn button_label(&self, i: usize) -> String {
+        let (k, l) = &self.options[i];
+        match i {
+            0 => format!("[{k}] / <Enter> {l}"),
+            _ => format!("[{k}] {l}"),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum PickAction {
     /// `line` (1-based) is handed to editors that take one.

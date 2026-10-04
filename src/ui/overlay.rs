@@ -840,7 +840,7 @@ pub fn confirm(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, q
     // comparing against the right edge: the last one — Cancel, the only way out
     // — was sliced in half by the modal's clip and read as `[q] Ca`.
     let labels: Vec<String> =
-        c.options.iter().map(|(k, l)| format!(" [{k}] {l} ")).collect();
+        (0..c.options.len()).map(|i| format!(" {} ", c.button_label(i))).collect();
     let fg = app.cfg.theme.fg;
     let widths: Vec<f32> = labels
         .iter()
@@ -3152,7 +3152,8 @@ mod confirm_frame {
             assert_eq!(got, squeezed, "every character of {line:?} reaches the screen");
         }
         let (a, b) = (f.placed(sentence).unwrap(), f.placed(&long).unwrap());
-        let button = f.placed(" [y] Make the junction ").expect("the button is drawn");
+        // The first button names `<Enter>`, which picks it (Q69).
+        let button = f.placed(" [y] / <Enter> Make the junction ").expect("the button is drawn");
         assert!(a.y < b.y && b.y < button.y, "sentence, path, then buttons, top to bottom: {a:?} {b:?} {button:?}");
         assert!(f.says(" [n] No "), "the buttons are still there: {:?}", f.texts);
     }

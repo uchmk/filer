@@ -1434,7 +1434,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   画像でなく文字で確かめられる。Linux の `xrun.sh` でも同じに使える
 - [ ] `scripts/keys.ps1`（#229 の提案 2）: filer を 1 回 `--keys` で起動し（`Start-Process -Wait`、run ごとに別の `FILER_KEYS_DONE` と `FILER_PTY_LOG`）、
   `keys: done` でなければ非 0 で返す。`xrun.sh` の Windows 版。各 run が毎回 `run.ps1` を書き直している
-- [ ] 確認の箱で、`<Enter>` がどのボタンかを示す（#230 の提案 1）（要確認: Q69）
+- [x] 確認の箱で、`<Enter>` がどのボタンかを示す（#230 の提案 1、Q69）。v0.73.73 で、最初のボタンを `[o] / <Enter> …` にした
 
 ## 実機のセッションの報告（v0.73.68 で受けた分: #227 x64 と #228 ARM64 の 3.2 / 4.9 の再テスト）
 
