@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 499 件（TESTING.md の全 669 件のうち、`cargo test` が見ている 170 件は外してある）。
+押すものは 500 件（TESTING.md の全 670 件のうち、`cargo test` が見ている 170 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -352,6 +352,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **21.20** 書庫の中で `top.txt` に `y`、`<Esc>`、別のフォルダへ `l`、`p`。続けてもう一度 `p` して `s`（v0.77.0）→ `y` のあとのトーストは `Yanked 1 item from the archive — p in a folder takes them out`。`p` のあと `top.txt` が書庫の中身と時刻で現れ、カーソルが乗り、トーストは `Took top.txt out of the archive`。`yank: 1 copied` は残る。2 回目の `p` は `File already exists` を聞き、`s` で元のファイルが残り、`.filer-take-out-*` のフォルダは残らない。中で `y` したフォルダは中身ごと出る — *Inside the archive, `y` on `top.txt`, `<Esc>`, `l` into another folder, `p`; then `p` again and `s` (v0.77.0) → The toast after `y` reads `Yanked 1 item from the archive — p in a folder takes them out`. After `p`: `top.txt` is there with the archive's contents and its time, the cursor on it, and the toast `Took top.txt out of the archive`; `yank: 1 copied` stays. The second `p` asks `File already exists`, `s` keeps the file that was there, and no `.filer-take-out-*` folder is left. A folder yanked inside comes out with everything under it*
 - [ ] **21.21** 書庫の中で `.txt` のメンバー、次に `.png`、次にフォルダにカーソルを置き、最後に `<Esc>`（v0.78.0）→ テキストと画像はファイルと同じくプレビューされる（`<A-G>` でテキストの末尾に届き `preview top: N of N`）。フォルダは `Holds  N items` のカード。4 MB を超えるメンバーは大きさのカード。`<Esc>` のあと `%TEMP%\\filer-archive-<pid>\\preview` にこのビューの分は残らない — *Inside the archive, the cursor on a `.txt` member, then a `.png` one, then a folder; then `<Esc>` (v0.78.0) → The text and the picture are previewed as if they were files (`<A-G>` reaches the text's end: `preview top: N of N`); the folder shows a card with `Holds  N items`. A member over 4 MB shows a card with its size. After `<Esc>`, `%TEMP%\filer-archive-<pid>\preview` holds nothing of this view*
 - [ ] **21.22** 一番上が 1 つのフォルダ（`inner\\`）の書庫と、そうでない書庫で `e`（v0.78.1）→ 終わるとカーソルができたものに乗る（1 つ目は `inner`、2 つ目は `<書庫の名前>\\`。`hovered:`）。`E` が作った書庫に乗るのと同じ（21.4）。トーストは `Unpacked into …` — *`e` on an archive whose top level is one folder (`inner\`), and on one that is not (v0.78.1) → When it finishes the cursor is on what it made -- `inner` in the first case, `<archive name>\` in the second (`hovered:`) -- as `E` puts it on the archive it made (21.4); the toast says `Unpacked into …`*
+- [ ] **21.23** `to-pack\` とその中のフォルダに古い日付を付け（`(Get-Item …).LastWriteTime = '2021-06-15 12:34:56'`）、`.zip`・`.tar.gz`・`.7z` で `E`、それぞれを `e`（v0.78.10）→ 展開したフォルダもその日付になる（`Get-Item … | % LastWriteTime`）。展開した時刻にならない（ファイルは 21.14 から同じ）。エクスプローラーの zip の展開はフォルダの日付を残さないが、それはエクスプローラーの話 — *Give `to-pack\` and a folder inside it an old date (`(Get-Item …).LastWriteTime = '2021-06-15 12:34:56'`), `E` as `.zip`, `.tar.gz` and `.7z`, then `e` each (v0.78.10) → The unpacked folders read that date too (`Get-Item … → % LastWriteTime`), not the moment of the unpack -- as the files have since 21.14. Explorer's own zip unpack does not keep folder dates; that is Explorer*
 
 ## 22. エディタを行番号付きで開く（エディタのインストールが要る）
 
