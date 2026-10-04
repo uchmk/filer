@@ -382,7 +382,7 @@ fsutil hardlink list <新しくできたパス>
 ## 22. エディタを行番号付きで開く（エディタのインストールが要る）
 
 - [ ] **22.1** 秀丸エディタ → アウトラインの項目の行で開く — *秀丸エディタ → Opens at the outline entry's line*
-- [ ] **22.2** サクラエディタ → 同じ — *サクラエディタ → Same*
+- [x] **22.2** サクラエディタ → 同じ — *サクラエディタ → Same*
 - [ ] **22.3** EmEditor → 同じ — *EmEditor → Same*
 - [ ] **22.4** Notepad++ → 同じ — *Notepad++ → Same*
 - [x] **22.5** メモ帳 → 開くが先頭から。行を指定する引数が無いので、**これが正しい** — *メモ帳 → Opens, at the top — it has no line argument, and that is correct*
