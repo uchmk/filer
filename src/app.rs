@@ -5037,6 +5037,7 @@ impl App {
             true => crate::terminal::default_shell().map(|s| (s, Vec::new())),
         };
         let label = crate::terminal::shell_label(shell.as_ref().map(|(p, _)| p.as_str()));
+        let program = shell.as_ref().map(|(p, _)| p.clone());
         match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), shell, move || {
             ctx.request_repaint()
         }) {
@@ -5044,9 +5045,17 @@ impl App {
                 self.term = Some(t);
                 self.term_focus = true;
                 self.toast(format!("Started {label} — <C-t> back to the list"));
+                crate::runinfo::remember_shell(&label);
                 self.term_shell = label;
             }
-            Err(e) => self.error(format!("Terminal failed: {e}")),
+            // Name the shell: `Terminal failed: … (os error 2)` did not say
+            // which program was missing (#173). Looked up only now, after the
+            // start failed, so a shell found some way other than `PATH` is
+            // never refused on a guess.
+            Err(e) => match program.filter(|p| util::locate(p).is_none()) {
+                Some(p) => self.error(format!("Terminal failed: `{p}` was not found on PATH — set [term] shell to one that is ({e})")),
+                None => self.error(format!("Terminal failed ({label}): {e}")),
+            },
         }
     }
 

@@ -74,6 +74,11 @@ pub struct RunInfo {
     /// (#244). Defaulted, so a record from before it still loads.
     #[serde(default)]
     pub started: u64,
+    /// The shell the pane started in that run, as its first toast named it
+    /// (`pwsh`, `powershell (Windows PowerShell 5.1)`); empty when the pane
+    /// was not opened. Runs read it from `Win32_Process` before (#184).
+    #[serde(default)]
+    pub pane_shell: String,
 }
 
 impl RunInfo {
@@ -100,6 +105,19 @@ fn push_launch(list: &mut Vec<String>, line: &str) {
 }
 
 /// Record a launch in `last-run.toml`, off the UI thread.
+/// Record the shell the pane just started.
+pub fn remember_shell(label: &str) {
+    if cfg!(test) {
+        return;
+    }
+    let label = label.to_owned();
+    std::thread::spawn(move || {
+        let mut info = load().unwrap_or_default();
+        info.pane_shell = label;
+        save(&info);
+    });
+}
+
 pub fn remember_launch(line: &str) {
     // A test launching something must not write into the real state folder.
     if cfg!(test) {

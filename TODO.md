@@ -1400,9 +1400,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `OpenConsole.exe --headless …` が 3 つ残り、filer を閉じるまで消えない。2026-09 は WezTerm の ConPTY だったが、**今回はリリースに同梱する
   ConPTY** なので、zip を落とした人に届く。原因は上流（`alacritty_terminal` が、`Drop` で HPCON を閉じる `Conpty` を作る前に `Err` を返す）。
   下の「起動前に `PATH` で探す」で「入っていない」場合は避けられる。
-- [ ] `[term] shell` を ConPTY を作る前に `PATH` で探し、見つからなければ名前を挙げて断る（提案 3、所見 4）。いまのトーストは
+- [x] （v0.78.13。起動に失敗したときに `PATH` を探して名指す。前もって断ると `PATH` 以外で見つかるシェルまで断るので）`[term] shell` を ConPTY を作る前に `PATH` で探し、見つからなければ名前を挙げて断る（提案 3、所見 4）。いまのトーストは
   `Terminal failed: 指定されたファイルが見つかりません。 (os error 2)` で、どのシェルかを言わない。
-- [ ] `filer env` の「Last run」に、ペインが起動したシェルを出す（提案 2）。`App::term_shell` が持っているのに、今は外から `Win32_Process` で
+- [x] （v0.78.13。`Terminal pane : bash, 12 x 159`）`filer env` の「Last run」に、ペインが起動したシェルを出す（提案 2）。`App::term_shell` が持っているのに、今は外から `Win32_Process` で
   読むしかない。
 - [x] （v0.67.17）`<C-F5>` で `[term]` が変わったとき、トーストで「ペインのシェルは次の `<C-S-t>` から変わる」と言う（提案 4）。8.2 / 8.7 に落ちた
   2 回の実行は、どちらもそれを言うものが無かったから落ちた。
