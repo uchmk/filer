@@ -43,6 +43,11 @@ pub enum Step {
     /// script ending in `q` reports `overlay: none`, and reading a state
     /// halfway meant leaving the `q` off and stopping filer from outside (#230).
     State(String),
+    /// `<Quit>`: end filer whatever is open, as the window's close button
+    /// would. `q` is a key like any other, and the compare view, the pane
+    /// and a prompt each take it for something else, so a script ending in
+    /// `q` there never ended (#236).
+    Quit,
 }
 
 /// What a step becomes in the frame loop.
@@ -53,6 +58,7 @@ pub enum Press {
     Now,
     Shot(String),
     State(String),
+    Quit,
 }
 
 /// A step as the frame loop takes it; `None` for a key no keyboard can type.
@@ -63,6 +69,7 @@ pub fn press(step: &Step) -> Option<Press> {
         Step::Now => Some(Press::Now),
         Step::Shot(name) => Some(Press::Shot(name.clone())),
         Step::State(name) => Some(Press::State(name.clone())),
+        Step::Quit => Some(Press::Quit),
     }
 }
 
@@ -74,6 +81,7 @@ pub fn label(step: &Step) -> String {
         Step::Now => "<Now>".into(),
         Step::Shot(name) => format!("<Shot:{name}>"),
         Step::State(name) => format!("<State:{name}>"),
+        Step::Quit => "<Quit>".into(),
     }
 }
 
@@ -163,6 +171,7 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
         let step = match wait(token) {
             Some(d) => Step::Wait(d?),
             None if token == "<Now>" => Step::Now,
+            None if token == "<Quit>" => Step::Quit,
             None if token.starts_with("<Shot:") => Step::Shot(named(token, "Shot")?),
             None if token.starts_with("<State:") => Step::State(named(token, "State")?),
             None => Step::Key(Key::parse(token).ok_or_else(|| format!("`{token}` is not a key"))?),
@@ -237,6 +246,9 @@ mod tests {
     /// Q42: `<Shot:name>` is a step of its own, and its name is a plain file name.
     #[test]
     fn a_shot_is_named() {
+        let got = parse("j<Quit>").unwrap();
+        assert_eq!(got[1], Step::Quit, "#236: `<Quit>` is a step, not a key");
+        assert_eq!((label(&got[1]).as_str(), press(&got[1])), ("<Quit>", Some(Press::Quit)));
         let got = parse("j<State:mid>k").unwrap();
         assert_eq!(got[1], Step::State("mid".into()), "#230: `<State:name>` likewise");
         assert_eq!(label(&got[1]), "<State:mid>");

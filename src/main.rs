@@ -139,7 +139,8 @@ fn parse_cli() -> Cli {
                      \"<Tab>C\" opens spot and copies it; <Wait:500> pauses\n                     \
                      500 ms; <Now> presses the next key without waiting\n                     \
                      for the last to settle; <Shot:name> saves the window\n                     \
-                     as name.png, <State:name> the state as name.txt.\n                     \
+                     as name.png, <State:name> the state as name.txt;\n                     \
+                     <Quit> ends filer whatever is open.\n                     \
                      For scripted checks\n\n\
                      COMMANDS:\n    env              config files, outside tools and environment,\n                     \
                      for pasting into a bug report\n    \
@@ -892,6 +893,12 @@ impl eframe::App for Filer {
                 if let Err(e) = std::fs::write(&path, state_report(&self.app)) {
                     self.app.error(format!("State {name}: {e}"));
                 }
+                self.script_at = (frame, std::time::Instant::now());
+            }
+            // Straight to the quit `ui` already handles, past anything that
+            // would ask first or take `q` for itself (#236).
+            Some(keyscript::Press::Quit) => {
+                self.app.quit = true;
                 self.script_at = (frame, std::time::Instant::now());
             }
             // Taken in `ui`, which is where a viewport command can be sent.

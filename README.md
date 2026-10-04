@@ -1413,6 +1413,10 @@ one run. The name is letters, digits, `-` and `_`.
 same folder (v0.73.74). That file is written when the script ends, so a script ending in `q` reports
 `overlay: none`; `--keys "<F12><State:panel><Esc>q"` reads the open box and still quits by itself.
 
+`<Quit>` ends filer whatever is open, as the window's close button would (v0.74.2). `q` is a key like
+any other, and the compare view, the terminal pane and a prompt take it for something else, so a
+script ending in `q` there never ended. The report it leaves describes what was open when it quit.
+
 A space is written `<Space>`; a plain one is refused.
 
 A script driving filer from outside needs to know when the keys are done, and guessing from the
