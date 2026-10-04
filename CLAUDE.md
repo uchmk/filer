@@ -141,6 +141,9 @@ rustup target add x86_64-pc-windows-msvc
 cargo check --release --target x86_64-pc-windows-msvc --all-targets
 ```
 
+**push の前は `scripts/verify.sh` を 1 回回せば足りる**（v0.78.31）。テスト、clippy（Linux と Windows の 2 ターゲット、`-D warnings`）、
+ビルド、チェック表 3 つの `--check` を順に回し、1 つでも落ちたらその出力を出して止まる。最後の行が `ALL OK: test result: ok. …` なら push してよい。
+
 - ただし型検査なので実行時の問題は捕まえない。実際、`format!("{:?}", "status")` が
   ディレクトリ名に引用符を入れ（Unix では合法、Windows では不正）、CI で初めて落ちたことがある。
   パス文字列は目視でも確認すること。
@@ -172,8 +175,8 @@ cargo check --release --target x86_64-pc-windows-msvc --all-targets
 - 人の判断が要るタスクは飛ばし、「確認事項」の節の手順で質問を書く。例: キーの割り当て、依存クレートの追加、設計の選択肢が複数あるもの、UI の見た目を決めるもの。
   キーの割り当てと既定の動きは `投票中` で出してよい（「多数決で進める質問」）。
   - 回答済みの質問があれば、そのタスクを優先して進める。状態が `多数決で決定` の質問も回答済みとして扱う（「確認事項」の節）。
-- 検証は `cargo test` と `cargo clippy` で行う。クラウドでは「Linux 上で作業する場合」のとおり、Windows ターゲットの clippy と
-  `make-testcheck` / `make-keycheck` の `--check` も回し、1 つでも落ちたら止まる（v0.78.13 は最後のコマンドの成否しか見ずに壊れた版を push した）。
+- 検証は `cargo test` と `cargo clippy` で行う。クラウドでは `scripts/verify.sh`（「Linux 上で作業する場合」）で、Windows ターゲットの clippy と
+  `make-testcheck` / `make-keycheck` の `--check` まで回し、1 つでも落ちたら止まる（v0.78.13 は最後のコマンドの成否しか見ずに壊れた版を push した）。
   動きが変わったら、Xvfb で `--keys` と `<State:>` を使って確かめ、再テストに回す（「作業ルール」）。
   - テストは全件通すこと。
   - clippy は既存の指摘（never_loop など）を除いて、新しい警告やエラーを増やさないこと。
