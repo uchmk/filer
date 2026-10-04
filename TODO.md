@@ -10,6 +10,12 @@
 - `【QA】` TESTING.md の文言や、テストの探索など、QA セッションの分（`.claude/qa-role.md`）
 - `【実機】` Windows の実機でしか測れないこと。順番表（`.claude/windows-role.md`）に積んで待つ
 
+## Sonnet の見張り（2026-10-05 まで）
+
+- [ ] （Sonnet の見張り）v0.78.31（`4a98776`）がトーストを `No such file or folder: <全体のパス> — showing <フォルダ>` に変えたが、TESTING.md 23.6 の期待
+  （`No such file or folder: tpyo — showing <the folder>`）を直していない。23.6 は自動テスト済みの行なので再テストは要らないが、文言を新しいトーストに合わせ、
+  `scripts/testcheck-ja.toml` の訳も合わせる（CLAUDE.md の「機能を足したら」。TODO の項目にも「TESTING.md の文言も合わせる」とあった）
+
 ## 急ぎ（データが消える）
 
 - [ ] **`E` が書庫を自分自身で上書きする**（#265 の所見 1、提案 3）。書庫（`to-pack.zip`）の上で `E` を押すと、欄はその書庫自身の名前を出し、
