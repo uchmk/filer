@@ -152,7 +152,7 @@ cd $HOME\Desktop\filer-fixtures
 自動テスト済みなので下には出していない: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.6a, 5.6b, 5.6c, 5.7, 5.8, 5.10
 
 - [ ] **5.9** 2 つの**ディレクトリ**を選んで実行 → 理由を添えて断られる — *Two directories → Refused with a reason*
-- [ ] **5.11** 1 語だけ変わった行（`price` → `cost`）と、日本語の語が変わった行（`太郎` → `花子`）のある 2 つのファイルを比べる（v0.62.0）→ 変わった行では、その語だけが濃く塗られる（左は赤、右は緑）。塗りは語の真下にぴったり重なる（日本語の語も）。全部変わった行は行の色だけ — *Compare two files where one line changes a single word (`price` → `cost`), and another a Japanese word (`太郎` → `花子`) (v0.62.0) → On each changed row only that word is painted stronger, red on the left and green on the right, and the mark sits exactly under the word -- the Japanese one too. A line changed completely keeps only the row tint*
+- [x] **5.11** 1 語だけ変わった行（`price` → `cost`）と、日本語の語が変わった行（`太郎` → `花子`）のある 2 つのファイルを比べる（v0.62.0）→ 変わった行では、その語だけが濃く塗られる（左は赤、右は緑）。塗りは語の真下にぴったり重なる（日本語の語も）。全部変わった行は行の色だけ — *Compare two files where one line changes a single word (`price` → `cost`), and another a Japanese word (`太郎` → `花子`) (v0.62.0) → On each changed row only that word is painted stronger, red on the left and green on the right, and the mark sits exactly under the word -- the Japanese one too. A line changed completely keeps only the row tint*
 
 ## 6. 2 分割ペインと、ペイン間の受け渡し
 
