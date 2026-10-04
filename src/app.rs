@@ -4327,10 +4327,14 @@ impl App {
         };
         match res {
             Ok(()) => {
-                let name = util::file_name(&target);
+                // The cursor goes to what was made, as yazi's does (#250): to
+                // `new` for `a new/deep/note.txt`, the part of it in this folder.
+                // `land_on`, not the memo: the row the cursor was on when the
+                // listing comes back would win over a memo.
+                let here = target.strip_prefix(&base).ok().and_then(|r| r.components().next()).map(|c| base.join(c));
+                self.land_on = here.or(Some(target.clone()));
                 self.cache.remove(&base);
                 self.rescan(&base);
-                self.tabs[self.active].memo.insert(base, name);
                 if !made.is_empty() {
                     self.undos.land(UndoStep::Create { paths: made, file: !as_dir }, Land::Fresh);
                 }
@@ -4353,6 +4357,8 @@ impl App {
             // that went by in silence, though its undo is the one people use
             // most (#225).
             Ok(()) => {
+                // Onto the new name, as after `a` (#250).
+                self.land_on = Some(to.clone());
                 let step = UndoStep::Rename { from: from.to_path_buf(), to };
                 self.toast(format!("{} — u to undo", step.redone_label()));
                 self.undos.land(step, Land::Fresh);

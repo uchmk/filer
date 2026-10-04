@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 497 件（TESTING.md の全 667 件のうち、`cargo test` が見ている 170 件は外してある）。
+押すものは 497 件（TESTING.md の全 668 件のうち、`cargo test` が見ている 171 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -206,6 +206,7 @@
 - [ ] **12.16** 12.9 をもう一度: ファイルを `d`、同じ名前のファイルを新しく作り、`u`（v0.59.7）→ エラーが `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` ではなく `a file by that name is already there. Move it away and press u again` と言う。新しいファイルをどけてからの `u` は通る — *12.9 again: `d` a file, make a new file by that name, then `u` (v0.59.7) → The error reads `a file by that name is already there. Move it away and press u again` -- not `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` -- and after moving the new file away, `u` works*
 - [ ] **12.17** `a` で `new/deep/note.txt` を作り、`u`、続けて `U`（v0.60.0）→ `u` で `note.txt` と、そのために作った 2 つのフォルダが消え、トーストは `Removed note.txt and 2 folder(s)`（v0.67.10。それまでは `Removed note.txt` で、フォルダのことを言わなかった）。`U` で 3 つとも戻る。ファイルに何か書いてから `u` すると残り、書き込まれたというエラーが出る — *`a`, type `new/deep/note.txt`, `<Enter>`, then `u`; then `U` (v0.60.0) → `u` removes `note.txt` and both folders made for it, toast `Removed note.txt and 2 folder(s)` (v0.67.10; before, `Removed note.txt` said nothing of the folders); `U` makes all three again. Write something into the file and press `u`: it stays, and the error says it has been written to since*
 - [ ] **12.18** ファイルをヤンクし、別のフォルダで `-`、続けて `u`、`U`（v0.60.0）→ `-` が `Linked <名前> — u to undo` と言う（v0.67.10。それまではヤンクのトーストが残るだけだった）。`u` はリンクだけを消し、元のファイルと中身はそのまま。`U` でリンクが戻る。Windows では `=`（ハードリンク）とフォルダへの `-` でも — *Yank a file, `-` in another folder, then `u`; then `U` (v0.60.0) → `-` says `Linked <name> — u to undo` (v0.67.10; before, the yank's toast stayed up). `u` removes the link and only the link: the source file and its contents are untouched. `U` makes the link again. On Windows, also with `=` (hardlink) and with a folder (`-` on a directory)*
+- [ ] **12.19** ほかのファイルと並ぶ `b.txt` の上で `r` で `zz.txt` に、次に `a` で `aa.txt`、次に `a` で `new\\deep\\n.txt`（v0.78.5、#250）→ カーソルがそれぞれに付いていく。`hovered:` が `zz.txt`、`aa.txt`、フォルダ `new`（パスのうちこのフォルダの中の部分）を名指す。新しい名前が一覧のどこに並んでも同じ。以前は元の行に残った — *With the cursor on `b.txt` among others: `r` to `zz.txt`; then `a` `aa.txt`; then `a` `new\deep\n.txt` (v0.78.5, #250) → The cursor follows each: `hovered:` names `zz.txt`, then `aa.txt`, then the folder `new` (the part of the path in this folder), however far down the list the new name sorts. Before, it stayed on the row it was on*
 
 ## 13. シンボリックリンクと `g`+`f`
 
@@ -532,10 +533,9 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 
 ## 33. 設定の警告と、その色
 
-自動テスト済みなので下には出していない: 33.1, 33.2, 33.3, 33.4, 33.5, 33.7, 33.8, 33.10
+自動テスト済みなので下には出していない: 33.1, 33.2, 33.3, 33.4, 33.5, 33.7, 33.8, 33.9, 33.10
 
 - [ ] **33.6** 背景の明るいテーマ（`theme.toml` に `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }`。v0.73.42 より前は窓の背景を決める手段が無かった）→ 黄色がそれでも読める。読めなければそう報告すること（いまは固定の既定値で、テーマから変えられない） — *A theme with a light background: `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }` in `theme.toml` (v0.73.42; nothing could set the window's background before) → The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable*
-- [ ] **33.9** 設定ファイルを**3 つ同時に**壊して（`yazi.toml`、`keymap.toml`、`filer.toml`）起動する → 3 つで**トーストは 1 つ**: 最初のファイルのエラーで、末尾が ``(+2 more, see `~`)``。`~` には 3 つとも並ぶ。箱は文章の大きさで、窓の中に収まる — *Break **three** config files at once (`yazi.toml`, `keymap.toml`, `filer.toml`) and start → **One** toast for all three: the first file's error, ending `(+2 more, see \`~\`)`. `~` lists all three. The box is sized to its text and stays inside the window*
 - [ ] **33.11** `[[preview]]` を `yazi.toml` に入れて（本来は `filer.toml`）起動 → **1 行で** `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`。以前の `invalid type: map, expected a string` ではない（v0.33.13） — *Put `[[preview]]` into `yazi.toml` (it belongs in `filer.toml`) and start → **One line**: `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13)*
 - [ ] **33.12** `[term]` も `yazi.toml` に入れる → それについても同じ形の行が 1 つ増える。どちらも「このファイルは読まれなかった」と述べる。実際そうだから — *Put `[term]` into `yazi.toml` as well → A second line for it, same shape. Both say the file went unread, because it did*
 - [ ] **33.13** `[[preview]]` の無い、それ以外は正常な `yazi.toml` に `[term]` を入れる → `… belongs in filer.toml and was ignored`。*unread* ではなく *ignored* —— ファイルの残りは読み込まれている — *Put `[term]` into a `yazi.toml` that is otherwise fine (no `[[preview]]`) → `… belongs in filer.toml and was ignored` — *ignored*, not *unread*: the rest of the file did load*

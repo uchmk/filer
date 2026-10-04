@@ -442,6 +442,7 @@ still unchecked** — nothing here has been through the recycle bin. 12.5's newe
 | 12.16 | 12.9 again: `d` a file, make a new file by that name, then `u` (v0.59.7) | The error reads `a file by that name is already there. Move it away and press u again` -- not `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` -- and after moving the new file away, `u` works |
 | 12.17 | `a`, type `new/deep/note.txt`, `<Enter>`, then `u`; then `U` (v0.60.0) | `u` removes `note.txt` and both folders made for it, toast `Removed note.txt and 2 folder(s)` (v0.67.10; before, `Removed note.txt` said nothing of the folders); `U` makes all three again. Write something into the file and press `u`: it stays, and the error says it has been written to since |
 | 12.18 | Yank a file, `-` in another folder, then `u`; then `U` (v0.60.0) | `-` says `Linked <name> — u to undo` (v0.67.10; before, the yank's toast stayed up). `u` removes the link and only the link: the source file and its contents are untouched. `U` makes the link again. On Windows, also with `=` (hardlink) and with a folder (`-` on a directory) |
+| 12.19 | With the cursor on `b.txt` among others: `r` to `zz.txt`; then `a` `aa.txt`; then `a` `new\deep\n.txt` (v0.78.5, #250) | The cursor follows each: `hovered:` names `zz.txt`, then `aa.txt`, then the folder `new` (the part of the path in this folder), however far down the list the new name sorts. Before, it stayed on the row it was on |
 
 ## 13. Symlinks and `g`+`f` (v0.26.8)
 
