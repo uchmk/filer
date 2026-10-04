@@ -1484,7 +1484,8 @@ keys: done
 ```
 
 `yank` is the register as the header says it -- `1 cut`, `2 copied` or `empty` (v0.75.15). Since v0.78.2: `focus` is where the next key goes (`list`, `pane`, `outline` or `overlay`), `pane cursor: col,row` the terminal's cursor while the pane is open, `max preview` and `quick` whether `T` and the quick look are up, and `config` every config file read (`|`-separated, or `none`). `overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `view` is
-`usage` or `search` while one of those views stands in for the listing, else `list` (v0.64.0); `input` is
+`usage`, `archive` or `search` while one of those views stands in for the listing, else `list` (v0.64.0); `archive` is the archive and the level
+of it on screen (`…/pack.zip/docs`) while `view: archive` (v0.78.16); `input` is
 there only while a prompt is open; `compare: folders <left> | <right>` (or `files`) only while a
 comparison is open; `pane` is the terminal's grid (`12x159`) or `closed`, and while it is open
 `pane back: 6 of 190` says how many lines the view is scrolled back into its history, of how many

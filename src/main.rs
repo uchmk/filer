@@ -1058,6 +1058,11 @@ fn state_report(app: &App) -> String {
             }
         ),
     ];
+    // Which archive and which level of it (#251, #252): `hovered:` said it
+    // only while a row was under the cursor, and an empty folder has none.
+    if let Some(at) = app.archive_at() {
+        lines.push(format!("archive: {}", at.display()));
+    }
     if let app::Overlay::Input(ov) = &app.overlay {
         lines.push(format!("input: {}", ov.text));
     }

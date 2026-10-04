@@ -2577,8 +2577,7 @@ impl App {
         let from = self.tabs[self.active].cwd.clone();
         self.cd_refused = None;
         // A jump from inside an archive leaves it.
-        self.archive_view = None;
-        self.archive_rx = None;
+        self.leave_archive();
         {
             let tab = &mut self.tabs[self.active];
             tab.remember_cursor();
@@ -2710,8 +2709,7 @@ impl App {
 
     pub fn exit_search_view(&mut self) {
         self.search = None;
-        self.archive_view = None;
-        self.archive_rx = None;
+        self.leave_archive();
         self.archive_preview_rx = None;
         // Dropping the handle cancels the walk, so leaving is all it takes.
         self.usage = None;
@@ -5371,6 +5369,16 @@ impl App {
         self.request_preview(true);
     }
 
+    /// Drop the archive view, and with it any members still selected: they
+    /// are not files, and outside the view `d` sent the paths to the trash,
+    /// which took them without a word and was then said to have (#251).
+    fn leave_archive(&mut self) {
+        if let Some(view) = self.archive_view.take() {
+            self.tabs[self.active].selected.retain(|p| p == &view.archive || !p.starts_with(&view.archive));
+        }
+        self.archive_rx = None;
+    }
+
     fn archive_down(&mut self, name: &str) {
         let Some(view) = &self.archive_view else { return };
         let inner = match view.inner.is_empty() {
@@ -5391,7 +5399,10 @@ impl App {
             false => format!("{}/{}", view.inner, entry.name),
         };
         let archive = view.archive.clone();
-        let dest = util::archive_scratch().join(util::file_name(&archive));
+        // The member's folders inside the archive are kept, so `a/readme.txt`
+        // and `b/readme.txt` do not take turns at one copy (#251).
+        let base = util::archive_scratch().join(util::file_name(&archive));
+        let dest = view.inner.split('/').filter(|p| !p.is_empty()).fold(base, |p, part| p.join(part));
         let out = dest.join(&entry.name);
         let (tx, rx) = crossbeam_channel::bounded(1);
         let ctx = self.ctx.clone();
@@ -5470,6 +5481,13 @@ impl App {
     /// True while `l` has an archive's members on screen.
     pub fn in_archive_view(&self) -> bool {
         self.archive_view.is_some()
+    }
+
+    /// Where inside an archive the view is: the archive's path with the
+    /// level on screen after it (`…/pack.zip/docs/a`), for the state file.
+    pub fn archive_at(&self) -> Option<PathBuf> {
+        let view = self.archive_view.as_ref()?;
+        Some(view.inner.split('/').filter(|p| !p.is_empty()).fold(view.archive.clone(), |p, part| p.join(part)))
     }
 
     fn start_usage(&mut self) {
@@ -7934,6 +7952,7 @@ mod archive_view {
         a.act(Act::Enter);
         a.act(Act::Enter);
         assert_eq!(names(&a), ["readme.md"], "two levels down");
+        assert!(a.archive_at().is_some_and(|p| p.ends_with(Path::new("pack.zip").join("docs").join("a"))), "{:?}", a.archive_at());
         a.act(Act::Leave);
         assert_eq!(names(&a), ["a"]);
         assert_eq!(a.tabs[a.active].current.hovered().map(|e| e.name.as_str()), Some("a"), "the cursor on the folder come up out of");
@@ -8044,6 +8063,73 @@ mod archive_view {
         let elsewhere = zip.parent().unwrap().join("src");
         a.cd(elsewhere, true);
         assert!(!a.in_archive_view());
+    }
+
+    /// #251: members selected inside the view are not selected after it,
+    /// whichever way it is left; what was selected outside stays.
+    #[test]
+    fn leaving_the_archive_drops_its_selection() {
+        let (mut a, zip) = app_on_archive();
+        let dir = zip.parent().unwrap().to_path_buf();
+        let outside = dir.join("other.txt");
+        a.tabs[a.active].selected.insert(zip.clone());
+        a.tabs[a.active].selected.insert(outside.clone());
+        for leave in [0, 1] {
+            a.act(Act::Enter);
+            wait(&mut a);
+            a.tabs[a.active].selected.insert(zip.join("docs"));
+            a.tabs[a.active].selected.insert(zip.join("top.txt"));
+            match leave {
+                0 => a.act(Act::Escape(EscapeWhat::default())),
+                _ => a.cd(dir.join("src"), true),
+            }
+            assert!(!a.in_archive_view());
+            let left: Vec<&PathBuf> = a.tabs[a.active].selected.iter().collect();
+            assert_eq!(left, [&outside, &zip], "leave {leave}");
+            a.cd(dir.clone(), true);
+            let entries = vec![Entry::from_path(zip.clone()).unwrap()];
+            a.tabs[a.active].current = Folder::from_entries(dir.clone(), Arc::new(entries), true);
+        }
+    }
+
+    /// #251: the copy `l` opens keeps the member's folders, so two members
+    /// of one name in different folders do not share a copy. The message is
+    /// read here rather than drained, which would start the default app.
+    #[test]
+    fn an_opened_copy_keeps_its_folders() {
+        let (mut a, _) = app_on_archive();
+        a.act(Act::Enter);
+        wait(&mut a);
+        a.act(Act::Enter);
+        a.act(Act::Enter);
+        let entry = a.tabs[a.active].current.hovered().cloned().expect("readme.md");
+        a.open_member(&entry);
+        let got = a.archive_rx.take().unwrap().recv_timeout(Duration::from_secs(10)).unwrap();
+        let ArchiveMsg::Copied(Ok(path)) = got else { panic!("no copy") };
+        assert!(path.ends_with(Path::new("pack.zip").join("docs").join("a").join("readme.md")), "{}", path.display());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "read me");
+    }
+
+    /// #251's other half: `d` on a path that is not there names it and is
+    /// not said to have trashed it. Nothing here reaches the real trash.
+    #[test]
+    fn trashing_what_is_not_there_says_so() {
+        let (mut a, zip) = app_on_archive();
+        a.tabs[a.active].selected.insert(zip.join("top.txt"));
+        a.act(Act::Remove { permanently: false, force: false, hovered: false });
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut done = false;
+        while !done && Instant::now() < deadline {
+            while let Ok(ev) = a.ops.rx.try_recv() {
+                done |= matches!(ev, ops::OpEvent::Finished { .. });
+                a.on_op_event(ev);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
+        assert!(said.iter().any(|t| t.ends_with("top.txt: not there any more")), "{said:?}");
+        assert!(!said.iter().any(|t| t.starts_with("Trashed")), "{said:?}");
+        assert!(zip.exists());
     }
 }
 
