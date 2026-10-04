@@ -1432,7 +1432,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   12.8a を足し、12 節の前書きの最後の文を消す。#225 の `FILER_KEYS_DONE` がそのまま 2 行の証拠になる
 - [x] （v0.73.65。`Renamed to <新しい名前> — u to undo` と出す。TESTING.md 12.6 に足した）名前の変更が成功しても何も言わない（#225 の提案 1）。`d` は `Trashed <名前> — u to undo` と言うのに、`r` だけ黙っている。
   `do_rename` の `Ok(())` で `Renamed to <新しい名前> — u to undo` を出す（文言は `UndoStep::redone_label()` にある）。TESTING.md にも 1 行
-- [ ] `cargo build --release` が作るのは `filer-com.exe` で、zip の `filer.com` ではない（#225 の提案 3）。手元のビルドでは PowerShell から
+- [x] （v0.73.66。`fetch-conpty.ps1` が `-Dest` の `filer-com.exe` を `filer.com` に写す。無ければビルドを促す）`cargo build --release` が作るのは `filer-com.exe` で、zip の `filer.com` ではない（#225 の提案 3）。手元のビルドでは PowerShell から
   `filer env` を待てない。`scripts/fetch-conpty.ps1` で `filer.com` にも写す
 - [ ] minimap のホバーカードで、行頭の空白を落とす（#226 の提案 1）。深いインデントの行ほど中身が見えない。行番号の後は中身から、下線も中身にだけ
 - [ ] TESTING.md 2.2 の「40 行ごとの空行が薄い帯」は、`long.rs` では空行と見出しが同じ帯に入って見分けられない（#226 の提案 3）。 【QA】

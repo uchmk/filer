@@ -19,7 +19,8 @@
 # `alacritty_terminal` loads `conpty.dll` from beside the executable when there
 # is one, and `conpty.dll` starts the `OpenConsole.exe` beside itself, so the
 # two files next to filer.exe are all it takes. Alacritty ships them the same
-# way. Without them filer still runs, on the older ConPTY.
+# way. Without them filer still runs, on the older ConPTY. It also copies the
+# build's filer-com.exe to filer.com, as the release zip has it.
 #
 #   pwsh -File scripts\fetch-conpty.ps1                     # into target\release, this machine's arch
 #   pwsh -File scripts\fetch-conpty.ps1 -Dest target\debug
@@ -76,3 +77,18 @@ $notice = Get-Content -Raw (Join-Path $PSScriptRoot '..\packaging\windows\ConPTY
 $notice.Replace('{VERSION}', $version) | Set-Content -NoNewline (Join-Path $Dest 'ConPTY-LICENSE.txt')
 
 "ConPTY $version ($Arch) -> $Dest"
+
+# filer.com, the console front the release zip ships beside filer.exe
+# (v0.71.0, src/bin/filer-com.rs). Cargo builds it as filer-com.exe, so a local
+# build had no filer.com, and `filer env` in PowerShell ran filer.exe without
+# waiting for it (#225). Run this after `cargo build` to get it; copied, not
+# renamed, so the next build does not leave a stale one beside a new exe.
+$com = Join-Path $Dest 'filer-com.exe'
+if (Test-Path $com) {
+    Copy-Item $com (Join-Path $Dest 'filer.com') -Force
+    "filer.com -> $Dest"
+} elseif (-not (Test-Path (Join-Path $Dest 'filer.com'))) {
+    # The release and build workflows stage filer.com themselves before this
+    # runs, from a folder this cannot see; no need to send them back to build.
+    "No filer-com.exe in $Dest yet: build first, then run this again for filer.com"
+}
