@@ -1616,7 +1616,7 @@ mod help_config_rows {
     #[test]
     fn a_rebound_reload_key_is_the_one_the_unread_row_names() {
         let (dir, _written, mut app) = unread("help-rebound");
-        let text = "[[mgr.keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n";
+        let text = "[[mgr.prepend_keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n";
         let (km, warnings) = crate::config::Keymap::load(&[text]);
         assert!(warnings.is_empty(), "the rebinding has to load clean: {warnings:?}");
         app.cfg.keymap = km;
@@ -1634,7 +1634,7 @@ mod help_config_rows {
         let mut app = App::new(crate::config::Config::load(), std::env::temp_dir(), ctx);
         assert_eq!(key_for(&app, &Act::ConfigReload).as_deref(), Some("<C-F5>"));
 
-        let text = "[[mgr.keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n";
+        let text = "[[mgr.prepend_keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n";
         let (km, _) = crate::config::Keymap::load(&[text]);
         app.cfg.keymap = km;
         let named = key_for(&app, &Act::ConfigReload);

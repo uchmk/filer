@@ -9,6 +9,18 @@
 
 ## [未リリース]
 
+## [0.78.27] - 2026-10-04
+
+### 追加
+
+- 設定ファイルの読み込みエラーが二重引用符の中のバックスラッシュで起きたとき、警告に
+  `(a backslash in "double quotes" starts an escape: write a Windows path in 'single quotes')` を 1 行足す。
+  `yazi.toml` / `keymap.toml` / `theme.toml` / `filer.toml` の 4 つとも（#162 の提案 3。TESTING.md 33.21）。
+- ユーザーの `keymap.toml` の `[[<層>.keymap]]` が、置き換える既定のキーの 4 分の 1 に満たない数しか書いていないとき、
+  `` `[[mgr.keymap]]` replaces all N keys of [mgr] with 1 -- did you mean `[[mgr.prepend_keymap]]`? `` と警告する。
+  1 行で `q` まで消えて窓を閉じられなくなっていた（#164 の提案 3、#258 の提案 1）。yazi の既定を丸ごと写したファイルは警告しない。
+  置き換える動き自体は yazi と同じまま（TESTING.md 33.22）。
+
 ## [0.78.26] - 2026-10-04
 
 ### 変更

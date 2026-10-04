@@ -354,7 +354,7 @@ impl Config {
                         broken.yazi = true;
                         unread.push(dir.join("yazi.toml"));
                         broken.said.push(warnings.len());
-                        warnings.push(format!("{}: {}", at(dir, "yazi.toml"), e.to_string().trim_end()));
+                        warnings.push(format!("{}: {}", at(dir, "yazi.toml"), parse_error(&text, &e)));
                     }
                 }
             }
@@ -371,7 +371,7 @@ impl Config {
                         broken.theme = true;
                         unread.push(dir.join("theme.toml"));
                         broken.said.push(warnings.len());
-                        warnings.push(format!("{}: {}", at(dir, "theme.toml"), e.to_string().trim_end()));
+                        warnings.push(format!("{}: {}", at(dir, "theme.toml"), parse_error(&text, &e)));
                     }
                 }
             }
@@ -408,7 +408,7 @@ impl Config {
                         broken.filer = true;
                         unread.push(dir.join("filer.toml"));
                         broken.said.push(warnings.len());
-                        warnings.push(format!("{}: {}", at(dir, "filer.toml"), e.to_string().trim_end()));
+                        warnings.push(format!("{}: {}", at(dir, "filer.toml"), parse_error(&text, &e)));
                     }
                 }
             }
@@ -655,6 +655,28 @@ impl Misplaced {
             warnings.push(format!("{path}: {s} belongs in {other}{cost}"));
         }
     }
+}
+
+/// A TOML parse error as the warnings show it, with a hint when the error is a
+/// backslash inside a "double-quoted" string.
+///
+/// `run = "C:\Users\me\nvim.exe"` is the commonest way to break a config on
+/// Windows, and the parser's own message -- "too few unicode value digits" or
+/// "missing escaped value" -- names the escape rules, not the fix.
+pub(crate) fn parse_error(text: &str, e: &toml::de::Error) -> String {
+    let mut said = e.to_string().trim_end().to_string();
+    // The span lands on the backslash, just after it, or -- for `\U` with too
+    // few hex digits -- up to nine characters on, still inside the escape.
+    let at_escape = e.span().is_some_and(|s| {
+        let Some(before) = text.get(..s.start) else { return false };
+        let escape = before.rfind('\\').map(|i| &before[i + 1..]);
+        escape.is_some_and(|tail| tail.len() <= 9 && tail.chars().all(|c| c.is_ascii_alphanumeric()))
+            || text.get(s.start..).is_some_and(|a| a.starts_with('\\'))
+    });
+    if at_escape {
+        said += "\n(a backslash in \"double quotes\" starts an escape: write a Windows path in 'single quotes')";
+    }
+    said
 }
 
 fn read(dir: &Path, name: &str, loaded: &mut Vec<PathBuf>) -> Option<String> {
@@ -920,6 +942,21 @@ mod files {
 
         let text = "[ui]\na = 1\n[term]\nb = 2\n[line_args]\nc = \"d\"\n";
         assert_eq!(Misplaced::in_file(text, ConfigFile::Yazi).sections, ["[ui]", "[term]", "[line_args]"]);
+    }
+
+    /// A backslash escape in double quotes gets the single-quote hint; other
+    /// parse errors do not.
+    #[test]
+    fn parse_errors_at_a_backslash_say_to_use_single_quotes() {
+        const HINT: &str = "write a Windows path in 'single quotes')";
+        for text in ["[opener]\nedit = \"C:\\Users\\me\"\n", "[a]\nb = \"C:\\dev\"\n"] {
+            let e = text.parse::<toml::Table>().unwrap_err();
+            assert!(parse_error(text, &e).ends_with(HINT), "{text:?}: {}", parse_error(text, &e));
+        }
+        let text = "[mgr\nratio = 1\n";
+        let e = text.parse::<toml::Table>().unwrap_err();
+        let said = parse_error(text, &e);
+        assert!(!said.contains(HINT) && !said.ends_with('\n'), "{said:?}");
     }
 
     /// `[[preview]]` in `yazi.toml` costs the whole file, and says so.

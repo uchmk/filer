@@ -658,6 +658,8 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "33.18" = '`config_reload` を `<F9>` に割り当て直して 33.16 を繰り返す → 行が `<C-F5>` ではなく `<F9>` を示す。メッセージに埋め込まれているのではなく、keymap から読んでいるため'
 "33.19" = '`%APPDATA%\yazi\config\keymap.toml` で `Q` を `quit` に、`%APPDATA%\filer\keymap.toml` で `hidden toggle` に割り当て、`filer env` を回す（v0.73.33、Q57）→ Warnings が `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<filer のパス>) runs, not \`quit\` (<yazi のパス>)` と、両方のファイルをフルパスで言う。`T` を filer のファイルだけで `hidden toggle` にすると、v0.73.49 からは警告ではなく（Q60）、`Overrides` の行に `` [mgr] `T`: `hidden toggle` (<filer のパス>) instead of the default `plugin toggle-pane max-preview` `` と出る。既定と同じコマンドにすると、どちらにも出ない'
 "33.20" = '33.11 の `yazi.toml`（`[[preview]]` だけ）で `~` を押す。次に両方の設定フォルダを空にして起動し、`filer.toml` を作ってからもう一度 `~`（v0.73.41、#203）→ 1 回目は `yazi.toml` の行が警告色で `nothing in it was read — see below` と出て、普通に読んだファイルとしては並ばない。2 回目は `on disk, not read yet` の行の下が `(nothing read yet; the defaults are in use)` で、`(nothing found in either; …)` ではない'
+"33.21" = '`yazi.toml` に、Windows のパスを二重引用符で書いたオープナー（`edit = [{ run = "C:\Users\me\nvim.exe" }]`）を書いて起動する（v0.78.27）→ 読み込みエラーの後にもう 1 行、二重引用符の中のバックスラッシュはエスケープになるので Windows のパスは単一引用符で書く、という英語の 1 行（`(a backslash in "double quotes" starts an escape: …)`）が出る。単一引用符に変えて `<C-F5>` すると警告は出ない'
+"33.22" = '`keymap.toml` に 1 項目だけの `[[mgr.keymap]]`（`on = "<F9>"`、`run = "config_reload"`）を書いて起動する（v0.78.27、#164、#258）→ ``…keymap.toml: `[[mgr.keymap]]` replaces all N keys of [mgr] with 1 -- did you mean `[[mgr.prepend_keymap]]`?`` と警告が出る。`q` は効かないまま（置き換えは yazi の規則）。`[[mgr.prepend_keymap]]` に直して `<F9>` すると警告は消え、`q` で終わる'
 
 # 34. ヘルプパネル自身のスクロール
 "34.14" = '最下部に着けた状態で `<C-->` でフォントを小さくする → 最下部に着いたまま、パネルも埋まっている。行がより多く入るので、止まる位置が動いたということ'

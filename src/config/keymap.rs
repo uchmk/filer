@@ -185,13 +185,28 @@ fn build(raw: &RawBinding, from: &Arc<str>, warnings: &mut Vec<String>) -> Optio
 }
 
 /// Apply one file's layers on top of what previous files produced.
-fn fold(base: Vec<Binding>, s: &Section, from: &Arc<str>, warnings: &mut Vec<String>) -> Vec<Binding> {
+///
+/// `name` is the layer as it is written (`mgr`, `input`, ...), for the warning
+/// when a short `keymap` replaces it.
+fn fold(name: &str, base: Vec<Binding>, s: &Section, from: &Arc<str>, warnings: &mut Vec<String>) -> Vec<Binding> {
     let mut out = Vec::new();
     for r in &s.prepend_keymap {
         out.extend(build(r, from, warnings));
     }
     match &s.keymap {
         Some(list) => {
+            // `keymap` replaces every key before it, as in yazi. A copy of
+            // yazi's whole keymap does that on purpose; one or two entries
+            // almost never do -- one `[[mgr.keymap]]` line left a window no key
+            // could even close (#164, #258). Under a quarter of what it
+            // replaces is the line between the two.
+            if list.len() * 4 < base.len() {
+                warnings.push(format!(
+                    "{from}: `[[{name}.keymap]]` replaces all {} keys of [{name}] with {} -- did you mean `[[{name}.prepend_keymap]]`?",
+                    base.len(),
+                    list.len()
+                ));
+            }
             for r in list {
                 out.extend(build(r, from, warnings));
             }
@@ -235,21 +250,21 @@ impl Keymap {
                 Ok(k) => files.push((Arc::from(*path), k)),
                 // Trimmed: the parser's message ends in a newline, which left
                 // a blank line at the end of `filer env`'s Warnings.
-                Err(e) => warnings.push(format!("{path}: {}", e.to_string().trim_end())),
+                Err(e) => warnings.push(format!("{path}: {}", super::parse_error(text, &e))),
             }
         }
 
         let mut km = Keymap::default();
         for (from, f) in &files {
-            km.mgr = fold(std::mem::take(&mut km.mgr), &f.mgr, from, &mut warnings);
-            km.input = fold(std::mem::take(&mut km.input), &f.input, from, &mut warnings);
-            km.confirm = fold(std::mem::take(&mut km.confirm), &f.confirm, from, &mut warnings);
-            km.pick = fold(std::mem::take(&mut km.pick), &f.pick, from, &mut warnings);
-            km.help = fold(std::mem::take(&mut km.help), &f.help, from, &mut warnings);
-            km.tasks = fold(std::mem::take(&mut km.tasks), &f.tasks, from, &mut warnings);
-            km.spot = fold(std::mem::take(&mut km.spot), &f.spot, from, &mut warnings);
-            km.diff = fold(std::mem::take(&mut km.diff), &f.diff, from, &mut warnings);
-            km.term = fold(std::mem::take(&mut km.term), &f.term, from, &mut warnings);
+            km.mgr = fold("mgr", std::mem::take(&mut km.mgr), &f.mgr, from, &mut warnings);
+            km.input = fold("input", std::mem::take(&mut km.input), &f.input, from, &mut warnings);
+            km.confirm = fold("confirm", std::mem::take(&mut km.confirm), &f.confirm, from, &mut warnings);
+            km.pick = fold("pick", std::mem::take(&mut km.pick), &f.pick, from, &mut warnings);
+            km.help = fold("help", std::mem::take(&mut km.help), &f.help, from, &mut warnings);
+            km.tasks = fold("tasks", std::mem::take(&mut km.tasks), &f.tasks, from, &mut warnings);
+            km.spot = fold("spot", std::mem::take(&mut km.spot), &f.spot, from, &mut warnings);
+            km.diff = fold("diff", std::mem::take(&mut km.diff), &f.diff, from, &mut warnings);
+            km.term = fold("term", std::mem::take(&mut km.term), &f.term, from, &mut warnings);
             let _ = &f.cmp; // parsed for compatibility; completion is native here
         }
         let mut overrides = Vec::new();
@@ -375,6 +390,40 @@ mod tests {
         assert_eq!(warnings.len(), 1, "{warnings:?}");
         assert!(warnings[0].starts_with("/cfg/filer/keymap.toml: TOML parse error"), "{}", warnings[0]);
         assert!(!warnings[0].ends_with('\n'), "{:?}", warnings[0]);
+    }
+
+    /// #164 / #258: one `[[mgr.keymap]]` entry replaced every key in the list,
+    /// `q` included, and nothing said so. A short replacement is named, with
+    /// the section that would have kept the defaults.
+    #[test]
+    fn a_short_keymap_that_replaces_the_defaults_is_named() {
+        let user = "[[mgr.keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n";
+        let (km, warnings) = Keymap::load_named(&[("/cfg/keymap.toml", user)]);
+        assert_eq!(km.mgr.len(), 1, "the defaults are replaced, as in yazi");
+        let said: Vec<&String> = warnings.iter().filter(|w| w.contains("prepend_keymap")).collect();
+        assert_eq!(said.len(), 1, "{warnings:?}");
+        assert!(said[0].starts_with("/cfg/keymap.toml: `[[mgr.keymap]]` replaces all "), "{}", said[0]);
+        assert!(said[0].ends_with(" with 1 -- did you mean `[[mgr.prepend_keymap]]`?"), "{}", said[0]);
+    }
+
+    /// A copy of the whole keymap replaces it on purpose and is not warned
+    /// about, and neither is a `prepend_keymap`, which keeps the defaults.
+    #[test]
+    fn a_full_replacement_or_a_prepend_is_not_named() {
+        let (_, warnings) = Keymap::load(&[DEFAULT_KEYMAP]);
+        assert!(!warnings.iter().any(|w| w.contains("did you mean")), "{warnings:?}");
+        let (_, warnings) = Keymap::load(&["[[mgr.prepend_keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n"]);
+        assert!(!warnings.iter().any(|w| w.contains("did you mean")), "{warnings:?}");
+    }
+
+    /// A Windows path in double quotes is the usual broken keymap; the warning
+    /// says how to write it.
+    #[test]
+    fn a_backslash_in_double_quotes_gets_the_single_quote_hint() {
+        let user = "[[mgr.prepend_keymap]]\non = \"e\"\nrun = \"shell 'C:\\dev\\nvim.exe'\"\n";
+        let (_, warnings) = Keymap::load(&[user]);
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(warnings[0].ends_with("write a Windows path in 'single quotes')"), "{}", warnings[0]);
     }
 
     #[test]
