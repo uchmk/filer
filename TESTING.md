@@ -912,6 +912,8 @@ instructions are wrong, which is worse than a missing feature.
 | 32.12 | Linux: the same with `TERMINAL="xterm -title picked"` | The window is titled `picked` (`xdotool getwindowname`). `filer env` names `xterm -title picked` on the `block = true openers` row; with `TERMINAL` unset it names the first of the built-in list that is installed |
 | 32.13 | Linux: a `block = true` opener naming a program that is not installed | The terminal stays open on `[exit 127] Press Enter to close.` instead of flashing shut; `<Enter>` in it closes it |
 | 32.14 | macOS: a `block = true` opener, `<Enter>` on a file | Terminal.app comes forward with a new window running the editor in the list's folder. The first time, macOS asks whether filer may control Terminal; refused, a toast says why |
+| 32.15 | Windows, **the release `filer.exe`** (no console of its own; `cargo run` has one and never showed this): `:` then `nvim` (v0.75.14, Q12) | nvim draws in the new console (its `~` column and status line), not a black window with a blinking cursor. The same through a `block = true` opener on `<Enter>`. Read it with `ReadConsoleOutputCharacter` on the new console, or `nvim`'s own `:redir`; before, `Win32_Process` showed `nvim` running with nothing drawn |
+| 32.16 | Windows, the release `filer.exe`: `:` then `git log -5 --oneline` (v0.75.14, Q13) | The console stays open on the five lines and `Press any key to continue . . .` (`続行するには何かキーを押してください . . .` on a Japanese Windows); a key closes it. `:` then `dir & pause` asks once, not twice. `;` is unchanged: no console and no pause |
 
 ---
 

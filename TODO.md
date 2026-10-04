@@ -894,13 +894,13 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 ## `:` とオープナーが開くコンソール
 
-- [ ] `:` で開いたコンソールの標準ハンドルが NULL（要確認: Q12）。release は
+- [x] （v0.75.14 で直した。Q12、`CreateProcessW` で `STARTF_USESTDHANDLES` を立てずに起動）`:` で開いたコンソールの標準ハンドルが NULL。release は
   `windows_subsystem = "windows"` なので filer にコンソールが無く、`Stdio::inherit()` でも
   Rust が `STARTF_USESTDHANDLES` を立てるため、`CREATE_NEW_CONSOLE` で与えた
   コンソールに対して子の stdin/stdout/stderr が NULL のまま渡る。**nvim が真っ黒、
   サクラエディタは平気**という症状と一致する。debug ビルドにはコンソールがあるので
   `cargo run` では再現しない。
-- [ ] `:` のコンソールが一瞬で閉じる（要確認: Q13）。`git log -5` のように短いものは
+- [x] （v0.75.14 で直した。Q13、`& pause`）`:` のコンソールが一瞬で閉じる。`git log -5` のように短いものは
   読めない。Q12 が先。
 - [x] release の `filer.exe --version` を PowerShell のパイプで受けると何も出ない
   （2026-09-30、Windows 実機のセッションの報告。原因は未調査）。これも

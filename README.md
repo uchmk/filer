@@ -1148,15 +1148,16 @@ hand leaving the mouse.
 hides it (`CREATE_NO_WINDOW`), so a GUI program does not flash a black box on the way up, and
 because nothing would be readable there anyway filer captures the shell's stderr for three seconds
 and reports a failure as a toast. `:` gives the command a console of its own
-(`CREATE_NEW_CONSOLE`), which is how you read a command's output — at the cost of that error
-reporting, since the output is yours to look at now.
+(`CREATE_NEW_CONSOLE`, and its own standard handles, so `nvim` draws there even from the release
+build, which has no console to lend), which is how you read a command's output — at the cost of that
+error reporting, since the output is yours to look at now.
 
 **Neither waits.** filer never blocks on the command; `--block` on `:` is the flag name yazi uses
-for the same key, and here it buys the console rather than the wait. That matters for a command
-that finishes instantly: `git log -5` prints into its new console and the console closes with it,
-so you see a flash and nothing else. Keep it open by keeping the shell alive —
-`cmd /k git log -5 --oneline -- %1`, or `… & pause`. Off Windows there is no console to create, so
-`;` and `:` are the same key but for the error reporting.
+for the same key, and here it buys the console rather than the wait. So that a command which
+finishes instantly (`git log -5`) does not flash and vanish, filer runs a `--block` shell command as
+`<line> & pause`: the console waits for a key. A line that already says `pause` is left alone, and
+openers (`block = true` in `yazi.toml`) are not paused. Off Windows the command runs in a terminal
+window, which stays open only when the command fails.
 
 Both hand the command what is selected, which is the point of them, so the prompt says so while you
 type:

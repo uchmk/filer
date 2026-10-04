@@ -67,7 +67,7 @@ scripts/xrun.sh /tmp/r1 "/tmp/filer-fixtures/awkward names" --keys "jjcf"
 cat /tmp/r1/title.txt /tmp/r1/clip.txt
 ```
 
-- **One section per run.** Read it first and say which rows you can settle and
+- **Up to three sections per run, in one pull request** (v0.75.14), as in `windows-role.md`. Read each one first and say which rows you can settle and
   which are `[-]`, before pressing anything.
 - **Work on `test/linux-<section>`** from the latest `origin/main`. Never push to
   `main`, never `--force`.

@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 478 件（TESTING.md の全 648 件のうち、`cargo test` が見ている 170 件は外してある）。
+押すものは 480 件（TESTING.md の全 650 件のうち、`cargo test` が見ている 170 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -552,6 +552,8 @@ fsutil hardlink list <新しくできたパス>
 - [ ] **32.12** Linux: 同じことを `TERMINAL="xterm -title picked"` で → 窓のタイトルが `picked`（`xdotool getwindowname`）。`filer env` の `block = true openers` の行が `xterm -title picked` を名指す。`TERMINAL` が無ければ、組み込みの一覧で最初に入っているものを名指す — *Linux: the same with `TERMINAL="xterm -title picked"` → The window is titled `picked` (`xdotool getwindowname`). `filer env` names `xterm -title picked` on the `block = true openers` row; with `TERMINAL` unset it names the first of the built-in list that is installed*
 - [ ] **32.13** Linux: 入っていないプログラムを指定した `block = true` のオープナー → 端末が一瞬で閉じず、`[exit 127] Press Enter to close.` で止まる。そこで `<Enter>` を押すと閉じる — *Linux: a `block = true` opener naming a program that is not installed → The terminal stays open on `[exit 127] Press Enter to close.` instead of flashing shut; `<Enter>` in it closes it*
 - [ ] **32.14** macOS: `block = true` のオープナーでファイルを `<Enter>` → Terminal.app が前に出て、新しい窓で一覧のフォルダからエディタが動く。初回は macOS が filer に Terminal の操作を許すかを聞く。拒むと理由がトーストに出る — *macOS: a `block = true` opener, `<Enter>` on a file → Terminal.app comes forward with a new window running the editor in the list's folder. The first time, macOS asks whether filer may control Terminal; refused, a toast says why*
+- [ ] **32.15** Windows で **release の `filer.exe`**（自分のコンソールを持たない。`cargo run` は持つので出なかった）: `:` で `nvim`（v0.75.14、Q12）→ 新しいコンソールに nvim が描かれる（`~` の列とステータス行）。黒い窓でカーソルが点滅するだけにならない。`block = true` のオープナーで `<Enter>` しても同じ。新しいコンソールを `ReadConsoleOutputCharacter` で読むか、nvim の `:redir` で確かめる。以前は `Win32_Process` に `nvim` がいるのに何も描かれていなかった — *Windows, **the release `filer.exe`** (no console of its own; `cargo run` has one and never showed this): `:` then `nvim` (v0.75.14, Q12) → nvim draws in the new console (its `~` column and status line), not a black window with a blinking cursor. The same through a `block = true` opener on `<Enter>`. Read it with `ReadConsoleOutputCharacter` on the new console, or `nvim`'s own `:redir`; before, `Win32_Process` showed `nvim` running with nothing drawn*
+- [ ] **32.16** Windows で release の `filer.exe`: `:` で `git log -5 --oneline`（v0.75.14、Q13）→ コンソールが 5 行と `続行するには何かキーを押してください . . .` のまま開いていて、キーで閉じる。`:` で `dir & pause` は 1 回だけ聞く。`;` は変わらない（コンソールも pause も無い） — *Windows, the release `filer.exe`: `:` then `git log -5 --oneline` (v0.75.14, Q13) → The console stays open on the five lines and `Press any key to continue . . .` (`続行するには何かキーを押してください . . .` on a Japanese Windows); a key closes it. `:` then `dir & pause` asks once, not twice. `;` is unchanged: no console and no pause*
 
 ## 33. 設定の警告と、その色
 

@@ -4030,6 +4030,9 @@ impl App {
         let paths = self.tabs[self.active].targets();
         let cwd = self.tabs[self.active].cwd.clone();
         let line = exec::substitute(run, &paths);
+        // Off Windows the terminal already holds the window when the line
+        // fails; there a console simply closes, so `:` waits for a key (Q13).
+        let line = if block && cfg!(windows) { exec::held(&line) } else { line };
         self.launch(&line, &cwd, block, orphan, "Shell failed");
     }
 

@@ -245,11 +245,19 @@ pub fn at_line(run: &str, paths: &[PathBuf], line: usize, custom: &LineArgs) -> 
 /// The returned [`Launch`] carries the failures that arrive after `spawn` has
 /// already said yes; see its docs.
 pub fn shell(cmdline: &str, cwd: &Path, block: bool, orphan: bool) -> std::io::Result<Launch> {
-    // Windows gives a blocking opener a console of its own (`configure`).
+    // Windows gives a blocking opener a console of its own (`new_console`).
     // Elsewhere a GUI app has no terminal to lend, so one is opened for it.
     #[cfg(not(windows))]
     if block {
         return in_terminal(cmdline, cwd);
+    }
+    // Windows: `Command` always hands the child our standard handles, and a
+    // release filer has none, so a console program would get a console with
+    // nothing wired to it (Q12). Spawned the way `start` does it instead.
+    #[cfg(windows)]
+    if block {
+        new_console(cmdline, cwd)?;
+        return Ok(Launch::none());
     }
     let mut cmd = shell_command(cmdline);
     cmd.current_dir(cwd);
@@ -379,6 +387,72 @@ fn cmd_s_c_arg(cmdline: &str) -> String {
     format!("\"{cmdline}\"")
 }
 
+/// `line`, made to wait for a key before its console closes (Q13): `git log -5`
+/// is otherwise a window that flashes and is gone. A line that already says
+/// `pause` is left alone rather than asking twice.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn held(line: &str) -> String {
+    let says_pause = line.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| w.eq_ignore_ascii_case("pause"));
+    if says_pause { line.to_owned() } else { format!("{line} & pause") }
+}
+
+/// The command line the new console runs: `cmd` by its full path, so a
+/// `cmd.exe` in the folder being browsed is never the one started.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn console_command_line(system_root: &str, cmdline: &str) -> (String, String) {
+    let cmd = format!("{}\\System32\\cmd.exe", system_root.trim_end_matches(['\\', '/']));
+    let line = format!("\"{cmd}\" /S /C {}", cmd_s_c_arg(cmdline));
+    (cmd, line)
+}
+
+/// Start `cmdline` in a console of its own, without `STARTF_USESTDHANDLES`.
+///
+/// That flag is what `Command` always sets, passing on our standard handles
+/// even when they are null -- and in the release build, which has no console
+/// (`windows_subsystem = "windows"`), they are. The child's new console then
+/// has nothing attached: nvim draws nothing, `git log` prints nowhere (Q12).
+/// Left unset, Windows gives the child the new console's own handles, which is
+/// what `start` relies on. Debug builds have a console, which is why
+/// `cargo run` never showed it.
+#[cfg(windows)]
+fn new_console(cmdline: &str, cwd: &Path) -> std::io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{CreateProcessW, CREATE_NEW_CONSOLE, CREATE_UNICODE_ENVIRONMENT, PROCESS_INFORMATION, STARTUPINFOW};
+    use windows::core::{PCWSTR, PWSTR};
+    let root = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
+    let (app, line) = console_command_line(&root, cmdline);
+    let wide = |s: &std::ffi::OsStr| s.encode_wide().chain(std::iter::once(0)).collect::<Vec<u16>>();
+    let app = wide(app.as_ref());
+    let mut line = wide(line.as_ref());
+    let dir = wide(cwd.as_os_str());
+    let si = STARTUPINFOW { cb: std::mem::size_of::<STARTUPINFOW>() as u32, ..Default::default() };
+    let mut pi = PROCESS_INFORMATION::default();
+    // SAFETY: every buffer is NUL-terminated and outlives the call; `line` is
+    // mutable as `CreateProcessW` requires.
+    unsafe {
+        CreateProcessW(
+            PCWSTR(app.as_ptr()),
+            Some(PWSTR(line.as_mut_ptr())),
+            None,
+            None,
+            false,
+            CREATE_NEW_CONSOLE | CREATE_UNICODE_ENVIRONMENT,
+            None,
+            PCWSTR(dir.as_ptr()),
+            &si,
+            &mut pi,
+        )
+    }
+    .map_err(|e| std::io::Error::from_raw_os_error(e.code().0 & 0xFFFF))?;
+    // SAFETY: both handles were just returned to us and are closed once.
+    unsafe {
+        let _ = CloseHandle(pi.hThread);
+        let _ = CloseHandle(pi.hProcess);
+    }
+    Ok(())
+}
+
 #[cfg(windows)]
 fn shell_command(cmdline: &str) -> Command {
     let mut c = Command::new("cmd");
@@ -410,13 +484,12 @@ impl RawArgCompat for Command {
 }
 
 #[cfg(windows)]
-fn configure(cmd: &mut Command, block: bool, _orphan: bool) {
+fn configure(cmd: &mut Command, _block: bool, _orphan: bool) {
     use std::os::windows::process::CommandExt;
-    const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    // A blocking (terminal) program needs a console of its own; a GUI program
-    // should not flash one.
-    cmd.creation_flags(if block { CREATE_NEW_CONSOLE } else { CREATE_NO_WINDOW });
+    // Only non-blocking launches come here (a blocking one goes to
+    // `new_console`): a GUI program should not flash a console.
+    cmd.creation_flags(CREATE_NO_WINDOW);
 }
 
 #[cfg(not(windows))]
@@ -949,6 +1022,26 @@ mod tests {
         // What `/S` does: drop the first character and the last, keep the rest.
         assert!(arg.starts_with('"') && arg.ends_with('"'));
         assert_eq!(&arg[1..arg.len() - 1], line, "the line must arrive untouched");
+    }
+
+    /// Q13: the console waits for a key, once.
+    #[test]
+    fn a_held_line_pauses_once() {
+        assert_eq!(held("git log -5"), "git log -5 & pause");
+        assert_eq!(held("dir & pause"), "dir & pause");
+        assert_eq!(held("dir & PAUSE >nul"), "dir & PAUSE >nul");
+        // A word that only contains it is not it.
+        assert_eq!(held("echo pauses"), "echo pauses & pause");
+    }
+
+    /// Q12: `cmd` by its full path (never one in the browsed folder), and the
+    /// line under the same `/S` rule as `shell_command`.
+    #[test]
+    fn the_new_console_runs_system_cmd() {
+        let line = r#""C:\Program Files (x86)\sakura\sakura.exe" "C:\dev\x.toml""#;
+        let (app, cmd) = console_command_line(r"C:\Windows\", line);
+        assert_eq!(app, r"C:\Windows\System32\cmd.exe");
+        assert_eq!(cmd, format!(r#""C:\Windows\System32\cmd.exe" /S /C "{line}""#));
     }
 
     #[test]
