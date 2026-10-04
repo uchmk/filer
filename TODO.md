@@ -1433,6 +1433,20 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.74.6。テストのときの `set_clipboard` はスレッドごとの偽のクリップボードに書く。`get_clipboard` がそれを読む）既存のテスト `app::f12_shows_the_report_before_opening_it` の `answer_confirm('c')` が本物のクリップボードを書き換える（所見 3）。持ち主の Windows 機で
   `cargo test` を回すたびにクリップボードが上書きされる。テストのときは書かない口（`exec::set_clipboard` の差し替え）を作る
 
+## 実機のセッションの報告（v0.75.4 で受けた分: #243 x64 と #244 ARM64 の 47 節）
+
+- [x] #243: 47.1、47.7、47.8 に印。x64 の AMD 機は何も書かなければ GL で描き、何もしない窓が 10 秒で 0.000 CPU 秒（`vulkan` を書くと 10.0 に戻る）。v0.75.0 の既定の変更が効いた。
+  `filer env` の `Warnings` にも backend の誤りが出るようになった（#240 の所見が直っている）
+- [x] #244: 47.7、47.8 に印（同じ行）。ARM64 は何も書かなければ `D3D12 (…) (Gl, Other)`、`vulkan` で `(Vulkan, IntegratedGpu)`
+- [ ] **誤った・使えない `[ui] backend` が、`auto` ではなく wgpu の既定（Vulkan）に戻る**（#243 の所見 1、#244 の所見 1。2 台とも）。`main.rs` の `wgpu_options` は、
+  知らない名前とアダプタの無い名前で `WgpuConfiguration::default()` を返し、`auto_backends` を通らない。x64 では `"directx"` と書くと 1 コアを使い続ける（9.9 CPU 秒）。
+  2 つの腕も `auto` と同じ道を通す。直したら 47.7 の期待値（`Adapter` は Vulkan か DX12）を `(Gl, …)` に直し、47.7 / 47.8 を再テストに戻す
+- [ ] 警告で、何に戻したかを言う（#244 の提案 2）: `drawing with Gl instead`。窓が開いたあとならバックエンドが分かる
+- [ ] `last-run.toml` に時刻を残し、`filer env` の `Adapter` の横に出す（#244 の提案 3）。版が同じだと `Recorded by` を出さないので、何日前の起動の記録か分からない
+- [ ] `FILER_PTY_LOG` で win32-input-mode のキーを人の読める形に直して出す（#243 の提案 2）: `\e[66;48;98;1;2;1_` → `Alt+b`
+- [ ] TESTING.md 40.12 を、PSReadLine の既定（`EditMode Windows`）では `Alt+b` が `b` になると書き直す（#243 の提案 3）。`Set-PSReadLineOption -EditMode Emacs` のときに bash と同じ。
+  filer が送るバイトはどちらでも同じ 【QA】
+
 ## 実機のセッションの報告（v0.75.1 で受けた分: #241 x64 の 26.2 と 6.15、#242 ARM64 の 26.2）
 
 - [x] #241 / #242: 26.2 に印。2 台とも、ホームの下の無いフォルダのあとの報告で `Last error: ~\…` になり、フォームにユーザー名は 0 回。
