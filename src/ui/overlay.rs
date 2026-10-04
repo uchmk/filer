@@ -1439,8 +1439,8 @@ mod tests {
 #[cfg(test)]
 mod help_config_rows {
 
-    /// 33.9: a warning of several lines is several rows, so none is drawn on
-    /// top of another.
+    /// A warning of several lines is several rows, so none is drawn on top
+    /// of another (the machine's 33.9 still breaks real config files).
     #[test]
     fn a_long_warning_takes_a_row_per_line() {
         let mut app = crate::app::App::new(crate::config::Config::load(), std::env::temp_dir(), egui::Context::default());

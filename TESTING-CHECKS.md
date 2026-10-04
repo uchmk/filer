@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 497 件（TESTING.md の全 668 件のうち、`cargo test` が見ている 171 件は外してある）。
+押すものは 498 件（TESTING.md の全 668 件のうち、`cargo test` が見ている 170 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -573,9 +573,10 @@ fsutil hardlink list <新しくできたパス>
 
 ## 33. 設定の警告と、その色
 
-自動テスト済みなので下には出していない: 33.1, 33.2, 33.3, 33.4, 33.5, 33.7, 33.8, 33.9, 33.10
+自動テスト済みなので下には出していない: 33.1, 33.2, 33.3, 33.4, 33.5, 33.7, 33.8, 33.10
 
 - [~] **33.6** 背景の明るいテーマ（`theme.toml` に `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }`。v0.73.42 より前は窓の背景を決める手段が無かった）→ 黄色がそれでも読める。読めなければそう報告すること（いまは固定の既定値で、テーマから変えられない） — *A theme with a light background: `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }` in `theme.toml` (v0.73.42; nothing could set the window's background before) → The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable*
+- [ ] **33.9** 設定ファイルを**3 つ同時に**壊して（`yazi.toml`、`keymap.toml`、`filer.toml`）起動する → 3 つで**トーストは 1 つ**: 最初のファイルのエラーで、末尾が ``(+2 more, see `~`)``。`~` には 3 つとも並ぶ。箱は文章の大きさで、窓の中に収まる — *Break **three** config files at once (`yazi.toml`, `keymap.toml`, `filer.toml`) and start → **One** toast for all three: the first file's error, ending `(+2 more, see \`~\`)`. `~` lists all three. The box is sized to its text and stays inside the window*
 - [x] **33.11** `[[preview]]` を `yazi.toml` に入れて（本来は `filer.toml`）起動 → **1 行で** `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`。以前の `invalid type: map, expected a string` ではない（v0.33.13） — *Put `[[preview]]` into `yazi.toml` (it belongs in `filer.toml`) and start → **One line**: `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13)*
 - [x] **33.12** `[term]` も `yazi.toml` に入れる → それについても同じ形の行が 1 つ増える。どちらも「このファイルは読まれなかった」と述べる。実際そうだから — *Put `[term]` into `yazi.toml` as well → A second line for it, same shape. Both say the file went unread, because it did*
 - [x] **33.13** `[[preview]]` の無い、それ以外は正常な `yazi.toml` に `[term]` を入れる → `… belongs in filer.toml and was ignored`。*unread* ではなく *ignored* —— ファイルの残りは読み込まれている — *Put `[term]` into a `yazi.toml` that is otherwise fine (no `[[preview]]`) → `… belongs in filer.toml and was ignored` — *ignored*, not *unread*: the rest of the file did load*
