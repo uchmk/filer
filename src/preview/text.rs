@@ -48,7 +48,7 @@ impl Highlighter {
     }
 }
 
-const MAX_LINES: usize = 4000;
+pub(crate) const MAX_LINES: usize = 4000;
 const MAX_LINE_CHARS: usize = 2000;
 
 pub fn render(bytes: &[u8], req: &Request, hl: &mut Highlighter) -> Payload {

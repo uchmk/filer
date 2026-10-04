@@ -1310,9 +1310,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   開始タグに当たらない。Word は太字を挟む文で 3 つの run に分け、2 つに `xml:space="preserve"` を付けるので、プレビューには `bold` しか出ない。
   **Excel は前後に空白のある文字列すべてにそれを付けるので、`spaces.xlsx` の 1 行目は空のセル 2 つになる**（何も言わずに）。
   直したら 16.1 / 16.2 を再テストに積む。v0.67.8 で、要素名で `t` を見分けるようにして直した（16.1 の印を外し、両方を再テストに積んだ）。
-- [ ] 日本語の Word は見出しのスタイル ID を `Heading1` ではなく `1` と書くので、アウトラインが出ない（所見 2、16.3）。`word/styles.xml` の
+- [x] （v0.75.18 で直した。`office::heading_styles`）日本語の Word は見出しのスタイル ID を `Heading1` ではなく `1` と書くので、アウトラインが出ない（所見 2、16.3）。`word/styles.xml` の
   `w:styleId` → `w:name` を引いて見出しを見分ける（提案 4）。
-- [ ] Word が書く `.doc` は中に zip を含むので、`.docx` に名前を変えると書庫として開き、「pre-2007 の .doc を改名した？」の文言に届かない（所見 3）。
+- [x] （v0.75.18 で直した。先頭 8 バイトを先に見る）Word が書く `.doc` は中に zip を含むので、`.docx` に名前を変えると書庫として開き、「pre-2007 の .doc を改名した？」の文言に届かない（所見 3）。
   先頭 8 バイトが `D0 CF 11 E0 A1 B1 1A E1`（OLE2）なら、そう言う（提案 3）。
 - [x] （v0.75.16、QA の子が TESTING.md を直した）TESTING.md 16.12 の `/` と `n` はファイル一覧の検索で、プレビューの中を探すキーではない（所見 4。人か QA セッション）。
 - [x] （v0.75.16、QA の子が TESTING.md を直した）TESTING.md 16.11 の「5000 行」は読み取りの上限で、テキストのプレビューは 4000 行（`text.rs` の `MAX_LINES`）で切る（記録。文言を合わせる）。
@@ -1430,9 +1430,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 `cargo test` の一時フォルダの探索、前提が古い 26.8 / 26.10（上の項目に注記）。
 
 - [x] 新しい行 12.8a、19.4a、21.14b、22.6a、37.8a。印を外した行 2.2、16.11、21.14、25.4a、37.7。どれも両レーンの再テストに回した
-- [ ] **Office のプレビューの切り詰めの注記が誤る**（`src/preview/mod.rs` の `office_text`）。4000〜4999 行のブックは 4000 行しか出ないのに
+- [x] （v0.75.18 で直した。`preview::office_extent`）**Office のプレビューの切り詰めの注記が誤る**（`src/preview/mod.rs` の `office_text`）。4000〜4999 行のブックは 4000 行しか出ないのに
   `truncated: false` で何も言わず、5000 行以上だと `… 5000 lines total (truncated)` と出る（実際は 4000 行しか出しておらず、ファイルはもっと長い）。16.11
-- [ ] `src/fs/archive.rs` の `zip_entry_time` の doc コメント（150〜152 行）が「7-Zip と Explorer は同じ書庫から正確な時刻を読む」と言うが、
+- [x] （v0.75.18 で直した）`src/fs/archive.rs` の `zip_entry_time` の doc コメント（150〜152 行）が「7-Zip と Explorer は同じ書庫から正確な時刻を読む」と言うが、
   #200 と ARM64 の実測ではエクスプローラーは MS-DOS の欄しか読まない
 - [ ] TESTING.md 48.7 にも 48.6 と同じ穴（`PATH` に置く `conpty.dll` の PE machine が違うと何も確かめていない）。48.6 と同じ注記を足す 【QA】
 

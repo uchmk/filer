@@ -55,14 +55,25 @@ pub struct Read1 {
 /// nobody previews a million rows.
 const MAX_LINES: usize = 5_000;
 
+/// The first bytes of an OLE2 compound file: `.doc`, `.xls` and `.ppt` before 2007.
+const OLE2: [u8; 8] = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+
+const NOT_OOXML: &str = "not an Office XML file (a pre-2007 .doc/.xls/.ppt renamed?)";
+
 pub fn read(path: &Path, kind: Kind, _max_bytes: usize) -> Result<Read1, String> {
-    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let mut file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    // An old binary `.doc` begins with the OLE2 signature, and the ones Word
+    // writes can hold a zip inside, which then opens as an archive with no
+    // `word/document.xml` -- so the useful answer is given before trying
+    // (16.10, #165).
+    let mut head = [0u8; 8];
+    if file.read_exact(&mut head).is_ok() && head == OLE2 {
+        return Err(NOT_OOXML.into());
+    }
     let mut zip = zip::ZipArchive::new(file).map_err(|e| match e {
         // The most useful thing to say about a `.docx` that is not a zip is
         // that it is not one: an old `.doc` renamed is the common cause.
-        zip::result::ZipError::InvalidArchive(_) => {
-            "not an Office XML file (a pre-2007 .doc/.xls/.ppt renamed?)".to_string()
-        }
+        zip::result::ZipError::InvalidArchive(_) => NOT_OOXML.to_string(),
         other => other.to_string(),
     })?;
     match kind {
@@ -175,6 +186,7 @@ fn stamp(s: String) -> String {
 
 fn word(zip: &mut zip::ZipArchive<std::fs::File>) -> Result<Read1, String> {
     let xml = part(zip, "word/document.xml").ok_or("no word/document.xml in it")?;
+    let styles = part(zip, "word/styles.xml").map(|s| heading_styles(&s)).unwrap_or_default();
     let mut lines = Vec::new();
     let mut outline = Vec::new();
     for para in xml.split("<w:p ").skip(1).chain(xml.split("<w:p>").skip(1)) {
@@ -182,7 +194,7 @@ fn word(zip: &mut zip::ZipArchive<std::fs::File>) -> Result<Read1, String> {
         let text = text_of(body);
         // A heading names itself in its paragraph properties, which is the
         // only structure Word leaves behind that is worth an outline.
-        if let Some(level) = heading_level(body) {
+        if let Some(level) = heading_level(body, &styles) {
             if !text.trim().is_empty() {
                 outline.push(TocEntry { level, label: text.clone(), line: lines.len() });
             }
@@ -195,12 +207,36 @@ fn word(zip: &mut zip::ZipArchive<std::fs::File>) -> Result<Read1, String> {
     Ok(Read1 { lines, outline, truncated: false })
 }
 
-/// `<w:pStyle w:val="Heading2"/>` → 2.
-fn heading_level(para: &str) -> Option<u8> {
+/// `<w:pStyle w:val="Heading2"/>` → 2. The id is looked up in `styles`
+/// first: a Japanese Word names its heading styles `1`, `2`, … and keeps
+/// `heading 1` only as the style's name (16.3, #165).
+fn heading_level(para: &str, styles: &std::collections::HashMap<String, u8>) -> Option<u8> {
     let at = para.find("w:pStyle")?;
     let val = attr(&para[at..], "w:val")?;
-    let n = val.strip_prefix("Heading").or_else(|| val.strip_prefix("heading"))?;
-    n.parse().ok().filter(|l| (1..=9).contains(l))
+    if let Some(&level) = styles.get(val) {
+        return Some(level);
+    }
+    heading_number(val)
+}
+
+/// `Heading2`, `heading 2` → 2.
+fn heading_number(name: &str) -> Option<u8> {
+    let n = name.strip_prefix("Heading").or_else(|| name.strip_prefix("heading"))?;
+    n.trim().parse().ok().filter(|l| (1..=9).contains(l))
+}
+
+/// The paragraph styles in `word/styles.xml` whose name is a heading's, by
+/// id: `<w:style w:styleId="1"><w:name w:val="heading 1"/>` → `"1"` → 1.
+fn heading_styles(xml: &str) -> std::collections::HashMap<String, u8> {
+    xml.split("<w:style ")
+        .skip(1)
+        .filter_map(|s| {
+            let s = s.split("</w:style>").next().unwrap_or("");
+            let id = attr(s, "w:styleId")?;
+            let name = attr(&s[s.find("<w:name")?..], "w:val")?;
+            Some((id.to_owned(), heading_number(name)?))
+        })
+        .collect()
 }
 
 // ----------------------------------------------------------------- Slides
@@ -578,6 +614,49 @@ mod tests {
         assert_eq!(doc.outline[0].level, 1);
 
         let _ = std::fs::remove_file(&p);
+    }
+
+    /// A Japanese Word calls its heading styles `1` and `2`, and only
+    /// `word/styles.xml` says they are `heading 1` and `heading 2` (the
+    /// machine's 16.3 still opens a document Word wrote).
+    #[test]
+    fn heading_styles_are_found_by_their_name() {
+        let p = tmp("ja.docx");
+        make(&p, &[
+            (
+                "word/styles.xml",
+                r#"<w:styles><w:style w:type="paragraph" w:styleId="1"><w:name w:val="heading 1"/></w:style>
+                   <w:style w:type="paragraph" w:styleId="2"><w:name w:val="heading 2"/></w:style>
+                   <w:style w:type="paragraph" w:styleId="a3"><w:name w:val="Title"/></w:style></w:styles>"#,
+            ),
+            (
+                "word/document.xml",
+                r#"<w:document><w:body>
+                   <w:p><w:pPr><w:pStyle w:val="1"/></w:pPr><w:r><w:t>はじめに</w:t></w:r></w:p>
+                   <w:p><w:pPr><w:pStyle w:val="2"/></w:pPr><w:r><w:t>背景</w:t></w:r></w:p>
+                   <w:p><w:pPr><w:pStyle w:val="a3"/></w:pPr><w:r><w:t>not a heading</w:t></w:r></w:p>
+                   </w:body></w:document>"#,
+            ),
+        ]);
+        let doc = read(&p, Kind::Word, 1 << 20).unwrap();
+        let outline: Vec<(u8, &str)> = doc.outline.iter().map(|t| (t.level, t.label.as_str())).collect();
+        assert_eq!(outline, vec![(1, "はじめに"), (2, "背景")]);
+    }
+
+    /// A binary `.doc` renamed, even one that holds a zip inside as Word's
+    /// do, is named for what it is rather than opened as an archive (16.10
+    /// on the machine, with a `.doc` Word wrote).
+    #[test]
+    fn an_ole2_file_with_a_zip_inside_says_what_it_is_not() {
+        let p = tmp("old.docx");
+        let inner = tmp("inner.zip");
+        make(&inner, &[("x.txt", "x")]);
+        let mut bytes = vec![0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+        bytes.resize(512, 0);
+        bytes.extend(std::fs::read(&inner).unwrap());
+        std::fs::write(&p, bytes).unwrap();
+        let e = read(&p, Kind::Word, 1 << 20).unwrap_err();
+        assert!(e.contains("pre-2007"), "{e}");
     }
 
     /// Excel: shared strings resolve, sheets keep their tab names and order.

@@ -148,8 +148,10 @@ fn set_time(out: BufWriter<File>, when: Option<std::time::SystemTime>) -> io::Re
 /// timestamp (`0x5455`, to the second, what Info-ZIP and filer write), then
 /// the MS-DOS field every zip has. The DOS field alone is two-second steps in
 /// local time, and 7-Zip rounds it *up*: `2019-02-28 23:59:59` came back as
-/// `2019-03-01 00:00:00`, a day and a month later, where 7-Zip and Explorer
-/// both read the exact time from the same archive (#174).
+/// `2019-03-01 00:00:00`, a day and a month later, where 7-Zip read the exact
+/// time from the same archive (#174). Explorer does not: it reads and writes
+/// the DOS field alone (#200, and ARM64 measured the same), so it shows the
+/// two-second step whatever else the entry carries.
 fn zip_entry_time<'a>(
     extra: impl Iterator<Item = &'a zip::ExtraField>,
     dos: Option<zip::DateTime>,

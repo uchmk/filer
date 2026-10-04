@@ -511,7 +511,7 @@ fn office_text(
     // Plain, not highlighted: there is no grammar for "the text that was in a
     // spreadsheet", and guessing one by extension would colour it as XML --
     // which is what it was stored as and not what is being shown.
-    match text::plain(&doc.lines.join("\n"), Extent { truncated: doc.truncated, total, ..Default::default() }) {
+    match text::plain(&doc.lines.join("\n"), office_extent(total, doc.truncated)) {
         // The extent `plain` worked out is the one to keep -- it counted the
         // lines it was actually handed.
         Payload::Text { lines, map, extent, .. } => {
@@ -519,6 +519,15 @@ fn office_text(
         }
         other => other,
     }
+}
+
+/// How much of an Office document is shown. Up to the text preview's own
+/// cap, so a document longer than that is truncated whether or not the
+/// reader stopped; and a reader that stopped has counted only what it read
+/// (16.11: a 4500-row workbook said nothing, and a longer one said `5000
+/// lines total`).
+fn office_extent(total: usize, stopped: bool) -> Extent {
+    Extent { truncated: stopped || total > text::MAX_LINES, total, cut: stopped, rows: None }
 }
 
 /// Draw a file with the command configured for it.
@@ -615,6 +624,17 @@ fn meta(path: &std::path::Path, _req: &Request, note: &str) -> Payload {
 
 #[cfg(test)]
 mod tests {
+    /// What the note under an Office preview says (16.11 on the machine).
+    #[test]
+    fn an_office_preview_says_how_much_it_shows() {
+        assert!(!super::office_extent(300, false).truncated);
+        let mid = super::office_extent(4500, false);
+        assert!(mid.truncated, "4500 lines are more than the 4000 shown");
+        assert_eq!(mid.note(), "… 4500 lines total (truncated)");
+        let long = super::office_extent(5000, true);
+        assert_eq!(long.note(), "… 5000 lines read, and the file goes on (truncated)");
+    }
+
     /// The caption reads as the thing it counts.
     ///
     /// A unit that could only go in front turned fifty seconds into `s 50`.
