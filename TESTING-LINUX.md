@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 493 件（TESTING.md の全 663 件のうち、`cargo test` が見ている 170 件は外してある）。
+押すものは 494 件（TESTING.md の全 664 件のうち、`cargo test` が見ている 170 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -304,6 +304,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **18.7a** 離す。左のペインから右へ、右から左へ、`Shift` を押したままでも 1 回。最後に両方のペインを同じフォルダにして 1 回（v0.73.38、#208）→ 離したペインへコピーされる（`Shift` なら移動）。**どちらの向きでも**。v0.73.38 より前は左→右で何も起きなかった。同じフォルダなら `<A-c>` と同じ `Both panes are in the same directory` が出て、ジョブは立たない — *Let go: left pane onto the right, right onto the left, and once with `Shift` held; then once with both panes in the same folder (v0.73.38, #208) → The files are copied into the pane let go over (moved with `Shift`), **both ways round** -- before v0.73.38 left onto right did nothing. Same folder: `Both panes are in the same directory`, as `<A-c>` says, and no job*
 - [ ] **18.11** `B` で保存しておいた場所へ、`'` に続けて文字を押す → そこへ飛ぶ。**`b` はブックマークの*管理*の前置キー**（`bb` 一覧、`bs` 保存、`bd` 削除）なので、`b` + 文字では何にも届かない — *`'` then a letter, having saved one with `B` → Jumps there. **`b` is the prefix bookmark *management* hangs off** (`bb` lists, `bs` saves, `bd` deletes), so `b` and a letter reaches nothing*
 - [ ] **18.12** `z` → ジャンプ一覧が出る。ブックマークが先、そのあと最近のディレクトリが「2h ago」付きで並ぶ — *`z` → The jump list: bookmarks first, then recent directories with "2h ago" beside them*
+- [ ] **18.13** 長いテキスト（`long.rs` か 3000 行のファイル）で `<A-G>`、次に `<A-g>`（v0.76.2、Q76）→ `<A-G>` でプレビューの最後の行が出て（`preview top: N of N`）、`<A-g>` で最初に戻る（`preview top: 0 of N`）。一覧のカーソルは動かない。長いブック（16.11）では `<A-G>` で末尾の注記がすぐ見える — *On a long text file (`long.rs`, or a 3000-line one), `<A-G>` then `<A-g>` (v0.76.2, Q76) → `<A-G>` puts the preview's last line on screen (`preview top: N of N`), `<A-g>` its first (`preview top: 0 of N`). The list's cursor does not move. On a long workbook (16.11) `<A-G>` shows the note under the last line at once*
 
 ## 19. ホイール、ペインごとの挙動
 

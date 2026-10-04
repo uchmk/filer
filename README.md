@@ -1069,6 +1069,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `;` `:` | shell command, hidden / shell command in a console of its own |
 | `<C-t>` `<C-S-t>` `<A-t>` | terminal: keys in and back out / end the shell / type the selection into it |
 | `<A-k>` `<A-j>` | scroll the preview, without moving the list's cursor |
+| `<A-g>` `<A-G>` | the preview's top / end (`seek top` / `seek bot`; v0.76.2) |
 | `M` | Markdown rendered ↔ source |
 | `<A-i>` `<A-o>` `<A-0>` `<A-1>` | image: zoom in / out / fit the pane / 1:1 |
 | `<A-n>` | show or hide the preview's minimap |
