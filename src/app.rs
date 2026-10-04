@@ -4160,9 +4160,14 @@ impl App {
             return;
         }
         match self.apply_rename(from, &to) {
-            Ok(()) => self
-                .undos
-                .land(UndoStep::Rename { from: from.to_path_buf(), to }, Land::Fresh),
+            // Said like `d` and `-` say theirs: a rename was the one change
+            // that went by in silence, though its undo is the one people use
+            // most (#225).
+            Ok(()) => {
+                let step = UndoStep::Rename { from: from.to_path_buf(), to };
+                self.toast(format!("{} — u to undo", step.redone_label()));
+                self.undos.land(step, Land::Fresh);
+            }
             Err(e) => self.error(format!("Rename failed: {e}")),
         }
     }
@@ -8620,6 +8625,19 @@ mod said_out_loud {
             trashed: vec![dir.join("a.txt")],
         });
         assert!(a.toasts.iter().any(|t| t.text == "Trashed a.txt — u to undo"), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// #225: a rename says what it did and that `u` takes it back, as `d`
+    /// and `-` do. It used to say nothing at all.
+    #[test]
+    fn a_rename_says_what_it_did() {
+        let dir = crate::util::test_dir("said-rename");
+        std::fs::write(dir.join("a.txt"), "x").unwrap();
+        let mut a = app_in(&dir);
+        a.do_rename(&dir.join("a.txt"), "b.txt");
+        assert!(dir.join("b.txt").exists() && !dir.join("a.txt").exists());
+        assert!(a.toasts.iter().any(|t| t.text == "Renamed to b.txt — u to undo"), "{:?}",
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 

@@ -1430,7 +1430,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] TESTING.md 12.8 の後半「ファイルを作っても undo の段は増えず、redo は残る（#83）」が古い（#225 の所見）。v0.60.0 から `a` は 【QA】
   `UndoStep::Create` を積み、redo を消す。12.8 の期待を「新しい名前の変更で redo が消える」で終え、`r`、`u`、`a`、`U` で `Nothing to redo` の
   12.8a を足し、12 節の前書きの最後の文を消す。#225 の `FILER_KEYS_DONE` がそのまま 2 行の証拠になる
-- [ ] 名前の変更が成功しても何も言わない（#225 の提案 1）。`d` は `Trashed <名前> — u to undo` と言うのに、`r` だけ黙っている。
+- [x] （v0.73.65。`Renamed to <新しい名前> — u to undo` と出す。TESTING.md 12.6 に足した）名前の変更が成功しても何も言わない（#225 の提案 1）。`d` は `Trashed <名前> — u to undo` と言うのに、`r` だけ黙っている。
   `do_rename` の `Ok(())` で `Renamed to <新しい名前> — u to undo` を出す（文言は `UndoStep::redone_label()` にある）。TESTING.md にも 1 行
 - [ ] `cargo build --release` が作るのは `filer-com.exe` で、zip の `filer.com` ではない（#225 の提案 3）。手元のビルドでは PowerShell から
   `filer env` を待てない。`scripts/fetch-conpty.ps1` で `filer.com` にも写す

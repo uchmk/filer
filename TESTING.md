@@ -406,7 +406,7 @@ below has to be typed over a field the person clears first. That is in QA-REPORT
 
 ## 12. Undo and redo (v0.3.0)
 
-12.6 and 12.7 are automated (`ui::undo_frame`, five tests): `r` then `u` puts the old name back and
+12.6 and 12.7 are automated (`ui::undo_frame`, five tests, and `app::said_out_loud::a_rename_says_what_it_did`): `r` says what it did, `r` then `u` puts the old name back and
 the toast names it, and `u` / `U` on an empty stack each say so in their own words. Everything else
 in this section starts with `d`, and a delete is a job on the ops worker put back by reading the
 trash, so 12.1 to 12.5 and 12.9 to 12.12 stay here. Three of those rows state a rule a **rename**
@@ -424,7 +424,7 @@ step; it now renames a second file (#83).
 | 12.3 | Check the task panel (`w`) during F2 | A `Restore` row appears and completes |
 | 12.4 | `U` | Deleted again |
 | 12.5 | Delete two files with the same name from different folders, an interval apart, then `u` | The one just deleted comes back — not the older one |
-| 12.6 | `r` to rename, then `u` | The old name is back |
+| 12.6 | `r` to rename, then `u` | `r` says `Renamed to <new name> — u to undo` (v0.73.65, #225; before, a rename said nothing). After `u` the old name is back |
 | 12.7 | `u` with nothing to undo | "Nothing to undo" — no error |
 | 12.8 | Rename a file, undo it, then rename **another** file, then `U` | Redo is gone: the new rename forked history. Creating a file records no undo step, so a new file leaves the redo in place (#83) |
 | 12.9 | Delete a file, `u`, but create a file with that name first | `u` says the name is taken, and pressing it again after moving that file out of the way works |
