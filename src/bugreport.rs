@@ -59,7 +59,7 @@ pub fn context(last_error: Option<&str>, loaded: &[std::path::PathBuf]) -> Strin
 /// one went into the report as it was, user name and all, which Q64 says a
 /// report never carries (found by the QA agent's tests for section 26).
 /// Windows paths are matched without regard to case, and in either slash.
-fn without_home(text: &str, home: Option<&std::path::Path>) -> String {
+pub(crate) fn without_home(text: &str, home: Option<&std::path::Path>) -> String {
     let Some(home) = home.map(|h| h.to_string_lossy().trim_end_matches(['/', '\\']).to_owned()) else {
         return text.to_owned();
     };

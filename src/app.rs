@@ -962,8 +962,12 @@ fn dir_prefill(dir: &Path) -> String {
 
 /// What a typed path that named nothing says when its parent is shown instead
 /// (#98): one sentence, whichever of the two listings arrived first (#242).
+/// It names the whole path that was missing, not just the last part (#241),
+/// with the home folder as `~`.
 fn nothing_there(name: &str, shown: &Path) -> String {
-    format!("No such file or folder: {name} — showing {}", shown.display())
+    let home = dirs::home_dir();
+    let said = format!("No such file or folder: {} — showing {}", shown.join(name).display(), shown.display());
+    crate::bugreport::without_home(&said, home.as_deref())
 }
 
 /// What `u` calls the links it took back. A junction stays a junction in the
@@ -9771,7 +9775,7 @@ mod said_out_loud {
         a.apply_listing(&dir, listing());
         let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
         assert_eq!(said.len(), 1, "{said:?}");
-        assert!(said[0].starts_with("No such file or folder: tpyo"), "{said:?}");
+        assert!(said[0].contains("tpyo — showing"), "{said:?}");
     }
 
     /// The `cd` prompt starts with the folder and this platform's separator,
@@ -9802,7 +9806,7 @@ mod said_out_loud {
         a.on_scan(ScanResult::Failed { id: 0, path: dir.join("tpyo"), error: "not found".into() });
         let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
         assert_eq!(said.len(), 1, "{said:?}");
-        assert!(said[0].starts_with("No such file or folder: tpyo"), "{said:?}");
+        assert!(said[0].contains("tpyo — showing"), "{said:?}");
         assert_eq!(a.tabs[a.active].cwd, dir, "on the parent");
 
         // A file there is still revealed without a word, in this order too.
