@@ -43,7 +43,8 @@ pane: `--keys "<C-t><Wait:1500>git<Space>status<Enter><Wait:1000><C-S-Enter>"`. 
 harmless keys any more; a wait says how long it waited.
 **Since v0.65.0 `<Now>`** presses the next key without waiting for the last to settle (`d<Now>w`, `j<Now>j`), and
 **since v0.67.0 `<Shot:name>`** saves the window as `name.png` beside the `FILER_KEYS_DONE` file, so the picture between
-two keys comes from the same run (`<Shot:focused><C-t><Shot:unfocused>`).
+two keys comes from the same run (`<Shot:focused><C-t><Shot:unfocused>`), and **since v0.73.74 `<State:name>`** writes the
+state lines to `name.txt` there, so a script can read a state halfway and still end in `q` (`<F12><State:panel><Esc>q`, #230).
 **Since v0.67.12** a key waits for a file job it started (trash, restore, copy, link) to finish, so `u<Shot:x>` shows the
 toast without a `<Wait:>` -- use `<Now>` to catch a job mid-run. And the `FILER_KEYS_DONE` file always comes: its last line
 is `keys: done`, or it starts `keys: stalled` with the keys pressed, the last one and the rest, when nothing went in for

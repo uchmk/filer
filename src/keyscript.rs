@@ -38,6 +38,11 @@ pub enum Step {
     /// compares the screen between two keys started filer once per picture
     /// and relied on the windows coming out the same size (Q42, #154).
     Shot(String),
+    /// `<State:name>`: what `FILER_KEYS_DONE` would say now, written to
+    /// `name.txt` beside it. That file is written when the script ends, so a
+    /// script ending in `q` reports `overlay: none`, and reading a state
+    /// halfway meant leaving the `q` off and stopping filer from outside (#230).
+    State(String),
 }
 
 /// What a step becomes in the frame loop.
@@ -47,6 +52,7 @@ pub enum Press {
     Wait(Duration),
     Now,
     Shot(String),
+    State(String),
 }
 
 /// A step as the frame loop takes it; `None` for a key no keyboard can type.
@@ -56,6 +62,7 @@ pub fn press(step: &Step) -> Option<Press> {
         Step::Wait(d) => Some(Press::Wait(*d)),
         Step::Now => Some(Press::Now),
         Step::Shot(name) => Some(Press::Shot(name.clone())),
+        Step::State(name) => Some(Press::State(name.clone())),
     }
 }
 
@@ -66,6 +73,7 @@ pub fn label(step: &Step) -> String {
         Step::Wait(d) => format!("<Wait:{}>", d.as_millis()),
         Step::Now => "<Now>".into(),
         Step::Shot(name) => format!("<Shot:{name}>"),
+        Step::State(name) => format!("<State:{name}>"),
     }
 }
 
@@ -108,12 +116,14 @@ pub fn refused_report(why: &str) -> String {
     format!("keys: refused\nwhy: {why}\n")
 }
 
-/// `<Shot:name>`'s name: letters, digits, `-` and `_`, so it is a file name on
-/// every platform and cannot climb out of the folder it is saved in.
-fn shot(token: &str) -> Result<String, String> {
-    let name = token.strip_prefix("<Shot:").and_then(|t| t.strip_suffix('>')).unwrap_or("");
+/// The name in `<Shot:name>` or `<State:name>`: letters, digits, `-` and `_`,
+/// so it is a file name on every platform and cannot climb out of the folder
+/// it is saved in. `what` is the tag, `Shot` or `State`.
+fn named(token: &str, what: &str) -> Result<String, String> {
+    let name = token.strip_prefix(&format!("<{what}:")).and_then(|t| t.strip_suffix('>')).unwrap_or("");
     if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
-        return Err(format!("`{token}` is not a shot; name it with letters, digits, - and _, as `<Shot:before>`"));
+        let noun = if what == "Shot" { "shot" } else { "state" };
+        return Err(format!("`{token}` is not a {noun}; name it with letters, digits, - and _, as `<{what}:before>`"));
     }
     Ok(name.to_owned())
 }
@@ -130,7 +140,8 @@ fn wait(token: &str) -> Option<Result<Duration, String>> {
 /// `<Tab>C<C-S-t>gg` as the keys it names, in yazi's notation: `<…>` is one
 /// key, anything else is one key per character. `<Wait:N>` pauses N ms, and
 /// `<Now>` presses the next key without waiting for the last one to settle,
-/// and `<Shot:name>` saves the window as `name.png`.
+/// `<Shot:name>` saves the window as `name.png` and `<State:name>` the state
+/// report as `name.txt`.
 pub fn parse(script: &str) -> Result<Vec<Step>, String> {
     let mut out = Vec::new();
     let mut rest = script;
@@ -152,7 +163,8 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
         let step = match wait(token) {
             Some(d) => Step::Wait(d?),
             None if token == "<Now>" => Step::Now,
-            None if token.starts_with("<Shot:") => Step::Shot(shot(token)?),
+            None if token.starts_with("<Shot:") => Step::Shot(named(token, "Shot")?),
+            None if token.starts_with("<State:") => Step::State(named(token, "State")?),
             None => Step::Key(Key::parse(token).ok_or_else(|| format!("`{token}` is not a key"))?),
         };
         out.push(step);
@@ -225,6 +237,13 @@ mod tests {
     /// Q42: `<Shot:name>` is a step of its own, and its name is a plain file name.
     #[test]
     fn a_shot_is_named() {
+        let got = parse("j<State:mid>k").unwrap();
+        assert_eq!(got[1], Step::State("mid".into()), "#230: `<State:name>` likewise");
+        assert_eq!(label(&got[1]), "<State:mid>");
+        for bad in ["<State:>", "<State:../x>"] {
+            let err = parse(bad).unwrap_err();
+            assert!(err.contains("<State:before>"), "{bad}: {err}");
+        }
         let got = parse("j<Shot:after-j>k").unwrap();
         assert_eq!(got[1], Step::Shot("after-j".into()));
         assert_eq!(press(&got[1]), Some(Press::Shot("after-j".into())));

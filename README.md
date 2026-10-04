@@ -1403,6 +1403,10 @@ file (or in the folder filer was started from), and the next key waits until it 
 (v0.67.0). `--keys "<Shot:before><C-t><Shot:after>"` gives the two pictures a comparison needs from
 one run. The name is letters, digits, `-` and `_`.
 
+`<State:name>` writes what the `FILER_KEYS_DONE` file would say at that point to `name.txt` in the
+same folder (v0.73.74). That file is written when the script ends, so a script ending in `q` reports
+`overlay: none`; `--keys "<F12><State:panel><Esc>q"` reads the open box and still quits by itself.
+
 A space is written `<Space>`; a plain one is refused.
 
 A script driving filer from outside needs to know when the keys are done, and guessing from the

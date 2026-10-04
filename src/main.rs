@@ -139,7 +139,8 @@ fn parse_cli() -> Cli {
                      \"<Tab>C\" opens spot and copies it; <Wait:500> pauses\n                     \
                      500 ms; <Now> presses the next key without waiting\n                     \
                      for the last to settle; <Shot:name> saves the window\n                     \
-                     as name.png. For scripted checks\n\n\
+                     as name.png, <State:name> the state as name.txt.\n                     \
+                     For scripted checks\n\n\
                      COMMANDS:\n    env              config files, outside tools and environment,\n                     \
                      for pasting into a bug report\n    \
                      env --out FILE   the same, written to FILE as UTF-8{ENV_OUT_WAIT}\n    \
@@ -881,6 +882,15 @@ impl eframe::App for Filer {
                 raw_input.events.extend(events);
                 self.script_at = (frame, std::time::Instant::now());
                 self.script_now = false;
+            }
+            // Written now: the wait above is the one a key gets, so this is
+            // the state the key before it left (#230).
+            Some(keyscript::Press::State(name)) => {
+                let path = self.shot_dir.join(format!("{name}.txt"));
+                if let Err(e) = std::fs::write(&path, state_report(&self.app)) {
+                    self.app.error(format!("State {name}: {e}"));
+                }
+                self.script_at = (frame, std::time::Instant::now());
             }
             // Taken in `ui`, which is where a viewport command can be sent.
             Some(keyscript::Press::Shot(name)) => {

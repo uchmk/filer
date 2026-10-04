@@ -1428,7 +1428,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] #230: 26.1 に印。箱の下端はボタンの下 12 px（直す前の式なら約 66 px）。`<Enter>` までブラウザーは開かず、開いたタブの URL は `report:` と一致
 - [x] （v0.73.72。`confirm:` に題と本文、`confirm keys:` にボタン。Xvfb で `<F12>` のあと読んだ）`FILER_KEYS_DONE` に確認の箱の中身を出す（#230 の提案 2）: `pick:` と同じ形で `confirm: <題> | <本文の行> | [o] … | [c] … | [n] …`。26.1、12 節のごみ箱、
   13 節のジャンクション、21 節の上書き、45 節のリンクの確認が文字で読めるようになる
-- [ ] `--keys` の途中で状態を書く `<State:name>`（#230 の提案 3）。`<Shot:name>` の状態版で、`state_report()` を `name.txt` に書く。今は `q` で終わる
+- [x] （v0.73.74。`FILER_KEYS_DONE` の横に `name.txt`。Xvfb で `j<F12><State:mid><Esc>q` → `mid.txt` は `overlay: confirm`、終わりは `quit: yes`）`--keys` の途中で状態を書く `<State:name>`（#230 の提案 3）。`<Shot:name>` の状態版で、`state_report()` を `name.txt` に書く。今は `q` で終わる
   スクリプトだと最後の状態しか残らず、途中を読むには `q` を抜いて外から止めるしかない（`Start-Process -Wait` が使えない）
 - [ ] `--keys` でペインの文字を書き出す `<PaneText:name>`（#229 の提案 1）。見えている格子を `name.txt` に。lazygit のフッタのような「ペインに何が出ているか」を
   画像でなく文字で確かめられる。Linux の `xrun.sh` でも同じに使える
