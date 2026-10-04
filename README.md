@@ -298,11 +298,17 @@ max_text_bytes = 262144
 max_history = 200
 window_width = 1360.0
 window_height = 860.0
+backend = "auto"           # auto | vulkan | dx12 | metal | gl; read at start
 
 [term]                     # what `<C-t>` starts; omit for the default
 # shell = "powershell"     # Windows without this is pwsh (7) when installed, else 5.1
 # args = ["-NoLogo"]
 ```
+
+`backend` picks what draws the window (v0.74.0). Leave it at `auto` unless an idle filer keeps a core
+busy: on some AMD GPUs a driver thread does that under Vulkan and DX12, and `gl` stops it. The
+`WGPU_BACKEND` environment variable still wins for one run. A backend this machine has no adapter
+for falls back to `auto` and says so among the config warnings, rather than leaving no window.
 
 Fonts are auto-detected: a Nerd Font from your user font directory (HackGen, FiraCode,
 CaskaydiaCove, JetBrainsMono) first, then Meiryo / Yu Gothic for CJK coverage. If no Nerd Font is

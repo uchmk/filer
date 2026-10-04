@@ -68,6 +68,29 @@ pub struct Ui {
     pub max_history: usize,
     pub window_width: f32,
     pub window_height: f32,
+    /// What draws the window: `auto` (wgpu's pick), `vulkan`, `dx12`,
+    /// `metal` or `gl`. `WGPU_BACKEND` overrides it for one run (Q70: an AMD
+    /// driver thread keeps a core busy under Vulkan and DX12 while filer
+    /// sits idle, and only GL stops it, #204, #207, #232).
+    pub backend: String,
+}
+
+impl Ui {
+    /// `[ui] backend` as the wgpu name it stands for: `None` for `auto` (or
+    /// empty), an error naming the value for anything else unknown.
+    pub fn backend_name(&self) -> Result<Option<&'static str>, String> {
+        match self.backend.trim().to_ascii_lowercase().as_str() {
+            "" | "auto" => Ok(None),
+            "vulkan" | "vk" => Ok(Some("vulkan")),
+            "dx12" | "d3d12" => Ok(Some("dx12")),
+            "metal" | "mtl" => Ok(Some("metal")),
+            "gl" | "opengl" | "gles" => Ok(Some("gl")),
+            _ => Err(format!(
+                "[ui] backend = \"{}\" is not one of auto, vulkan, dx12, metal, gl; drawing with the default",
+                self.backend
+            )),
+        }
+    }
 }
 
 impl Default for Ui {
@@ -85,6 +108,7 @@ impl Default for Ui {
             max_history: 200,
             window_width: 1360.0,
             window_height: 860.0,
+            backend: "auto".into(),
         }
     }
 }

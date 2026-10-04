@@ -308,7 +308,9 @@ fn main() -> eframe::Result<()> {
     if let Some(icon) = app_icon(ICON_SVG, 256) {
         viewport = viewport.with_icon(icon);
     }
-    let options = eframe::NativeOptions { viewport, ..Default::default() };
+    let mut cfg = cfg;
+    let wgpu_options = wgpu_options(&mut cfg);
+    let options = eframe::NativeOptions { viewport, wgpu_options, ..Default::default() };
 
     eframe::run_native(
         "Filer",
@@ -1130,6 +1132,57 @@ fn state_report(app: &App) -> String {
     lines.join("\n") + "\n"
 }
 
+/// The wgpu setup, with `[ui] backend` applied (Q70).
+///
+/// `WGPU_BACKEND` wins, as `FILER_TERM_SHELL` wins over `[term] shell`: it is
+/// the one-run override. A backend this machine has no adapter for is not
+/// handed on, because eframe would then fail to open any window at all and
+/// say so only on a console nobody sees; it falls back to wgpu's own pick
+/// and says why among the config warnings.
+fn wgpu_options(cfg: &mut Config) -> eframe::WgpuConfiguration {
+    use eframe::egui_wgpu::WgpuSetup;
+    let mut options = eframe::WgpuConfiguration::default();
+    if std::env::var_os("WGPU_BACKEND").is_some_and(|v| !v.is_empty()) {
+        return options;
+    }
+    let name = match cfg.ui.backend_name() {
+        Ok(Some(name)) => name,
+        Ok(None) => return options,
+        Err(e) => {
+            cfg.warnings.push(e);
+            return options;
+        }
+    };
+    let backends = eframe::wgpu::Backends::from_comma_list(name);
+    if !has_adapter(backends) {
+        cfg.warnings.push(format!(
+            "[ui] backend = \"{name}\": this machine has no adapter for it; drawing with the default"
+        ));
+        return options;
+    }
+    if let WgpuSetup::CreateNew(setup) = &mut options.wgpu_setup {
+        setup.instance_descriptor.backends = backends;
+    }
+    options
+}
+
+/// Whether wgpu finds an adapter on `backends`. Asked of an instance of its
+/// own, before the window exists; the answer is ready at once on every native
+/// backend, and one still pending is taken as a yes rather than waited on.
+fn has_adapter(backends: eframe::wgpu::Backends) -> bool {
+    use std::future::Future as _;
+    let instance = eframe::wgpu::Instance::new(eframe::wgpu::InstanceDescriptor {
+        backends,
+        ..eframe::wgpu::InstanceDescriptor::new_without_display_handle()
+    });
+    let mut probe = std::pin::pin!(instance.enumerate_adapters(backends));
+    let mut cx = std::task::Context::from_waker(std::task::Waker::noop());
+    match probe.as_mut().poll(&mut cx) {
+        std::task::Poll::Ready(adapters) => !adapters.is_empty(),
+        std::task::Poll::Pending => true,
+    }
+}
+
 /// `pub(crate)` for [`crate::ui::harness`]: a test that drives the program with
 /// `egui::Event`s has to enter through the same door the window does. The chord
 /// rules below -- Windows sending a keypress *and* the character it would have
@@ -1503,6 +1556,31 @@ mod tests {
         assert!(report.lines().any(|l| l == "scale: 100% (ppp 1)"), "{report}");
         app.scale = 1.5;
         assert!(state_report(&app).lines().any(|l| l == "scale: 150% (ppp 1)"), "{report}");
+    }
+
+    /// Q70: `[ui] backend` names wgpu's backends, `auto` hands the choice to
+    /// wgpu, and a name it does not know is a warning, not a window that
+    /// fails to open.
+    #[test]
+    fn the_backend_setting_names_a_wgpu_backend() {
+        let ui = |b: &str| config::Ui { backend: b.into(), ..Default::default() };
+        assert_eq!(ui("auto").backend_name(), Ok(None));
+        assert_eq!(ui("").backend_name(), Ok(None));
+        assert_eq!(ui("GL").backend_name(), Ok(Some("gl")));
+        assert_eq!(ui("opengl").backend_name(), Ok(Some("gl")));
+        assert_eq!(ui("vulkan").backend_name(), Ok(Some("vulkan")));
+        assert_eq!(ui("d3d12").backend_name(), Ok(Some("dx12")));
+        assert_eq!(ui("metal").backend_name(), Ok(Some("metal")));
+        let err = ui("directx").backend_name().unwrap_err();
+        assert!(err.contains("\"directx\"") && err.contains("auto, vulkan, dx12, metal, gl"), "{err}");
+
+        // The unknown name goes among the config warnings, and the setup is
+        // wgpu's own -- unless `WGPU_BACKEND` is set, which wins before this.
+        if std::env::var_os("WGPU_BACKEND").is_none() {
+            let mut cfg = Config { ui: ui("directx"), ..Config::load() };
+            let _ = wgpu_options(&mut cfg);
+            assert!(cfg.warnings.iter().any(|w| w.contains("\"directx\"")), "{:?}", cfg.warnings);
+        }
     }
 
     /// #168, proposal 5: a script nothing has moved for longer than the stall

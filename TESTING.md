@@ -1389,6 +1389,8 @@ cause. Every expectation is a number from `Get-Process`.
 | 47.3 | The same as 47.2, then minimise the window | Still no rise while minimised |
 | 47.4 | If 47.1-47.3 still rise: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart | Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at |
 | 47.5 | Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3) | No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110) |
+| 47.6 | `[ui] backend = "gl"` in `filer.toml`, no `WGPU_BACKEND`; start filer, then 47.1 (v0.74.0, Q70) | `filer env`'s `Adapter` line ends `(Gl, …)`, and 47.1 holds where it failed under Vulkan and DX12 (the x64 AMD machine) |
+| 47.7 | `[ui] backend = "directx"`, then `"metal"` on Windows (v0.74.0, Q70) | The window opens both times, drawn with the default (`Adapter` reads Vulkan or DX12). A config warning says `"directx" is not one of auto, vulkan, dx12, metal, gl`, then `"metal": this machine has no adapter for it` |
 
 ## 48. The release zips (v0.64.0)
 
