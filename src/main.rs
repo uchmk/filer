@@ -1086,6 +1086,14 @@ fn state_report(app: &App) -> String {
         _ => z,
     };
     lines.push(format!("zoom: {}", app.preview.zoom.map_or("fit".into(), |z| format!("{:.0}%", scale(z) * 100.0))));
+    // The scale the run was measured at: filer's own (`<C-=>`) and what egui
+    // made of it with the display's, which is what every size above was
+    // drawn at. Before, it was read back from the `Scale N%` toasts or the
+    // next run's `filer env` (#227, #228).
+    lines.push(format!("scale: {:.0}% (ppp {})", app.scale * 100.0, (ppp * 1000.0).round() / 1000.0));
+    let size = app.ctx.input(|i| i.viewport_rect().size());
+    let window = crate::runinfo::RunInfo { window_pt: [size.x.round(), size.y.round()], ppp, ..Default::default() };
+    lines.push(format!("window: {}", window.window_line().unwrap_or_default()));
     // The setting `<A-n>` flips. Whether a strip was actually drawn (it is
     // not on rendered Markdown, a two-line file or a narrow pane) is a
     // picture's question.
@@ -1457,6 +1465,11 @@ mod tests {
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "pick: Neovim | VS Code (2h ago) | サクラエディタ"), "{report}");
         assert!(report.lines().any(|l| l == "picked: VS Code"), "{report}");
+
+        // The scale the run is at, filer's own beside egui's (#227, #228).
+        assert!(report.lines().any(|l| l == "scale: 100% (ppp 1)"), "{report}");
+        app.scale = 1.5;
+        assert!(state_report(&app).lines().any(|l| l == "scale: 150% (ppp 1)"), "{report}");
     }
 
     /// #168, proposal 5: a script nothing has moved for longer than the stall

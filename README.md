@@ -1429,6 +1429,8 @@ pane: closed
 list top: 0
 preview top: 12 of 480
 zoom: fit
+scale: 100% (ppp 1)
+window: 1360 x 860 px (1360 x 860 pt @ 1)
 minimap setting: on
 split: no
 toast: Yanked 1 item(s)
@@ -1445,7 +1447,9 @@ there are (v0.73.43); `toast` is
 the newest message still on screen, empty when there is none. Since v0.73.1: `list top` is the first
 row of the list on screen, `preview top: N of M` the preview's first line against the furthest it can
 scroll, `zoom` the image's scale (`fit` or `250%`), `minimap setting` what `<A-n>` flips, and `split`
-whether the second pane is open and which side has the keys. Since v0.73.3, while a picker is open
+whether the second pane is open and which side has the keys. Since v0.73.69 `scale` is filer's own
+scale (`<C-=>`) with the pixels per point egui drew at -- the display's scale times filer's -- and
+`window` the window in pixels and points, as `filer env` words it. Since v0.73.3, while a picker is open
 (`<S-Enter>`, `O`, the palette), `pick: Neovim | VS Code | …` lists what it offers in the order shown
 (after any filter typed into it, cut at 40), with the note a row shows on its right in brackets --
 `…\repo (2h ago)` in the jump list (v0.73.43) and `picked:` the row under its cursor. Since v0.73.4 `toasts:` lists every toast of the run, the
