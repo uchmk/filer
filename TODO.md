@@ -514,7 +514,15 @@
   **macOS ではテストを一度も走らせたことがない。**
   - [x] （v0.75.23）`test-linux` が初回で 1 件落とした: ペインのシェルに `TERM` を渡していなかったので、CI（`TERM` 無し）の bash が dumb 端末として
     長い行を 1 行の中で横に流した（`sending_a_name_opens_a_closed_pane`）。Unix では `TERM=xterm-256color` と `COLORTERM=truecolor` を渡す。1.39 を足した。
-  - [ ] `test-macos.yml` の最初の結果を見る。落ちたテストは TODO.md に（Actions タブから手動でも回せる）
+  - [x] （v0.75.24）`test-macos.yml` の初回（v0.75.22、手動）は 2 件落ちて 2 件止まった（30 分で止めた）。
+    - `sending_a_name_opens_a_closed_pane`: Linux と同じ `TERM` の件（v0.75.23 で直した）
+    - `a_symlink_says_where_it_points_and_where_that_lands`: macOS の一時フォルダが `/var` → `/private/var` のリンクの下で、`Resolves` と
+      `Target` の文字が違った。テストのフォルダを正規化した
+    - `ending_the_shell_from_the_list` と `with_both_panes_open_exactly_one_rule_is_accent` が止まった: macOS は既定のシェルを `/usr/bin/login`
+      越しに起動し、alacritty の `Pty` は閉じるときに `SIGHUP` のあと子（`login`）を `wait` する。`login` はシェルを待ち、シェルは PTY の主側が
+      閉じるまで終わらず、主側はその `wait` の後で閉じる。filer の `Drop` がそれを UI のスレッドで落としていたので、実機ではペインを閉じると窓が固まる。
+      閉じる前に `login` の下のシェルへ `SIGHUP` を送るようにした（見立て。macOS で回して確かめる）。ジョブに 30 分の上限を付けた
+  - [ ] `test-macos.yml` の 2 回目の結果を見る（v0.75.24 で手動で回した）。落ちたテストは TODO.md に（Actions タブから手動でも回せる）
 - [x] `make-keycheck --check` と CI のステップ（v0.45.1）。keymap を変えて
   TESTING-KEYS.md を再生成し忘れた状態が CI で落ちる。**入れた初回に本物の乖離を
   見つけた** — 9 キーが未登録、説明が 2 件古く、`[help]` 層は v0.34.0 でスクロール
