@@ -2154,6 +2154,10 @@ impl App {
             || self.preview.pending_since.is_some()
             || self.preview.in_flight
             || matches!(self.preview.state, PreviewState::Loading)
+            // A job that made something puts the cursor on it when the
+            // listing is read again; until then `hovered:` names the row
+            // before (#254: `e<State:>` read the archive, not what it made).
+            || self.land_on.as_ref().is_some_and(|p| p.parent() == Some(tab.cwd.as_path()))
         {
             return false;
         }
@@ -6072,6 +6076,15 @@ impl Drop for ArchiveView {
     /// -- and are swept by a later start (`util::sweep_archive_scratch`).
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.scratch);
+        // And the folders it sat in, when that left them empty (#253, #259):
+        // `remove_dir` refuses a folder with anything in it, so a copy `l`
+        // opened, or another view's previews, keep theirs.
+        if let Some(preview) = self.scratch.parent() {
+            let _ = std::fs::remove_dir(preview);
+            if let Some(root) = preview.parent() {
+                let _ = std::fs::remove_dir(root);
+            }
+        }
     }
 }
 
@@ -8078,6 +8091,10 @@ mod archive_view {
         assert!(matches!(&a.preview.key, Some(k) if k.path == real) || a.preview.pending_since.is_some(), "the copy is what is previewed");
         a.act(Act::Escape(EscapeWhat::default()));
         assert!(!real.exists(), "the copy went with the view");
+        // #259: so did the folders it sat in, now empty, unless another
+        // test's view is using them at the same moment.
+        let preview = crate::util::archive_scratch().join("preview");
+        assert!(!preview.exists() || std::fs::read_dir(&preview).is_ok_and(|mut d| d.next().is_some()), "an empty preview folder was left");
     }
 
     /// #198: `<Enter>` with nothing left after the filter keeps the picker

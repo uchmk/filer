@@ -542,6 +542,12 @@ fn stale_test_dir(name: &str, own_pid: u32, age: std::time::Duration) -> bool {
 /// Where this process puts members of archives it unpacked to open or to
 /// preview (the archive view, `l` on an archive).
 pub fn archive_scratch() -> PathBuf {
+    // Under test, a name the test folders' sweep knows (`filer-test-…-<pid>`):
+    // a worker still unpacking when its test ends writes after the view has
+    // tidied up, and each `cargo test` left a folder behind (#253, #259).
+    #[cfg(test)]
+    return std::env::temp_dir().join(format!("{TEST_DIR_PREFIX}archive-{}", std::process::id()));
+    #[cfg(not(test))]
     std::env::temp_dir().join(format!("{ARCHIVE_SCRATCH_PREFIX}{}", std::process::id()))
 }
 
