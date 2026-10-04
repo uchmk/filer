@@ -134,8 +134,12 @@ pub fn draw(
                 lines.len()
             }
             Payload::Meta { rows: kv } => {
-                for (i, (k, v)) in kv.iter().enumerate() {
-                    let y = rect.top() + 8.0 + i as f32 * st.row_h;
+                // A value wraps at the pane's edge rather than running off it:
+                // a renamed `.doc`'s note lost its point, `renamed?`, there
+                // (#250), and a missing tool's name its end (#165).
+                let wrap = (rect.right() - PAD - (rect.left() + 110.0)).max(40.0);
+                let mut y = rect.top() + 8.0;
+                for (k, v) in kv {
                     painter.text(
                         pos2(rect.left() + PAD, y),
                         Align2::LEFT_TOP,
@@ -143,13 +147,10 @@ pub fn draw(
                         st.font.clone(),
                         st.theme.fg_dim,
                     );
-                    painter.text(
-                        pos2(rect.left() + 110.0, y),
-                        Align2::LEFT_TOP,
-                        v,
-                        st.font.clone(),
-                        st.theme.fg,
-                    );
+                    let g = painter.layout(v.clone(), st.font.clone(), st.theme.fg, wrap);
+                    let h = g.size().y.max(st.row_h);
+                    painter.galley(pos2(rect.left() + 110.0, y), g, st.theme.fg);
+                    y += h;
                 }
                 0
             }

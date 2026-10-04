@@ -2675,7 +2675,8 @@ mod quick_look_frame {
         let f = s.feed(vec![key(egui::Key::Tab, egui::Modifiers::NONE)]);
         assert!(matches!(s.app.overlay, crate::app::Overlay::Spot(_)), "the panel is up");
         assert!(f.says("Spot: a.txt"), "titled with the file: {:?}", f.texts);
-        assert!(f.says("<Esc> to close"), "and says how to leave: {:?}", f.texts);
+        assert!(f.says("<Esc> close"), "and says how to leave: {:?}", f.texts);
+        assert!(f.says("<A-j>/<A-k> row"), "and how to move along the rows (#165): {:?}", f.texts);
         for row in ["Name", "Path", "Kind", "Size", "Modified"] {
             assert!(f.says(row), "the panel lists `{row}`: {:?}", f.texts);
         }

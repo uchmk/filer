@@ -216,6 +216,7 @@ fn extract_zip(archive: &Path, dest: &Path, pick: Pick<'_>, on_entry: OnEntry<'_
     let mut zip = zip::ZipArchive::new(BufReader::new(File::open(archive)?))
         .map_err(|e| io::Error::other(e.to_string()))?;
     let mut refused = 0usize;
+    let mut dirs = Vec::new();
     for i in 0..zip.len() {
         let mut entry = zip.by_index(i).map_err(|e| io::Error::other(e.to_string()))?;
         let Some(name) = pick(entry.name()) else { continue };
@@ -225,6 +226,9 @@ fn extract_zip(archive: &Path, dest: &Path, pick: Pick<'_>, on_entry: OnEntry<'_
         };
         if entry.is_dir() {
             std::fs::create_dir_all(&path)?;
+            if let Some(when) = zip_entry_time(entry.extra_data_fields(), entry.last_modified()) {
+                dirs.push((path, when));
+            }
             continue;
         }
         if let Some(parent) = path.parent() {
@@ -240,7 +244,36 @@ fn extract_zip(archive: &Path, dest: &Path, pick: Pick<'_>, on_entry: OnEntry<'_
             return Ok(());
         }
     }
+    set_dir_times(dirs);
     refused_error(refused)
+}
+
+/// Folders' own times, put back once everything under them is written --
+/// writing into a folder moves its time, so they are done last, deepest
+/// first. A folder came out stamped with the moment of the unpack while its
+/// files kept their dates (#156's note on 21.14). A folder that will not
+/// take a time keeps the unpack's; the files are what matter.
+fn set_dir_times(mut dirs: Vec<(PathBuf, std::time::SystemTime)>) {
+    dirs.sort_by_key(|(p, _)| std::cmp::Reverse(p.components().count()));
+    for (p, when) in dirs {
+        let _ = open_dir_for_times(&p).and_then(|f| f.set_modified(when));
+    }
+}
+
+/// A folder opened so its times can be set. Windows opens a folder only with
+/// `FILE_FLAG_BACKUP_SEMANTICS`, and setting a time needs
+/// `FILE_WRITE_ATTRIBUTES` rather than write access to its contents.
+#[cfg(windows)]
+fn open_dir_for_times(p: &Path) -> io::Result<File> {
+    use std::os::windows::fs::OpenOptionsExt;
+    const FILE_WRITE_ATTRIBUTES: u32 = 0x0100;
+    const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
+    std::fs::OpenOptions::new().access_mode(FILE_WRITE_ATTRIBUTES).custom_flags(FILE_FLAG_BACKUP_SEMANTICS).open(p)
+}
+
+#[cfg(not(windows))]
+fn open_dir_for_times(p: &Path) -> io::Result<File> {
+    File::open(p)
 }
 
 /// The entry's own time onto the file just written. Without it every file
@@ -307,6 +340,7 @@ fn from_zip_time(t: zip::DateTime) -> Option<std::time::SystemTime> {
 fn extract_tar<R: Read>(reader: &mut R, dest: &Path, pick: Pick<'_>, on_entry: OnEntry<'_>) -> io::Result<()> {
     let mut tar = tar::Archive::new(reader);
     let mut refused = 0usize;
+    let mut dirs = Vec::new();
     for entry in tar.entries()? {
         let mut entry = entry?;
         let Some(name) = pick(&entry.path()?.to_string_lossy()) else { continue };
@@ -317,6 +351,9 @@ fn extract_tar<R: Read>(reader: &mut R, dest: &Path, pick: Pick<'_>, on_entry: O
         let size = entry.size();
         if entry.header().entry_type().is_dir() {
             std::fs::create_dir_all(&path)?;
+            if let Some(when) = entry.header().mtime().ok().filter(|&s| s > 0) {
+                dirs.push((path, std::time::UNIX_EPOCH + std::time::Duration::from_secs(when)));
+            }
             continue;
         }
         if let Some(parent) = path.parent() {
@@ -336,6 +373,7 @@ fn extract_tar<R: Read>(reader: &mut R, dest: &Path, pick: Pick<'_>, on_entry: O
             return Ok(());
         }
     }
+    set_dir_times(dirs);
     refused_error(refused)
 }
 
@@ -343,6 +381,7 @@ fn extract_7z(archive: &Path, dest: &Path, pick: Pick<'_>, on_entry: OnEntry<'_>
     let file = File::open(archive)?;
     let mut refused = 0usize;
     let mut stop = false;
+    let mut dirs = Vec::new();
     // sevenz-rust2 hands each entry to this closure with the destination it
     // worked out itself; that one is ignored in favour of `safe_dest`. Not a
     // precaution against this library in particular -- zip and tar are read
@@ -361,6 +400,9 @@ fn extract_7z(archive: &Path, dest: &Path, pick: Pick<'_>, on_entry: OnEntry<'_>
         let mut write = || -> io::Result<()> {
             if entry.is_directory() {
                 std::fs::create_dir_all(&path)?;
+                if entry.has_last_modified_date {
+                    dirs.push((path.clone(), entry.last_modified_date().into()));
+                }
                 return Ok(());
             }
             if let Some(parent) = path.parent() {
@@ -380,6 +422,7 @@ fn extract_7z(archive: &Path, dest: &Path, pick: Pick<'_>, on_entry: OnEntry<'_>
         Ok(true)
     });
     res.map_err(|e| io::Error::other(e.to_string()))?;
+    set_dir_times(dirs);
     refused_error(refused)
 }
 
@@ -847,6 +890,31 @@ mod tests {
         // A folder named like an archive is not one.
         std::fs::create_dir_all(dir.join("dir.zip")).unwrap();
         assert_eq!(split_member(&dir.join("dir.zip").join("a.txt")), None);
+    }
+
+    /// A folder unpacked keeps the time the archive gives it, though its
+    /// files were written into it afterwards -- in each format `E` writes.
+    #[test]
+    fn a_folder_keeps_its_time_through_a_round_trip() {
+        let dir = crate::util::test_dir("archive-dir-time");
+        let src = dir.join("src");
+        std::fs::create_dir_all(src.join("d").join("e")).unwrap();
+        std::fs::write(src.join("d").join("e").join("f.txt"), "x").unwrap();
+        let old = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_623_760_496); // 2021-06-15 12:34:56 UTC
+        for p in [src.join("d").join("e").join("f.txt"), src.join("d").join("e"), src.join("d")] {
+            open_dir_for_times(&p).or_else(|_| File::options().write(true).open(&p)).unwrap().set_modified(old).unwrap();
+        }
+        for (i, (format, ext)) in [(Format::Zip, "zip"), (Format::TarGz, "tar.gz"), (Format::SevenZ, "7z")].into_iter().enumerate() {
+            let archive = dir.join(format!("t{i}.{ext}"));
+            compress(&[src.join("d")], &src, &archive, format, &mut |_, _| true).unwrap();
+            let out = dir.join(format!("out{i}"));
+            extract(&archive, &out, &mut |_, _| true).unwrap();
+            for p in [out.join("d"), out.join("d").join("e")] {
+                let got = std::fs::metadata(&p).unwrap().modified().unwrap();
+                let off = got.duration_since(old).unwrap_or_else(|e| e.duration());
+                assert!(off.as_secs() <= 2, "{format:?} {}: {got:?}", p.display());
+            }
+        }
     }
 
     /// The levels of an archive, folders worked out from the paths when the

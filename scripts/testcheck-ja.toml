@@ -283,9 +283,10 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "1.34" = "続けてペインで `lazygit` → いつもの画面で開き、**メニューが開いていない。**Windows 標準の ConPTY では、押していないキーでコピー画面が開いた状態で始まっていた"
 "1.35" = "ペインで `lazygit`（または長く動くコマンド）を動かしたまま `<C-S-t>`（v0.52.0）→ **End the shell?** と聞かれ、動いているものの名前が出る。`n` でシェルもプログラムも残り、`y` で両方終わって **Ended the shell** とトーストが出る"
 "1.36" = "何も動いていないプロンプトで `<C-S-t>` → **確認は出ない。**ペインはすぐ消え、トーストに **Ended the shell** と出る。`<C-t>` で隠しただけのようには見えなくなった"
-"1.37" = "ペインを**閉じた**まま、ファイルを選んで `<A-t>`（v0.57.0）→ ペインが開き、シェルのプロンプトが出たところで引用されたパスが行に入る。「The terminal is not open」とは言わず、プロファイル読み込み中のシェルに打って消えることもない。キーはペインに移る。v0.75.17（Q39）から、パスは最初の出力ではなく、最初の出力のあとシェルが 300 ms 静かになるまで待つ（最長 5 秒）。`FILER_PTY_LOG` を付けると、パスの `in` の記録がバナーの後ではなく、プロファイルとプロンプトの最後の `out` の後に来る"
+"1.37" = "ペインを**閉じた**まま、ファイルを選んで `<A-t>`（v0.57.0）→ ペインが開き、シェルのプロンプトが出たところで引用されたパスが行に入る。「The terminal is not open」とは言わず、プロファイル読み込み中のシェルに打って消えることもない。キーはペインに移る。v0.75.17（Q39）から、パスは最初の出力ではなく、最初の出力のあとシェルが静かになるまで待つ。v0.78.3 から 800 ms（#250: x64 の pwsh はプロファイルを読む間 300 ms 以上黙る）、シェルが OSC 133 でプロンプトの印を出せばすぐ（最長 5 秒）。`FILER_PTY_LOG` を付けると、パスの `in` の記録がバナーの後ではなく、プロファイルとプロンプトの最後の `out` の後に来る"
 "1.38" = 'シェルを開いたまま `<C-t>` で一覧に戻り、`<C-S-t>`。続けてもう一度 `<C-S-t>`（v0.67.25、Q53）→ 1 回目は一覧からシェルを終える。ペインが消え、トーストは **Ended the shell**（何か動いていれば 1.35 と同じく先に **End the shell?** と聞く）。2 回目はペインが無いので **No terminal to close** と言う（以前は何も起きなかった）'
 '1.39' = 'macOS / Linux: `TERM` 無しで filer を起動し（`env -u TERM filer`、またはデスクトップのランチャーから）、`<C-t>` で `echo $TERM $COLORTERM`（v0.75.23）→ `xterm-256color truecolor`。`<A-t>` で打った長いパスは次の行へそのまま折り返し、dumb 端末のように 1 行の中で横に流れない'
+'1.40' = '''`FILER_TERM_SHELL=nosuchshell` で `<C-t>`。次にそれ無しで `<C-t>`、終了して `filer env`（v0.78.13）→ 1 つ目は ``Terminal failed: `nosuchshell` was not found on PATH — set [term] shell to one that is (…)`` とプログラムを名指す。`filer env` の `Terminal pane` の行が、前回のペインが起動したシェルと大きさを言う: `pwsh, 12 x 159 (lines x columns)`'''
 '1.18' = '''OSC 7 を報告するシェルで、一覧側のディレクトリを変える。PowerShell 7 は自分では報告しない（pwsh 7.6.6 は 1 つも出さなかった）ので、先にフックを読み込む（pwsh は `filer shell-hook \| Add-Content $PROFILE`、bash は `filer shell-hook bash >> ~/.bashrc`。29 節）。そのあと `<C-S-t>` と `<C-t>` → シェルに余計な `cd` が打ち込まれない'''
 
 # 2. ミニマップ
@@ -391,6 +392,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 '12.16' = '''12.9 をもう一度: ファイルを `d`、同じ名前のファイルを新しく作り、`u`（v0.59.7）→ エラーが `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` ではなく `a file by that name is already there. Move it away and press u again` と言う。新しいファイルをどけてからの `u` は通る'''
 '12.17' = '''`a` で `new/deep/note.txt` を作り、`u`、続けて `U`（v0.60.0）→ `u` で `note.txt` と、そのために作った 2 つのフォルダが消え、トーストは `Removed note.txt and 2 folder(s)`（v0.67.10。それまでは `Removed note.txt` で、フォルダのことを言わなかった）。`U` で 3 つとも戻る。ファイルに何か書いてから `u` すると残り、書き込まれたというエラーが出る'''
 '12.18' = '''ファイルをヤンクし、別のフォルダで `-`、続けて `u`、`U`（v0.60.0）→ `-` が `Linked <名前> — u to undo` と言う（v0.67.10。それまではヤンクのトーストが残るだけだった）。`u` はリンクだけを消し、元のファイルと中身はそのまま。`U` でリンクが戻る。Windows では `=`（ハードリンク）とフォルダへの `-` でも'''
+'12.19' = 'ほかのファイルと並ぶ `b.txt` の上で `r` で `zz.txt` に、次に `a` で `aa.txt`、次に `a` で `new\\deep\\n.txt`（v0.78.5、#250）→ カーソルがそれぞれに付いていく。`hovered:` が `zz.txt`、`aa.txt`、フォルダ `new`（パスのうちこのフォルダの中の部分）を名指す。新しい名前が一覧のどこに並んでも同じ。以前は元の行に残った'
 "12.11" = 'ごみ箱を無効にしたドライブで `d` → 同じ形のメッセージが、ファイル名を挙げて出る'
 '12.11a' = '''RAM ディスク（`R:\Temp`、ImDisk）の上のファイルで `d`（v0.73.28）→ ファイルは残り、`<名前>: the Recycle Bin can't take files from R: (this drive can't report its own paths: a RAM disk or a virtual drive). Use D to delete permanently` と出る。以前は `CanonicalizePath { original: "R:\Temp\…" }` だった。そのあと `D` なら消せ、赤い行は `Deleted <名前>` に置き換わる（v0.73.35、#207）'''
 
@@ -477,6 +479,9 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 '21.18' = '書庫の中で `.txt` のメンバーに `<Enter>`（v0.76.0）→ 既定のアプリで開く。開いたのは `%TEMP%\\filer-archive-<pid>\\to-pack.zip\\<名前>`。トーストは `Opened a copy of <名前> — changes stay out of the archive`。外で書庫そのものに `<Enter>` は今までどおりオープナーで開く'
 '21.19' = '書庫の中で `x`、`d`、`a`（v0.76.0。`y` は v0.77.0 から通す。21.20）→ 切り取りもごみ箱も作成もしない。どれも `Inside an archive: read only — y then p in a folder takes a copy out, Esc leaves` と言う。書庫のあるフォルダは変わらない（前後の `Get-ChildItem`）'
 '21.20' = '書庫の中で `top.txt` に `y`、`<Esc>`、別のフォルダへ `l`、`p`。続けてもう一度 `p` して `s`（v0.77.0）→ `y` のあとのトーストは `Yanked 1 item from the archive — p in a folder takes them out`。`p` のあと `top.txt` が書庫の中身と時刻で現れ、カーソルが乗り、トーストは `Took top.txt out of the archive`。`yank: 1 copied` は残る。2 回目の `p` は `File already exists` を聞き、`s` で元のファイルが残り、`.filer-take-out-*` のフォルダは残らない。中で `y` したフォルダは中身ごと出る'
+'21.21' = '書庫の中で `.txt` のメンバー、次に `.png`、次にフォルダにカーソルを置き、最後に `<Esc>`（v0.78.0）→ テキストと画像はファイルと同じくプレビューされる（`<A-G>` でテキストの末尾に届き `preview top: N of N`）。フォルダは `Holds  N items` のカード。4 MB を超えるメンバーは大きさのカード。`<Esc>` のあと `%TEMP%\\filer-archive-<pid>\\preview` にこのビューの分は残らない'
+'21.22' = '一番上が 1 つのフォルダ（`inner\\`）の書庫と、そうでない書庫で `e`（v0.78.1）→ 終わるとカーソルができたものに乗る（1 つ目は `inner`、2 つ目は `<書庫の名前>\\`。`hovered:`）。`E` が作った書庫に乗るのと同じ（21.4）。トーストは `Unpacked into …`'
+'21.23' = '''`to-pack\` とその中のフォルダに古い日付を付け（`(Get-Item …).LastWriteTime = '2021-06-15 12:34:56'`）、`.zip`・`.tar.gz`・`.7z` で `E`、それぞれを `e`（v0.78.10）→ 展開したフォルダもその日付になる（`Get-Item … | % LastWriteTime`）。展開した時刻にならない（ファイルは 21.14 から同じ）。エクスプローラーの zip の展開はフォルダの日付を残さないが、それはエクスプローラーの話'''
 
 # 22. 行番号付きでエディタを開く
 "22.1" = '秀丸エディタ → アウトラインの項目の行で開く'
@@ -634,6 +639,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 '32.13' = 'Linux: 入っていないプログラムを指定した `block = true` のオープナー → 端末が一瞬で閉じず、`[exit 127] Press Enter to close.` で止まる。そこで `<Enter>` を押すと閉じる'
 '32.15' = '''Windows で **release の `filer.exe`**（自分のコンソールを持たない。`cargo run` は持つので出なかった）: `:` で `nvim`（v0.75.14、Q12）→ 新しいコンソールに nvim が描かれる（`~` の列とステータス行）。黒い窓でカーソルが点滅するだけにならない。`block = true` のオープナーで `<Enter>` しても同じ。新しいコンソールを `ReadConsoleOutputCharacter` で読むか、nvim の `:redir` で確かめる。以前は `Win32_Process` に `nvim` がいるのに何も描かれていなかった'''
 '32.16' = '''Windows で release の `filer.exe`: `:` で `git log -5 --oneline`（v0.75.14、Q13）→ コンソールが 5 行と `続行するには何かキーを押してください . . .` のまま開いていて、キーで閉じる。`:` で `dir & pause` は 1 回だけ聞く。`;` は変わらない（コンソールも pause も無い）'''
+'32.17' = '`yazi.toml` に `[open] prepend_rules = [{ name = "*.txt", use = "<オープナー>" }]` だけを書き（自分の `rules` は無し）、`.txt` で `<Enter>`、次に `<S-Enter>`（v0.78.6、#250）→ `<Enter>` がそのオープナーを動かし（`$ …` のトースト）、`<S-Enter>` が組み込みより上の先頭に並べる。`append_rules` に書いたものは最後に並ぶ'
 '32.14' = 'macOS: `block = true` のオープナーでファイルを `<Enter>` → Terminal.app が前に出て、新しい窓で一覧のフォルダからエディタが動く。初回は macOS が filer に Terminal の操作を許すかを聞く。拒むと理由がトーストに出る'
 
 # 33. 設定の警告と、その色
