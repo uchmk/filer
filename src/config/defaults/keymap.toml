@@ -85,7 +85,7 @@ desc = "Go back to the parent directory"
 [[mgr.keymap]]
 on = "l"
 run = "enter"
-desc = "Enter the directory, or focus the file's outline"
+desc = "Enter the directory or archive, or focus the file's outline"
 [[mgr.keymap]]
 on = "<Left>"
 run = "leave"
@@ -93,7 +93,7 @@ desc = "Go back to the parent directory"
 [[mgr.keymap]]
 on = "<Right>"
 run = "enter"
-desc = "Enter the directory, or focus the file's outline"
+desc = "Enter the directory or archive, or focus the file's outline"
 [[mgr.keymap]]
 on = "<Backspace>"
 run = "leave"

@@ -907,10 +907,24 @@ impl Drop for Terminal {
     /// runs under it are ended outright first -- which is what `<C-S-t>`
     /// promises. On Unix dropping the PTY hangs up and reaps the shell.
     /// The wait is bounded because this runs on the UI thread.
+    ///
+    /// On macOS the PTY's child is not the shell but `/usr/bin/login`, which
+    /// alacritty starts it through. Dropping the `Pty` sends that child
+    /// `SIGHUP` and then *waits* for it; `login` waits in turn for the shell,
+    /// and the shell only hears the hangup when the PTY's master side closes
+    /// -- after that wait. The first macOS test run hung there twice, and in
+    /// filer it is the window freezing as the pane closes. So the shell under
+    /// `login` is hung up first, as a terminal closing would.
     fn drop(&mut self) {
         #[cfg(windows)]
         if let Some(pid) = self.shell_pid.filter(|_| !self.exited) {
             end_tree(pid);
+        }
+        #[cfg(target_os = "macos")]
+        if let Some(pid) = self.shell_pid.filter(|_| !self.exited) {
+            for child in children(pid) {
+                let _ = std::process::Command::new("/bin/kill").args(["-HUP", &child.to_string()]).status();
+            }
         }
         let _ = self.sender.send(Msg::Shutdown);
         let Some(io) = self.io.take() else { return };

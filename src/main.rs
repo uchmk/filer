@@ -1046,6 +1046,8 @@ fn state_report(app: &App) -> String {
             "view: {}",
             if app.in_usage_view() {
                 "usage"
+            } else if app.in_archive_view() {
+                "archive"
             } else if app.in_search_view() {
                 "search"
             } else {

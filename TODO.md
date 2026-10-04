@@ -514,7 +514,16 @@
   **macOS ではテストを一度も走らせたことがない。**
   - [x] （v0.75.23）`test-linux` が初回で 1 件落とした: ペインのシェルに `TERM` を渡していなかったので、CI（`TERM` 無し）の bash が dumb 端末として
     長い行を 1 行の中で横に流した（`sending_a_name_opens_a_closed_pane`）。Unix では `TERM=xterm-256color` と `COLORTERM=truecolor` を渡す。1.39 を足した。
-  - [ ] `test-macos.yml` の最初の結果を見る。落ちたテストは TODO.md に（Actions タブから手動でも回せる）
+  - [x] （v0.75.24）`test-macos.yml` の初回（v0.75.22、手動）は 2 件落ちて 2 件止まった（30 分で止めた）。
+    - `sending_a_name_opens_a_closed_pane`: Linux と同じ `TERM` の件（v0.75.23 で直した）
+    - `a_symlink_says_where_it_points_and_where_that_lands`: macOS の一時フォルダが `/var` → `/private/var` のリンクの下で、`Resolves` と
+      `Target` の文字が違った。テストのフォルダを正規化した
+    - `ending_the_shell_from_the_list` と `with_both_panes_open_exactly_one_rule_is_accent` が止まった: macOS は既定のシェルを `/usr/bin/login`
+      越しに起動し、alacritty の `Pty` は閉じるときに `SIGHUP` のあと子（`login`）を `wait` する。`login` はシェルを待ち、シェルは PTY の主側が
+      閉じるまで終わらず、主側はその `wait` の後で閉じる。filer の `Drop` がそれを UI のスレッドで落としていたので、実機ではペインを閉じると窓が固まる。
+      閉じる前に `login` の下のシェルへ `SIGHUP` を送るようにした（見立て。macOS で回して確かめる）。ジョブに 30 分の上限を付けた
+  - [x] macOS のテストはやめた（2026-10-04、持ち主の指示。課金が Linux の 10 倍）。v0.75.25 で `test-macos.yml` を消し、回っていた 2 回目は止めた。
+    v0.75.24 の `login` の直しは macOS で確かめないまま入っている（見立て）。
 - [x] `make-keycheck --check` と CI のステップ（v0.45.1）。keymap を変えて
   TESTING-KEYS.md を再生成し忘れた状態が CI で落ちる。**入れた初回に本物の乖離を
   見つけた** — 9 キーが未登録、説明が 2 件古く、`[help]` 層は v0.34.0 でスクロール
@@ -551,6 +560,13 @@
   - [x] 1 段だけだった（v0.63.0 で `l` / `Enter` がビューのまま下りて測り直し、`h` で上がる。`gu` を押したフォルダからの `h` で抜ける。測った結果は持たず、着くたびに測り直す）。
 - [ ] 残: アーカイブの中を歩く（フォルダに入る / 1 ファイルだけ取り出す）。
   現在は一覧のみ。README の Known limits に挙がっている。
+  - [x] 土台: 1 つのメンバー（ファイル、またはフォルダとその中身）だけを取り出す `archive::extract_one`（v0.75.26）。上のフォルダは付けずに書き、
+    名前は全体の展開と同じ `safe_dest` を通す。zip / tar / tar.gz / 7z のテストを足した。まだどこからも呼ばない
+  - [x] 入り方とキー（Q75、推奨の 1。v0.76.0）。`l` / `<Right>` で入り、書庫を「パスが実在しない `Folder`」（使用量・検索のビューと同じ形）で見せ、
+    `h` / `l` で中のフォルダを上り下りし、ファイルは `extract_one` で一時フォルダに出して開く。中は読み取り専用（書き換え系のキーは断る）。21.17〜21.19
+  - [ ] `y` → 外のフォルダで `p` で、メンバーを取り出す（今は断っている）。ヤンクに「書庫とメンバー名」を持たせ、`p` を `extract_one` のジョブにする
+  - [ ] メンバーのプレビュー（今は名前と大きさのカード）。小さいファイルは `extract_one` で一時フォルダに出して普通のプレビューに回す
+  - [ ] 開いた写しの一時フォルダ（`filer-archive-<pid>`）を、終了時か次の起動で消す
 - [x] ディレクトリ同士の比較（v0.43.0）。`Overlay::Diff` と `[diff]` キーマップを再利用し、
   `Outcome::Tree` を足した（**新規オーバーレイ不要**）。サイズで大半を決め、同サイズの組だけ
   ブロック単位で読んで最初の相違で止める。64 MB 超は `?` にして「一致」と言わない。

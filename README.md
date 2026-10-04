@@ -889,6 +889,15 @@ one (a zip's central directory, a 7z's header), so nothing is decompressed to an
 question; a tar has no index, so its entries are walked with the data skipped. The first 2000
 entries are listed and the pane says when there are more.
 
+**`l` (or `<Right>`) on an archive goes into it** (v0.76.0, Q75): its members are listed like a
+folder's, `l` goes down into a folder inside it, `h` comes back up, and `h` at the top -- or `<Esc>`
+-- leaves, with the cursor back on the archive. `l` or `<Enter>` on a file unpacks a copy of that
+one file into a folder of filer's own under the temporary folder and opens it with the system's
+default app; changes to the copy do not go back into the archive. `<Enter>` on the archive itself
+still opens it with its opener, as before. Inside, the view is read only: `y`, `p`, `d`, `r`, `a`,
+`e` and the like say so instead of acting. The preview shows what a member is (its size, or how
+many entries a folder holds) rather than reading it. Up to 100,000 entries are listed.
+
 ## Scrolling the preview, and the minimap
 
 The preview scrolls without the file list losing the cursor: `<A-k>` / `<A-j>`, or the wheel with the
@@ -1029,7 +1038,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 
 | | |
 | --- | --- |
-| `h` `j` `k` `l` | parent / down / up / enter the directory or the file's outline (arrows work too) |
+| `h` `j` `k` `l` | parent / down / up / enter the directory, the archive (v0.76.0) or the file's outline (arrows work too) |
 | `gg` `G` `<C-u>` `<C-d>` `<C-b>` `<C-f>` | top / bottom / half page / full page |
 | `H` `L` (or `<A-←>` `<A-→>`) | back / forward in history |
 | `<Space>` `v` `V` `<C-a>` `<C-S-r>` | toggle / visual / visual-unset / select all / invert |
@@ -1582,8 +1591,8 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   widgets, its async tasks), all tied to yazi's terminal UI, so a Lua interpreter alone would run
   almost none of them; and the usual way to embed one builds C Lua into every one of the six
   targets. Popular plugins are instead replaced one by one with built-in behaviour.
-- An archive's preview lists what is inside but does not browse it: no entering a folder, and
-  no reading one file out. woff / woff2 fonts aren't previewed. Video,
+- Inside an archive (`l`) a file can be opened as a copy but not yet copied out with `y` and `p`,
+  and a member is not previewed. woff / woff2 fonts aren't previewed. Video,
   PDF and HEIC previews rely on Windows thumbnail handlers (see [Other previews](#other-previews)).
 - `[input]`, `[confirm]` and `[pick]` keymap layers are parsed for compatibility, but the prompts
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.

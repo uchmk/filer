@@ -2244,7 +2244,10 @@ mod spot_link_section {
     #[cfg(unix)]
     #[test]
     fn a_symlink_says_where_it_points_and_where_that_lands() {
-        let dir = crate::util::test_dir("spot-link-abs");
+        // Canonical first: macOS's temporary folder is itself under a link
+        // (`/var` -> `/private/var`), so `Resolves` would name `/private/…`
+        // and `Target` `/var/…` -- both right, and not the same text.
+        let dir = crate::util::test_dir("spot-link-abs").canonicalize().unwrap();
         std::fs::write(dir.join("t.txt"), "x").unwrap();
         std::os::unix::fs::symlink(dir.join("t.txt"), dir.join("abs")).unwrap();
 

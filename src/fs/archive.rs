@@ -84,30 +84,124 @@ fn safe_dest(dest: &Path, name: &str) -> Option<PathBuf> {
     pushed.then_some(out)
 }
 
+/// Which entries to write, and under what name: `None` skips one. The whole
+/// archive is every name as it stands; [`extract_one`] keeps one member.
+type Pick<'a> = &'a dyn Fn(&str) -> Option<String>;
+
 /// Unpack `archive` into `dest`, which is created if it is not there.
 pub fn extract(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<()> {
+    extract_picked(archive, dest, &|name| Some(name.to_owned()), on_entry)
+}
+
+/// Unpack one member of `archive` -- a file, or a folder with everything
+/// under it -- into `dest`, without the folders above it: `docs/a/readme.md`
+/// comes out as `dest/readme.md`, and the folder `docs/a` as `dest/a/…`.
+/// The first piece of walking an archive (TODO.md, "アーカイブの中を歩く").
+/// Names go through the same `safe_dest` as a whole unpack.
+pub fn extract_one(archive: &Path, member: &str, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<()> {
+    let member = member_name(member).to_owned();
+    if member.is_empty() {
+        return Err(io::Error::other("no member named"));
+    }
+    let above = member.rfind('/').map_or(0, |i| i + 1);
+    let found = std::cell::Cell::new(false);
+    let pick = |name: &str| {
+        let n = member_name(name);
+        let inside = n == member || n.strip_prefix(member.as_str()).is_some_and(|rest| rest.starts_with('/'));
+        if inside {
+            found.set(true);
+        }
+        inside.then(|| n[above..].to_owned())
+    };
+    extract_picked(archive, dest, &pick, on_entry)?;
+    match found.get() {
+        true => Ok(()),
+        false => Err(io::Error::new(io::ErrorKind::NotFound, format!("{member} is not in {}", archive.display()))),
+    }
+}
+
+/// An entry's name as one form: no `./` in front, no `/` behind (a zip names
+/// its folders `a/`, a tar written by `tar -C . .` names them `./a`), and `/`
+/// between the parts whatever wrote it.
+pub fn member_name(name: &str) -> &str {
+    let n = name.strip_prefix("./").unwrap_or(name);
+    n.trim_end_matches(['/', '\\'])
+}
+
+/// One row of a level inside an archive: a name, whether it is a folder, and
+/// a file's size.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Level {
+    pub name: String,
+    pub dir: bool,
+    pub size: u64,
+}
+
+/// What is directly inside the folder `inner` (`/`-separated, empty for the
+/// top) of an archive whose members are `members`.
+///
+/// A folder is shown whether or not the archive has an entry for it: a zip
+/// written by many tools names only its files (`a/b/c.txt` and no `a/`), and
+/// the folders have to be worked out from the paths. Each name once, folders
+/// first, then by name.
+pub fn level(members: &[Listed], inner: &str) -> Vec<Level> {
+    let inner = member_name(inner);
+    let mut out: Vec<Level> = Vec::new();
+    let mut seen = std::collections::HashMap::new();
+    for m in members {
+        let name = member_name(&m.name).replace('\\', "/");
+        let rest = match inner.is_empty() {
+            true => name.as_str(),
+            false => match name.strip_prefix(inner).and_then(|r| r.strip_prefix('/')) {
+                Some(r) => r,
+                None => continue,
+            },
+        };
+        if rest.is_empty() {
+            continue;
+        }
+        let (first, deeper) = match rest.split_once('/') {
+            Some((f, _)) => (f, true),
+            None => (rest, m.dir),
+        };
+        match seen.get(first) {
+            Some(&i) => {
+                let row: &mut Level = &mut out[i];
+                row.dir |= deeper;
+            }
+            None => {
+                seen.insert(first.to_owned(), out.len());
+                out.push(Level { name: first.to_owned(), dir: deeper, size: if deeper { 0 } else { m.size } });
+            }
+        }
+    }
+    out.sort_by(|a, b| b.dir.cmp(&a.dir).then_with(|| crate::util::natural_cmp(&a.name, &b.name, false)));
+    out
+}
+
+fn extract_picked(archive: &Path, dest: &Path, pick: Pick<'_>, on_entry: OnEntry<'_>) -> io::Result<()> {
     let Some(format) = Format::from_path(archive) else {
         return Err(io::Error::other("not an archive this build can read"));
     };
     std::fs::create_dir_all(dest)?;
     match format {
-        Format::Zip => extract_zip(archive, dest, on_entry),
-        Format::Tar => extract_tar(&mut BufReader::new(File::open(archive)?), dest, on_entry),
+        Format::Zip => extract_zip(archive, dest, pick, on_entry),
+        Format::Tar => extract_tar(&mut BufReader::new(File::open(archive)?), dest, pick, on_entry),
         Format::TarGz => {
             let gz = flate2::read::GzDecoder::new(BufReader::new(File::open(archive)?));
-            extract_tar(&mut BufReader::new(gz), dest, on_entry)
+            extract_tar(&mut BufReader::new(gz), dest, pick, on_entry)
         }
-        Format::SevenZ => extract_7z(archive, dest, on_entry),
+        Format::SevenZ => extract_7z(archive, dest, pick, on_entry),
     }
 }
 
-fn extract_zip(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<()> {
+fn extract_zip(archive: &Path, dest: &Path, pick: Pick<'_>, on_entry: OnEntry<'_>) -> io::Result<()> {
     let mut zip = zip::ZipArchive::new(BufReader::new(File::open(archive)?))
         .map_err(|e| io::Error::other(e.to_string()))?;
     let mut refused = 0usize;
     for i in 0..zip.len() {
         let mut entry = zip.by_index(i).map_err(|e| io::Error::other(e.to_string()))?;
-        let name = entry.name().to_owned();
+        let Some(name) = pick(entry.name()) else { continue };
         let Some(path) = safe_dest(dest, &name) else {
             refused += 1;
             continue;
@@ -193,12 +287,12 @@ fn from_zip_time(t: zip::DateTime) -> Option<std::time::SystemTime> {
     at.and_local_timezone(chrono::Local).earliest().map(Into::into)
 }
 
-fn extract_tar<R: Read>(reader: &mut R, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<()> {
+fn extract_tar<R: Read>(reader: &mut R, dest: &Path, pick: Pick<'_>, on_entry: OnEntry<'_>) -> io::Result<()> {
     let mut tar = tar::Archive::new(reader);
     let mut refused = 0usize;
     for entry in tar.entries()? {
         let mut entry = entry?;
-        let name = entry.path()?.to_string_lossy().into_owned();
+        let Some(name) = pick(&entry.path()?.to_string_lossy()) else { continue };
         let Some(path) = safe_dest(dest, &name) else {
             refused += 1;
             continue;
@@ -228,7 +322,7 @@ fn extract_tar<R: Read>(reader: &mut R, dest: &Path, on_entry: OnEntry<'_>) -> i
     refused_error(refused)
 }
 
-fn extract_7z(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<()> {
+fn extract_7z(archive: &Path, dest: &Path, pick: Pick<'_>, on_entry: OnEntry<'_>) -> io::Result<()> {
     let file = File::open(archive)?;
     let mut refused = 0usize;
     let mut stop = false;
@@ -242,7 +336,7 @@ fn extract_7z(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<
         if stop {
             return Ok(false);
         }
-        let name = entry.name().to_owned();
+        let Some(name) = pick(entry.name()) else { return Ok(true) };
         let Some(path) = safe_dest(dest, &name) else {
             refused += 1;
             return Ok(true);
@@ -721,6 +815,70 @@ pub fn extract_dir(archive: &Path, into: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The levels of an archive, folders worked out from the paths when the
+    /// archive names only its files, and nothing from a folder that only
+    /// shares a prefix (`docs/a` is not `docs/ab`).
+    #[test]
+    fn a_level_lists_what_is_directly_inside() {
+        let l = |name: &str, size: u64, dir: bool| Listed { name: name.into(), size, dir };
+        let members = vec![
+            l("top.txt", 3, false),
+            l("docs/a/readme.md", 7, false),
+            l("docs/a/b.txt", 1, false),
+            l("docs/ab/", 0, true),
+            l("./docs/ab/other.txt", 2, false),
+            l("empty/", 0, true),
+        ];
+        let names = |v: Vec<Level>| v.into_iter().map(|r| (r.name, r.dir, r.size)).collect::<Vec<_>>();
+        assert_eq!(
+            names(level(&members, "")),
+            vec![("docs".into(), true, 0), ("empty".into(), true, 0), ("top.txt".into(), false, 3)],
+        );
+        assert_eq!(names(level(&members, "docs")), vec![("a".into(), true, 0), ("ab".into(), true, 0)]);
+        assert_eq!(names(level(&members, "docs/a/")), vec![("b.txt".into(), false, 1), ("readme.md".into(), false, 7)]);
+        assert!(level(&members, "empty").is_empty());
+        assert!(level(&members, "nowhere").is_empty());
+    }
+
+    /// One member out of each format: a file without the folders above it,
+    /// a folder with what is under it, and a name that is only a prefix of
+    /// another (`docs/a` is not `docs/ab`) or not there at all.
+    #[test]
+    fn one_member_comes_out_alone() {
+        let dir = crate::util::test_dir("archive-one");
+        let src = dir.join("src");
+        std::fs::create_dir_all(src.join("docs").join("a")).unwrap();
+        std::fs::create_dir_all(src.join("docs").join("ab")).unwrap();
+        std::fs::write(src.join("docs").join("a").join("readme.md"), "read me").unwrap();
+        std::fs::write(src.join("docs").join("a").join("b.txt"), "b").unwrap();
+        std::fs::write(src.join("docs").join("ab").join("other.txt"), "no").unwrap();
+        std::fs::write(src.join("top.txt"), "top").unwrap();
+        for (i, format) in [Format::Zip, Format::Tar, Format::TarGz, Format::SevenZ].into_iter().enumerate() {
+            let ext = match format {
+                Format::Zip => "zip",
+                Format::Tar => "tar",
+                Format::TarGz => "tar.gz",
+                Format::SevenZ => "7z",
+            };
+            let archive = dir.join(format!("t{i}.{ext}"));
+            compress(&[src.join("docs"), src.join("top.txt")], &src, &archive, format, &mut |_, _| true).unwrap();
+            let none = &mut |_: &str, _: u64| true;
+
+            let file = dir.join(format!("file{i}"));
+            extract_one(&archive, "docs/a/readme.md", &file, none).unwrap();
+            assert_eq!(std::fs::read_to_string(file.join("readme.md")).unwrap(), "read me", "{format:?}");
+            assert_eq!(std::fs::read_dir(&file).unwrap().count(), 1, "{format:?}: the file alone, no `docs`");
+
+            let folder = dir.join(format!("folder{i}"));
+            extract_one(&archive, "docs/a/", &folder, none).unwrap();
+            assert!(folder.join("a").join("readme.md").is_file() && folder.join("a").join("b.txt").is_file(), "{format:?}");
+            assert!(!folder.join("ab").exists() && !folder.join("a").join("other.txt").exists(), "{format:?}: `docs/ab` is not under `docs/a`");
+
+            let e = extract_one(&archive, "docs/nothing", &dir.join(format!("none{i}")), none).unwrap_err();
+            assert_eq!(e.kind(), io::ErrorKind::NotFound, "{format:?}: {e}");
+        }
+    }
 
     #[test]
     fn the_name_decides_the_format() {
