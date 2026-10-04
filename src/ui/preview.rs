@@ -1745,6 +1745,22 @@ mod archive_frame {
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1, "nothing was written");
     }
 
+    /// 21.6a / #262: `e` on a folder says it is a folder and names the key that packs
+    /// it, rather than calling it a file that is not an archive.
+    #[test]
+    fn e_on_a_folder_points_at_the_pack_key() {
+        let dir = crate::util::test_dir("frame-archive-folder");
+        std::fs::create_dir(dir.join("inner")).unwrap();
+        let entry = crate::fs::Entry::from_path(dir.join("inner")).unwrap();
+        let mut s = Screen::open(dir.clone());
+        let entries = std::sync::Arc::new(vec![entry]);
+        s.app.tabs[0].current = crate::core::folder::Folder::from_entries(dir.clone(), entries, true);
+        let f = s.typed("e");
+        let said = format!("inner{} is a folder -- e unpacks an archive (zip, tar, tar.gz, tgz, 7z); to pack it, press E", std::path::MAIN_SEPARATOR);
+        assert!(f.says(&said), "{:?}", f.texts);
+        assert!(s.app.tasks.is_empty(), "and no job was queued");
+    }
+
     /// 21.12: `E` with an extension nobody writes is refused, naming the four
     /// that work.
     ///

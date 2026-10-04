@@ -68,13 +68,28 @@ struct Cli {
 /// front PowerShell does wait for (v0.71.0, `src/bin/filer-com.rs`).
 #[cfg(windows)]
 fn say(text: &str) {
+    say_on(text, false);
+}
+
+/// [`say`] on standard error, for a line about the output rather than the
+/// output itself: `filer: wrote <path>` on standard output was captured along
+/// with everything else by `$p = & filer env --out x.txt` and handed on as a
+/// path (#200). On a console the two look the same.
+#[cfg(windows)]
+fn say_err(text: &str) {
+    say_on(text, true);
+}
+
+#[cfg(windows)]
+fn say_on(text: &str, err: bool) {
     use std::io::Write;
     use windows::Win32::Storage::FileSystem::{GetFileType, FILE_TYPE_DISK, FILE_TYPE_PIPE};
     use windows::Win32::System::Console::{
-        AttachConsole, GetStdHandle, ATTACH_PARENT_PROCESS, STD_OUTPUT_HANDLE,
+        AttachConsole, GetStdHandle, ATTACH_PARENT_PROCESS, STD_ERROR_HANDLE, STD_OUTPUT_HANDLE,
     };
 
-    let redirected = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) }
+    let which = if err { STD_ERROR_HANDLE } else { STD_OUTPUT_HANDLE };
+    let redirected = unsafe { GetStdHandle(which) }
         .ok()
         .filter(|h| !h.is_invalid())
         .is_some_and(|h| {
@@ -82,9 +97,15 @@ fn say(text: &str) {
             kind == FILE_TYPE_DISK || kind == FILE_TYPE_PIPE
         });
     if redirected {
-        let mut out = std::io::stdout().lock();
-        let _ = writeln!(out, "{text}");
-        let _ = out.flush();
+        if err {
+            let mut out = std::io::stderr().lock();
+            let _ = writeln!(out, "{text}");
+            let _ = out.flush();
+        } else {
+            let mut out = std::io::stdout().lock();
+            let _ = writeln!(out, "{text}");
+            let _ = out.flush();
+        }
         return;
     }
     if unsafe { AttachConsole(ATTACH_PARENT_PROCESS) }.is_ok() {
@@ -93,12 +114,20 @@ fn say(text: &str) {
             return;
         }
     }
-    println!("{text}");
+    match err {
+        true => eprintln!("{text}"),
+        false => println!("{text}"),
+    }
 }
 
 #[cfg(not(windows))]
 fn say(text: &str) {
     println!("{text}");
+}
+
+#[cfg(not(windows))]
+fn say_err(text: &str) {
+    eprintln!("{text}");
 }
 
 /// PowerShell does not wait for a windowed program, so a script that calls
@@ -179,7 +208,7 @@ fn parse_cli() -> Cli {
                 }
                 Ok(Some(path)) => match write_whole(&path, &crate::envreport::text()) {
                     Ok(()) => {
-                        say(&format!("filer: wrote {}", std::path::absolute(&path).unwrap_or(path).display()));
+                        say_err(&format!("filer: wrote {}", std::path::absolute(&path).unwrap_or(path).display()));
                         std::process::exit(0);
                     }
                     Err(why) => {

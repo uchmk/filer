@@ -170,9 +170,25 @@ fn resolves(path: &Path, target: &Path, canonical: std::io::Result<PathBuf>) -> 
             true => path.parent().map_or_else(|| target.to_path_buf(), |dir| dir.join(target)),
             false => target.to_path_buf(),
         };
-        return format!("{} (as written: this volume cannot normalize it, {err})", plain(&at));
+        return format!("{} (as written: this volume cannot normalize it, {})", plain(&at), reason(&err));
     }
-    format!("no ({err})")
+    format!("no ({})", reason(&err))
+}
+
+/// An I/O error in words that do not depend on the OS's language.
+///
+/// `{err}` is the system's own message, which on a Japanese Windows read
+/// `ファンクションが間違っています。 (os error 1)` in the middle of an English
+/// panel (#255). The number is what a search finds; the two reasons a person
+/// meets most are named in English beside it.
+fn reason(err: &std::io::Error) -> String {
+    use std::io::ErrorKind;
+    let Some(n) = err.raw_os_error() else { return err.to_string() };
+    match err.kind() {
+        ErrorKind::NotFound => format!("not found, os error {n}"),
+        ErrorKind::PermissionDenied => format!("access denied, os error {n}"),
+        _ => format!("os error {n}"),
+    }
 }
 
 /// How many names point at these bytes, and (on Windows) what the others are.
@@ -823,7 +839,7 @@ mod tests {
         std::fs::create_dir_all(dir.join("real")).unwrap();
         std::os::unix::fs::symlink("real", dir.join("live")).unwrap();
         std::os::unix::fs::symlink("gone", dir.join("dead")).unwrap();
-        let refused = || Err(std::io::Error::other("Incorrect function. (os error 1)"));
+        let refused = || Err(std::io::Error::from_raw_os_error(1));
 
         let live = resolves(&dir.join("live"), Path::new("real"), refused());
         assert!(live.starts_with(&plain(&dir.join("real"))), "{live}");
@@ -832,6 +848,20 @@ mod tests {
         assert!(dead.starts_with("no ("), "{dead}");
         let normal = resolves(&dir.join("live"), Path::new("real"), std::fs::canonicalize(dir.join("live")));
         assert!(!normal.contains("cannot normalize"), "{normal}");
+    }
+
+    /// #255: the reason is the error's number, not the OS's sentence in the
+    /// OS's language.
+    #[test]
+    fn the_reason_is_the_number_not_the_os_sentence() {
+        // 1 is ERROR_INVALID_FUNCTION on Windows (#255's case) and EPERM on
+        // Unix, so only the number and the absence of the OS's text are fixed.
+        let one = reason(&std::io::Error::from_raw_os_error(1));
+        assert!(one.ends_with("os error 1") && one.is_ascii() && !one.contains('.'), "{one}");
+        let gone = std::fs::metadata(crate::util::test_dir("spot-reason").join("gone")).unwrap_err();
+        let n = gone.raw_os_error().expect("an OS error");
+        assert_eq!(reason(&gone), format!("not found, os error {n}"));
+        assert_eq!(reason(&std::io::Error::other("plain")), "plain", "a message of our own is kept");
     }
 
 

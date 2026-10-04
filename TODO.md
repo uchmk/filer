@@ -1480,7 +1480,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] #262（x64、v0.78.24）: v0.78.23 の 3 つの直しを確かめた。`e` / `E` / `r` / `a` の直後の `<State:>` が作ったものを読む（`e` は 8 回中 8 回）、
   書庫を出ると `filer-archive-<pid>` が 0.7 秒で消える、`cargo test` が `filer-archive-*` を残さない。所見なし。#263（ARM64、v0.78.24）: 46 節の 21 行中 19 行が
   ARM64 の `git.exe` で x64 と同じ（印は x64 のもの）。両方 703 / 0
-- [ ] `e` をフォルダの上で押すと「ファイルが書庫ではない」と言う（#262 の提案 1）。`inner\ is a folder -- e unpacks an archive …; to pack it, press E` にする
+- [x] （v0.78.29。キーは keymap の `compress` から読む。21.6a）`e` をフォルダの上で押すと「ファイルが書庫ではない」と言う（#262 の提案 1）。`inner\ is a folder -- e unpacks an archive …; to pack it, press E` にする
 - [ ] 状態ファイルにプレビューの行数を出す（#262 の提案 2: `preview top: 0 of 14` は最後の先頭位置で、30 行のファイルの行数が読めない）
 - [ ] `git` などの出力を読むだけの子プロセスを `DETACHED_PROCESS` で起こす（#263 の提案 1。`CREATE_NO_WINDOW` は窓を隠すだけで、`git.exe` ごとに `conhost.exe` が 1 つ立つ。
   spot を 6 回開いて `conhost` が 21 個）。`src/fs/git.rs`、`exec.rs`、`fs/ops.rs`、`preview/external.rs` の 4 か所。`cmd /S /C` の外部プレビューはコンソールが要らないかを確かめる
@@ -1563,7 +1563,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.78.23。書庫の表示を閉じるとき、空になった `preview` とその親を `remove_dir` で消す）filer を閉じた後に空の `filer-archive-<pid>\preview` が残る（#253 の所見 2、提案 3）。終了時に空なら消す（開いた写しのある親は残す）
 - [ ] `picture:` は頼んだ番号で、描かれている絵の番号ではない（#255 の所見 2、提案 1）。`picture shown:` を足す（応答の `key.n`）
 - [ ] フォルダ比較の行と足の行を状態ファイルに出すか、`[diff]` に `C`（全部を写す）を足す（#255 の提案 2。45 節の期待値を文字で読む）
-- [ ] spot の `Resolves` に OS の言語の誤りの文が混ざる（#255 の所見 3、提案 3: `ファンクションが間違っています。 (os error 1)`）。番号だけ残す
+- [x] （v0.78.29。`os error N`、見つからない・拒否だけ英語の語を添える。13.12 / 13.12a を再テストに）spot の `Resolves` に OS の言語の誤りの文が混ざる（#255 の所見 3、提案 3: `ファンクションが間違っています。 (os error 1)`）。番号だけ残す
 - [ ] `<S-Enter>` の picker の注記に、どのルール（`prepend_rules` / `rules` / `append_rules`）から来たかを出す（#254 の提案 1）
 - [ ] ペインのシェルが起動に失敗したことを `filer env` の `Terminal pane` に残す（#254 の提案 2。今は `not opened in that run` で区別が付かない）
 - [ ] `FILER_TERM_ARGS` を足す（#254 の提案 3）。`FILER_TERM_SHELL` は `[term] args` を捨てるので、引数の要るシェルを試すと `FILER_CONFIG_HOME` ごと替えるしかない。
@@ -2013,7 +2013,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   15.6 ms 刻みなので 0.016 秒は 1 刻みと区別できない。
 - [ ] `--keys` に `<State:name>` を足す（#212 の提案 3 `<Done:name>` も同じ。#212 は 5 行に 10 回、#211 は 67 回起動した。#209 の提案 3 も同じ。ARM64 は 19 節に約 48 回起動し、2 分割の他方を読むのに 1 回ずつ余分に要った。`list top: 5 | 0` の形も求めている）（`<Shot:name>` の横。#201 の提案 2）。読める状態を、実行の途中で何度でも名前を付けて書き出す。
   今は終わったときの 1 回だけなので、「キーの直後」と「10 秒後」を比べるには 2 回起動するしかない。
-- [ ] `filer env --out` の `filer: wrote <パス>` を標準エラーに出す（#200 の提案 2）。標準出力に出ているので、スクリプトで変数に受けると
+- [x] （v0.78.29。25.19b を再テストに）`filer env --out` の `filer: wrote <パス>` を標準エラーに出す（#200 の提案 2）。標準出力に出ているので、スクリプトで変数に受けると
   混じり、`Get-Content` にパスとして渡った。`say` の 1 か所。25.19b の見た目は変わらない。
 - [x] （v0.75.16、QA の子が TESTING.md を直した）TESTING.md 21.14a をエクスプローラーと 7-Zip の 2 行に分ける（#200 の所見 1）。エクスプローラーは DOS の欄しか読み書きしないので、
   「filer の `e` はエクスプローラーの zip から `2019-03-01 00:00:00`（zip にある値）」「エクスプローラーは filer の zip から偶数秒」が正しい期待。
