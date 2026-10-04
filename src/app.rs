@@ -3896,6 +3896,10 @@ impl App {
                 }
                 if !errors.is_empty() {
                     self.error(format!("{}: {}", kind.verb(), errors[0]));
+                } else if cancelled {
+                    // Stopped from the tasks list: what was already done stays
+                    // (#241), and nothing else on screen says the job ended.
+                    self.toast(format!("{} stopped — what was already done stays", kind.verb()));
                 }
                 if let Some(paths) = self.deleting.remove(&id) {
                     if errors.is_empty() && !cancelled {
@@ -9498,6 +9502,32 @@ mod said_out_loud {
             trashed: vec![dir.join("a.txt")],
         });
         assert!(a.toasts.iter().any(|t| t.text == "Trashed a.txt — u to undo"), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// #241: a copy stopped from the tasks list says so; one that ran out
+    /// says nothing extra.
+    #[test]
+    fn a_stopped_copy_says_it_stopped() {
+        let dir = crate::util::test_dir("said-stopped");
+        let mut a = app_in(&dir);
+        let finish = |a: &mut App, id, cancelled| {
+            a.on_op_event(ops::OpEvent::Finished {
+                id,
+                kind: OpKind::Copy,
+                errors: Vec::new(),
+                cancelled,
+                moved: Vec::new(),
+                linked: Vec::new(),
+                junctions: Vec::new(),
+                made: Vec::new(),
+                trashed: Vec::new(),
+            })
+        };
+        finish(&mut a, 1, false);
+        assert!(a.toasts.is_empty(), "{:?}", a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+        finish(&mut a, 2, true);
+        assert!(a.toasts.iter().any(|t| t.text.starts_with("Copy stopped")), "{:?}",
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 
