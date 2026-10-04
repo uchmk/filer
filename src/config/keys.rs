@@ -351,6 +351,17 @@ pub(crate) fn printable(key: egui::Key) -> Option<char> {
 mod tests {
     use super::*;
 
+    /// `<A-G>` as written in a keymap is what Alt+Shift+G arrives as: the
+    /// letter lowercased with Shift carried beside it (Q76's preview end).
+    #[test]
+    fn alt_shift_letter_matches_its_capital() {
+        let mods = egui::Modifiers { alt: true, shift: true, ..Default::default() };
+        assert_eq!(from_egui(egui::Key::G, &mods), Some(Key::parse("<A-G>").unwrap()));
+        let alt = egui::Modifiers { alt: true, ..Default::default() };
+        assert_eq!(from_egui(egui::Key::G, &alt), Some(Key::parse("<A-g>").unwrap()));
+        assert_ne!(Key::parse("<A-g>"), Key::parse("<A-G>"));
+    }
+
     #[test]
     fn parses_notation() {
         assert_eq!(Key::parse("a"), Some(Key::char('a')));

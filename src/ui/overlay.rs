@@ -561,8 +561,14 @@ fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
             ..HelpRow::blank()
         });
     }
+    // One row per line: a TOML parse error runs to four, and as one row they
+    // were drawn on top of each other, three files' worth in one place (#250,
+    // 33.9). The lines after the first are indented under it.
     for w in &app.cfg.warnings {
-        out.push(HelpRow { text: w.clone(), warning: true, ..HelpRow::blank() });
+        for (i, line) in w.lines().filter(|l| !l.trim().is_empty()).enumerate() {
+            let text = if i == 0 { line.to_owned() } else { format!("    {}", line.trim_end()) };
+            out.push(HelpRow { text, warning: true, ..HelpRow::blank() });
+        }
     }
     // Default keys a file of yours rebinds: meant, so plain, not yellow (Q60).
     for o in &app.cfg.keymap.overrides {
@@ -944,7 +950,8 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
             .id(pick_id)
             .font(egui::FontSelection::FontId(f.clone()))
             .frame(egui::Frame::NONE)
-            .hint_text("type to filter")
+            // `j` types into the filter here, so the arrows are named (#165).
+            .hint_text("type to filter · <Down>/<Up> choose · <Enter> open")
             .desired_width(field.width())
             .text_color(theme_fg),
     );
@@ -1300,7 +1307,9 @@ pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     let sections = app.spot_sections();
     let name = app.tabs[app.active].current.hovered().map(|e| e.name.clone()).unwrap_or_default();
     let rect = modal_rect(full, 0.7, 0.7);
-    let title = format!("Spot: {name} — <Esc> to close");
+    // The row keys, now that a row can be copied (`c`) and some lead somewhere
+    // (`<Enter>`): `j` / `k` change the file, which was the only motion said (#165).
+    let title = format!("Spot: {name} — <A-j>/<A-k> row · c copy · <Enter> open · j/k file · <Esc> close");
     let inner = modal_frame(ui, rect, &app.cfg.theme, &title, f, row_h);
     let theme = &app.cfg.theme;
     let painter = ui.painter_at(inner);
@@ -1432,6 +1441,17 @@ mod tests {
 
 #[cfg(test)]
 mod help_config_rows {
+
+    /// A warning of several lines is several rows, so none is drawn on top
+    /// of another (the machine's 33.9 still breaks real config files).
+    #[test]
+    fn a_long_warning_takes_a_row_per_line() {
+        let mut app = crate::app::App::new(crate::config::Config::load(), std::env::temp_dir(), egui::Context::default());
+        app.cfg.warnings = vec!["a.toml: TOML parse error at line 2\n  |\n2 | x = \n  |     ^\n".into(), "second".into()];
+        let rows = super::config_rows(&app, &[]);
+        let warned: Vec<&str> = rows.iter().filter(|r| r.warning).map(|r| r.text.as_str()).collect();
+        assert_eq!(warned, ["a.toml: TOML parse error at line 2", "      |", "    2 | x =", "      |     ^", "second"]);
+    }
     use super::*;
 
     /// Every searched directory is listed, found in or not.

@@ -158,6 +158,17 @@ desc = "Scroll the preview up"
 on = "<A-j>"
 run = "seek 5"
 desc = "Scroll the preview down"
+# The preview's two ends, as `gg` / `G` are the list's (Q76). Only `<A-j>` /
+# `<A-k>` moved it before, five lines a press: the note under a 4000-line
+# preview was some 800 presses away (#249).
+[[mgr.keymap]]
+on = "<A-g>"
+run = "seek top"
+desc = "Scroll the preview to its top"
+[[mgr.keymap]]
+on = "<A-G>"
+run = "seek bot"
+desc = "Scroll the preview to its end"
 
 # Image preview. Ctrl and the wheel zoom about the pointer, dragging pans, and
 # a double-click goes back to fitting the pane. Letters rather than `+` and `-`:

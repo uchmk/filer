@@ -101,6 +101,10 @@ struct Tapped {
     mode_tail: Vec<u8>,
     /// When the shell last wrote anything; see [`Terminal::quiet_for`].
     last_out: Arc<std::sync::Mutex<Option<Instant>>>,
+    /// The shell has drawn a prompt and said so (OSC 133); see
+    /// [`Terminal::prompt_seen`]. With the end of the last read, as above.
+    prompt: Arc<AtomicBool>,
+    prompt_tail: Vec<u8>,
 }
 
 /// Longest OSC 7 worth waiting for. A path cannot sensibly be longer, and a
@@ -119,6 +123,9 @@ impl io::Read for Tapped {
         }
         if n > 0 {
             *self.last_out.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
+        }
+        if scan_prompt_mark(&mut self.prompt_tail, &buf[..n]) {
+            self.prompt.store(true, Ordering::Relaxed);
         }
         Ok(n)
     }
@@ -335,6 +342,19 @@ pub fn char_record(c: char, mods: Mods) -> Option<Vec<u8>> {
 ///
 /// `tail` keeps the end of the previous read, since a request can be cut in
 /// two by where one read stopped.
+/// Whether `chunk`, carried on from `tail`, holds a shell's own word that its
+/// prompt is up: OSC 133's `A` (prompt starts) or `B` (input starts), which
+/// shells set up for terminal integration send -- Windows Terminal's
+/// guidance for pwsh, starship, and the like. A read can stop inside one.
+fn scan_prompt_mark(tail: &mut Vec<u8>, chunk: &[u8]) -> bool {
+    const MARKS: [&[u8]; 2] = [b"\x1b]133;A", b"\x1b]133;B"];
+    tail.extend_from_slice(chunk);
+    let found = MARKS.iter().any(|m| tail.windows(m.len()).any(|w| w == *m));
+    let keep = tail.len().saturating_sub(MARKS[0].len() - 1);
+    tail.drain(..keep);
+    found
+}
+
 fn scan_win32_mode(tail: &mut Vec<u8>, chunk: &[u8]) -> Option<bool> {
     const SET: &[u8] = b"\x1b[?9001h";
     const RESET: &[u8] = b"\x1b[?9001l";
@@ -596,6 +616,8 @@ pub struct Terminal {
     shell_pid: Option<u32>,
     /// When the shell last wrote, shared with the reader; see [`Terminal::quiet_for`].
     last_out: Arc<std::sync::Mutex<Option<Instant>>>,
+    /// Whether the shell has marked a prompt (OSC 133), shared with the reader.
+    prompt: Arc<AtomicBool>,
     /// The reader thread. It hands the PTY back when it ends, and dropping
     /// that is what ends the shell -- so [`Drop`] waits for it.
     io: Option<std::thread::JoinHandle<(EventLoop<Tapped, Proxy>, alacritty_terminal::event_loop::State)>>,
@@ -650,6 +672,7 @@ impl Terminal {
         let log = open_pty_log();
         let win32 = Arc::new(AtomicBool::new(false));
         let last_out = Arc::new(std::sync::Mutex::new(None));
+        let prompt = Arc::new(AtomicBool::new(false));
         let pty = Tapped {
             inner: pty,
             cwd: cwd_tx,
@@ -658,6 +681,8 @@ impl Terminal {
             win32: win32.clone(),
             mode_tail: Vec::new(),
             last_out: last_out.clone(),
+            prompt: prompt.clone(),
+            prompt_tail: Vec::new(),
         };
 
         let (tx, rx) = crossbeam_channel::unbounded();
@@ -687,6 +712,7 @@ impl Terminal {
             shell_pid,
             win32,
             last_out,
+            prompt,
             io,
         })
     }
@@ -885,6 +911,12 @@ impl Terminal {
     /// `quiet`: the prompt is up and it is waiting (Q39). The first output
     /// alone is not that -- pwsh prints its banner, then spends seconds on
     /// its profile, and a line typed in between can be dropped (#126).
+    /// Whether the shell has said its prompt is up (OSC 133), which beats any
+    /// guess from how long it has been quiet.
+    pub fn prompt_seen(&self) -> bool {
+        self.prompt.load(Ordering::Relaxed)
+    }
+
     pub fn quiet_for(&self, quiet: Duration) -> bool {
         self.last_out.lock().unwrap_or_else(|e| e.into_inner()).is_some_and(|at| at.elapsed() >= quiet)
     }
@@ -1522,6 +1554,20 @@ pub mod testing {
 #[cfg(test)]
 mod tests {
     use super::pane_env;
+
+    /// OSC 133's prompt marks are seen whole or cut across two reads, and
+    /// nothing else counts as one.
+    #[test]
+    fn a_prompt_mark_is_seen_across_reads() {
+        let mut tail = Vec::new();
+        assert!(!super::scan_prompt_mark(&mut tail, b"PowerShell 7.6.6\r\n"));
+        assert!(super::scan_prompt_mark(&mut tail, b"\x1b]133;A\x07PS C:\\> "));
+        let mut tail = Vec::new();
+        assert!(!super::scan_prompt_mark(&mut tail, b"banner\x1b]13"));
+        assert!(super::scan_prompt_mark(&mut tail, b"3;B\x07"), "cut in the middle");
+        let mut tail = Vec::new();
+        assert!(!super::scan_prompt_mark(&mut tail, b"\x1b]133;D;0\x07\x1b]7;file://h/tmp\x07"), "the end of a command is not a prompt");
+    }
 
     /// Off Windows the shell is told it is in an xterm, whatever filer was
     /// started with; on Windows nothing is added.

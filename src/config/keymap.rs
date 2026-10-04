@@ -153,6 +153,17 @@ fn build(raw: &RawBinding, from: &Arc<str>, warnings: &mut Vec<String>) -> Optio
     let mut on = Vec::with_capacity(tokens.len());
     for t in &tokens {
         match Key::parse(t) {
+            // Shift with a printable key and nothing else arrives as the
+            // character it types, so this binding can never be pressed: `<S-t>`
+            // parses, and then nothing ever matches it (#165). Kept, but said.
+            Some(k) if k.shift && !k.ctrl && !k.alt && !k.sup && matches!(k.code, crate::config::keys::Code::Char(c) if c != ' ') => {
+                let hint = match k.code {
+                    crate::config::keys::Code::Char(c) if c.is_ascii_alphabetic() => format!("write `{}`", c.to_ascii_uppercase()),
+                    _ => "write the character Shift types".into(),
+                };
+                warnings.push(format!("`{t}` can never be pressed: Shift with a printable key arrives as the character it types -- {hint}"));
+                on.push(k);
+            }
             Some(k) => on.push(k),
             None => {
                 warnings.push(format!("unknown key `{t}`"));
@@ -560,6 +571,15 @@ run = "plugin bookmarks save"
     /// Q57: the warning names the file of each side, the built-in defaults
     /// included (#193 found the other side was neither of the two files the
     /// Config section listed), and the run that lost (#194).
+    /// `<S-t>` is accepted but said to be unpressable, with what to write.
+    #[test]
+    fn a_shifted_printable_key_is_warned_about() {
+        let (_, w) = Keymap::load(&["[[mgr.prepend_keymap]]\non = \"<S-t>\"\nrun = \"quit\"\n[[mgr.prepend_keymap]]\non = \"<S-Enter>\"\nrun = \"quit\"\n[[mgr.prepend_keymap]]\non = \"<C-S-t>\"\nrun = \"quit\"\n"]);
+        let shift: Vec<&String> = w.iter().filter(|w| w.contains("can never be pressed")).collect();
+        assert_eq!(shift.len(), 1, "only the bare `<S-t>`: {w:?}");
+        assert!(shift[0].contains("write `T`"), "{}", shift[0]);
+    }
+
     #[test]
     fn a_duplicate_names_each_sides_file() {
         let yazi = "[[mgr.prepend_keymap]]\non = \"Q\"\nrun = \"quit\"\n";

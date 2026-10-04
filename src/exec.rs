@@ -12,7 +12,7 @@ use crate::glob;
 /// Openers that apply to `entry`, in the order the rules declare them.
 pub fn openers_for<'a>(cfg: &'a YaziToml, entry: &Entry, mime: &str) -> Vec<&'a Opener> {
     let mut names: Vec<&str> = Vec::new();
-    for rule in &cfg.open.rules {
+    for rule in cfg.open.all_rules() {
         if !rule_matches(rule, entry, mime) {
             continue;
         }
@@ -750,6 +750,35 @@ mod tests {
             let first = openers_for(&cfg, &entry, "").first().and_then(|o| o.desc.clone());
             assert_eq!(first.as_deref(), Some(want), "{name}");
         }
+    }
+
+    /// yazi's `prepend_rules` / `append_rules`: tried before and after
+    /// `rules`, so a prepended rule wins and an appended one only catches what
+    /// nothing else did (#250: both were ignored without a word).
+    #[test]
+    fn prepended_rules_come_first_and_appended_last() {
+        let cfg: YaziToml = toml::from_str(
+            r#"
+            [opener]
+            edit = [{ run = "edit %s", desc = "Edit" }]
+            view = [{ run = "view %s", desc = "View" }]
+            last = [{ run = "last %s", desc = "Last" }]
+            [open]
+            rules = [{ name = "*.txt", use = "edit" }]
+            prepend_rules = [{ name = "*.txt", use = "view" }]
+            append_rules = [{ name = "*", use = "last" }]
+            "#,
+        )
+        .unwrap();
+        let entry = |name: &str| Entry {
+            path: PathBuf::from(name),
+            name: name.into(),
+            ext: name.rsplit_once('.').map(|(_, e)| e.into()),
+            ..Default::default()
+        };
+        let descs = |name: &str| openers_for(&cfg, &entry(name), "").iter().filter_map(|o| o.desc.clone()).collect::<Vec<_>>();
+        assert_eq!(descs("a.txt"), ["View", "Edit", "Last"]);
+        assert_eq!(descs("a.bin"), ["Last"], "only the catch-all");
     }
 
     /// #96: a program that is not there is named; one that is, or a shell's

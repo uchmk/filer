@@ -1010,6 +1010,8 @@ fn made_says(kind: OpKind, made: &[PathBuf]) -> Option<String> {
     let folder = |p: &PathBuf| format!("{}{}", util::file_name(p), std::path::MAIN_SEPARATOR);
     match (kind, made) {
         (OpKind::Compress(_), [archive]) => Some(format!("Packed into {}", util::file_name(archive))),
+        (OpKind::TakeOut, [one]) => Some(format!("Took {} out of the archive", util::file_name(one))),
+        (OpKind::TakeOut, many) if !many.is_empty() => Some(format!("Took {} out of the archive", util::items(many.len()))),
         (OpKind::Extract, [one]) => Some(format!("Unpacked into {}", folder(one))),
         (OpKind::Extract, [first, rest @ ..]) => {
             Some(format!("Unpacked {} archives into {} and {} more", rest.len() + 1, folder(first), rest.len()))
@@ -1125,6 +1127,9 @@ impl Undos {
 pub struct Yank {
     pub paths: Vec<PathBuf>,
     pub cut: bool,
+    /// Yanked inside an archive (`l`): the paths name members, which `p`
+    /// takes out of the archive rather than copying.
+    pub from_archive: bool,
 }
 
 /// A `Tab` completion in the `cd` prompt that is waiting for its listing.
@@ -1262,6 +1267,9 @@ pub struct App {
     /// A listing or a member copy on its way from a worker; see
     /// [`App::drain_archive`].
     archive_rx: Option<crossbeam_channel::Receiver<ArchiveMsg>>,
+    /// A member being unpacked for the preview, apart so that it never
+    /// stands in the way of the listing or of `l` opening a copy.
+    archive_preview_rx: Option<crossbeam_channel::Receiver<ArchiveMsg>>,
     /// The folder `h` came up out of, put under the cursor once the parent's
     /// walk reports it.
     usage_want: Option<String>,
@@ -1368,7 +1376,7 @@ impl App {
             which: Vec::new(),
             overlay: Overlay::None,
             pending_bookmark: None,
-            yank: Yank { paths: Vec::new(), cut: false },
+            yank: Yank { paths: Vec::new(), cut: false, from_archive: false },
             preview: PreviewSlot::default(),
             max_preview: false,
             max_term: false,
@@ -1397,6 +1405,7 @@ impl App {
             usage_root: None,
             archive_view: None,
             archive_rx: None,
+            archive_preview_rx: None,
             usage_want: None,
             term_pending: None,
             ctx,
@@ -1892,18 +1901,51 @@ impl App {
         // set, and each early return used to leave it set for good -- an idle
         // window drawing 60 frames a second, minimised or not (#86).
         let pending = self.preview.pending_since.take();
-        let Some(entry) = self.tabs[self.active].current.hovered().cloned() else {
+        let Some(mut entry) = self.tabs[self.active].current.hovered().cloned() else {
             self.preview.state = PreviewState::Empty;
             self.preview.key = None;
             self.preview.outline = None;
             self.preview.outline_wanted = None;
             return;
         };
-        if let Some(view) = &self.archive_view {
-            self.preview.state = PreviewState::Ready(view.card(&entry));
-            self.preview.key = None;
-            self.preview.texture = None;
-            return;
+        // Inside an archive a small member is unpacked on a worker and its
+        // copy previewed like any file; until then, and for a folder or a
+        // big one, the card says what it is.
+        let ctx = self.ctx.clone();
+        if let Some(view) = &mut self.archive_view {
+            match view.copies.get(&entry.path) {
+                Some(real) => entry = Entry { path: real.clone(), ..entry },
+                None => {
+                    let wanted = !entry.is_dir_like()
+                        && entry.len <= ARCHIVE_PREVIEW_LIMIT
+                        && view.copying.is_none()
+                        && !view.refused.contains(&entry.path);
+                    if wanted {
+                        let member = match view.inner.is_empty() {
+                            true => entry.name.clone(),
+                            false => format!("{}/{}", view.inner, entry.name),
+                        };
+                        let dest = view.inner.split('/').filter(|p| !p.is_empty()).fold(view.scratch.clone(), |p, part| p.join(part));
+                        let (archive, fake) = (view.archive.clone(), entry.path.clone());
+                        let real = dest.join(&entry.name);
+                        let (tx, rx) = crossbeam_channel::bounded(1);
+                        std::thread::Builder::new()
+                            .name("archive-preview".into())
+                            .spawn(move || {
+                                let got = archive::extract_one(&archive, &member, &dest, &mut |_, _| true).map(|()| real);
+                                let _ = tx.send(ArchiveMsg::Previewed(fake, got));
+                                ctx.request_repaint();
+                            })
+                            .expect("spawn archive thread");
+                        view.copying = Some(entry.path.clone());
+                        self.archive_preview_rx = Some(rx);
+                    }
+                    self.preview.state = PreviewState::Ready(view.card(&entry));
+                    self.preview.key = None;
+                    self.preview.texture = None;
+                    return;
+                }
+            }
         }
         // The outline and the zoom belong to the file they were set on. Without
         // this, walking onto the next image shows a corner of it at 8x.
@@ -2670,6 +2712,7 @@ impl App {
         self.search = None;
         self.archive_view = None;
         self.archive_rx = None;
+        self.archive_preview_rx = None;
         // Dropping the handle cancels the walk, so leaving is all it takes.
         self.usage = None;
         self.usage_max = 0;
@@ -2773,11 +2816,10 @@ impl App {
         }
         // Inside an archive the rows are not files yet, and the folder `p`
         // or `a` would write into is the one the archive sits in, not the one
-        // on screen. Taking a member out with `y` and `p` is the next piece
-        // (TODO.md); until then these say so rather than act on paths that
-        // are not there.
+        // on screen. These say so rather than act on paths that are not
+        // there; `y` is let through, and `p` outside takes the members out.
         if self.archive_view.is_some() && changes_files(&a) {
-            self.toast("Inside an archive: read only — l or Enter opens a copy, Esc leaves");
+            self.toast("Inside an archive: read only — y then p in a folder takes a copy out, Esc leaves");
             return;
         }
         match a {
@@ -3424,8 +3466,14 @@ impl App {
             return;
         }
         let n = paths.len();
-        self.yank = Yank { paths, cut };
-        self.toast(format!("Yanked {}{}", util::items(n), if cut { " (cut)" } else { "" }));
+        let from_archive = self.archive_view.is_some();
+        self.yank = Yank { paths, cut, from_archive };
+        let how = match (cut, from_archive) {
+            (true, _) => " (cut)",
+            (false, true) => " from the archive — p in a folder takes them out",
+            (false, false) => "",
+        };
+        self.toast(format!("Yanked {}{how}", util::items(n)));
     }
 
     fn paste(&mut self, force: bool, _follow: bool) {
@@ -3434,6 +3482,13 @@ impl App {
             return;
         }
         let dest = self.tabs[self.active].cwd.clone();
+        // Members of an archive are unpacked rather than copied; the register
+        // stays, as a copy's does.
+        if self.yank.from_archive {
+            let srcs = self.yank.paths.clone();
+            self.submit_op(OpKind::TakeOut, srcs, dest, force);
+            return;
+        }
         let kind = if self.yank.cut { OpKind::Move } else { OpKind::Copy };
         let mut srcs = self.yank.paths.clone();
         // A cut pasted where it already is would be renamed `same_1.txt`
@@ -3776,7 +3831,7 @@ impl App {
                 // something else has been yanked since.
                 if let Some(cut) = self.cut_jobs.remove(&id) {
                     if moved.is_empty() && self.yank.paths.is_empty() {
-                        self.yank = Yank { paths: cut, cut: true };
+                        self.yank = Yank { paths: cut, cut: true, from_archive: false };
                         if errors.is_empty() {
                             self.toast("Nothing moved — the cut is still there");
                         }
@@ -3845,7 +3900,7 @@ impl App {
                 // The archive just packed is what you want to look at next
                 // (Q25) -- but only where you still are: a compress that ends
                 // after you moved on does not pull you back.
-                if let (OpKind::Compress(_), Some(archive)) = (kind, made.first()) {
+                if let (OpKind::Compress(_) | OpKind::TakeOut | OpKind::Extract, Some(archive)) = (kind, made.first()) {
                     if archive.parent() == Some(cwd.as_path()) {
                         self.land_on = Some(archive.clone());
                     }
@@ -4272,10 +4327,14 @@ impl App {
         };
         match res {
             Ok(()) => {
-                let name = util::file_name(&target);
+                // The cursor goes to what was made, as yazi's does (#250): to
+                // `new` for `a new/deep/note.txt`, the part of it in this folder.
+                // `land_on`, not the memo: the row the cursor was on when the
+                // listing comes back would win over a memo.
+                let here = target.strip_prefix(&base).ok().and_then(|r| r.components().next()).map(|c| base.join(c));
+                self.land_on = here.or(Some(target.clone()));
                 self.cache.remove(&base);
                 self.rescan(&base);
-                self.tabs[self.active].memo.insert(base, name);
                 if !made.is_empty() {
                     self.undos.land(UndoStep::Create { paths: made, file: !as_dir }, Land::Fresh);
                 }
@@ -4298,6 +4357,8 @@ impl App {
             // that went by in silence, though its undo is the one people use
             // most (#225).
             Ok(()) => {
+                // Onto the new name, as after `a` (#250).
+                self.land_on = Some(to.clone());
                 let step = UndoStep::Rename { from: from.to_path_buf(), to };
                 self.toast(format!("{} — u to undo", step.redone_label()));
                 self.undos.land(step, Land::Fresh);
@@ -4976,6 +5037,7 @@ impl App {
             true => crate::terminal::default_shell().map(|s| (s, Vec::new())),
         };
         let label = crate::terminal::shell_label(shell.as_ref().map(|(p, _)| p.as_str()));
+        let program = shell.as_ref().map(|(p, _)| p.clone());
         match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), shell, move || {
             ctx.request_repaint()
         }) {
@@ -4983,9 +5045,17 @@ impl App {
                 self.term = Some(t);
                 self.term_focus = true;
                 self.toast(format!("Started {label} — <C-t> back to the list"));
+                crate::runinfo::remember_shell(&label);
                 self.term_shell = label;
             }
-            Err(e) => self.error(format!("Terminal failed: {e}")),
+            // Name the shell: `Terminal failed: … (os error 2)` did not say
+            // which program was missing (#173). Looked up only now, after the
+            // start failed, so a shell found some way other than `PATH` is
+            // never refused on a guess.
+            Err(e) => match program.filter(|p| util::locate(p).is_none()) {
+                Some(p) => self.error(format!("Terminal failed: `{p}` was not found on PATH — set [term] shell to one that is ({e})")),
+                None => self.error(format!("Terminal failed ({label}): {e}")),
+            },
         }
     }
 
@@ -5007,8 +5077,9 @@ impl App {
     ///
     /// With the pane closed, it is opened first (Q35). A shell that is still
     /// reading its profile can drop what is typed at it, so the line waits
-    /// until the shell has written something and then gone quiet for 300 ms
-    /// (Q39), or five seconds, whichever comes first.
+    /// until the shell has marked its prompt (OSC 133), or written something
+    /// and then gone quiet for 800 ms (Q39, #250), or five seconds, whichever
+    /// comes first.
     fn term_send_paths(&mut self) {
         let paths = self.tabs[self.active].targets();
         if paths.is_empty() {
@@ -5127,7 +5198,14 @@ impl App {
             self.toast("The shell exited");
             return;
         }
-        let ready = |at: &Instant| term.quiet_for(Duration::from_millis(300)) || at.elapsed() > Duration::from_secs(5);
+        // A shell that marks its prompt (OSC 133) is ready when it says so.
+        // Otherwise, quiet for 800 ms after its first output: 300 was enough
+        // on ARM64 (#249), but the x64 machine's pwsh printed its banner and
+        // then said nothing for over 300 ms while its profile loaded, so the
+        // path went in before the prompt, 3 runs of 3 (#250).
+        let ready = |at: &Instant| {
+            term.prompt_seen() || term.quiet_for(Duration::from_millis(800)) || at.elapsed() > Duration::from_secs(5)
+        };
         if self.term_pending.as_ref().is_some_and(|(_, at)| ready(at)) {
             if let Some((bytes, _)) = self.term_pending.take() {
                 term.send(bytes);
@@ -5249,7 +5327,17 @@ impl App {
         let tab = &mut self.tabs[self.active];
         tab.remember_cursor();
         tab.current = Folder::loading(archive_path(&archive, ""), None);
-        self.archive_view = Some(ArchiveView { archive, inner: String::new(), members: Arc::new(Vec::new()), more: false });
+        let scratch = preview_scratch(&archive);
+        self.archive_view = Some(ArchiveView {
+            archive,
+            inner: String::new(),
+            members: Arc::new(Vec::new()),
+            more: false,
+            copies: HashMap::new(),
+            copying: None,
+            refused: BTreeSet::new(),
+            scratch,
+        });
         self.preview.state = PreviewState::Empty;
         self.preview.key = None;
     }
@@ -5303,9 +5391,7 @@ impl App {
             false => format!("{}/{}", view.inner, entry.name),
         };
         let archive = view.archive.clone();
-        let dest = std::env::temp_dir()
-            .join(format!("filer-archive-{}", std::process::id()))
-            .join(util::file_name(&archive));
+        let dest = util::archive_scratch().join(util::file_name(&archive));
         let out = dest.join(&entry.name);
         let (tx, rx) = crossbeam_channel::bounded(1);
         let ctx = self.ctx.clone();
@@ -5322,6 +5408,24 @@ impl App {
     }
 
     fn drain_archive(&mut self) {
+        if let Some(Ok(ArchiveMsg::Previewed(fake, got))) = self.archive_preview_rx.as_ref().map(|rx| rx.try_recv()) {
+            self.archive_preview_rx = None;
+            if let Some(view) = &mut self.archive_view {
+                view.copying = None;
+                match got {
+                    Ok(real) => {
+                        view.copies.insert(fake, real);
+                    }
+                    Err(_) => {
+                        view.refused.insert(fake);
+                    }
+                }
+                // Whatever the cursor is on now: the one just unpacked, or
+                // one it moved to while that was going.
+                self.preview.key = None;
+                self.request_preview(true);
+            }
+        }
         let Some(rx) = &self.archive_rx else { return };
         let Ok(msg) = rx.try_recv() else { return };
         self.archive_rx = None;
@@ -5355,6 +5459,7 @@ impl App {
                     Err(e) => self.error(format!("Open failed: {e}")),
                 }
             }
+            ArchiveMsg::Previewed(..) => {}
             ArchiveMsg::Copied(Err(e)) => {
                 self.toasts.retain(|t| !t.text.starts_with("Unpacking "));
                 self.error(format!("Unpack failed: {e}"));
@@ -5677,7 +5782,14 @@ impl App {
         let Overlay::Pick(p) = std::mem::replace(&mut self.overlay, Overlay::None) else {
             return;
         };
-        let Some(idx) = p.selected() else { return };
+        // Filtered down to nothing: stay open and say so, rather than close
+        // as if something had been chosen (#198).
+        let Some(idx) = p.selected() else {
+            let said = format!("Nothing matches `{}` — <Esc> closes", p.query);
+            self.overlay = Overlay::Pick(p);
+            self.toast(said);
+            return;
+        };
         match p.action {
             PickAction::OpenWith { paths, runs, line } => {
                 let Some((run, block, orphan)) = runs.get(idx).cloned() else { return };
@@ -5879,7 +5991,9 @@ impl App {
 fn changes_files(a: &Act) -> bool {
     matches!(
         a,
-        Act::Yank { .. }
+        // `y` is allowed: it is how a member is taken out (`p` in a folder).
+        // `x` would take it out of the archive too, which this never writes.
+        Act::Yank { cut: true }
             | Act::Paste { .. }
             | Act::Link { .. }
             | Act::Hardlink
@@ -5905,6 +6019,35 @@ pub(crate) struct ArchiveView {
     members: Arc<Vec<archive::Listed>>,
     /// The listing stopped at `ARCHIVE_LIMIT`.
     more: bool,
+    /// Members unpacked for the preview, by the path the row shows.
+    copies: HashMap<PathBuf, PathBuf>,
+    /// The one being unpacked now, and ones that would not unpack.
+    copying: Option<PathBuf>,
+    refused: BTreeSet<PathBuf>,
+    /// Where the preview's copies go: a folder of this view's own, so two
+    /// archives of one name -- or two views in one process -- never share it.
+    scratch: PathBuf,
+}
+
+/// Members up to this size are unpacked to be previewed; a bigger one keeps
+/// its card. Reading a member means reading the archive up to it, and a tar
+/// has to be read from the start.
+const ARCHIVE_PREVIEW_LIMIT: u64 = 4 << 20;
+
+impl Drop for ArchiveView {
+    /// The preview's copies go with the view: nothing outside filer has
+    /// them open. The copies `l` opened stay -- an editor may be holding one
+    /// -- and are swept by a later start (`util::sweep_archive_scratch`).
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.scratch);
+    }
+}
+
+/// A fresh folder name for one view's preview copies of `archive`.
+fn preview_scratch(archive: &Path) -> PathBuf {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    util::archive_scratch().join("preview").join(format!("{n}-{}", util::file_name(archive)))
 }
 
 impl ArchiveView {
@@ -5935,6 +6078,8 @@ impl ArchiveView {
 pub(crate) enum ArchiveMsg {
     Listed(PathBuf, std::io::Result<(Vec<archive::Listed>, bool)>),
     Copied(std::io::Result<PathBuf>),
+    /// A member unpacked for the preview: the row's path and the copy's.
+    Previewed(PathBuf, std::io::Result<PathBuf>),
 }
 
 /// The archive view's synthetic path, as the header shows it. Not a real
@@ -7203,9 +7348,12 @@ mod move_undo {
     /// Deliberately **not** `util::test_dir`: this is called several times in one
     /// test for several file names, and `test_dir` wipes what it hands back, so
     /// the second call would delete the first file. The three tests here use
-    /// distinct names, so the process id is uniqueness enough.
+    /// distinct names, so the process id is uniqueness enough. Named the way
+    /// `test_dir` names its own, so its sweep clears what a run leaves: as
+    /// `filer-move-undo-<pid>` one was left per run, 448 in the cloud
+    /// container by v0.77.0.
     fn tmp(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("filer-move-undo-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("filer-test-move-undo-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&d);
         d.join(name)
     }
@@ -7805,9 +7953,85 @@ mod archive_view {
         let (mut a, _) = app_on_archive();
         a.act(Act::Enter);
         wait(&mut a);
-        a.act(Act::Yank { cut: false });
-        assert!(a.yank.paths.is_empty(), "nothing yanked");
+        a.act(Act::Yank { cut: true });
+        assert!(a.yank.paths.is_empty(), "nothing cut: it would take it out of the archive");
         assert!(a.toasts.iter().any(|t| t.text.starts_with("Inside an archive: read only")), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// `y` on a member, then `p` in a folder: the member comes out under its
+    /// own name, a folder with what is under it, and the register stays.
+    #[test]
+    fn y_then_p_takes_a_member_out() {
+        let (mut a, zip) = app_on_archive();
+        a.act(Act::Enter);
+        wait(&mut a);
+        // `docs` is the first row: take the folder out.
+        a.act(Act::Yank { cut: false });
+        assert!(a.yank.from_archive && a.yank.paths.len() == 1, "{:?}", a.yank.paths);
+        let out = zip.parent().unwrap().join("out");
+        std::fs::create_dir_all(&out).unwrap();
+        a.exit_search_view();
+        a.cd(out.clone(), true);
+        a.act(Act::Paste { force: false, follow: false });
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !out.join("docs").join("a").join("readme.md").exists() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(std::fs::read_to_string(out.join("docs").join("a").join("readme.md")).unwrap(), "read me");
+        assert!(!out.join("top.txt").exists(), "only what was yanked");
+        assert!(a.yank.from_archive, "the register stays, as a copy's does");
+        // Nothing of the job's own left behind.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while std::fs::read_dir(&out).unwrap().count() > 1 && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let names: Vec<String> = std::fs::read_dir(&out).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+        assert_eq!(names, ["docs"]);
+    }
+
+    /// A small member is unpacked for the preview and previewed as the copy;
+    /// leaving the view takes the copies with it.
+    #[test]
+    fn a_member_is_previewed_from_a_copy() {
+        let (mut a, zip) = app_on_archive();
+        a.act(Act::Enter);
+        wait(&mut a);
+        a.act(Act::Arrow(Step::Rel(1)));
+        assert_eq!(a.tabs[a.active].current.hovered().map(|e| e.name.as_str()), Some("top.txt"));
+        a.request_preview(true);
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while a.archive_preview_rx.is_some() && Instant::now() < deadline {
+            a.drain_archive();
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let real = a.archive_view.as_ref().and_then(|v| v.copies.get(&zip.join("top.txt")).cloned()).expect("a copy");
+        assert_eq!(std::fs::read_to_string(&real).unwrap(), "top");
+        assert!(matches!(&a.preview.key, Some(k) if k.path == real) || a.preview.pending_since.is_some(), "the copy is what is previewed");
+        a.act(Act::Escape(EscapeWhat::default()));
+        assert!(!real.exists(), "the copy went with the view");
+    }
+
+    /// #198: `<Enter>` with nothing left after the filter keeps the picker
+    /// open and says why, instead of closing as if something were chosen.
+    #[test]
+    fn a_picker_filtered_to_nothing_stays_open() {
+        let (mut a, zip) = app_on_archive();
+        let mut pick = PickOverlay {
+            title: "Jump to".into(),
+            items: vec!["one".into()],
+            details: vec![String::new()],
+            query: "zzz".into(),
+            matches: Vec::new(),
+            cursor: 0,
+            action: PickAction::Jump { paths: vec![zip] },
+            focused: false,
+        };
+        pick.refilter();
+        a.overlay = Overlay::Pick(pick);
+        a.submit_pick();
+        assert!(matches!(a.overlay, Overlay::Pick(_)), "still open");
+        assert!(a.toasts.iter().any(|t| t.text == "Nothing matches `zzz` — <Esc> closes"), "{:?}",
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 
@@ -8310,7 +8534,7 @@ mod send_pane_and_the_register {
 
         // Something else is held in the register.
         let held = PathBuf::from("held.txt");
-        a.yank = Yank { paths: vec![held.clone()], cut: false };
+        a.yank = Yank { paths: vec![held.clone()], cut: false, from_archive: false };
 
         a.act(Act::SendPane { cut: false });
 
@@ -9110,7 +9334,7 @@ mod said_out_loud {
         let dir = crate::util::test_dir("cut-here");
         let mut a = app_in(&dir);
         let src = dir.join("same.txt");
-        a.yank = Yank { paths: vec![src.clone()], cut: true };
+        a.yank = Yank { paths: vec![src.clone()], cut: true, from_archive: false };
         let before = a.tasks.len();
         a.paste(false, false);
         assert_eq!(a.tasks.len(), before, "nothing was queued");
@@ -9139,7 +9363,7 @@ mod said_out_loud {
             made: Vec::new(),
             trashed: Vec::new(),
         };
-        a.yank = Yank { paths: vec![src.clone()], cut: true };
+        a.yank = Yank { paths: vec![src.clone()], cut: true, from_archive: false };
         a.paste(false, false);
         assert!(a.yank.paths.is_empty(), "the register empties while the job runs");
         let id = a.tasks.last().unwrap().id;
@@ -9155,11 +9379,11 @@ mod said_out_loud {
         assert!(a.yank.paths.is_empty(), "a paste that moved something used the cut up");
 
         // Yanked something else meanwhile: that is what the register holds.
-        a.yank = Yank { paths: vec![src.clone()], cut: true };
+        a.yank = Yank { paths: vec![src.clone()], cut: true, from_archive: false };
         a.paste(false, false);
         let id = a.tasks.last().unwrap().id;
         let other = dir.join("other.txt");
-        a.yank = Yank { paths: vec![other.clone()], cut: false };
+        a.yank = Yank { paths: vec![other.clone()], cut: false, from_archive: false };
         a.on_op_event(finished(id, Vec::new()));
         assert_eq!(a.yank.paths, vec![other]);
     }

@@ -196,6 +196,10 @@ Every rule that matches contributes, in the order written, so the catch-all at t
 *Open with the default app* to everything without taking the top spot from a more specific rule.
 `<S-Enter>` shows `desc` with the command line beside it, so name them however you think of them.
 
+As in yazi, `[open] prepend_rules` and `append_rules` add to the rules without restating them
+(v0.78.6): the prepended ones are tried before `rules`, the appended ones after. Before v0.78.6 they
+were ignored without a word.
+
 Two Windows details worth knowing, both of which turn "it does nothing" into "it works":
 
 - **`start "" ` in front of a GUI program that is not on `PATH`.** Commands run through
@@ -210,6 +214,10 @@ its syntax — サクラ, EmEditor, Notepad++, VS Code and the vim family are kn
 [line_args](#line_args-opening-an-editor-at-a-line) covers the rest.
 
 ### keymap.toml
+
+A key written with Shift and a printable character alone (`<S-t>`) can never be pressed -- Shift
+with a printable key arrives as the character it types -- so it is warned about at start with what
+to write instead (`T`; v0.78.7). `<C-S-t>` and `<S-Enter>` are fine.
 
 Layering matches yazi: `prepend_keymap` → (`keymap` or the built-in defaults) → `append_keymap`,
 and the first exact match wins. That is what lets a prepended single-key `m` shadow the built-in
@@ -894,9 +902,13 @@ folder's, `l` goes down into a folder inside it, `h` comes back up, and `h` at t
 -- leaves, with the cursor back on the archive. `l` or `<Enter>` on a file unpacks a copy of that
 one file into a folder of filer's own under the temporary folder and opens it with the system's
 default app; changes to the copy do not go back into the archive. `<Enter>` on the archive itself
-still opens it with its opener, as before. Inside, the view is read only: `y`, `p`, `d`, `r`, `a`,
-`e` and the like say so instead of acting. The preview shows what a member is (its size, or how
-many entries a folder holds) rather than reading it. Up to 100,000 entries are listed.
+still opens it with its opener, as before. **`y` on members, then `p` in a folder, takes them out**
+(v0.77.0): each comes out under its own name, a folder with everything under it, through the same
+Overwrite / Skip / Rename question a copy asks, and the cursor lands on it. Otherwise the view is read
+only: `x`, `p`, `d`, `r`, `a`, `e` and the like say so instead of acting. A file of up to 4 MB is
+unpacked on a worker and previewed like any other (v0.78.0); a folder, or a bigger file, shows a card
+with its size or how many entries it holds. The preview's copies go when you leave the archive; the
+copies `l` opened are kept while an editor may have them, and a later start clears those a day old. Up to 100,000 entries are listed.
 
 ## Scrolling the preview, and the minimap
 
@@ -1069,6 +1081,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `;` `:` | shell command, hidden / shell command in a console of its own |
 | `<C-t>` `<C-S-t>` `<A-t>` | terminal: keys in and back out / end the shell / type the selection into it |
 | `<A-k>` `<A-j>` | scroll the preview, without moving the list's cursor |
+| `<A-g>` `<A-G>` | the preview's top / end (`seek top` / `seek bot`; v0.76.2) |
 | `M` | Markdown rendered ↔ source |
 | `<A-i>` `<A-o>` `<A-0>` `<A-1>` | image: zoom in / out / fit the pane / 1:1 |
 | `<A-n>` | show or hide the preview's minimap |
@@ -1470,7 +1483,7 @@ toasts: Copied: /tmp/work/a.txt | Yanked 1 item
 keys: done
 ```
 
-`yank` is the register as the header says it -- `1 cut`, `2 copied` or `empty` (v0.75.15). `overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `view` is
+`yank` is the register as the header says it -- `1 cut`, `2 copied` or `empty` (v0.75.15). Since v0.78.2: `focus` is where the next key goes (`list`, `pane`, `outline` or `overlay`), `pane cursor: col,row` the terminal's cursor while the pane is open, `max preview` and `quick` whether `T` and the quick look are up, and `config` every config file read (`|`-separated, or `none`). `overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `view` is
 `usage` or `search` while one of those views stands in for the listing, else `list` (v0.64.0); `input` is
 there only while a prompt is open; `compare: folders <left> | <right>` (or `files`) only while a
 comparison is open; `pane` is the terminal's grid (`12x159`) or `closed`, and while it is open
@@ -1591,8 +1604,7 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   widgets, its async tasks), all tied to yazi's terminal UI, so a Lua interpreter alone would run
   almost none of them; and the usual way to embed one builds C Lua into every one of the six
   targets. Popular plugins are instead replaced one by one with built-in behaviour.
-- Inside an archive (`l`) a file can be opened as a copy but not yet copied out with `y` and `p`,
-  and a member is not previewed. woff / woff2 fonts aren't previewed. Video,
+- Inside an archive (`l`) a member is not previewed: the pane shows its size, not its contents. woff / woff2 fonts aren't previewed. Video,
   PDF and HEIC previews rely on Windows thumbnail handlers (see [Other previews](#other-previews)).
 - `[input]`, `[confirm]` and `[pick]` keymap layers are parsed for compatibility, but the prompts
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.
