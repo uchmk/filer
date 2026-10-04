@@ -1954,3 +1954,11 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   見ないと分からない。`terminal pane, from FILER_TERM_SHELL ([term] args not used)` のように、`args` があるときだけ足す。
   v0.73.11 で入れた。`TermCfg::dropped_args` に覚え、`terminal pane, from FILER_TERM_SHELL; [term] args not used: -NoLogo` のように中身も挙げる。
   Linux の本物のバイナリで、`args` があるときだけ付くのを確かめた。29.12 の期待値に足し、印を外して x64 の再テストに回した。
+
+## 次のプロジェクト: Claude Code / AI CLI のためのターミナル（filer が落ち着いてから）
+
+構想は [docs/next-terminal.md](docs/next-terminal.md)。持ち主の合図で始める。開発のセッションが「次の項目」として取るものではない。
+
+- [ ] filer のターミナルペイン（`src/terminal.rs`、`src/ui/term.rs`、`src/shellhook.rs`）を独立したクレートに切り出す。OS ごとの処理を `cfg` で閉じ込め、
+  egui に依らない層（PTY・キー変換・OSC）と描画の層を分け、Pure Rust を保つ。filer は使う側の 1 つになる 【人】
+- [ ] 新しいリポジトリを作り、最初の版の範囲（縦タブ、セッションの状態、入力待ちの印、分割と復元）を決める 【人】
