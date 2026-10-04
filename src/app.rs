@@ -3900,7 +3900,7 @@ impl App {
                 // The archive just packed is what you want to look at next
                 // (Q25) -- but only where you still are: a compress that ends
                 // after you moved on does not pull you back.
-                if let (OpKind::Compress(_) | OpKind::TakeOut, Some(archive)) = (kind, made.first()) {
+                if let (OpKind::Compress(_) | OpKind::TakeOut | OpKind::Extract, Some(archive)) = (kind, made.first()) {
                     if archive.parent() == Some(cwd.as_path()) {
                         self.land_on = Some(archive.clone());
                     }

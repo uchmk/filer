@@ -478,6 +478,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 '21.19' = '書庫の中で `x`、`d`、`a`（v0.76.0。`y` は v0.77.0 から通す。21.20）→ 切り取りもごみ箱も作成もしない。どれも `Inside an archive: read only — y then p in a folder takes a copy out, Esc leaves` と言う。書庫のあるフォルダは変わらない（前後の `Get-ChildItem`）'
 '21.20' = '書庫の中で `top.txt` に `y`、`<Esc>`、別のフォルダへ `l`、`p`。続けてもう一度 `p` して `s`（v0.77.0）→ `y` のあとのトーストは `Yanked 1 item from the archive — p in a folder takes them out`。`p` のあと `top.txt` が書庫の中身と時刻で現れ、カーソルが乗り、トーストは `Took top.txt out of the archive`。`yank: 1 copied` は残る。2 回目の `p` は `File already exists` を聞き、`s` で元のファイルが残り、`.filer-take-out-*` のフォルダは残らない。中で `y` したフォルダは中身ごと出る'
 '21.21' = '書庫の中で `.txt` のメンバー、次に `.png`、次にフォルダにカーソルを置き、最後に `<Esc>`（v0.78.0）→ テキストと画像はファイルと同じくプレビューされる（`<A-G>` でテキストの末尾に届き `preview top: N of N`）。フォルダは `Holds  N items` のカード。4 MB を超えるメンバーは大きさのカード。`<Esc>` のあと `%TEMP%\\filer-archive-<pid>\\preview` にこのビューの分は残らない'
+'21.22' = '一番上が 1 つのフォルダ（`inner\\`）の書庫と、そうでない書庫で `e`（v0.78.1）→ 終わるとカーソルができたものに乗る（1 つ目は `inner`、2 つ目は `<書庫の名前>\\`。`hovered:`）。`E` が作った書庫に乗るのと同じ（21.4）。トーストは `Unpacked into …`'
 
 # 22. 行番号付きでエディタを開く
 "22.1" = '秀丸エディタ → アウトラインの項目の行で開く'
