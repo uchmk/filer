@@ -1204,7 +1204,7 @@ delay, not a number. What is left for an eye: that the card is legible where it 
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 42.1 | Hover the strip on a long source file and **hold still** | After about 0.4 s, a one-row card left of the strip: the line number, then that line in the body's own colours |
+| 42.1 | Hover the strip on a long source file and **hold still** | After about 0.4 s, a one-row card left of the strip: the line number, then that line in the body's own colours, from its first character: the indent is left out (v0.73.67, #226) |
 | 42.2 | Sweep the pointer along the strip | The card follows. It never crosses into the strip, and never leaves the pane at either end |
 | 42.3 | Click where the card points | The preview jumps to **that** line, centred — the card was a preview of the click |
 | 42.4 | Hover the very **bottom pixel** of the strip | The last line, not a blank card (the clamp this release fixed) |

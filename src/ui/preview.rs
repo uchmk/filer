@@ -327,11 +327,23 @@ fn minimap_hover(
         format(&Span::default(), st.theme.fg_dim, st),
     );
     let mut budget = HOVER_MAX_CHARS;
+    // The indent is dropped: the band already shows it by where it starts, and
+    // on a card held to 60% of the pane a deep one left room for little else,
+    // underlined spaces and all (#226).
+    let mut leading = true;
     for span in spans {
         if budget == 0 {
             break;
         }
-        let text: String = span.text.chars().take(budget).collect();
+        let from = match leading {
+            true => span.text.trim_start(),
+            false => span.text.as_str(),
+        };
+        if from.is_empty() {
+            continue;
+        }
+        leading = false;
+        let text: String = from.chars().take(budget).collect();
         budget -= text.chars().count();
         let mut span = span.clone();
         span.underline |= hov.underline;
@@ -1367,6 +1379,29 @@ mod minimap_hover_frame {
         // 42.2: left of the strip, never over it, and inside the pane.
         assert!(card.right() <= st.left(), "clear of the strip: {card:?} against {st:?}");
         assert!(card.top() >= st.top() && card.bottom() <= st.bottom(), "inside: {card:?}");
+    }
+
+    /// #226: the card starts at the line's first character, not its indent,
+    /// across spans too -- a highlighted line splits its indent off as a span
+    /// of its own.
+    #[test]
+    fn the_card_drops_the_indent() {
+        use crate::ui::preview::Span;
+        let lines: Vec<Vec<Span>> = (0..400)
+            .map(|i| {
+                vec![
+                    Span { text: "        ".into(), ..Default::default() },
+                    Span { text: format!("\t  deep {i}"), ..Default::default() },
+                ]
+            })
+            .collect();
+        let mut s = screen("hover-indent", source(lines, Vec::new(), 400));
+        let theme = s.app.cfg.theme.clone();
+        let f = s.draw();
+        let st = strip(&f, &theme);
+        let f = hover(&mut s, egui::pos2(st.center().x, st.center().y));
+        let text = card_text(&f, 201, 400).unwrap_or_else(|| panic!("{:?}", f.texts));
+        assert_eq!(text, "201 deep 200", "the number, one space, then the line itself");
     }
 
     /// 42.4: the bottom pixel of the strip is the last line, not one past it.

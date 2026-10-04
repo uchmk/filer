@@ -1434,7 +1434,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `do_rename` の `Ok(())` で `Renamed to <新しい名前> — u to undo` を出す（文言は `UndoStep::redone_label()` にある）。TESTING.md にも 1 行
 - [x] （v0.73.66。`fetch-conpty.ps1` が `-Dest` の `filer-com.exe` を `filer.com` に写す。無ければビルドを促す）`cargo build --release` が作るのは `filer-com.exe` で、zip の `filer.com` ではない（#225 の提案 3）。手元のビルドでは PowerShell から
   `filer env` を待てない。`scripts/fetch-conpty.ps1` で `filer.com` にも写す
-- [ ] minimap のホバーカードで、行頭の空白を落とす（#226 の提案 1）。深いインデントの行ほど中身が見えない。行番号の後は中身から、下線も中身にだけ
+- [x] （v0.73.67。span をまたいで行頭の空白を落とす。インデントの印は付けていない: 帯の始まりの位置で見えている）minimap のホバーカードで、行頭の空白を落とす（#226 の提案 1）。深いインデントの行ほど中身が見えない。行番号の後は中身から、下線も中身にだけ
 - [ ] TESTING.md 2.2 の「40 行ごとの空行が薄い帯」は、`long.rs` では空行と見出しが同じ帯に入って見分けられない（#226 の提案 3）。 【QA】
   文言を「コメント見出しの棒が 40 行ごと（空行はその帯に含まれる）」に直すか、`make-fixtures` に空行と見出しを 20 行離したファイルを足す
 - [x] `--keys` を `Start-Process -Wait` で起動し、run ごとに別の `FILER_KEYS_DONE` を使う（#225 の提案 2）、ブラウザーのタブを数える
