@@ -1438,7 +1438,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] #243: 47.1、47.7、47.8 に印。x64 の AMD 機は何も書かなければ GL で描き、何もしない窓が 10 秒で 0.000 CPU 秒（`vulkan` を書くと 10.0 に戻る）。v0.75.0 の既定の変更が効いた。
   `filer env` の `Warnings` にも backend の誤りが出るようになった（#240 の所見が直っている）
 - [x] #244: 47.7、47.8 に印（同じ行）。ARM64 は何も書かなければ `D3D12 (…) (Gl, Other)`、`vulkan` で `(Vulkan, IntegratedGpu)`
-- [ ] **誤った・使えない `[ui] backend` が、`auto` ではなく wgpu の既定（Vulkan）に戻る**（#243 の所見 1、#244 の所見 1。2 台とも）。`main.rs` の `wgpu_options` は、
+- [x] （v0.75.5。`pick_backends` が、拒んだ名前もアダプタの無い名前も `auto` と同じ道に通す。47.7 の期待値を直し、印を外して再テストに回した）**誤った・使えない `[ui] backend` が、`auto` ではなく wgpu の既定（Vulkan）に戻る**（#243 の所見 1、#244 の所見 1。2 台とも）。`main.rs` の `wgpu_options` は、
   知らない名前とアダプタの無い名前で `WgpuConfiguration::default()` を返し、`auto_backends` を通らない。x64 では `"directx"` と書くと 1 コアを使い続ける（9.9 CPU 秒）。
   2 つの腕も `auto` と同じ道を通す。直したら 47.7 の期待値（`Adapter` は Vulkan か DX12）を `(Gl, …)` に直し、47.7 / 47.8 を再テストに戻す
 - [ ] 警告で、何に戻したかを言う（#244 の提案 2）: `drawing with Gl instead`。窓が開いたあとならバックエンドが分かる

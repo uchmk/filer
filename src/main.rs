@@ -1160,35 +1160,40 @@ fn wgpu_options(cfg: &mut Config) -> eframe::WgpuConfiguration {
     if std::env::var_os("WGPU_BACKEND").is_some_and(|v| !v.is_empty()) {
         return options;
     }
-    let name = match cfg.ui.backend_name() {
-        Ok(Some(name)) => name,
-        // `auto`: GL first on Windows, where it is all that stops a driver
-        // thread spinning a core under Vulkan and DX12 on AMD (#232, #240);
-        // GL drew both test machines, the ARM64 one through a translation
-        // layer (#239). A machine without it gets wgpu's own pick, silently --
-        // nobody asked for GL there (the owner's word, 2026-10-04, over Q70).
-        Ok(None) => {
-            if let Some(gl) = auto_backends(cfg!(windows), || has_adapter(eframe::wgpu::Backends::GL)) {
-                if let WgpuSetup::CreateNew(setup) = &mut options.wgpu_setup {
-                    setup.instance_descriptor.backends = gl;
-                }
-            }
-            return options;
-        }
-        // A name it does not know was already warned about when the file was read.
-        Err(_) => return options,
-    };
-    let backends = eframe::wgpu::Backends::from_comma_list(name);
-    if !has_adapter(backends) {
-        cfg.warnings.push(format!(
-            "[ui] backend = \"{name}\": this machine has no adapter for it; drawing with the default"
-        ));
-        return options;
+    let (backends, warning) = pick_backends(cfg.ui.backend_name(), cfg!(windows), has_adapter);
+    if let Some(w) = warning {
+        cfg.warnings.push(w);
     }
-    if let WgpuSetup::CreateNew(setup) = &mut options.wgpu_setup {
+    if let (Some(backends), WgpuSetup::CreateNew(setup)) = (backends, &mut options.wgpu_setup) {
         setup.instance_descriptor.backends = backends;
     }
     options
+}
+
+/// The backends to narrow wgpu to, and a warning to add, for `[ui] backend`.
+///
+/// `auto` is GL first on Windows, where it is all that stops a driver thread
+/// spinning a core under Vulkan and DX12 on AMD (#232, #240); GL drew both
+/// test machines, the ARM64 one through a translation layer (#239). A machine
+/// without it gets wgpu's own pick, silently -- nobody asked for GL there (the
+/// owner's word, 2026-10-04, over Q70). A name filer rejects, or one this
+/// machine has no adapter for, falls back to that same `auto`: it used to fall
+/// to wgpu's pick, so a typo in the setting put the spinning core back (#243,
+/// #244). The rejected name was warned about when the file was read.
+fn pick_backends(
+    name: Result<Option<&str>, String>,
+    windows: bool,
+    has: impl Fn(eframe::wgpu::Backends) -> bool,
+) -> (Option<eframe::wgpu::Backends>, Option<String>) {
+    let auto = |warning| (auto_backends(windows, || has(eframe::wgpu::Backends::GL)), warning);
+    let Ok(Some(name)) = name else { return auto(None) };
+    let backends = eframe::wgpu::Backends::from_comma_list(name);
+    match has(backends) {
+        true => (Some(backends), None),
+        false => auto(Some(format!(
+            "[ui] backend = \"{name}\": this machine has no adapter for it; drawing with the default"
+        ))),
+    }
 }
 
 /// What `auto` narrows the backends to: GL on Windows when this machine has
@@ -1622,6 +1627,17 @@ mod tests {
         assert_eq!(ui("metal").backend_name(), Ok(Some("metal")));
         let err = ui("directx").backend_name().unwrap_err();
         assert!(err.contains("\"directx\"") && err.contains("auto, vulkan, dx12, metal, gl"), "{err}");
+
+        // A rejected name and one with no adapter both fall back to `auto`,
+        // GL on Windows -- not wgpu's pick, which spun the core again (#243).
+        use eframe::wgpu::Backends;
+        let gl_only = |b: Backends| b == Backends::GL;
+        assert_eq!(pick_backends(Err("bad".into()), true, gl_only), (Some(Backends::GL), None));
+        let (b, w) = pick_backends(Ok(Some("vulkan")), true, gl_only);
+        assert_eq!(b, Some(Backends::GL), "no Vulkan here: auto, which is GL");
+        assert!(w.is_some_and(|w| w.contains("no adapter")));
+        assert_eq!(pick_backends(Ok(Some("vulkan")), true, |_| true), (Some(Backends::VULKAN), None));
+        assert_eq!(pick_backends(Ok(None), false, |_| true), (None, None), "auto off Windows: wgpu's pick");
 
         // `auto` is GL on Windows when it is there, wgpu's pick otherwise, and
         // does not even ask about GL elsewhere (2026-10-04, over Q70).
