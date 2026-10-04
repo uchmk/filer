@@ -307,7 +307,9 @@ backend = "auto"           # auto | vulkan | dx12 | metal | gl; read at start
 
 `backend` picks what draws the window (v0.74.0). Leave it at `auto` unless an idle filer keeps a core
 busy: on some AMD GPUs a driver thread does that under Vulkan and DX12, and `gl` stops it. The
-`WGPU_BACKEND` environment variable still wins for one run. A backend this machine has no adapter
+`WGPU_BACKEND` environment variable still wins for one run. On Windows `gl` may come through a
+translation layer, so `filer env`'s `Adapter` can read `D3D12 (…) (Gl, Other)` and still be GL (the
+ARM64 laptop's does, #239). A backend this machine has no adapter
 for falls back to `auto` and says so among the config warnings, rather than leaving no window.
 
 Fonts are auto-detected: a Nerd Font from your user font directory (HackGen, FiraCode,
