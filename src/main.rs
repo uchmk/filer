@@ -1128,6 +1128,29 @@ fn state_report(app: &App) -> String {
     // Where the list and the preview are scrolled, and how the preview is
     // shown: what the wheel, zoom and minimap rows of TESTING.md move, read
     // as numbers instead of judged from a picture (2026-10-03).
+    // Where a key goes now (#220, #249): a run had to type a file in the
+    // pane to prove the keys had reached it.
+    let focus = if !matches!(app.overlay, app::Overlay::None) {
+        "overlay"
+    } else if app.term_focus && app.term.is_some() {
+        "pane"
+    } else if app.preview.outline.is_some() {
+        "outline"
+    } else {
+        "list"
+    };
+    lines.push(format!("focus: {focus}"));
+    if let Some(t) = &app.term {
+        let (col, row) = t.with_grid(terminal::cursor_cell);
+        lines.push(format!("pane cursor: {col},{row}"));
+    }
+    // The panes that are not overlays (#165): `T` and `<F3>`'s quick look.
+    lines.push(format!("max preview: {}", if app.max_preview { "on" } else { "off" }));
+    lines.push(format!("quick: {}", if app.quick { "on" } else { "off" }));
+    // What the settings came from, so a `<C-F5>` reload reads as a value
+    // (#165): every file read, or `none`.
+    let read: Vec<String> = app.cfg.loaded.iter().map(|p| p.display().to_string()).collect();
+    lines.push(format!("config: {}", if read.is_empty() { "none".into() } else { read.join(" | ") }));
     lines.push(format!("list top: {}", tab.current.offset));
     lines.push(format!("preview top: {} of {}", tab.preview_offset, app.preview.max_offset));
     // Against the file's own size, as the caption says it (an SVG is laid
@@ -1559,6 +1582,9 @@ mod tests {
         assert!(report.starts_with(&format!("cwd: {}\n", app.tab().cwd.display())), "{report}");
         for line in [
             "selected: 0",
+            "focus: list",
+            "max preview: off",
+            "quick: off",
             "yank: empty",
             "tab: 1 of 1",
             "overlay: none",
