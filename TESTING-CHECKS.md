@@ -536,7 +536,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **32.2** 同じファイルで `<Enter>` → 先頭の Neovim で開く。`block = true` なので専用のコンソールで（既定の端末が Windows Terminal なら新しいタブ）、`nvim` のプロセスのコマンド行がファイルの引用符付きパスで終わる — *`<Enter>` on the same file → Opens in the first entry, Neovim, in a console of its own (`block = true`; a new Windows Terminal tab when WT is the default terminal): a `nvim` process whose command line ends in the file's quoted path*
 - [x] **32.3** `.pdf` で `<S-Enter>` → Edge と Chrome が先に、そのあと既定アプリの項目 — *`<S-Enter>` on a `.pdf` → Edge and Chrome first, then the default-app entry*
 - [x] **32.4** `.xlsx` で `<S-Enter>` して Excel を選ぶ → Excel が開く。これが `start ""` の場合で、それが無いと失敗する — *`<S-Enter>` on a `.xlsx`, pick Excel → Excel opens it — this is the `start ""` case that fails without it*
-- [ ] **32.5** 名前に**空白**を含むファイルで、上のそれぞれを試す → 1 つの引数として渡り、正しく開く — *A file whose name has a **space**, through each of the above → One argument, opens correctly*
+- [x] **32.5** 名前に**空白**を含むファイルで、上のそれぞれを試す → 1 つの引数として渡り、正しく開く — *A file whose name has a **space**, through each of the above → One argument, opens correctly*
 - [x] **32.6** 複数選択してから `<Enter>` → 全部がひとつの起動に渡される — *Several files selected, then `<Enter>` → All of them go to one invocation*
 - [x] **32.7** `*.{xlsx,xls,csv}` と書いたルール → 3 つとも一致する（v0.17.0 以前はこれが効かなかった） — *A rule written `*.{xlsx,xls,csv}` → Matches all three (this is what did not work before v0.17.0)*
 - [x] **32.8** 入っていないプログラムを指定したオープナー → 数秒以内にエラーのトースト。固まらない — *An opener naming a program that is not installed → An error toast within a few seconds, no hang*
