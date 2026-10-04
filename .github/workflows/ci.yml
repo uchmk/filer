@@ -91,8 +91,8 @@ jobs:
   # the cloud sessions run them on every change, but nothing made a red one
   # stop a merge: a test that only passes on Windows, or only on Linux, went
   # unnoticed until someone happened to run it on the other. Linux is the cheap
-  # runner; macOS has its own weekly workflow (test-macos.yml), since its
-  # minutes cost ten times as much.
+  # runner. macOS is not tested: a weekly macOS run was tried in v0.75.22 and
+  # dropped in v0.75.25, since its minutes cost ten times a Linux one.
   test-linux:
     runs-on: ubuntu-latest
     steps:
