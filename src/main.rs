@@ -319,6 +319,9 @@ fn main() -> eframe::Result<()> {
             // it: `filer env` cannot work either of these out for itself.
             let mut used = crate::runinfo::RunInfo {
                 version: env!("CARGO_PKG_VERSION").into(),
+                started: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |d| d.as_secs()),
                 ..Default::default()
             };
             if let Some(rs) = cc.wgpu_render_state.as_ref() {
@@ -327,6 +330,7 @@ fn main() -> eframe::Result<()> {
                 used.backend = format!("{:?}", info.backend);
                 used.device = format!("{:?}", info.device_type);
             }
+            name_the_fallback(&mut cfg.warnings, &used.backend);
             let has_bold = apply_fonts(&cc.egui_ctx, &mut cfg, &mut used);
             crate::runinfo::save(&used);
             cc.egui_ctx.set_visuals(ui::visuals());
@@ -1196,6 +1200,20 @@ fn pick_backends(
     }
 }
 
+/// Once the window is up, a `[ui] backend` warning can say what it fell back
+/// to instead of "the default" (#244): `drawing with Gl instead`. `filer env`,
+/// which opens no window, keeps the general words.
+fn name_the_fallback(warnings: &mut [String], backend: &str) {
+    if backend.is_empty() {
+        return;
+    }
+    for w in warnings.iter_mut().filter(|w| w.contains("[ui] backend")) {
+        if let Some(head) = w.strip_suffix("drawing with the default") {
+            *w = format!("{head}drawing with {backend} instead");
+        }
+    }
+}
+
 /// What `auto` narrows the backends to: GL on Windows when this machine has
 /// it, else nothing, which leaves wgpu to choose. `gl_ok` is only asked on
 /// Windows, since the question costs an instance of its own.
@@ -1627,6 +1645,17 @@ mod tests {
         assert_eq!(ui("metal").backend_name(), Ok(Some("metal")));
         let err = ui("directx").backend_name().unwrap_err();
         assert!(err.contains("\"directx\"") && err.contains("auto, vulkan, dx12, metal, gl"), "{err}");
+
+        // The window names what it fell back to; other warnings are left be.
+        let mut w = vec![
+            "x/filer.toml: [ui] backend = \"directx\" is not one of auto, vulkan, dx12, metal, gl; drawing with the default".to_owned(),
+            "[mgr] `x` is bound twice; drawing with the default".to_owned(),
+        ];
+        name_the_fallback(&mut w, "Gl");
+        assert!(w[0].ends_with("; drawing with Gl instead"), "{}", w[0]);
+        assert!(w[1].ends_with("drawing with the default"), "not a backend warning: {}", w[1]);
+        name_the_fallback(&mut w, "");
+        assert!(w[0].ends_with("Gl instead"), "nothing recorded: left as it was");
 
         // A rejected name and one with no adapter both fall back to `auto`,
         // GL on Windows -- not wgpu's pick, which spun the core again (#243).

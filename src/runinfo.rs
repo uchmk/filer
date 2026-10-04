@@ -68,6 +68,25 @@ pub struct RunInfo {
     /// screenshot happened to catch one (Q40).
     #[serde(default)]
     pub launched: Vec<String>,
+    /// When the run that wrote this started, in seconds since 1970. With
+    /// the same version a record from days ago looked current, and a run
+    /// measuring four starts kept four state folders to tell them apart
+    /// (#244). Defaulted, so a record from before it still loads.
+    #[serde(default)]
+    pub started: u64,
+}
+
+impl RunInfo {
+    /// `2026-10-04 08:59 (12m00s ago)`, or nothing for a record from before
+    /// [`RunInfo::started`] existed.
+    pub fn started_line(&self, now: std::time::SystemTime) -> Option<String> {
+        if self.started == 0 {
+            return None;
+        }
+        let at = std::time::UNIX_EPOCH + std::time::Duration::from_secs(self.started);
+        let ago = now.duration_since(at).unwrap_or_default();
+        Some(format!("{} ({} ago)", crate::util::fmt_time(Some(at), "%Y-%m-%d %H:%M"), crate::util::fmt_duration(ago)))
+    }
 }
 
 /// How many launches `filer env` shows.
@@ -162,6 +181,20 @@ mod tests {
     /// at 1.5 needs 2040 x 1290 pixels. Anyone reading the row can check the
     /// arithmetic against the window they are looking at, which is the whole
     /// point of printing all three numbers rather than the one filer used.
+    /// #244: the record says when its run started, and how long ago; one
+    /// from before the field reads as not recorded.
+    #[test]
+    fn the_record_says_when_its_run_started() {
+        let at = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_800_000_000);
+        let info = RunInfo { started: 1_800_000_000, ..Default::default() };
+        let line = info.started_line(at + std::time::Duration::from_secs(750)).unwrap();
+        assert!(line.ends_with(" (12m30s ago)"), "{line}");
+        assert_eq!(line.len(), "2027-01-15 08:00".len() + " (12m30s ago)".len(), "{line}");
+        assert_eq!(RunInfo::default().started_line(at), None);
+        let old: RunInfo = toml::from_str("version = \"0.74.0\"\nadapter = \"\"\nbackend = \"\"\ndevice = \"\"\nfonts = []\nbold = []\nwindow_pt = [0.0, 0.0]\nppp = 0.0\n").expect("an older record still loads");
+        assert_eq!(old.started, 0);
+    }
+
     #[test]
     fn the_window_line_gives_pixels_points_and_the_scale_between_them() {
         let at = |w: f32, h: f32, ppp: f32| {
@@ -224,6 +257,7 @@ mod tests {
             ppp: 1.5,
             pane: [12, 159],
             launched: vec!["code -g a.txt:3".into()],
+            started: 1_800_000_000,
         };
         save_to(&p, &info);
         assert_eq!(load_from(&p).as_ref(), Some(&info));

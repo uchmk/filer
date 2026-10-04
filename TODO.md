@@ -1433,6 +1433,16 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.74.6。テストのときの `set_clipboard` はスレッドごとの偽のクリップボードに書く。`get_clipboard` がそれを読む）既存のテスト `app::f12_shows_the_report_before_opening_it` の `answer_confirm('c')` が本物のクリップボードを書き換える（所見 3）。持ち主の Windows 機で
   `cargo test` を回すたびにクリップボードが上書きされる。テストのときは書かない口（`exec::set_clipboard` の差し替え）を作る
 
+## 実機のセッションの報告（v0.75.8 で受けた分: #245 ARM64 の 23.6 の再テスト。#246 x64 の 47.7 は CI 待ち）
+
+- [x] #245: v0.75.2 の 23.6 の直しは ARM64 で 8 回とも効いた（別々の 5 プロセスと、親を先に読ませた 3 回）。`filer <dir>\tpyo` の形も、ファイルの名前なら黙ってそこに着く半分も行のとおり
+- [ ] `last-run.toml` に、その起動で効いていた `[ui] backend` の値も残し、`filer env` の `Adapter` の行に添える（#245 の提案 1）。今は前の起動の `Adapter` が
+  設定を変える前のものか後のものか、`Started` と突き合わせないと分からない
+- [ ] 打った名前が無いとき、一覧のカーソルを一番近い名前に置く（#245 の提案 2。行の例の `tpyo` なら `typo`）。今は先頭の行
+- [ ] `filer env` の `Backend` の行で、`auto` がこの機械で何になるかも言う（#245 の提案 3）。GL を確かめるのに起動 1 回分の手間がかかるので、測ってから
+- [x] （v0.75.6 で入った）警告で、何に戻したかを言う（#246 の提案 1）
+- [x] （設計どおり。v0.73.70 から、次の `cargo test` が 1 時間より古いものを消す。動いている別の run のものを消さないための 1 時間）`cargo test` が一時フォルダに `filer-test-*` を約 260 個残す（#246 の提案 2）
+
 ## 実機のセッションの報告（v0.75.4 で受けた分: #243 x64 と #244 ARM64 の 47 節）
 
 - [x] #243: 47.1、47.7、47.8 に印。x64 の AMD 機は何も書かなければ GL で描き、何もしない窓が 10 秒で 0.000 CPU 秒（`vulkan` を書くと 10.0 に戻る）。v0.75.0 の既定の変更が効いた。
@@ -1441,8 +1451,8 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.75.5。`pick_backends` が、拒んだ名前もアダプタの無い名前も `auto` と同じ道に通す。47.7 の期待値を直し、印を外して再テストに回した）**誤った・使えない `[ui] backend` が、`auto` ではなく wgpu の既定（Vulkan）に戻る**（#243 の所見 1、#244 の所見 1。2 台とも）。`main.rs` の `wgpu_options` は、
   知らない名前とアダプタの無い名前で `WgpuConfiguration::default()` を返し、`auto_backends` を通らない。x64 では `"directx"` と書くと 1 コアを使い続ける（9.9 CPU 秒）。
   2 つの腕も `auto` と同じ道を通す。直したら 47.7 の期待値（`Adapter` は Vulkan か DX12）を `(Gl, …)` に直し、47.7 / 47.8 を再テストに戻す
-- [ ] 警告で、何に戻したかを言う（#244 の提案 2）: `drawing with Gl instead`。窓が開いたあとならバックエンドが分かる
-- [ ] `last-run.toml` に時刻を残し、`filer env` の `Adapter` の横に出す（#244 の提案 3）。版が同じだと `Recorded by` を出さないので、何日前の起動の記録か分からない
+- [x] （v0.75.6。窓が開いたあと、警告の `drawing with the default` を `drawing with Gl instead` に置き換える。`filer env` は窓を開かないので元の言い方。Xvfb で `drawing with Vulkan instead`）警告で、何に戻したかを言う（#244 の提案 2）: `drawing with Gl instead`。窓が開いたあとならバックエンドが分かる
+- [x] （v0.75.7。`started` を残し、`filer env` の `Adapter` の下に `Started : 2026-10-04 09:34 (2s ago)`。Xvfb で読んだ）`last-run.toml` に時刻を残し、`filer env` の `Adapter` の横に出す（#244 の提案 3）。版が同じだと `Recorded by` を出さないので、何日前の起動の記録か分からない
 - [ ] `FILER_PTY_LOG` で win32-input-mode のキーを人の読める形に直して出す（#243 の提案 2）: `\e[66;48;98;1;2;1_` → `Alt+b`
 - [ ] TESTING.md 40.12 を、PSReadLine の既定（`EditMode Windows`）では `Alt+b` が `b` になると書き直す（#243 の提案 3）。`Set-PSReadLineOption -EditMode Emacs` のときに bash と同じ。
   filer が送るバイトはどちらでも同じ 【QA】
@@ -1455,7 +1465,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `arrive` の `pending.filter(|_| !listed)` が `pending_cd` を落とし、`reveal` も一緒に消えて `app.rs` の `No such file or folder` が出ない。黙って親に着く。
   「一覧にその名前が無い」の判定を、着いたフォルダの一覧がそろった時に 1 回だけする形にする
 - [x] （v0.75.3。`dir_prefill` が `MAIN_SEPARATOR` を付け、`/` や `C:\` の根には足さない。Xvfb で `input: …/rn/`）Linux の `g<Space>` のプロンプトが `…/rn\` と `\` で終わる（開発のセッションが Xvfb で見つけた）。区切りは `MAIN_SEPARATOR` のはず
-- [ ] #242 は「`g<Space>` のプロンプトが選択されずに開き、60 文字を消してから打った」と書いた（提案 3）。Q31（v0.6x）で全選択で開くようにしてあり、Linux では
+- [x] （#245 が ARM64 で読んだ: `g<Space>` の直後は `input: …\s23fresh\`、`x` 1 つで `input: x`。Q31 の全選択は効いている。#242 の所見は誤り）#242 は「`g<Space>` のプロンプトが選択されずに開き、60 文字を消してから打った」と書いた（提案 3）。Q31（v0.6x）で全選択で開くようにしてあり、Linux では
   `g<Space>xyz` で `input: xyz` になる（置き換わる）。ARM64 で `g<Space><State:a>x<State:b>` を読み、`b.txt` の `input:` が `x` か確かめる 【実機】
 - [ ] コピーの進み具合と残り時間を、バイトだけでなくファイル数でも重み付けする（#241 の所見 1、提案 1）。小さいファイルが多いと `97% … 1s` と出て、まだ 10 秒以上かかった
 - [ ] コピーを `w` で止めたとき、トーストで言う（#241 の所見 2、提案 2）。行き先に何ファイル残ったかも。今は `w` の中でしか分からず、途中までのツリーが残る
