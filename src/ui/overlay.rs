@@ -561,8 +561,14 @@ fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
             ..HelpRow::blank()
         });
     }
+    // One row per line: a TOML parse error runs to four, and as one row they
+    // were drawn on top of each other, three files' worth in one place (#250,
+    // 33.9). The lines after the first are indented under it.
     for w in &app.cfg.warnings {
-        out.push(HelpRow { text: w.clone(), warning: true, ..HelpRow::blank() });
+        for (i, line) in w.lines().filter(|l| !l.trim().is_empty()).enumerate() {
+            let text = if i == 0 { line.to_owned() } else { format!("    {}", line.trim_end()) };
+            out.push(HelpRow { text, warning: true, ..HelpRow::blank() });
+        }
     }
     // Default keys a file of yours rebinds: meant, so plain, not yellow (Q60).
     for o in &app.cfg.keymap.overrides {
@@ -1432,6 +1438,17 @@ mod tests {
 
 #[cfg(test)]
 mod help_config_rows {
+
+    /// 33.9: a warning of several lines is several rows, so none is drawn on
+    /// top of another.
+    #[test]
+    fn a_long_warning_takes_a_row_per_line() {
+        let mut app = crate::app::App::new(crate::config::Config::load(), std::env::temp_dir(), egui::Context::default());
+        app.cfg.warnings = vec!["a.toml: TOML parse error at line 2\n  |\n2 | x = \n  |     ^\n".into(), "second".into()];
+        let rows = super::config_rows(&app, &[]);
+        let warned: Vec<&str> = rows.iter().filter(|r| r.warning).map(|r| r.text.as_str()).collect();
+        assert_eq!(warned, ["a.toml: TOML parse error at line 2", "      |", "    2 | x =", "      |     ^", "second"]);
+    }
     use super::*;
 
     /// Every searched directory is listed, found in or not.
