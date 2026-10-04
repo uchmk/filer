@@ -9,6 +9,15 @@
 
 ## [未リリース]
 
+## [0.75.20] - 2026-10-04
+
+### 変更
+
+- x64 で 47.7 のトーストの半分を再テストした。`[ui] backend = "directx"` と `"metal"` は窓で `drawing with Gl instead`、`filer env` は
+  `drawing with the default` と言う（#247）。
+- ARM64 で 47.7 を再テストした。使えない `[ui] backend` は `auto` と同じに描く（#248）。
+- 2 本の所見と提案（`filer env` の `Last run` と警告の文、欄の幅、x64 の Vulkan の対照）を TODO.md に回した。
+
 ## [0.75.19] - 2026-10-04
 
 ### 修正

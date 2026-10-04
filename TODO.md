@@ -1447,6 +1447,22 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.74.6。テストのときの `set_clipboard` はスレッドごとの偽のクリップボードに書く。`get_clipboard` がそれを読む）既存のテスト `app::f12_shows_the_report_before_opening_it` の `answer_confirm('c')` が本物のクリップボードを書き換える（所見 3）。持ち主の Windows 機で
   `cargo test` を回すたびにクリップボードが上書きされる。テストのときは書かない口（`exec::set_clipboard` の差し替え）を作る
 
+## 実機のセッションの報告（v0.75.20 で受けた分: #247 x64 と #248 ARM64 の 47.7）
+
+- [x] #247 / #248: 47.7 に印（同じ行を 2 台が確かめた）。`"directx"` と `"metal"` は窓で `drawing with Gl instead`、`filer env` は `drawing with the default`、
+  `Adapter` は `(Gl, …)`、何もしない窓は 0.000 CPU 秒。両レーンの再テストから 47.7 を外した
+- [ ] **x64 で `"vulkan"` の対照も回らなくなった**（#247 の所見 1）。#243 / #246 では約 10.0 CPU 秒だったのが 0.000（10 秒と 20 秒の 2 回）。
+  違いは画面の倍率で、今回は 150%（#246 は 100%）。47.1 の空回りが倍率に依るのかもしれない。100% と 150% で `vulkan` を測り直す（#247 の提案）【実機】
+- [ ] `filer env` の `Last run` が、直前に読んだ設定ではなく機械の最後の起動を言う（#248 の所見 1）。`FILER_CONFIG_HOME` は `State` を動かさないので、
+  `"dx12"` で起動した後に `"directx"` の設定で `filer env` を読むと、`Backend : "directx"` の横に `Adapter : (Dx12, …)` が並ぶ。
+  実際に使ったバックエンドを `Last run` に残す（#248 の提案 2。#245 の提案 1、上の `last-run.toml` の項目と同じ）
+- [ ] 無効な `[ui] backend` の警告を、窓と `filer env` で同じ文にする（#248 の提案 1）。窓は `drawing with Gl instead`、`filer env` は
+  `drawing with the default` で、同じ判断を別の言葉で言っている。落ちた先を言う関数を 1 つにして両方から呼ぶ
+- [ ] `filer env` の `Config` の欄の幅が、設定フォルダのパスの長さで決まる（#248 の所見 2、提案 3）。67 文字の `FILER_CONFIG_HOME` で
+  `State` などが 83 桁目から始まり、普通のコンソールで折り返す。フォルダのパスを 1 行に出してファイルをその下に字下げするか、欄の幅に上限を付ける
+- [ ] ARM64 で 25 節（25.11）は取れない（#248）。25.11 は「どこにも太字が無い」を要るが、`system_bold_fonts()` は `C:\Windows\Fonts\meiryob.ttc` などを
+  絶対パスで見るので、普通の Windows ではその状態を作れない。33.9 は 5 つの箱が重ならないこと（画素でしか測れない）【実機】
+
 ## 実機のセッションの報告（v0.75.8 / v0.75.9 で受けた分: #245 ARM64 の 23.6 の再テスト、#246 x64 の 47.7）
 
 - [x] #246: v0.75.5 で 47.7 を押し、`"directx"` でも `(Gl, Other)`、何もしない窓が 0.000 CPU 秒。ただし v0.75.6 で行に足した「窓のトーストが `drawing with Gl instead`」は
