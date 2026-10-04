@@ -950,7 +950,8 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
             .id(pick_id)
             .font(egui::FontSelection::FontId(f.clone()))
             .frame(egui::Frame::NONE)
-            .hint_text("type to filter")
+            // `j` types into the filter here, so the arrows are named (#165).
+            .hint_text("type to filter · <Down>/<Up> choose · <Enter> open")
             .desired_width(field.width())
             .text_color(theme_fg),
     );
@@ -1306,7 +1307,9 @@ pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     let sections = app.spot_sections();
     let name = app.tabs[app.active].current.hovered().map(|e| e.name.clone()).unwrap_or_default();
     let rect = modal_rect(full, 0.7, 0.7);
-    let title = format!("Spot: {name} — <Esc> to close");
+    // The row keys, now that a row can be copied (`c`) and some lead somewhere
+    // (`<Enter>`): `j` / `k` change the file, which was the only motion said (#165).
+    let title = format!("Spot: {name} — <A-j>/<A-k> row · c copy · <Enter> open · j/k file · <Esc> close");
     let inner = modal_frame(ui, rect, &app.cfg.theme, &title, f, row_h);
     let theme = &app.cfg.theme;
     let painter = ui.painter_at(inner);

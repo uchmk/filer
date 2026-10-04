@@ -1180,9 +1180,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.65.3。ファイル名が `powershell` なら、設定で書いたものでも同じ名前にする。どちらの区切りのパスでも読む。29.7 の文言が変わったので印を外し、29.7 / 29.8 を再テストに積んだ）`name_shell`（`src/terminal.rs`）が、`[term] shell = "powershell"` と書いたときは版を付けない（所見、29.8）。
   既定のシェルのときだけ `powershell (Windows PowerShell 5.1)` になる。設定で書いた名前でも同じ形にする。
 - [x] （v0.75.19 で直した。`CdFallout::Revert` が打ったパスを持つ）23.5: `C:\Temp\a|b\c\d` と打つと、トーストが 1 つ上の `C:\Temp\a|b\c` を名指す（所見）。打ったパスをそのまま出す。
-- [ ] spot パネルの見出しが `<Esc> to close` だけで、行を動かす `<A-j>` / `<A-k>` が書いていない（提案 2）。`C` と `<Enter>` で行に
+- [x] （v0.78.8）spot パネルの見出しが `<Esc> to close` だけで、行を動かす `<A-j>` / `<A-k>` が書いていない（提案 2）。`C` と `<Enter>` で行に
   できることが増えたので、見出しに行の動かし方を出す。`j` / `k` はファイルを替える。
-- [ ] 「Open with」の選択（`O`）も同じで、`j` が絞り込みに入る（提案 3）。見出しに `<Down>/<Up> choose, type to filter, <Enter> open`。
+- [x] （v0.78.8。入力欄の薄い字に）「Open with」の選択（`O`）も同じで、`j` が絞り込みに入る（提案 3）。見出しに `<Down>/<Up> choose, type to filter, <Enter> open`。
 - [x] （v0.73.12 で直した。#180 の所見 3 と同じ件）`filer env` が、`YAZI_CONFIG_HOME` と `FILER_CONFIG_HOME` が同じ場所のとき、設定ディレクトリと警告を 2 回ずつ出す（提案 4）。
   設定を隔離して試すときの普通の形なので、1 行にまとめて両方の変数を名指す。
 - [x] （v0.75.16、QA の子が TESTING.md を直した）TESTING.md 12.14 に、`[running]` を見るにはファイルがどれだけ大きくないといけないかを書く（提案 5。人か QA セッション）。
