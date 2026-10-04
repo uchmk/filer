@@ -198,7 +198,7 @@ cd $HOME\Desktop\filer-fixtures
 
 自動テスト済みなので下には出していない: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.10
 
-- [ ] **10.9** ファイルを `x` で切り取り、同名のファイルが既にあるディレクトリで `p` して、上書きに**いいえ**と答える → **それでもヘッダから件数が消える。**`paste()` はジョブを**投入した時点で**切り取りレジスタを空にしていて、成功した時点ではないため。結果、ファイルは移動もされず、レジスタにも残らない — *Cut a file, then `p` into a directory that already holds that name, and answer **no** to the overwrite → The count still leaves the header — `paste()` empties a cut register when it *submits* the job, not when the job succeeds, so the files are neither moved nor still in the register*
+- [x] **10.9** ファイルを `x` で切り取り、同名のファイルが既にあるディレクトリで `p` して、上書きに**いいえ**と答える → **それでもヘッダから件数が消える。**`paste()` はジョブを**投入した時点で**切り取りレジスタを空にしていて、成功した時点ではないため。結果、ファイルは移動もされず、レジスタにも残らない — *Cut a file, then `p` into a directory that already holds that name, and answer **no** to the overwrite → The count still leaves the header — `paste()` empties a cut register when it *submits* the job, not when the job succeeds, so the files are neither moved nor still in the register*
 
 ## 11. 一括リネーム — 全 12 件が自動
 
