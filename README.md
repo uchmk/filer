@@ -196,6 +196,10 @@ Every rule that matches contributes, in the order written, so the catch-all at t
 *Open with the default app* to everything without taking the top spot from a more specific rule.
 `<S-Enter>` shows `desc` with the command line beside it, so name them however you think of them.
 
+As in yazi, `[open] prepend_rules` and `append_rules` add to the rules without restating them
+(v0.78.6): the prepended ones are tried before `rules`, the appended ones after. Before v0.78.6 they
+were ignored without a word.
+
 Two Windows details worth knowing, both of which turn "it does nothing" into "it works":
 
 - **`start "" ` in front of a GUI program that is not on `PATH`.** Commands run through

@@ -118,6 +118,20 @@ impl Opener {
 pub struct Open {
     #[serde(default)]
     pub rules: Vec<OpenRule>,
+    /// yazi's way of adding to the rules without restating them: these are
+    /// looked at before `rules`, and `append_rules` after. Read since
+    /// v0.78.6; before, they were ignored without a word (#250).
+    #[serde(default)]
+    pub prepend_rules: Vec<OpenRule>,
+    #[serde(default)]
+    pub append_rules: Vec<OpenRule>,
+}
+
+impl Open {
+    /// Every rule, in the order they are tried.
+    pub fn all_rules(&self) -> impl Iterator<Item = &OpenRule> {
+        self.prepend_rules.iter().chain(&self.rules).chain(&self.append_rules)
+    }
 }
 
 #[derive(Deserialize, Debug, Clone)]

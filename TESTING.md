@@ -934,6 +934,7 @@ instructions are wrong, which is worse than a missing feature.
 | 32.14 | macOS: a `block = true` opener, `<Enter>` on a file | Terminal.app comes forward with a new window running the editor in the list's folder. The first time, macOS asks whether filer may control Terminal; refused, a toast says why |
 | 32.15 | Windows, **the release `filer.exe`** (no console of its own; `cargo run` has one and never showed this): `:` then `nvim` (v0.75.14, Q12) | nvim draws in the new console (its `~` column and status line), not a black window with a blinking cursor. The same through a `block = true` opener on `<Enter>`. Read it with `ReadConsoleOutputCharacter` on the new console, or `nvim`'s own `:redir`; before, `Win32_Process` showed `nvim` running with nothing drawn |
 | 32.16 | Windows, the release `filer.exe`: `:` then `git log -5 --oneline` (v0.75.14, Q13) | The console stays open on the five lines and `Press any key to continue . . .` (`続行するには何かキーを押してください . . .` on a Japanese Windows); a key closes it. `:` then `dir & pause` asks once, not twice. `;` is unchanged: no console and no pause |
+| 32.17 | `[open] prepend_rules = [{ name = "*.txt", use = "<an opener>" }]` in `yazi.toml`, with no `rules` of your own; `<Enter>` on a `.txt`, then `<S-Enter>` (v0.78.6, #250) | `<Enter>` runs that opener (its `$ …` toast), and `<S-Enter>` lists it first, above the built-in ones. An `append_rules` entry is listed last |
 
 ---
 

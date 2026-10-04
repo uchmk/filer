@@ -674,6 +674,12 @@ fn merge_yazi(base: YaziToml, mut next: YaziToml) -> YaziToml {
     if next.open.rules.is_empty() {
         next.open.rules = base.open.rules;
     }
+    // The later file's additions are nearer: its `prepend_rules` before the
+    // earlier one's, its `append_rules` after them.
+    next.open.prepend_rules.extend(base.open.prepend_rules);
+    let mut append = base.open.append_rules;
+    append.append(&mut next.open.append_rules);
+    next.open.append_rules = append;
     next
 }
 
