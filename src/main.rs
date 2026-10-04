@@ -1713,3 +1713,166 @@ mod tests {
         assert!(app_icon(b"", 64).is_none());
     }
 }
+
+/// TESTING.md section 26: what `<F12>` shows and what it decides, read off
+/// the frame and the `<State:>` lines, entered through the same
+/// `handle_input` the window uses. Nothing here answers the report with `o`,
+/// `<Enter>` or `c`: those hand the link to the browser or the clipboard,
+/// and a test run must not reach either.
+#[cfg(test)]
+mod bug_report_f12 {
+    use super::state_report;
+    use crate::app::{ConfirmAction, Overlay};
+    use crate::config::{Config, Keymap};
+    use crate::ui::harness::Screen;
+
+    fn key(k: egui::Key) -> egui::Event {
+        egui::Event::Key { key: k, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE }
+    }
+
+    /// The built-in keys whatever the machine binds, no warnings, and two
+    /// config files read from under a home directory with a name in it.
+    fn screen(label: &str) -> Screen {
+        let dir = crate::util::test_dir(label);
+        let home = std::path::Path::new("/home/someone-in-a-test/.config");
+        let loaded = vec![home.join("yazi").join("keymap.toml"), home.join("filer").join("filer.toml")];
+        let cfg = Config { keymap: Keymap::load(&[]).0, loaded, warnings: Vec::new(), ..Config::load() };
+        Screen::with_config(cfg, dir)
+    }
+
+    /// `<F12>` after `j` `k`, with an error raised before them.
+    fn pressed(label: &str) -> (Screen, crate::ui::harness::Painted) {
+        let mut s = screen(label);
+        s.app.error("Copy: a.txt: denied");
+        s.typed("jk");
+        let f = s.feed(vec![key(egui::Key::F12)]);
+        (s, f)
+    }
+
+    fn report_url(s: &Screen) -> String {
+        match &s.app.overlay {
+            Overlay::Confirm(c) => match &c.action {
+                ConfirmAction::BugReport { url } => url.clone(),
+                other => panic!("a confirm box, but not the report: {other:?}"),
+            },
+            _ => panic!("no Report a bug panel"),
+        }
+    }
+
+    fn says_line(report: &str, line: &str) -> bool {
+        report.lines().any(|l| l == line)
+    }
+
+    /// The panel half of row 26.1 (the browser opening is the machine's):
+    /// `<F12>` shows the panel first, with every line the report carries and
+    /// the first button naming `<Enter>` -- and opens nothing, copies nothing
+    /// and says nothing until it is answered. Not named as the row's id on
+    /// purpose: `make-testcheck` takes a row off the list for a test that
+    /// names it, and half of this one is still for a person.
+    #[test]
+    fn f12_draws_the_report_and_opens_nothing() {
+        let (s, f) = pressed("f12-draws");
+        let mut lines = vec!["Report a bug".to_owned(), crate::bugreport::version_line()];
+        lines.extend(crate::bugreport::os_line().lines().map(str::to_owned));
+        lines.push("Last keys: j k".into());
+        // Rendering and Scale come from this machine's last run, when there
+        // was one; whatever `context` says is what the panel has to show.
+        let context = crate::bugreport::context(Some("Copy: a.txt: denied"), &s.app.cfg.loaded);
+        lines.extend(context.lines().map(str::to_owned));
+        lines.push("The form opens with these filled in; nothing is sent until you submit it there.".into());
+        for l in &lines {
+            assert!(f.texts.iter().any(|t| t == l), "{l:?} is drawn: {:?}", f.texts);
+        }
+        let sep = std::path::MAIN_SEPARATOR;
+        assert!(f.texts.iter().any(|t| *t == format!("Config: yazi{sep}keymap.toml, filer{sep}filer.toml")), "{:?}", f.texts);
+        assert!(f.texts.iter().any(|t| t == "Last error: Copy: a.txt: denied"), "{:?}", f.texts);
+
+        // The buttons, under the body, the first naming the key that picks it.
+        let first = f.placed(" [o] / <Enter> Open the form in your browser ").expect("the first button");
+        let body = f.placed(&crate::bugreport::version_line()).unwrap();
+        assert!(body.y < first.y, "body above the buttons: {body:?} {first:?}");
+        assert!(f.says(" [c] Copy the link ") && f.says(" [n] Cancel "), "{:?}", f.texts);
+
+        // Nothing has left the program yet.
+        assert!(s.app.last_report.is_none(), "no link opened or copied");
+        let toasts: Vec<&str> = s.app.toasts.iter().map(|t| t.text.as_str()).collect();
+        assert_eq!(toasts, ["Copy: a.txt: denied"], "no toast of its own");
+
+        // And `<State:>` reads the same panel back as text.
+        let r = state_report(&s.app);
+        assert!(says_line(&r, "overlay: confirm"), "{r}");
+        let confirm = r.lines().find(|l| l.starts_with("confirm: ")).unwrap_or_default();
+        assert!(confirm.starts_with(&format!("confirm: Report a bug | {} | ", crate::bugreport::version_line())), "{r}");
+        assert!(confirm.contains(" | Last keys: j k | Last error: Copy: a.txt: denied | "), "{r}");
+        assert!(says_line(&r, "confirm keys: [o] / <Enter> Open the form in your browser | [c] Copy the link | [n] Cancel"), "{r}");
+        assert!(!r.lines().any(|l| l.starts_with("report:")), "no report line before one is opened: {r}");
+    }
+
+    /// Row 26.2, the half that is filer's: the link fills in the version, the
+    /// OS, the keys and what filer knew, and nothing else; and the config
+    /// files read from under a home directory are named without it (Q64).
+    #[test]
+    fn the_link_fills_four_fields_and_names_no_home() {
+        let (s, _) = pressed("f12-fields");
+        let url = report_url(&s);
+        let query = url.split_once('?').map(|(_, q)| q).expect("a query string");
+        let names: Vec<&str> = query.split('&').map(|p| p.split_once('=').map_or(p, |(n, _)| n)).collect();
+        assert_eq!(names, ["template", "version", "os", "keys", "context"], "{url}");
+        assert!(url.contains("&keys=Last%20keys%2C%20oldest%20first%3A%20j%20k&"), "the keys before <F12>: {url}");
+        assert!(url.contains("Config%3A%20yazi"), "the config files by name: {url}");
+        assert!(!url.contains("someone-in-a-test") && !url.contains("%2Fhome%2F"), "no home directory: {url}");
+    }
+
+    /// Row 26.11's `<Esc>` and `n`: the panel closes, nothing is opened or copied,
+    /// and `<State:>` has no `report:` line. Once a link has gone (`c` and `o`
+    /// both leave it in `last_report`, which `app`'s own tests read), the
+    /// line carries exactly that link.
+    #[test]
+    fn esc_or_n_drops_the_report() {
+        for (how, answer) in [("<Esc>", vec![key(egui::Key::Escape)]), ("n", vec![egui::Event::Text("n".into())])] {
+            let (mut s, _) = pressed("f12-drop");
+            let toasts = s.app.toasts.len();
+            let f = s.feed(answer);
+            assert!(matches!(s.app.overlay, Overlay::None), "{how} closes the panel");
+            assert!(!f.says("Report a bug"), "{how}: not drawn any more: {:?}", f.texts);
+            assert!(s.app.last_report.is_none(), "{how}: nothing opened or copied");
+            assert_eq!(s.app.toasts.len(), toasts, "{how}: and nothing said");
+            let r = state_report(&s.app);
+            assert!(says_line(&r, "overlay: none") && !r.contains("report:"), "{how}: {r}");
+        }
+        let (mut s, _) = pressed("f12-report-line");
+        let url = report_url(&s);
+        s.app.last_report = Some(url.clone());
+        assert!(says_line(&state_report(&s.app), &format!("report: {url}")));
+    }
+
+    /// 26.12: a key the panel does not offer, typed as the window delivers
+    /// it, leaves the panel up and does nothing else; `n` then closes it.
+    #[test]
+    fn a_key_the_panel_does_not_offer_leaves_it_up() {
+        let (mut s, _) = pressed("f12-stray");
+        let toasts = s.app.toasts.len();
+        let f = s.typed("(");
+        assert!(f.says(" [o] / <Enter> Open the form in your browser "), "still drawn: {:?}", f.texts);
+        let r = state_report(&s.app);
+        assert!(says_line(&r, "overlay: confirm") && !r.contains("report:"), "{r}");
+        assert!(s.app.last_report.is_none() && s.app.toasts.len() == toasts, "nothing opened, copied or said");
+        s.typed("n");
+        assert!(says_line(&state_report(&s.app), "overlay: none"));
+    }
+
+    /// Row 26.9, the half that is filer's: with the terminal pane holding the
+    /// keys, `<F12>` is not the report -- the `[term]` layer does not claim
+    /// it, so it goes to the shell. (No pane runs in a test, so where the
+    /// key lands in the shell is the machine's half.)
+    #[test]
+    fn f12_in_the_terminal_pane_is_not_the_report() {
+        let mut s = screen("f12-term");
+        let f12 = crate::config::keys::Key::parse("<F12>").unwrap();
+        assert!(!s.app.cfg.keymap.term.iter().any(|b| b.on.first() == Some(&f12)), "[term] leaves <F12> to the shell");
+        s.app.term_focus = true;
+        let f = s.feed(vec![key(egui::Key::F12)]);
+        assert!(matches!(s.app.overlay, Overlay::None), "no panel");
+        assert!(!f.says("Report a bug") && s.app.term_focus, "and the pane keeps the keys");
+    }
+}

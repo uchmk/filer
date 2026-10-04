@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 478 件（TESTING.md の全 647 件のうち、`cargo test` が見ている 169 件は外してある）。
+押すものは 477 件（TESTING.md の全 647 件のうち、`cargo test` が見ている 170 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -448,6 +448,8 @@ fsutil hardlink list <新しくできたパス>
 
 ## 26. アプリの中からのバグ報告
 
+自動テスト済みなので下には出していない: 26.12
+
 - [x] **26.1** `<F12>` を押し、`<Enter>`（または `o`）→ `<F12>` はまず **Report a bug** のパネルを出し、版・OS の行・直前のキー・最新のエラー・描画・倍率・設定ファイルの名前を並べる（v0.73.58、Q62）。枠はボタンのすぐ下で終わり、下に空いた帯が無い（v0.73.64、Q66）。最初のボタンは `[o] / <Enter> Open the form in your browser` と書かれ、`<Enter>` がそれを選ぶ（v0.73.73、Q69）。`<Enter>` までは何も開かない。そのあと既定のブラウザで GitHub の新規 issue フォームが開き、トーストがそう言う — *`<F12>`, then `<Enter>` (or `o`) → `<F12>` first shows **Report a bug**: the version, the OS lines, the last keys, the last error, the rendering, the scale and the config files by name (v0.73.58, Q62). The box ends just below its buttons, with no empty band under them (v0.73.64, Q66), and the first button reads `[o] / <Enter> Open the form in your browser`: `<Enter>` picks it (v0.73.73, Q69). Nothing opens until `<Enter>`; then the default browser opens GitHub's new-issue form, and a toast says so*
 - [x] **26.2** フォームを見る → 見出しがどれも英語と日本語の 2 段（`What happened / 何が起きたか`、Q63）。**filer version**、**OS and architecture**、**Keys that reproduce it**（`Last keys, oldest first: …`）、**What filer knew**（パネルの行）が埋まっていて、残りは空。ユーザー名の入ったパスはどこにも出ない（Q64） — *Look at the form → Every heading is in English and Japanese (`What happened / 何が起きたか`, Q63). **filer version**, **OS and architecture**, **Keys that reproduce it** (`Last keys, oldest first: …`) and **What filer knew** (the panel's lines) are filled in; the rest is empty. No path with the user's name in it appears anywhere (Q64)*
 - [x] **26.3** 埋まっている版を、ターミナルの `filer --version` と比べる → アーキテクチャも含めて同じ文字列 — *Compare the filled version against `filer --version` in a terminal → The same string, architecture included*
@@ -460,7 +462,6 @@ fsutil hardlink list <新しくできたパス>
 - [x] **26.9** ターミナルペインの中から `<F12>`（先に `<C-t>`）→ 何も起きない。`[term]` がシェルに渡しているためで、これが正しい — *`<F12>` from the terminal pane (`<C-t>` first) → Nothing: `[term]` passes it to the shell, which is correct*
 - [ ] **26.10** 26.8 と同じく関連付けを壊した状態で `<F12>`（v0.52.0）→ エラーのトーストが、報告のリンクが**クリップボードにある**とも言う。ブラウザに貼ると同じ、埋まった状態のフォームが開く。ブラウザが開けたときはクリップボードに触らない — *`<F12>` with the browser association broken, as in 26.8 (v0.52.0) → The error toast also says the report's link is **on the clipboard**; pasting it into a browser opens the same pre-filled form. When the browser *does* open, the clipboard is left alone*
 - [x] **26.11** `<F12>` のあと `c`。もう一度 `<F12>` のあと `<Esc>`（v0.73.58、Q62）→ `c` は同じリンクをクリップボードに置いてそう言い、`FILER_KEYS_DONE` に `report:` の行が出る。ブラウザは開かない。`<Esc>`（または `n`）はパネルを閉じ、何も開かず何も写さない — *`<F12>`, then `c`; again `<F12>`, then `<Esc>` (v0.73.58, Q62) → `c` puts the same link on the clipboard and says so, and `FILER_KEYS_DONE` has a `report:` line with it; no browser opens. `<Esc>` (or `n`) closes the panel and nothing opens or is copied*
-- [ ] **26.12** `<F12>` のあと、パネルに無いキー（`(`）、次に `n`（v0.73.78、Q71）→ `(` ではパネルが閉じない（後の `<State:>` で `overlay: confirm`）。何も開かず、何もコピーされない。`n` で閉じる。以前はほかのキーで黙って閉じ、次の `<Enter>` が一覧に届いた — *`<F12>`, then a key the panel does not offer (`(`), then `n` (v0.73.78, Q71) → `(` leaves the panel up (`overlay: confirm` in a `<State:>` after it) and nothing opens or is copied; `n` then closes it. Before, any other key closed it without a word, and the next `<Enter>` went to the list*
 
 ## 27. 届かなかったプレビュー — 全 5 件が自動
 
