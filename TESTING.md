@@ -127,7 +127,7 @@ drawing has been seen. `<C-t>` opens it.
 | 1.9 | `dir` in `many\` to fill the screen, then `<S-PageUp>` | **The text moves.** Until v0.20.3 only the note moved — it said "N lines back" over a screen that had not scrolled |
 | 1.9a | `<S-PageUp>` / `<S-PageDown>` (v0.20.4) | Half a screen back / forward. Until v0.20.4 the sign was inverted, so `<S-PageUp>` aimed at the bottom and did nothing |
 | 1.9b | `<S-Home>`, `<S-End>` | The oldest line held, and the prompt. These worked before — no sign to get wrong |
-| 1.9d | The mouse wheel over the pane (v0.20.4) | Moves smoothly, a notch at a time. It used to need spinning hard for one or two lines |
+| 1.9d | The mouse wheel over the pane (v0.20.4) | Every notch moves it, in both directions: one or two lines a notch (19.4 counts them). It used to need spinning hard for one or two lines |
 | 1.9e | Scroll back far enough that the prompt leaves the screen | The cursor goes with it — no block left behind at its old height |
 | 1.9c | `<C-S-f>` for a word far up the scrollback, Enter | The view jumps to the match **and the match is highlighted** |
 | 1.9f | `<C-S-f>` for a word that is on screen right now (v0.20.4) | The one on screen is found first, not an older one up in the history |
@@ -135,17 +135,17 @@ drawing has been seen. `<C-t>` opens it.
 | 1.9h | `<C-S-f>` for something that is not there | A red toast saying so — not silence |
 | 1.9i | `<C-S-n>` past the oldest match (v0.57.4) | It starts again from the newest, and a `Wrapped` toast says so. Until v0.57.4 the jump from `433` to `442 lines back` came without a word |
 | 1.10 | `<S-End>`, then type a character | Back at the bottom, and typing alone would have done it |
-| 1.11 | Drag across some output (v0.20.4) | **It highlights as you drag**, and is on the clipboard when you let go. Before v0.20.4 the copy worked and nothing was drawn |
+| 1.11 | Drag across some output (v0.20.4) | **It highlights as you drag**, and is on the clipboard when you let go. Before v0.20.4 the copy worked and nothing was drawn. To measure: the pane copies the selection itself when the drag ends (`Get-Clipboard`), and selected cells are painted `theme.hovered_bg`, the list cursor's colour |
 | 1.11a | Drag **right to left** over the same run of text (v0.26.4) | The same text, character for character. Until v0.26.4 a backwards drag lost one at **each** end |
 | 1.11b | Start the drag **on** the first character, not to its left (v0.26.4) | It is included. It used to be dropped unless the drag began in the gap before it |
 | 1.11c | Drag from the right half of a character | That character is left out — correct, and the same rule that makes 1.11a work |
-| 1.12 | Double-click a word | The word is selected, and visibly so |
+| 1.12 | Double-click a word | The word is selected, and visibly so. Measured as 1.11: the word is on the clipboard, and its cells are `theme.hovered_bg` |
 | 1.13 | `<C-S-f>`, type a word from the scrollback, Enter, then `<C-S-n>` | Matches are found and stepped through; it wraps at the end |
 | 1.14 | `<F1>` inside the terminal | The key list opens **over** the terminal. `<Esc>` closes it and typing goes back to the shell |
 | 1.15 | `<C-S-p>` inside the terminal | The command palette opens, and running something from it works |
-| 1.16 | `cd` somewhere in the shell, then `<A-Up>` | The file list follows to where the shell is |
+| 1.16 | With the OSC 7 hook loaded (as 1.18), `cd` somewhere in the shell, then `<A-Up>` | The file list follows to where the shell is |
 | 1.17 | Select two files, `<A-t>` | Their paths are typed onto the shell's line, quoted, **not run** |
-| 1.18 | With a shell that reports OSC 7 (PowerShell 7, or bash with a `PROMPT_COMMAND`), change directory in the list | No stray `cd` is typed into the shell |
+| 1.18 | With a shell that reports OSC 7, change directory in the list. PowerShell 7 does not by itself (pwsh 7.6.6 sent none): load the hook first (`filer shell-hook \| Add-Content $PROFILE` for pwsh, `filer shell-hook bash >> ~/.bashrc` for bash; section 29), then `<C-S-t>` and `<C-t>` | No stray `cd` is typed into the shell |
 | 1.19 | Run something slow in the pane (`sleep 30`) and press `<C-c>` (v0.47.34) | The command stops and the prompt comes back. **filer is still open** — until v0.47.34 this ran `[mgr]` `close`, so the tab went and the last one took filer and the shell with it |
 | 1.20 | `<A-t>` on a file with a `'` in its name, in each shell `[term] shell` can name (v0.47.34) | The line is one word the shell can read: `''` doubled for PowerShell, `'\''` for bash, plain `"…"` for cmd. **No `>>` continuation prompt** |
 | 1.21 | Walk the list into a directory with a `'` in its name, with the pane open (v0.47.34) | The `cd` lands and the prompt returns. The same quoting as 1.20, on the path filer types for itself |
@@ -178,7 +178,7 @@ everything about how the picture *looks* and how it answers the mouse.
 | # | Do | Expect |
 | --- | --- | --- |
 | 2.1 | Hover `long.rs` | A narrow strip down the right of the preview, made of short horizontal bars |
-| 2.2 | Look at the shape | Comment headers read as long bars, indented blocks as bars starting further right, the blank line every 40 as a fainter band (one band holds about two lines, so a lone blank line cannot be a whole gap; since v0.73.59). No other stripes: before v0.73.59 a one-pixel gap fell every 17-19 px from rounding, whatever the file held. It should look like the file |
+| 2.2 | Look at the shape | Comment headers read as long bars, one every 40 lines, and indented blocks as bars starting further right. In `long.rs` the blank line every 40 sits just above a header and shares its band (one band holds about two lines, so a lone blank line cannot be a whole gap of its own; since v0.73.59), so it is not a separate band to look for. No other stripes: before v0.73.59 a one-pixel gap fell every 17-19 px from rounding, whatever the file held. It should look like the file |
 | 2.3 | Look at the colors | The bars carry syntax colors — strings and comments differ from code — not one flat color |
 | 2.4 | Find the viewport box | A lighter box with a border, covering the part of the file on screen |
 | 2.5 | `<A-j>` a few times | The box moves down in step with the text |
@@ -249,7 +249,8 @@ the git signs' own theme colours, the footer's `x–y of z` keeping up with `j` 
 five-line block rather than through it, both sentences that stand in for a view, and `q`. What is
 left for an eye is that the tints read as red and green, that the hairline down the middle is
 drawn at all (a line is not a rectangle, so the harness cannot see it), and the real pair of
-files. 5.9 does not match the program any more; it is written up in QA-REPORT.md.
+files. 5.9 was reworded to what the program has done since v0.43.0: two folders open the folder
+comparison of section 45, and only a file and a folder together are refused (45.9).
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -264,7 +265,7 @@ files. 5.9 does not match the program any more; it is written up in QA-REPORT.md
 | 5.6c | `G` on a diff shorter than the pane | Nothing moves; every row was already on screen |
 | 5.7 | `same-a.txt` and `same-b.txt` | "The two files are identical." — no thousands of matching rows |
 | 5.8 | `binary.dat` against anything | Says it is not text on both sides and that the bytes differ |
-| 5.9 | Two directories | Refused with a reason |
+| 5.9 | Two directories (v0.43.0) | Not refused: the folder comparison opens, a list of paths with `<` `>` `~` `=` signs (section 45). Only a file and a folder together are refused, which is 45.9 |
 | 5.10 | `q` | Closes |
 | 5.11 | Compare two files where one line changes a single word (`price` → `cost`), and another a Japanese word (`太郎` → `花子`) (v0.62.0) | On each changed row only that word is painted stronger, red on the left and green on the right, and the mark sits exactly under the word -- the Japanese one too. A line changed completely keeps only the row tint |
 
@@ -415,8 +416,7 @@ obeys as well, and the module drives each in that form: history forking on a fre
 `U` walking the step forward again under its own sentence (12.4), and an undo blocked by a name
 taken in the meantime keeping the step, so a second press works (12.9). **The rows themselves are
 still unchecked** — nothing here has been through the recycle bin. 12.5's newest-of-two rule is
-`fs::restore`'s own unit test. 12.8 used to fork history by creating a file, which records no undo
-step; it now renames a second file (#83).
+`fs::restore`'s own unit test.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -427,14 +427,15 @@ step; it now renames a second file (#83).
 | 12.5 | Delete two files with the same name from different folders, an interval apart, then `u` | The one just deleted comes back — not the older one |
 | 12.6 | `r` to rename, then `u` | `r` says `Renamed to <new name> — u to undo` (v0.73.65, #225; before, a rename said nothing). After `u` the old name is back |
 | 12.7 | `u` with nothing to undo | "Nothing to undo" — no error |
-| 12.8 | Rename a file, undo it, then rename **another** file, then `U` | Redo is gone: the new rename forked history. Creating a file records no undo step, so a new file leaves the redo in place (#83) |
+| 12.8 | Rename a file, undo it, then rename **another** file, then `U` | Redo is gone: the new rename forked history |
+| 12.8a | Rename a file with `r`, `u`, then make a new file with `a`, then `U` (v0.60.0) | `Nothing to redo`: creating a file is an undo step of its own since v0.60.0 (12.17), so it forks history as the rename in 12.8 does. Before v0.60.0 a new file recorded nothing and left the redo in place (#83, #225) |
 | 12.9 | Delete a file, `u`, but create a file with that name first | `u` says the name is taken, and pressing it again after moving that file out of the way works |
 | 12.10 | Open a file in another program so it is locked, select it **with several others**, `d` (v0.27.1) | The others go. The message **names the one that did not**, and the task panel's count matches what actually went. Until v0.27.1 it said `Trash: trash: Error … Some operations were aborted` naming nothing, and counted them all as done |
 | 12.11 | `d` on a drive whose Recycle Bin is turned off | Same shape of message, naming the file |
 | 12.11a | `d` on a file under the RAM disk (`R:\Temp`, ImDisk) (v0.73.28) | The file stays, and the message reads `<name>: the Recycle Bin can't take files from R: (this drive can't report its own paths: a RAM disk or a virtual drive). Use D to delete permanently`. Before, `CanonicalizePath { original: "R:\Temp\…" }`. `D` then deletes it, and the red line gives way to `Deleted <name>` (v0.73.35, #207) |
 | 12.12 | `d` with nothing locked | Unchanged, and still **one** entry in Explorer's own undo — the batch call is still the normal path |
 | 12.13 | `d` on one file, then on two (v0.57.3) | A toast each time: `Trashed <name> — u to undo`, then `Trashed 2 item(s) — u to undo`. Until v0.57.3 `d` said nothing, so it looked the same as `D` |
-| 12.14 | `d` on five files, and `w` while it runs (v0.58.1) | The row reads `Trash 5 item(s)  [running]` -- the verb **once** -- and the line under it `0/5 files`, with no `0 B / 0 B` |
+| 12.14 | `d` on five files, and `w` while it runs (v0.58.1). The files have to be big for there to be a while: on the same drive the Recycle Bin takes a file by renaming it, so five of 40 MB or 120 MB are gone within one frame; five of about 400 MB showed the row (#136) | The row reads `Trash 5 item(s)  [running]` -- the verb **once** -- and the line under it `0/5 files`, with no `0 B / 0 B` |
 | 12.15 | As 12.10 -- one file of five held open elsewhere, `d` on all five -- then `u` (v0.59.7) | The error names the held file with `it is open in another program`, and `u` brings back the **four** that went. Until v0.59.7 the error said only `Some operations were aborted` and `u` said `Nothing to undo` |
 | 12.16 | 12.9 again: `d` a file, make a new file by that name, then `u` (v0.59.7) | The error reads `a file by that name is already there. Move it away and press u again` -- not `RestoreCollision { … TrashItem { id: "C:\$Recycle.Bin…` -- and after moving the new file away, `u` works |
 | 12.17 | `a`, type `new/deep/note.txt`, `<Enter>`, then `u`; then `U` (v0.60.0) | `u` removes `note.txt` and both folders made for it, toast `Removed note.txt and 2 folder(s)` (v0.67.10; before, `Removed note.txt` said nothing of the folders); `U` makes all three again. Write something into the file and press `u`: it stays, and the error says it has been written to since |
@@ -545,8 +546,8 @@ to answer a click.
 | 16.8 | Hover a `.pptx` with ten or more slides | In order — slide 10 after slide 9, not after slide 1 |
 | 16.9 | Japanese text in any of the three | Correct, and `&amp;` `&lt;` come through as `&` `<` |
 | 16.10 | Rename an old `.doc` to `.docx` and hover it | A card saying it is not an Office XML file, naming the likely cause |
-| 16.11 | A very large workbook | Stops at 5000 lines and says it is truncated; it does not hang |
-| 16.12 | `/` and `n` inside one | Search works, because it is an ordinary text preview |
+| 16.11 | A very large workbook (well over 5000 rows) | The preview shows the first 4000 lines, the text preview's own cap (`MAX_LINES` in `preview/text.rs`; the Office reader stops reading at 5000), and the note under the last line says it is truncated. It does not hang |
+| 16.12 | `<A-j>` / `<A-k>` and the minimap on one | It scrolls, and the strip is there, because it is an ordinary text preview. (`/` and `n` search the file list, not the preview: there is no search inside a preview) |
 
 ## 17. Previewers of your own (v0.30.0)
 
@@ -611,7 +612,8 @@ was that a gentle turn moved nothing at all.
 | 19.1 | Wheel over the **preview** of a long text file | It scrolls, one notch at a time, without spinning hard. This is the v0.26.5 fix |
 | 19.2 | Turn the wheel as slowly as you can over the preview | It still moves. Every fraction counts; nothing is discarded |
 | 19.3 | Wheel over the **file list** | The same, and with the split open, over each pane in turn |
-| 19.4 | Wheel over the **terminal** pane | Still right — fixed earlier, in v0.20.4, and now sharing the same code |
+| 19.4 | Wheel over the **terminal** pane at a shell prompt, with output above it | The scrollback moves: 1, 3 and 5 lines for 1, 2 and 3 notches, a quarter notch four times the same as one. Fixed earlier, in v0.20.4, and sharing `wheel_whole` with the list |
+| 19.4a | Wheel over the terminal pane with a full-screen program in it that does not ask for the mouse (`less` a long file) (v0.38.0) | The program scrolls: each notch is sent to it as arrow keys (`FILER_PTY_LOG` shows them), the same counts as 19.4. A separate path in `ui/term.rs` from the scrollback's; a program that asks for the mouse, like nvim, gets wheel reports instead (40.14, 40.17) |
 | 19.5 | Turn one way then straight back | It reverses at once, with no dead travel from a stranded remainder |
 | 19.6 | `Ctrl` and the wheel over an image | Zooms, and does **not** scroll the pane with the same turn |
 | 19.7 | Move the pointer between panes mid-turn | Neither jumps: each keeps its own remainder |
@@ -652,8 +654,9 @@ row needs which. 21.6 says something other than what it says here, which is writ
 | 21.11 | Compare the `.7z` and the `.zip` of the same input | The 7z is smaller; that is the reason to have it |
 | 21.12 | `E` with a name ending in something else (`.rar`) | `Name it .zip, .7z, .tar or .tar.gz to say which format` |
 | 21.13 | Pack `to-pack\` as `.zip`, then `7z l` the archive (v0.57.2) | Every entry carries its file's own date and time (to the even second), not `1980-01-01 00:00:00` |
-| 21.14 | Give `to-pack\` files with old dates (`(Get-Item f).LastWriteTime = "2021-06-15 12:34:56"`), pack it with `E` as `.zip`, `.tar.gz` and `.7z`, then `e` each one (v0.65.7) | Every unpacked file has its original `LastWriteTime` back, to the second in all three (a zip only to the even second before v0.73.16), not the moment it was unpacked. Before v0.65.7 every one read the time of the `e` (#156) |
-| 21.14a | A file dated `2019-02-28 23:59:59` (`(Get-Item f).LastWriteTime = …`), zipped by **another tool** -- 7-Zip (`7z a x.zip f`) and Explorer's "Compressed (zipped) folder" -- then `e` on each in filer. And the other way: an odd-second file packed with filer's `E` as `.zip`, unpacked by 7-Zip and by Explorer (v0.73.16, #174) | filer's `e` gives `2019-02-28 23:59:59` back, not `2019-03-01 00:00:00`. The other tools give the odd second back from filer's zip, not one second lower |
+| 21.14 | Give `to-pack\` files with old dates, on an **odd** second (`(Get-Item f).LastWriteTime = "2021-06-15 12:34:57"`; an even one passes on a zip from before v0.73.16 too), pack it with `E` as `.zip`, `.tar.gz` and `.7z`, then `e` each one (v0.65.7) | Every unpacked file has its original `LastWriteTime` back, to the second in all three (a zip only to the even second before v0.73.16), not the moment it was unpacked. Before v0.65.7 every one read the time of the `e` (#156) |
+| 21.14a | A file dated `2019-02-28 23:59:59` (`(Get-Item f).LastWriteTime = …`), zipped by **7-Zip** (`7z a x.zip f`), then `e` on it in filer. And the other way: an odd-second file packed with filer's `E` as `.zip`, unpacked by 7-Zip (`7z x`) (v0.73.16, #174) | filer's `e` gives `2019-02-28 23:59:59` back (from the exact time 7-Zip keeps beside the MS-DOS field), not `2019-03-01 00:00:00`. 7-Zip gives the odd second back from filer's zip (its extended timestamp), not one second lower |
+| 21.14b | The same file zipped by **Explorer**'s "Compressed (zipped) folder", then `e` on it in filer. And the other way: the odd-second file packed with filer's `E` as `.zip`, unpacked by Explorer (v0.73.31, Q58; #200) | Explorer writes and reads only the MS-DOS field, two-second steps rounded **up**, so: filer's `e` gives back `2019-03-01 00:00:00`, the time that zip holds (the exact second is not in it). Explorer gives back from filer's zip the odd second rounded up to the next even one (`…:57` → `…:58`; `23:59:59` → the next day's `00:00:00`), the same as from its own zip or 7-Zip's. Before v0.73.31 filer rounded down, and Explorer gave one second lower |
 | 21.15 | `E` on `to-pack\` alone (the archive's top level is one folder), then `e` on `to-pack.zip`; then the same with `sample.zip`, whose top level is loose files (v0.66.0) | `to-pack_1\` holds the files directly -- no `to-pack_1\to-pack\` (Q43). `sample.zip` still unpacks into its own `sample\` (or `sample_1\`) folder |
 | 21.16 | `E` on `to-pack\` as `.zip`, then `e` on the archive; then `e` on two archives selected together (v0.73.36, #205) | A toast `Packed into to-pack.zip` when the pack ends, `Unpacked into to-pack\` when the unpack does -- the folder the contents really landed in, after 21.15's lifting -- and `Unpacked 2 archives into <first>\ and 1 more` for two. Before, neither said anything |
 
@@ -662,6 +665,10 @@ row needs which. 21.6 says something other than what it says here, which is writ
 Open a file's outline with `l` or `<S-Tab>`, put the cursor on an entry, press
 Enter. Each of these is a skip if the editor is not installed.
 
+For an editor that is not installed, a stand-in program by the same name (a `sakura.exe` that logs
+its own command line) shows the arguments filer hands it -- `/j42`, `-Y=42`, `/l 42`, `-n42` -- and
+that is worth writing in the report. It is not a tick: each row is about the editor landing on the line.
+
 | # | Editor | Expect |
 | --- | --- | --- |
 | 22.1 | 秀丸エディタ | Opens at the outline entry's line |
@@ -669,7 +676,8 @@ Enter. Each of these is a skip if the editor is not installed.
 | 22.3 | EmEditor | Same |
 | 22.4 | Notepad++ | Same |
 | 22.5 | メモ帳 | Opens, at the top — it has no line argument, and that is correct |
-| 22.6 | VS Code / nvim, if you have them | At the line |
+| 22.6 | VS Code, if you have it | At the line (filer passes `-g <path>:N`) |
+| 22.6a | nvim, if you have it | At the line (filer passes `+N`; a separate branch of `exec::at_line` from 22.6's) |
 
 ## 23. Network paths (needs a share)
 
@@ -699,7 +707,7 @@ has. 24.5 needs the recycle bin.
 | --- | --- | --- |
 | 24.1 | The CJK names | Drawn correctly, columns lined up (they are two cells wide each) |
 | 24.2 | The very long name | Elided in the middle, with the extension still readable |
-| 24.3 | `UPPER.TXT` and `upper.txt` | Both listed, both openable |
+| 24.3 | `UPPER.TXT` and `upper.txt`, in a case-sensitive folder: an ordinary NTFS folder holds only one of the two (`make-fixtures.ps1` says so, 24.6). Enable it with `fsutil file setCaseSensitiveInfo <folder> enable` from an elevated shell before making the fixtures, or skip | Both listed, both openable |
 | 24.4 | Copy the name with a quote in it, `<A-t>` into the terminal | Quoted so the shell sees one word |
 | 24.5 | `d` then `u` on the CJK-named file | Comes back under the same name |
 | 24.6 | Run `scripts\make-fixtures.ps1` in a fresh folder (v0.59.1) | No warning, except on an ordinary (case-insensitive) NTFS folder: `awkward names: 5 entries on disk, expected 6`, naming `fsutil file setCaseSensitiveInfo` -- the reason 24.3 cannot be pressed there |
@@ -715,7 +723,7 @@ Run from a shell, not from inside the app.
 | 25.2 | The Config section | Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest |
 | 25.3 | With a deliberate typo in `keymap.toml` | The warning appears under `Warnings`, its several lines indented under the one key |
 | 25.4 | The Tools section | `git` with its version, the shell the terminal pane starts, and every program a `[[preview]]` rule or an opener names -- each with its path (or `not found`) and what it is for. Nothing filer does not run (no `pdftoppm`, `ffmpeg`) |
-| 25.4a | With `[term] shell = "pwsh"` set (v0.29.1) | `pwsh` is the shell listed. Without it, `powershell` — the one that will actually launch, not a guess |
+| 25.4a | With `[term] shell = "pwsh"` set (v0.29.1), then with no `[term] shell` | `pwsh` is the shell listed. Without it, `pwsh` if it is on the `PATH` (the default since v0.55.0, Q29), else `powershell` — the one that will actually launch, not a guess. Off Windows, the shell in `$SHELL` |
 | 25.4b | With openers configured | Each named program is listed with the opener kind it belongs to, found or not |
 | 25.4c | An opener naming a **quoted full path** (秀丸, サクラ) | The whole path is resolved, not just up to the first space |
 | 25.4d | Watch the screen while `filer env` runs | **No editor or viewer opens.** The programs are looked up on `PATH`, never executed |
@@ -735,7 +743,7 @@ Run from a shell, not from inside the app.
 | 25.16 | `filer <a folder with files> --keys "<Tab>C"`, then `Get-Clipboard` (v0.54.0) | The window opens, spot opens on the first row by itself, and the clipboard holds the whole panel as `Label<TAB>value` lines — `Name` and `Path` naming that first row |
 | 25.17 | `filer --keys "<Tab"` and `filer --keys "<Bogus>"` | **No window**: one line naming the problem (`has no closing >` / `is not a key`), exit code 2 |
 | 25.18 | Release build: `filer env \| Out-File out.txt`, then `Get-Content out.txt`; and `cmd /c "filer env > out2.txt"` (v0.54.4) | The whole report is **in both files**, and nothing is printed on screen. Before v0.54.4 both were empty. (PowerShell's own `filer env > out.txt` still gives an empty file: PowerShell does not connect a windowed program's output to a file. README says so) |
-| 25.19 | `filer env \| Select-String arch` | **Only the two arch lines** (Windows; elsewhere there is one, `Process arch`), not the whole report |
+| 25.19 | `filer env \| Select-String "arch\s+:"` (a bare `arch` also matches any path with `Archive` in it, such as an opener's) | **Only the two arch lines** (Windows; elsewhere there is one, `Process arch`), not the whole report |
 | 25.19a | `$v = & filer env \| Write-Output; $v.Count` in PowerShell (v0.67.26, Q54) | The report's line count, not 0. **With nothing after it** -- `$v = & filer env` -- PowerShell does not wait for a windowed program at the end of a pipeline, and `$v` is empty: that is PowerShell, not filer (#183), and why the row has the `\| Write-Output` |
 | 25.19b | `filer env --out out3.txt` from PowerShell, in a folder whose path has Japanese in it, then `Get-Content -Encoding utf8 out3.txt` (v0.68.0, Q55) | One line `filer: wrote <full path>`, and the file holds the whole report with the Japanese **readable**, whatever the console's code page. `filer env --out` with no name, and `filer env --outt x`, print one line naming the problem, exit code 2, and write nothing |
 | 25.19c | With the zip's folder on the `PATH` (v0.71.0, Q44): `(Get-Command filer).Source`; `$v = & filer env; $v.Count`; `filer --version > v.txt; Get-Content v.txt`; `filer --keys "<Tab"; $LASTEXITCODE`; then `filer` alone | `Source` ends in `filer.com`. The count is the report's line count with **nothing after the call** (25.19a's form without `Write-Output`); `v.txt` holds the version line; the refusal prints one line and `$LASTEXITCODE` is 2. `filer` alone opens the window, and the prompt comes back while the window stays open |
@@ -843,7 +851,7 @@ the same lines -- so what is being tested here is mostly the instructions.
 | 29.9 | Put a handler of another tool's in `$PROFILE` first (`mise activate pwsh`, or a stand-in: `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`), the README hook after it, open a new pane, `cd C:\dev`, `<A-Up>` (v0.64.2) | Both run: the list moves to `C:\dev` **and** the other tool's handler still does its job (the stand-in's title reads `other: C:\dev`). Before v0.64.2 the README hook replaced the other one |
 | 29.10 | With no hook, in the pane (`pwsh`): exactly what the 29.1 toast says, then `<C-S-t>`, `<C-t>`, `cd C:\dev`, `<A-Up>` (v0.69.0, Q50) | The list moves to `C:\dev`. `Get-Content $PROFILE` ends with the lines `filer shell-hook` prints (a `# filer:` comment first), on lines of their own -- not glued to the profile's last line. `filer shell-hook powershell` and `filer shell-hook fish` print one line naming the problem, exit code 2 |
 | 29.11 | Linux: `filer shell-hook bash >> ~/.bashrc` (and `zsh >> ~/.zshrc` with `[term] shell = "zsh"`), new pane, `cd` to a folder with a space and Japanese in its name, `<A-Up>` (v0.69.0, Q50) | The list moves there, both names intact. Without the hook the toast names `shell-hook bash >> ~/.bashrc` |
-| 29.12 | With `[term] shell = "pwsh"` and `args` in `filer.toml`: `$env:FILER_TERM_SHELL = 'powershell'`, start filer, `<C-t>`, then `filer env` from the same shell; then `Remove-Item Env:FILER_TERM_SHELL` and again (v0.70.0, Q51) | With the variable: the toast is `Started powershell (Windows PowerShell 5.1) — …`, and `filer env` lists `powershell` as `terminal pane, from FILER_TERM_SHELL; [term] args not used: <the args>` (the `args` from `filer.toml`, since v0.73.11, #190) with `FILER_TERM_SHELL` among the variables. Without it: `pwsh` and `from [term] shell` again, and the rest of `filer.toml` (font, theme) took effect both times |
+| 29.12 | With `[term] shell = "pwsh"` and `args` in `filer.toml`: `$env:FILER_TERM_SHELL = 'powershell'`, start filer, `<C-t>`, then `filer env` from the same shell; then `Remove-Item Env:FILER_TERM_SHELL` and again (v0.70.0, Q51) | With the variable: the toast is `Started powershell (Windows PowerShell 5.1) — …`, and `filer env` lists `powershell` as `terminal pane, from FILER_TERM_SHELL; [term] args not used: <the args>` (the `args` from `filer.toml`, since v0.73.11, #190) with `FILER_TERM_SHELL` among the variables. Without it: `pwsh` and `from [term] shell` again. The rest of the config took effect both times: `filer.toml`'s other settings (the font) and the `theme.toml` beside it (the theme lives there, not in `filer.toml`) |
 
 ## 30. Right-click paste in a prompt (v0.14.0)
 
@@ -859,7 +867,7 @@ the same lines -- so what is being tested here is mostly the instructions.
 | 30.8 | Right-click in the **file list** | Still the context menu — the list is unchanged |
 | 30.9 | Right-click in the **terminal** pane (`<C-t>`) | The clipboard is typed in, and the pane takes the keys if it did not have them |
 | 30.10 | Select text in the terminal with a drag, then right-click | The selection was copied on release; the right-click pastes it back — select to copy, right-click to paste |
-| 30.11 | Copy **three lines** and right-click into the terminal at a PowerShell prompt | All three sit in the buffer, **nothing runs** until `<Enter>` (PSReadLine asks for bracketed paste) |
+| 30.11 | Copy **three lines** and right-click into the terminal at the prompt of a shell that asks for bracketed paste (`\e[?2004h` in `FILER_PTY_LOG`'s `out` lines): bash, such as Git Bash. Windows PowerShell 5.1 (PSReadLine 2.0.0) and pwsh 7.6 (PSReadLine 2.4.5) do not ask, so neither is the shell for this row, and filer is right to send them no markers | All three sit in the buffer, **nothing runs** until `<Enter>` |
 | 30.12 | The same in a shell that does **not** ask for bracketed paste (`cmd.exe`) | The lines run, as they always have — and no stray `[200~` appears |
 | 30.13 | Right-click in the terminal while `vim` is open | The text is inserted; no `[200~` on screen |
 | 30.14 | `<C-v>` in the terminal | Same as the right-click, including 23.11 |
@@ -877,17 +885,17 @@ ones where it says no.
 | 31.3 | Walk into a share and back out with `h` | Into the share, then back to the host list |
 | 31.4 | `h` again, at the host | Nothing moves (the host is the top), no crash |
 | 31.5 | A host that is off, or does not exist (an unused address on your own subnet) | The tab returns to where it was and a toast says why — it does not hang the window |
-| 31.5a | 24.1 and 24.5 again, watching for a **toast** | v0.16.0 fell back to the parent in silence, so a failure looked like nothing happening. Whatever the outcome, there is now either a listing or a message; if it is still a message, its os error number is the thing to report |
+| 31.5a | 31.1 and 31.5 again, watching for a **toast** | v0.16.0 fell back to the parent in silence, so a failure looked like nothing happening. Whatever the outcome, there is now either a listing or a message; if it is still a message, its os error number is the thing to report |
 | 31.6 | A host that needs a login the machine has not been given | Same: a refusal as a toast, naming it |
 | 31.7 | A host with **many** shares (more than a screenful) | All of them, scrolling normally |
 | 31.8 | A share name with a space or non-ASCII in it | Intact |
 | 31.9 | Hover a share and look at the size column | Empty — there is nothing to read, and it must not sit there counting |
-| 31.10 | `<C-r>` / refresh on the host listing | Re-asks the server; no crash |
+| 31.10 | `<F5>` (refresh) on the host listing -- not `<C-r>`, which is redo | Re-asks the server; no crash |
 | 31.11 | Open the host in the **other pane** (`<C-w>`) and in a second tab | Both fine |
 | 31.12 | Go to a host, then change directory away | The watcher does not complain about the host it could not watch |
 | 31.13 | A host that answers but shares nothing (v0.57.3) | The list says `(no shares)`, not `(empty)` |
-| 31.14 | `g<Space>` an address on your subnet that nothing answers on, `<Enter>`, then `<Esc>` before it gives up (v0.58.1) | Back where you were at once, a toast `Stopped waiting for \\<address>`, `j` / `k` work again -- and nothing more is said when the abandoned attempt times out later |
-| 31.15 | `g<Space>` an address that does not answer, `<Enter>`, and read the header before it gives up (v0.59.8) | The header's count reads `listing…` and the position `…` -- not `0 items` and `0/0`, which read as having arrived at an empty host. Once it answers, or `<Esc>` takes the tab back (31.14), the counts return |
+| 31.14 | `g<Space>` an address on your subnet that nothing answers on, `<Enter>`, then `<Esc>` before it gives up (v0.58.1). Use an address not tried recently: Windows remembers the failure, and a second try at the same one fails within about a second with os error 1203, before there is a wait to cut short (#233) | Back where you were at once, a toast `Stopped waiting for \\<address>`, `j` / `k` work again -- and nothing more is said when the abandoned attempt times out later |
+| 31.15 | `g<Space>` an address that does not answer, `<Enter>`, and read the header before it gives up (v0.59.8). An address not tried recently, as in 31.14: a repeat fails at once with os error 1203 and leaves nothing to read | The header's count reads `listing…` and the position `…` -- not `0 items` and `0/0`, which read as having arrived at an empty host. Once it answers, or `<Esc>` takes the tab back (31.14), the counts return |
 
 ## 32. Openers (v0.17.0)
 
@@ -908,7 +916,7 @@ instructions are wrong, which is worse than a missing feature.
 | 32.8b | The same opener from `<S-Enter>` **and** from `<Enter>` with it moved to the top of `edit` | Both start `sakura.exe` on the file, since they take different code paths to the same launcher |
 | 32.8c | An opener with a deliberate typo in the path | A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report |
 | 32.9 | `l` into a Markdown file's outline, `j` to a heading further down, `<S-Enter>` and pick サクラエディタ (v0.47.29 changed its switch from `-L=` to `-Y=`) | `Win32_Process` shows `sakura.exe -Y=<the heading's line> "<file>"`, the line counted from 1 as the preview counts it |
-| 32.9a | The same, then read サクラエディタ's status bar as text (`SendMessage` `SB_GETTEXTW` to its `msctls_statusbar32`) | It reads `<the heading's line> 行 1 桁`, and the character under the caret is the heading's first one. Control: the same file opened without `-Y=` reads `1 行 1 桁`. Sakura ignored `-L=`, so before v0.47.29 it opened at line 1 or where the file was last left (#196 found the status bar readable) |
+| 32.9a | The same, then read サクラエディタ's status bar as text (`SendMessage` `SB_GETTEXTW` to its `msctls_statusbar32`) | It reads `<the heading's line> 行 1 桁`, and the character under the caret is the heading's first one. Control: a copy of the file that Sakura has never opened, opened without `-Y=`, reads `1 行 1 桁` (the same file would not: Sakura reopens a file at the line it was left on, `m_bRestoreCurPosition=1`, #198). Sakura ignored `-L=`, so before v0.47.29 it opened at line 1 or where the file was last left (#196 found the status bar readable) |
 | 32.10 | An opener whose program is misspelled (`run = 'Hidemruu.exe %s'`), `<S-Enter>` and pick it (v0.59.1) | The error reads ``Open failed: `Hidemruu.exe` was not found — …``, not `exit code 1`. An opener whose program exists but fails still gives its exit code |
 | 32.11 | Linux: a `block = true` opener (`run = 'nvim %*'`; `vim` will do), `<Enter>` on a file whose folder and name hold a space and a `'` (v0.72.0) | A terminal window opens with the editor in it. `ps` shows the editor got the whole path as one argument, and `/proc/<pid>/cwd` is the list's folder |
 | 32.12 | Linux: the same with `TERMINAL="xterm -title picked"` | The window is titled `picked` (`xdotool getwindowname`). `filer env` names `xterm -title picked` on the `block = true openers` row; with `TERMINAL` unset it names the first of the built-in list that is installed |
@@ -934,10 +942,9 @@ a real failure is raised beside the config warning and the two boxes come out in
 one each. 33.5 is automated only in the
 part that does not depend on the machine — a warning the config no longer has leaves the panel —
 because `<C-F5>` re-reads the real config files, so what its toast says depends on what is on the
-machine. **33.9's expectation** is automated there too — five boxes at most, stacking downward,
-each the height of its own text, none over the next — but **its recipe is not, because it cannot
-be**: three broken config files raise one toast, not three (that is 33.2). The row needs rewording;
-see QA-REPORT.md.
+machine. Several toasts at once — five boxes at most, stacking downward, each the height of its
+own text, none over the next — are automated there too. That used to be 33.9's expectation, but
+three broken config files raise one toast, not three (as 33.2's lines do), so 33.9 now says that.
 
 33.11 to 33.14 have unit tests of their own in `config::files`, including the two lines a file
 holding both misplaced sections gets and the `belongs in yazi.toml` direction. **33.16, 33.17 and
@@ -960,7 +967,7 @@ apart), that it is legible on a light theme (33.6), the parse error's own wordin
 | 33.6 | A theme with a light background: `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }` in `theme.toml` (v0.73.42; nothing could set the window's background before) | The yellow is still readable; say so if it is not — it is a fixed default, not yet themeable |
 | 33.7 | Put a real syntax error in `yazi.toml` (`[mgr` with no `]`) and start | A **five-line** parse error, naming the line and pointing at it. **Inside its box**: nothing over the header, nothing over the file list, nothing past either edge of the window (v0.33.11) |
 | 33.8 | Narrow the window to about a third of the screen, with 33.7 still broken | The message wraps rather than running off; the box stays against the right edge |
-| 33.9 | Break **three** config files at once | Up to five boxes stack downward, each sized to its own text, none overlapping the next |
+| 33.9 | Break **three** config files at once (`yazi.toml`, `keymap.toml`, `filer.toml`) and start | **One** toast for all three: the first file's error, ending `(+2 more, see \`~\`)`. `~` lists all three. The box is sized to its text and stays inside the window |
 | 33.10 | A single error longer than eight lines | Cut at eight with `…` on its own line, rather than filling the window |
 | 33.11 | Put `[[preview]]` into `yazi.toml` (it belongs in `filer.toml`) and start | **One line**: `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13) |
 | 33.12 | Put `[term]` into `yazi.toml` as well | A second line for it, same shape. Both say the file went unread, because it did |
@@ -1061,7 +1068,7 @@ with the code. See QA-REPORT.md.
 | 36.7 | `T`, then `<F3>`, then `<Esc>` | The panel closes and the **maximized column is still maximized** — the two flags are independent |
 | 36.8 | Hide the parent pane (`toggle-pane max-parent`), then `T` on and `T` off | The parent pane is **back** — turning `T` on clears `hide_parent`, and toggling off does not restore it. Deliberate, but it means `T` is not quite a round trip |
 | 36.9 | `T` on a directory, and on a file with no preview | No panic, no stuck layout; `T` still toggles back |
-| 36.10 | Bind `<S-t>` instead of `T` in `prepend_keymap`, `<C-F5>` | **Nothing happens on any key** — the lesson the tests pin. No warning is printed either, because the notation is valid |
+| 36.10 | Bind `<S-t>` in `[[mgr.prepend_keymap]]` to something that shows (`run = "quit"`), `<C-F5>`, then press `T` (Shift and t) | **The binding never fires**: filer keeps running, and `T` does what the default `T` does (36.1). A shifted letter arrives as the letter itself, so `<S-t>` matches no key — the lesson the tests pin. No warning is printed either (`filer env`'s `Warnings` reads `none`), because the notation is valid. (With `[[mgr.keymap]]`, which replaces the defaults, no key in the list does anything at all, `q` included) |
 | 36.11 | `~` / `F1` | `T` is listed with its description, in the keymap the panel shows |
 
 ### `q` means the same thing everywhere (v0.36.1)
@@ -1077,7 +1084,7 @@ these — the point is that no panel is the odd one out.
 | 36.15 | Nothing up | `q` | Quits on the first press |
 | 36.16 | `<F3>` **and** `T` both on | `q`, `q`, `q` | Panel, then columns, then quit. Same three presses with `<Esc>`, `<Esc>`, `q` |
 | 36.17 | A confirm prompt (delete something) or a pick list | `q` | **Cancels, exactly as `<Esc>` does** — `answer_confirm` takes any key it does not recognise as a cancel. The app must not quit, and does not: the prompt swallows the `q` |
-| 36.18 | Rebind: `[[mgr.keymap]]` with `on = "Q"`, `run = "quit"`, then `Q` with `<F3>` up | Closes the panel first, like `q` — the behaviour is on the action, not the letter |
+| 36.18 | Rebind: `[[mgr.prepend_keymap]]` with `on = "Q"`, `run = "quit"`, then `Q` with `<F3>` up (`[[mgr.keymap]]` would replace the defaults, `<F3>` with them) | Closes the panel first, like `q` — the behaviour is on the action, not the letter |
 
 ---
 
@@ -1096,8 +1103,9 @@ needs a machine is that the program really starts.
 | 37.4 | A file whose **name contains a space**, through any of the above | Opens as one file, not two. The path keeps its quotes |
 | 37.5 | An opener written `start "" msedge "%*"` (placeholder quoted by hand) | Same result as 37.1 — the pair around the placeholder is still absorbed |
 | 37.6 | Select two PDFs, `<Enter>` | Both open as separate arguments, not one quoted blob |
-| 37.7 | An opener given as a full path that does not go through `start`: サクラエディタ's `"C:\Program Files (x86)\sakura\sakura.exe" %*` | Unchanged by the `start` handling: `Win32_Process` shows `sakura.exe` started directly, with no `start` and no extra console |
-| 37.8 | `O` on a PDF | The picker lists Edge, Chrome, the default app, then the editors; each entry launches what it says |
+| 37.7 | An opener given as a full path that does not go through `start`: サクラエディタ's `"C:\Program Files (x86)\sakura\sakura.exe" %*` | Unchanged by the `start` handling: `Win32_Process` shows `sakura.exe` as the child of the `cmd /S /C` every `block = false` opener runs through (`"cmd" /S /C ""C:\…\sakura.exe" "<file>""`), with no `start` on the line and no console window of its own |
+| 37.8 | `O` on a PDF, with the README's example config (32.1) | The picker lists Edge, Chrome, the default app, then the editors, in that order: `FILER_KEYS_DONE`'s `pick:` line reads them |
+| 37.8a | Pick each entry of 37.8's list in turn | Each launches what it says. A program not installed on this machine, or an extension with no app associated, is a skip with the reason, not a failure |
 
 ---
 
@@ -1164,9 +1172,9 @@ What needs a machine is the handover, in a real `nvim` and a real pager.
 | 40.4 | Quit nvim, then `<A-j>` / `<A-k>` at the shell prompt | Back to scrolling filer's scrollback. The handover follows the program, not a setting |
 | 40.5 | The wheel inside nvim, and inside `less` | Scrolls the document. Before v0.38.0 it tried to walk a scrollback that does not exist, so nothing moved |
 | 40.6 | The wheel at the shell prompt | Still walks the scrollback, unchanged |
-| 40.7 | `less` a long file, `<S-PageUp>`, then `q` to quit, then `<S-PageUp>` again | Inside `less` it pages the document; after quitting it scrolls the pane's scrollback |
+| 40.7 | `nvim` a long file, `<S-PageUp>`, then `:q` to quit, then `<S-PageUp>` again | Inside nvim it pages the document; after quitting it scrolls the pane's scrollback and sends nothing. (Not `less`: it is handed the same `\e[5;2~` and does not page on a shifted key, though an unshifted `PageUp` moves it) |
 | 40.8 | In `less`, one notch up then one notch down (v0.55.0) | Lands back where it started — one notch is the same number of arrows each way. Until v0.55.0 the first notch after turning round was lost (#100) |
-| 40.9 | A program using the alternate screen **and** application-cursor mode | The wheel's arrows arrive as SS3 (`ESC O A`), not CSI. nvim in insert mode is the easy check |
+| 40.9 | A program using the alternate screen **and** application-cursor mode (`\e[?1h`): `less` asks for it | The wheel's arrows arrive as SS3 (`ESC O A`), not CSI. Not nvim: it never asks for this mode, so its arrows are CSI in any mode |
 
 ### `Alt`+letter reaches the shell at all (v0.38.0)
 
@@ -1174,9 +1182,9 @@ What needs a machine is the handover, in a real `nvim` and a real pager.
 | --- | --- | --- |
 | 40.10 | At a `bash`/`zsh` prompt in the pane, type a few words, then `Alt-b` / `Alt-f` | The cursor moves **by word**. Before v0.38.0 nothing happened — the key was dropped with no bytes behind it |
 | 40.11 | `Alt-d` at the same prompt | Deletes the word ahead |
-| 40.12 | PowerShell (PSReadLine) in the pane, `Alt-b` / `Alt-f` | Same word motions |
+| 40.12 | PowerShell (PSReadLine) in the pane, after `Set-PSReadLineOption -EditMode Emacs`, `Alt-b` / `Alt-f` | Same word motions, as in bash. Under PSReadLine's default `EditMode Windows` there is no `Alt+b` / `Alt+f`, and a `b` is typed instead: that is PSReadLine, since filer sends the same bytes either way (`Alt-d` works in both) |
 | 40.13 | `Alt-j` / `Alt-k` at an ordinary prompt | **Still filer's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen |
-| 40.14 | The wheel inside nvim, with `FILER_PTY_LOG` set (v0.55.0) | nvim's view scrolls and **its cursor stays on the same line** (`:echo line('.')` before and after). The log shows `\e[<64;…M` / `\e[<65;…M`, not `\e[A` |
+| 40.14 | The wheel inside nvim, with `FILER_PTY_LOG` set (v0.55.0), the cursor mid-window and the pane maximised (`<C-S-Enter>`) or `:set scrolloff=0`: in a pane a third high nvim's own `scrolloff` (4 of 11 rows) drags the cursor along whatever filer sends (#107) | nvim's view scrolls and **its cursor stays on the same line** (`:echo line('.')` before and after). The log shows `\e[<64;…M` / `\e[<65;…M`, not `\e[A` |
 | 40.15 | lazygit in the pane (v0.55.0): about 300 `<S-End>` at 30 a second, with `?` then `<Esc>` in the middle of them, as #99 rebuilt #93 | The key list closes within a second of the `<Esc>`. Until v0.55.0 it stayed open for minutes: `<Esc>` sent as a record and `<S-End>` as `\e[1;2F` right behind it read to tcell as one sequence |
 | 40.16 | With `FILER_PTY_LOG` set (v0.55.0): open the pane, type `ping -t localhost`, `<C-c>`, then `<C-Left>` over a typed word and `<Tab>` completion | The log's `out` lines hold `\e[?9001h` near the start, and the `in key` lines are records (`\e[…;…;…;1;…;1_`) rather than `\e[1;5D`; `<C-c>` stops the ping, `<C-Left>` moves by a word, `<Tab>` completes — the shell reads records as it reads a real keyboard |
 | 40.17 | With `FILER_PTY_LOG` set, inside nvim, one notch of the wheel; then three (v0.58.1) | One `\e[<64;…M` (or `65`) per notch: 1, then 3. Until v0.58.1 three notches sent five, because the smoothed delta was counted |
@@ -1194,14 +1202,14 @@ needs a machine is real files, and the panel's own geometry.
 | 41.2 | `<Tab>` on a zip made **encrypted by 7-Zip** | `Encrypted: yes (entries need a password)`, and the counts are still there. **Cannot be unit-tested — this build of `zip` has no AES writer, so no encrypted fixture can be made in-tree** |
 | 41.3 | `<Tab>` on a 7z made with "encrypt file names" | `Encrypted: yes (the listing itself)` and **no counts at all** (nothing below is known) |
 | 41.4 | `<Tab>` on an archive with more than 20,000 entries | The panel arrives without the window stalling, and says `Scanned: first 20,000 entries` |
-| 41.5 | `<Tab>` on a CRLF file saved by Notepad, then on an LF one | The `Line endings` row tells them apart, with counts |
-| 41.6 | `<Tab>` on a Notepad "UTF-16 LE" save | `Encoding: UTF-16 LE`, `BOM: UTF-16 LE (FF FE)` — **not** treated as binary |
+| 41.5 | `<Tab>` on a CRLF file saved by Notepad, then on an LF one. Notepad has no switch for line endings or encoding, but keeps a file's own: write the bytes first, open the file in Notepad, type one character and `Ctrl+S` (#214) | The `Line endings` row tells them apart, with counts |
+| 41.6 | `<Tab>` on a Notepad "UTF-16 LE" save (made as in 41.5: a file that starts `FF FE`, one character typed in Notepad, `Ctrl+S`) | `Encoding: UTF-16 LE`, `BOM: UTF-16 LE (FF FE)` — **not** treated as binary |
 | 41.7 | `<Tab>` on a 2 GB log | Rows arrive promptly, `Scanned: first 1.0 M of …`, and **no `Final newline` row** (the end was never read) |
 | 41.8 | `<Tab>` on each of the six release binaries | `Architecture` matches the triple the artifact is named for — `x86_64` / `aarch64` |
 | 41.9 | `<Tab>` on `C:\Windows\explorer.exe`, then on a `.dll` | `Windows GUI` / `DLL` |
 | 41.10 | `<Tab>` on a real `.docx` / `.xlsx` / `.pptx` saved by Office | Author, revision, times marked **UTC**, word / page / slide counts |
 | 41.11 | `<Tab>` on an old `.doc` | **No Document section, and no error** |
-| 41.12 | Look at the key column on every new section | No key runs into the value column (`overlay.rs` hard-codes `key_w = 130.0`) |
+| 41.12 | Look at the key column on every new section | No key runs into the value column, at the default font size and at `[ui] font_size = 20`. Since v0.73.56 the key column is as wide as the widest key, 130 pt at least and 45% of the panel at most (`spot_key_width` in `overlay.rs`; it used to be a fixed 130, #214) |
 | 41.13 | `<A-j>` down into a new section's rows, then `y` | The right value is copied. **`Act::Copy` counts rows across every section, so the new sections shift the indices** |
 | 41.14 | `<Tab>` on a folder on a slow network drive | The panel still follows the cursor; the spot worker is newest-wins |
 
@@ -1318,7 +1326,7 @@ identical pair says so, and the highlight follows `j`. What is left is the real 
 | 45.15 | `z`, then `j` / `n`, then `z` again | The `=` rows leave the list; the footer still counts them and adds `matches hidden (z)`; `j` and `n` step only over what is shown; the second `z` brings every row back with the cursor on the same path |
 | 45.16 | Copy a folder holding a **junction** to a folder inside it (`mklink /J ln t1`), then compare the original with the copy (v0.55.0) | `= ln`: both links land on `t1` in their own tree, so the copies read as the same even though the two targets differ as text |
 | 45.17 | Compare two folders of the same name in different places, one holding a subfolder (v0.59.4) | Under the title, both **full paths** (`…\left\proj  ↔  …\right\proj`), each cut in its middle if long so both ends stay readable. A folder row ends in `\` like its children's paths, not `/` |
-| 45.18 | Compare two folders, put the cursor on a `≠` file row, `<Enter>`; then `q` (v0.61.0) | The two files open side by side, line by line, titled with both full paths. `q` goes back to the folder comparison **on the same row**, not closed and not at the top. `<Enter>` on a row that exists on one side only says `Compare: it is on one side only` and stays |
+| 45.18 | Compare two folders, put the cursor on a `~` file row, `<Enter>`; then `q` (v0.61.0) | The two files open side by side, line by line, titled with both full paths. `q` goes back to the folder comparison **on the same row**, not closed and not at the top. `<Enter>` on a row that exists on one side only says `Compare: it is on one side only` and stays |
 
 ## Known gaps in this checklist
 
@@ -1395,12 +1403,13 @@ The Windows machine measured an idle, even minimised, filer at 1.0 CPU-second pe
 v0.54.2 found one way to get there -- the preview's debounce timer, left running for good when the
 cursor moved off a file onto a directory, a cached file or the file already shown, which kept the
 window redrawing 60 times a second -- and fixed it. These rows are what says whether that was *the*
-cause. Every expectation is a number from `Get-Process`.
+cause. Every expectation is a number from `Get-Process`. Read them with nothing open over the list --
+no prompt, no panel -- except where the row opens one itself (47.5).
 
 | # | Do | Expect |
 | --- | --- | --- |
 | 47.1 | Open filer on a folder of files and subfolders, touch nothing for 10 s, then read `(Get-Process filer).CPU` twice, 10 s apart | The two readings differ by **well under 1 s** (a few hundredths is normal) |
-| 47.2 | `j` onto a file and at once `j` onto a subfolder (inside the 40 ms debounce), then hands off; read the CPU twice, 10 s apart | The same: **no rise**. Before v0.54.2 this was the sequence that left it drawing for ever |
+| 47.2 | From the last subfolder, `j` onto the first file and at once `k` back onto the subfolder (inside the 40 ms debounce), then hands off; read the CPU twice, 10 s apart. Folders sort first by default (`sort_dir_first`), so a `j` from a file never reaches one | The same: **no rise**. Before v0.54.2 this was the sequence that left it drawing for ever |
 | 47.3 | The same as 47.2, then minimise the window | Still no rise while minimised |
 | 47.4 | If 47.1-47.3 still rise: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart | Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at |
 | 47.5 | Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3) | No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110) |
@@ -1425,5 +1434,5 @@ The PE machine of a file, for 48.3:
 | 48.3 | The PE machine (above) of all four binaries in each zip (`filer.com` is one since v0.71.0) | `8664` for all four in the x64 zip, `AA64` for all four in the ARM64 one. A mixed zip is the bug this row exists for: the ARM64 build with an x64 ConPTY would start and then misbehave in the pane |
 | 48.4 | Read `ConPTY-LICENSE.txt` | Names the version `scripts/fetch-conpty.ps1` pins (`$version`) on the release's commit, and no `{VERSION}` is left in it |
 | 48.5 | `Get-FileHash -Algorithm SHA256` on each zip and on each extracted file | Every hash equals the row for that file in the **SHA-256** table at the end of the release page. A missing table means the `sums` job did not run: say so |
-| 48.6 | Start `filer.exe` from each folder, open the pane (`<C-t>`), and list the process's modules: `(Get-Process filer).Modules \| ? ModuleName -eq conpty.dll \| % FileName` | The full path is **that folder's** `conpty.dll`, the same folder as `filer.exe`. That is what the zip is for. A wrong answer is another program's copy (WezTerm's, say), not one under `C:\Windows`: Windows has no `conpty.dll` of its own (v0.70.3, #151 / #184) |
+| 48.6 | To give it a wrong answer to find, put another `conpty.dll` on the `PATH` first, of the **same PE machine** as the `filer.exe` under test (48.3's line reads it): WezTerm's is `8664`, which an ARM64 process cannot load at all, so with it the ARM64 zip's half proves nothing (#199). Then start `filer.exe` from each folder, open the pane (`<C-t>`), and list the process's modules: `(Get-Process filer).Modules \| ? ModuleName -eq conpty.dll \| % FileName` | The full path is **that folder's** `conpty.dll`, the same folder as `filer.exe`. That is what the zip is for. A wrong answer is another program's copy (WezTerm's, say), not one under `C:\Windows`: Windows has no `conpty.dll` of its own (v0.70.3, #151 / #184) |
 | 48.7 | Copy `filer.exe` **alone** into an empty folder. Put a `conpty.dll` and `OpenConsole.exe` (the zip's) in a second folder, `cd` there, and start the lone exe by its full path; `<C-t>`, then the modules as in 48.6. Again from a folder with none, with a `conpty.dll` somewhere on the `PATH` (v0.70.3, #184) | **No** `conpty.dll` among the modules either time: the pane runs on the ConPTY built into Windows. Before v0.70.3 the first loaded the working folder's copy and the second the `PATH`'s |
