@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 495 件（TESTING.md の全 665 件のうち、`cargo test` が見ている 170 件は外してある）。
+押すものは 496 件（TESTING.md の全 666 件のうち、`cargo test` が見ている 170 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -349,6 +349,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **21.18** 書庫の中で `.txt` のメンバーに `<Enter>`（v0.76.0）→ 既定のアプリで開く。開いたのは `%TEMP%\\filer-archive-<pid>\\to-pack.zip\\<名前>`。トーストは `Opened a copy of <名前> — changes stay out of the archive`。外で書庫そのものに `<Enter>` は今までどおりオープナーで開く — *Inside the archive, `<Enter>` on a `.txt` member (v0.76.0) → It opens in the default app, from `%TEMP%\filer-archive-<pid>\to-pack.zip\<name>`; the toast says `Opened a copy of <name> — changes stay out of the archive`. `<Enter>` on the archive itself, outside, still opens it with its opener*
 - [ ] **21.19** 書庫の中で `x`、`d`、`a`（v0.76.0。`y` は v0.77.0 から通す。21.20）→ 切り取りもごみ箱も作成もしない。どれも `Inside an archive: read only — y then p in a folder takes a copy out, Esc leaves` と言う。書庫のあるフォルダは変わらない（前後の `Get-ChildItem`） — *Inside the archive, `x`, `d` and `a` (v0.76.0; `y` is let through since v0.77.0, 21.20) → Nothing is cut, trashed or made; each says `Inside an archive: read only — y then p in a folder takes a copy out, Esc leaves`. The folder the archive sits in is unchanged (`Get-ChildItem` before and after)*
 - [ ] **21.20** 書庫の中で `top.txt` に `y`、`<Esc>`、別のフォルダへ `l`、`p`。続けてもう一度 `p` して `s`（v0.77.0）→ `y` のあとのトーストは `Yanked 1 item from the archive — p in a folder takes them out`。`p` のあと `top.txt` が書庫の中身と時刻で現れ、カーソルが乗り、トーストは `Took top.txt out of the archive`。`yank: 1 copied` は残る。2 回目の `p` は `File already exists` を聞き、`s` で元のファイルが残り、`.filer-take-out-*` のフォルダは残らない。中で `y` したフォルダは中身ごと出る — *Inside the archive, `y` on `top.txt`, `<Esc>`, `l` into another folder, `p`; then `p` again and `s` (v0.77.0) → The toast after `y` reads `Yanked 1 item from the archive — p in a folder takes them out`. After `p`: `top.txt` is there with the archive's contents and its time, the cursor on it, and the toast `Took top.txt out of the archive`; `yank: 1 copied` stays. The second `p` asks `File already exists`, `s` keeps the file that was there, and no `.filer-take-out-*` folder is left. A folder yanked inside comes out with everything under it*
+- [ ] **21.21** 書庫の中で `.txt` のメンバー、次に `.png`、次にフォルダにカーソルを置き、最後に `<Esc>`（v0.78.0）→ テキストと画像はファイルと同じくプレビューされる（`<A-G>` でテキストの末尾に届き `preview top: N of N`）。フォルダは `Holds  N items` のカード。4 MB を超えるメンバーは大きさのカード。`<Esc>` のあと `%TEMP%\\filer-archive-<pid>\\preview` にこのビューの分は残らない — *Inside the archive, the cursor on a `.txt` member, then a `.png` one, then a folder; then `<Esc>` (v0.78.0) → The text and the picture are previewed as if they were files (`<A-G>` reaches the text's end: `preview top: N of N`); the folder shows a card with `Holds  N items`. A member over 4 MB shows a card with its size. After `<Esc>`, `%TEMP%\filer-archive-<pid>\preview` holds nothing of this view*
 
 ## 22. エディタを行番号付きで開く（エディタのインストールが要る）
 

@@ -1267,6 +1267,9 @@ pub struct App {
     /// A listing or a member copy on its way from a worker; see
     /// [`App::drain_archive`].
     archive_rx: Option<crossbeam_channel::Receiver<ArchiveMsg>>,
+    /// A member being unpacked for the preview, apart so that it never
+    /// stands in the way of the listing or of `l` opening a copy.
+    archive_preview_rx: Option<crossbeam_channel::Receiver<ArchiveMsg>>,
     /// The folder `h` came up out of, put under the cursor once the parent's
     /// walk reports it.
     usage_want: Option<String>,
@@ -1402,6 +1405,7 @@ impl App {
             usage_root: None,
             archive_view: None,
             archive_rx: None,
+            archive_preview_rx: None,
             usage_want: None,
             term_pending: None,
             ctx,
@@ -1897,18 +1901,51 @@ impl App {
         // set, and each early return used to leave it set for good -- an idle
         // window drawing 60 frames a second, minimised or not (#86).
         let pending = self.preview.pending_since.take();
-        let Some(entry) = self.tabs[self.active].current.hovered().cloned() else {
+        let Some(mut entry) = self.tabs[self.active].current.hovered().cloned() else {
             self.preview.state = PreviewState::Empty;
             self.preview.key = None;
             self.preview.outline = None;
             self.preview.outline_wanted = None;
             return;
         };
-        if let Some(view) = &self.archive_view {
-            self.preview.state = PreviewState::Ready(view.card(&entry));
-            self.preview.key = None;
-            self.preview.texture = None;
-            return;
+        // Inside an archive a small member is unpacked on a worker and its
+        // copy previewed like any file; until then, and for a folder or a
+        // big one, the card says what it is.
+        let ctx = self.ctx.clone();
+        if let Some(view) = &mut self.archive_view {
+            match view.copies.get(&entry.path) {
+                Some(real) => entry = Entry { path: real.clone(), ..entry },
+                None => {
+                    let wanted = !entry.is_dir_like()
+                        && entry.len <= ARCHIVE_PREVIEW_LIMIT
+                        && view.copying.is_none()
+                        && !view.refused.contains(&entry.path);
+                    if wanted {
+                        let member = match view.inner.is_empty() {
+                            true => entry.name.clone(),
+                            false => format!("{}/{}", view.inner, entry.name),
+                        };
+                        let dest = view.inner.split('/').filter(|p| !p.is_empty()).fold(view.scratch.clone(), |p, part| p.join(part));
+                        let (archive, fake) = (view.archive.clone(), entry.path.clone());
+                        let real = dest.join(&entry.name);
+                        let (tx, rx) = crossbeam_channel::bounded(1);
+                        std::thread::Builder::new()
+                            .name("archive-preview".into())
+                            .spawn(move || {
+                                let got = archive::extract_one(&archive, &member, &dest, &mut |_, _| true).map(|()| real);
+                                let _ = tx.send(ArchiveMsg::Previewed(fake, got));
+                                ctx.request_repaint();
+                            })
+                            .expect("spawn archive thread");
+                        view.copying = Some(entry.path.clone());
+                        self.archive_preview_rx = Some(rx);
+                    }
+                    self.preview.state = PreviewState::Ready(view.card(&entry));
+                    self.preview.key = None;
+                    self.preview.texture = None;
+                    return;
+                }
+            }
         }
         // The outline and the zoom belong to the file they were set on. Without
         // this, walking onto the next image shows a corner of it at 8x.
@@ -2675,6 +2712,7 @@ impl App {
         self.search = None;
         self.archive_view = None;
         self.archive_rx = None;
+        self.archive_preview_rx = None;
         // Dropping the handle cancels the walk, so leaving is all it takes.
         self.usage = None;
         self.usage_max = 0;
@@ -5266,7 +5304,17 @@ impl App {
         let tab = &mut self.tabs[self.active];
         tab.remember_cursor();
         tab.current = Folder::loading(archive_path(&archive, ""), None);
-        self.archive_view = Some(ArchiveView { archive, inner: String::new(), members: Arc::new(Vec::new()), more: false });
+        let scratch = preview_scratch(&archive);
+        self.archive_view = Some(ArchiveView {
+            archive,
+            inner: String::new(),
+            members: Arc::new(Vec::new()),
+            more: false,
+            copies: HashMap::new(),
+            copying: None,
+            refused: BTreeSet::new(),
+            scratch,
+        });
         self.preview.state = PreviewState::Empty;
         self.preview.key = None;
     }
@@ -5320,9 +5368,7 @@ impl App {
             false => format!("{}/{}", view.inner, entry.name),
         };
         let archive = view.archive.clone();
-        let dest = std::env::temp_dir()
-            .join(format!("filer-archive-{}", std::process::id()))
-            .join(util::file_name(&archive));
+        let dest = util::archive_scratch().join(util::file_name(&archive));
         let out = dest.join(&entry.name);
         let (tx, rx) = crossbeam_channel::bounded(1);
         let ctx = self.ctx.clone();
@@ -5339,6 +5385,24 @@ impl App {
     }
 
     fn drain_archive(&mut self) {
+        if let Some(Ok(ArchiveMsg::Previewed(fake, got))) = self.archive_preview_rx.as_ref().map(|rx| rx.try_recv()) {
+            self.archive_preview_rx = None;
+            if let Some(view) = &mut self.archive_view {
+                view.copying = None;
+                match got {
+                    Ok(real) => {
+                        view.copies.insert(fake, real);
+                    }
+                    Err(_) => {
+                        view.refused.insert(fake);
+                    }
+                }
+                // Whatever the cursor is on now: the one just unpacked, or
+                // one it moved to while that was going.
+                self.preview.key = None;
+                self.request_preview(true);
+            }
+        }
         let Some(rx) = &self.archive_rx else { return };
         let Ok(msg) = rx.try_recv() else { return };
         self.archive_rx = None;
@@ -5372,6 +5436,7 @@ impl App {
                     Err(e) => self.error(format!("Open failed: {e}")),
                 }
             }
+            ArchiveMsg::Previewed(..) => {}
             ArchiveMsg::Copied(Err(e)) => {
                 self.toasts.retain(|t| !t.text.starts_with("Unpacking "));
                 self.error(format!("Unpack failed: {e}"));
@@ -5924,6 +5989,35 @@ pub(crate) struct ArchiveView {
     members: Arc<Vec<archive::Listed>>,
     /// The listing stopped at `ARCHIVE_LIMIT`.
     more: bool,
+    /// Members unpacked for the preview, by the path the row shows.
+    copies: HashMap<PathBuf, PathBuf>,
+    /// The one being unpacked now, and ones that would not unpack.
+    copying: Option<PathBuf>,
+    refused: BTreeSet<PathBuf>,
+    /// Where the preview's copies go: a folder of this view's own, so two
+    /// archives of one name -- or two views in one process -- never share it.
+    scratch: PathBuf,
+}
+
+/// Members up to this size are unpacked to be previewed; a bigger one keeps
+/// its card. Reading a member means reading the archive up to it, and a tar
+/// has to be read from the start.
+const ARCHIVE_PREVIEW_LIMIT: u64 = 4 << 20;
+
+impl Drop for ArchiveView {
+    /// The preview's copies go with the view: nothing outside filer has
+    /// them open. The copies `l` opened stay -- an editor may be holding one
+    /// -- and are swept by a later start (`util::sweep_archive_scratch`).
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.scratch);
+    }
+}
+
+/// A fresh folder name for one view's preview copies of `archive`.
+fn preview_scratch(archive: &Path) -> PathBuf {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    util::archive_scratch().join("preview").join(format!("{n}-{}", util::file_name(archive)))
 }
 
 impl ArchiveView {
@@ -5954,6 +6048,8 @@ impl ArchiveView {
 pub(crate) enum ArchiveMsg {
     Listed(PathBuf, std::io::Result<(Vec<archive::Listed>, bool)>),
     Copied(std::io::Result<PathBuf>),
+    /// A member unpacked for the preview: the row's path and the copy's.
+    Previewed(PathBuf, std::io::Result<PathBuf>),
 }
 
 /// The archive view's synthetic path, as the header shows it. Not a real
@@ -7222,9 +7318,12 @@ mod move_undo {
     /// Deliberately **not** `util::test_dir`: this is called several times in one
     /// test for several file names, and `test_dir` wipes what it hands back, so
     /// the second call would delete the first file. The three tests here use
-    /// distinct names, so the process id is uniqueness enough.
+    /// distinct names, so the process id is uniqueness enough. Named the way
+    /// `test_dir` names its own, so its sweep clears what a run leaves: as
+    /// `filer-move-undo-<pid>` one was left per run, 448 in the cloud
+    /// container by v0.77.0.
     fn tmp(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("filer-move-undo-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("filer-test-move-undo-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&d);
         d.join(name)
     }
@@ -7859,6 +7958,28 @@ mod archive_view {
         }
         let names: Vec<String> = std::fs::read_dir(&out).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
         assert_eq!(names, ["docs"]);
+    }
+
+    /// A small member is unpacked for the preview and previewed as the copy;
+    /// leaving the view takes the copies with it.
+    #[test]
+    fn a_member_is_previewed_from_a_copy() {
+        let (mut a, zip) = app_on_archive();
+        a.act(Act::Enter);
+        wait(&mut a);
+        a.act(Act::Arrow(Step::Rel(1)));
+        assert_eq!(a.tabs[a.active].current.hovered().map(|e| e.name.as_str()), Some("top.txt"));
+        a.request_preview(true);
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while a.archive_preview_rx.is_some() && Instant::now() < deadline {
+            a.drain_archive();
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let real = a.archive_view.as_ref().and_then(|v| v.copies.get(&zip.join("top.txt")).cloned()).expect("a copy");
+        assert_eq!(std::fs::read_to_string(&real).unwrap(), "top");
+        assert!(matches!(&a.preview.key, Some(k) if k.path == real) || a.preview.pending_since.is_some(), "the copy is what is previewed");
+        a.act(Act::Escape(EscapeWhat::default()));
+        assert!(!real.exists(), "the copy went with the view");
     }
 
     /// A jump elsewhere leaves the view rather than carry it along.

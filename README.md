@@ -897,8 +897,10 @@ default app; changes to the copy do not go back into the archive. `<Enter>` on t
 still opens it with its opener, as before. **`y` on members, then `p` in a folder, takes them out**
 (v0.77.0): each comes out under its own name, a folder with everything under it, through the same
 Overwrite / Skip / Rename question a copy asks, and the cursor lands on it. Otherwise the view is read
-only: `x`, `p`, `d`, `r`, `a`, `e` and the like say so instead of acting. The preview shows what a member is (its size, or how
-many entries a folder holds) rather than reading it. Up to 100,000 entries are listed.
+only: `x`, `p`, `d`, `r`, `a`, `e` and the like say so instead of acting. A file of up to 4 MB is
+unpacked on a worker and previewed like any other (v0.78.0); a folder, or a bigger file, shows a card
+with its size or how many entries it holds. The preview's copies go when you leave the archive; the
+copies `l` opened are kept while an editor may have them, and a later start clears those a day old. Up to 100,000 entries are listed.
 
 ## Scrolling the preview, and the minimap
 

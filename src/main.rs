@@ -345,6 +345,9 @@ fn main() -> eframe::Result<()> {
                 s.interaction.tooltip_delay = 0.4;
                 s.spacing.item_spacing = egui::vec2(0.0, 0.0);
             });
+            // What earlier runs unpacked from archives and left (a copy `l`
+            // opened is kept while its editor may hold it).
+            util::sweep_archive_scratch();
             let mut a = App::new(cfg, start, cc.egui_ctx.clone());
             a.start_unproven(home);
             a.bold_font = has_bold;

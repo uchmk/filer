@@ -539,6 +539,43 @@ fn stale_test_dir(name: &str, own_pid: u32, age: std::time::Duration) -> bool {
     }
 }
 
+/// Where this process puts members of archives it unpacked to open or to
+/// preview (the archive view, `l` on an archive).
+pub fn archive_scratch() -> PathBuf {
+    std::env::temp_dir().join(format!("{ARCHIVE_SCRATCH_PREFIX}{}", std::process::id()))
+}
+
+const ARCHIVE_SCRATCH_PREFIX: &str = "filer-archive-";
+
+/// Whether `name` in the temporary folder is another filer's archive
+/// scratch, a day old or more. A day, not the hour the tests get: a copy
+/// `l` opened may still be in an editor, and this is the only cleaning the
+/// copies get.
+fn stale_archive_scratch(name: &str, own_pid: u32, age: std::time::Duration) -> bool {
+    let Some(pid) = name.strip_prefix(ARCHIVE_SCRATCH_PREFIX) else { return false };
+    match pid.parse::<u32>() {
+        Ok(pid) => pid != own_pid && age >= std::time::Duration::from_secs(24 * 3600),
+        Err(_) => false,
+    }
+}
+
+/// Remove what earlier runs unpacked from archives, on a thread of its own:
+/// a temporary folder can hold a great deal.
+pub fn sweep_archive_scratch() {
+    let _ = std::thread::Builder::new().name("archive-sweep".into()).spawn(|| {
+        let Ok(entries) = std::fs::read_dir(std::env::temp_dir()) else { return };
+        let now = std::time::SystemTime::now();
+        for e in entries.flatten() {
+            let name = e.file_name();
+            let Some(name) = name.to_str() else { continue };
+            let age = e.metadata().and_then(|m| m.modified()).ok().and_then(|t| now.duration_since(t).ok());
+            if age.is_some_and(|age| stale_archive_scratch(name, std::process::id(), age)) {
+                let _ = std::fs::remove_dir_all(e.path());
+            }
+        }
+    });
+}
+
 /// Clear what earlier runs left, once per process.
 #[cfg(test)]
 fn sweep_test_dirs() {
@@ -557,6 +594,17 @@ fn sweep_test_dirs() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Only another process's archive scratch, and only a day old.
+    #[test]
+    fn only_an_old_archive_scratch_of_another_run_is_swept() {
+        let day = std::time::Duration::from_secs(24 * 3600);
+        assert!(stale_archive_scratch("filer-archive-41", 7, day));
+        assert!(!stale_archive_scratch("filer-archive-7", 7, day), "this run's own");
+        assert!(!stale_archive_scratch("filer-archive-41", 7, day / 2), "less than a day");
+        assert!(!stale_archive_scratch("filer-archive-x", 7, day));
+        assert!(!stale_archive_scratch("filer-test-a-41", 7, day), "not an archive scratch");
+    }
 
     /// #126: a path from the command line is made absolute against where filer
     /// started, so the tab has a parent; an absolute one stays as it is.
