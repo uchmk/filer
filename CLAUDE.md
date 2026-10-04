@@ -123,7 +123,8 @@ cargo build --release --manifest-path C:\dev\filer\Cargo.toml
   - **版の桁で CI を切り替えない。**PATCH こそバグ修正そのもので、一番検証が要る。
     版は人が手で決めるラベルなので、打ち間違いで検証が黙って無効になる。
     切るなら**変わったファイル**で切る（`ci.yml` の `paths-ignore`）。
-- CI は `.github/workflows/ci.yml`（Windows でテスト、Linux で clippy）、
+- CI は `.github/workflows/ci.yml`（Windows と Linux でテスト、Linux で clippy。Linux のテストは v0.75.22、Q74）、
+  `test-macos.yml`（macOS のテスト。週 1 回と手動。課金が Linux の 10 倍なので毎回は回さない）、
   `audit.yml`（`cargo audit`、push と週 1 回）、`build.yml` が 6 ターゲットの
   バイナリをアーティファクトとして残す（Actions タブからダウンロードできる）。
 

@@ -75,7 +75,7 @@ All of these, or it is not merged:
    run depends on the files: a pull request that changes only the checklists,
    `qa-reports/` and other files in `ci.yml`'s `paths-ignore` runs `audit` and
    `checklists` (v0.73.15) and nothing else, by design -- those two green is
-   green. Anything else runs `audit`, `clippy`, `smoke` and `test` as well.
+   green. Anything else runs `audit`, `clippy`, `smoke`, `test` and `test-linux` as well.
    **Still running: subscribe to the pull request** (`subscribe_pr_activity`,
    since v0.73.21) and go on to the next one. When its checks finish, the
    session is woken with the result: green, take it through 2 and 3 and do its
