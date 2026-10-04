@@ -182,6 +182,11 @@ allowed because nothing in it can break a build:
   architecture-specific (ConPTY, the shell, archives, openers, `filer env`),
   re-run against their x64 result -- not with appearance rows, which look the
   same on both.
+- **New x64 ticks go to ARM64's last row** (#260 proposal 4): every row a merged
+  `win` pull request turned `[x]` that ARM64 has not pressed is added to (1) of the
+  ARM64 table's "When every row above is empty" row, and the rows an `arm` run
+  pressed as a second machine come out of it. Without this the lane idles on
+  `cargo test` alone once the rest of its table is empty.
 - **An ARM64 result that differs from x64** is a bug report, whatever the run
   called it: it goes to TODO.md with both results side by side. So is **a Linux
   result that differs from Windows**.
