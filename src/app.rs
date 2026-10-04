@@ -942,6 +942,18 @@ impl UndoStep {
     }
 }
 
+/// The `cd` prompt's starting text: the folder with this platform's separator
+/// after it, ready for a name. It used to end in `\\` everywhere, so Linux
+/// and macOS showed `/home/me\\` (found on the virtual display), and a root
+/// that already ends in one (`/`, `C:\\`) is not given a second.
+fn dir_prefill(dir: &Path) -> String {
+    let shown = dir.display().to_string();
+    match shown.ends_with(['/', '\\']) {
+        true => shown,
+        false => format!("{shown}{}", std::path::MAIN_SEPARATOR),
+    }
+}
+
 /// What a typed path that named nothing says when its parent is shown instead
 /// (#98): one sentence, whichever of the two listings arrived first (#242).
 fn nothing_there(name: &str, shown: &Path) -> String {
@@ -2762,7 +2774,7 @@ impl App {
             Act::Cd { target, interactive } => {
                 if interactive || target.is_empty() {
                     let cwd = self.tabs[self.active].cwd.clone();
-                    self.open_input(InputKind::Cd, "Change directory", format!("{}\\", cwd.display()));
+                    self.open_input(InputKind::Cd, "Change directory", dir_prefill(&cwd));
                 } else {
                     let base = self.tabs[self.active].cwd.clone();
                     self.cd(util::resolve_against(&base, &target), true);
@@ -8923,6 +8935,18 @@ mod said_out_loud {
         let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
         assert_eq!(said.len(), 1, "{said:?}");
         assert!(said[0].starts_with("No such file or folder: tpyo"), "{said:?}");
+    }
+
+    /// The `cd` prompt starts with the folder and this platform's separator,
+    /// and a root gets no second one.
+    #[test]
+    fn the_cd_prompt_ends_in_this_platforms_separator() {
+        let sep = std::path::MAIN_SEPARATOR;
+        let dir = std::env::temp_dir().join("x");
+        assert_eq!(dir_prefill(&dir), format!("{}{sep}", dir.display()));
+        let root = PathBuf::from(if cfg!(windows) { "C:\\" } else { "/" });
+        assert_eq!(dir_prefill(&root), root.display().to_string());
+        assert!(!dir_prefill(&dir).ends_with(if cfg!(windows) { '/' } else { '\\' }));
     }
 
     /// #242: the same, when the parent's listing has already arrived -- the
