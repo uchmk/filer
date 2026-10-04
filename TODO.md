@@ -1475,6 +1475,22 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.74.6。テストのときの `set_clipboard` はスレッドごとの偽のクリップボードに書く。`get_clipboard` がそれを読む）既存のテスト `app::f12_shows_the_report_before_opening_it` の `answer_confirm('c')` が本物のクリップボードを書き換える（所見 3）。持ち主の Windows 機で
   `cargo test` を回すたびにクリップボードが上書きされる。テストのときは書かない口（`exec::set_clipboard` の差し替え）を作る
 
+## 実機のセッションの報告（v0.78.28 で受けた分: #262 x64 の v0.78.23 の再テスト、#263 ARM64 の 46 節）
+
+- [x] #262（x64、v0.78.24）: v0.78.23 の 3 つの直しを確かめた。`e` / `E` / `r` / `a` の直後の `<State:>` が作ったものを読む（`e` は 8 回中 8 回）、
+  書庫を出ると `filer-archive-<pid>` が 0.7 秒で消える、`cargo test` が `filer-archive-*` を残さない。所見なし。#263（ARM64、v0.78.24）: 46 節の 21 行中 19 行が
+  ARM64 の `git.exe` で x64 と同じ（印は x64 のもの）。両方 703 / 0
+- [ ] `e` をフォルダの上で押すと「ファイルが書庫ではない」と言う（#262 の提案 1）。`inner\ is a folder -- e unpacks an archive …; to pack it, press E` にする
+- [ ] 状態ファイルにプレビューの行数を出す（#262 の提案 2: `preview top: 0 of 14` は最後の先頭位置で、30 行のファイルの行数が読めない）
+- [ ] `git` などの出力を読むだけの子プロセスを `DETACHED_PROCESS` で起こす（#263 の提案 1。`CREATE_NO_WINDOW` は窓を隠すだけで、`git.exe` ごとに `conhost.exe` が 1 つ立つ。
+  spot を 6 回開いて `conhost` が 21 個）。`src/fs/git.rs`、`exec.rs`、`fs/ops.rs`、`preview/external.rs` の 4 か所。`cmd /S /C` の外部プレビューはコンソールが要らないかを確かめる
+- [ ] spot の Git の節の `git` 呼び出しを減らす（#263 の提案 2: 1 回で 8 回。`rev-parse` と `merge-base` が 2 回ずつ、`remote.origin.url` は毎回）。リポジトリの根ごとに、
+  根・`remote.origin.url`・`origin/HEAD` を覚える
+- [ ] TESTING.md 46.11 に何を測るかを書く（#263 の提案 3: `conhost.exe` の数ではなく、`ConsoleWindowClass` の見える窓が増えないこと。上の `DETACHED_PROCESS` が入れば数で測れる）【QA】
+- [ ] spot の `C` で `Came in via` の 2 つの値（`#42` と `bb23a4e`）を分ける（#263 の提案 4）。2 行に分けるか、`C` の出力だけ TAB で区切るか。見た目が変わるので
+  前者なら持ち主に聞く。後者は見た目が変わらない
+- [ ] （所見）前の run（2026-10-04 12:02 の 37 節）が開いた Chrome のタブが ARM64 機に残っている（#263 の所見 1、#256 の所見 2 と同じ）。持ち主が閉じる【人】
+
 ## 実機のセッションの報告（v0.78.24 で受けた分: #261 ARM64、2 台目として押す run）
 
 - [x] #261（ARM64、v0.78.22）: 21.14、21.14a（ARM64 の 7-Zip で）、21.14b、25.4a、5.9、16.11、16.12 が x64 と同じ（印は x64 のもの）。703 / 0。`--keys` の 16 回はどれも `keys: done`
