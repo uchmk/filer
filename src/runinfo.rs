@@ -276,6 +276,7 @@ mod tests {
             pane: [12, 159],
             launched: vec!["code -g a.txt:3".into()],
             started: 1_800_000_000,
+            pane_shell: "powershell (Windows PowerShell 5.1)".into(),
         };
         save_to(&p, &info);
         assert_eq!(load_from(&p).as_ref(), Some(&info));
