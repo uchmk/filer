@@ -512,6 +512,8 @@
     レンダリング済み Markdown で early return する）。QA-REPORT.md 参照。
 - [x] （v0.75.22、Q74 推奨の 1。`ci.yml` に `test-linux`、macOS は `test-macos.yml` で週 1 回と手動）残: `ci.yml` の `test` を ubuntu と macos にも広げる。
   **macOS ではテストを一度も走らせたことがない。**
+  - [x] （v0.75.23）`test-linux` が初回で 1 件落とした: ペインのシェルに `TERM` を渡していなかったので、CI（`TERM` 無し）の bash が dumb 端末として
+    長い行を 1 行の中で横に流した（`sending_a_name_opens_a_closed_pane`）。Unix では `TERM=xterm-256color` と `COLORTERM=truecolor` を渡す。1.39 を足した。
   - [ ] `test-macos.yml` の最初の結果を見る。落ちたテストは TODO.md に（Actions タブから手動でも回せる）
 - [x] `make-keycheck --check` と CI のステップ（v0.45.1）。keymap を変えて
   TESTING-KEYS.md を再生成し忘れた状態が CI で落ちる。**入れた初回に本物の乖離を

@@ -601,6 +601,21 @@ pub struct Terminal {
     io: Option<std::thread::JoinHandle<(EventLoop<Tapped, Proxy>, alacritty_terminal::event_loop::State)>>,
 }
 
+/// What the pane tells the shell about itself. Off Windows a program learns
+/// what the terminal can do from `TERM`, and filer's own may be anything: a
+/// desktop launcher passes none, and with none bash's readline takes the
+/// terminal for a dumb one and scrolls a long line sideways inside one row,
+/// so a path `<A-t>` typed showed only its end (CI, v0.75.22). The grid is
+/// alacritty's, which speaks xterm, in 24-bit colour. Windows programs do not
+/// read `TERM` from ConPTY, and some (Git for Windows) change course when it
+/// is set, so nothing is added there.
+fn pane_env() -> std::collections::HashMap<String, String> {
+    if cfg!(windows) {
+        return Default::default();
+    }
+    [("TERM", "xterm-256color"), ("COLORTERM", "truecolor")].into_iter().map(|(k, v)| (k.to_owned(), v.to_owned())).collect()
+}
+
 impl Terminal {
     /// Start a shell in `cwd`. The cell size is what the PTY is told, so a
     /// program asking for pixels (an image protocol, say) gets the truth.
@@ -621,7 +636,7 @@ impl Terminal {
             shell: shell.map(|(program, args)| tty::Shell::new(program, args)),
             working_directory: Some(cwd.to_path_buf()),
             drain_on_exit: false,
-            env: Default::default(),
+            env: pane_env(),
             #[cfg(target_os = "windows")]
             escape_args: true,
         };
@@ -1492,6 +1507,22 @@ pub mod testing {
 
 #[cfg(test)]
 mod tests {
+    use super::pane_env;
+
+    /// Off Windows the shell is told it is in an xterm, whatever filer was
+    /// started with; on Windows nothing is added.
+    #[test]
+    fn the_pane_names_its_terminal_type() {
+        let env = pane_env();
+        match cfg!(windows) {
+            true => assert!(env.is_empty(), "{env:?}"),
+            false => {
+                assert_eq!(env.get("TERM").map(String::as_str), Some("xterm-256color"));
+                assert_eq!(env.get("COLORTERM").map(String::as_str), Some("truecolor"));
+            }
+        }
+    }
+
     use super::testing::{feed, term};
     use super::*;
 

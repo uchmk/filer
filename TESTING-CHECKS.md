@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 489 件（TESTING.md の全 659 件のうち、`cargo test` が見ている 170 件は外してある）。
+押すものは 490 件（TESTING.md の全 660 件のうち、`cargo test` が見ている 170 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -84,6 +84,7 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **1.36** 何も動いていないプロンプトで `<C-S-t>` → **確認は出ない。**ペインはすぐ消え、トーストに **Ended the shell** と出る。`<C-t>` で隠しただけのようには見えなくなった — *At a bare prompt with nothing running, `<C-S-t>` → **No dialog**: the pane goes at once, and the toast says **Ended the shell** — so it no longer looks like `<C-t>` merely hiding it*
 - [ ] **1.37** ペインを**閉じた**まま、ファイルを選んで `<A-t>`（v0.57.0）→ ペインが開き、シェルのプロンプトが出たところで引用されたパスが行に入る。「The terminal is not open」とは言わず、プロファイル読み込み中のシェルに打って消えることもない。キーはペインに移る。v0.75.17（Q39）から、パスは最初の出力ではなく、最初の出力のあとシェルが 300 ms 静かになるまで待つ（最長 5 秒）。`FILER_PTY_LOG` を付けると、パスの `in` の記録がバナーの後ではなく、プロファイルとプロンプトの最後の `out` の後に来る — *With the pane **closed**, select a file and `<A-t>` (v0.57.0) → The pane opens and, once the shell's prompt is up, the quoted path is on its line -- not "The terminal is not open", and not lost to a shell still loading its profile. The keys are in the pane. Since v0.75.17 (Q39) the path waits until the shell has gone quiet for 300 ms after its first output (5 s at most), not just for that first output: with `FILER_PTY_LOG` set, the `in` record of the path comes after the last `out` record of the profile and the prompt, not after the banner*
 - [x] **1.38** シェルを開いたまま `<C-t>` で一覧に戻り、`<C-S-t>`。続けてもう一度 `<C-S-t>`（v0.67.25、Q53）→ 1 回目は一覧からシェルを終える。ペインが消え、トーストは **Ended the shell**（何か動いていれば 1.35 と同じく先に **End the shell?** と聞く）。2 回目はペインが無いので **No terminal to close** と言う（以前は何も起きなかった） — *With a shell open, `<C-t>` back to the list, then `<C-S-t>`; then `<C-S-t>` again (v0.67.25, Q53) → The first ends the shell from the list: the pane goes and the toast is **Ended the shell** (with a program running, the **End the shell?** question first, as in 1.35). The second, with no pane left, says **No terminal to close** — it used to do nothing at all*
+- [ ] **1.39** macOS / Linux: `TERM` 無しで filer を起動し（`env -u TERM filer`、またはデスクトップのランチャーから）、`<C-t>` で `echo $TERM $COLORTERM`（v0.75.23）→ `xterm-256color truecolor`。`<A-t>` で打った長いパスは次の行へそのまま折り返し、dumb 端末のように 1 行の中で横に流れない — *macOS / Linux: start filer with no `TERM` (`env -u TERM filer`, or from a desktop launcher), `<C-t>`, then `echo $TERM $COLORTERM` (v0.75.23) → `xterm-256color truecolor`. A long path typed with `<A-t>` wraps onto the next row whole, rather than scrolling sideways inside one row as on a dumb terminal*
 
 ## 2. ミニマップ
 

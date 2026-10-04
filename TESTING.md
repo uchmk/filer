@@ -166,6 +166,7 @@ drawing has been seen. `<C-t>` opens it.
 | 1.36 | At a bare prompt with nothing running, `<C-S-t>` | **No dialog**: the pane goes at once, and the toast says **Ended the shell** — so it no longer looks like `<C-t>` merely hiding it |
 | 1.37 | With the pane **closed**, select a file and `<A-t>` (v0.57.0) | The pane opens and, once the shell's prompt is up, the quoted path is on its line -- not "The terminal is not open", and not lost to a shell still loading its profile. The keys are in the pane. Since v0.75.17 (Q39) the path waits until the shell has gone quiet for 300 ms after its first output (5 s at most), not just for that first output: with `FILER_PTY_LOG` set, the `in` record of the path comes after the last `out` record of the profile and the prompt, not after the banner |
 | 1.38 | With a shell open, `<C-t>` back to the list, then `<C-S-t>`; then `<C-S-t>` again (v0.67.25, Q53) | The first ends the shell from the list: the pane goes and the toast is **Ended the shell** (with a program running, the **End the shell?** question first, as in 1.35). The second, with no pane left, says **No terminal to close** — it used to do nothing at all |
+| 1.39 | macOS / Linux: start filer with no `TERM` (`env -u TERM filer`, or from a desktop launcher), `<C-t>`, then `echo $TERM $COLORTERM` (v0.75.23) | `xterm-256color truecolor`. A long path typed with `<A-t>` wraps onto the next row whole, rather than scrolling sideways inside one row as on a dumb terminal |
 
 ## 2. The minimap (v0.5.0)
 
