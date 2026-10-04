@@ -205,12 +205,9 @@ fn parse_cli() -> Cli {
                     std::process::exit(2);
                 }
             },
+            // The bug report's own line, so the two cannot drift apart (26.3).
             "--version" | "-V" => {
-                say(&format!(
-                    "filer {} ({})",
-                    env!("CARGO_PKG_VERSION"),
-                    std::env::consts::ARCH
-                ));
+                say(&bugreport::version_line());
                 std::process::exit(0);
             }
             other if !other.starts_with('-') => {

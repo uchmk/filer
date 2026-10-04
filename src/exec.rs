@@ -567,6 +567,21 @@ pub fn open_url(url: &str) -> std::io::Result<()> {
 /// back one string, so 34.15's own check found no line at all (#180, #182), and
 /// older programs paste it as one long line (Q52). Elsewhere LF is the norm.
 pub fn set_clipboard(text: &str) -> Result<(), String> {
+    // A test never writes the machine's clipboard: on the owner's Windows
+    // machine every `cargo test` used to replace what was on it (the QA
+    // agent's finding on section 26). It goes to this thread's fake instead,
+    // where `get_clipboard` reads it back.
+    #[cfg(test)]
+    {
+        fake_clipboard(text);
+        Ok(())
+    }
+    #[cfg(not(test))]
+    set_real_clipboard(text)
+}
+
+#[cfg(not(test))]
+fn set_real_clipboard(text: &str) -> Result<(), String> {
     let mut cb = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     cb.set_text(line_endings(text, cfg!(windows)).into_owned()).map_err(|e| e.to_string())
 }
