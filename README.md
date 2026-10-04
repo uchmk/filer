@@ -1574,7 +1574,11 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   Windows-specific path too. `block = true` openers open a terminal on Linux (tried in the
   development container under X11) and on macOS (not tried on a Mac yet).
 - No Lua plugin runtime — see the plugin table above for what is emulated natively, and the
-  [context menu](#context-menu) for how a custom action reaches the screen without one.
+  [context menu](#context-menu) for how a custom action reaches the screen without one. This is
+  on purpose: a yazi plugin leans less on Lua than on what yazi hands it (`ya.*`, `cx`, `ui.*`
+  widgets, its async tasks), all tied to yazi's terminal UI, so a Lua interpreter alone would run
+  almost none of them; and the usual way to embed one builds C Lua into every one of the six
+  targets. Popular plugins are instead replaced one by one with built-in behaviour.
 - An archive's preview lists what is inside but does not browse it: no entering a folder, and
   no reading one file out. woff / woff2 fonts aren't previewed. Video,
   PDF and HEIC previews rely on Windows thumbnail handlers (see [Other previews](#other-previews)).

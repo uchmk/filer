@@ -419,6 +419,14 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
 - キーは keymap 経由で動かす（ハードコードしない）。新しいオーバーレイには keymap のセクションと `feed_*_key` を用意する。
 - yazi に無い独自コマンドは README の「Commands implemented」に書く。
 - 機能を足したら README（キー表・各節）も更新する。
+- **Lua は動かさない**（`init.lua` も `plugins/*.lua` も読まない。2026-10-04 に持ち主の依頼で理由を書き残した）。
+  - yazi のプラグインが頼っているのは Lua という言語より、yazi が渡す `ya.*`・`cx`（タブや選択の状態）・`ui.*`（画面の部品）・非同期の仕組みで、
+    どれも yazi の TUI の内側に直結している。Lua を組み込んでも、これを egui の上に作り直さない限りほとんど動かない。
+  - Rust から Lua を動かす定番の `mlua` は C の Lua 本体をビルドに抱える。「Pure Rust を優先し、6 ターゲットへのクロスコンパイルを楽に」に反する。
+  - プラグインの主な用途（カーソルの下のファイルに何かする）は、`shell` のバインドと `[opener]` で書け、右クリックメニューとパレットに並ぶ（TODO-DONE の 5 節）。
+  - だから、よく使われるプラグインは **1 つずつ filer の機能で置き換える**（`toggle-pane`・`bookmarks`・`smart-enter`・`smart-filter` がその形。
+    `src/config/cmd.rs` の `plugin` の扱い）。知らない `plugin …` は設定の読み込みを壊さず、ヘルプに未対応と出し、押せばトーストで言う。
+  - Lua の実行環境を入れるなら依存クレートの追加と大きな設計になるので、QUESTIONS.md で範囲を決めてから。
 
 将来的にこのアプリ（Yazi GUI版）を Windows / macOS / Linux（それぞれ x86_64 / ARM64） で動作させたいと考えています。
 
