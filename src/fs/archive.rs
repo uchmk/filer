@@ -97,9 +97,7 @@ pub fn extract(archive: &Path, dest: &Path, on_entry: OnEntry<'_>) -> io::Result
 /// under it -- into `dest`, without the folders above it: `docs/a/readme.md`
 /// comes out as `dest/readme.md`, and the folder `docs/a` as `dest/a/…`.
 /// The first piece of walking an archive (TODO.md, "アーカイブの中を歩く").
-/// Names go through the same `safe_dest` as a whole unpack. Nothing calls it
-/// yet outside the tests: how the walk is entered waits on Q75.
-#[cfg_attr(not(test), allow(dead_code))]
+/// Names go through the same `safe_dest` as a whole unpack.
 pub fn extract_one(archive: &Path, member: &str, dest: &Path, on_entry: OnEntry<'_>) -> io::Result<()> {
     let member = member_name(member).to_owned();
     if member.is_empty() {
@@ -125,10 +123,60 @@ pub fn extract_one(archive: &Path, member: &str, dest: &Path, on_entry: OnEntry<
 /// An entry's name as one form: no `./` in front, no `/` behind (a zip names
 /// its folders `a/`, a tar written by `tar -C . .` names them `./a`), and `/`
 /// between the parts whatever wrote it.
-#[cfg_attr(not(test), allow(dead_code))]
-fn member_name(name: &str) -> &str {
+pub fn member_name(name: &str) -> &str {
     let n = name.strip_prefix("./").unwrap_or(name);
     n.trim_end_matches(['/', '\\'])
+}
+
+/// One row of a level inside an archive: a name, whether it is a folder, and
+/// a file's size.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Level {
+    pub name: String,
+    pub dir: bool,
+    pub size: u64,
+}
+
+/// What is directly inside the folder `inner` (`/`-separated, empty for the
+/// top) of an archive whose members are `members`.
+///
+/// A folder is shown whether or not the archive has an entry for it: a zip
+/// written by many tools names only its files (`a/b/c.txt` and no `a/`), and
+/// the folders have to be worked out from the paths. Each name once, folders
+/// first, then by name.
+pub fn level(members: &[Listed], inner: &str) -> Vec<Level> {
+    let inner = member_name(inner);
+    let mut out: Vec<Level> = Vec::new();
+    let mut seen = std::collections::HashMap::new();
+    for m in members {
+        let name = member_name(&m.name).replace('\\', "/");
+        let rest = match inner.is_empty() {
+            true => name.as_str(),
+            false => match name.strip_prefix(inner).and_then(|r| r.strip_prefix('/')) {
+                Some(r) => r,
+                None => continue,
+            },
+        };
+        if rest.is_empty() {
+            continue;
+        }
+        let (first, deeper) = match rest.split_once('/') {
+            Some((f, _)) => (f, true),
+            None => (rest, m.dir),
+        };
+        match seen.get(first) {
+            Some(&i) => {
+                let row: &mut Level = &mut out[i];
+                row.dir |= deeper;
+            }
+            None => {
+                seen.insert(first.to_owned(), out.len());
+                out.push(Level { name: first.to_owned(), dir: deeper, size: if deeper { 0 } else { m.size } });
+            }
+        }
+    }
+    out.sort_by(|a, b| b.dir.cmp(&a.dir).then_with(|| crate::util::natural_cmp(&a.name, &b.name, false)));
+    out
 }
 
 fn extract_picked(archive: &Path, dest: &Path, pick: Pick<'_>, on_entry: OnEntry<'_>) -> io::Result<()> {
@@ -767,6 +815,31 @@ pub fn extract_dir(archive: &Path, into: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The levels of an archive, folders worked out from the paths when the
+    /// archive names only its files, and nothing from a folder that only
+    /// shares a prefix (`docs/a` is not `docs/ab`).
+    #[test]
+    fn a_level_lists_what_is_directly_inside() {
+        let l = |name: &str, size: u64, dir: bool| Listed { name: name.into(), size, dir };
+        let members = vec![
+            l("top.txt", 3, false),
+            l("docs/a/readme.md", 7, false),
+            l("docs/a/b.txt", 1, false),
+            l("docs/ab/", 0, true),
+            l("./docs/ab/other.txt", 2, false),
+            l("empty/", 0, true),
+        ];
+        let names = |v: Vec<Level>| v.into_iter().map(|r| (r.name, r.dir, r.size)).collect::<Vec<_>>();
+        assert_eq!(
+            names(level(&members, "")),
+            vec![("docs".into(), true, 0), ("empty".into(), true, 0), ("top.txt".into(), false, 3)],
+        );
+        assert_eq!(names(level(&members, "docs")), vec![("a".into(), true, 0), ("ab".into(), true, 0)]);
+        assert_eq!(names(level(&members, "docs/a/")), vec![("b.txt".into(), false, 1), ("readme.md".into(), false, 7)]);
+        assert!(level(&members, "empty").is_empty());
+        assert!(level(&members, "nowhere").is_empty());
+    }
 
     /// One member out of each format: a file without the folders above it,
     /// a folder with what is under it, and a name that is only a prefix of

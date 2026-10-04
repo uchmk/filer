@@ -37,9 +37,9 @@ The file list: what is in front of you unless an overlay is.
 - [x] `<Home>` — Move cursor to the top · `arrow top`
 - [x] `<End>` — Move cursor to the bottom · `arrow bot`
 - [x] `h` — Go back to the parent directory · `leave`
-- [x] `l` — Enter the directory, or focus the file's outline · `enter`
+- [x] `l` — Enter the directory or archive, or focus the file's outline · `enter`
 - [x] `<Left>` — Go back to the parent directory · `leave`
-- [x] `<Right>` — Enter the directory, or focus the file's outline · `enter`
+- [x] `<Right>` — Enter the directory or archive, or focus the file's outline · `enter`
 - [x] `<Backspace>` — Go back to the parent directory · `leave`
 - [x] `H` — Go back to the previous directory · `back`
 - [x] `L` — Go forward to the next directory · `forward`

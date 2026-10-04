@@ -1257,6 +1257,11 @@ pub struct App {
     /// Where `gu` was pressed. `h` climbs inside the view down to here, and
     /// leaves it from here.
     usage_root: Option<PathBuf>,
+    /// The archive `l` went into (Q75), while its members are on screen.
+    archive_view: Option<ArchiveView>,
+    /// A listing or a member copy on its way from a worker; see
+    /// [`App::drain_archive`].
+    archive_rx: Option<crossbeam_channel::Receiver<ArchiveMsg>>,
     /// The folder `h` came up out of, put under the cursor once the parent's
     /// walk reports it.
     usage_want: Option<String>,
@@ -1390,6 +1395,8 @@ impl App {
             usage_max: 0,
             usage_linemode: None,
             usage_root: None,
+            archive_view: None,
+            archive_rx: None,
             usage_want: None,
             term_pending: None,
             ctx,
@@ -1638,6 +1645,7 @@ impl App {
         }
         self.drain_search();
         self.drain_usage();
+        self.drain_archive();
         self.sync_spot();
         self.pump_terminal();
         self.flush_dirty();
@@ -1891,6 +1899,12 @@ impl App {
             self.preview.outline_wanted = None;
             return;
         };
+        if let Some(view) = &self.archive_view {
+            self.preview.state = PreviewState::Ready(view.card(&entry));
+            self.preview.key = None;
+            self.preview.texture = None;
+            return;
+        }
         // The outline and the zoom belong to the file they were set on. Without
         // this, walking onto the next image shows a corner of it at 8x.
         let rule = crate::config::PreviewRule::for_path(&self.cfg.preview, &entry.path).cloned();
@@ -2520,6 +2534,9 @@ impl App {
         }
         let from = self.tabs[self.active].cwd.clone();
         self.cd_refused = None;
+        // A jump from inside an archive leaves it.
+        self.archive_view = None;
+        self.archive_rx = None;
         {
             let tab = &mut self.tabs[self.active];
             tab.remember_cursor();
@@ -2651,6 +2668,8 @@ impl App {
 
     pub fn exit_search_view(&mut self) {
         self.search = None;
+        self.archive_view = None;
+        self.archive_rx = None;
         // Dropping the handle cancels the walk, so leaving is all it takes.
         self.usage = None;
         self.usage_max = 0;
@@ -2678,6 +2697,20 @@ impl App {
 
     fn enter(&mut self) {
         let Some(entry) = self.tabs[self.active].current.hovered().cloned() else { return };
+        if self.archive_view.is_some() {
+            match entry.is_dir_like() {
+                true => self.archive_down(&entry.name),
+                false => self.open_member(&entry),
+            }
+            return;
+        }
+        // An archive is gone into like a folder (Q75). Only from a real
+        // listing: from a search or usage result `h` would not know where
+        // to come back to.
+        if !entry.is_dir_like() && !self.in_search_view() && archive::Format::from_path(&entry.path).is_some() {
+            self.open_archive(entry.path);
+            return;
+        }
         // In the usage view a folder is measured in turn, the way `ncdu` goes
         // down: the view stays, and `h` comes back up.
         if entry.is_dir_like() && self.in_usage_view() {
@@ -2692,6 +2725,20 @@ impl App {
     }
 
     fn leave(&mut self) {
+        if let Some(view) = &self.archive_view {
+            match view.inner.rsplit_once('/') {
+                Some((up, name)) => {
+                    let (up, name) = (up.to_owned(), name.to_owned());
+                    self.archive_show(up, Some(name));
+                }
+                None if !view.inner.is_empty() => {
+                    let name = view.inner.clone();
+                    self.archive_show(String::new(), Some(name));
+                }
+                None => self.exit_search_view(),
+            }
+            return;
+        }
         let cwd = self.tabs[self.active].cwd.clone();
         if self.in_usage_view() && self.usage_root.as_ref().is_some_and(|r| cwd.starts_with(r) && *r != cwd) {
             if let Some(p) = util::parent_dir(&cwd) {
@@ -2722,6 +2769,15 @@ impl App {
     pub fn act(&mut self, a: Act) {
         self.last_action = Instant::now();
         if self.outline_act(&a) {
+            return;
+        }
+        // Inside an archive the rows are not files yet, and the folder `p`
+        // or `a` would write into is the one the archive sits in, not the one
+        // on screen. Taking a member out with `y` and `p` is the next piece
+        // (TODO.md); until then these say so rather than act on paths that
+        // are not there.
+        if self.archive_view.is_some() && changes_files(&a) {
+            self.toast("Inside an archive: read only — l or Enter opens a copy, Esc leaves");
             return;
         }
         match a {
@@ -3999,6 +4055,12 @@ impl App {
             return;
         }
         let Some(entry) = self.tabs[self.active].current.hovered().cloned() else { return };
+        // Inside an archive the members are not files yet: `<Enter>` opens a
+        // copy, the way `l` does, and a folder is gone into.
+        if self.archive_view.is_some() {
+            self.enter();
+            return;
+        }
         // `<Enter>` on a folder is `l`, the usage view's going down included.
         if entry.is_dir_like() && !interactive {
             self.enter();
@@ -5169,6 +5231,142 @@ impl App {
     /// needs no overlay, no keymap layer and no `is_modal` entry -- `j`/`k`, the
     /// wheel, selection, `y`, `d` and `<Esc>` all work because this is the file
     /// list, not a panel pretending to be one.
+    /// `l` on an archive: list it on a worker, and show its top level once
+    /// the list arrives. A tar has no index and is read end to end, so even
+    /// listing it can take a while.
+    fn open_archive(&mut self, archive: PathBuf) {
+        let (tx, rx) = crossbeam_channel::bounded(1);
+        let ctx = self.ctx.clone();
+        let path = archive.clone();
+        std::thread::Builder::new()
+            .name("archive-list".into())
+            .spawn(move || {
+                let _ = tx.send(ArchiveMsg::Listed(path.clone(), archive::list(&path, ARCHIVE_LIMIT)));
+                ctx.request_repaint();
+            })
+            .expect("spawn archive thread");
+        self.archive_rx = Some(rx);
+        let tab = &mut self.tabs[self.active];
+        tab.remember_cursor();
+        tab.current = Folder::loading(archive_path(&archive, ""), None);
+        self.archive_view = Some(ArchiveView { archive, inner: String::new(), members: Arc::new(Vec::new()), more: false });
+        self.preview.state = PreviewState::Empty;
+        self.preview.key = None;
+    }
+
+    /// Put the level `inner` of the archive on screen, the cursor on `want`.
+    fn archive_show(&mut self, inner: String, want: Option<String>) {
+        let Some(view) = &mut self.archive_view else { return };
+        view.inner = inner;
+        let base = view.inner.split('/').filter(|p| !p.is_empty()).fold(view.archive.clone(), |p, part| p.join(part));
+        let entries: Vec<Entry> = archive::level(&view.members, &view.inner)
+            .into_iter()
+            .map(|row| Entry {
+                path: base.join(&row.name),
+                ext: (!row.dir).then(|| util::stem_and_ext(&row.name).1.trim_start_matches('.').to_ascii_lowercase()).filter(|e| !e.is_empty()),
+                hidden: row.name.starts_with('.'),
+                kind: if row.dir { Kind::Dir } else { Kind::File },
+                len: row.size,
+                name: row.name,
+                ..Default::default()
+            })
+            .collect();
+        let path = archive_path(&view.archive, &view.inner);
+        let tab = &mut self.tabs[self.active];
+        let mut folder = Folder::from_entries(path, Arc::new(entries), tab.show_hidden);
+        if let Some(name) = want {
+            folder.select_name(&name);
+        }
+        tab.current = folder;
+        tab.finder = None;
+        self.preview.key = None;
+        self.request_preview(true);
+    }
+
+    fn archive_down(&mut self, name: &str) {
+        let Some(view) = &self.archive_view else { return };
+        let inner = match view.inner.is_empty() {
+            true => name.to_owned(),
+            false => format!("{}/{name}", view.inner),
+        };
+        self.archive_show(inner, None);
+    }
+
+    /// `l` or `<Enter>` on a file inside an archive: unpack that one member
+    /// into a folder of filer's own under the temporary folder, on a worker,
+    /// and open the copy with the system's default app. A copy, and said to
+    /// be one: changes to it do not go back into the archive.
+    fn open_member(&mut self, entry: &Entry) {
+        let Some(view) = &self.archive_view else { return };
+        let member = match view.inner.is_empty() {
+            true => entry.name.clone(),
+            false => format!("{}/{}", view.inner, entry.name),
+        };
+        let archive = view.archive.clone();
+        let dest = std::env::temp_dir()
+            .join(format!("filer-archive-{}", std::process::id()))
+            .join(util::file_name(&archive));
+        let out = dest.join(&entry.name);
+        let (tx, rx) = crossbeam_channel::bounded(1);
+        let ctx = self.ctx.clone();
+        std::thread::Builder::new()
+            .name("archive-member".into())
+            .spawn(move || {
+                let got = archive::extract_one(&archive, &member, &dest, &mut |_, _| true).map(|()| out);
+                let _ = tx.send(ArchiveMsg::Copied(got));
+                ctx.request_repaint();
+            })
+            .expect("spawn archive thread");
+        self.archive_rx = Some(rx);
+        self.toast(format!("Unpacking {}…", entry.name));
+    }
+
+    fn drain_archive(&mut self) {
+        let Some(rx) = &self.archive_rx else { return };
+        let Ok(msg) = rx.try_recv() else { return };
+        self.archive_rx = None;
+        match msg {
+            ArchiveMsg::Listed(path, listed) => {
+                // Left, or went into another, before the list came back.
+                if self.archive_view.as_ref().is_none_or(|v| v.archive != path) {
+                    return;
+                }
+                match listed {
+                    Ok((members, more)) => {
+                        if let Some(view) = &mut self.archive_view {
+                            view.members = Arc::new(members);
+                            view.more = more;
+                        }
+                        self.archive_show(String::new(), None);
+                        if more {
+                            self.toast(format!("Showing the first {ARCHIVE_LIMIT} entries of {}", util::file_name(&path)));
+                        }
+                    }
+                    Err(e) => {
+                        self.exit_search_view();
+                        self.error(format!("{}: {e}", util::file_name(&path)));
+                    }
+                }
+            }
+            ArchiveMsg::Copied(Ok(path)) => {
+                self.toasts.retain(|t| !t.text.starts_with("Unpacking "));
+                match exec::open_default(&path) {
+                    Ok(()) => self.toast(format!("Opened a copy of {} — changes stay out of the archive", util::file_name(&path))),
+                    Err(e) => self.error(format!("Open failed: {e}")),
+                }
+            }
+            ArchiveMsg::Copied(Err(e)) => {
+                self.toasts.retain(|t| !t.text.starts_with("Unpacking "));
+                self.error(format!("Unpack failed: {e}"));
+            }
+        }
+    }
+
+    /// True while `l` has an archive's members on screen.
+    pub fn in_archive_view(&self) -> bool {
+        self.archive_view.is_some()
+    }
+
     fn start_usage(&mut self) {
         if self.in_search_view() {
             self.error("Usage: leave this view first");
@@ -5674,6 +5872,77 @@ impl App {
         if let Some(tab) = self.tabs.get_mut(idx) {
             tab.page_rows = rows;
         }
+    }
+}
+
+/// The commands that write to the disk, refused inside an archive.
+fn changes_files(a: &Act) -> bool {
+    matches!(
+        a,
+        Act::Yank { .. }
+            | Act::Paste { .. }
+            | Act::Link { .. }
+            | Act::Hardlink
+            | Act::Remove { .. }
+            | Act::Create { .. }
+            | Act::Rename { .. }
+            | Act::BulkRename
+            | Act::Extract
+            | Act::Compress
+            | Act::SendPane { .. }
+    )
+}
+
+/// How many entries of an archive are listed before stopping; the rest are
+/// said to be there.
+const ARCHIVE_LIMIT: usize = 100_000;
+
+/// The archive `l` went into (Q75).
+pub(crate) struct ArchiveView {
+    archive: PathBuf,
+    /// The folder inside it on screen, `/`-separated; empty at the top.
+    inner: String,
+    members: Arc<Vec<archive::Listed>>,
+    /// The listing stopped at `ARCHIVE_LIMIT`.
+    more: bool,
+}
+
+impl ArchiveView {
+    /// What the preview says about a member, which is not a file on disk
+    /// until it is unpacked.
+    fn card(&self, entry: &Entry) -> crate::preview::Payload {
+        let mut rows = vec![("Name".to_owned(), entry.name.clone())];
+        match entry.is_dir_like() {
+            true => {
+                let inner = match self.inner.is_empty() {
+                    true => entry.name.clone(),
+                    false => format!("{}/{}", self.inner, entry.name),
+                };
+                rows.push(("Holds".into(), util::items(archive::level(&self.members, &inner).len())));
+                rows.push(("Open".into(), "l to go in, h to come back".into()));
+            }
+            false => {
+                rows.push(("Size".into(), util::human_size(entry.len)));
+                rows.push(("Open".into(), "l or Enter opens a copy".into()));
+            }
+        }
+        rows.push(("In".into(), self.archive.display().to_string()));
+        crate::preview::Payload::Meta { rows }
+    }
+}
+
+/// From a worker, for the archive view.
+pub(crate) enum ArchiveMsg {
+    Listed(PathBuf, std::io::Result<(Vec<archive::Listed>, bool)>),
+    Copied(std::io::Result<PathBuf>),
+}
+
+/// The archive view's synthetic path, as the header shows it. Not a real
+/// directory, so `in_search_view` holds and `<Esc>` leaves this view too.
+fn archive_path(archive: &Path, inner: &str) -> PathBuf {
+    match inner.is_empty() {
+        true => PathBuf::from(format!("archive: {}", archive.display())),
+        false => PathBuf::from(format!("archive: {} : {inner}", archive.display())),
     }
 }
 
@@ -7468,6 +7737,89 @@ mod spot_pages {
         assert_eq!(page_for(&rows, "Subject"), None);
         // No pull request, no repository to build a branch page from.
         assert_eq!(page_for(&rows[1..2], "From branch"), None);
+    }
+}
+
+/// Going into an archive with `l` (Q75): its members on a `Folder` whose path
+/// is not a real directory, the way the usage view is.
+#[cfg(test)]
+mod archive_view {
+    use super::*;
+
+    /// An archive of `docs/a/readme.md` and `top.txt`, and an app in its
+    /// folder with the cursor on it.
+    fn app_on_archive() -> (App, PathBuf) {
+        let dir = crate::util::test_dir("archive-view");
+        let src = dir.join("src");
+        std::fs::create_dir_all(src.join("docs").join("a")).unwrap();
+        std::fs::write(src.join("docs").join("a").join("readme.md"), "read me").unwrap();
+        std::fs::write(src.join("top.txt"), "top").unwrap();
+        let zip = dir.join("pack.zip");
+        archive::compress(&[src.join("docs"), src.join("top.txt")], &src, &zip, archive::Format::Zip, &mut |_, _| true).unwrap();
+        let mut a = App::new(Config::load(), dir.clone(), egui::Context::default());
+        a.tabs[a.active].cwd = dir.clone();
+        let entries = vec![Entry::from_path(zip.clone()).unwrap()];
+        a.tabs[a.active].current = Folder::from_entries(dir, Arc::new(entries), true);
+        (a, zip)
+    }
+
+    fn names(a: &App) -> Vec<String> {
+        a.tabs[a.active].current.view.iter().filter_map(|&i| a.tabs[a.active].current.entries.get(i as usize)).map(|e| e.name.clone()).collect()
+    }
+
+    /// The listing arrives from a worker.
+    fn wait(a: &mut App) {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while a.archive_rx.is_some() && Instant::now() < deadline {
+            a.drain_archive();
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    #[test]
+    fn l_goes_in_and_h_comes_back_out() {
+        let (mut a, zip) = app_on_archive();
+        a.act(Act::Enter);
+        assert!(a.in_archive_view() && a.in_search_view(), "a view, not a directory");
+        wait(&mut a);
+        assert_eq!(names(&a), ["docs", "top.txt"]);
+        a.act(Act::Enter);
+        a.act(Act::Enter);
+        assert_eq!(names(&a), ["readme.md"], "two levels down");
+        a.act(Act::Leave);
+        assert_eq!(names(&a), ["a"]);
+        assert_eq!(a.tabs[a.active].current.hovered().map(|e| e.name.as_str()), Some("a"), "the cursor on the folder come up out of");
+        a.act(Act::Leave);
+        a.act(Act::Leave);
+        assert!(!a.in_archive_view(), "`h` at the top leaves");
+        // Back on the real folder, listed afresh, with the cursor remembered
+        // on the archive for when the listing lands.
+        let dir = zip.parent().unwrap().to_path_buf();
+        assert_eq!(a.tabs[a.active].current.path, dir);
+        assert_eq!(a.tabs[a.active].memo.get(&dir).map(String::as_str), Some("pack.zip"));
+    }
+
+    /// Nothing that writes runs on rows that are not files yet.
+    #[test]
+    fn inside_an_archive_is_read_only() {
+        let (mut a, _) = app_on_archive();
+        a.act(Act::Enter);
+        wait(&mut a);
+        a.act(Act::Yank { cut: false });
+        assert!(a.yank.paths.is_empty(), "nothing yanked");
+        assert!(a.toasts.iter().any(|t| t.text.starts_with("Inside an archive: read only")), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// A jump elsewhere leaves the view rather than carry it along.
+    #[test]
+    fn a_jump_leaves_the_archive() {
+        let (mut a, zip) = app_on_archive();
+        a.act(Act::Enter);
+        wait(&mut a);
+        let elsewhere = zip.parent().unwrap().join("src");
+        a.cd(elsewhere, true);
+        assert!(!a.in_archive_view());
     }
 }
 
