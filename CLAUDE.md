@@ -141,7 +141,7 @@ rustup target add x86_64-pc-windows-msvc
 cargo check --release --target x86_64-pc-windows-msvc --all-targets
 ```
 
-**push の前は `scripts/verify.sh` を 1 回回せば足りる**（v0.78.34）。テスト、clippy（Linux と Windows の 2 ターゲット、`-D warnings`）、
+**push の前は `scripts/verify.sh` を 1 回回せば足りる**（v0.78.35）。テスト、clippy（Linux と Windows の 2 ターゲット、`-D warnings`）、
 ビルド、チェック表 3 つの `--check` を順に回し、1 つでも落ちたらその出力を出して止まる。最後の行が `ALL OK: test result: ok. …` なら push してよい。
 
 - ただし型検査なので実行時の問題は捕まえない。実際、`format!("{:?}", "status")` が
