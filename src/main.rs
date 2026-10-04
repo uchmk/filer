@@ -1053,6 +1053,16 @@ fn state_report(app: &App) -> String {
         lines.push(format!("pick: {line}"));
         lines.push(format!("picked: {}", ov.selected().map_or("", |i| ov.items[i].as_str())));
     }
+    // What a confirm box asks and what it offers, shaped like `pick:`: 26.1
+    // was ten lines read off a picture and compared with `filer env` by hand,
+    // and every trash, junction, overwrite and link question was a picture
+    // too (#230). Blank body lines are spacing and are left out.
+    if let app::Overlay::Confirm(c) = &app.overlay {
+        let body = c.body.iter().filter(|l| !l.trim().is_empty()).map(|l| l.as_str());
+        lines.push(format!("confirm: {}", std::iter::once(c.title.as_str()).chain(body).collect::<Vec<_>>().join(" | ")));
+        let keys: Vec<String> = c.options.iter().map(|(k, l)| format!("[{k}] {l}")).collect();
+        lines.push(format!("confirm keys: {}", keys.join(" | ")));
+    }
     // Two folders or two files, and the pair: `overlay: diff` is both.
     if let app::Overlay::Diff(ov) = &app.overlay {
         let what = if matches!(ov.outcome, Some(diff::Outcome::Tree { .. })) { "folders" } else { "files" };
@@ -1465,6 +1475,19 @@ mod tests {
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "pick: Neovim | VS Code (2h ago) | サクラエディタ"), "{report}");
         assert!(report.lines().any(|l| l == "picked: VS Code"), "{report}");
+
+        // A confirm box says what it asks and offers (#230), without its blank lines.
+        app.overlay = app::Overlay::Confirm(app::ConfirmOverlay {
+            title: "Report a bug".into(),
+            body: vec!["filer 0.0.0".into(), String::new(), "Nothing is sent.".into()],
+            options: vec![('o', "Open the form".into()), ('n', "Cancel".into())],
+            action: app::ConfirmAction::BugReport { url: String::new() },
+            dest: None,
+        });
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "overlay: confirm"), "{report}");
+        assert!(report.lines().any(|l| l == "confirm: Report a bug | filer 0.0.0 | Nothing is sent."), "{report}");
+        assert!(report.lines().any(|l| l == "confirm keys: [o] Open the form | [n] Cancel"), "{report}");
 
         // The scale the run is at, filer's own beside egui's (#227, #228).
         assert!(report.lines().any(|l| l == "scale: 100% (ppp 1)"), "{report}");
