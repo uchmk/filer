@@ -894,8 +894,10 @@ folder's, `l` goes down into a folder inside it, `h` comes back up, and `h` at t
 -- leaves, with the cursor back on the archive. `l` or `<Enter>` on a file unpacks a copy of that
 one file into a folder of filer's own under the temporary folder and opens it with the system's
 default app; changes to the copy do not go back into the archive. `<Enter>` on the archive itself
-still opens it with its opener, as before. Inside, the view is read only: `y`, `p`, `d`, `r`, `a`,
-`e` and the like say so instead of acting. The preview shows what a member is (its size, or how
+still opens it with its opener, as before. **`y` on members, then `p` in a folder, takes them out**
+(v0.77.0): each comes out under its own name, a folder with everything under it, through the same
+Overwrite / Skip / Rename question a copy asks, and the cursor lands on it. Otherwise the view is read
+only: `x`, `p`, `d`, `r`, `a`, `e` and the like say so instead of acting. The preview shows what a member is (its size, or how
 many entries a folder holds) rather than reading it. Up to 100,000 entries are listed.
 
 ## Scrolling the preview, and the minimap
@@ -1592,8 +1594,7 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   widgets, its async tasks), all tied to yazi's terminal UI, so a Lua interpreter alone would run
   almost none of them; and the usual way to embed one builds C Lua into every one of the six
   targets. Popular plugins are instead replaced one by one with built-in behaviour.
-- Inside an archive (`l`) a file can be opened as a copy but not yet copied out with `y` and `p`,
-  and a member is not previewed. woff / woff2 fonts aren't previewed. Video,
+- Inside an archive (`l`) a member is not previewed: the pane shows its size, not its contents. woff / woff2 fonts aren't previewed. Video,
   PDF and HEIC previews rely on Windows thumbnail handlers (see [Other previews](#other-previews)).
 - `[input]`, `[confirm]` and `[pick]` keymap layers are parsed for compatibility, but the prompts
   are native widgets (for IME and clipboard support), so only Enter / Esc / Tab are configurable.

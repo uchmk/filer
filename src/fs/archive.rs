@@ -120,6 +120,23 @@ pub fn extract_one(archive: &Path, member: &str, dest: &Path, on_entry: OnEntry<
     }
 }
 
+/// The archive a path runs through and the member it names: for
+/// `…/pack.zip/docs/a.txt`, `…/pack.zip` and `docs/a.txt`. The archive is
+/// the nearest ancestor that is a file with an archive's name. Touches the
+/// disk, so it is for a worker.
+pub fn split_member(path: &Path) -> Option<(PathBuf, String)> {
+    let mut at = path.parent();
+    while let Some(dir) = at {
+        if Format::from_path(dir).is_some() && dir.is_file() {
+            let rest = path.strip_prefix(dir).ok()?;
+            let member = rest.components().map(|c| c.as_os_str().to_string_lossy()).collect::<Vec<_>>().join("/");
+            return (!member.is_empty()).then(|| (dir.to_path_buf(), member));
+        }
+        at = dir.parent();
+    }
+    None
+}
+
 /// An entry's name as one form: no `./` in front, no `/` behind (a zip names
 /// its folders `a/`, a tar written by `tar -C . .` names them `./a`), and `/`
 /// between the parts whatever wrote it.
@@ -815,6 +832,22 @@ pub fn extract_dir(archive: &Path, into: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A path that runs through an archive splits at it; one that does not,
+    /// or that names the archive itself, does not.
+    #[test]
+    fn a_member_path_splits_at_its_archive() {
+        let dir = crate::util::test_dir("archive-split");
+        let zip = dir.join("pack.zip");
+        std::fs::write(&zip, b"not read").unwrap();
+        assert_eq!(split_member(&zip.join("docs").join("a.txt")), Some((zip.clone(), "docs/a.txt".into())));
+        assert_eq!(split_member(&zip.join("top.txt")), Some((zip.clone(), "top.txt".into())));
+        assert_eq!(split_member(&zip), None);
+        assert_eq!(split_member(&dir.join("plain").join("a.txt")), None);
+        // A folder named like an archive is not one.
+        std::fs::create_dir_all(dir.join("dir.zip")).unwrap();
+        assert_eq!(split_member(&dir.join("dir.zip").join("a.txt")), None);
+    }
 
     /// The levels of an archive, folders worked out from the paths when the
     /// archive names only its files, and nothing from a folder that only

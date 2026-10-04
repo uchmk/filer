@@ -27,6 +27,10 @@ pub enum OpKind {
     Restore,
     /// Unpack each source archive into a folder of its own under `dest_dir`.
     Extract,
+    /// Unpack members of an archive, named by paths that run through it
+    /// (`…\pack.zip\docs\a.txt`, as the archive view yanks them), into
+    /// `dest_dir` under their own names.
+    TakeOut,
     /// Pack the sources into the one archive `dest_file` names.
     Compress(archive::Format),
 }
@@ -42,6 +46,7 @@ impl OpKind {
             Self::Delete => "Delete",
             Self::Restore => "Restore",
             Self::Extract => "Extract",
+            Self::TakeOut => "Take out",
             Self::Compress(_) => "Compress",
         }
     }
@@ -268,7 +273,7 @@ impl Ctx<'_> {
     fn run(&mut self, req: &OpRequest) {
         let (files, bytes) = match req.kind {
             OpKind::Trash | OpKind::Delete | OpKind::Restore => (req.srcs.len() as u64, 0),
-            OpKind::Symlink { .. } | OpKind::Hardlink => (req.srcs.len() as u64, 0),
+            OpKind::Symlink { .. } | OpKind::Hardlink | OpKind::TakeOut => (req.srcs.len() as u64, 0),
             // Extract counts each archive as one unit: what is inside is only
             // known by reading it, and reading it twice to fill a progress bar
             // is not worth it. The name of each entry still goes past.
@@ -423,6 +428,7 @@ impl Ctx<'_> {
                 }
             }
             OpKind::Extract => self.extract(req),
+            OpKind::TakeOut => self.take_out(req),
             OpKind::Compress(format) => self.compress(req, format),
         }
         self.report("");
@@ -469,6 +475,48 @@ impl Ctx<'_> {
             self.bytes_done += std::fs::metadata(src).map(|m| m.len()).unwrap_or(0);
             self.report(&src.to_string_lossy());
         }
+    }
+
+    /// Each member into `dest_dir`, through the same question about a name
+    /// already there as a copy. It is unpacked into a hidden folder of the
+    /// job's own first and then moved to its name, so a Skip leaves nothing
+    /// behind and a Rename gets the name typed.
+    fn take_out(&mut self, req: &OpRequest) {
+        let staging = req.dest_dir.join(format!(".filer-take-out-{}", self.id));
+        for src in &req.srcs {
+            if self.cancelled {
+                break;
+            }
+            let Some((archive, member)) = archive::split_member(src) else {
+                self.errors.push(format!("{}: not inside an archive", short(src)));
+                continue;
+            };
+            let name = crate::util::file_name(src);
+            let r = archive::extract_one(&archive, &member, &staging, &mut |entry, _| {
+                self.report_entry(entry);
+                !self.cancelled
+            });
+            if let Err(e) = r {
+                self.errors.push(format!("{name}: {e}"));
+                continue;
+            }
+            let unpacked = staging.join(&name);
+            if let Some(dest) = self.resolve_dest(src, req.dest_dir.join(&name)) {
+                if exists(&dest) {
+                    let _ = match std::fs::symlink_metadata(&dest).is_ok_and(|m| m.is_dir()) {
+                        true => std::fs::remove_dir_all(&dest),
+                        false => std::fs::remove_file(&dest),
+                    };
+                }
+                match std::fs::rename(&unpacked, &dest) {
+                    Ok(()) => self.made.push(dest),
+                    Err(e) => self.errors.push(format!("{name}: {e}")),
+                }
+            }
+            self.files_done += 1;
+            self.report(&src.to_string_lossy());
+        }
+        let _ = std::fs::remove_dir_all(&staging);
     }
 
     /// One archive from everything selected, named relative to the directory

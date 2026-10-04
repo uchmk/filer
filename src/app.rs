@@ -1010,6 +1010,8 @@ fn made_says(kind: OpKind, made: &[PathBuf]) -> Option<String> {
     let folder = |p: &PathBuf| format!("{}{}", util::file_name(p), std::path::MAIN_SEPARATOR);
     match (kind, made) {
         (OpKind::Compress(_), [archive]) => Some(format!("Packed into {}", util::file_name(archive))),
+        (OpKind::TakeOut, [one]) => Some(format!("Took {} out of the archive", util::file_name(one))),
+        (OpKind::TakeOut, many) if !many.is_empty() => Some(format!("Took {} out of the archive", util::items(many.len()))),
         (OpKind::Extract, [one]) => Some(format!("Unpacked into {}", folder(one))),
         (OpKind::Extract, [first, rest @ ..]) => {
             Some(format!("Unpacked {} archives into {} and {} more", rest.len() + 1, folder(first), rest.len()))
@@ -1125,6 +1127,9 @@ impl Undos {
 pub struct Yank {
     pub paths: Vec<PathBuf>,
     pub cut: bool,
+    /// Yanked inside an archive (`l`): the paths name members, which `p`
+    /// takes out of the archive rather than copying.
+    pub from_archive: bool,
 }
 
 /// A `Tab` completion in the `cd` prompt that is waiting for its listing.
@@ -1368,7 +1373,7 @@ impl App {
             which: Vec::new(),
             overlay: Overlay::None,
             pending_bookmark: None,
-            yank: Yank { paths: Vec::new(), cut: false },
+            yank: Yank { paths: Vec::new(), cut: false, from_archive: false },
             preview: PreviewSlot::default(),
             max_preview: false,
             max_term: false,
@@ -2773,11 +2778,10 @@ impl App {
         }
         // Inside an archive the rows are not files yet, and the folder `p`
         // or `a` would write into is the one the archive sits in, not the one
-        // on screen. Taking a member out with `y` and `p` is the next piece
-        // (TODO.md); until then these say so rather than act on paths that
-        // are not there.
+        // on screen. These say so rather than act on paths that are not
+        // there; `y` is let through, and `p` outside takes the members out.
         if self.archive_view.is_some() && changes_files(&a) {
-            self.toast("Inside an archive: read only — l or Enter opens a copy, Esc leaves");
+            self.toast("Inside an archive: read only — y then p in a folder takes a copy out, Esc leaves");
             return;
         }
         match a {
@@ -3424,8 +3428,14 @@ impl App {
             return;
         }
         let n = paths.len();
-        self.yank = Yank { paths, cut };
-        self.toast(format!("Yanked {}{}", util::items(n), if cut { " (cut)" } else { "" }));
+        let from_archive = self.archive_view.is_some();
+        self.yank = Yank { paths, cut, from_archive };
+        let how = match (cut, from_archive) {
+            (true, _) => " (cut)",
+            (false, true) => " from the archive — p in a folder takes them out",
+            (false, false) => "",
+        };
+        self.toast(format!("Yanked {}{how}", util::items(n)));
     }
 
     fn paste(&mut self, force: bool, _follow: bool) {
@@ -3434,6 +3444,13 @@ impl App {
             return;
         }
         let dest = self.tabs[self.active].cwd.clone();
+        // Members of an archive are unpacked rather than copied; the register
+        // stays, as a copy's does.
+        if self.yank.from_archive {
+            let srcs = self.yank.paths.clone();
+            self.submit_op(OpKind::TakeOut, srcs, dest, force);
+            return;
+        }
         let kind = if self.yank.cut { OpKind::Move } else { OpKind::Copy };
         let mut srcs = self.yank.paths.clone();
         // A cut pasted where it already is would be renamed `same_1.txt`
@@ -3776,7 +3793,7 @@ impl App {
                 // something else has been yanked since.
                 if let Some(cut) = self.cut_jobs.remove(&id) {
                     if moved.is_empty() && self.yank.paths.is_empty() {
-                        self.yank = Yank { paths: cut, cut: true };
+                        self.yank = Yank { paths: cut, cut: true, from_archive: false };
                         if errors.is_empty() {
                             self.toast("Nothing moved — the cut is still there");
                         }
@@ -3845,7 +3862,7 @@ impl App {
                 // The archive just packed is what you want to look at next
                 // (Q25) -- but only where you still are: a compress that ends
                 // after you moved on does not pull you back.
-                if let (OpKind::Compress(_), Some(archive)) = (kind, made.first()) {
+                if let (OpKind::Compress(_) | OpKind::TakeOut, Some(archive)) = (kind, made.first()) {
                     if archive.parent() == Some(cwd.as_path()) {
                         self.land_on = Some(archive.clone());
                     }
@@ -5879,7 +5896,9 @@ impl App {
 fn changes_files(a: &Act) -> bool {
     matches!(
         a,
-        Act::Yank { .. }
+        // `y` is allowed: it is how a member is taken out (`p` in a folder).
+        // `x` would take it out of the archive too, which this never writes.
+        Act::Yank { cut: true }
             | Act::Paste { .. }
             | Act::Link { .. }
             | Act::Hardlink
@@ -7805,10 +7824,41 @@ mod archive_view {
         let (mut a, _) = app_on_archive();
         a.act(Act::Enter);
         wait(&mut a);
-        a.act(Act::Yank { cut: false });
-        assert!(a.yank.paths.is_empty(), "nothing yanked");
+        a.act(Act::Yank { cut: true });
+        assert!(a.yank.paths.is_empty(), "nothing cut: it would take it out of the archive");
         assert!(a.toasts.iter().any(|t| t.text.starts_with("Inside an archive: read only")), "{:?}",
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// `y` on a member, then `p` in a folder: the member comes out under its
+    /// own name, a folder with what is under it, and the register stays.
+    #[test]
+    fn y_then_p_takes_a_member_out() {
+        let (mut a, zip) = app_on_archive();
+        a.act(Act::Enter);
+        wait(&mut a);
+        // `docs` is the first row: take the folder out.
+        a.act(Act::Yank { cut: false });
+        assert!(a.yank.from_archive && a.yank.paths.len() == 1, "{:?}", a.yank.paths);
+        let out = zip.parent().unwrap().join("out");
+        std::fs::create_dir_all(&out).unwrap();
+        a.exit_search_view();
+        a.cd(out.clone(), true);
+        a.act(Act::Paste { force: false, follow: false });
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !out.join("docs").join("a").join("readme.md").exists() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(std::fs::read_to_string(out.join("docs").join("a").join("readme.md")).unwrap(), "read me");
+        assert!(!out.join("top.txt").exists(), "only what was yanked");
+        assert!(a.yank.from_archive, "the register stays, as a copy's does");
+        // Nothing of the job's own left behind.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while std::fs::read_dir(&out).unwrap().count() > 1 && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let names: Vec<String> = std::fs::read_dir(&out).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+        assert_eq!(names, ["docs"]);
     }
 
     /// A jump elsewhere leaves the view rather than carry it along.
@@ -8310,7 +8360,7 @@ mod send_pane_and_the_register {
 
         // Something else is held in the register.
         let held = PathBuf::from("held.txt");
-        a.yank = Yank { paths: vec![held.clone()], cut: false };
+        a.yank = Yank { paths: vec![held.clone()], cut: false, from_archive: false };
 
         a.act(Act::SendPane { cut: false });
 
@@ -9110,7 +9160,7 @@ mod said_out_loud {
         let dir = crate::util::test_dir("cut-here");
         let mut a = app_in(&dir);
         let src = dir.join("same.txt");
-        a.yank = Yank { paths: vec![src.clone()], cut: true };
+        a.yank = Yank { paths: vec![src.clone()], cut: true, from_archive: false };
         let before = a.tasks.len();
         a.paste(false, false);
         assert_eq!(a.tasks.len(), before, "nothing was queued");
@@ -9139,7 +9189,7 @@ mod said_out_loud {
             made: Vec::new(),
             trashed: Vec::new(),
         };
-        a.yank = Yank { paths: vec![src.clone()], cut: true };
+        a.yank = Yank { paths: vec![src.clone()], cut: true, from_archive: false };
         a.paste(false, false);
         assert!(a.yank.paths.is_empty(), "the register empties while the job runs");
         let id = a.tasks.last().unwrap().id;
@@ -9155,11 +9205,11 @@ mod said_out_loud {
         assert!(a.yank.paths.is_empty(), "a paste that moved something used the cut up");
 
         // Yanked something else meanwhile: that is what the register holds.
-        a.yank = Yank { paths: vec![src.clone()], cut: true };
+        a.yank = Yank { paths: vec![src.clone()], cut: true, from_archive: false };
         a.paste(false, false);
         let id = a.tasks.last().unwrap().id;
         let other = dir.join("other.txt");
-        a.yank = Yank { paths: vec![other.clone()], cut: false };
+        a.yank = Yank { paths: vec![other.clone()], cut: false, from_archive: false };
         a.on_op_event(finished(id, Vec::new()));
         assert_eq!(a.yank.paths, vec![other]);
     }
