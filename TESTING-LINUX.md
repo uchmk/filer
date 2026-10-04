@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 487 件（TESTING.md の全 657 件のうち、`cargo test` が見ている 170 件は外してある）。
+押すものは 488 件（TESTING.md の全 658 件のうち、`cargo test` が見ている 170 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -177,6 +177,7 @@
 自動テスト済みなので下には出していない: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.10
 
 - [ ] **10.9** ファイルを `x` で切り取り、同名のファイルが既にあるディレクトリで `p` して、上書きに **Skip**（か **Cancel**）で答える → 何も動かず、切り取りが戻る（v0.75.15、Q72）。ヘッダに `1 cut` がまた出て、トーストが `Nothing moved — the cut is still there` と言う。別の場所で `p` すれば動く。以前はジョブを投入した時点でレジスタを空にしたので、ファイルは動かず、レジスタにも残らなかった。何か 1 つでも動いた貼り付けは、10.6 のとおりレジスタを空にする — *Cut a file, then `p` into a directory that already holds that name, and answer **Skip** (or **Cancel**) to the overwrite → Nothing moves, and the cut comes back (v0.75.15, Q72): `1 cut` is in the header again and a toast says `Nothing moved — the cut is still there`. `p` somewhere else then moves it. Before, the register was emptied when the job was *submitted*, so the file was neither moved nor still in the register. A paste that moved anything empties the register as 10.6 has it*
+- [ ] **10.11** ファイルで `x` を押し、**同じ**フォルダで `p`（v0.75.19、#238）→ 何も動かず、名前も変わらない。トーストが `Already here — the cut is still there` と言い、ヘッダに `1 cut` が残る。別のフォルダで `p` すれば動く。以前は黙って `same_1.txt` になった — *`x` on a file, then `p` in the **same** folder (v0.75.19, #238) → Nothing moves and nothing is renamed: a toast says `Already here — the cut is still there`, `1 cut` stays in the header, and `p` in another folder then moves it. Before, the file became `same_1.txt` without a word*
 
 ## 11. 一括リネーム — 全 12 件が自動
 
@@ -361,7 +362,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **23.2** そこへファイルをコピー、そこからコピー → どちらも動き、進捗が出る — *Copy a file to and from it → Works, with progress*
 - [ ] **23.3** 一覧の取得中にネットワークを抜く、または応答しないホストを指定する → **ウィンドウが固まらない。**エラーのトーストが出て、タブは元の場所に戻る — *Unplug the network mid-listing, or point at a dead host → **The window keeps responding.** An error toast, and the tab goes back where it was*
 - [ ] **23.4** 共有上のパスを Tab 補完する → プロンプトが固まらず、待っている間 `…` が出る — *Tab-complete a path on the share → The prompt stays responsive; a `…` shows while it waits*
-- [ ] **23.5** `g<Space>` で、途中のフォルダ名に `|` を含むパス（`C:\Temp\a|b\c\d`）を打って `<Enter>`（v0.57.3）→ エラーのトーストは **1 つ**で、パス全体を挙げる。v0.57.3 までは親の列がそれぞれ自分のトーストを足し、断片（`b: …`、`c: …`）だけを挙げていた — *`g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) → **One** error toast, naming a whole path. Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`)*
+- [ ] **23.5** `g<Space>` で、途中のフォルダ名に `|` を含むパス（`C:\Temp\a|b\c\d`）を打って `<Enter>`（v0.57.3）→ エラーのトーストは **1 つ**で、打ったパスをそのまま挙げる（親の `…\\c` ではなく `C:\\Temp\\a|b\\c\\d`。v0.75.19）。v0.57.3 までは親の列がそれぞれ自分のトーストを足し、断片（`b: …`、`c: …`）だけを挙げていた — *`g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) → **One** error toast, naming the path as typed (`C:\Temp\a|b\c\d`, not its parent `…\c`: v0.75.19). Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`)*
 
 ## 24. 扱いにくい名前
 

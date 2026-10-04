@@ -2602,9 +2602,10 @@ impl App {
                 self.arrive(idx, to, Some(pending));
                 self.kick_scans();
             }
-            CdFallout::Revert { to } => {
+            CdFallout::Revert { to, asked } => {
                 self.arrive(idx, to, None);
                 self.kick_scans();
+                let path = asked.as_deref().unwrap_or(path);
                 self.error(format!("{}: {error}", path.display()));
                 self.cd_refused = Some(path.to_path_buf());
             }
@@ -3378,7 +3379,17 @@ impl App {
         }
         let dest = self.tabs[self.active].cwd.clone();
         let kind = if self.yank.cut { OpKind::Move } else { OpKind::Copy };
-        let srcs = self.yank.paths.clone();
+        let mut srcs = self.yank.paths.clone();
+        // A cut pasted where it already is would be renamed `same_1.txt`
+        // without a word (#238); `<A-c>` and a drop refuse the same folder,
+        // and so does this. What is cut elsewhere still moves.
+        if self.yank.cut {
+            srcs.retain(|p| p.parent() != Some(dest.as_path()));
+            if srcs.is_empty() {
+                self.toast("Already here — the cut is still there");
+                return;
+            }
+        }
         let id = self.submit_op(kind, srcs, dest, force);
         if self.yank.cut {
             self.cut_jobs.insert(id, std::mem::take(&mut self.yank.paths));
@@ -8740,6 +8751,22 @@ mod said_out_loud {
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 
+    /// #238: a cut pasted into the folder it came from moves nothing and
+    /// keeps the register, rather than renaming the file `same_1.txt`.
+    #[test]
+    fn a_cut_pasted_where_it_is_stays_put() {
+        let dir = crate::util::test_dir("cut-here");
+        let mut a = app_in(&dir);
+        let src = dir.join("same.txt");
+        a.yank = Yank { paths: vec![src.clone()], cut: true };
+        let before = a.tasks.len();
+        a.paste(false, false);
+        assert_eq!(a.tasks.len(), before, "nothing was queued");
+        assert_eq!(a.yank.paths, vec![src]);
+        assert!(a.toasts.iter().any(|t| t.text == "Already here — the cut is still there"), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
     /// Q72: a cut pasted where every clash was declined moved nothing, so
     /// the register keeps it and says so; a paste that moved something
     /// leaves it empty, as before.
@@ -8747,7 +8774,8 @@ mod said_out_loud {
     fn a_paste_that_moved_nothing_keeps_the_cut() {
         let dir = crate::util::test_dir("cut-kept");
         let mut a = app_in(&dir);
-        let src = dir.join("a.txt");
+        // Cut from another folder: one cut where it already is never runs.
+        let src = dir.join("from").join("a.txt");
         let finished = |id, moved| ops::OpEvent::Finished {
             id,
             kind: OpKind::Move,

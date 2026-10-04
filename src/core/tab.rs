@@ -47,8 +47,10 @@ pub enum CdFallout {
     /// Show `to` instead; the name that failed is already in `memo`, so the
     /// cursor lands on it whenever the listing arrives.
     Reveal { to: PathBuf, pending: PendingCd },
-    /// Put the tab back where it started and report the error.
-    Revert { to: PathBuf },
+    /// Put the tab back where it started and report the error, naming
+    /// `asked` -- the path that was typed, when the failure was its parent
+    /// tried in its place (23.5: `C:\Temp\a|b\c\d` was reported as `…\c`).
+    Revert { to: PathBuf, asked: Option<PathBuf> },
 }
 
 pub struct Tab {
@@ -124,7 +126,8 @@ impl Tab {
         if p.pushed {
             self.back.pop();
         }
-        CdFallout::Revert { to: p.from }
+        let asked = p.reveal.map(|name| self.cwd.join(name));
+        CdFallout::Revert { to: p.from, asked }
     }
 
     pub fn name(&self) -> String {
@@ -330,7 +333,7 @@ mod tests {
     #[test]
     fn a_jump_that_never_listed_is_undone() {
         let mut t = jumped("/a", "//dead/share", false);
-        assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/a") });
+        assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/a"), asked: None });
         // The history entry the jump pushed goes with it.
         assert!(t.back.is_empty());
         assert!(t.pending_cd.is_none());
@@ -360,7 +363,7 @@ mod tests {
         let CdFallout::Reveal { to, pending } = fallout else { unreachable!() };
         t.cwd = to;
         t.pending_cd = Some(pending);
-        assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/a") });
+        assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/a"), asked: Some(PathBuf::from("/b/note.txt")) });
         assert!(t.back.is_empty());
     }
 
@@ -380,7 +383,7 @@ mod tests {
 
         t.cwd = to;
         t.pending_cd = Some(pending);
-        assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/home") });
+        assert_eq!(t.cd_failed(), CdFallout::Revert { to: PathBuf::from("/home"), asked: Some(PathBuf::from("/b/note.txt")) });
     }
 
     #[test]

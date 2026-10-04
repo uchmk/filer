@@ -378,6 +378,7 @@ beside a row is noticeable at all, which is not something a frame can be asked.
 | 10.8 | The status line, bottom right | Says the same thing in the same words as the header |
 | 10.9 | Cut a file, then `p` into a directory that already holds that name, and answer **Skip** (or **Cancel**) to the overwrite | Nothing moves, and the cut comes back (v0.75.15, Q72): `1 cut` is in the header again and a toast says `Nothing moved — the cut is still there`. `p` somewhere else then moves it. Before, the register was emptied when the job was *submitted*, so the file was neither moved nor still in the register. A paste that moved anything empties the register as 10.6 has it |
 | 10.10 | `c` `c` in an empty folder (v0.57.3) | A toast says `Nothing to copy`, and the clipboard keeps whatever it held — until v0.57.3 nothing was said, so the last path copied looked like this one |
+| 10.11 | `x` on a file, then `p` in the **same** folder (v0.75.19, #238) | Nothing moves and nothing is renamed: a toast says `Already here — the cut is still there`, `1 cut` stays in the header, and `p` in another folder then moves it. Before, the file became `same_1.txt` without a word |
 
 ## 11. Bulk rename (v0.4.0)
 
@@ -687,7 +688,7 @@ that is worth writing in the report. It is not a tick: each row is about the edi
 | 23.2 | Copy a file to and from it | Works, with progress |
 | 23.3 | Unplug the network mid-listing, or point at a dead host | **The window keeps responding.** An error toast, and the tab goes back where it was |
 | 23.4 | Tab-complete a path on the share | The prompt stays responsive; a `…` shows while it waits |
-| 23.5 | `g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) | **One** error toast, naming a whole path. Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`) |
+| 23.5 | `g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) | **One** error toast, naming the path as typed (`C:\Temp\a|b\c\d`, not its parent `…\c`: v0.75.19). Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`) |
 | 23.6 | `filer <a folder>\tpyo`, or `g<Space>` with a name that is not there (v0.57.4) | The folder above opens, as before, and a red toast says `No such file or folder: tpyo — showing <the folder>`. A name that *is* a file opens the folder with the file under the cursor and says nothing |
 
 ## 24. Awkward names
