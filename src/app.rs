@@ -4934,14 +4934,15 @@ impl App {
     ///
     /// With the pane closed, it is opened first (Q35). A shell that is still
     /// reading its profile can drop what is typed at it, so the line waits
-    /// until the shell has drawn something, or five seconds, whichever comes
-    /// first.
+    /// until the shell has written something and then gone quiet for 300 ms
+    /// (Q39), or five seconds, whichever comes first.
     fn term_send_paths(&mut self) {
         let paths = self.tabs[self.active].targets();
         if paths.is_empty() {
             return;
         }
-        if self.term.is_none() {
+        let opened = self.term.is_none();
+        if opened {
             self.terminal(Some(true));
         }
         let Some(term) = &self.term else { return };
@@ -4949,7 +4950,7 @@ impl App {
         let line: Vec<String> =
             paths.iter().map(|p| crate::terminal::quote(&p.to_string_lossy(), how)).collect();
         let bytes = format!(" {}", line.join(" ")).into_bytes();
-        match term.has_drawn() {
+        match !opened && term.has_drawn() {
             true => term.send(bytes),
             false => self.term_pending = Some((bytes, Instant::now())),
         }
@@ -5053,7 +5054,7 @@ impl App {
             self.toast("The shell exited");
             return;
         }
-        let ready = |at: &Instant| term.has_drawn() || at.elapsed() > Duration::from_secs(5);
+        let ready = |at: &Instant| term.quiet_for(Duration::from_millis(300)) || at.elapsed() > Duration::from_secs(5);
         if self.term_pending.as_ref().is_some_and(|(_, at)| ready(at)) {
             if let Some((bytes, _)) = self.term_pending.take() {
                 term.send(bytes);

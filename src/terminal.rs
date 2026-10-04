@@ -16,7 +16,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use alacritty_terminal::event::{Event as PtyEvent, EventListener, WindowSize};
 use alacritty_terminal::event_loop::{EventLoop, EventLoopSender, Msg};
@@ -99,6 +99,8 @@ struct Tapped {
     win32: Arc<AtomicBool>,
     /// The end of the last read, in case the request was cut in two.
     mode_tail: Vec<u8>,
+    /// When the shell last wrote anything; see [`Terminal::quiet_for`].
+    last_out: Arc<std::sync::Mutex<Option<Instant>>>,
 }
 
 /// Longest OSC 7 worth waiting for. A path cannot sensibly be longer, and a
@@ -114,6 +116,9 @@ impl io::Read for Tapped {
         }
         if let Some(on) = scan_win32_mode(&mut self.mode_tail, &buf[..n]) {
             self.win32.store(on, Ordering::Relaxed);
+        }
+        if n > 0 {
+            *self.last_out.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
         }
         Ok(n)
     }
@@ -589,6 +594,8 @@ pub struct Terminal {
     /// The shell's process, to ask whether it has started anything. `None`
     /// where the PTY did not say, which reads as "nothing running".
     shell_pid: Option<u32>,
+    /// When the shell last wrote, shared with the reader; see [`Terminal::quiet_for`].
+    last_out: Arc<std::sync::Mutex<Option<Instant>>>,
     /// The reader thread. It hands the PTY back when it ends, and dropping
     /// that is what ends the shell -- so [`Drop`] waits for it.
     io: Option<std::thread::JoinHandle<(EventLoop<Tapped, Proxy>, alacritty_terminal::event_loop::State)>>,
@@ -627,6 +634,7 @@ impl Terminal {
         let (cwd_tx, cwd_rx) = crossbeam_channel::unbounded();
         let log = open_pty_log();
         let win32 = Arc::new(AtomicBool::new(false));
+        let last_out = Arc::new(std::sync::Mutex::new(None));
         let pty = Tapped {
             inner: pty,
             cwd: cwd_tx,
@@ -634,6 +642,7 @@ impl Terminal {
             log: log.clone(),
             win32: win32.clone(),
             mode_tail: Vec::new(),
+            last_out: last_out.clone(),
         };
 
         let (tx, rx) = crossbeam_channel::unbounded();
@@ -662,6 +671,7 @@ impl Terminal {
             log,
             shell_pid,
             win32,
+            last_out,
             io,
         })
     }
@@ -856,6 +866,14 @@ impl Terminal {
     /// a banner or a prompt. ConPTY writes its own setup sequences the moment
     /// the pane opens, so "some bytes arrived" says nothing about whether the
     /// shell is ready to be typed at; a character on screen does.
+    /// Whether the shell has written something and then nothing more for
+    /// `quiet`: the prompt is up and it is waiting (Q39). The first output
+    /// alone is not that -- pwsh prints its banner, then spends seconds on
+    /// its profile, and a line typed in between can be dropped (#126).
+    pub fn quiet_for(&self, quiet: Duration) -> bool {
+        self.last_out.lock().unwrap_or_else(|e| e.into_inner()).is_some_and(|at| at.elapsed() >= quiet)
+    }
+
     pub fn has_drawn(&self) -> bool {
         self.with_grid(|t| snapshot(t).iter().flatten().any(|c| !matches!(c.c, ' ' | '\0')))
     }
