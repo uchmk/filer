@@ -579,6 +579,7 @@ skipped on Windows — this section is the only coverage of the `cmd` path.**
 | 17.12 | Rename `pdftoppm` away, then hover a PDF | An error naming the tool, not a hang |
 | 17.13 | Remove the `[[preview]]` rules, `<C-F5>`, hover a PDF | Back to the shell thumbnail, unchanged |
 | 17.14 | `filer env` with the rules in place | `pdftoppm` and `ffmpeg` listed under Tools, with `preview *.pdf` beside them |
+| 17.15 | A PDF with the `pdftoppm` rule, `--keys '<State:p1><Shot:p1><A-j><State:p2><Shot:p2>'` (v0.78.17) | `p1.txt` reads `picture: 1` and `p2.txt` `picture: 2`, and `p2.png` shows page 2, not page 1 again: `--keys` waits for the next page's picture before the next key. Before, the old page stayed up while the new one was drawn and counted as settled, so both shots were of page 1 (#166) |
 
 ## 18. Quick look, minimap's neighbours, and the rest of the panes
 

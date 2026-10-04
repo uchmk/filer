@@ -586,6 +586,11 @@ pub struct PreviewSlot {
     pub texture: Option<egui::TextureHandle>,
     pub request_id: u64,
     pub pending_since: Option<Instant>,
+    /// A request is out and its answer has not come back. Mostly that shows
+    /// as `Loading`, but a re-layout or the next page of an external preview
+    /// keeps the old one up meanwhile, and `settled()` has to see past it
+    /// (#166: `<A-j><Shot:p2>` pictured page 1 again).
+    pub in_flight: bool,
     pub cache: Lru<preview::Key, CachedPreview>,
     /// Size of the preview pane in pixels, used when decoding images.
     pub box_size: (u32, u32),
@@ -682,6 +687,7 @@ impl Default for PreviewSlot {
             texture: None,
             request_id: 0,
             pending_since: None,
+            in_flight: false,
             cache: Lru::new(24),
             box_size: (900, 900),
             max_offset: 0,
@@ -1902,6 +1908,7 @@ impl App {
         // window drawing 60 frames a second, minimised or not (#86).
         let pending = self.preview.pending_since.take();
         let Some(mut entry) = self.tabs[self.active].current.hovered().cloned() else {
+            self.preview.in_flight = false;
             self.preview.state = PreviewState::Empty;
             self.preview.key = None;
             self.preview.outline = None;
@@ -1941,6 +1948,7 @@ impl App {
                         self.archive_preview_rx = Some(rx);
                     }
                     self.preview.state = PreviewState::Ready(view.card(&entry));
+                    self.preview.in_flight = false;
                     self.preview.key = None;
                     self.preview.texture = None;
                     return;
@@ -1962,6 +1970,7 @@ impl App {
         }
 
         if entry.is_dir_like() {
+            self.preview.in_flight = false;
             let need = match &self.preview.state {
                 PreviewState::Dir(f) => f.path != entry.path,
                 _ => true,
@@ -2004,6 +2013,7 @@ impl App {
             return;
         }
         if let Some(hit) = self.preview.cache.get(&key).cloned() {
+            self.preview.in_flight = false;
             self.preview.key = Some(key);
             self.preview.texture = hit.texture;
             self.preview.state = PreviewState::Ready(hit.payload);
@@ -2048,6 +2058,7 @@ impl App {
             self.preview.texture = None;
             self.preview.state = PreviewState::Loading;
         }
+        self.preview.in_flight = true;
         self.preview.request_id = self.previewer.request(preview::Request {
             id: 0,
             key,
@@ -2064,6 +2075,7 @@ impl App {
         if self.preview.key.as_ref() != Some(&res.key) {
             return; // stale
         }
+        self.preview.in_flight = false;
         self.preview.texture = match &res.payload {
             Payload::Image { width, height, rgba, .. } => {
                 let img = egui::ColorImage::from_rgba_unmultiplied(
@@ -2140,6 +2152,7 @@ impl App {
         if self.usage.is_some() || matches!(tab.current.state, LoadState::Loading)
             || (job_going && !matches!(self.overlay, Overlay::Confirm(_)))
             || self.preview.pending_since.is_some()
+            || self.preview.in_flight
             || matches!(self.preview.state, PreviewState::Loading)
         {
             return false;
@@ -2648,6 +2661,7 @@ impl App {
             self.preview.key = None;
             self.preview.texture = None;
             self.preview.pending_since = None;
+            self.preview.in_flight = false;
         }
     }
 
@@ -5128,7 +5142,7 @@ impl App {
     }
 
     /// Whether a configured command draws this file.
-    fn is_external_preview(&self, path: &Path) -> bool {
+    pub fn is_external_preview(&self, path: &Path) -> bool {
         crate::config::PreviewRule::for_path(&self.cfg.preview, path).is_some()
     }
 
@@ -6783,6 +6797,41 @@ mod preview_delivery {
              got {:?}",
             std::mem::discriminant(&app.preview.state),
         );
+    }
+
+    /// #166: a request that keeps the old preview up meanwhile -- a resize,
+    /// or an external preview's next page -- is still waited for: `settled()`
+    /// says no until its answer is on screen, so `<A-j><Shot:p2>` cannot
+    /// picture the page before.
+    #[test]
+    fn a_relayout_is_waited_for() {
+        let dir = crate::util::test_dir("relayout-wait");
+        std::fs::write(dir.join("a.txt"), "one\ntwo\n").unwrap();
+        let ctx = egui::Context::default();
+        let mut a = App::new(Config::load(), dir.clone(), ctx.clone());
+        a.cfg.ui.preview_debounce_ms = 0;
+        a.tabs[a.active].cwd = dir.clone();
+        let entries = vec![crate::fs::Entry::from_path(dir.join("a.txt")).unwrap()];
+        a.tabs[a.active].current = Folder::from_entries(dir, Arc::new(entries), true);
+        let answer = |a: &mut App| {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while a.preview.in_flight && Instant::now() < deadline {
+                if let Ok(res) = a.previewer.rx.recv_timeout(Duration::from_millis(50)) {
+                    a.on_preview(res, &ctx);
+                }
+            }
+        };
+        a.request_preview(true);
+        assert!(a.preview.in_flight && !a.settled());
+        answer(&mut a);
+        assert!(matches!(a.preview.state, PreviewState::Ready(Payload::Text { .. })));
+        assert!(a.settled(), "the first answer is on screen");
+        a.preview.box_size.0 += 10;
+        a.request_preview(true);
+        assert!(matches!(a.preview.state, PreviewState::Ready(Payload::Text { .. })), "the old text stays up");
+        assert!(!a.settled(), "but the new one is still to come");
+        answer(&mut a);
+        assert!(a.settled());
     }
 
     /// The other half: a reply for a file the cursor has already left is still

@@ -1158,6 +1158,12 @@ fn state_report(app: &App) -> String {
     lines.push(format!("config: {}", if read.is_empty() { "none".into() } else { read.join(" | ") }));
     lines.push(format!("list top: {}", tab.current.offset));
     lines.push(format!("preview top: {} of {}", tab.preview_offset, app.preview.max_offset));
+    // Which picture an external preview is on -- the `{n}` its command was
+    // given, a page or a second (#166) -- while the file under the cursor
+    // has one.
+    if tab.current.hovered().is_some_and(|e| !e.is_dir_like() && app.is_external_preview(&e.path)) {
+        lines.push(format!("picture: {}", app.preview.n));
+    }
     // Against the file's own size, as the caption says it (an SVG is laid
     // out larger than it is).
     let ppp = app.ctx.pixels_per_point();
