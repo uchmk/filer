@@ -1436,7 +1436,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `conpty.dll` は `filer.exe` の隣の 1 つだけ。`PATH` には同じ PE machine の別の `conpty.dll` を置いた。ARM64 で `cargo test` 625 / 0。
 - [x] （v0.75.16、QA の子が TESTING.md を直した）TESTING.md 32.9a の対照の書き方が、サクラの既定では成り立たない（#198 の所見）。**同じ**ファイルを `-Y=` なしで開くと、
   サクラが覚えている行（`m_bRestoreCurPosition=1`）で開くので `1 行` にならない。「一度も開いていない写し」と書く。
-- [ ] 選択（`<S-Enter>` の「Open with」など）で、絞り込んで 1 つも残らないときの `<Enter>` が、何も言わずに閉じる（#198 の提案 1）。
+- [x] （v0.78.9。開いたまま `Nothing matches … — <Esc> closes` と言う）選択（`<S-Enter>` の「Open with」など）で、絞り込んで 1 つも残らないときの `<Enter>` が、何も言わずに閉じる（#198 の提案 1）。
   `No opener matches …` と言うか、開いたままにする。
 - [x] （v0.75.16、QA の子が TESTING.md を直した）TESTING.md 48.6 の手順に、`PATH` に置く囮の `conpty.dll` は確かめる `filer.exe` と同じ PE machine のものにする、と 1 文足す（#199 の提案 1）。
   WezTerm の `conpty.dll` は `8664` で、ARM64 のプロセスにはそもそも読み込めないので、行のとおりにすると何も確かめていない。

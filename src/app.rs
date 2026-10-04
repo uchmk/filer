@@ -5773,7 +5773,14 @@ impl App {
         let Overlay::Pick(p) = std::mem::replace(&mut self.overlay, Overlay::None) else {
             return;
         };
-        let Some(idx) = p.selected() else { return };
+        // Filtered down to nothing: stay open and say so, rather than close
+        // as if something had been chosen (#198).
+        let Some(idx) = p.selected() else {
+            let said = format!("Nothing matches `{}` — <Esc> closes", p.query);
+            self.overlay = Overlay::Pick(p);
+            self.toast(said);
+            return;
+        };
         match p.action {
             PickAction::OpenWith { paths, runs, line } => {
                 let Some((run, block, orphan)) = runs.get(idx).cloned() else { return };
@@ -7994,6 +8001,29 @@ mod archive_view {
         assert!(matches!(&a.preview.key, Some(k) if k.path == real) || a.preview.pending_since.is_some(), "the copy is what is previewed");
         a.act(Act::Escape(EscapeWhat::default()));
         assert!(!real.exists(), "the copy went with the view");
+    }
+
+    /// #198: `<Enter>` with nothing left after the filter keeps the picker
+    /// open and says why, instead of closing as if something were chosen.
+    #[test]
+    fn a_picker_filtered_to_nothing_stays_open() {
+        let (mut a, zip) = app_on_archive();
+        let mut pick = PickOverlay {
+            title: "Jump to".into(),
+            items: vec!["one".into()],
+            details: vec![String::new()],
+            query: "zzz".into(),
+            matches: Vec::new(),
+            cursor: 0,
+            action: PickAction::Jump { paths: vec![zip] },
+            focused: false,
+        };
+        pick.refilter();
+        a.overlay = Overlay::Pick(pick);
+        a.submit_pick();
+        assert!(matches!(a.overlay, Overlay::Pick(_)), "still open");
+        assert!(a.toasts.iter().any(|t| t.text == "Nothing matches `zzz` — <Esc> closes"), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 
     /// A jump elsewhere leaves the view rather than carry it along.
