@@ -89,6 +89,15 @@ pub fn alpha_cmp(a: &str, b: &str, case_sensitive: bool) -> Ordering {
     }
 }
 
+/// `1 item`, `0 items`, `2 items`: the count the header and the yank toast
+/// say most often, which read `1 items` and `1 item(s)` (#237).
+pub fn items(n: usize) -> String {
+    match n {
+        1 => "1 item".to_owned(),
+        n => format!("{n} items"),
+    }
+}
+
 pub fn human_size(bytes: u64) -> String {
     const UNITS: [&str; 7] = ["B", "K", "M", "G", "T", "P", "E"];
     if bytes < 1000 {

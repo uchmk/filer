@@ -3334,7 +3334,7 @@ impl App {
         }
         let n = paths.len();
         self.yank = Yank { paths, cut };
-        self.toast(format!("Yanked {n} item(s){}", if cut { " (cut)" } else { "" }));
+        self.toast(format!("Yanked {}{}", util::items(n), if cut { " (cut)" } else { "" }));
     }
 
     fn paste(&mut self, force: bool, _follow: bool) {

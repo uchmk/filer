@@ -79,7 +79,7 @@ fn waiting(tab: &crate::core::tab::Tab) -> bool {
 fn summary(total: usize, selected: usize, yank: Option<(usize, bool)>, hidden: bool, walking: bool, usage: Option<u64>) -> String {
     // While a usage walk runs the rows are the children measured so far, not
     // what the folder holds (#114), so the count says it is still growing.
-    let mut out = if walking { format!("{total} measured so far") } else { format!("{total} items") };
+    let mut out = if walking { format!("{total} measured so far") } else { crate::util::items(total) };
     // Once it is done, the total stays in the header: the toast that said it
     // is gone in six seconds, and with it the only sign this is the usage view
     // rather than the folder (#122).
@@ -1231,6 +1231,9 @@ mod summary_line {
     #[test]
     fn it_names_the_register_and_the_selection_apart() {
         assert_eq!(summary(19, 0, None, false, false, None), "19 items");
+        // #237: one is `1 item`, and none is still `0 items`.
+        assert_eq!(summary(1, 0, None, false, false, None), "1 item");
+        assert_eq!(summary(0, 0, None, false, false, None), "0 items");
         assert_eq!(summary(19, 1, None, false, false, None), "1 selected · 19 items");
         assert_eq!(summary(19, 0, Some((1, false)), false, false, None), "1 copied · 19 items");
         assert_eq!(summary(19, 0, Some((2, true)), false, false, None), "2 cut · 19 items");
