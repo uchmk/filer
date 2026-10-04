@@ -1298,6 +1298,7 @@ The walk and the ordering are unit-tested on a small tree. What needs a machine 
 | 44.17 | `gu`, then `m t` inside the view, then `m u` (v0.58.0) | `m t` swaps the numbers for dates with the bars left; `m u` brings the sizes back **without** walking again (no `Measuring…`). `<Esc>` still gives the tab its own mode back |
 | 44.18 | In an ordinary listing (no `gu`), `m u` (v0.59.2) | Folders are **blank**, as under `m s`; files show their own size. Until v0.59.2 every folder read `0 B` |
 | 44.19 | `gu` on a tree that takes seconds, then wait past the total's toast (v0.59.2) | The header reads `N items · <size> total` for as long as the view is up -- the one sign left that this is the usage view. And `filer --keys "gu<Wait:0>j"` on that tree moves the cursor only after the walk is done |
+| 44.20 | macOS / Linux: a 400 KB file in `one/`, hard-linked as `two/a` (`ln one/a two/a`), then `gu` on their parent (v0.75.21) | The total is 400 KB once (`391 K`), not twice: the second name is not counted, as `du` does. On Windows NTFS hard links are still counted per name (README) |
 
 ## 45. Comparing two folders (v0.43.0)
 

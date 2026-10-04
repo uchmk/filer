@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 488 件（TESTING.md の全 658 件のうち、`cargo test` が見ている 170 件は外してある）。
+押すものは 489 件（TESTING.md の全 659 件のうち、`cargo test` が見ている 170 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -665,6 +665,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **44.16** 数秒かかる大きさの木で `gu` して、見出しを見る（v0.57.3）→ 歩いている間は `N measured so far` で増えていき、合計のトーストが出たら `N items` になる — *`gu` on a tree big enough to take seconds, and watch the header (v0.57.3) → `N measured so far`, growing, while it walks; `N items` once the total's toast is up*
 - [ ] **44.17** `gu` のあと、ビューの中で `m t`、続けて `m u`（v0.58.0）→ `m t` で数字が日付に替わり棒だけが残る。`m u` で**歩き直さずに**サイズが戻る（`Measuring…` が出ない）。`<Esc>` でタブ自身の表示に戻るのは今までどおり — *`gu`, then `m t` inside the view, then `m u` (v0.58.0) → `m t` swaps the numbers for dates with the bars left; `m u` brings the sizes back **without** walking again (no `Measuring…`). `<Esc>` still gives the tab its own mode back*
 - [ ] **44.19** 数秒かかる木で `gu` し、合計のトーストが消えるまで待つ（v0.59.2）→ ビューを開いている間ずっと、見出しが `N items · <大きさ> total` と言う（ここが使用量ビューだと分かる唯一の印）。その木で `filer --keys "gu<Wait:0>j"` とすると、カーソルは歩きが終わってから動く — *`gu` on a tree that takes seconds, then wait past the total's toast (v0.59.2) → The header reads `N items · <size> total` for as long as the view is up -- the one sign left that this is the usage view. And `filer --keys "gu<Wait:0>j"` on that tree moves the cursor only after the walk is done*
+- [ ] **44.20** macOS / Linux: `one/` に 400 KB のファイルを置き、`two/a` としてハードリンクし（`ln one/a two/a`）、親で `gu`（v0.75.21）→ 合計は 400 KB が 1 回（`391 K`）で、2 回ではない。`du` と同じく 2 つ目の名前は数えない。Windows の NTFS のハードリンクは今も名前ごとに数える（README） — *macOS / Linux: a 400 KB file in `one/`, hard-linked as `two/a` (`ln one/a two/a`), then `gu` on their parent (v0.75.21) → The total is 400 KB once (`391 K`), not twice: the second name is not counted, as `du` does. On Windows NTFS hard links are still counted per name (README)*
 
 ## 45. 2 つのフォルダを比べる
 

@@ -838,8 +838,9 @@ them as `N measured so far` rather than `N items` (v0.57.3); the toast with the 
 
 Hidden files and anything `.gitignore` covers are **counted**: a folder does not stop taking up room
 because git was told to overlook it. Symlinks are not followed, so a link to a directory is one entry
-rather than a second copy of a tree. Hard links are counted once per name, so a tree that uses them
-reads high — telling them apart needs bookkeeping this does not do. Very large trees stop after
+rather than a second copy of a tree. A hard-linked file is counted once, under the first folder the
+walk meets, as `du` does (macOS and Linux, v0.75.21); on Windows it is still counted once per name, so a
+tree that uses NTFS hard links reads high. Very large trees stop after
 200,000 entries and say so, in which case the totals are floors rather than answers: a folder the
 walk did not finish reads `≥ 1.2 G`, and one it never reached reads `?` rather than `0 B` (v0.57.2).
 `,` re-sorts by the measured totals, and keeps the hidden rows the walk counted.
