@@ -1429,7 +1429,8 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   機械の倍率を変える危うさは `windows-role.md` に「変えない。`<C-=>` を使う」と書いた
 - [x] （v0.73.69。`scale: 150% (ppp 1.5)` と `window: 1360 x 860 px (907 x 573 pt @ 1.5)`。Xvfb で `<C-=>` 5 回のあと読んだ）`FILER_KEYS_DONE` に倍率の行を足す（#227 の提案 1、#228 の提案 1）: `scale: 150% (ppp 1.50)`、窓の大きさ（px と pt）も。今は `toasts:` の履歴か、
   次の run の `filer env` の `Last run` から逆算するしかない。#223 の提案 2（`preview caption:`）と同じ所
-- [ ] `util::test_dir` のフォルダが残り続ける（#227 の提案 2）。`cargo test` 1 回で 248 個、持ち主の `%LOCALAPPDATA%\Temp` に 1414 個。名前に pid が入るので
+- [x] （v0.73.70。名前を `filer-test-` で始め、プロセスごとの最初の呼び出しで、ほかのプロセスの 1 時間以上前のものを消す。`filer-preview-<pid>-<n>` は
+  動いている filer のものなので消さない。v0.73.69 までの名前（`filer-<ラベル>-…`）は形で見分けられないので、残った分は持ち主が一度だけ消す）`util::test_dir` のフォルダが残り続ける（#227 の提案 2）。`cargo test` 1 回で 248 個、持ち主の `%LOCALAPPDATA%\Temp` に 1414 個。名前に pid が入るので
   次の run は前のものを消さない。`test_dir` の初回に、pid が生きていない `filer-*-<pid>` を消す
 - [ ] 1 回の起動だけ倍率を決める `--scale <N>`（または `FILER_SCALE`）（#228 の提案 2）。実機の倍率を変えずに倍率に依る行を押せ、Xvfb で倍率 1 に固定の
   Linux レーンでも 3.2 / 4.9 を押せる。起動時に `set_zoom_factor` を 1 回

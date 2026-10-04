@@ -490,18 +490,59 @@ impl<K: Eq + Hash + Clone, V> Lru<K, V> {
 /// not collide either.
 ///
 /// `what` is only a label, to make the directory recognisable while debugging.
+///
+/// The directories are left behind for a failing test to be looked at, and
+/// the next run clears what earlier ones left (see [`stale_test_dir`]).
 #[cfg(test)]
 pub fn test_dir(what: &str) -> std::path::PathBuf {
+    static SWEEP: std::sync::Once = std::sync::Once::new();
+    SWEEP.call_once(sweep_test_dirs);
     let who = std::thread::current()
         .name()
         .unwrap_or("main")
         .replace("::", "-")
         .replace(|c: char| !c.is_ascii_alphanumeric() && c != '-', "_");
     let dir = std::env::temp_dir()
-        .join(format!("filer-{what}-{who}-{}", std::process::id()));
+        .join(format!("{TEST_DIR_PREFIX}{what}-{who}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("a temp directory for the test");
     dir
+}
+
+/// What every [`test_dir`] starts with. Its own prefix, because the program
+/// itself puts `filer-preview-<pid>-<n>` in the same folder, and a sweep
+/// matching `filer-…-<digits>` would take a running filer's files.
+#[cfg(test)]
+const TEST_DIR_PREFIX: &str = "filer-test-";
+
+/// Whether a directory in the temp folder is one an earlier `cargo test` left:
+/// a [`test_dir`] name, of another process, untouched for an hour. The age
+/// keeps a run going at the same time safe, since its directories are new.
+/// Each run left about 250 of these, and #227 found 1414 on the owner's
+/// machine: the pid in the name kept every run from clearing the last one's.
+#[cfg(test)]
+fn stale_test_dir(name: &str, own_pid: u32, age: std::time::Duration) -> bool {
+    let Some(rest) = name.strip_prefix(TEST_DIR_PREFIX) else { return false };
+    let Some((_, pid)) = rest.rsplit_once('-') else { return false };
+    match pid.parse::<u32>() {
+        Ok(pid) => pid != own_pid && age >= std::time::Duration::from_secs(3600),
+        Err(_) => false,
+    }
+}
+
+/// Clear what earlier runs left, once per process.
+#[cfg(test)]
+fn sweep_test_dirs() {
+    let Ok(entries) = std::fs::read_dir(std::env::temp_dir()) else { return };
+    let now = std::time::SystemTime::now();
+    for e in entries.flatten() {
+        let name = e.file_name();
+        let Some(name) = name.to_str() else { continue };
+        let age = e.metadata().and_then(|m| m.modified()).ok().and_then(|t| now.duration_since(t).ok());
+        if age.is_some_and(|age| stale_test_dir(name, std::process::id(), age)) {
+            let _ = std::fs::remove_dir_all(e.path());
+        }
+    }
 }
 
 #[cfg(test)]
@@ -544,6 +585,23 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(30));
         assert!(mine.join("theirs").exists());
         assert!(!mine.join("mine").exists());
+    }
+
+    /// #227: what an earlier run left goes, and nothing else does -- not a
+    /// run going on now, not the program's own `filer-preview-<pid>-<n>`, not
+    /// a folder of the same look under another name.
+    #[test]
+    fn only_an_old_test_dir_of_another_run_is_swept() {
+        let hour = std::time::Duration::from_secs(3600);
+        let old = hour * 2;
+        assert!(stale_test_dir("filer-test-twice-util-tests-x-4242", 1, old));
+        assert!(!stale_test_dir("filer-test-twice-util-tests-x-4242", 4242, old), "this run's own");
+        assert!(!stale_test_dir("filer-test-twice-util-tests-x-4242", 1, hour / 2), "a run going on now");
+        assert!(!stale_test_dir("filer-preview-4242-3", 1, old), "the program's preview files");
+        assert!(!stale_test_dir("filer-conpty-1.24.260710001", 1, old), "fetch-conpty's download");
+        assert!(!stale_test_dir("filer-test-no-config", 1, old), "no pid at the end");
+        assert!(!stale_test_dir("filer-twice-util-tests-x-4242", 1, old), "the name before the prefix");
+        assert!(test_dir("prefix").file_name().unwrap().to_str().unwrap().starts_with(TEST_DIR_PREFIX));
     }
 
     /// Called twice in one test it is the same directory, wiped -- so a test can
