@@ -1160,8 +1160,24 @@ fn wgpu_options(cfg: &mut Config) -> eframe::WgpuConfiguration {
     if std::env::var_os("WGPU_BACKEND").is_some_and(|v| !v.is_empty()) {
         return options;
     }
-    // A name it does not know was already warned about when the file was read.
-    let Ok(Some(name)) = cfg.ui.backend_name() else { return options };
+    let name = match cfg.ui.backend_name() {
+        Ok(Some(name)) => name,
+        // `auto`: GL first on Windows, where it is all that stops a driver
+        // thread spinning a core under Vulkan and DX12 on AMD (#232, #240);
+        // GL drew both test machines, the ARM64 one through a translation
+        // layer (#239). A machine without it gets wgpu's own pick, silently --
+        // nobody asked for GL there (the owner's word, 2026-10-04, over Q70).
+        Ok(None) => {
+            if let Some(gl) = auto_backends(cfg!(windows), || has_adapter(eframe::wgpu::Backends::GL)) {
+                if let WgpuSetup::CreateNew(setup) = &mut options.wgpu_setup {
+                    setup.instance_descriptor.backends = gl;
+                }
+            }
+            return options;
+        }
+        // A name it does not know was already warned about when the file was read.
+        Err(_) => return options,
+    };
     let backends = eframe::wgpu::Backends::from_comma_list(name);
     if !has_adapter(backends) {
         cfg.warnings.push(format!(
@@ -1173,6 +1189,13 @@ fn wgpu_options(cfg: &mut Config) -> eframe::WgpuConfiguration {
         setup.instance_descriptor.backends = backends;
     }
     options
+}
+
+/// What `auto` narrows the backends to: GL on Windows when this machine has
+/// it, else nothing, which leaves wgpu to choose. `gl_ok` is only asked on
+/// Windows, since the question costs an instance of its own.
+fn auto_backends(windows: bool, gl_ok: impl FnOnce() -> bool) -> Option<eframe::wgpu::Backends> {
+    (windows && gl_ok()).then_some(eframe::wgpu::Backends::GL)
 }
 
 /// Whether wgpu finds an adapter on `backends`. Asked of an instance of its
@@ -1599,6 +1622,12 @@ mod tests {
         assert_eq!(ui("metal").backend_name(), Ok(Some("metal")));
         let err = ui("directx").backend_name().unwrap_err();
         assert!(err.contains("\"directx\"") && err.contains("auto, vulkan, dx12, metal, gl"), "{err}");
+
+        // `auto` is GL on Windows when it is there, wgpu's pick otherwise, and
+        // does not even ask about GL elsewhere (2026-10-04, over Q70).
+        assert_eq!(auto_backends(true, || true), Some(eframe::wgpu::Backends::GL));
+        assert_eq!(auto_backends(true, || false), None, "no GL: wgpu's own pick, no warning");
+        assert_eq!(auto_backends(false, || panic!("asked about GL off Windows")), None);
 
         // A backend of another platform says so, rather than "no adapter".
         let other = if cfg!(target_os = "macos") { "dx12" } else { "metal" };

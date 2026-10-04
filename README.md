@@ -305,8 +305,10 @@ backend = "auto"           # auto | vulkan | dx12 | metal | gl; read at start
 # args = ["-NoLogo"]
 ```
 
-`backend` picks what draws the window (v0.74.0). Leave it at `auto` unless an idle filer keeps a core
-busy: on some AMD GPUs a driver thread does that under Vulkan and DX12, and `gl` stops it. The
+`backend` picks what draws the window (v0.74.0). `auto` is GL on Windows when the machine has it,
+and wgpu's own pick otherwise (v0.75.0): on some AMD GPUs a driver thread keeps an idle window's core
+busy under Vulkan and DX12, and GL stops it. A Windows machine without GL gets Vulkan or DX12 without
+a word; write `backend = "vulkan"` or `"dx12"` to choose one of them yourself. The
 `WGPU_BACKEND` environment variable still wins for one run. On Windows `gl` may come through a
 translation layer, so `filer env`'s `Adapter` can read `D3D12 (…) (Gl, Other)` and still be GL (the
 ARM64 laptop's does, #239). A backend this machine has no adapter

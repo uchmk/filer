@@ -1402,6 +1402,7 @@ cause. Every expectation is a number from `Get-Process`.
 | 47.5 | Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3) | No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110) |
 | 47.6 | `[ui] backend = "gl"` in `filer.toml`, no `WGPU_BACKEND`; start filer, then 47.1 (v0.74.0, Q70) | `filer env`'s `Adapter` line ends `(Gl, …)`, and 47.1 holds where it failed under Vulkan and DX12 (the x64 AMD machine) |
 | 47.7 | `[ui] backend = "directx"`, then `"metal"` on Windows (v0.74.0, Q70) | The window opens both times, drawn with the default (`Adapter` reads Vulkan or DX12). A config warning says `"directx" is not one of auto, vulkan, dx12, metal, gl`, then `"metal" is macOS only` (v0.74.8); `filer env`'s `Warnings` row says the same both times, and its `Backend` row reads `[ui] backend = "directx"` |
+| 47.8 | No `[ui] backend` and no `WGPU_BACKEND`, then `backend = "vulkan"` (Windows, v0.75.0) | `filer env`'s `Adapter` ends `(Gl, …)` the first time and `(Vulkan, …)` the second, no warning either time; on the x64 AMD machine 47.1 now holds with nothing set |
 
 ## 48. The release zips (v0.64.0)
 

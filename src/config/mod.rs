@@ -68,8 +68,8 @@ pub struct Ui {
     pub max_history: usize,
     pub window_width: f32,
     pub window_height: f32,
-    /// What draws the window: `auto` (wgpu's pick), `vulkan`, `dx12`,
-    /// `metal` or `gl`. `WGPU_BACKEND` overrides it for one run (Q70: an AMD
+    /// What draws the window: `auto` (GL on Windows when the machine has it,
+    /// else wgpu's pick), `vulkan`, `dx12`, `metal` or `gl`. `WGPU_BACKEND` overrides it for one run (Q70: an AMD
     /// driver thread keeps a core busy under Vulkan and DX12 while filer
     /// sits idle, and only GL stops it, #204, #207, #232).
     pub backend: String,

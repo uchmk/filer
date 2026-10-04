@@ -1437,7 +1437,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 - [x] #239 / #240: 47.6 と 47.7（`[ui] backend`、Q70）に印。26.12 も 2 台とも合格したが、v0.74.5 で自動テストに移ったので、チェック表の衝突を main の側で解いて印を落とした。
   x64 は `gl` で 47.1〜47.5 が 0.000 CPU 秒（既定のままでは 10.0）。ARM64 の `gl` は D3D12 の上の変換層で `D3D12 (…) (Gl, Other)` と出る
-- [ ] 持ち主の x64 機の `filer.toml` に `[ui] backend = "gl"` を書く（Q70 の回答どおり。何もしない窓が 1 コアを使う件がこれで止まる） 【人】
+- [x] （要らなくなった。v0.75.0 で Windows の既定が GL になった）持ち主の x64 機の `filer.toml` に `[ui] backend = "gl"` を書く
 - [x] （v0.74.8。名前の誤りと、macOS 以外の `metal`・Windows 以外の `dx12` は、設定を読むときに警告する。`filer env` に `Backend` の行。アダプタの有る無しは窓を開くときにしか分からないので、そちらは窓の警告のまま）`filer env` が `[ui] backend` の誤りを言わない（#239 の所見 1、#240 の所見 1。2 台とも）。`"directx"` でも `Warnings : none`。`backend_name()` の誤りは `main.rs` の
   `wgpu_options` でしか警告に入らない。設定を読むところで検査し、`filer env` に設定した値も `Adapter` の横に出す
 - [x] （v0.74.8）`"metal"` を macOS 以外で書いたときの警告を `"metal" is macOS only` にする（#239 の提案 3）。今の `this machine has no adapter for it` は「ドライバを入れろ」と読める

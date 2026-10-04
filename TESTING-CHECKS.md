@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 477 件（TESTING.md の全 647 件のうち、`cargo test` が見ている 170 件は外してある）。
+押すものは 478 件（TESTING.md の全 648 件のうち、`cargo test` が見ている 170 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -756,6 +756,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [x] **47.5** `f` のプロンプトを開いて 10 秒何も触らず、前後で CPU を読む（v0.59.3）→ プロンプトを開いていないとき（47.1）と同じく増えない。キャレットは点滅せず常に出ている。v0.59.3 までは点滅のために毎秒 2 回描いていて、10 秒で 0.14〜0.30 CPU 秒（#103、#110） — *Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3) → No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110)*
 - [x] **47.6** `filer.toml` に `[ui] backend = "gl"`、`WGPU_BACKEND` は無しで起動し、47.1 をする（v0.74.0、Q70）→ `filer env` の `Adapter` の行が `(Gl, …)` で終わり、Vulkan と DX12 では通らなかった 47.1 が通る（x64 の AMD の機械） — *`[ui] backend = "gl"` in `filer.toml`, no `WGPU_BACKEND`; start filer, then 47.1 (v0.74.0, Q70) → `filer env`'s `Adapter` line ends `(Gl, …)`, and 47.1 holds where it failed under Vulkan and DX12 (the x64 AMD machine)*
 - [ ] **47.7** `[ui] backend = "directx"`、次に Windows で `"metal"`（v0.74.0、Q70）→ どちらも窓は開き、既定で描く（`Adapter` は Vulkan か DX12）。設定の警告が `"directx" is not one of auto, vulkan, dx12, metal, gl`、次に `"metal" is macOS only`（v0.74.8）と言う。`filer env` の `Warnings` の行も 2 回とも同じことを言い、`Backend` の行は `[ui] backend = "directx"` — *`[ui] backend = "directx"`, then `"metal"` on Windows (v0.74.0, Q70) → The window opens both times, drawn with the default (`Adapter` reads Vulkan or DX12). A config warning says `"directx" is not one of auto, vulkan, dx12, metal, gl`, then `"metal" is macOS only` (v0.74.8); `filer env`'s `Warnings` row says the same both times, and its `Backend` row reads `[ui] backend = "directx"`*
+- [ ] **47.8** `[ui] backend` も `WGPU_BACKEND` も無しで起動し、次に `backend = "vulkan"`（Windows、v0.75.0）→ `filer env` の `Adapter` が 1 回目は `(Gl, …)`、2 回目は `(Vulkan, …)` で終わり、どちらも警告は出ない。x64 の AMD の機械では、何も書かずに 47.1 が通る — *No `[ui] backend` and no `WGPU_BACKEND`, then `backend = "vulkan"` (Windows, v0.75.0) → `filer env`'s `Adapter` ends `(Gl, …)` the first time and `(Vulkan, …)` the second, no warning either time; on the x64 AMD machine 47.1 now holds with nothing set*
 
 ## 48. The release zips (v0.64.0)
 

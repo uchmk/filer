@@ -44,9 +44,11 @@ window_width = 1360.0
 window_height = 860.0
 
 # What draws the window: auto, vulkan, dx12, metal or gl. Read at start only.
-# On some AMD GPUs an idle window keeps one core busy under Vulkan and DX12,
-# and only "gl" stops it. The WGPU_BACKEND variable wins over this for a run.
-# One this machine has no adapter for falls back to auto, with a warning.
+# "auto" is GL on Windows when the machine has it (on some AMD GPUs an idle
+# window keeps one core busy under Vulkan and DX12, and only GL stops it), and
+# wgpu's own pick otherwise. Write "vulkan" or "dx12" to go back to those.
+# The WGPU_BACKEND variable wins over this for a run. One this machine has no
+# adapter for falls back to auto, with a warning.
 backend = "auto"
 
 [term]
