@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 475 件（TESTING.md の全 644 件のうち、`cargo test` が見ている 169 件は外してある）。
+押すものは 476 件（TESTING.md の全 645 件のうち、`cargo test` が見ている 169 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -460,6 +460,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **26.9** ターミナルペインの中から `<F12>`（先に `<C-t>`）→ 何も起きない。`[term]` がシェルに渡しているためで、これが正しい — *`<F12>` from the terminal pane (`<C-t>` first) → Nothing: `[term]` passes it to the shell, which is correct*
 - [ ] **26.10** 26.8 と同じく関連付けを壊した状態で `<F12>`（v0.52.0）→ エラーのトーストが、報告のリンクが**クリップボードにある**とも言う。ブラウザに貼ると同じ、埋まった状態のフォームが開く。ブラウザが開けたときはクリップボードに触らない — *`<F12>` with the browser association broken, as in 26.8 (v0.52.0) → The error toast also says the report's link is **on the clipboard**; pasting it into a browser opens the same pre-filled form. When the browser *does* open, the clipboard is left alone*
 - [x] **26.11** `<F12>` のあと `c`。もう一度 `<F12>` のあと `<Esc>`（v0.73.58、Q62）→ `c` は同じリンクをクリップボードに置いてそう言い、`FILER_KEYS_DONE` に `report:` の行が出る。ブラウザは開かない。`<Esc>`（または `n`）はパネルを閉じ、何も開かず何も写さない — *`<F12>`, then `c`; again `<F12>`, then `<Esc>` (v0.73.58, Q62) → `c` puts the same link on the clipboard and says so, and `FILER_KEYS_DONE` has a `report:` line with it; no browser opens. `<Esc>` (or `n`) closes the panel and nothing opens or is copied*
+- [ ] **26.12** `<F12>` のあと、パネルに無いキー（`(`）、次に `n`（v0.73.78、Q71）→ `(` ではパネルが閉じない（後の `<State:>` で `overlay: confirm`）。何も開かず、何もコピーされない。`n` で閉じる。以前はほかのキーで黙って閉じ、次の `<Enter>` が一覧に届いた — *`<F12>`, then a key the panel does not offer (`(`), then `n` (v0.73.78, Q71) → `(` leaves the panel up (`overlay: confirm` in a `<State:>` after it) and nothing opens or is copied; `n` then closes it. Before, any other key closed it without a word, and the next `<Enter>` went to the list*
 
 ## 27. 届かなかったプレビュー — 全 5 件が自動
 

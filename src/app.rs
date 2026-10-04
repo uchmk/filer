@@ -5444,6 +5444,15 @@ impl App {
     }
 
     pub fn answer_confirm(&mut self, ch: char) {
+        // A key the box does not offer leaves it open (Q71): a stray `(`
+        // used to close the `<F12>` box in silence, and the `<Enter>` meant
+        // for it then went into a folder in the list. `n` always answers --
+        // every box reads it as no -- and `<Esc>` closes before this.
+        if let Overlay::Confirm(c) = &self.overlay {
+            if ch != 'n' && !c.options.iter().any(|(k, _)| *k == ch) {
+                return;
+            }
+        }
         let Overlay::Confirm(c) = std::mem::replace(&mut self.overlay, Overlay::None) else {
             return;
         };
@@ -6677,6 +6686,23 @@ mod create_and_link_undo {
 
         a.answer_confirm('n');
         assert!(a.overlay.is_none() && a.undos.undo.is_empty() && !offered.at.exists());
+    }
+
+    /// Q71: a key the box does not offer leaves it open, so a stray key no
+    /// longer closes it in silence and sends the next `<Enter>` to the list.
+    /// `n` still answers a box that has no `n` button (the overwrite one).
+    #[test]
+    fn a_key_the_box_does_not_offer_leaves_it_open() {
+        let dir = util::test_dir("confirm-stray");
+        let mut a = app(&dir);
+        a.bug_report();
+        for stray in ['(', 'x', 'j', 'Y'] {
+            a.answer_confirm(stray);
+            assert!(matches!(a.overlay, Overlay::Confirm(_)), "{stray:?} closed the box");
+        }
+        assert!(a.last_report.is_none(), "and did nothing else");
+        a.answer_confirm('n');
+        assert!(a.overlay.is_none(), "`n` closes it");
     }
 
     /// Q56: `c` copies the `mklink /J` line -- the one the refusal names --

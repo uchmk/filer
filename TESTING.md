@@ -767,6 +767,7 @@ tests cover the encoding and the shape of the URL, not what GitHub does with it.
 | 26.9 | `<F12>` from the terminal pane (`<C-t>` first) | Nothing: `[term]` passes it to the shell, which is correct |
 | 26.10 | `<F12>` with the browser association broken, as in 26.8 (v0.52.0) | The error toast also says the report's link is **on the clipboard**; pasting it into a browser opens the same pre-filled form. When the browser *does* open, the clipboard is left alone |
 | 26.11 | `<F12>`, then `c`; again `<F12>`, then `<Esc>` (v0.73.58, Q62) | `c` puts the same link on the clipboard and says so, and `FILER_KEYS_DONE` has a `report:` line with it; no browser opens. `<Esc>` (or `n`) closes the panel and nothing opens or is copied |
+| 26.12 | `<F12>`, then a key the panel does not offer (`(`), then `n` (v0.73.78, Q71) | `(` leaves the panel up (`overlay: confirm` in a `<State:>` after it) and nothing opens or is copied; `n` then closes it. Before, any other key closed it without a word, and the next `<Enter>` went to the list |
 
 ## 27. The preview that would not arrive (v0.12.0)
 
