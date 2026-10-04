@@ -1075,6 +1075,17 @@ fn state_report(app: &App) -> String {
         let keys: Vec<String> = (0..c.options.len()).map(|i| c.button_label(i)).collect();
         lines.push(format!("confirm keys: {}", keys.join(" | ")));
     }
+    // The outline entry under the cursor while the outline has the keys, and
+    // the source line `<Enter>` hands an editor: section 22 opens "the Nth
+    // entry", which could only be counted in `j` presses or read off a
+    // picture (#155, #198, #235).
+    if let Some(k) = app.preview.outline {
+        let entries = app.outline_entries();
+        if let Some(e) = entries.get(k) {
+            let line = app.outline_source_line(k).map_or(String::new(), |l| format!(" (line {l})"));
+            lines.push(format!("outline: {}/{} {}{line}", k + 1, entries.len(), e.label.trim()));
+        }
+    }
     // Two folders or two files, and the pair: `overlay: diff` is both.
     if let app::Overlay::Diff(ov) = &app.overlay {
         let what = if matches!(ov.outcome, Some(diff::Outcome::Tree { .. })) { "folders" } else { "files" };
@@ -1551,6 +1562,21 @@ mod tests {
         assert!(report.lines().any(|l| l == "overlay: confirm"), "{report}");
         assert!(report.lines().any(|l| l == "confirm: Report a bug | filer 0.0.0 | Nothing is sent."), "{report}");
         assert!(report.lines().any(|l| l == "confirm keys: [o] / <Enter> Open the form | [n] Cancel"), "{report}");
+
+        // The outline entry under the cursor while the outline has the keys,
+        // with the 1-based line `<Enter>` opens an editor at (#155, #235).
+        app.overlay = app::Overlay::None;
+        let toc = |label: &str, line| preview::TocEntry { level: 1, label: label.into(), line };
+        app.preview.state = app::PreviewState::Ready(preview::Payload::Text {
+            lines: Vec::new(),
+            map: Vec::new(),
+            extent: Default::default(),
+            outline: vec![toc("fn alpha", 3), toc("  fn beta", 41)],
+        });
+        assert!(!state_report(&app).contains("outline:"), "no line while the list has the keys");
+        app.preview.outline = Some(1);
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "outline: 2/2 fn beta (line 42)"), "{report}");
 
         // The scale the run is at, filer's own beside egui's (#227, #228).
         assert!(report.lines().any(|l| l == "scale: 100% (ppp 1)"), "{report}");

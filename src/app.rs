@@ -2116,7 +2116,7 @@ impl App {
     }
 
     /// The 1-based source line outline entry `k` points at, for an editor.
-    fn outline_source_line(&self, k: usize) -> Option<usize> {
+    pub(crate) fn outline_source_line(&self, k: usize) -> Option<usize> {
         let e = self.outline_entries().get(k)?;
         let line = match &self.preview.state {
             PreviewState::Ready(Payload::Markdown { doc, .. }) => doc.src_for_line(e.line),

@@ -1465,7 +1465,9 @@ scale (`<C-=>`) with the pixels per point egui drew at -- the display's scale ti
 `…\repo (2h ago)` in the jump list (v0.73.43) and `picked:` the row under its cursor. Since v0.73.72, while a
 confirm box is open, `confirm: <title> | <line> | …` gives its title and body (blank lines left out) and
 `confirm keys: [o] / <Enter> … | [c] … | [n] Cancel` its buttons in order, as they read on screen: the first
-names `<Enter>`, which picks it (v0.73.73, Q69). Since v0.73.4 `toasts:` lists every toast of the run, the
+names `<Enter>`, which picks it (v0.73.73, Q69). Since v0.74.1, while the preview's outline has the keys,
+`outline: 3/4 Third (line 11)` gives the entry under its cursor, of how many, and the line `<Enter>`
+opens an editor at. Since v0.73.4 `toasts:` lists every toast of the run, the
 faded ones too (the last 16, oldest first, `|` between them and ` / ` for a toast's own line breaks),
 so a check whose result is a toast need not catch it on screen.
 
