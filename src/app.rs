@@ -942,6 +942,12 @@ impl UndoStep {
     }
 }
 
+/// What a typed path that named nothing says when its parent is shown instead
+/// (#98): one sentence, whichever of the two listings arrived first (#242).
+fn nothing_there(name: &str, shown: &Path) -> String {
+    format!("No such file or folder: {name} — showing {}", shown.display())
+}
+
 /// What `u` calls the links it took back. A junction stays a junction in the
 /// toast: `y` said `Made a junction`, and `u` then `U` used to say `link`, the
 /// word for the symlink Windows had refused (#185).
@@ -1782,7 +1788,7 @@ impl App {
                 // A typed path that named a file lands here with the file under
                 // the cursor. One that named nothing used to land here too, in
                 // silence, and looked like the place that was asked for.
-                self.error(format!("No such file or folder: {name} — showing {}", path.display()));
+                self.error(nothing_there(&name, path));
             }
             let keep = self.tabs[self.active].current.hovered_name().map(str::to_owned);
             let filter = self.tabs[self.active].current.filter.clone();
@@ -2549,6 +2555,18 @@ impl App {
         });
 
         let listed = self.tabs[idx].current.state != LoadState::Loading;
+        // A listing already here answers a jump's question now: the scan for
+        // the parent column often lands before the jump's own fails, and the
+        // pending jump -- with the name it was to reveal -- used to be dropped
+        // unasked, so a typed path that named nothing landed in silence about
+        // one run in two (#242).
+        if listed {
+            if let Some(name) = pending.as_ref().and_then(|p| p.reveal.as_deref()) {
+                if !self.tabs[idx].current.entries.iter().any(|e| e.name == name) {
+                    self.error(nothing_there(name, &target));
+                }
+            }
+        }
         self.tabs[idx].pending_cd = pending.filter(|_| !listed);
 
         if idx == self.active {
@@ -8905,6 +8923,34 @@ mod said_out_loud {
         let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
         assert_eq!(said.len(), 1, "{said:?}");
         assert!(said[0].starts_with("No such file or folder: tpyo"), "{said:?}");
+    }
+
+    /// #242: the same, when the parent's listing has already arrived -- the
+    /// scan that fills the parent column often answers before the jump's own
+    /// fails. The name was then never checked, and the tab landed on the
+    /// parent in silence about one run in two.
+    #[test]
+    fn a_path_that_names_nothing_says_so_whichever_listing_lands_first() {
+        let dir = crate::util::test_dir("said-reveal-race");
+        std::fs::write(dir.join("here.txt"), "x").unwrap();
+        let listing = || vec![Entry::from_path(dir.join("here.txt")).unwrap()];
+
+        let mut a = app_in(&dir.join("elsewhere"));
+        a.cd_or_reveal(dir.join("tpyo"));
+        a.on_scan(ScanResult::Listed { id: 0, path: dir.clone(), entries: listing() });
+        a.on_scan(ScanResult::Failed { id: 0, path: dir.join("tpyo"), error: "not found".into() });
+        let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
+        assert_eq!(said.len(), 1, "{said:?}");
+        assert!(said[0].starts_with("No such file or folder: tpyo"), "{said:?}");
+        assert_eq!(a.tabs[a.active].cwd, dir, "on the parent");
+
+        // A file there is still revealed without a word, in this order too.
+        let mut a = app_in(&dir.join("elsewhere"));
+        a.cd_or_reveal(dir.join("here.txt"));
+        a.on_scan(ScanResult::Listed { id: 0, path: dir.clone(), entries: listing() });
+        a.on_scan(ScanResult::Failed { id: 0, path: dir.join("here.txt"), error: "not a dir".into() });
+        assert!(a.toasts.is_empty(), "{:?}", a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+        assert_eq!(a.tabs[a.active].current.hovered_name(), Some("here.txt"));
     }
 
     /// #105: `<Esc>` while a jump is still waiting takes the tab
