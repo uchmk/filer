@@ -270,6 +270,16 @@ struct Ctx<'a> {
 }
 
 impl Ctx<'_> {
+    /// The paths that are there; each one that is not is an error naming it.
+    /// `symlink_metadata`, so a link whose target has gone is still there.
+    fn present(&mut self, paths: &[PathBuf]) -> Vec<PathBuf> {
+        let (here, gone): (Vec<PathBuf>, Vec<PathBuf>) = paths.iter().cloned().partition(|p| std::fs::symlink_metadata(p).is_ok());
+        for p in gone {
+            self.errors.push(format!("{}: not there any more", crate::util::file_name(&p)));
+        }
+        here
+    }
+
     fn run(&mut self, req: &OpRequest) {
         let (files, bytes) = match req.kind {
             OpKind::Trash | OpKind::Delete | OpKind::Restore => (req.srcs.len() as u64, 0),
@@ -297,41 +307,48 @@ impl Ctx<'_> {
             // still there is tried on its own, and now the error can say which
             // file it is about. Costly, but only on the path that has already
             // failed.
-            OpKind::Trash => match trash::delete_all(&req.srcs) {
-                Ok(()) => {
-                    self.files_done = req.srcs.len() as u64;
-                    self.trashed = req.srcs.clone();
-                }
-                Err(_) => {
-                    for p in &req.srcs {
-                        // `symlink_metadata`, so a link whose target has gone
-                        // still counts as present -- it is, and it can be
-                        // trashed. One that is gone already went with the
-                        // batch call before it gave up.
-                        if std::fs::symlink_metadata(p).is_err() {
-                            self.files_done += 1;
-                            self.trashed.push(p.clone());
-                            continue;
-                        }
-                        self.report(&p.to_string_lossy());
-                        match trash::delete(p) {
-                            Ok(()) => {
+            //
+            // A path that is not there is not sent at all: the Windows trash
+            // takes one without a word, and the toast then said it was trashed
+            // (#251, members of an archive still selected outside it).
+            OpKind::Trash => match self.present(&req.srcs) {
+                here if here.is_empty() => {}
+                here => match trash::delete_all(&here) {
+                    Ok(()) => {
+                        self.files_done += here.len() as u64;
+                        self.trashed = here;
+                    }
+                    Err(_) => {
+                        for p in &here {
+                            // `symlink_metadata`, so a link whose target has gone
+                            // still counts as present -- it is, and it can be
+                            // trashed. One that is gone already went with the
+                            // batch call before it gave up.
+                            if std::fs::symlink_metadata(p).is_err() {
                                 self.files_done += 1;
                                 self.trashed.push(p.clone());
+                                continue;
                             }
-                            Err(e) => {
-                                // The trash says "Some operations were aborted"
-                                // and nothing about which or why; a file held
-                                // open elsewhere is by far the usual reason (#83).
-                                let why = match held_open(p) {
-                                    true => "it is open in another program".to_owned(),
-                                    false => trash_error(&e),
-                                };
-                                self.errors.push(format!("{}: {why}", crate::util::file_name(p)));
+                            self.report(&p.to_string_lossy());
+                            match trash::delete(p) {
+                                Ok(()) => {
+                                    self.files_done += 1;
+                                    self.trashed.push(p.clone());
+                                }
+                                Err(e) => {
+                                    // The trash says "Some operations were aborted"
+                                    // and nothing about which or why; a file held
+                                    // open elsewhere is by far the usual reason (#83).
+                                    let why = match held_open(p) {
+                                        true => "it is open in another program".to_owned(),
+                                        false => trash_error(&e),
+                                    };
+                                    self.errors.push(format!("{}: {why}", crate::util::file_name(p)));
+                                }
                             }
                         }
                     }
-                }
+                },
             },
             // Reading the trash walks all of it, so it is read once here and
             // then asked about each path in turn. Restoring one at a time keeps
