@@ -5062,8 +5062,9 @@ impl App {
     ///
     /// With the pane closed, it is opened first (Q35). A shell that is still
     /// reading its profile can drop what is typed at it, so the line waits
-    /// until the shell has written something and then gone quiet for 300 ms
-    /// (Q39), or five seconds, whichever comes first.
+    /// until the shell has marked its prompt (OSC 133), or written something
+    /// and then gone quiet for 800 ms (Q39, #250), or five seconds, whichever
+    /// comes first.
     fn term_send_paths(&mut self) {
         let paths = self.tabs[self.active].targets();
         if paths.is_empty() {
@@ -5182,7 +5183,14 @@ impl App {
             self.toast("The shell exited");
             return;
         }
-        let ready = |at: &Instant| term.quiet_for(Duration::from_millis(300)) || at.elapsed() > Duration::from_secs(5);
+        // A shell that marks its prompt (OSC 133) is ready when it says so.
+        // Otherwise, quiet for 800 ms after its first output: 300 was enough
+        // on ARM64 (#249), but the x64 machine's pwsh printed its banner and
+        // then said nothing for over 300 ms while its profile loaded, so the
+        // path went in before the prompt, 3 runs of 3 (#250).
+        let ready = |at: &Instant| {
+            term.prompt_seen() || term.quiet_for(Duration::from_millis(800)) || at.elapsed() > Duration::from_secs(5)
+        };
         if self.term_pending.as_ref().is_some_and(|(_, at)| ready(at)) {
             if let Some((bytes, _)) = self.term_pending.take() {
                 term.send(bytes);
