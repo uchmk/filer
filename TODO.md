@@ -1440,7 +1440,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.75.2。`arrive` で、もう一覧があるときはその場で名前を確かめる。テストは親の一覧が先に着く順で書き、直す前は落ちた。Xvfb で 5 回とも出た）**`g<Space>` で無い名前に飛んだときのエラーが、出たり出なかったりする**（#242 の所見 2）。`cd_inner` は親のペインのために親も読み、その答えが先に着くと
   `arrive` の `pending.filter(|_| !listed)` が `pending_cd` を落とし、`reveal` も一緒に消えて `app.rs` の `No such file or folder` が出ない。黙って親に着く。
   「一覧にその名前が無い」の判定を、着いたフォルダの一覧がそろった時に 1 回だけする形にする
-- [ ] Linux の `g<Space>` のプロンプトが `…/rn\` と `\` で終わる（開発のセッションが Xvfb で見つけた）。区切りは `MAIN_SEPARATOR` のはず
+- [x] （v0.75.3。`dir_prefill` が `MAIN_SEPARATOR` を付け、`/` や `C:\` の根には足さない。Xvfb で `input: …/rn/`）Linux の `g<Space>` のプロンプトが `…/rn\` と `\` で終わる（開発のセッションが Xvfb で見つけた）。区切りは `MAIN_SEPARATOR` のはず
 - [ ] #242 は「`g<Space>` のプロンプトが選択されずに開き、60 文字を消してから打った」と書いた（提案 3）。Q31（v0.6x）で全選択で開くようにしてあり、Linux では
   `g<Space>xyz` で `input: xyz` になる（置き換わる）。ARM64 で `g<Space><State:a>x<State:b>` を読み、`b.txt` の `input:` が `x` か確かめる 【実機】
 - [ ] コピーの進み具合と残り時間を、バイトだけでなくファイル数でも重み付けする（#241 の所見 1、提案 1）。小さいファイルが多いと `97% … 1s` と出て、まだ 10 秒以上かかった
