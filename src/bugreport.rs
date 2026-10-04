@@ -356,6 +356,45 @@ mod tests {
         assert!(!u.contains(' '), "{u}");
     }
 
+    /// The form itself, as GitHub reads it.
+    const FORM: &str = include_str!("../.github/ISSUE_TEMPLATE/bug_report.yml");
+
+    /// Row 26.2 of TESTING.md, in part: every heading on the form is in English and Japanese,
+    /// `What happened / 何が起きたか`, the form's own title included (Q63).
+    #[test]
+    fn every_heading_on_the_form_is_in_both_languages() {
+        let headings: Vec<&str> = FORM
+            .lines()
+            .filter_map(|l| l.trim_start().strip_prefix("label: ").or_else(|| l.strip_prefix("name: ")))
+            .collect();
+        assert!(headings.len() >= 8, "the form's title and its fields: {headings:?}");
+        for h in headings {
+            let (en, ja) = h.split_once(" / ").unwrap_or_else(|| panic!("{h:?} has no ` / `"));
+            assert!(en.is_ascii() && !en.trim().is_empty(), "English first: {h:?}");
+            assert!(!ja.is_ascii(), "Japanese second: {h:?}");
+        }
+    }
+
+    /// Row 26.2 of TESTING.md, in part: each field the link fills in is one the form has.
+    /// GitHub drops a parameter it does not know without a word, so a field
+    /// renamed in the form would simply come up empty.
+    #[test]
+    fn the_fields_the_link_fills_are_the_forms_own() {
+        let ids: Vec<&str> = FORM.lines().filter_map(|l| l.trim_start().strip_prefix("id: ")).collect();
+        let u = url(&[("keys", "j".into()), ("context", "Config: defaults only".into())]);
+        let (_, query) = u.split_once('?').unwrap();
+        for (name, _) in query.split('&').filter_map(|p| p.split_once('=')) {
+            match name {
+                "template" => assert_eq!(&u[..u.find('?').unwrap()], format!("{REPO}/issues/new")),
+                id => assert!(ids.contains(&id), "{id:?} is not a field of the form: {ids:?}"),
+            }
+        }
+        assert!(query.contains(&format!("template={TEMPLATE}&")), "{u}");
+        for id in ["version", "os", "keys", "context"] {
+            assert!(query.contains(&format!("&{id}=")), "{id} is filled: {u}");
+        }
+    }
+
     #[test]
     fn the_version_line_names_the_architecture() {
         let v = version_line();
