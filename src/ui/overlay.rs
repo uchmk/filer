@@ -868,7 +868,13 @@ pub fn confirm(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, q
     let body: Vec<_> =
         c.body.iter().map(|l| ui.painter().layout(l.clone(), f.clone(), fg, inner_w)).collect();
     let body_h: f32 = body.iter().map(|g| g.size().y.max(row_h)).sum();
-    let height = body_h + row_h * (3.0 + button_rows) + 48.0;
+    // Exactly what is drawn below: the frame's title and padding (12 + row_h
+    // above, 12 below, from `modal_frame`), the body, half a row, and the
+    // buttons -- each `row_h + 4` tall, a row `row_h + 8` below the last. It
+    // used to add a row and a half and 20 px more than that, which left the
+    // `<F12>` panel looking as if something were still to come (Q66, #226).
+    let buttons_h = button_rows * (row_h + 8.0) - 4.0;
+    let height = 24.0 + row_h + body_h + row_h * 0.5 + buttons_h;
     let rect = Rect::from_center_size(full.center(), Vec2::new(width, height));
     let inner = modal_frame(ui, rect, &app.cfg.theme, &c.title, f, row_h);
     let theme = &app.cfg.theme;
@@ -3149,6 +3155,41 @@ mod confirm_frame {
         let button = f.placed(" [y] Make the junction ").expect("the button is drawn");
         assert!(a.y < b.y && b.y < button.y, "sentence, path, then buttons, top to bottom: {a:?} {b:?} {button:?}");
         assert!(f.says(" [n] No "), "the buttons are still there: {:?}", f.texts);
+    }
+
+    /// Q66 (#226): the box ends just below its buttons, one or two rows of
+    /// them. It used to leave about a row and a half of empty space there.
+    #[test]
+    fn the_box_ends_below_its_last_row_of_buttons() {
+        for (width, rows) in [(1400.0, 1), (700.0, 2)] {
+            let mut s = Screen::open(crate::util::test_dir("confirm-fit")).sized(width, 700.0);
+            s.app.overlay = Overlay::Confirm(ConfirmOverlay {
+                title: "Report a bug".into(),
+                body: vec!["filer 0.0.0".into(), String::new(), "The form opens with these filled in.".into()],
+                options: vec![
+                    ('o', "Open the form in your browser".into()),
+                    ('c', "Copy the link".into()),
+                    ('n', "Cancel".into()),
+                ],
+                action: ConfirmAction::BugReport { url: String::new() },
+                dest: None,
+            });
+            let f = s.draw();
+            let buttons = f.filled(s.app.cfg.theme.status_bg);
+            let buttons: Vec<_> = buttons.iter().filter(|r| r.height() < 60.0 && r.width() < width * 0.6).collect();
+            assert_eq!(buttons.len(), 3, "{width}: the three buttons: {buttons:?}");
+            let mut tops: Vec<f32> = buttons.iter().map(|r| r.top()).collect();
+            tops.dedup_by(|a, b| (*a - *b).abs() < 1.0);
+            assert_eq!(tops.len(), rows, "{width}: rows of buttons: {buttons:?}");
+            let last = buttons.iter().map(|r| r.bottom()).fold(f32::MIN, f32::max);
+            let frame = f
+                .filled(s.app.cfg.theme.bg_alt)
+                .into_iter()
+                .find(|r| buttons.iter().all(|b| r.contains_rect(**b)))
+                .expect("the box is drawn around the buttons");
+            let below = frame.bottom() - last;
+            assert!((11.0..=13.0).contains(&below), "{width}: {below} px below the buttons, want the frame's 12");
+        }
     }
 }
 

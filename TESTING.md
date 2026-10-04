@@ -755,7 +755,7 @@ tests cover the encoding and the shape of the URL, not what GitHub does with it.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 26.1 | `<F12>`, then `<Enter>` (or `o`) | `<F12>` first shows **Report a bug**: the version, the OS lines, the last keys, the last error, the rendering, the scale and the config files by name (v0.73.58, Q62). Nothing opens until `<Enter>`; then the default browser opens GitHub's new-issue form, and a toast says so |
+| 26.1 | `<F12>`, then `<Enter>` (or `o`) | `<F12>` first shows **Report a bug**: the version, the OS lines, the last keys, the last error, the rendering, the scale and the config files by name (v0.73.58, Q62). The box ends just below its buttons, with no empty band under them (v0.73.64, Q66). Nothing opens until `<Enter>`; then the default browser opens GitHub's new-issue form, and a toast says so |
 | 26.2 | Look at the form | Every heading is in English and Japanese (`What happened / 何が起きたか`, Q63). **filer version**, **OS and architecture**, **Keys that reproduce it** (`Last keys, oldest first: …`) and **What filer knew** (the panel's lines) are filled in; the rest is empty. No path with the user's name in it appears anywhere (Q64) |
 | 26.3 | Compare the filled version against `filer --version` in a terminal | The same string, architecture included |
 | 26.4 | Compare the filled OS line against `winver` | Edition, feature update and build all match, UBR included (`Windows 11 Pro 25H2 (build 26200.9457)`) |
