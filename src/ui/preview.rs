@@ -187,13 +187,14 @@ pub fn draw(
                         Some(z) if (z - 1.0).abs() < 0.005 => format!("{caption}  ·  1:1"),
                         Some(z) => format!("{caption}  ·  {:.0}%", z * 100.0),
                     };
-                    painter.text(
-                        pos2(avail.center().x, avail.bottom() - st.row_h),
-                        Align2::CENTER_TOP,
-                        note,
-                        st.font.clone(),
-                        st.theme.fg_dim,
-                    );
+                    // On a plate, as a toast is (Q68): over a fine grid the
+                    // bare text sank into the picture (#228). Nearly opaque, so
+                    // the picture under it only just shows through.
+                    let g = painter.layout_no_wrap(note, st.font.clone(), st.theme.fg);
+                    let at = pos2(avail.center().x - g.size().x / 2.0, avail.bottom() - st.row_h);
+                    let plate = Rect::from_min_size(at, g.size()).expand2(egui::vec2(8.0, 2.0));
+                    painter.rect_filled(plate, egui::CornerRadius::same(4), st.theme.bg_alt.gamma_multiply(0.94));
+                    painter.galley(at, g, st.theme.fg);
                 }
                 0
             }

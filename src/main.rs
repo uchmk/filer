@@ -1032,6 +1032,12 @@ fn state_report(app: &App) -> String {
         format!("cwd: {}", tab.cwd.display()),
         format!("hovered: {}", tab.current.hovered().map_or(String::new(), |e| e.path.display().to_string())),
         format!("selected: {}", tab.selected.len()),
+        // The register, as the header says it (#237, #238): 10.x read it off
+        // the screen before.
+        match app.yank.paths.len() {
+            0 => "yank: empty".to_owned(),
+            n => format!("yank: {n} {}", if app.yank.cut { "cut" } else { "copied" }),
+        },
         format!("tab: {} of {}", app.active + 1, app.tabs.len()),
         format!("overlay: {overlay}"),
         // What stands in for the listing: the cwd alone cannot tell a usage
@@ -1548,6 +1554,7 @@ mod tests {
         assert!(report.starts_with(&format!("cwd: {}\n", app.tab().cwd.display())), "{report}");
         for line in [
             "selected: 0",
+            "yank: empty",
             "tab: 1 of 1",
             "overlay: none",
             "pane: closed",

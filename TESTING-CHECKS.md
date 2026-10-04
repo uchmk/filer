@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 480 件（TESTING.md の全 650 件のうち、`cargo test` が見ている 170 件は外してある）。
+押すものは 482 件（TESTING.md の全 652 件のうち、`cargo test` が見ている 170 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -130,6 +130,7 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **3.8** `<A-i>` / `<A-o>` → 段階的に拡大縮小。説明のパーセント表示も追従する — *`<A-i>` / `<A-o>` → In and out in steps. The caption's percentage follows*
 - [x] **3.9** 拡大してから `j` で次のファイルへ行き、戻る → また収まった状態になっている（拡大率はファイルごとのもの） — *Zoom in, then `j` to the next file and back → It is fitted again — a zoom belongs to the file it was set on*
 - [x] **3.10** `tiny.png`（48×48）をホバー → 元の大きさのまま表示される。**ペインを埋めるように引き伸ばされない** — *Hover `tiny.png` (48×48) → Shown at its own size, **not blown up** to fill the pane*
+- [ ] **3.11** `zoom-me.png` で `<A-1>` を押し、画像が注記の下まで来るようにする（v0.75.15、Q68）→ 注記が暗い角丸の下敷きに載り、ひと目で読める。格子はかすかに透けるだけ。以前は細かい格子に文字が埋もれ、画面写しを 2 倍にしないと読めなかった（#228） — *`<A-1>` on `zoom-me.png`, so the picture runs under the caption (v0.75.15, Q68) → The caption sits on a dark rounded plate and reads at a glance, the grid only faintly through it. Before, the bare text sank into a fine grid and needed a 2x zoom of the shot to read (#228)*
 
 ## 4. SVG と、その中の文字
 
@@ -198,7 +199,7 @@ cd $HOME\Desktop\filer-fixtures
 
 自動テスト済みなので下には出していない: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.10
 
-- [x] **10.9** ファイルを `x` で切り取り、同名のファイルが既にあるディレクトリで `p` して、上書きに**いいえ**と答える → **それでもヘッダから件数が消える。**`paste()` はジョブを**投入した時点で**切り取りレジスタを空にしていて、成功した時点ではないため。結果、ファイルは移動もされず、レジスタにも残らない — *Cut a file, then `p` into a directory that already holds that name, and answer **no** to the overwrite → The count still leaves the header — `paste()` empties a cut register when it *submits* the job, not when the job succeeds, so the files are neither moved nor still in the register*
+- [ ] **10.9** ファイルを `x` で切り取り、同名のファイルが既にあるディレクトリで `p` して、上書きに **Skip**（か **Cancel**）で答える → 何も動かず、切り取りが戻る（v0.75.15、Q72）。ヘッダに `1 cut` がまた出て、トーストが `Nothing moved — the cut is still there` と言う。別の場所で `p` すれば動く。以前はジョブを投入した時点でレジスタを空にしたので、ファイルは動かず、レジスタにも残らなかった。何か 1 つでも動いた貼り付けは、10.6 のとおりレジスタを空にする — *Cut a file, then `p` into a directory that already holds that name, and answer **Skip** (or **Cancel**) to the overwrite → Nothing moves, and the cut comes back (v0.75.15, Q72): `1 cut` is in the header again and a toast says `Nothing moved — the cut is still there`. `p` somewhere else then moves it. Before, the register was emptied when the job was *submitted*, so the file was neither moved nor still in the register. A paste that moved anything empties the register as 10.6 has it*
 
 ## 11. 一括リネーム — 全 12 件が自動
 
@@ -405,6 +406,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **24.4** 引用符を含む名前をコピーして、`<A-t>` でターミナルへ → シェルが 1 語として受け取る形に引用される — *Copy the name with a quote in it, `<A-t>` into the terminal → Quoted so the shell sees one word*
 - [x] **24.5** 日本語名のファイルで `d` してから `u` → 同じ名前で戻る — *`d` then `u` on the CJK-named file → Comes back under the same name*
 - [x] **24.6** 新しいフォルダで `scripts\make-fixtures.ps1` を走らせる（v0.59.1）→ 警告は出ない。ただし普通の（大文字小文字を区別しない）NTFS のフォルダでは `awkward names: 5 entries on disk, expected 6` が出て、`fsutil file setCaseSensitiveInfo` を挙げる（24.3 がそこで押せない理由） — *Run `scripts\make-fixtures.ps1` in a fresh folder (v0.59.1) → No warning, except on an ordinary (case-insensitive) NTFS folder: `awkward names: 5 entries on disk, expected 6`, naming `fsutil file setCaseSensitiveInfo` -- the reason 24.3 cannot be pressed there*
+- [ ] **24.7** 真ん中だけが違う長い名前が並ぶフォルダ（`filer-archive-x-15484.log`、`filer-test-yy-15484.log` …）を親の列で見る（v0.75.15、Q67）→ どの行も列の幅で縮められるが、隣り合う行が同じ見た目にならない。頭を長く残すか（`filer-a….log` と `filer-t….log`）、末尾を長く残す。もともと違って見える行は今までどおり。以前は列全体が `filer…84.log` になった（#227） — *A folder of long names that differ only in the middle (`filer-archive-x-15484.log`, `filer-test-yy-15484.log`, …), in the parent column (v0.75.15, Q67) → Each row is still cut to the column, but no two neighbouring rows read the same: one keeps more of its head (`filer-a….log` against `filer-t….log`) or of its tail. Rows that already read differently are cut as before. Before, the whole column read `filer…84.log` (#227)*
 
 ## 25. `filer env`
 

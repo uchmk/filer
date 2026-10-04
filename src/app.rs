@@ -1243,6 +1243,9 @@ pub struct App {
     op_undo: HashMap<u64, (UndoStep, Land)>,
     /// What each running `D` is deleting, for the toast its end replaces.
     deleting: HashMap<u64, Vec<PathBuf>>,
+    /// What each running cut paste emptied the register of, to put back when
+    /// nothing moved (Q72: a declined overwrite used to lose the cut).
+    cut_jobs: HashMap<u64, Vec<PathBuf>>,
 
     pub search: Option<crate::search::Handle>,
     /// The disk-usage walk, while one is running. Dropping it stops the walk, so
@@ -1380,6 +1383,7 @@ impl App {
             history: Vec::new(),
             undos: Undos::default(),
             op_undo: HashMap::new(),
+            cut_jobs: HashMap::new(),
             deleting: HashMap::new(),
             search: None,
             usage: None,
@@ -3375,9 +3379,9 @@ impl App {
         let dest = self.tabs[self.active].cwd.clone();
         let kind = if self.yank.cut { OpKind::Move } else { OpKind::Copy };
         let srcs = self.yank.paths.clone();
-        self.submit_op(kind, srcs, dest, force);
+        let id = self.submit_op(kind, srcs, dest, force);
         if self.yank.cut {
-            self.yank.paths.clear();
+            self.cut_jobs.insert(id, std::mem::take(&mut self.yank.paths));
             self.yank.cut = false;
         }
     }
@@ -3700,6 +3704,17 @@ impl App {
                 // A move that actually moved something is a step `u` can take
                 // back. A cancelled one is not: half a move is not a state
                 // worth offering to reverse in one keystroke.
+                // A cut whose paste moved nothing (every clash skipped, or the
+                // whole thing cancelled) is still a cut: give it back, unless
+                // something else has been yanked since.
+                if let Some(cut) = self.cut_jobs.remove(&id) {
+                    if moved.is_empty() && self.yank.paths.is_empty() {
+                        self.yank = Yank { paths: cut, cut: true };
+                        if errors.is_empty() {
+                            self.toast("Nothing moved — the cut is still there");
+                        }
+                    }
+                }
                 if kind == OpKind::Move && !cancelled && !moved.is_empty() {
                     self.undos.land(UndoStep::Move { pairs: moved }, Land::Fresh);
                 }
@@ -8722,6 +8737,50 @@ mod said_out_loud {
         });
         assert!(a.toasts.iter().any(|t| t.text == "Trashed a.txt — u to undo"), "{:?}",
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// Q72: a cut pasted where every clash was declined moved nothing, so
+    /// the register keeps it and says so; a paste that moved something
+    /// leaves it empty, as before.
+    #[test]
+    fn a_paste_that_moved_nothing_keeps_the_cut() {
+        let dir = crate::util::test_dir("cut-kept");
+        let mut a = app_in(&dir);
+        let src = dir.join("a.txt");
+        let finished = |id, moved| ops::OpEvent::Finished {
+            id,
+            kind: OpKind::Move,
+            errors: Vec::new(),
+            cancelled: false,
+            moved,
+            linked: Vec::new(),
+            junctions: Vec::new(),
+            made: Vec::new(),
+            trashed: Vec::new(),
+        };
+        a.yank = Yank { paths: vec![src.clone()], cut: true };
+        a.paste(false, false);
+        assert!(a.yank.paths.is_empty(), "the register empties while the job runs");
+        let id = a.tasks.last().unwrap().id;
+        a.on_op_event(finished(id, Vec::new()));
+        assert_eq!(a.yank.paths, vec![src.clone()]);
+        assert!(a.yank.cut);
+        assert!(a.toasts.iter().any(|t| t.text == "Nothing moved — the cut is still there"), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+
+        a.paste(false, false);
+        let id = a.tasks.last().unwrap().id;
+        a.on_op_event(finished(id, vec![(src.clone(), dir.join("b/a.txt"))]));
+        assert!(a.yank.paths.is_empty(), "a paste that moved something used the cut up");
+
+        // Yanked something else meanwhile: that is what the register holds.
+        a.yank = Yank { paths: vec![src.clone()], cut: true };
+        a.paste(false, false);
+        let id = a.tasks.last().unwrap().id;
+        let other = dir.join("other.txt");
+        a.yank = Yank { paths: vec![other.clone()], cut: false };
+        a.on_op_event(finished(id, Vec::new()));
+        assert_eq!(a.yank.paths, vec![other]);
     }
 
     /// #225: a rename says what it did and that `u` takes it back, as `d`

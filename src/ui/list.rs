@@ -217,7 +217,15 @@ pub fn draw(
         let width = |s: &str| painter.layout_no_wrap(s.to_owned(), st.font.clone(), base_color).size().x;
         let full = entry_name(&entry.name, &entry.kind);
         let (name, positions) = match elide_at(&full, avail, &width) {
-            Some(cut) => elided(&full, positions, cut),
+            Some(cut) => {
+                let near: Vec<&str> = [row.checked_sub(1), Some(row + 1)]
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|r| folder.at(r))
+                    .map(|e| e.name.as_str())
+                    .collect();
+                elided(&full, positions, apart(&full, cut, &near))
+            }
             None => (full, positions.to_vec()),
         };
         let job = name_job(&name, &positions, &st.font, base_color, &style, st.theme, avail);
@@ -295,13 +303,6 @@ fn entry_name(name: &str, kind: &crate::fs::Kind) -> String {
     }
 }
 
-/// Where to cut a name that is wider than `max_width` (Q34): keep its first
-/// `head` characters, then `…`, then everything from `tail` on -- the
-/// extension and the last third of what is kept of the stem, so that
-/// `report-2026-final.pdf` and `report-2026-final.docx` stay apart.
-///
-/// `None` when the name fits, and when it has no stem to speak of or the
-/// extension is most of it; those are left to the plain cut at the end.
 /// What an empty listing says. A host with no shares is a different answer
 /// from a folder with no files, and `(empty)` read as the enumeration still
 /// being out (#105).
@@ -309,6 +310,13 @@ fn empty_label(path: &std::path::Path) -> &'static str {
     if util::host_only_unc(path) { "(no shares)" } else { "(empty)" }
 }
 
+/// Where to cut a name that is wider than `max_width` (Q34): keep its first
+/// `head` characters, then `…`, then everything from `tail` on -- the
+/// extension and the last third of what is kept of the stem, so that
+/// `report-2026-final.pdf` and `report-2026-final.docx` stay apart.
+///
+/// `None` when the name fits, and when it has no stem to speak of or the
+/// extension is most of it; those are left to the plain cut at the end.
 fn elide_at(name: &str, max_width: f32, width: &dyn Fn(&str) -> f32) -> Option<(usize, usize)> {
     if width(name) <= max_width {
         return None;
@@ -340,6 +348,38 @@ fn elide_at(name: &str, max_width: f32, width: &dyn Fn(&str) -> f32) -> Option<(
         }
     }
     Some(cut(lo))
+}
+
+/// `cut` moved, within the same number of kept characters, so that `name`
+/// no longer reads the same as a neighbouring row's name (Q67, #227: a
+/// column of `filer…84` with the cursor on one of them). More of the head
+/// is kept up to the first character the two differ in; failing that, more
+/// of the tail. A neighbour that already reads differently, or one the
+/// budget cannot tell apart, leaves the cut as it was.
+fn apart(name: &str, (head, tail): (usize, usize), neighbours: &[&str]) -> (usize, usize) {
+    let chars: Vec<char> = name.chars().collect();
+    let n = chars.len();
+    let ext = n - crate::util::stem_and_ext(name).0.chars().count();
+    let keep = head + (n - ext - tail);
+    let (mut head, mut back) = (head, n - ext - tail);
+    for other in neighbours {
+        let o: Vec<char> = other.chars().collect();
+        let same = |head: usize, back: usize| {
+            let tail = n - ext - back;
+            o.len() >= head + (n - tail) && o[..head] == chars[..head] && o[o.len() - (n - tail)..] == chars[tail..]
+        };
+        if *other == name || !same(head, back) {
+            continue;
+        }
+        let front = chars.iter().zip(&o).take_while(|(a, b)| a == b).count();
+        let end = chars.iter().rev().zip(o.iter().rev()).take_while(|(a, b)| a == b).count();
+        if front < keep && front + 1 > head {
+            (head, back) = (front + 1, keep - front - 1);
+        } else if end >= ext && end - ext < keep && end - ext + 1 > back {
+            (head, back) = (keep - (end - ext + 1), end - ext + 1);
+        }
+    }
+    (head, n - ext - back)
 }
 
 /// `name` cut where `elide_at` said, with the search hits that survived the
@@ -557,7 +597,7 @@ mod icon_column {
 /// the cut goes; the renderer passes the font's own measure.
 #[cfg(test)]
 mod elision {
-    use super::{elide_at, elided};
+    use super::{apart, elide_at, elided};
 
     fn chars(s: &str) -> f32 {
         s.chars().count() as f32
@@ -587,6 +627,30 @@ mod elision {
         assert_eq!(elide_at("a.txt", 30.0, &chars), None, "it fits");
         assert_eq!(elide_at("x.averyveryverylongextension", 10.0, &chars), None, "the extension is most of it");
         assert_eq!(elide_at("ab.txt", 2.0, &chars), None, "no room even for one character and the extension");
+    }
+
+    /// Q67: rows that would read the same keep more of where they differ,
+    /// within the same width; rows that already differ are left alone.
+    #[test]
+    fn neighbours_that_would_read_the_same_are_told_apart() {
+        let show = |name: &str, near: &[&str]| {
+            let cut = elide_at(name, 12.0, &chars).unwrap();
+            elided(name, &[], apart(name, cut, near)).0
+        };
+        let a = "filer-archive-x-15484.log";
+        let b = "filer-test-yy-15484.log";
+        assert_eq!(shown(a, 12.0), "filer…84.log");
+        assert_eq!(shown(b, 12.0), "filer…84.log", "the case: the two read the same");
+        assert_eq!(show(a, &[b]), "filer-a….log");
+        assert_eq!(show(b, &[a]), "filer-t….log");
+        assert_eq!(show(a, &[b]).chars().count(), shown(a, 12.0).chars().count(), "no wider");
+        // They differ near the end: more of the tail instead.
+        let c = "build-output-run-1-x.log";
+        let d = "build-output-run-2-x.log";
+        assert_eq!(shown(c, 12.0), "build…-x.log");
+        assert_eq!(show(c, &[d]), "buil…1-x.log");
+        // Already apart: unchanged.
+        assert_eq!(show(a, &["zzzzzzzzzzzzzzzzzzzzzz.log"]), shown(a, 12.0));
     }
 
     /// The search highlight moves with the characters it marked, and a hit

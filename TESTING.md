@@ -206,6 +206,7 @@ everything about how the picture *looks* and how it answers the mouse.
 | 3.8 | `<A-i>` / `<A-o>` | In and out in steps. The caption's percentage follows |
 | 3.9 | Zoom in, then `j` to the next file and back | It is fitted again — a zoom belongs to the file it was set on |
 | 3.10 | Hover `tiny.png` (48×48) | Shown at its own size, **not blown up** to fill the pane |
+| 3.11 | `<A-1>` on `zoom-me.png`, so the picture runs under the caption (v0.75.15, Q68) | The caption sits on a dark rounded plate and reads at a glance, the grid only faintly through it. Before, the bare text sank into a fine grid and needed a 2x zoom of the shot to read (#228) |
 
 ## 4. SVG, and the text inside it (v0.33.6)
 
@@ -374,7 +375,7 @@ beside a row is noticeable at all, which is not something a frame can be asked.
 | 10.6 | `p` after a cut | The register empties; the count leaves the header |
 | 10.7 | `X` or `Y` | The count leaves the header |
 | 10.8 | The status line, bottom right | Says the same thing in the same words as the header |
-| 10.9 | Cut a file, then `p` into a directory that already holds that name, and answer **no** to the overwrite | The count still leaves the header — `paste()` empties a cut register when it *submits* the job, not when the job succeeds, so the files are neither moved nor still in the register |
+| 10.9 | Cut a file, then `p` into a directory that already holds that name, and answer **Skip** (or **Cancel**) to the overwrite | Nothing moves, and the cut comes back (v0.75.15, Q72): `1 cut` is in the header again and a toast says `Nothing moved — the cut is still there`. `p` somewhere else then moves it. Before, the register was emptied when the job was *submitted*, so the file was neither moved nor still in the register. A paste that moved anything empties the register as 10.6 has it |
 | 10.10 | `c` `c` in an empty folder (v0.57.3) | A toast says `Nothing to copy`, and the clipboard keeps whatever it held — until v0.57.3 nothing was said, so the last path copied looked like this one |
 
 ## 11. Bulk rename (v0.4.0)
@@ -702,6 +703,7 @@ has. 24.5 needs the recycle bin.
 | 24.4 | Copy the name with a quote in it, `<A-t>` into the terminal | Quoted so the shell sees one word |
 | 24.5 | `d` then `u` on the CJK-named file | Comes back under the same name |
 | 24.6 | Run `scripts\make-fixtures.ps1` in a fresh folder (v0.59.1) | No warning, except on an ordinary (case-insensitive) NTFS folder: `awkward names: 5 entries on disk, expected 6`, naming `fsutil file setCaseSensitiveInfo` -- the reason 24.3 cannot be pressed there |
+| 24.7 | A folder of long names that differ only in the middle (`filer-archive-x-15484.log`, `filer-test-yy-15484.log`, …), in the parent column (v0.75.15, Q67) | Each row is still cut to the column, but no two neighbouring rows read the same: one keeps more of its head (`filer-a….log` against `filer-t….log`) or of its tail. Rows that already read differently are cut as before. Before, the whole column read `filer…84.log` (#227) |
 
 ## 25. `filer env` (v0.28.0)
 
