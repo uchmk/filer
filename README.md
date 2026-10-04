@@ -215,6 +215,10 @@ its syntax — サクラ, EmEditor, Notepad++, VS Code and the vim family are kn
 
 ### keymap.toml
 
+A key written with Shift and a printable character alone (`<S-t>`) can never be pressed -- Shift
+with a printable key arrives as the character it types -- so it is warned about at start with what
+to write instead (`T`; v0.78.7). `<C-S-t>` and `<S-Enter>` are fine.
+
 Layering matches yazi: `prepend_keymap` → (`keymap` or the built-in defaults) → `append_keymap`,
 and the first exact match wins. That is what lets a prepended single-key `m` shadow the built-in
 `m`-prefixed chords.
