@@ -753,10 +753,21 @@ Run from a shell, not from inside the app.
 without a browser, a desktop session and the repository in front of you: the
 tests cover the encoding and the shape of the URL, not what GitHub does with it.
 
+26.12 is automated whole (`bug_report_f12` in `src/main.rs`, through `handle_input` and the
+`<State:>` lines). The same module holds filer's half of four more rows, which stay on the list
+because their other half is the browser, the clipboard or the shell: 26.1's panel (every line it
+carries, the `[o] / <Enter>` button under them, nothing opened, copied or toasted before an answer;
+the box's bottom edge is `ui::overlay`'s `the_box_ends_below_its_last_row_of_buttons`), 26.2's link
+(only the version, OS, keys and context fields, each a field of the form, config files named without
+the home directory; every heading on the form in both languages is `bugreport::tests`), 26.9's "not
+the report" while the pane has the keys, and 26.11's `<Esc>` / `n`. Left for a person: the browser
+opening and its toast, what GitHub shows (26.2, 26.7), `c` and the clipboard (26.10, 26.11), the
+shell receiving `<F12>` (26.9), and every comparison with Windows' own answers (26.3 to 26.6).
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 26.1 | `<F12>`, then `<Enter>` (or `o`) | `<F12>` first shows **Report a bug**: the version, the OS lines, the last keys, the last error, the rendering, the scale and the config files by name (v0.73.58, Q62). The box ends just below its buttons, with no empty band under them (v0.73.64, Q66), and the first button reads `[o] / <Enter> Open the form in your browser`: `<Enter>` picks it (v0.73.73, Q69). Nothing opens until `<Enter>`; then the default browser opens GitHub's new-issue form, and a toast says so |
-| 26.2 | Look at the form | Every heading is in English and Japanese (`What happened / 何が起きたか`, Q63). **filer version**, **OS and architecture**, **Keys that reproduce it** (`Last keys, oldest first: …`) and **What filer knew** (the panel's lines) are filled in; the rest is empty. No path with the user's name in it appears anywhere (Q64) |
+| 26.2 | Look at the form | Every heading is in English and Japanese (`What happened / 何が起きたか`, Q63). **filer version**, **OS and architecture**, **Keys that reproduce it** (`Last keys, oldest first: …`) and **What filer knew** (the panel's lines) are filled in; the rest is empty. No path with the user's name in it appears anywhere (Q64) -- also after an error that named one: open a folder under your home that is not there (`g<Space>` and a made-up name) first, and the form's `Last error` reads `~\…` (v0.74.6) |
 | 26.3 | Compare the filled version against `filer --version` in a terminal | The same string, architecture included |
 | 26.4 | Compare the filled OS line against `winver` | Edition, feature update and build all match, UBR included (`Windows 11 Pro 25H2 (build 26200.9457)`) |
 | 26.4b | Compare it against the form's own PowerShell snippet | The same facts. Nothing left worth pasting over the top |

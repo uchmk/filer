@@ -3334,7 +3334,7 @@ impl App {
         }
         let n = paths.len();
         self.yank = Yank { paths, cut };
-        self.toast(format!("Yanked {n} item(s){}", if cut { " (cut)" } else { "" }));
+        self.toast(format!("Yanked {}{}", util::items(n), if cut { " (cut)" } else { "" }));
     }
 
     fn paste(&mut self, force: bool, _follow: bool) {
@@ -6686,6 +6686,30 @@ mod create_and_link_undo {
 
         a.answer_confirm('n');
         assert!(a.overlay.is_none() && a.undos.undo.is_empty() && !offered.at.exists());
+    }
+
+    /// Q64, found by the QA agent's tests for section 26: an error naming a
+    /// path under the home folder no longer carries the user's name into the
+    /// report's link or its panel.
+    #[test]
+    fn the_report_names_no_home_folder_from_the_last_error() {
+        let Some(home) = dirs::home_dir().filter(|h| h.as_os_str().len() >= 4) else { return };
+        let dir = util::test_dir("report-home");
+        let mut a = app(&dir);
+        a.error(format!("{}: denied", home.join("secret").display()));
+        a.bug_report();
+        let Overlay::Confirm(c) = &a.overlay else { panic!("no panel") };
+        let ConfirmAction::BugReport { url } = &c.action else { panic!("not the report") };
+        let url = url.clone();
+        let shown = home.display().to_string();
+        assert!(!c.body.join("\n").contains(&shown), "{:?}", c.body);
+        assert!(c.body.iter().any(|l| l.starts_with("Last error: ~")), "{:?}", c.body);
+        let encoded = crate::bugreport::url(&[("x", shown.clone())]);
+        let needle = encoded.rsplit("x=").next().unwrap_or_default();
+        assert!(!url.contains(needle), "the link carries the home folder: {url}");
+        // And `c` copies it to this thread's fake clipboard, never the machine's.
+        a.answer_confirm('c');
+        assert_eq!(crate::exec::get_clipboard(), Ok(url));
     }
 
     /// Q71: a key the box does not offer leaves it open, so a stray key no

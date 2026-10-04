@@ -2,3 +2,6 @@
 
 # What `scripts/smoke-linux.sh` grabs off the Xvfb display.
 /shot.png
+
+# Worktrees a background agent works in (Agent isolation: "worktree").
+.claude/worktrees/

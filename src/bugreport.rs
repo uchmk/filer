@@ -39,7 +39,7 @@ pub fn url(extra: &[(&str, String)]) -> String {
 pub fn context(last_error: Option<&str>, loaded: &[std::path::PathBuf]) -> String {
     let mut lines = Vec::new();
     if let Some(e) = last_error {
-        lines.push(format!("Last error: {e}"));
+        lines.push(format!("Last error: {}", without_home(e, dirs::home_dir().as_deref())));
     }
     if let Some(info) = crate::runinfo::load() {
         if !info.adapter.is_empty() {
@@ -52,6 +52,34 @@ pub fn context(last_error: Option<&str>, loaded: &[std::path::PathBuf]) -> Strin
     let names: Vec<String> = loaded.iter().map(|p| short_name(p)).collect();
     lines.push(format!("Config: {}", if names.is_empty() { "defaults only".into() } else { names.join(", ") }));
     lines.join("\n")
+}
+
+/// `text` with the home folder written as `~`. An error often names a full
+/// path (`No such file or folder: … — showing C:\Users\<name>\…`), and the last
+/// one went into the report as it was, user name and all, which Q64 says a
+/// report never carries (found by the QA agent's tests for section 26).
+/// Windows paths are matched without regard to case, and in either slash.
+fn without_home(text: &str, home: Option<&std::path::Path>) -> String {
+    let Some(home) = home.map(|h| h.to_string_lossy().trim_end_matches(['/', '\\']).to_owned()) else {
+        return text.to_owned();
+    };
+    // A home of `/` or `C:` would turn every path into `~`; it says nothing.
+    if home.len() < 4 {
+        return text.to_owned();
+    }
+    let mut out = text.to_owned();
+    let forms = [home.clone(), home.replace('\\', "/")];
+    for form in forms.iter() {
+        loop {
+            let at = match cfg!(windows) {
+                true => out.to_ascii_lowercase().find(&form.to_ascii_lowercase()),
+                false => out.find(form.as_str()),
+            };
+            let Some(at) = at else { break };
+            out.replace_range(at..at + form.len(), "~");
+        }
+    }
+    out
 }
 
 /// `…\yazi\config\keymap.toml` as `yazi\config\keymap.toml` -- the folders
@@ -336,6 +364,15 @@ mod tests {
         assert!(c.starts_with("Last error: Copy: a.txt: denied\n"), "{c}");
         assert!(c.ends_with(&format!("Config: filer{sep}filer.toml")), "{c}");
         assert!(!c.contains("someone"), "no home directory: {c}");
+
+        // The QA agent's finding on section 26: an error that names a full
+        // path under the home folder carried the user's name into the report.
+        let home = p("/home/someone");
+        let said = without_home("No such file or folder: /home/someone/x/y — showing /home/someone/x", Some(&home));
+        assert_eq!(said, "No such file or folder: ~/x/y — showing ~/x");
+        assert_eq!(without_home("/srv/data: denied", Some(&home)), "/srv/data: denied", "other paths stay");
+        assert_eq!(without_home("C:/x", Some(&p("/"))), "C:/x", "a root home says nothing");
+        assert_eq!(without_home("anything", None), "anything");
     }
 
     #[test]
@@ -354,6 +391,45 @@ mod tests {
         assert!(u.contains("&os=OS%3A%20"), "{u}");
         // Nothing unescaped can have leaked in and split the parameters.
         assert!(!u.contains(' '), "{u}");
+    }
+
+    /// The form itself, as GitHub reads it.
+    const FORM: &str = include_str!("../.github/ISSUE_TEMPLATE/bug_report.yml");
+
+    /// Row 26.2 of TESTING.md, in part: every heading on the form is in English and Japanese,
+    /// `What happened / 何が起きたか`, the form's own title included (Q63).
+    #[test]
+    fn every_heading_on_the_form_is_in_both_languages() {
+        let headings: Vec<&str> = FORM
+            .lines()
+            .filter_map(|l| l.trim_start().strip_prefix("label: ").or_else(|| l.strip_prefix("name: ")))
+            .collect();
+        assert!(headings.len() >= 8, "the form's title and its fields: {headings:?}");
+        for h in headings {
+            let (en, ja) = h.split_once(" / ").unwrap_or_else(|| panic!("{h:?} has no ` / `"));
+            assert!(en.is_ascii() && !en.trim().is_empty(), "English first: {h:?}");
+            assert!(!ja.is_ascii(), "Japanese second: {h:?}");
+        }
+    }
+
+    /// Row 26.2 of TESTING.md, in part: each field the link fills in is one the form has.
+    /// GitHub drops a parameter it does not know without a word, so a field
+    /// renamed in the form would simply come up empty.
+    #[test]
+    fn the_fields_the_link_fills_are_the_forms_own() {
+        let ids: Vec<&str> = FORM.lines().filter_map(|l| l.trim_start().strip_prefix("id: ")).collect();
+        let u = url(&[("keys", "j".into()), ("context", "Config: defaults only".into())]);
+        let (_, query) = u.split_once('?').unwrap();
+        for (name, _) in query.split('&').filter_map(|p| p.split_once('=')) {
+            match name {
+                "template" => assert_eq!(&u[..u.find('?').unwrap()], format!("{REPO}/issues/new")),
+                id => assert!(ids.contains(&id), "{id:?} is not a field of the form: {ids:?}"),
+            }
+        }
+        assert!(query.contains(&format!("template={TEMPLATE}&")), "{u}");
+        for id in ["version", "os", "keys", "context"] {
+            assert!(query.contains(&format!("&{id}=")), "{id} is filled: {u}");
+        }
     }
 
     #[test]

@@ -1447,8 +1447,8 @@ scale: 100% (ppp 1)
 window: 1360 x 860 px (1360 x 860 pt @ 1)
 minimap setting: on
 split: no
-toast: Yanked 1 item(s)
-toasts: Copied: /tmp/work/a.txt | Yanked 1 item(s)
+toast: Yanked 1 item
+toasts: Copied: /tmp/work/a.txt | Yanked 1 item
 keys: done
 ```
 
