@@ -545,7 +545,8 @@ mod tests {
         let _ = std::thread::Builder::new().name("worker-x".into()).spawn(|| panic!("boom {}", 7)).unwrap().join();
         std::panic::set_hook(before);
         let report = caught.lock().unwrap().clone();
-        assert!(report.starts_with("keys: panicked\nthread: worker-x\nat: src/keyscript.rs:"), "{report}");
+        // `Location::file()` is `src\keyscript.rs` on Windows.
+        assert!(report.replace('\\', "/").starts_with("keys: panicked\nthread: worker-x\nat: src/keyscript.rs:"), "{report}");
         assert!(report.ends_with("why: boom 7\n"), "{report}");
     }
 

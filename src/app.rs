@@ -9432,7 +9432,7 @@ mod escape_and_max_preview {
         assert_eq!(run, Some(vec![Act::Copy(CopyWhat::All)]));
 
         let (text, keys) = crate::ui::overlay::help_text(&a);
-        assert_eq!(keys, km.mgr.len(), "one line per list key");
+        assert_eq!(keys, km.mgr.len() + km.pick.len() + km.input.len() + km.confirm.len(), "one line per key shown");
         assert!(text.lines().any(|l| l == "keys"), "the heading on its own line");
         let b = &km.mgr[0];
         let want = format!("{}\t{}\t{}", render_seq(&b.on), if b.desc.is_empty() { &b.raw } else { &b.desc }, b.raw);

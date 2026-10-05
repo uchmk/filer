@@ -643,6 +643,21 @@ fn help_lines(app: &App) -> Vec<HelpRow> {
         lines.push(HelpRow::heading("keys"));
     }
     lines.extend(app.cfg.keymap.mgr.iter().map(row));
+    // The small layers after the list: the picker's cursor keys were in no
+    // list at all, and `<F1>` pressed inside the picker is the picker's own
+    // filter (#268). After, so the pane's keys stay as near the top as they were.
+    for (title, bindings) in [
+        ("keys in the picker (O, <S-Enter>, the palette)", &app.cfg.keymap.pick),
+        ("keys in a prompt", &app.cfg.keymap.input),
+        ("keys in a question", &app.cfg.keymap.confirm),
+    ] {
+        if bindings.is_empty() {
+            continue;
+        }
+        lines.push(HelpRow::blank());
+        lines.push(HelpRow::heading(title));
+        lines.extend(bindings.iter().map(row));
+    }
     lines
 }
 
@@ -1870,20 +1885,9 @@ mod help_frame {
         s
     }
 
-    /// The `[mgr]` bindings start this far down the list; everything above them
-    /// is the config section the panel opens with.
-    fn head(s: &Screen) -> usize {
-        s.app.help_lines - s.app.cfg.keymap.mgr.len()
-    }
-
-    /// The text the panel draws in the middle column for line `line`, which has
-    /// to be one of the `[mgr]` bindings.
+    /// The text the panel draws in the middle column for line `line`.
     fn text_of(s: &Screen, line: usize) -> String {
-        let b = &s.app.cfg.keymap.mgr[line - head(s)];
-        match b.desc.is_empty() {
-            true => b.raw.clone(),
-            false => b.desc.clone(),
-        }
+        super::help_lines(&s.app)[line].text.clone()
     }
 
     /// The panel measures itself from the frame, and the defaults are long

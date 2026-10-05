@@ -9,6 +9,13 @@
 
 ## [未リリース]
 
+## [0.78.68] - 2026-10-05
+
+### 修正
+
+- `main` の Windows の `test` が赤だった `keyscript::tests::a_panic_is_reported_for_the_script_that_was_running` を直した。Windows の `Location::file()` は `src\keyscript.rs` なので、`\` を `/` にしてから比べる。
+- ヘルプ（`<F1>`）に、picker・プロンプト・質問の箱のキーの節（`keys in the picker (O, <S-Enter>, the palette)`、`keys in a prompt`、`keys in a question`）を足した（#268）。picker の `<C-n>` / `<C-p>` / `<C-j>` / `<C-k>` が、どの一覧にも出ていなかった。picker の中の `<F1>` は今も絞り込みの文字で、`<Esc>` のあと一覧で押す。TESTING.md 32.18 の文言を合わせた。
+
 ## [0.78.67] - 2026-10-05
 
 ### 追加
