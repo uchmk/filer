@@ -102,7 +102,7 @@
   ``Open failed: `type` was not found`` と出る（`dir` も同じ。`;type a.txt;nothing >t.txt` は動いたのに同じ文）。`src/exec.rs` の `stderr_text` が
   UTF-8 でない（CP932 の）標準エラーを捨て、`missing_program` が `BUILTIN` の 6 語に無い内部コマンドを「無い」と言う。v0.78.101 の外部プレビューと同じく
   OEM コードページで読み、推測は先頭の語が `PATH` に無く終了コードが 9009 のときに限る。`BUILTIN` に `type` `dir` `copy` `del` `move` `ren` `mkdir` なども足す
-- [ ] 外部プレビューのエラーが `cmd` の 1 行目で切れる（#274 の所見 2、提案 2）。`'pdftoppm' は、内部コマンドまたは外部コマンド、` で止まり、「認識されていません」が見えない
+- [x] （v0.78.118。`one_line` で 2 行を空白でつなぎ、17.12 を再テストに積んだ）外部プレビューのエラーが `cmd` の 1 行目で切れる（#274 の所見 2、提案 2）。`'pdftoppm' は、内部コマンドまたは外部コマンド、` で止まり、「認識されていません」が見えない
   （英語でも `…internal or external command,` で切れるはず）。2 行を空白でつないで 1 行にする（`stderr_text` と同じ）。直したら 17.12 を両レーンの再テストに積む
 - [ ] 壊れたジャンクションの spot で、プレビューが `access denied, os error 5`、`Resolves` が `not found, os error 2` と食い違う（#274 の所見 3）。
   壊れたリンクなら、プレビューも `Resolves` と同じ言い方にする
