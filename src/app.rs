@@ -454,6 +454,29 @@ pub struct Task {
     sampled_bytes: u64,
 }
 
+#[cfg(test)]
+impl Task {
+    /// A job as the tasks list holds it, for tests of what reads the list.
+    pub fn for_test(kind: OpKind, label: &str, state: TaskState, files: u64, files_done: u64) -> Self {
+        Self {
+            id: 1,
+            kind,
+            label: label.into(),
+            files,
+            bytes: 0,
+            files_done,
+            bytes_done: 0,
+            current: String::new(),
+            state,
+            errors: Vec::new(),
+            finished: None,
+            speed: 0.0,
+            sampled_at: Instant::now(),
+            sampled_bytes: 0,
+        }
+    }
+}
+
 impl Task {
     /// The row's first line. The label already starts with the verb, so it is
     /// not put in front a second time (`Trash  Trash 5 item(s)`).

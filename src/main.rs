@@ -1185,6 +1185,17 @@ fn state_report(app: &App) -> String {
     // (#165): every file read, or `none`.
     let read: Vec<String> = app.cfg.loaded.iter().map(|p| p.display().to_string()).collect();
     lines.push(format!("config: {}", if read.is_empty() { "none".into() } else { read.join(" | ") }));
+    // The file jobs not yet over, one line each, and how many: a run had to
+    // infer a copy was done from the wording of a toast (#241, #257).
+    let active: Vec<&app::Task> = app
+        .tasks
+        .iter()
+        .filter(|t| t.state.is_live())
+        .collect();
+    lines.push(format!("jobs: {} running", active.len()));
+    for t in active {
+        lines.push(format!("job: {} [{}] {}/{} files", t.label, t.state.label(), t.files_done, t.files));
+    }
     lines.push(format!("list top: {}", tab.current.offset));
     lines.push(format!("preview top: {} of {}", tab.preview_offset, app.preview.max_offset));
     // Which picture an external preview is on -- the `{n}` its command was
@@ -1612,6 +1623,22 @@ mod tests {
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
     }
 
+    /// #241, #257: a live file job is a line of the state, a finished one is
+    /// not counted.
+    #[test]
+    fn a_live_job_is_a_line_of_the_state() {
+        let dir = crate::util::test_dir("state-jobs");
+        let mut app = App::new(crate::config::Config::load(), dir, egui::Context::default());
+        let task = |state, files_done| app::Task::for_test(fs::ops::OpKind::Copy, "Copy 1 item(s) into x", state, 40, files_done);
+        app.tasks.push(task(app::TaskState::Running, 12));
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "jobs: 1 running"), "{report}");
+        assert!(report.lines().any(|l| l == "job: Copy 1 item(s) into x [running] 12/40 files"), "{report}");
+        app.tasks[0].state = app::TaskState::Done;
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "jobs: 0 running") && !report.contains("job:"), "{report}");
+    }
+
     /// `FILER_KEYS_DONE`: what a check reads after `--keys`, without pressing
     /// anything more to read it.
     #[test]
@@ -1631,6 +1658,7 @@ mod tests {
             "tab: 1 of 1",
             "overlay: none",
             "pane: closed",
+            "jobs: 0 running",
             "list top: 0",
             "preview top: 0 of 0",
             "zoom: fit",
@@ -1639,6 +1667,7 @@ mod tests {
         ] {
             assert!(report.lines().any(|l| l == line), "{line:?} in {report}");
         }
+        assert!(!report.contains("job:"), "only while a job is live");
         assert!(!report.contains("input:"), "only while a prompt is open");
         assert!(report.lines().any(|l| l == "view: list"), "{report}");
         assert!(!report.contains("compare:"), "only while a comparison is open");
