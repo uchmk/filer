@@ -15,6 +15,9 @@
 - [ ] （Sonnet の見張り）v0.78.31（`4a98776`）がトーストを `No such file or folder: <全体のパス> — showing <フォルダ>` に変えたが、TESTING.md 23.6 の期待
   （`No such file or folder: tpyo — showing <the folder>`）を直していない。23.6 は自動テスト済みの行なので再テストは要らないが、文言を新しいトーストに合わせ、
   `scripts/testcheck-ja.toml` の訳も合わせる（CLAUDE.md の「機能を足したら」。TODO の項目にも「TESTING.md の文言も合わせる」とあった）
+- [ ] （Sonnet の見張り）v0.78.32（`d97b31a`）が `w` でファイルの仕事を止めたときのトースト（`Copy stopped — what was already done stays`）を足したが、
+  TESTING.md に行が無く、再テストにも積んでいない。単体テストは `OpEvent::Finished` を手で作るだけで、本物の取り消しの経路は通らない。
+  6 節に「大きいコピーを `w` で止める → トースト」の行を足し、`testcheck-ja.toml` と両レーンの再テストに積む（CLAUDE.md の作業ルール）
 
 ## 急ぎ（データが消える）
 
@@ -1488,6 +1491,13 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.74.6）`--version`（`main.rs` の 208 行付近）が `bugreport::version_line()` を使わず自分で組んでいる（所見 2）。呼ぶ形にすれば 26.3 が作りで成り立ち、テストで押さえられる
 - [x] （v0.74.6。テストのときの `set_clipboard` はスレッドごとの偽のクリップボードに書く。`get_clipboard` がそれを読む）既存のテスト `app::f12_shows_the_report_before_opening_it` の `answer_confirm('c')` が本物のクリップボードを書き換える（所見 3）。持ち主の Windows 機で
   `cargo test` を回すたびにクリップボードが上書きされる。テストのときは書かない口（`exec::set_clipboard` の差し替え）を作る
+
+## 実機のセッションの報告（v0.78.36 で受けた分: #266 x64 の v0.78.29 の再テスト）
+
+- [x] #266（x64、v0.78.35）: 13.12、13.12a、25.19b に印。710 / 0
+- [ ] spot の `Preview` の `Error` の行に、同じ壊れたリンクで OS の言語の文（`指定されたファイルが見つかりません。 (os error 2)`）が残る（#266 の提案 1）。
+  `Resolves` と同じ形（`not found, os error 2`）にする
+- [ ] TESTING.md 13.12a の期待のパス `R:\cargo-target\filer` を `R:\cargo-target\<作業フォルダ名>` と書く（#266 の提案 2。実機の作業フォルダは `filer-wintest`）【QA】
 
 ## 実機のセッションの報告（v0.78.32 で受けた分: #264 ARM64 と #265 x64 の 33.21 / 33.22 の再テスト）
 
