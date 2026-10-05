@@ -246,6 +246,21 @@ fn main() {
             "the Japanese for {id} contains ` — *`, which separates it from the English",
         );
     }
+    // The newest version a row names, in its English and in its Japanese (a
+    // translation that names none is skipped). A fix edits one and forgets the
+    // other, and `--check` compared neither.
+    let mut skewed = Vec::new();
+    for c in &all {
+        let Some(ja) = notes.row.get(&c.id) else { continue };
+        let (en, ja_v) = (last_version(&c.cells.join(" ")), last_version(ja));
+        if ja_v.is_some() && en != ja_v {
+            skewed.push(format!("{}: TESTING.md ends at {en:?}, the Japanese at {:?}", c.id, last_version(ja)));
+        }
+    }
+    if !skewed.is_empty() {
+        eprintln!("{JA}: the version a row ends at differs from TESTING.md:\n  {}", skewed.join("\n  "));
+        std::process::exit(1);
+    }
     // An empty cell reads as an ordinary row with a short description, so
     // nothing about the file would say the parse lost one. Refuse to write it.
     for c in &all {
@@ -643,4 +658,22 @@ fn rows_of_file(text: &str) -> BTreeMap<&str, String> {
         out.insert(id, en);
     }
     out
+}
+
+/// The newest `vX.Y.Z` in `s`, in either `(v1.2.3)` or `（v1.2.3）` brackets.
+fn last_version(s: &str) -> Option<String> {
+    let mut last: Option<(Vec<u32>, String)> = None;
+    for (i, _) in s.match_indices('v') {
+        let rest = &s[i + 1..];
+        let end = rest.find(|c: char| !c.is_ascii_digit() && c != '.').unwrap_or(rest.len());
+        let v = rest[..end].trim_end_matches('.');
+        let before = s[..i].chars().next_back();
+        if v.split('.').count() == 3 && v.split('.').all(|p| !p.is_empty()) && !before.is_some_and(|c| c.is_alphanumeric()) {
+            let key: Vec<u32> = v.split('.').map(|p| p.parse().unwrap_or(0)).collect();
+            if last.as_ref().is_none_or(|(k, _)| key > *k) {
+                last = Some((key, v.to_owned()));
+            }
+        }
+    }
+    last.map(|(_, v)| v)
 }
