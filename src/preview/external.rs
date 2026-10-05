@@ -53,7 +53,15 @@ pub fn draw(rule: &PreviewRule, path: &Path, n: i64) -> Result<Drawn, String> {
 /// two lines, and keeping only the first ended it at `internal or external
 /// command,` (#274).
 fn one_line(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
+    let mut out = String::new();
+    for word in text.split_whitespace() {
+        // No space after a full-width stop: a Japanese `cmd` wraps after `、`.
+        if !out.is_empty() && !out.ends_with(['、', '。']) {
+            out.push(' ');
+        }
+        out.push_str(word);
+    }
+    out
 }
 
 /// Substitute into the command line.
@@ -159,6 +167,7 @@ mod tests {
     fn a_wrapped_error_stays_whole() {
         assert_eq!(one_line("'x' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"), "'x' is not recognized as an internal or external command, operable program or batch file.");
         assert_eq!(one_line(" \n"), "");
+        assert_eq!(one_line("外部コマンド、\r\n操作可能な。\r\nバッチ"), "外部コマンド、操作可能な。バッチ");
     }
 
     #[test]
