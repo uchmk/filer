@@ -32,6 +32,45 @@ pub fn is_case_sensitive(pattern: &str, smart: bool, forced_insensitive: bool) -
     smart && pattern.chars().any(char::is_uppercase)
 }
 
+/// The name nearest to a mistyped `name`, by edit distance with a swap of two
+/// neighbours costing one (`tpyo` is one step from `typo`). Case is ignored.
+/// Nothing is returned when even the best is more than a third of the length
+/// away (at least one step is always allowed), and ties go to the first.
+pub fn closest<'a>(name: &str, names: impl Iterator<Item = &'a str>) -> Option<&'a str> {
+    let want: Vec<char> = name.to_lowercase().chars().collect();
+    let limit = (want.len() / 3).max(1);
+    names
+        .filter_map(|n| {
+            let have: Vec<char> = n.to_lowercase().chars().collect();
+            let d = edit_distance(&want, &have);
+            (d <= limit).then_some((d, n))
+        })
+        .min_by_key(|(d, _)| *d)
+        .map(|(_, n)| n)
+}
+
+/// Damerau-Levenshtein distance (adjacent swaps count as one edit).
+fn edit_distance(a: &[char], b: &[char]) -> usize {
+    let mut d = vec![vec![0usize; b.len() + 1]; a.len() + 1];
+    for (i, row) in d.iter_mut().enumerate() {
+        row[0] = i;
+    }
+    for (j, v) in d[0].iter_mut().enumerate() {
+        *v = j;
+    }
+    for i in 1..=a.len() {
+        for j in 1..=b.len() {
+            let cost = usize::from(a[i - 1] != b[j - 1]);
+            let mut v = (d[i - 1][j] + 1).min(d[i][j - 1] + 1).min(d[i - 1][j - 1] + cost);
+            if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
+                v = v.min(d[i - 2][j - 2] + 1);
+            }
+            d[i][j] = v;
+        }
+    }
+    d[a.len()][b.len()]
+}
+
 pub fn match_str(pattern: &str, text: &str, case_sensitive: bool) -> Option<Hit> {
     if pattern.is_empty() {
         return Some(Hit { score: 0, positions: Vec::new() });
@@ -148,6 +187,14 @@ pub fn find_substring(needle: &str, text: &str, case_sensitive: bool) -> Option<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn closest_name_forgives_a_swap_and_a_typo() {
+        let names = ["alpha", "Typo", "zeta"];
+        assert_eq!(closest("tpyo", names.into_iter()), Some("Typo"));
+        assert_eq!(closest("alpa", names.into_iter()), Some("alpha"));
+        assert_eq!(closest("qqqq", names.into_iter()), None);
+    }
 
     #[test]
     fn matches_and_ranks() {

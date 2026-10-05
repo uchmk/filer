@@ -1905,7 +1905,9 @@ impl App {
         } else if self.tabs[self.active].cwd == path {
             // The directory answered, so the jump that led here stands.
             let reveal = self.tabs[self.active].pending_cd.take().and_then(|p| p.reveal);
+            let mut near = None;
             if let Some(name) = reveal.filter(|n| !entries.iter().any(|e| &e.name == n)) {
+                near = crate::core::fuzzy::closest(&name, entries.iter().map(|e| e.name.as_str())).map(str::to_owned);
                 // A typed path that named a file lands here with the file under
                 // the cursor. One that named nothing used to land here too, in
                 // silence, and looked like the place that was asked for.
@@ -1923,7 +1925,7 @@ impl App {
             f.cursor = cursor;
             f.offset = offset;
             f.rebuild(show_hidden);
-            if let Some(name) = keep.or(memo) {
+            if let Some(name) = near.or(keep).or(memo) {
                 f.select_name(&name);
             }
             let land = self.land_on.take().filter(|p| p.parent() == Some(path));
@@ -2737,6 +2739,11 @@ impl App {
             if let Some(name) = pending.as_ref().and_then(|p| p.reveal.as_deref()) {
                 if !self.tabs[idx].current.entries.iter().any(|e| e.name == name) {
                     self.error(nothing_there(name, &target));
+                    // The cursor goes to the nearest name rather than the top.
+                    let near = crate::core::fuzzy::closest(name, self.tabs[idx].current.entries.iter().map(|e| e.name.as_str()));
+                    if let Some(near) = near.map(str::to_owned) {
+                        self.tabs[idx].current.select_name(&near);
+                    }
                 }
             }
         }
@@ -10162,6 +10169,28 @@ mod said_out_loud {
         let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
         assert_eq!(said.len(), 1, "{said:?}");
         assert!(said[0].contains("tpyo — showing"), "{said:?}");
+    }
+
+    /// #245: a typed name that is not there puts the cursor on the nearest
+    /// one (`tpyo` -> `typo`), not on the first row.
+    #[test]
+    fn a_mistyped_name_lands_the_cursor_on_the_nearest() {
+        let dir = crate::util::test_dir("said-reveal-near");
+        for n in ["alpha.txt", "typo", "zeta.txt"] {
+            std::fs::write(dir.join(n), "x").unwrap();
+        }
+        let listing = || Arc::new(["alpha.txt", "typo", "zeta.txt"].iter().map(|n| Entry::from_path(dir.join(n)).unwrap()).collect::<Vec<_>>());
+        let mut a = app_in(&dir.join("elsewhere"));
+        a.cd_or_reveal(dir.join("tpyo"));
+        a.on_scan(ScanResult::Failed { id: 0, path: dir.join("tpyo"), error: "not found".into() });
+        a.apply_listing(&dir, listing());
+        assert_eq!(a.tabs[a.active].current.hovered_name(), Some("typo"));
+
+        let mut a = app_in(&dir.join("elsewhere"));
+        a.cd_or_reveal(dir.join("qqqqqq"));
+        a.on_scan(ScanResult::Failed { id: 0, path: dir.join("qqqqqq"), error: "not found".into() });
+        a.apply_listing(&dir, listing());
+        assert_eq!(a.tabs[a.active].current.hovered_name(), Some("alpha.txt"), "nothing near: the top");
     }
 
     /// The `cd` prompt starts with the folder and this platform's separator,
