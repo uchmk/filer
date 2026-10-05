@@ -114,7 +114,7 @@
   （英語でも `…internal or external command,` で切れるはず）。2 行を空白でつないで 1 行にする（`stderr_text` と同じ）。直したら 17.12 を両レーンの再テストに積む
 - [x] （v0.78.120。`read_head` が壊れたリンクのとき `metadata` の誤りを言う。13.12 を再テストに積んだ）壊れたジャンクションの spot で、プレビューが `access denied, os error 5`、`Resolves` が `not found, os error 2` と食い違う（#274 の所見 3）。
   壊れたリンクなら、プレビューも `Resolves` と同じ言い方にする
-- [ ] `--keys` で起動して done ファイルを待ち、`<State:>` の `.txt` を並べる PowerShell の道具を `scripts/keys.ps1` として置き、`windows-role.md` から指す
+- [x] （v0.78.135。`scripts/keys.ps1` を置き、`windows-role.md` から指した。PowerShell は Linux で動かせず未実行）`--keys` で起動して done ファイルを待ち、`<State:>` の `.txt` を並べる PowerShell の道具を `scripts/keys.ps1` として置き、`windows-role.md` から指す
   （#274 の提案 3。毎回の実行が同じ 15 行を書き直していて、`-Wait` と `-PassThru` の取り違え（#225、#234）が起き得る。Linux には `scripts/xrun.sh` がある）
 
 ## 実機のセッションの報告（v0.78.113 で受けた分: #275、ARM64 の再テスト）

@@ -9,6 +9,13 @@
 
 ## [未リリース]
 
+## [0.78.135] - 2026-10-06
+
+### 追加
+
+- `scripts/keys.ps1`: `--keys` で filer を 1 回回し、done ファイルと `<State:>` の `.txt` を並べて出す PowerShell の道具
+  （専用のフォルダ、`-Launches` で filer 自身の終了だけを待つ、done が `keys: done` でなければ警告）。`windows-role.md` から指した（#274 の提案 3）。
+
 ## [0.78.134] - 2026-10-06
 
 ### 変更
