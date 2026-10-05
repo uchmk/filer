@@ -1281,6 +1281,11 @@ fn state_report(app: &App) -> String {
         lines.push(format!("job: {} [{}] {}/{} files", t.label, t.state.label(), t.files_done, t.files));
     }
     lines.push(format!("list top: {}", tab.current.offset));
+    // The pane the keys are not in, when split: 19.7's three cases each took
+    // a start to see where the other one was scrolled (#216, #209).
+    if let Some(other) = app.other_pane().filter(|&i| i < app.tabs.len()) {
+        lines.push(format!("other list top: {}", app.tabs[other].current.offset));
+    }
     lines.push(format!("preview top: {} of {}", tab.preview_offset, app.preview.max_offset));
     // How long the text on show is (`5237+` when the read was cut): the top
     // above is the last place to scroll to, which is not the line count
@@ -1737,6 +1742,20 @@ mod tests {
         app.tasks[0].state = app::TaskState::Done;
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "jobs: 0 running") && !report.contains("job:"), "{report}");
+    }
+
+    /// #216: with a split, the other pane's scroll is a line of the state too.
+    #[test]
+    fn a_split_reports_the_other_panes_scroll() {
+        let dir = crate::util::test_dir("state-split");
+        let mut app = App::new(crate::config::Config::load(), dir.clone(), egui::Context::default());
+        assert!(!state_report(&app).contains("other list top"), "one pane has no other");
+        let first = &app.tabs[0];
+        let second = crate::core::tab::Tab::new(dir.clone(), first.sort, first.show_hidden, first.linemode);
+        app.tabs.push(second);
+        app.tabs[1].current.offset = 7;
+        app.split = Some(app::Split { other: 1, right: false });
+        assert!(state_report(&app).lines().any(|l| l == "other list top: 7"));
     }
 
     /// #216: the `×N` of a repeated toast is a line of the state.
