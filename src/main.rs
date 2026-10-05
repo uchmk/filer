@@ -1202,6 +1202,34 @@ fn state_report(app: &App) -> String {
     // (#165): every file read, or `none`.
     let read: Vec<String> = app.cfg.loaded.iter().map(|p| p.display().to_string()).collect();
     lines.push(format!("config: {}", if read.is_empty() { "none".into() } else { read.join(" | ") }));
+    // How many rows the list holds, and the filter on it: "a row more or
+    // fewer" and "the filter stayed" were read off a picture (#231). `listing…`
+    // while the folder is still being read, so an empty folder and one not yet
+    // read tell apart.
+    lines.push(format!(
+        "items: {}",
+        match &tab.current.state {
+            core::folder::LoadState::Loading => "listing…".to_owned(),
+            _ => tab.current.view.len().to_string(),
+        }
+    ));
+    if let Some(f) = &tab.current.filter {
+        lines.push(format!("filter: {}", f.query));
+    }
+    // What the preview says about itself, as the pane writes it under the
+    // picture, or why there is none (#223).
+    match &app.preview.state {
+        app::PreviewState::Ready(preview::Payload::Image { caption, .. }) if !caption.is_empty() => {
+            lines.push(format!("preview caption: {caption}"));
+        }
+        app::PreviewState::Ready(preview::Payload::Error(e)) => lines.push(format!("preview error: {}", e.replace('\n', " / "))),
+        _ => {}
+    }
+    // The adapter this run drew with, as the record `filer env` reads has it
+    // (#232): a run measuring the backend could only read it from there.
+    if let Some(info) = crate::runinfo::load().filter(|i| !i.adapter.is_empty() && i.version == env!("CARGO_PKG_VERSION")) {
+        lines.push(format!("adapter: {} ({}, {})", info.adapter, info.backend, info.device));
+    }
     // The file jobs not yet over, one line each, and how many: a run had to
     // infer a copy was done from the wording of a toast (#241, #257).
     let active: Vec<&app::Task> = app
@@ -1686,6 +1714,7 @@ mod tests {
             "tab: 1 of 1",
             "overlay: none",
             "pane: closed",
+            "items: listing…",
             "jobs: 0 running",
             "list top: 0",
             "preview top: 0 of 0",
@@ -1696,6 +1725,16 @@ mod tests {
             assert!(report.lines().any(|l| l == line), "{line:?} in {report}");
         }
         assert!(!report.contains("job:"), "only while a job is live");
+        // A read folder counts its rows, and a filter on it is named.
+        let entries = vec![fs::Entry::from_path(dir.join("a.txt")).unwrap()];
+        let active = app.active;
+        app.tabs[active].current = core::folder::Folder::from_entries(dir.clone(), std::sync::Arc::new(entries), true);
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "items: 1") && !report.contains("filter:"), "{report}");
+        app.tabs[active].current.filter = Some(core::folder::Filter { query: "zz".into(), ..Default::default() });
+        assert!(state_report(&app).lines().any(|l| l == "filter: zz"));
+        app.tabs[active].current.filter = None;
+        let report = state_report(&app);
         assert!(!report.contains("input:"), "only while a prompt is open");
         assert!(report.lines().any(|l| l == "view: list"), "{report}");
         assert!(!report.contains("compare:"), "only while a comparison is open");
