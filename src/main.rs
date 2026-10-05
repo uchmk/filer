@@ -1441,6 +1441,11 @@ fn state_report(app: &App) -> String {
     // line breaks become ` / ` so the report stays one line per name.
     let all: Vec<String> = app.toast_log.iter().map(|t| t.lines().collect::<Vec<_>>().join(" / ")).collect();
     lines.push(format!("toasts: {}", all.join(" | ")));
+    // The ones on screen right now, oldest first: `toast:` names only the
+    // last and `toasts:` also the faded, so "the toast went away" (32.23) was
+    // only readable from a picture (#282).
+    let shown: Vec<String> = app.toasts.iter().map(|t| t.text.lines().collect::<Vec<_>>().join(" / ")).collect();
+    lines.push(format!("toasts shown: {}", shown.join(" | ")));
     lines.join("\n") + "\n"
 }
 
@@ -2018,6 +2023,12 @@ mod tests {
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "toast: "), "{report}");
         assert!(toasts(&report).ends_with("Copied a.txt | Open failed / exit code 1"), "{report}");
+        // ... but `toasts shown:` is only what is still on screen.
+        assert!(report.lines().any(|l| l == "toasts shown: "), "{report}");
+        app.error("Open failed\nexit code 1");
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "toasts shown: Open failed / exit code 1"), "{report}");
+        app.toasts.clear();
 
         // A picker lists what it offers, in its order, and the row under the cursor.
         let items: Vec<String> = ["Neovim", "VS Code", "サクラエディタ"].map(String::from).into();
