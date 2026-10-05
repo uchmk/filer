@@ -31,7 +31,7 @@
 
 ## テストの揺れ（2026-10-05）
 
-- [ ] **`app::archive_view::a_member_is_previewed_from_a_copy` がまれに落ちる**（v0.78.34 の push の直前に 1 回。v0.78.38 で `cargo test -q archive` を 25 回回すと 2 回、`src/app.rs:8123` の `an empty preview folder was left` で落ちた）。
+- [x] （v0.78.42。テストごとに書庫の一時フォルダを分け、親の掃除は専用のテストで確かめる。40 回続けて通った）**`app::archive_view::a_member_is_previewed_from_a_copy` がまれに落ちる**（v0.78.34 の push の直前に 1 回。v0.78.38 で `cargo test -q archive` を 25 回回すと 2 回、`src/app.rs:8123` の `an empty preview folder was left` で落ちた）。
   最後の確かめ（`src/app.rs` の `assert!(!preview.exists() || …, "an empty preview folder was left")`、#259 で v0.78.23 に足したもの）が、
   並んで走るほかのテストと同じ `util::archive_scratch().join("preview")` を見ている。ほかの書庫のテストが自分の `N-<名前>` を消してから
   `preview` を `remove_dir` するまでの間か、`preview` を作ってから中を作るまでの間に読むと、空の `preview` が一瞬あって落ちる。

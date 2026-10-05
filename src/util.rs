@@ -545,8 +545,20 @@ pub fn archive_scratch() -> PathBuf {
     // Under test, a name the test folders' sweep knows (`filer-test-…-<pid>`):
     // a worker still unpacking when its test ends writes after the view has
     // tidied up, and each `cargo test` left a folder behind (#253, #259).
+    //
+    // And a folder per test thread: views share `preview` and the folder above
+    // it, each tidies up by removing them when empty, and one doing so between
+    // another's `create_dir_all` and its write failed that unpacking, so a
+    // preview test fell over about one run in ten.
     #[cfg(test)]
-    return std::env::temp_dir().join(format!("{TEST_DIR_PREFIX}archive-{}", std::process::id()));
+    return {
+        let who = std::thread::current()
+            .name()
+            .unwrap_or("main")
+            .replace("::", "-")
+            .replace(|c: char| !c.is_ascii_alphanumeric() && c != '-', "_");
+        std::env::temp_dir().join(format!("{TEST_DIR_PREFIX}archive-{who}-{}", std::process::id()))
+    };
     #[cfg(not(test))]
     std::env::temp_dir().join(format!("{ARCHIVE_SCRATCH_PREFIX}{}", std::process::id()))
 }

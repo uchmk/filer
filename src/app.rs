@@ -8162,15 +8162,33 @@ mod archive_view {
             a.drain_archive();
             std::thread::sleep(Duration::from_millis(5));
         }
+        let scratch = a.archive_view.as_ref().map(|v| v.scratch.clone()).expect("a view");
         let real = a.archive_view.as_ref().and_then(|v| v.copies.get(&zip.join("top.txt")).cloned()).expect("a copy");
         assert_eq!(std::fs::read_to_string(&real).unwrap(), "top");
         assert!(matches!(&a.preview.key, Some(k) if k.path == real) || a.preview.pending_since.is_some(), "the copy is what is previewed");
         a.act(Act::Escape(EscapeWhat::default()));
         assert!(!real.exists(), "the copy went with the view");
-        // #259: so did the folders it sat in, now empty, unless another
-        // test's view is using them at the same moment.
-        let preview = crate::util::archive_scratch().join("preview");
-        assert!(!preview.exists() || std::fs::read_dir(&preview).is_ok_and(|mut d| d.next().is_some()), "an empty preview folder was left");
+        // Its own folder went too. The folders above it are other tests' as
+        // well, so they are not looked at here (found flaky: another view
+        // makes `preview` a moment before its own folder in it); see
+        // `a_view_takes_the_empty_folders_above_its_copies_with_it`.
+        assert!(!scratch.exists(), "the view's own folder was left");
+    }
+
+    /// #259: a view that goes takes its folder and the empty ones above it,
+    /// in a tree of its own so no other test is in the way.
+    #[test]
+    fn a_view_takes_the_empty_folders_above_its_copies_with_it() {
+        let root = crate::util::test_dir("view-scratch");
+        let scratch = root.join("archive").join("preview").join("0-a.zip");
+        std::fs::create_dir_all(&scratch).unwrap();
+        std::fs::write(scratch.join("top.txt"), "x").unwrap();
+        let (mut a, _zip) = app_on_archive();
+        a.act(Act::Enter);
+        wait(&mut a);
+        a.archive_view.as_mut().expect("in the archive").scratch = scratch.clone();
+        a.act(Act::Escape(EscapeWhat::default()));
+        assert!(!scratch.exists() && !root.join("archive").exists(), "left: {:?}", std::fs::read_dir(&root).map(|d| d.count()));
     }
 
     /// #198: `<Enter>` with nothing left after the filter keeps the picker
