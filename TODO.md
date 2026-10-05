@@ -1165,7 +1165,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `\e[?9001h` で有効にし `\e[?9001$p` で確かめると、filer（alacritty の既定）は `\e[?9001;0$y`（認識しない）と
   答える。その後で `<Esc>` を `win32_key` のレコードで送っている。**v0.55.0 で、実際の状態（有効 1 / 無効 2）を答える
   ようにした（Q27）**。
-- [ ] `scripts/keyprobe.ps1` に `-NoVt` を足す（#99 の提案 4）。今は常に `ENABLE_VIRTUAL_TERMINAL_INPUT` を立てるので、
+- [x] （v0.78.137。`-NoVt` で VT 入力を立てない）`scripts/keyprobe.ps1` に `-NoVt` を足す（#99 の提案 4）。今は常に `ENABLE_VIRTUAL_TERMINAL_INPUT` を立てるので、
   仮想キーのレコードが見えない。順番表の「`down vk= 35` のレコードと比べる」は書いたとおりにはできなかった
   （`\e[1;2F` が 167 本届き、仮想キーを持つものは 1 本も無かった）。
 
