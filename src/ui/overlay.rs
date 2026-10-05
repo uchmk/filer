@@ -1185,6 +1185,8 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     }
 
     let mut foot = format!("{}–{} of {}", top + 1, (top + visible).min(rows.len()), rows.len());
+    let changes = crate::diff::count_changes(rows);
+    foot.push_str(&format!("  ·  {changes} {}", if changes == 1 { "difference" } else { "differences" }));
     if rough {
         foot.push_str("  ·  too large to line up exactly");
     }
@@ -2521,6 +2523,8 @@ mod compare_frame {
         assert!(f.says("   5 delta"), "the right has reached 5: {:?}", f.texts);
         assert!(f.says("   4 extra"), "and the inserted line is numbered too: {:?}", f.texts);
         assert_eq!(total(&f), 6, "six rows for five lines and an insertion: {}", footer(&f));
+        // The edit and the insertion touch, so `n` sees one difference (#236).
+        assert!(footer(&f).contains("  ·  1 difference"), "{}", footer(&f));
     }
 
     /// 5.2 and 5.3: the edited line sits opposite the line it replaced, and each
