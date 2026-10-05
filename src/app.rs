@@ -1314,7 +1314,7 @@ pub struct App {
     pub parent_shown: Vec<String>,
     /// Openers still young enough to fail on us; drained in
     /// [`App::drain_channels`].
-    launches: Vec<exec::Launch>,
+    launches: Vec<(exec::Launch, String)>,
     pub bookmarks: Vec<Bookmark>,
     /// Where `z` can jump, in visit order (newest last). Ranked by [`frecency`]
     /// when the picker opens.
@@ -1720,15 +1720,20 @@ impl App {
         // A launch reports at most once, and its watcher lets go of the channel
         // when it stops caring, so a disconnected one is finished with.
         let mut failed = Vec::new();
-        self.launches.retain(|l| match l.rx.try_recv() {
+        self.launches.retain(|(l, line)| match l.rx.try_recv() {
             Ok(msg) => {
-                failed.push(msg);
+                failed.push((msg, line.clone()));
                 false
             }
             Err(crossbeam_channel::TryRecvError::Empty) => true,
             Err(crossbeam_channel::TryRecvError::Disconnected) => false,
         });
-        for msg in failed {
+        for (msg, line) in failed {
+            // `launched:` in `<State:>` says a PID, which a check reads as
+            // "it started"; once the watcher heard it fall over it says so (#276).
+            if let Some(l) = self.last_launch.as_mut().filter(|l| l.strip_prefix("launched: ").and_then(|r| r.split_once(' ')).is_some_and(|(_, rest)| rest == line)) {
+                *l = format!("launch failed: {line}");
+            }
             self.error(msg);
         }
         self.drain_search();
@@ -4351,8 +4356,8 @@ impl App {
         match exec::shell(line, cwd, block, orphan) {
             Ok(l) => {
                 self.toast(format!("$ {line}{note}"));
-                self.last_launch = Some(format!("{} {line}", l.pid.map_or("-".into(), |p| p.to_string())));
-                self.launches.push(l);
+                self.last_launch = Some(format!("launched: {} {line}", l.pid.map_or("-".into(), |p| p.to_string())));
+                self.launches.push((l, line.to_owned()));
                 crate::runinfo::remember_launch(line);
             }
             Err(e) => self.error(format!("{what}: {e}")),

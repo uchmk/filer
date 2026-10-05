@@ -1271,7 +1271,7 @@ fn state_report(app: &App) -> String {
     // only `Stop-Process` by name, which closed the owner's own documents
     // too (#162, proposal 3). The PID is the shell's; the program is its child.
     if let Some(l) = &app.last_launch {
-        lines.push(format!("launched: {l}"));
+        lines.push(l.clone());
     }
     // Lines scrolled back into the pane's history, of how many it holds:
     // half of 19.4 could only be read off pictures (#209).
@@ -2387,6 +2387,25 @@ mod bug_report_f12 {
         let (pid, rest) = line.split_once(' ').unwrap_or_else(|| panic!("a PID, then the line: {line}"));
         assert!(pid.parse::<u32>().is_ok_and(|p| p > 0), "the shell's PID: {line}");
         assert_eq!(rest, "exit 0");
+    }
+
+    /// #276: a line the shell could not run is `launch failed:` in the state
+    /// file once the watcher hears it, not a PID a check reads as "started".
+    #[test]
+    fn the_state_file_says_when_a_launch_failed() {
+        let mut s = screen("state-launch-failed");
+        s.app.act(crate::config::cmd::Act::Shell { run: "no-such-tool-xyz".into(), block: false, confirm: false, orphan: false });
+        assert!(state_report(&s.app).contains("launched: "), "started, as far as it knows");
+        let ctx = egui::Context::default();
+        for _ in 0..100 {
+            s.app.drain_channels(&ctx);
+            if state_report(&s.app).contains("launch failed: no-such-tool-xyz") {
+                assert!(!state_report(&s.app).contains("launched: "));
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        panic!("never said it failed: {}", state_report(&s.app));
     }
 
     /// 26.12: a key the panel does not offer, typed as the window delivers

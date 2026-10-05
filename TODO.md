@@ -128,7 +128,7 @@
 
 - [x] （v0.78.128。`open` が入っている最初のオープナーを使う。32.21 の行に足した）**既定の `<Enter>`（`open`）も、入っていないプログラムのオープナーを飛ばして最初に入っているものを使う**（#276 の提案 1）。`<S-Enter>` を直しても、
   `[opener]` の 1 行目が無いプログラムだと `<Enter>` は毎回 ``Open failed: `no-such-tool` was not found`` になる（ARM64 で確かめた）（Q87、多数決で 1）
-- [ ] `<State:>` の `launched:` を、起動に失敗したオープナーでは別の行（`launch failed: no-such-tool …` など）にする（#276 の所見 1、提案 2）。今は
+- [x] （v0.78.134。失敗が分かったら `launch failed: <行>` に差し替える）`<State:>` の `launched:` を、起動に失敗したオープナーでは別の行（`launch failed: no-such-tool …` など）にする（#276 の所見 1、提案 2）。今は
   `launched: 29200 no-such-tool "…\a.txt"` と PID 付きで書き、2 秒後のトーストで初めて `Open failed` が分かる。実機のレーンは `launched:` を起動の証拠に読んでいる（32.20 など）。
   直したら 32.21 を両レーンの再テストに積む
 
