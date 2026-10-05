@@ -1286,6 +1286,17 @@ fn state_report(app: &App) -> String {
         .iter()
         .filter(|t| t.state.is_live())
         .collect();
+    // What filer last put on the clipboard (`c` and friends), one line, cut
+    // at 200 characters: read from outside it needed a second tool (#197).
+    // Not what is on the clipboard, which may be someone else's.
+    if let Some(text) = exec::last_set_clipboard() {
+        let one: String = text.replace(['\r', '\n'], " / ").chars().take(200).collect();
+        lines.push(format!("clipboard set: {one}"));
+    }
+    // How many frames were drawn: 47's question is whether an idle window
+    // keeps drawing, which `(Get-Process).CPU` answered with a second tool
+    // (#201).
+    lines.push(format!("frames: {}", app.ctx.cumulative_frame_nr()));
     lines.push(format!("jobs: {} running", active.len()));
     for t in active {
         lines.push(format!("job: {} [{}] {}/{} files", t.label, t.state.label(), t.files_done, t.files));
@@ -1774,6 +1785,16 @@ mod tests {
         let total = app.spot_sections().iter().map(|s| s.rows.len()).sum::<usize>();
         assert!(report.lines().any(|l| l == format!("spot: 2 of {total}")), "{report}");
         assert!(report.lines().any(|l| l.starts_with("spot row: ")) && report.lines().any(|l| l == format!("spot top: 0 of {total}")), "{report}");
+    }
+
+    /// #197, #201: what filer put on the clipboard, and the frames drawn.
+    #[test]
+    fn the_state_names_the_last_copy_and_the_frames() {
+        let dir = crate::util::test_dir("state-clip");
+        let app = App::new(crate::config::Config::load(), dir, egui::Context::default());
+        assert!(state_report(&app).lines().any(|l| l.starts_with("frames: ")));
+        exec::set_clipboard("one\r\ntwo").unwrap();
+        assert!(state_report(&app).lines().any(|l| l == "clipboard set: one /  / two"), "{}", state_report(&app));
     }
 
     /// #216: with a split, the other pane's scroll is a line of the state too.

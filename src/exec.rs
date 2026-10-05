@@ -640,6 +640,10 @@ pub fn open_url(url: &str) -> std::io::Result<()> {
 /// back one string, so 34.15's own check found no line at all (#180, #182), and
 /// older programs paste it as one long line (Q52). Elsewhere LF is the norm.
 pub fn set_clipboard(text: &str) -> Result<(), String> {
+    #[cfg(not(test))]
+    {
+        *LAST_SET.lock().unwrap_or_else(|e| e.into_inner()) = Some(text.to_owned());
+    }
     // A test never writes the machine's clipboard: on the owner's Windows
     // machine every `cargo test` used to replace what was on it (the QA
     // agent's finding on section 26). It goes to this thread's fake instead,
@@ -651,6 +655,25 @@ pub fn set_clipboard(text: &str) -> Result<(), String> {
     }
     #[cfg(not(test))]
     set_real_clipboard(text)
+}
+
+/// What filer itself last put on the clipboard, for the state file (#197).
+/// Only that: what is on the clipboard was often put there by something else,
+/// and a file written beside a run is no place for it.
+#[cfg(not(test))]
+static LAST_SET: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+/// The text of filer's last `set_clipboard`, if it has made one.
+#[cfg(not(test))]
+pub fn last_set_clipboard() -> Option<String> {
+    LAST_SET.lock().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
+/// Under test it is this thread's fake, which `set_clipboard` writes, so
+/// tests running side by side do not see each other's.
+#[cfg(test)]
+pub fn last_set_clipboard() -> Option<String> {
+    FAKE_CLIPBOARD.with(|c| c.borrow().clone())
 }
 
 #[cfg(not(test))]
