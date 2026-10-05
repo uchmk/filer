@@ -30,6 +30,41 @@ and merge-role.md from `origin/main` at the start of every run.
    the merger of every pull request, the routines' merges included, so
    `merged_by` never tells you the owner merged one: only the owner's own
    words (in TODO.md, QUESTIONS.md or the pull request) do.
+   **Once the answer is there, carry it out in this run** (the owner asked for
+   this on 2026-10-05: #273 sat a run longer, and the owner had to ask an
+   interactive session to merge it). The answer is a line
+   `- 持ち主の答え: …` under the item. One that an interactive session wrote
+   (`対話のセッションで`) counts: the owner talks to Claude only there, and
+   that session wrote down the owner's words. Read `main`'s TODO.md again
+   right before you decide, since the answer may have landed after step 1.
+   Then:
+   - **Merge it** (the answer keeps some ticks and takes `main`'s side for
+     others): when the pull request conflicts with `main`, merge `origin/main`
+     into its branch with a merge commit, take `main`'s line for each row the
+     answer names, keep the pull request's for the rest, regenerate with
+     `cargo run --example make-testcheck` and run the three `--check`s of
+     merge-role.md 2.3; push to the pull request's branch. When `main`
+     already carries a tick the answer keeps (the other lane ticked it
+     first), there is nothing to resolve for it. Then merge-role.md 2.2
+     (wait for CI on the new head; subscribe) and 3, as for any pull request.
+   - **Close it** (the answer says the next run presses those rows again):
+     close the pull request with a one-line comment naming the answer, and
+     check that its rows are still in that lane's "Re-tests of changed
+     behaviour".
+   - In the merger's share: take the item out of the section (leave
+     `いまは無い` when the section is empty), and in the lane's queue say
+     which rows the pull request settled and which stay open.
+   An answer you cannot carry out as written (it names rows the pull request
+   does not touch, or the merge leaves a conflict outside the rows it names):
+   do not guess. Write under the item what stopped you, and reply
+   `not merged #N: …`.
+   **Do not hold a pull request for the owner when merge-role.md 2 settles
+   it** (the owner's word, 2026-10-05: "自動でやってほしい"). A tick line that
+   `main` rewrote after the run is settled there (take `main`'s line,
+   unticked; merge the rest), and so is the same tick on both sides. Hold only
+   what no rule decides, and then write the item so the next run can carry
+   out either answer without you: the rows on each side, what each choice
+   would do to them, and the recommended one.
 3. **Push the merger's share with `scripts/push-main.sh`**, in the background,
    and wait for it to finish (merge-role.md, 4). It replays your commit on top
    when the development routine pushed first, renumbers it, runs the checks,
@@ -54,7 +89,7 @@ share, `Co-Authored-By` naming Sonnet), and check:
   not need; the version and CHANGELOG.md together; a behaviour change came with
   its TESTING.md row, its `scripts/testcheck-ja.toml` text, the untick, and the
   re-tests in both tables of `windows-role.md`; no default the owner decided
-  was changed; no item marked `【人】` `【QA】` `【実機】` `【後】` or `要確認`
+  was changed; no item marked `【人】` `【QA】` `【実機】` `【後】` `【pane】` or `要確認`
   was taken; an item it could not take was marked, not skipped.
 - its CI is green:
   `gh api repos/uchmk/filer/commits/<sha>/check-runs --jq '.check_runs[] | "\(.name) \(.conclusion)"'`.
@@ -71,6 +106,6 @@ needs code goes near the top of TODO.md, in the "Sonnet の見張り" section, a
 In Japanese:
 
 - one line per pull request: `merged #N` / `waiting on CI for #N (subscribed)` /
-  `not merged #N: why`; nothing open: `nothing to do`;
+  `not merged #N: why` (a held one with no answer yet: `not merged #N: 持ち主の答え待ち（TODO.md）`); nothing open: `nothing to do`;
 - the votes counted, when any (`Q57: 多数決 1`);
 - `Sonnet の push: N 件、問題 M 件（中身）`.

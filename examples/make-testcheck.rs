@@ -441,6 +441,7 @@ fn automated_ids() -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     let mut files = Vec::new();
     collect_rs(Path::new(SRC_DIR), &mut files);
+    collect_rs(&pane_src(), &mut files);
     for f in files {
         let Ok(text) = std::fs::read_to_string(&f) else { continue };
         let mut pending = BTreeSet::new();
@@ -501,6 +502,31 @@ fn ids_in(s: &str, out: &mut BTreeSet<String>) {
             return; // the prose has started
         }
     }
+}
+
+/// The source of `tsumugi-pane`, where the terminal pane's tests went in
+/// v0.78.125 (they still name filer's TESTING.md rows). Found through `cargo
+/// metadata`, since a git dependency lives in Cargo's own checkout folder.
+/// Without it those rows would quietly come back onto the human's list, so
+/// not finding it stops the run instead.
+fn pane_src() -> std::path::PathBuf {
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+    let out = std::process::Command::new(cargo)
+        .args(["metadata", "--format-version", "1"])
+        .output()
+        .expect("cargo metadata runs");
+    let json = String::from_utf8_lossy(&out.stdout);
+    // `"manifest_path":"…/crates/tsumugi-pane/Cargo.toml"`, read without a
+    // JSON parser: the example has none, and the path is the one string that
+    // ends that way.
+    let end = json.find("tsumugi-pane/Cargo.toml\"").or_else(|| json.find("tsumugi-pane\\\\Cargo.toml\""));
+    let Some(end) = end else {
+        eprintln!("tsumugi-pane is not in `cargo metadata`; run `cargo build` first");
+        std::process::exit(2);
+    };
+    let start = json[..end].rfind('"').map_or(0, |i| i + 1);
+    let manifest = json[start..end].replace("\\\\", "\\");
+    Path::new(&manifest).join("tsumugi-pane").join("src")
 }
 
 fn collect_rs(dir: &Path, out: &mut Vec<std::path::PathBuf>) {

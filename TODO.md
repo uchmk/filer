@@ -14,10 +14,22 @@
 
 マージの Routine が止めた実機の PR。持ち主の答えがここに書かれるまで、どの回もマージしない（`.claude/merge-routine.md` の 2）。
 
-いまは無い（#273 は持ち主の答え (1) でマージした。v0.78.121）。
+- **#278**（x64、v0.78.121 で 13.12・17.12・32.20 に `[x]`）と **#279**（ARM64、v0.78.123 で 13.12・17.12・32.21 に `[x]`）。2026-10-06 の回が止めた。
+  どちらも `TESTING-CHECKS.md` が `main` とぶつかり、**両側が変えた印の行**がある（`merge-role.md` の 2 で「止める」場合）。#278 は CI がまだ 1 本も走っていない（ぶつかっているため）。
+  - 13.12: v0.78.126 が行に「プレビュー欄は `not found, os error 2`」の 1 文を足した。両 PR の証拠（`<State:>` の `preview error: not found, os error 2`）はその 1 文も満たしている。
+  - 32.21（#279 のみ）: v0.78.128 が行に「一覧を開かない素の `<Enter>` も入っている最初のオープナーを使う」を足した。#279 は v0.78.123 で押したので、**その半分は押していない**。
+  - 32.20（#278）と 17.12（両方）はぶつかっていない。
+  - 推奨 (1): `main` の行に合わせて解き、13.12・17.12（と #278 の 32.20）の印は残し、#279 の 32.21 の印は外してからマージする（32.21 は両レーンの再テストに積んである）。
+    (2): 2 本とも閉じ、次の実行に押し直させる。
+  - 持ち主の答え:
 
 ## Sonnet の見張り（2026-10-05 まで）
 
+- [x] （v0.78.133。飛ばしたトーストに `(skipped …: not found)` を足し、32.21・訳・再テストに書いた。Q87 は反映済み）（Sonnet の見張り）v0.78.128（`0601e1e`）は Q87 を多数決の選択肢 1 で入れたが、選択肢 1 の「トーストに `(skipped no-such-tool: not found)` のような 1 句を足す」が無い
+  （`src/app.rs` は飛ばす先を変えただけ。それでは選択肢 3）。飛ばしたときのトーストに 1 句を足し、32.21 の行と訳にも書き、両レーンの再テストに積む。QUESTIONS.md の Q87 は `反映済み（多数決）` にする。
+  また、32.21 の行を変えたのに両レーンの再テストに積んでいなかった（マージの回が v0.78.130 で積んだ）
+- [x] （v0.78.126。13.12 に、プレビュー欄が `not found, os error 2` と言うことを 1 文足した）（Sonnet の見張り）v0.78.120（`e333a41`）は壊れたリンクのプレビューの誤りを `Resolves` と揃え、13.12 の `[x]` を外して再テストに積んだが、TESTING.md 13.12 の行は `Resolves` のことしか書いておらず、
+  プレビュー欄が `not found, os error 2` と言うこと（`access denied, os error 5` ではないこと）が行に無い。再テストの説明（`windows-role.md`）にだけある。13.12 に 1 文足すか 13.12b を足し、`scripts/testcheck-ja.toml` の訳も合わせる
 - [x] （v0.78.114。TESTING.md に 32.22 を足し、訳・再テストに積んだ）（Sonnet の見張り）v0.78.111（`854edd1`）が Windows で `;` を演算子に数えなくした（Q85）が、TESTING.md に `;` の行を確かめる行が無い。
   32.20 は `;echo hello >out.txt`（`>` で止まる）と `;echo %*` だけなので、両レーンの再テストに積まれた 32.20 を押しても、変わった動きは通らない。
   32.20 に「`;echo a;b >semi.txt` は Windows では `a;b` だけ（`>` があるので足さない）、`;echo a;b` のトーストはパスが末尾に付き注記が無い」を足すか 32.22 を足し、
@@ -102,23 +114,32 @@
   （英語でも `…internal or external command,` で切れるはず）。2 行を空白でつないで 1 行にする（`stderr_text` と同じ）。直したら 17.12 を両レーンの再テストに積む
 - [x] （v0.78.120。`read_head` が壊れたリンクのとき `metadata` の誤りを言う。13.12 を再テストに積んだ）壊れたジャンクションの spot で、プレビューが `access denied, os error 5`、`Resolves` が `not found, os error 2` と食い違う（#274 の所見 3）。
   壊れたリンクなら、プレビューも `Resolves` と同じ言い方にする
-- [ ] `--keys` で起動して done ファイルを待ち、`<State:>` の `.txt` を並べる PowerShell の道具を `scripts/keys.ps1` として置き、`windows-role.md` から指す
+- [x] （v0.78.135。`scripts/keys.ps1` を置き、`windows-role.md` から指した。PowerShell は Linux で動かせず未実行）`--keys` で起動して done ファイルを待ち、`<State:>` の `.txt` を並べる PowerShell の道具を `scripts/keys.ps1` として置き、`windows-role.md` から指す
   （#274 の提案 3。毎回の実行が同じ 15 行を書き直していて、`-Wait` と `-PassThru` の取り違え（#225、#234）が起き得る。Linux には `scripts/xrun.sh` がある）
 
 ## 実機のセッションの報告（v0.78.113 で受けた分: #275、ARM64 の再テスト）
 
-- [ ] **`<S-Enter>` の選び直しで、カーソルを入っている最初のオープナーから始める**（#275 の提案 1）。一番上が `(not found)` のとき、`<S-Enter><Enter>` が毎回
+- [x] （v0.78.122。`open` の一覧のカーソルを、入っている最初のオープナーから始める。32.21 を再テストに積んだ）**`<S-Enter>` の選び直しで、カーソルを入っている最初のオープナーから始める**（#275 の提案 1）。一番上が `(not found)` のとき、`<S-Enter><Enter>` が毎回
   ``Open failed: `no-such-tool` was not found`` になる（ARM64 で確かめた）。全部 `(not found)` なら 0 のまま（Q86、多数決で 1）
-- [ ] `<State:>` の `pick:` の行を、説明だけにし、コマンドは同じ順で `pick runs:` の行に分ける（#275 の提案 2）。今は `Missing tool (not found) (no-such-tool %s)` と括弧が 2 つ並び、
+- [x] （v0.78.122。OpenWith の一覧だけ `pick runs:` に分けた）`<State:>` の `pick:` の行を、説明だけにし、コマンドは同じ順で `pick runs:` の行に分ける（#275 の提案 2）。今は `Missing tool (not found) (no-such-tool %s)` と括弧が 2 つ並び、
   `desc` が `)` で終わると、どこまでが説明か読めない。`picked:` はもう説明だけ。`main.rs` の 1 行とテスト。`windows-role.md` で `pick:` を読んでいる所があれば合わせる
 
 ## 実機のセッションの報告（v0.78.117 で受けた分: #276、ARM64 の再テスト）
 
-- [ ] **既定の `<Enter>`（`open`）も、入っていないプログラムのオープナーを飛ばして最初に入っているものを使う**（#276 の提案 1）。`<S-Enter>` を直しても、
-  `[opener]` の 1 行目が無いプログラムだと `<Enter>` は毎回 ``Open failed: `no-such-tool` was not found`` になる（ARM64 で確かめた）（要確認: Q87）
-- [ ] `<State:>` の `launched:` を、起動に失敗したオープナーでは別の行（`launch failed: no-such-tool …` など）にする（#276 の所見 1、提案 2）。今は
+- [x] （v0.78.128。`open` が入っている最初のオープナーを使う。32.21 の行に足した）**既定の `<Enter>`（`open`）も、入っていないプログラムのオープナーを飛ばして最初に入っているものを使う**（#276 の提案 1）。`<S-Enter>` を直しても、
+  `[opener]` の 1 行目が無いプログラムだと `<Enter>` は毎回 ``Open failed: `no-such-tool` was not found`` になる（ARM64 で確かめた）（Q87、多数決で 1）
+- [x] （v0.78.134。失敗が分かったら `launch failed: <行>` に差し替える）`<State:>` の `launched:` を、起動に失敗したオープナーでは別の行（`launch failed: no-such-tool …` など）にする（#276 の所見 1、提案 2）。今は
   `launched: 29200 no-such-tool "…\a.txt"` と PID 付きで書き、2 秒後のトーストで初めて `Open failed` が分かる。実機のレーンは `launched:` を起動の証拠に読んでいる（32.20 など）。
   直したら 32.21 を両レーンの再テストに積む
+
+## 実機のセッションの報告（v0.78.122 で受けた分: #277、ARM64 の再テスト）
+
+- [x] （v0.78.127。終了コード 9009 / 127 でプログラム名が引けたら標準エラーより先に `` `x` was not found `` を使う。32.23 を再テストに積んだ）**「見つからない」はプログラムの名前を filer の言葉で言う**（#277 の所見 1、提案 1）。v0.78.116 から日本語の Windows では `` `<prog>` was not found `` が一度も出ない:
+  `exec.rs` の `Launch::watch` は標準エラーに何かあればそれを使い、`missing_program` は標準エラーが空のときだけ。`cmd` は見つからないプログラムについて必ず
+  `'x' は、内部コマンドまたは外部コマンド、…認識されていません。` を書き、v0.78.116 で OEM コードページで読めるようになったのでそれが勝つ（英語の Windows でも `'x' is not recognized …` で同じはず）。
+  32.23 の後半（`;nosuchprog-xyz` → `` `nosuchprog-xyz` was not found ``）と、入っていないオープナーの `<Enter>` が合わない（ARM64、v0.78.117）。
+  終了コード 9009（`sh` なら 127）で `missing_program` が名前を返したときは、標準エラーより先に `` `x` was not found `` を使う（`type` などの内部コマンドは `BUILTIN` で除かれるので #274 は戻らない）。
+  `<S-Enter>` の `(not found)` と言い方が揃う。直したら 32.23 を両レーンの再テストに積む
 
 ## 急ぎ（データが消える）
 
@@ -1144,7 +1165,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `\e[?9001h` で有効にし `\e[?9001$p` で確かめると、filer（alacritty の既定）は `\e[?9001;0$y`（認識しない）と
   答える。その後で `<Esc>` を `win32_key` のレコードで送っている。**v0.55.0 で、実際の状態（有効 1 / 無効 2）を答える
   ようにした（Q27）**。
-- [ ] `scripts/keyprobe.ps1` に `-NoVt` を足す（#99 の提案 4）。今は常に `ENABLE_VIRTUAL_TERMINAL_INPUT` を立てるので、
+- [x] （v0.78.137。`-NoVt` で VT 入力を立てない）`scripts/keyprobe.ps1` に `-NoVt` を足す（#99 の提案 4）。今は常に `ENABLE_VIRTUAL_TERMINAL_INPUT` を立てるので、
   仮想キーのレコードが見えない。順番表の「`down vk= 35` のレコードと比べる」は書いたとおりにはできなかった
   （`\e[1;2F` が 167 本届き、仮想キーを持つものは 1 本も無かった）。
 
@@ -1353,7 +1374,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   または横の DLL をフルパスで先に読む。どちらでも、横に無ければ Windows 標準の ConPTY（`kernel32` の `CreatePseudoConsole`）に落ちるかを確かめる。
 - [x] （v0.70.3）TESTING.md 48.6 の期待値を「`C:\Windows` の下ではない」から「フルパスが zip のフォルダと同じ」にする（#184 の提案 2。人か QA セッション）。
   失敗すると別のアプリの DLL が出るし、`C:\Windows\System32\conpty.dll` はそもそも存在しない。
-- [ ] `windows-role.md` の「How to work」に、ペインを測る実行は読み込んだ `conpty.dll` を記録する、と 1 行足す（#184 の提案 3）。
+- [x] （v0.78.139）`windows-role.md` の「How to work」に、ペインを測る実行は読み込んだ `conpty.dll` を記録する、と 1 行足す（#184 の提案 3）。
   `(Get-Process filer).Modules | ? ModuleName -eq conpty.dll | % FileName`。
 
 ## 実機のセッションの報告（v0.65.4 で受けた分: #154、ARM64 の 1 節のマウス）
@@ -1536,7 +1557,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   8.2 と 8.7 は設定を書き換えて `<C-S-t>` `<C-t>` と押すが、シェルは `self.cfg.term.shell` から取り、`self.cfg` を入れ替えるのは
   `config_reload` だけなので、前のシェルが起動する。`<C-F5>` を挟めば期待どおり（ARM64 で 7.6.6）。8.1 は `[term]` 無しで `5.1.x` を期待するが、
   v0.55.0（Q29）から既定は pwsh。直したら、#173 の根拠（`<C-F5>` を挟んだ形で押した結果）で 8.2 / 8.7 を付けられる。
-- [ ] **起動に失敗したシェルが `OpenConsole.exe` を 1 つずつ残す**（所見 3、不具合）。無いシェルで `<C-t>` を 3 回押すと、filer の子に
+- [x] （v0.78.130、tsumugi-pane v0.0.5。spawn の前の自分の子のコンソールを覚え、失敗したら増えた分を終わらせる。TESTING.md 1.42）**起動に失敗したシェルが `OpenConsole.exe` を 1 つずつ残す**（所見 3、不具合）。無いシェルで `<C-t>` を 3 回押すと、filer の子に
   `OpenConsole.exe --headless …` が 3 つ残り、filer を閉じるまで消えない。2026-09 は WezTerm の ConPTY だったが、**今回はリリースに同梱する
   ConPTY** なので、zip を落とした人に届く。原因は上流（`alacritty_terminal` が、`Drop` で HPCON を閉じる `Conpty` を作る前に `Err` を返す）。
   下の「起動前に `PATH` で探す」で「入っていない」場合は避けられる。
@@ -1650,7 +1671,8 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.78.29。キーは keymap の `compress` から読む。21.6a）`e` をフォルダの上で押すと「ファイルが書庫ではない」と言う（#262 の提案 1）。`inner\ is a folder -- e unpacks an archive …; to pack it, press E` にする
 - [x] （v0.78.51。`preview lines: N`、切られたときは `N+`）状態ファイルにプレビューの行数を出す（#262 の提案 2: `preview top: 0 of 14` は最後の先頭位置で、30 行のファイルの行数が読めない）
 - [ ] `git` などの出力を読むだけの子プロセスを `DETACHED_PROCESS` で起こす（#263 の提案 1。`CREATE_NO_WINDOW` は窓を隠すだけで、`git.exe` ごとに `conhost.exe` が 1 つ立つ。
-  spot を 6 回開いて `conhost` が 21 個）。`src/fs/git.rs`、`exec.rs`、`fs/ops.rs`、`preview/external.rs` の 4 か所。`cmd /S /C` の外部プレビューはコンソールが要らないかを確かめる
+  spot を 6 回開いて `conhost` が 21 個）。`src/fs/git.rs`、`exec.rs`、`fs/ops.rs`、`preview/external.rs` の 4 か所。`cmd /S /C` の外部プレビューはコンソールが要らないかを確かめる【実機】（`cmd` を `DETACHED_PROCESS` で起こすと、その子の console アプリが新しい窓を作って
+  ちらつくおそれがある。`git.exe` 直起こしだけなら足せるが、Linux では測れず、`conhost` の数と窓のちらつきは Windows でしか見えない）
 - [ ] spot の Git の節の `git` 呼び出しを減らす（#263 の提案 2: 1 回で 8 回。`rev-parse` と `merge-base` が 2 回ずつ、`remote.origin.url` は毎回）。リポジトリの根ごとに、
   根・`remote.origin.url`・`origin/HEAD` を覚える
   - [x] （v0.78.82）`git::origin` の `rev-list` と、その後の `log -n1` を、`--format=%H%x00%h%x00%s` の `git log` 1 回にまとめた（1 回減る）
@@ -1823,7 +1845,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   2 つの腕も `auto` と同じ道を通す。直したら 47.7 の期待値（`Adapter` は Vulkan か DX12）を `(Gl, …)` に直し、47.7 / 47.8 を再テストに戻す
 - [x] （v0.75.6。窓が開いたあと、警告の `drawing with the default` を `drawing with Gl instead` に置き換える。`filer env` は窓を開かないので元の言い方。Xvfb で `drawing with Vulkan instead`）警告で、何に戻したかを言う（#244 の提案 2）: `drawing with Gl instead`。窓が開いたあとならバックエンドが分かる
 - [x] （v0.75.7。`started` を残し、`filer env` の `Adapter` の下に `Started : 2026-10-04 09:34 (2s ago)`。Xvfb で読んだ）`last-run.toml` に時刻を残し、`filer env` の `Adapter` の横に出す（#244 の提案 3）。版が同じだと `Recorded by` を出さないので、何日前の起動の記録か分からない
-- [ ] `FILER_PTY_LOG` で win32-input-mode のキーを人の読める形に直して出す（#243 の提案 2）: `\e[66;48;98;1;2;1_` → `Alt+b`
+- [x] （v0.78.130、tsumugi-pane v0.0.5。記録のあとに `  (Alt+b)` を添える。TESTING.md 1.43）`FILER_PTY_LOG` で win32-input-mode のキーを人の読める形に直して出す（#243 の提案 2）: `\e[66;48;98;1;2;1_` → `Alt+b`
 - [x] （v0.75.16、QA の子が TESTING.md を直した）TESTING.md 40.12 を、PSReadLine の既定（`EditMode Windows`）では `Alt+b` が `b` になると書き直す（#243 の提案 3）。`Set-PSReadLineOption -EditMode Emacs` のときに bash と同じ。
   filer が送るバイトはどちらでも同じ
 
@@ -2127,7 +2149,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 - [x] #204: 14.1〜14.6 に印（親の列のクリック、ダブルクリック、ドライブの根）。x64 の順番表から 14 節を外した。
 - [x] #205: 43.9 に印（50 MB の CSV がすぐ開き、`max_text_bytes` で切られ、そう言う）。ARM64 で 21.13 / 21.14 も合格。
-- [ ] **x64 で、何もしない窓が CPU を 1 コア使い続けている**（#204 の所見 1。47 節の後戻り）。10 秒で約 10 CPU 秒。忙しいのは UI のスレッドではなく
+- [x] （v0.78.130 で閉じた。v0.75.0 から Windows の既定は GL で、#243 が何も設定しない 47.1 を 0.000 CPU 秒で印を付けた。Vulkan と DX12 のドライバのスレッドは filer では直せず、`[ui] backend` で選べる。present mode の選択は要らなくなった）**x64 で、何もしない窓が CPU を 1 コア使い続けている**（#204 の所見 1。47 節の後戻り）。10 秒で約 10 CPU 秒。忙しいのは UI のスレッドではなく
   AMD のドライバのスレッド（Vulkan では `amdvlk64.dll`、`WGPU_BACKEND=dx12` では `amdxc64.dll`）。`gl` では 0。前の x64 の実行では 0 だった。
   47.1 の印を外し、x64 の再テストの先頭に回した（3 つのバックエンドで測り、ドライバの版と、v0.72.2 の zip との比較も）。結果を見て、
   wgpu の present mode（`Fifo` など）やバックエンドを選べるようにするかを決める（#204 の提案 1）。ドライバの更新が原因なら filer では直せない。
@@ -2326,11 +2348,3 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   見ないと分からない。`terminal pane, from FILER_TERM_SHELL ([term] args not used)` のように、`args` があるときだけ足す。
   v0.73.11 で入れた。`TermCfg::dropped_args` に覚え、`terminal pane, from FILER_TERM_SHELL; [term] args not used: -NoLogo` のように中身も挙げる。
   Linux の本物のバイナリで、`args` があるときだけ付くのを確かめた。29.12 の期待値に足し、印を外して x64 の再テストに回した。
-
-## 次のプロジェクト: Claude Code / AI CLI のためのターミナル（filer が落ち着いてから）
-
-構想は [docs/next-terminal.md](docs/next-terminal.md)。持ち主の合図で始める。開発のセッションが「次の項目」として取るものではない。
-
-- [ ] filer のターミナルペイン（`src/terminal.rs`、`src/ui/term.rs`、`src/shellhook.rs`）を独立したクレートに切り出す。OS ごとの処理を `cfg` で閉じ込め、 【後】
-  egui に依らない層（PTY・キー変換・OSC）と描画の層を分け、Pure Rust を保つ。filer は使う側の 1 つになる 【人】
-- [ ] 新しいリポジトリを作り、最初の版の範囲（縦タブ、セッションの状態、入力待ちの印、分割と復元）を決める 【人】
