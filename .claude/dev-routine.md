@@ -15,7 +15,8 @@ day reached 550,000 tokens, and every call re-read all of it (2026-10-05).
 Until v0.78.95 a run was meant to go on for five rounds; four runs in a row
 pushed one version and ended anyway, whatever the wording. So the schedule
 carries the rounds now, three runs an hour (the owner's choice, 2026-10-05),
-and the merge routine runs at :00 between them.
+and the merge routine runs at :59 between them (a Routine set to minute 0
+is moved to the minute it was saved, so :00 cannot be had).
 
 **Runs overlap.** A round takes 10 to 20 minutes, mostly `push-main.sh`
 waiting for `main`'s CI, so the previous run is often still pushing when the

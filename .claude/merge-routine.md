@@ -1,6 +1,6 @@
 # The merge routine
 
-A claude.ai Routine starts a new cloud session at :00 every hour, with
+A claude.ai Routine starts a new cloud session at :59 every hour, with
 `uchmk/filer` attached, and its whole instruction is one line: read this file
 and do what it says. This file is the one place the routine's own steps live
 (CLAUDE.md, 自動実行モード); **what to merge and how is in
