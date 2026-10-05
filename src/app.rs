@@ -3797,7 +3797,15 @@ impl App {
     ) -> u64 {
         let id = self.scanner.next_id();
         let label = match &dest_file {
-            Some(f) => format!("{} {} item(s) into {}", kind.verb(), srcs.len(), util::file_name(f)),
+            // An archive says which format its name made: `tar.gz.zip` is a
+            // zip, which is not what was meant by typing `tar.gz` over the
+            // stem, and nothing said so (#174).
+            Some(f) => match kind {
+                OpKind::Compress(format) => {
+                    format!("{} {} item(s) into {} (as {})", kind.verb(), srcs.len(), util::file_name(f), format.label())
+                }
+                _ => format!("{} {} item(s) into {}", kind.verb(), srcs.len(), util::file_name(f)),
+            },
             None => format!("{} {} item(s)", kind.verb(), srcs.len()),
         };
         self.tasks.push(Task {
@@ -9697,6 +9705,18 @@ mod said_out_loud {
         for bad in ["0.1", "5.1", "x", "", "NaN", "inf", "-1"] {
             assert_eq!(scale_from_text(bad), None, "{bad}");
         }
+    }
+
+    /// #174: the packing job names the format the typed name made.
+    #[test]
+    fn a_packing_job_says_which_format_it_makes() {
+        let dir = util::test_dir("pack-label");
+        std::fs::write(dir.join("a.txt"), "x").unwrap();
+        let mut a = app_in(&dir);
+        a.apply_listing(&dir, Arc::new(vec![Entry::from_path(dir.join("a.txt")).unwrap()]));
+        a.do_compress("tar.gz.zip");
+        let label = a.tasks.last().map(|t| t.label.clone()).unwrap_or_default();
+        assert_eq!(label, "Compress 1 item(s) into tar.gz.zip (as zip)");
     }
 
     /// Q79: `<Tab>` in `E`'s field walks the three formats and leaves the stem.
