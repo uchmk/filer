@@ -1517,7 +1517,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] #264（ARM64、v0.78.28）: 33.21・33.22 に印。707 / 0。#265（x64、v0.78.28）: 33.21・33.22・35.2 に印、gh-dash をペインで動かした
 - [ ] ペインで OSC 10 / 11（前景色・背景色の問い合わせ）に答える（#265 の提案 1）。gh-dash が `\e]11;?` を送り、返答が無かった。
   alacritty_terminal の `ColorRequest` を受けてテーマの色で返す。lipgloss / bubbletea は返答で明暗を決め、無いと待ってから推測する
-- [ ] `<State:>` の `Overlay::Pick` に `query:`（絞り込みの文字）を出す（#264 の提案 3。入力欄の `input:` と同じ読み方）
+- [x] （v0.78.44）`<State:>` の `Overlay::Pick` に `query:`（絞り込みの文字）を出す（#264 の提案 3。入力欄の `input:` と同じ読み方）
 - （所見、作業なし）設定フォルダを空にすると `.txt` の `O` は `No opener configured for this file type` でピッカーを開かない（#264 の所見 3）。
   空の設定でピッカーの行を測るときはパレット（`<C-S-p>`）を使う
 
@@ -1608,7 +1608,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.78.23。テストでは書庫の写しの親を `filer-test-archive-<pid>` にし、テスト用フォルダの掃除に任せる）**`cargo test` が `%TEMP%\filer-archive-<pid>` を残す**（#253 の所見 1、提案 1。#255 でも）。書庫のテストが開いた写しの親が `util::archive_scratch()`
   で、`filer-test-` の掃除に掛からない。テストでは写しの親を `util::test_dir` の下にするか、テストの終わりに消す
 - [x] （v0.78.23。書庫の表示を閉じるとき、空になった `preview` とその親を `remove_dir` で消す）filer を閉じた後に空の `filer-archive-<pid>\preview` が残る（#253 の所見 2、提案 3）。終了時に空なら消す（開いた写しのある親は残す）
-- [ ] `picture:` は頼んだ番号で、描かれている絵の番号ではない（#255 の所見 2、提案 1）。`picture shown:` を足す（応答の `key.n`）
+- [x] （v0.78.44。`picture shown:` は、カーソルの下のファイルの絵が描かれているときだけ出る）`picture:` は頼んだ番号で、描かれている絵の番号ではない（#255 の所見 2、提案 1）。`picture shown:` を足す（応答の `key.n`）
 - [ ] フォルダ比較の行と足の行を状態ファイルに出すか、`[diff]` に `C`（全部を写す）を足す（#255 の提案 2。45 節の期待値を文字で読む）
 - [x] （v0.78.29。`os error N`、見つからない・拒否だけ英語の語を添える。13.12 / 13.12a を再テストに）spot の `Resolves` に OS の言語の誤りの文が混ざる（#255 の所見 3、提案 3: `ファンクションが間違っています。 (os error 1)`）。番号だけ残す
 - [ ] `<S-Enter>` の picker の注記に、どのルール（`prepend_rules` / `rules` / `append_rules`）から来たかを出す（#254 の提案 1）

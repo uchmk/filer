@@ -1116,6 +1116,7 @@ fn state_report(app: &App) -> String {
             line.push_str(&format!(" | … +{} more", shown.len() - MAX));
         }
         lines.push(format!("pick: {line}"));
+        lines.push(format!("query: {}", ov.query));
         lines.push(format!("picked: {}", ov.selected().map_or("", |i| ov.items[i].as_str())));
     }
     // What a confirm box asks and what it offers, shaped like `pick:`: 26.1
@@ -1203,6 +1204,11 @@ fn state_report(app: &App) -> String {
     // has one.
     if tab.current.hovered().is_some_and(|e| !e.is_dir_like() && app.is_external_preview(&e.path)) {
         lines.push(format!("picture: {}", app.preview.n));
+        // And the one on screen, which is not that while a request for
+        // another is out (#255): the key of what the pane last drew.
+        if let Some(k) = app.preview.key.as_ref().filter(|k| k.path == tab.current.hovered().map_or_else(PathBuf::new, |e| e.path.clone())) {
+            lines.push(format!("picture shown: {}", k.n));
+        }
     }
     // Against the file's own size, as the caption says it (an SVG is laid
     // out larger than it is).
@@ -1702,6 +1708,13 @@ mod tests {
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "pick: Neovim | VS Code (2h ago) | サクラエディタ"), "{report}");
         assert!(report.lines().any(|l| l == "picked: VS Code"), "{report}");
+        assert!(report.lines().any(|l| l == "query: "), "{report}");
+        if let app::Overlay::Pick(ov) = &mut app.overlay {
+            ov.query = "vs".into();
+            ov.refilter();
+        }
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "query: vs") && report.lines().any(|l| l == "pick: VS Code (2h ago)"), "{report}");
 
         // A confirm box says what it asks and offers (#230), without its blank lines.
         app.overlay = app::Overlay::Confirm(app::ConfirmOverlay {
