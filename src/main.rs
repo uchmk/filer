@@ -291,24 +291,10 @@ fn take_path(cli: &mut Cli, arg: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Where a DLL loaded by name may come from: the folder `filer.exe` is in and
-/// System32, and nowhere else. `alacritty_terminal` loads `conpty.dll` by name,
-/// and the default search also tries the working directory and every folder on
-/// the `PATH`. A `filer.exe` with no `conpty.dll` beside it ran on WezTerm's
-/// from the `PATH`, or on one left in the folder it was started from (#184).
-/// The release zip was safe only because its own copy wins. Without one beside
-/// the exe, the pane now uses the ConPTY built into Windows.
-#[cfg(windows)]
-fn restrict_dll_search() {
-    use windows::Win32::System::LibraryLoader::{SetDefaultDllDirectories, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS};
-    // Fails only before Windows 8 (or 7 without KB2533623), which egui does
-    // not run on either; there the old search order simply stays.
-    let _ = unsafe { SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS) };
-}
-
 fn main() -> eframe::Result<()> {
-    #[cfg(windows)]
-    restrict_dll_search();
+    // Before anything loads a DLL: `conpty.dll` only from beside filer.exe
+    // (or System32), never the working folder or the `PATH` (#184).
+    tsumugi_pane::restrict_dll_search();
     let cli = parse_cli();
     let cfg = Config::load();
 
@@ -1285,7 +1271,7 @@ fn state_report(app: &App) -> String {
     // only `Stop-Process` by name, which closed the owner's own documents
     // too (#162, proposal 3). The PID is the shell's; the program is its child.
     if let Some(l) = &app.last_launch {
-        lines.push(format!("launched: {l}"));
+        lines.push(l.clone());
     }
     // Lines scrolled back into the pane's history, of how many it holds:
     // half of 19.4 could only be read off pictures (#209).
@@ -1492,13 +1478,12 @@ fn pick_backends(
     windows: bool,
     has: impl Fn(eframe::wgpu::Backends) -> bool,
 ) -> (Option<eframe::wgpu::Backends>, Option<String>) {
-    let auto = |warning| (auto_backends(windows, || has(eframe::wgpu::Backends::GL)), warning);
-    let Ok(Some(name)) = name else { return auto(None) };
-    let backends = eframe::wgpu::Backends::from_comma_list(name);
-    match has(backends) {
-        true => (Some(backends), None),
-        false => auto(Some(format!(
-            "[ui] backend = \"{name}\": this machine has no adapter for it; drawing with the default"
+    let name = name.ok().flatten();
+    match tsumugi_pane::gpu::pick_backends(name, windows, has) {
+        Ok(backends) => (backends, None),
+        Err(auto) => (auto, Some(format!(
+            "[ui] backend = \"{}\": this machine has no adapter for it; drawing with the default",
+            name.unwrap_or_default()
         ))),
     }
 }
@@ -1524,29 +1509,7 @@ pub(crate) fn predicted_fallback() -> String {
     auto_backends(cfg!(windows), || has_adapter(eframe::wgpu::Backends::GL)).map_or(String::new(), |_| "Gl".into())
 }
 
-/// What `auto` narrows the backends to: GL on Windows when this machine has
-/// it, else nothing, which leaves wgpu to choose. `gl_ok` is only asked on
-/// Windows, since the question costs an instance of its own.
-fn auto_backends(windows: bool, gl_ok: impl FnOnce() -> bool) -> Option<eframe::wgpu::Backends> {
-    (windows && gl_ok()).then_some(eframe::wgpu::Backends::GL)
-}
-
-/// Whether wgpu finds an adapter on `backends`. Asked of an instance of its
-/// own, before the window exists; the answer is ready at once on every native
-/// backend, and one still pending is taken as a yes rather than waited on.
-fn has_adapter(backends: eframe::wgpu::Backends) -> bool {
-    use std::future::Future as _;
-    let instance = eframe::wgpu::Instance::new(eframe::wgpu::InstanceDescriptor {
-        backends,
-        ..eframe::wgpu::InstanceDescriptor::new_without_display_handle()
-    });
-    let mut probe = std::pin::pin!(instance.enumerate_adapters(backends));
-    let mut cx = std::task::Context::from_waker(std::task::Waker::noop());
-    match probe.as_mut().poll(&mut cx) {
-        std::task::Poll::Ready(adapters) => !adapters.is_empty(),
-        std::task::Poll::Pending => true,
-    }
-}
+use tsumugi_pane::gpu::{auto_backends, has_adapter};
 
 /// `pub(crate)` for [`crate::ui::harness`]: a test that drives the program with
 /// `egui::Event`s has to enter through the same door the window does. The chord
@@ -2424,6 +2387,25 @@ mod bug_report_f12 {
         let (pid, rest) = line.split_once(' ').unwrap_or_else(|| panic!("a PID, then the line: {line}"));
         assert!(pid.parse::<u32>().is_ok_and(|p| p > 0), "the shell's PID: {line}");
         assert_eq!(rest, "exit 0");
+    }
+
+    /// #276: a line the shell could not run is `launch failed:` in the state
+    /// file once the watcher hears it, not a PID a check reads as "started".
+    #[test]
+    fn the_state_file_says_when_a_launch_failed() {
+        let mut s = screen("state-launch-failed");
+        s.app.act(crate::config::cmd::Act::Shell { run: "no-such-tool-xyz".into(), block: false, confirm: false, orphan: false });
+        assert!(state_report(&s.app).contains("launched: "), "started, as far as it knows");
+        let ctx = egui::Context::default();
+        for _ in 0..100 {
+            s.app.drain_channels(&ctx);
+            if state_report(&s.app).contains("launch failed: no-such-tool-xyz") {
+                assert!(!state_report(&s.app).contains("launched: "));
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        panic!("never said it failed: {}", state_report(&s.app));
     }
 
     /// 26.12: a key the panel does not offer, typed as the window delivers

@@ -13,6 +13,9 @@
 #   ... -Log probe.txt                        # also append every line to a file
 #   ... -AltScreen                            # switch to the alternate screen,
 #                                             # as a full-screen program does
+#   ... -NoVt                                 # leave virtual-terminal input off,
+#                                             # so keys arrive as records with a
+#                                             # virtual key (#99)
 #
 # Every line starts with the time it was printed, in milliseconds since the
 # Unix epoch -- the clock `FILER_PTY_LOG`'s `== pane opened` line also gives,
@@ -32,7 +35,7 @@
 # console, and with stdout redirected they would go into the pipe instead of
 # reaching the terminal. Use -Log for a copy on disk.
 
-param([switch]$Win32, [switch]$Query, [switch]$AltScreen, [string]$Log)
+param([switch]$Win32, [switch]$Query, [switch]$AltScreen, [switch]$NoVt, [string]$Log)
 
 Add-Type @"
 using System;
@@ -83,9 +86,13 @@ $old = [uint32]0
 [void][KeyProbe]::GetConsoleMode($in, [ref]$old)
 # ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS.
 # No ENABLE_PROCESSED_INPUT, so Ctrl+C arrives as a record rather than a signal.
-[void][KeyProbe]::SetConsoleMode($in, 0x0200 -bor 0x0008 -bor 0x0080)
+# -NoVt drops the first, so a key such as End arrives as a record with its
+# virtual key instead of as `\e[1;2F` characters.
+$flags = 0x0008 -bor 0x0080
+if (-not $NoVt) { $flags = $flags -bor 0x0200 }
+[void][KeyProbe]::SetConsoleMode($in, $flags)
 
-$mode = 'VT input'
+$mode = if ($NoVt) { 'plain input (no VT)' } else { 'VT input' }
 if ($Win32) { $mode += ' + win32-input-mode' }
 if ($Query) { $mode += ' + tcell startup queries' }
 if ($AltScreen) { $mode += ' + alternate screen' }

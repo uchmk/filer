@@ -39,28 +39,10 @@ pub fn focus_rule(theme: &Theme, focused: bool) -> Color32 {
     }
 }
 
-/// Turn wheel movement, measured in rows, into whole rows — keeping the part
-/// that is not yet one.
-///
-/// A frame's share of a notch is usually a fraction of a row, and truncating
-/// each frame on its own threw that away every time: only a frame that cleared
-/// a whole row on its own moved anything, which is a wheel you have to spin
-/// hard for one or two lines. Every surface that scrolls by rows needs this,
-/// and each keeps its own remainder — one shared between them would jump when
-/// the pointer crossed from one to another mid-turn.
-///
-/// Turning the other way throws the remainder away. What was owed was owed in
-/// the old direction; carried into the new one it ate part of the first notch,
-/// so one notch up moved a row and one notch down moved none (40.8, #100).
-pub fn wheel_whole(acc: &mut f32, rows: f32) -> i64 {
-    if rows * *acc < 0.0 {
-        *acc = 0.0;
-    }
-    *acc += rows;
-    let whole = acc.trunc();
-    *acc -= whole;
-    whole as i64
-}
+/// Turn wheel movement, measured in rows, into whole rows, keeping the part
+/// that is not yet one. In `tsumugi-pane` with the terminal pane, which uses it
+/// too; its tests are there.
+pub use tsumugi_pane::wheel_whole;
 
 /// The listing's right-hand summary.
 ///
@@ -1253,66 +1235,6 @@ mod summary_line {
         // #122: once the walk is done the header keeps the total.
         assert_eq!(summary(30, 0, None, false, false, Some(2048)), "30 items · 2.0 K total");
         assert_eq!(summary(2, 0, None, false, true, Some(2048)), "2 measured so far", "not mid-walk");
-    }
-}
-
-#[cfg(test)]
-mod wheel {
-    use super::*;
-
-    /// Turning the wheel has to move the view by what was turned.
-    ///
-    /// Each frame gets a fraction of a notch, and truncating each one on its
-    /// own discards it: twenty frames of "not quite a row" used to move
-    /// nothing at all. That is the whole bug — a wheel that had to be spun
-    /// hard for one or two lines — and it was in three places, so the
-    /// arithmetic lives in one.
-    #[test]
-    fn a_notch_spread_over_frames_still_arrives() {
-        let mut acc = 0.0;
-        // Three rows' worth, delivered a fifth of a row at a time.
-        let moved: i64 = (0..15).map(|_| wheel_whole(&mut acc, 0.2)).sum();
-        assert_eq!(moved, 3, "every fifth frame completes a row");
-
-        // Truncating each frame instead is what used to happen.
-        let dropped: i64 = (0..15).map(|_| 0.2_f32.trunc() as i64).sum();
-        assert_eq!(dropped, 0, "which is why nothing moved");
-    }
-
-    /// The remainder is kept, not rounded away, and works both ways.
-    #[test]
-    fn it_keeps_the_part_that_is_not_yet_a_row() {
-        let mut acc = 0.0;
-        assert_eq!(wheel_whole(&mut acc, 0.6), 0, "not a row yet");
-        assert_eq!(wheel_whole(&mut acc, 0.6), 1, "now it is");
-        assert!((acc - 0.2).abs() < 1e-5, "and 0.2 of a row is still owed: {acc}");
-
-        // The other way round works the same.
-        let mut acc = 0.0;
-        assert_eq!(wheel_whole(&mut acc, -0.6), 0);
-        assert_eq!(wheel_whole(&mut acc, -0.6), -1);
-
-        // A whole row at a time is unaffected — the common case must not drift.
-        let mut acc = 0.0;
-        for _ in 0..10 {
-            assert_eq!(wheel_whole(&mut acc, 1.0), 1);
-        }
-        assert!(acc.abs() < 1e-5, "no drift after ten rows: {acc}");
-    }
-
-    /// 40.8: a notch is about 1.6 rows, arriving over several frames. Up one
-    /// notch and down one must move the same number of rows each way; carrying
-    /// the 0.6 left from the way up into the way down made the second move
-    /// nothing at all.
-    #[test]
-    fn a_change_of_direction_starts_from_nothing() {
-        let notch = |acc: &mut f32, dir: f32| -> i64 { (0..8).map(|_| wheel_whole(acc, dir * 0.2)).sum() };
-        let mut acc = 0.0;
-        let up = notch(&mut acc, 1.0);
-        let down = notch(&mut acc, -1.0);
-        assert_eq!(up, 1);
-        assert_eq!(down, -1, "the same one row back down, not none");
-        assert_eq!(notch(&mut acc, 1.0), 1, "and up again");
     }
 }
 
