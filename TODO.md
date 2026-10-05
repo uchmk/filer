@@ -135,7 +135,7 @@
 #288 の提案 2（x64 は `SetCursorPos` で動かせる）は `windows-role.md` の表に、提案 3（ペインの写しは `clipboard set:` に出る）は x64 の再テストの行に書いた。
 提案 4（`<Wait:N>` は 60000 まで、と README に）は README の `--keys` の節にもう書いてある（`<Wait:N>` pauses N milliseconds (up to 60000)）。
 
-- [ ] `--keys` の途中で窓を閉じても（タイトルバーの ×、`WM_CLOSE`）`FILER_KEYS_DONE` を書く（#288 の所見 1、提案 1）。今は `src/main.rs` の `app.quit` の経路（`q`、`<Quit>`）でしか書かず、
+- [x] （v0.78.161。`closed_report` を足し、`close_requested` の経路で書く。×の実機での確認は再テストに回す）`--keys` の途中で窓を閉じても（タイトルバーの ×、`WM_CLOSE`）`FILER_KEYS_DONE` を書く（#288 の所見 1、提案 1）。今は `src/main.rs` の `app.quit` の経路（`q`、`<Quit>`）でしか書かず、
   閉じた窓を待つスクリプトは時間切れまで待ち、消えたプロセスと見分けられない。`ctx.input(|i| i.viewport().close_requested())` を読むところで `quit: window closed` と `keys: done`（または残りのキーを添えた `keys: closed`）を書き、
   `quit_report` のようなテストを足す
 - [ ] `--keys` の `<Wait:N>` の間に filer が 10 秒で約 1 CPU 秒を使うかを確かめ、使うなら待ちの間は描き直さずに眠る（#287 の提案 1）。ARM64 で `<Wait:16000>` の間は

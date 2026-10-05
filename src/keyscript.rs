@@ -279,6 +279,16 @@ pub fn quit_report(left: usize) -> String {
     }
 }
 
+/// The last line of `FILER_KEYS_DONE` when the window was closed from outside
+/// (the title bar's ×, `WM_CLOSE`) while the script ran: a script waiting on
+/// the file otherwise waited out its timeout, like for a vanished process.
+pub fn closed_report(left: usize) -> String {
+    match left {
+        0 => "quit: window closed\nkeys: done\n".to_owned(),
+        n => format!("keys: closed\nleft: {n} not pressed\n"),
+    }
+}
+
 /// What `FILER_KEYS_DONE` holds for a script refused before any window opened
 /// (#193, proposal 1): a run started detached never sees the message on the
 /// command line, and without this the file simply never arrived.
@@ -416,6 +426,8 @@ mod tests {
     fn a_quit_or_a_refusal_still_says_how_the_script_ended() {
         assert_eq!(quit_report(0), "quit: yes\nkeys: done\n");
         assert_eq!(quit_report(3), "keys: quit\nleft: 3 not pressed\n");
+        assert_eq!(closed_report(0), "quit: window closed\nkeys: done\n");
+        assert_eq!(closed_report(2), "keys: closed\nleft: 2 not pressed\n");
         let why = parse("j k").unwrap_err();
         assert_eq!(refused_report(&why), format!("keys: refused\nwhy: {why}\n"));
     }

@@ -1027,6 +1027,14 @@ impl eframe::App for Filer {
             }
         }
 
+        if ctx.input(|i| i.viewport().close_requested()) && !self.app.quit {
+            // The title bar's × (`WM_CLOSE`): no later frame writes the file.
+            if let Some(done) = self.script_done.take() {
+                let _ = std::fs::write(done, state_report(&self.app) + &keyscript::closed_report(self.script.len()));
+                self.note_progress();
+            }
+        }
+
         if self.app.quit {
             // The frame that writes `keys: done` never comes for a closed
             // window, so a script ending in `q` is reported here instead.

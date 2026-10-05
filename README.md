@@ -1555,7 +1555,8 @@ Two more endings leave the file too (v0.72.8). A script whose last key quits fil
 report as the window closes, with `quit: yes` just before `keys: done`; a quit with keys still to go
 ends `keys: quit` and `left: N not pressed`. A script refused before the window opens (a plain
 space, a key that cannot be typed) writes `keys: refused` and `why: …`, the same reason the command
-line gets -- which a run started detached never sees.
+line gets -- which a run started detached never sees. A window closed from outside (the title bar's ×) while the
+script runs writes `quit: window closed` before `keys: done`, or `keys: closed` and `left: N not pressed` (v0.78.161).
 
 ## Platform Support (Roadmap)
 
