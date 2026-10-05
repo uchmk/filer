@@ -245,7 +245,7 @@ pub(crate) struct Origin {
 ///
 /// `--ancestry-path` keeps only commits descended from `commit` *and* ancestral
 /// to `HEAD`; among those, the oldest merge is the one that brought it in.
-/// `rev-list` writes newest first, so that is the last line.
+/// `git log` writes newest first, so that is the last line.
 ///
 /// `None` is the honest answer in two ordinary cases, and neither is an error:
 /// a commit pushed straight to the branch never went through a merge, and a
@@ -254,8 +254,13 @@ pub(crate) struct Origin {
 pub(crate) fn origin(path: &Path, commit: &str) -> Option<Origin> {
     let dir = if path.is_dir() { path } else { path.parent()? };
     let range = format!("{commit}..HEAD");
-    let out = run(dir, &["rev-list", "--merges", "--ancestry-path", &range])?;
-    let sha = out.lines().rev().find(|l| !l.is_empty())?;
+    // The merges with their short hashes and subjects, in one walk: a
+    // `rev-list` and then a `log` for the one wanted were two `git` processes,
+    // and on Windows each brings a console host up (#263, proposal 2).
+    let out = run(dir, &["log", "--merges", "--ancestry-path", "--format=%H%x00%h%x00%s", &range])?;
+    let line = out.lines().rev().find(|l| !l.is_empty())?;
+    let mut f = line.splitn(3, '\0');
+    let (sha, merge, subject) = (f.next()?, f.next()?, f.next().unwrap_or_default());
     // Being *after* a commit is not the same as having *brought it in*. A merge
     // took the commit in only if the commit was not already on the branch the
     // merge targeted -- that is, not reachable from the merge's first parent.
@@ -268,8 +273,6 @@ pub(crate) fn origin(path: &Path, commit: &str) -> Option<Origin> {
     if run(dir, &["merge-base", "--is-ancestor", commit, &first_parent]).is_some() {
         return None;
     }
-    let line = run(dir, &["log", "-n1", "--format=%h%x00%s", sha])?;
-    let (merge, subject) = line.trim_end().split_once('\0')?;
     let (pr, branch) = merge_subject(subject);
     Some(Origin { merge: merge.to_string(), pr, branch })
 }
