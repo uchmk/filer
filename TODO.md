@@ -1986,7 +1986,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.78.43 の `jobs:` / `job:` が `tasks:`。`shown:` は `toast repeats:` と `toasts:` で足りる）`FILER_KEYS_DONE` に `tasks:`（ジョブの一覧）と `shown:`（いま画面に出ているトースト）を足す（#213 の提案 4、#210 の提案 1）。
 - [x] （v0.78.61。`spot row:` `spot: N of M` `spot top: N of M`。矩形 `spot rect:` は未）`FILER_KEYS_DONE` に spot のカーソルの行（`spot row: Pull request`、`spot: 16 of 23`）、どこまでスクロールしているか（`spot top: 6 of 25`、#224 の提案 3）と、spot パネルの矩形（`spot rect:`）を足す
   （#212 の提案 1、#214 の提案 2）。
-- [ ] `zoom: fit` に、そのときの倍率を添える（`zoom: fit (23%)`、#211 の提案 3）。`fit` は窓の大きさで変わるので、2 台の数を比べられない。
+- [x] （v0.78.83。画像のときだけ。キャプションの `fit NN%` と同じ数）`zoom: fit` に、そのときの倍率を添える（`zoom: fit (23%)`、#211 の提案 3）。`fit` は窓の大きさで変わるので、2 台の数を比べられない。
 - [ ] `<Shot:name@preview>`（filer が知っている矩形で切り抜く、#211 の提案 4）。`[~]` の行はどれも切り抜きが要り、各レーンが座標を手で測っている。
 - [x] （v0.78.66。46.20 を再テストに積んだ）`origin/HEAD` が無いクローンで、`Not merged` の行が無いことが「マージ済み」と区別できない（#212 の提案 2）。`Not merged  unknown (no origin/HEAD)`
   を出す。`not_merged_into` に小さな列挙を足す。

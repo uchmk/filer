@@ -1521,7 +1521,7 @@ comparison is open; `pane` is the terminal's grid (`12x159`) or `closed`, and wh
 there are (v0.73.43); `toast` is
 the newest message still on screen, empty when there is none. Since v0.73.1: `list top` is the first
 row of the list on screen, `preview top: N of M` the preview's first line against the furthest it can
-scroll, `zoom` the image's scale (`fit` or `250%`), `minimap setting` what `<A-n>` flips, and `split`
+scroll, `zoom` the image's scale (`fit` or `250%`; since v0.78.83 `fit (23%)` while a picture is up, the scale fit comes to in this window), `minimap setting` what `<A-n>` flips, and `split`
 whether the second pane is open and which side has the keys. Since v0.73.69 `scale` is filer's own
 scale (`<C-=>`) with the pixels per point egui drew at -- the display's scale times filer's -- and
 `window` the window in pixels and points, as `filer env` words it. Since v0.73.3, while a picker is open

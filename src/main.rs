@@ -1393,7 +1393,15 @@ fn state_report(app: &App) -> String {
         app::PreviewState::Ready(preview::Payload::Image { own, vector, .. }) => preview::shown_scale(z, *own, *vector, ppp),
         _ => z,
     };
-    lines.push(format!("zoom: {}", app.preview.zoom.map_or("fit".into(), |z| format!("{:.0}%", scale(z) * 100.0))));
+    // Fit with the scale it comes to, as the caption says it: `fit` alone is
+    // a different size on every window, so two machines' runs could not be
+    // compared (#211, proposal 3). Only for a picture; nothing else is scaled.
+    let image = matches!(&app.preview.state, app::PreviewState::Ready(preview::Payload::Image { .. }));
+    let fit = match image {
+        true => format!("fit ({:.0}%)", scale(app.preview.fit) * 100.0),
+        false => "fit".into(),
+    };
+    lines.push(format!("zoom: {}", app.preview.zoom.map_or(fit, |z| format!("{:.0}%", scale(z) * 100.0))));
     // The scale the run was measured at: filer's own (`<C-=>`) and what egui
     // made of it with the display's, which is what every size above was
     // drawn at. Before, it was read back from the `Scale N%` toasts or the
@@ -1901,6 +1909,29 @@ mod tests {
         let err = app::PreviewState::Ready(preview::Payload::Error("not found, os error 2".into()));
         assert_eq!(preview_text(&err), "not found, os error 2\n");
         assert_eq!(preview_text(&app::PreviewState::Loading), "(no preview)\n");
+    }
+
+    /// #211, proposal 3: `zoom: fit` says what fit comes to for a picture, as
+    /// the caption does, and stays bare for anything that is not scaled.
+    #[test]
+    fn zoom_fit_says_its_scale_for_a_picture() {
+        let dir = crate::util::test_dir("state-zoom-fit");
+        let mut app = App::new(crate::config::Config::load(), dir, egui::Context::default());
+        let zoom = |a: &App| state_report(a).lines().find(|l| l.starts_with("zoom: ")).map(str::to_owned);
+        assert_eq!(zoom(&app).as_deref(), Some("zoom: fit"), "no picture, no scale");
+        app.preview.state = app::PreviewState::Ready(preview::Payload::Image {
+            width: 1600,
+            height: 1200,
+            source: (1600, 1200),
+            own: 1.0,
+            vector: false,
+            rgba: std::sync::Arc::new(Vec::new()),
+            caption: String::new(),
+        });
+        app.preview.fit = 0.25 / app.ctx.pixels_per_point();
+        assert_eq!(zoom(&app).as_deref(), Some("zoom: fit (25%)"));
+        app.preview.zoom = Some(0.5 / app.ctx.pixels_per_point());
+        assert_eq!(zoom(&app).as_deref(), Some("zoom: 50%"), "a zoom of its own is said as before");
     }
 
     /// #236: a compare row reads as a marker and the two sides, the changed
