@@ -4305,7 +4305,10 @@ impl App {
         }
 
         let cwd = self.tabs[self.active].cwd.clone();
-        match openers.first() {
+        // The first opener whose program is installed, as `<S-Enter>`'s list
+        // starts its cursor (Q87); all missing leaves the first to say so.
+        let first_found = openers.iter().position(|o| !exec::opener_missing(&o.0)).unwrap_or(0);
+        match openers.get(first_found) {
             Some((run, block, orphan, _)) => {
                 let line = exec::command_line(run, &paths, line, &self.cfg.line_args);
                 let (block, orphan) = (*block, *orphan);
