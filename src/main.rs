@@ -916,7 +916,7 @@ impl eframe::App for Filer {
                 self.script_at = (frame, std::time::Instant::now());
                 self.script_now = false;
             }
-            Some(p @ (keyscript::Press::Click { .. } | keyscript::Press::Wheel { .. })) => {
+            Some(p @ (keyscript::Press::Click { .. } | keyscript::Press::Wheel { .. } | keyscript::Press::Drag { .. })) => {
                 let rect = ctx.input(|i| i.viewport_rect());
                 raw_input.events.extend(keyscript::pointer_events(&p, rect));
                 self.script_at = (frame, std::time::Instant::now());

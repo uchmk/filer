@@ -65,8 +65,18 @@ pub enum Step {
     /// written afresh in every real-machine run (#260).
     Click { right: bool, at: At },
     /// `<Wheel:-3@0.5,0.4>`: this many lines of wheel there (negative is down).
-    Wheel { lines: i32, at: At },
+    /// A fraction is a part of a notch (`<Wheel:0.25@…>`), and `C-` / `A-` / `S-`
+    /// before the number holds that modifier (`<Wheel:C-1@…>`, #280).
+    Wheel { milli: i32, mods: u8, at: At },
+    /// `<Drag:0.2,0.3-0.6,0.3>`: the left button down at the first place, moved
+    /// to the second and let go there (#280; `SendInput` could not move the cursor).
+    Drag { from: At, to: At },
 }
+
+/// `Step::Wheel`'s modifiers: these bits.
+pub const MOD_CTRL: u8 = 1;
+pub const MOD_ALT: u8 = 2;
+pub const MOD_SHIFT: u8 = 4;
 
 /// A place in the window, in thousandths of its width and height.
 pub type At = (u16, u16);
@@ -85,7 +95,8 @@ pub enum Press {
     Paste,
     /// Pointer steps wait for the window's size, known only in the frame loop.
     Click { right: bool, at: At },
-    Wheel { lines: i32, at: At },
+    Wheel { milli: i32, mods: u8, at: At },
+    Drag { from: At, to: At },
 }
 
 /// A step as the frame loop takes it; `None` for a key no keyboard can type.
@@ -97,7 +108,8 @@ pub fn press(step: &Step) -> Option<Press> {
         Step::PaneText(name) => Some(Press::PaneText(name.clone())),
         Step::PreviewText(name) => Some(Press::PreviewText(name.clone())),
         Step::Click { right, at } => Some(Press::Click { right: *right, at: *at }),
-        Step::Wheel { lines, at } => Some(Press::Wheel { lines: *lines, at: *at }),
+        Step::Wheel { milli, mods, at } => Some(Press::Wheel { milli: *milli, mods: *mods, at: *at }),
+        Step::Drag { from, to } => Some(Press::Drag { from: *from, to: *to }),
         Step::Wait(d) => Some(Press::Wait(*d)),
         Step::Now => Some(Press::Now),
         Step::Shot(name) => Some(Press::Shot(name.clone())),
@@ -119,7 +131,11 @@ pub fn label(step: &Step) -> String {
         Step::PaneText(name) => format!("<PaneText:{name}>"),
         Step::PreviewText(name) => format!("<PreviewText:{name}>"),
         Step::Click { right, at } => format!("<{}Click:{}>", if *right { "R" } else { "" }, at_text(*at)),
-        Step::Wheel { lines, at } => format!("<Wheel:{lines}@{}>", at_text(*at)),
+        Step::Wheel { milli, mods, at } => {
+            let held = [(MOD_CTRL, "C-"), (MOD_ALT, "A-"), (MOD_SHIFT, "S-")].iter().filter(|(bit, _)| mods & bit != 0).map(|(_, t)| *t).collect::<String>();
+            format!("<Wheel:{held}{}@{}>", *milli as f32 / 1000.0, at_text(*at))
+        }
+        Step::Drag { from, to } => format!("<Drag:{}-{}>", at_text(*from), at_text(*to)),
     }
 }
 
@@ -135,17 +151,27 @@ fn at(text: &str) -> Option<At> {
 }
 
 /// The pointer steps' tokens: `<Click:0.5,0.4>`, `<RClick:0.5,0.4>`,
-/// `<Wheel:-3@0.5,0.4>`. `None` for a token that is not one.
+/// `<Wheel:-3@0.5,0.4>`, `<Wheel:C-0.25@0.5,0.4>`, `<Drag:0.2,0.3-0.6,0.3>`. `None` for a token that is not one.
 fn pointer(token: &str) -> Option<Result<Step, String>> {
     let inner = token.strip_prefix('<')?.strip_suffix('>')?;
     let (name, arg) = inner.split_once(':')?;
-    let bad = || format!("`{token}` is not a pointer step; write a place as fractions of the window, as `<Click:0.5,0.4>` or `<Wheel:-3@0.5,0.4>`");
+    let bad = || format!("`{token}` is not a pointer step; write a place as fractions of the window, as `<Click:0.5,0.4>`, `<Wheel:-3@0.5,0.4>` or `<Drag:0.2,0.3-0.6,0.3>`");
     Some(match name {
         "Click" | "RClick" => at(arg).map(|at| Step::Click { right: name == "RClick", at }).ok_or_else(bad),
         "Wheel" => arg
             .split_once('@')
-            .and_then(|(n, place)| Some((n.parse::<i32>().ok().filter(|n| n.abs() <= 1000)?, at(place)?)))
-            .map(|(lines, at)| Step::Wheel { lines, at })
+            .and_then(|(n, place)| {
+                let (mut n, mut mods) = (n, 0u8);
+                while let Some((bit, rest)) = [(MOD_CTRL, "C-"), (MOD_ALT, "A-"), (MOD_SHIFT, "S-")].iter().find_map(|(bit, t)| n.strip_prefix(t).map(|rest| (*bit, rest))) {
+                    (n, mods) = (rest, mods | bit);
+                }
+                let lines = n.parse::<f32>().ok().filter(|n| n.is_finite() && n.abs() <= 1000.0)?;
+                Some(Step::Wheel { milli: (lines * 1000.0).round() as i32, mods, at: at(place)? })
+            })
+            .ok_or_else(bad),
+        "Drag" => arg
+            .split_once('-')
+            .and_then(|(from, to)| Some(Step::Drag { from: at(from)?, to: at(to)? }))
             .ok_or_else(bad),
         _ => return None,
     })
@@ -164,15 +190,23 @@ pub fn pointer_events(press: &Press, rect: egui::Rect) -> Vec<egui::Event> {
                 egui::Event::PointerButton { pos, button, pressed: false, modifiers },
             ]
         }
-        Press::Wheel { lines, at } => vec![
-            egui::Event::PointerMoved(place(*at)),
-            egui::Event::MouseWheel {
-                unit: egui::MouseWheelUnit::Line,
-                delta: egui::vec2(0.0, *lines as f32),
-                phase: egui::TouchPhase::Move,
-                modifiers: egui::Modifiers::NONE,
-            },
-        ],
+        Press::Wheel { milli, mods, at } => {
+            let modifiers = egui::Modifiers { ctrl: mods & MOD_CTRL != 0, command: mods & MOD_CTRL != 0, alt: mods & MOD_ALT != 0, shift: mods & MOD_SHIFT != 0, ..Default::default() };
+            vec![
+                egui::Event::PointerMoved(place(*at)),
+                egui::Event::MouseWheel { unit: egui::MouseWheelUnit::Line, delta: egui::vec2(0.0, *milli as f32 / 1000.0), phase: egui::TouchPhase::Move, modifiers },
+            ]
+        }
+        Press::Drag { from, to } => {
+            let (a, b, button, modifiers) = (place(*from), place(*to), egui::PointerButton::Primary, egui::Modifiers::NONE);
+            vec![
+                egui::Event::PointerMoved(a),
+                egui::Event::PointerButton { pos: a, button, pressed: true, modifiers },
+                egui::Event::PointerMoved(a.lerp(b, 0.5)),
+                egui::Event::PointerMoved(b),
+                egui::Event::PointerButton { pos: b, button, pressed: false, modifiers },
+            ]
+        }
         _ => Vec::new(),
     }
 }
@@ -337,7 +371,7 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
     }
     // `<Now>` is about the key after it, so there has to be one.
     for (i, step) in out.iter().enumerate() {
-        if *step == Step::Now && !matches!(out.get(i + 1), Some(Step::Key(_) | Step::State(_) | Step::Shot(_) | Step::PaneText(_) | Step::PreviewText(_) | Step::Paste | Step::Click { .. } | Step::Wheel { .. })) {
+        if *step == Step::Now && !matches!(out.get(i + 1), Some(Step::Key(_) | Step::State(_) | Step::Shot(_) | Step::PaneText(_) | Step::PreviewText(_) | Step::Paste | Step::Click { .. } | Step::Wheel { .. } | Step::Drag { .. })) {
             return Err("`<Now>` has to come right before a key or a reading (`<State:x>`, `<Shot:x>`, `<PaneText:x>`), as `d<Now>w` or `<A-c><Now><State:mid>`".into());
         }
     }
@@ -523,12 +557,22 @@ mod tests {
         let got = parse("<Click:0.5,0.25><RClick:1,0><Wheel:-3@0.1,0.9>").unwrap();
         assert_eq!(got[0], Step::Click { right: false, at: (500, 250) });
         assert_eq!(got[1], Step::Click { right: true, at: (1000, 0) });
-        assert_eq!(got[2], Step::Wheel { lines: -3, at: (100, 900) });
+        assert_eq!(got[2], Step::Wheel { milli: -3000, mods: 0, at: (100, 900) });
         assert_eq!(got.iter().map(label).collect::<Vec<_>>(), ["<Click:0.5,0.25>", "<RClick:1,0>", "<Wheel:-3@0.1,0.9>"]);
         for bad in ["<Click:2,0.5>", "<Click:0.5>", "<Wheel:3>", "<Wheel:x@0.5,0.5>", "<RClick:a,b>"] {
             assert!(parse(bad).unwrap_err().contains("pointer step"), "{bad}");
         }
+        let more = parse("<Wheel:C-0.25@0.5,0.5><Wheel:A-S--1@0,0><Drag:0.25,0.5-0.75,0.5>").unwrap();
+        assert_eq!(more[0], Step::Wheel { milli: 250, mods: MOD_CTRL, at: (500, 500) });
+        assert_eq!(more[1], Step::Wheel { milli: -1000, mods: MOD_ALT | MOD_SHIFT, at: (0, 0) });
+        assert_eq!(more[2], Step::Drag { from: (250, 500), to: (750, 500) });
+        assert_eq!(more.iter().map(label).collect::<Vec<_>>(), ["<Wheel:C-0.25@0.5,0.5>", "<Wheel:A-S--1@0,0>", "<Drag:0.25,0.5-0.75,0.5>"]);
         let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(800.0, 600.0));
+        let drag = pointer_events(&press(&more[2]).unwrap(), rect);
+        assert!(matches!(drag[1], egui::Event::PointerButton { pos, pressed: true, .. } if pos == egui::pos2(200.0, 300.0)), "{drag:?}");
+        assert!(matches!(drag[4], egui::Event::PointerButton { pos, pressed: false, .. } if pos == egui::pos2(600.0, 300.0)), "{drag:?}");
+        let held = pointer_events(&press(&more[0]).unwrap(), rect);
+        assert!(matches!(held[1], egui::Event::MouseWheel { delta, modifiers, .. } if delta == egui::vec2(0.0, 0.25) && modifiers.ctrl), "{held:?}");
         let click = pointer_events(&press(&got[0]).unwrap(), rect);
         assert!(matches!(click[1], egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed: true, .. } if pos == egui::pos2(400.0, 150.0)), "{click:?}");
         let wheel = pointer_events(&press(&got[2]).unwrap(), rect);
