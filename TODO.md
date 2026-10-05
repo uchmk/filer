@@ -1547,7 +1547,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   8.2 と 8.7 は設定を書き換えて `<C-S-t>` `<C-t>` と押すが、シェルは `self.cfg.term.shell` から取り、`self.cfg` を入れ替えるのは
   `config_reload` だけなので、前のシェルが起動する。`<C-F5>` を挟めば期待どおり（ARM64 で 7.6.6）。8.1 は `[term]` 無しで `5.1.x` を期待するが、
   v0.55.0（Q29）から既定は pwsh。直したら、#173 の根拠（`<C-F5>` を挟んだ形で押した結果）で 8.2 / 8.7 を付けられる。
-- [ ] **起動に失敗したシェルが `OpenConsole.exe` を 1 つずつ残す**（所見 3、不具合）。無いシェルで `<C-t>` を 3 回押すと、filer の子に 【pane】
+- [x] （v0.78.130、tsumugi-pane v0.0.5。spawn の前の自分の子のコンソールを覚え、失敗したら増えた分を終わらせる。TESTING.md 1.42）**起動に失敗したシェルが `OpenConsole.exe` を 1 つずつ残す**（所見 3、不具合）。無いシェルで `<C-t>` を 3 回押すと、filer の子に
   `OpenConsole.exe --headless …` が 3 つ残り、filer を閉じるまで消えない。2026-09 は WezTerm の ConPTY だったが、**今回はリリースに同梱する
   ConPTY** なので、zip を落とした人に届く。原因は上流（`alacritty_terminal` が、`Drop` で HPCON を閉じる `Conpty` を作る前に `Err` を返す）。
   下の「起動前に `PATH` で探す」で「入っていない」場合は避けられる。
@@ -1834,7 +1834,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   2 つの腕も `auto` と同じ道を通す。直したら 47.7 の期待値（`Adapter` は Vulkan か DX12）を `(Gl, …)` に直し、47.7 / 47.8 を再テストに戻す
 - [x] （v0.75.6。窓が開いたあと、警告の `drawing with the default` を `drawing with Gl instead` に置き換える。`filer env` は窓を開かないので元の言い方。Xvfb で `drawing with Vulkan instead`）警告で、何に戻したかを言う（#244 の提案 2）: `drawing with Gl instead`。窓が開いたあとならバックエンドが分かる
 - [x] （v0.75.7。`started` を残し、`filer env` の `Adapter` の下に `Started : 2026-10-04 09:34 (2s ago)`。Xvfb で読んだ）`last-run.toml` に時刻を残し、`filer env` の `Adapter` の横に出す（#244 の提案 3）。版が同じだと `Recorded by` を出さないので、何日前の起動の記録か分からない
-- [ ] `FILER_PTY_LOG` で win32-input-mode のキーを人の読める形に直して出す（#243 の提案 2）: `\e[66;48;98;1;2;1_` → `Alt+b` 【pane】
+- [x] （v0.78.130、tsumugi-pane v0.0.5。記録のあとに `  (Alt+b)` を添える。TESTING.md 1.43）`FILER_PTY_LOG` で win32-input-mode のキーを人の読める形に直して出す（#243 の提案 2）: `\e[66;48;98;1;2;1_` → `Alt+b`
 - [x] （v0.75.16、QA の子が TESTING.md を直した）TESTING.md 40.12 を、PSReadLine の既定（`EditMode Windows`）では `Alt+b` が `b` になると書き直す（#243 の提案 3）。`Set-PSReadLineOption -EditMode Emacs` のときに bash と同じ。
   filer が送るバイトはどちらでも同じ
 
@@ -2138,7 +2138,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 - [x] #204: 14.1〜14.6 に印（親の列のクリック、ダブルクリック、ドライブの根）。x64 の順番表から 14 節を外した。
 - [x] #205: 43.9 に印（50 MB の CSV がすぐ開き、`max_text_bytes` で切られ、そう言う）。ARM64 で 21.13 / 21.14 も合格。
-- [ ] **x64 で、何もしない窓が CPU を 1 コア使い続けている**（#204 の所見 1。47 節の後戻り）。10 秒で約 10 CPU 秒。忙しいのは UI のスレッドではなく 【pane】
+- [x] （v0.78.130 で閉じた。v0.75.0 から Windows の既定は GL で、#243 が何も設定しない 47.1 を 0.000 CPU 秒で印を付けた。Vulkan と DX12 のドライバのスレッドは filer では直せず、`[ui] backend` で選べる。present mode の選択は要らなくなった）**x64 で、何もしない窓が CPU を 1 コア使い続けている**（#204 の所見 1。47 節の後戻り）。10 秒で約 10 CPU 秒。忙しいのは UI のスレッドではなく
   AMD のドライバのスレッド（Vulkan では `amdvlk64.dll`、`WGPU_BACKEND=dx12` では `amdxc64.dll`）。`gl` では 0。前の x64 の実行では 0 だった。
   47.1 の印を外し、x64 の再テストの先頭に回した（3 つのバックエンドで測り、ドライバの版と、v0.72.2 の zip との比較も）。結果を見て、
   wgpu の present mode（`Fifo` など）やバックエンドを選べるようにするかを決める（#204 の提案 1）。ドライバの更新が原因なら filer では直せない。
