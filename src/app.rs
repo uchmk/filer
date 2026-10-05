@@ -1734,6 +1734,10 @@ impl App {
             if let Some(l) = self.last_launch.as_mut().filter(|l| l.strip_prefix("launched: ").and_then(|r| r.split_once(' ')).is_some_and(|(_, rest)| rest == line)) {
                 *l = format!("launch failed: {line}");
             }
+            // The failure names the line itself, so the `$ …` toast of the same
+            // launch would show the path twice (#278).
+            let started = format!("$ {line}");
+            self.toasts.retain(|t| !t.text.starts_with(&started));
             self.error(msg);
         }
         self.drain_search();

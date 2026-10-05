@@ -660,7 +660,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 '32.19' = '''エディタのオープナー（サクラ、メモ帳）に回る `.txt` で `<Enter>` し、`<State:x>`（v0.78.81、#162）→ `x.txt` に `launched: <PID> <コマンドライン>` がある。`Get-CimInstance Win32_Process -Filter "ProcessId=<PID> or ParentProcessId=<PID>"` に、その行を走らせた `cmd` と、その下のエディタが出る。エディタの PID に `Stop-Process -Id` すると、その窓だけが閉じ、前から開いていた同じプログラムの窓は残る'''
 '32.20' = '''カーソルを `a.txt` に置いて `;echo hello >out.txt`、続けて `;echo %*`（v0.78.92、Q82）→ `out.txt` は `hello` だけで、末尾にパスが付かず、トーストの末尾に ` (no path: the line has a shell operator; use %* to place it)` と出る（v0.78.100）。`;echo %*` はプレースホルダがあるのでパスが入り、トーストに注記は出ない'''
 '32.22' = '''Windows で、カーソルを `a.txt` に置いて `;echo a;b >semi.txt`、続けて `;echo a;b`（v0.78.111、Q85）→ `semi.txt` は `a;b` だけ（`>` が演算子なのでパスは付かない）。2 行目のトーストは末尾にパスが付き（`a;b "…\a.txt"`）、`(no path: …)` の注記は出ない（`cmd` では `;` は演算子でないため）。Linux では 2 行目にパスが付かない（`sh -c` は `;` で分けるため）'''
-'32.23' = '''日本語の Windows で、カーソルを `a.txt` に置いて `;type nothing.txt >t.txt`（v0.78.116）→ トーストは `cmd` の言ったこと（ファイルが見つからない、が文字化けせず日本語で）を出し、`` `type` was not found `` とは言わない（`type` は `cmd` の内部コマンド）。`;nosuchprog-xyz` は今までどおり `` `nosuchprog-xyz` was not found `` と出る'''
+'32.23' = '''日本語の Windows で、カーソルを `a.txt` に置いて `;type nothing.txt >t.txt`（v0.78.116）→ トーストは `cmd` の言ったこと（ファイルが見つからない、が文字化けせず日本語で）を出し、`` `type` was not found `` とは言わない（`type` は `cmd` の内部コマンド）。`;nosuchprog-xyz` は今までどおり `` `nosuchprog-xyz` was not found `` と出て、同じ起動の `$ nosuchprog-xyz …` のトーストは失敗が出たら消え、同じパスが 2 度並ばない（v0.78.143）'''
 '32.14' = 'macOS: `block = true` のオープナーでファイルを `<Enter>` → Terminal.app が前に出て、新しい窓で一覧のフォルダからエディタが動く。初回は macOS が filer に Terminal の操作を許すかを聞く。拒むと理由がトーストに出る'
 
 # 33. 設定の警告と、その色

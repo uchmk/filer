@@ -2396,11 +2396,13 @@ mod bug_report_f12 {
         let mut s = screen("state-launch-failed");
         s.app.act(crate::config::cmd::Act::Shell { run: "no-such-tool-xyz".into(), block: false, confirm: false, orphan: false });
         assert!(state_report(&s.app).contains("launched: "), "started, as far as it knows");
+        assert!(s.app.toasts.iter().any(|t| t.text.starts_with("$ no-such-tool-xyz")), "said it started");
         let ctx = egui::Context::default();
         for _ in 0..100 {
             s.app.drain_channels(&ctx);
             if state_report(&s.app).contains("launch failed: no-such-tool-xyz") {
                 assert!(!state_report(&s.app).contains("launched: "));
+                assert!(!s.app.toasts.iter().any(|t| t.text.starts_with("$ no-such-tool-xyz")), "the `$` toast is replaced by the failure (#278)");
                 return;
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
