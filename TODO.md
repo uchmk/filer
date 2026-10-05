@@ -1397,7 +1397,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] サクラエディタを ARM64 機に入れるか（提案 2）。入れない（Q45、持ち主の回答）。下の提案 1 で書き直す
 - [x] （v0.78.81。`launched: <PID> <行>`。PID は行を走らせたシェルのもので、プログラムはその子。32.19）`FILER_KEYS_DONE` に、起動したプログラムの PID を出す（提案 3）: `launched: 12345 WINWORD.EXE`。今は名前で `Stop-Process` するしかなく、
   持ち主が開いている文書まで閉じかねない。`exec.rs` の `Launch` は PID を持っている。
-- [ ] `<S-Enter>` の選択で、入っていないプログラムを薄く出すか `(not found)` を付ける（提案 4）。隠さない（「設定したのに消えた」になる）。
+- [x] （v0.78.109。`(not found)` を付けた。32.21）`<S-Enter>` の選択で、入っていないプログラムを薄く出すか `(not found)` を付ける（提案 4）。隠さない（「設定したのに消えた」になる）。
   `filer env` はすでに `not found` と言っている。
 - [x] （v0.72.7 で `l` と `<S-Enter>` に直した）TESTING.md 32.9 が `<C-o>` と書いているが、何にも割り当てられていない（所見 2。人か QA セッション）。アウトラインへは `l` / `<Right>` か `<S-Tab>`。
 - 記録: この機械の `.pdf` の既定のアプリ（`MSEdgePDF`）が壊れていて、`start ""` が Windows の「アプリを選ぶ」を出す。filer の外でも同じなので、
