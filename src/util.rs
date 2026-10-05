@@ -505,7 +505,17 @@ impl<K: Eq + Hash + Clone, V> Lru<K, V> {
 #[cfg(test)]
 pub fn test_dir(what: &str) -> std::path::PathBuf {
     static SWEEP: std::sync::Once = std::sync::Once::new();
-    SWEEP.call_once(sweep_test_dirs);
+    SWEEP.call_once(|| {
+        sweep_test_dirs();
+        // The test binary has no "after all" hook, so ask the C runtime (both
+        // glibc and the UCRT export `atexit`; no crate needed) to clear this
+        // run's own folders when the harness exits. Set FILER_KEEP_TEST_DIRS
+        // to keep them for a look.
+        unsafe extern "C" {
+            fn atexit(cb: extern "C" fn()) -> i32;
+        }
+        unsafe { atexit(remove_own_test_dirs) };
+    });
     let who = std::thread::current()
         .name()
         .unwrap_or("main")
@@ -592,6 +602,23 @@ pub fn sweep_archive_scratch() {
             }
         }
     });
+}
+
+/// What `atexit` runs: remove this process's `filer-test-…-<pid>` folders.
+#[cfg(test)]
+extern "C" fn remove_own_test_dirs() {
+    if std::env::var_os("FILER_KEEP_TEST_DIRS").is_some() {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(std::env::temp_dir()) else { return };
+    let suffix = format!("-{}", std::process::id());
+    for e in entries.flatten() {
+        let name = e.file_name();
+        let Some(name) = name.to_str() else { continue };
+        if name.starts_with(TEST_DIR_PREFIX) && name.ends_with(&suffix) {
+            let _ = std::fs::remove_dir_all(e.path());
+        }
+    }
 }
 
 /// Clear what earlier runs left, once per process.

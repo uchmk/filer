@@ -64,7 +64,7 @@
 - [x] （v0.78.98。1.40 を両レーンの再テストに積んだ）**フルパスで書いたシェルが無いとき、`was not found on PATH` と言わない**（#271 の提案 1）。`FILER_TERM_SHELL=C:\nope\x.exe` で
   ``Terminal failed: `C:\nope\x.exe` was not found on PATH`` と出るが、PATH は探していない。区切りを含む値なら
   ``Terminal failed: `C:\nope\x.exe` does not exist — set [term] shell to one that is`` にし、`filer env` の `did not start:` も合わせる。直したら 1.40 を両レーンの再テストに積む
-- [ ] **`cargo test` が終わったら、そのプロセスの `filer-test-*-<pid>` を消す**（#271 の提案 2）。x64 の run の一時フォルダに 298 個残り、どの `<State:>` の
+- [x] （v0.78.103。`atexit` で消す）**`cargo test` が終わったら、そのプロセスの `filer-test-*-<pid>` を消す**（#271 の提案 2）。x64 の run の一時フォルダに 298 個残り、どの `<State:>` の
   `parent:` にも並んだ。今は 1 時間以上たってから次のプロセスが消すだけ（v0.73.70）。テストバイナリの終わりに自分の分を消すか、`util::test_dir` の呼び手が
   終わりに消す（失敗したテストの木を残したいなら、panic のときだけ残す）
 
