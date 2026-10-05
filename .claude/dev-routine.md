@@ -1,6 +1,6 @@
 # The development routine
 
-A claude.ai Routine starts a new cloud session at :33 every hour, with
+A claude.ai Routine starts a new cloud session at :15, :30 and :45 every hour, with
 `uchmk/filer` attached, and its whole instruction is one line: read this file
 and do what it says. This file is the one place the routine's steps live
 (CLAUDE.md, 自動実行モード). To change what the routine does, change this file;
@@ -8,15 +8,20 @@ the Routine's own text can only be edited from its own conversation, so it
 stays one line.
 
 Every run starts with an empty conversation and nobody is watching: never wait
-for input. Keep the run short: at most five rounds or 50 minutes (below), then
-end; the next hour's session carries on from `main`. A session that ran for a
+for input. **A run is one round** (below): take one thing, push it, report,
+end. The next run starts 15 minutes later from `main`. A session that ran for a
 day reached 550,000 tokens, and every call re-read all of it (2026-10-05).
 
-**A run is up to five rounds, not one.** The first three runs of this file
-(2026-10-05, 05:39, 06:33 and 07:33 UTC) each pushed one version and ended
-after 8 to 18 minutes, about $0.50 a run, with some 50 items open: a run that
-stops after its first push leaves four rounds unused, and a week's work then
-takes a month. Pushing is not the end of a run; step 10 says what is.
+Until v0.78.95 a run was meant to go on for five rounds; four runs in a row
+pushed one version and ended anyway, whatever the wording. So the schedule
+carries the rounds now, three runs an hour (the owner's choice, 2026-10-05),
+and the merge routine runs at :00 between them.
+
+**Runs overlap.** A round takes 10 to 20 minutes, mostly `push-main.sh`
+waiting for `main`'s CI, so the previous run is often still pushing when the
+next one starts from a `main` without its work. Two runs taking the same item
+would fight over it, so a run claims its item before touching it
+(`scripts/claim.sh`, step 4) and the others pass it by.
 
 Read [CLAUDE.md](../CLAUDE.md); its rules apply in full, above all
 "作業ルール", "自動実行モード", "Linux 上で作業する場合", "確認事項" and
@@ -26,7 +31,7 @@ Match the surrounding code (comment density, names, the one-line layout).
 
 ## Start
 
-1. `date -u` and keep the time: the 50 minutes count from here.
+1. `date -u`.
 2. `git status`. Uncommitted changes in a new session are not expected; if
    there are any, CLAUDE.md's first rule for leftovers applies.
 
@@ -54,9 +59,17 @@ Match the surrounding code (comment density, names, the one-line layout).
    - a QUESTIONS.md question that is `回答済み` or `多数決で決定` and not yet
      carried out;
    - from TODO.md, items with none of `【人】` `【QA】` `【実機】` `【後】`
-     `要確認` (`scripts/todo-open.sh -v` lists them, top first): one section's
-     open items, or up to three small items. A large item is cut into steps,
-     written into TODO.md as sub-items, and only the first step done.
+     `要確認` (`scripts/todo-open.sh -v` lists them, top first, with their
+     line numbers): **the first one you can claim.** One item, and its own
+     sub-items with it. A large item is cut into steps, written into TODO.md
+     as sub-items, and only the first step done.
+
+   **Claim it before anything else**: `scripts/claim.sh take <its line>`
+   (for a question, the line of the TODO.md item it belongs to). Exit 1 means
+   another run is on it: try the next item down. Exit 0: it is yours, and the
+   claim lasts an hour. **Release it with `scripts/claim.sh drop` when the
+   round ends**, pushed or not -- after `push-main.sh` finishes, or when you
+   give the item up. A claim a run left behind lapses by itself after an hour.
 5. **An item you cannot take gets a mark, not a silent skip**, so the next run
    does not stop at it again. A key or a default: a `投票中` question in
    QUESTIONS.md (CLAUDE.md's format, your own vote with a reason, no
@@ -88,17 +101,11 @@ Match the surrounding code (comment density, names, the one-line layout).
    (`git rebase origin/main`, resolve, fix the version, the CHANGELOG heading
    and the subject) and run it again. When it says the checks changed files
    (a `Cargo.lock` left out), `git commit --amend` them in and run it again.
-10. One line: `vX.Y.Z を push（SHA）: what was done`. Then run `date -u` and
-    write one more line: `round N/5, M min since Start: next round` -- or, only
-    when "When to end" below says so, `…: ending (why)`. No summary between
-    rounds, and do not end the turn between rounds: in the same turn, go
-    straight back to 1. A reply that reports a push and stops there is the
-    mistake this file exists to prevent.
+10. Then the report (below), and the run ends.
 
 ## When to end
 
-- **After the fifth round, or when 50 minutes have passed since Start**, do not
-  begin another round. A round already under way finishes its push first.
+- After the round's push, or after a round that found nothing to take.
 - **`ALL_DONE` only when `scripts/todo-open.sh` prints `0`** and no answered
   question is waiting to be carried out. Never on your own reading of what is
   left: on 2026-10-05 a session stopped on "the rest is mostly for the machine
@@ -114,8 +121,8 @@ Match the surrounding code (comment density, names, the one-line layout).
 
 At the end, in Japanese, three to five lines:
 
-- each version pushed in this run with its SHA, and what it fixed or added;
-- why the run ended (five rounds, 50 minutes, `ALL_DONE`, or what stopped it);
+- the version pushed with its SHA and what it fixed or added (or what stopped
+  the round);
 - `未回答の確認事項 N 件（QUESTIONS.md）`, counting `未回答` and `投票中`.
 
 With `ALL_DONE`, the last line is `ALL_DONE` alone.
