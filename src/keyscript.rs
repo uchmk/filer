@@ -189,6 +189,37 @@ pub fn stalled_report(labels: &[String], left: usize, quiet: Duration) -> String
     )
 }
 
+/// What a panic leaves for a script that is running: the done file reads
+/// `keys: panicked`, with where and why, instead of never arriving or
+/// reading as a stall. A run that vanished twice (#259, #173) could not say
+/// whether filer had panicked or been ended from outside.
+pub fn panic_report(info: &std::panic::PanicHookInfo<'_>) -> String {
+    let why = match (info.payload().downcast_ref::<&str>(), info.payload().downcast_ref::<String>()) {
+        (Some(m), _) => (*m).to_owned(),
+        (_, Some(m)) => m.clone(),
+        _ => "no message".to_owned(),
+    };
+    let at = info.location().map_or_else(|| "unknown".to_owned(), |l| format!("{}:{}", l.file(), l.line()));
+    let thread = std::thread::current().name().unwrap_or("unnamed").to_owned();
+    format!("keys: panicked\nthread: {thread}\nat: {at}\nwhy: {}\n", why.replace('\n', " / "))
+}
+
+/// Before the window opens, for a run that writes `FILER_KEYS_DONE`: a panic
+/// anywhere writes [`panic_report`] to that file and to `<file>.panic`, and
+/// ends the process with a code that is not 0, whichever thread it was on.
+pub fn install_panic_report(done: std::path::PathBuf) {
+    let before = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let report = panic_report(info);
+        let _ = std::fs::write(&done, &report);
+        let mut named = done.clone().into_os_string();
+        named.push(".panic");
+        let _ = std::fs::write(std::path::PathBuf::from(named), &report);
+        before(info);
+        std::process::exit(101);
+    }));
+}
+
 /// The last line of `FILER_KEYS_DONE` when the app quit while the script ran
 /// (`q` as its last key, say): the frame that would have written `keys: done`
 /// never comes for a window that has closed, so the file was missing and read
@@ -463,5 +494,27 @@ mod tests {
         assert!(matches!(click[1], egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed: true, .. } if pos == egui::pos2(400.0, 150.0)), "{click:?}");
         let wheel = pointer_events(&press(&got[2]).unwrap(), rect);
         assert!(matches!(wheel[1], egui::Event::MouseWheel { delta, .. } if delta == egui::vec2(0.0, -3.0)), "{wheel:?}");
+    }
+
+    /// #259, #173: a panic under a script is written down where the script's
+    /// reader looks, with the thread, the place and the message.
+    #[test]
+    fn a_panic_is_reported_for_the_script_that_was_running() {
+        use std::sync::{Arc, Mutex};
+        let caught = Arc::new(Mutex::new(String::new()));
+        let seen = caught.clone();
+        let before = std::panic::take_hook();
+        // Only this test's own thread: a panic elsewhere while the hook is
+        // swapped must not be taken for the one under test.
+        std::panic::set_hook(Box::new(move |info| {
+            if std::thread::current().name() == Some("worker-x") {
+                *seen.lock().unwrap() = panic_report(info);
+            }
+        }));
+        let _ = std::thread::Builder::new().name("worker-x".into()).spawn(|| panic!("boom {}", 7)).unwrap().join();
+        std::panic::set_hook(before);
+        let report = caught.lock().unwrap().clone();
+        assert!(report.starts_with("keys: panicked\nthread: worker-x\nat: src/keyscript.rs:"), "{report}");
+        assert!(report.ends_with("why: boom 7\n"), "{report}");
     }
 }

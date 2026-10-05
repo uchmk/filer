@@ -384,6 +384,9 @@ fn main() -> eframe::Result<()> {
             a.chooser_file = cli.chooser_file;
             let script_done =
                 std::env::var_os("FILER_KEYS_DONE").filter(|_| !cli.keys.is_empty()).map(PathBuf::from);
+            if let Some(done) = &script_done {
+                keyscript::install_panic_report(done.clone());
+            }
             let script: std::collections::VecDeque<_> = cli.keys.iter().filter_map(keyscript::press).collect();
             let script_watch = script_done.as_ref().map(|done| {
                 let watch = Arc::new(Mutex::new(ScriptWatch {
