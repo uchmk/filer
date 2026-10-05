@@ -955,6 +955,7 @@ instructions are wrong, which is worse than a missing feature.
 | 32.20 | With the cursor on `a.txt`: `;echo hello >out.txt`, then `;echo %*` (v0.78.92, Q82) | `out.txt` holds `hello` alone, with no path at the end, and the toast ends ` (no path: the line has a shell operator; use %* to place it)` (v0.78.100). `;echo %*` gets the path, since it has a placeholder, and its toast has no such note |
 | 32.21 | In a `yazi.toml` whose `[opener]` names a program that is not installed (`run = 'no-such-tool %s'`), `<S-Enter>` on a file that opener serves (v0.78.109) | The entry is still listed, with `(not found)` after its description; the ones that are installed have no suffix. It is not hidden, so a setting that points at a missing program does not look ignored |
 | 32.22 | Windows, with the cursor on `a.txt`: `;echo a;b >semi.txt`, then `;echo a;b` (v0.78.111, Q85) | `semi.txt` holds `a;b` alone: the `>` is an operator, so no path is added. The second line's toast ends with the path (`a;b "…\a.txt"`) and has no `(no path: …)` note, since `;` is not an operator for `cmd`. On Linux the second line adds no path, as `sh -c` splits at `;` |
+| 32.23 | Japanese Windows, with the cursor on `a.txt`: `;type nothing.txt >t.txt` (v0.78.116) | The toast says what `cmd` said (the file cannot be found, in Japanese and not mojibake) and never `` `type` was not found ``: `type` is `cmd`'s own command. `;nosuchprog-xyz` still says `` `nosuchprog-xyz` was not found `` |
 
 ---
 

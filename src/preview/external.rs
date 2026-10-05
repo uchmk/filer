@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::config::PreviewRule;
+use crate::util::decode_stderr;
 
 /// A picture from the command, or why there is none.
 #[derive(Debug)]
@@ -45,36 +46,6 @@ pub fn draw(rule: &PreviewRule, path: &Path, n: i64) -> Result<Drawn, String> {
             "" => format!("{} produced no picture", first_word(&rule.run)),
             said => said.lines().next().unwrap_or(said).to_owned(),
         }),
-    }
-}
-
-/// A child's standard error as text. UTF-8 when it is, which is what
-/// `pdftoppm` and `ffmpeg` write; otherwise, on Windows, the OEM code page,
-/// which is what the `cmd` that runs the line writes (`CP932` on a Japanese
-/// Windows, where reading it as UTF-8 gave mojibake, #270).
-fn decode_stderr(bytes: &[u8]) -> String {
-    if let Ok(s) = std::str::from_utf8(bytes) {
-        return s.to_owned();
-    }
-    #[cfg(windows)]
-    if let Some(s) = oem_to_string(bytes) {
-        return s;
-    }
-    String::from_utf8_lossy(bytes).into_owned()
-}
-
-#[cfg(windows)]
-fn oem_to_string(bytes: &[u8]) -> Option<String> {
-    use windows::Win32::Globalization::{CP_OEMCP, MULTI_BYTE_TO_WIDE_CHAR_FLAGS, MultiByteToWideChar};
-    // SAFETY: both buffers are ours and the lengths passed are theirs.
-    unsafe {
-        let n = MultiByteToWideChar(CP_OEMCP, MULTI_BYTE_TO_WIDE_CHAR_FLAGS(0), bytes, None);
-        if n <= 0 {
-            return None;
-        }
-        let mut wide = vec![0u16; n as usize];
-        let m = MultiByteToWideChar(CP_OEMCP, MULTI_BYTE_TO_WIDE_CHAR_FLAGS(0), bytes, Some(&mut wide));
-        (m > 0).then(|| String::from_utf16_lossy(&wide[..m as usize]))
     }
 }
 

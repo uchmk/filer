@@ -337,7 +337,10 @@ impl Launch {
                     Ok(Some(st)) => {
                         let why = match stderr_text(&mut child) {
                             Some(msg) => msg,
-                            None => match missing_program(&cmdline, &|p| crate::util::locate(p).is_some()) {
+                            // 9009 is `cmd`'s "not recognized", 127 is `sh`'s.
+                            None => match missing_program(&cmdline, &|p| crate::util::locate(p).is_some())
+                                .filter(|_| matches!(st.code(), Some(9009 | 127)))
+                            {
                                 Some(p) => format!("`{p}` was not found"),
                                 None => match st.code() {
                                     Some(c) => format!("exit code {c}"),
@@ -367,7 +370,9 @@ impl Launch {
 /// be told apart, and only off the UI thread, since it walks `PATH`. A
 /// shell's own command (`start`, `echo`) is never "missing".
 fn missing_program(cmdline: &str, found: &dyn Fn(&str) -> bool) -> Option<String> {
-    const BUILTIN: [&str; 6] = ["start", "call", "echo", "cd", "set", "exec"];
+    const BUILTIN: [&str; 17] = [
+        "start", "call", "echo", "cd", "set", "exec", "type", "dir", "copy", "del", "move", "ren", "mkdir", "md", "rd", "cls", "ver",
+    ];
     let exe = crate::envreport::program(cmdline)?;
     if BUILTIN.contains(&exe.to_ascii_lowercase().as_str()) || found(&exe) {
         return None;
@@ -383,16 +388,16 @@ pub fn opener_missing(cmdline: &str) -> bool {
 
 /// What the shell complained about, on one line.
 ///
-/// `None` unless it is text we can read: a console on a non-English Windows
-/// answers in its own code page, not UTF-8, and a toast of mojibake tells the
-/// reader less than the exit code does.
+/// Read as UTF-8 or, on Windows, the OEM code page: a console on a non-English
+/// Windows answers in its own code page (`CP932`), and dropping that text made
+/// a failed `type` read as "`type` was not found" (#274).
 fn stderr_text(child: &mut Child) -> Option<String> {
     use std::io::Read;
     let mut buf = Vec::new();
     // Bounded: this goes into a toast, and a program that failed while
     // producing megabytes is not going to be explained by all of them.
     child.stderr.take()?.take(4096).read_to_end(&mut buf).ok()?;
-    let text = String::from_utf8(buf).ok()?;
+    let text = crate::util::decode_stderr(&buf);
     let line = text.split_whitespace().collect::<Vec<_>>().join(" ");
     (!line.is_empty()).then_some(line)
 }

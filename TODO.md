@@ -98,7 +98,7 @@
 
 ## 実機のセッションの報告（v0.78.110 で受けた分: #274、ARM64 の再テスト）
 
-- [ ] **日本語の Windows で、失敗した `:` / `;` の行がプログラムのせいにされる**（#274 の所見 1、提案 1）。`;type nothing.txt >t3.txt` が
+- [x] （v0.78.116。標準エラーを OEM コードページで読み、内部コマンドを足し、9009 / 127 のときだけ「無い」と言う。32.23 を足した）**日本語の Windows で、失敗した `:` / `;` の行がプログラムのせいにされる**（#274 の所見 1、提案 1）。`;type nothing.txt >t3.txt` が
   ``Open failed: `type` was not found`` と出る（`dir` も同じ。`;type a.txt;nothing >t.txt` は動いたのに同じ文）。`src/exec.rs` の `stderr_text` が
   UTF-8 でない（CP932 の）標準エラーを捨て、`missing_program` が `BUILTIN` の 6 語に無い内部コマンドを「無い」と言う。v0.78.101 の外部プレビューと同じく
   OEM コードページで読み、推測は先頭の語が `PATH` に無く終了コードが 9009 のときに限る。`BUILTIN` に `type` `dir` `copy` `del` `move` `ren` `mkdir` なども足す

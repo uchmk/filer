@@ -502,6 +502,36 @@ impl<K: Eq + Hash + Clone, V> Lru<K, V> {
 ///
 /// The directories are left behind for a failing test to be looked at, and
 /// the next run clears what earlier ones left (see [`stale_test_dir`]).
+/// A child's standard error as text. UTF-8 when it is, which is what
+/// `pdftoppm` and `ffmpeg` write; otherwise, on Windows, the OEM code page,
+/// which is what the `cmd` that runs the line writes (`CP932` on a Japanese
+/// Windows, where reading it as UTF-8 gave mojibake, #270).
+pub fn decode_stderr(bytes: &[u8]) -> String {
+    if let Ok(s) = std::str::from_utf8(bytes) {
+        return s.to_owned();
+    }
+    #[cfg(windows)]
+    if let Some(s) = oem_to_string(bytes) {
+        return s;
+    }
+    String::from_utf8_lossy(bytes).into_owned()
+}
+
+#[cfg(windows)]
+fn oem_to_string(bytes: &[u8]) -> Option<String> {
+    use windows::Win32::Globalization::{CP_OEMCP, MULTI_BYTE_TO_WIDE_CHAR_FLAGS, MultiByteToWideChar};
+    // SAFETY: both buffers are ours and the lengths passed are theirs.
+    unsafe {
+        let n = MultiByteToWideChar(CP_OEMCP, MULTI_BYTE_TO_WIDE_CHAR_FLAGS(0), bytes, None);
+        if n <= 0 {
+            return None;
+        }
+        let mut wide = vec![0u16; n as usize];
+        let m = MultiByteToWideChar(CP_OEMCP, MULTI_BYTE_TO_WIDE_CHAR_FLAGS(0), bytes, Some(&mut wide));
+        (m > 0).then(|| String::from_utf16_lossy(&wide[..m as usize]))
+    }
+}
+
 #[cfg(test)]
 pub fn test_dir(what: &str) -> std::path::PathBuf {
     static SWEEP: std::sync::Once = std::sync::Once::new();
