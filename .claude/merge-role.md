@@ -151,7 +151,16 @@ One commit for the run, however many were merged, pushed to `main` after the
 last merge (CLAUDE.md: one version per push). Each pull request gets its own
 CHANGELOG line, proposals and queue edit inside it. It holds **Markdown, `Cargo.toml` and `Cargo.lock`
 only** -- this is the one push to `main` an unattended run may make, and it is
-allowed because nothing in it can break a build:
+allowed because nothing in it can break a build. **Push it with
+`scripts/push-main.sh`, never `git merge origin/main` + `git push`** (v0.78.38):
+when the development routine pushed first, it puts your commit on top of
+theirs and gives it the next version -- in the subject, the CHANGELOG heading
+and the lines you added -- then runs `scripts/verify.sh` and pushes. Renumbering
+in a merge commit left three commits titled `v0.78.31:` on 2026-10-05, and the
+release notes are built from those titles. If it stops at a conflict, do what
+it says (`git rebase origin/main`: the commit was never pushed) and run it again.
+
+What goes in it:
 
 - **Version**: PATCH up in `Cargo.toml`, `cargo build` for `Cargo.lock`.
 - **CHANGELOG.md**: a new section, with each merged pull request's changelog line

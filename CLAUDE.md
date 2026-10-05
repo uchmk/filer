@@ -143,6 +143,7 @@ cargo check --release --target x86_64-pc-windows-msvc --all-targets
 
 **push の前は `scripts/verify.sh` を 1 回回せば足りる**（v0.78.35）。テスト、clippy（Linux と Windows の 2 ターゲット、`-D warnings`）、
 ビルド、チェック表 3 つの `--check` を順に回し、1 つでも落ちたらその出力を出して止まる。最後の行が `ALL OK: test result: ok. …` なら push してよい。
+`main` へ push するときは `scripts/push-main.sh`（v0.78.38）がこれを回してから push するので、別に回さなくてよい（「自動実行モード」）。
 
 - ただし型検査なので実行時の問題は捕まえない。実際、`format!("{:?}", "status")` が
   ディレクトリ名に引用符を入れ（Unix では合法、Windows では不正）、CI で初めて落ちたことがある。
@@ -186,8 +187,13 @@ cargo check --release --target x86_64-pc-windows-msvc --all-targets
   続けて `git push -u origin <今いるブランチ>` する。
   - コミットメッセージは英語。
   - **push 先は `main`**（2026-10-04、持ち主の指示）。`auto/todo` に積むと、誰かがマージするまで実機のレーンに届かないため。
-    `git fetch origin main` してから始め、push の前にもう一度 `main` を取り込む（マージの Routine が並んで `main` に push している）。
-    取り込んだら検証をやり直してから push する。`auto-todo.sh` から起動されたときは、これまでどおりスクリプトが用意したブランチに積む。
+    `git fetch origin main` してから始める。**push は `scripts/push-main.sh` で行い、`git merge origin/main` はしない**（v0.78.38）。
+    `main` が先に進んでいれば、まだ push していない自分のコミットをその上に載せ直し、版を `main` の次に付け直して
+    （件名の `vX.Y.Z:`・CHANGELOG の見出し・自分が足した行の `vX.Y.Z` も一緒に）、`scripts/verify.sh` を回してから push する。
+    2026-10-05 に開発・マージ・対話の 3 本が 10 分の間に push し、merge コミットで版を付け直したので、件名が `v0.78.31:` のコミットが
+    3 つ残った（リリースノートは merge 以外のコミットの件名から作る）。衝突で止まったら、言われたとおり `git rebase origin/main` で
+    手で解き、版・見出し・件名を直してもう一度回す（push 前の自分のコミットなので、「merge コミットで行う」の規則には当たらない）。
+    `auto-todo.sh` から起動されたときは、これまでどおりスクリプトが用意したブランチに積む。
   - `--force` は使わない。
   - push に失敗したら（認証・ネットワークなど）、コミットはそのまま残して終わる。次の起動で、またはスクリプトの後処理で push し直す。
 - 検証が通らず直せなかった場合は、変更を `git restore` / `git clean` で戻し、TODO.md に失敗の理由を書く。コミットはしない。

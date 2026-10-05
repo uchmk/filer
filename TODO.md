@@ -27,6 +27,17 @@
   元が書庫なら欄には別の名前を出す。同じ名前がもうあることを、`<Enter>` の後の確認だけでなく `E` / `r` の欄の中で言う（#264 の提案 1）。
   直したら TESTING.md 21 節に行を足し、再テストに積む
 
+## テストの揺れ（2026-10-05）
+
+- [ ] **`app::archive_view::a_member_is_previewed_from_a_copy` がまれに落ちる**（v0.78.34 の push の直前に 1 回。v0.78.38 で `cargo test -q archive` を 25 回回すと 2 回、`src/app.rs:8123` の `an empty preview folder was left` で落ちた）。
+  最後の確かめ（`src/app.rs` の `assert!(!preview.exists() || …, "an empty preview folder was left")`、#259 で v0.78.23 に足したもの）が、
+  並んで走るほかのテストと同じ `util::archive_scratch().join("preview")` を見ている。ほかの書庫のテストが自分の `N-<名前>` を消してから
+  `preview` を `remove_dir` するまでの間か、`preview` を作ってから中を作るまでの間に読むと、空の `preview` が一瞬あって落ちる。
+  コメントの「unless another test's view is using them」は、使っている途中は守るが、作る・消す途中は守らない。
+  直し方の案: このテストでは自分の葉（`self.scratch`）が消えたことだけを確かめ、空になった親を消すことは、書庫の一時フォルダを
+  テストごとに分けた別のテスト（`archive_scratch` をテストのスレッド名で分けるなど）で確かめる。`#[ignore]` や再試行で隠さない。
+  直したら `for i in $(seq 20); do cargo test -q archive_view || break; done` で 20 回続けて通ることを見る
+
 ## 行番号付き起動の対応エディタを増やす
 
 今の `exec::at_line` が対応しているのは nvim / vim 系（`+N`）、VS Code 系（`-g path:N`）、hx / subl / zed（`path:N`）だけ。それ以外のエディタは行番号なしで開く。
