@@ -1323,6 +1323,10 @@ shell = "powershell"
 Leaving `[term]` out keeps the default above. The same setting names a shell on macOS and Linux,
 where the default is the login shell.
 
+`FILER_SCALE=1.5` starts one run at that scale (0.2 to 5.0, in tenths), as if `<C-=>` had been pressed
+until it was reached, without touching what the keys saved (v0.78.64). A value that is not a number in
+that range is ignored with a red toast.
+
 For one run only, set `FILER_TERM_SHELL` before starting filer (v0.70.0). It wins over
 `[term] shell`, leaves every other setting as it is, and drops `[term] args`, which were written for
 the shell it replaces. The whole value is the program, so a path with spaces needs no quotes:

@@ -380,6 +380,7 @@ fn main() -> eframe::Result<()> {
             let mut a = App::new(cfg, start, cc.egui_ctx.clone());
             a.start_unproven(home);
             a.bold_font = has_bold;
+            a.start_scaled(std::env::var("FILER_SCALE").ok().as_deref());
             a.cwd_file = cli.cwd_file;
             a.chooser_file = cli.chooser_file;
             let script_done =

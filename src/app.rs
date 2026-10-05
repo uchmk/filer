@@ -3173,6 +3173,20 @@ impl App {
     }
 
     /// Zoom an image preview, which asks for a sharper decode as it grows.
+    /// `FILER_SCALE` for one run: the scale `<C-=>` and `<C-->` would reach,
+    /// without a press (#228). A value that is not a number in 0.2 to 5.0 is
+    /// ignored, and the toast says so.
+    pub fn start_scaled(&mut self, text: Option<&str>) {
+        let Some(text) = text.map(str::trim).filter(|t| !t.is_empty()) else { return };
+        match scale_from_text(text) {
+            Some(next) => {
+                self.scale = next;
+                self.ctx.set_zoom_factor(next);
+            }
+            None => self.error(format!("FILER_SCALE={text} is not a number from 0.2 to 5.0")),
+        }
+    }
+
     fn scale(&mut self, to: crate::config::cmd::ScaleTo) {
             let now = self.scale;
             let next = match to {
@@ -6264,6 +6278,12 @@ fn completion_hits(entries: &[Entry], prefix: &str) -> Vec<String> {
         .collect();
     hits.sort_by(|a, b| util::natural_cmp(a, b, false));
     hits
+}
+
+/// `1.5` as a scale, in steps of a tenth between 0.2 and 5.0 as the keys make.
+fn scale_from_text(text: &str) -> Option<f32> {
+    let n: f32 = text.parse().ok().filter(|n: &f32| n.is_finite() && (0.2..=5.0).contains(n))?;
+    Some((n * 10.0).round() / 10.0)
 }
 
 /// Whether two paths name the same file by their spelling: normalized, and
@@ -9659,6 +9679,18 @@ mod said_out_loud {
         assert_eq!(cycling_in(&first, &hits[..1], 1), None, "one candidate has nothing to cycle to");
         let wrapped = completed_text(&dir, &hits[2]);
         assert_eq!(cycling_in(&wrapped, &hits, 3), Some(dir), "the last one wraps to the first");
+    }
+
+    /// #228: `FILER_SCALE` names a scale the keys could also reach.
+    #[test]
+    fn the_scale_variable_is_a_number_the_keys_reach() {
+        assert_eq!(scale_from_text("1.5"), Some(1.5));
+        assert_eq!(scale_from_text("1.26"), Some(1.3));
+        assert_eq!(scale_from_text("0.2"), Some(0.2));
+        assert_eq!(scale_from_text("5"), Some(5.0));
+        for bad in ["0.1", "5.1", "x", "", "NaN", "inf", "-1"] {
+            assert_eq!(scale_from_text(bad), None, "{bad}");
+        }
     }
 
     /// Q79: `<Tab>` in `E`'s field walks the three formats and leaves the stem.

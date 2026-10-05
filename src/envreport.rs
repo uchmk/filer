@@ -372,7 +372,7 @@ fn last_run() -> Vec<(String, String)> {
 }
 
 fn variables() -> Vec<(String, String)> {
-    ["EDITOR", "VISUAL", "SHELL", "TERM", "YAZI_CONFIG_HOME", "FILER_CONFIG_HOME", "FILER_STATE_HOME", "FILER_TERM_SHELL", "FILER_TERM_ARGS"]
+    ["EDITOR", "VISUAL", "SHELL", "TERM", "YAZI_CONFIG_HOME", "FILER_CONFIG_HOME", "FILER_STATE_HOME", "FILER_TERM_SHELL", "FILER_TERM_ARGS", "FILER_SCALE"]
         .iter()
         .map(|k| (k.to_string(), std::env::var(k).unwrap_or_else(|_| "unset".into())))
         .collect()
