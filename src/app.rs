@@ -4312,7 +4312,12 @@ impl App {
             Some((run, block, orphan, _)) => {
                 let line = exec::command_line(run, &paths, line, &self.cfg.line_args);
                 let (block, orphan) = (*block, *orphan);
-                self.launch(&line, &cwd, block, orphan, "Open failed", "");
+                // Said, so a `yazi.toml` line that did not run is not read as ignored.
+                let note = match openers.first().and_then(|o| exec::missing_name(&o.0)) {
+                    Some(name) if first_found > 0 => format!(" (skipped {name}: not found)"),
+                    _ => String::new(),
+                };
+                self.launch(&line, &cwd, block, orphan, "Open failed", &note);
             }
             // Said, as an opener's launch is: handed to the system, a file
             // whose app takes a while to appear looked as if `<Enter>` had

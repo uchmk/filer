@@ -384,7 +384,12 @@ fn missing_program(cmdline: &str, found: &dyn Fn(&str) -> bool) -> Option<String
 /// Whether an opener's program is not there to run, for the "Open with" chooser
 /// to say so. A handful of `PATH` lookups, once per opener when it opens.
 pub fn opener_missing(cmdline: &str) -> bool {
-    missing_program(cmdline, &|p| crate::util::locate(p).is_some()).is_some()
+    missing_name(cmdline).is_some()
+}
+
+/// The program an opener names that is not there, for a toast to say it was skipped.
+pub fn missing_name(cmdline: &str) -> Option<String> {
+    missing_program(cmdline, &|p| crate::util::locate(p).is_some())
 }
 
 /// What the shell complained about, on one line.
