@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.78.154] - 2026-10-06
+
+### 修正
+
+- TESTING.md の 47.6 / 47.8 を、v0.78.148 で変わった `filer env` の `Adapter` の行の終わり（`(Gl, …; set by [ui] backend = "gl")`、`WGPU_BACKEND` が勝つときは `set by WGPU_BACKEND=…`）に合わせた。チェック表の `[x]` を外し、x64 と ARM64 の再テストに積んだ。
+
 ## [0.78.153] - 2026-10-06
 ### 修正
 - パレットの `tab_create --current` の説明を、動きに合わせて `Create a new tab at the hovered folder, or the current directory` にした（動きは変えていない。#281）。

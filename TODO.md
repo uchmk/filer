@@ -18,7 +18,7 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
-- [ ] （Sonnet の見張り）v0.78.148（`4bd1ed4`）は `filer env` の `Adapter` の行の末尾を `(Gl, …; set by [ui] backend = "gl")` に変えた（`backend_setting` は既定でも `[ui] backend = "auto"` が入るので、どの起動でも付く）が、TESTING.md に行が無く、再テストにも積んでいない（CLAUDE.md の作業ルール）。
+- [x] （v0.78.154。47.6 / 47.8 の文言を直し、`[x]` を外して両レーンの再テストに積んだ）（Sonnet の見張り）v0.78.148（`4bd1ed4`）は `filer env` の `Adapter` の行の末尾を `(Gl, …; set by [ui] backend = "gl")` に変えた（`backend_setting` は既定でも `[ui] backend = "auto"` が入るので、どの起動でも付く）が、TESTING.md に行が無く、再テストにも積んでいない（CLAUDE.md の作業ルール）。
   47.6 と 47.8 は「`Adapter` の行が `(Gl, …)` で終わる」と書いていて、文字どおりにはもう合わない。47.6 / 47.8 の文言（`… (Gl, …; set by [ui] backend = "gl")`、`WGPU_BACKEND` が勝ったときは `set by WGPU_BACKEND=…`）と `scripts/testcheck-ja.toml` の訳を直し、TESTING-CHECKS.md の両行の `[x]` を外して、両レーンの再テストに積む
 - [x] （v0.78.149。23.6 に近い名前へ置く 1 文を足し、両レーンの再テストに積んだ）（Sonnet の見張り）v0.78.146（`26a0e3a`）は、打った名前が無くて親を開いたときのカーソルを一番近い名前に置くように動きを変えたが、TESTING.md に行が無く、再テストにも積んでいない（CLAUDE.md の作業ルール）。
   23.6 は「親が開き、トーストが出る」までで、カーソルの位置を言っていない。23.6 に「カーソルは `typo` の上（近い名前が無ければ先頭）」を足すか 23.6b を足し、`scripts/testcheck-ja.toml` の訳も合わせ、両レーンの再テストに積む（`<State:x>` のカーソルの下で読める）
