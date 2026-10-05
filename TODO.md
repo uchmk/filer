@@ -112,9 +112,17 @@
 ## 実機のセッションの報告（v0.78.113 で受けた分: #275、ARM64 の再テスト）
 
 - [ ] **`<S-Enter>` の選び直しで、カーソルを入っている最初のオープナーから始める**（#275 の提案 1）。一番上が `(not found)` のとき、`<S-Enter><Enter>` が毎回
-  ``Open failed: `no-such-tool` was not found`` になる（ARM64 で確かめた）。全部 `(not found)` なら 0 のまま（要確認: Q86）
+  ``Open failed: `no-such-tool` was not found`` になる（ARM64 で確かめた）。全部 `(not found)` なら 0 のまま（Q86、多数決で 1）
 - [ ] `<State:>` の `pick:` の行を、説明だけにし、コマンドは同じ順で `pick runs:` の行に分ける（#275 の提案 2）。今は `Missing tool (not found) (no-such-tool %s)` と括弧が 2 つ並び、
   `desc` が `)` で終わると、どこまでが説明か読めない。`picked:` はもう説明だけ。`main.rs` の 1 行とテスト。`windows-role.md` で `pick:` を読んでいる所があれば合わせる
+
+## 実機のセッションの報告（v0.78.117 で受けた分: #276、ARM64 の再テスト）
+
+- [ ] **既定の `<Enter>`（`open`）も、入っていないプログラムのオープナーを飛ばして最初に入っているものを使う**（#276 の提案 1）。`<S-Enter>` を直しても、
+  `[opener]` の 1 行目が無いプログラムだと `<Enter>` は毎回 ``Open failed: `no-such-tool` was not found`` になる（ARM64 で確かめた）（要確認: Q87）
+- [ ] `<State:>` の `launched:` を、起動に失敗したオープナーでは別の行（`launch failed: no-such-tool …` など）にする（#276 の所見 1、提案 2）。今は
+  `launched: 29200 no-such-tool "…\a.txt"` と PID 付きで書き、2 秒後のトーストで初めて `Open failed` が分かる。実機のレーンは `launched:` を起動の証拠に読んでいる（32.20 など）。
+  直したら 32.21 を両レーンの再テストに積む
 
 ## 急ぎ（データが消える）
 
