@@ -644,6 +644,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 '32.15' = '''Windows で **release の `filer.exe`**（自分のコンソールを持たない。`cargo run` は持つので出なかった）: `:` で `nvim`（v0.75.14、Q12）→ 新しいコンソールに nvim が描かれる（`~` の列とステータス行）。黒い窓でカーソルが点滅するだけにならない。`block = true` のオープナーで `<Enter>` しても同じ。新しいコンソールを `ReadConsoleOutputCharacter` で読むか、nvim の `:redir` で確かめる。以前は `Win32_Process` に `nvim` がいるのに何も描かれていなかった'''
 '32.16' = '''Windows で release の `filer.exe`: `:` で `git log -5 --oneline`（v0.75.14、Q13）→ コンソールが 5 行と `続行するには何かキーを押してください . . .` のまま開いていて、キーで閉じる。`:` で `dir & pause` は 1 回だけ聞く。`;` は変わらない（コンソールも pause も無い）'''
 '32.17' = '`yazi.toml` に `[open] prepend_rules = [{ name = "*.txt", use = "<オープナー>" }]` だけを書き（自分の `rules` は無し）、`.txt` で `<Enter>`、次に `<S-Enter>`（v0.78.6、#250）→ `<Enter>` がそのオープナーを動かし（`$ …` のトースト）、`<S-Enter>` が組み込みより上の先頭に並べる。`append_rules` に書いたものは最後に並ぶ'
+'32.18' = '`O` でオープナーが 2 つ以上あるファイルに開き、`<C-n>` / `<C-j>`、`<C-p>` / `<C-k>`。`jj` も打つ（v0.78.39、Q80）→ `<C-n>` と `<C-j>` で 1 行下、`<C-p>` と `<C-k>` で 1 行上へ動く。`jj` は移動でなく絞り込みの文字になる（`Nothing matches` か短くなった一覧）。ヒントの行は `<Down>/<Up> or <C-n>/<C-p> choose`、`<F1>` に 4 つのキーが picker の下に並ぶ'
 '32.14' = 'macOS: `block = true` のオープナーでファイルを `<Enter>` → Terminal.app が前に出て、新しい窓で一覧のフォルダからエディタが動く。初回は macOS が filer に Terminal の操作を許すかを聞く。拒むと理由がトーストに出る'
 
 # 33. 設定の警告と、その色

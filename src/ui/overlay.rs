@@ -951,7 +951,7 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
             .font(egui::FontSelection::FontId(f.clone()))
             .frame(egui::Frame::NONE)
             // `j` types into the filter here, so the arrows are named (#165).
-            .hint_text("type to filter · <Down>/<Up> choose · <Enter> open")
+            .hint_text("type to filter · <Down>/<Up> or <C-n>/<C-p> choose · <Enter> open")
             .desired_width(field.width())
             .text_color(theme_fg),
     );

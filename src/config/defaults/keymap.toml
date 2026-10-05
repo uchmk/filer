@@ -881,6 +881,22 @@ desc = "Submit"
 on = "<Esc>"
 run = "close"
 desc = "Cancel"
+[[pick.keymap]]
+on = "<C-n>"
+run = "arrow 1"
+desc = "Next match"
+[[pick.keymap]]
+on = "<C-j>"
+run = "arrow 1"
+desc = "Next match"
+[[pick.keymap]]
+on = "<C-p>"
+run = "arrow -1"
+desc = "Previous match"
+[[pick.keymap]]
+on = "<C-k>"
+run = "arrow -1"
+desc = "Previous match"
 
 [[help.keymap]]
 on = "<Esc>"

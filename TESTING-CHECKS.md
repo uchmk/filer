@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 506 件（TESTING.md の全 677 件のうち、`cargo test` が見ている 171 件は外してある）。
+押すものは 507 件（TESTING.md の全 678 件のうち、`cargo test` が見ている 171 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -576,6 +576,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **32.15** Windows で **release の `filer.exe`**（自分のコンソールを持たない。`cargo run` は持つので出なかった）: `:` で `nvim`（v0.75.14、Q12）→ 新しいコンソールに nvim が描かれる（`~` の列とステータス行）。黒い窓でカーソルが点滅するだけにならない。`block = true` のオープナーで `<Enter>` しても同じ。新しいコンソールを `ReadConsoleOutputCharacter` で読むか、nvim の `:redir` で確かめる。以前は `Win32_Process` に `nvim` がいるのに何も描かれていなかった — *Windows, **the release `filer.exe`** (no console of its own; `cargo run` has one and never showed this): `:` then `nvim` (v0.75.14, Q12) → nvim draws in the new console (its `~` column and status line), not a black window with a blinking cursor. The same through a `block = true` opener on `<Enter>`. Read it with `ReadConsoleOutputCharacter` on the new console, or `nvim`'s own `:redir`; before, `Win32_Process` showed `nvim` running with nothing drawn*
 - [x] **32.16** Windows で release の `filer.exe`: `:` で `git log -5 --oneline`（v0.75.14、Q13）→ コンソールが 5 行と `続行するには何かキーを押してください . . .` のまま開いていて、キーで閉じる。`:` で `dir & pause` は 1 回だけ聞く。`;` は変わらない（コンソールも pause も無い） — *Windows, the release `filer.exe`: `:` then `git log -5 --oneline` (v0.75.14, Q13) → The console stays open on the five lines and `Press any key to continue . . .` (`続行するには何かキーを押してください . . .` on a Japanese Windows); a key closes it. `:` then `dir & pause` asks once, not twice. `;` is unchanged: no console and no pause*
 - [x] **32.17** `yazi.toml` に `[open] prepend_rules = [{ name = "*.txt", use = "<オープナー>" }]` だけを書き（自分の `rules` は無し）、`.txt` で `<Enter>`、次に `<S-Enter>`（v0.78.6、#250）→ `<Enter>` がそのオープナーを動かし（`$ …` のトースト）、`<S-Enter>` が組み込みより上の先頭に並べる。`append_rules` に書いたものは最後に並ぶ — *`[open] prepend_rules = [{ name = "*.txt", use = "<an opener>" }]` in `yazi.toml`, with no `rules` of your own; `<Enter>` on a `.txt`, then `<S-Enter>` (v0.78.6, #250) → `<Enter>` runs that opener (its `$ …` toast), and `<S-Enter>` lists it first, above the built-in ones. An `append_rules` entry is listed last*
+- [ ] **32.18** `O` でオープナーが 2 つ以上あるファイルに開き、`<C-n>` / `<C-j>`、`<C-p>` / `<C-k>`。`jj` も打つ（v0.78.39、Q80）→ `<C-n>` と `<C-j>` で 1 行下、`<C-p>` と `<C-k>` で 1 行上へ動く。`jj` は移動でなく絞り込みの文字になる（`Nothing matches` か短くなった一覧）。ヒントの行は `<Down>/<Up> or <C-n>/<C-p> choose`、`<F1>` に 4 つのキーが picker の下に並ぶ — *`O` on a file with two or more openers, then `<C-n>` / `<C-j>`, `<C-p>` / `<C-k>`; type `jj` (v0.78.39, Q80) → The cursor row moves down with `<C-n>` and `<C-j>` and up with `<C-p>` and `<C-k>`, one row each; `jj` is typed into the filter (`Nothing matches` or a shorter list), not a move. The hint line reads `<Down>/<Up> or <C-n>/<C-p> choose`; `<F1>` lists the four keys under the picker*
 
 ## 33. 設定の警告と、その色
 

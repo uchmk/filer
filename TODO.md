@@ -1587,7 +1587,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   今の形では、持ち主が Chrome を開いたまま使う機械で永久に `[x]` にならない【QA】
 - [ ] TESTING.md 25.11 を Linux / macOS の行にする（#256。Windows では `system_bold_fonts()` が必ず 3 つの太字を候補に入れるので到達できない）【QA】
 - [x] （#265。退避して戻し、前後の SHA-256 が一致。リンク先も変わらず）TESTING.md 35.2 は持ち主の `%APPDATA%\yazi\config\yazi.toml` を書き換える行（#256）。2026-10-04、持ち主の許可で、退避して戻す形で x64 の実機に任せた
-- [ ] picker（`O` / `<S-Enter>` / パレット）で `j` は絞り込みの文字になる（#256 の提案 1。`jj` で `Nothing matches`）。Q80 は多数決で 1。
+- [x] （v0.78.39。`<C-j>` / `<C-k>` を足し、4 つを `[pick]` とヘルプ・ヒントに出した。動かすのは今も `src/main.rs` の書き込みで、keymap からは引かない）picker（`O` / `<S-Enter>` / パレット）で `j` は絞り込みの文字になる（#256 の提案 1。`jj` で `Nothing matches`）。Q80 は多数決で 1。
   `<C-n>` / `<C-p>` は `src/main.rs` の `Overlay::Pick` に書き込まれて既に動く（#264・#265 の所見）ので、それを `[pick]` の keymap へ移し、
   `<C-j>` / `<C-k>` を足し、4 つとも足の行とヘルプに出す（#264 の提案 2、#265 の提案 2。「キーは keymap 経由で動かす」）
 - [ ] `start ""` の既定のアプリが何も開かないとき、走らせる前に `AssocQueryStringW(ASSOCSTR_EXECUTABLE)` で引いて言う（#256 の提案 2。

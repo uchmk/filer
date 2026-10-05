@@ -1420,8 +1420,10 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
             let step: Option<i64> = match key {
                 K::ArrowDown => Some(1),
                 K::ArrowUp => Some(-1),
-                K::N if modifiers.ctrl => Some(1),
-                K::P if modifiers.ctrl => Some(-1),
+                // `<C-n>` / `<C-p>` as in fzf, `<C-j>` / `<C-k>` as in vim; plain
+                // `j` / `k` stay filter letters (Q80). Listed in `[pick]`.
+                K::N | K::J if modifiers.ctrl => Some(1),
+                K::P | K::K if modifiers.ctrl => Some(-1),
                 K::PageDown => Some(10),
                 K::PageUp => Some(-10),
                 _ => None,
