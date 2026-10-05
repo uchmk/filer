@@ -1512,9 +1512,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 ## 実機のセッションの報告（v0.78.46 で受けた分: #267 x64 の 29.13）
 
 - [x] #267（x64、v0.78.38）: 29.13（`FILER_TERM_SHELL=pwsh` と `FILER_TERM_ARGS=-NoProfile` でペインが `pwsh -NoProfile`、`FILER_TERM_ARGS` だけでは使われない）に印。711 / 0
-- [ ] `FILER_TERM_SHELL` が無くて `FILER_TERM_ARGS` が使われなかったとき、`filer env` の `Terminal pane` に
+- [x] （v0.78.49）`FILER_TERM_SHELL` が無くて `FILER_TERM_ARGS` が使われなかったとき、`filer env` の `Terminal pane` に
   `FILER_TERM_ARGS not used: it needs FILER_TERM_SHELL` と出す（#267 の提案 1。`[term] args not used: …` と同じ形）
-- [ ] ペインを開いたトーストに、環境変数から来た引数を出す（`Started pwsh -NoProfile — …`。#267 の提案 2。引数があるときだけ）
+- [x] （v0.78.49。29.13 を再テストに積んだ）ペインを開いたトーストに、環境変数から来た引数を出す（`Started pwsh -NoProfile — …`。#267 の提案 2。引数があるときだけ）
 
 ## 実機のセッションの報告（v0.78.36 で受けた分: #266 x64 の v0.78.29 の再テスト）
 

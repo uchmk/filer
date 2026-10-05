@@ -211,9 +211,10 @@ fn row(exe: &str, flag: &str, what: &str) -> (String, String) {
 /// `FILER_TERM_SHELL` left out, when there were any (#190).
 fn shell_source(term: &crate::config::TermCfg) -> String {
     let said = shell_source_base(term);
-    match term.args_from_env {
-        true => format!("{said}; args from FILER_TERM_ARGS: {}", term.args.join(" ")),
-        false => said,
+    match (term.args_from_env, term.args_unused) {
+        (true, _) => format!("{said}; args from FILER_TERM_ARGS: {}", term.args.join(" ")),
+        (_, true) => format!("{said}; FILER_TERM_ARGS not used: it needs FILER_TERM_SHELL"),
+        _ => said,
     }
 }
 

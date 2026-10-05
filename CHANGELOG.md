@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.78.49] - 2026-10-05
+
+### 変更
+
+- `FILER_TERM_ARGS` の見えを足した（#267）。ペインを開いたトーストが、環境変数から来た引数も言う（`Started pwsh -NoProfile — …`）。`FILER_TERM_SHELL` が無いために `FILER_TERM_ARGS` が使われなかったときは、`filer env` の `Terminal pane` が `FILER_TERM_ARGS not used: it needs FILER_TERM_SHELL` と言う。TESTING.md 29.13 を直して再テストに積んだ。
+
 ## [0.78.48] - 2026-10-05
 
 ### 修正

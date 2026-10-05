@@ -5131,7 +5131,13 @@ impl App {
             Ok(t) => {
                 self.term = Some(t);
                 self.term_focus = true;
-                self.toast(format!("Started {label} — <C-t> back to the list"));
+                // The arguments only when `FILER_TERM_ARGS` gave them: a run
+                // that set it could not see they had arrived (#267).
+                let shown = match self.cfg.term.args_from_env {
+                    true => format!("{label} {}", self.cfg.term.args.join(" ")),
+                    false => label.clone(),
+                };
+                self.toast(format!("Started {shown} — <C-t> back to the list"));
                 crate::runinfo::remember_shell(&label);
                 self.term_shell = label;
             }

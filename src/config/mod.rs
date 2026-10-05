@@ -147,6 +147,10 @@ pub struct TermCfg {
     /// The args came from `FILER_TERM_ARGS` (Q81).
     #[serde(skip)]
     pub args_from_env: bool,
+    /// `FILER_TERM_ARGS` was set but `FILER_TERM_SHELL` was not, so it counted
+    /// for nothing; `filer env` says so (#267).
+    #[serde(skip)]
+    pub args_unused: bool,
     /// The `[term] args` that `FILER_TERM_SHELL` set aside, for `filer env`
     /// to name: without it, seeing them gone took the process's command line
     /// (#190).
@@ -166,10 +170,13 @@ impl TermCfg {
     /// white space, with `"…"` keeping its spaces together. It counts only
     /// beside `FILER_TERM_SHELL`, since it is written for that shell.
     fn take_env(&mut self, var: Option<std::ffi::OsString>, args: Option<std::ffi::OsString>) {
-        let Some(shell) = var.and_then(|v| v.into_string().ok()).filter(|v| !v.trim().is_empty()) else { return };
+        let Some(shell) = var.and_then(|v| v.into_string().ok()).filter(|v| !v.trim().is_empty()) else {
+            self.args_unused = args.and_then(|v| v.into_string().ok()).is_some_and(|v| !v.trim().is_empty());
+            return;
+        };
         let dropped_args = std::mem::take(&mut self.args);
         let args = args.and_then(|v| v.into_string().ok()).map(|v| split_words(&v)).unwrap_or_default();
-        *self = Self { shell: shell.trim().to_owned(), args_from_env: !args.is_empty(), args, from_env: true, dropped_args };
+        *self = Self { shell: shell.trim().to_owned(), args_from_env: !args.is_empty(), args_unused: false, args, from_env: true, dropped_args };
     }
 }
 
@@ -916,7 +923,9 @@ mod files {
         assert_eq!((t.args.clone(), t.args_from_env), (vec!["--norc".to_string(), "-i".to_string()], true));
         let mut t = TermCfg { shell: "pwsh".into(), args: vec!["-NoLogo".into()], ..TermCfg::default() };
         t.take_env(None, Some("--norc".into()));
-        assert_eq!((t.args, t.args_from_env), (vec!["-NoLogo".to_string()], false));
+        assert_eq!((t.args.clone(), t.args_from_env, t.args_unused), (vec!["-NoLogo".to_string()], false, true));
+        t.take_env(None, Some("  ".into()));
+        assert!(!t.args_unused, "a blank value is no value");
     }
 
     /// `[term]` decides what the pane starts, and says nothing by default.
