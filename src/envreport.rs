@@ -310,6 +310,17 @@ fn probe(exe: &str, flag: &str) -> Option<String> {
 }
 
 
+/// The `Terminal pane` row: what the last run's pane did.
+fn pane_row(info: &crate::runinfo::RunInfo) -> String {
+    match (info.pane, info.pane_shell.as_str()) {
+        ([0, _] | [_, 0], "") if !info.pane_failed.is_empty() => format!("did not start: {}", info.pane_failed),
+        ([0, _] | [_, 0], "") => "not opened in that run".into(),
+        ([0, _] | [_, 0], shell) => format!("{shell}, not drawn"),
+        ([lines, cols], "") => format!("{lines} x {cols} (lines x columns)"),
+        ([lines, cols], shell) => format!("{shell}, {lines} x {cols} (lines x columns)"),
+    }
+}
+
 /// What the window used, read back from what the last run wrote down.
 ///
 /// Neither of these can be worked out from here: the adapter is wgpu's choice
@@ -342,12 +353,7 @@ fn last_run() -> Vec<(String, String)> {
         ("Window".into(), info.window_line().unwrap_or_else(|| {
             "not recorded — no frame was drawn before the record was written".into()
         })),
-        ("Terminal pane".into(), match (info.pane, info.pane_shell.as_str()) {
-            ([0, _] | [_, 0], "") => "not opened in that run".into(),
-            ([0, _] | [_, 0], shell) => format!("{shell}, not drawn"),
-            ([lines, cols], "") => format!("{lines} x {cols} (lines x columns)"),
-            ([lines, cols], shell) => format!("{shell}, {lines} x {cols} (lines x columns)"),
-        }),
+        ("Terminal pane".into(), pane_row(&info)),
         // What was launched, as the command lines filer built (Q40): an opener
         // that ran the wrong thing is visible here after the toast has gone.
         ("Launched".into(), match info.launched.is_empty() {
@@ -376,6 +382,18 @@ fn variables() -> Vec<(String, String)> {
 mod tests {
     use super::*;
     use crate::util::locate;
+
+    /// #254: a pane that would not start is not "not opened".
+    #[test]
+    fn a_pane_that_failed_to_start_says_so() {
+        let mut info = crate::runinfo::RunInfo::default();
+        assert_eq!(pane_row(&info), "not opened in that run");
+        info.pane_failed = "`nosuch` was not found on PATH".into();
+        assert_eq!(pane_row(&info), "did not start: `nosuch` was not found on PATH");
+        info.pane_shell = "pwsh".into();
+        info.pane = [12, 159];
+        assert_eq!(pane_row(&info), "pwsh, 12 x 159 (lines x columns)");
+    }
 
     /// `start` is not a file and never will be, so the `PATH` lookup that
     /// serves every other entry can only say "not found" about the commonest

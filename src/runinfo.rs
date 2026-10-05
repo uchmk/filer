@@ -79,6 +79,11 @@ pub struct RunInfo {
     /// was not opened. Runs read it from `Win32_Process` before (#184).
     #[serde(default)]
     pub pane_shell: String,
+    /// Why the pane's shell did not start, when it did not; empty otherwise.
+    /// `filer env` could only say `not opened in that run`, the same as a
+    /// pane nobody asked for (#254).
+    #[serde(default)]
+    pub pane_failed: String,
 }
 
 impl RunInfo {
@@ -114,6 +119,20 @@ pub fn remember_shell(label: &str) {
     std::thread::spawn(move || {
         let mut info = load().unwrap_or_default();
         info.pane_shell = label;
+        info.pane_failed.clear();
+        save(&info);
+    });
+}
+
+/// Record why the pane's shell did not start.
+pub fn remember_shell_failed(why: &str) {
+    if cfg!(test) {
+        return;
+    }
+    let why = why.to_owned();
+    std::thread::spawn(move || {
+        let mut info = load().unwrap_or_default();
+        info.pane_failed = why;
         save(&info);
     });
 }
@@ -277,6 +296,7 @@ mod tests {
             launched: vec!["code -g a.txt:3".into()],
             started: 1_800_000_000,
             pane_shell: "powershell (Windows PowerShell 5.1)".into(),
+            pane_failed: "`nosuch` was not found on PATH".into(),
         };
         save_to(&p, &info);
         assert_eq!(load_from(&p).as_ref(), Some(&info));

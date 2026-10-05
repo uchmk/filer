@@ -1623,7 +1623,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] フォルダ比較の行と足の行を状態ファイルに出すか、`[diff]` に `C`（全部を写す）を足す（#255 の提案 2。45 節の期待値を文字で読む）
 - [x] （v0.78.29。`os error N`、見つからない・拒否だけ英語の語を添える。13.12 / 13.12a を再テストに）spot の `Resolves` に OS の言語の誤りの文が混ざる（#255 の所見 3、提案 3: `ファンクションが間違っています。 (os error 1)`）。番号だけ残す
 - [ ] `<S-Enter>` の picker の注記に、どのルール（`prepend_rules` / `rules` / `append_rules`）から来たかを出す（#254 の提案 1）
-- [ ] ペインのシェルが起動に失敗したことを `filer env` の `Terminal pane` に残す（#254 の提案 2。今は `not opened in that run` で区別が付かない）
+- [x] （v0.78.50。`did not start: …`。1.40 を再テストに積んだ）ペインのシェルが起動に失敗したことを `filer env` の `Terminal pane` に残す（#254 の提案 2。今は `not opened in that run` で区別が付かない）
 - [x] （v0.78.37。`windows-role.md` の一言も足した）`FILER_TERM_ARGS` を足す（#254 の提案 3）。`FILER_TERM_SHELL` は `[term] args` を捨てるので、引数の要るシェルを試すと `FILER_CONFIG_HOME` ごと替えるしかない。
   Q81 は多数決で 1: `FILER_TERM_ARGS`、空白区切りで `"…"` の中は区切らない、`FILER_TERM_SHELL` と一緒のときだけ効き、`filer env` の `Terminal pane` に出どころを出す。
   入ったら `windows-role.md` に「ペインのシェルは `FILER_TERM_ARGS=-NoProfile` で持ち主のプロファイルの雑音を PTY ログから外す」と一言足す（#265 の提案 4）

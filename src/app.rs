@@ -5145,10 +5145,14 @@ impl App {
             // which program was missing (#173). Looked up only now, after the
             // start failed, so a shell found some way other than `PATH` is
             // never refused on a guess.
-            Err(e) => match program.filter(|p| util::locate(p).is_none()) {
-                Some(p) => self.error(format!("Terminal failed: `{p}` was not found on PATH — set [term] shell to one that is ({e})")),
-                None => self.error(format!("Terminal failed ({label}): {e}")),
-            },
+            Err(e) => {
+                let said = match program.filter(|p| util::locate(p).is_none()) {
+                    Some(p) => format!("Terminal failed: `{p}` was not found on PATH — set [term] shell to one that is ({e})"),
+                    None => format!("Terminal failed ({label}): {e}"),
+                };
+                crate::runinfo::remember_shell_failed(&said);
+                self.error(said);
+            }
         }
     }
 
