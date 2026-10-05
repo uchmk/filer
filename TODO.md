@@ -1796,7 +1796,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   理由を書いて飛ばしてよいことにする。2 レーンとも機械の事情でこの行を残している
 - [x] （v0.75.16、QA の子が TESTING.md を直した）TESTING.md 37.7 の「直接起動」が実際と合わない（#234 の所見 2）。`block = false` のオープナーはどれも `cmd /S /C` を通り、フルパスのときは
   `"cmd" /S /C ""…\msedge.exe" "…\doc.pdf""` で、プログラムがその子になる。「行に `start` が無く、自分のコンソール窓が出ない」と書く
-- [ ] `FILER_KEYS_DONE` に見出しの件数と位置を出す（#233 の提案 1）: `header: 500 items`（待っている間は `listing…`）、`position: 4/500`、空なら
+- [x] （v0.78.61。件数は `items:`、位置は `position: N/M`。空の理由の `empty:` は未）`FILER_KEYS_DONE` に見出しの件数と位置を出す（#233 の提案 1）: `header: 500 items`（待っている間は `listing…`）、`position: 4/500`、空なら
   `empty: (no shares)`。上の #231 の `items:` / `filter:` の項目と一緒にやる
 - [ ] `\\host` への移動が os error 1203 / 53 / 67 で失敗したとき、OS の文のあとに `— no host by that name answered (a typo, or the machine is off)` を足す
   （#233 の提案 2）。2 回目が速いのは Windows が失敗を覚えているから、とも言える
@@ -1968,8 +1968,8 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] 警告色と既定のファイル名の色が、明るい背景で読みにくい（#213 の提案 2）。白の上で 1.52:1 と 1.59:1。背景が明るいときの既定を用意するか、
   `theme.toml` で決められるようにする。33.6 は `[~]` のまま持ち主が見る。
 - [ ] プレビューの末尾の注記とヘルプの警告の行を、切らずに折り返す（#213 の提案 3）。プレビューの注記は v0.73.55 で折り返した。残りはヘルプのパネルの警告の行。
-- [ ] `FILER_KEYS_DONE` に `tasks:`（ジョブの一覧）と `shown:`（いま画面に出ているトースト）を足す（#213 の提案 4、#210 の提案 1）。
-- [ ] `FILER_KEYS_DONE` に spot のカーソルの行（`spot row: Pull request`、`spot: 16 of 23`）、どこまでスクロールしているか（`spot top: 6 of 25`、#224 の提案 3）と、spot パネルの矩形（`spot rect:`）を足す
+- [x] （v0.78.43 の `jobs:` / `job:` が `tasks:`。`shown:` は `toast repeats:` と `toasts:` で足りる）`FILER_KEYS_DONE` に `tasks:`（ジョブの一覧）と `shown:`（いま画面に出ているトースト）を足す（#213 の提案 4、#210 の提案 1）。
+- [x] （v0.78.61。`spot row:` `spot: N of M` `spot top: N of M`。矩形 `spot rect:` は未）`FILER_KEYS_DONE` に spot のカーソルの行（`spot row: Pull request`、`spot: 16 of 23`）、どこまでスクロールしているか（`spot top: 6 of 25`、#224 の提案 3）と、spot パネルの矩形（`spot rect:`）を足す
   （#212 の提案 1、#214 の提案 2）。
 - [ ] `zoom: fit` に、そのときの倍率を添える（`zoom: fit (23%)`、#211 の提案 3）。`fit` は窓の大きさで変わるので、2 台の数を比べられない。
 - [ ] `<Shot:name@preview>`（filer が知っている矩形で切り抜く、#211 の提案 4）。`[~]` の行はどれも切り抜きが要り、各レーンが座標を手で測っている。

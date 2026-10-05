@@ -1185,6 +1185,16 @@ fn state_report(app: &App) -> String {
             lines.push(format!("outline: {}/{} {}{line}", k + 1, entries.len(), e.label.trim()));
         }
     }
+    // The spot panel's row under the cursor, and where that is among all of
+    // them: `spot row: Pull request`, `spot: 16 of 23` (#212, #224).
+    if let app::Overlay::Spot(ov) = &app.overlay {
+        let rows: Vec<(String, String)> = app.spot_sections().into_iter().flat_map(|s| s.rows).collect();
+        if let Some((label, _)) = rows.get(ov.cursor) {
+            lines.push(format!("spot row: {label}"));
+        }
+        lines.push(format!("spot: {} of {}", (ov.cursor + 1).min(rows.len()), rows.len()));
+        lines.push(format!("spot top: {} of {}", ov.scroll, rows.len()));
+    }
     // Two folders or two files, and the pair: `overlay: diff` is both.
     if let app::Overlay::Diff(ov) = &app.overlay {
         let what = if matches!(ov.outcome, Some(diff::Outcome::Tree { .. })) { "folders" } else { "files" };
@@ -1279,6 +1289,11 @@ fn state_report(app: &App) -> String {
     lines.push(format!("jobs: {} running", active.len()));
     for t in active {
         lines.push(format!("job: {} [{}] {}/{} files", t.label, t.state.label(), t.files_done, t.files));
+    }
+    // The cursor's place in the list, `4/500` (#233): counted in presses
+    // before. Nothing while the folder is empty or still being read.
+    if !tab.current.view.is_empty() {
+        lines.push(format!("position: {}/{}", tab.current.cursor + 1, tab.current.view.len()));
     }
     lines.push(format!("list top: {}", tab.current.offset));
     // The pane the keys are not in, when split: 19.7's three cases each took
@@ -1744,6 +1759,23 @@ mod tests {
         assert!(report.lines().any(|l| l == "jobs: 0 running") && !report.contains("job:"), "{report}");
     }
 
+    /// #212, #224: the spot panel's row under the cursor and its place.
+    #[test]
+    fn spot_reports_its_cursor_row() {
+        let dir = crate::util::test_dir("state-spot");
+        std::fs::write(dir.join("a.txt"), b"hi").unwrap();
+        let mut app = App::new(crate::config::Config::load(), dir.clone(), egui::Context::default());
+        let entries = vec![fs::Entry::from_path(dir.join("a.txt")).unwrap()];
+        let active = app.active;
+        app.tabs[active].current = core::folder::Folder::from_entries(dir, std::sync::Arc::new(entries), true);
+        assert!(!state_report(&app).contains("spot row:"), "only while spot is open");
+        app.overlay = app::Overlay::Spot(app::SpotOverlay { cursor: 1, scroll: 0 });
+        let report = state_report(&app);
+        let total = app.spot_sections().iter().map(|s| s.rows.len()).sum::<usize>();
+        assert!(report.lines().any(|l| l == format!("spot: 2 of {total}")), "{report}");
+        assert!(report.lines().any(|l| l.starts_with("spot row: ")) && report.lines().any(|l| l == format!("spot top: 0 of {total}")), "{report}");
+    }
+
     /// #216: with a split, the other pane's scroll is a line of the state too.
     #[test]
     fn a_split_reports_the_other_panes_scroll() {
@@ -1819,6 +1851,7 @@ mod tests {
         app.tabs[active].current = core::folder::Folder::from_entries(dir.clone(), std::sync::Arc::new(entries), true);
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "items: 1") && !report.contains("filter:"), "{report}");
+        assert!(report.lines().any(|l| l == "position: 1/1"), "{report}");
         app.tabs[active].current.filter = Some(core::folder::Filter { query: "zz".into(), ..Default::default() });
         assert!(state_report(&app).lines().any(|l| l == "filter: zz"));
         app.tabs[active].current.filter = None;
