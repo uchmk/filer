@@ -416,7 +416,7 @@ pwsh -NoProfile -File C:\dev\filer\scripts\fetch-conpty.ps1 -Dest C:\dev\filer\t
 ```
 
 - **Up to three sections per run, in one pull request** (v0.75.14, the owner's request: the
-  task fires every 15 minutes, but a lane waits for its pull request to be merged, so one
+  task fires once an hour (every 15 minutes until 2026-10-05), but a lane waits for its pull request to be merged, so one
   small section per run left the machine idle most of the hour). Do the re-tests first, then
   take the next section in the table; when it is done and the run has taken under about
   90 minutes, take the one after, up to three. Read each one first and say which rows you

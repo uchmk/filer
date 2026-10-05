@@ -15,11 +15,14 @@
 #   - the working copy is clean (a dirty one is a run that was cut off, and
 #     only a person can say what to do with it).
 #
-# It is meant to be run by Task Scheduler every 15 minutes, as you, "only when
-# the user is logged on" -- the run drives a real window:
+# It is meant to be run by Task Scheduler once an hour at :20, as you, "only
+# when the user is logged on" -- the run drives a real window. The merge
+# routine runs at :59 and is usually done by :15; a firing while the lane's pull
+# request is still open does nothing, so every 15 minutes only added firings that
+# passed (the owner's word, 2026-10-05):
 #
 #   $a = New-ScheduledTaskAction -Execute pwsh -Argument '-NoProfile -WindowStyle Hidden -File C:\dev\filer-wintest\scripts\auto-wintest.ps1'
-#   $t = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 15)
+#   $t = New-ScheduledTaskTrigger -Once -At (Get-Date -Minute 20 -Second 0) -RepetitionInterval (New-TimeSpan -Hours 1)
 #   $s = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 4)
 #   Register-ScheduledTask -TaskName filer-auto-wintest -Action $a -Trigger $t -Settings $s
 #

@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.78.155] - 2026-10-05
+
+### 変更
+
+- Routine の見直しを文書に反映した（持ち主の判断）: 開発の Routine は 30 分おき、マージは :59 の 1 回。Windows の実機のタスクは 15 分おきから 1 時間おき（:20）に戻す（PR が開いている間の起動は何もせずに終わっていた）。`scripts/auto-wintest.ps1` の冒頭の登録例、CLAUDE.md、`.claude/dev-routine.md`、`.claude/windows-role.md`、`scripts/claim.sh` の説明。
+
 ## [0.78.154] - 2026-10-06
 
 ### 修正
