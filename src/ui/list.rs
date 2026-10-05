@@ -44,6 +44,8 @@ pub struct ListResult {
     pub scroll_rows: f32,
     /// Modifiers held down for the click above.
     pub mods: egui::Modifiers,
+    /// Each row's name as drawn, cut to the column, top to bottom.
+    pub shown: Vec<String>,
 }
 
 pub fn draw(
@@ -64,6 +66,7 @@ pub fn draw(
         drag_stopped: false,
         scroll_rows: 0.0,
         mods: egui::Modifiers::NONE,
+        shown: Vec::new(),
     };
 
     match &folder.state {
@@ -228,6 +231,7 @@ pub fn draw(
             }
             None => (full, positions.to_vec()),
         };
+        out.shown.push(name.clone());
         let job = name_job(&name, &positions, &st.font, base_color, &style, st.theme, avail);
         let galley = painter.layout_job(job);
         painter.galley(

@@ -514,7 +514,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "24.4" = '引用符を含む名前をコピーして、`<A-t>` でターミナルへ → シェルが 1 語として受け取る形に引用される'
 "24.5" = '日本語名のファイルで `d` してから `u` → 同じ名前で戻る'
 '24.6' = '''新しいフォルダで `scripts\make-fixtures.ps1` を走らせる（v0.59.1）→ 警告は出ない。ただし普通の（大文字小文字を区別しない）NTFS のフォルダでは `awkward names: 5 entries on disk, expected 6` が出て、`fsutil file setCaseSensitiveInfo` を挙げる（24.3 がそこで押せない理由）'''
-'24.7' = '真ん中だけが違う長い名前が並ぶフォルダ（`filer-archive-x-15484.log`、`filer-test-yy-15484.log` …）を親の列で見る（v0.75.15、Q67）→ どの行も列の幅で縮められるが、隣り合う行が同じ見た目にならない。頭を長く残すか（`filer-a….log` と `filer-t….log`）、末尾を長く残す。もともと違って見える行は今までどおり。以前は列全体が `filer…84.log` になった（#227）'
+'24.7' = '真ん中だけが違う長い名前が並ぶフォルダ（`filer-archive-x-15484.log`、`filer-test-yy-15484.log` …）を親の列で見る（v0.75.15、Q67）→ どの行も列の幅で縮められるが、隣り合う行が同じ見た目にならない。頭を長く残すか（`filer-a….log` と `filer-t….log`）、末尾を長く残す。もともと違って見える行は今までどおり。以前は列全体が `filer…84.log` になった（#227）。v0.78.84 から `<State:>` に描いたとおりの列が出る: `parent: filer-a….log | filer-t….log | …`'
 
 # 25. filer env
 "25.1" = 'PowerShell から `filer env` → 5 つの節（Filer、Config、Last run、Tools、Variables）が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること**'

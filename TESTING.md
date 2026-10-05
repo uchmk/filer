@@ -733,7 +733,7 @@ has. 24.5 needs the recycle bin.
 | 24.4 | Copy the name with a quote in it, `<A-t>` into the terminal | Quoted so the shell sees one word |
 | 24.5 | `d` then `u` on the CJK-named file | Comes back under the same name |
 | 24.6 | Run `scripts\make-fixtures.ps1` in a fresh folder (v0.59.1) | No warning, except on an ordinary (case-insensitive) NTFS folder: `awkward names: 5 entries on disk, expected 6`, naming `fsutil file setCaseSensitiveInfo` -- the reason 24.3 cannot be pressed there |
-| 24.7 | A folder of long names that differ only in the middle (`filer-archive-x-15484.log`, `filer-test-yy-15484.log`, …), in the parent column (v0.75.15, Q67) | Each row is still cut to the column, but no two neighbouring rows read the same: one keeps more of its head (`filer-a….log` against `filer-t….log`) or of its tail. Rows that already read differently are cut as before. Before, the whole column read `filer…84.log` (#227) |
+| 24.7 | A folder of long names that differ only in the middle (`filer-archive-x-15484.log`, `filer-test-yy-15484.log`, …), in the parent column (v0.75.15, Q67) | Each row is still cut to the column, but no two neighbouring rows read the same: one keeps more of its head (`filer-a….log` against `filer-t….log`) or of its tail. Rows that already read differently are cut as before. Before, the whole column read `filer…84.log` (#227). Since v0.78.84 a `<State:>` lists the column as drawn: `parent: filer-a….log | filer-t….log | …` |
 
 ## 25. `filer env` (v0.28.0)
 

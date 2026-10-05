@@ -1294,6 +1294,9 @@ pub struct App {
     /// The newest line [`App::launch`] ran, after the PID of the process it
     /// started (`-` when there is none to give), for the state file.
     pub last_launch: Option<String>,
+    /// The parent column's rows as the last frame drew them, cut to its
+    /// width, for the state file; empty while it is not drawn.
+    pub parent_shown: Vec<String>,
     /// Openers still young enough to fail on us; drained in
     /// [`App::drain_channels`].
     launches: Vec<exec::Launch>,
@@ -1451,6 +1454,7 @@ impl App {
             last_error: None,
             last_report: None,
             last_launch: None,
+            parent_shown: Vec::new(),
             launches: Vec::new(),
             bookmarks: Vec::new(),
             history: Vec::new(),

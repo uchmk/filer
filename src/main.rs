@@ -1263,6 +1263,17 @@ fn state_report(app: &App) -> String {
     if let Some(u) = &app.last_report {
         lines.push(format!("report: {u}"));
     }
+    // The parent column as drawn, each name cut to its width: 24.7's rows,
+    // that no two neighbours read the same, could only be read off a picture
+    // (#251, proposal 4). A long folder is cut, as `pick:` is.
+    if !app.parent_shown.is_empty() {
+        const MAX: usize = 40;
+        let mut line = app.parent_shown.iter().take(MAX).cloned().collect::<Vec<_>>().join(" | ");
+        if app.parent_shown.len() > MAX {
+            line.push_str(&format!(" | … +{} more", app.parent_shown.len() - MAX));
+        }
+        lines.push(format!("parent: {line}"));
+    }
     // What the last opener or shell command started, by PID: a check could
     // only `Stop-Process` by name, which closed the owner's own documents
     // too (#162, proposal 3). The PID is the shell's; the program is its child.
@@ -1909,6 +1920,28 @@ mod tests {
         let err = app::PreviewState::Ready(preview::Payload::Error("not found, os error 2".into()));
         assert_eq!(preview_text(&err), "not found, os error 2\n");
         assert_eq!(preview_text(&app::PreviewState::Loading), "(no preview)\n");
+    }
+
+    /// #251, proposal 4: the parent column's rows as drawn, so 24.7's cut
+    /// names read as text; gone once the column is not drawn.
+    #[test]
+    fn the_state_file_lists_the_parent_column_as_drawn() {
+        let inner = crate::util::test_dir("state-parent").join("inner");
+        std::fs::create_dir_all(&inner).unwrap();
+        let mut s = crate::ui::harness::Screen::open(inner);
+        let mut r = String::new();
+        for _ in 0..500 {
+            s.turn();
+            r = state_report(&s.app);
+            if r.lines().any(|l| l == "parent: inner") {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(r.lines().any(|l| l == "parent: inner"), "{r}");
+        s.app.max_preview = true;
+        s.draw();
+        assert!(!state_report(&s.app).contains("parent:"), "`T` hides the column, and the line goes with it");
     }
 
     /// #211, proposal 3: `zoom: fit` says what fit comes to for a picture, as

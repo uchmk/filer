@@ -357,6 +357,8 @@ fn draw_header(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
 // ------------------------------------------------------------------ body
 
 fn draw_body(app: &mut App, ui: &mut Ui, body: Rect, f: &FontId, row_h: f32, queued: &mut Vec<Act>) {
+    // Filled again below only if the parent column is drawn this frame.
+    app.parent_shown.clear();
     let mut ratio = {
         let r = &app.cfg.yazi.mgr.ratio;
         [
@@ -647,6 +649,7 @@ fn draw_parent(app: &mut App, ui: &mut Ui, rect: Rect, ctx: &PaneCtx, queued: &m
                 queued.push(parent_click(e));
             }
         }
+        app.parent_shown = res.shown;
     }
 }
 
