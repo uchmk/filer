@@ -1199,6 +1199,12 @@ fn state_report(app: &App) -> String {
     }
     lines.push(format!("list top: {}", tab.current.offset));
     lines.push(format!("preview top: {} of {}", tab.preview_offset, app.preview.max_offset));
+    // How long the text on show is (`5237+` when the read was cut): the top
+    // above is the last place to scroll to, which is not the line count
+    // (#262).
+    if let app::PreviewState::Ready(preview::Payload::Text { extent, .. } | preview::Payload::Markdown { extent, .. }) = &app.preview.state {
+        lines.push(format!("preview lines: {}", extent.lines()));
+    }
     // Which picture an external preview is on -- the `{n}` its command was
     // given, a page or a second (#166) -- while the file under the cursor
     // has one.
@@ -1739,6 +1745,7 @@ mod tests {
             extent: Default::default(),
             outline: vec![toc("fn alpha", 3), toc("  fn beta", 41)],
         });
+        assert!(state_report(&app).lines().any(|l| l == "preview lines: 0"), "the text's own count (#262)");
         assert!(!state_report(&app).contains("outline:"), "no line while the list has the keys");
         app.preview.outline = Some(1);
         let report = state_report(&app);

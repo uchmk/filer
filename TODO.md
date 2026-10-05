@@ -1538,7 +1538,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   書庫を出ると `filer-archive-<pid>` が 0.7 秒で消える、`cargo test` が `filer-archive-*` を残さない。所見なし。#263（ARM64、v0.78.24）: 46 節の 21 行中 19 行が
   ARM64 の `git.exe` で x64 と同じ（印は x64 のもの）。両方 703 / 0
 - [x] （v0.78.29。キーは keymap の `compress` から読む。21.6a）`e` をフォルダの上で押すと「ファイルが書庫ではない」と言う（#262 の提案 1）。`inner\ is a folder -- e unpacks an archive …; to pack it, press E` にする
-- [ ] 状態ファイルにプレビューの行数を出す（#262 の提案 2: `preview top: 0 of 14` は最後の先頭位置で、30 行のファイルの行数が読めない）
+- [x] （v0.78.51。`preview lines: N`、切られたときは `N+`）状態ファイルにプレビューの行数を出す（#262 の提案 2: `preview top: 0 of 14` は最後の先頭位置で、30 行のファイルの行数が読めない）
 - [ ] `git` などの出力を読むだけの子プロセスを `DETACHED_PROCESS` で起こす（#263 の提案 1。`CREATE_NO_WINDOW` は窓を隠すだけで、`git.exe` ごとに `conhost.exe` が 1 つ立つ。
   spot を 6 回開いて `conhost` が 21 個）。`src/fs/git.rs`、`exec.rs`、`fs/ops.rs`、`preview/external.rs` の 4 か所。`cmd /S /C` の外部プレビューはコンソールが要らないかを確かめる
 - [ ] spot の Git の節の `git` 呼び出しを減らす（#263 の提案 2: 1 回で 8 回。`rev-parse` と `merge-base` が 2 回ずつ、`remote.origin.url` は毎回）。リポジトリの根ごとに、
