@@ -1419,7 +1419,7 @@ real repository with a history — this one will do.
 | 46.17 | In the spot panel, `C` (v0.52.0) | Every row is on the clipboard as `Label<TAB>value`, under each section's title, sections a blank line apart. The toast counts the rows |
 | 46.18 | On a 46.12 file in a clone of a GitHub repository, the `Pull request` row | It reads `https://github.com/<owner>/<repo>/pull/<n>` for the `#<n>` above it. `<Enter>` on it — or on `Came in via` — opens that page in the browser |
 | 46.19 | On a 46.15 file (committed, not merged) in a clone that has `origin/HEAD` | A **`Not merged`** row: `not in origin/main yet` (the clone's own default branch). A 46.14 file (straight to main) has **no** such row, so the two no longer look alike |
-| 46.20 | The same in a repository with no `origin/HEAD` (`git remote set-head origin -d`) | No `Not merged` row at all — filer does not guess the default branch |
+| 46.20 | The same in a repository with no `origin/HEAD` (`git remote set-head origin -d`) | A **`Not merged`** row reading `unknown (no origin/HEAD)` (v0.78.66; before, no row at all) — filer does not guess the default branch, and the row stops "merged" and "unknown" looking alike. A repository with no `origin` at all has no such row |
 | 46.21 | On a file that came in through a pull request, `<Tab>`, the cursor on `From branch`, `<Enter>` (v0.59.1) | The browser opens the branch's page (`…/tree/<branch>`), and the toast says `Opened …`. A branch deleted after the merge opens GitHub's own 404, which is still the right address |
 
 

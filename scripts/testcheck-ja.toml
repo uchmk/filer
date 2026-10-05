@@ -810,7 +810,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "46.18" = "GitHub のリポジトリの clone で、46.12 のファイルの `Pull request` の行 → 上の `#<n>` の `https://github.com/<owner>/<repo>/pull/<n>` と出る。その行か `Came in via` の行で `<Enter>` を押すと、そのページがブラウザで開く"
 "46.19" = "`origin/HEAD` のある clone で、46.15 のファイル（コミット済み・未マージ）→ **`Not merged`** の行に `not in origin/main yet`（その clone の既定のブランチ）。46.14 のファイル（main に直接）にはこの行が**無い**ので、2 つが同じ見た目ではなくなった"
 '46.21' = '''プルリクエストで入ったファイルで `<Tab>`、カーソルを `From branch` に置いて `<Enter>`（v0.59.1）→ ブラウザが枝のページ（`…/tree/<枝>`）を開き、トーストが `Opened …` と言う。マージ後に消された枝なら GitHub 自身の 404 が開くが、アドレスとしては正しい'''
-"46.20" = "`origin/HEAD` の無いリポジトリ（`git remote set-head origin -d`）で同じこと → `Not merged` の行は出ない。既定のブランチを推測しない"
+"46.20" = "`origin/HEAD` の無いリポジトリ（`git remote set-head origin -d`）で同じこと → `Not merged` の行が `unknown (no origin/HEAD)` と出る（v0.78.66。それまでは行が無かった）。既定のブランチは推測せず、「マージ済み」と「分からない」が同じ見えにならない。`origin` が全く無いリポジトリには行が出ない"
 
 # 13. シンボリックリンク
 "13.7" = 'ジャンクション（`mklink /J`）で試す → シンボリックリンクと同じ扱い（名前の後ろに `->` が付き、`g`+`f` で追える）'

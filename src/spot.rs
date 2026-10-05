@@ -312,8 +312,10 @@ fn git(path: &Path) -> Option<Section> {
             s.row(PR_ROW, url);
         }
     }
-    if let Some(default) = crate::fs::git::not_merged_into(path, &c.hash) {
-        s.row("Not merged", format!("not in {default} yet"));
+    match crate::fs::git::not_merged_into(path, &c.hash) {
+        Some(crate::fs::git::NotMerged::In(default)) => s.row("Not merged", format!("not in {default} yet")),
+        Some(crate::fs::git::NotMerged::Unknown) => s.row("Not merged", "unknown (no origin/HEAD)".to_owned()),
+        None => {}
     }
     Some(s)
 }

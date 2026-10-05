@@ -311,20 +311,33 @@ fn github_pr_url(remote: &str, pr: u32) -> Option<String> {
 /// default branch (`origin/HEAD`); guessing `main` would mark every commit of a
 /// `master` repository as unmerged. And only from local refs -- as current as
 /// the last fetch, and no newer.
-pub(crate) fn not_merged_into(path: &Path, commit: &str) -> Option<String> {
+pub(crate) fn not_merged_into(path: &Path, commit: &str) -> Option<NotMerged> {
     let dir = if path.is_dir() { path } else { path.parent()? };
-    let default = run(dir, &["rev-parse", "--abbrev-ref", "origin/HEAD"])?;
-    let default = default.trim();
-    if default.is_empty() || default == "origin/HEAD" {
-        return None;
-    }
+    let default = run(dir, &["rev-parse", "--abbrev-ref", "origin/HEAD"]).map(|d| d.trim().to_owned());
+    let default = match default.filter(|d| !d.is_empty() && d != "origin/HEAD") {
+        Some(d) => d,
+        // A clone that has an `origin` but never learned its default branch
+        // (`git remote set-head origin -a` fixes it): the absence of a
+        // `Not merged` row there did not mean "merged" (#212). A repository
+        // with no `origin` at all has nothing to be merged into.
+        None => return run(dir, &["remote", "get-url", "origin"]).map(|_| NotMerged::Unknown),
+    };
     // `--is-ancestor` exits 0 when merged, 1 when not; `run` reads anything
     // but 0 as "no answer", so a failure here also reads as "not merged". The
     // commit came from `git log` a moment ago, so it exists.
-    match run(dir, &["merge-base", "--is-ancestor", commit, default]) {
+    match run(dir, &["merge-base", "--is-ancestor", commit, &default]) {
         Some(_) => None,
-        None => Some(default.to_string()),
+        None => Some(NotMerged::In(default)),
     }
+}
+
+/// What [`not_merged_into`] found.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum NotMerged {
+    /// Not in this branch yet.
+    In(String),
+    /// The default branch is not known here, so nothing can be said.
+    Unknown,
 }
 
 /// The pull request number and branch a merge commit's subject names.
@@ -738,6 +751,29 @@ mod tests {
         // `origin` still shows the merge's hash, so the row is not empty.
         assert_eq!(merge_subject("v0.48.0: add something"), (None, None));
         assert_eq!(merge_subject("Merge pull request #x from a/b").0, None);
+    }
+
+    /// #212: a clone with an `origin` but no `origin/HEAD` says it does not
+    /// know, and one with no `origin` at all says nothing.
+    #[test]
+    fn a_clone_without_origin_head_says_it_does_not_know() {
+        let root = crate::util::test_dir("git-no-origin-head");
+        let git = |args: &[&str]| Command::new("git").arg("-C").arg(&root).args(args).output();
+        let Ok(out) = git(&["init", "-q", "-b", "main"]) else {
+            eprintln!("git is not installed; skipping");
+            return;
+        };
+        if !out.status.success() {
+            return;
+        }
+        let _ = git(&["config", "user.email", "t@example.com"]);
+        let _ = git(&["config", "user.name", "Ada"]);
+        std::fs::write(root.join("a.txt"), b"a").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "first"]);
+        assert_eq!(not_merged_into(&root.join("a.txt"), "HEAD"), None, "no origin, nothing to be merged into");
+        let _ = git(&["remote", "add", "origin", "https://example.invalid/x.git"]);
+        assert_eq!(not_merged_into(&root.join("a.txt"), "HEAD"), Some(NotMerged::Unknown));
     }
 
     /// A real merge, read back out of a real repository.
