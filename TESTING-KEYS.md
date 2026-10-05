@@ -233,7 +233,7 @@ The one-line prompt — `cd`, rename, filter, search.
 
 - [x] `<Enter>` — Submit · `close --submit`
 - [x] `<Esc>` — Cancel · `close`
-- [ ] `<Tab>` — Complete the path (E: next archive format) · `complete`
+- [x] `<Tab>` — Complete the path (E: next archive format) · `complete`
 
 ## `[confirm]`
 
@@ -252,10 +252,10 @@ A chooser — the command palette, the context menu.
 
 - [x] `<Enter>` — Submit · `close --submit`
 - [x] `<Esc>` — Cancel · `close`
-- [ ] `<C-n>` — Next match · `arrow 1`
-- [ ] `<C-j>` — Next match · `arrow 1`
-- [ ] `<C-p>` — Previous match · `arrow -1`
-- [ ] `<C-k>` — Previous match · `arrow -1`
+- [x] `<C-n>` — Next match · `arrow 1`
+- [x] `<C-j>` — Next match · `arrow 1`
+- [x] `<C-p>` — Previous match · `arrow -1`
+- [x] `<C-k>` — Previous match · `arrow -1`
 
 ## `[help]`
 
