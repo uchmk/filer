@@ -1,0 +1,67 @@
+# The merge routine
+
+A claude.ai Routine starts a new cloud session at :59 every hour, with
+`uchmk/filer` attached, and its whole instruction is one line: read this file
+and do what it says. This file is the one place the routine's own steps live
+(CLAUDE.md, 自動実行モード); **what to merge and how is in
+[merge-role.md](merge-role.md), and that is what you follow.** This file only
+adds what a run needs around it. Where the two seem to differ, merge-role.md
+wins.
+
+Every run starts with an empty conversation and nobody is watching: never wait
+for input. Reply in Japanese; commits in English. Read [CLAUDE.md](../CLAUDE.md)
+and merge-role.md from `origin/main` at the start of every run.
+
+## A run
+
+1. `git fetch origin main && git checkout -B claude/merge-run origin/main`.
+2. Do merge-role.md from 0 to 4: the votes, the open pull requests from
+   `test/win-*`, `test/arm-*` and `test/linux-*` (oldest first), each one that
+   may be merged, and the merger's share. GitHub from here: the GitHub tools
+   your session has, or `gh` (`gh api "repos/uchmk/filer/pulls?state=open"`;
+   merge with `gh api -X PUT repos/uchmk/filer/pulls/N/merge -f merge_method=merge
+   -f sha=<the full head SHA>`).
+3. **Push the merger's share with `scripts/push-main.sh`**, in the background,
+   and wait for it to finish (merge-role.md, 4). It replays your commit on top
+   when the development routine pushed first, renumbers it, runs the checks,
+   and waits for `main`'s CI. Never `git merge origin/main` + `git push`, never
+   `--force`.
+4. **A pull request whose CI is still running**: subscribe to it as
+   merge-role.md says (2.2). This session stays after the run and is woken
+   when the checks finish; do that pull request's merge and share then. The
+   next hour's run is a different session and may meet the same pull request:
+   one that is already merged is passed over, and the full head SHA on the
+   merge keeps two sessions from merging two different heads.
+5. Then the development routine's pushes (below).
+
+## Watching the development routine's pushes
+
+The development routine (`.claude/dev-routine.md`, Sonnet) pushes straight to
+`main`. Every run, read each `vX.Y.Z:` commit that reached `main` since your
+last run and is not a merger's share (`git log` since the previous merger's
+share, `Co-Authored-By` naming Sonnet), and check:
+
+- CLAUDE.md's rules held: no `cargo fmt` reformatting of files the change did
+  not need; the version and CHANGELOG.md together; a behaviour change came with
+  its TESTING.md row, its `scripts/testcheck-ja.toml` text, the untick, and the
+  re-tests in both tables of `windows-role.md`; no default the owner decided
+  was changed; no item marked `【人】` `【QA】` `【実機】` `【後】` or `要確認`
+  was taken; an item it could not take was marked, not skipped.
+- its CI is green:
+  `gh api repos/uchmk/filer/commits/<sha>/check-runs --jq '.check_runs[] | "\(.name) \(.conclusion)"'`.
+  A red Windows `test` comes first for the development routine; queue its
+  cause (the test name, and what differs on Windows if you can tell) so the
+  next development run finds it.
+
+What you find: a Markdown-only fix goes into your share's commit; anything that
+needs code goes near the top of TODO.md, in the "Sonnet の見張り" section, as
+`（Sonnet の見張り）…`. Keep this watch until the owner takes it out of here.
+
+## The reply
+
+In Japanese:
+
+- one line per pull request: `merged #N` / `waiting on CI for #N (subscribed)` /
+  `not merged #N: why`; nothing open: `nothing to do`;
+- the votes counted, when any (`Q57: 多数決 1`);
+- `Sonnet の push: N 件、問題 M 件（中身）`.

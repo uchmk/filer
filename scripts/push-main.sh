@@ -24,14 +24,15 @@
 #   2. scripts/verify.sh on the result, and stop if it changed a tracked
 #      file (v0.78.42 to v0.78.44 went out without the Cargo.lock their own
 #      checks had rewritten);
-#   3. wait while main's newest CI run is still going, up to six minutes:
+#   3. wait while main's newest CI run is still going, up to ten minutes:
 #      a push to main cancels it, and with a push every three to five
 #      minutes the Windows test job never finished (v0.78.54 went red there
 #      and nobody saw it for six versions). Then say if it ended red;
 #   4. fetch again and start over if main moved meanwhile; else push.
 #
-# Run it with a ten-minute timeout or in the background: the checks take
-# about three minutes and the wait up to six.
+# Run it in the background and wait for it: the checks take about three
+# minutes and the wait up to ten (a whole Windows test job), past the usual
+# ten-minute limit of a foreground command.
 #
 # The commits replayed have never been pushed, so this rewrites nothing
 # anyone else has seen; CLAUDE.md's merge-commit rule is about branches
@@ -107,8 +108,8 @@ wait_for_ci() {
             esac
             return
         fi
-        if [ $waited -ge 360 ]; then
-            echo "push-main: main's CI on $3 is still $1 after six minutes; pushing"
+        if [ $waited -ge 600 ]; then
+            echo "push-main: main's CI on $3 is still $1 after ten minutes; pushing"
             return
         fi
         [ $waited -gt 0 ] || echo "push-main: main's CI on $3 is $1; waiting for it, so this push does not cancel it"
