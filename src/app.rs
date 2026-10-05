@@ -5212,11 +5212,18 @@ impl App {
             // start failed, so a shell found some way other than `PATH` is
             // never refused on a guess.
             Err(e) => {
-                let said = match program.filter(|p| util::locate(p).is_none()) {
-                    Some(p) => format!("Terminal failed: `{p}` was not found on PATH — set [term] shell to one that is ({e})"),
-                    None => format!("Terminal failed ({label}): {e}"),
+                // `reason` is what `filer env` repeats after its own
+                // "did not start:"; the OS's own sentence is left out when the
+                // missing program is named (it is in the OS language).
+                let (reason, said) = match program.filter(|p| util::locate(p).is_none()) {
+                    Some(p) => {
+                        let r = format!("`{p}` was not found on PATH");
+                        let s = format!("Terminal failed: {r} — set [term] shell to one that is");
+                        (r, s)
+                    }
+                    None => (format!("{label}: {e}"), format!("Terminal failed ({label}): {e}")),
                 };
-                crate::runinfo::remember_shell_failed(&said);
+                crate::runinfo::remember_shell_failed(&reason);
                 self.error(said);
             }
         }

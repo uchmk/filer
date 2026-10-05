@@ -212,7 +212,7 @@ pub fn panic_report(info: &std::panic::PanicHookInfo<'_>) -> String {
         (_, Some(m)) => m.clone(),
         _ => "no message".to_owned(),
     };
-    let at = info.location().map_or_else(|| "unknown".to_owned(), |l| format!("{}:{}", l.file(), l.line()));
+    let at = info.location().map_or_else(|| "unknown".to_owned(), |l| format!("{}:{}", l.file().replace('\\', "/"), l.line()));
     let thread = std::thread::current().name().unwrap_or("unnamed").to_owned();
     format!("keys: panicked\nthread: {thread}\nat: {at}\nwhy: {}\n", why.replace('\n', " / "))
 }
