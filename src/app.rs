@@ -563,12 +563,14 @@ impl Task {
         let by_speed = left as f64 / speed;
         let (done, total) = self.work();
         let elapsed = self.started_at.elapsed().as_secs_f64();
-        let by_pace = match done > 0 && elapsed >= 2.0 {
-            true => elapsed * (total - done) as f64 / done as f64,
-            false => 0.0,
-        };
-        let secs = by_speed.max(by_pace);
-        // Past a day the number stops meaning anything.
+        // Until the pace is known the bytes alone say "nearly done" for a pile
+        // of small files, so say nothing yet.
+        if done == 0 || elapsed < 2.0 {
+            return None;
+        }
+        let by_pace = elapsed * (total - done) as f64 / done as f64;
+        // Round up: 0.97 s left is "1s", and "0s" would claim the job is over.
+        let secs = by_speed.max(by_pace).ceil();
         (secs.is_finite() && secs < 86_400.0).then(|| Duration::from_secs_f64(secs))
     }
 }
@@ -5217,7 +5219,11 @@ impl App {
                 // missing program is named (it is in the OS language).
                 let (reason, said) = match program.filter(|p| util::locate(p).is_none()) {
                     Some(p) => {
-                        let r = format!("`{p}` was not found on PATH");
+                        // A path was given, so PATH was never searched.
+                        let r = match p.contains(['/', '\\']) {
+                            true => format!("`{p}` does not exist"),
+                            false => format!("`{p}` was not found on PATH"),
+                        };
                         let s = format!("Terminal failed: {r} — set [term] shell to one that is");
                         (r, s)
                     }
@@ -6528,9 +6534,14 @@ mod tests {
         let speed = t.speed().expect("a second of copying is measurable");
         assert!((900_000..=1_100_000).contains(&speed), "got {speed} B/s");
 
+        // The first two seconds say nothing: a pile of small files looks
+        // nearly done on its bytes alone, and "0s" would be a lie.
+        assert_eq!(t.eta(), None, "the pace is not known yet");
+
         // Two of the three megabytes are left, at about a megabyte a second.
+        t.started_at = Instant::now() - Duration::from_secs(3);
         let eta = t.eta().expect("bytes are known, so the rest can be timed");
-        assert!((1..=3).contains(&eta.as_secs()), "got {eta:?}");
+        assert!((1..=7).contains(&eta.as_secs()), "got {eta:?}");
     }
 
     /// #241: a job of many small files does not read nearly done on its bytes.
