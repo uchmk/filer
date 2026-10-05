@@ -5026,6 +5026,11 @@ impl App {
         if !matches!(ov.kind, InputKind::Cd) {
             return;
         }
+        if let Some(dir) = cycling_in(&ov.text, &ov.completion, ov.completion_at) {
+            let hits = ov.completion.clone();
+            self.apply_completion(&dir, hits);
+            return;
+        }
         let (dir, prefix) = completion_target(&ov.text, &self.tabs[self.active].cwd);
         // A directory that has been listed once answers on the spot, which
         // covers the cwd, its parent and everywhere the tab has been.
@@ -6261,8 +6266,6 @@ fn completion_hits(entries: &[Entry], prefix: &str) -> Vec<String> {
     hits
 }
 
-/// What the input line reads once a name is chosen: the directory, ready for
-/// the next component to be typed or completed.
 /// Whether two paths name the same file by their spelling: normalized, and
 /// without regard to case on Windows (as the file system sees it).
 fn same_place(a: &Path, b: &Path) -> bool {
@@ -6291,6 +6294,22 @@ fn next_archive_name(name: &str) -> String {
     }
 }
 
+/// The folder a completion just made is being cycled in: `text` is still what
+/// the last `<Tab>` wrote (the folder, then the hit just taken, then a
+/// separator), so the next `<Tab>` goes on to the following hit in `hits`
+/// instead of listing what is inside the one just chosen (#222).
+fn cycling_in(text: &str, hits: &[String], at: usize) -> Option<PathBuf> {
+    if hits.len() < 2 || at == 0 {
+        return None;
+    }
+    let last = &hits[(at - 1) % hits.len()];
+    let tail = format!("{last}{}", std::path::MAIN_SEPARATOR);
+    let dir = text.strip_suffix(&tail)?;
+    Some(PathBuf::from(dir))
+}
+
+/// What the input line reads once a name is chosen: the directory, ready for
+/// the next component to be typed or completed.
 fn completed_text(dir: &Path, name: &str) -> String {
     format!("{}{}", dir.join(name).display(), std::path::MAIN_SEPARATOR)
 }
@@ -9623,6 +9642,23 @@ mod said_out_loud {
         assert!(a.tasks.is_empty(), "no job for packing a file over itself");
         assert!(a.toasts.iter().any(|t| t.text.starts_with("Can't pack to-pack.zip into itself")), "{:?}",
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// #222: a second `<Tab>` goes on to the next folder that carried on from
+    /// the first prefix, rather than into the one just chosen.
+    #[test]
+    fn tab_goes_round_the_candidates() {
+        let sep = std::path::MAIN_SEPARATOR;
+        let hits = vec!["alpha".to_owned(), "alps".to_owned(), "also".to_owned()];
+        let dir = PathBuf::from("base");
+        let first = completed_text(&dir, &hits[0]);
+        assert_eq!(cycling_in(&first, &hits, 1), Some(dir.clone()));
+        assert_eq!(cycling_in(&first, &hits, 0), None, "nothing completed yet");
+        assert_eq!(cycling_in(&format!("{first}x"), &hits, 1), None, "typed on since");
+        assert_eq!(cycling_in(&format!("base{sep}al"), &hits, 1), None, "not what the last press wrote");
+        assert_eq!(cycling_in(&first, &hits[..1], 1), None, "one candidate has nothing to cycle to");
+        let wrapped = completed_text(&dir, &hits[2]);
+        assert_eq!(cycling_in(&wrapped, &hits, 3), Some(dir), "the last one wraps to the first");
     }
 
     /// Q79: `<Tab>` in `E`'s field walks the three formats and leaves the stem.

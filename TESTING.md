@@ -706,6 +706,7 @@ that is worth writing in the report. It is not a tick: each row is about the edi
 | 23.2 | Copy a file to and from it | Works, with progress |
 | 23.3 | Unplug the network mid-listing, or point at a dead host | **The window keeps responding.** An error toast, and the tab goes back where it was |
 | 23.4 | Tab-complete a path on the share | The prompt stays responsive; a `…` shows while it waits |
+| 23.4a | In a folder with `alpha\`, `alps\` and `zeta\`: `g<Space>`, type the folder's full path then `al`, and `<Tab>` three times (v0.78.58, #222) | The line goes `…\alpha\`, then `…\alps\`, then `…\alpha\` again: each press takes the next folder that began with `al` instead of listing what is inside the one just chosen |
 | 23.5 | `g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) | **One** error toast, naming the path as typed (`C:\Temp\a|b\c\d`, not its parent `…\c`: v0.75.19). Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`) |
 | 23.6 | `filer <a folder>\tpyo`, or `g<Space>` with a name that is not there (v0.57.4) | The folder above opens, as before, and a red toast says `No such file or folder: <the folder>\tpyo — showing <the folder>` (the whole missing path, the home folder as `~`, v0.78.31). A name that *is* a file opens the folder with the file under the cursor and says nothing |
 

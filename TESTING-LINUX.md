@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 511 件（TESTING.md の全 682 件のうち、`cargo test` が見ている 171 件は外してある）。
+押すものは 512 件（TESTING.md の全 683 件のうち、`cargo test` が見ている 171 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -379,6 +379,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **23.2** そこへファイルをコピー、そこからコピー → どちらも動き、進捗が出る — *Copy a file to and from it → Works, with progress*
 - [ ] **23.3** 一覧の取得中にネットワークを抜く、または応答しないホストを指定する → **ウィンドウが固まらない。**エラーのトーストが出て、タブは元の場所に戻る — *Unplug the network mid-listing, or point at a dead host → **The window keeps responding.** An error toast, and the tab goes back where it was*
 - [ ] **23.4** 共有上のパスを Tab 補完する → プロンプトが固まらず、待っている間 `…` が出る — *Tab-complete a path on the share → The prompt stays responsive; a `…` shows while it waits*
+- [ ] **23.4a** `alpha\`、`alps\`、`zeta\` があるフォルダで `g<Space>`、そのフォルダのフルパスと `al` を打ち、`<Tab>` を 3 回（v0.78.57、#222）→ 行が `…\alpha\` → `…\alps\` → `…\alpha\` と回る。押すたびに、選んだフォルダの中を並べるのでなく、`al` で始まる次のフォルダになる — *In a folder with `alpha\`, `alps\` and `zeta\`: `g<Space>`, type the folder's full path then `al`, and `<Tab>` three times (v0.78.58, #222) → The line goes `…\alpha\`, then `…\alps\`, then `…\alpha\` again: each press takes the next folder that began with `al` instead of listing what is inside the one just chosen*
 - [ ] **23.5** `g<Space>` で、途中のフォルダ名に `|` を含むパス（`C:\Temp\a|b\c\d`）を打って `<Enter>`（v0.57.3）→ エラーのトーストは **1 つ**で、打ったパスをそのまま挙げる（親の `…\\c` ではなく `C:\\Temp\\a|b\\c\\d`。v0.75.19）。v0.57.3 までは親の列がそれぞれ自分のトーストを足し、断片（`b: …`、`c: …`）だけを挙げていた — *`g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) → **One** error toast, naming the path as typed (`C:\Temp\a|b\c\d`, not its parent `…\c`: v0.75.19). Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`)*
 
 ## 24. 扱いにくい名前
