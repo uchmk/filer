@@ -1451,6 +1451,12 @@ one run. The name is letters, digits, `-` and `_`.
 same folder (v0.73.74). That file is written when the script ends, so a script ending in `q` reports
 `overlay: none`; `--keys "<F12><State:panel><Esc>q"` reads the open box and still quits by itself.
 
+`<Click:0.2,0.1>` and `<RClick:0.2,0.1>` press the left or right button at that place in the window, as
+fractions of its width and height; `<Wheel:-3@0.5,0.4>` turns the wheel three lines (negative is down)
+there; `<Paste>` pastes the clipboard as it is at that point, and so does `<C-v>` (v0.78.53). They go in
+as egui's own events, so no foreground window or screen saver matters, and a prompt's text field
+hears `<C-v>` as a real keyboard would deliver it.
+
 `<Quit>` ends filer whatever is open, as the window's close button would (v0.74.2). `q` is a key like
 any other, and the compare view, the terminal pane and a prompt take it for something else, so a
 script ending in `q` there never ended. The report it leaves describes what was open when it quit.

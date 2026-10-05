@@ -48,7 +48,21 @@ pub enum Step {
     /// and a prompt each take it for something else, so a script ending in
     /// `q` there never ended (#236).
     Quit,
+    /// `<Paste>` (and `<C-v>`): the clipboard as it is when the key goes in,
+    /// as the paste event the platform makes of Ctrl+V. A real keyboard never
+    /// sends the press, so a text field hears nothing from one (#260).
+    Paste,
+    /// `<Click:0.5,0.4>` and `<RClick:…>`: the left or right button at that
+    /// place in the window, as fractions of its width and height. The right-click
+    /// and wheel rows were each driven by a hundred lines of `SendInput`
+    /// written afresh in every real-machine run (#260).
+    Click { right: bool, at: At },
+    /// `<Wheel:-3@0.5,0.4>`: this many lines of wheel there (negative is down).
+    Wheel { lines: i32, at: At },
 }
+
+/// A place in the window, in thousandths of its width and height.
+pub type At = (u16, u16);
 
 /// What a step becomes in the frame loop.
 #[derive(Clone, Debug, PartialEq)]
@@ -59,12 +73,20 @@ pub enum Press {
     Shot(String),
     State(String),
     Quit,
+    Paste,
+    /// Pointer steps wait for the window's size, known only in the frame loop.
+    Click { right: bool, at: At },
+    Wheel { lines: i32, at: At },
 }
 
 /// A step as the frame loop takes it; `None` for a key no keyboard can type.
 pub fn press(step: &Step) -> Option<Press> {
     match step {
+        Step::Key(k) if k.code == Code::Char('v') && k.ctrl && !k.alt && !k.sup => Some(Press::Paste),
         Step::Key(k) => events(k).map(Press::Events),
+        Step::Paste => Some(Press::Paste),
+        Step::Click { right, at } => Some(Press::Click { right: *right, at: *at }),
+        Step::Wheel { lines, at } => Some(Press::Wheel { lines: *lines, at: *at }),
         Step::Wait(d) => Some(Press::Wait(*d)),
         Step::Now => Some(Press::Now),
         Step::Shot(name) => Some(Press::Shot(name.clone())),
@@ -82,7 +104,69 @@ pub fn label(step: &Step) -> String {
         Step::Shot(name) => format!("<Shot:{name}>"),
         Step::State(name) => format!("<State:{name}>"),
         Step::Quit => "<Quit>".into(),
+        Step::Paste => "<Paste>".into(),
+        Step::Click { right, at } => format!("<{}Click:{}>", if *right { "R" } else { "" }, at_text(*at)),
+        Step::Wheel { lines, at } => format!("<Wheel:{lines}@{}>", at_text(*at)),
     }
+}
+
+fn at_text((x, y): At) -> String {
+    format!("{},{}", x as f32 / 1000.0, y as f32 / 1000.0)
+}
+
+/// `0.5,0.4` as a place in the window.
+fn at(text: &str) -> Option<At> {
+    let (x, y) = text.split_once(',')?;
+    let part = |v: &str| v.parse::<f32>().ok().filter(|v| (0.0..=1.0).contains(v)).map(|v| (v * 1000.0).round() as u16);
+    Some((part(x)?, part(y)?))
+}
+
+/// The pointer steps' tokens: `<Click:0.5,0.4>`, `<RClick:0.5,0.4>`,
+/// `<Wheel:-3@0.5,0.4>`. `None` for a token that is not one.
+fn pointer(token: &str) -> Option<Result<Step, String>> {
+    let inner = token.strip_prefix('<')?.strip_suffix('>')?;
+    let (name, arg) = inner.split_once(':')?;
+    let bad = || format!("`{token}` is not a pointer step; write a place as fractions of the window, as `<Click:0.5,0.4>` or `<Wheel:-3@0.5,0.4>`");
+    Some(match name {
+        "Click" | "RClick" => at(arg).map(|at| Step::Click { right: name == "RClick", at }).ok_or_else(bad),
+        "Wheel" => arg
+            .split_once('@')
+            .and_then(|(n, place)| Some((n.parse::<i32>().ok().filter(|n| n.abs() <= 1000)?, at(place)?)))
+            .map(|(lines, at)| Step::Wheel { lines, at })
+            .ok_or_else(bad),
+        _ => return None,
+    })
+}
+
+/// The events a pointer step becomes, in a window of `rect`.
+pub fn pointer_events(press: &Press, rect: egui::Rect) -> Vec<egui::Event> {
+    let place = |(x, y): At| rect.min + egui::vec2(rect.width() * x as f32 / 1000.0, rect.height() * y as f32 / 1000.0);
+    match press {
+        Press::Click { right, at } => {
+            let (pos, button) = (place(*at), if *right { egui::PointerButton::Secondary } else { egui::PointerButton::Primary });
+            let modifiers = egui::Modifiers::NONE;
+            vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton { pos, button, pressed: true, modifiers },
+                egui::Event::PointerButton { pos, button, pressed: false, modifiers },
+            ]
+        }
+        Press::Wheel { lines, at } => vec![
+            egui::Event::PointerMoved(place(*at)),
+            egui::Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Line,
+                delta: egui::vec2(0.0, *lines as f32),
+                phase: egui::TouchPhase::Move,
+                modifiers: egui::Modifiers::NONE,
+            },
+        ],
+        _ => Vec::new(),
+    }
+}
+
+/// Ctrl+V as the platform delivers it: the clipboard's text, now.
+pub fn paste_event() -> egui::Event {
+    egui::Event::Paste(crate::exec::get_clipboard().unwrap_or_default())
 }
 
 /// How long nothing may be pressed, past any `<Wait:N>` due, before a script
@@ -174,6 +258,8 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
             None if token == "<Quit>" => Step::Quit,
             None if token.starts_with("<Shot:") => Step::Shot(named(token, "Shot")?),
             None if token.starts_with("<State:") => Step::State(named(token, "State")?),
+            None if token == "<Paste>" => Step::Paste,
+            None if pointer(token).is_some() => pointer(token).unwrap_or_else(|| unreachable!())?,
             None => Step::Key(Key::parse(token).ok_or_else(|| format!("`{token}` is not a key"))?),
         };
         out.push(step);
@@ -197,13 +283,6 @@ pub fn events(key: &Key) -> Option<Vec<egui::Event>> {
         if !key.ctrl && !key.alt && !key.sup {
             return Some(vec![egui::Event::Text(c.to_string())]);
         }
-    }
-    // `<C-v>` is what a keyboard cannot send as a key: egui-winit turns the
-    // chord into a paste of the clipboard and never emits the press, so a
-    // prompt's text field only hears it that way (#260, #250). The clipboard
-    // is read now, as the press is made, not when the script was parsed.
-    if key.code == Code::Char('v') && key.ctrl && !key.alt && !key.sup {
-        return Some(vec![egui::Event::Paste(crate::exec::get_clipboard().unwrap_or_default())]);
     }
     // Everything else is a key event: the one, among every key and modifier
     // combination, that reads back as this key.
@@ -347,21 +426,42 @@ mod tests {
         assert!(s.app.overlay.is_none(), "`q` closed it");
     }
 
-    /// #260: `<C-v>` pastes into a prompt, as the platform's paste event.
+    /// #260: `<C-v>` and `<Paste>` paste into a prompt, as the platform's
+    /// paste event, with the clipboard as it is when they are pressed.
     #[test]
     fn ctrl_v_pastes_into_a_prompt() {
         let dir = crate::util::test_dir("keyscript-paste");
         let mut s = crate::ui::harness::Screen::open(dir);
         s.settle();
-        crate::exec::fake_clipboard("pasted-name");
         let key = |t| Key::parse(t).unwrap();
-        assert!(matches!(events(&key("<C-v>")).unwrap().as_slice(), [egui::Event::Paste(t)] if t == "pasted-name"));
+        assert_eq!(press(&Step::Key(key("<C-v>"))), Some(Press::Paste));
+        assert_eq!(parse("<Paste>").unwrap(), [Step::Paste]);
+        crate::exec::fake_clipboard("pasted-name");
         s.feed(events(&key("g")).unwrap());
         s.feed(events(&key("<Space>")).unwrap());
-        s.feed(events(&key("<C-v>")).unwrap());
+        s.feed(vec![paste_event()]);
         match &s.app.overlay {
             crate::app::Overlay::Input(ov) => assert!(ov.text.contains("pasted-name"), "{:?}", ov.text),
             _ => panic!("the cd prompt is not open"),
         }
+    }
+
+    /// #260: the pointer steps parse, keep their place, and become the events
+    /// a mouse makes inside the window they are given.
+    #[test]
+    fn pointer_steps_are_places_in_the_window() {
+        let got = parse("<Click:0.5,0.25><RClick:1,0><Wheel:-3@0.1,0.9>").unwrap();
+        assert_eq!(got[0], Step::Click { right: false, at: (500, 250) });
+        assert_eq!(got[1], Step::Click { right: true, at: (1000, 0) });
+        assert_eq!(got[2], Step::Wheel { lines: -3, at: (100, 900) });
+        assert_eq!(got.iter().map(label).collect::<Vec<_>>(), ["<Click:0.5,0.25>", "<RClick:1,0>", "<Wheel:-3@0.1,0.9>"]);
+        for bad in ["<Click:2,0.5>", "<Click:0.5>", "<Wheel:3>", "<Wheel:x@0.5,0.5>", "<RClick:a,b>"] {
+            assert!(parse(bad).unwrap_err().contains("pointer step"), "{bad}");
+        }
+        let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(800.0, 600.0));
+        let click = pointer_events(&press(&got[0]).unwrap(), rect);
+        assert!(matches!(click[1], egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed: true, .. } if pos == egui::pos2(400.0, 150.0)), "{click:?}");
+        let wheel = pointer_events(&press(&got[2]).unwrap(), rect);
+        assert!(matches!(wheel[1], egui::Event::MouseWheel { delta, .. } if delta == egui::vec2(0.0, -3.0)), "{wheel:?}");
     }
 }

@@ -919,6 +919,19 @@ impl eframe::App for Filer {
                 self.script_at = (frame, std::time::Instant::now());
                 self.script_now = false;
             }
+            // Read as it goes in, not when the script was parsed: an earlier
+            // key of the script may have put something on the clipboard.
+            Some(keyscript::Press::Paste) => {
+                raw_input.events.push(keyscript::paste_event());
+                self.script_at = (frame, std::time::Instant::now());
+                self.script_now = false;
+            }
+            Some(p @ (keyscript::Press::Click { .. } | keyscript::Press::Wheel { .. })) => {
+                let rect = ctx.input(|i| i.viewport_rect());
+                raw_input.events.extend(keyscript::pointer_events(&p, rect));
+                self.script_at = (frame, std::time::Instant::now());
+                self.script_now = false;
+            }
             // Written now: the wait above is the one a key gets, so this is
             // the state the key before it left (#230).
             Some(keyscript::Press::State(name)) => {
