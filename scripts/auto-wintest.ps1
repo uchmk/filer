@@ -107,6 +107,9 @@
 # wrong [x] here is the one mistake nothing downstream catches -- while the
 # cloud's development routine may run on a cheaper one). To change it, add
 # -Model to the task's arguments; the log names the model of every run.
+# A `claude` too old for the model is updated with `claude update` and the run
+# tried once more (v0.78.104); three failed runs in a row put a line of
+# `!!!!!` in the log.
 #
 # The run works in its own worktree ($Work), not in the checkout you use, so
 # it never meets your uncommitted changes and you can keep working while it
@@ -389,6 +392,18 @@ try {
     try {
         $out = claude -p $prompt --model $Model --permission-mode acceptEdits --allowedTools $Tools --disallowedTools $Denied 2>&1 | Out-String
         $code = $LASTEXITCODE
+        # A `claude` too old for $Model fails in seconds, every firing: the
+        # ARM64 laptop sat at 2.1.278 for ten hours on 2026-10-05 while
+        # claude-opus-5-5 needed 2.1.280. Update once and go again.
+        if ($code -ne 0 -and $out -match 'does not support this model|or newer is required') {
+            Add-Content -Path $log -Value "===== exit=$code`n$out"
+            $before = (claude --version 2>&1 | Out-String).Trim()
+            $upd = (claude update 2>&1 | Out-String).Trim()
+            $after = (claude --version 2>&1 | Out-String).Trim()
+            Say "claude was too old for $Model ($before); ran claude update: $(($upd -split "`r?`n")[-1]) Now $after. Trying again."
+            $out = claude -p $prompt --model $Model --permission-mode acceptEdits --allowedTools $Tools --disallowedTools $Denied 2>&1 | Out-String
+            $code = $LASTEXITCODE
+        }
     } finally {
         Pop-Location
         if (-not $KeepScreenSaver) { Resume-ScreenSaver }
@@ -396,15 +411,25 @@ try {
     Add-Content -Path $log -Value "===== exit=$code`n$out"
 
     $tail = ($out.TrimEnd() -split "`r?`n")[-1].Trim()
+    # Failures in a row: a lane that fails every firing makes no pull request
+    # and says nothing anywhere else, so the owner noticed the ten hours above
+    # only by the missing pull requests.
+    $failFile = Join-Path $state "failures$suffix"
     if ($code -eq 0) {
         # Only a finished run uses the trigger up. A failed one is tried
         # again on the next firing, from the same commit.
         Set-Content -NoNewline -Path $last -Value $trigger
+        Remove-Item -LiteralPath $failFile -ErrorAction SilentlyContinue
         Say "Done: $tail"
     } elseif ($out -match 'limit') {
         Say 'Hit a usage limit. Trying again next time.'
     } else {
+        $fails = 1 + $(if (Test-Path $failFile) { [int](Get-Content -Raw $failFile) } else { 0 })
+        Set-Content -NoNewline -Path $failFile -Value $fails
         Say "The run failed (exit $code). See the log. Last line: $tail"
+        if ($fails -ge 3) {
+            Say "!!!!! [$Lane] $fails runs in a row have failed. Nothing reaches GitHub until this is fixed. Last line: $tail !!!!!"
+        }
         exit 1
     }
 } finally {
