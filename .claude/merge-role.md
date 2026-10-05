@@ -155,7 +155,8 @@ allowed because nothing in it can break a build. **Push it with
 `scripts/push-main.sh`, never `git merge origin/main` + `git push`** (v0.78.38):
 when the development routine pushed first, it puts your commit on top of
 theirs and gives it the next version -- in the subject, the CHANGELOG heading
-and the lines you added -- then runs `scripts/verify.sh` and pushes. Renumbering
+and the lines you added -- then runs `scripts/verify.sh`, waits while main's CI
+is still running (a push would cancel it), and pushes. Renumbering
 in a merge commit left three commits titled `v0.78.31:` on 2026-10-05, and the
 release notes are built from those titles. If it stops at a conflict, do what
 it says (`git rebase origin/main`: the commit was never pushed) and run it again.

@@ -2,7 +2,8 @@
 # Push this checkout's own commits to main, renumbered onto whatever main has
 # become, verified, without a merge commit and without --force.
 #
-#   scripts/push-main.sh
+#   scripts/push-main.sh            push
+#   scripts/push-main.sh --status   say whether main's CI is red, job by job
 #
 # Commit as usual first: one commit per change, its version bumped in
 # Cargo.toml / Cargo.lock, its CHANGELOG.md section, a `vX.Y.Z: ` subject.
@@ -20,8 +21,17 @@
 #      the version gets the same kind of bump on top of main's, and the
 #      commit's `vOLD` becomes `vNEW` in its message, its CHANGELOG heading
 #      and section, and in the lines it adds (TODO.md's `（vX.Y.Z。…）` ticks);
-#   2. scripts/verify.sh on the result;
-#   3. fetch again and start over if main moved meanwhile; else push.
+#   2. scripts/verify.sh on the result, and stop if it changed a tracked
+#      file (v0.78.42 to v0.78.44 went out without the Cargo.lock their own
+#      checks had rewritten);
+#   3. wait while main's newest CI run is still going, up to six minutes:
+#      a push to main cancels it, and with a push every three to five
+#      minutes the Windows test job never finished (v0.78.54 went red there
+#      and nobody saw it for six versions). Then say if it ended red;
+#   4. fetch again and start over if main moved meanwhile; else push.
+#
+# Run it with a ten-minute timeout or in the background: the checks take
+# about three minutes and the wait up to six.
 #
 # The commits replayed have never been pushed, so this rewrites nothing
 # anyone else has seen; CLAUDE.md's merge-commit rule is about branches
@@ -35,7 +45,82 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-die() { echo "push-main: $*" >&2; exit 1; }
+die() { printf 'push-main: %s\n' "$*" >&2; exit 1; }
+
+# owner/repo from the remote, whatever form its URL takes.
+repo=$(git remote get-url origin | sed -E 's#\.git$##; s#.*[/:]([^/:]+/[^/]+)$#\1#')
+api="https://api.github.com/repos/$repo/actions"
+
+# Main's CI runs, newest first, as JSON on stdout; nothing when unreadable.
+runs() {
+    curl -fsS --max-time 20 -H 'Accept: application/vnd.github+json' \
+        "$api/workflows/ci.yml/runs?branch=main&event=push&per_page=${1:-1}" 2>/dev/null || true
+}
+
+# "status conclusion sha url" of main's newest CI run.
+newest() {
+    runs 1 | python3 -c 'import json, sys
+r = json.load(sys.stdin)["workflow_runs"]
+if r: print(r[0]["status"], r[0]["conclusion"] or "-", r[0]["head_sha"][:7], r[0]["html_url"])' 2>/dev/null || true
+}
+
+# The newest run that finished (a cancelled one says nothing), job by job.
+status() {
+    local json
+    json=$(runs 15)
+    [ -n "$json" ] || { echo "push-main: could not read main's CI"; return 1; }
+    printf '%s' "$json" | python3 -c '
+import json, sys, urllib.request
+done = [r for r in json.load(sys.stdin)["workflow_runs"] if r["conclusion"] not in (None, "cancelled", "skipped")]
+if not done:
+    sys.exit("push-main: no finished CI run on main among the last 15")
+r = done[0]
+how, sha, title, url = r["conclusion"], r["head_sha"][:7], r["display_title"][:70], r["html_url"]
+print(f"main CI: {how} on {sha} {title}")
+print(f"  {url}")
+req = urllib.request.Request(r["jobs_url"], headers={"Accept": "application/vnd.github+json"})
+for j in json.load(urllib.request.urlopen(req, timeout=20))["jobs"]:
+    name, how = j["name"], j["conclusion"]
+    print(f"  {name:<12} {how}")
+if r["conclusion"] != "success":
+    print("RED: fix this before taking a new item (CLAUDE.md, 自動実行モード). The job log needs a")
+    print("token this session does not have; reproduce it from the test name in TODO.md, or read")
+    print("which tests are #[cfg(windows)]-sensitive (paths, separators) in the commits since green.")
+    sys.exit(2)
+'
+}
+
+# Wait while main's newest CI run is still going (step 3 above).
+wait_for_ci() {
+    local state waited=0
+    while :; do
+        state=$(newest)
+        if [ -z "$state" ]; then
+            echo "push-main: could not read main's CI; pushing without waiting"
+            return
+        fi
+        set -- $state
+        if [ "$1" = completed ]; then
+            case $2 in
+                success|cancelled|skipped) ;;
+                *) echo "push-main: WARNING: main's CI on $3 ended $2 ($4); a red main comes before new items (CLAUDE.md)" ;;
+            esac
+            return
+        fi
+        if [ $waited -ge 360 ]; then
+            echo "push-main: main's CI on $3 is still $1 after six minutes; pushing"
+            return
+        fi
+        [ $waited -gt 0 ] || echo "push-main: main's CI on $3 is $1; waiting for it, so this push does not cancel it"
+        sleep 20
+        waited=$((waited + 20))
+    done
+}
+
+if [ "${1:-}" = --status ]; then
+    status
+    exit
+fi
 
 [ -z "$(git status --porcelain --untracked-files=no)" ] || die "uncommitted changes; commit or restore them first"
 
@@ -172,9 +257,19 @@ for attempt in 1 2 3 4 5; do
         replay
     fi
     scripts/verify.sh
+    changed=$(git status --porcelain --untracked-files=no)
+    [ -z "$changed" ] || die "the checks changed tracked files the commit should have held:
+$changed
+Commit them into it (git commit --amend: it has not been pushed) and run this again."
     git fetch -q origin main
     if needs_replay; then
         echo "push-main: main moved during the checks; again (attempt $attempt)"
+        continue
+    fi
+    wait_for_ci
+    git fetch -q origin main
+    if needs_replay; then
+        echo "push-main: main moved while waiting for its CI; again (attempt $attempt)"
         continue
     fi
     if res=$(git push origin HEAD:main 2>&1); then
