@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.78.37] - 2026-10-05
+
+### 追加
+
+- `FILER_TERM_ARGS`: `FILER_TERM_SHELL` で替えたペインのシェルに引数を渡す（Q81、多数決）。空白区切りで、`"…"` の中の空白は区切らない。`FILER_TERM_SHELL` と一緒のときだけ効き、`filer env` の `Terminal pane` に出どころ（`args from FILER_TERM_ARGS: …`）を出し、変数の欄にも並ぶ。TESTING.md に 29.13 を足した。
+
 ## [0.78.36] - 2026-10-05
 
 ### 変更

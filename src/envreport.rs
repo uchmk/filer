@@ -210,6 +210,14 @@ fn row(exe: &str, flag: &str, what: &str) -> (String, String) {
 /// Where the pane's shell came from, and the `[term] args` that
 /// `FILER_TERM_SHELL` left out, when there were any (#190).
 fn shell_source(term: &crate::config::TermCfg) -> String {
+    let said = shell_source_base(term);
+    match term.args_from_env {
+        true => format!("{said}; args from FILER_TERM_ARGS: {}", term.args.join(" ")),
+        false => said,
+    }
+}
+
+fn shell_source_base(term: &crate::config::TermCfg) -> String {
     match (term.shell.is_empty(), term.from_env) {
         (false, true) if term.dropped_args.is_empty() => "terminal pane, from FILER_TERM_SHELL".into(),
         (false, true) => format!("terminal pane, from FILER_TERM_SHELL; [term] args not used: {}", term.dropped_args.join(" ")),
@@ -357,7 +365,7 @@ fn last_run() -> Vec<(String, String)> {
 }
 
 fn variables() -> Vec<(String, String)> {
-    ["EDITOR", "VISUAL", "SHELL", "TERM", "YAZI_CONFIG_HOME", "FILER_CONFIG_HOME", "FILER_STATE_HOME", "FILER_TERM_SHELL"]
+    ["EDITOR", "VISUAL", "SHELL", "TERM", "YAZI_CONFIG_HOME", "FILER_CONFIG_HOME", "FILER_STATE_HOME", "FILER_TERM_SHELL", "FILER_TERM_ARGS"]
         .iter()
         .map(|k| (k.to_string(), std::env::var(k).unwrap_or_else(|_| "unset".into())))
         .collect()

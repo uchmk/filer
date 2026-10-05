@@ -1332,6 +1332,13 @@ $env:FILER_TERM_SHELL = 'powershell'; filer; Remove-Item Env:FILER_TERM_SHELL
 
 `<C-F5>` reads it again with the files, and `filer env` says which of the two the shell came from.
 
+`FILER_TERM_ARGS` gives that shell its arguments (v0.78.37, Q81): words split at white space, and a
+`"…"` run keeps its spaces. It counts only beside `FILER_TERM_SHELL`, and `filer env` names it:
+
+```powershell
+$env:FILER_TERM_SHELL = 'pwsh'; $env:FILER_TERM_ARGS = '-NoProfile'; filer
+```
+
 ## Reporting a problem
 
 `<F12>` first shows what a report would carry: the version, both architectures and the OS build,

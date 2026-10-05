@@ -144,6 +144,9 @@ pub struct TermCfg {
     /// The shell came from `FILER_TERM_SHELL`, not from a file.
     #[serde(skip)]
     pub from_env: bool,
+    /// The args came from `FILER_TERM_ARGS` (Q81).
+    #[serde(skip)]
+    pub args_from_env: bool,
     /// The `[term] args` that `FILER_TERM_SHELL` set aside, for `filer env`
     /// to name: without it, seeing them gone took the process's command line
     /// (#190).
@@ -158,11 +161,44 @@ impl TermCfg {
     /// with it (#176). The whole value is the program, a path with spaces
     /// included, and `[term] args` are dropped: they were written for the
     /// shell this one replaces.
-    fn take_env(&mut self, var: Option<std::ffi::OsString>) {
+    ///
+    /// `FILER_TERM_ARGS` gives that shell its arguments (Q81): words split at
+    /// white space, with `"…"` keeping its spaces together. It counts only
+    /// beside `FILER_TERM_SHELL`, since it is written for that shell.
+    fn take_env(&mut self, var: Option<std::ffi::OsString>, args: Option<std::ffi::OsString>) {
         let Some(shell) = var.and_then(|v| v.into_string().ok()).filter(|v| !v.trim().is_empty()) else { return };
         let dropped_args = std::mem::take(&mut self.args);
-        *self = Self { shell: shell.trim().to_owned(), args: Vec::new(), from_env: true, dropped_args };
+        let args = args.and_then(|v| v.into_string().ok()).map(|v| split_words(&v)).unwrap_or_default();
+        *self = Self { shell: shell.trim().to_owned(), args_from_env: !args.is_empty(), args, from_env: true, dropped_args };
     }
+}
+
+/// `-NoProfile "-Command x y"` as words: split at white space, and a quoted
+/// run keeps its spaces (the quotes themselves go).
+fn split_words(text: &str) -> Vec<String> {
+    let (mut words, mut word, mut quoted, mut started) = (Vec::new(), String::new(), false, false);
+    for c in text.chars() {
+        match c {
+            '"' => {
+                quoted = !quoted;
+                started = true;
+            }
+            c if c.is_whitespace() && !quoted => {
+                if started {
+                    words.push(std::mem::take(&mut word));
+                    started = false;
+                }
+            }
+            c => {
+                word.push(c);
+                started = true;
+            }
+        }
+    }
+    if started {
+        words.push(word);
+    }
+    words
 }
 
 /// `[[preview]]`: a command that draws a file filer cannot draw itself.
@@ -276,7 +312,7 @@ impl Broken {
 impl Config {
     pub fn load() -> Self {
         let mut cfg = Self::read(&dirs_to_read()).0;
-        cfg.term.take_env(std::env::var_os("FILER_TERM_SHELL"));
+        cfg.term.take_env(std::env::var_os("FILER_TERM_SHELL"), std::env::var_os("FILER_TERM_ARGS"));
         cfg
     }
 
@@ -290,7 +326,7 @@ impl Config {
     /// `prev` is emptied of what is kept: it is the config being replaced.
     pub fn reload(prev: &mut Config) -> Self {
         let mut cfg = Self::reload_from(prev, &dirs_to_read());
-        cfg.term.take_env(std::env::var_os("FILER_TERM_SHELL"));
+        cfg.term.take_env(std::env::var_os("FILER_TERM_SHELL"), std::env::var_os("FILER_TERM_ARGS"));
         cfg
     }
 
@@ -858,14 +894,29 @@ mod files {
     fn the_variable_names_the_shell_for_one_run() {
         let file = || TermCfg { shell: "pwsh".into(), args: vec!["-NoLogo".into()], ..TermCfg::default() };
         let mut t = file();
-        t.take_env(Some(r"C:\Program Files\Git\bin\bash.exe ".into()));
+        t.take_env(Some(r"C:\Program Files\Git\bin\bash.exe ".into()), None);
         assert_eq!((t.shell.as_str(), t.args.len(), t.from_env), (r"C:\Program Files\Git\bin\bash.exe", 0, true));
         assert_eq!(t.dropped_args, ["-NoLogo"], "kept for `filer env` to name (#190)");
         for unset in [None, Some("".into()), Some("  ".into())] {
             let mut t = file();
-            t.take_env(unset);
+            t.take_env(unset, Some("-x".into()));
             assert_eq!((t.shell.as_str(), t.args.len(), t.from_env), ("pwsh", 1, false));
         }
+    }
+
+    /// Q81: `FILER_TERM_ARGS` splits at white space, keeps a quoted run whole,
+    /// and counts only beside `FILER_TERM_SHELL`.
+    #[test]
+    fn the_args_variable_is_split_into_words() {
+        assert_eq!(split_words(r#"-NoProfile  -Command "a b" c"d e"f"#), ["-NoProfile", "-Command", "a b", "cd ef"]);
+        assert_eq!(split_words(r#" "" x"#), ["", "x"]);
+        assert!(split_words("   ").is_empty());
+        let mut t = TermCfg { shell: "pwsh".into(), args: vec!["-NoLogo".into()], ..TermCfg::default() };
+        t.take_env(Some("bash".into()), Some("--norc -i".into()));
+        assert_eq!((t.args.clone(), t.args_from_env), (vec!["--norc".to_string(), "-i".to_string()], true));
+        let mut t = TermCfg { shell: "pwsh".into(), args: vec!["-NoLogo".into()], ..TermCfg::default() };
+        t.take_env(None, Some("--norc".into()));
+        assert_eq!((t.args, t.args_from_env), (vec!["-NoLogo".to_string()], false));
     }
 
     /// `[term]` decides what the pane starts, and says nothing by default.
