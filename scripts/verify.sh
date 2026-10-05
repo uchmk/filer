@@ -30,11 +30,15 @@ run() {
     last=$out
 }
 
+# First, and `--locked`: CI builds that way, and a plain cargo command quietly
+# rewrites a stale Cargo.lock, so the commit that bumped Cargo.toml without it
+# passed every later step here (v0.78.42 to v0.78.44 went red on main). When
+# this fails, run `cargo build`, then commit Cargo.lock with the version bump.
+run cargo build -q --locked
 run cargo test -q
 tests=$(echo "$last" | grep -m1 'test result')
 run cargo +stable clippy -q --all-targets -- -D warnings
 run cargo +stable clippy -q --all-targets --target x86_64-pc-windows-msvc -- -D warnings
-run cargo build -q
 run cargo run -q --example make-testcheck -- --check
 run cargo run -q --example make-testcheck -- --lane linux --check
 run cargo run -q --example make-keycheck -- --check

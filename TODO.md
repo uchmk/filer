@@ -18,7 +18,7 @@
 - [x] （v0.78.41。6.16 を足し、訳と再テストに積んだ）（Sonnet の見張り）v0.78.32（`d97b31a`）が `w` でファイルの仕事を止めたときのトースト（`Copy stopped — what was already done stays`）を足したが、
   TESTING.md に行が無く、再テストにも積んでいない。単体テストは `OpEvent::Finished` を手で作るだけで、本物の取り消しの経路は通らない。
   6 節に「大きいコピーを `w` で止める → トースト」の行を足し、`testcheck-ja.toml` と両レーンの再テストに積む（CLAUDE.md の作業ルール）
-- [ ] （Sonnet の見張り）v0.78.42〜0.78.44（`a31b1b4`、`36bf0b2`、`c448dc4`）は、どれも `Cargo.lock` の `filer` が `Cargo.toml` より 1 つ前の版のまま
+- [x] （v0.78.48。`scripts/verify.sh` の最初に `cargo build --locked` を置いた。古い lock では落ちることを確かめた）（Sonnet の見張り）v0.78.42〜0.78.44（`a31b1b4`、`36bf0b2`、`c448dc4`）は、どれも `Cargo.lock` の `filer` が `Cargo.toml` より 1 つ前の版のまま
   コミットされ、CI の `--locked` で全ジョブが落ちていた（`main` が 3 版続けて赤。v0.78.46 のマージする側のコミットで lock を直した）。
   版を上げた**後**に `cargo build` してから `Cargo.lock` ごとコミットする（CLAUDE.md の手順 3）。`scripts/verify.sh` を `--locked` で回すようにすれば、
   push の前にこの取り違えを止められる（スクリプトの変更なので開発の側で）
