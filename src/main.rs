@@ -1400,6 +1400,11 @@ fn state_report(app: &App) -> String {
     // not on rendered Markdown, a two-line file or a narrow pane) is a
     // picture's question.
     lines.push(format!("minimap setting: {}", if app.cfg.ui.minimap { "on" } else { "off" }));
+    // What the last frame did about it: drawn, with the lines its frame
+    // covers, or why not. 2, 16.12 and 18 judged it from a picture (#261).
+    if let Some(note) = app.ctx.data(|d| d.get_temp::<String>(egui::Id::new(ui::preview::MINIMAP_NOTE))) {
+        lines.push(format!("minimap: {note}"));
+    }
     lines.push(format!(
         "split: {}",
         app.split.map_or("no".into(), |s| format!("yes, keys {}", if s.right { "right" } else { "left" }))

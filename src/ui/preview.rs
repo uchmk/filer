@@ -47,6 +47,10 @@ const SOURCE_OUTLINE_MIN_COLS: u16 = 100;
 const MINIMAP_COLS: u16 = 7;
 /// Below this the body needs the width more than it needs a map.
 const MINIMAP_MIN_COLS: u16 = 56;
+
+/// Where the last frame's minimap answer is kept for the state file:
+/// `drawn, band 15-47 of 3984`, or why none was drawn (#261).
+pub const MINIMAP_NOTE: &str = "filer-minimap-note";
 /// Height of one minimap band. Two pixels is enough to read the shape of a
 /// file and coarse enough that a thousand lines fit in a pane.
 const BAND_H: f32 = 2.0;
@@ -61,6 +65,9 @@ pub fn draw(
 ) -> Drawn {
     let painter = ui.painter_at(rect);
     let pane_rows = rows(rect, st);
+    // Said again by whichever arm below has a minimap to speak of, so the
+    // state file never keeps the last text file's answer for an image.
+    ui.ctx().data_mut(|d| d.remove_temp::<String>(egui::Id::new(MINIMAP_NOTE)));
 
     let lines = match state {
         PreviewState::Empty => 0,
@@ -87,6 +94,7 @@ pub fn draw(
             }
             Payload::Text { lines, map, extent, outline } => {
                 let (body, strip) = split_minimap(rect, map, st);
+                note_minimap(ui, rect, map, strip.is_some(), offset, rows(body, st), st);
                 let mut drawn = code(ui, &painter, body, lines, outline, *extent, offset, st);
                 if let Some(strip) = strip {
                     drawn.scroll_to = minimap(ui, &painter, strip, map, offset, rows(body, st), st);
@@ -104,6 +112,7 @@ pub fn draw(
                     return markdown(ui, &painter, rect, doc, *extent, offset, st);
                 }
                 let (body, strip) = split_minimap(rect, map, st);
+                note_minimap(ui, rect, map, strip.is_some(), offset, rows(body, st), st);
                 let lines = text(ui, &painter, body, source, *extent, offset, st);
                 let mut scroll_to = None;
                 if let Some(strip) = strip {
@@ -233,6 +242,22 @@ fn split_minimap(rect: Rect, map: &[MapRow], st: &PreviewStyle<'_>) -> (Rect, Op
         Rect::from_x_y_ranges(rect.left()..=split, rect.y_range()),
         Some(Rect::from_x_y_ranges(split + 6.0..=rect.right(), rect.y_range())),
     )
+}
+
+/// What the state file says about this frame's minimap: that one was drawn
+/// and which lines its frame covers, or the reason there was none.
+fn note_minimap(ui: &Ui, rect: Rect, map: &[MapRow], drawn: bool, offset: usize, on_screen: usize, st: &PreviewStyle<'_>) {
+    let note = if drawn {
+        format!("drawn, band {}-{} of {}", offset + 1, (offset + on_screen).min(map.len()), map.len())
+    } else if !st.minimap {
+        "not drawn (turned off)".to_owned()
+    } else if map.len() < 2 {
+        "not drawn (too few lines)".to_owned()
+    } else {
+        debug_assert!(pane_cols(rect, st) < MINIMAP_MIN_COLS);
+        "not drawn (pane too narrow)".to_owned()
+    };
+    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new(MINIMAP_NOTE), note));
 }
 
 /// The shape of the whole file in a narrow column, with the part on screen
