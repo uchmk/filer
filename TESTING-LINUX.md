@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 518 件（TESTING.md の全 689 件のうち、`cargo test` が見ている 171 件は外してある）。
+押すものは 519 件（TESTING.md の全 690 件のうち、`cargo test` が見ている 171 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -548,6 +548,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **32.19** エディタのオープナー（サクラ、メモ帳）に回る `.txt` で `<Enter>` し、`<State:x>`（v0.78.81、#162）→ `x.txt` に `launched: <PID> <コマンドライン>` がある。`Get-CimInstance Win32_Process -Filter "ProcessId=<PID> or ParentProcessId=<PID>"` に、その行を走らせた `cmd` と、その下のエディタが出る。エディタの PID に `Stop-Process -Id` すると、その窓だけが閉じ、前から開いていた同じプログラムの窓は残る — *`<Enter>` on a `.txt` routed to an editor opener (サクラ, Notepad), then `<State:x>` (v0.78.81, #162) → `x.txt` has `launched: <PID> <the command line>`. `Get-CimInstance Win32_Process -Filter "ProcessId=<PID> or ParentProcessId=<PID>"` lists the `cmd` that ran the line and the editor under it, and `Stop-Process -Id` on the editor's PID closes that window alone, not another one of the same program already open*
 - [ ] **32.20** カーソルを `a.txt` に置いて `;echo hello >out.txt`、続けて `;echo %*`（v0.78.92、Q82）→ `out.txt` は `hello` だけで、末尾にパスが付かず、トーストの末尾に ` (no path: the line has a shell operator; use %* to place it)` と出る（v0.78.100）。`;echo %*` はプレースホルダがあるのでパスが入り、トーストに注記は出ない — *With the cursor on `a.txt`: `;echo hello >out.txt`, then `;echo %*` (v0.78.92, Q82) → `out.txt` holds `hello` alone, with no path at the end, and the toast ends ` (no path: the line has a shell operator; use %* to place it)` (v0.78.100). `;echo %*` gets the path, since it has a placeholder, and its toast has no such note*
 - [ ] **32.21** `[opener]` に入っていないプログラム（`run = 'no-such-tool %s'`）を書いた `yazi.toml` で、そのオープナーが受け持つファイルに `<S-Enter>`（v0.78.109）→ 項目は消えず、説明の後ろに `(not found)` が付く。入っているものには付かない。隠さないので、設定したのに無視されたようには見えない — *In a `yazi.toml` whose `[opener]` names a program that is not installed (`run = 'no-such-tool %s'`), `<S-Enter>` on a file that opener serves (v0.78.109) → The entry is still listed, with `(not found)` after its description; the ones that are installed have no suffix. It is not hidden, so a setting that points at a missing program does not look ignored*
+- [ ] **32.22** Windows で、カーソルを `a.txt` に置いて `;echo a;b >semi.txt`、続けて `;echo a;b`（v0.78.111、Q85）→ `semi.txt` は `a;b` だけ（`>` が演算子なのでパスは付かない）。2 行目のトーストは末尾にパスが付き（`a;b "…\a.txt"`）、`(no path: …)` の注記は出ない（`cmd` では `;` は演算子でないため）。Linux では 2 行目にパスが付かない（`sh -c` は `;` で分けるため） — *Windows, with the cursor on `a.txt`: `;echo a;b >semi.txt`, then `;echo a;b` (v0.78.111, Q85) → `semi.txt` holds `a;b` alone: the `>` is an operator, so no path is added. The second line's toast ends with the path (`a;b "…\a.txt"`) and has no `(no path: …)` note, since `;` is not an operator for `cmd`. On Linux the second line adds no path, as `sh -c` splits at `;`*
 
 ## 33. 設定の警告と、その色
 
