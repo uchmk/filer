@@ -2657,6 +2657,33 @@ mod compare_frame {
         assert!(!f.says("At the last difference"), "one end at a time: {:?}", f.texts);
     }
 
+    /// 5.12: the footer counts the differences, and `n` stops at exactly that many.
+    #[test]
+    fn footer_counts_the_blocks_that_n_walks() {
+        let left: Vec<String> = (0..400).map(|i| format!("line {i}")).collect();
+        let mut right = left.clone();
+        for line in right.iter_mut().take(55).skip(50) {
+            *line = line.to_uppercase();
+        }
+        right[150] = right[150].to_uppercase();
+        let mut s = comparing(
+            "frame-compare-count",
+            &format!("{}\n", left.join("\n")),
+            &format!("{}\n", right.join("\n")),
+        );
+        let f = s.draw();
+        assert!(footer_says(&f, "  ·  2 differences"), "two blocks, not six lines: {:?}", f.texts);
+
+        let mut s = comparing("frame-compare-count-one", "a\nb\nc\n", "a\nB\nc\n");
+        let f = s.draw();
+        assert!(footer_says(&f, "  ·  1 difference"), "singular for one: {:?}", f.texts);
+        assert!(!footer_says(&f, "1 differences"), "{:?}", f.texts);
+    }
+
+    fn footer_says(f: &Painted, tail: &str) -> bool {
+        footer(f).ends_with(tail)
+    }
+
     /// 5.7 and 5.8: the two answers that are a sentence rather than a view.
     ///
     /// Both exist so that "nothing was drawn" is never what a comparison looks

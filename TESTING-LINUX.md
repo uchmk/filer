@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 519 件（TESTING.md の全 690 件のうち、`cargo test` が見ている 171 件は外してある）。
+押すものは 519 件（TESTING.md の全 691 件のうち、`cargo test` が見ている 172 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -130,7 +130,7 @@
 
 ## 5. 2 ファイルの差分表示
 
-自動テスト済みなので下には出していない: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.6a, 5.6b, 5.6c, 5.7, 5.8, 5.10
+自動テスト済みなので下には出していない: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.6a, 5.6b, 5.6c, 5.7, 5.8, 5.10, 5.12
 
 - [ ] **5.9** 2 つの**ディレクトリ**で実行（v0.43.0）→ 断られない。フォルダの比較が開き、パスに `<` `>` `~` `=` の印が付いた一覧が出る（45 節）。断られるのはファイルとフォルダを 1 つずつ選んだときだけで、それは 45.9 — *Two directories (v0.43.0) → Not refused: the folder comparison opens, a list of paths with `<` `>` `~` `=` signs (section 45). Only a file and a folder together are refused, which is 45.9*
 - [ ] **5.11** 1 語だけ変わった行（`price` → `cost`）と、日本語の語が変わった行（`太郎` → `花子`）のある 2 つのファイルを比べる（v0.62.0）→ 変わった行では、その語だけが濃く塗られる（左は赤、右は緑）。塗りは語の真下にぴったり重なる（日本語の語も）。全部変わった行は行の色だけ。`make-fixtures` が `words-left.txt` / `words-right.txt` を作る。比較を開いた状態の `<State:x>` に、変わった語を ⟦ ⟧ で囲んだ `compare row N:` が並ぶ（v0.78.73） — *Compare two files where one line changes a single word (`price` → `cost`), and another a Japanese word (`太郎` → `花子`) (v0.62.0) → On each changed row only that word is painted stronger, red on the left and green on the right, and the mark sits exactly under the word -- the Japanese one too. A line changed completely keeps only the row tint. `make-fixtures` makes `words-left.txt` / `words-right.txt` for this, and `<State:x>` with the view open lists `compare row N:` with the changed words in ⟦ ⟧ (v0.78.73)*
