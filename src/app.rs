@@ -4797,6 +4797,11 @@ impl App {
         if links.len() > SHOWN {
             body.push(format!("… and {} more", links.len() - SHOWN));
         }
+        // What `c` copies, on the screen it is asked about: the toast that
+        // named it was gone by then (#197).
+        body.push(String::new());
+        body.push(if links.len() == 1 { "`c` copies:".to_owned() } else { "`c` copies, one per link:".to_owned() });
+        body.extend(links.iter().take(SHOWN).map(|l| format!("  {}", ops::mklink_line(&l.at, &l.target))));
         let what = if links.len() == 1 { "Make the junction".to_owned() } else { format!("Make {} junctions", links.len()) };
         // `c` for someone who would rather make it themselves, or somewhere
         // else: the line is two absolute paths long, and a toast cannot be
@@ -7385,6 +7390,7 @@ mod create_and_link_undo {
         let body = c.body.join("\n");
         assert!(body.contains("not a relative one") && body.contains("network"), "{body}");
         assert!(body.contains(&format!("{}  →  {}", offered.at.display(), offered.target.display())), "{body}");
+        assert!(body.contains("`c` copies:") && body.contains(&ops::mklink_line(&offered.at, &offered.target)), "the command is on the screen: {body}");
         assert_eq!(c.options[0], ('y', "Make the junction".into()));
         assert_eq!(c.options[1], ('c', "Copy the mklink command".into()));
 

@@ -2181,7 +2181,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.78.53 で `<Paste>` と、貼り付けになる `<C-v>` が入った）`--keys` に `<Paste>` の手順を足す（#197 の提案 1）。`--keys` の `<C-v>` はシェルの PSReadLine が自分でクリップボードを読むだけで、
   filer の `Terminal::paste`（`egui::Event::Paste`）は通らない。それを試すのに `SetForegroundWindow` + `SendInput` を 54 行書いた。
   `keyscript.rs` のパーサに 1 手順、押す側に 1 腕。
-- [ ] ジャンクションの質問の本文にも `mklink` の行を出す（#197 の提案 2）。今は `at → target` だけなので、トーストが消えたあとは
+- [x] （v0.78.65。13.8c を再テストに積んだ）ジャンクションの質問の本文にも `mklink` の行を出す（#197 の提案 2）。今は `at → target` だけなので、トーストが消えたあとは
   `[c] Copy the mklink command` が画面に無いものをコピーすると言っている。`App::offer_junctions` に 1 行。
 - [x] （v0.78.62。`clipboard set: …` は filer が最後に書いた文だけ。持ち主のクリップボードは読まない）`FILER_KEYS_DONE` に `clipboard:` 行を足す（#197 の提案 3）。`c` の系統のキーはクリップボードに書くが、外から読むには
   番兵を置いて、機械に 1 つのクリップボードを他のセッションと取り合うしかない。`state_report` に 1 行。
