@@ -373,6 +373,12 @@ fn missing_program(cmdline: &str, found: &dyn Fn(&str) -> bool) -> Option<String
     Some(exe)
 }
 
+/// Whether an opener's program is not there to run, for the "Open with" chooser
+/// to say so. A handful of `PATH` lookups, once per opener when it opens.
+pub fn opener_missing(cmdline: &str) -> bool {
+    missing_program(cmdline, &|p| crate::util::locate(p).is_some()).is_some()
+}
+
 /// What the shell complained about, on one line.
 ///
 /// `None` unless it is text we can read: a console on a non-English Windows
@@ -828,6 +834,12 @@ mod tests {
 
     /// #96: a program that is not there is named; one that is, or a shell's
     /// own command, leaves the exit code to speak.
+    #[test]
+    fn opener_missing_tells_a_program_that_is_not_there() {
+        assert!(opener_missing("definitely-not-a-program-93f2 %s"));
+        assert!(!opener_missing("echo %s"));
+    }
+
     #[test]
     fn a_missing_program_is_named() {
         let only_code = |p: &str| p == "code";

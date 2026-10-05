@@ -1499,7 +1499,7 @@ fn pick_backends(
 /// Once the window is up, a `[ui] backend` warning can say what it fell back
 /// to instead of "the default" (#244): `drawing with Gl instead`. `filer env`,
 /// which opens no window, keeps the general words.
-fn name_the_fallback(warnings: &mut [String], backend: &str) {
+pub(crate) fn name_the_fallback(warnings: &mut [String], backend: &str) {
     if backend.is_empty() {
         return;
     }
@@ -1508,6 +1508,13 @@ fn name_the_fallback(warnings: &mut [String], backend: &str) {
             *w = format!("{head}drawing with {backend} instead");
         }
     }
+}
+
+/// What a `[ui] backend` warning names as the fallback when no window is up
+/// (`filer env`): the backend `auto` would pick, which is only known on
+/// Windows (GL when the machine has it). Empty elsewhere, where wgpu chooses.
+pub(crate) fn predicted_fallback() -> String {
+    auto_backends(cfg!(windows), || has_adapter(eframe::wgpu::Backends::GL)).map_or(String::new(), |_| "Gl".into())
 }
 
 /// What `auto` narrows the backends to: GL on Windows when this machine has

@@ -4273,7 +4273,15 @@ impl App {
                 self.error("No opener configured for this file type");
                 return;
             }
-            let items: Vec<String> = openers.iter().map(|o| o.3.clone()).collect();
+            // Shown, not hidden: an opener that vanished would look like a
+            // setting that was ignored.
+            let items: Vec<String> = openers
+                .iter()
+                .map(|o| match exec::opener_missing(&o.0) {
+                    true => format!("{} (not found)", o.3),
+                    false => o.3.clone(),
+                })
+                .collect();
             let details: Vec<String> = openers.iter().map(|o| o.0.clone()).collect();
             let runs: Vec<(String, bool, bool)> =
                 openers.iter().map(|o| (o.0.clone(), o.1, o.2)).collect();

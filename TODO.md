@@ -10,6 +10,16 @@
 - `【QA】` TESTING.md の文言や、テストの探索など、QA セッションの分（`.claude/qa-role.md`）
 - `【実機】` Windows の実機でしか測れないこと。順番表（`.claude/windows-role.md`）に積んで待つ
 
+## マージで止めている実機の PR
+
+マージの Routine が止めた実機の PR。持ち主の答えがここに書かれるまで、どの回もマージしない（`.claude/merge-routine.md` の 2）。
+
+- [ ] **#273**（`test/win-retests-31`、x64、v0.78.95）: 7.7b と 32.20 に `[x]`。32.20 の行は、この実行の後に v0.78.100（`485a595`）が期待値にトーストの注記
+  ` (no path: the line has a shell operator; use %* to place it)` を足したので、行そのものが `main` と衝突する（merge-role.md の 2 で止める形）。この実行は `out.txt` と `launched:` を確かめたが、トーストは見ていない。
+  7.7b は根拠も CI（`audit`・`checklists`）も生成器の `--check` も通っている。どちらにするか: (1) `main` の未チェックの 32.20 を採り、7.7b の印だけを残してマージする（推奨）、
+  (2) 閉じて、次の x64 の実行に 7.7b と新しい 32.20 を一緒に押させる。どちらでも 32.20 は x64 の再テストに残る。x64 のレーンは、この PR が開いている間は止まる。【人】
+  - 持ち主の答え:
+
 ## Sonnet の見張り（2026-10-05 まで）
 
 - [x] （v0.78.41。23.6 の文言と訳を直した）（Sonnet の見張り）v0.78.31（`4a98776`）がトーストを `No such file or folder: <全体のパス> — showing <フォルダ>` に変えたが、TESTING.md 23.6 の期待
@@ -1290,7 +1300,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.78.80。描いた行ではなく `help_lines` の全体から探す）ヘルプのテスト（`help_from_the_pane_lists_the_panes_keys_first`）は、設定が無くても余裕がほとんど無い（所見）。パネルは 180 行のうち
   27 行を描き、見ている見出しがちょうどその端にある。`[term]` のキーが 1 つ増えれば同じように落ちる。v0.65.1 で設定の分は消えたが、
   テストは描いた行ではなく行の一覧全体（`help_lines` の元）を探すか、見出しまでスクロールしてから見る形にする。
-- [ ] `filer env` に、読み込んだ ConPTY を 1 行出す（提案 1。#184 の提案 1 も同じ。下の DLL の探し方の件があるので、なおさら要る）。`ConPTY : <パス> (1.24.260710001, AA64)` か `built into Windows`。
+- [x] （v0.78.105。Tools に `ConPTY` の行。exe の横の `conpty.dll` のパスか `built into Windows`。版は出していない）`filer env` に、読み込んだ ConPTY を 1 行出す（提案 1。#184 の提案 1 も同じ。下の DLL の探し方の件があるので、なおさら要る）。`ConPTY : <パス> (1.24.260710001, AA64)` か `built into Windows`。
   ペインの不具合の多くは「古い ConPTY で動いていた」なので、不具合報告の出力に要る。
 - [x] （v0.70.3）TESTING.md 48.6 の「x64 のフォルダ」を「それぞれのフォルダ」にする（提案 2。人か QA セッション）。混ざった zip（48.3 が探すもの）は
   ちょうどここで見つかるので、両方で押す。
@@ -1387,7 +1397,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] サクラエディタを ARM64 機に入れるか（提案 2）。入れない（Q45、持ち主の回答）。下の提案 1 で書き直す
 - [x] （v0.78.81。`launched: <PID> <行>`。PID は行を走らせたシェルのもので、プログラムはその子。32.19）`FILER_KEYS_DONE` に、起動したプログラムの PID を出す（提案 3）: `launched: 12345 WINWORD.EXE`。今は名前で `Stop-Process` するしかなく、
   持ち主が開いている文書まで閉じかねない。`exec.rs` の `Launch` は PID を持っている。
-- [ ] `<S-Enter>` の選択で、入っていないプログラムを薄く出すか `(not found)` を付ける（提案 4）。隠さない（「設定したのに消えた」になる）。
+- [x] （v0.78.109。`(not found)` を付けた。32.21）`<S-Enter>` の選択で、入っていないプログラムを薄く出すか `(not found)` を付ける（提案 4）。隠さない（「設定したのに消えた」になる）。
   `filer env` はすでに `not found` と言っている。
 - [x] （v0.72.7 で `l` と `<S-Enter>` に直した）TESTING.md 32.9 が `<C-o>` と書いているが、何にも割り当てられていない（所見 2。人か QA セッション）。アウトラインへは `l` / `<Right>` か `<S-Tab>`。
 - 記録: この機械の `.pdf` の既定のアプリ（`MSEdgePDF`）が壊れていて、`start ""` が Windows の「アプリを選ぶ」を出す。filer の外でも同じなので、
@@ -1749,7 +1759,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] `filer env` の `Last run` が、直前に読んだ設定ではなく機械の最後の起動を言う（#248 の所見 1）。`FILER_CONFIG_HOME` は `State` を動かさないので、
   `"dx12"` で起動した後に `"directx"` の設定で `filer env` を読むと、`Backend : "directx"` の横に `Adapter : (Dx12, …)` が並ぶ。
   実際に使ったバックエンドを `Last run` に残す（#248 の提案 2。#245 の提案 1、上の `last-run.toml` の項目と同じ）
-- [ ] 無効な `[ui] backend` の警告を、窓と `filer env` で同じ文にする（#248 の提案 1）。窓は `drawing with Gl instead`、`filer env` は
+- [x] （v0.78.107。`filer env` も `name_the_fallback` を通す）無効な `[ui] backend` の警告を、窓と `filer env` で同じ文にする（#248 の提案 1）。窓は `drawing with Gl instead`、`filer env` は
   `drawing with the default` で、同じ判断を別の言葉で言っている。落ちた先を言う関数を 1 つにして両方から呼ぶ
 - [x] （v0.78.87。24 文字を超えるキーは自分の行に出し、値をその下に字下げする）`filer env` の `Config` の欄の幅が、設定フォルダのパスの長さで決まる（#248 の所見 2、提案 3）。67 文字の `FILER_CONFIG_HOME` で
   `State` などが 83 桁目から始まり、普通のコンソールで折り返す。フォルダのパスを 1 行に出してファイルをその下に字下げするか、欄の幅に上限を付ける
@@ -1831,7 +1841,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `Start-Process -Wait` が 180 秒止まった
 - [x] （v0.78.56。`compare rows: N` と `compare row i: ~ … | …`、最初の 60 行）状態ファイルに比較の画面の行を出す（#236 の提案 2）: `compare row 2: ~ the ⟦price⟧ is firm | the ⟦cost⟧ is firm`。変わった範囲は `diff::Line::changed` が持っている。
   5.11 は 100 行の画素のスクリプトで読んだ
-- [ ] ファイル同士の比較の下端に、違いの数を出す（#236 の提案 3）。フォルダ同士の比較はもう出している
+- [x] （v0.78.108。`x–y of z  ·  N differences`。数えるのは `n` が歩く塊で、行ではない。`ui::overlay::diff_frame` で読む）ファイル同士の比較の下端に、違いの数を出す（#236 の提案 3）。フォルダ同士の比較はもう出している
 - [x] （v0.78.73。`words-left.txt` / `words-right.txt`。日本語の語は空白で区切る）`make-fixtures.ps1` / `.sh` に語単位の比較の組（1 語だけ違う行、日本語の語が違う行、共通の無い行）を足す（#236 の提案 4）。5.11 は今の fixtures では押せない
 - [x] （上の「`FILER_KEYS_DONE` の状態に、アウトラインのカーソルを足す」と同じ。#235 の提案 1 で 3 回目なので、次に取る）アウトラインの位置を状態の行に
 - [x] （v0.73.70 で、次の run が 1 時間より古いものを消すようにした。`Drop` で消す形は呼び出し側が多いので取らない）テストが自分の一時ディレクトリを消す（#235 の提案 2）
