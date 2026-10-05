@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.78.107] - 2026-10-05
+
+### 変更
+
+- 無効な `[ui] backend` の警告を、`filer env` でも窓と同じ言い方にした（#248 の提案 1）。`drawing with the default` ではなく、落ちた先（Windows で GL があれば `drawing with Gl instead`）を言う。
+
 ## [0.78.106] - 2026-10-05
 
 ### 変更

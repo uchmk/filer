@@ -113,9 +113,14 @@ fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
         Some(v) => format!("{v} (from WGPU_BACKEND; [ui] backend = \"{}\" not used)", cfg.ui.backend),
         None => format!("[ui] backend = \"{}\"", cfg.ui.backend),
     }));
-    rows.push(("Warnings".into(), match cfg.warnings.len() {
+    // Said as the window says it: what the setting fell back to, not "the default".
+    let mut warnings = cfg.warnings.clone();
+    if warnings.iter().any(|w| w.contains("[ui] backend")) {
+        crate::name_the_fallback(&mut warnings, &crate::predicted_fallback());
+    }
+    rows.push(("Warnings".into(), match warnings.len() {
         0 => "none".into(),
-        _ => cfg.warnings.join("\n"),
+        _ => warnings.join("\n"),
     }));
     // Not warnings: a default key a file of yours rebinds, listed so what it
     // displaced can be looked up (Q60).
