@@ -319,6 +319,7 @@ job's progress, its speed, and cancelling it from `w` all need a copy big enough
 | 7.6 | Click the empty one, then create `filer.toml` there and `<C-F5>` | It appears in the panel next time, without `nothing here` |
 | 7.7 | With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set | The listed directories follow them |
 | 7.7a | Both variables naming **one** folder that holds a `filer.toml`, spelled differently: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`, `$env:FILER_CONFIG_HOME = 'c:\CFG\'` (v0.73.12, #180); then `~`, `filer env`, and `<C-F5>` | The folder is listed **once** in the panel and in `filer env`'s Config section, and `<C-F5>` says `Reloaded 1 config file(s)`. Before, it was listed twice and counted 2 |
+| 7.7b | `$env:FILER_CONFIG_HOME` set to a 67-character folder, then `filer env` (v0.78.87, #248) | A key longer than 24 characters sits on its own line with its value indented below it, and the other rows' columns do not widen |
 | 7.8 | A config warning line | Still yellow, and not clickable |
 
 ## 8. Which shell the pane runs (v0.24.0)
@@ -950,6 +951,7 @@ instructions are wrong, which is worse than a missing feature.
 | 32.17 | `[open] prepend_rules = [{ name = "*.txt", use = "<an opener>" }]` in `yazi.toml`, with no `rules` of your own; `<Enter>` on a `.txt`, then `<S-Enter>` (v0.78.6, #250) | `<Enter>` runs that opener (its `$ …` toast), and `<S-Enter>` lists it first, above the built-in ones. An `append_rules` entry is listed last |
 | 32.18 | `O` on a file with two or more openers, then `<C-n>` / `<C-j>`, `<C-p>` / `<C-k>`; type `jj` (v0.78.39, Q80) | The cursor row moves down with `<C-n>` and `<C-j>` and up with `<C-p>` and `<C-k>`, one row each; `jj` is typed into the filter (`Nothing matches` or a shorter list), not a move. The hint line reads `<Down>/<Up> or <C-n>/<C-p> choose`. After `<Esc>`, `<F1>` in the list shows a `keys in the picker` section with the four keys (`<F1>` inside the picker is the filter's, v0.78.68) |
 | 32.19 | `<Enter>` on a `.txt` routed to an editor opener (サクラ, Notepad), then `<State:x>` (v0.78.81, #162) | `x.txt` has `launched: <PID> <the command line>`. `Get-CimInstance Win32_Process -Filter "ProcessId=<PID> or ParentProcessId=<PID>"` lists the `cmd` that ran the line and the editor under it, and `Stop-Process -Id` on the editor's PID closes that window alone, not another one of the same program already open |
+| 32.20 | With the cursor on `a.txt`: `;echo hello >out.txt`, then `;echo %*` (v0.78.92, Q82) | `out.txt` holds `hello` alone, with no path at the end. `;echo %*` gets the path, since it has a placeholder |
 
 ---
 

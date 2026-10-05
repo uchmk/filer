@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 515 件（TESTING.md の全 686 件のうち、`cargo test` が見ている 171 件は外してある）。
+押すものは 517 件（TESTING.md の全 688 件のうち、`cargo test` が見ている 171 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -178,6 +178,7 @@ cd $HOME\Desktop\filer-fixtures
 - [x] **7.6** 空のほうをクリックし、そこに `filer.toml` を作って `<C-F5>` → 次に開いたとき `nothing here` が消えている — *Click the empty one, then create `filer.toml` there and `<C-F5>` → It appears in the panel next time, without `nothing here`*
 - [x] **7.7** `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う — *With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set → The listed directories follow them*
 - [x] **7.7a** 2 つの変数に、`filer.toml` のある**同じ**フォルダを綴りを変えて渡す: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`、`$env:FILER_CONFIG_HOME = 'c:\CFG\'`（v0.73.12、#180）。それから `~`、`filer env`、`<C-F5>` → パネルにも `filer env` の Config の節にもフォルダは **1 回**だけ出て、`<C-F5>` は `Reloaded 1 config file(s)`。以前は 2 回出て 2 と数えた — *Both variables naming **one** folder that holds a `filer.toml`, spelled differently: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`, `$env:FILER_CONFIG_HOME = 'c:\CFG\'` (v0.73.12, #180); then `~`, `filer env`, and `<C-F5>` → The folder is listed **once** in the panel and in `filer env`'s Config section, and `<C-F5>` says `Reloaded 1 config file(s)`. Before, it was listed twice and counted 2*
+- [ ] **7.7b** 67 文字のフォルダを `$env:FILER_CONFIG_HOME` に入れて `filer env`（v0.78.87、#248）→ 24 文字を超えるキーは自分の行に出て、値はその下に字下げされ、ほかの行の桁は広がらない — *`$env:FILER_CONFIG_HOME` set to a 67-character folder, then `filer env` (v0.78.87, #248) → A key longer than 24 characters sits on its own line with its value indented below it, and the other rows' columns do not widen*
 - [x] **7.8** 設定の警告行 → 黄色のまま。クリックできない — *A config warning line → Still yellow, and not clickable*
 
 ## 8. ターミナルペインが起動するシェル
@@ -585,6 +586,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **32.17** `yazi.toml` に `[open] prepend_rules = [{ name = "*.txt", use = "<オープナー>" }]` だけを書き（自分の `rules` は無し）、`.txt` で `<Enter>`、次に `<S-Enter>`（v0.78.6、#250）→ `<Enter>` がそのオープナーを動かし（`$ …` のトースト）、`<S-Enter>` が組み込みより上の先頭に並べる。`append_rules` に書いたものは最後に並ぶ — *`[open] prepend_rules = [{ name = "*.txt", use = "<an opener>" }]` in `yazi.toml`, with no `rules` of your own; `<Enter>` on a `.txt`, then `<S-Enter>` (v0.78.6, #250) → `<Enter>` runs that opener (its `$ …` toast), and `<S-Enter>` lists it first, above the built-in ones. An `append_rules` entry is listed last*
 - [x] **32.18** `O` でオープナーが 2 つ以上あるファイルに開き、`<C-n>` / `<C-j>`、`<C-p>` / `<C-k>`。`jj` も打つ（v0.78.39、Q80）→ `<C-n>` と `<C-j>` で 1 行下、`<C-p>` と `<C-k>` で 1 行上へ動く。`jj` は移動でなく絞り込みの文字になる（`Nothing matches` か短くなった一覧）。ヒントの行は `<Down>/<Up> or <C-n>/<C-p> choose`、`<Esc>` のあと一覧で `<F1>` を押すと、`keys in the picker` の節に 4 つのキーが並ぶ（picker の中の `<F1>` は絞り込みの文字。v0.78.67） — *`O` on a file with two or more openers, then `<C-n>` / `<C-j>`, `<C-p>` / `<C-k>`; type `jj` (v0.78.39, Q80) → The cursor row moves down with `<C-n>` and `<C-j>` and up with `<C-p>` and `<C-k>`, one row each; `jj` is typed into the filter (`Nothing matches` or a shorter list), not a move. The hint line reads `<Down>/<Up> or <C-n>/<C-p> choose`. After `<Esc>`, `<F1>` in the list shows a `keys in the picker` section with the four keys (`<F1>` inside the picker is the filter's, v0.78.68)*
 - [x] **32.19** エディタのオープナー（サクラ、メモ帳）に回る `.txt` で `<Enter>` し、`<State:x>`（v0.78.81、#162）→ `x.txt` に `launched: <PID> <コマンドライン>` がある。`Get-CimInstance Win32_Process -Filter "ProcessId=<PID> or ParentProcessId=<PID>"` に、その行を走らせた `cmd` と、その下のエディタが出る。エディタの PID に `Stop-Process -Id` すると、その窓だけが閉じ、前から開いていた同じプログラムの窓は残る — *`<Enter>` on a `.txt` routed to an editor opener (サクラ, Notepad), then `<State:x>` (v0.78.81, #162) → `x.txt` has `launched: <PID> <the command line>`. `Get-CimInstance Win32_Process -Filter "ProcessId=<PID> or ParentProcessId=<PID>"` lists the `cmd` that ran the line and the editor under it, and `Stop-Process -Id` on the editor's PID closes that window alone, not another one of the same program already open*
+- [ ] **32.20** カーソルを `a.txt` に置いて `;echo hello >out.txt`、続けて `;echo %*`（v0.78.92、Q82）→ `out.txt` は `hello` だけで、末尾にパスが付かない。`;echo %*` はプレースホルダがあるのでパスが入る — *With the cursor on `a.txt`: `;echo hello >out.txt`, then `;echo %*` (v0.78.92, Q82) → `out.txt` holds `hello` alone, with no path at the end. `;echo %*` gets the path, since it has a placeholder*
 
 ## 33. 設定の警告と、その色
 

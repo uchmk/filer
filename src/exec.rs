@@ -845,10 +845,6 @@ mod tests {
         assert_eq!(substitute("explorer", &paths), "explorer \"C:\\a b\\x.txt\"");
     }
 
-    /// `start ""` keeps both its quotes.
-    ///
-    /// `""` after `start` is how a window title is left empty, and without it
-    /// `start` reads the program as the title and opens a bare console instead.
     /// A line with an operator and no placeholder gets no path appended (Q82).
     #[test]
     fn operators_stop_the_append() {
@@ -859,6 +855,11 @@ mod tests {
         assert_eq!(substitute_line("explorer", &p), "explorer \"a.txt\"");
     }
 
+    /// `start ""` keeps both its quotes.
+    ///
+    /// `""` after `start` is how a window title is left empty, and without it
+    /// `start` reads the program as the title and opens a bare console instead.
+    ///
     /// The quotes used to be collapsed by a blanket `"" -> "` over the whole
     /// line, which was meant for a config that quotes the placeholder itself and
     /// caught this idiom as well: `start "" msedge %*` came out as
