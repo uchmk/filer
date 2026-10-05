@@ -1,6 +1,6 @@
 [package]
 name = "filer"
-version = "0.78.124"
+version = "0.78.125"
 edition = "2021"
 rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"
@@ -35,7 +35,10 @@ tar = { version = "0.4", default-features = false }
 sevenz-rust2 = "0.23"
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 alacritty_terminal = { version = "0.26", default-features = false }
-polling = "3"
+# The terminal pane (src/terminal.rs, src/ui/term.rs), shared with tsumugi
+# since v0.78.125. Pinned to a commit; to take a fix, move `rev` and run
+# `cargo build` so Cargo.lock follows. Pure Rust, like the rest.
+tsumugi-pane = { git = "https://github.com/uchmk/tsumugi", rev = "b998b43437ecdd24d3022ed845db6289b51ac98c", features = ["egui", "wgpu"] }
 # Already in the tree: syntect's `default-fancy` builds it. Naming it here is
 # what lets bulk rename use it, and adds no crate to the build.
 #

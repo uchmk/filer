@@ -13,9 +13,11 @@ yazi 風のキーボード操作ファイルマネージャーを Rust + egui 0.
     「次の項目」を探すときは飛ばす。足すときも、持ち主の作業・TESTING.md の文言・実機でしか測れないものには付ける。
   - **`【後】` は今週（2026-10-10 まで）の範囲から外した大きい項目**（2026-10-04、持ち主の判断。ConPTY の exe への埋め込み、Wayland、次のプロジェクト）。
     これも飛ばす。今週の目標は、TODO.md の未完了が `【人】` と `【後】` だけになること。
-  - **`【pane】` はターミナルペインに触る項目**（2026-10-05、持ち主の判断）。ペインのコード（`src/terminal.rs`、`src/ui/term.rs`、`src/shellhook.rs`、
-    `main.rs` の `wgpu_options` / `pick_backends` / `restrict_dll_search`）を tsumugi のリポジトリのクレート `tsumugi-pane` へ移している間は、
-    開発の Routine が取らない（同じファイルを 2 か所で直すとぶつかる）。直しは `tsumugi-pane` の側で入れ、filer が切り替わったら印を外す。
+  - **`【pane】` はターミナルペインに触る項目**（2026-10-05、持ち主の判断）。v0.78.125 からペインのコード（キー・PTY・OSC・描画・GPU のバックエンドの選び方・
+    DLL の読み込み制限）は tsumugi のリポジトリ（uchmk/tsumugi）のクレート `tsumugi-pane` にあり、filer は `Cargo.toml` の `rev` で固定した git の依存として読む
+    （`src/terminal.rs` は `pub use tsumugi_pane::*;` だけ、`src/ui/term.rs` は色とクリップボードを渡すだけ）。開発の Routine は filer にしか push できないので
+    取らない。直すときは tsumugi のセッションで `tsumugi-pane` を直し、filer の `rev` を上げて `cargo build` で `Cargo.lock` を合わせる。
+    `src/shellhook.rs`（`filer shell-hook` の文言）は filer に残っている。
   - **節の項目が全部済んだら、その節を [TODO-DONE.md](TODO-DONE.md) の末尾に移す**（TODO.md を開いて進める項目だけにしておくため）。
 - **直した分は再テストに回す（2026-10-01、持ち主の指示）。**修正で動きが変わった行は、チェック表の `[x]` を外し
   （TESTING-CHECKS.md / TESTING-LINUX.md。前の動きを確かめた印なので残すと嘘になる）、`.claude/windows-role.md` の
@@ -450,6 +452,7 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
 | `src/fs/`      | 一覧のスキャン、ソート、監視、ファイル操作のジョブ                                                                                      |
 | `src/preview/` | プレビューワーカー（最新の依頼だけ処理）。テキスト / Markdown / 画像 / SVG / フォント / シェルサムネイル / アウトライン（`symbols.rs`） |
 | `src/spot.rs`  | spot パネルの情報。`inspect()` の provider 関数を足せば項目が増える                                                                     |
+| `src/terminal.rs` | ターミナルペイン。中身は tsumugi の `tsumugi-pane`（git の依存）。`ui/term.rs` はその描画にテーマの色を渡す                         |
 | `src/exec.rs`  | オープナーのテンプレート展開、行番号付き起動（`at_line`）、クリップボード                                                               |
 | `src/ui/`      | 描画。`list.rs`、`preview.rs`、`overlay.rs`（help / tasks / confirm / pick / spot など）                                                |
 

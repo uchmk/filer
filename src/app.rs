@@ -5223,7 +5223,8 @@ impl App {
         };
         let label = crate::terminal::shell_label(shell.as_ref().map(|(p, _)| p.as_str()));
         let program = shell.as_ref().map(|(p, _)| p.clone());
-        match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), shell, move || {
+        let log = std::env::var_os("FILER_PTY_LOG").map(PathBuf::from);
+        match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), shell, log.as_deref(), move || {
             ctx.request_repaint()
         }) {
             Ok(t) => {

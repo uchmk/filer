@@ -9,6 +9,18 @@
 
 ## [未リリース]
 
+## [0.78.125] - 2026-10-05
+
+### 変更
+
+- ターミナルペインを tsumugi のリポジトリ（uchmk/tsumugi）のクレート `tsumugi-pane` に移し、filer は `rev` で固定した git の依存として読むようにした。
+  移したもの: `src/terminal.rs` の全部（キーの変換、PTY、OSC、シェルの選び方、PTY のログ、格子の読み出し、OS ごとの処理）とそのテスト、
+  `src/ui/term.rs` の描画（filer の側はテーマの色・フォーカス・クリップボードを渡すだけになった）、`ui::wheel_whole`、`main.rs` の wgpu のバックエンドの選び方
+  （警告の文言は filer に残した）と `restrict_dll_search`。動きは変えていない。`src/shellhook.rs` は filer の文言なので残した。
+  ペインの実機の行（TESTING.md の 1、19、29、40 節）を、x64 と ARM64 の再テストに積んだ（印は外していない。崩れていれば、それが所見）。
+- `make-testcheck` が、`tsumugi-pane` のソースのテストも「自動テスト済み」に数える（`cargo metadata` で場所を引く。見つからなければ止まる）。
+- `【pane】` の印の意味を「ペインのコードは tsumugi にあるので、開発の Routine は取らない」に改めた（CLAUDE.md）。
+
 ## [0.78.124] - 2026-10-05
 
 ### 変更

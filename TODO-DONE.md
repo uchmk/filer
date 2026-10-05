@@ -361,3 +361,11 @@
 - [x] （v0.78.86。持ち主が 2026-10-05 に 1.41 の `[x]` ごと #269 をマージした。返答の半分で足りるという判断）**#269（x64）を止めている**: 1.41 の `[x]` のうち、後半（bubbletea のプログラムが背景を推測する間を置かずに起動する）を押していない
   （`gh dash` は持ち主の GitHub にサインインするので、#265 の 1 回限りの許可の外）。merge-role.md 2.4 により、マージせずに PR にコメントした。
   開いている間は x64 のレーンが止まる。持ち主が、1.41 を `[ ]` に戻して #269 をマージしてよいか、`gh dash` をもう一度許すかを決める【人】
+
+## 次のプロジェクト: Claude Code / AI CLI のためのターミナル（filer が落ち着いてから）
+
+構想は [docs/next-terminal.md](docs/next-terminal.md)。持ち主の合図で始める。開発のセッションが「次の項目」として取るものではない。
+
+- [x] （v0.78.125。uchmk/tsumugi の `tsumugi-pane`、計画と経緯は tsumugi の `docs/pane-extraction.md`。`shellhook.rs` は filer の文言なので残した。ペインに触る項目は `【pane】` のまま、tsumugi の側で直す）filer のターミナルペイン（`src/terminal.rs`、`src/ui/term.rs`、`src/shellhook.rs`）を独立したクレートに切り出す。OS ごとの処理を `cfg` で閉じ込め、
+  egui に依らない層（PTY・キー変換・OSC）と描画の層を分け、Pure Rust を保つ。filer は使う側の 1 つになる
+- [x] （2026-10-05、uchmk/tsumugi。範囲は tsumugi の `docs/v1-scope.md`）新しいリポジトリを作り、最初の版の範囲（縦タブ、セッションの状態、入力待ちの印、分割と復元）を決める
