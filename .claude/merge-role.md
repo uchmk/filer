@@ -197,6 +197,10 @@ What goes in it:
   ARM64 table's "When every row above is empty" row, and the rows an `arm` run
   pressed as a second machine come out of it. Without this the lane idles on
   `cargo test` alone once the rest of its table is empty.
+- **A queue row that waits on a TODO.md item** ("skip this until ... lands"): when
+  that item is ticked, edit the row in the same share so it no longer reads as
+  blocked (#275 proposal 3: ARM64's (2) still said "skip" 56 versions after the
+  panic hook landed).
 - **An ARM64 result that differs from x64** is a bug report, whatever the run
   called it: it goes to TODO.md with both results side by side. So is **a Linux
   result that differs from Windows**.

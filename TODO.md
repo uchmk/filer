@@ -22,6 +22,10 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
+- [ ] （Sonnet の見張り）v0.78.111（`854edd1`）が Windows で `;` を演算子に数えなくした（Q85）が、TESTING.md に `;` の行を確かめる行が無い。
+  32.20 は `;echo hello >out.txt`（`>` で止まる）と `;echo %*` だけなので、両レーンの再テストに積まれた 32.20 を押しても、変わった動きは通らない。
+  32.20 に「`;echo a;b >semi.txt` は Windows では `a;b` だけ（`>` があるので足さない）、`;echo a;b` のトーストはパスが末尾に付き注記が無い」を足すか 32.22 を足し、
+  `scripts/testcheck-ja.toml` の訳も合わせ、TESTING-CHECKS.md の 32.20 の `[x]` を外す（CLAUDE.md の作業ルール）
 - [x] （v0.78.41。23.6 の文言と訳を直した）（Sonnet の見張り）v0.78.31（`4a98776`）がトーストを `No such file or folder: <全体のパス> — showing <フォルダ>` に変えたが、TESTING.md 23.6 の期待
   （`No such file or folder: tpyo — showing <the folder>`）を直していない。23.6 は自動テスト済みの行なので再テストは要らないが、文言を新しいトーストに合わせ、
   `scripts/testcheck-ja.toml` の訳も合わせる（CLAUDE.md の「機能を足したら」。TODO の項目にも「TESTING.md の文言も合わせる」とあった）
@@ -104,6 +108,13 @@
   壊れたリンクなら、プレビューも `Resolves` と同じ言い方にする
 - [ ] `--keys` で起動して done ファイルを待ち、`<State:>` の `.txt` を並べる PowerShell の道具を `scripts/keys.ps1` として置き、`windows-role.md` から指す
   （#274 の提案 3。毎回の実行が同じ 15 行を書き直していて、`-Wait` と `-PassThru` の取り違え（#225、#234）が起き得る。Linux には `scripts/xrun.sh` がある）
+
+## 実機のセッションの報告（v0.78.113 で受けた分: #275、ARM64 の再テスト）
+
+- [ ] **`<S-Enter>` の選び直しで、カーソルを入っている最初のオープナーから始める**（#275 の提案 1）。一番上が `(not found)` のとき、`<S-Enter><Enter>` が毎回
+  ``Open failed: `no-such-tool` was not found`` になる（ARM64 で確かめた）。全部 `(not found)` なら 0 のまま（要確認: Q86）
+- [ ] `<State:>` の `pick:` の行を、説明だけにし、コマンドは同じ順で `pick runs:` の行に分ける（#275 の提案 2）。今は `Missing tool (not found) (no-such-tool %s)` と括弧が 2 つ並び、
+  `desc` が `)` で終わると、どこまでが説明か読めない。`picked:` はもう説明だけ。`main.rs` の 1 行とテスト。`windows-role.md` で `pick:` を読んでいる所があれば合わせる
 
 ## 急ぎ（データが消える）
 
