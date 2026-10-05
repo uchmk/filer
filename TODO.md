@@ -57,6 +57,13 @@
 - [x] （v0.78.95。7.7b を足して両レーンの再テストに積んだ）（Sonnet の見張り）v0.78.87 の `FILER_CONFIG_HOME` の行
 - [x] （v0.78.95。32.20 を足して両レーンの再テストに積み、`exec.rs` の doc コメントを戻した）（Sonnet の見張り）v0.78.92 の `:` / `;` の行
 
+- [ ] （Sonnet の見張り）v0.78.107（`ded0fd0`）が `filer env` の `[ui] backend` の警告を `drawing with Gl instead` に変えたが、TESTING.md 47.7 の期待は
+  「`filer env` keeps `drawing with the default`」のまま（もう嘘）。47.7 は x64・ARM64 とも `[x]`。文言を新しい動きに合わせ（GL のある Windows では `filer env` も
+  `drawing with Gl instead`）、`scripts/testcheck-ja.toml` の訳も合わせ、TESTING-CHECKS.md の `[x]` を外して両レーンの再テストに積む（CLAUDE.md の作業ルール）
+- [ ] （Sonnet の見張り）v0.78.108（`1311053`）がファイル同士の比較の下端に `N differences` を足したが、TESTING.md に行が無く、再テストにも積んでいない。
+  単体テストは `count_changes` だけで、下端の文字列は通らない。5 節に「`a.txt` と `b.txt` の比較の下端が `x–y of z  ·  N differences` で、N は `n` が止まる数」の行を足し
+  （`ui::overlay::diff_frame` で読めるなら自動テストにしてもよい）、訳と両レーンの再テストに積む
+
 ## 実機のセッションの報告（v0.78.91 で受けた分: #270、x64 の再テスト）
 
 - [x] （v0.78.99。`is_within` で親の列を同じ飛び先と数える。23.3a を両レーンの再テストに積んだ）**`\\host` を 1 つ打ち間違えると、赤いトーストが 2 つ出る**（#270 の所見 1、提案 1）。`g<Space>\\nosuchhost-xyz\share` で、共有のトーストに続いて
@@ -83,7 +90,20 @@
 - [x] （v0.78.100。32.20 を両レーンの再テストに積んだ）**`:` / `;` の行にパスを足さなかったとき、トーストでそう言う**（#272 の提案 1）。`;echo hello >out.txt` と `;echo hello` のトーストは、
   パスが末尾に付いたかどうかしか違わず、理由が出ない。v0.78.91 まで足していたので、`;7z a x.zip >log.txt` が空の zip を作っても気づけない。
   規則が効いたときだけ、`$ <行>` に ` (no path: the line has a shell operator; use %* to place it)` を付ける（`substitute_line` が決めるところで）。直したら 32.20 を両レーンの再テストに積む
-- [ ] Windows（`cmd /S /C`）では `;` を演算子に数えないか（#272 の提案 2。`cmd` で `;` は区切りではなく、`echo a;b` は `a;b` を出す）（要確認: Q85）
+- [ ] Windows（`cmd /S /C`）では `;` を演算子に数えないか（#272 の提案 2。`cmd` で `;` は区切りではなく、`echo a;b` は `a;b` を出す）（Q85、多数決 1: Windows では `;` を数えない）
+
+## 実機のセッションの報告（v0.78.110 で受けた分: #274、ARM64 の再テスト）
+
+- [ ] **日本語の Windows で、失敗した `:` / `;` の行がプログラムのせいにされる**（#274 の所見 1、提案 1）。`;type nothing.txt >t3.txt` が
+  ``Open failed: `type` was not found`` と出る（`dir` も同じ。`;type a.txt;nothing >t.txt` は動いたのに同じ文）。`src/exec.rs` の `stderr_text` が
+  UTF-8 でない（CP932 の）標準エラーを捨て、`missing_program` が `BUILTIN` の 6 語に無い内部コマンドを「無い」と言う。v0.78.101 の外部プレビューと同じく
+  OEM コードページで読み、推測は先頭の語が `PATH` に無く終了コードが 9009 のときに限る。`BUILTIN` に `type` `dir` `copy` `del` `move` `ren` `mkdir` なども足す
+- [ ] 外部プレビューのエラーが `cmd` の 1 行目で切れる（#274 の所見 2、提案 2）。`'pdftoppm' は、内部コマンドまたは外部コマンド、` で止まり、「認識されていません」が見えない
+  （英語でも `…internal or external command,` で切れるはず）。2 行を空白でつないで 1 行にする（`stderr_text` と同じ）。直したら 17.12 を両レーンの再テストに積む
+- [ ] 壊れたジャンクションの spot で、プレビューが `access denied, os error 5`、`Resolves` が `not found, os error 2` と食い違う（#274 の所見 3）。
+  壊れたリンクなら、プレビューも `Resolves` と同じ言い方にする
+- [ ] `--keys` で起動して done ファイルを待ち、`<State:>` の `.txt` を並べる PowerShell の道具を `scripts/keys.ps1` として置き、`windows-role.md` から指す
+  （#274 の提案 3。毎回の実行が同じ 15 行を書き直していて、`-Wait` と `-PassThru` の取り違え（#225、#234）が起き得る。Linux には `scripts/xrun.sh` がある）
 
 ## 急ぎ（データが消える）
 
