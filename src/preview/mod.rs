@@ -436,10 +436,22 @@ fn read_head(path: &std::path::Path, max: usize) -> Result<Vec<u8>, String> {
     use std::io::Read;
     // `crate::spot::reason`: the OS's own sentence follows its language, and
     // the spot panel's `Resolves` row already says `not found, os error 2`.
-    let f = std::fs::File::open(path).map_err(|e| crate::spot::reason(&e))?;
+    let f = std::fs::File::open(path).map_err(|e| broken_link_reason(path).unwrap_or_else(|| crate::spot::reason(&e)))?;
     let mut buf = Vec::with_capacity(max.min(64 * 1024));
     f.take(max as u64).read_to_end(&mut buf).map_err(|e| crate::spot::reason(&e))?;
     Ok(buf)
+}
+
+/// A broken junction fails `open` with `access denied, os error 5` on Windows
+/// while `Resolves` says `not found, os error 2` (#274). For a link whose
+/// target cannot be reached, say what `Resolves` says: the error from asking
+/// for the target's own metadata.
+fn broken_link_reason(path: &std::path::Path) -> Option<String> {
+    let is_link = std::fs::symlink_metadata(path).is_ok_and(|m| m.is_symlink()) || std::fs::read_link(path).is_ok();
+    if !is_link {
+        return None;
+    }
+    std::fs::metadata(path).err().map(|e| crate::spot::reason(&e))
 }
 
 /// Text behind a UTF-16 byte-order mark, as UTF-8. `None` without one.
@@ -633,6 +645,16 @@ mod tests {
         let dir = crate::util::test_dir("preview-missing");
         let said = super::read_head(&dir.join("gone.txt"), 4096).unwrap_err();
         assert!(said.starts_with("not found, os error ") && said.is_ascii(), "{said}");
+    }
+
+    /// #274: a broken link reads the same in the preview as in spot's `Resolves`.
+    #[cfg(unix)]
+    #[test]
+    fn a_broken_link_is_named_like_resolves() {
+        let dir = crate::util::test_dir("preview-broken-link");
+        std::os::unix::fs::symlink(dir.join("gone"), dir.join("link")).unwrap();
+        let said = super::read_head(&dir.join("link"), 4096).unwrap_err();
+        assert!(said.starts_with("not found, os error "), "{said}");
     }
 
     /// What the note under an Office preview says (16.11 on the machine).
