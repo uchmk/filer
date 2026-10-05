@@ -1444,7 +1444,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.78.17。`PreviewSlot::in_flight`。17.15）**`App::settled()` が、外部のプレビューの次の絵を待たない**（所見 1、不具合）。`request_preview` の `relayout` の判定が `key.n` を見ず、
   `go_to_picture` が `pending_since` を消すので、ページを送っても「落ち着いた」ままになる。`--keys "<Shot:p1><A-j><Shot:p2>"` で同じ絵が 2 枚撮れる
   （`-f 1` と `-f 2` は両方走っている）。古い絵は出したまま（`relayout` の目的）、「描き直し中」の印を足して `settled()` から見えるようにする。
-- [ ] **外部のプレビューの標準エラーを UTF-8 として読んでいる**（所見 2、不具合、Windows）。日本語の Windows では子の `cmd` が CP932 で答えるので、
+- [x] （v0.78.101。UTF-8 でなければ OEM コードページで読む。17.12 を両レーンの再テストに積んだ）**外部のプレビューの標準エラーを UTF-8 として読んでいる**（所見 2、不具合、Windows）。日本語の Windows では子の `cmd` が CP932 で答えるので、
   17.12 の文言が文字化けした（`external.rs:44`）。17.5 の `No more: …` も同じ道を通る（pdftoppm が英語で答えたので読めただけ）。
   端末から試すと `chcp 65001` で隠れる。Windows ではコンソールのコードページ（`GetACP` / `GetOEMCP`）で読む。
 - [ ] 12 回に 1 回ほど、スクリプトの途中で `filer.exe` が消えた（所見 3）。`FILER_KEYS_DONE` も Windows のエラー報告も無く、その後の 4 回では再現しない。 【実機】

@@ -41,10 +41,40 @@ pub fn draw(rule: &PreviewRule, path: &Path, n: i64) -> Result<Drawn, String> {
         Some(png) => Ok(Drawn { png, _dir: dir }),
         // The command's own words, which are the useful ones: "Wrong page
         // range" from pdftoppm is what says the document ended.
-        None => Err(match String::from_utf8_lossy(&output.stderr).trim() {
+        None => Err(match decode_stderr(&output.stderr).trim() {
             "" => format!("{} produced no picture", first_word(&rule.run)),
             said => said.lines().next().unwrap_or(said).to_owned(),
         }),
+    }
+}
+
+/// A child's standard error as text. UTF-8 when it is, which is what
+/// `pdftoppm` and `ffmpeg` write; otherwise, on Windows, the OEM code page,
+/// which is what the `cmd` that runs the line writes (`CP932` on a Japanese
+/// Windows, where reading it as UTF-8 gave mojibake, #270).
+fn decode_stderr(bytes: &[u8]) -> String {
+    if let Ok(s) = std::str::from_utf8(bytes) {
+        return s.to_owned();
+    }
+    #[cfg(windows)]
+    if let Some(s) = oem_to_string(bytes) {
+        return s;
+    }
+    String::from_utf8_lossy(bytes).into_owned()
+}
+
+#[cfg(windows)]
+fn oem_to_string(bytes: &[u8]) -> Option<String> {
+    use windows::Win32::Globalization::{CP_OEMCP, MULTI_BYTE_TO_WIDE_CHAR_FLAGS, MultiByteToWideChar};
+    // SAFETY: both buffers are ours and the lengths passed are theirs.
+    unsafe {
+        let n = MultiByteToWideChar(CP_OEMCP, MULTI_BYTE_TO_WIDE_CHAR_FLAGS(0), bytes, None);
+        if n <= 0 {
+            return None;
+        }
+        let mut wide = vec![0u16; n as usize];
+        let m = MultiByteToWideChar(CP_OEMCP, MULTI_BYTE_TO_WIDE_CHAR_FLAGS(0), bytes, Some(&mut wide));
+        (m > 0).then(|| String::from_utf16_lossy(&wide[..m as usize]))
     }
 }
 
@@ -146,6 +176,13 @@ impl Drop for TempDir {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stderr_that_is_utf8_is_kept_as_it_is() {
+        assert_eq!(decode_stderr("Wrong page range — 日本語".as_bytes()), "Wrong page range — 日本語");
+        // Bytes that are no encoding at all never panic.
+        assert!(!decode_stderr(&[0xff, 0xfe, b'x']).is_empty());
+    }
 
     // Only the two tests that drive a real shell need this, and those are
     // written against . The Windows path is covered by section 30 of
