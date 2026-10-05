@@ -57,7 +57,7 @@
 - [x] （v0.78.95。7.7b を足して両レーンの再テストに積んだ）（Sonnet の見張り）v0.78.87 の `FILER_CONFIG_HOME` の行
 - [x] （v0.78.95。32.20 を足して両レーンの再テストに積み、`exec.rs` の doc コメントを戻した）（Sonnet の見張り）v0.78.92 の `:` / `;` の行
 
-- [ ] （Sonnet の見張り）v0.78.107（`ded0fd0`）が `filer env` の `[ui] backend` の警告を `drawing with Gl instead` に変えたが、TESTING.md 47.7 の期待は
+- [x] （v0.78.112。47.7 を直し、両レーンの再テストに積んだ）（Sonnet の見張り）v0.78.107（`ded0fd0`）が `filer env` の `[ui] backend` の警告を `drawing with Gl instead` に変えたが、TESTING.md 47.7 の期待は
   「`filer env` keeps `drawing with the default`」のまま（もう嘘）。47.7 は x64・ARM64 とも `[x]`。文言を新しい動きに合わせ（GL のある Windows では `filer env` も
   `drawing with Gl instead`）、`scripts/testcheck-ja.toml` の訳も合わせ、TESTING-CHECKS.md の `[x]` を外して両レーンの再テストに積む（CLAUDE.md の作業ルール）
 - [ ] （Sonnet の見張り）v0.78.108（`1311053`）がファイル同士の比較の下端に `N differences` を足したが、TESTING.md に行が無く、再テストにも積んでいない。
