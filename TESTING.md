@@ -270,7 +270,7 @@ comparison of section 45, and only a file and a folder together are refused (45.
 | 5.8 | `binary.dat` against anything | Says it is not text on both sides and that the bytes differ |
 | 5.9 | Two directories (v0.43.0) | Not refused: the folder comparison opens, a list of paths with `<` `>` `~` `=` signs (section 45). Only a file and a folder together are refused, which is 45.9 |
 | 5.10 | `q` | Closes |
-| 5.11 | Compare two files where one line changes a single word (`price` → `cost`), and another a Japanese word (`太郎` → `花子`) (v0.62.0) | On each changed row only that word is painted stronger, red on the left and green on the right, and the mark sits exactly under the word -- the Japanese one too. A line changed completely keeps only the row tint |
+| 5.11 | Compare two files where one line changes a single word (`price` → `cost`), and another a Japanese word (`太郎` → `花子`) (v0.62.0) | On each changed row only that word is painted stronger, red on the left and green on the right, and the mark sits exactly under the word -- the Japanese one too. A line changed completely keeps only the row tint. `make-fixtures` makes `words-left.txt` / `words-right.txt` for this, and `<State:x>` with the view open lists `compare row N:` with the changed words in ⟦ ⟧ (v0.78.73) |
 
 ## 6. Split view, and sending between the panes (v0.1.0, `<A-c>` / `<A-m>` v0.2.0)
 

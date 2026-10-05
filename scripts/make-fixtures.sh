@@ -57,6 +57,13 @@ for i in $(seq 1 200); do echo "line $i"; done > "$root/compare-left.txt"
 } > "$root/compare-right.txt"
 echo '  compare-left/right   200 lines, one changed and one inserted'
 
+# --- word-level compare rows (5.11): one word changed, a Japanese word
+# changed (set off by spaces, as the word split needs), a line with nothing in
+# common, and one that is the same.
+printf '%s\n' 'the price is firm' '宛先 太郎 さんです' 'alpha beta' 'unchanged line' > "$root/words-left.txt"
+printf '%s\n' 'the cost is firm' '宛先 花子 さんです' 'gamma delta' 'unchanged line' > "$root/words-right.txt"
+echo '  words-left/right     4 lines: one word, one Japanese word, nothing in common, same'
+
 echo identical > "$root/same-a.txt"
 echo identical > "$root/same-b.txt"
 for i in $(seq 1 512); do printf "\\$(printf '%03o' $((i % 256)))"; done > "$root/binary.dat"

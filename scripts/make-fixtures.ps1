@@ -80,6 +80,17 @@ $right = @($right[0..149]) + @('line 150.5 -- INSERTED') + @($right[150..199])
 Set-Content -LiteralPath (Join-Path $root 'compare-right.txt') -Value $right -Encoding UTF8
 Write-Host '  compare-left/right   200 lines, one changed and one inserted'
 
+# Word-level compare rows (5.11): one word changed, a Japanese word changed, a
+# line with nothing in common, and one that is the same. The Japanese is built
+# from code points so Windows PowerShell 5.1 reads this file right without a BOM.
+$taro = [string][char]0x592A + [char]0x90CE
+$hanako = [string][char]0x82B1 + [char]0x5B50
+$to = [string][char]0x5B9B + [char]0x5148 + [char]0x306F
+$san = [string][char]0x3055 + [char]0x3093 + [char]0x3067 + [char]0x3059   # sandesu, after a space
+Set-Content -LiteralPath (Join-Path $root 'words-left.txt') -Value @('the price is firm', "$to $taro $san", 'alpha beta', 'unchanged line') -Encoding UTF8
+Set-Content -LiteralPath (Join-Path $root 'words-right.txt') -Value @('the cost is firm', "$to $hanako $san", 'gamma delta', 'unchanged line') -Encoding UTF8
+Write-Host '  words-left/right     4 lines: one word, one Japanese word, nothing in common, same'
+
 # A pair that only a byte comparison can tell apart, and an identical pair.
 Set-Content -LiteralPath (Join-Path $root 'same-a.txt') -Value 'identical' -Encoding UTF8
 Set-Content -LiteralPath (Join-Path $root 'same-b.txt') -Value 'identical' -Encoding UTF8
