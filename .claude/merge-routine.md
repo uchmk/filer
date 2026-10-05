@@ -54,7 +54,7 @@ share, `Co-Authored-By` naming Sonnet), and check:
   not need; the version and CHANGELOG.md together; a behaviour change came with
   its TESTING.md row, its `scripts/testcheck-ja.toml` text, the untick, and the
   re-tests in both tables of `windows-role.md`; no default the owner decided
-  was changed; no item marked `【人】` `【QA】` `【実機】` `【後】` or `要確認`
+  was changed; no item marked `【人】` `【QA】` `【実機】` `【後】` `【pane】` or `要確認`
   was taken; an item it could not take was marked, not skipped.
 - its CI is green:
   `gh api repos/uchmk/filer/commits/<sha>/check-runs --jq '.check_runs[] | "\(.name) \(.conclusion)"'`.

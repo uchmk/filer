@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # How many open TODO.md items the development session may take: `- [ ]`
-# items with none of 【人】 【QA】 【実機】 【後】 or 要確認 anywhere in them
+# items with none of 【人】 【QA】 【実機】 【後】 【pane】 or 要確認 anywhere in them
 # (an item's mark can sit on a continuation line). Prints the count alone.
 #
 #   scripts/todo-open.sh        12
@@ -16,7 +16,7 @@ cd "$(dirname "$0")/.."
 python3 - "${1:-}" <<'PY'
 import re, sys
 
-MARKS = ("【人】", "【QA】", "【実機】", "【後】", "要確認")
+MARKS = ("【人】", "【QA】", "【実機】", "【後】", "【pane】", "要確認")
 lines = open("TODO.md", encoding="utf-8").read().split("\n")
 items, i = [], 0
 while i < len(lines):

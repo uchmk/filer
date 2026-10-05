@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.78.124] - 2026-10-05
+
+### 変更
+
+- TODO.md に新しい印 `【pane】` を足した。ターミナルペインを tsumugi のリポジトリのクレート `tsumugi-pane` へ切り出している間、ペインに触る未完了の項目（起動に失敗したシェルが残す `OpenConsole.exe`、`FILER_PTY_LOG` のキーの読み替え、何もしない窓の CPU）を開発の Routine が取らない。`scripts/todo-open.sh`、`dev-routine.md`、`merge-routine.md`、CLAUDE.md に足した。
+
 ## [0.78.123] - 2026-10-05
 
 ### 変更

@@ -60,7 +60,7 @@ Match the surrounding code (comment density, names, the one-line layout).
    - a QUESTIONS.md question that is `回答済み` or `多数決で決定` and not yet
      carried out;
    - from TODO.md, items with none of `【人】` `【QA】` `【実機】` `【後】`
-     `要確認` (`scripts/todo-open.sh -v` lists them, top first, with their
+     `【pane】` `要確認` (`scripts/todo-open.sh -v` lists them, top first, with their
      line numbers): **the first one you can claim.** One item, and its own
      sub-items with it. A large item is cut into steps, written into TODO.md
      as sub-items, and only the first step done.
