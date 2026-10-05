@@ -32,13 +32,21 @@ pub fn text() -> String {
 fn section(out: &mut String, title: &str, rows: &[(String, String)]) {
     out.push_str(title);
     out.push('\n');
-    let width = rows.iter().map(|(k, _)| k.chars().count()).max().unwrap_or(0);
+    // A key longer than this (a config directory, as long as the path) goes on
+    // a line of its own with the value under it, so the column does not push
+    // every other row past the width of a console (#248).
+    const MAX_KEY: usize = 24;
+    let width = rows.iter().map(|(k, _)| k.chars().count()).filter(|&n| n <= MAX_KEY).max().unwrap_or(0);
     for (k, v) in rows {
         // A value that runs to several lines is indented under its own key, so
         // the column stays readable however long the answer is.
         let mut lines = v.split('\n');
         let first = lines.next().unwrap_or_default();
-        out.push_str(&format!("    {k:width$} : {first}\n"));
+        if k.chars().count() > MAX_KEY {
+            out.push_str(&format!("    {k}\n    {:width$}   {first}\n", ""));
+        } else {
+            out.push_str(&format!("    {k:width$} : {first}\n"));
+        }
         for rest in lines {
             out.push_str(&format!("    {:width$}   {rest}\n", ""));
         }
@@ -382,6 +390,18 @@ fn variables() -> Vec<(String, String)> {
 mod tests {
     use super::*;
     use crate::util::locate;
+
+    /// #248: a long key does not widen the column for every other row.
+    #[test]
+    fn a_long_key_does_not_widen_the_column() {
+        let long = "x".repeat(67);
+        let rows = vec![(long.clone(), "nothing here".to_string()), ("State".to_string(), "/s".to_string())];
+        let mut out = String::new();
+        section(&mut out, "Config", &rows);
+        assert!(out.contains(&format!("    {long}\n")), "{out}");
+        assert!(out.lines().any(|l| l == "    State : /s"), "{out}");
+        assert!(out.lines().all(|l| l.chars().count() < 40 || l.trim() == long), "{out}");
+    }
 
     /// #254: a pane that would not start is not "not opened".
     #[test]

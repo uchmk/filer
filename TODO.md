@@ -1717,7 +1717,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   実際に使ったバックエンドを `Last run` に残す（#248 の提案 2。#245 の提案 1、上の `last-run.toml` の項目と同じ）
 - [ ] 無効な `[ui] backend` の警告を、窓と `filer env` で同じ文にする（#248 の提案 1）。窓は `drawing with Gl instead`、`filer env` は
   `drawing with the default` で、同じ判断を別の言葉で言っている。落ちた先を言う関数を 1 つにして両方から呼ぶ
-- [ ] `filer env` の `Config` の欄の幅が、設定フォルダのパスの長さで決まる（#248 の所見 2、提案 3）。67 文字の `FILER_CONFIG_HOME` で
+- [x] （v0.78.87。24 文字を超えるキーは自分の行に出し、値をその下に字下げする）`filer env` の `Config` の欄の幅が、設定フォルダのパスの長さで決まる（#248 の所見 2、提案 3）。67 文字の `FILER_CONFIG_HOME` で
   `State` などが 83 桁目から始まり、普通のコンソールで折り返す。フォルダのパスを 1 行に出してファイルをその下に字下げするか、欄の幅に上限を付ける
 - [ ] ARM64 で 25 節（25.11）は取れない（#248）。25.11 は「どこにも太字が無い」を要るが、`system_bold_fonts()` は `C:\Windows\Fonts\meiryob.ttc` などを
   絶対パスで見るので、普通の Windows ではその状態を作れない。33.9 は 5 つの箱が重ならないこと（画素でしか測れない）【実機】
