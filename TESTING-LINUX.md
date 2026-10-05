@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 513 件（TESTING.md の全 684 件のうち、`cargo test` が見ている 171 件は外してある）。
+押すものは 514 件（TESTING.md の全 685 件のうち、`cargo test` が見ている 171 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -141,6 +141,7 @@
 
 - [ ] **6.15** 大きなディレクトリを `<A-c>` して、ステータスバーを見る → 他のコピーと同じジョブ扱い。進捗と速度が出て、`w` から中止できる — *`<A-c>` a large directory, then watch the status bar → It is a job like any other copy: progress, speed, and cancellable from `w`*
 - [ ] **6.16** 大きいフォルダをコピーし（`<A-c>`）、終わる前にタスク一覧（`w`）から止める（v0.78.32）→ `Copy stopped — what was already done stays` とトーストが出て、タスクは `cancelled` になり、そこまでにコピーしたものは行き先に残っている — *Start a copy of a large directory (`<A-c>`), then stop it from the tasks list (`w`) before it ends (v0.78.32) → A toast says `Copy stopped — what was already done stays`; the task reads `cancelled`, and what was copied so far is still in the destination*
+- [ ] **6.17** C: に小さいファイルが数千あるフォルダ（`mkdir small; 1..5000 | % { Set-Content "small\f$_.txt" $_ }`）を `<A-c>` し、走っている間のステータスバーと `w` を見る（v0.78.74、#241）→ バーと % がバイトだけでなく済んだファイル数でも進み、まだ数秒かかるのに `97% … 1s` とは出ない（v0.78.74 より前はバイトだけを数えていたので、小さいファイルのフォルダは早くから終わりかけに見えた）。大きい 1 ファイルの出方は前と同じ — *`<A-c>` a folder of a few thousand small files on C: (`mkdir small; 1..5000 \| % { Set-Content "small\f$_.txt" $_ }`), and watch the status bar and `w` while it runs (v0.78.74, #241) → The bar and its percentage move with the files done, not with the bytes alone, and the time left does not read `97% … 1s` while seconds of copying are still to come -- before v0.78.74 only bytes counted, so a folder of small files looked nearly done early. A single large file reads as it did*
 
 ## 7. ヘルプパネルの設定ファイルパス
 

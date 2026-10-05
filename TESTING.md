@@ -284,7 +284,7 @@ Needs two directories with different contents — `many\` and `repo\` will do.
 width with the parent column gone, and that it is back after `<C-S-w>`; that the pane without the
 keys draws its cursor in the other of two theme colours; that `<A-c>` and `<A-m>` really land in
 the directory the other pane is showing and spend the selection doing it; the wording of both
-refusals; and what becomes of the split when a tab is switched or closed. What is left is 6.15 — a
+refusals; and what becomes of the split when a tab is switched or closed. What is left is 6.15 and 6.17 — a
 job's progress, its speed, and cancelling it from `w` all need a copy big enough to watch happen.
 
 | # | Do | Expect |
@@ -305,6 +305,7 @@ job's progress, its speed, and cancelling it from `w` all need a copy big enough
 | 6.14 | `<C-S-w>` | Back to one pane, and the parent column returns |
 | 6.15 | `<A-c>` a large directory, then watch the status bar | It is a job like any other copy: progress, speed, and cancellable from `w` |
 | 6.16 | Start a copy of a large directory (`<A-c>`), then stop it from the tasks list (`w`) before it ends (v0.78.32) | A toast says `Copy stopped — what was already done stays`; the task reads `cancelled`, and what was copied so far is still in the destination |
+| 6.17 | `<A-c>` a folder of a few thousand small files on C: (`mkdir small; 1..5000 \| % { Set-Content "small\f$_.txt" $_ }`), and watch the status bar and `w` while it runs (v0.78.74, #241) | The bar and its percentage move with the files done, not with the bytes alone, and the time left does not read `97% … 1s` while seconds of copying are still to come -- before v0.78.74 only bytes counted, so a folder of small files looked nearly done early. A single large file reads as it did |
 
 ## 7. The config paths in the help panel (v0.25.0)
 

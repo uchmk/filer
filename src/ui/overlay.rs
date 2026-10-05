@@ -1841,23 +1841,27 @@ mod help_frame {
 
     /// 39.9: opened from the terminal pane, the panel lists the pane's own keys
     /// first, under their own heading, and the list's after them.
+    ///
+    /// Read from the panel's whole list of lines, not the frame: the panel
+    /// draws about 27 of 180, and the headings sat right at its edge, so one
+    /// more `[term]` key would have pushed them out of the frame.
     #[test]
     fn help_from_the_pane_lists_the_panes_keys_first() {
         let mut s = Screen::open(crate::util::test_dir("help-pane"));
         s.app.term_focus = true;
         s.app.act(crate::config::cmd::Act::Help);
-        let f = s.draw();
-        let at = |needle: &str| f.texts.iter().position(|t| t == needle);
-        let pane = at("keys in the terminal pane").expect("the pane's heading");
-        let term_up = at("Scroll the terminal up").expect("the pane's own `<A-k>`");
-        let list = at("keys in the list (<C-t> to get there)").expect("the list's heading");
-        assert!(pane < term_up && term_up < list, "the pane's keys come first: {:?}", f.texts);
+        let lines = super::help_lines(&s.app);
+        let heading = |h: &str| lines.iter().position(|l| l.keys == h);
+        let pane = heading("keys in the terminal pane").expect("the pane's heading");
+        let term_up = lines.iter().position(|l| l.text == "Scroll the terminal up").expect("the pane's own `<A-k>`");
+        let list = heading("keys in the list (<C-t> to get there)").expect("the list's heading");
+        assert!(pane < term_up && term_up < list, "the pane's keys come first");
 
         // From the list, nothing changes.
-        let mut s = showing_help("help-list");
-        let f = s.draw();
-        assert!(f.texts.iter().any(|t| t == "keys"));
-        assert!(!f.texts.iter().any(|t| t == "keys in the terminal pane"));
+        let s = showing_help("help-list");
+        let lines = super::help_lines(&s.app);
+        assert!(lines.iter().any(|l| l.keys == "keys"));
+        assert!(!lines.iter().any(|l| l.keys == "keys in the terminal pane"));
     }
 
     /// #104: the right-click paste is not a key, so it has its own words
