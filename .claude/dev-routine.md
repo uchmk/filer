@@ -1,6 +1,6 @@
 # The development routine
 
-A claude.ai Routine starts a new cloud session every 30 minutes (the owner's
+A claude.ai Routine starts a new cloud session once an hour, at :30 (the owner's
 choice, 2026-10-05; the merge routine runs once, at :59), with
 `uchmk/filer` attached, and its whole instruction is one line: read this file
 and do what it says. This file is the one place the routine's steps live
@@ -10,7 +10,7 @@ stays one line.
 
 Every run starts with an empty conversation and nobody is watching: never wait
 for input. **A run is one round** (below): take one thing, push it, report,
-end. The next run starts 30 minutes later from `main`. A session that ran for a
+end. The next run starts an hour later from `main`. A session that ran for a
 day reached 550,000 tokens, and every call re-read all of it (2026-10-05).
 
 Until v0.78.95 a run was meant to go on for five rounds; four runs in a row

@@ -8,8 +8,8 @@
 #   scripts/claim.sh drop                  release this run's claim
 #   scripts/claim.sh list                  the claims held now, with their age
 #
-# Runs start every 30 minutes and a round can take longer, so a run may
-# start while the one before is still pushing, from a `main` without that
+# A run starts every hour at :30, but a long one, or an interactive session,
+# may still be at work when the next starts: a run may start while the one before is still pushing, from a `main` without that
 # work. Picking items by position alone collides when an item is added above
 # (2026-10-05).
 #
