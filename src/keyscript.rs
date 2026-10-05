@@ -293,8 +293,27 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
             None if pointer(token).is_some() => pointer(token).unwrap_or_else(|| unreachable!())?,
             None => Step::Key(Key::parse(token).ok_or_else(|| format!("`{token}` is not a key"))?),
         };
-        out.push(step);
         rest = &rest[token.len()..];
+        // `<C-+>*45`: the key that many times. Only after a `<…>` key, since a
+        // bare `*` is a key of its own. A held-down key's rows have the count
+        // as their answer, and a script of forty-five identical tokens is
+        // easy to miscount (#216).
+        let mut times = 1;
+        if c == '<' && !matches!(step, Step::Wait(_) | Step::Now | Step::Quit | Step::Shot(_) | Step::State(_)) {
+            if let Some(after) = rest.strip_prefix('*') {
+                let digits: String = after.chars().take_while(char::is_ascii_digit).collect();
+                match digits.parse::<usize>() {
+                    Ok(n) if (1..=1000).contains(&n) => {
+                        times = n;
+                        rest = &after[digits.len()..];
+                    }
+                    _ => return Err(format!("`{token}*` has to be followed by a count from 1 to 1000, as `{token}*45`")),
+                }
+            }
+        }
+        for _ in 0..times {
+            out.push(step.clone());
+        }
     }
     // `<Now>` is about the key after it, so there has to be one.
     for (i, step) in out.iter().enumerate() {
@@ -516,5 +535,17 @@ mod tests {
         let report = caught.lock().unwrap().clone();
         assert!(report.starts_with("keys: panicked\nthread: worker-x\nat: src/keyscript.rs:"), "{report}");
         assert!(report.ends_with("why: boom 7\n"), "{report}");
+    }
+
+    /// #216: `<C-+>*3` is the key three times; a bare `*` is still a key.
+    #[test]
+    fn a_count_after_a_key_repeats_it() {
+        let key = |t| Step::Key(Key::parse(t).unwrap());
+        assert_eq!(parse("<C-+>*3x").unwrap(), [key("<C-+>"), key("<C-+>"), key("<C-+>"), key("x")]);
+        assert_eq!(parse("j*").unwrap(), [key("j"), key("*")], "a bare star is a key");
+        assert_eq!(parse("<Up>*1").unwrap(), [key("<Up>")]);
+        for bad in ["<Up>*", "<Up>*0", "<Up>*1001", "<Up>*x"] {
+            assert!(parse(bad).unwrap_err().contains("count from 1 to 1000"), "{bad}");
+        }
     }
 }

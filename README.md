@@ -1451,6 +1451,9 @@ one run. The name is letters, digits, `-` and `_`.
 same folder (v0.73.74). That file is written when the script ends, so a script ending in `q` reports
 `overlay: none`; `--keys "<F12><State:panel><Esc>q"` reads the open box and still quits by itself.
 
+`<C-+>*45` presses a `<…>` key (or a click or wheel step) that many times, from 1 to 1000 (v0.78.59);
+a bare `*` is still the key `*`.
+
 `<Click:0.2,0.1>` and `<RClick:0.2,0.1>` press the left or right button at that place in the window, as
 fractions of its width and height; `<Wheel:-3@0.5,0.4>` turns the wheel three lines (negative is down)
 there; `<Paste>` pastes the clipboard as it is at that point, and so does `<C-v>` (v0.78.53). They go in

@@ -1324,6 +1324,11 @@ fn state_report(app: &App) -> String {
         app.split.map_or("no".into(), |s| format!("yes, keys {}", if s.right { "right" } else { "left" }))
     ));
     lines.push(format!("toast: {}", app.toasts.last().map_or("", |t| t.text.as_str())));
+    // How many times that same line was raised, when more than once: the
+    // `×8` the toast shows was only in the picture (#216).
+    if let Some(n) = app.toasts.last().map(|t| t.count).filter(|n| *n > 1) {
+        lines.push(format!("toast repeats: {n}"));
+    }
     // Every toast of the run, the faded ones too, oldest first; a toast's own
     // line breaks become ` / ` so the report stays one line per name.
     let all: Vec<String> = app.toast_log.iter().map(|t| t.lines().collect::<Vec<_>>().join(" / ")).collect();
@@ -1732,6 +1737,18 @@ mod tests {
         app.tasks[0].state = app::TaskState::Done;
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "jobs: 0 running") && !report.contains("job:"), "{report}");
+    }
+
+    /// #216: the `×N` of a repeated toast is a line of the state.
+    #[test]
+    fn a_repeated_toast_says_how_often() {
+        let dir = crate::util::test_dir("state-repeats");
+        let mut app = App::new(crate::config::Config::load(), dir, egui::Context::default());
+        app.toasts.clear();
+        app.toast("rep");
+        assert!(!state_report(&app).contains("toast repeats"), "once is not a repeat");
+        app.toast("rep");
+        assert!(state_report(&app).lines().any(|l| l == "toast repeats: 2"));
     }
 
     /// #236: a compare row reads as a marker and the two sides, the changed
