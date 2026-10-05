@@ -705,6 +705,7 @@ that is worth writing in the report. It is not a tick: each row is about the edi
 | 23.1 | `g<Space>`, type `\\server\share` | It opens |
 | 23.2 | Copy a file to and from it | Works, with progress |
 | 23.3 | Unplug the network mid-listing, or point at a dead host | **The window keeps responding.** An error toast, and the tab goes back where it was |
+| 23.3a | `g<Space>`, type `\\nosuchhost-xyz\share` (a name no machine answers to) (v0.78.75, #233) | The red toast ends with `— no host by that name answered (a typo, or the machine is off)` after the system's own sentence, and the tab stays where it was |
 | 23.4 | Tab-complete a path on the share | The prompt stays responsive; a `…` shows while it waits |
 | 23.4a | In a folder with `alpha\`, `alps\` and `zeta\`: `g<Space>`, type the folder's full path then `al`, and `<Tab>` three times (v0.78.58, #222) | The line goes `…\alpha\`, then `…\alps\`, then `…\alpha\` again: each press takes the next folder that began with `al` instead of listing what is inside the one just chosen |
 | 23.5 | `g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) | **One** error toast, naming the path as typed (`C:\Temp\a|b\c\d`, not its parent `…\c`: v0.75.19). Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`) |

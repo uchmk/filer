@@ -108,12 +108,28 @@ impl Scanner {
     }
 }
 
+/// The OS's words for a failed listing, and for a `\\host` that nobody
+/// answered (1203 no network provider took the name, 53 path not found, 67
+/// name not found) what that usually means, in English whatever the system's
+/// language is (#233).
+pub(crate) fn scan_error_text(path: &std::path::Path, e: &std::io::Error) -> String {
+    let said = e.to_string();
+    let unc = path.to_string_lossy().starts_with("\\\\");
+    match (unc, e.raw_os_error()) {
+        (true, Some(1203 | 53 | 67)) => format!("{said} — no host by that name answered (a typo, or the machine is off)"),
+        _ => said,
+    }
+}
+
 fn run(task: Task) -> Option<ScanResult> {
     match task {
         Task::Scan { id, path, sort } => {
             match list_dir(&path, sort) {
                 Ok(entries) => Some(ScanResult::Listed { id, path, entries }),
-                Err(e) => Some(ScanResult::Failed { id, path, error: e.to_string() }),
+                Err(e) => {
+                    let error = scan_error_text(&path, &e);
+                    Some(ScanResult::Failed { id, path, error })
+                }
             }
         }
         Task::Count { paths } => {
@@ -151,4 +167,25 @@ pub fn list_dir(path: &std::path::Path, sort: SortSpec) -> std::io::Result<Vec<E
 fn count_children(path: &std::path::Path) -> Option<u64> {
     let rd = std::fs::read_dir(path).ok()?;
     Some(rd.take(100_000).filter(|e| e.is_ok()).count() as u64)
+}
+
+#[cfg(test)]
+mod error_text_tests {
+    use super::scan_error_text;
+    use std::io::Error;
+    use std::path::Path;
+
+    /// #233: a share's host that did not answer says so; nothing else changes.
+    #[test]
+    fn an_unanswered_host_is_named() {
+        let host = Path::new(r"\\nohost\share");
+        for code in [1203, 53, 67] {
+            let said = scan_error_text(host, &Error::from_raw_os_error(code));
+            assert!(said.ends_with("no host by that name answered (a typo, or the machine is off)"), "{code}: {said}");
+        }
+        let other = scan_error_text(host, &Error::from_raw_os_error(5));
+        assert!(!other.contains("no host"), "{other}");
+        let local = scan_error_text(Path::new("/tmp/x"), &Error::from_raw_os_error(53));
+        assert!(!local.contains("no host"), "a local path is not a host: {local}");
+    }
 }

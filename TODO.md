@@ -1804,7 +1804,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `"cmd" /S /C ""…\msedge.exe" "…\doc.pdf""` で、プログラムがその子になる。「行に `start` が無く、自分のコンソール窓が出ない」と書く
 - [x] （v0.78.61。件数は `items:`、位置は `position: N/M`。空の理由の `empty:` は未）`FILER_KEYS_DONE` に見出しの件数と位置を出す（#233 の提案 1）: `header: 500 items`（待っている間は `listing…`）、`position: 4/500`、空なら
   `empty: (no shares)`。上の #231 の `items:` / `filter:` の項目と一緒にやる
-- [ ] `\\host` への移動が os error 1203 / 53 / 67 で失敗したとき、OS の文のあとに `— no host by that name answered (a typo, or the machine is off)` を足す
+- [x] （v0.78.75。23.3a）`\\host` への移動が os error 1203 / 53 / 67 で失敗したとき、OS の文のあとに `— no host by that name answered (a typo, or the machine is off)` を足す
   （#233 の提案 2）。2 回目が速いのは Windows が失敗を覚えているから、とも言える
 - [ ] ピッカーで、入っていないプログラムの項目に ` (not installed)` を付ける（#234 の提案 3）。`PATH`、`App Paths`、引用符の中のフルパスで 1 回だけ調べる。
   同じ README の例が、持ち主の 2 台で違う意味になっている。ピッカーを開くたびの費用を測ってから

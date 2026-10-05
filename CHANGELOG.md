@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.78.75] - 2026-10-05
+
+### 変更
+
+- `\\host` を開こうとして OS の error 1203 / 53 / 67 で失敗したとき、システムの文のあとに `— no host by that name answered (a typo, or the machine is off)` を足す（#233）。TESTING.md に 23.3a を足した。
+
 ## [0.78.74] - 2026-10-05
 
 ### 変更
