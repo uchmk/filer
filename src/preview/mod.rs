@@ -434,9 +434,11 @@ fn render(req: &Request, syntax: &mut text::Highlighter) -> Payload {
 
 fn read_head(path: &std::path::Path, max: usize) -> Result<Vec<u8>, String> {
     use std::io::Read;
-    let f = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    // `crate::spot::reason`: the OS's own sentence follows its language, and
+    // the spot panel's `Resolves` row already says `not found, os error 2`.
+    let f = std::fs::File::open(path).map_err(|e| crate::spot::reason(&e))?;
     let mut buf = Vec::with_capacity(max.min(64 * 1024));
-    f.take(max as u64).read_to_end(&mut buf).map_err(|e| e.to_string())?;
+    f.take(max as u64).read_to_end(&mut buf).map_err(|e| crate::spot::reason(&e))?;
     Ok(buf)
 }
 
@@ -624,6 +626,15 @@ fn meta(path: &std::path::Path, _req: &Request, note: &str) -> Payload {
 
 #[cfg(test)]
 mod tests {
+    /// #266: a file that is not there reads `not found, os error N` in the
+    /// preview's own words, not in the OS's language.
+    #[test]
+    fn a_missing_file_is_named_in_english() {
+        let dir = crate::util::test_dir("preview-missing");
+        let said = super::read_head(&dir.join("gone.txt"), 4096).unwrap_err();
+        assert!(said.starts_with("not found, os error ") && said.is_ascii(), "{said}");
+    }
+
     /// What the note under an Office preview says (16.11 on the machine).
     #[test]
     fn an_office_preview_says_how_much_it_shows() {

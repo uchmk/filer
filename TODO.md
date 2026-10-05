@@ -1508,7 +1508,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 ## 実機のセッションの報告（v0.78.36 で受けた分: #266 x64 の v0.78.29 の再テスト）
 
 - [x] #266（x64、v0.78.35）: 13.12、13.12a、25.19b に印。710 / 0
-- [ ] spot の `Preview` の `Error` の行に、同じ壊れたリンクで OS の言語の文（`指定されたファイルが見つかりません。 (os error 2)`）が残る（#266 の提案 1）。
+- [x] （v0.78.45。プレビューが読めなかったときの文を `not found, os error 2` の形にした）spot の `Preview` の `Error` の行に、同じ壊れたリンクで OS の言語の文（`指定されたファイルが見つかりません。 (os error 2)`）が残る（#266 の提案 1）。
   `Resolves` と同じ形（`not found, os error 2`）にする
 - [ ] TESTING.md 13.12a の期待のパス `R:\cargo-target\filer` を `R:\cargo-target\<作業フォルダ名>` と書く（#266 の提案 2。実機の作業フォルダは `filer-wintest`）【QA】
 

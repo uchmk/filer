@@ -181,7 +181,7 @@ fn resolves(path: &Path, target: &Path, canonical: std::io::Result<PathBuf>) -> 
 /// `ファンクションが間違っています。 (os error 1)` in the middle of an English
 /// panel (#255). The number is what a search finds; the two reasons a person
 /// meets most are named in English beside it.
-fn reason(err: &std::io::Error) -> String {
+pub(crate) fn reason(err: &std::io::Error) -> String {
     use std::io::ErrorKind;
     let Some(n) = err.raw_os_error() else { return err.to_string() };
     match err.kind() {
