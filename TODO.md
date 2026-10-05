@@ -18,6 +18,10 @@
 - [x] （v0.78.41。6.16 を足し、訳と再テストに積んだ）（Sonnet の見張り）v0.78.32（`d97b31a`）が `w` でファイルの仕事を止めたときのトースト（`Copy stopped — what was already done stays`）を足したが、
   TESTING.md に行が無く、再テストにも積んでいない。単体テストは `OpEvent::Finished` を手で作るだけで、本物の取り消しの経路は通らない。
   6 節に「大きいコピーを `w` で止める → トースト」の行を足し、`testcheck-ja.toml` と両レーンの再テストに積む（CLAUDE.md の作業ルール）
+- [ ] （Sonnet の見張り）v0.78.42〜0.78.44（`a31b1b4`、`36bf0b2`、`c448dc4`）は、どれも `Cargo.lock` の `filer` が `Cargo.toml` より 1 つ前の版のまま
+  コミットされ、CI の `--locked` で全ジョブが落ちていた（`main` が 3 版続けて赤。v0.78.46 のマージする側のコミットで lock を直した）。
+  版を上げた**後**に `cargo build` してから `Cargo.lock` ごとコミットする（CLAUDE.md の手順 3）。`scripts/verify.sh` を `--locked` で回すようにすれば、
+  push の前にこの取り違えを止められる（スクリプトの変更なので開発の側で）
 
 ## 急ぎ（データが消える）
 
@@ -1504,6 +1508,13 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.74.6）`--version`（`main.rs` の 208 行付近）が `bugreport::version_line()` を使わず自分で組んでいる（所見 2）。呼ぶ形にすれば 26.3 が作りで成り立ち、テストで押さえられる
 - [x] （v0.74.6。テストのときの `set_clipboard` はスレッドごとの偽のクリップボードに書く。`get_clipboard` がそれを読む）既存のテスト `app::f12_shows_the_report_before_opening_it` の `answer_confirm('c')` が本物のクリップボードを書き換える（所見 3）。持ち主の Windows 機で
   `cargo test` を回すたびにクリップボードが上書きされる。テストのときは書かない口（`exec::set_clipboard` の差し替え）を作る
+
+## 実機のセッションの報告（v0.78.46 で受けた分: #267 x64 の 29.13）
+
+- [x] #267（x64、v0.78.38）: 29.13（`FILER_TERM_SHELL=pwsh` と `FILER_TERM_ARGS=-NoProfile` でペインが `pwsh -NoProfile`、`FILER_TERM_ARGS` だけでは使われない）に印。711 / 0
+- [ ] `FILER_TERM_SHELL` が無くて `FILER_TERM_ARGS` が使われなかったとき、`filer env` の `Terminal pane` に
+  `FILER_TERM_ARGS not used: it needs FILER_TERM_SHELL` と出す（#267 の提案 1。`[term] args not used: …` と同じ形）
+- [ ] ペインを開いたトーストに、環境変数から来た引数を出す（`Started pwsh -NoProfile — …`。#267 の提案 2。引数があるときだけ）
 
 ## 実機のセッションの報告（v0.78.36 で受けた分: #266 x64 の v0.78.29 の再テスト）
 
