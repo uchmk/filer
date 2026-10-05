@@ -5273,6 +5273,8 @@ impl App {
     fn pump_terminal(&mut self) {
         let cwd = self.tabs[self.active].cwd.clone();
         let Some(term) = &mut self.term else { return };
+        let (fg, bg) = (self.cfg.theme.fg, self.cfg.theme.bg_alt);
+        term.set_colors([fg.r(), fg.g(), fg.b()], [bg.r(), bg.g(), bg.b()]);
         for text in term.drain() {
             // A program asked for the clipboard; only this thread can oblige.
             let _ = exec::set_clipboard(&text);

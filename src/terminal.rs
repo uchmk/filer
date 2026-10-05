@@ -593,6 +593,9 @@ pub struct Terminal {
     pub title: String,
     /// The shell is gone; the pane says so rather than pretending.
     pub exited: bool,
+    /// The pane's foreground and background as drawn, for a program that asks
+    /// (OSC 10 / 11). Set from the theme each frame; none until then.
+    colors: Option<([u8; 3], [u8; 3])>,
     size: Size,
     /// Where the shell was last told to go, so it is not told twice.
     followed: Option<PathBuf>,
@@ -702,6 +705,7 @@ impl Terminal {
             rx,
             title: String::new(),
             exited: false,
+            colors: None,
             size,
             followed: Some(cwd.to_path_buf()),
             quoting,
@@ -734,6 +738,11 @@ impl Terminal {
         !self.exited && self.shell_pid.is_some_and(|pid| !children(pid).is_empty())
     }
 
+    /// What colors a program asking for the foreground and background gets.
+    pub fn set_colors(&mut self, fg: [u8; 3], bg: [u8; 3]) {
+        self.colors = Some((fg, bg));
+    }
+
     /// Take everything the shell has said since the last frame. Returns the
     /// text it asked to put on the clipboard, which only the UI thread can do.
     pub fn drain(&mut self) -> Vec<String> {
@@ -746,6 +755,17 @@ impl Terminal {
             match ev {
                 PtyEvent::Title(t) => self.title = t,
                 PtyEvent::ResetTitle => self.title.clear(),
+                // OSC 10 / 11 (and 12): lipgloss and bubbletea ask for the
+                // colors to pick a light or dark style, and wait, then guess,
+                // when nothing answers (gh-dash, #265). 256 is the foreground,
+                // 257 the background, 258 the cursor; palette slots are left.
+                PtyEvent::ColorRequest(index @ 256..=258, format) => {
+                    if let Some((fg, bg)) = self.colors {
+                        let [r, g, b] = if index == 257 { bg } else { fg };
+                        let text = format(alacritty_terminal::vte::ansi::Rgb { r, g, b });
+                        self.send_as(text.into_bytes(), "in reply");
+                    }
+                }
                 PtyEvent::ClipboardStore(_, text) => clipboard.push(text),
                 // A program answering a query writes back through the same
                 // pipe it would if the user had typed it.
@@ -1667,6 +1687,26 @@ mod tests {
         assert!(children(std::process::id()).contains(&pid), "the shell is running first");
         drop(t);
         assert!(!children(std::process::id()).contains(&pid), "the shell {pid} outlived its pane");
+    }
+
+    /// #265: a program that asks for the background (OSC 11) gets the pane's
+    /// color, where it used to get nothing and wait.
+    #[cfg(unix)]
+    #[test]
+    fn the_background_color_is_answered() {
+        let dir = crate::util::test_dir("term-osc11");
+        let out = dir.join("reply");
+        let script = format!("stty raw -echo; printf '\\033]11;?\\033\\\\'; dd bs=1 count=12 2>/dev/null > '{}'", out.display());
+        let shell = Some(("sh".to_owned(), vec!["-c".to_owned(), script]));
+        let mut t = Terminal::spawn(&dir, Size::new(80, 24), (8, 16), shell, || {}).expect("the terminal starts");
+        t.set_colors([0xee, 0xee, 0xee], [0x10, 0x20, 0x30]);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while std::fs::metadata(&out).map_or(true, |m| m.len() < 12) && Instant::now() < deadline {
+            t.drain();
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let got = std::fs::read(&out).unwrap_or_default();
+        assert_eq!(String::from_utf8_lossy(&got), "\x1b]11;rgb:101", "{got:?}");
     }
 
     /// `children` finds a process this one started: the question `<C-S-t>`
