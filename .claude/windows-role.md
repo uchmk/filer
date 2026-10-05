@@ -422,6 +422,7 @@ pwsh -NoProfile -File C:\dev\filer\scripts\fetch-conpty.ps1 -Dest C:\dev\filer\t
   90 minutes, take the one after, up to three. Read each one first and say which rows you
   can settle and which you cannot, before touching anything. Stop early rather than leave a
   section half done: one finished section is worth more than three started ones.
+- **A run that measures the terminal pane records the `conpty.dll` it loaded** (v0.70.3, #184): `(Get-Process filer).Modules | ? ModuleName -eq conpty.dll | % FileName`. It must be the one beside `filer.exe`; a different path means you measured another app's ConPTY.
 - **Work on `test/win-<section>`** (`test/arm-<section>` on the ARM64 machine), from the latest `origin/main`. Never push to
   `main`, never `--force`.
 - **Do not bump the version and do not write CHANGELOG.md.** A pull request that

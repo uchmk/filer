@@ -1374,7 +1374,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   または横の DLL をフルパスで先に読む。どちらでも、横に無ければ Windows 標準の ConPTY（`kernel32` の `CreatePseudoConsole`）に落ちるかを確かめる。
 - [x] （v0.70.3）TESTING.md 48.6 の期待値を「`C:\Windows` の下ではない」から「フルパスが zip のフォルダと同じ」にする（#184 の提案 2。人か QA セッション）。
   失敗すると別のアプリの DLL が出るし、`C:\Windows\System32\conpty.dll` はそもそも存在しない。
-- [ ] `windows-role.md` の「How to work」に、ペインを測る実行は読み込んだ `conpty.dll` を記録する、と 1 行足す（#184 の提案 3）。
+- [x] （v0.78.139）`windows-role.md` の「How to work」に、ペインを測る実行は読み込んだ `conpty.dll` を記録する、と 1 行足す（#184 の提案 3）。
   `(Get-Process filer).Modules | ? ModuleName -eq conpty.dll | % FileName`。
 
 ## 実機のセッションの報告（v0.65.4 で受けた分: #154、ARM64 の 1 節のマウス）
