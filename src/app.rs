@@ -575,6 +575,19 @@ impl Task {
     }
 }
 
+/// Whether `path` is `above` or inside it. `Path::starts_with` compares
+/// components, and on Windows a bare `\\host` is not a prefix of
+/// `\\host\share`, so the parent column of a mistyped host was not seen as
+/// belonging to the jump that failed (#270).
+fn is_within(path: &Path, above: &Path) -> bool {
+    if path.starts_with(above) {
+        return true;
+    }
+    let (p, a) = (path.to_string_lossy().to_lowercase(), above.to_string_lossy().to_lowercase());
+    let a = a.trim_end_matches(['/', '\\']);
+    p.strip_prefix(a).is_some_and(|rest| rest.is_empty() || rest.starts_with(['/', '\\']))
+}
+
 /// What opening, creating and closing one file is worth, as bytes of copying.
 const FILE_COST: u64 = 64 * 1024;
 
@@ -1846,8 +1859,8 @@ impl App {
                 // pane that already explained itself.
                 // A folder above a jump still waiting, or above the one just
                 // taken back, fails for the same reason; that jump says it.
-                let explained = self.tabs.iter().any(|t| t.pending_cd.is_some() && t.cwd.starts_with(&path))
-                    || self.cd_refused.as_ref().is_some_and(|p| p.starts_with(&path));
+                let explained = self.tabs.iter().any(|t| t.pending_cd.is_some() && is_within(&t.cwd, &path))
+                    || self.cd_refused.as_ref().is_some_and(|p| is_within(p, &path));
                 if !hit && !explained {
                     self.error(format!("{}: {error}", util::file_name(&path)));
                 }
@@ -9695,6 +9708,13 @@ mod alt_jk_scrolls_every_pane {
 #[cfg(test)]
 mod said_out_loud {
     use super::*;
+
+    #[test]
+    fn a_bare_unc_host_is_above_its_share() {
+        assert!(is_within(Path::new(r"\\h\share"), Path::new(r"\\h")));
+        assert!(is_within(Path::new(r"\\H\share\a"), Path::new(r"\\h\")));
+        assert!(!is_within(Path::new(r"\\hh\share"), Path::new(r"\\h")));
+    }
 
     fn app_in(dir: &Path) -> App {
         let mut a = App::new(Config::load(), dir.to_path_buf(), egui::Context::default());
