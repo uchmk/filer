@@ -58,9 +58,13 @@ and merge-role.md from `origin/main` at the start of every run.
    does not touch, or the merge leaves a conflict outside the rows it names):
    do not guess. Write under the item what stopped you, and reply
    `not merged #N: …`.
-   **When you hold a pull request yourself**, write the item so the next run
-   can carry out either answer without you: the rows on each side, what each
-   choice would do to them, and the recommended one.
+   **Do not hold a pull request for the owner when merge-role.md 2 settles
+   it** (the owner's word, 2026-10-05: "自動でやってほしい"). A tick line that
+   `main` rewrote after the run is settled there (take `main`'s line,
+   unticked; merge the rest), and so is the same tick on both sides. Hold only
+   what no rule decides, and then write the item so the next run can carry
+   out either answer without you: the rows on each side, what each choice
+   would do to them, and the recommended one.
 3. **Push the merger's share with `scripts/push-main.sh`**, in the background,
    and wait for it to finish (merge-role.md, 4). It replays your commit on top
    when the development routine pushed first, renumbers it, runs the checks,

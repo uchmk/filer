@@ -136,8 +136,22 @@ Then, which of two:
   appends meeting, or a count line `main` moved; making it wait an hour each
   time held #197 back three runs on 2026-10-03, and the lane with it. Red:
   stop, as below.
-- **Anything else conflicted** (a marker inside a section, a tick line both
-  sides changed, any other file): stop; the next run merges it once CI is green.
+- **A tick line both sides changed** (the owner's word, 2026-10-05: settle it
+  here, do not ask). Two cases, both decided by the row's text:
+  - `main` rewrote the row after the run (a fix changed its expectation, and
+    unticked it): **take `main`'s line, unticked.** The run checked the old
+    expectation, so its tick does not stand for the new one; the row stays in
+    the lane's "Re-tests of changed behaviour". Say so in the merger's share
+    (`#N settled A and B; C was rewritten by vX.Y.Z after the run, so it stays
+    open`). #273 waited on the owner for exactly this (32.20, v0.78.100).
+  - the row's text is the same on both sides and both ticked it (the other
+    lane got there first): take either; the tick stands.
+  Keep the pull request's side for every other row, regenerate with
+  `cargo run --example make-testcheck`, run the three `--check`s of 2.3, push
+  the merge commit to the pull request's branch, and go on as in the case
+  above (wait for CI on the new head in this run, then 3).
+- **Anything else conflicted** (a marker inside a section, any other file):
+  stop; the next run merges it once CI is green.
 
 ## 3. Merge
 
