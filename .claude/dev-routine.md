@@ -12,6 +12,12 @@ for input. Keep the run short: at most five rounds or 50 minutes (below), then
 end; the next hour's session carries on from `main`. A session that ran for a
 day reached 550,000 tokens, and every call re-read all of it (2026-10-05).
 
+**A run is up to five rounds, not one.** The first three runs of this file
+(2026-10-05, 05:39, 06:33 and 07:33 UTC) each pushed one version and ended
+after 8 to 18 minutes, about $0.50 a run, with some 50 items open: a run that
+stops after its first push leaves four rounds unused, and a week's work then
+takes a month. Pushing is not the end of a run; step 10 says what is.
+
 Read [CLAUDE.md](../CLAUDE.md); its rules apply in full, above all
 "作業ルール", "自動実行モード", "Linux 上で作業する場合", "確認事項" and
 "設計の約束事". Reply in Japanese; code, comments and commits in English.
@@ -82,8 +88,12 @@ Match the surrounding code (comment density, names, the one-line layout).
    (`git rebase origin/main`, resolve, fix the version, the CHANGELOG heading
    and the subject) and run it again. When it says the checks changed files
    (a `Cargo.lock` left out), `git commit --amend` them in and run it again.
-10. One line: `vX.Y.Z を push（SHA）: what was done`. No summary between rounds,
-    and do not end the turn between rounds: go straight back to 1.
+10. One line: `vX.Y.Z を push（SHA）: what was done`. Then run `date -u` and
+    write one more line: `round N/5, M min since Start: next round` -- or, only
+    when "When to end" below says so, `…: ending (why)`. No summary between
+    rounds, and do not end the turn between rounds: in the same turn, go
+    straight back to 1. A reply that reports a push and stops there is the
+    mistake this file exists to prevent.
 
 ## When to end
 
