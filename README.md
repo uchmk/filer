@@ -883,7 +883,8 @@ more than one thing at the top, keep the wrapper so nothing scatters. A selectio
 are not archives extracts the ones that are and says how many it skipped.
 
 `E` asks what to call the archive, prefilled with `<name>.zip`. **The extension you type decides
-the format** — change it to `.tar.gz` and that is what you get. Names inside the archive are
+the format** — change it to `.tar.gz` and that is what you get. `<Tab>` in the field turns the
+extension into the next format (`.zip` → `.tar.gz` → `.7z`), leaving the name before it alone (v0.78.40). Names inside the archive are
 relative to the directory you are in, so a folder keeps its shape. An archive that already exists
 raises the same overwrite / rename prompt a paste does.
 

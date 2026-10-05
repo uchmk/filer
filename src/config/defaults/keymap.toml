@@ -862,7 +862,7 @@ desc = "Cancel"
 [[input.keymap]]
 on = "<Tab>"
 run = "complete"
-desc = "Complete the path"
+desc = "Complete the path (E: next archive format)"
 
 [[confirm.keymap]]
 on = "<Enter>"

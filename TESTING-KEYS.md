@@ -233,7 +233,7 @@ The one-line prompt — `cd`, rename, filter, search.
 
 - [x] `<Enter>` — Submit · `close --submit`
 - [x] `<Esc>` — Cancel · `close`
-- [x] `<Tab>` — Complete the path · `complete`
+- [ ] `<Tab>` — Complete the path (E: next archive format) · `complete`
 
 ## `[confirm]`
 

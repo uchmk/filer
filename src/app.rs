@@ -4977,7 +4977,17 @@ impl App {
     }
 
     fn complete_input(&mut self) {
-        let Overlay::Input(ov) = &self.overlay else { return };
+        let Overlay::Input(ov) = &mut self.overlay else { return };
+        // `E`'s field is a new name, so there is nothing to complete: `<Tab>`
+        // turns the extension into the next format, the stem untouched (Q79).
+        if matches!(ov.kind, InputKind::Compress) {
+            ov.text = next_archive_name(&ov.text);
+            let stem = util::stem_and_ext(&ov.text).0.chars().count();
+            let stem = if ov.text.ends_with(".tar.gz") { stem - 4 } else { stem };
+            ov.initial_selection = Some((0, stem));
+            ov.focused = false;
+            return;
+        }
         if !matches!(ov.kind, InputKind::Cd) {
             return;
         }
@@ -6206,6 +6216,24 @@ fn completion_hits(entries: &[Entry], prefix: &str) -> Vec<String> {
 
 /// What the input line reads once a name is chosen: the directory, ready for
 /// the next component to be typed or completed.
+/// `to-pack.zip` -> `to-pack.tar.gz` -> `to-pack.7z` -> `to-pack.zip`. A name
+/// with some other ending (or none) gets `.zip` added, and `.tar` -- which
+/// `E` can write, but is not worth a stop on the way round -- becomes `.zip`.
+fn next_archive_name(name: &str) -> String {
+    const ENDS: [&str; 3] = [".zip", ".tar.gz", ".7z"];
+    let lower = name.to_ascii_lowercase();
+    match ENDS.iter().position(|e| lower.ends_with(e)) {
+        Some(i) => format!("{}{}", &name[..name.len() - ENDS[i].len()], ENDS[(i + 1) % ENDS.len()]),
+        None => {
+            let stem = match lower.ends_with(".tar") {
+                true => &name[..name.len() - 4],
+                false => name,
+            };
+            format!("{stem}.zip")
+        }
+    }
+}
+
 fn completed_text(dir: &Path, name: &str) -> String {
     format!("{}{}", dir.join(name).display(), std::path::MAIN_SEPARATOR)
 }
@@ -9503,6 +9531,17 @@ mod said_out_loud {
         });
         assert!(a.toasts.iter().any(|t| t.text == "Trashed a.txt — u to undo"), "{:?}",
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// Q79: `<Tab>` in `E`'s field walks the three formats and leaves the stem.
+    #[test]
+    fn tab_turns_an_archive_name_into_the_next_format() {
+        assert_eq!(next_archive_name("to-pack.zip"), "to-pack.tar.gz");
+        assert_eq!(next_archive_name("to-pack.tar.gz"), "to-pack.7z");
+        assert_eq!(next_archive_name("to-pack.7z"), "to-pack.zip");
+        assert_eq!(next_archive_name("A.b.ZIP"), "A.b.tar.gz");
+        assert_eq!(next_archive_name("x.tar"), "x.zip");
+        assert_eq!(next_archive_name("x"), "x.zip");
     }
 
     /// #241: a copy stopped from the tasks list says so; one that ran out
