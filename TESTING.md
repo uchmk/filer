@@ -303,6 +303,7 @@ job's progress, its speed, and cancelling it from `w` all need a copy big enough
 | 6.13 | `<C-w>` with only one tab open | A second tab is made on the same directory. With several already open, the next one is borrowed instead |
 | 6.14 | `<C-S-w>` | Back to one pane, and the parent column returns |
 | 6.15 | `<A-c>` a large directory, then watch the status bar | It is a job like any other copy: progress, speed, and cancellable from `w` |
+| 6.16 | Start a copy of a large directory (`<A-c>`), then stop it from the tasks list (`w`) before it ends (v0.78.32) | A toast says `Copy stopped — what was already done stays`; the task reads `cancelled`, and what was copied so far is still in the destination |
 
 ## 7. The config paths in the help panel (v0.25.0)
 
@@ -673,6 +674,7 @@ row needs which. 21.6 says something other than what it says here, which is writ
 | 21.21 | Inside the archive, the cursor on a `.txt` member, then a `.png` one, then a folder; then `<Esc>` (v0.78.0) | The text and the picture are previewed as if they were files (`<A-G>` reaches the text's end: `preview top: N of N`); the folder shows a card with `Holds  N items`. A member over 4 MB shows a card with its size. After `<Esc>`, `%TEMP%\filer-archive-<pid>\preview` holds nothing of this view |
 | 21.22 | `e` on an archive whose top level is one folder (`inner\`), and on one that is not (v0.78.1) | When it finishes the cursor is on what it made -- `inner` in the first case, `<archive name>\` in the second (`hovered:`) -- as `E` puts it on the archive it made (21.4); the toast says `Unpacked into …` |
 | 21.22b | Select a file, `E`, then `<Tab>` three times, typing a letter into the stem between presses (v0.78.40, Q79) | The name goes `.zip` → `.tar.gz` → `.7z` → `.zip`, the stem (and the letter typed into it) untouched, and the stem part is selected after each press. `<Enter>` on the `.tar.gz` form makes a `.tar.gz` |
+| 21.22c | Select an archive (`to-pack.zip`), `E`; then clear the field, type `to-pack.zip` and `<Enter>` (v0.78.41, #265) | The field opens with `to-pack-packed.zip`, not the archive's own name. Typing the archive's own name gives a red `Can't pack to-pack.zip into itself — give the archive another name`, no job starts, and `to-pack.zip` is unchanged (same size, same hash) |
 | 21.23 | Give `to-pack\` and a folder inside it an old date (`(Get-Item …).LastWriteTime = '2021-06-15 12:34:56'`), `E` as `.zip`, `.tar.gz` and `.7z`, then `e` each (v0.78.10) | The unpacked folders read that date too (`Get-Item … | % LastWriteTime`), not the moment of the unpack -- as the files have since 21.14. Explorer's own zip unpack does not keep folder dates; that is Explorer |
 | 21.24 | Inside the archive, `<Space>` on two members, then `<Esc>` (v0.78.16) | After `<Esc>` the state file reads `selected: 0` (the archive itself, if it was selected outside, stays selected). Before, `selected: 2` survived and a `d` then said `Trashed 2 item(s) — u to undo` over paths that were never there (#251). Do not press `d` to check: with nothing selected it trashes the archive under the cursor, as it should |
 
@@ -704,7 +706,7 @@ that is worth writing in the report. It is not a tick: each row is about the edi
 | 23.3 | Unplug the network mid-listing, or point at a dead host | **The window keeps responding.** An error toast, and the tab goes back where it was |
 | 23.4 | Tab-complete a path on the share | The prompt stays responsive; a `…` shows while it waits |
 | 23.5 | `g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) | **One** error toast, naming the path as typed (`C:\Temp\a|b\c\d`, not its parent `…\c`: v0.75.19). Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`) |
-| 23.6 | `filer <a folder>\tpyo`, or `g<Space>` with a name that is not there (v0.57.4) | The folder above opens, as before, and a red toast says `No such file or folder: tpyo — showing <the folder>`. A name that *is* a file opens the folder with the file under the cursor and says nothing |
+| 23.6 | `filer <a folder>\tpyo`, or `g<Space>` with a name that is not there (v0.57.4) | The folder above opens, as before, and a red toast says `No such file or folder: <the folder>\tpyo — showing <the folder>` (the whole missing path, the home folder as `~`, v0.78.31). A name that *is* a file opens the folder with the file under the cursor and says nothing |
 
 ## 24. Awkward names
 

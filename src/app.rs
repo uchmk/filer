@@ -3694,7 +3694,13 @@ impl App {
             true => "archive".to_owned(),
             false => stem,
         };
-        self.open_input(InputKind::Compress, "Compress to", format!("{stem}.zip"));
+        // Packing `to-pack.zip` offered `to-pack.zip`, and two `<Enter>`s
+        // replaced the archive with one holding itself (#265).
+        let mut name = format!("{stem}.zip");
+        if paths.iter().any(|p| util::file_name(p).eq_ignore_ascii_case(&name)) {
+            name = format!("{stem}-packed.zip");
+        }
+        self.open_input(InputKind::Compress, "Compress to", name);
     }
 
     fn do_compress(&mut self, name: &str) {
@@ -3720,6 +3726,12 @@ impl App {
         }
         let paths = self.tabs[self.active].targets();
         if paths.is_empty() {
+            return;
+        }
+        // The archive is written over `dest`, so a source with that name is
+        // gone before it is read. Nothing to confirm: it can only be a mistake.
+        if paths.iter().any(|p| same_place(p, &dest)) {
+            self.error(format!("Can't pack {} into itself — give the archive another name", util::file_name(&dest)));
             return;
         }
         self.submit_op_to(OpKind::Compress(format), paths, cwd, Some(dest), false);
@@ -6216,6 +6228,16 @@ fn completion_hits(entries: &[Entry], prefix: &str) -> Vec<String> {
 
 /// What the input line reads once a name is chosen: the directory, ready for
 /// the next component to be typed or completed.
+/// Whether two paths name the same file by their spelling: normalized, and
+/// without regard to case on Windows (as the file system sees it).
+fn same_place(a: &Path, b: &Path) -> bool {
+    let (a, b) = (util::normalize(a), util::normalize(b));
+    match cfg!(windows) {
+        true => a.to_string_lossy().to_lowercase() == b.to_string_lossy().to_lowercase(),
+        false => a == b,
+    }
+}
+
 /// `to-pack.zip` -> `to-pack.tar.gz` -> `to-pack.7z` -> `to-pack.zip`. A name
 /// with some other ending (or none) gets `.zip` added, and `.tar` -- which
 /// `E` can write, but is not worth a stop on the way round -- becomes `.zip`.
@@ -9530,6 +9552,23 @@ mod said_out_loud {
             trashed: vec![dir.join("a.txt")],
         });
         assert!(a.toasts.iter().any(|t| t.text == "Trashed a.txt — u to undo"), "{:?}",
+            a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    /// #265: packing `to-pack.zip` offers another name, and typing its own
+    /// name back is refused before any job is queued.
+    #[test]
+    fn an_archive_is_not_packed_into_itself() {
+        let dir = crate::util::test_dir("pack-self");
+        std::fs::write(dir.join("to-pack.zip"), "x").unwrap();
+        let mut a = app_in(&dir);
+        a.apply_listing(&dir, Arc::new(vec![Entry::from_path(dir.join("to-pack.zip")).unwrap()]));
+        a.ask_compress();
+        let Overlay::Input(ov) = &a.overlay else { panic!("no prompt") };
+        assert_eq!(ov.text, "to-pack-packed.zip");
+        a.do_compress("to-pack.zip");
+        assert!(a.tasks.is_empty(), "no job for packing a file over itself");
+        assert!(a.toasts.iter().any(|t| t.text.starts_with("Can't pack to-pack.zip into itself")), "{:?}",
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 

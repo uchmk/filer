@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 508 件（TESTING.md の全 679 件のうち、`cargo test` が見ている 171 件は外してある）。
+押すものは 510 件（TESTING.md の全 681 件のうち、`cargo test` が見ている 171 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -162,6 +162,7 @@ cd $HOME\Desktop\filer-fixtures
 自動テスト済みなので下には出していない: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10, 6.11, 6.12, 6.13, 6.14
 
 - [x] **6.15** 大きなディレクトリを `<A-c>` して、ステータスバーを見る → 他のコピーと同じジョブ扱い。進捗と速度が出て、`w` から中止できる — *`<A-c>` a large directory, then watch the status bar → It is a job like any other copy: progress, speed, and cancellable from `w`*
+- [ ] **6.16** 大きいフォルダをコピーし（`<A-c>`）、終わる前にタスク一覧（`w`）から止める（v0.78.32）→ `Copy stopped — what was already done stays` とトーストが出て、タスクは `cancelled` になり、そこまでにコピーしたものは行き先に残っている — *Start a copy of a large directory (`<A-c>`), then stop it from the tasks list (`w`) before it ends (v0.78.32) → A toast says `Copy stopped — what was already done stays`; the task reads `cancelled`, and what was copied so far is still in the destination*
 
 ## 7. ヘルプパネルの設定ファイルパス
 
@@ -395,6 +396,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **21.21** 書庫の中で `.txt` のメンバー、次に `.png`、次にフォルダにカーソルを置き、最後に `<Esc>`（v0.78.0）→ テキストと画像はファイルと同じくプレビューされる（`<A-G>` でテキストの末尾に届き `preview top: N of N`）。フォルダは `Holds  N items` のカード。4 MB を超えるメンバーは大きさのカード。`<Esc>` のあと `%TEMP%\\filer-archive-<pid>\\preview` にこのビューの分は残らない — *Inside the archive, the cursor on a `.txt` member, then a `.png` one, then a folder; then `<Esc>` (v0.78.0) → The text and the picture are previewed as if they were files (`<A-G>` reaches the text's end: `preview top: N of N`); the folder shows a card with `Holds  N items`. A member over 4 MB shows a card with its size. After `<Esc>`, `%TEMP%\filer-archive-<pid>\preview` holds nothing of this view*
 - [x] **21.22** 一番上が 1 つのフォルダ（`inner\\`）の書庫と、そうでない書庫で `e`（v0.78.1）→ 終わるとカーソルができたものに乗る（1 つ目は `inner`、2 つ目は `<書庫の名前>\\`。`hovered:`）。`E` が作った書庫に乗るのと同じ（21.4）。トーストは `Unpacked into …` — *`e` on an archive whose top level is one folder (`inner\`), and on one that is not (v0.78.1) → When it finishes the cursor is on what it made -- `inner` in the first case, `<archive name>\` in the second (`hovered:`) -- as `E` puts it on the archive it made (21.4); the toast says `Unpacked into …`*
 - [ ] **21.22b** ファイルを選んで `E`、`<Tab>` を 3 回。途中で語幹に 1 文字打つ（v0.78.40、Q79）→ 名前が `.zip` → `.tar.gz` → `.7z` → `.zip` と回り、語幹（と打った文字）はそのまま。押すたびに語幹の部分が選択される。`.tar.gz` の形で `<Enter>` すると `.tar.gz` ができる — *Select a file, `E`, then `<Tab>` three times, typing a letter into the stem between presses (v0.78.40, Q79) → The name goes `.zip` → `.tar.gz` → `.7z` → `.zip`, the stem (and the letter typed into it) untouched, and the stem part is selected after each press. `<Enter>` on the `.tar.gz` form makes a `.tar.gz`*
+- [ ] **21.22c** 書庫（`to-pack.zip`）を選んで `E`。欄を空にして `to-pack.zip` と打ち `<Enter>`（v0.78.41、#265）→ 欄は書庫自身の名前でなく `to-pack-packed.zip` で開く。書庫自身の名前を打つと赤い `Can't pack to-pack.zip into itself — give the archive another name` が出て、仕事は始まらず、`to-pack.zip` は変わらない（大きさもハッシュも同じ） — *Select an archive (`to-pack.zip`), `E`; then clear the field, type `to-pack.zip` and `<Enter>` (v0.78.41, #265) → The field opens with `to-pack-packed.zip`, not the archive's own name. Typing the archive's own name gives a red `Can't pack to-pack.zip into itself — give the archive another name`, no job starts, and `to-pack.zip` is unchanged (same size, same hash)*
 - [x] **21.23** `to-pack\` とその中のフォルダに古い日付を付け（`(Get-Item …).LastWriteTime = '2021-06-15 12:34:56'`）、`.zip`・`.tar.gz`・`.7z` で `E`、それぞれを `e`（v0.78.10）→ 展開したフォルダもその日付になる（`Get-Item … | % LastWriteTime`）。展開した時刻にならない（ファイルは 21.14 から同じ）。エクスプローラーの zip の展開はフォルダの日付を残さないが、それはエクスプローラーの話 — *Give `to-pack\` and a folder inside it an old date (`(Get-Item …).LastWriteTime = '2021-06-15 12:34:56'`), `E` as `.zip`, `.tar.gz` and `.7z`, then `e` each (v0.78.10) → The unpacked folders read that date too (`Get-Item … → % LastWriteTime`), not the moment of the unpack -- as the files have since 21.14. Explorer's own zip unpack does not keep folder dates; that is Explorer*
 - [x] **21.24** 書庫の中で 2 つのメンバーに `<Space>`、`<Esc>`（v0.78.16）→ `<Esc>` の後の状態ファイルは `selected: 0`（外で書庫そのものを選んでいたら、それは残る）。以前は `selected: 2` が残り、続く `d` が無いパスに `Trashed 2 item(s) — u to undo` と言った（#251）。確かめるのに `d` は押さない。選択が無ければカーソルの下の書庫を捨てる（それが正しい動き） — *Inside the archive, `<Space>` on two members, then `<Esc>` (v0.78.16) → After `<Esc>` the state file reads `selected: 0` (the archive itself, if it was selected outside, stays selected). Before, `selected: 2` survived and a `d` then said `Trashed 2 item(s) — u to undo` over paths that were never there (#251). Do not press `d` to check: with nothing selected it trashes the archive under the cursor, as it should*
 
