@@ -1291,6 +1291,9 @@ pub struct App {
     pub last_error: Option<String>,
     /// The report link `<F12>` last opened or copied, for the state file.
     pub last_report: Option<String>,
+    /// The newest line [`App::launch`] ran, after the PID of the process it
+    /// started (`-` when there is none to give), for the state file.
+    pub last_launch: Option<String>,
     /// Openers still young enough to fail on us; drained in
     /// [`App::drain_channels`].
     launches: Vec<exec::Launch>,
@@ -1447,6 +1450,7 @@ impl App {
             recent_keys: std::collections::VecDeque::new(),
             last_error: None,
             last_report: None,
+            last_launch: None,
             launches: Vec::new(),
             bookmarks: Vec::new(),
             history: Vec::new(),
@@ -4303,6 +4307,7 @@ impl App {
         match exec::shell(line, cwd, block, orphan) {
             Ok(l) => {
                 self.toast(format!("$ {line}"));
+                self.last_launch = Some(format!("{} {line}", l.pid.map_or("-".into(), |p| p.to_string())));
                 self.launches.push(l);
                 crate::runinfo::remember_launch(line);
             }

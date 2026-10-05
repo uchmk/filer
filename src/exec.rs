@@ -256,8 +256,8 @@ pub fn shell(cmdline: &str, cwd: &Path, block: bool, orphan: bool) -> std::io::R
     // nothing wired to it (Q12). Spawned the way `start` does it instead.
     #[cfg(windows)]
     if block {
-        new_console(cmdline, cwd)?;
-        return Ok(Launch::none());
+        let pid = new_console(cmdline, cwd)?;
+        return Ok(Launch { pid: Some(pid), ..Launch::none() });
     }
     let mut cmd = shell_command(cmdline);
     cmd.current_dir(cwd);
@@ -283,6 +283,10 @@ pub fn shell(cmdline: &str, cwd: &Path, block: bool, orphan: bool) -> std::io::R
 /// nothing reported an error. `rx` carries that news across when it arrives.
 pub struct Launch {
     pub rx: crossbeam_channel::Receiver<String>,
+    /// The process started: the shell the line runs in (`cmd`, `sh`), or the
+    /// terminal holding it. The program itself is its child, so a check can
+    /// stop what this launch started and nothing of the same name (#162).
+    pub pid: Option<u32>,
 }
 
 impl Launch {
@@ -290,7 +294,7 @@ impl Launch {
     /// went, because it has a console of its own.
     fn none() -> Self {
         let (_tx, rx) = crossbeam_channel::bounded(0);
-        Self { rx }
+        Self { rx, pid: None }
     }
 
     /// Watch `child` for long enough to catch a shell that falls over at once.
@@ -304,6 +308,7 @@ impl Launch {
     /// fail harmlessly instead of blocking on a buffer nobody drains.
     fn watch(mut child: Child, cmdline: &str) -> Self {
         let (tx, rx) = crossbeam_channel::bounded(1);
+        let pid = Some(child.id());
         let cmdline = cmdline.to_owned();
         std::thread::spawn(move || {
             let deadline = Instant::now() + Duration::from_secs(3);
@@ -333,7 +338,7 @@ impl Launch {
                 std::thread::sleep(Duration::from_millis(40));
             }
         });
-        Self { rx }
+        Self { rx, pid }
     }
 }
 
@@ -415,7 +420,7 @@ fn console_command_line(system_root: &str, cmdline: &str) -> (String, String) {
 /// what `start` relies on. Debug builds have a console, which is why
 /// `cargo run` never showed it.
 #[cfg(windows)]
-fn new_console(cmdline: &str, cwd: &Path) -> std::io::Result<()> {
+fn new_console(cmdline: &str, cwd: &Path) -> std::io::Result<u32> {
     use std::os::windows::ffi::OsStrExt;
     use windows::Win32::Foundation::CloseHandle;
     use windows::Win32::System::Threading::{CreateProcessW, CREATE_NEW_CONSOLE, CREATE_UNICODE_ENVIRONMENT, PROCESS_INFORMATION, STARTUPINFOW};
@@ -450,7 +455,7 @@ fn new_console(cmdline: &str, cwd: &Path) -> std::io::Result<()> {
         let _ = CloseHandle(pi.hThread);
         let _ = CloseHandle(pi.hProcess);
     }
-    Ok(())
+    Ok(pi.dwProcessId)
 }
 
 #[cfg(windows)]
@@ -612,7 +617,7 @@ fn in_terminal(cmdline: &str, cwd: &Path) -> std::io::Result<Launch> {
             cmd.stderr(Stdio::piped());
         }
         match cmd.spawn() {
-            Ok(child) => return Ok(if osa { Launch::watch(child, cmdline) } else { Launch::none() }),
+            Ok(child) => return Ok(if osa { Launch::watch(child, cmdline) } else { Launch { pid: Some(child.id()), ..Launch::none() } }),
             Err(e) if e.kind() == ErrorKind::NotFound => continue,
             Err(e) => return Err(e),
         }

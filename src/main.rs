@@ -1263,6 +1263,12 @@ fn state_report(app: &App) -> String {
     if let Some(u) = &app.last_report {
         lines.push(format!("report: {u}"));
     }
+    // What the last opener or shell command started, by PID: a check could
+    // only `Stop-Process` by name, which closed the owner's own documents
+    // too (#162, proposal 3). The PID is the shell's; the program is its child.
+    if let Some(l) = &app.last_launch {
+        lines.push(format!("launched: {l}"));
+    }
     // Lines scrolled back into the pane's history, of how many it holds:
     // half of 19.4 could only be read off pictures (#209).
     if let Some(t) = &app.term {
@@ -2308,6 +2314,21 @@ mod bug_report_f12 {
         let url = report_url(&s);
         s.app.last_report = Some(url.clone());
         assert!(says_line(&state_report(&s.app), &format!("report: {url}")));
+    }
+
+    /// #162, proposal 3: what a shell command started is in the state file,
+    /// by PID and then the line, so a check stops that process and nothing
+    /// else of the same name.
+    #[test]
+    fn the_state_file_names_what_was_launched_by_pid() {
+        let mut s = screen("state-launched");
+        assert!(!state_report(&s.app).contains("launched:"), "nothing launched yet");
+        s.app.act(crate::config::cmd::Act::Shell { run: "exit 0".into(), block: false, confirm: false, orphan: false });
+        let r = state_report(&s.app);
+        let line = r.lines().find_map(|l| l.strip_prefix("launched: ")).unwrap_or_else(|| panic!("no launched line: {r}"));
+        let (pid, rest) = line.split_once(' ').unwrap_or_else(|| panic!("a PID, then the line: {line}"));
+        assert!(pid.parse::<u32>().is_ok_and(|p| p > 0), "the shell's PID: {line}");
+        assert_eq!(rest, "exit 0");
     }
 
     /// 26.12: a key the panel does not offer, typed as the window delivers

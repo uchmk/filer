@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 514 件（TESTING.md の全 685 件のうち、`cargo test` が見ている 171 件は外してある）。
+押すものは 515 件（TESTING.md の全 686 件のうち、`cargo test` が見ている 171 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -584,6 +584,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **32.16** Windows で release の `filer.exe`: `:` で `git log -5 --oneline`（v0.75.14、Q13）→ コンソールが 5 行と `続行するには何かキーを押してください . . .` のまま開いていて、キーで閉じる。`:` で `dir & pause` は 1 回だけ聞く。`;` は変わらない（コンソールも pause も無い） — *Windows, the release `filer.exe`: `:` then `git log -5 --oneline` (v0.75.14, Q13) → The console stays open on the five lines and `Press any key to continue . . .` (`続行するには何かキーを押してください . . .` on a Japanese Windows); a key closes it. `:` then `dir & pause` asks once, not twice. `;` is unchanged: no console and no pause*
 - [x] **32.17** `yazi.toml` に `[open] prepend_rules = [{ name = "*.txt", use = "<オープナー>" }]` だけを書き（自分の `rules` は無し）、`.txt` で `<Enter>`、次に `<S-Enter>`（v0.78.6、#250）→ `<Enter>` がそのオープナーを動かし（`$ …` のトースト）、`<S-Enter>` が組み込みより上の先頭に並べる。`append_rules` に書いたものは最後に並ぶ — *`[open] prepend_rules = [{ name = "*.txt", use = "<an opener>" }]` in `yazi.toml`, with no `rules` of your own; `<Enter>` on a `.txt`, then `<S-Enter>` (v0.78.6, #250) → `<Enter>` runs that opener (its `$ …` toast), and `<S-Enter>` lists it first, above the built-in ones. An `append_rules` entry is listed last*
 - [ ] **32.18** `O` でオープナーが 2 つ以上あるファイルに開き、`<C-n>` / `<C-j>`、`<C-p>` / `<C-k>`。`jj` も打つ（v0.78.39、Q80）→ `<C-n>` と `<C-j>` で 1 行下、`<C-p>` と `<C-k>` で 1 行上へ動く。`jj` は移動でなく絞り込みの文字になる（`Nothing matches` か短くなった一覧）。ヒントの行は `<Down>/<Up> or <C-n>/<C-p> choose`、`<Esc>` のあと一覧で `<F1>` を押すと、`keys in the picker` の節に 4 つのキーが並ぶ（picker の中の `<F1>` は絞り込みの文字。v0.78.67） — *`O` on a file with two or more openers, then `<C-n>` / `<C-j>`, `<C-p>` / `<C-k>`; type `jj` (v0.78.39, Q80) → The cursor row moves down with `<C-n>` and `<C-j>` and up with `<C-p>` and `<C-k>`, one row each; `jj` is typed into the filter (`Nothing matches` or a shorter list), not a move. The hint line reads `<Down>/<Up> or <C-n>/<C-p> choose`. After `<Esc>`, `<F1>` in the list shows a `keys in the picker` section with the four keys (`<F1>` inside the picker is the filter's, v0.78.68)*
+- [ ] **32.19** エディタのオープナー（サクラ、メモ帳）に回る `.txt` で `<Enter>` し、`<State:x>`（v0.78.81、#162）→ `x.txt` に `launched: <PID> <コマンドライン>` がある。`Get-CimInstance Win32_Process -Filter "ProcessId=<PID> or ParentProcessId=<PID>"` に、その行を走らせた `cmd` と、その下のエディタが出る。エディタの PID に `Stop-Process -Id` すると、その窓だけが閉じ、前から開いていた同じプログラムの窓は残る — *`<Enter>` on a `.txt` routed to an editor opener (サクラ, Notepad), then `<State:x>` (v0.78.81, #162) → `x.txt` has `launched: <PID> <the command line>`. `Get-CimInstance Win32_Process -Filter "ProcessId=<PID> or ParentProcessId=<PID>"` lists the `cmd` that ran the line and the editor under it, and `Stop-Process -Id` on the editor's PID closes that window alone, not another one of the same program already open*
 
 ## 33. 設定の警告と、その色
 
