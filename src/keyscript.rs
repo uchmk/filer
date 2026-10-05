@@ -48,6 +48,10 @@ pub enum Step {
     /// and a prompt each take it for something else, so a script ending in
     /// `q` there never ended (#236).
     Quit,
+    /// `<PaneText:name>`: what the terminal pane shows, as text, written to
+    /// `name.pane.txt` beside the `FILER_KEYS_DONE` file. A full-screen
+    /// program's footer or a prompt was read off a picture before (#229).
+    PaneText(String),
     /// `<Paste>` (and `<C-v>`): the clipboard as it is when the key goes in,
     /// as the paste event the platform makes of Ctrl+V. A real keyboard never
     /// sends the press, so a text field hears nothing from one (#260).
@@ -73,6 +77,7 @@ pub enum Press {
     Shot(String),
     State(String),
     Quit,
+    PaneText(String),
     Paste,
     /// Pointer steps wait for the window's size, known only in the frame loop.
     Click { right: bool, at: At },
@@ -85,6 +90,7 @@ pub fn press(step: &Step) -> Option<Press> {
         Step::Key(k) if k.code == Code::Char('v') && k.ctrl && !k.alt && !k.sup => Some(Press::Paste),
         Step::Key(k) => events(k).map(Press::Events),
         Step::Paste => Some(Press::Paste),
+        Step::PaneText(name) => Some(Press::PaneText(name.clone())),
         Step::Click { right, at } => Some(Press::Click { right: *right, at: *at }),
         Step::Wheel { lines, at } => Some(Press::Wheel { lines: *lines, at: *at }),
         Step::Wait(d) => Some(Press::Wait(*d)),
@@ -105,6 +111,7 @@ pub fn label(step: &Step) -> String {
         Step::State(name) => format!("<State:{name}>"),
         Step::Quit => "<Quit>".into(),
         Step::Paste => "<Paste>".into(),
+        Step::PaneText(name) => format!("<PaneText:{name}>"),
         Step::Click { right, at } => format!("<{}Click:{}>", if *right { "R" } else { "" }, at_text(*at)),
         Step::Wheel { lines, at } => format!("<Wheel:{lines}@{}>", at_text(*at)),
     }
@@ -245,7 +252,11 @@ pub fn refused_report(why: &str) -> String {
 fn named(token: &str, what: &str) -> Result<String, String> {
     let name = token.strip_prefix(&format!("<{what}:")).and_then(|t| t.strip_suffix('>')).unwrap_or("");
     if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
-        let noun = if what == "Shot" { "shot" } else { "state" };
+        let noun = match what {
+            "Shot" => "shot",
+            "PaneText" => "pane text",
+            _ => "state",
+        };
         return Err(format!("`{token}` is not a {noun}; name it with letters, digits, - and _, as `<{what}:before>`"));
     }
     Ok(name.to_owned())
@@ -290,6 +301,7 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
             None if token.starts_with("<Shot:") => Step::Shot(named(token, "Shot")?),
             None if token.starts_with("<State:") => Step::State(named(token, "State")?),
             None if token == "<Paste>" => Step::Paste,
+            None if token.starts_with("<PaneText:") => Step::PaneText(named(token, "PaneText")?),
             None if pointer(token).is_some() => pointer(token).unwrap_or_else(|| unreachable!())?,
             None => Step::Key(Key::parse(token).ok_or_else(|| format!("`{token}` is not a key"))?),
         };
@@ -547,5 +559,15 @@ mod tests {
         for bad in ["<Up>*", "<Up>*0", "<Up>*1001", "<Up>*x"] {
             assert!(parse(bad).unwrap_err().contains("count from 1 to 1000"), "{bad}");
         }
+    }
+
+    /// #229: `<PaneText:name>` parses and keeps its name.
+    #[test]
+    fn pane_text_is_a_named_step() {
+        assert_eq!(parse("<PaneText:footer>").unwrap(), [Step::PaneText("footer".into())]);
+        assert_eq!(label(&Step::PaneText("footer".into())), "<PaneText:footer>");
+        assert_eq!(press(&Step::PaneText("a".into())), Some(Press::PaneText("a".into())));
+        assert!(parse("<PaneText:>").unwrap_err().contains("not a pane text"));
+        assert!(parse("<PaneText:../x>").is_err());
     }
 }

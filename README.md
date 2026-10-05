@@ -1451,6 +1451,10 @@ one run. The name is letters, digits, `-` and `_`.
 same folder (v0.73.74). That file is written when the script ends, so a script ending in `q` reports
 `overlay: none`; `--keys "<F12><State:panel><Esc>q"` reads the open box and still quits by itself.
 
+`<PaneText:name>` writes what the terminal pane shows, as text with the blanks at the end of each row
+cut, to `name.pane.txt` beside the `FILER_KEYS_DONE` file (v0.78.63), so a full-screen program's footer
+can be checked as words; with no pane it writes `(no pane)`.
+
 `<C-+>*45` presses a `<…>` key (or a click or wheel step) that many times, from 1 to 1000 (v0.78.59);
 a bare `*` is still the key `*`.
 

@@ -923,6 +923,25 @@ impl Terminal {
         f(&self.term.lock())
     }
 
+    /// The characters on screen, one line per row with the blanks at the end
+    /// cut, as the view shows them (scrolled back or not). What a check wants
+    /// to know about a full-screen program is what it wrote, and a picture
+    /// made that a matter of eyes (#229).
+    pub fn screen_text(&self) -> String {
+        use alacritty_terminal::term::cell::Flags;
+        let rows = self.with_grid(snapshot);
+        let lines: Vec<String> = rows
+            .iter()
+            .map(|row| {
+                let text: String = row.iter().filter(|c| !c.flags.contains(Flags::WIDE_CHAR_SPACER)).map(|c| c.c).collect();
+                text.trim_end().to_owned()
+            })
+            .collect();
+        let mut text = lines.join("\n");
+        text.push('\n');
+        text
+    }
+
     /// Whether the shell has put anything you could read on the screen yet --
     /// a banner or a prompt. ConPTY writes its own setup sequences the moment
     /// the pane opens, so "some bytes arrived" says nothing about whether the

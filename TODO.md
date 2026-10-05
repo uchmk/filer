@@ -1828,7 +1828,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   13 節のジャンクション、21 節の上書き、45 節のリンクの確認が文字で読めるようになる
 - [x] （v0.73.74。`FILER_KEYS_DONE` の横に `name.txt`。Xvfb で `j<F12><State:mid><Esc>q` → `mid.txt` は `overlay: confirm`、終わりは `quit: yes`）`--keys` の途中で状態を書く `<State:name>`（#230 の提案 3）。`<Shot:name>` の状態版で、`state_report()` を `name.txt` に書く。今は `q` で終わる
   スクリプトだと最後の状態しか残らず、途中を読むには `q` を抜いて外から止めるしかない（`Start-Process -Wait` が使えない）
-- [ ] `--keys` でペインの文字を書き出す `<PaneText:name>`（#229 の提案 1）。見えている格子を `name.txt` に。lazygit のフッタのような「ペインに何が出ているか」を
+- [x] （v0.78.63。`name.pane.txt`。仮想ディスプレイで本物のペインを読んだ）`--keys` でペインの文字を書き出す `<PaneText:name>`（#229 の提案 1）。見えている格子を `name.txt` に。lazygit のフッタのような「ペインに何が出ているか」を
   画像でなく文字で確かめられる。Linux の `xrun.sh` でも同じに使える
 - [ ] `scripts/keys.ps1`（#229 の提案 2）: filer を 1 回 `--keys` で起動し（`Start-Process -Wait`、run ごとに別の `FILER_KEYS_DONE` と `FILER_PTY_LOG`）、
   `keys: done` でなければ非 0 で返す。`xrun.sh` の Windows 版。各 run が毎回 `run.ps1` を書き直している
