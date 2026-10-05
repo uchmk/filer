@@ -1451,6 +1451,6 @@ Claude が判断に迷った点をここに書きます。各質問の「回答�
 - 投票:
   - cloud: 1 — 名前を返すのは `PATH` を引いて無かったときだけなので、終了コードはもう判定に要らない。2 は機械や `cmd` の版で 1 / 9009 が変わるたびに外れ、3 は `<S-Enter>` の `(not found)` と言い方が揃わない
   - win: 1 — x64（build 26200、日本語）で `cmd /S /C "nosuchprog-xyz"` は 1、`cmd /S /C "nosuchprog-xyz & exit"` は 9009 で終わった。素の `;nosuchprog` の行では 9009 の条件が一度も当たらず、決め手は `missing_program` の `PATH` の引き方（#283）
-  - arm: 1 — ARM64（build 28000、日本語）で `cmd /c nosuchprog-xyz`、`cmd /c "type nothing.txt"`、`cmd /c "findstr zzz a.txt"`（あるプログラムが何も見つけない）がどれも 1 で標準出力が空。選択肢 2 の条件では見分けられず、見分けたのは先頭の語が `PATH` にあるかだけ（#284）
+  - arm: 1 — ARM64（build 28000、日本語）で `cmd /c nosuchprog-xyz`、`cmd /c "type nothing.txt"`、`cmd /c "findstr zzz a.txt"`（あるプログラムが何も見つけない）がどれも 1 で標準出力が空。選択肢 2 の条件では見分けられず、見分けたのは先頭の語が `PATH` にあるかだけ（#284、v0.78.150 の #285 でも 1）
 - 多数決: 1（2026-10-06 に揃った）
 - 回答:
