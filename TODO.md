@@ -22,6 +22,12 @@
   コミットされ、CI の `--locked` で全ジョブが落ちていた（`main` が 3 版続けて赤。v0.78.46 のマージする側のコミットで lock を直した）。
   版を上げた**後**に `cargo build` してから `Cargo.lock` ごとコミットする（CLAUDE.md の手順 3）。`scripts/verify.sh` を `--locked` で回すようにすれば、
   push の前にこの取り違えを止められる（スクリプトの変更なので開発の側で）
+- [ ] （Sonnet の見張り、急ぎ: `main` の Windows の `test` が赤）v0.78.54（`6df88ea`）の `keyscript::tests::a_panic_is_reported_for_the_script_that_was_running`
+  が Windows で落ちる。`at: src/keyscript.rs:` を決め打ちしているが、Windows の `Location::file()` は `src\keyscript.rs`
+  （CI の log: `at: src\keyscript.rs:514`）。区切りに依らない形で比べる（`at: src` と `keyscript.rs:` を別々に見るなど）。
+  `scripts/verify.sh` は Linux でしかテストを回さないので、`file!()` やパスを assert するテストは Windows の CI で初めて落ちる（CLAUDE.md の「Linux 上で作業する場合」）
+- [ ] （Sonnet の見張り）v0.78.52（`efb6fac`）は実機の所見（#260 の所見 2、#250 の所見 9: `--keys` の `<C-v>` が貼らない）を直したが、再テストに積んでいない。
+  TESTING.md に該当する行は無いので、`windows-role.md` の両レーンの再テストに「`--keys` の `<C-v>` がプロンプトに貼る」を 1 文足す
 
 ## 急ぎ（データが消える）
 
@@ -1508,6 +1514,16 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.74.6）`--version`（`main.rs` の 208 行付近）が `bugreport::version_line()` を使わず自分で組んでいる（所見 2）。呼ぶ形にすれば 26.3 が作りで成り立ち、テストで押さえられる
 - [x] （v0.74.6。テストのときの `set_clipboard` はスレッドごとの偽のクリップボードに書く。`get_clipboard` がそれを読む）既存のテスト `app::f12_shows_the_report_before_opening_it` の `answer_confirm('c')` が本物のクリップボードを書き換える（所見 3）。持ち主の Windows 機で
   `cargo test` を回すたびにクリップボードが上書きされる。テストのときは書かない口（`exec::set_clipboard` の差し替え）を作る
+
+## 実機のセッションの報告（v0.78.57 で受けた分: #268 x64 の v0.78.39〜41 の再テスト）
+
+- [x] #268（x64、v0.78.46）: 6.16、21.22b、21.22c と TESTING-KEYS.md の 5 キー（`[pick]` の `<C-n>` / `<C-j>` / `<C-p>` / `<C-k>`、`[input]` の `<Tab>`）に印。716 / 0
+- [ ] **TESTING.md 32.18 が落ちる**: picker の中で `<F1>` を押しても何も起きず（`overlay: pick` のまま）、一覧から開くヘルプにも `[pick]` の節が無い
+  （`help_lines` は `[mgr]` と `[term]` しか足さない）。オーバーレイの中の `<F1>` でその層を先に出すか、`[pick]` / `[input]` / `[confirm]` の節を
+  ヘルプに足す（#268 の提案 1）。直したら 32.18 を再テストに積む
+- [ ] `--keys` に、走っている仕事を待たない待ち（`<Sleep:N>` か、`<Wait:>` / `<State:>` の前に置ける `<Now>`）を足す（#268 の提案 2）。今は仕事を始めて
+  途中を読むことが書けず、止めるのは `<A-c><Now>w<Now>x` だけ
+- [ ] 状態ファイルに `tasks:`（`Copy 1 item(s) cancelled 1/3000` の形）を出す（#268 の提案 3）。`jobs: 0 running` では終わったものと止めたものが区別できない
 
 ## 実機のセッションの報告（v0.78.46 で受けた分: #267 x64 の 29.13）
 
