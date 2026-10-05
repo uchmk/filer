@@ -18,6 +18,8 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
+- [ ] （Sonnet の見張り）v0.78.120（`e333a41`）は壊れたリンクのプレビューの誤りを `Resolves` と揃え、13.12 の `[x]` を外して再テストに積んだが、TESTING.md 13.12 の行は `Resolves` のことしか書いておらず、
+  プレビュー欄が `not found, os error 2` と言うこと（`access denied, os error 5` ではないこと）が行に無い。再テストの説明（`windows-role.md`）にだけある。13.12 に 1 文足すか 13.12b を足し、`scripts/testcheck-ja.toml` の訳も合わせる
 - [x] （v0.78.114。TESTING.md に 32.22 を足し、訳・再テストに積んだ）（Sonnet の見張り）v0.78.111（`854edd1`）が Windows で `;` を演算子に数えなくした（Q85）が、TESTING.md に `;` の行を確かめる行が無い。
   32.20 は `;echo hello >out.txt`（`>` で止まる）と `;echo %*` だけなので、両レーンの再テストに積まれた 32.20 を押しても、変わった動きは通らない。
   32.20 に「`;echo a;b >semi.txt` は Windows では `a;b` だけ（`>` があるので足さない）、`;echo a;b` のトーストはパスが末尾に付き注記が無い」を足すか 32.22 を足し、
@@ -115,10 +117,19 @@
 ## 実機のセッションの報告（v0.78.117 で受けた分: #276、ARM64 の再テスト）
 
 - [ ] **既定の `<Enter>`（`open`）も、入っていないプログラムのオープナーを飛ばして最初に入っているものを使う**（#276 の提案 1）。`<S-Enter>` を直しても、
-  `[opener]` の 1 行目が無いプログラムだと `<Enter>` は毎回 ``Open failed: `no-such-tool` was not found`` になる（ARM64 で確かめた）（要確認: Q87）
+  `[opener]` の 1 行目が無いプログラムだと `<Enter>` は毎回 ``Open failed: `no-such-tool` was not found`` になる（ARM64 で確かめた）（Q87、多数決で 1）
 - [ ] `<State:>` の `launched:` を、起動に失敗したオープナーでは別の行（`launch failed: no-such-tool …` など）にする（#276 の所見 1、提案 2）。今は
   `launched: 29200 no-such-tool "…\a.txt"` と PID 付きで書き、2 秒後のトーストで初めて `Open failed` が分かる。実機のレーンは `launched:` を起動の証拠に読んでいる（32.20 など）。
   直したら 32.21 を両レーンの再テストに積む
+
+## 実機のセッションの報告（v0.78.122 で受けた分: #277、ARM64 の再テスト）
+
+- [ ] **「見つからない」はプログラムの名前を filer の言葉で言う**（#277 の所見 1、提案 1）。v0.78.116 から日本語の Windows では `` `<prog>` was not found `` が一度も出ない:
+  `exec.rs` の `Launch::watch` は標準エラーに何かあればそれを使い、`missing_program` は標準エラーが空のときだけ。`cmd` は見つからないプログラムについて必ず
+  `'x' は、内部コマンドまたは外部コマンド、…認識されていません。` を書き、v0.78.116 で OEM コードページで読めるようになったのでそれが勝つ（英語の Windows でも `'x' is not recognized …` で同じはず）。
+  32.23 の後半（`;nosuchprog-xyz` → `` `nosuchprog-xyz` was not found ``）と、入っていないオープナーの `<Enter>` が合わない（ARM64、v0.78.117）。
+  終了コード 9009（`sh` なら 127）で `missing_program` が名前を返したときは、標準エラーより先に `` `x` was not found `` を使う（`type` などの内部コマンドは `BUILTIN` で除かれるので #274 は戻らない）。
+  `<S-Enter>` の `(not found)` と言い方が揃う。直したら 32.23 を両レーンの再テストに積む
 
 ## 急ぎ（データが消える）
 
