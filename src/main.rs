@@ -337,6 +337,10 @@ fn main() -> eframe::Result<()> {
                 started: std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .map_or(0, |d| d.as_secs()),
+                backend_setting: match std::env::var("WGPU_BACKEND").ok().filter(|v| !v.is_empty()) {
+                    Some(v) => format!("WGPU_BACKEND={v}"),
+                    None => format!("[ui] backend = \"{}\"", cfg.ui.backend),
+                },
                 ..Default::default()
             };
             if let Some(rs) = cc.wgpu_render_state.as_ref() {

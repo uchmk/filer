@@ -84,6 +84,12 @@ pub struct RunInfo {
     /// pane nobody asked for (#254).
     #[serde(default)]
     pub pane_failed: String,
+    /// What asked for the backend in that run: `[ui] backend = "gl"`, or
+    /// `WGPU_BACKEND=vulkan` when the variable won. `filer env` could not tell
+    /// whether the adapter it lists came from the setting as it is now or as it
+    /// was before an edit (#245). Defaulted, so a record from before it loads.
+    #[serde(default)]
+    pub backend_setting: String,
 }
 
 impl RunInfo {
@@ -297,6 +303,7 @@ mod tests {
             started: 1_800_000_000,
             pane_shell: "powershell (Windows PowerShell 5.1)".into(),
             pane_failed: "`nosuch` was not found on PATH".into(),
+            backend_setting: "[ui] backend = \"gl\"".into(),
         };
         save_to(&p, &info);
         assert_eq!(load_from(&p).as_ref(), Some(&info));

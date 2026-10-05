@@ -1860,7 +1860,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] #246: v0.75.5 で 47.7 を押し、`"directx"` でも `(Gl, Other)`、何もしない窓が 0.000 CPU 秒。ただし v0.75.6 で行に足した「窓のトーストが `drawing with Gl instead`」は
   その版には無かったので、main との衝突を解くときに印を落とし、トーストの半分だけを x64 の再テストに残した
 - [x] #245: v0.75.2 の 23.6 の直しは ARM64 で 8 回とも効いた（別々の 5 プロセスと、親を先に読ませた 3 回）。`filer <dir>\tpyo` の形も、ファイルの名前なら黙ってそこに着く半分も行のとおり
-- [ ] `last-run.toml` に、その起動で効いていた `[ui] backend` の値も残し、`filer env` の `Adapter` の行に添える（#245 の提案 1）。今は前の起動の `Adapter` が
+- [x] （v0.78.148。`Adapter` の行が `set by [ui] backend = "gl"` で終わる）`last-run.toml` に、その起動で効いていた `[ui] backend` の値も残し、`filer env` の `Adapter` の行に添える（#245 の提案 1）。今は前の起動の `Adapter` が
   設定を変える前のものか後のものか、`Started` と突き合わせないと分からない
 - [x] （v0.78.146。`core::fuzzy::closest`、入れ替え 1 回を 1 手とする編集距離で、長さの 1/3 まで）打った名前が無いとき、一覧のカーソルを一番近い名前に置く（#245 の提案 2。行の例の `tpyo` なら `typo`）。近いものが無ければ先頭の行
 - [ ] `filer env` の `Backend` の行で、`auto` がこの機械で何になるかも言う（#245 の提案 3）。GL を確かめるのに起動 1 回分の手間がかかるので、測ってから

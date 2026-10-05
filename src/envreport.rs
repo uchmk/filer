@@ -368,7 +368,8 @@ fn last_run() -> Vec<(String, String)> {
     let mut rows = vec![
         ("Adapter".into(), match info.adapter.is_empty() {
             true => "not recorded".into(),
-            false => format!("{}   ({}, {})", info.adapter, info.backend, info.device),
+            false if info.backend_setting.is_empty() => format!("{}   ({}, {})", info.adapter, info.backend, info.device),
+            false => format!("{}   ({}, {}; set by {})", info.adapter, info.backend, info.device, info.backend_setting),
         }),
         // Which start this record is: with the same version, one from days
         // ago read as the run just made (#244).
