@@ -1195,7 +1195,7 @@ $@ all · $0 first · $1 second · no placeholder → appended    (3 files, no c
 | `$@`, `%*`, `%s` | every selected path |
 | `$0`, `%1` | the first |
 | `$1`, `%2` | the second |
-| *(nothing)* | the paths are appended to the end |
+| *(nothing)* | the paths are appended to the end, unless the line has `&` `\|` `>` `<` or `;` (then nothing is added) |
 
 Paths are quoted for you, so a name with a space in it stays one argument.
 

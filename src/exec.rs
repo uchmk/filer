@@ -71,6 +71,18 @@ pub fn substitute(template: &str, paths: &[PathBuf]) -> String {
     substitute_with(template, paths, "")
 }
 
+/// [`substitute`] for a `:` / `;` line: with no placeholder and a shell
+/// operator in the line, nothing is appended, as the path would land in the
+/// last command or the redirect target (Q82).
+pub fn substitute_line(template: &str, paths: &[PathBuf]) -> String {
+    let has_placeholder = ["$@", "%*", "%s"].iter().any(|p| template.contains(p))
+        || template.as_bytes().windows(2).any(|w| matches!(w[0], b'$' | b'%') && w[1].is_ascii_digit());
+    if !has_placeholder && template.contains(['&', '|', '>', '<', ';']) {
+        return template.to_owned();
+    }
+    substitute(template, paths)
+}
+
 /// [`substitute`], with `suffix` added to every path inside its quotes.
 fn substitute_with(template: &str, paths: &[PathBuf], suffix: &str) -> String {
     substitute_render(template, paths, &|p| quote(p, suffix))
@@ -837,6 +849,16 @@ mod tests {
     ///
     /// `""` after `start` is how a window title is left empty, and without it
     /// `start` reads the program as the title and opens a bare console instead.
+    /// A line with an operator and no placeholder gets no path appended (Q82).
+    #[test]
+    fn operators_stop_the_append() {
+        let p = vec![PathBuf::from("a.txt")];
+        assert_eq!(substitute_line("echo hi > out.txt", &p), "echo hi > out.txt");
+        assert_eq!(substitute_line("dir | findstr x", &p), "dir | findstr x");
+        assert_eq!(substitute_line("echo > out.txt $@", &p), "echo > out.txt \"a.txt\"");
+        assert_eq!(substitute_line("explorer", &p), "explorer \"a.txt\"");
+    }
+
     /// The quotes used to be collapsed by a blanket `"" -> "` over the whole
     /// line, which was meant for a config that quotes the placeholder itself and
     /// caught this idiom as well: `start "" msedge %*` came out as
