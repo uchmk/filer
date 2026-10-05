@@ -75,12 +75,19 @@ pub fn substitute(template: &str, paths: &[PathBuf]) -> String {
 /// operator in the line, nothing is appended, as the path would land in the
 /// last command or the redirect target (Q82).
 pub fn substitute_line(template: &str, paths: &[PathBuf]) -> String {
-    let has_placeholder = ["$@", "%*", "%s"].iter().any(|p| template.contains(p))
-        || template.as_bytes().windows(2).any(|w| matches!(w[0], b'$' | b'%') && w[1].is_ascii_digit());
-    if !has_placeholder && template.contains(['&', '|', '>', '<', ';']) {
+    if line_skips_path(template) {
         return template.to_owned();
     }
     substitute(template, paths)
+}
+
+/// Whether [`substitute_line`] leaves the paths off `template` (Q82).
+pub fn line_skips_path(template: &str) -> bool {
+    let has_placeholder = ["$@", "%*", "%s"].iter().any(|p| template.contains(p))
+        || template.as_bytes().windows(2).any(|w| matches!(w[0], b'$' | b'%') && w[1].is_ascii_digit());
+    // `cmd` does not split commands at `;` (Q85), `sh -c` does.
+    let ops: &[char] = if cfg!(windows) { &['&', '|', '>', '<'] } else { &['&', '|', '>', '<', ';'] };
+    !has_placeholder && template.contains(ops)
 }
 
 /// [`substitute`], with `suffix` added to every path inside its quotes.
@@ -330,7 +337,10 @@ impl Launch {
                     Ok(Some(st)) => {
                         let why = match stderr_text(&mut child) {
                             Some(msg) => msg,
-                            None => match missing_program(&cmdline, &|p| crate::util::locate(p).is_some()) {
+                            // 9009 is `cmd`'s "not recognized", 127 is `sh`'s.
+                            None => match missing_program(&cmdline, &|p| crate::util::locate(p).is_some())
+                                .filter(|_| matches!(st.code(), Some(9009 | 127)))
+                            {
                                 Some(p) => format!("`{p}` was not found"),
                                 None => match st.code() {
                                     Some(c) => format!("exit code {c}"),
@@ -360,7 +370,9 @@ impl Launch {
 /// be told apart, and only off the UI thread, since it walks `PATH`. A
 /// shell's own command (`start`, `echo`) is never "missing".
 fn missing_program(cmdline: &str, found: &dyn Fn(&str) -> bool) -> Option<String> {
-    const BUILTIN: [&str; 6] = ["start", "call", "echo", "cd", "set", "exec"];
+    const BUILTIN: [&str; 17] = [
+        "start", "call", "echo", "cd", "set", "exec", "type", "dir", "copy", "del", "move", "ren", "mkdir", "md", "rd", "cls", "ver",
+    ];
     let exe = crate::envreport::program(cmdline)?;
     if BUILTIN.contains(&exe.to_ascii_lowercase().as_str()) || found(&exe) {
         return None;
@@ -368,18 +380,24 @@ fn missing_program(cmdline: &str, found: &dyn Fn(&str) -> bool) -> Option<String
     Some(exe)
 }
 
+/// Whether an opener's program is not there to run, for the "Open with" chooser
+/// to say so. A handful of `PATH` lookups, once per opener when it opens.
+pub fn opener_missing(cmdline: &str) -> bool {
+    missing_program(cmdline, &|p| crate::util::locate(p).is_some()).is_some()
+}
+
 /// What the shell complained about, on one line.
 ///
-/// `None` unless it is text we can read: a console on a non-English Windows
-/// answers in its own code page, not UTF-8, and a toast of mojibake tells the
-/// reader less than the exit code does.
+/// Read as UTF-8 or, on Windows, the OEM code page: a console on a non-English
+/// Windows answers in its own code page (`CP932`), and dropping that text made
+/// a failed `type` read as "`type` was not found" (#274).
 fn stderr_text(child: &mut Child) -> Option<String> {
     use std::io::Read;
     let mut buf = Vec::new();
     // Bounded: this goes into a toast, and a program that failed while
     // producing megabytes is not going to be explained by all of them.
     child.stderr.take()?.take(4096).read_to_end(&mut buf).ok()?;
-    let text = String::from_utf8(buf).ok()?;
+    let text = crate::util::decode_stderr(&buf);
     let line = text.split_whitespace().collect::<Vec<_>>().join(" ");
     (!line.is_empty()).then_some(line)
 }
@@ -824,6 +842,12 @@ mod tests {
     /// #96: a program that is not there is named; one that is, or a shell's
     /// own command, leaves the exit code to speak.
     #[test]
+    fn opener_missing_tells_a_program_that_is_not_there() {
+        assert!(opener_missing("definitely-not-a-program-93f2 %s"));
+        assert!(!opener_missing("echo %s"));
+    }
+
+    #[test]
     fn a_missing_program_is_named() {
         let only_code = |p: &str| p == "code";
         assert_eq!(missing_program("Hidemruu.exe /j10 a.txt", &only_code).as_deref(), Some("Hidemruu.exe"));
@@ -853,6 +877,13 @@ mod tests {
         assert_eq!(substitute_line("dir | findstr x", &p), "dir | findstr x");
         assert_eq!(substitute_line("echo > out.txt $@", &p), "echo > out.txt \"a.txt\"");
         assert_eq!(substitute_line("explorer", &p), "explorer \"a.txt\"");
+        // `;` splits commands in `sh -c` only (Q85).
+        let semi = substitute_line("echo a;b", &p);
+        if cfg!(windows) {
+            assert_eq!(semi, "echo a;b \"a.txt\"");
+        } else {
+            assert_eq!(semi, "echo a;b");
+        }
     }
 
     /// `start ""` keeps both its quotes.

@@ -1185,6 +1185,8 @@ pub fn diff(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
     }
 
     let mut foot = format!("{}–{} of {}", top + 1, (top + visible).min(rows.len()), rows.len());
+    let changes = crate::diff::count_changes(rows);
+    foot.push_str(&format!("  ·  {changes} {}", if changes == 1 { "difference" } else { "differences" }));
     if rough {
         foot.push_str("  ·  too large to line up exactly");
     }
@@ -2521,6 +2523,8 @@ mod compare_frame {
         assert!(f.says("   5 delta"), "the right has reached 5: {:?}", f.texts);
         assert!(f.says("   4 extra"), "and the inserted line is numbered too: {:?}", f.texts);
         assert_eq!(total(&f), 6, "six rows for five lines and an insertion: {}", footer(&f));
+        // The edit and the insertion touch, so `n` sees one difference (#236).
+        assert!(footer(&f).contains("  ·  1 difference"), "{}", footer(&f));
     }
 
     /// 5.2 and 5.3: the edited line sits opposite the line it replaced, and each
@@ -2651,6 +2655,33 @@ mod compare_frame {
         assert!(f.says("At the first difference"), "saying which end: {:?}", f.texts);
         // The newer end replaces the older rather than contradicting it.
         assert!(!f.says("At the last difference"), "one end at a time: {:?}", f.texts);
+    }
+
+    /// 5.12: the footer counts the differences, and `n` stops at exactly that many.
+    #[test]
+    fn footer_counts_the_blocks_that_n_walks() {
+        let left: Vec<String> = (0..400).map(|i| format!("line {i}")).collect();
+        let mut right = left.clone();
+        for line in right.iter_mut().take(55).skip(50) {
+            *line = line.to_uppercase();
+        }
+        right[150] = right[150].to_uppercase();
+        let mut s = comparing(
+            "frame-compare-count",
+            &format!("{}\n", left.join("\n")),
+            &format!("{}\n", right.join("\n")),
+        );
+        let f = s.draw();
+        assert!(footer_says(&f, "  ·  2 differences"), "two blocks, not six lines: {:?}", f.texts);
+
+        let mut s = comparing("frame-compare-count-one", "a\nb\nc\n", "a\nB\nc\n");
+        let f = s.draw();
+        assert!(footer_says(&f, "  ·  1 difference"), "singular for one: {:?}", f.texts);
+        assert!(!footer_says(&f, "1 differences"), "{:?}", f.texts);
+    }
+
+    fn footer_says(f: &Painted, tail: &str) -> bool {
+        footer(f).ends_with(tail)
     }
 
     /// 5.7 and 5.8: the two answers that are a sentence rather than a view.

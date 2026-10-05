@@ -563,14 +563,29 @@ impl Task {
         let by_speed = left as f64 / speed;
         let (done, total) = self.work();
         let elapsed = self.started_at.elapsed().as_secs_f64();
-        let by_pace = match done > 0 && elapsed >= 2.0 {
-            true => elapsed * (total - done) as f64 / done as f64,
-            false => 0.0,
-        };
-        let secs = by_speed.max(by_pace);
-        // Past a day the number stops meaning anything.
+        // Until the pace is known the bytes alone say "nearly done" for a pile
+        // of small files, so say nothing yet.
+        if done == 0 || elapsed < 2.0 {
+            return None;
+        }
+        let by_pace = elapsed * (total - done) as f64 / done as f64;
+        // Round up: 0.97 s left is "1s", and "0s" would claim the job is over.
+        let secs = by_speed.max(by_pace).ceil();
         (secs.is_finite() && secs < 86_400.0).then(|| Duration::from_secs_f64(secs))
     }
+}
+
+/// Whether `path` is `above` or inside it. `Path::starts_with` compares
+/// components, and on Windows a bare `\\host` is not a prefix of
+/// `\\host\share`, so the parent column of a mistyped host was not seen as
+/// belonging to the jump that failed (#270).
+fn is_within(path: &Path, above: &Path) -> bool {
+    if path.starts_with(above) {
+        return true;
+    }
+    let (p, a) = (path.to_string_lossy().to_lowercase(), above.to_string_lossy().to_lowercase());
+    let a = a.trim_end_matches(['/', '\\']);
+    p.strip_prefix(a).is_some_and(|rest| rest.is_empty() || rest.starts_with(['/', '\\']))
 }
 
 /// What opening, creating and closing one file is worth, as bytes of copying.
@@ -1844,8 +1859,8 @@ impl App {
                 // pane that already explained itself.
                 // A folder above a jump still waiting, or above the one just
                 // taken back, fails for the same reason; that jump says it.
-                let explained = self.tabs.iter().any(|t| t.pending_cd.is_some() && t.cwd.starts_with(&path))
-                    || self.cd_refused.as_ref().is_some_and(|p| p.starts_with(&path));
+                let explained = self.tabs.iter().any(|t| t.pending_cd.is_some() && is_within(&t.cwd, &path))
+                    || self.cd_refused.as_ref().is_some_and(|p| is_within(p, &path));
                 if !hit && !explained {
                     self.error(format!("{}: {error}", util::file_name(&path)));
                 }
@@ -4258,7 +4273,15 @@ impl App {
                 self.error("No opener configured for this file type");
                 return;
             }
-            let items: Vec<String> = openers.iter().map(|o| o.3.clone()).collect();
+            // Shown, not hidden: an opener that vanished would look like a
+            // setting that was ignored.
+            let items: Vec<String> = openers
+                .iter()
+                .map(|o| match exec::opener_missing(&o.0) {
+                    true => format!("{} (not found)", o.3),
+                    false => o.3.clone(),
+                })
+                .collect();
             let details: Vec<String> = openers.iter().map(|o| o.0.clone()).collect();
             let runs: Vec<(String, bool, bool)> =
                 openers.iter().map(|o| (o.0.clone(), o.1, o.2)).collect();
@@ -4282,7 +4305,7 @@ impl App {
             Some((run, block, orphan, _)) => {
                 let line = exec::command_line(run, &paths, line, &self.cfg.line_args);
                 let (block, orphan) = (*block, *orphan);
-                self.launch(&line, &cwd, block, orphan, "Open failed");
+                self.launch(&line, &cwd, block, orphan, "Open failed", "");
             }
             // Said, as an opener's launch is: handed to the system, a file
             // whose app takes a while to appear looked as if `<Enter>` had
@@ -4301,16 +4324,21 @@ impl App {
         // Off Windows the terminal already holds the window when the line
         // fails; there a console simply closes, so `:` waits for a key (Q13).
         let line = if block && cfg!(windows) { exec::held(&line) } else { line };
-        self.launch(&line, &cwd, block, orphan, "Shell failed");
+        // Said, as the line alone does not tell a run that got the paths from one that did not.
+        let note = match exec::line_skips_path(run) && !paths.is_empty() {
+            true => " (no path: the line has a shell operator; use %* to place it)",
+            false => "",
+        };
+        self.launch(&line, &cwd, block, orphan, "Shell failed", note);
     }
 
     /// Run `line`, say so, and keep listening in case it falls over a moment
     /// later — which is the usual way an opener fails, the shell having
     /// started fine and then found nothing to run. See [`exec::Launch`].
-    fn launch(&mut self, line: &str, cwd: &Path, block: bool, orphan: bool, what: &str) {
+    fn launch(&mut self, line: &str, cwd: &Path, block: bool, orphan: bool, what: &str, note: &str) {
         match exec::shell(line, cwd, block, orphan) {
             Ok(l) => {
-                self.toast(format!("$ {line}"));
+                self.toast(format!("$ {line}{note}"));
                 self.last_launch = Some(format!("{} {line}", l.pid.map_or("-".into(), |p| p.to_string())));
                 self.launches.push(l);
                 crate::runinfo::remember_launch(line);
@@ -5217,7 +5245,11 @@ impl App {
                 // missing program is named (it is in the OS language).
                 let (reason, said) = match program.filter(|p| util::locate(p).is_none()) {
                     Some(p) => {
-                        let r = format!("`{p}` was not found on PATH");
+                        // A path was given, so PATH was never searched.
+                        let r = match p.contains(['/', '\\']) {
+                            true => format!("`{p}` does not exist"),
+                            false => format!("`{p}` was not found on PATH"),
+                        };
                         let s = format!("Terminal failed: {r} — set [term] shell to one that is");
                         (r, s)
                     }
@@ -5987,7 +6019,7 @@ impl App {
                 let Some((run, block, orphan)) = runs.get(idx).cloned() else { return };
                 let cwd = self.tabs[self.active].cwd.clone();
                 let line = exec::command_line(&run, &paths, line, &self.cfg.line_args);
-                self.launch(&line, &cwd, block, orphan, "Open failed");
+                self.launch(&line, &cwd, block, orphan, "Open failed", "");
             }
             PickAction::Jump { paths } => {
                 if let Some(p) = paths.get(idx).cloned() {
@@ -6528,9 +6560,14 @@ mod tests {
         let speed = t.speed().expect("a second of copying is measurable");
         assert!((900_000..=1_100_000).contains(&speed), "got {speed} B/s");
 
+        // The first two seconds say nothing: a pile of small files looks
+        // nearly done on its bytes alone, and "0s" would be a lie.
+        assert_eq!(t.eta(), None, "the pace is not known yet");
+
         // Two of the three megabytes are left, at about a megabyte a second.
+        t.started_at = Instant::now() - Duration::from_secs(3);
         let eta = t.eta().expect("bytes are known, so the rest can be timed");
-        assert!((1..=3).contains(&eta.as_secs()), "got {eta:?}");
+        assert!((1..=7).contains(&eta.as_secs()), "got {eta:?}");
     }
 
     /// #241: a job of many small files does not read nearly done on its bytes.
@@ -9684,6 +9721,13 @@ mod alt_jk_scrolls_every_pane {
 #[cfg(test)]
 mod said_out_loud {
     use super::*;
+
+    #[test]
+    fn a_bare_unc_host_is_above_its_share() {
+        assert!(is_within(Path::new(r"\\h\share"), Path::new(r"\\h")));
+        assert!(is_within(Path::new(r"\\H\share\a"), Path::new(r"\\h\")));
+        assert!(!is_within(Path::new(r"\\hh\share"), Path::new(r"\\h")));
+    }
 
     fn app_in(dir: &Path) -> App {
         let mut a = App::new(Config::load(), dir.to_path_buf(), egui::Context::default());

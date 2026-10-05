@@ -286,7 +286,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "1.37" = "ペインを**閉じた**まま、ファイルを選んで `<A-t>`（v0.57.0）→ ペインが開き、シェルのプロンプトが出たところで引用されたパスが行に入る。「The terminal is not open」とは言わず、プロファイル読み込み中のシェルに打って消えることもない。キーはペインに移る。v0.75.17（Q39）から、パスは最初の出力ではなく、最初の出力のあとシェルが静かになるまで待つ。v0.78.3 から 800 ms（#250: x64 の pwsh はプロファイルを読む間 300 ms 以上黙る）、シェルが OSC 133 でプロンプトの印を出せばすぐ（最長 5 秒）。`FILER_PTY_LOG` を付けると、パスの `in` の記録がバナーの後ではなく、プロファイルとプロンプトの最後の `out` の後に来る"
 "1.38" = 'シェルを開いたまま `<C-t>` で一覧に戻り、`<C-S-t>`。続けてもう一度 `<C-S-t>`（v0.67.25、Q53）→ 1 回目は一覧からシェルを終える。ペインが消え、トーストは **Ended the shell**（何か動いていれば 1.35 と同じく先に **End the shell?** と聞く）。2 回目はペインが無いので **No terminal to close** と言う（以前は何も起きなかった）'
 '1.39' = 'macOS / Linux: `TERM` 無しで filer を起動し（`env -u TERM filer`、またはデスクトップのランチャーから）、`<C-t>` で `echo $TERM $COLORTERM`（v0.75.23）→ `xterm-256color truecolor`。`<A-t>` で打った長いパスは次の行へそのまま折り返し、dumb 端末のように 1 行の中で横に流れない'
-'1.40' = '''`FILER_TERM_SHELL=nosuchshell` で `<C-t>`。次にそれ無しで `<C-t>`、終了して `filer env`（v0.78.13）→ 1 つ目は ``Terminal failed: `nosuchshell` was not found on PATH — set [term] shell to one that is`` とプログラムを名指す。`filer env` の `Terminal pane` の行が、前回のペインが起動したシェルと大きさを言う: `pwsh, 12 x 159 (lines x columns)`。1 回目の直後に（`<C-t>` をやり直さずに）`filer env` を読むと、その行は `did not start: `nosuchshell` was not found on PATH …` になる（v0.78.50、#254）'''
+'1.40' = '''`FILER_TERM_SHELL=nosuchshell` で `<C-t>`。次にそれ無しで `<C-t>`、終了して `filer env`（v0.78.13）→ 1 つ目は ``Terminal failed: `nosuchshell` was not found on PATH — set [term] shell to one that is`` とプログラムを名指す。`filer env` の `Terminal pane` の行が、前回のペインが起動したシェルと大きさを言う: `pwsh, 12 x 159 (lines x columns)`。1 回目の直後に（`<C-t>` をやり直さずに）`filer env` を読むと、その行は `did not start: `nosuchshell` was not found on PATH …` になる（v0.78.50、#254）。フルパス（`FILER_TERM_SHELL=C:\nope\x.exe`）なら ``Terminal failed: `C:\nope\x.exe` does not exist — set [term] shell to one that is`` と出て、`PATH` とは言わない。`filer env` も同じ（v0.78.96）'''
 '1.41' = '''`FILER_PTY_LOG` を付け、ペインで `\e]11;?\e\\`、続けて `\e]10;?\e\\` を書き（`printf` か、それを書くスクリプト）、ログを読む（v0.78.46、#265。2 文目は v0.78.89 で書き直した、#269）→ 問い合わせの `out` の行のあとに `in reply` の行が来る: `\e]11;rgb:RRRR/GGGG/BBBB\e\\` で色はペインの背景（テーマの `bg_alt`）、`\e]10;?` には前景色（`fg`）。返答の時刻（ログの 1 列目、ms）は、どちらも問い合わせの 50 ms 以内。`gh dash` などの bubbletea のプログラムはこの返答を待ってから始まり、来なければ間を置いて推測するので、すぐ返ることがすぐ始まることになる。`gh dash` そのものは起動しなくてよい（持ち主の GitHub にサインインする。人が試すのは構わない）'''
 '1.18' = '''OSC 7 を報告するシェルで、一覧側のディレクトリを変える。PowerShell 7 は自分では報告しない（pwsh 7.6.6 は 1 つも出さなかった）ので、先にフックを読み込む（pwsh は `filer shell-hook \| Add-Content $PROFILE`、bash は `filer shell-hook bash >> ~/.bashrc`。29 節）。そのあと `<C-S-t>` と `<C-t>` → シェルに余計な `cd` が打ち込まれない'''
 
@@ -369,11 +369,12 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 # 5. 2 ファイルの差分表示
 '5.9' = '''2 つの**ディレクトリ**で実行（v0.43.0）→ 断られない。フォルダの比較が開き、パスに `<` `>` `~` `=` の印が付いた一覧が出る（45 節）。断られるのはファイルとフォルダを 1 つずつ選んだときだけで、それは 45.9'''
 "5.11" = '1 語だけ変わった行（`price` → `cost`）と、日本語の語が変わった行（`太郎` → `花子`）のある 2 つのファイルを比べる（v0.62.0）→ 変わった行では、その語だけが濃く塗られる（左は赤、右は緑）。塗りは語の真下にぴったり重なる（日本語の語も）。全部変わった行は行の色だけ。`make-fixtures` が `words-left.txt` / `words-right.txt` を作る。比較を開いた状態の `<State:x>` に、変わった語を ⟦ ⟧ で囲んだ `compare row N:` が並ぶ（v0.78.73）'
+"5.12" = '`compare-left.txt` と `compare-right.txt` を比べ、下端を読む（v0.78.108）→ `x–y of z  ·  N differences` と出る。N は変わった行のかたまりの数（5 行の変更も 1 つ）で、1 つなら `1 difference`。N は `n` が止まる場所の数と同じ。自動テストあり（`ui::overlay::compare_frame`）'
 
 # 6. 2 分割ペイン
 "6.15" = '大きなディレクトリを `<A-c>` して、ステータスバーを見る → 他のコピーと同じジョブ扱い。進捗と速度が出て、`w` から中止できる'
 "6.16" = '大きいフォルダをコピーし（`<A-c>`）、終わる前にタスク一覧（`w`）から止める（v0.78.32）→ `Copy stopped — what was already done stays` とトーストが出て、タスクは `cancelled` になり、そこまでにコピーしたものは行き先に残っている'
-"6.17" = 'C: に小さいファイルが数千あるフォルダ（`mkdir small; 1..5000 | % { Set-Content "small\f$_.txt" $_ }`）を `<A-c>` し、走っている間のステータスバーと `w` を見る（v0.78.74、#241）→ バーと % がバイトだけでなく済んだファイル数でも進み、まだ数秒かかるのに `97% … 1s` とは出ない（v0.78.74 より前はバイトだけを数えていたので、小さいファイルのフォルダは早くから終わりかけに見えた）。大きい 1 ファイルの出方は前と同じ'
+"6.17" = 'C: に小さいファイルが数千あるフォルダ（`mkdir small; 1..5000 | % { Set-Content "small\f$_.txt" $_ }`）を `<A-c>` し、走っている間のステータスバーと `w` を見る（v0.78.74、#241）→ バーと % がバイトだけでなく済んだファイル数でも進み、まだ数秒かかるのに `97% … 1s` とは出ない（v0.78.74 より前はバイトだけを数えていたので、小さいファイルのフォルダは早くから終わりかけに見えた）。大きい 1 ファイルの出方は前と同じ。最初の 2 秒は残り時間を出さず、残り時間は切り上げるので、走っている間は `0s` とは出ない（v0.78.98、#270）'
 
 # 10. ヤンクレジスタ
 "10.9" = 'ファイルを `x` で切り取り、同名のファイルが既にあるディレクトリで `p` して、上書きに **Skip**（か **Cancel**）で答える → 何も動かず、切り取りが戻る（v0.75.15、Q72）。ヘッダに `1 cut` がまた出て、トーストが `Nothing moved — the cut is still there` と言う。別の場所で `p` すれば動く。以前はジョブを投入した時点でレジスタを空にしたので、ファイルは動かず、レジスタにも残らなかった。何か 1 つでも動いた貼り付けは、10.6 のとおりレジスタを空にする'
@@ -430,7 +431,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "17.9a" = '空白を含むパスで同じこと → やはり描ける。引用が拡張子まで含めて単語全体を包むため'
 "17.10" = 'その上で `<A-j>` → `step` に従って 10 秒先へ'
 "17.11" = '名前に**空白**を含む PDF と、日本語フォルダの中の PDF → どちらも描ける。引用はルール側ではなく filer 側がやっている'
-"17.12" = '`pdftoppm` の名前を変えてから PDF をホバー → ツール名を挙げたエラーが出る（固まらない）'
+"17.12" = '`pdftoppm` の名前を変えてから PDF をホバー → ツール名を挙げたエラーが出る（固まらない）。日本語の Windows でも読める文字で出る、文字化けしない（実行する `cmd` は OEM コードページ（CP932）で答えるので、そう読む。v0.78.101、#270）'
 "17.13" = '`[[preview]]` のルールを消して `<C-F5>`、PDF をホバー → シェルのサムネイルに戻る（以前のまま）'
 "17.14" = 'ルールを入れた状態で `filer env` → Tools の下に `pdftoppm` と `ffmpeg` が並び、横に `preview *.pdf` が出る'
 "17.15" = '`pdftoppm` のルールのある PDF で `--keys` に `<State:p1><Shot:p1><A-j><State:p2><Shot:p2>` を渡す（v0.78.17）→ `p1.txt` が `picture: 1`、`p2.txt` が `picture: 2` で、`p2.png` は 2 ページ目（1 ページ目の撮り直しではない）。`--keys` が次のページの絵を待ってから次のキーへ進む。以前は描き直しの間も古いページが出たまま「落ち着いた」と数えられ、2 枚とも 1 ページ目だった（#166）'
@@ -505,7 +506,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "23.1" = '`g<Space>` から `\\server\share` と入力 → 開く'
 "23.2" = 'そこへファイルをコピー、そこからコピー → どちらも動き、進捗が出る'
 "23.3" = '一覧の取得中にネットワークを抜く、または応答しないホストを指定する → **ウィンドウが固まらない。**エラーのトーストが出て、タブは元の場所に戻る'
-"23.3a" = '`g<Space>` で、どの機械も答えない名前の `\\nosuchhost-xyz\share` を打つ（v0.78.75、#233）→ 赤いトーストが、システム自身の文のあとに `— no host by that name answered (a typo, or the machine is off)` で終わり、タブは元の場所に残る'
+"23.3a" = '`g<Space>` で、どの機械も答えない名前の `\\nosuchhost-xyz\share` を打つ（v0.78.75、#233）→ 赤いトーストが、システム自身の文のあとに `— no host by that name answered (a typo, or the machine is off)` で終わり、タブは元の場所に残る。赤いトーストはこの 1 つだけ（親の列の `\\nosuchhost-xyz` の失敗は足さない。v0.78.99、#270）'
 "23.5" = '`g<Space>` で、途中のフォルダ名に `|` を含むパス（`C:\Temp\a|b\c\d`）を打って `<Enter>`（v0.57.3）→ エラーのトーストは **1 つ**で、打ったパスをそのまま挙げる（親の `…\\c` ではなく `C:\\Temp\\a|b\\c\\d`。v0.75.19）。v0.57.3 までは親の列がそれぞれ自分のトーストを足し、断片（`b: …`、`c: …`）だけを挙げていた'
 "23.4" = '共有上のパスを Tab 補完する → プロンプトが固まらず、待っている間 `…` が出る'
 "23.4a" = '`alpha\`、`alps\`、`zeta\` があるフォルダで `g<Space>`、そのフォルダのフルパスと `al` を打ち、`<Tab>` を 3 回（v0.78.57、#222）→ 行が `…\alpha\` → `…\alps\` → `…\alpha\` と回る。押すたびに、選んだフォルダの中を並べるのでなく、`al` で始まる次のフォルダになる'
@@ -643,6 +644,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "32.8a" = 'プログラムを空白と丸括弧を含む**引用符付きのフルパス**で指定したオープナー（`"C:\Program Files (x86)\sakura\sakura.exe" %*`）→ 開く。`Win32_Process` で `sakura.exe` がファイルの引用符付きパスを 1 つの引数として受け取っている。これが v0.17.0 のバグで、`cmd` が行を壊し、しかも失敗が無言だった'
 "32.8b" = '同じオープナーを `<S-Enter>` から**と**、`edit` の先頭に移して `<Enter>` から、両方試す → どちらもファイルで `sakura.exe` が起動する。同じ起動処理へ別の経路で入るため'
 "32.8c" = 'パスにわざと打ち間違いを入れたオープナー → 失敗を述べるトースト。日本語版 Windows では `cmd` の文言ではなく終了コードが出るはずで、**それは仕様であって報告すべきバグではない**'
+"32.21" = "`[opener]` に入っていないプログラム（`run = 'no-such-tool %s'`）を書いた `yazi.toml` で、そのオープナーが受け持つファイルに `<S-Enter>`（v0.78.109）→ 項目は消えず、説明の後ろに `(not found)` が付く。入っているものには付かない。隠さないので、設定したのに無視されたようには見えない"
 "32.9" = 'Markdown のファイルで `l` でアウトラインに入り、`j` で下の見出しへ動いて `<S-Enter>`、サクラエディタを選ぶ（v0.47.29 でスイッチを `-L=` から `-Y=` に直した）→ `Win32_Process` に `sakura.exe -Y=<その見出しの行> "<ファイル>"` が出る。行はプレビューと同じく 1 から数える'
 '32.9a' = '''同じことをして、サクラエディタのステータスバーを文字で読む（`msctls_statusbar32` に `SendMessage` `SB_GETTEXTW`）→ `<その見出しの行> 行 1 桁` と出て、カーソルの下の文字が見出しの最初の文字。対照として、サクラが一度も開いていない写しを `-Y=` 無しで開くと `1 行 1 桁`（同じファイルでは成り立たない。サクラは前に閉じた行で開き直す。`m_bRestoreCurPosition=1`、#198）。サクラは `-L=` を無視するので、v0.47.29 より前は 1 行目か前回の位置で開いた（#196 でステータスバーが読めると分かった）'''
 '32.10' = '''プログラム名を打ち間違えたオープナー（`run = 'Hidemruu.exe %s'`）を `<S-Enter>` で選ぶ（v0.59.1）→ エラーが `exit code 1` ではなく ``Open failed: `Hidemruu.exe` was not found — …`` と言う。プログラムはあるが失敗したときは今までどおり終了コードを言う'''
@@ -654,7 +656,9 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 '32.17' = '`yazi.toml` に `[open] prepend_rules = [{ name = "*.txt", use = "<オープナー>" }]` だけを書き（自分の `rules` は無し）、`.txt` で `<Enter>`、次に `<S-Enter>`（v0.78.6、#250）→ `<Enter>` がそのオープナーを動かし（`$ …` のトースト）、`<S-Enter>` が組み込みより上の先頭に並べる。`append_rules` に書いたものは最後に並ぶ'
 '32.18' = '`O` でオープナーが 2 つ以上あるファイルに開き、`<C-n>` / `<C-j>`、`<C-p>` / `<C-k>`。`jj` も打つ（v0.78.39、Q80）→ `<C-n>` と `<C-j>` で 1 行下、`<C-p>` と `<C-k>` で 1 行上へ動く。`jj` は移動でなく絞り込みの文字になる（`Nothing matches` か短くなった一覧）。ヒントの行は `<Down>/<Up> or <C-n>/<C-p> choose`、`<Esc>` のあと一覧で `<F1>` を押すと、`keys in the picker` の節に 4 つのキーが並ぶ（picker の中の `<F1>` は絞り込みの文字。v0.78.67）'
 '32.19' = '''エディタのオープナー（サクラ、メモ帳）に回る `.txt` で `<Enter>` し、`<State:x>`（v0.78.81、#162）→ `x.txt` に `launched: <PID> <コマンドライン>` がある。`Get-CimInstance Win32_Process -Filter "ProcessId=<PID> or ParentProcessId=<PID>"` に、その行を走らせた `cmd` と、その下のエディタが出る。エディタの PID に `Stop-Process -Id` すると、その窓だけが閉じ、前から開いていた同じプログラムの窓は残る'''
-'32.20' = '''カーソルを `a.txt` に置いて `;echo hello >out.txt`、続けて `;echo %*`（v0.78.92、Q82）→ `out.txt` は `hello` だけで、末尾にパスが付かない。`;echo %*` はプレースホルダがあるのでパスが入る'''
+'32.20' = '''カーソルを `a.txt` に置いて `;echo hello >out.txt`、続けて `;echo %*`（v0.78.92、Q82）→ `out.txt` は `hello` だけで、末尾にパスが付かず、トーストの末尾に ` (no path: the line has a shell operator; use %* to place it)` と出る（v0.78.100）。`;echo %*` はプレースホルダがあるのでパスが入り、トーストに注記は出ない'''
+'32.22' = '''Windows で、カーソルを `a.txt` に置いて `;echo a;b >semi.txt`、続けて `;echo a;b`（v0.78.111、Q85）→ `semi.txt` は `a;b` だけ（`>` が演算子なのでパスは付かない）。2 行目のトーストは末尾にパスが付き（`a;b "…\a.txt"`）、`(no path: …)` の注記は出ない（`cmd` では `;` は演算子でないため）。Linux では 2 行目にパスが付かない（`sh -c` は `;` で分けるため）'''
+'32.23' = '''日本語の Windows で、カーソルを `a.txt` に置いて `;type nothing.txt >t.txt`（v0.78.116）→ トーストは `cmd` の言ったこと（ファイルが見つからない、が文字化けせず日本語で）を出し、`` `type` was not found `` とは言わない（`type` は `cmd` の内部コマンド）。`;nosuchprog-xyz` は今までどおり `` `nosuchprog-xyz` was not found `` と出る'''
 '32.14' = 'macOS: `block = true` のオープナーでファイルを `<Enter>` → Terminal.app が前に出て、新しい窓で一覧のフォルダからエディタが動く。初回は macOS が filer に Terminal の操作を許すかを聞く。拒むと理由がトーストに出る'
 
 # 33. 設定の警告と、その色
@@ -838,7 +842,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "47.4" = "47.1〜47.3 でまだ増えるとき: `Get-Process filer \\| % Threads \\| sort TotalProcessorTime -desc \\| select -first 3 Id, TotalProcessorTime` を 10 秒あけて 2 回 → どのスレッドの時間が増えるかと、分かれば開始アドレスを報告する。次に調べるのはそのスレッド"
 '47.5' = '''`f` のプロンプトを開いて 10 秒何も触らず、前後で CPU を読む（v0.59.3）→ プロンプトを開いていないとき（47.1）と同じく増えない。キャレットは点滅せず常に出ている。v0.59.3 までは点滅のために毎秒 2 回描いていて、10 秒で 0.14〜0.30 CPU 秒（#103、#110）'''
 "47.6" = '`filer.toml` に `[ui] backend = "gl"`、`WGPU_BACKEND` は無しで起動し、47.1 をする（v0.74.0、Q70）→ `filer env` の `Adapter` の行が `(Gl, …)` で終わり、Vulkan と DX12 では通らなかった 47.1 が通る（x64 の AMD の機械）'
-"47.7" = '`[ui] backend = "directx"`、次に Windows で `"metal"`（v0.74.0、Q70）→ どちらも窓は開き、`auto` と同じに描く（GL のある機械では `Adapter` が `(Gl, …)`。v0.75.5。以前は Vulkan で、x64 の AMD の機械ではまた 1 コアを使った）。設定の警告が `"directx" is not one of auto, vulkan, dx12, metal, gl`、次に `"metal" is macOS only`（v0.74.8）と言う。`filer env` の `Warnings` の行も 2 回とも同じことを言い、`Backend` の行は `[ui] backend = "directx"`。窓のトーストは、何で描いたかを `drawing with Gl instead` と言って終わる（v0.75.6）。`filer env` は `drawing with the default` のまま'
+"47.7" = '`[ui] backend = "directx"`、次に Windows で `"metal"`（v0.74.0、Q70）→ どちらも窓は開き、`auto` と同じに描く（GL のある機械では `Adapter` が `(Gl, …)`。v0.75.5。以前は Vulkan で、x64 の AMD の機械ではまた 1 コアを使った）。設定の警告が `"directx" is not one of auto, vulkan, dx12, metal, gl`、次に `"metal" is macOS only`（v0.74.8）と言う。`filer env` の `Warnings` の行も 2 回とも同じことを言い、`Backend` の行は `[ui] backend = "directx"`。窓のトーストは、何で描いたかを `drawing with Gl instead` と言って終わる（v0.75.6）。`filer env` も同じく `drawing with Gl instead` と言う（v0.78.107。以前は `drawing with the default` のまま）'
 "47.8" = '`[ui] backend` も `WGPU_BACKEND` も無しで起動し、次に `backend = "vulkan"`（Windows、v0.75.0）→ `filer env` の `Adapter` が 1 回目は `(Gl, …)`、2 回目は `(Vulkan, …)` で終わり、どちらも警告は出ない。x64 の AMD の機械では、何も書かずに 47.1 が通る'
 "48.1" = '展開した各フォルダで `Get-ChildItem -Recurse` → フォルダが 1 つ（`filer-<タグ>-windows-x64` か `-arm64`）で、中はちょうど 5 ファイル: `filer.exe`、`filer.com`（v0.71.0）、`conpty.dll`、`OpenConsole.exe`、`ConPTY-LICENSE.txt`。他には何も無く、フォルダの横にも何も無い'
 "48.2" = '各フォルダで `.\filer.exe --version` → x64 の zip は `filer <版> (x86_64)`、ARM64 の zip は `filer <版> (aarch64)`。版はタグから `v` を除いたもの'

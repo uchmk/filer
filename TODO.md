@@ -10,8 +10,22 @@
 - `【QA】` TESTING.md の文言や、テストの探索など、QA セッションの分（`.claude/qa-role.md`）
 - `【実機】` Windows の実機でしか測れないこと。順番表（`.claude/windows-role.md`）に積んで待つ
 
+## マージで止めている実機の PR
+
+マージの Routine が止めた実機の PR。持ち主の答えがここに書かれるまで、どの回もマージしない（`.claude/merge-routine.md` の 2）。
+
+- [ ] **#273**（`test/win-retests-31`、x64、v0.78.95）: 7.7b と 32.20 に `[x]`。32.20 の行は、この実行の後に v0.78.100（`485a595`）が期待値にトーストの注記
+  ` (no path: the line has a shell operator; use %* to place it)` を足したので、行そのものが `main` と衝突する（merge-role.md の 2 で止める形）。この実行は `out.txt` と `launched:` を確かめたが、トーストは見ていない。
+  7.7b は根拠も CI（`audit`・`checklists`）も生成器の `--check` も通っている。どちらにするか: (1) `main` の未チェックの 32.20 を採り、7.7b の印だけを残してマージする（推奨）、
+  (2) 閉じて、次の x64 の実行に 7.7b と新しい 32.20 を一緒に押させる。どちらでも 32.20 は x64 の再テストに残る。x64 のレーンは、この PR が開いている間は止まる。【人】
+  - 持ち主の答え:
+
 ## Sonnet の見張り（2026-10-05 まで）
 
+- [x] （v0.78.114。TESTING.md に 32.22 を足し、訳・再テストに積んだ）（Sonnet の見張り）v0.78.111（`854edd1`）が Windows で `;` を演算子に数えなくした（Q85）が、TESTING.md に `;` の行を確かめる行が無い。
+  32.20 は `;echo hello >out.txt`（`>` で止まる）と `;echo %*` だけなので、両レーンの再テストに積まれた 32.20 を押しても、変わった動きは通らない。
+  32.20 に「`;echo a;b >semi.txt` は Windows では `a;b` だけ（`>` があるので足さない）、`;echo a;b` のトーストはパスが末尾に付き注記が無い」を足すか 32.22 を足し、
+  `scripts/testcheck-ja.toml` の訳も合わせ、TESTING-CHECKS.md の 32.20 の `[x]` を外す（CLAUDE.md の作業ルール）
 - [x] （v0.78.41。23.6 の文言と訳を直した）（Sonnet の見張り）v0.78.31（`4a98776`）がトーストを `No such file or folder: <全体のパス> — showing <フォルダ>` に変えたが、TESTING.md 23.6 の期待
   （`No such file or folder: tpyo — showing <the folder>`）を直していない。23.6 は自動テスト済みの行なので再テストは要らないが、文言を新しいトーストに合わせ、
   `scripts/testcheck-ja.toml` の訳も合わせる（CLAUDE.md の「機能を足したら」。TODO の項目にも「TESTING.md の文言も合わせる」とあった）
@@ -47,13 +61,20 @@
 - [x] （v0.78.95。7.7b を足して両レーンの再テストに積んだ）（Sonnet の見張り）v0.78.87 の `FILER_CONFIG_HOME` の行
 - [x] （v0.78.95。32.20 を足して両レーンの再テストに積み、`exec.rs` の doc コメントを戻した）（Sonnet の見張り）v0.78.92 の `:` / `;` の行
 
+- [x] （v0.78.112。47.7 を直し、両レーンの再テストに積んだ）（Sonnet の見張り）v0.78.107（`ded0fd0`）が `filer env` の `[ui] backend` の警告を `drawing with Gl instead` に変えたが、TESTING.md 47.7 の期待は
+  「`filer env` keeps `drawing with the default`」のまま（もう嘘）。47.7 は x64・ARM64 とも `[x]`。文言を新しい動きに合わせ（GL のある Windows では `filer env` も
+  `drawing with Gl instead`）、`scripts/testcheck-ja.toml` の訳も合わせ、TESTING-CHECKS.md の `[x]` を外して両レーンの再テストに積む（CLAUDE.md の作業ルール）
+- [x] （v0.78.115。5.12 を足し、自動テストと両レーンの再テストを積んだ）（Sonnet の見張り）v0.78.108（`1311053`）がファイル同士の比較の下端に `N differences` を足したが、TESTING.md に行が無く、再テストにも積んでいない。
+  単体テストは `count_changes` だけで、下端の文字列は通らない。5 節に「`a.txt` と `b.txt` の比較の下端が `x–y of z  ·  N differences` で、N は `n` が止まる数」の行を足し
+  （`ui::overlay::diff_frame` で読めるなら自動テストにしてもよい）、訳と両レーンの再テストに積む
+
 ## 実機のセッションの報告（v0.78.91 で受けた分: #270、x64 の再テスト）
 
-- [ ] **`\\host` を 1 つ打ち間違えると、赤いトーストが 2 つ出る**（#270 の所見 1、提案 1）。`g<Space>\\nosuchhost-xyz\share` で、共有のトーストに続いて
+- [x] （v0.78.99。`is_within` で親の列を同じ飛び先と数える。23.3a を両レーンの再テストに積んだ）**`\\host` を 1 つ打ち間違えると、赤いトーストが 2 つ出る**（#270 の所見 1、提案 1）。`g<Space>\\nosuchhost-xyz\share` で、共有のトーストに続いて
   `nosuchhost-xyz: ネットワーク パスが見つかりません。 (os error 53) — no host …` が、親の列の `\\nosuchhost-xyz` の読み込みから出る（順はどちらもある）。
   打っていないパスを挙げ、何が起きたかを言う 1 つ目を上の行から押し出す。飛んだ先の `ScanResult::Failed` が飛ぶのを取り消すとき（`app.rs` の 1801 行あたり）、
   同じ飛び先の親の列の失敗のトーストも消すか、親の列の読み込みを一覧が来るまで待たせる。直したら 23.3a を両レーンの再テストに積む
-- [ ] **済んでいない仕事の残り時間を `0s` と出さない**（#270 の提案 2）。3 GB のコピーが 1 秒ほど残して `24% … 0s`、100 MB と小さい 5000 ファイルのコピーが
+- [x] （v0.78.98。6.17 を両レーンの再テストに積んだ）**済んでいない仕事の残り時間を `0s` と出さない**（#270 の提案 2）。3 GB のコピーが 1 秒ほど残して `24% … 0s`、100 MB と小さい 5000 ファイルのコピーが
   `34% … 0s` から `52% … 0s` まで約 1 秒出た。原因は 2 つ: `fmt_duration` が切り捨て（0.97 s が `0s`）、最初の 2 秒は `Task::eta`（`app.rs:566`）が
   バイトだけで数え、小さいファイルでは残りのバイトがほぼ 0。残り時間を切り上げ（`as_secs_f64().ceil()`）、`by_pace` が数えられるまでは出さない。直したら 6.17 を両レーンの再テストに積む
 - [ ] 32.19 の文言を「`.txt` の最初の `edit` のオープナー（何であれ）」にする（#270 の提案 3）。x64 では `.txt` が先に nvim に回る。サクラやメモ帳を起動すると、
@@ -61,12 +82,47 @@
 
 ## 実機のセッションの報告（v0.78.94 で受けた分: #271、x64 の再テスト）
 
-- [ ] **フルパスで書いたシェルが無いとき、`was not found on PATH` と言わない**（#271 の提案 1）。`FILER_TERM_SHELL=C:\nope\x.exe` で
+- [x] （v0.78.98。1.40 を両レーンの再テストに積んだ）**フルパスで書いたシェルが無いとき、`was not found on PATH` と言わない**（#271 の提案 1）。`FILER_TERM_SHELL=C:\nope\x.exe` で
   ``Terminal failed: `C:\nope\x.exe` was not found on PATH`` と出るが、PATH は探していない。区切りを含む値なら
   ``Terminal failed: `C:\nope\x.exe` does not exist — set [term] shell to one that is`` にし、`filer env` の `did not start:` も合わせる。直したら 1.40 を両レーンの再テストに積む
-- [ ] **`cargo test` が終わったら、そのプロセスの `filer-test-*-<pid>` を消す**（#271 の提案 2）。x64 の run の一時フォルダに 298 個残り、どの `<State:>` の
+- [x] （v0.78.103。`atexit` で消す）**`cargo test` が終わったら、そのプロセスの `filer-test-*-<pid>` を消す**（#271 の提案 2）。x64 の run の一時フォルダに 298 個残り、どの `<State:>` の
   `parent:` にも並んだ。今は 1 時間以上たってから次のプロセスが消すだけ（v0.73.70）。テストバイナリの終わりに自分の分を消すか、`util::test_dir` の呼び手が
   終わりに消す（失敗したテストの木を残したいなら、panic のときだけ残す）
+
+## 実機のセッションの報告（v0.78.96 で受けた分: #272、x64 の再テスト）
+
+- [x] （v0.78.100。32.20 を両レーンの再テストに積んだ）**`:` / `;` の行にパスを足さなかったとき、トーストでそう言う**（#272 の提案 1）。`;echo hello >out.txt` と `;echo hello` のトーストは、
+  パスが末尾に付いたかどうかしか違わず、理由が出ない。v0.78.91 まで足していたので、`;7z a x.zip >log.txt` が空の zip を作っても気づけない。
+  規則が効いたときだけ、`$ <行>` に ` (no path: the line has a shell operator; use %* to place it)` を付ける（`substitute_line` が決めるところで）。直したら 32.20 を両レーンの再テストに積む
+- [x] （v0.78.111。32.20 を両レーンの再テストに積んだ）Windows（`cmd /S /C`）では `;` を演算子に数えないか（#272 の提案 2。`cmd` で `;` は区切りではなく、`echo a;b` は `a;b` を出す）（Q85、多数決 1: Windows では `;` を数えない）
+
+## 実機のセッションの報告（v0.78.110 で受けた分: #274、ARM64 の再テスト）
+
+- [x] （v0.78.116。標準エラーを OEM コードページで読み、内部コマンドを足し、9009 / 127 のときだけ「無い」と言う。32.23 を足した）**日本語の Windows で、失敗した `:` / `;` の行がプログラムのせいにされる**（#274 の所見 1、提案 1）。`;type nothing.txt >t3.txt` が
+  ``Open failed: `type` was not found`` と出る（`dir` も同じ。`;type a.txt;nothing >t.txt` は動いたのに同じ文）。`src/exec.rs` の `stderr_text` が
+  UTF-8 でない（CP932 の）標準エラーを捨て、`missing_program` が `BUILTIN` の 6 語に無い内部コマンドを「無い」と言う。v0.78.101 の外部プレビューと同じく
+  OEM コードページで読み、推測は先頭の語が `PATH` に無く終了コードが 9009 のときに限る。`BUILTIN` に `type` `dir` `copy` `del` `move` `ren` `mkdir` なども足す
+- [x] （v0.78.118。`one_line` で 2 行を空白でつなぎ、17.12 を再テストに積んだ）外部プレビューのエラーが `cmd` の 1 行目で切れる（#274 の所見 2、提案 2）。`'pdftoppm' は、内部コマンドまたは外部コマンド、` で止まり、「認識されていません」が見えない
+  （英語でも `…internal or external command,` で切れるはず）。2 行を空白でつないで 1 行にする（`stderr_text` と同じ）。直したら 17.12 を両レーンの再テストに積む
+- [ ] 壊れたジャンクションの spot で、プレビューが `access denied, os error 5`、`Resolves` が `not found, os error 2` と食い違う（#274 の所見 3）。
+  壊れたリンクなら、プレビューも `Resolves` と同じ言い方にする
+- [ ] `--keys` で起動して done ファイルを待ち、`<State:>` の `.txt` を並べる PowerShell の道具を `scripts/keys.ps1` として置き、`windows-role.md` から指す
+  （#274 の提案 3。毎回の実行が同じ 15 行を書き直していて、`-Wait` と `-PassThru` の取り違え（#225、#234）が起き得る。Linux には `scripts/xrun.sh` がある）
+
+## 実機のセッションの報告（v0.78.113 で受けた分: #275、ARM64 の再テスト）
+
+- [ ] **`<S-Enter>` の選び直しで、カーソルを入っている最初のオープナーから始める**（#275 の提案 1）。一番上が `(not found)` のとき、`<S-Enter><Enter>` が毎回
+  ``Open failed: `no-such-tool` was not found`` になる（ARM64 で確かめた）。全部 `(not found)` なら 0 のまま（Q86、多数決で 1）
+- [ ] `<State:>` の `pick:` の行を、説明だけにし、コマンドは同じ順で `pick runs:` の行に分ける（#275 の提案 2）。今は `Missing tool (not found) (no-such-tool %s)` と括弧が 2 つ並び、
+  `desc` が `)` で終わると、どこまでが説明か読めない。`picked:` はもう説明だけ。`main.rs` の 1 行とテスト。`windows-role.md` で `pick:` を読んでいる所があれば合わせる
+
+## 実機のセッションの報告（v0.78.117 で受けた分: #276、ARM64 の再テスト）
+
+- [ ] **既定の `<Enter>`（`open`）も、入っていないプログラムのオープナーを飛ばして最初に入っているものを使う**（#276 の提案 1）。`<S-Enter>` を直しても、
+  `[opener]` の 1 行目が無いプログラムだと `<Enter>` は毎回 ``Open failed: `no-such-tool` was not found`` になる（ARM64 で確かめた）（要確認: Q87）
+- [ ] `<State:>` の `launched:` を、起動に失敗したオープナーでは別の行（`launch failed: no-such-tool …` など）にする（#276 の所見 1、提案 2）。今は
+  `launched: 29200 no-such-tool "…\a.txt"` と PID 付きで書き、2 秒後のトーストで初めて `Open failed` が分かる。実機のレーンは `launched:` を起動の証拠に読んでいる（32.20 など）。
+  直したら 32.21 を両レーンの再テストに積む
 
 ## 急ぎ（データが消える）
 
@@ -1283,7 +1339,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.78.80。描いた行ではなく `help_lines` の全体から探す）ヘルプのテスト（`help_from_the_pane_lists_the_panes_keys_first`）は、設定が無くても余裕がほとんど無い（所見）。パネルは 180 行のうち
   27 行を描き、見ている見出しがちょうどその端にある。`[term]` のキーが 1 つ増えれば同じように落ちる。v0.65.1 で設定の分は消えたが、
   テストは描いた行ではなく行の一覧全体（`help_lines` の元）を探すか、見出しまでスクロールしてから見る形にする。
-- [ ] `filer env` に、読み込んだ ConPTY を 1 行出す（提案 1。#184 の提案 1 も同じ。下の DLL の探し方の件があるので、なおさら要る）。`ConPTY : <パス> (1.24.260710001, AA64)` か `built into Windows`。
+- [x] （v0.78.105。Tools に `ConPTY` の行。exe の横の `conpty.dll` のパスか `built into Windows`。版は出していない）`filer env` に、読み込んだ ConPTY を 1 行出す（提案 1。#184 の提案 1 も同じ。下の DLL の探し方の件があるので、なおさら要る）。`ConPTY : <パス> (1.24.260710001, AA64)` か `built into Windows`。
   ペインの不具合の多くは「古い ConPTY で動いていた」なので、不具合報告の出力に要る。
 - [x] （v0.70.3）TESTING.md 48.6 の「x64 のフォルダ」を「それぞれのフォルダ」にする（提案 2。人か QA セッション）。混ざった zip（48.3 が探すもの）は
   ちょうどここで見つかるので、両方で押す。
@@ -1380,7 +1436,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] サクラエディタを ARM64 機に入れるか（提案 2）。入れない（Q45、持ち主の回答）。下の提案 1 で書き直す
 - [x] （v0.78.81。`launched: <PID> <行>`。PID は行を走らせたシェルのもので、プログラムはその子。32.19）`FILER_KEYS_DONE` に、起動したプログラムの PID を出す（提案 3）: `launched: 12345 WINWORD.EXE`。今は名前で `Stop-Process` するしかなく、
   持ち主が開いている文書まで閉じかねない。`exec.rs` の `Launch` は PID を持っている。
-- [ ] `<S-Enter>` の選択で、入っていないプログラムを薄く出すか `(not found)` を付ける（提案 4）。隠さない（「設定したのに消えた」になる）。
+- [x] （v0.78.109。`(not found)` を付けた。32.21）`<S-Enter>` の選択で、入っていないプログラムを薄く出すか `(not found)` を付ける（提案 4）。隠さない（「設定したのに消えた」になる）。
   `filer env` はすでに `not found` と言っている。
 - [x] （v0.72.7 で `l` と `<S-Enter>` に直した）TESTING.md 32.9 が `<C-o>` と書いているが、何にも割り当てられていない（所見 2。人か QA セッション）。アウトラインへは `l` / `<Right>` か `<S-Tab>`。
 - 記録: この機械の `.pdf` の既定のアプリ（`MSEdgePDF`）が壊れていて、`start ""` が Windows の「アプリを選ぶ」を出す。filer の外でも同じなので、
@@ -1437,7 +1493,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.78.17。`PreviewSlot::in_flight`。17.15）**`App::settled()` が、外部のプレビューの次の絵を待たない**（所見 1、不具合）。`request_preview` の `relayout` の判定が `key.n` を見ず、
   `go_to_picture` が `pending_since` を消すので、ページを送っても「落ち着いた」ままになる。`--keys "<Shot:p1><A-j><Shot:p2>"` で同じ絵が 2 枚撮れる
   （`-f 1` と `-f 2` は両方走っている）。古い絵は出したまま（`relayout` の目的）、「描き直し中」の印を足して `settled()` から見えるようにする。
-- [ ] **外部のプレビューの標準エラーを UTF-8 として読んでいる**（所見 2、不具合、Windows）。日本語の Windows では子の `cmd` が CP932 で答えるので、
+- [x] （v0.78.101。UTF-8 でなければ OEM コードページで読む。17.12 を両レーンの再テストに積んだ）**外部のプレビューの標準エラーを UTF-8 として読んでいる**（所見 2、不具合、Windows）。日本語の Windows では子の `cmd` が CP932 で答えるので、
   17.12 の文言が文字化けした（`external.rs:44`）。17.5 の `No more: …` も同じ道を通る（pdftoppm が英語で答えたので読めただけ）。
   端末から試すと `chcp 65001` で隠れる。Windows ではコンソールのコードページ（`GetACP` / `GetOEMCP`）で読む。
 - [ ] 12 回に 1 回ほど、スクリプトの途中で `filer.exe` が消えた（所見 3）。`FILER_KEYS_DONE` も Windows のエラー報告も無く、その後の 4 回では再現しない。 【実機】
@@ -1742,7 +1798,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] `filer env` の `Last run` が、直前に読んだ設定ではなく機械の最後の起動を言う（#248 の所見 1）。`FILER_CONFIG_HOME` は `State` を動かさないので、
   `"dx12"` で起動した後に `"directx"` の設定で `filer env` を読むと、`Backend : "directx"` の横に `Adapter : (Dx12, …)` が並ぶ。
   実際に使ったバックエンドを `Last run` に残す（#248 の提案 2。#245 の提案 1、上の `last-run.toml` の項目と同じ）
-- [ ] 無効な `[ui] backend` の警告を、窓と `filer env` で同じ文にする（#248 の提案 1）。窓は `drawing with Gl instead`、`filer env` は
+- [x] （v0.78.107。`filer env` も `name_the_fallback` を通す）無効な `[ui] backend` の警告を、窓と `filer env` で同じ文にする（#248 の提案 1）。窓は `drawing with Gl instead`、`filer env` は
   `drawing with the default` で、同じ判断を別の言葉で言っている。落ちた先を言う関数を 1 つにして両方から呼ぶ
 - [x] （v0.78.87。24 文字を超えるキーは自分の行に出し、値をその下に字下げする）`filer env` の `Config` の欄の幅が、設定フォルダのパスの長さで決まる（#248 の所見 2、提案 3）。67 文字の `FILER_CONFIG_HOME` で
   `State` などが 83 桁目から始まり、普通のコンソールで折り返す。フォルダのパスを 1 行に出してファイルをその下に字下げするか、欄の幅に上限を付ける
@@ -1824,7 +1880,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `Start-Process -Wait` が 180 秒止まった
 - [x] （v0.78.56。`compare rows: N` と `compare row i: ~ … | …`、最初の 60 行）状態ファイルに比較の画面の行を出す（#236 の提案 2）: `compare row 2: ~ the ⟦price⟧ is firm | the ⟦cost⟧ is firm`。変わった範囲は `diff::Line::changed` が持っている。
   5.11 は 100 行の画素のスクリプトで読んだ
-- [ ] ファイル同士の比較の下端に、違いの数を出す（#236 の提案 3）。フォルダ同士の比較はもう出している
+- [x] （v0.78.108。`x–y of z  ·  N differences`。数えるのは `n` が歩く塊で、行ではない。`ui::overlay::diff_frame` で読む）ファイル同士の比較の下端に、違いの数を出す（#236 の提案 3）。フォルダ同士の比較はもう出している
 - [x] （v0.78.73。`words-left.txt` / `words-right.txt`。日本語の語は空白で区切る）`make-fixtures.ps1` / `.sh` に語単位の比較の組（1 語だけ違う行、日本語の語が違う行、共通の無い行）を足す（#236 の提案 4）。5.11 は今の fixtures では押せない
 - [x] （上の「`FILER_KEYS_DONE` の状態に、アウトラインのカーソルを足す」と同じ。#235 の提案 1 で 3 回目なので、次に取る）アウトラインの位置を状態の行に
 - [x] （v0.73.70 で、次の run が 1 時間より古いものを消すようにした。`Drop` で消す形は呼び出し側が多いので取らない）テストが自分の一時ディレクトリを消す（#235 の提案 2）

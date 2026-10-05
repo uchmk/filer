@@ -380,6 +380,11 @@ pub fn next_change(rows: &[Row], from: usize, back: bool) -> Option<usize> {
     }
 }
 
+/// How many differences `n` walks through: blocks of changed rows, not rows.
+pub fn count_changes(rows: &[Row]) -> usize {
+    (0..rows.len()).filter(|&i| !rows[i].same && (i == 0 || rows[i - 1].same)).count()
+}
+
 // ------------------------------------------------------------------- worker
 
 /// Walk both trees and pair their entries by the path each has inside its root.
@@ -800,6 +805,11 @@ mod tests {
         assert_eq!(shape(&rows), "=~~");
         assert_eq!(next_change(&rows, 1, false), None, "rows 1 and 2 are one difference");
         assert_eq!(next_change(&rows, 2, true), Some(1), "and its first row is where `N` lands");
+        assert_eq!(count_changes(&rows), 1);
+
+        let (rows, _) = compare(&lines("k\nold\nk2\nk3\ngone\nk4"), &lines("k\nnew\nk2\nk3\nk4"), MAX_CELLS);
+        assert_eq!(count_changes(&rows), 2, "two blocks, three rows");
+        assert_eq!(count_changes(&[]), 0);
     }
 
     #[test]

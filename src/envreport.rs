@@ -113,9 +113,14 @@ fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
         Some(v) => format!("{v} (from WGPU_BACKEND; [ui] backend = \"{}\" not used)", cfg.ui.backend),
         None => format!("[ui] backend = \"{}\"", cfg.ui.backend),
     }));
-    rows.push(("Warnings".into(), match cfg.warnings.len() {
+    // Said as the window says it: what the setting fell back to, not "the default".
+    let mut warnings = cfg.warnings.clone();
+    if warnings.iter().any(|w| w.contains("[ui] backend")) {
+        crate::name_the_fallback(&mut warnings, &crate::predicted_fallback());
+    }
+    rows.push(("Warnings".into(), match warnings.len() {
         0 => "none".into(),
-        _ => cfg.warnings.join("\n"),
+        _ => warnings.join("\n"),
     }));
     // Not warnings: a default key a file of yours rebinds, listed so what it
     // displaced can be looked up (Q60).
@@ -145,6 +150,8 @@ fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
         true => crate::terminal::default_program(),
     };
     rows.push((shell.clone(), found(&shell, &shell_source(&cfg.term))));
+    #[cfg(windows)]
+    rows.push(("ConPTY".into(), conpty_source(std::env::current_exe().ok().as_deref())));
     // Where a `block = true` opener runs. Windows gives it a console of its
     // own; anywhere else a terminal emulator has to be there to open.
     #[cfg(not(windows))]
@@ -178,6 +185,17 @@ fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
         }
     }
     rows
+}
+
+/// Which ConPTY the pane runs on. The DLL search is limited to the exe's
+/// folder and System32 (`restrict_dll_search`), so the answer is whether a
+/// `conpty.dll` sits beside the exe; a pane bug is often an old ConPTY (#184).
+#[cfg(any(windows, test))]
+fn conpty_source(exe: Option<&std::path::Path>) -> String {
+    match exe.and_then(|e| e.parent()).map(|d| d.join("conpty.dll")) {
+        Some(dll) if dll.is_file() => format!("{}   (beside filer.exe)", dll.display()),
+        _ => "built into Windows   (no conpty.dll beside filer.exe)".into(),
+    }
 }
 
 /// The terminal a `block = true` opener will open, found the way
@@ -536,6 +554,17 @@ mod tests {
         let file = TermCfg { shell: "pwsh".into(), args: vec!["-NoLogo".into()], ..TermCfg::default() };
         assert_eq!(shell_source(&file), "terminal pane, from [term] shell");
         assert_eq!(shell_source(&TermCfg::default()), "terminal pane, the platform default");
+    }
+
+    #[test]
+    fn conpty_is_the_one_beside_the_exe_or_the_built_in() {
+        let dir = crate::util::test_dir("conpty-row");
+        let exe = dir.join("filer.exe");
+        assert!(conpty_source(Some(&exe)).starts_with("built into Windows"));
+        std::fs::write(dir.join("conpty.dll"), b"").unwrap();
+        let row = conpty_source(Some(&exe));
+        assert!(row.contains("conpty.dll") && row.ends_with("(beside filer.exe)"), "{row}");
+        assert!(conpty_source(None).starts_with("built into Windows"));
     }
 
     /// Nothing in the report may be a guess.
