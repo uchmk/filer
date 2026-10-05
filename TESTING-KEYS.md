@@ -169,7 +169,7 @@ The file list: what is in front of you unless an overlay is.
 
 ### Tabs
 
-- [x] `t` — Create a new tab with the current directory · `tab_create --current`
+- [x] `t` — Create a new tab at the hovered folder, or the current directory · `tab_create --current`
 - [x] `1` — Switch to the first tab · `tab_switch 0`
 - [x] `2` — Switch to the second tab · `tab_switch 1`
 - [x] `3` — Switch to the third tab · `tab_switch 2`

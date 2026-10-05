@@ -639,7 +639,7 @@ desc = "Measure what is taking up the space here"
 [[mgr.keymap]]
 on = "t"
 run = "tab_create --current"
-desc = "Create a new tab with the current directory"
+desc = "Create a new tab at the hovered folder, or the current directory"
 [[mgr.keymap]]
 on = "1"
 run = "tab_switch 0"

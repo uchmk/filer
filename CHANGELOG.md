@@ -9,6 +9,10 @@
 
 ## [未リリース]
 
+## [0.78.153] - 2026-10-06
+### 修正
+- パレットの `tab_create --current` の説明を、動きに合わせて `Create a new tab at the hovered folder, or the current directory` にした（動きは変えていない。#281）。
+
 ## [0.78.152] - 2026-10-06
 
 ### 変更
