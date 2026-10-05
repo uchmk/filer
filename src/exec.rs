@@ -85,7 +85,9 @@ pub fn substitute_line(template: &str, paths: &[PathBuf]) -> String {
 pub fn line_skips_path(template: &str) -> bool {
     let has_placeholder = ["$@", "%*", "%s"].iter().any(|p| template.contains(p))
         || template.as_bytes().windows(2).any(|w| matches!(w[0], b'$' | b'%') && w[1].is_ascii_digit());
-    !has_placeholder && template.contains(['&', '|', '>', '<', ';'])
+    // `cmd` does not split commands at `;` (Q85), `sh -c` does.
+    let ops: &[char] = if cfg!(windows) { &['&', '|', '>', '<'] } else { &['&', '|', '>', '<', ';'] };
+    !has_placeholder && template.contains(ops)
 }
 
 /// [`substitute`], with `suffix` added to every path inside its quotes.
@@ -870,6 +872,13 @@ mod tests {
         assert_eq!(substitute_line("dir | findstr x", &p), "dir | findstr x");
         assert_eq!(substitute_line("echo > out.txt $@", &p), "echo > out.txt \"a.txt\"");
         assert_eq!(substitute_line("explorer", &p), "explorer \"a.txt\"");
+        // `;` splits commands in `sh -c` only (Q85).
+        let semi = substitute_line("echo a;b", &p);
+        if cfg!(windows) {
+            assert_eq!(semi, "echo a;b \"a.txt\"");
+        } else {
+            assert_eq!(semi, "echo a;b");
+        }
     }
 
     /// `start ""` keeps both its quotes.
