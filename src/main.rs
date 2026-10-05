@@ -1309,6 +1309,12 @@ fn state_report(app: &App) -> String {
     // (#201).
     lines.push(format!("frames: {}", app.ctx.cumulative_frame_nr()));
     lines.push(format!("jobs: {} running", active.len()));
+    // Every job of the run, the finished and stopped ones too, newest last:
+    // `jobs: 0` could not tell one that ended from one that was stopped
+    // (#268). The last ten.
+    for t in app.tasks.iter().rev().take(10).collect::<Vec<_>>().into_iter().rev() {
+        lines.push(format!("task: {} {} {}/{} files", t.label, t.state.label(), t.files_done, t.files));
+    }
     for t in active {
         lines.push(format!("job: {} [{}] {}/{} files", t.label, t.state.label(), t.files_done, t.files));
     }
@@ -1779,6 +1785,7 @@ mod tests {
         app.tasks[0].state = app::TaskState::Done;
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "jobs: 0 running") && !report.contains("job:"), "{report}");
+        assert!(report.lines().any(|l| l == "task: Copy 1 item(s) into x done 12/40 files"), "a finished job stays in the list: {report}");
     }
 
     /// #212, #224: the spot panel's row under the cursor and its place.

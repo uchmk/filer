@@ -1521,9 +1521,9 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.78.68。ヘルプの `keys in the picker` / `keys in a prompt` / `keys in a question` の節。picker の中の `<F1>` は今も絞り込みの文字）**TESTING.md 32.18 が落ちる**: picker の中で `<F1>` を押しても何も起きず（`overlay: pick` のまま）、一覧から開くヘルプにも `[pick]` の節が無い
   （`help_lines` は `[mgr]` と `[term]` しか足さない）。オーバーレイの中の `<F1>` でその層を先に出すか、`[pick]` / `[input]` / `[confirm]` の節を
   ヘルプに足す（#268 の提案 1）。直したら 32.18 を再テストに積む
-- [ ] `--keys` に、走っている仕事を待たない待ち（`<Sleep:N>` か、`<Wait:>` / `<State:>` の前に置ける `<Now>`）を足す（#268 の提案 2）。今は仕事を始めて
+- [x] （v0.78.69。`<Now>` を `<State:>` `<Shot:>` `<PaneText:>` の前にも置ける）`--keys` に、走っている仕事を待たない待ち（`<Sleep:N>` か、`<Wait:>` / `<State:>` の前に置ける `<Now>`）を足す（#268 の提案 2）。今は仕事を始めて
   途中を読むことが書けず、止めるのは `<A-c><Now>w<Now>x` だけ
-- [ ] 状態ファイルに `tasks:`（`Copy 1 item(s) cancelled 1/3000` の形）を出す（#268 の提案 3）。`jobs: 0 running` では終わったものと止めたものが区別できない
+- [x] （v0.78.69。`task: <label> <state> done/files files`、新しい 10 件）状態ファイルに `tasks:`（`Copy 1 item(s) cancelled 1/3000` の形）を出す（#268 の提案 3）。`jobs: 0 running` では終わったものと止めたものが区別できない
 
 ## 実機のセッションの報告（v0.78.46 で受けた分: #267 x64 の 29.13）
 

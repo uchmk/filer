@@ -1459,6 +1459,8 @@ same folder (v0.73.74). That file is written when the script ends, so a script e
 cut, to `name.pane.txt` beside the `FILER_KEYS_DONE` file (v0.78.63), so a full-screen program's footer
 can be checked as words; with no pane it writes `(no pane)`.
 
+`<Now>` may also come before `<State:name>`, `<Shot:name>` or `<PaneText:name>`, to read a job that is still running (v0.78.69): `<A-c><Now><State:mid>`.
+
 `<C-+>*45` presses a `<…>` key (or a click or wheel step) that many times, from 1 to 1000 (v0.78.59);
 a bare `*` is still the key `*`.
 

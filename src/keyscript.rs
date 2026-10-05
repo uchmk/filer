@@ -329,8 +329,8 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
     }
     // `<Now>` is about the key after it, so there has to be one.
     for (i, step) in out.iter().enumerate() {
-        if *step == Step::Now && !matches!(out.get(i + 1), Some(Step::Key(_))) {
-            return Err("`<Now>` has to come right before a key, as `d<Now>w`".into());
+        if *step == Step::Now && !matches!(out.get(i + 1), Some(Step::Key(_) | Step::State(_) | Step::Shot(_) | Step::PaneText(_) | Step::Paste | Step::Click { .. } | Step::Wheel { .. })) {
+            return Err("`<Now>` has to come right before a key or a reading (`<State:x>`, `<Shot:x>`, `<PaneText:x>`), as `d<Now>w` or `<A-c><Now><State:mid>`".into());
         }
     }
     Ok(out)
@@ -570,5 +570,15 @@ mod tests {
         assert_eq!(press(&Step::PaneText("a".into())), Some(Press::PaneText("a".into())));
         assert!(parse("<PaneText:>").unwrap_err().contains("not a pane text"));
         assert!(parse("<PaneText:../x>").is_err());
+    }
+
+    /// #268: `<Now>` may come before a reading, to take it with a job still
+    /// running; before a wait it still means nothing.
+    #[test]
+    fn now_may_come_before_a_reading() {
+        assert!(parse("<A-c><Now><State:mid>").is_ok());
+        assert!(parse("<Now><Shot:a>").is_ok());
+        assert!(parse("<Now><Wait:5>x").is_err());
+        assert!(parse("<Now>").is_err());
     }
 }
