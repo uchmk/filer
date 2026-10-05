@@ -335,13 +335,14 @@ impl Launch {
                 match child.try_wait() {
                     Ok(Some(st)) if st.success() => return,
                     Ok(Some(st)) => {
-                        let why = match stderr_text(&mut child) {
-                            Some(msg) => msg,
-                            // 9009 is `cmd`'s "not recognized", 127 is `sh`'s.
-                            None => match missing_program(&cmdline, &|p| crate::util::locate(p).is_some())
-                                .filter(|_| matches!(st.code(), Some(9009 | 127)))
-                            {
-                                Some(p) => format!("`{p}` was not found"),
+                        // 9009 is `cmd`'s "not recognized", 127 is `sh`'s. Its own message
+                        // (localised, and quoting the name its own way) loses to ours.
+                        let missing = missing_program(&cmdline, &|p| crate::util::locate(p).is_some())
+                            .filter(|_| matches!(st.code(), Some(9009 | 127)));
+                        let why = match missing {
+                            Some(p) => format!("`{p}` was not found"),
+                            None => match stderr_text(&mut child) {
+                                Some(msg) => msg,
                                 None => match st.code() {
                                     Some(c) => format!("exit code {c}"),
                                     None => "killed".into(),
