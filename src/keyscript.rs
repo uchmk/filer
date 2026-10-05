@@ -198,6 +198,13 @@ pub fn events(key: &Key) -> Option<Vec<egui::Event>> {
             return Some(vec![egui::Event::Text(c.to_string())]);
         }
     }
+    // `<C-v>` is what a keyboard cannot send as a key: egui-winit turns the
+    // chord into a paste of the clipboard and never emits the press, so a
+    // prompt's text field only hears it that way (#260, #250). The clipboard
+    // is read now, as the press is made, not when the script was parsed.
+    if key.code == Code::Char('v') && key.ctrl && !key.alt && !key.sup {
+        return Some(vec![egui::Event::Paste(crate::exec::get_clipboard().unwrap_or_default())]);
+    }
     // Everything else is a key event: the one, among every key and modifier
     // combination, that reads back as this key.
     for &k in egui::Key::ALL {
@@ -338,5 +345,23 @@ mod tests {
         assert!(matches!(s.app.overlay, crate::app::Overlay::Spot(_)), "`<Tab>` opened spot");
         s.feed(events(&key("q")).unwrap());
         assert!(s.app.overlay.is_none(), "`q` closed it");
+    }
+
+    /// #260: `<C-v>` pastes into a prompt, as the platform's paste event.
+    #[test]
+    fn ctrl_v_pastes_into_a_prompt() {
+        let dir = crate::util::test_dir("keyscript-paste");
+        let mut s = crate::ui::harness::Screen::open(dir);
+        s.settle();
+        crate::exec::fake_clipboard("pasted-name");
+        let key = |t| Key::parse(t).unwrap();
+        assert!(matches!(events(&key("<C-v>")).unwrap().as_slice(), [egui::Event::Paste(t)] if t == "pasted-name"));
+        s.feed(events(&key("g")).unwrap());
+        s.feed(events(&key("<Space>")).unwrap());
+        s.feed(events(&key("<C-v>")).unwrap());
+        match &s.app.overlay {
+            crate::app::Overlay::Input(ov) => assert!(ov.text.contains("pasted-name"), "{:?}", ov.text),
+            _ => panic!("the cd prompt is not open"),
+        }
     }
 }
