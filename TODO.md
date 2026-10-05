@@ -10,6 +10,16 @@
 - `【QA】` TESTING.md の文言や、テストの探索など、QA セッションの分（`.claude/qa-role.md`）
 - `【実機】` Windows の実機でしか測れないこと。順番表（`.claude/windows-role.md`）に積んで待つ
 
+## マージで止めている実機の PR
+
+マージの Routine が止めた実機の PR。持ち主の答えがここに書かれるまで、どの回もマージしない（`.claude/merge-routine.md` の 2）。
+
+- [ ] **#273**（`test/win-retests-31`、x64、v0.78.95）: 7.7b と 32.20 に `[x]`。32.20 の行は、この実行の後に v0.78.100（`485a595`）が期待値にトーストの注記
+  ` (no path: the line has a shell operator; use %* to place it)` を足したので、行そのものが `main` と衝突する（merge-role.md の 2 で止める形）。この実行は `out.txt` と `launched:` を確かめたが、トーストは見ていない。
+  7.7b は根拠も CI（`audit`・`checklists`）も生成器の `--check` も通っている。どちらにするか: (1) `main` の未チェックの 32.20 を採り、7.7b の印だけを残してマージする（推奨）、
+  (2) 閉じて、次の x64 の実行に 7.7b と新しい 32.20 を一緒に押させる。どちらでも 32.20 は x64 の再テストに残る。x64 のレーンは、この PR が開いている間は止まる。【人】
+  - 持ち主の答え:
+
 ## Sonnet の見張り（2026-10-05 まで）
 
 - [x] （v0.78.41。23.6 の文言と訳を直した）（Sonnet の見張り）v0.78.31（`4a98776`）がトーストを `No such file or folder: <全体のパス> — showing <フォルダ>` に変えたが、TESTING.md 23.6 の期待
