@@ -1192,10 +1192,13 @@ fn state_report(app: &App) -> String {
         const MAX: usize = 40;
         // With the note a row carries on its right, in brackets: the jump
         // list's `2h ago` was only in the picture (#208).
+        // An opener list's notes are the commands, which are not descriptions:
+        // they go on their own `pick runs:` line.
+        let runs = matches!(ov.action, app::PickAction::OpenWith { .. });
         let shown: Vec<String> = ov
             .matches
             .iter()
-            .map(|m| match ov.details.get(m.0).filter(|d| !d.is_empty()) {
+            .map(|m| match ov.details.get(m.0).filter(|d| !d.is_empty() && !runs) {
                 Some(d) => format!("{} ({d})", ov.items[m.0]),
                 None => ov.items[m.0].clone(),
             })
@@ -1205,6 +1208,10 @@ fn state_report(app: &App) -> String {
             line.push_str(&format!(" | … +{} more", shown.len() - MAX));
         }
         lines.push(format!("pick: {line}"));
+        if runs {
+            let cmds: Vec<&str> = ov.matches.iter().take(MAX).map(|m| ov.details[m.0].as_str()).collect();
+            lines.push(format!("pick runs: {}", cmds.join(" | ")));
+        }
         lines.push(format!("query: {}", ov.query));
         lines.push(format!("picked: {}", ov.selected().map_or("", |i| ov.items[i].as_str())));
     }
@@ -2069,6 +2076,23 @@ mod tests {
         }
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "query: vs") && report.lines().any(|l| l == "pick: VS Code (2h ago)"), "{report}");
+
+        // An opener list keeps its commands off `pick:`, on their own line (#275).
+        let mut ov = app::PickOverlay {
+            title: "Open with".into(),
+            details: vec!["no-such-tool %s".into(), "nvim %s".into()],
+            items: vec!["Missing tool (not found)".into(), "Neovim".into()],
+            query: String::new(),
+            matches: Vec::new(),
+            cursor: 1,
+            action: app::PickAction::OpenWith { paths: Vec::new(), runs: Vec::new(), line: None },
+            focused: true,
+        };
+        ov.refilter();
+        app.overlay = app::Overlay::Pick(ov);
+        let report = state_report(&app);
+        assert!(report.lines().any(|l| l == "pick: Missing tool (not found) | Neovim"), "{report}");
+        assert!(report.lines().any(|l| l == "pick runs: no-such-tool %s | nvim %s"), "{report}");
 
         // A confirm box says what it asks and offers (#230), without its blank lines.
         app.overlay = app::Overlay::Confirm(app::ConfirmOverlay {

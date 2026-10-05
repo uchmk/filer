@@ -4283,6 +4283,9 @@ impl App {
                 })
                 .collect();
             let details: Vec<String> = openers.iter().map(|o| o.0.clone()).collect();
+            // The cursor starts on the first opener that is installed (Q86);
+            // all missing, or none to skip, leaves it on the first row.
+            let first_found = openers.iter().position(|o| !exec::opener_missing(&o.0)).unwrap_or(0);
             let runs: Vec<(String, bool, bool)> =
                 openers.iter().map(|o| (o.0.clone(), o.1, o.2)).collect();
             let mut pick = PickOverlay {
@@ -4296,6 +4299,7 @@ impl App {
                 focused: false,
             };
             pick.refilter();
+            pick.cursor = first_found;
             self.overlay = Overlay::Pick(pick);
             return;
         }
