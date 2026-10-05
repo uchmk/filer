@@ -52,6 +52,9 @@ pub enum Step {
     /// `name.pane.txt` beside the `FILER_KEYS_DONE` file. A full-screen
     /// program's footer or a prompt was read off a picture before (#229).
     PaneText(String),
+    /// `<PreviewText:name>`: the text the preview pane holds, written to
+    /// `name.preview.txt` beside the `FILER_KEYS_DONE` file (#165).
+    PreviewText(String),
     /// `<Paste>` (and `<C-v>`): the clipboard as it is when the key goes in,
     /// as the paste event the platform makes of Ctrl+V. A real keyboard never
     /// sends the press, so a text field hears nothing from one (#260).
@@ -78,6 +81,7 @@ pub enum Press {
     State(String),
     Quit,
     PaneText(String),
+    PreviewText(String),
     Paste,
     /// Pointer steps wait for the window's size, known only in the frame loop.
     Click { right: bool, at: At },
@@ -91,6 +95,7 @@ pub fn press(step: &Step) -> Option<Press> {
         Step::Key(k) => events(k).map(Press::Events),
         Step::Paste => Some(Press::Paste),
         Step::PaneText(name) => Some(Press::PaneText(name.clone())),
+        Step::PreviewText(name) => Some(Press::PreviewText(name.clone())),
         Step::Click { right, at } => Some(Press::Click { right: *right, at: *at }),
         Step::Wheel { lines, at } => Some(Press::Wheel { lines: *lines, at: *at }),
         Step::Wait(d) => Some(Press::Wait(*d)),
@@ -112,6 +117,7 @@ pub fn label(step: &Step) -> String {
         Step::Quit => "<Quit>".into(),
         Step::Paste => "<Paste>".into(),
         Step::PaneText(name) => format!("<PaneText:{name}>"),
+        Step::PreviewText(name) => format!("<PreviewText:{name}>"),
         Step::Click { right, at } => format!("<{}Click:{}>", if *right { "R" } else { "" }, at_text(*at)),
         Step::Wheel { lines, at } => format!("<Wheel:{lines}@{}>", at_text(*at)),
     }
@@ -255,6 +261,7 @@ fn named(token: &str, what: &str) -> Result<String, String> {
         let noun = match what {
             "Shot" => "shot",
             "PaneText" => "pane text",
+            "PreviewText" => "preview text",
             _ => "state",
         };
         return Err(format!("`{token}` is not a {noun}; name it with letters, digits, - and _, as `<{what}:before>`"));
@@ -302,6 +309,7 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
             None if token.starts_with("<State:") => Step::State(named(token, "State")?),
             None if token == "<Paste>" => Step::Paste,
             None if token.starts_with("<PaneText:") => Step::PaneText(named(token, "PaneText")?),
+            None if token.starts_with("<PreviewText:") => Step::PreviewText(named(token, "PreviewText")?),
             None if pointer(token).is_some() => pointer(token).unwrap_or_else(|| unreachable!())?,
             None => Step::Key(Key::parse(token).ok_or_else(|| format!("`{token}` is not a key"))?),
         };
@@ -311,7 +319,7 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
         // as their answer, and a script of forty-five identical tokens is
         // easy to miscount (#216).
         let mut times = 1;
-        if c == '<' && !matches!(step, Step::Wait(_) | Step::Now | Step::Quit | Step::Shot(_) | Step::State(_)) {
+        if c == '<' && !matches!(step, Step::Wait(_) | Step::Now | Step::Quit | Step::Shot(_) | Step::State(_) | Step::PaneText(_) | Step::PreviewText(_)) {
             if let Some(after) = rest.strip_prefix('*') {
                 let digits: String = after.chars().take_while(char::is_ascii_digit).collect();
                 match digits.parse::<usize>() {
@@ -329,7 +337,7 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
     }
     // `<Now>` is about the key after it, so there has to be one.
     for (i, step) in out.iter().enumerate() {
-        if *step == Step::Now && !matches!(out.get(i + 1), Some(Step::Key(_) | Step::State(_) | Step::Shot(_) | Step::PaneText(_) | Step::Paste | Step::Click { .. } | Step::Wheel { .. })) {
+        if *step == Step::Now && !matches!(out.get(i + 1), Some(Step::Key(_) | Step::State(_) | Step::Shot(_) | Step::PaneText(_) | Step::PreviewText(_) | Step::Paste | Step::Click { .. } | Step::Wheel { .. })) {
             return Err("`<Now>` has to come right before a key or a reading (`<State:x>`, `<Shot:x>`, `<PaneText:x>`), as `d<Now>w` or `<A-c><Now><State:mid>`".into());
         }
     }

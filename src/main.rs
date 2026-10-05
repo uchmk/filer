@@ -955,6 +955,13 @@ impl eframe::App for Filer {
                 }
                 self.script_at = (frame, std::time::Instant::now());
             }
+            Some(keyscript::Press::PreviewText(name)) => {
+                let path = self.shot_dir.join(format!("{name}.preview.txt"));
+                if let Err(e) = std::fs::write(&path, preview_text(&self.app.preview.state)) {
+                    self.app.error(format!("PreviewText {name}: {e}"));
+                }
+                self.script_at = (frame, std::time::Instant::now());
+            }
             // Straight to the quit `ui` already handles, past anything that
             // would ask first or take `q` for itself (#236).
             Some(keyscript::Press::Quit) => {
@@ -1099,6 +1106,32 @@ fn compare_row_line(n: usize, row: &diff::Row) -> String {
         _ => '~',
     };
     format!("compare row {n}: {marker} {} | {}", side(&row.left), side(&row.right))
+}
+
+/// What the preview pane holds, as text: a text file's lines whole (not only
+/// the rows on screen), a rendered Markdown document's lines, a hex dump's
+/// rows, a card's `label: value` rows, the error or the caption. For
+/// `<PreviewText:name>` -- the body of a preview was read from eleven
+/// pictures, as words (#165).
+fn preview_text(state: &app::PreviewState) -> String {
+    let joined = |spans: &[preview::Span]| spans.iter().map(|s| s.text.as_str()).collect::<String>();
+    let mut out = match state {
+        app::PreviewState::Ready(preview::Payload::Text { lines, .. }) => {
+            lines.iter().map(|l| joined(l)).collect::<Vec<_>>().join("\n")
+        }
+        app::PreviewState::Ready(preview::Payload::Markdown { doc, .. }) => {
+            doc.lines.iter().map(|l| joined(&l.spans)).collect::<Vec<_>>().join("\n")
+        }
+        app::PreviewState::Ready(preview::Payload::Binary { lines, .. }) => lines.join("\n"),
+        app::PreviewState::Ready(preview::Payload::Meta { rows }) => {
+            rows.iter().map(|(k, v)| format!("{k}: {v}")).collect::<Vec<_>>().join("\n")
+        }
+        app::PreviewState::Ready(preview::Payload::Image { caption, .. }) => caption.clone(),
+        app::PreviewState::Ready(preview::Payload::Error(e)) => e.clone(),
+        _ => "(no preview)".to_owned(),
+    };
+    out.push('\n');
+    out
 }
 
 /// What `FILER_KEYS_DONE` holds once `--keys` is done: the state a check reads
@@ -1839,6 +1872,24 @@ mod tests {
         assert!(!state_report(&app).contains("toast repeats"), "once is not a repeat");
         app.toast("rep");
         assert!(state_report(&app).lines().any(|l| l == "toast repeats: 2"));
+    }
+
+    /// #165: the preview's body as text, in each shape it takes.
+    #[test]
+    fn the_preview_body_reads_as_text() {
+        let span = |t: &str| preview::Span { text: t.into(), ..Default::default() };
+        let text = app::PreviewState::Ready(preview::Payload::Text {
+            lines: vec![vec![span("fn "), span("main")], vec![span("}")]],
+            map: Vec::new(),
+            extent: Default::default(),
+            outline: Vec::new(),
+        });
+        assert_eq!(preview_text(&text), "fn main\n}\n");
+        let meta = app::PreviewState::Ready(preview::Payload::Meta { rows: vec![("Name".into(), "a.bin".into())] });
+        assert_eq!(preview_text(&meta), "Name: a.bin\n");
+        let err = app::PreviewState::Ready(preview::Payload::Error("not found, os error 2".into()));
+        assert_eq!(preview_text(&err), "not found, os error 2\n");
+        assert_eq!(preview_text(&app::PreviewState::Loading), "(no preview)\n");
     }
 
     /// #236: a compare row reads as a marker and the two sides, the changed

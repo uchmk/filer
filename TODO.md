@@ -1384,7 +1384,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   先頭 8 バイトが `D0 CF 11 E0 A1 B1 1A E1`（OLE2）なら、そう言う（提案 3）。
 - [x] （v0.75.16、QA の子が TESTING.md を直した）TESTING.md 16.12 の `/` と `n` はファイル一覧の検索で、プレビューの中を探すキーではない（所見 4。人か QA セッション）。
 - [x] （v0.75.16、QA の子が TESTING.md を直した）TESTING.md 16.11 の「5000 行」は読み取りの上限で、テキストのプレビューは 4000 行（`text.rs` の `MAX_LINES`）で切る（記録。文言を合わせる）。
-- [ ] プレビューの本文を外から読めるようにする（提案 1）: `FILER_KEYS_DONE` に `preview:` を足すか、`<Shot:name>` の横に `<Dump:name>` を作る。
+- [x] （v0.78.70。`<PreviewText:name>` → `name.preview.txt`）プレビューの本文を外から読めるようにする（提案 1）: `FILER_KEYS_DONE` に `preview:` を足すか、`<Shot:name>` の横に `<Dump:name>` を作る。
   この実行は、文字列で書ける主張を 11 枚の画像から目で読んだ。
 - [x] （v0.76.2、Q76 の `<A-G>`）長いプレビューの末尾へ行く手段（`seek bottom` など）を足す（提案 2）。末尾の切り詰めの注記を見るのに 1100 回キーを押した。
 

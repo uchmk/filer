@@ -1461,6 +1461,8 @@ can be checked as words; with no pane it writes `(no pane)`.
 
 `<Now>` may also come before `<State:name>`, `<Shot:name>` or `<PaneText:name>`, to read a job that is still running (v0.78.69): `<A-c><Now><State:mid>`.
 
+`<PreviewText:name>` writes the preview pane's text whole (the file's lines, a hex dump, a card's rows, or the error) to `name.preview.txt` (v0.78.70), so a preview's body can be checked as words.
+
 `<C-+>*45` presses a `<…>` key (or a click or wheel step) that many times, from 1 to 1000 (v0.78.59);
 a bare `*` is still the key `*`.
 
