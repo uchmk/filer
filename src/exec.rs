@@ -404,7 +404,7 @@ fn stderr_text(child: &mut Child) -> Option<String> {
     // producing megabytes is not going to be explained by all of them.
     child.stderr.take()?.take(4096).read_to_end(&mut buf).ok()?;
     let text = crate::util::decode_stderr(&buf);
-    let line = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let line = crate::util::one_line(&text);
     (!line.is_empty()).then_some(line)
 }
 

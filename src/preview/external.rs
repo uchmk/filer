@@ -42,26 +42,11 @@ pub fn draw(rule: &PreviewRule, path: &Path, n: i64) -> Result<Drawn, String> {
         Some(png) => Ok(Drawn { png, _dir: dir }),
         // The command's own words, which are the useful ones: "Wrong page
         // range" from pdftoppm is what says the document ended.
-        None => Err(match one_line(&decode_stderr(&output.stderr)) {
+        None => Err(match crate::util::one_line(&decode_stderr(&output.stderr)) {
             said if said.is_empty() => format!("{} produced no picture", first_word(&rule.run)),
             said => said,
         }),
     }
-}
-
-/// All of what was said, on one line. `cmd` wraps its "not recognized" text over
-/// two lines, and keeping only the first ended it at `internal or external
-/// command,` (#274).
-fn one_line(text: &str) -> String {
-    let mut out = String::new();
-    for word in text.split_whitespace() {
-        // No space after a full-width stop: a Japanese `cmd` wraps after `、`.
-        if !out.is_empty() && !out.ends_with(['、', '。']) {
-            out.push(' ');
-        }
-        out.push_str(word);
-    }
-    out
 }
 
 /// Substitute into the command line.
@@ -165,9 +150,9 @@ mod tests {
 
     #[test]
     fn a_wrapped_error_stays_whole() {
-        assert_eq!(one_line("'x' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"), "'x' is not recognized as an internal or external command, operable program or batch file.");
-        assert_eq!(one_line(" \n"), "");
-        assert_eq!(one_line("外部コマンド、\r\n操作可能な。\r\nバッチ"), "外部コマンド、操作可能な。バッチ");
+        assert_eq!(crate::util::one_line("'x' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"), "'x' is not recognized as an internal or external command, operable program or batch file.");
+        assert_eq!(crate::util::one_line(" \n"), "");
+        assert_eq!(crate::util::one_line("外部コマンド、\r\n操作可能な。\r\nバッチ"), "外部コマンド、操作可能な。バッチ");
     }
 
     #[test]

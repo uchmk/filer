@@ -532,6 +532,21 @@ fn oem_to_string(bytes: &[u8]) -> Option<String> {
     }
 }
 
+/// All of what was said, on one line. `cmd` wraps its "not recognized" text over
+/// two lines, and keeping only the first ended it at `internal or external
+/// command,` (#274).
+pub fn one_line(text: &str) -> String {
+    let mut out = String::new();
+    for word in text.split_whitespace() {
+        // No space after a full-width stop: a Japanese `cmd` wraps after `、`.
+        if !out.is_empty() && !out.ends_with(['、', '。']) {
+            out.push(' ');
+        }
+        out.push_str(word);
+    }
+    out
+}
+
 #[cfg(test)]
 pub fn test_dir(what: &str) -> std::path::PathBuf {
     static SWEEP: std::sync::Once = std::sync::Once::new();
