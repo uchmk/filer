@@ -134,7 +134,7 @@
 印は付けていない。v0.78.150 で 23.6 の近い名前へのカーソル（6 通り）と 32.23 の `cmd` の文の継ぎ方（`外部コマンド、操作可能な`、トーストは 1 つ）は x64 でも維持。32.23 の真ん中の節は Q89 待ち。
 #286 の提案 3（画面のトーストを `<State:>` に）は v0.78.151 の `toasts shown:` で済んでいる。
 
-- [ ] `:` / `;` の行（シェルの行）が失敗したときのトーストを `Open failed:` でなく `Command failed:` にする（#286 の提案 2）。`;type nothing.txt >t.txt` は何も開いていないのに `Open failed:` で始まる。
+- [x] （v0.78.159。`app.rs` の `launch` が watcher の `Open failed` を `what` に差し替え、`:` / `;` は `Command failed:`。32.23 に足し、両レーンの再テストに積んだ）`:` / `;` の行（シェルの行）が失敗したときのトーストを `Open failed:` でなく `Command failed:` にする（#286 の提案 2）。`;type nothing.txt >t.txt` は何も開いていないのに `Open failed:` で始まる。
   オープナーは `Open failed:` のまま。`src/exec.rs` のトーストを組む所で分け、32.23 などの文言と訳を合わせ、両レーンの再テストに積む
 - [ ] TESTING.md 32.23 を 3 行に分ける（#286 の提案 1）: `;type nothing.txt >t.txt` の `type` の文 / `;nosuchprog-xyz` → `` `nosuchprog-xyz` was not found ``（Q89）/ トーストが 1 つで、`cmd` の折り返しをプレビューと同じに継ぐ（v0.78.143 / v0.78.150）。
   1 つ目と 3 つ目は x64 で #278・#282・#286 が維持を見たのに、真ん中が通らないので印を付けられない【QA】
