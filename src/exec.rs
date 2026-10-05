@@ -75,12 +75,17 @@ pub fn substitute(template: &str, paths: &[PathBuf]) -> String {
 /// operator in the line, nothing is appended, as the path would land in the
 /// last command or the redirect target (Q82).
 pub fn substitute_line(template: &str, paths: &[PathBuf]) -> String {
-    let has_placeholder = ["$@", "%*", "%s"].iter().any(|p| template.contains(p))
-        || template.as_bytes().windows(2).any(|w| matches!(w[0], b'$' | b'%') && w[1].is_ascii_digit());
-    if !has_placeholder && template.contains(['&', '|', '>', '<', ';']) {
+    if line_skips_path(template) {
         return template.to_owned();
     }
     substitute(template, paths)
+}
+
+/// Whether [`substitute_line`] leaves the paths off `template` (Q82).
+pub fn line_skips_path(template: &str) -> bool {
+    let has_placeholder = ["$@", "%*", "%s"].iter().any(|p| template.contains(p))
+        || template.as_bytes().windows(2).any(|w| matches!(w[0], b'$' | b'%') && w[1].is_ascii_digit());
+    !has_placeholder && template.contains(['&', '|', '>', '<', ';'])
 }
 
 /// [`substitute`], with `suffix` added to every path inside its quotes.

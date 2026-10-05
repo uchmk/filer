@@ -4297,7 +4297,7 @@ impl App {
             Some((run, block, orphan, _)) => {
                 let line = exec::command_line(run, &paths, line, &self.cfg.line_args);
                 let (block, orphan) = (*block, *orphan);
-                self.launch(&line, &cwd, block, orphan, "Open failed");
+                self.launch(&line, &cwd, block, orphan, "Open failed", "");
             }
             // Said, as an opener's launch is: handed to the system, a file
             // whose app takes a while to appear looked as if `<Enter>` had
@@ -4316,16 +4316,21 @@ impl App {
         // Off Windows the terminal already holds the window when the line
         // fails; there a console simply closes, so `:` waits for a key (Q13).
         let line = if block && cfg!(windows) { exec::held(&line) } else { line };
-        self.launch(&line, &cwd, block, orphan, "Shell failed");
+        // Said, as the line alone does not tell a run that got the paths from one that did not.
+        let note = match exec::line_skips_path(run) && !paths.is_empty() {
+            true => " (no path: the line has a shell operator; use %* to place it)",
+            false => "",
+        };
+        self.launch(&line, &cwd, block, orphan, "Shell failed", note);
     }
 
     /// Run `line`, say so, and keep listening in case it falls over a moment
     /// later — which is the usual way an opener fails, the shell having
     /// started fine and then found nothing to run. See [`exec::Launch`].
-    fn launch(&mut self, line: &str, cwd: &Path, block: bool, orphan: bool, what: &str) {
+    fn launch(&mut self, line: &str, cwd: &Path, block: bool, orphan: bool, what: &str, note: &str) {
         match exec::shell(line, cwd, block, orphan) {
             Ok(l) => {
-                self.toast(format!("$ {line}"));
+                self.toast(format!("$ {line}{note}"));
                 self.last_launch = Some(format!("{} {line}", l.pid.map_or("-".into(), |p| p.to_string())));
                 self.launches.push(l);
                 crate::runinfo::remember_launch(line);
@@ -6006,7 +6011,7 @@ impl App {
                 let Some((run, block, orphan)) = runs.get(idx).cloned() else { return };
                 let cwd = self.tabs[self.active].cwd.clone();
                 let line = exec::command_line(&run, &paths, line, &self.cfg.line_args);
-                self.launch(&line, &cwd, block, orphan, "Open failed");
+                self.launch(&line, &cwd, block, orphan, "Open failed", "");
             }
             PickAction::Jump { paths } => {
                 if let Some(p) = paths.get(idx).cloned() {
