@@ -1061,6 +1061,35 @@ fn title_for(app: &App) -> String {
     fmt.replace("{cwd}", &cwd).replace("{rows}", &app.tab().page_rows.to_string()).replace("{pane}", &pane)
 }
 
+/// `compare row 2: ~ the ⟦price⟧ is firm | the ⟦cost⟧ is firm`: the marker is
+/// `=` for the same line, `-` and `+` for one that has no partner, `~` for an
+/// edited pair, and the words that changed are in ⟦ ⟧.
+fn compare_row_line(n: usize, row: &diff::Row) -> String {
+    let side = |l: &Option<diff::Line>| match l {
+        None => String::new(),
+        Some(l) => {
+            let mut out = String::new();
+            for (i, c) in l.text.chars().enumerate() {
+                if l.changed.iter().any(|r| r.start == i) {
+                    out.push('⟦');
+                }
+                out.push(c);
+                if l.changed.iter().any(|r| r.end == i + 1) {
+                    out.push('⟧');
+                }
+            }
+            out
+        }
+    };
+    let marker = match (&row.left, &row.right, row.same) {
+        (_, _, true) => '=',
+        (Some(_), None, _) => '-',
+        (None, Some(_), _) => '+',
+        _ => '~',
+    };
+    format!("compare row {n}: {marker} {} | {}", side(&row.left), side(&row.right))
+}
+
 /// What `FILER_KEYS_DONE` holds once `--keys` is done: the state a check reads
 /// afterwards, one `name: value` per line. Reading it any other way meant
 /// pressing a key, and a key changes what it reads (#103, proposal 3).
@@ -1160,6 +1189,16 @@ fn state_report(app: &App) -> String {
     if let app::Overlay::Diff(ov) = &app.overlay {
         let what = if matches!(ov.outcome, Some(diff::Outcome::Tree { .. })) { "folders" } else { "files" };
         lines.push(format!("compare: {what} {} | {}", ov.left.display(), ov.right.display()));
+        // The rows of a file comparison, as the view pairs them, with the
+        // changed words in ⟦ ⟧: 5.11 read these off a picture with a hundred
+        // lines of pixel script (#236). The first 60; `compare rows` is all.
+        if let Some(diff::Outcome::Rows { rows, .. }) = &ov.outcome {
+            const MAX: usize = 60;
+            lines.push(format!("compare rows: {}", rows.len()));
+            for (i, row) in rows.iter().take(MAX).enumerate() {
+                lines.push(compare_row_line(i + 1, row));
+            }
+        }
     }
     lines.push(format!(
         "pane: {}",
@@ -1693,6 +1732,19 @@ mod tests {
         app.tasks[0].state = app::TaskState::Done;
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "jobs: 0 running") && !report.contains("job:"), "{report}");
+    }
+
+    /// #236: a compare row reads as a marker and the two sides, the changed
+    /// words in ⟦ ⟧.
+    #[test]
+    fn a_compare_row_reads_with_its_changed_words() {
+        let a: Vec<String> = ["same", "the price is firm", "gone"].map(String::from).into();
+        let b: Vec<String> = ["same", "the cost is firm", "new"].map(String::from).into();
+        let (rows, _) = diff::compare(&a, &b, 1_000_000);
+        let said: Vec<String> = rows.iter().enumerate().map(|(i, r)| compare_row_line(i + 1, r)).collect();
+        assert_eq!(said[0], "compare row 1: = same | same");
+        assert_eq!(said[1], "compare row 2: ~ the ⟦price⟧ is firm | the ⟦cost⟧ is firm", "{said:?}");
+        assert_eq!(said[2], "compare row 3: ~ gone | new", "nothing in common: the whole row is the change");
     }
 
     /// `FILER_KEYS_DONE`: what a check reads after `--keys`, without pressing

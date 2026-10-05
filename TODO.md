@@ -1761,7 +1761,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   それは 45.9 の行。5.9 を今の動き（フォルダ 2 つでツリーの比較が開く）に書き直す。番号は変えない
 - [x] （v0.74.2。Xvfb で比較の画面を開いたまま `<Quit>` → `overlay: diff`、`quit: yes`、3 秒で終わった）`--keys` に、何が開いていても filer を終える `<Quit>` を足す（#236 の提案 1）。比較の画面では `q` が「閉じる」なので、`q` で終わるスクリプトが終わらず、
   `Start-Process -Wait` が 180 秒止まった
-- [ ] 状態ファイルに比較の画面の行を出す（#236 の提案 2）: `compare row 2: ~ the ⟦price⟧ is firm | the ⟦cost⟧ is firm`。変わった範囲は `diff::Line::changed` が持っている。
+- [x] （v0.78.56。`compare rows: N` と `compare row i: ~ … | …`、最初の 60 行）状態ファイルに比較の画面の行を出す（#236 の提案 2）: `compare row 2: ~ the ⟦price⟧ is firm | the ⟦cost⟧ is firm`。変わった範囲は `diff::Line::changed` が持っている。
   5.11 は 100 行の画素のスクリプトで読んだ
 - [ ] ファイル同士の比較の下端に、違いの数を出す（#236 の提案 3）。フォルダ同士の比較はもう出している
 - [ ] `make-fixtures.ps1` / `.sh` に語単位の比較の組（1 語だけ違う行、日本語の語が違う行、共通の無い行）を足す（#236 の提案 4）。5.11 は今の fixtures では押せない
