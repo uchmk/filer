@@ -830,7 +830,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "13.9" = '`y` してから、**隣の**ディレクトリで `_` → 同じリンクが相対パス（`..\other\file`）で作られる。`g`+`f` で追え、両方のディレクトリを一緒に移動しても壊れない（これが `-` に対する `_` の利点）'
 "13.10" = 'シンボリックリンクの上で `<Tab>` → **Link** セクションが出る。`Kind` が `Symlink`、`Target` が保存されたパス、`Resolves` が実際の着地点'
 "13.11" = '`_` で作ったリンクの上で `<Tab>` → `Kind` が `Symlink (relative)`。`Target` は相対パス、`Resolves` は絶対パスで、**2 行が食い違うことがこの対の要点**'
-"13.12" = '**壊れた**リンクの上で `<Tab>` → `Resolves` が `no (not found, os error 2)` と出る。OS の言語の文ではなく誤りの番号（v0.78.29、#255）。セクション自体は表示される'
+"13.12" = '**壊れた**リンクの上で `<Tab>` → `Resolves` が `no (not found, os error 2)` と出る。OS の言語の文ではなく誤りの番号（v0.78.29、#255）。セクション自体は表示される。プレビュー欄も `not found, os error 2` と言い、`access denied, os error 5` とは言わない（v0.78.120、#274）'
 '13.12a' = '''RAM ディスクへのジャンクション（`R:\cargo-target\filer` を指す `C:\dev\filer\target`）の上で `<Tab>`（v0.73.27）→ `Resolves` が `R:\cargo-target\filer (as written: this volume cannot normalize it, os error 1)` と出て（v0.78.29 から番号の前に日本語の文が入らない）、`no (…)` にならない。リンクは生きていて、ボリュームが最終的なパスを返せないだけ。以前は `no (…os error 1)` と、壊れたリンクと同じ見た目だった'''
 "13.13" = 'ハードリンクの上で `<Tab>`（`=` か `fsutil hardlink create` で作る）→ `Kind` が `Hardlink`、`Links` が `2`。**アプリ内でハードリンクが見えるのはここだけ**'
 "13.14" = '同じものを Windows で → `Also at` に別名のパスが並ぶ。`fsutil hardlink list` と突き合わせる（自分自身のパスを除いた同じ集合になる）'
