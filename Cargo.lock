@@ -1315,7 +1315,7 @@ checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
 
 [[package]]
 name = "filer"
-version = "0.78.135"
+version = "0.78.136"
 dependencies = [
  "ab_glyph",
  "alacritty_terminal",
@@ -4065,8 +4065,8 @@ dependencies = [
 
 [[package]]
 name = "tsumugi-pane"
-version = "0.0.5"
-source = "git+https://github.com/uchmk/tsumugi?rev=0af0a115d4166412296fd0feff2a6f069961e914#0af0a115d4166412296fd0feff2a6f069961e914"
+version = "0.2.0"
+source = "git+https://github.com/uchmk/tsumugi?rev=d2405616e8a07131e4b87a277a8407f9c19bd1c9#d2405616e8a07131e4b87a277a8407f9c19bd1c9"
 dependencies = [
  "alacritty_terminal",
  "crossbeam-channel",
