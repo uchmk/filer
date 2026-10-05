@@ -452,6 +452,9 @@ pub struct Task {
     /// The last point the speed was measured from.
     sampled_at: Instant,
     sampled_bytes: u64,
+    /// When the job started running, for the average pace over its whole
+    /// run (`eta`).
+    started_at: Instant,
 }
 
 #[cfg(test)]
@@ -473,6 +476,7 @@ impl Task {
             speed: 0.0,
             sampled_at: Instant::now(),
             sampled_bytes: 0,
+            started_at: Instant::now(),
         }
     }
 }
@@ -504,11 +508,18 @@ impl Task {
         out
     }
 
+    /// The work the job has, in bytes with each file counted as a fixed
+    /// amount more ([`FILE_COST`]): a folder of small files is mostly the
+    /// opening and closing, and bytes alone read `97% … 1s` with ten seconds
+    /// to go (#241). `(done, total)`.
+    fn work(&self) -> (u64, u64) {
+        (self.bytes_done + self.files_done * FILE_COST, self.bytes + self.files * FILE_COST)
+    }
+
     pub fn fraction(&self) -> f32 {
-        if self.bytes > 0 {
-            (self.bytes_done as f32 / self.bytes as f32).clamp(0.0, 1.0)
-        } else if self.files > 0 {
-            (self.files_done as f32 / self.files as f32).clamp(0.0, 1.0)
+        let (done, total) = self.work();
+        if total > 0 {
+            (done as f32 / total as f32).clamp(0.0, 1.0)
         } else {
             0.0
         }
@@ -539,7 +550,9 @@ impl Task {
         (self.state == TaskState::Running && self.speed >= 1.0).then_some(self.speed as u64)
     }
 
-    /// How long the rest should take at the current speed. Only bytes can
+    /// How long the rest should take: the slower of the current byte speed
+    /// and the pace the whole run has kept in weighted work, so a job that
+    /// is mostly small files is not told it is nearly done. Only bytes can
     /// answer this: a file count says nothing about how big the files are.
     pub fn eta(&self) -> Option<Duration> {
         let speed = self.speed()? as f64;
@@ -547,11 +560,21 @@ impl Task {
         if left == 0 || self.bytes == 0 {
             return None;
         }
-        let secs = left as f64 / speed;
+        let by_speed = left as f64 / speed;
+        let (done, total) = self.work();
+        let elapsed = self.started_at.elapsed().as_secs_f64();
+        let by_pace = match done > 0 && elapsed >= 2.0 {
+            true => elapsed * (total - done) as f64 / done as f64,
+            false => 0.0,
+        };
+        let secs = by_speed.max(by_pace);
         // Past a day the number stops meaning anything.
         (secs.is_finite() && secs < 86_400.0).then(|| Duration::from_secs_f64(secs))
     }
 }
+
+/// What opening, creating and closing one file is worth, as bytes of copying.
+const FILE_COST: u64 = 64 * 1024;
 
 /// How loud a toast is, which is to say what colour it takes.
 ///
@@ -3825,6 +3848,7 @@ impl App {
             speed: 0.0,
             sampled_at: Instant::now(),
             sampled_bytes: 0,
+            started_at: Instant::now(),
         });
         if kind == OpKind::Delete {
             self.deleting.insert(id, srcs.clone());
@@ -3869,6 +3893,7 @@ impl App {
                     // the work, not the wait.
                     t.sampled_at = Instant::now();
                     t.sampled_bytes = 0;
+                    t.started_at = Instant::now();
                 }
             }
             ops::OpEvent::Progress { id, files_done, bytes_done, current } => {
@@ -6465,6 +6490,7 @@ mod tests {
             speed: 0.0,
             sampled_at: Instant::now(),
             sampled_bytes: 0,
+            started_at: Instant::now(),
         }
     }
 
@@ -6489,6 +6515,29 @@ mod tests {
         // Two of the three megabytes are left, at about a megabyte a second.
         let eta = t.eta().expect("bytes are known, so the rest can be timed");
         assert!((1..=3).contains(&eta.as_secs()), "got {eta:?}");
+    }
+
+    /// #241: a job of many small files does not read nearly done on its bytes.
+    #[test]
+    fn many_small_files_weigh_more_than_their_bytes() {
+        let mut t = task(1_000_000);
+        t.files = 1000;
+        t.files_done = 500;
+        t.bytes_done = 500_000;
+        // Half the bytes and half the files: half.
+        assert!((t.fraction() - 0.5).abs() < 0.01, "{}", t.fraction());
+        // All the bytes, few of the files: the files are what is left.
+        t.bytes_done = 1_000_000;
+        t.files_done = 100;
+        assert!(t.fraction() < 0.5, "{}", t.fraction());
+        // A pace of 100 files in 10 s says the other 900 take 90 s, whatever
+        // the byte speed was in the last quarter second.
+        t.state = TaskState::Running;
+        t.speed = 5_000_000.0;
+        t.started_at = Instant::now() - Duration::from_secs(10);
+        t.bytes_done = 999_999;
+        let eta = t.eta().expect("a running job with bytes left");
+        assert!(eta.as_secs() >= 20, "got {eta:?}");
     }
 
     #[test]
