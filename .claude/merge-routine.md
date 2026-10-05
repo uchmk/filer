@@ -21,6 +21,15 @@ and merge-role.md from `origin/main` at the start of every run.
    your session has, or `gh` (`gh api "repos/uchmk/filer/pulls?state=open"`;
    merge with `gh api -X PUT repos/uchmk/filer/pulls/N/merge -f merge_method=merge
    -f sha=<the full head SHA>`).
+   **First read TODO.md's "マージで止めている実機の PR" section: a pull request
+   listed there was held by an earlier run and waits on the owner. Do not merge
+   it, whatever its CI says, until the owner's answer is written there.** Each
+   run starts with no memory, so that section is the only thing that carries a
+   hold over; #269 was merged on 2026-10-05 by a run that did not read it, and
+   1.41 went in ticked for a half nobody had pressed. GitHub names `uchmk` as
+   the merger of every pull request, the routines' merges included, so
+   `merged_by` never tells you the owner merged one: only the owner's own
+   words (in TODO.md, QUESTIONS.md or the pull request) do.
 3. **Push the merger's share with `scripts/push-main.sh`**, in the background,
    and wait for it to finish (merge-role.md, 4). It replays your commit on top
    when the development routine pushed first, renumbers it, runs the checks,
