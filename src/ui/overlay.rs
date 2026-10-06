@@ -577,6 +577,34 @@ fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
     out
 }
 
+/// Warning rows longer than `cols` cells continue on the next row, indented, so
+/// the end of a long message is not cut off at the panel's edge.
+fn wrap_warnings(rows: Vec<HelpRow>, cols: usize) -> Vec<HelpRow> {
+    use unicode_width::UnicodeWidthChar;
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        if !row.warning || unicode_width::UnicodeWidthStr::width(row.text.as_str()) <= cols {
+            out.push(row);
+            continue;
+        }
+        let indent = row.text.chars().take_while(|c| *c == ' ').count() + 4;
+        let mut cur = String::new();
+        let mut w = 0;
+        for c in row.text.chars() {
+            let cw = c.width().unwrap_or(0);
+            if w + cw > cols {
+                out.push(HelpRow { text: std::mem::take(&mut cur), warning: true, ..HelpRow::blank() });
+                cur = " ".repeat(indent);
+                w = indent;
+            }
+            cur.push(c);
+            w += cw;
+        }
+        out.push(HelpRow { text: cur, warning: true, ..HelpRow::blank() });
+    }
+    out
+}
+
 /// The directories the help panel names, and looks into for files not read yet.
 #[cfg(not(test))]
 fn shown_config_dirs() -> Vec<std::path::PathBuf> {
@@ -690,7 +718,9 @@ pub fn help(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
         "Keys — <Esc> close, j/k scroll, <A-j>/<A-k> half a page, C copies it all, click a config path to go to it";
     let inner = modal_frame(ui, rect, &app.cfg.theme, title, f, row_h);
     let theme = app.cfg.theme.clone();
-    let lines = help_lines(app);
+    let cell = ui.painter().layout_no_wrap("M".repeat(20), f.clone(), theme.fg).size().x / 20.0;
+    let cols = ((inner.width() - 130.0) / cell.max(1.0)).floor().max(10.0) as usize;
+    let lines = wrap_warnings(help_lines(app), cols);
 
     let rows = ((inner.height() / row_h).floor() as usize).max(1);
     // What the keys need to know to page and to stop; only the renderer knows
@@ -1464,6 +1494,16 @@ mod help_config_rows {
 
     /// A warning of several lines is several rows, so none is drawn on top
     /// of another (the machine's 33.9 still breaks real config files).
+    #[test]
+    fn a_warning_wider_than_the_panel_continues_on_the_next_row() {
+        let long = HelpRow { text: "x".repeat(25), warning: true, ..HelpRow::blank() };
+        let short = HelpRow { text: "ok".into(), warning: true, ..HelpRow::blank() };
+        let rows = wrap_warnings(vec![long, short], 10);
+        let texts: Vec<&str> = rows.iter().map(|r| r.text.as_str()).collect();
+        assert_eq!(texts, ["xxxxxxxxxx", "    xxxxxx", "    xxxxxx", "    xxx", "ok"]);
+        assert!(rows.iter().all(|r| r.warning));
+    }
+
     #[test]
     fn a_long_warning_takes_a_row_per_line() {
         let mut app = crate::app::App::new(crate::config::Config::load(), std::env::temp_dir(), egui::Context::default());
