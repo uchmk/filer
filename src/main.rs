@@ -1443,10 +1443,8 @@ fn state_report(app: &App) -> String {
     // The kind alone (`Command failed`, `Open failed`): the text before the
     // first `:` of its first line, so a wording check reads one short line and
     // not the long, localized `toast:` with its path (#289).
-    if let Some(t) = app.toasts.last() {
-        let first = t.text.lines().next().unwrap_or("");
-        lines.push(format!("toast kind: {}", first.split(':').next().unwrap_or("").trim()));
-    }
+    let kind = app.toasts.last().map_or("", |t| t.text.lines().next().unwrap_or("").split(':').next().unwrap_or("").trim());
+    lines.push(format!("toast kind: {kind}"));
     // How many times that same line was raised, when more than once: the
     // `×8` the toast shows was only in the picture (#216).
     if let Some(n) = app.toasts.last().map(|t| t.count).filter(|n| *n > 1) {
@@ -2037,6 +2035,7 @@ mod tests {
         app.toasts.clear();
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "toast: "), "{report}");
+        assert!(report.lines().any(|l| l == "toast kind: "), "{report}");
         assert!(toasts(&report).ends_with("Copied a.txt | Open failed / exit code 1"), "{report}");
         // ... but `toasts shown:` is only what is still on screen.
         assert!(report.lines().any(|l| l == "toasts shown: "), "{report}");
