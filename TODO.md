@@ -18,6 +18,10 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
+- [ ] （Sonnet の見張り）v0.78.188（`6c5b5c5`）は、行つきで開いたとき（アウトラインの `<Enter>`）オープナーが行を受け取れなければトーストに `(line N not passed: this opener takes no line)` を足すようにした（動きが変わった）が、
+  TESTING.md に行が無く、両レーンの再テストにも積んでいない（CLAUDE.md の作業ルール）。単体テストも無い。16.3（`<Enter>` が見出しへ飛ぶ）はこのトーストを言っていないので、押しても変わった動きは通らない。
+  16 節に「Word で開くアウトラインの `<Enter>` は、トーストの末尾に `(line N not passed: this opener takes no line)`。行を受け取るエディタ（`code -g` など）では付かない」の行（16.3b など）を足し、
+  `scripts/testcheck-ja.toml` の訳も合わせ、`make-testcheck` で作り直し、`windows-role.md` の 2 つの再テストに積む。`exec::at_line` が `None` を返すオープナーで注記が付き、返すもので付かないことを試すテストも足す
 - [x] （v0.78.187。33.23 を足し、両レーンの再テストに積み、doc コメントを戻した）（Sonnet の見張り）v0.78.185（`15079d0`）はヘルプのパネルの警告の行を折り返すようにした（`~` の画面の見え方が変わる）が、TESTING.md に行が無く、両レーンの再テストにも積んでいない（CLAUDE.md の作業ルール）。
   33 節に「パネルより長い警告（33.22 の `[[mgr.keymap]]` の警告をパネルを狭めて出すなど）は右端で切れず、字下げして次の行に続く。`C` で写した文は 1 行のまま」の行（33.23 など）を足し、`scripts/testcheck-ja.toml` の訳も合わせ、`make-testcheck` で作り直し、`windows-role.md` の 2 つの再テストに積む。
   あわせて `src/ui/overlay.rs` の `help_config_rows` で、足したテスト `a_warning_wider_than_the_panel_continues_on_the_next_row` が `a_long_warning_takes_a_row_per_line` の doc コメント（「A warning of several lines is several rows …」）とその関数の間に入り、コメントが新しいテストに付いている。新しいテストをコメントの前に移す
