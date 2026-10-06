@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 523 件（TESTING.md の全 695 件のうち、`cargo test` が見ている 172 件は外してある）。
+押すものは 524 件（TESTING.md の全 696 件のうち、`cargo test` が見ている 172 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -612,6 +612,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **33.20** 33.11 の `yazi.toml`（`[[preview]]` だけ）で `~` を押す。次に両方の設定フォルダを空にして起動し、`filer.toml` を作ってからもう一度 `~`（v0.73.41、#203）→ 1 回目は `yazi.toml` の行が警告色で `nothing in it was read — see below` と出て、普通に読んだファイルとしては並ばない。2 回目は `on disk, not read yet` の行の下が `(nothing read yet; the defaults are in use)` で、`(nothing found in either; …)` ではない — *With 33.11's `yazi.toml` (only `[[preview]]`) press `~`; then empty both config folders, start filer, create `filer.toml` and press `~` again (v0.73.41, #203) → The first time, the `yazi.toml` row is in the warning colour with `nothing in it was read — see below`, not listed as an ordinary read file. The second time, under the `on disk, not read yet` row: `(nothing read yet; the defaults are in use)`, not `(nothing found in either; …)`*
 - [x] **33.21** `yazi.toml` に、Windows のパスを二重引用符で書いたオープナー（`edit = [{ run = "C:\Users\me\nvim.exe" }]`）を書いて起動する（v0.78.27）→ 読み込みエラーの後にもう 1 行、二重引用符の中のバックスラッシュはエスケープになるので Windows のパスは単一引用符で書く、という英語の 1 行（`(a backslash in "double quotes" starts an escape: …)`）が出る。単一引用符に変えて `<C-F5>` すると警告は出ない — *In `yazi.toml`, write an opener with a Windows path in double quotes (`edit = [{ run = "C:\Users\me\nvim.exe" }]`) and start (v0.78.27) → The parse error, then one more line: `(a backslash in "double quotes" starts an escape: write a Windows path in 'single quotes')`. Change the quotes to `'…'`, `<C-F5>`: no warning*
 - [x] **33.22** `keymap.toml` に 1 項目だけの `[[mgr.keymap]]`（`on = "<F9>"`、`run = "config_reload"`）を書いて起動する（v0.78.27、#164、#258）→ ``…keymap.toml: `[[mgr.keymap]]` replaces all N keys of [mgr] with 1 -- did you mean `[[mgr.prepend_keymap]]`?`` と警告が出る。`q` は効かないまま（置き換えは yazi の規則）。`[[mgr.prepend_keymap]]` に直して `<F9>` すると警告は消え、`q` で終わる — *Put a one-entry `[[mgr.keymap]]` (`on = "<F9>"`, `run = "config_reload"`) in `keymap.toml` and start (v0.78.27, #164, #258) → A warning: ``…keymap.toml: `[[mgr.keymap]]` replaces all N keys of [mgr] with 1 -- did you mean `[[mgr.prepend_keymap]]`?``. `q` still does nothing (the replacement is yazi's rule). Rename it to `[[mgr.prepend_keymap]]`, `<F9>`: no warning, and `q` quits*
+- [ ] **33.23** 33.22 の `keymap.toml` で `~` を押し、警告がパネルより広くなるまで窓を狭める。次に `C` で写して貼る（v0.78.185）→ 警告は右端で切れず、字下げして次の行に続く。写した文では警告は 1 行のまま — *With 33.22's `keymap.toml`, press `~` and narrow the window until the warning is wider than the panel; then press `C` and paste (v0.78.185) → The warning is not cut off at the right edge: it continues on the next row, indented. The copied text has the warning as one line*
 
 ## 34. ヘルプパネル自身のスクロール
 

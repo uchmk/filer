@@ -1492,8 +1492,6 @@ mod tests {
 #[cfg(test)]
 mod help_config_rows {
 
-    /// A warning of several lines is several rows, so none is drawn on top
-    /// of another (the machine's 33.9 still breaks real config files).
     #[test]
     fn a_warning_wider_than_the_panel_continues_on_the_next_row() {
         let long = HelpRow { text: "x".repeat(25), warning: true, ..HelpRow::blank() };
@@ -1504,6 +1502,8 @@ mod help_config_rows {
         assert!(rows.iter().all(|r| r.warning));
     }
 
+    /// A warning of several lines is several rows, so none is drawn on top
+    /// of another (the machine's 33.9 still breaks real config files).
     #[test]
     fn a_long_warning_takes_a_row_per_line() {
         let mut app = crate::app::App::new(crate::config::Config::load(), std::env::temp_dir(), egui::Context::default());

@@ -1016,6 +1016,7 @@ apart), that it is legible on a light theme (33.6), the parse error's own wordin
 | 33.20 | With 33.11's `yazi.toml` (only `[[preview]]`) press `~`; then empty both config folders, start filer, create `filer.toml` and press `~` again (v0.73.41, #203) | The first time, the `yazi.toml` row is in the warning colour with `nothing in it was read — see below`, not listed as an ordinary read file. The second time, under the `on disk, not read yet` row: `(nothing read yet; the defaults are in use)`, not `(nothing found in either; …)` |
 | 33.21 | In `yazi.toml`, write an opener with a Windows path in double quotes (`edit = [{ run = "C:\Users\me\nvim.exe" }]`) and start (v0.78.27) | The parse error, then one more line: `(a backslash in "double quotes" starts an escape: write a Windows path in 'single quotes')`. Change the quotes to `'…'`, `<C-F5>`: no warning |
 | 33.22 | Put a one-entry `[[mgr.keymap]]` (`on = "<F9>"`, `run = "config_reload"`) in `keymap.toml` and start (v0.78.27, #164, #258) | A warning: ``…keymap.toml: `[[mgr.keymap]]` replaces all N keys of [mgr] with 1 -- did you mean `[[mgr.prepend_keymap]]`?``. `q` still does nothing (the replacement is yazi's rule). Rename it to `[[mgr.prepend_keymap]]`, `<F9>`: no warning, and `q` quits |
+| 33.23 | With 33.22's `keymap.toml`, press `~` and narrow the window until the warning is wider than the panel; then press `C` and paste (v0.78.185) | The warning is not cut off at the right edge: it continues on the next row, indented. The copied text has the warning as one line |
 
 ---
 
