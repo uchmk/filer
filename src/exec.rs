@@ -335,10 +335,10 @@ impl Launch {
                 match child.try_wait() {
                     Ok(Some(st)) if st.success() => return,
                     Ok(Some(st)) => {
-                        // 9009 is `cmd`'s "not recognized", 127 is `sh`'s. Its own message
-                        // (localised, and quoting the name its own way) loses to ours.
-                        let missing = missing_program(&cmdline, &|p| crate::util::locate(p).is_some())
-                            .filter(|_| matches!(st.code(), Some(9009 | 127)));
+                        // A first word that is not on `PATH` is the cause whatever the code
+                        // (`cmd /c` ends with 1 here, 9009 only inside; `sh` with 127, Q89).
+                        // Its own message (localised, quoting the name its own way) loses to ours.
+                        let missing = missing_program(&cmdline, &|p| crate::util::locate(p).is_some());
                         let why = match missing {
                             Some(p) => format!("`{p}` was not found"),
                             None => match stderr_text(&mut child) {
