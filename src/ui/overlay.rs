@@ -1437,6 +1437,26 @@ pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
             }
         }
     }
+    // A thumb on the right edge when more lines exist than fit (#224), so a
+    // panel that scrolls is told from one that ends.
+    if let Some((from, to)) = spot_thumb(lines.len(), visible, ov.scroll) {
+        let h = inner.height();
+        let thumb = Rect::from_min_max(
+            egui::pos2(inner.right() - 4.0, inner.top() + h * from),
+            egui::pos2(inner.right() - 1.0, inner.top() + h * to),
+        );
+        painter.rect_filled(thumb, CornerRadius::same(2), theme.fg_dim);
+    }
+}
+
+/// The scroll thumb as fractions of the panel's height, or `None` when every
+/// line fits.
+fn spot_thumb(total: usize, visible: usize, scroll: usize) -> Option<(f32, f32)> {
+    if total <= visible {
+        return None;
+    }
+    let total = total as f32;
+    Some((scroll as f32 / total, ((scroll + visible) as f32 / total).min(1.0)))
 }
 
 /// Where the spot panel's values start: past the widest key, its indent and a
@@ -1449,10 +1469,17 @@ fn spot_key_width(widest_key: f32, panel: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{one_line, paste_over, spot_key_width, splice};
+    use super::{one_line, paste_over, spot_key_width, spot_thumb, splice};
 
     /// #214: the value column moves out past the widest key at any font size,
     /// and keeps its old place for short keys.
+    #[test]
+    fn the_spot_thumb_shows_only_when_lines_overflow() {
+        assert_eq!(spot_thumb(10, 10, 0), None);
+        assert_eq!(spot_thumb(20, 10, 0), Some((0.0, 0.5)));
+        assert_eq!(spot_thumb(20, 10, 10), Some((0.5, 1.0)));
+    }
+
     #[test]
     fn the_spot_key_column_fits_its_widest_key() {
         assert_eq!(spot_key_width(60.0, 900.0), 130.0, "short keys keep the old column");

@@ -1251,6 +1251,7 @@ needs a machine is real files, and the panel's own geometry.
 | 41.12 | Look at the key column on every new section | No key runs into the value column, at the default font size and at `[ui] font_size = 20`. Since v0.73.56 the key column is as wide as the widest key, 130 pt at least and 45% of the panel at most (`spot_key_width` in `overlay.rs`; it used to be a fixed 130, #214) |
 | 41.13 | `<A-j>` down into a new section's rows, then `y` | The right value is copied. **`Act::Copy` counts rows across every section, so the new sections shift the indices** |
 | 41.14 | `<Tab>` on a folder on a slow network drive | The panel still follows the cursor; the spot worker is newest-wins |
+| 41.15 | `<Tab>` on a file with more spot lines than fit (a `.docx` in a short window) | A thin thumb on the panel's right edge, at the top; `<A-j>` to the end moves it to the bottom. A panel that fits has none (v0.78.197, #224) |
 
 ## 42. The minimap's hover card (v0.40.0)
 
