@@ -1024,10 +1024,15 @@ fn dir_prefill(dir: &Path) -> String {
 /// What a typed path that named nothing says when its parent is shown instead
 /// (#98): one sentence, whichever of the two listings arrived first (#242).
 /// It names the whole path that was missing, not just the last part (#241),
-/// with the home folder as `~`.
-fn nothing_there(name: &str, shown: &Path) -> String {
+/// with the home folder as `~`. When the cursor went to the nearest name in
+/// the folder, the toast says which (`(nearest: typo)`), so the jump is not a
+/// mystery (#285).
+fn nothing_there(name: &str, shown: &Path, near: Option<&str>) -> String {
     let home = dirs::home_dir();
-    let said = format!("No such file or folder: {} — showing {}", shown.join(name).display(), shown.display());
+    let mut said = format!("No such file or folder: {} — showing {}", shown.join(name).display(), shown.display());
+    if let Some(near) = near {
+        said.push_str(&format!(" (nearest: {near})"));
+    }
     crate::bugreport::without_home(&said, home.as_deref())
 }
 
@@ -1918,7 +1923,7 @@ impl App {
                 // A typed path that named a file lands here with the file under
                 // the cursor. One that named nothing used to land here too, in
                 // silence, and looked like the place that was asked for.
-                self.error(nothing_there(&name, path));
+                self.error(nothing_there(&name, path, near.as_deref()));
             }
             let keep = self.tabs[self.active].current.hovered_name().map(str::to_owned);
             let filter = self.tabs[self.active].current.filter.clone();
@@ -2745,10 +2750,10 @@ impl App {
         if listed {
             if let Some(name) = pending.as_ref().and_then(|p| p.reveal.as_deref()) {
                 if !self.tabs[idx].current.entries.iter().any(|e| e.name == name) {
-                    self.error(nothing_there(name, &target));
                     // The cursor goes to the nearest name rather than the top.
-                    let near = crate::core::fuzzy::closest(name, self.tabs[idx].current.entries.iter().map(|e| e.name.as_str()));
-                    if let Some(near) = near.map(str::to_owned) {
+                    let near = crate::core::fuzzy::closest(name, self.tabs[idx].current.entries.iter().map(|e| e.name.as_str())).map(str::to_owned);
+                    self.error(nothing_there(name, &target, near.as_deref()));
+                    if let Some(near) = near {
                         self.tabs[idx].current.select_name(&near);
                     }
                 }
@@ -10192,12 +10197,14 @@ mod said_out_loud {
         a.on_scan(ScanResult::Failed { id: 0, path: dir.join("tpyo"), error: "not found".into() });
         a.apply_listing(&dir, listing());
         assert_eq!(a.tabs[a.active].current.hovered_name(), Some("typo"));
+        assert!(a.toasts.iter().any(|t| t.text.ends_with(" (nearest: typo)")), "{:?}", a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
 
         let mut a = app_in(&dir.join("elsewhere"));
         a.cd_or_reveal(dir.join("qqqqqq"));
         a.on_scan(ScanResult::Failed { id: 0, path: dir.join("qqqqqq"), error: "not found".into() });
         a.apply_listing(&dir, listing());
         assert_eq!(a.tabs[a.active].current.hovered_name(), Some("alpha.txt"), "nothing near: the top");
+        assert!(a.toasts.iter().all(|t| !t.text.contains("(nearest: ")), "no name to give");
     }
 
     /// The `cd` prompt starts with the folder and this platform's separator,

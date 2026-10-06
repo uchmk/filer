@@ -211,7 +211,7 @@ v0.78.167 のスクリプトが構文エラーで読めなかった間に、前�
 32.23 の `was not found` の節は Q89 待ち（`cmd /c nosuchprog-xyz` は 1 で終わる）。17.12 も維持し、`--keys` の消える実行は 0 / 20（#260 の pdftoppm の台本）。
 #285 の提案 1（票を写す）は v0.78.152 で Q89 に `arm` の票が入って済んでいる。
 
-- [ ] 23.6 のトーストに、近い名前を選んだときはその名前を出す（#285 の提案 2）。今は `No such file or folder: …\tpyo — showing …\d` だけで、カーソルが一覧の途中の `typo` に飛んだ理由が画面に無い。
+- [x] （v0.78.173。`(nearest: …)` を足した）23.6 のトーストに、近い名前を選んだときはその名前を出す（#285 の提案 2）。今は `No such file or folder: …\tpyo — showing …\d` だけで、カーソルが一覧の途中の `typo` に飛んだ理由が画面に無い。
   `— showing …\d (nearest: typo)` のように 1 句足し、23.6 の文言と `scripts/testcheck-ja.toml` の訳を合わせ、両レーンの再テストに積む
 - [ ] TESTING.md 17.12 に、`pdftoppm` を `PATH` から外す手順を 1 句足す（#285 の提案 3）: 「Poppler のフォルダを `PATH` から外したシェルから filer を起動する。同じシェルで `Get-Command pdftoppm` が何も出さないこと」【QA】
 
