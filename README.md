@@ -1469,7 +1469,7 @@ a bare `*` is still the key `*`.
 `<Click:0.2,0.1>` and `<RClick:0.2,0.1>` press the left or right button at that place in the window, as
 fractions of its width and height; `<Wheel:-3@0.5,0.4>` turns the wheel three lines (negative is down)
 there (`<Wheel:0.25@…>` is a quarter notch, and `C-` / `A-` / `S-` before the number holds that key: `<Wheel:C-1@…>`);
-`<Drag:0.2,0.3-0.6,0.3>` presses the left button at the first place, moves to the second and lets go (v0.78.145); `<Paste>` pastes the clipboard as it is at that point, and so does `<C-v>` (v0.78.53). They go in
+`<Drag:0.2,0.3-0.6,0.3>` presses the left button at the first place, moves to the second and lets go (v0.78.145; since v0.78.175 each of the press, the moves and the release goes in its own frame, so a pane or a list sees a real drag); `<Paste>` pastes the clipboard as it is at that point, and so does `<C-v>` (v0.78.53). They go in
 as egui's own events, so no foreground window or screen saver matters, and a prompt's text field
 hears `<C-v>` as a real keyboard would deliver it.
 

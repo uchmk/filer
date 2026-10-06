@@ -922,7 +922,18 @@ impl eframe::App for Filer {
             }
             Some(p @ (keyscript::Press::Click { .. } | keyscript::Press::Wheel { .. } | keyscript::Press::Drag { .. })) => {
                 let rect = ctx.input(|i| i.viewport_rect());
-                raw_input.events.extend(keyscript::pointer_events(&p, rect));
+                let mut events = keyscript::pointer_events(&p, rect);
+                // A drag one event per frame: in one frame egui never sees the
+                // button held while the pointer moves, so nothing starts to
+                // drag (#283, #284). The first goes in now, the rest follow
+                // as steps of their own, each after the frame has settled.
+                if matches!(p, keyscript::Press::Drag { .. }) && events.len() > 1 {
+                    let rest = events.split_off(1);
+                    for e in rest.into_iter().rev() {
+                        self.script.push_front(keyscript::Press::Events(vec![e]));
+                    }
+                }
+                raw_input.events.extend(events);
                 self.script_at = (frame, std::time::Instant::now());
                 self.script_now = false;
             }
