@@ -211,6 +211,14 @@ enum LineArg {
     Colon,
 }
 
+/// The toast note for a line the opener cannot take; empty when no line was asked for or it is passed.
+pub fn no_line_note(run: &str, paths: &[PathBuf], line: Option<usize>, custom: &LineArgs) -> String {
+    match line {
+        Some(n) if at_line(run, paths, n, custom).is_none() => format!(" (line {n} not passed: this opener takes no line)"),
+        _ => String::new(),
+    }
+}
+
 /// The opener's command line, opening `paths` at `line` (1-based) when the
 /// program is an editor known to take a line; `None` when it is not. A
 /// `[line_args]` template in `custom` is preferred over the built-in table.
@@ -996,6 +1004,15 @@ mod tests {
         // A program that takes no line number is opened the plain way.
         assert_eq!(at("explorer %s"), None);
         assert_eq!(at(""), None);
+    }
+
+    #[test]
+    fn notes_a_line_only_when_the_opener_cannot_take_it() {
+        let s = sample("txt");
+        let note = |run: &str, line| no_line_note(run, &s.paths, line, &LineArgs::new());
+        assert_eq!(note("winword %s", Some(7)), " (line 7 not passed: this opener takes no line)");
+        assert_eq!(note("code -g %s", Some(7)), "");
+        assert_eq!(note("winword %s", None), "");
     }
 
     /// The Windows editors' own flags. The programs only exist there, but the

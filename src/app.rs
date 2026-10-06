@@ -4339,12 +4339,7 @@ impl App {
         match openers.get(first_found) {
             Some((run, block, orphan, _)) => {
                 // Said, so an opener that cannot take a line (Word) is not read as having lost it.
-                let no_line = match line {
-                    Some(n) if exec::at_line(run, &paths, n, &self.cfg.line_args).is_none() => {
-                        format!(" (line {n} not passed: this opener takes no line)")
-                    }
-                    _ => String::new(),
-                };
+                let no_line = exec::no_line_note(run, &paths, line, &self.cfg.line_args);
                 let line = exec::command_line(run, &paths, line, &self.cfg.line_args);
                 let (block, orphan) = (*block, *orphan);
                 // Said, so a `yazi.toml` line that did not run is not read as ignored.
