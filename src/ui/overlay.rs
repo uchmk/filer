@@ -1376,6 +1376,9 @@ pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
         .fold(0.0, f32::max);
     let key_w = spot_key_width(widest, inner.width());
     let value_chars = ((inner.width() - key_w) / (f.size * 0.6)).max(4.0) as usize;
+    // A key wider than its column (held to 45% of the panel) is cut as a value is.
+    let key_chars = ((key_w - 12.0 - 8.0) / (f.size * 0.6)).max(4.0) as usize;
+    let key_cut = widest + 12.0 + 8.0 > key_w;
     for (i, (row, key, value)) in lines.iter().skip(ov.scroll).take(visible).enumerate() {
         let y = inner.top() + i as f32 * row_h;
         match row {
@@ -1390,7 +1393,7 @@ pub fn spot(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32) {
                 painter.text(
                     egui::pos2(inner.left() + 12.0, y),
                     Align2::LEFT_TOP,
-                    *key,
+                    if key_cut { crate::util::ellipsize_middle(key, key_chars) } else { key.to_string() },
                     f.clone(),
                     theme.fg_dim,
                 );
