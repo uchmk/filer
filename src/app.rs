@@ -6477,11 +6477,16 @@ fn preview_paths(paths: &[PathBuf]) -> Vec<String> {
 /// The spot panel as text: each section's title on a line of its own, then
 /// one `Label<TAB>value` line per row, and a blank line between sections. A tab
 /// because values hold spaces and colons, and a spreadsheet splits on it.
+/// `Came in via` holds two values, the pull request and the merge, and they
+/// get a tab of their own so each lands in a cell (#263); the panel is unchanged.
 fn spot_text(sections: &[Section]) -> String {
     sections
         .iter()
         .map(|s| {
-            let rows: Vec<String> = s.rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect();
+            let rows: Vec<String> = s.rows.iter().map(|(k, v)| match k.as_str() {
+                "Came in via" => format!("{k}\t{}", v.replacen("  ", "\t", 1)),
+                _ => format!("{k}\t{v}"),
+            }).collect();
             format!("{}\n{}", s.title, rows.join("\n"))
         })
         .collect::<Vec<_>>()
@@ -9557,7 +9562,7 @@ mod escape_and_max_preview {
             Section { title: "File".into(), rows: vec![("Name".into(), "a b.txt".into()), ("Size".into(), "3 B".into())] },
             Section { title: "Git".into(), rows: vec![("Came in via".into(), "#71  48b6c9c".into())] },
         ];
-        assert_eq!(spot_text(&sections), "File\nName\ta b.txt\nSize\t3 B\n\nGit\nCame in via\t#71  48b6c9c");
+        assert_eq!(spot_text(&sections), "File\nName\ta b.txt\nSize\t3 B\n\nGit\nCame in via\t#71\t48b6c9c");
     }
 
     /// The default spot keys reach the two new commands: `C` copies it all,
