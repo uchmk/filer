@@ -550,6 +550,7 @@ to answer a click.
 | 16.1 | Hover a `.docx` | Its text, paragraph by paragraph. Not a hex dump, not a metadata card |
 | 16.2 | A paragraph with mixed bold and plain in one sentence | **One line**, not one per run |
 | 16.3 | A document with Heading 1/2 styles, then `<S-Tab>` | The headings are the outline, and `<Enter>` on one jumps to it |
+| 16.3b | `<Enter>` on an outline entry of a `.docx` (the default app is Word) | The toast ends with `(line N not passed: this opener takes no line)`. An editor that takes a line (`code -g`) has no such note |
 | 16.4 | Hover a `.xlsx` | Rows as tab-separated cells, each sheet announced |
 | 16.5 | A workbook whose **first tab is not `sheet1.xml`** | The tabs come out in the workbook's order, with their real names |
 | 16.6 | A sheet holding dates | `2023-03-15`, **not** `45000` |

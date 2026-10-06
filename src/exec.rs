@@ -1012,6 +1012,8 @@ mod tests {
         assert_eq!(at("notepad++ %s").as_deref(), Some(format!(r#"notepad++ -n123 "{p}""#).as_str()));
         // Notepad takes no line, so it is opened the plain way.
         assert_eq!(at("notepad %s"), None);
+        // Word takes none either; `open_at` says so in the toast (16.3b).
+        assert_eq!(at("winword %s"), None);
         assert_eq!(
             at(&format!(r#""{}" %s"#, s.sakura)).as_deref(),
             Some(format!(r#""{}" -Y=123 "{p}""#, s.sakura).as_str())

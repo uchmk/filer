@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 524 件（TESTING.md の全 696 件のうち、`cargo test` が見ている 172 件は外してある）。
+押すものは 525 件（TESTING.md の全 697 件のうち、`cargo test` が見ている 172 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -311,6 +311,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **16.1** `.docx` をホバー → 段落ごとの本文が出る。16 進ダンプでもメタデータの一覧でもない — *Hover a `.docx` → Its text, paragraph by paragraph. Not a hex dump, not a metadata card*
 - [x] **16.2** 1 文の中で太字と通常が混ざった段落 → **1 行になる**（書式の切れ目ごとに改行されない） — *A paragraph with mixed bold and plain in one sentence → **One line**, not one per run*
 - [ ] **16.3** 見出し 1 / 2 のスタイルを使った文書で `<S-Tab>` → 見出しがアウトラインになり、`<Enter>` でその位置へ飛ぶ — *A document with Heading 1/2 styles, then `<S-Tab>` → The headings are the outline, and `<Enter>` on one jumps to it*
+- [ ] **16.3b** Word で開く `.docx` のアウトラインで `<Enter>` → トーストの末尾に `(line N not passed: this opener takes no line)`。行を受け取るエディタ（`code -g` など）では付かない — *`<Enter>` on an outline entry of a `.docx` (the default app is Word) → The toast ends with `(line N not passed: this opener takes no line)`. An editor that takes a line (`code -g`) has no such note*
 - [x] **16.4** `.xlsx` をホバー → 行がタブ区切りのセルとして出て、シートごとに名前が示される — *Hover a `.xlsx` → Rows as tab-separated cells, each sheet announced*
 - [x] **16.5** **最初のタブが `sheet1.xml` ではない**ブック → タブがブック上の順番どおりに、本当の名前で出る — *A workbook whose **first tab is not `sheet1.xml`** → The tabs come out in the workbook's order, with their real names*
 - [x] **16.6** 日付の入ったシート → `2023-03-15` と出る（`45000` ではない） — *A sheet holding dates → `2023-03-15`, **not** `45000`*
