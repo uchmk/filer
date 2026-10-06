@@ -1810,8 +1810,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] spot の Git の節の `git` 呼び出しを減らす（#263 の提案 2: 1 回で 8 回。`rev-parse` と `merge-base` が 2 回ずつ、`remote.origin.url` は毎回）。リポジトリの根ごとに、
   根・`remote.origin.url`・`origin/HEAD` を覚える
   - [x] （v0.78.82）`git::origin` の `rev-list` と、その後の `log -n1` を、`--format=%H%x00%h%x00%s` の `git log` 1 回にまとめた（1 回減る）
-  - [ ] `remote.origin.url` と `origin/HEAD` を、リポジトリの根ごとに覚える。46.20 の再テストは `git remote set-head origin -a` の後にもう一度見るので、
-    覚えた値をいつ捨てるか（`.git` の `refs/remotes/origin/HEAD` と `config` の更新時刻で見るなど）を決めてから
+  - [x] （v0.78.179。`.git` ごとに `config`・`refs/remotes/origin/HEAD`・`packed-refs` の更新時刻と大きさで覚え、変われば捨てる）`remote.origin.url` と `origin/HEAD` を、リポジトリの根ごとに覚える
 - [ ] TESTING.md 46.11 に何を測るかを書く（#263 の提案 3: `conhost.exe` の数ではなく、`ConsoleWindowClass` の見える窓が増えないこと。上の `DETACHED_PROCESS` が入れば数で測れる）【QA】
 - [x] （v0.78.176。`C` の出力だけ `#42` と `bb23a4e` の間を TAB にした。見た目は変えない）spot の `C` で `Came in via` の 2 つの値を分ける（#263 の提案 4）
 - [ ] （所見）前の run（2026-10-04 12:02 の 37 節）が開いた Chrome のタブが ARM64 機に残っている（#263 の所見 1、#256 の所見 2 と同じ）。持ち主が閉じる【人】

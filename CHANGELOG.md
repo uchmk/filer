@@ -9,6 +9,14 @@
 
 ## [未リリース]
 
+## [0.78.179] - 2026-10-06
+
+### 変更
+
+- spot の Git の節が `git` を呼ぶ回数を減らした（#263 の提案 2）。`remote.origin.url` と `origin/HEAD` を、リポジトリの `.git` ごとに覚える。
+  `config`・`refs/remotes/origin/HEAD`・`packed-refs` の更新時刻と大きさが変わったら捨てる（`git remote set-head origin -a` も次の spot で拾う）。
+  `.git` がファイルの worktree / submodule は覚えず、これまでどおり毎回聞く。
+
 ## [0.78.178] - 2026-10-06
 
 ### 修正

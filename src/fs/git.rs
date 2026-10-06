@@ -285,8 +285,56 @@ pub(crate) fn origin(path: &Path, commit: &str) -> Option<Origin> {
 /// not guessed at -- a wrong URL is worse than none.
 pub(crate) fn pull_request_url(path: &Path, pr: u32) -> Option<String> {
     let dir = if path.is_dir() { path } else { path.parent()? };
-    let remote = run(dir, &["config", "--get", "remote.origin.url"])?;
+    let remote = remote_info(dir).url?;
     github_pr_url(remote.trim(), pr)
+}
+
+/// What `origin` is, remembered per repository: its URL and its default branch
+/// (`origin/HEAD`). Both were asked of `git` on every spot, and on Windows each
+/// call brings a console host up (#263, proposal 2).
+#[derive(Clone, Default)]
+struct RemoteInfo {
+    url: Option<String>,
+    default: Option<String>,
+}
+
+/// Where the answers came from, as (modified time, length) of the three files
+/// that can change them: `config` (the URL), `refs/remotes/origin/HEAD` (set by
+/// `git remote set-head`) and `packed-refs`. Any difference drops the memory.
+type Stamp = Vec<Option<(std::time::SystemTime, u64)>>;
+
+static REMOTES: std::sync::Mutex<Option<HashMap<PathBuf, (Stamp, RemoteInfo)>>> = std::sync::Mutex::new(None);
+
+/// The `.git` directory above `dir`. A `.git` *file* (worktree, submodule) says
+/// nothing about where the config is, so those are not remembered.
+fn git_dir(dir: &Path) -> Option<PathBuf> {
+    dir.ancestors().map(|a| a.join(".git")).find(|g| g.exists()).filter(|g| g.is_dir())
+}
+
+fn stamp(git: &Path) -> Stamp {
+    ["config", "refs/remotes/origin/HEAD", "packed-refs"]
+        .iter()
+        .map(|f| std::fs::metadata(git.join(f)).ok().and_then(|m| Some((m.modified().ok()?, m.len()))))
+        .collect()
+}
+
+fn remote_info(dir: &Path) -> RemoteInfo {
+    let ask = || RemoteInfo {
+        url: run(dir, &["config", "--get", "remote.origin.url"]).map(|u| u.trim().to_owned()),
+        default: run(dir, &["rev-parse", "--abbrev-ref", "origin/HEAD"]).map(|d| d.trim().to_owned()),
+    };
+    let Some(git) = git_dir(dir) else { return ask() };
+    let now = stamp(&git);
+    if let Some((then, info)) = REMOTES.lock().ok().and_then(|m| m.as_ref()?.get(&git).cloned()) {
+        if then == now {
+            return info;
+        }
+    }
+    let info = ask();
+    if let Ok(mut m) = REMOTES.lock() {
+        m.get_or_insert_with(HashMap::new).insert(git, (now, info.clone()));
+    }
+    info
 }
 
 /// `owner/repo` out of the three ways a GitHub remote is written, and the pull
@@ -316,8 +364,7 @@ fn github_pr_url(remote: &str, pr: u32) -> Option<String> {
 /// the last fetch, and no newer.
 pub(crate) fn not_merged_into(path: &Path, commit: &str) -> Option<NotMerged> {
     let dir = if path.is_dir() { path } else { path.parent()? };
-    let default = run(dir, &["rev-parse", "--abbrev-ref", "origin/HEAD"]).map(|d| d.trim().to_owned());
-    let default = match default.filter(|d| !d.is_empty() && d != "origin/HEAD") {
+    let default = match remote_info(dir).default.filter(|d| !d.is_empty() && d != "origin/HEAD") {
         Some(d) => d,
         // A clone that has an `origin` but never learned its default branch
         // (`git remote set-head origin -a` fixes it): the absence of a
