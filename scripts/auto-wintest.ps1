@@ -332,6 +332,23 @@ try {
     $seen = if (Test-Path $last) { (Get-Content -Raw $last).Trim() } else { '' }
     if (-not $Force -and $trigger -eq $seen) { exit 0 }   # quiet: this is most runs
 
+    # A merge that only records a lane's result (its "the test suite" row and
+    # its "When every row above is empty" row in windows-role.md) is not new
+    # work: starting on it made an empty queue wake itself every hour (#291,
+    # #292). The trigger is used up without a run.
+    if (-not $Force -and $seen -and (git -C $Work cat-file -e "$seen^{commit}" 2>$null; $LASTEXITCODE -eq 0)) {
+        $files = @(git -C $Work diff --name-only $seen $trigger -- $watched)
+        if ($files.Count -eq 1 -and $files[0] -eq '.claude/windows-role.md') {
+            $changed = @(git -C $Work diff -U0 $seen $trigger -- '.claude/windows-role.md' |
+                Where-Object { $_ -match '^[+-]' -and $_ -notmatch '^(\+\+\+|---) ' })
+            $other = @($changed | Where-Object { $_ -notmatch '^[+-]\| \*\*(the test suite|When every row above is empty)\*\* \|' })
+            if ($changed.Count -gt 0 -and $other.Count -eq 0) {
+                Set-Content -NoNewline -Path $last -Value $trigger
+                exit 0
+            }
+        }
+    }
+
     $open = gh pr list --repo $repo --state open --json headRefName --jq '.[].headRefName' |
         Where-Object { $_ -like "test/$Lane-*" }
     if ($LASTEXITCODE -ne 0) { Say 'gh pr list failed (is gh logged in?). Trying again next time.'; exit 0 }

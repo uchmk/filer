@@ -151,7 +151,7 @@
 印は付けていない。`cargo test` は 700 / 0、消える `--keys` の数は 0 / 20（ARM64 で 0 / 120）。所見は無い。
 提案 1（`src/` と tsumugi-pane の `rev` が前の数えた回から変わっていなければ (2) を飛ばす）は、Q90 の答えが来るまでの決まりとして ARM64 の順番表の (2) に書いた。
 
-- [ ] レーンの結果を記録するだけのマージで、そのレーンの次の実行が起きないようにする（#292 の提案 2）。`scripts/auto-wintest.ps1` は `windows-role.md`・TESTING.md・TESTING-CHECKS.md の変更で起動するので、
+- [x] （v0.78.167。`auto-wintest.ps1` が結果の行だけの差分では起動しない）レーンの結果を記録するだけのマージで、そのレーンの次の実行が起きないようにする（#292 の提案 2）。`scripts/auto-wintest.ps1` は `windows-role.md`・TESTING.md・TESTING-CHECKS.md の変更で起動するので、
   マージする側が ARM64 の表に実行の結果（テストの行、最後の行の (2) の数）を書くと、それが次の実行の引き金になり、空の順番表が毎時自分で起き直す（#291 → #292）。
   起動の判定で、前の実行からの `windows-role.md` の差分が、自分のレーンの「the test suite」の行と「When every row above is empty」の行の中だけなら起動しないようにする
 
