@@ -1812,7 +1812,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] `git` などの出力を読むだけの子プロセスを `DETACHED_PROCESS` で起こす（#263 の提案 1。`CREATE_NO_WINDOW` は窓を隠すだけで、`git.exe` ごとに `conhost.exe` が 1 つ立つ。
   spot を 6 回開いて `conhost` が 21 個）。`src/fs/git.rs`、`exec.rs`、`fs/ops.rs`、`preview/external.rs` の 4 か所。`cmd /S /C` の外部プレビューはコンソールが要らないかを確かめる【実機】（`cmd` を `DETACHED_PROCESS` で起こすと、その子の console アプリが新しい窓を作って
   ちらつくおそれがある。`git.exe` 直起こしだけなら足せるが、Linux では測れず、`conhost` の数と窓のちらつきは Windows でしか見えない）
-- [ ] spot の Git の節の `git` 呼び出しを減らす（#263 の提案 2: 1 回で 8 回。`rev-parse` と `merge-base` が 2 回ずつ、`remote.origin.url` は毎回）。リポジトリの根ごとに、
+- [x] （v0.78.184。子の 2 つで済んでいる。残る `rev-parse` と `merge-base` の 2 回ずつは引数が別の問い）spot の Git の節の `git` 呼び出しを減らす（#263 の提案 2: 1 回で 8 回。`rev-parse` と `merge-base` が 2 回ずつ、`remote.origin.url` は毎回）。リポジトリの根ごとに、
   根・`remote.origin.url`・`origin/HEAD` を覚える
   - [x] （v0.78.82）`git::origin` の `rev-list` と、その後の `log -n1` を、`--format=%H%x00%h%x00%s` の `git log` 1 回にまとめた（1 回減る）
   - [x] （v0.78.179。`.git` ごとに `config`・`refs/remotes/origin/HEAD`・`packed-refs` の更新時刻と大きさで覚え、変われば捨てる）`remote.origin.url` と `origin/HEAD` を、リポジトリの根ごとに覚える
