@@ -2936,7 +2936,7 @@ impl App {
         // on screen. These say so rather than act on paths that are not
         // there; `y` is let through, and `p` outside takes the members out.
         if self.archive_view.is_some() && changes_files(&a) {
-            self.toast("Inside an archive: read only — y then p in a folder takes a copy out, Esc leaves");
+            self.toast(archive_refusal(&a));
             return;
         }
         match a {
@@ -6273,6 +6273,17 @@ fn changes_files(a: &Act) -> bool {
             | Act::Compress
             | Act::SendPane { .. }
     )
+}
+
+/// What the refusal says: the commands that would rewrite the archive are
+/// read-only by design, the rest are not offered inside one yet (#252).
+fn archive_refusal(a: &Act) -> &'static str {
+    match a {
+        Act::Remove { .. } | Act::Create { .. } | Act::Rename { .. } | Act::BulkRename | Act::Yank { cut: true } => {
+            "Inside an archive: read only — this would change the archive, which filer never writes. y then p in a folder takes a copy out, Esc leaves"
+        }
+        _ => "Inside an archive: not available here yet — y then p in a folder takes a copy out, Esc leaves",
+    }
 }
 
 /// How many entries of an archive are listed before stopping; the rest are

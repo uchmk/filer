@@ -9,6 +9,13 @@
 
 ## [未リリース]
 
+## [0.78.193] - 2026-10-07
+
+### 変更
+
+- 書庫の中の拒否のトーストを分けた（#252 の提案 1）。書庫を書き換える `x` `d` `a` `r` は「read only — this would change the archive, which filer never writes」、
+  まだ無いだけの `p` `Z` などは「not available here yet」と言う。どちらも `y` と `p` で取り出せることを添える。
+
 ## [0.78.192] - 2026-10-07
 
 ### 修正
