@@ -336,7 +336,9 @@ try {
     # its "When every row above is empty" row in windows-role.md) is not new
     # work: starting on it made an empty queue wake itself every hour (#291,
     # #292). The trigger is used up without a run.
-    if (-not $Force -and $seen -and (git -C $Work cat-file -e "$seen^{commit}" 2>$null; $LASTEXITCODE -eq 0)) {
+    $seenKnown = $false
+    if ($seen) { git -C $Work cat-file -e "$seen^{commit}" 2>$null; $seenKnown = ($LASTEXITCODE -eq 0) }
+    if (-not $Force -and $seenKnown) {
         $files = @(git -C $Work diff --name-only $seen $trigger -- $watched)
         if ($files.Count -eq 1 -and $files[0] -eq '.claude/windows-role.md') {
             $changed = @(git -C $Work diff -U0 $seen $trigger -- '.claude/windows-role.md' |
