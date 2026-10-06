@@ -18,6 +18,9 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
+- [ ] （Sonnet の見張り）v0.78.190（`285321a`）は v0.78.188 の注記の項目を済みにしたが、足したテストは `exec::at_line("winword %s")` が `None` を返すことだけで、項目が求めた「注記が付く／付かない」は試していない。
+  注記を組むのは `src/app.rs` の `open_at` の中（`(line {n} not passed: this opener takes no line)`）で、ここが消えたり、行を受け取るエディタでも付いたりしても CI は気づかない。
+  注記の文を作る部分を小さな関数（`exec` か `app` の中、`line` と `at_line` の結果から文を返す）に切り出し、`winword %s` で付き、`code -g %s`（`at_line` が `Some`）と `line` が `None` のときに付かないことを試す
 - [x] （v0.78.190。16.3b を足し、両レーンの再テストに積み、`winword` が行を受け取らない単体テストを足した）（Sonnet の見張り）v0.78.188（`6c5b5c5`）は、行つきで開いたとき（アウトラインの `<Enter>`）オープナーが行を受け取れなければトーストに `(line N not passed: this opener takes no line)` を足すようにした（動きが変わった）が、
   TESTING.md に行が無く、両レーンの再テストにも積んでいない（CLAUDE.md の作業ルール）。単体テストも無い。16.3（`<Enter>` が見出しへ飛ぶ）はこのトーストを言っていないので、押しても変わった動きは通らない。
   16 節に「Word で開くアウトラインの `<Enter>` は、トーストの末尾に `(line N not passed: this opener takes no line)`。行を受け取るエディタ（`code -g` など）では付かない」の行（16.3b など）を足し、
