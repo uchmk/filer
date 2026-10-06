@@ -18,6 +18,7 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
+- [ ] （Sonnet の見張り）v0.78.176（`e2ad2b5`）は spot の `C` の出力を変えた（`Came in via` の `#42` と `bb23a4e` の間が 2 つの空白から TAB に）が、それを受け持つ TESTING.md 46.17（`Label<TAB>value`）を直さず、TESTING-CHECKS.md の 46.17 の `[x]` も外さず、両レーンの再テストにも積んでいない（CLAUDE.md の作業ルール）。46.17 に「`Came in via` は `Came in via<TAB>#n<TAB>hash` の 3 列になる（v0.78.176）」を足し、`scripts/testcheck-ja.toml` の訳も合わせ、`make-testcheck` で作り直して 46.17 の `[x]` を外し、`windows-role.md` の 2 つの再テストに 46.17 を積む
 - [x] （v0.78.169。`$seenKnown` に取ってから条件に使った。この環境に pwsh が無く ParseFile は回せていない）（Sonnet の見張り）**急ぎ。**v0.78.167（`40163e9`）が足した `scripts/auto-wintest.ps1` の 339 行目 `if (-not $Force -and $seen -and (git -C $Work cat-file -e "$seen^{commit}" 2>$null; $LASTEXITCODE -eq 0))` は、`( )` の中に `;` で 2 つの文を置いていて、PowerShell の構文エラーになる（`[System.Management.Automation.Language.Parser]::ParseFile` で 7 件。最初は `339: Missing closing ')' in expression.`。pwsh 7.4.6 で確かめた）。
   スクリプト全体が読めないので、両レーンの実行が止まる。しかもスクリプトは自分で作業フォルダを `origin/main` に合わせるので、壊れた版が作業フォルダに入った後は、直した版を自分では取りに行けない。
   `( … )` を `$( … )` にする（または `git … cat-file` を前の行で回して `$LASTEXITCODE` だけを条件にする）。直したら ParseFile でエラー 0 を確かめ、CI か `scripts/verify.sh` で PowerShell の構文を検査する手を足すかも考える。
