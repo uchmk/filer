@@ -1440,6 +1440,13 @@ fn state_report(app: &App) -> String {
         app.split.map_or("no".into(), |s| format!("yes, keys {}", if s.right { "right" } else { "left" }))
     ));
     lines.push(format!("toast: {}", app.toasts.last().map_or("", |t| t.text.as_str())));
+    // The kind alone (`Command failed`, `Open failed`): the text before the
+    // first `:` of its first line, so a wording check reads one short line and
+    // not the long, localized `toast:` with its path (#289).
+    if let Some(t) = app.toasts.last() {
+        let first = t.text.lines().next().unwrap_or("");
+        lines.push(format!("toast kind: {}", first.split(':').next().unwrap_or("").trim()));
+    }
     // How many times that same line was raised, when more than once: the
     // `×8` the toast shows was only in the picture (#216).
     if let Some(n) = app.toasts.last().map(|t| t.count).filter(|n| *n > 1) {
@@ -2036,6 +2043,9 @@ mod tests {
         app.error("Open failed\nexit code 1");
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "toasts shown: Open failed / exit code 1"), "{report}");
+        assert!(report.lines().any(|l| l == "toast kind: Open failed"), "{report}");
+        app.error("Command failed: x\nexit code 1");
+        assert!(state_report(&app).lines().any(|l| l == "toast kind: Command failed"));
         app.toasts.clear();
 
         // A picker lists what it offers, in its order, and the row under the cursor.
