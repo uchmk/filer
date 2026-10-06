@@ -4338,13 +4338,21 @@ impl App {
         let first_found = openers.iter().position(|o| !exec::opener_missing(&o.0)).unwrap_or(0);
         match openers.get(first_found) {
             Some((run, block, orphan, _)) => {
+                // Said, so an opener that cannot take a line (Word) is not read as having lost it.
+                let no_line = match line {
+                    Some(n) if exec::at_line(run, &paths, n, &self.cfg.line_args).is_none() => {
+                        format!(" (line {n} not passed: this opener takes no line)")
+                    }
+                    _ => String::new(),
+                };
                 let line = exec::command_line(run, &paths, line, &self.cfg.line_args);
                 let (block, orphan) = (*block, *orphan);
                 // Said, so a `yazi.toml` line that did not run is not read as ignored.
-                let note = match openers.first().and_then(|o| exec::missing_name(&o.0)) {
+                let mut note = match openers.first().and_then(|o| exec::missing_name(&o.0)) {
                     Some(name) if first_found > 0 => format!(" (skipped {name}: not found)"),
                     _ => String::new(),
                 };
+                note.push_str(&no_line);
                 self.launch(&line, &cwd, block, orphan, "Open failed", &note);
             }
             // Said, as an opener's launch is: handed to the system, a file
