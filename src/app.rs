@@ -1314,7 +1314,7 @@ pub struct App {
     pub parent_shown: Vec<String>,
     /// Openers still young enough to fail on us; drained in
     /// [`App::drain_channels`].
-    launches: Vec<(exec::Launch, String, String)>,
+    launches: Vec<(exec::Launch, String, String, String)>,
     pub bookmarks: Vec<Bookmark>,
     /// Where `z` can jump, in visit order (newest last). Ranked by [`frecency`]
     /// when the picker opens.
@@ -1720,14 +1720,16 @@ impl App {
         // A launch reports at most once, and its watcher lets go of the channel
         // when it stops caring, so a disconnected one is finished with.
         let mut failed = Vec::new();
-        self.launches.retain(|(l, line, what)| match l.rx.try_recv() {
+        self.launches.retain(|(l, line, what, note)| match l.rx.try_recv() {
             Ok(msg) => {
                 // The watcher words every failure as an opener's; a shell line is not one.
                 let msg = match msg.strip_prefix("Open failed") {
                     Some(rest) => format!("{what}{rest}"),
                     None => msg,
                 };
-                failed.push((msg, line.clone()));
+                // The `(no path: …)` note of the `$ …` toast this replaces, kept so the
+                // failure still says filer left the path off (#290).
+                failed.push((format!("{msg}{note}"), line.clone()));
                 false
             }
             Err(crossbeam_channel::TryRecvError::Empty) => true,
@@ -4373,7 +4375,7 @@ impl App {
             Ok(l) => {
                 self.toast(format!("$ {line}{note}"));
                 self.last_launch = Some(format!("launched: {} {line}", l.pid.map_or("-".into(), |p| p.to_string())));
-                self.launches.push((l, line.to_owned(), what.to_owned()));
+                self.launches.push((l, line.to_owned(), what.to_owned(), note.to_owned()));
                 crate::runinfo::remember_launch(line);
             }
             Err(e) => self.error(format!("{what}: {e}")),
