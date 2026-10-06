@@ -6275,11 +6275,19 @@ fn changes_files(a: &Act) -> bool {
     )
 }
 
-/// What the refusal says: the commands that would rewrite the archive are
-/// read-only by design, the rest are not offered inside one yet (#252).
+/// What the refusal says: the commands that would rewrite the archive (cut,
+/// remove, create, rename, paste, links) are read-only by design, the rest are
+/// not offered inside one yet (#252).
 fn archive_refusal(a: &Act) -> &'static str {
     match a {
-        Act::Remove { .. } | Act::Create { .. } | Act::Rename { .. } | Act::BulkRename | Act::Yank { cut: true } => {
+        Act::Remove { .. }
+        | Act::Create { .. }
+        | Act::Rename { .. }
+        | Act::BulkRename
+        | Act::Yank { cut: true }
+        | Act::Paste { .. }
+        | Act::Link { .. }
+        | Act::Hardlink => {
             "Inside an archive: read only — this would change the archive, which filer never writes. y then p in a folder takes a copy out, Esc leaves"
         }
         _ => "Inside an archive: not available here yet — y then p in a folder takes a copy out, Esc leaves",
@@ -6511,6 +6519,26 @@ fn spot_text(sections: &[Section]) -> String {
 mod tests {
     use super::*;
     use crate::config::keys::Key;
+
+    #[test]
+    fn archive_refusal_splits_writes_from_not_yet() {
+        let ro = "read only";
+        for a in [
+            Act::Yank { cut: true },
+            Act::Remove { permanently: false, force: false, hovered: false },
+            Act::Create { dir: false, force: false },
+            Act::Rename { force: false, cursor: RenameCursor::End },
+            Act::Paste { force: false, follow: false },
+            Act::Link { relative: false },
+            Act::Hardlink,
+        ] {
+            assert!(archive_refusal(&a).contains(ro), "{a:?}");
+        }
+        for a in [Act::Extract, Act::Compress] {
+            let m = archive_refusal(&a);
+            assert!(m.contains("not available here yet") && !m.contains(ro), "{a:?}");
+        }
+    }
 
     /// The bare bones of a listing row: a path and whether entering it means
     /// changing directory.
