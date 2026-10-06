@@ -149,7 +149,7 @@ fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
         false => cfg.term.shell.clone(),
         true => crate::terminal::default_program(),
     };
-    rows.push((shell.clone(), found(&shell, &shell_source(&cfg.term))));
+    rows.push((shell.clone(), found_with_version(&shell, &shell_source(&cfg.term))));
     #[cfg(windows)]
     rows.push(("ConPTY".into(), conpty_source(std::env::current_exe().ok().as_deref())));
     // Where a `block = true` opener runs. Windows gives it a console of its
@@ -260,6 +260,45 @@ fn found(exe: &str, what: &str) -> String {
     match crate::util::locate(exe) {
         Some(p) => format!("{}   ({what})", p.display()),
         None => format!("not found   ({what})"),
+    }
+}
+
+/// `found`, plus the file's version on Windows, read from the version resource
+/// so that nothing is run (25.4d). `pwsh` 7.4 and Windows PowerShell 5.1 differ
+/// in ways a pane bug report needs to know (#258).
+fn found_with_version(exe: &str, what: &str) -> String {
+    let said = found(exe, what);
+    #[cfg(windows)]
+    if let Some(v) = crate::util::locate(exe).and_then(|p| file_version(&p)) {
+        return said.replacen("   (", &format!("   v{v}   ("), 1);
+    }
+    said
+}
+
+/// `major.minor.build.revision` from a file's version resource.
+#[cfg(windows)]
+fn file_version(path: &std::path::Path) -> Option<String> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::Win32::Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW, VS_FIXEDFILEINFO};
+    use windows::core::{w, PCWSTR};
+    let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+    // SAFETY: `wide` is NUL-terminated and outlives the calls; `buf` is sized by
+    // the call that reports the size, and the pointer `VerQueryValueW` hands back
+    // points into `buf`, which is read before `buf` is dropped.
+    unsafe {
+        let size = GetFileVersionInfoSizeW(PCWSTR(wide.as_ptr()), None);
+        if size == 0 {
+            return None;
+        }
+        let mut buf = vec![0u8; size as usize];
+        GetFileVersionInfoW(PCWSTR(wide.as_ptr()), None, size, buf.as_mut_ptr().cast()).ok()?;
+        let mut info: *mut std::ffi::c_void = std::ptr::null_mut();
+        let mut len = 0u32;
+        if !VerQueryValueW(buf.as_ptr().cast(), w!("\\"), &mut info, &mut len).as_bool() || info.is_null() || (len as usize) < std::mem::size_of::<VS_FIXEDFILEINFO>() {
+            return None;
+        }
+        let f = &*(info as *const VS_FIXEDFILEINFO);
+        Some(format!("{}.{}.{}.{}", f.dwFileVersionMS >> 16, f.dwFileVersionMS & 0xffff, f.dwFileVersionLS >> 16, f.dwFileVersionLS & 0xffff))
     }
 }
 

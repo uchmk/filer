@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 522 件（TESTING.md の全 694 件のうち、`cargo test` が見ている 172 件は外してある）。
+押すものは 523 件（TESTING.md の全 695 件のうち、`cargo test` が見ている 172 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -405,6 +405,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **25.4a** `[term] shell = "pwsh"` を設定した状態で、続けて `[term] shell` を書かない状態で（v0.29.1）→ 設定したときはシェルとして `pwsh` が並ぶ。書かないときは、`PATH` に `pwsh` があれば `pwsh`（v0.55.0 からの既定。Q29）、無ければ `powershell`。**実際に起動するほう**であって推測ではない。Windows 以外では `$SHELL` のシェル — *With `[term] shell = "pwsh"` set (v0.29.1), then with no `[term] shell` → `pwsh` is the shell listed. Without it, `pwsh` if it is on the `PATH` (the default since v0.55.0, Q29), else `powershell` — the one that will actually launch, not a guess. Off Windows, the shell in `$SHELL`*
 - [x] **25.4b** オープナーを設定した状態で → 指定された各プログラムが、属するオープナーの種類とともに並ぶ（見つかったかどうかも） — *With openers configured → Each named program is listed with the opener kind it belongs to, found or not*
 - [x] **25.4c** **引用符付きのフルパス**を指定したオープナー（秀丸、サクラ）→ 最初の空白までではなく、パス全体が解決される — *An opener naming a **quoted full path** (秀丸, サクラ) → The whole path is resolved, not just up to the first space*
+- [ ] **25.4e** Windows で `pwsh`（または `powershell`）をペインのシェルにして `filer env` → シェルの行が `パス   v<a.b.c.d>   (terminal pane, …)` で、その版が `(Get-Item パス).VersionInfo.FileVersion` と一致する。何も起動しない — *On Windows, `filer env` with `pwsh` (or `powershell`) as the pane shell → The shell row reads `<path>   v<a.b.c.d>   (terminal pane, …)`, the version of that file (`(Get-Item <path>).VersionInfo.FileVersion` agrees). Nothing launches*
 - [x] **25.4d** `filer env` の実行中に画面を見る → **エディタやビューアが 1 つも起動しない。**`PATH` を調べるだけで、実行はしない — *Watch the screen while `filer env` runs → **No editor or viewer opens.** The programs are looked up on `PATH`, never executed*
 - [-] **25.5** ARM 版 Windows で x64 ビルドを使う → `OS arch` と `Process arch` が**食い違う。**その食い違いを見せることが、両方を出している理由 — *On Windows on ARM with the x64 build → `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed*
 - [ ] **25.6** `filer --help` → COMMANDS の下に `env` が並び、その下に `env --out FILE` も並ぶ（v0.68.0） — *`filer --help` → `env` is listed under COMMANDS, and `env --out FILE` under it (v0.68.0)*
