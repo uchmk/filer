@@ -907,4 +907,52 @@ mod tests {
         assert!(status(&dir).is_none());
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    /// `remote_info` remembers `origin`'s default branch per repository; the
+    /// memory has to drop when `git remote set-head` changes it (46.19, 46.20).
+    #[test]
+    fn the_remembered_default_branch_follows_set_head() {
+        let root = crate::util::test_dir("git-set-head");
+        std::fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| Command::new("git").arg("-C").arg(&root).args(args).output();
+        let Ok(out) = git(&["init", "-q", "-b", "main"]) else {
+            eprintln!("git is not installed; skipping");
+            return;
+        };
+        if !out.status.success() {
+            eprintln!("git init failed; skipping");
+            return;
+        }
+        let _ = git(&["config", "user.email", "t@example.com"]);
+        let _ = git(&["config", "user.name", "Ada"]);
+        std::fs::write(root.join("a.txt"), b"a").unwrap();
+        let _ = git(&["add", "."]);
+        let _ = git(&["commit", "-qm", "first"]);
+        let head = String::from_utf8_lossy(&git(&["rev-parse", "HEAD"]).unwrap().stdout).trim().to_owned();
+        // A remote that is the repository itself: `fetch` makes `origin/main`
+        // without a network.
+        let url = root.to_string_lossy().into_owned();
+        let _ = git(&["remote", "add", "origin", &url]);
+        let _ = git(&["fetch", "-q", "origin"]);
+
+        let file = root.join("a.txt");
+        // `origin` exists but has no `origin/HEAD` yet.
+        let _ = git(&["remote", "set-head", "origin", "-d"]);
+        assert_eq!(not_merged_into(&file, &head), Some(NotMerged::Unknown));
+
+        // Set explicitly (`-a` would ask the remote): the commit is merged, so no row.
+        let set = git(&["remote", "set-head", "origin", "main"]).unwrap();
+        if !set.status.success() {
+            eprintln!("set-head failed; skipping");
+            let _ = std::fs::remove_dir_all(&root);
+            return;
+        }
+        assert_eq!(not_merged_into(&file, &head), None, "origin/HEAD is known and the commit is in it");
+
+        // Deleted again: the remembered answer must not outlive it.
+        let _ = git(&["remote", "set-head", "origin", "-d"]);
+        assert_eq!(not_merged_into(&file, &head), Some(NotMerged::Unknown));
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }
