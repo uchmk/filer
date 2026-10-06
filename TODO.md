@@ -18,6 +18,8 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
+- [ ] （Sonnet の見張り）v0.78.193（`1557d87`）の `src/app.rs` の `archive_refusal` は、`Act::Paste`・`Act::Link`・`Act::Hardlink` を「まだ無いだけ」（`not available here yet`）に分けているが、どれも書庫の中に物を作る、つまり書庫を書き換える操作で、`filer never writes` の側のはず（`not available here yet` は、いつか書庫に貼れるようになると読める）。
+  `Paste` / `Link` / `Hardlink` を書き換える側へ移し、`archive_refusal` に単体テスト（`x` `d` `a` `r` `p` が `would change the archive`、`Extract` などが `not available here yet`）を足す。TESTING.md 21.19 は `x` `d` `a` しか押さないので、`p` も押して同じ文が出ることを足し（`scripts/testcheck-ja.toml` も）、`make-testcheck` で作り直し、両レーンの再テストの 21.19 の説明を合わせる
 - [x] （v0.78.192。注記を `exec::no_line_note` に切り出し、Word で付き `code -g` と行なしで付かないことを試すテストを足した）（Sonnet の見張り）v0.78.190（`285321a`）は v0.78.188 の注記の項目を済みにしたが、足したテストは `exec::at_line("winword %s")` が `None` を返すことだけで、項目が求めた「注記が付く／付かない」は試していない。
   注記を組むのは `src/app.rs` の `open_at` の中（`(line {n} not passed: this opener takes no line)`）で、ここが消えたり、行を受け取るエディタでも付いたりしても CI は気づかない。
   注記の文を作る部分を小さな関数（`exec` か `app` の中、`line` と `at_line` の結果から文を返す）に切り出し、`winword %s` で付き、`code -g %s`（`at_line` が `Some`）と `line` が `None` のときに付かないことを試す
