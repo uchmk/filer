@@ -1904,7 +1904,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `<C-n>` / `<C-p>` は `src/main.rs` の `Overlay::Pick` に書き込まれて既に動く（#264・#265 の所見）ので、それを `[pick]` の keymap へ移し、
   `<C-j>` / `<C-k>` を足し、4 つとも足の行とヘルプに出す（#264 の提案 2、#265 の提案 2。「キーは keymap 経由で動かす」）
 - [ ] `start ""` の既定のアプリが何も開かないとき、走らせる前に `AssocQueryStringW(ASSOCSTR_EXECUTABLE)` で引いて言う（#256 の提案 2。
-  #252 の提案 2 の項目と同じ問題を、開く前に見る形。どちらにするか合わせて決める）
+  #252 の提案 2 の項目と同じ問題を、開く前に見る形。どちらにするか合わせて決める）（要確認: Q92）
 - [ ] （所見）ARM64 の持ち主のごみ箱に、前の run の scratch から来たものが 38 個（#256 の所見 1。#231 の x64 と同じ）。前の run の Chrome のタブも 1 枚
   残っている（所見 2）。役割定義の後片付けが前の run の分に届いていない。持ち主が空にするか、後片付けの手順を見直す【人】
 
@@ -1942,7 +1942,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   #252 の所見 1: ARM64 は `.txt` の関連付けが壊れていて filer の外からも開かない）。直すまで 21.18 は両レーンで取れない
 - [ ] 既定のアプリで開いたのに何も起きなかったとき、そう言う（#252 の提案 2）。`open::that_detached` は関連付けが起動に失敗しても `Ok`。Windows では
   `ShellExecuteExW` に `SEE_MASK_NOCLOSEPROCESS` を付け、`hProcess` が無ければ `Opened a copy of <name>, but Windows started nothing for .txt`
-  （DDE や既に動いているアプリへの合流でも `hProcess` が無いことがあるので、言い方は設計が要る）
+  （DDE や既に動いているアプリへの合流でも `hProcess` が無いことがあるので、言い方は設計が要る）（要確認: Q92）
 - [x] （v0.78.92。`exec::substitute_line`、Q82 反映）`:` の行にカーソルの下のパスを末尾に足すのを、`&` `|` `>` を含む行ではやめるか、`%*` が無ければ足さない（#252 の提案 3、#250 の所見 5。2 台が独立に当たった）。
   既定の動きを変えるので QUESTIONS.md に出す。**Q82 は多数決で 1**（`&` `|` `>` `<` `;` のいずれかを含む行には足さない。置き場所を書けば入る。x64 の #270 が `;echo hello >out.txt` で、足したパスがリダイレクトの中身に入るのを見た）
 - [x] （v0.78.16。`archive:`）状態ファイルに、書庫の中のどこにいるかを出す（`archive: <書庫>\<中のフォルダ>`。#251 の提案 5、#252 の提案 4）。空のフォルダでは `hovered:` が空で段が読めない
@@ -2085,7 +2085,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.78.75。23.3a）`\\host` への移動が os error 1203 / 53 / 67 で失敗したとき、OS の文のあとに `— no host by that name answered (a typo, or the machine is off)` を足す
   （#233 の提案 2）。2 回目が速いのは Windows が失敗を覚えているから、とも言える
 - [ ] ピッカーで、入っていないプログラムの項目に ` (not installed)` を付ける（#234 の提案 3）。`PATH`、`App Paths`、引用符の中のフルパスで 1 回だけ調べる。
-  同じ README の例が、持ち主の 2 台で違う意味になっている。ピッカーを開くたびの費用を測ってから
+  同じ README の例が、持ち主の 2 台で違う意味になっている。ピッカーを開くたびの費用を測ってから【実機】（`App Paths` のレジストリ引きの費用は Windows でしか測れない）
 - [ ] 持ち主の ARM64 機で `.pdf` と `.html` に既定のアプリが無い（`HKCR\.pdf` に ProgId が無い。#234 の所見 1、3 回目）。filer の問題ではない。
   直すなら「既定のアプリ」で選び直す 【人】
 - [x] `Start-Process -Wait` はプログラムを起動する run では戻らない（#234 の所見 3）、Chrome のタブを窓ごと閉じない（#234 の所見 4）は、`windows-role.md` に書いた
