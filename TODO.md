@@ -2211,7 +2211,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] TESTING.md 26.8 / 26.10 を「起動役が動かない」（今も合格）と「関連付けが壊れている」（Q61 待ち）の 2 行ずつに分ける（#217 の所見 2）。 【QA】
   **前提が古い**（v0.75.16、QA の子）: Q61 は v0.73.50 で入り、今は `ShellExecuteExW` を直接呼ぶので、置き換えの `powershell.exe` で
   「起動役が動かない」を作る測り方が成り立たない。関連付けが壊れた状態を実機でどう作るか（`UserChoice` はハッシュで守られている）を先に確かめる。【実機】
-- [ ] バグ報告のフォームの「再現するキー操作」に、直前の約 20 キーと最新のエラーのトーストを入れる（#217 の提案 2）。キーの輪のバッファと
+- [x] （v0.78.215。実装は v0.78.167 までに入っていた: `App::recent_keys`（20 キー）が `keys` の欄に、`last_error` が `context` の欄に入る）バグ報告のフォームの「再現するキー操作」に、直前の約 20 キーと最新のエラーのトーストを入れる（#217 の提案 2）。キーの輪のバッファと
   URL の引数 1 つ、`bug_report.yml` の欄の id 1 つ。
 - [x] （v0.78.208。README は書いてあり、`fetch-conpty.ps1` が `filer.com` を置くので、`windows-role.md` にその一言を足した）`filer.com` は zip の中の名前で、手元の `cargo build --release` は `filer-com.exe` を作る（#217 の提案 3）。`windows-role.md` と README に
   そう書くか、`fetch-conpty.ps1` のように手元の release にも `filer.com` を置く。
