@@ -69,6 +69,10 @@ echo identical > "$root/same-b.txt"
 for i in $(seq 1 512); do printf "\\$(printf '%03o' $((i % 256)))"; done > "$root/binary.dat"
 echo '  same-a/b, binary.dat identical pair, and one that is not text'
 
+# An extension no machine associates with an app (16.13). A machine with HKCR\.xyz cannot run that row.
+echo 'no default app for this' > "$root/unknown.xyz"
+echo '  unknown.xyz          no default app (16.13; needs HKCR\.xyz absent)'
+
 cat > "$root/notes.md" <<'MD'
 # Title
 

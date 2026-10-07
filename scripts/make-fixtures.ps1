@@ -97,6 +97,10 @@ Set-Content -LiteralPath (Join-Path $root 'same-b.txt') -Value 'identical' -Enco
 [System.IO.File]::WriteAllBytes((Join-Path $root 'binary.dat'), (1..512 | ForEach-Object { [byte]($_ % 256) }))
 Write-Host '  same-a/b, binary.dat identical pair, and one that is not text'
 
+# An extension no machine associates with an app (16.13). A machine with HKCR\.xyz cannot run that row.
+Set-Content -LiteralPath (Join-Path $root 'unknown.xyz') -Value 'no default app for this' -Encoding UTF8
+Write-Host '  unknown.xyz          no default app (16.13; needs HKCR\.xyz absent)'
+
 # --- markdown, for the rendered/source toggle (`M`) and the outline.
 @'
 # Title
