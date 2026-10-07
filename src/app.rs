@@ -2670,14 +2670,15 @@ impl App {
             self.toast("Still copying the spot panels");
             return;
         }
-        let tab = &self.tabs[self.active];
-        let entries: Vec<Entry> =
-            tab.current.entries.iter().filter(|e| tab.selected.contains(&e.path)).cloned().collect();
+        // `selected` outlives the folder it was made in, so the entries are
+        // built from the paths, not picked out of the listing on screen.
+        let paths: Vec<PathBuf> = self.tabs[self.active].selected.iter().cloned().collect();
         let (tx, rx) = crossbeam_channel::bounded(1);
         self.spot_copy_rx = Some(rx);
         let ctx = self.ctx.clone();
         std::thread::spawn(move || {
             crate::preview::init_com_thread();
+            let entries = entries_of_paths(paths);
             let text = spot_text_of(&entries);
             let _ = tx.send(exec::set_clipboard(&text).map(|()| entries.len()).map_err(|e| e.to_string()));
             ctx.request_repaint();
@@ -6550,6 +6551,11 @@ fn spot_text(sections: &[Section]) -> String {
         .join("\n\n")
 }
 
+/// An `Entry` per path that can still be read; the rest are skipped.
+fn entries_of_paths(paths: Vec<PathBuf>) -> Vec<Entry> {
+    paths.into_iter().filter_map(|p| Entry::from_path(p).ok()).collect()
+}
+
 /// `spot_text` for several files, each under `#### <path>`, blank-line apart.
 fn spot_text_of(entries: &[Entry]) -> String {
     entries
@@ -9666,6 +9672,17 @@ mod escape_and_max_preview {
         let text = spot_text_of(&entries);
         let heads: Vec<&str> = text.lines().filter(|l| l.starts_with("#### ")).collect();
         assert_eq!(heads, [format!("#### {}", a.display()), format!("#### {}", b.display())]);
+    }
+
+    /// A selection made in another folder still copies: the files come from
+    /// the selected paths, and one that is gone is skipped.
+    #[test]
+    fn a_selection_from_another_folder_still_has_entries() {
+        let dir = util::test_dir("spot-other");
+        let (a, gone) = (dir.join("a.txt"), dir.join("gone.txt"));
+        std::fs::write(&a, "x").unwrap();
+        let entries = entries_of_paths(vec![a.clone(), gone]);
+        assert_eq!(entries.iter().map(|e| e.path.clone()).collect::<Vec<_>>(), [a]);
     }
 
     /// The default spot keys reach the two new commands: `C` copies it all,

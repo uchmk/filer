@@ -18,9 +18,9 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
-- [ ] （Sonnet の見張り）v0.78.205（`d0414b8`）は spot の `C` を、2 つ以上選んでいるときに選んだファイルごとのパネルを `#### <パス>` で並べて写すようにした（動きが変わった）が、TESTING.md に行が無く、`scripts/testcheck-ja.toml` の訳も、`windows-role.md` の 2 つの再テストも無い（CLAUDE.md の作業ルール）。46.17 は 1 つのパネルの形しか言っていない。
+- [x] （v0.78.207。46.17b を足し、訳と再テストも）（Sonnet の見張り）v0.78.205（`d0414b8`）は spot の `C` を、2 つ以上選んでいるときに選んだファイルごとのパネルを `#### <パス>` で並べて写すようにした（動きが変わった）が、TESTING.md に行が無く、`scripts/testcheck-ja.toml` の訳も、`windows-role.md` の 2 つの再テストも無い（CLAUDE.md の作業ルール）。46.17 は 1 つのパネルの形しか言っていない。
   46 節に「2 つ以上選んで spot を開き `C`: クリップボードは選んだファイルごとに `#### <フルパス>` の行、その下に 46.17 の形のパネル、ファイルの間は空行 1 つ。トーストは `Copied the spot panels of N files`。1 つだけ選んでいるとき・選んでいないときは 46.17 のまま」の行（46.17b など）を足し、訳を合わせ、`make-testcheck` で作り直し、両レーンの再テストに積む
-- [ ] （Sonnet の見張り）v0.78.205（`d0414b8`）の `src/app.rs` の `copy_spot_of_selection` は、写すファイルを `tab.current.entries` から `selected` に含まれるものだけ拾って作るが、`selected` はフォルダを移っても残る（`Tab::targets` はそのまま全部を返す）。フォルダ A で 2 つ選んでから B へ移って spot の `C` を押すと、0 件のまま `Copied the spot panels of 0 files` と出てクリップボードが空になる（A と B の両方で選んでいれば B の分だけ）。
+- [x] （v0.78.207。パスから作り、単体テストを足した）（Sonnet の見張り）v0.78.205（`d0414b8`）の `src/app.rs` の `copy_spot_of_selection` は、写すファイルを `tab.current.entries` から `selected` に含まれるものだけ拾って作るが、`selected` はフォルダを移っても残る（`Tab::targets` はそのまま全部を返す）。フォルダ A で 2 つ選んでから B へ移って spot の `C` を押すと、0 件のまま `Copied the spot panels of 0 files` と出てクリップボードが空になる（A と B の両方で選んでいれば B の分だけ）。
   `selected` の各パスから `Entry::from_path` で作る（読めないものは飛ばす）ようにし、今いるフォルダの外のファイルも入ることを試す単体テストを足す。直したら上の項目の 46.17b にも「別のフォルダで選んだファイルも入る」を書く
 - [x] （v0.78.204。`unknown.xyz` を両方のスクリプトに足し、HKCR\.xyz の断りを書いた）（Sonnet の見張り）v0.78.202（`1e6eb7d`）が足した TESTING.md 16.13 は `fixtures\unknown.xyz` を使うが、`scripts/make-fixtures.ps1` はそのファイルを作らない（`xyz` も `unknown` もスクリプトに無い）。CLAUDE.md の作業ルールは「テスト用ファイルは `scripts/make-fixtures.ps1` が作る」で、実機の回は 16.13 を押す前に自分で作るか、行を飛ばすことになる。
   `make-fixtures.ps1` に関連付けの無い拡張子のファイル `unknown.xyz`（中身は 1 行のテキスト）を足し、`make-fixtures.sh` も揃える。`HKCR\.xyz` がある機械では 16.13 が成り立たないので、スクリプトか 16.13 にその断りを書く。動きは変わらないので再テストは要らない
