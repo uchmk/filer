@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.78.226] - 2026-10-08
+
+### 変更
+
+- `scripts/auto-wintest.ps1`: `SystemParametersInfo(SPI_SETSCREENSAVEACTIVE)` が失敗したとき（ノート PC では `GetLastError` 329）、黙らずに `Say` で記録する（#201 の所見 2）。
+
 ## [0.78.225] - 2026-10-08
 
 ### 変更

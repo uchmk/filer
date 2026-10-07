@@ -2368,7 +2368,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.73.24。タスクが作業フォルダの中のスクリプトを動かす形に変え、起動のたびに作業フォルダを `origin/main` に合わせる。
   実行の始めに `Script: <パス> (<版>)` を書き、作業フォルダの外のスクリプトなら登録し直すよう警告する）`auto-wintest.ps1` が自分の版（コミット）をログに書き、`origin/main` より古ければ警告する（#201 の提案 3）。上の件は副作用から
   やっと気づけた。起動する側のスクリプトだけは自分で更新されない。
-- [ ] ノート PC では `SystemParametersInfo(SPI_SETSCREENSAVEACTIVE)` が `GetLastError` 329 で失敗し、`Set-SaverActive` は黙って何もしない
+- [x] （v0.78.226。失敗したら `Say` で `GetLastError` を記録）ノート PC では `SystemParametersInfo(SPI_SETSCREENSAVEACTIVE)` が `GetLastError` 329 で失敗し、`Set-SaverActive` は黙って何もしない
   （#201 の所見 2）。戻り値を見てログに書く。止める手段は `*.scr` を止める見張りだけになる。
 - [x] （v0.78.62）`FILER_KEYS_DONE` に `frames:`（描いた回数）を足す（#201 の提案 1）。47 節が問うのは「描き続けたか」で、`(Get-Process).CPU` は
   15.6 ms 刻みなので 0.016 秒は 1 刻みと区別できない。

@@ -228,7 +228,9 @@ function Get-SaverActive {
 
 # In memory only: winIni 0, so the profile keeps whatever the owner chose.
 function Set-SaverActive([bool]$on) {
-    [void][FilerWintest.Power]::SystemParametersInfo($SPI_SETSCREENSAVEACTIVE, [uint32][int]$on, [IntPtr]::Zero, 0)
+    $ok = [FilerWintest.Power]::SystemParametersInfo($SPI_SETSCREENSAVEACTIVE, [uint32][int]$on, [IntPtr]::Zero, 0)
+    # Laptops answer 329 (#201): the saver cannot be switched, only `Stop-ScreenSavers` holds it off.
+    if (-not $ok) { Say "SystemParametersInfo(SPI_SETSCREENSAVEACTIVE, $on) failed, GetLastError $([Runtime.InteropServices.Marshal]::GetLastWin32Error()); the screen saver setting is unchanged." }
 }
 
 # A run killed before its `finally` left the saver off; put it back first.
