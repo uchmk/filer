@@ -212,9 +212,10 @@ v0.78.167 のスクリプトが構文エラーで読めなかった間に、前�
 
 印は付けていない。`cargo test` は 700 / 0、消える `--keys` の数は 0 / 20（ARM64 で 0 / 100）。所見は無い。
 
-- [ ] 消える `--keys` の回を数える手順を `scripts/count-vanishing.ps1 -Runs 20 -Out <dir>` にする（#291 の提案 1）。木（`a.txt`・`b.zip`・3 ページの `c.pdf`）、`pdftoppm` のプレビューの `filer.toml`、
+- [x] （v0.78.227。`scripts/count-vanishing.ps1` を置いた。Linux に pwsh が無く未実行: 実機で 1 回回して確かめる）消える `--keys` の回を数える手順を `scripts/count-vanishing.ps1 -Runs 20 -Out <dir>` にする（#291 の提案 1）。木（`a.txt`・`b.zip`・3 ページの `c.pdf`）、`pdftoppm` のプレビューの `filer.toml`、
   #260 のキーの列を作って 20 回走らせ、報告の表（`keys: done` の数、終了コード、`picture: 3`、png、`.panic`、1 回の秒数、残った `filer.exe`）を出す。
   今は ARM64 の機械の `C:\dev\filer-evidence\arm-retests-60\flake\` にある `loop.ps1` と `mk3.ps1` を写して回しており、ほかの機械では報告の文から作り直すことになる
+- [ ] `scripts/count-vanishing.ps1` を実機で 1 回回し、木・`filer.toml`・キーの列が動くか確かめる（v0.78.227 で書いたが Linux に pwsh が無く未実行）【実機】
 - [ ] 消える `--keys` の回を数える頻度（ARM64 の順番表の最後の行の (2)）を決める（要確認: Q90）【人】
 
 ## 実機のセッションの報告（v0.78.162 で受けた分: #289、ARM64 の再テスト / #290、x64 の再テスト）

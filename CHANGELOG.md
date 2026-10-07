@@ -9,6 +9,13 @@
 
 ## [未リリース]
 
+## [0.78.227] - 2026-10-08
+
+### 追加
+- `scripts/count-vanishing.ps1 -Runs 20 -Out <dir>`（#291 の提案 1）。消える `--keys` の回を数える手順。木（`a.txt`・`b.zip`・3 ページの `c.pdf`）と `pdftoppm` の `[[preview]]` を置いた `filer.toml` を作り、
+  3 ページ・アーカイブ・テキストを押す重いキーの列を `-Runs` 回走らせ、`keys: done` の数、終了コード、`picture: 3`、png、`.panic`、1 回の秒数、残った `filer.exe` を出す。
+  Linux では PowerShell が無く動かしていない（Windows の実機のレーンで 1 回回して確かめる）。
+
 ## [0.78.226] - 2026-10-08
 
 ### 変更
