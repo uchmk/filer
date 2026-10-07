@@ -18,6 +18,8 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
+- [ ] （Sonnet の見張り）v0.78.202（`1e6eb7d`）が足した TESTING.md 16.13 は `fixtures\unknown.xyz` を使うが、`scripts/make-fixtures.ps1` はそのファイルを作らない（`xyz` も `unknown` もスクリプトに無い）。CLAUDE.md の作業ルールは「テスト用ファイルは `scripts/make-fixtures.ps1` が作る」で、実機の回は 16.13 を押す前に自分で作るか、行を飛ばすことになる。
+  `make-fixtures.ps1` に関連付けの無い拡張子のファイル `unknown.xyz`（中身は 1 行のテキスト）を足し、`make-fixtures.sh` も揃える。`HKCR\.xyz` がある機械では 16.13 が成り立たないので、スクリプトか 16.13 にその断りを書く。動きは変わらないので再テストは要らない
 - [x] （v0.78.199。テストの doc コメントを入れ替えた）（Sonnet の見張り）v0.78.197（`b7070c3`）の `src/ui/overlay.rs` の `tests` で、足したテスト `the_spot_thumb_shows_only_when_lines_overflow` が、`the_spot_key_column_fits_its_widest_key` の doc コメント（`/// #214: the value column moves out past the widest key …`）とその関数の間に入り、コメントが新しいテストに付いている（v0.78.185 の 33.23 の項目と同じ取り違え）。
   新しいテストを doc コメントの前に移し、必要なら自分の doc コメント（`/// #224: …`）を付ける。動きは変わらないので再テストは要らない
 - [x] （v0.78.196。`Paste` / `Link` / `Hardlink` を書き換える側へ移し、単体テストと 21.19 の `r` `p` を足した）（Sonnet の見張り）v0.78.193（`1557d87`）の `src/app.rs` の `archive_refusal` は、`Act::Paste`・`Act::Link`・`Act::Hardlink` を「まだ無いだけ」（`not available here yet`）に分けているが、どれも書庫の中に物を作る、つまり書庫を書き換える操作で、`filer never writes` の側のはず（`not available here yet` は、いつか書庫に貼れるようになると読める）。
