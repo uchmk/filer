@@ -1274,6 +1274,8 @@ pub struct App {
     pub spotter: Spotter,
     /// The spot worker's latest findings, for the file named.
     pub spotted: Option<(PathBuf, Vec<Section>)>,
+    /// The answer of a `C` over a selection, built off the UI thread.
+    spot_copy_rx: Option<crossbeam_channel::Receiver<Result<usize, String>>>,
 
     pub pending: Vec<Key>,
     pub which: Vec<(String, String, String)>,
@@ -1454,6 +1456,7 @@ impl App {
             differ,
             spotter,
             spotted: None,
+            spot_copy_rx: None,
             pending: Vec::new(),
             which: Vec::new(),
             overlay: Overlay::None,
@@ -1703,6 +1706,15 @@ impl App {
         }
         while let Ok(res) = self.spotter.rx.try_recv() {
             self.spotted = Some((res.path, res.sections));
+        }
+        if let Some(rx) = &self.spot_copy_rx {
+            if let Ok(res) = rx.try_recv() {
+                self.spot_copy_rx = None;
+                match res {
+                    Ok(n) => self.toast(format!("Copied the spot panels of {n} files")),
+                    Err(err) => self.error(format!("Clipboard: {err}")),
+                }
+            }
         }
         while let Ok(res) = self.differ.rx.try_recv() {
             // An answer to a comparison that has since been closed, or replaced
@@ -2627,6 +2639,7 @@ impl App {
             }
             // Everything at once, labelled, so it can be pasted into a bug
             // report or a chat as text rather than a screenshot (Q18).
+            Act::Copy(CopyWhat::All) if self.tabs[self.active].selected.len() > 1 => self.copy_spot_of_selection(),
             Act::Copy(CopyWhat::All) => {
                 let sections = self.spot_sections();
                 let text = spot_text(&sections);
@@ -2647,6 +2660,28 @@ impl App {
             }
             _ => {}
         }
+    }
+
+    /// `C` with files selected: one panel per file under a `#### <path>`
+    /// heading. Reading each file is the spot worker's kind of work, so it
+    /// happens on a thread of its own and the toast follows when it is done.
+    fn copy_spot_of_selection(&mut self) {
+        if self.spot_copy_rx.is_some() {
+            self.toast("Still copying the spot panels");
+            return;
+        }
+        let tab = &self.tabs[self.active];
+        let entries: Vec<Entry> =
+            tab.current.entries.iter().filter(|e| tab.selected.contains(&e.path)).cloned().collect();
+        let (tx, rx) = crossbeam_channel::bounded(1);
+        self.spot_copy_rx = Some(rx);
+        let ctx = self.ctx.clone();
+        std::thread::spawn(move || {
+            crate::preview::init_com_thread();
+            let text = spot_text_of(&entries);
+            let _ = tx.send(exec::set_clipboard(&text).map(|()| entries.len()).map_err(|e| e.to_string()));
+            ctx.request_repaint();
+        });
     }
 
     /// The page the spot cursor is on, when it is on one: the pull request
@@ -6515,6 +6550,19 @@ fn spot_text(sections: &[Section]) -> String {
         .join("\n\n")
 }
 
+/// `spot_text` for several files, each under `#### <path>`, blank-line apart.
+fn spot_text_of(entries: &[Entry]) -> String {
+    entries
+        .iter()
+        .map(|e| {
+            let mut sections = vec![spot::base(e)];
+            sections.extend(spot::inspect(&e.path));
+            format!("#### {}\n{}", e.path.display(), spot_text(&sections))
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -9605,6 +9653,19 @@ mod escape_and_max_preview {
             Section { title: "Git".into(), rows: vec![("Came in via".into(), "#71  48b6c9c".into())] },
         ];
         assert_eq!(spot_text(&sections), "File\nName\ta b.txt\nSize\t3 B\n\nGit\nCame in via\t#71\t48b6c9c");
+    }
+
+    /// `C` over a selection: a `####` heading per file, then its panel.
+    #[test]
+    fn the_spot_text_of_a_selection_has_a_heading_per_file() {
+        let dir = util::test_dir("spot-many");
+        let (a, b) = (dir.join("a.txt"), dir.join("b.txt"));
+        std::fs::write(&a, "x").unwrap();
+        std::fs::write(&b, "yy").unwrap();
+        let entries: Vec<Entry> = [&a, &b].iter().map(|p| Entry::from_path((*p).clone()).unwrap()).collect();
+        let text = spot_text_of(&entries);
+        let heads: Vec<&str> = text.lines().filter(|l| l.starts_with("#### ")).collect();
+        assert_eq!(heads, [format!("#### {}", a.display()), format!("#### {}", b.display())]);
     }
 
     /// The default spot keys reach the two new commands: `C` copies it all,

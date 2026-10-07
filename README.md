@@ -258,7 +258,7 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `split`, `pane_focus`, `toggle_render`, `toggle_outline`, `usage` and `bug-report` (the last two
 this project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
-`close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe`, `enter`, `copy cell` and `copy all` (this project's own: the whole panel, `Label<TAB>value` per row); in `[term]`:
+`close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe`, `enter`, `copy cell` and `copy all` (this project's own: the whole panel, `Label<TAB>value` per row; with two or more files selected, one panel per file under `#### <path>`, v0.78.205); in `[term]`:
 `close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
 `close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too), `arrow`, `copy all` (the whole panel as text, as in `[spot]`) and `config_reload` (`<C-F5>`, the key the panel's config rows name; the panel stays open).
 
