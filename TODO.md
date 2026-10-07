@@ -18,7 +18,7 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
-- [ ] （Sonnet の見張り）v0.78.197（`b7070c3`）の `src/ui/overlay.rs` の `tests` で、足したテスト `the_spot_thumb_shows_only_when_lines_overflow` が、`the_spot_key_column_fits_its_widest_key` の doc コメント（`/// #214: the value column moves out past the widest key …`）とその関数の間に入り、コメントが新しいテストに付いている（v0.78.185 の 33.23 の項目と同じ取り違え）。
+- [x] （v0.78.199。テストの doc コメントを入れ替えた）（Sonnet の見張り）v0.78.197（`b7070c3`）の `src/ui/overlay.rs` の `tests` で、足したテスト `the_spot_thumb_shows_only_when_lines_overflow` が、`the_spot_key_column_fits_its_widest_key` の doc コメント（`/// #214: the value column moves out past the widest key …`）とその関数の間に入り、コメントが新しいテストに付いている（v0.78.185 の 33.23 の項目と同じ取り違え）。
   新しいテストを doc コメントの前に移し、必要なら自分の doc コメント（`/// #224: …`）を付ける。動きは変わらないので再テストは要らない
 - [x] （v0.78.196。`Paste` / `Link` / `Hardlink` を書き換える側へ移し、単体テストと 21.19 の `r` `p` を足した）（Sonnet の見張り）v0.78.193（`1557d87`）の `src/app.rs` の `archive_refusal` は、`Act::Paste`・`Act::Link`・`Act::Hardlink` を「まだ無いだけ」（`not available here yet`）に分けているが、どれも書庫の中に物を作る、つまり書庫を書き換える操作で、`filer never writes` の側のはず（`not available here yet` は、いつか書庫に貼れるようになると読める）。
   `Paste` / `Link` / `Hardlink` を書き換える側へ移し、`archive_refusal` に単体テスト（`x` `d` `a` `r` `p` が `would change the archive`、`Extract` などが `not available here yet`）を足す。TESTING.md 21.19 は `x` `d` `a` しか押さないので、`p` も押して同じ文が出ることを足し（`scripts/testcheck-ja.toml` も）、`make-testcheck` で作り直し、両レーンの再テストの 21.19 の説明を合わせる

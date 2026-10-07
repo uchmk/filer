@@ -1471,8 +1471,7 @@ fn spot_key_width(widest_key: f32, panel: f32) -> f32 {
 mod tests {
     use super::{one_line, paste_over, spot_key_width, spot_thumb, splice};
 
-    /// #214: the value column moves out past the widest key at any font size,
-    /// and keeps its old place for short keys.
+    /// #224: the spot panel's scroll thumb appears only when the lines overflow.
     #[test]
     fn the_spot_thumb_shows_only_when_lines_overflow() {
         assert_eq!(spot_thumb(10, 10, 0), None);
@@ -1480,6 +1479,8 @@ mod tests {
         assert_eq!(spot_thumb(20, 10, 10), Some((0.5, 1.0)));
     }
 
+    /// #214: the value column moves out past the widest key at any font size,
+    /// and keeps its old place for short keys.
     #[test]
     fn the_spot_key_column_fits_its_widest_key() {
         assert_eq!(spot_key_width(60.0, 900.0), 130.0, "short keys keep the old column");
