@@ -1954,7 +1954,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.78.188。トーストに言う）アウトラインの `<Enter>` が、行を渡せないオープナー（Word）で開いたとき、そう言う（#249 の提案 2）
 - [ ] TESTING.md 16.3 を「アウトラインを動くとプレビューが見出しへ付いてくる」と「`<Enter>` は文書をアプリで開く（行は渡らない）」に分ける（#249 の所見 1、#250 の提案 5）【QA】
 - [ ] TESTING.md 37.8a に「動いているブラウザ・エディタに合流するものは、理由を書いて飛ばしてよい」と足す（#250 の提案 7）【QA】
-- [ ] `filer env` の `Adapter` が `Last run` の下にあり、今のプロセスの値に読める（#249 の提案 3。#248 の所見 1 と同じ項目にまとめる）
+- [x] （v0.78.201。v0.78.148 の `set by [ui] backend = …` で直済み）`filer env` の `Adapter` が `Last run` の下にあり、今のプロセスの値に読める（#249 の提案 3。#248 の所見 1 と同じ項目にまとめる）
 - [x] （v0.78.2）`FILER_KEYS_DONE` に `focus:`（`list` / `pane` / `outline` / `overlay`）を足す（#249 の提案 4。#220 の提案 4 と同じ）
 - [x] （v0.76.2、Q76 推奨の 1。`<A-g>` / `<A-G>`。18.13）`seek top` / `seek bot` に既定のキーを付ける（#249 の提案 1。4000 行のプレビューの末尾まで `<A-j>` で 797 回）
 
@@ -1964,7 +1964,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `Adapter` は `(Gl, …)`、何もしない窓は 0.000 CPU 秒。両レーンの再テストから 47.7 を外した
 - [ ] **x64 で `"vulkan"` の対照も回らなくなった**（#247 の所見 1）。#243 / #246 では約 10.0 CPU 秒だったのが 0.000（10 秒と 20 秒の 2 回）。
   違いは画面の倍率で、今回は 150%（#246 は 100%）。47.1 の空回りが倍率に依るのかもしれない。100% と 150% で `vulkan` を測り直す（#247 の提案）【実機】
-- [ ] `filer env` の `Last run` が、直前に読んだ設定ではなく機械の最後の起動を言う（#248 の所見 1）。`FILER_CONFIG_HOME` は `State` を動かさないので、
+- [x] （v0.78.201。`last-run.toml` が実際に使った `backend` と設定値を持ち、`Adapter` の行が `set by …` で言う。v0.78.148）`filer env` の `Last run` が、直前に読んだ設定ではなく機械の最後の起動を言う（#248 の所見 1）。`FILER_CONFIG_HOME` は `State` を動かさないので、
   `"dx12"` で起動した後に `"directx"` の設定で `filer env` を読むと、`Backend : "directx"` の横に `Adapter : (Dx12, …)` が並ぶ。
   実際に使ったバックエンドを `Last run` に残す（#248 の提案 2。#245 の提案 1、上の `last-run.toml` の項目と同じ）
 - [x] （v0.78.107。`filer env` も `name_the_fallback` を通す）無効な `[ui] backend` の警告を、窓と `filer env` で同じ文にする（#248 の提案 1）。窓は `drawing with Gl instead`、`filer env` は
