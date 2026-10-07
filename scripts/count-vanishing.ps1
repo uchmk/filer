@@ -74,6 +74,8 @@ $env:FILER_CONFIG_HOME = $cfg
 # Cursor order is a.txt, b.zip, c.pdf. Three pages, then the archive, then the text.
 $keys = 'jj<State:p1><Shot:p1><A-j><State:p2><Shot:p2><A-j><State:p3><Shot:p3>k<Enter><State:zip><Esc>k<State:txt><Shot:txt><Quit>'
 
+$shots = ([regex]::Matches($keys, '<Shot:')).Count
+
 $rows = @()
 for ($n = 1; $n -le $Runs; $n++) {
     $run = Join-Path $Out ('run-{0:D2}' -f $n)
@@ -95,17 +97,19 @@ for ($n = 1; $n -le $Runs; $n++) {
         Exit     = if ($timedOut) { 'timeout' } else { $p.ExitCode }
         Picture3 = ((Test-Path -LiteralPath $p3) -and [bool](Select-String -LiteralPath $p3 -SimpleMatch 'picture: 3' -Quiet))
         Png      = @(Get-ChildItem -LiteralPath $run -Filter *.png -ErrorAction SilentlyContinue).Count
+        Short    = ''
         Panic    = @(Get-ChildItem -LiteralPath $run -Filter *.panic -ErrorAction SilentlyContinue).Count
         Seconds  = [math]::Round($sw.Elapsed.TotalSeconds, 1)
     }
 }
+foreach ($r in $rows) { if ($r.Png -ne $shots) { $r.Short = "<-- $($r.Png) / $shots" } }
 $rows | Format-Table -AutoSize | Out-String -Width 200 | Write-Output
 $vanished = @($rows | Where-Object { -not $_.Done }).Count
 "keys: done   $(@($rows | Where-Object Done).Count) / $Runs"
 "vanished     $vanished / $Runs"
 "exit codes   $((@($rows | Group-Object Exit | Sort-Object Name | ForEach-Object { "$($_.Name) x$($_.Count)" })) -join ', ')"
 "picture: 3   $(@($rows | Where-Object Picture3).Count) / $Runs"
-"png          $(($rows | Measure-Object Png -Sum).Sum) (3 per run expected)"
+"png          $(($rows | Measure-Object Png -Sum).Sum) ($shots per run expected, $(@($rows | Where-Object { $_.Png -ne $shots }).Count) runs short)"
 ".panic       $(($rows | Measure-Object Panic -Sum).Sum)"
 "seconds      min $(($rows | Measure-Object Seconds -Minimum).Minimum), max $(($rows | Measure-Object Seconds -Maximum).Maximum), avg $([math]::Round(($rows | Measure-Object Seconds -Average).Average, 1))"
 "filer.exe left running: $(@(Get-Process filer -ErrorAction SilentlyContinue).Count)"
