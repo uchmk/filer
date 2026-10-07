@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 529 件（TESTING.md の全 701 件のうち、`cargo test` が見ている 172 件は外してある）。
+押すものは 530 件（TESTING.md の全 702 件のうち、`cargo test` が見ている 172 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -386,6 +386,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **23.3** 一覧の取得中にネットワークを抜く、または応答しないホストを指定する → **ウィンドウが固まらない。**エラーのトーストが出て、タブは元の場所に戻る — *Unplug the network mid-listing, or point at a dead host → **The window keeps responding.** An error toast, and the tab goes back where it was*
 - [ ] **23.3a** `g<Space>` で、どの機械も答えない名前の `\\nosuchhost-xyz\share` を打つ（v0.78.75、#233）→ 赤いトーストが、システム自身の文のあとに `— no host by that name answered (a typo, or the machine is off)` で終わり、タブは元の場所に残る。赤いトーストはこの 1 つだけ（親の列の `\\nosuchhost-xyz` の失敗は足さない。v0.78.99、#270） — *`g<Space>`, type `\\nosuchhost-xyz\share` (a name no machine answers to) (v0.78.75, #233) → The red toast ends with `— no host by that name answered (a typo, or the machine is off)` after the system's own sentence, and the tab stays where it was. It is the only red toast: the parent column's `\\nosuchhost-xyz` failing too adds none (v0.78.99, #270)*
 - [ ] **23.4** 共有上のパスを Tab 補完する → プロンプトが固まらず、待っている間 `…` が出る — *Tab-complete a path on the share → The prompt stays responsive; a `…` shows while it waits*
+- [ ] **23.4b** 応答しないホストの `\\192.168.0.150\Ba` で `<Tab>`（v0.78.223、#222）→ 約 1.5 秒後に、プロンプト右の `…` が `Listing \\192.168.0.150…` に変わる。待ちが終わると消え、失敗したら赤いトーストが出る — *`<Tab>` on `\\192.168.0.150\Ba` where that host does not answer (v0.78.223, #222) → The `…` at the right of the prompt gives way, after about 1.5 s, to `Listing \\192.168.0.150…`; when the wait ends the prompt goes back to nothing, with a red toast if the listing failed*
 - [ ] **23.4a** `alpha\`、`alps\`、`zeta\` があるフォルダで `g<Space>`、そのフォルダのフルパスと `al` を打ち、`<Tab>` を 3 回（v0.78.58、#222）→ 行が `…\alpha\` → `…\alps\` → `…\alpha\` と回る。押すたびに、選んだフォルダの中を並べるのでなく、`al` で始まる次のフォルダになる — *In a folder with `alpha\`, `alps\` and `zeta\`: `g<Space>`, type the folder's full path then `al`, and `<Tab>` three times (v0.78.58, #222) → The line goes `…\alpha\`, then `…\alps\`, then `…\alpha\` again: each press takes the next folder that began with `al` instead of listing what is inside the one just chosen*
 - [ ] **23.5** `g<Space>` で、途中のフォルダ名に `|` を含むパス（`C:\Temp\a|b\c\d`）を打って `<Enter>`（v0.57.3）→ エラーのトーストは **1 つ**で、打ったパスをそのまま挙げる（親の `…\\c` ではなく `C:\\Temp\\a|b\\c\\d`。v0.75.19）。v0.57.3 までは親の列がそれぞれ自分のトーストを足し、断片（`b: …`、`c: …`）だけを挙げていた — *`g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) → **One** error toast, naming the path as typed (`C:\Temp\a|b\c\d`, not its parent `…\c`: v0.75.19). Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`)*
 

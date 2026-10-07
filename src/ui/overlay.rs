@@ -167,7 +167,16 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
     // Tab hands the listing to the scan pool, so the answer can be a moment
     // behind on a slow share. Say so rather than look like the key did nothing.
     let waiting = app.completing();
-    let gutter = if waiting { 22.0 } else { 0.0 };
+    let slow = app.slow_completion().map(|d| format!("Listing {d}…"));
+    if waiting && slow.is_none() {
+        ui.ctx().request_repaint_after(App::SLOW_COMPLETION);
+    }
+    let said = slow.unwrap_or_else(|| "…".into());
+    let gutter = if waiting {
+        ui.painter().layout_no_wrap(said.clone(), f.clone(), accent).size().x + 12.0
+    } else {
+        0.0
+    };
 
     let Overlay::Input(ov) = &mut app.overlay else { return };
     let title = format!("{}:", ov.title);
@@ -225,7 +234,7 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
     // In the accent, as the title is: in the border's colour it was all but
     // invisible on the dark theme, read only at 4x (#220).
     if waiting {
-        let g = ui.painter().layout_no_wrap("…".into(), f.clone(), accent);
+        let g = ui.painter().layout_no_wrap(said, f.clone(), accent);
         ui.painter().galley(
             egui::pos2(rect.right() - 10.0 - g.size().x, rect.center().y - g.size().y / 2.0),
             g,

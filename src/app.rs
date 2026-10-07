@@ -1218,6 +1218,7 @@ struct PendingCompletion {
     id: u64,
     dir: PathBuf,
     prefix: String,
+    since: Instant,
 }
 
 pub struct App {
@@ -5215,7 +5216,7 @@ impl App {
         let sort = self.tabs[self.active].sort;
         let id = self.scanner.scan_low(dir.clone(), sort);
         self.inflight.insert(id, dir.clone());
-        self.pending_completion = Some(PendingCompletion { id, dir, prefix });
+        self.pending_completion = Some(PendingCompletion { id, dir, prefix, since: Instant::now() });
     }
 
     /// Answer a completion whose listing has just arrived. What the user typed
@@ -5564,6 +5565,17 @@ impl App {
     /// True while Tab is waiting on a listing, so the prompt can say so.
     pub fn completing(&self) -> bool {
         self.pending_completion.is_some()
+    }
+
+    /// How long Tab waits before the prompt names the folder it is reading.
+    pub const SLOW_COMPLETION: Duration = Duration::from_millis(1500);
+
+    /// The folder Tab has been waiting on for longer than
+    /// [`Self::SLOW_COMPLETION`], so a share that does not answer reads
+    /// differently from a folder with no match (#222).
+    pub fn slow_completion(&self) -> Option<String> {
+        let p = self.pending_completion.as_ref()?;
+        (p.since.elapsed() >= Self::SLOW_COMPLETION).then(|| p.dir.display().to_string())
     }
 
     fn start_search(&mut self, query: &str, via: SearchVia) {
@@ -8651,6 +8663,20 @@ mod usage_view {
         a.tabs[a.active].cwd = dir.to_path_buf();
         a.tabs[a.active].current = Folder::loading(dir.to_path_buf(), None);
         a
+    }
+
+    #[test]
+    fn a_completion_names_its_folder_once_it_has_waited_long_enough() {
+        let dir = util::test_dir("slow-completion");
+        let mut a = app_in(&dir);
+        assert_eq!(a.slow_completion(), None);
+        let dir_name = dir.join("share");
+        let pending = |since| PendingCompletion { id: 1, dir: dir_name.clone(), prefix: String::new(), since };
+        a.pending_completion = Some(pending(Instant::now()));
+        assert!(a.completing());
+        assert_eq!(a.slow_completion(), None);
+        a.pending_completion = Some(pending(Instant::now() - App::SLOW_COMPLETION));
+        assert_eq!(a.slow_completion(), Some(dir_name.display().to_string()));
     }
 
     /// Largest first, folders measured through their children, and the bars'
