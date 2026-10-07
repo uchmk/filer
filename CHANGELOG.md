@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.78.209] - 2026-10-07
+
+### 追加
+
+- `filer env` の `Backend` の行で、`[ui] backend = "auto"` がこの機械で何になるかも言う（`(this machine: Gl)` / `(wgpu's own pick here)`、#245 の提案 3）。計測: 追加の判定は Linux で 11 ms（`filer env` 全体）。
+
 ## [0.78.208] - 2026-10-07
 
 ### 修正

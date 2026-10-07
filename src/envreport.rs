@@ -111,7 +111,18 @@ fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
     // row of the last run, below.
     rows.push(("Backend".into(), match std::env::var("WGPU_BACKEND").ok().filter(|v| !v.is_empty()) {
         Some(v) => format!("{v} (from WGPU_BACKEND; [ui] backend = \"{}\" not used)", cfg.ui.backend),
-        None => format!("[ui] backend = \"{}\"", cfg.ui.backend),
+        None => {
+            let mut said = format!("[ui] backend = \"{}\"", cfg.ui.backend);
+            // What `auto` comes to on this machine: GL where it has one
+            // (Windows), wgpu's own pick elsewhere (#245).
+            if matches!(cfg.ui.backend_name(), Ok(None)) {
+                said += &match crate::predicted_fallback().as_str() {
+                    "" => " (wgpu's own pick here)".to_string(),
+                    b => format!(" (this machine: {b})"),
+                };
+            }
+            said
+        }
     }));
     // Said as the window says it: what the setting fell back to, not "the default".
     let mut warnings = cfg.warnings.clone();
