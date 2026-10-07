@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.78.220] - 2026-10-08
+
+### 追加
+
+- フォルダ同士の比較が開いている間、状態ファイルに `compare tree: N left only, N right only, N differ, N same, N unread` と、最初の 60 行の `compare tree row 1: differ sub/x.txt`（フォルダは末尾に `/`）を出す（#255 の提案 2。45 節の期待値を文字で読む）。
+
 ## [0.78.219] - 2026-10-08
 
 ### 変更

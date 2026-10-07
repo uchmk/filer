@@ -1287,6 +1287,31 @@ fn state_report(app: &App) -> String {
                 lines.push(compare_row_line(i + 1, row));
             }
         }
+        // A folder comparison: the footer's totals, then the paths with their
+        // state, so a check reads the expected tree as text (#255, proposal 2).
+        if let Some(diff::Outcome::Tree { rows, counts, truncated }) = &ov.outcome {
+            const MAX: usize = 60;
+            lines.push(format!(
+                "compare tree: {} left only, {} right only, {} differ, {} same, {} unread{}",
+                counts.left_only,
+                counts.right_only,
+                counts.differ,
+                counts.same,
+                counts.unread,
+                if *truncated { ", truncated" } else { "" }
+            ));
+            for (i, row) in rows.iter().take(MAX).enumerate() {
+                let state = match row.state {
+                    diff::TreeState::LeftOnly => "left only",
+                    diff::TreeState::RightOnly => "right only",
+                    diff::TreeState::Differ => "differ",
+                    diff::TreeState::Same => "same",
+                    diff::TreeState::Unread => "unread",
+                };
+                let dir = if row.dir { "/" } else { "" };
+                lines.push(format!("compare tree row {}: {state} {}{dir}", i + 1, row.rel.display()));
+            }
+        }
     }
     lines.push(format!(
         "pane: {}",
