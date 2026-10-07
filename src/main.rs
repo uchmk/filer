@@ -1106,6 +1106,42 @@ fn title_for(app: &App) -> String {
     fmt.replace("{cwd}", &cwd).replace("{rows}", &app.tab().page_rows.to_string()).replace("{pane}", &pane)
 }
 
+/// The folder comparison as text: the footer's totals, then the rows on
+/// screen (`shown`, so `z` takes the `same` ones out) numbered as drawn, the
+/// first 60.
+fn compare_tree_lines(
+    rows: &[diff::TreeRow],
+    counts: &diff::TreeCounts,
+    truncated: bool,
+    hide_same: bool,
+    shown: &[usize],
+) -> Vec<String> {
+    const MAX: usize = 60;
+    let mut lines = vec![format!(
+        "compare tree: {} left only, {} right only, {} differ, {} same, {} unread{}{}",
+        counts.left_only,
+        counts.right_only,
+        counts.differ,
+        counts.same,
+        counts.unread,
+        if truncated { ", truncated" } else { "" },
+        if hide_same { ", matches hidden" } else { "" }
+    )];
+    for (n, &i) in shown.iter().take(MAX).enumerate() {
+        let row = &rows[i];
+        let state = match row.state {
+            diff::TreeState::LeftOnly => "left only",
+            diff::TreeState::RightOnly => "right only",
+            diff::TreeState::Differ => "differ",
+            diff::TreeState::Same => "same",
+            diff::TreeState::Unread => "unread",
+        };
+        let dir = if row.dir { "/" } else { "" };
+        lines.push(format!("compare tree row {}: {state} {}{dir}", n + 1, row.rel.display()));
+    }
+    lines
+}
+
 /// `compare row 2: ~ the ⟦price⟧ is firm | the ⟦cost⟧ is firm`: the marker is
 /// `=` for the same line, `-` and `+` for one that has no partner, `~` for an
 /// edited pair, and the words that changed are in ⟦ ⟧.
@@ -1290,27 +1326,7 @@ fn state_report(app: &App) -> String {
         // A folder comparison: the footer's totals, then the paths with their
         // state, so a check reads the expected tree as text (#255, proposal 2).
         if let Some(diff::Outcome::Tree { rows, counts, truncated }) = &ov.outcome {
-            const MAX: usize = 60;
-            lines.push(format!(
-                "compare tree: {} left only, {} right only, {} differ, {} same, {} unread{}",
-                counts.left_only,
-                counts.right_only,
-                counts.differ,
-                counts.same,
-                counts.unread,
-                if *truncated { ", truncated" } else { "" }
-            ));
-            for (i, row) in rows.iter().take(MAX).enumerate() {
-                let state = match row.state {
-                    diff::TreeState::LeftOnly => "left only",
-                    diff::TreeState::RightOnly => "right only",
-                    diff::TreeState::Differ => "differ",
-                    diff::TreeState::Same => "same",
-                    diff::TreeState::Unread => "unread",
-                };
-                let dir = if row.dir { "/" } else { "" };
-                lines.push(format!("compare tree row {}: {state} {}{dir}", i + 1, row.rel.display()));
-            }
+            lines.extend(compare_tree_lines(rows, counts, *truncated, ov.hide_same, &ov.shown()));
         }
     }
     lines.push(format!(
@@ -2018,6 +2034,34 @@ mod tests {
         assert_eq!(zoom(&app).as_deref(), Some("zoom: fit (25%)"));
         app.preview.zoom = Some(0.5 / app.ctx.pixels_per_point());
         assert_eq!(zoom(&app).as_deref(), Some("zoom: 50%"), "a zoom of its own is said as before");
+    }
+
+    /// A folder comparison reads as its totals and the rows on screen: `z`
+    /// takes the `same` ones out and says so.
+    #[test]
+    fn a_compare_tree_reads_the_rows_on_screen() {
+        let row = |rel: &str, state, dir| diff::TreeRow { rel: rel.into(), state, dir, left: 0, right: 0 };
+        let rows = vec![
+            row("a", diff::TreeState::LeftOnly, false),
+            row("d", diff::TreeState::Same, true),
+            row("e", diff::TreeState::RightOnly, false),
+            row("f", diff::TreeState::Differ, false),
+            row("g", diff::TreeState::Unread, false),
+        ];
+        let counts = diff::TreeCounts::of(&rows);
+        let all: Vec<usize> = (0..rows.len()).collect();
+        let said = compare_tree_lines(&rows, &counts, false, false, &all);
+        assert_eq!(said[0], "compare tree: 1 left only, 1 right only, 1 differ, 1 same, 1 unread");
+        assert_eq!(said[1], "compare tree row 1: left only a");
+        assert_eq!(said[2], "compare tree row 2: same d/", "a folder ends in a slash");
+        assert_eq!(said[3], "compare tree row 3: right only e");
+        assert_eq!(said[4], "compare tree row 4: differ f");
+        assert_eq!(said[5], "compare tree row 5: unread g");
+        let seen = [0, 2, 3, 4];
+        let said = compare_tree_lines(&rows, &counts, true, true, &seen);
+        assert!(said[0].ends_with("1 unread, truncated, matches hidden"), "{said:?}");
+        assert_eq!(said.len(), 5, "the `same` row is gone and the rest are renumbered");
+        assert_eq!(said[2], "compare tree row 2: right only e");
     }
 
     /// #236: a compare row reads as a marker and the two sides, the changed
