@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 526 件（TESTING.md の全 698 件のうち、`cargo test` が見ている 172 件は外してある）。
+押すものは 527 件（TESTING.md の全 699 件のうち、`cargo test` が見ている 172 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -281,6 +281,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **16.10** 古い `.doc` を `.docx` に改名してホバー → Office XML ではないと述べるカードが出て、考えられる原因も示す — *Rename an old `.doc` to `.docx` and hover it → A card saying it is not an Office XML file, naming the likely cause*
 - [ ] **16.11** 非常に大きなブック（5000 行を大きく超えるもの）→ プレビューは最初の 4000 行を出す（テキストのプレビュー自身の上限。`preview/text.rs` の `MAX_LINES`。Office の読み取りは 5000 行で止まる）。最後の行の下の注記が `… 5000 lines read, and the file goes on (truncated)` と言う（v0.75.18。以前は `5000 lines total` で、ファイルの長さではなく読み取りの止まった所だった）。4000〜5000 行のブックは `… N lines total (truncated)` と言う（以前は何も言わなかった）。固まらない — *A very large workbook (well over 5000 rows) → The preview shows the first 4000 lines, the text preview's own cap (`MAX_LINES` in `preview/text.rs`; the Office reader stops reading at 5000), and the note under the last line reads `… 5000 lines read, and the file goes on (truncated)` (v0.75.18; before, `5000 lines total`, which was the reader's stop, not the file's length). A workbook of 4000-5000 rows says `… N lines total (truncated)`; before, it said nothing. It does not hang*
 - [ ] **16.12** その上で `<A-j>` / `<A-k>` とミニマップ → スクロールし、帯も出る。ただのテキストプレビューなので。（`/` と `n` はファイル一覧の検索で、プレビューの中を探すものではない。プレビューの中の検索は無い） — *`<A-j>` / `<A-k>` and the minimap on one → It scrolls, and the strip is there, because it is an ordinary text preview. (`/` and `n` search the file list, not the preview: there is no search inside a preview)*
+- [ ] **16.13** Windows で、既定のアプリが無い拡張子のファイル（`HKCR\.xyz` が無い。`fixtures\unknown.xyz`）をオープナー無しで `<Enter>` → トーストが `Handed unknown.xyz to the system, which has no default app for it (Windows asks which to use)` で、「このファイルを開く方法を選んでください」の箱が出る。`.txt` は今までどおり `Opened … with the system's default app` — *Windows, a file whose extension has no default app (`HKCR\.xyz` absent; `fixtures\unknown.xyz`), `<Enter>` with no opener → The toast says `Handed unknown.xyz to the system, which has no default app for it (Windows asks which to use)`, and the "How do you want to open this file?" box appears. A `.txt` still says `Opened … with the system's default app`*
 
 ## 17. 自前のプレビューア
 

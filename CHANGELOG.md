@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.78.202] - 2026-10-07
+
+### 修正
+
+- Windows で、既定のアプリが無い拡張子のファイルをオープナー無しで `<Enter>` したとき、トーストが `Opened … with the system's default app` と嘘を言っていた。`AssocQueryStringW` で関連付けを確かめ、無ければ `Handed <名前> to the system, which has no default app for it (Windows asks which to use)` と言う（TESTING.md 16.13）
+
 ## [0.78.201] - 2026-10-07
 
 ### 修正

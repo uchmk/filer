@@ -2158,7 +2158,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.74.2 で `<Quit>` が入っていた。README にもある）`--keys` に、オーバーレイが開いたままでも終われる `<Quit>` を足す（#222 の提案 1）。プロンプトが開いていると最後の `q` は打ち込まれ、filer が終わらない。
 - [ ] 届かない共有で `<Tab>` が約 42 秒待つ間、変化が `…` だけで、候補が無かったときと見分けられない（#222 の提案 3）。1〜2 秒でタスクの行を出し、
   失敗したらトーストを出す。
-- [ ] Windows で関連付けの無いファイルの `<Enter>` は、`OpenWith.exe` の「どのアプリで開くか」を出すのに `Opened …` と言う（#221 の提案 1。上の #213 の提案 1 と同じ）。
+- [x] （v0.78.202。上の項目で済み）Windows で関連付けの無いファイルの `<Enter>` は、`OpenWith.exe` の「どのアプリで開くか」を出すのに `Opened …` と言う（#221 の提案 1。上の #213 の提案 1 と同じ）。
 
 ## 実機のセッションの報告（v0.73.51 で受けた分: #219 x64 の 4 節、#220 ARM64 の 23 節）
 
@@ -2233,7 +2233,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `Attributes` が -39 px。既定の大きさでも余裕は 1 文字分で、15 文字のキーなら設定なしで重なる。いちばん広いキーの幅から決める（#214 の提案 1）。
 - [x] （v0.73.56。プレビューも binary の判定の前に UTF-16 の BOM を見て、UTF-8 に直してテキストとして描く）**UTF-16 LE のファイルが、spot では `UTF-16 LE`、プレビューでは `binary` になる**（#214 の所見 2）。`preview/mod.rs` が BOM を見る前に
   `looks_binary` を呼ぶ。`spot.rs:370` の順番に合わせ、BOM があればテキストとして読む。
-- [ ] Windows でファイルに関連付けが無いとき、`<Enter>` の `Opened <名前> with the system's default app` が嘘になる（#213 の提案 1。Windows は
+- [x] （v0.78.202。`exec::has_default_app` が `AssocQueryStringW` で引き、無ければ `Handed <名前> to the system, which has no default app for it`。TESTING.md 16.13）Windows でファイルに関連付けが無いとき、`<Enter>` の `Opened <名前> with the system's default app` が嘘になる（#213 の提案 1。Windows は
   「どのアプリで開くか」を出す）。`AssocQueryStringW` で関連付けを確かめ、無ければそう言う。
 - [ ] 警告色と既定のファイル名の色が、明るい背景で読みにくい（#213 の提案 2）。白の上で 1.52:1 と 1.59:1。背景が明るいときの既定を用意するか、
   `theme.toml` で決められるようにする。33.6 は `[~]` のまま持ち主が見る。

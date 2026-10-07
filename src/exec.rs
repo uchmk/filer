@@ -674,6 +674,38 @@ pub fn open_default(path: &Path) -> std::io::Result<()> {
     open::that_detached(path)
 }
 
+/// Whether Windows knows an app for the file's extension. Always true off
+/// Windows, where the question has no one answer. An extension-less name is
+/// left to the system, which asks which app to use.
+pub fn has_default_app(path: &Path) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows::Win32::UI::Shell::{AssocQueryStringW, ASSOCF_NONE, ASSOCSTR_EXECUTABLE};
+        use windows::core::{PCWSTR, PWSTR};
+        let Some(ext) = path.extension() else { return true };
+        let wide: Vec<u16> = std::ffi::OsStr::new(".").encode_wide().chain(ext.encode_wide()).chain(Some(0)).collect();
+        let mut buf = [0u16; 1024];
+        let mut len = buf.len() as u32;
+        // SAFETY: `wide` is NUL-terminated and `buf` holds `len` units.
+        let r = unsafe { AssocQueryStringW(ASSOCF_NONE, ASSOCSTR_EXECUTABLE, PCWSTR(wide.as_ptr()), PCWSTR::null(), Some(PWSTR(buf.as_mut_ptr())), &mut len) };
+        r.is_ok()
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+        true
+    }
+}
+
+/// What `<Enter>` says after handing a file to the system.
+pub fn opened_default_note(name: &str, has_app: bool) -> String {
+    match has_app {
+        true => format!("Opened {name} with the system's default app"),
+        false => format!("Handed {name} to the system, which has no default app for it (Windows asks which to use)"),
+    }
+}
+
 /// Hand a URL to the default browser.
 ///
 /// Detached for the same reason as `open_default`: the browser outlives us, and
@@ -859,6 +891,12 @@ mod tests {
     fn opener_missing_tells_a_program_that_is_not_there() {
         assert!(opener_missing("definitely-not-a-program-93f2 %s"));
         assert!(!opener_missing("echo %s"));
+    }
+
+    #[test]
+    fn the_open_toast_does_not_claim_an_app_that_is_not_there() {
+        assert_eq!(opened_default_note("a.txt", true), "Opened a.txt with the system's default app");
+        assert!(opened_default_note("a.xyz", false).contains("no default app"));
     }
 
     #[test]

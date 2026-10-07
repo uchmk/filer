@@ -408,6 +408,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 "16.2" = '1 文の中で太字と通常が混ざった段落 → **1 行になる**（書式の切れ目ごとに改行されない）'
 "16.3" = '見出し 1 / 2 のスタイルを使った文書で `<S-Tab>` → 見出しがアウトラインになり、`<Enter>` でその位置へ飛ぶ'
 "16.3b" = 'Word で開く `.docx` のアウトラインで `<Enter>` → トーストの末尾に `(line N not passed: this opener takes no line)`。行を受け取るエディタ（`code -g` など）では付かない'
+"16.13" = '''Windows で、既定のアプリが無い拡張子のファイル（`HKCR\.xyz` が無い。`fixtures\unknown.xyz`）をオープナー無しで `<Enter>` → トーストが `Handed unknown.xyz to the system, which has no default app for it (Windows asks which to use)` で、「このファイルを開く方法を選んでください」の箱が出る。`.txt` は今までどおり `Opened … with the system's default app`'''
 "16.4" = '`.xlsx` をホバー → 行がタブ区切りのセルとして出て、シートごとに名前が示される'
 "16.5" = '**最初のタブが `sheet1.xml` ではない**ブック → タブがブック上の順番どおりに、本当の名前で出る'
 "16.6" = '日付の入ったシート → `2023-03-15` と出る（`45000` ではない）'

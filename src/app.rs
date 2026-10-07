@@ -4354,7 +4354,7 @@ impl App {
             // whose app takes a while to appear looked as if `<Enter>` had
             // done nothing (#163).
             None => match exec::open_default(&entry.path) {
-                Ok(()) => self.toast(format!("Opened {} with the system's default app", entry.name)),
+                Ok(()) => self.toast(exec::opened_default_note(&entry.name, exec::has_default_app(&entry.path))),
                 Err(e) => self.error(format!("Open failed: {e}")),
             },
         }

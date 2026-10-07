@@ -560,6 +560,7 @@ to answer a click.
 | 16.10 | Rename an old `.doc` to `.docx` and hover it | A card saying it is not an Office XML file, naming the likely cause |
 | 16.11 | A very large workbook (well over 5000 rows) | The preview shows the first 4000 lines, the text preview's own cap (`MAX_LINES` in `preview/text.rs`; the Office reader stops reading at 5000), and the note under the last line reads `… 5000 lines read, and the file goes on (truncated)` (v0.75.18; before, `5000 lines total`, which was the reader's stop, not the file's length). A workbook of 4000-5000 rows says `… N lines total (truncated)`; before, it said nothing. It does not hang |
 | 16.12 | `<A-j>` / `<A-k>` and the minimap on one | It scrolls, and the strip is there, because it is an ordinary text preview. (`/` and `n` search the file list, not the preview: there is no search inside a preview) |
+| 16.13 | Windows, a file whose extension has no default app (`HKCR\.xyz` absent; `fixtures\unknown.xyz`), `<Enter>` with no opener | The toast says `Handed unknown.xyz to the system, which has no default app for it (Windows asks which to use)`, and the "How do you want to open this file?" box appears. A `.txt` still says `Opened … with the system's default app` |
 
 ## 17. Previewers of your own (v0.30.0)
 
