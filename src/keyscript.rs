@@ -33,7 +33,8 @@ pub enum Step {
     /// preview's 40 ms debounce (47.2) -- which the settled wait otherwise
     /// waits out (Q41).
     Now,
-    /// `<Shot:name>`: the window as it is now, saved as `name.png` beside the
+    /// `<Shot:name@preview>` crops it to the preview pane (the name keeps the
+    /// suffix). `<Shot:name>`: the window as it is now, saved as `name.png` beside the
     /// `FILER_KEYS_DONE` file, before the next key goes in. A check that
     /// compares the screen between two keys started filer once per picture
     /// and relied on the windows coming out the same size (Q42, #154).
@@ -313,6 +314,18 @@ fn named(token: &str, what: &str) -> Result<String, String> {
     Ok(name.to_owned())
 }
 
+/// The name in `<Shot:name>` or `<Shot:name@preview>`; the `@preview` stays on
+/// the name, which `shot_crop` splits off where the picture is saved.
+fn shot_name(token: &str) -> Result<String, String> {
+    match token.strip_suffix("@preview>") {
+        Some(head) => Ok(format!("{}{SHOT_PREVIEW}", named(&format!("{head}>"), "Shot")?)),
+        None => named(token, "Shot"),
+    }
+}
+
+/// The suffix that crops a shot to the preview pane.
+pub const SHOT_PREVIEW: &str = "@preview";
+
 /// `<Wait:500>` as a pause, in milliseconds.
 fn wait(token: &str) -> Option<Result<Duration, String>> {
     let ms = token.strip_prefix("<Wait:")?.strip_suffix('>')?;
@@ -349,7 +362,7 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
             Some(d) => Step::Wait(d?),
             None if token == "<Now>" => Step::Now,
             None if token == "<Quit>" => Step::Quit,
-            None if token.starts_with("<Shot:") => Step::Shot(named(token, "Shot")?),
+            None if token.starts_with("<Shot:") => Step::Shot(shot_name(token)?),
             None if token.starts_with("<State:") => Step::State(named(token, "State")?),
             None if token == "<Paste>" => Step::Paste,
             None if token.starts_with("<PaneText:") => Step::PaneText(named(token, "PaneText")?),
@@ -461,6 +474,8 @@ mod tests {
         let got = parse("j<Shot:after-j>k").unwrap();
         assert_eq!(got[1], Step::Shot("after-j".into()));
         assert_eq!(press(&got[1]), Some(Press::Shot("after-j".into())));
+        assert_eq!(parse("<Shot:p@preview>").unwrap(), [Step::Shot("p@preview".into())]);
+        assert!(parse("<Shot:@preview>").is_err() && parse("<Shot:a@b>").is_err());
         for bad in ["<Shot:>", "<Shot:../x>", "<Shot:a b>", "<Shot:a/b>"] {
             let err = parse(bad).unwrap_err();
             assert!(err.contains("<Shot:before>"), "{bad}: {err}");

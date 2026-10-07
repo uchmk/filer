@@ -1449,7 +1449,7 @@ refused on the command line.
 `<Shot:name>` saves the window as it is at that point as `name.png`, beside the `FILER_KEYS_DONE`
 file (or in the folder filer was started from), and the next key waits until it is on disk
 (v0.67.0). `--keys "<Shot:before><C-t><Shot:after>"` gives the two pictures a comparison needs from
-one run. The name is letters, digits, `-` and `_`.
+one run. The name is letters, digits, `-` and `_`. `<Shot:name@preview>` saves only the preview pane's rectangle (v0.78.218).
 
 `<State:name>` writes what the `FILER_KEYS_DONE` file would say at that point to `name.txt` in the
 same folder (v0.73.74). That file is written when the script ends, so a script ending in `q` reports

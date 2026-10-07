@@ -101,6 +101,7 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
     ui.painter().rect_filled(full, CornerRadius::ZERO, app.cfg.theme.bg);
     // Rebuilt every frame as the panes are laid out.
     app.pane_rects.clear();
+    app.preview.rect = None;
 
     let header_h = header_height(row_h);
     let status_h = row_h + 8.0;
@@ -422,6 +423,7 @@ pub(super) fn draw_preview(
     queued: &mut Vec<Act>,
 ) {
     let theme = app.cfg.theme.clone();
+    app.preview.rect = Some(rect);
     // A zoomed image asks for a bigger decode, so magnifying shows the picture
     // rather than a blurred copy of the pane-sized one.
     let pane_px = (

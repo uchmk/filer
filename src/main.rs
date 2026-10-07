@@ -801,9 +801,27 @@ impl Filer {
         };
         let [w, h] = image.size;
         let rgba: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_srgba_unmultiplied()).collect();
-        let path = self.shot_dir.join(format!("{name}.png"));
+        // `name@preview` is the preview pane's rectangle, in the picture's pixels.
+        let (file, crop) = match name.strip_suffix(keyscript::SHOT_PREVIEW) {
+            Some(file) => (file, true),
+            None => (name.as_str(), false),
+        };
+        let path = self.shot_dir.join(format!("{file}.png"));
         let saved = image::RgbaImage::from_raw(w as u32, h as u32, rgba)
             .ok_or_else(|| "the picture had the wrong size".to_owned())
+            .and_then(|img| {
+                if !crop {
+                    return Ok(img);
+                }
+                let r = self.app.preview.rect.ok_or_else(|| "no preview pane is on screen".to_owned())?;
+                let k = w as f32 / ctx.content_rect().width().max(1.0);
+                let (x0, y0) = ((r.min.x * k).max(0.0) as u32, (r.min.y * k).max(0.0) as u32);
+                let (x1, y1) = (((r.max.x * k).ceil() as u32).min(w as u32), ((r.max.y * k).ceil() as u32).min(h as u32));
+                if x1 <= x0 || y1 <= y0 {
+                    return Err("the preview pane is off the picture".to_owned());
+                }
+                Ok(image::imageops::crop_imm(&img, x0, y0, x1 - x0, y1 - y0).to_image())
+            })
             .and_then(|img| img.save(&path).map_err(|e| e.to_string()));
         if let Err(e) = saved {
             self.app.error(format!("Shot {name}: {e}"));

@@ -655,6 +655,8 @@ pub struct PreviewSlot {
     pub cache: Lru<preview::Key, CachedPreview>,
     /// Size of the preview pane in pixels, used when decoding images.
     pub box_size: (u32, u32),
+    /// Where the preview was drawn in the last frame, for `<Shot:name@preview>`.
+    pub rect: Option<egui::Rect>,
     /// The largest `preview_offset` the pane can usefully show, as the last
     /// draw worked it out. `seek` stops here, so a scroll past the end never
     /// becomes a frame drawn from beyond the content.
@@ -751,6 +753,7 @@ impl Default for PreviewSlot {
             in_flight: false,
             cache: Lru::new(24),
             box_size: (900, 900),
+            rect: None,
             max_offset: 0,
             cols: 80,
             n: 0,
