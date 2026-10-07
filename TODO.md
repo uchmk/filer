@@ -2119,7 +2119,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   スクリプトだと最後の状態しか残らず、途中を読むには `q` を抜いて外から止めるしかない（`Start-Process -Wait` が使えない）
 - [x] （v0.78.63。`name.pane.txt`。仮想ディスプレイで本物のペインを読んだ）`--keys` でペインの文字を書き出す `<PaneText:name>`（#229 の提案 1）。見えている格子を `name.txt` に。lazygit のフッタのような「ペインに何が出ているか」を
   画像でなく文字で確かめられる。Linux の `xrun.sh` でも同じに使える
-- [ ] `scripts/keys.ps1`（#229 の提案 2）: filer を 1 回 `--keys` で起動し（`Start-Process -Wait`、run ごとに別の `FILER_KEYS_DONE` と `FILER_PTY_LOG`）、
+- [x] （v0.78.230。v0.78.135 で置いた `scripts/keys.ps1` がこの項目を満たしている。`FILER_PTY_LOG` は run ごとに足したいときの環境変数で、スクリプトは設定しない）`scripts/keys.ps1`（#229 の提案 2）: filer を 1 回 `--keys` で起動し（`Start-Process -Wait`、run ごとに別の `FILER_KEYS_DONE` と `FILER_PTY_LOG`）、
   `keys: done` でなければ非 0 で返す。`xrun.sh` の Windows 版。各 run が毎回 `run.ps1` を書き直している
 - [x] 確認の箱で、`<Enter>` がどのボタンかを示す（#230 の提案 1、Q69）。v0.73.73 で、最初のボタンを `[o] / <Enter> …` にした
 
