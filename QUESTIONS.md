@@ -1488,6 +1488,8 @@ Claude が判断に迷った点をここに書きます。各質問の「回答�
 - 背景: `open::that_detached` は関連付けが起動に失敗しても `Ok` を返し、filer は何も言わない。2 つの項目は同じ問題を別の形で直す。
   開いた後に見る形は `ShellExecuteExW` の `hProcess` が無いことを手掛かりにするが、DDE や既に動いているアプリへの合流でも `hProcess` は無く、誤報が出る。
   開く前に見る形は `AssocQueryStringW(ASSOCSTR_EXECUTABLE)` で実行ファイルを引くので誤報は少ないが、開くたびに 1 回レジストリを引く。
+  （マージの Routine の見張り、v0.78.217）開く前に引く部分は v0.78.202 で既に入っている: `exec::has_default_app` が `AssocQueryStringW` で引き、opener の無い `<Enter>` で無ければ `Handed <名前> to the system, which has no default app for it` と言う。ただし**開かずにやめるのではなく、渡したうえで言う**（Windows が「どのアプリで開くか」を出すため。TESTING.md 16.13）。
+  1 を選ぶと、この 16.13 の動き（渡す）を変えるか、`has_default_app` を `start ""` の opener にも使うだけにするかを決めることになる。#252 の「関連付けはあるのに起動に失敗する」場合は、引けてしまうので 1 では捉えられない（2 か 3 の範囲）。
 - 選択肢:
   1. 開く前に `AssocQueryStringW` で引き、無ければ `No default app for .pdf` とトーストで言って開かない（推奨）: 誤報が無く、言い方も単純。
   2. 開いた後に `hProcess` が無ければ `Windows started nothing for .txt` と言う: 実際に起きたことを見るが、DDE などで誤報が出る。
