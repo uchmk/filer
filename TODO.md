@@ -18,6 +18,12 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
+- [ ] （Sonnet の見張り）v0.78.209（`37e856d`）は `filer env` の `Backend` の行を変えた（`auto` のとき末尾に `(this machine: Gl)` / `(wgpu's own pick here)`）が、TESTING.md に行が無く、`scripts/testcheck-ja.toml` の訳も、`windows-role.md` の 2 つの再テストも無い（CLAUDE.md の作業ルール）。単体テストも無い。
+  25 節に「`[ui] backend` を書かない（`auto`）で `filer env`: `Backend` の行は `[ui] backend = "auto" (this machine: Gl)`（GL のある Windows）。`WGPU_BACKEND` を入れたとき・`"gl"` などを書いたときは末尾が付かない」の行（25.4f など）を足し、訳を合わせ、`make-testcheck` で作り直し、両レーンの再テストに積む。
+  末尾の文を作る部分を `predicted_fallback` の結果を引数に取る小さな関数に切り出し、`"Gl"` で `(this machine: Gl)`、空で `(wgpu's own pick here)`、`auto` 以外で何も付かないことを試すテストを足す
+- [ ] （Sonnet の見張り）v0.78.209 は、項目の「GL を確かめるのに起動 1 回分の手間がかかるので、測ってから」を Linux の 11 ms で済みにしたが、`predicted_fallback` は `auto_backends(cfg!(windows), …)` なので **Windows 以外では GL の確かめ（`has_adapter`）を呼ばない**。測ったのは確かめの無い経路だけ。
+  しかも前は `[ui] backend` の警告があるときだけ呼んでいたのが、既定の `auto` で毎回呼ぶようになった。x64 と ARM64 で `Measure-Command { filer env --out x.txt }` を v0.78.208 と v0.78.209 で比べ、目に見えて遅ければ確かめを警告のあるときに戻すか、前の起動の `last-run.toml` の Adapter から言う形にする。【実機】
+
 - [x] （v0.78.207。46.17b を足し、訳と再テストも）（Sonnet の見張り）v0.78.205（`d0414b8`）は spot の `C` を、2 つ以上選んでいるときに選んだファイルごとのパネルを `#### <パス>` で並べて写すようにした（動きが変わった）が、TESTING.md に行が無く、`scripts/testcheck-ja.toml` の訳も、`windows-role.md` の 2 つの再テストも無い（CLAUDE.md の作業ルール）。46.17 は 1 つのパネルの形しか言っていない。
   46 節に「2 つ以上選んで spot を開き `C`: クリップボードは選んだファイルごとに `#### <フルパス>` の行、その下に 46.17 の形のパネル、ファイルの間は空行 1 つ。トーストは `Copied the spot panels of N files`。1 つだけ選んでいるとき・選んでいないときは 46.17 のまま」の行（46.17b など）を足し、訳を合わせ、`make-testcheck` で作り直し、両レーンの再テストに積む
 - [x] （v0.78.207。パスから作り、単体テストを足した）（Sonnet の見張り）v0.78.205（`d0414b8`）の `src/app.rs` の `copy_spot_of_selection` は、写すファイルを `tab.current.entries` から `selected` に含まれるものだけ拾って作るが、`selected` はフォルダを移っても残る（`Tab::targets` はそのまま全部を返す）。フォルダ A で 2 つ選んでから B へ移って spot の `C` を押すと、0 件のまま `Copied the spot panels of 0 files` と出てクリップボードが空になる（A と B の両方で選んでいれば B の分だけ）。
