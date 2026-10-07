@@ -18,6 +18,8 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
+- [ ] （Sonnet の見張り）v0.78.227（`0e386af`）の `scripts/count-vanishing.ps1` は、キーの列に `<Shot:p1>` `<Shot:p2>` `<Shot:p3>` `<Shot:txt>` の 4 つがあるのに、最後の表の `png` の行が `(3 per run expected)` と言う（1 回の実行で png は 4 枚できる）。実機の回が 80 / 20 回を見て「多い」と読むか、3 枚の回を見落とす。
+  `(4 per run expected)` に直す（`<Shot:>` の数から数えるならなお良い）。あわせて、`Png` の列が 4 でない回を表で目立たせると、描けずに終わった回が分かる。動きは変わらないので再テストは要らない
 - [x] （v0.78.222。`compare_tree_lines` に切り出し、`shown()` の順に出して `, matches hidden` を足し、単体テストを足した）（Sonnet の見張り）v0.78.220（`972954f`）の `src/main.rs` の `state_report` は、フォルダ比較の `compare tree row i:` を `rows` の全部から出し、`z`（`DiffOverlay::hide_same`）で隠した行も並べる。項目のもとの #255 の提案 2 と Q91 の「`z` で何行残るか」を文字で読む目的には、画面に見えている行（`DiffOverlay::shown()`）が要る。今は `z` を押しても状態ファイルが変わらない。
   `compare tree:` の行に `, matches hidden` を足し（`hide_same` のとき）、行は `shown()` の順に出す。あわせて、`compare_row_line` と同じく行を組む部分を小さな関数に切り出し、4 つの状態とフォルダの末尾の `/`、`hide_same` で `same` の行が抜けること、`truncated` の末尾を試す単体テストを足す（今は単体テストが無い）。状態ファイルは `--keys` のためのもので、実機の行の動きは変わらないので再テストは要らない
 - [x] （v0.78.214。`backend_row` に切り出し、`auto` 以外で末尾が付かないテストを足した）（Sonnet の見張り）v0.78.212（`e7a2ed4`）は v0.78.209 の項目を済みにしたが、項目が求めた 3 つのうち「`auto` 以外で何も付かない」は試していない。`auto_note` のテストは `"Gl"` と空の 2 つだけで、末尾を付けるかを決める `matches!(cfg.ui.backend_name(), Ok(None))` は `src/envreport.rs` の `config()` の中に残っている。
