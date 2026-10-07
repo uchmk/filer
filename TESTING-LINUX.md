@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 528 件（TESTING.md の全 700 件のうち、`cargo test` が見ている 172 件は外してある）。
+押すものは 529 件（TESTING.md の全 701 件のうち、`cargo test` が見ている 172 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -409,6 +409,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [x] **25.4c** **引用符付きのフルパス**を指定したオープナー（秀丸、サクラ）→ 最初の空白までではなく、パス全体が解決される — *An opener naming a **quoted full path** (秀丸, サクラ) → The whole path is resolved, not just up to the first space*
 - [ ] **25.4e** Windows で `pwsh`（または `powershell`）をペインのシェルにして `filer env` → シェルの行が `パス   v<a.b.c.d>   (terminal pane, …)` で、その版が `(Get-Item パス).VersionInfo.FileVersion` と一致する。何も起動しない — *On Windows, `filer env` with `pwsh` (or `powershell`) as the pane shell → The shell row reads `<path>   v<a.b.c.d>   (terminal pane, …)`, the version of that file (`(Get-Item <path>).VersionInfo.FileVersion` agrees). Nothing launches*
 - [x] **25.4d** `filer env` の実行中に画面を見る → **エディタやビューアが 1 つも起動しない。**`PATH` を調べるだけで、実行はしない — *Watch the screen while `filer env` runs → **No editor or viewer opens.** The programs are looked up on `PATH`, never executed*
+- [ ] **25.4f** `[ui] backend` を書かない（`auto`）で `filer env`、続けて `"gl"`（または `WGPU_BACKEND` を設定）で（v0.78.209）→ `Backend` の行は、GL のある Windows では `[ui] backend = "auto" (this machine: Gl)`。`"gl"` や `WGPU_BACKEND` のときは末尾が付かない — *`filer env` with no `[ui] backend` (`auto`), then with `"gl"` (or `WGPU_BACKEND` set) (v0.78.209) → The `Backend` row reads `[ui] backend = "auto" (this machine: Gl)` on Windows with GL. With `"gl"` or `WGPU_BACKEND` the row has no such tail*
 - [-] **25.5** ARM 版 Windows で x64 ビルドを使う → `OS arch` と `Process arch` が**食い違う。**その食い違いを見せることが、両方を出している理由 — *On Windows on ARM with the x64 build → `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed*
 - [ ] **25.6** `filer --help` → COMMANDS の下に `env` が並び、その下に `env --out FILE` も並ぶ（v0.68.0） — *`filer --help` → `env` is listed under COMMANDS, and `env --out FILE` under it (v0.68.0)*
 - [-] **25.7** `filer.exe` をダブルクリック（コンソール無し）→ 以前のまま。ウィンドウが開き、どこにも何も出力されない — *Double-click `filer.exe` (no console) → Unchanged: the window opens, nothing is printed anywhere*

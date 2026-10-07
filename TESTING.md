@@ -756,6 +756,7 @@ Run from a shell, not from inside the app.
 | 25.4c | An opener naming a **quoted full path** (秀丸, サクラ) | The whole path is resolved, not just up to the first space |
 | 25.4e | On Windows, `filer env` with `pwsh` (or `powershell`) as the pane shell | The shell row reads `<path>   v<a.b.c.d>   (terminal pane, …)`, the version of that file (`(Get-Item <path>).VersionInfo.FileVersion` agrees). Nothing launches |
 | 25.4d | Watch the screen while `filer env` runs | **No editor or viewer opens.** The programs are looked up on `PATH`, never executed |
+| 25.4f | `filer env` with no `[ui] backend` (`auto`), then with `"gl"` (or `WGPU_BACKEND` set) (v0.78.209) | The `Backend` row reads `[ui] backend = "auto" (this machine: Gl)` on Windows with GL. With `"gl"` or `WGPU_BACKEND` the row has no such tail |
 | 25.5 | On Windows on ARM with the x64 build | `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed |
 | 25.6 | `filer --help` | `env` is listed under COMMANDS, and `env --out FILE` under it (v0.68.0) |
 | 25.7 | Double-click `filer.exe` (no console) | Unchanged: the window opens, nothing is printed anywhere |

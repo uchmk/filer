@@ -116,10 +116,7 @@ fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
             // What `auto` comes to on this machine: GL where it has one
             // (Windows), wgpu's own pick elsewhere (#245).
             if matches!(cfg.ui.backend_name(), Ok(None)) {
-                said += &match crate::predicted_fallback().as_str() {
-                    "" => " (wgpu's own pick here)".to_string(),
-                    b => format!(" (this machine: {b})"),
-                };
+                said += &auto_note(&crate::predicted_fallback());
             }
             said
         }
@@ -455,10 +452,26 @@ fn variables() -> Vec<(String, String)> {
         .collect()
 }
 
+/// The tail of the `Backend` row for `auto`, from `predicted_fallback`.
+fn auto_note(fallback: &str) -> String {
+    match fallback {
+        "" => " (wgpu's own pick here)".to_string(),
+        b => format!(" (this machine: {b})"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::util::locate;
+
+    /// What `[ui] backend = "auto"` is said to come to: GL where the machine
+    /// has it, wgpu's own pick where `predicted_fallback` says nothing.
+    #[test]
+    fn auto_backend_note() {
+        assert_eq!(auto_note("Gl"), " (this machine: Gl)");
+        assert_eq!(auto_note(""), " (wgpu's own pick here)");
+    }
 
     /// #248: a long key does not widen the column for every other row.
     #[test]
