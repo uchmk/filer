@@ -413,6 +413,8 @@ cargo test   --manifest-path C:\dev\filer\Cargo.toml
 # Without it the terminal pane runs on the one built into Windows, which breaks
 # programs in the pane -- and you would be testing something nobody downloads.
 pwsh -NoProfile -File C:\dev\filer\scripts\fetch-conpty.ps1 -Dest C:\dev\filer\target\release
+# Also copies the build's filer-com.exe to filer.com beside filer.exe, as the release zip has it
+# (cargo builds it as filer-com.exe; run this after the build).
 ```
 
 - **Up to three sections per run, in one pull request** (v0.75.14, the owner's request: the
