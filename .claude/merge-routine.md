@@ -9,7 +9,8 @@ adds what a run needs around it. Where the two seem to differ, merge-role.md
 wins.
 
 Every run starts with an empty conversation and nobody is watching: never wait
-for input. Reply in Japanese; commits in English. Read [CLAUDE.md](../CLAUDE.md)
+for input. Reply in Japanese; commits in English. Read [CLAUDE.md](../CLAUDE.md),
+[docs/claude/lanes.md](../docs/claude/lanes.md), [docs/claude/questions.md](../docs/claude/questions.md)
 and merge-role.md from `origin/main` at the start of every run.
 
 ## A run

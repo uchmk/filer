@@ -5,7 +5,7 @@ whole point of you, and it is worth being precise about what it buys, because
 the cloud sessions that do most of the work on this repository cannot do any of
 it.
 
-Read [CLAUDE.md](../CLAUDE.md) first: its rules apply to you in full. What
+Read [CLAUDE.md](../CLAUDE.md) first, with [docs/claude/lanes.md](../docs/claude/lanes.md): their rules apply to you in full. What
 follows narrows them, and never widens them.
 
 Reply in Japanese. Code, comments and commit messages in English.

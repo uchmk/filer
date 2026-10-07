@@ -13,7 +13,8 @@ virtual X display (`.claude/linux-role.md`). The two Windows lanes have their
 queues in `windows-role.md` -- "Where the work is" for `win`, "The ARM64 lane"
 for `arm`; the Linux lane's is in `linux-role.md`, "Where the work is".
 
-Read [CLAUDE.md](../CLAUDE.md) first; its rules apply in full. Reply in Japanese;
+Read [CLAUDE.md](../CLAUDE.md) first, with [docs/claude/lanes.md](../docs/claude/lanes.md) and
+[docs/claude/questions.md](../docs/claude/questions.md); their rules apply in full. Reply in Japanese;
 code, comments and commits in English. Nobody is watching: never wait for input.
 
 ## 0. Count the votes (every run, before anything else)

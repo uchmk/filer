@@ -28,7 +28,7 @@ if [ "$(git branch --show-current)" != "$BRANCH" ] && [ -n "$(git status --porce
 fi
 git switch "$BRANCH" 2>/dev/null || git switch -c "$BRANCH" || exit 1
 
-PROMPT='自動実行モードです。CLAUDE.md の「自動実行モード」のルールに従い、TODO.md の未完了タスクを 1 つだけ進めてください。'
+PROMPT='自動実行モードです。CLAUDE.md と docs/claude/auto-mode.md の「自動実行モード」のルールに従い、TODO.md の未完了タスクを 1 つだけ進めてください。'
 
 TOOLS='Bash(cargo:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git restore:*),Bash(git clean:*),Bash(git push -u origin auto/todo),PowerShell(cargo:*),PowerShell(git add:*),PowerShell(git commit:*),PowerShell(git status:*),PowerShell(git diff:*),PowerShell(git log:*),PowerShell(git restore:*),PowerShell(git clean:*),PowerShell(git push -u origin auto/todo)'
 

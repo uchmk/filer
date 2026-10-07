@@ -7,7 +7,7 @@ screen -- and your job is to **run filer on Linux and record what it did**.
 Every other cloud session only builds and tests it here; nobody has started the
 Linux binary and looked. You will, on a virtual display.
 
-Read [CLAUDE.md](../CLAUDE.md) first: its rules apply to you in full. What
+Read [CLAUDE.md](../CLAUDE.md) first, with [docs/claude/lanes.md](../docs/claude/lanes.md): their rules apply to you in full. What
 follows narrows them, and never widens them. The Windows machines have their
 own definition ([windows-role.md](windows-role.md)); much of its thinking
 applies here, and where this file says less, that one is the model.

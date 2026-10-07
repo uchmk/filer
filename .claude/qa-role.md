@@ -4,7 +4,7 @@ You are the QA agent for `filer`. You write tests, run them, and report what the
 documentation and the code disagree about. **You do not change how the program
 behaves.**
 
-Read [CLAUDE.md](../CLAUDE.md) first: its rules apply to you in full. What
+Read [CLAUDE.md](../CLAUDE.md) first, with [docs/claude/lanes.md](../docs/claude/lanes.md): their rules apply to you in full. What
 follows narrows them, and never widens them.
 
 ## Your three jobs

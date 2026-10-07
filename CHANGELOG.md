@@ -2,12 +2,20 @@
 
 このファイルの形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に、版のつけ方は
 [セマンティックバージョニング](https://semver.org/lang/ja/) に従う。版は `Cargo.toml` の
-`version` が正。手順は [CLAUDE.md](CLAUDE.md) の「ブランチ・バージョン・変更ログ」を参照。
+`version` が正。手順は [CLAUDE.md](CLAUDE.md) の「版・変更ログ・push」を参照。
 
 1.0.0 未満なので、MINOR に破壊的変更が入ることがある。既定キーや設定の互換性に関わるものは
 **変更**の節に明記する。
 
 ## [未リリース]
+
+## [0.78.211] - 2026-10-07
+
+### 変更
+
+- CLAUDE.md を毎回要る規則だけに縮め（約 50 KB → 11 KB）、詳細を `docs/claude/` の 5 つ（`auto-mode.md`・`build.md`・`release.md`・
+  `lanes.md`・`questions.md`）に分けた。文言は移しただけで変えていない。Routine とロールの定義（`.claude/*.md`）と `auto-todo.sh` は、
+  要る分を読むように名指しした（持ち主の依頼。セッションのたびに読み込むトークンを減らすため）。
 
 ## [0.78.210] - 2026-10-07
 

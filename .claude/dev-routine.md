@@ -25,9 +25,11 @@ next one starts from a `main` without its work. Two runs taking the same item
 would fight over it, so a run claims its item before touching it
 (`scripts/claim.sh`, step 4) and the others pass it by.
 
-Read [CLAUDE.md](../CLAUDE.md); its rules apply in full, above all
-"作業ルール", "自動実行モード", "Linux 上で作業する場合", "確認事項" and
-"設計の約束事". Reply in Japanese; code, comments and commits in English.
+Read [CLAUDE.md](../CLAUDE.md) and the files it points to for this work:
+[auto-mode.md](../docs/claude/auto-mode.md), [build.md](../docs/claude/build.md)
+(its "Linux 上で作業する場合") and [questions.md](../docs/claude/questions.md).
+Their rules apply in full, above all "作業ルール", "自動実行モード", "確認事項"
+and "設計の約束事". Reply in Japanese; code, comments and commits in English.
 Match the surrounding code (comment density, names, the one-line layout).
 **Never run `cargo fmt`.**
 
