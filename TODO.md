@@ -1879,7 +1879,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 - [x] #259（ARM64、v0.78.20）: 印は無し。`cargo test` 703 / 0。開いている 37 行すべてに取れない理由を付けた。`--keys` の消失は軽いスクリプトで 0 / 20。
   ARM64 の順番表に「キー」「全部空のとき」の行を足し、36.10 の待ちを書いた
-- [ ] **`auto-wintest.ps1` の掃除が `run-*` の外に届かない**（#259 の所見 1、提案 1）。ARM64 の `filer-scratch` 直下に 11,187 フォルダ / 1.6 GB
+- [x] （v0.78.231。`filer-test-*` と `filer-archive-*` だけ、3 日以上前のものを消す）**`auto-wintest.ps1` の掃除が `run-*` の外に届かない**（#259 の所見 1、提案 1）。ARM64 の `filer-scratch` 直下に 11,187 フォルダ / 1.6 GB
   （`filer-test-*` 834 個、`filer-archive-*` 116 個、`run-*` 以前の手書きの名前）。直下の 3 日以上前の子、少なくとも `filer-test-*` と `filer-archive-*` を消す
 - [x] （v0.78.23。上と同じ）終了時に `archive_scratch()` と `preview\` を `remove_dir`（空のときだけ消える）で消す（#259 の提案 2。#253 の提案 3 と同じ項目にまとめる）
 - [x] （v0.78.54。`FILER_KEYS_DONE` を書く実行は、パニックで `keys: panicked` と場所・理由をそのファイルと `<ファイル>.panic` に書いて、コード 101 で終わる）`--keys` の実行が消える 2 件（1355 行、1385 行）を 1 つにまとめ、先にパニックのフックを入れる（#259 の提案 3、#173 の提案 3。`<名前>.panic` を書いて

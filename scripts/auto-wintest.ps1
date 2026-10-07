@@ -67,7 +67,9 @@
 # they follow. Only the newest three run-* folders are kept: on the ARM64
 # laptop, with no RAM disk to empty itself, ten runs' leftovers had piled up and
 # an old run's script error dialog was still open in the middle of the screen
-# (#103). Nothing else under -Scratch is touched.
+# (#103). Directly under -Scratch, filer-test-* and filer-archive-* folders older
+# than three days are removed too (#259: 11,187 of them, 1.6 GB, had piled up on
+# the ARM64 laptop from before the run-* folders). Nothing else is touched.
 #
 # The screen saver is held off for the length of a run (-KeepScreenSaver
 # leaves it alone). A screen saver owns the input desktop, and SendInput then
@@ -384,6 +386,12 @@ try {
     Get-ChildItem -Directory -Path $Scratch -Filter 'run-*' -ErrorAction SilentlyContinue |
         Sort-Object Name -Descending | Select-Object -Skip 2 |
         ForEach-Object { Remove-Item -Recurse -Force -LiteralPath $_.FullName -ErrorAction SilentlyContinue }
+    # Leftovers from before the run-* folders: only the two names the tests make, only when old.
+    foreach ($pat in 'filer-test-*', 'filer-archive-*') {
+        Get-ChildItem -Directory -Path $Scratch -Filter $pat -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-3) } |
+            ForEach-Object { Remove-Item -Recurse -Force -LiteralPath $_.FullName -ErrorAction SilentlyContinue }
+    }
     $Scratch = Join-Path $Scratch ('run-{0:yyyyMMdd-HHmmss}' -f (Get-Date))
     New-Item -ItemType Directory -Force -Path $Scratch | Out-Null
 
