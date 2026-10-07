@@ -109,18 +109,8 @@ fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
     // What draws the window next time, and what decides it: the env var wins
     // for a run, then `[ui] backend` (Q70). The adapter it got is the `Adapter`
     // row of the last run, below.
-    rows.push(("Backend".into(), match std::env::var("WGPU_BACKEND").ok().filter(|v| !v.is_empty()) {
-        Some(v) => format!("{v} (from WGPU_BACKEND; [ui] backend = \"{}\" not used)", cfg.ui.backend),
-        None => {
-            let mut said = format!("[ui] backend = \"{}\"", cfg.ui.backend);
-            // What `auto` comes to on this machine: GL where it has one
-            // (Windows), wgpu's own pick elsewhere (#245).
-            if matches!(cfg.ui.backend_name(), Ok(None)) {
-                said += &auto_note(&crate::predicted_fallback());
-            }
-            said
-        }
-    }));
+    let wgpu_env = std::env::var("WGPU_BACKEND").ok().filter(|v| !v.is_empty());
+    rows.push(("Backend".into(), backend_row(cfg, wgpu_env, crate::predicted_fallback)));
     // Said as the window says it: what the setting fell back to, not "the default".
     let mut warnings = cfg.warnings.clone();
     if warnings.iter().any(|w| w.contains("[ui] backend")) {
@@ -452,6 +442,23 @@ fn variables() -> Vec<(String, String)> {
         .collect()
 }
 
+/// The `Backend` row: the env var, else the setting, with `auto` completed by
+/// `fallback` (only called for `auto`, which is when it is wanted).
+fn backend_row(cfg: &crate::config::Config, wgpu_env: Option<String>, fallback: impl FnOnce() -> String) -> String {
+    match wgpu_env {
+        Some(v) => format!("{v} (from WGPU_BACKEND; [ui] backend = \"{}\" not used)", cfg.ui.backend),
+        None => {
+            let mut said = format!("[ui] backend = \"{}\"", cfg.ui.backend);
+            // What `auto` comes to on this machine: GL where it has one
+            // (Windows), wgpu's own pick elsewhere (#245).
+            if matches!(cfg.ui.backend_name(), Ok(None)) {
+                said += &auto_note(&fallback());
+            }
+            said
+        }
+    }
+}
+
 /// The tail of the `Backend` row for `auto`, from `predicted_fallback`.
 fn auto_note(fallback: &str) -> String {
     match fallback {
@@ -471,6 +478,18 @@ mod tests {
     fn auto_backend_note() {
         assert_eq!(auto_note("Gl"), " (this machine: Gl)");
         assert_eq!(auto_note(""), " (wgpu's own pick here)");
+    }
+
+    /// Only `auto` gets a tail; a named backend or the env var says what it is.
+    #[test]
+    fn only_auto_gets_a_note() {
+        let mut cfg = crate::config::Config::load();
+        let boom = || -> String { panic!("fallback asked for a non-auto backend") };
+        cfg.ui.backend = "gl".into();
+        assert_eq!(backend_row(&cfg, None, boom), "[ui] backend = \"gl\"");
+        assert!(backend_row(&cfg, Some("vulkan".into()), boom).starts_with("vulkan (from WGPU_BACKEND"));
+        cfg.ui.backend = "auto".into();
+        assert_eq!(backend_row(&cfg, None, || "Gl".into()), "[ui] backend = \"auto\" (this machine: Gl)");
     }
 
     /// #248: a long key does not widen the column for every other row.

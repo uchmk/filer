@@ -18,7 +18,7 @@
 
 ## Sonnet の見張り（2026-10-05 まで）
 
-- [ ] （Sonnet の見張り）v0.78.212（`e7a2ed4`）は v0.78.209 の項目を済みにしたが、項目が求めた 3 つのうち「`auto` 以外で何も付かない」は試していない。`auto_note` のテストは `"Gl"` と空の 2 つだけで、末尾を付けるかを決める `matches!(cfg.ui.backend_name(), Ok(None))` は `src/envreport.rs` の `config()` の中に残っている。
+- [x] （v0.78.214。`backend_row` に切り出し、`auto` 以外で末尾が付かないテストを足した）（Sonnet の見張り）v0.78.212（`e7a2ed4`）は v0.78.209 の項目を済みにしたが、項目が求めた 3 つのうち「`auto` 以外で何も付かない」は試していない。`auto_note` のテストは `"Gl"` と空の 2 つだけで、末尾を付けるかを決める `matches!(cfg.ui.backend_name(), Ok(None))` は `src/envreport.rs` の `config()` の中に残っている。
   `[ui] backend = "gl"` の `Config` で `config()` の `Backend` の行に `(this machine:` も `(wgpu's own pick here)` も付かないことを試すテストを足す（`WGPU_BACKEND` に左右されないよう、環境変数を見ない形に切り出すか、変数が無いときだけ assert する）。動きは変わらないので再テストは要らない
 - [x] （v0.78.212。25.4f を足し、`auto_note` に切り出してテストした）（Sonnet の見張り）v0.78.209（`37e856d`）は `filer env` の `Backend` の行を変えた（`auto` のとき末尾に `(this machine: Gl)` / `(wgpu's own pick here)`）が、TESTING.md に行が無く、`scripts/testcheck-ja.toml` の訳も、`windows-role.md` の 2 つの再テストも無い（CLAUDE.md の作業ルール）。単体テストも無い。
   25 節に「`[ui] backend` を書かない（`auto`）で `filer env`: `Backend` の行は `[ui] backend = "auto" (this machine: Gl)`（GL のある Windows）。`WGPU_BACKEND` を入れたとき・`"gl"` などを書いたときは末尾が付かない」の行（25.4f など）を足し、訳を合わせ、`make-testcheck` で作り直し、両レーンの再テストに積む。
