@@ -6458,12 +6458,30 @@ fn completion_target(text: &str, cwd: &Path) -> (PathBuf, String) {
     if text.ends_with('/') || text.ends_with('\\') {
         return (p, String::new());
     }
+    // `\\host\Ba`: `std` folds host and share into one prefix with no parent, but
+    // the question is the host's shares that carry on from `Ba`.
+    if cfg!(windows) {
+        if let Some(t) = share_completion(&p) {
+            return t;
+        }
+    }
     let prefix = util::file_name(&p);
     match p.parent() {
         Some(dir) => (dir.to_path_buf(), prefix),
         // A drive or share root has nothing above it: list the root itself.
         None => (p, String::new()),
     }
+}
+
+/// A share root being typed is a prefix of the host's share names: the host to
+/// list and the share typed so far. `None` for anything else.
+fn share_completion(p: &Path) -> Option<(PathBuf, String)> {
+    if util::host_only_unc(p) {
+        return Some((p.to_path_buf(), String::new()));
+    }
+    let host = util::unc_host(p)?;
+    let share = p.to_str()?.rsplit(['\\', '/']).find(|s| !s.is_empty())?;
+    Some((host, share.to_owned()))
 }
 
 /// The directories in a listing that carry on from `prefix`, in the order the
@@ -6781,6 +6799,16 @@ mod tests {
         assert_ne!(completion_target("/a/b/src", cwd), completion_target("/a/b/sr", cwd));
         // A relative name completes where it was typed, as `cd` would take it.
         assert_eq!(completion_target("sr", cwd), (PathBuf::from("/here"), "sr".into()));
+    }
+
+    #[test]
+    fn a_typed_share_root_completes_against_its_host() {
+        assert_eq!(
+            share_completion(Path::new(r"\\192.168.0.150\Ba")),
+            Some((PathBuf::from(r"\\192.168.0.150"), "Ba".into()))
+        );
+        assert_eq!(share_completion(Path::new(r"\\h\s\sub")), None);
+        assert_eq!(share_completion(Path::new("/a/b")), None);
     }
 
     #[test]
