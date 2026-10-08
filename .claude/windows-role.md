@@ -34,7 +34,7 @@ So everything below has been written from the source and never once run:
 row down as an appearance row, look for something that can be *read* in its
 place. Most rows that sound like looks have one:
 
-**`scripts\keys.ps1` runs one of these for you** (`scripts\keys.ps1 -Dir <dir> -Keys '<Tab>C<State:spot><Quit>' [-Out <dir>] [-Launches]`): own `FILER_KEYS_DONE` folder, waits on filer's own id (`-Launches` for a run that starts a program), warns when the done file is not `keys: done`, prints it and every `<State:>` file. Use it instead of rewriting the `Start-Process` lines.
+**`scripts\keys.ps1` runs one of these for you** (`scripts\keys.ps1 -Dir <dir> -Keys '<Tab>C<State:spot><Quit>' [-Out <dir>] [-Launches]`): own `FILER_KEYS_DONE` folder, waits on filer's own id (`-Launches` for a run that starts a program), warns when the done file is not `keys: done` (and exits 1; 2 for a timeout), prints it and every `<State:>` file. Use it instead of rewriting the `Start-Process` lines.
 
 **Start with `--keys`.** Since v0.54.0 filer presses keys itself: `filer <dir> --keys "<Tab>C"`
 opens spot on the first row and copies the whole panel, and `Get-Clipboard` reads it. No window
