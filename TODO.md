@@ -1380,7 +1380,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.60.2）`--keys` の後の状態を書き出す（#103 の提案 3）。別のフラグにはせず、v0.60.1 の `FILER_KEYS_DONE` の
   ファイルに書くことにした（終わりの合図と状態を 1 回で読める）。`cwd`・`hovered`・`selected`・`tab`・`overlay`・
   `input`・`pane`・`toast` を 1 行ずつ。Linux の仮想ディスプレイで、選択 2 件と開いたプロンプトの入力が読めることを確かめた。
-- [ ] `windows-role.md` の手順で、キーを押して状態を読んでいるところを `FILER_KEYS_DONE` に置き換える
+- [x] （v0.78.235。調べたら `windows-role.md` に `SendKeys` 系の手順は残っておらず、キーは `--keys` と `scripts\keys.ps1`、状態は `FILER_KEYS_DONE` と `<State:>` で読む形に既になっていた。`SendInput` / `PostMessage` はマウスと `--keys` で届かないキーだけ）`windows-role.md` の手順で、キーを押して状態を読んでいるところを `FILER_KEYS_DONE` に置き換える
   （役割の定義が変わると実機の実行が走り出すので、まとめて 1 回で直す）。
 - [x] （v0.64.4。`-Scratch` の下に `run-<時刻>` を作り、新しい 3 つだけ残す。`run-*` 以外には触らない）`auto-wintest.ps1` が実行ごとに別の一時ディレクトリを使う（#103 の提案 4）。ARM64 の機械の `filer-scratch` には
   10 回分の残りが溜まり、前の実行の `wscript` のエラーダイアログが画面の真ん中に出たままだった（x64 は RAM ディスク
