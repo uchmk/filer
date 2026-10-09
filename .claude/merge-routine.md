@@ -9,9 +9,10 @@ adds what a run needs around it. Where the two seem to differ, merge-role.md
 wins.
 
 **The routine no longer merges** (v0.86.6). The `Merge lanes` workflow merges
-the lanes' pull requests; the routine does the merger's share for the ones it
-merged, resolves their conflicts, and tells the owner about the ones it
-stopped on. The cloud session's auto mode refused the routine's merges of
+the lanes' pull requests, and since v0.86.9 also those that conflict only in
+the checklists; the routine does the merger's share for the ones it merged,
+resolves the other conflicts, and tells the owner about the ones it stopped
+on. The cloud session's auto mode refused the routine's merges of
 #309 and #310 on 2026-10-10. Do not merge, and do not look for another way
 to: a merge the workflow will not make is the owner's.
 

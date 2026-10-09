@@ -5,7 +5,9 @@ name: Merge lanes
 # their checks are green, with a merge commit pinned to the head. The merge
 # routine (.claude/merge-routine.md) used to merge them, and the cloud
 # session's auto mode refused the merge (2026-10-10, #309 / #310); the
-# routine now does only the merger's share and resolves conflicts.
+# routine now does the merger's share. A pull request that conflicts only in
+# the checklists it merges itself (v0.86.9): main's file with the pull
+# request's marks made again, checked to be marks only, pushed to main.
 #
 # It runs when a check workflow finishes (a lane's pull request turns green),
 # every hour as a fallback, and by hand. It reads pull requests through the
@@ -43,7 +45,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.repository.default_branch }}
-          persist-credentials: false
+          # The whole history, and the token kept, so that a checklist
+          # conflict can be merged locally and pushed to main.
+          fetch-depth: 0
       - name: Self-test
         run: python3 scripts/merge-lanes.py --self-test
       - name: Merge what may be merged

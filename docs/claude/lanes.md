@@ -137,7 +137,8 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   CI・Checklists・Audit が終わるたびと毎時 :17 に `test/win-*`・`test/arm-*`・`test/linux-*` の PR を見て、規則（触ってよいファイル、
   印の変わり方、印ごとの証拠の行、`[~]` には画像の名前）を守り、必須のチェック（`checklists`）が緑で、ぶつかりが無いものを
   head の SHA を固定した merge コミットでマージする。守らないもの・赤・ぶつかりには PR にコメントを 1 回残す
-  （`<!-- merge-lanes:<種類>:<sha> -->`）。Actions のタブから `dry_run` を付けて手で回すと、何をマージするかだけを出す。
+  （`<!-- merge-lanes:<種類>:<sha> -->`）。チェック表だけのぶつかりは、main の表に PR の印を入れ直し、印の変化だけかを確かめて自分でマージする
+  （v0.86.9 から。main が言葉を変えた行の印は落とし、`dropped` のコメントで名前を出す）。Actions のタブから `dry_run` を付けて手で回すと、何をマージするかだけを出す。
   それまでは Routine がマージしていたが、2026-10-10 に自動モードの分類器が #309・#310 のマージを「レビューの無いマージ」として拒んだ。
   クラウドの Routine は 1 時間おきに `.claude/merge-role.md` を読み、マージ済みで CHANGELOG に `#N` の無い PR の分け前
   （版・CHANGELOG・提案の振り分け・順番表の補充）をし、ぶつかった PR は PR のブランチで解いて push し、

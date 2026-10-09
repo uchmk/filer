@@ -100,7 +100,14 @@ merged:
 
 ## 3. A pull request the workflow stopped on
 
-- **`conflict`**: merge `origin/main` into the pull request's branch with a
+- **`conflict`**: since v0.86.9 the workflow resolves a conflict that is only
+  in the checklists itself (`main`'s file with the pull request's marks made
+  again on the rows `main` still has unticked and unchanged, checked to be
+  marks only, pushed to `main` as the merge commit). A mark whose row `main`
+  reworded is dropped and named in a comment
+  (`<!-- merge-lanes:dropped:<sha> -->`): say so in the share as below. So a
+  `conflict` comment means another file conflicted (usually two reports with
+  one name). Merge `origin/main` into the pull request's branch with a
   merge commit (never rebase or force-push it), resolve, and push to the
   branch. The workflow merges it once CI is green on the new head; do not
   wait for that. The resolution:

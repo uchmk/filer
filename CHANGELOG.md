@@ -9,6 +9,15 @@
 
 ## [未リリース]
 
+## [0.86.9] - 2026-10-10
+
+### 変更
+
+- 実機の PR のマージのワークフロー（`Merge lanes`）が、チェック表（TESTING-CHECKS.md・TESTING-LINUX.md・TESTING-KEYS.md）だけでぶつかった PR を
+  自分で解いてマージするようにした。main の表に PR の印を入れ直し、変わったのが印だけかを確かめてから main に push する。
+  main が言葉を変えた行の印は持ち込まず、PR にコメントで名前を出す。Routine が解くのはそれ以外のファイルのぶつかりだけになった。
+  `scripts/merge-lanes.py` は tsumugi v0.76.6 と同じ中身（tsumugi では分け前もワークフローがする。filer はキューが文章なので分け前は Routine のまま）。
+
 ## [0.86.8] - 2026-10-10
 
 ### 追加
