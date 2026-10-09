@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 546 件（TESTING.md の全 718 件のうち、`cargo test` が見ている 172 件は外してある）。
+押すものは 547 件（TESTING.md の全 719 件のうち、`cargo test` が見ている 172 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -817,6 +817,7 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [x] **47.7** `[ui] backend = "directx"`、次に Windows で `"metal"`（v0.74.0、Q70）→ どちらも窓は開き、`auto` と同じに描く（GL のある機械では `Adapter` が `(Gl, …)`。v0.75.5。以前は Vulkan で、x64 の AMD の機械ではまた 1 コアを使った）。設定の警告が `"directx" is not one of auto, vulkan, dx12, metal, gl`、次に `"metal" is macOS only`（v0.74.8）と言う。`filer env` の `Warnings` の行も 2 回とも同じことを言い、`Backend` の行は `[ui] backend = "directx"`。窓のトーストは、何で描いたかを `drawing with Gl instead` と言って終わる（v0.75.6）。`filer env` も同じく `drawing with Gl instead` と言う（v0.78.107。以前は `drawing with the default` のまま） — *`[ui] backend = "directx"`, then `"metal"` on Windows (v0.74.0, Q70) → The window opens both times, drawn the way `auto` draws (`Adapter` reads `(Gl, …)` where the machine has GL; v0.75.5 -- before, Vulkan, which spun the x64 AMD machine's core again). A config warning says `"directx" is not one of auto, vulkan, dx12, metal, gl`, then `"metal" is macOS only` (v0.74.8); `filer env`'s `Warnings` row says the same both times, and its `Backend` row reads `[ui] backend = "directx"`. The window's toast ends with what it fell back to, `drawing with Gl instead` (v0.75.6); `filer env` says the same, `drawing with Gl instead` (v0.78.107; before, it kept `drawing with the default`)*
 - [x] **47.8** `[ui] backend` も `WGPU_BACKEND` も無しで起動し、次に `backend = "vulkan"`（Windows、v0.75.0）→ `filer env` の `Adapter` が 1 回目は `(Gl, …; set by [ui] backend = "auto")`、2 回目は `(Vulkan, …; set by [ui] backend = "vulkan")` で終わり（v0.78.148）、どちらも警告は出ない — *No `[ui] backend` and no `WGPU_BACKEND`, then `backend = "vulkan"` (Windows, v0.75.0) → `filer env`'s `Adapter` ends `(Gl, …; set by [ui] backend = "auto")` the first time and `(Vulkan, …; set by [ui] backend = "vulkan")` the second (v0.78.148), no warning either time*
 - [x] **47.8a** AMD の GPU の x64 の機械だけ: 何も書かずに（`[ui] backend` も `WGPU_BACKEND` も無し）47.1（#287）→ 47.1 が通る: 既定が GL を選び、何もしていない間の CPU は 0。ほかの機械はこの行を飛ばす — *x64 with an AMD GPU only: 47.1 with nothing set (no `[ui] backend`, no `WGPU_BACKEND`) (#287) → 47.1 holds: the default picks GL, which idles at 0 CPU. Other machines skip this row*
+- [ ] **47.9** フォルダを開いて `filer --keys "<Wait:16000>"`、待ちの間に `(Get-Process filer).CPU` を 10 秒あけて 2 回読む（v0.80.9、#287）→ 47.1 の何もしていないときの数字に近い（スクリプトの見張りが 1 秒に 1 度描かせる分だけ）。10 秒で約 1 CPU 秒ではない: `<Wait:>` の間は、何も変わらないフレームを描かずに眠る。v0.80.9 より前は、どのバックエンドでも 0.94〜1.06 だった — *`filer --keys "<Wait:16000>"` on a folder, and read `(Get-Process filer).CPU` twice, 10 s apart, inside the wait (v0.80.9, #287) → About the idle figure of 47.1 (a frame a second, from the script's watchdog), not about 1 CPU second in 10: during a `<Wait:>` filer sleeps rather than drawing frames that change nothing. Before v0.80.9 every backend used 0.94-1.06 there*
 
 ## 48. The release zips (v0.64.0)
 

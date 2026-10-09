@@ -198,7 +198,7 @@
 - [x] （v0.78.161。`closed_report` を足し、`close_requested` の経路で書く。×の実機での確認は再テストに回す）`--keys` の途中で窓を閉じても（タイトルバーの ×、`WM_CLOSE`）`FILER_KEYS_DONE` を書く（#288 の所見 1、提案 1）。今は `src/main.rs` の `app.quit` の経路（`q`、`<Quit>`）でしか書かず、
   閉じた窓を待つスクリプトは時間切れまで待ち、消えたプロセスと見分けられない。`ctx.input(|i| i.viewport().close_requested())` を読むところで `quit: window closed` と `keys: done`（または残りのキーを添えた `keys: closed`）を書き、
   `quit_report` のようなテストを足す
-- [ ] `--keys` の `<Wait:N>` の間に filer が 10 秒で約 1 CPU 秒を使うかを確かめ、使うなら待ちの間は描き直さずに眠る（#287 の提案 1）。ARM64 で `<Wait:16000>` の間は
+- [x] （v0.80.9。待ちの間は request_repaint_after で眠る。Xvfb で 10 秒 18.9 → 0.70 CPU 秒。TESTING.md 47.9）`--keys` の `<Wait:N>` の間に filer が 10 秒で約 1 CPU 秒を使うかを確かめ、使うなら待ちの間は描き直さずに眠る（#287 の提案 1）。ARM64 で `<Wait:16000>` の間は
   どのバックエンドでも 0.94〜1.06 CPU 秒 / 10 秒、`--keys` なしの同じ版は 0.000（gl）・0.047（auto）だった。眠れないなら下の【QA】の 1 文だけにする
 - [x] （v0.80.7。TESTING.md と訳を直した）TESTING.md 47.1 / 47.5（CPU を測る行）に「`--keys` なしで起動する（`<Wait:>` の間は待ち自体を測ってしまう）」を 1 文足し、`scripts/testcheck-ja.toml` の訳も合わせる（#287 の提案 1）【QA】
 - [x] （v0.80.8。行を分けた）TESTING.md 47.8 の最後の節（「x64 の AMD の機械では、何も書かずに 47.1 が通る」）を 47.8a に分ける（#287 の提案 2）。ARM64 は残りを全部押せるのに、その節のために箱を空けておくしかない【QA】

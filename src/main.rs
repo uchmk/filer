@@ -878,9 +878,20 @@ impl eframe::App for Filer {
         if self.script.is_empty() && self.script_done.is_none() {
             return;
         }
-        ctx.request_repaint();
         let frame = ctx.cumulative_frame_nr();
         let (last_frame, last_at) = self.script_at;
+        // Inside a `<Wait:N>` once the key before it has been drawn and has
+        // settled: sleep out the rest instead of drawing frames that change
+        // nothing. Repainting through the wait cost about 1 CPU second in 10
+        // on every backend (#287, proposal 1), which is what 47.1 measures.
+        if let Some(keyscript::Press::Wait(d)) = self.script.front() {
+            let left = d.saturating_sub(last_at.elapsed());
+            if !left.is_zero() && self.script_shot.is_none() && frame >= last_frame + 2 && self.app.settled() {
+                ctx.request_repaint_after(left);
+                return;
+            }
+        }
+        ctx.request_repaint();
         let waited_long = last_at.elapsed() > Duration::from_secs(5);
         // A picture being taken holds the next key until it is saved, or for
         // five seconds if it never comes.
