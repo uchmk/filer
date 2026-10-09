@@ -64,6 +64,9 @@ cargo check --release --target x86_64-pc-windows-msvc --all-targets
   緑のまま通り、設定のある実機でだけ落ちる（v0.47.27 と #136 の 2 回）。設定を読む・一覧するところを触ったら、
   偽の設定を置いて回す: `XDG_CONFIG_HOME=<yazi/ と filer/ に空の yazi.toml などを置いたフォルダ> cargo test`
   （Linux では `XDG_CONFIG_HOME` が設定フォルダの親になる）。
+- **Xvfb でマウスを動かすときは `xdotool`（v0.80.16 で確かめた）。**ドラッグは `mousedown 1` のあと `mousemove` を 0.1 秒ずつ数段に分け、
+  `mouseup 1` で離す（18.7a の 4 つがどれも通った）。窓マネージャーが無いのでキーボードのフォーカスはどの窓にも無く、`xdotool keydown shift` などの
+  修飾キーも `xdotool key` も届かない。先に `xdotool windowfocus <窓>`（`xdotool search --name .` で引く）を打つ。キーだけなら `--keys` のほうが確か。
 - **テスト用の一時ディレクトリは `util::test_dir("ラベル")` を使う。**自分で
   `env::temp_dir().join(...)` を組まないこと。名前はテストのスレッド名から取るので、
   2 つのテストが同じディレクトリを渡されることがない（手書きしていた頃、同名を共有した
