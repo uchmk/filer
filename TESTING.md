@@ -1550,7 +1550,8 @@ function prompt { $e = [char]27; $c = if ($?) { 0 } else { 1 }; "$e]133;D;$c$e\$
 | 49.7 | ``Write-Host "`e]8;;https://example.com`e\click me`e]8;;`e\"`` (an OSC 8 link), then Ctrl+click `click me` | `click me` has a dotted underline before Ctrl is held, and the click opens `https://example.com` |
 | 49.8 | A picture: `chafa -f sixels some.png` (`winget install hpjansson.Chafa`), or `wezterm imgcat some.png` | The picture is drawn in the pane where the program printed it, and scrolls with the text (`<S-PageUp>`). `clear` removes it |
 | 49.9 | `Start-Sleep 300` in pwsh in the pane, then `<C-c>` (v0.86.0, tsumugi 2.58) | The command stops within a second and the prompt comes back; filer stays open. With `FILER_PTY_LOG` set, the `in` line for the press is a plain `\x03`, not a key record |
-| 49.10 | `claude` in the pane, type `one`, `<S-Enter>`, `two` (v0.86.0, tsumugi 2.55) | Claude Code's box shows `one` and `two` on two lines and sends nothing; `<Enter>` then sends both. Outside Claude Code (a plain pwsh prompt) `<S-Enter>` runs the line as before |
+| 49.10 | `claude` in the pane, type `one`, `<S-Enter>`, `two` (v0.86.0, tsumugi 2.55) | Claude Code's box shows `one` and `two` on two lines and sends nothing; `<Enter>` then sends both |
+| 49.10a | `cmd` (or `bash`) in the pane, type `echo one`, `<S-Enter>` (v0.86.0, tsumugi 2.55) | The line runs as with `<Enter>`: a shell that does not ask for the kitty keyboard protocol sees no change. (pwsh is not a test of this: PSReadLine binds `<S-Enter>` to `AddLine`, so the line is continued, not run) |
 | 49.11 | `wezterm imgcat some.png` in the pane (v0.86.0, tsumugi 2.48) | The picture is drawn; `imgcat` no longer stops on a division by zero (the pane answers `CSI 16 t`, the cell size) |
 
 ## 50. Claude Code reads the window (v0.85.0)
