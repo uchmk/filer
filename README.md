@@ -40,9 +40,10 @@ pipeline nor connects its `>` to one, so `$v = & filer.exe env` comes back empty
 `.com` before `.exe` when you type `filer`, so `filer.com` answers. For `env`, `--version`, `--help`
 and `shell-hook` it runs `filer.exe` and waits; for anything else it opens the window and gives the
 prompt back once the window is up. Visual Studio ships `devenv.com` beside `devenv.exe` for the same
-reason. Building filer yourself, `cargo build --release` makes `filer-com.exe`: copy it to
-`filer.com` beside `filer.exe`. Building filer
-yourself, `pwsh -File scripts\fetch-conpty.ps1` puts the pinned version beside
+reason.
+
+Building filer yourself, `cargo build --release` makes `filer-com.exe`: copy it to `filer.com`
+beside `filer.exe`. `pwsh -File scripts\fetch-conpty.ps1` puts the pinned ConPTY beside
 `target\release\filer.exe` (and `-Dest target\debug` beside a debug build).
 
 **Windows will warn you about the download, and it is right to.** The binaries are not code-signed,
@@ -1577,15 +1578,14 @@ major operating systems and architectures.
 
 | OS | Architectures | Notes |
 | :--- | :--- | :--- |
-| **Windows** | x64 / ARM64 / x86 | UNC paths, integration with common editors |
+| **Windows** | x64 / ARM64 | UNC paths, integration with common editors |
 | **macOS** | Apple Silicon (ARM64) / Intel (x64) | Cmd key support, Finder integration |
 | **Linux** | x64 / ARM64 | X11 / Wayland |
 
-CI builds Windows x64 and ARM64, and a release carries both. Both are cross-compiled on an x64
-runner, so the ARM64 binary is built but never executed before it ships — the tests run on x64
-only, because an x64 runner cannot execute an ARM64 binary. The two come from one source and one
-set of `#[cfg]`s, so a passing test says a good deal about both, but anything that differs by
-architecture has to be found on a real ARM64 machine.
+CI builds all six, and a release carries all six. The Windows ARM64 binary is cross-compiled on an
+x64 runner, which cannot execute it, so CI's tests run on x64 only. What CI cannot reach is covered
+by two Windows machines, one x64 and one ARM64 laptop, each running the checklists in
+[TESTING-CHECKS.md](TESTING-CHECKS.md) against the program itself (see [Testing](#testing)).
 
 Windows on ARM will happily run the x64 build under emulation, which makes it easy to test the
 emulator by accident. `filer --version` prints the architecture it was built for, so it can say
@@ -1637,8 +1637,9 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
 ## Known limits
 
 - Windows-first. Every release carries macOS and Linux builds for both architectures, and CI
-  compiles and links all six on every push — but only Windows is tested, and nobody has started
-  the program on the other two. The shell thumbnail (HEIC / AVIF / PDF / video) and a file
+  compiles and links all six on every push — but only Windows is tested on real machines. Linux is
+  started by CI under a virtual display and was checked that way for a while
+  ([TESTING-LINUX.md](TESTING-LINUX.md)); nobody has started the macOS build yet. The shell thumbnail (HEIC / AVIF / PDF / video) and a file
   server's share listing are Windows-only and say so elsewhere; the hidden-file attribute is a
   Windows-specific path too. `block = true` openers open a terminal on Linux (tried in the
   development container under X11) and on macOS (not tried on a Mac yet).
@@ -1684,23 +1685,27 @@ src/
   rename.rs      bulk-rename rules and the order a batch of renames has to happen in
   diff.rs        comparing two files line by line, and the worker that reads them
   preview/       preview worker: text + syntect, Markdown layout, images, SVG, fonts, shell thumbnails, minimap rows
-  terminal.rs    the embedded shell: PTY, key encoding
+  terminal.rs    the embedded shell, from the tsumugi-pane crate shared with tsumugi
   ui/            painting: columns, preview pane, terminal pane, overlays
+  spot.rs        the spot panel's providers (<Tab>)
   search.rs      recursive name/content search
   exec.rs        openers and shell
+  keyscript.rs   --keys, the scripted keys the tests and the Windows lanes drive filer with
+  bugreport.rs   the <F12> report; envreport.rs, `filer env`
 ```
 
 ## Testing
 
-`cargo test` on Windows covers every pure function — key parsing, the diff
-algorithm, the rename rules, the undo stacks, the image-zoom arithmetic, the
-minimap's row summaries, pane geometry — and `ci.yml` runs it on every push.
-Four tests fail on Linux and are meant to: they assert Windows path spellings.
+`cargo test` covers every pure function — key parsing, the diff algorithm, the
+rename rules, the undo stacks, the image-zoom arithmetic, the minimap's row
+summaries, pane geometry — and `ci.yml` runs it on Windows and Linux on every
+push. Tests that assert Windows path spellings are `#[cfg(windows)]`, so both
+are green.
 
-What that cannot reach is whether the window looks right. Much of this was
-written in a container with no display, so [TESTING.md](TESTING.md) is the
-checklist of what has never been on a screen, and
-`scripts/make-fixtures.ps1` builds the files it points at:
+What that cannot reach is whether the window behaves and looks right. Much of
+this was written in a container with no display, so [TESTING.md](TESTING.md) is
+the checklist of what has to be tried on a screen, and `scripts/make-fixtures.ps1`
+builds the files it points at:
 
 ```powershell
 .\scripts\make-fixtures.ps1
@@ -1714,6 +1719,13 @@ generated from the default keymap by `cargo run --example make-keycheck` and
 keeping its ticks when regenerated. It holds no counts, so that two pull requests ticking keys never
 conflict over a total; `-- --stats` prints them (v0.73.14).
 
+The ticks come from real Windows machines. An unattended Claude Code session on an x64 desktop and
+another on an ARM64 laptop take the next rows from the queue in `.claude/windows-role.md`, drive
+filer with `--keys`, tick what they could read back, and open a pull request with their report in
+`qa-reports/`. As of v0.80.13, 460 of the 527 rows in [TESTING-CHECKS.md](TESTING-CHECKS.md) and
+259 of the 262 keys are ticked; `cargo run --example make-testcheck -- --stats` prints the current
+counts.
+
 ## Building
 
 ```
@@ -1724,8 +1736,8 @@ cargo test                 # the parsing, sorting and fuzzy-matching tests
 Rust 1.95 or newer (`rust-version` in `Cargo.toml`) — the floor comes from egui 0.36, not from
 this code. Everything the previews need is compiled in, so there is nothing else to install: no
 magick, ffmpeg or pdftoppm. CI builds and tests on `windows-latest`, which is the platform the
-code is written against; the handful of tests that assert Windows path and editor behavior only
-pass there.
+code is written against, and tests on Linux as well; the tests that assert Windows path and editor
+behavior run only on Windows.
 
 ## Reporting a bug
 

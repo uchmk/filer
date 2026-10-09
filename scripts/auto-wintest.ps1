@@ -21,29 +21,37 @@
 # request is still open does nothing, so every 15 minutes only added firings that
 # passed (the owner's word, 2026-10-05):
 #
-#   $a = New-ScheduledTaskAction -Execute pwsh -Argument '-NoProfile -WindowStyle Hidden -File C:\dev\filer-wintest\scripts\auto-wintest.ps1'
+#   $w = 'C:\dev\filer-wintest'
+#   $a = New-ScheduledTaskAction -Execute pwsh -Argument "-NoProfile -WindowStyle Hidden -Command `"git -C $w fetch -q origin main; if (-not (git -C $w status --porcelain)) { git -C $w checkout -q --detach origin/main }; & $w\scripts\auto-wintest.ps1`""
 #   $t = New-ScheduledTaskTrigger -Once -At (Get-Date -Minute 20 -Second 0) -RepetitionInterval (New-TimeSpan -Hours 1)
 #   $s = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 4)
 #   Register-ScheduledTask -TaskName filer-auto-wintest -Action $a -Trigger $t -Settings $s
 #
 #   Unregister-ScheduledTask -TaskName filer-auto-wintest    # to stop it
 #
+# The task moves the worktree to origin/main itself before it starts the
+# script (the git half of the -Command above), so a copy that does not parse
+# is replaced by the next firing. Until v0.80.13 the task ran the script with
+# -File and only the script moved the worktree: v0.78.167 put a syntax error on
+# `main`, both machines' copies took it at the next firing, and from then on
+# the copy failed before it could fetch the fix -- neither lane opened a pull
+# request from 2026-10-06 to 2026-10-09. CI now parses every script here
+# (scripts/check-ps1.ps1). For the ARM64 machine, $w is C:\dev\filer-armtest,
+# the task filer-auto-wintest-arm, and ` -Lane arm` goes after the .ps1. To move
+# an existing task over, run the two lines above with the right $w (and
+# -Lane), then:
+#
+#   Set-ScheduledTask -TaskName filer-auto-wintest -Action $a
+#
 # Run the worktree's copy, not this one: register the task with
-# -File C:\dev\filer-wintest\scripts\auto-wintest.ps1 (C:\dev\filer-armtest\...
+# C:\dev\filer-wintest\scripts\auto-wintest.ps1 (C:\dev\filer-armtest\...
 # for -Lane arm). The worktree is moved to origin/main at every firing, so the
 # script that runs is always the newest, and the checkout you work in is never
 # touched. Until v0.73.24 the task ran the copy in that checkout, which only
 # moved when someone pulled: the ARM64 laptop ran v0.51.1 for days (#201). The
 # very first time, before the worktree exists, run this copy once by hand to
 # make it (without -Force it makes the worktree and stops if there is nothing
-# to run). To move an existing task over:
-#
-#   # x64:   filer-auto-wintest,     C:\dev\filer-wintest
-#   # ARM64: filer-auto-wintest-arm, C:\dev\filer-armtest
-#   $t = Get-ScheduledTask filer-auto-wintest
-#   $a = $t.Actions[0]
-#   $a.Arguments = $a.Arguments -replace [regex]::Escape('C:\dev\filer\scripts'), 'C:\dev\filer-wintest\scripts'
-#   Set-ScheduledTask -TaskName $t.TaskName -Action $a
+# to run).
 #
 # By hand:
 #

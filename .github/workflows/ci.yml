@@ -87,6 +87,17 @@ jobs:
           }
           Get-ChildItem "$env:RUNNER_TEMP/conpty"
 
+  # Every PowerShell script under scripts/ parses. The Windows lanes run
+  # auto-wintest.ps1 from a worktree the script moves to origin/main itself, so
+  # a copy that does not parse cannot fetch its own fix: v0.78.167's syntax
+  # error stopped both lanes for three days (v0.80.13). The runner has pwsh.
+  powershell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Parse scripts/*.ps1
+        run: pwsh -NoProfile -File scripts/check-ps1.ps1
+
   # The same tests on Linux (Q74). They have been green there since v0.44.1, and
   # the cloud sessions run them on every change, but nothing made a red one
   # stop a merge: a test that only passes on Windows, or only on Linux, went

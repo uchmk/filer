@@ -118,6 +118,10 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   **タスクは作業フォルダの中のスクリプトを動かす**（v0.73.24）。`-File C:\dev\filer-wintest\scripts\auto-wintest.ps1`（ARM64 は
   `filer-armtest`）。作業フォルダは起動のたびに `origin/main` に合わせるので、いつも最新のスクリプトが動き、持ち主の `C:\dev\filer` は触らない。
   手元のスクリプトを動かしていた頃、ARM64 のノート PC は v0.51.1 のまま何日も回っていた（#201）。
+  **作業フォルダを `origin/main` に合わせるのはタスク自身**（v0.80.13。`-Command` で git を回してからスクリプトを呼ぶ。登録の形はスクリプトの冒頭）。
+  スクリプトだけが合わせていた頃、v0.78.167 の構文エラーを 2 台とも取り込み、読めない写しは直しを fetch できないまま、
+  2026-10-06 から 10-09 まで実機の PR が 1 本も来なかった（直しの v0.78.169 は 1 時間後に入っていた）。**`scripts/*.ps1` は CI の
+  `powershell` ジョブ（`scripts/check-ps1.ps1`）が構文を見る。**pwsh のある機械なら `verify.sh` も見る。
   **ビルドの成果物は RAM ディスクに置く**（v0.73.17）。R: があれば、作業フォルダの `target` を `R:\cargo-target\<作業フォルダ名>` への
   ジャンクションにする（パスは変わらない）。2026-10-03 に `C:\dev` が 45 GB になり、うち 33 GB が 2 つの `target` だった。
   R: の空きが 8 GB を切っていれば C: のまま。`-TargetOnDisk` で止める。

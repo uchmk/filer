@@ -42,4 +42,10 @@ run cargo +stable clippy -q --all-targets --target x86_64-pc-windows-msvc -- -D 
 run cargo run -q --example make-testcheck -- --check
 run cargo run -q --example make-testcheck -- --lane linux --check
 run cargo run -q --example make-keycheck -- --check
+# The Windows lanes run scripts/*.ps1, and one that does not parse stops them
+# until a person steps in (scripts/check-ps1.ps1). CI parses them too; this is
+# the earlier warning, when the machine has pwsh.
+if command -v pwsh >/dev/null 2>&1; then
+    run pwsh -NoProfile -File scripts/check-ps1.ps1
+fi
 echo "ALL OK: $tests"
