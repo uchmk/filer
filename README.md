@@ -102,7 +102,9 @@ reason: that is where yazi reads from. Run `filer env` to print the directories 
 which files were actually found.
 
 Press `~` or `F1` in the app: the help panel lists which config files were actually loaded, any
-warnings, and every key binding in effect. `C` there copies it as text, one key per line. On Windows
+warnings, and every key binding in effect. A config warning on startup or `<C-F5>` is one line in
+the corner — its first line, ending ``— the rest in `~` `` when there is more, since a `toml` parse
+error alone is five lines (v0.81.0). `C` there copies it as text, one key per line. On Windows
 everything filer copies ends its lines with CRLF, as Windows programs expect (v0.67.24).
 
 The two files are not interchangeable: `[ui]`, `[term]`, `[[preview]]` and `[line_args]` are read
@@ -290,7 +292,10 @@ registered: the menu is read back out of the config every time it opens.
 `[app] overall` (the window's background and text), `[mgr]` colors, `[status]` modes, `[which]`,
 `[git]`, `[filetype].rules` and `[icon]` (`globs`, `dirs`, `exts`, `files`, `conds`) are applied on
 top of a built-in dark theme. A light theme starts with `[app]` / `overall = { bg = "#ffffff", fg =
-"#222222" }`; the preview's text keeps its own colours, from `syntect_theme` below. Colors may be ANSI names
+"#222222" }`; the preview's text keeps its own colours, from `syntect_theme` below. On a light
+background (by its relative luminance) the warning colour and a plain file's name turn dark amber
+and dark grey, and so does the text when `fg` is not given; the cursor's bar becomes a light tint
+of the background (v0.81.0). Colors may be ANSI names
 (`lightblue`, `darkgray`, `reset`) or hex (`#7ab8f5`). `syntect_theme` selects the preview's
 syntax theme.
 

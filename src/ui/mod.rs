@@ -1015,9 +1015,9 @@ fn running_task(app: &App) -> Option<&crate::app::Task> {
 
 // ---------------------------------------------------------------- toasts
 
-/// How many lines of one message are shown. A `toml` parse error is five --
-/// the message, a bar, the offending line, a row of carets, then what was
-/// expected -- and several of those at once should not take the window.
+/// How many lines of one message are shown, so that several long ones at
+/// once do not take the window. A config warning no longer reaches it: since
+/// Q84 its toast is the first line, and the rest is in `~`.
 const TOAST_LINES: usize = 8;
 
 /// The first `max` lines, with a marker when there were more.
@@ -3247,38 +3247,41 @@ mod config_warning_frame {
         );
     }
 
-    /// 33.7, 33.8 and 33.10: the box is the size of its text, stays inside the
-    /// window, and stops at eight lines.
+    /// 33.7, 33.8 and 33.10: a parse error is one line in the corner, says
+    /// the rest is in `~`, and stays inside the window.
     ///
     /// The five-line shape is `toml`'s, so the test provokes a real one rather
     /// than writing five lines of its own: `[mgr` with no `]` is the row's own
     /// example, and what came out of the parser is asserted before it is put on
-    /// screen. v0.33.11 is the release this is about -- the box was one row
-    /// high and the text was not wrapped, so a five-line error covered the
-    /// header and ran off both edges at once.
+    /// screen. Until Q84 the toast carried all five lines (cut at eight), and
+    /// covered half the window and the top of the preview on every start (#174).
     #[test]
-    fn a_parse_error_keeps_to_a_box_inside_the_window() {
+    fn a_parse_error_keeps_to_one_line_inside_the_window() {
         let err = toml::from_str::<crate::config::YaziToml>("[mgr\nratio = [1, 3, 4]\n")
             .expect_err("`[mgr` with no `]` does not parse")
             .to_string();
         assert_eq!(err.lines().count(), 5, "the five lines TESTING.md 33.7 counts: {err}");
-        assert!(err.contains("line 1"), "naming the line: {err}");
-        assert!(err.contains('^'), "and pointing at it: {err}");
+        assert!(err.lines().next().unwrap().contains("line 1"), "the first line names the line: {err}");
 
         let mut s = saying("cfg-warn-box", vec![err.clone()]);
         let theme = s.app.cfg.theme.clone();
         let full = s.rect();
         let f = s.draw();
+        let drawn = f.texts.iter().find(|t| t.starts_with("Config: ")).expect("the toast is on screen");
+        assert_eq!(drawn.lines().count(), 1, "one line: {drawn:?}");
+        assert!(drawn.ends_with(" — the rest in `~`"), "and says where the rest is: {drawn:?}");
+        assert!(!drawn.contains('^'), "the carets are left to `~`: {drawn:?}");
         let boxes = f.stroked(theme.warning);
         assert_eq!(boxes.len(), 1, "one box");
         let b = boxes[0];
         assert!(full.contains_rect(b), "inside the window: {b:?} in {full:?}");
         assert!(b.top() > 20.0, "below the header rather than over it: {b:?}");
-        assert!(b.height() > 100.0, "as tall as five lines of text, not one: {b:?}");
+        // Five lines were over 100 high; one line and the padding is under 50.
+        assert!(b.height() < 50.0, "one row high, not five: {b:?}");
         assert!(b.width() <= full.width() * 0.5 + 1.0, "no wider than half the window: {b:?}");
 
-        // 33.8: a third of the screen, with the same error still broken. The
-        // box wraps rather than running off, and keeps to the right edge.
+        // 33.8: a third of the screen. The line wraps rather than running
+        // off, and keeps to the right edge.
         let narrow = saying("cfg-warn-narrow", vec![err.clone()]);
         let thin = narrow.rect().width() / 3.0;
         let mut narrow = narrow.sized(thin, 800.0);
@@ -3290,7 +3293,7 @@ mod config_warning_frame {
         assert!(window.contains_rect(b), "still inside: {b:?} in {window:?}");
         assert!(window.right() - b.right() < 20.0, "and still against the right edge: {b:?}");
 
-        // 33.10: longer than eight lines is cut, with `…` on a line of its own.
+        // 33.10: however long the message, the toast is its first line.
         let long: String = (1..=12).map(|i| format!("error line {i}\n")).collect();
         let mut s = saying("cfg-warn-clip", vec![long]);
         let f = s.draw();
@@ -3299,8 +3302,7 @@ mod config_warning_frame {
             .iter()
             .find(|t| t.starts_with("Config: error line 1"))
             .expect("the toast is on screen");
-        assert_eq!(drawn.lines().count(), 9, "eight lines and the marker: {drawn:?}");
-        assert_eq!(drawn.lines().last(), Some("…"), "the marker is its own line: {drawn:?}");
+        assert_eq!(drawn, "Config: error line 1 — the rest in `~`");
     }
 
     /// 33.4: a real failure standing beside a config warning, in the other

@@ -347,9 +347,28 @@ pub struct Theme {
     pub icon_link_default: Icon,
 }
 
+/// The default text, and the colour of a plain file's name: light, for the
+/// dark default background.
+const DARK_TEXT: Color32 = Color32::from_rgb(0xc8, 0xcd, 0xd8);
+/// What a plain file's name and the warning are on a light background
+/// (Q93): 7.9:1 and 6.6:1 on white, where the dark-background pair read at
+/// 1.6:1.
+const LIGHT_TEXT: Color32 = Color32::from_rgb(0x4b, 0x51, 0x60);
+const LIGHT_WARNING: Color32 = Color32::from_rgb(0x7a, 0x56, 0x00);
+
+/// Whether dark text reads better on `bg` than light text: WCAG's relative
+/// luminance against the point where black and white contrast alike.
+fn is_light(bg: Color32) -> bool {
+    let lin = |c: u8| {
+        let c = c as f32 / 255.0;
+        if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
+    };
+    0.2126 * lin(bg.r()) + 0.7152 * lin(bg.g()) + 0.0722 * lin(bg.b()) > 0.179
+}
+
 impl Default for Theme {
     fn default() -> Self {
-        let fg = Color32::from_rgb(0xc8, 0xcd, 0xd8);
+        let fg = DARK_TEXT;
         Self {
             bg: Color32::from_rgb(0x16, 0x18, 0x1d),
             bg_alt: Color32::from_rgb(0x1b, 0x1e, 0x24),
@@ -475,6 +494,26 @@ impl Theme {
             self.fg = fg;
         }
         if let Some(bg) = t.app.overall.bg.as_deref().and_then(parse_color) {
+            // Q93: the built-in yellow and the plain file name are light, for
+            // the dark default, and on white they read at 1.5:1 (#213). On a
+            // light background they turn dark -- these two, and the text when
+            // the file did not set one, which is the same grey.
+            if is_light(bg) {
+                if t.app.overall.fg.as_deref().and_then(parse_color).is_none() {
+                    self.fg = LIGHT_TEXT;
+                }
+                self.warning = LIGHT_WARNING;
+                for r in &mut self.filetypes {
+                    if r.style.fg == Some(DARK_TEXT) {
+                        r.style.fg = Some(LIGHT_TEXT);
+                    }
+                }
+                // The cursor's dark bars would put that dark grey on dark
+                // blue; on a light window they are a tint of it instead, the
+                // way `bg_alt` is. `[mgr] hovered` still sets its own below.
+                self.hovered_bg = toward(bg, self.progress_fg, 0.35);
+                self.inactive_hovered_bg = toward(bg, self.fg, 0.1);
+            }
             self.bg = bg;
             self.bg_alt = toward(bg, self.fg, 0.03);
         }
@@ -700,7 +739,7 @@ fn default_filetypes() -> Vec<FileRule> {
         mk(None, Some("application/pdf"), None, 0xd05151, false),
         mk(None, Some("application/vnd.microsoft.portable-executable"), None, 0x8ed08e, true),
         mk(None, Some("application/x-sharedlib"), None, 0x798090, false),
-        mk(None, Some("text/*"), None, 0xc8cdd8, false),
+        mk(None, Some("text/*"), None, 0xc8cdd8, false), // DARK_TEXT
         mk(None, None, Some("hidden"), 0x798090, false),
     ]
 }
@@ -836,5 +875,52 @@ mod tests {
         let mut plain = Theme::default();
         plain.apply(&toml::from_str::<ThemeToml>("").unwrap());
         assert_eq!((plain.bg, plain.fg), (Theme::default().bg, Theme::default().fg));
+    }
+
+    /// Q93: on a light background the warning and a plain file's name turn
+    /// dark, and both read at 4.5:1 or better on the background, the panels'
+    /// second one and the cursor's bar; a dark background keeps the light pair.
+    #[test]
+    fn a_light_background_darkens_the_warning_and_plain_names() {
+        fn lum(c: Color32) -> f32 {
+            let lin = |c: u8| {
+                let c = c as f32 / 255.0;
+                if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
+            };
+            0.2126 * lin(c.r()) + 0.7152 * lin(c.g()) + 0.0722 * lin(c.b())
+        }
+        fn contrast(a: Color32, b: Color32) -> f32 {
+            let (x, y) = (lum(a).min(lum(b)), lum(a).max(lum(b)));
+            (y + 0.05) / (x + 0.05)
+        }
+        let plain = |t: &Theme| t.filetypes.iter().find(|r| r.mime.as_deref() == Some("text/*")).unwrap().style.fg.unwrap();
+
+        let dark = Theme::default();
+        assert!(contrast(dark.warning, dark.bg) >= 4.5 && contrast(plain(&dark), dark.bg) >= 4.5);
+        assert!(contrast(plain(&dark), dark.hovered_bg) >= 4.5, "the cursor's row, dark");
+
+        for toml in [
+            "[app]\noverall = { bg = \"#ffffff\", fg = \"#222222\" }\n",
+            "[app]\noverall = { bg = \"#ffffff\" }\n",
+            "[app]\noverall = { bg = \"#f0ead6\" }\n",
+        ] {
+            let mut t = Theme::default();
+            t.apply(&toml::from_str::<ThemeToml>(toml).unwrap());
+            for bg in [t.bg, t.bg_alt, t.hovered_bg, t.inactive_hovered_bg] {
+                assert!(contrast(t.warning, bg) >= 4.5, "warning on {bg:?}: {toml}");
+                assert!(contrast(plain(&t), bg) >= 4.5, "plain name on {bg:?}: {toml}");
+                assert!(contrast(t.fg, bg) >= 4.5, "text on {bg:?}: {toml}");
+            }
+        }
+        // A text colour the file sets is the file's.
+        let mut t = Theme::default();
+        t.apply(&toml::from_str::<ThemeToml>("[app]\noverall = { bg = \"#ffffff\", fg = \"#222222\" }\n").unwrap());
+        assert_eq!(t.fg, Color32::from_rgb(0x22, 0x22, 0x22));
+
+        // A dark background chosen in the file keeps the light pair.
+        let mut t = Theme::default();
+        t.apply(&toml::from_str::<ThemeToml>("[app]\noverall = { bg = \"#000000\" }\n").unwrap());
+        assert_eq!((t.warning, plain(&t), t.fg), (dark.warning, plain(&dark), dark.fg));
+        assert_eq!(t.hovered_bg, dark.hovered_bg);
     }
 }

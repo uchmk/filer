@@ -575,6 +575,24 @@ impl Task {
     }
 }
 
+/// The one line a config warning gets in the corner (Q84). A `toml` parse
+/// error is five lines and covered half the window and the top of the preview
+/// on every start (#174), while all of it is already in `~` and `filer env`.
+/// The first line names the file and the place, which is what the toast is
+/// for; the rest is a key away.
+pub fn config_toast(warnings: &[String]) -> Option<String> {
+    let first = warnings.first()?;
+    let line = first.lines().next().unwrap_or_default();
+    let cut = first.lines().nth(1).is_some();
+    let tail = match (cut, warnings.len() - 1) {
+        (false, 0) => String::new(),
+        (true, 0) => " — the rest in `~`".to_owned(),
+        (false, more) => format!(" (+{more} more, see `~`)"),
+        (true, more) => format!(" — the rest and {more} more in `~`"),
+    };
+    Some(format!("Config: {line}{tail}"))
+}
+
 /// Whether `path` is `above` or inside it. `Path::starts_with` compares
 /// components, and on Windows a bare `\\host` is not a prefix of
 /// `\\host\share`, so the parent column of a mistyped host was not seen as
@@ -1525,10 +1543,8 @@ impl App {
         // A config problem that nobody is told about is one the reader spends
         // the evening blaming the program for. The `~` panel lists them all;
         // this is the line that says to go and look.
-        if let Some(w) = app.cfg.warnings.first().cloned() {
-            let more = app.cfg.warnings.len() - 1;
-            let tail = if more > 0 { format!(" (+{more} more, see `~`)") } else { String::new() };
-            app.warn(format!("Config: {w}{tail}"));
+        if let Some(text) = config_toast(&app.cfg.warnings) {
+            app.warn(text);
         }
         app
     }
@@ -4957,7 +4973,7 @@ impl App {
     pub(crate) fn take_config(&mut self, cfg: Config) {
         let old_term = self.cfg.term.clone();
         let files = cfg.loaded.len();
-        let warning = cfg.warnings.first().cloned();
+        let warning = config_toast(&cfg.warnings);
         // A pane already running keeps the shell it started with; the new
         // `[term]` is for the next one. Two real-machine runs edited the shell,
         // reloaded, and read the old one back because nothing said so (#173).
@@ -4968,7 +4984,7 @@ impl App {
         // holds a highlighted copy of the old one.
         self.preview = PreviewSlot::default();
         match warning {
-            Some(w) => self.warn(format!("Config: {w}")),
+            Some(w) => self.warn(w),
             None if shell_waits => self.toast(format!(
                 "Reloaded {files} config file(s) — the pane keeps its shell until {}",
                 self.term_close_key().map_or("it is closed".into(), |k| format!("{k} closes it"))
@@ -6654,6 +6670,24 @@ fn spot_text_of(entries: &[Entry]) -> String {
 mod tests {
     use super::*;
     use crate::config::keys::Key;
+
+    /// Q84: the toast is the first line, and says where the rest is.
+    #[test]
+    fn a_config_toast_is_one_line() {
+        let w = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(config_toast(&[]), None);
+        assert_eq!(config_toast(&w(&["unknown key `x`"])).unwrap(), "Config: unknown key `x`");
+        let parse = "C:/cfg/yazi.toml: TOML parse error at line 1, column 5\n  |\n1 | [mgr\n  |     ^\ninvalid table header";
+        assert_eq!(
+            config_toast(&w(&[parse])).unwrap(),
+            "Config: C:/cfg/yazi.toml: TOML parse error at line 1, column 5 — the rest in `~`",
+        );
+        assert_eq!(config_toast(&w(&["a", "b", "c"])).unwrap(), "Config: a (+2 more, see `~`)");
+        assert_eq!(
+            config_toast(&w(&[parse, "b"])).unwrap(),
+            "Config: C:/cfg/yazi.toml: TOML parse error at line 1, column 5 — the rest and 1 more in `~`",
+        );
+    }
 
     #[test]
     fn archive_refusal_splits_writes_from_not_yet() {
