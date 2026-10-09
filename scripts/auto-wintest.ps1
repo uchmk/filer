@@ -24,12 +24,20 @@
 # passed (the owner's word, 2026-10-05):
 #
 #   $w = 'C:\dev\filer-wintest'
-#   $a = New-ScheduledTaskAction -Execute pwsh -Argument "-NoProfile -WindowStyle Hidden -Command `"git -C $w fetch -q origin main; if (-not (git -C $w status --porcelain)) { git -C $w checkout -q --detach origin/main }; & $w\scripts\auto-wintest.ps1`""
+#   $a = New-ScheduledTaskAction -Execute (Get-Command pwsh).Source -Argument "-NoProfile -WindowStyle Hidden -Command `"git -C $w fetch -q origin main; if (-not (git -C $w status --porcelain)) { git -C $w checkout -q --detach origin/main }; & $w\scripts\auto-wintest.ps1`""
 #   $t = New-ScheduledTaskTrigger -Once -At (Get-Date -Minute 20 -Second 0) -RepetitionInterval (New-TimeSpan -Hours 1)
 #   $s = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 4)
 #   Register-ScheduledTask -TaskName filer-auto-wintest -Action $a -Trigger $t -Settings $s
 #
 #   Unregister-ScheduledTask -TaskName filer-auto-wintest    # to stop it
+#
+# pwsh is given by its full path: on 2026-10-09 a task registered with a bare
+# `pwsh` ended every firing with 0x80070002 (2147942402, file not found)
+# before the script ran, so nothing reached the log.
+# If that path is under C:\Program Files\WindowsApps (the Store's PowerShell),
+# it names the version and stops working at the next update: give the task
+# $env:LOCALAPPDATA\Microsoft\WindowsApps\pwsh.exe (the Store's own alias,
+# which follows updates) or install the MSI build (C:\Program Files\PowerShell\7).
 #
 # The task moves the worktree to origin/main itself before it starts the
 # script (the git half of the -Command above), so a copy that does not parse

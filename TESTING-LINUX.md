@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 531 件（TESTING.md の全 723 件のうち、`cargo test` が見ている 192 件は外してある）。
+押すものは 531 件（TESTING.md の全 724 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -341,7 +341,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 
 ## 21. 書庫（zip / tar / 7z）
 
-自動テスト済みなので下には出していない: 21.1, 21.4, 21.6, 21.6a, 21.12, 21.17, 21.19, 21.22c
+自動テスト済みなので下には出していない: 21.1, 21.4, 21.6, 21.6a, 21.12, 21.17, 21.19, 21.22c, 21.22d
 
 - [ ] **21.2** `sample.zip` で `e` → 隣に `sample` フォルダとして展開され、タスクパネルに進捗が出る — *`e` on it → Unpacked into a `sample` folder beside it; progress in the task panel*
 - [ ] **21.3** もう一度 `e` → 2 つ目は別の名前になる。1 つ目は上書きされない — *`e` again → The second one gets a different name; the first is not overwritten*

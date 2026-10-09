@@ -4900,6 +4900,46 @@ impl App {
         });
     }
 
+    /// The line above the `r` and `E` prompts while the name typed is already
+    /// taken, saying what `<Enter>` will do about it. Until v0.84.0 that was
+    /// first learnt from the box after `<Enter>` (#264, #265). Read from the
+    /// listing in memory, as the bulk preview is, so typing never waits on the
+    /// disk; a name in another folder says nothing until `<Enter>`.
+    pub fn name_hint(&self) -> Option<String> {
+        let Overlay::Input(ov) = &self.overlay else { return None };
+        let tab = &self.tabs[self.active];
+        let taken = |to: &Path| {
+            to.parent().is_some_and(|d| same_place(d, &tab.cwd))
+                && tab.current.entries.iter().any(|e| same_place(&e.path, to))
+        };
+        match &ov.kind {
+            // As `do_rename` reads it: untrimmed, and the file's own name is
+            // no change at all.
+            InputKind::Rename { from } => {
+                if ov.text.is_empty() {
+                    return None;
+                }
+                let to = util::resolve_against(&tab.cwd, &ov.text);
+                (to != *from && taken(&to))
+                    .then(|| format!("{} already exists — Enter is refused", util::file_name(&to)))
+            }
+            InputKind::Compress => {
+                let name = ov.text.trim();
+                if name.is_empty() {
+                    return None;
+                }
+                let dest = util::resolve_against(&tab.cwd, name);
+                let file = util::file_name(&dest);
+                if tab.targets().iter().any(|p| same_place(p, &dest)) {
+                    Some(format!("{file} is being packed — Enter is refused"))
+                } else {
+                    taken(&dest).then(|| format!("{file} already exists — Enter asks before replacing it"))
+                }
+            }
+            _ => None,
+        }
+    }
+
     /// What the preview panel under the prompt shows, and what the apply step
     /// works from. Both read the directory out of the listing already in
     /// memory, so typing a rule never touches the disk.

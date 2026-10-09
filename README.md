@@ -1193,6 +1193,10 @@ name up to its extension, and the archive name `E` offers selects the part befor
 copied out of Explorer's address bar therefore takes one right-click to get into `cd`, with no
 hand leaving the mouse.
 
+While the name typed into `r` or `E` is already taken in the folder, a red line above the prompt
+says so and what `<Enter>` will do: a rename onto it is refused, an archive over it asks before
+replacing it, and an archive named as one of the files being packed is refused.
+
 ## Running a command on the selection
 
 `;` and `:` both run a shell command on the selection. They differ in one thing: the console. `;`

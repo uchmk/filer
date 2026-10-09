@@ -318,6 +318,34 @@ pub fn shell_hint(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bo
     );
 }
 
+/// The name typed at `r` or `E` is taken (#264): said above the prompt, in the
+/// error colour, while it is being typed rather than in a box after `<Enter>`.
+/// A line of words rather than a red field, since the words also say what
+/// `<Enter>` will do, and colour alone says neither.
+pub fn name_hint(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bottom: f32) {
+    let Some(text) = app.name_hint() else { return };
+    let theme = &app.cfg.theme;
+    let rect = Rect::from_min_max(
+        egui::pos2(full.left() + 20.0, bottom - row_h - 16.0),
+        egui::pos2(full.left() + 20.0 + (full.width() - 40.0).min(900.0), bottom - 6.0),
+    );
+    let painter = ui.painter();
+    painter.rect_filled(rect, CornerRadius::same(6), theme.bg_alt);
+    painter.rect_stroke(
+        rect,
+        CornerRadius::same(6),
+        Stroke::new(1.0, theme.progress_error),
+        egui::StrokeKind::Inside,
+    );
+    painter.text(
+        egui::pos2(rect.left() + 12.0, rect.center().y),
+        Align2::LEFT_CENTER,
+        text,
+        f.clone(),
+        theme.progress_error,
+    );
+}
+
 /// The live preview under the bulk-rename prompt: what every selected file is
 /// about to be called, and what is wrong with any of it. Redrawn on every
 /// keystroke, which is why [`App::bulk_preview`] reads the directory out of the
