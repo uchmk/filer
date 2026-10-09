@@ -204,6 +204,14 @@ Every rule that matches contributes, in the order written, so the catch-all at t
 *Open with the default app* to everything without taking the top spot from a more specific rule.
 `<S-Enter>` shows `desc` with the command line beside it, so name them however you think of them.
 
+A file Windows has no app for is not handed over (v0.82.0, Q92). Before `<Enter>` opens with the
+default app, either because no opener applies or because the first one is a bare `start "" %*`,
+filer asks Windows which program the extension opens with; when there is none it says
+`No default app for .xyz` (with `— <S-Enter> to pick one` when the file has other openers) and opens
+nothing. Handed over anyway, such a file got a "How do you want to open this file?" box at best and
+nothing at all at worst. `start "" msedge %*` names its program and is not checked. An association
+that exists but fails to start its program is not caught this way.
+
 As in yazi, `[open] prepend_rules` and `append_rules` add to the rules without restating them
 (v0.78.6): the prepended ones are tried before `rules`, the appended ones after. Before v0.78.6 they
 were ignored without a word.
@@ -268,7 +276,7 @@ this project's own). `select` and `select_all` are accepted as `toggle --state=o
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe`, `enter`, `copy cell` and `copy all` (this project's own: the whole panel, `Label<TAB>value` per row; with two or more files selected, one panel per file under `#### <path>`, v0.78.205); in `[term]`:
 `close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
-`close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) and `hide_same` (this project's own: hide or show a folder comparison's matching rows); in `[help]`: `close`, `help` (which closes it too), `arrow`, `copy all` (the whole panel as text, as in `[spot]`) and `config_reload` (`<C-F5>`, the key the panel's config rows name; the panel stays open).
+`close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) `hide_same` (this project's own: hide or show a folder comparison's matching rows) and `copy all` (`C`, comparing folders: the rows on screen, `state<TAB>path` per row, v0.82.0); in `[help]`: `close`, `help` (which closes it too), `arrow`, `copy all` (the whole panel as text, as in `[spot]`) and `config_reload` (`<C-F5>`, the key the panel's config rows name; the panel stays open).
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -684,6 +692,7 @@ is not.
 | `j` `k` `<C-d>` `<C-u>` `gg` `G` | scroll (move the selection, comparing folders) |
 | `n` `N` | to the next / previous difference |
 | `z` | comparing folders: hide the matching rows, or bring them back |
+| `C` | comparing folders: copy the rows on screen, one `state<TAB>path` line each (`left only`, `right only`, `differ`, `same`, `unread`; the matches `z` hid are left out) |
 | `<Enter>` | comparing folders: compare the two files on this row, line by line; `q` comes back to the folders, on the same row |
 | `q` `<Esc>` | close (back to the folders, from a pair opened with `<Enter>`) |
 

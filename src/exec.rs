@@ -699,11 +699,40 @@ pub fn has_default_app(path: &Path) -> bool {
 }
 
 /// What `<Enter>` says after handing a file to the system.
-pub fn opened_default_note(name: &str, has_app: bool) -> String {
-    match has_app {
-        true => format!("Opened {name} with the system's default app"),
-        false => format!("Handed {name} to the system, which has no default app for it (Windows asks which to use)"),
+pub fn opened_default_note(name: &str) -> String {
+    format!("Opened {name} with the system's default app")
+}
+
+/// What `<Enter>` says instead of opening a file Windows has no app for
+/// (Q92): handed over, Windows asked which app to use, or for some types
+/// started nothing and said nothing. `pick` is the key that lists the
+/// openers, when one is bound.
+pub fn no_default_app_note(path: &Path, pick: Option<&str>) -> String {
+    let ext = path.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
+    match pick {
+        Some(key) => format!("No default app for {ext} — {key} to pick one"),
+        None => format!("No default app for {ext}"),
     }
+}
+
+/// Whether an opener only hands its file to the system's default app:
+/// `start "" %*`, `start "" "%1"`. Such a line asks Windows the same thing
+/// `<Enter>` with no opener does, so it is checked the same way first (Q92).
+/// `start "" msedge %*` names its program and is not one.
+pub fn starts_default(run: &str) -> bool {
+    let mut words = run.split_whitespace().peekable();
+    if !words.next().is_some_and(|w| w.eq_ignore_ascii_case("start")) {
+        return false;
+    }
+    // The window title, when given, is the first quoted word.
+    if words.peek().is_some_and(|w| w.starts_with('"')) {
+        words.next();
+    }
+    // `/b`, `/wait`, `/max` and the like say how, not what.
+    let mut words = words.skip_while(|w| w.starts_with('/'));
+    let Some(what) = words.next() else { return false };
+    let what = what.trim_matches('"');
+    what.starts_with('%') || what.starts_with('$')
 }
 
 /// Hand a URL to the default browser.
@@ -895,8 +924,22 @@ mod tests {
 
     #[test]
     fn the_open_toast_does_not_claim_an_app_that_is_not_there() {
-        assert_eq!(opened_default_note("a.txt", true), "Opened a.txt with the system's default app");
-        assert!(opened_default_note("a.xyz", false).contains("no default app"));
+        assert_eq!(opened_default_note("a.txt"), "Opened a.txt with the system's default app");
+        assert_eq!(no_default_app_note(Path::new("a.xyz"), Some("<S-Enter>")), "No default app for .xyz — <S-Enter> to pick one");
+        assert_eq!(no_default_app_note(Path::new("a.xyz"), None), "No default app for .xyz");
+    }
+
+    /// Only a line that leaves the choice of app to Windows is checked
+    /// against the association (Q92); one that names its program is not.
+    #[test]
+    fn a_start_line_that_names_no_program_hands_over() {
+        assert!(starts_default(r#"start "" %*"#));
+        assert!(starts_default(r#"start "" "%1""#));
+        assert!(starts_default(r#"START "" /max %s"#));
+        assert!(starts_default("start %*"));
+        assert!(!starts_default(r#"start "" msedge %*"#));
+        assert!(!starts_default("code %*"));
+        assert!(!starts_default(r#"start """#));
     }
 
     #[test]

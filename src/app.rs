@@ -383,6 +383,23 @@ impl DiffOverlay {
             .filter(|&i| !(self.hide_same && matches!(rows[i].state, diff::TreeState::Same)))
             .collect()
     }
+
+    /// The rows on screen as text for the clipboard (`C`, Q91): one
+    /// `state<TAB>relative path` line each, a folder's path ending in `/`.
+    /// `z`'s hidden matches are left out, as they are from the screen.
+    pub fn shown_text(&self) -> String {
+        let Some(diff::Outcome::Tree { rows, .. }) = &self.outcome else { return String::new() };
+        let lines: Vec<String> = self
+            .shown()
+            .into_iter()
+            .map(|i| {
+                let row = &rows[i];
+                let dir = if row.dir { "/" } else { "" };
+                format!("{}\t{}{dir}", row.state.word(), row.rel.display())
+            })
+            .collect();
+        lines.join("\n")
+    }
 }
 
 impl Overlay {
@@ -4441,6 +4458,20 @@ impl App {
         // The first opener whose program is installed, as `<S-Enter>`'s list
         // starts its cursor (Q87); all missing leaves the first to say so.
         let first_found = openers.iter().position(|o| !exec::opener_missing(&o.0)).unwrap_or(0);
+        // Asked before, not after (Q92): handed over, a type Windows has no
+        // app for opened a chooser at best and nothing at all at worst, and
+        // `open` says `Ok` either way.
+        let others = openers.iter().any(|o| !exec::starts_default(&o.0));
+        let hands_over = openers.get(first_found).is_none_or(|o| exec::starts_default(&o.0));
+        let no_app = match openers.get(first_found) {
+            None => (!exec::has_default_app(&entry.path)).then(|| entry.path.clone()),
+            Some(_) => paths.iter().find(|p| !exec::has_default_app(p)).cloned(),
+        };
+        if let Some(path) = no_app.filter(|_| hands_over) {
+            let pick = if others { self.pick_opener_key() } else { None };
+            self.error(exec::no_default_app_note(&path, pick.as_deref()));
+            return;
+        }
         match openers.get(first_found) {
             Some((run, block, orphan, _)) => {
                 // Said, so an opener that cannot take a line (Word) is not read as having lost it.
@@ -4459,7 +4490,7 @@ impl App {
             // whose app takes a while to appear looked as if `<Enter>` had
             // done nothing (#163).
             None => match exec::open_default(&entry.path) {
-                Ok(()) => self.toast(exec::opened_default_note(&entry.name, exec::has_default_app(&entry.path))),
+                Ok(()) => self.toast(exec::opened_default_note(&entry.name)),
                 Err(e) => self.error(format!("Open failed: {e}")),
             },
         }
@@ -4782,6 +4813,15 @@ impl App {
                     let what = if ov.hide_same { "Hiding matching rows" } else { "Showing matching rows" };
                     self.toast_instead(&["Hiding matching rows", "Showing matching rows"], what.into());
                 }
+                Act::Copy(_) => {
+                    let text = ov.shown_text();
+                    let n = len;
+                    match exec::set_clipboard(&text) {
+                        Ok(()) if n == 1 => self.toast("Copied 1 row".to_string()),
+                        Ok(()) => self.toast(format!("Copied {n} rows")),
+                        Err(e) => self.error(format!("Clipboard: {e}")),
+                    }
+                }
                 Act::Arrow(step) if len > 0 => ov.cursor = step.apply(ov.cursor, len, page),
                 Act::FindArrow { prev } if len > 0 => {
                     let differs = |&i: &usize| !matches!(rows[i].state, diff::TreeState::Same);
@@ -4815,6 +4855,7 @@ impl App {
                 }
             }
             Act::Quit | Act::Compare => self.overlay = Overlay::None,
+            Act::Copy(_) => self.error("Copy: only a folder comparison has rows to copy".to_string()),
             // Against the last *scroll position*, not the last row. Clamping
             // to `len - 1` left `G` a screenful past where the pane can
             // actually sit, so the next `j` or `k` moved a number nothing was
@@ -5077,6 +5118,13 @@ impl App {
     /// someone to press it.
     fn compress_key(&self) -> Option<String> {
         let b = self.cfg.keymap.mgr.iter().find(|b| b.run.as_slice() == [Act::Compress])?;
+        Some(crate::config::keys::render_seq(&b.on))
+    }
+
+    /// How the list's keymap spells `open --interactive`, for a message that
+    /// tells someone to pick an opener.
+    fn pick_opener_key(&self) -> Option<String> {
+        let b = self.cfg.keymap.mgr.iter().find(|b| matches!(b.run.as_slice(), [Act::Open { interactive: true, .. }]))?;
         Some(crate::config::keys::render_seq(&b.on))
     }
 
@@ -8249,6 +8297,22 @@ mod diff_tree_keys {
             Overlay::Diff(ov) => ov.cursor,
             _ => panic!("the overlay closed"),
         }
+    }
+
+    /// `C` copies the rows on screen, one `state<TAB>path` line each, and
+    /// leaves out the matches `z` hid (Q91).
+    #[test]
+    fn c_copies_the_rows_on_screen() {
+        let km = &Config::load().keymap;
+        let c = km.diff.iter().find(|b| crate::config::keys::render_seq(&b.on) == "C");
+        assert_eq!(c.map(|b| b.run.clone()), Some(vec![Act::Copy(CopyWhat::All)]), "C is bound in [diff]");
+        let mut a = app_with(vec![row("a", TreeState::Same), row("b", TreeState::LeftOnly), row("c", TreeState::Differ)]);
+        a.diff_act(Act::Copy(CopyWhat::All));
+        assert_eq!(exec::get_clipboard().unwrap(), "same\ta\nleft only\tb\ndiffer\tc");
+        a.diff_act(Act::HideSame);
+        a.diff_act(Act::Copy(CopyWhat::All));
+        assert_eq!(exec::get_clipboard().unwrap(), "left only\tb\ndiffer\tc");
+        assert!(matches!(a.overlay, Overlay::Diff(_)), "copying leaves the comparison open");
     }
 
     /// A tree opens on its first difference, and on its top row when there is

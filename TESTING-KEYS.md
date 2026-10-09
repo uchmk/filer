@@ -4,7 +4,7 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-262 keys. How many are checked is not written here, so that two pull requests ticking
+263 keys. How many are checked is not written here, so that two pull requests ticking
 keys do not conflict over a total: `cargo run --example make-keycheck -- --stats`.
 
 A key is checked when it did what the description says _and_ did nothing else —
@@ -359,6 +359,7 @@ The side-by-side comparison (`<A-d>`).
 - [x] `N` — To the previous difference · `find_arrow --previous`
 - [x] `<Enter>` — Compare the files on this row (folders) · `enter`
 - [x] `z` — Hide or show the matching rows of a folder comparison · `hide_same`
+- [ ] `C` — Copy the rows on screen (folders): state<TAB>path · `copy all`
 - [x] `<C-+>` — Make everything bigger · `scale in`
 - [x] `<C-=>` — Make everything bigger · `scale in`
 - [x] `<C-->` — Make everything smaller · `scale out`

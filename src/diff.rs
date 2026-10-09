@@ -46,6 +46,19 @@ pub enum TreeState {
     Unread,
 }
 
+impl TreeState {
+    /// The state in words, as the state file and `C`'s copy write it.
+    pub fn word(self) -> &'static str {
+        match self {
+            TreeState::LeftOnly => "left only",
+            TreeState::RightOnly => "right only",
+            TreeState::Differ => "differ",
+            TreeState::Same => "same",
+            TreeState::Unread => "unread",
+        }
+    }
+}
+
 /// One path, relative to both roots.
 /// How many rows are in each state. Summed when the comparison is built.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]

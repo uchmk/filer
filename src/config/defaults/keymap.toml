@@ -1237,6 +1237,10 @@ on = "z"
 run = "hide_same"
 desc = "Hide or show the matching rows of a folder comparison"
 [[diff.keymap]]
+on = "C"
+run = "copy all"
+desc = "Copy the rows on screen (folders): state<TAB>path"
+[[diff.keymap]]
 on = "<C-+>"
 run = "scale in"
 desc = "Make everything bigger"

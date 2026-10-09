@@ -1140,13 +1140,7 @@ fn compare_tree_lines(
     )];
     for (n, &i) in shown.iter().take(MAX).enumerate() {
         let row = &rows[i];
-        let state = match row.state {
-            diff::TreeState::LeftOnly => "left only",
-            diff::TreeState::RightOnly => "right only",
-            diff::TreeState::Differ => "differ",
-            diff::TreeState::Same => "same",
-            diff::TreeState::Unread => "unread",
-        };
+        let state = row.state.word();
         let dir = if row.dir { "/" } else { "" };
         lines.push(format!("compare tree row {}: {state} {}{dir}", n + 1, row.rel.display()));
     }
