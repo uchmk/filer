@@ -36,6 +36,13 @@ v0.78.167 が `scripts/auto-wintest.ps1` に構文エラーを入れ、2 台の�
 - [x] （v0.83.4。持ち主は手順が分からないとのことなので、手で削らずに済む形にした。`release-sums.yml` に `rewrite` を足し、本文を `scripts/release-body.sh` でコミットから書き直してから表を足す。v0.79.0 なら 101780 バイト + 表）v0.79.0 のページに表を載せ直す仕組み
 - [x] （2026-10-09、持ち主の依頼で `actions_run_trigger` から回した。表あり、`v0.78.29` / `v0.78.31` は 1 回ずつ、古い 62 版は先頭の 1 行で省略）v0.79.0 のページを直す: Actions タブ → Release checksums → Run workflow で `tag: v0.79.0`、`rewrite` に印。持ち主の了承を得て開発のセッションが `actions_run_trigger` で回してもよい 【人】
 
+## ARM64 の再テストの所見（#297）
+
+- [ ] （#297 の提案 1）1.35 の「End the shell?」の箱はタイトルが空のとき、起動した実行ファイルの名前（`pwsh`）で言い換える。
+- [ ] （#297 の提案 2）`file_version()` は `filer.exe` に Windows 10 の `supportedOS` manifest を付けるか、`RtlGetVersion` 系でなく `VerQueryValueW` の `\StringFileInfo\…\FileVersion` を読む（25.4e が ARM64 で `v6.2.28000.2804` と出る）。
+- [ ] （#297 の提案 3）`<State:>` の `clipboard set:` は切り詰めず、全文を別ファイルに書く。
+- [ ] （#297 の提案 4）入力欄に `<C-u>` を効かせる（今は `<C-a>` の後に打つと置き換わる）。
+
 ## ARM64 の再テストの所見（#295）
 
 - [ ] （#295 の所見 1）16.13 / 16.13a が ARM64（build 28000）で失敗する: `has_default_app`（`src/exec.rs`）は `AssocQueryStringW(ASSOCSTR_EXECUTABLE, ".xyz")` の成功を「アプリあり」と見るが、この機械では関連付けの無い拡張子でも `OpenWith.exe` を返し、`start` が「アプリを選ぶ」の箱を出す。x64（v0.82.0 で通った）との差。`OpenWith.exe`（と `rundll32.exe` 系）を「アプリ無し」に数える案。x64 でも同じ値が出るか先に確かめる【実機】
