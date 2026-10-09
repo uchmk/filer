@@ -507,7 +507,7 @@ fn automated_ids() -> BTreeSet<String> {
 /// Every check id in `s`, stopping at the first word that is not one, a
 /// separator, or a word joining two ("and", "to", "through").
 fn ids_in(s: &str, out: &mut BTreeSet<String>) {
-    for word in s.split([' ', ',', '/', '(', ')', '–', '—']).map(|w| w.trim_end_matches('.')) {
+    for word in s.split([' ', ',', '/', '(', ')', '–', '—']).map(|w| w.trim_end_matches(['.', ':'])) {
         if word.is_empty() || matches!(word, "and" | "to" | "through" | "&") {
             continue;
         }

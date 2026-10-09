@@ -987,6 +987,8 @@ mod files {
 
     /// A section in the wrong half of the pair is named, with where it goes.
     ///
+    /// TESTING.md 33.13.
+    ///
     /// This is the whole point of the check: `[term]` in `yazi.toml` is not an
     /// error anywhere, it simply does nothing, and every report of the problem
     /// arrives as "my shell setting is being ignored".
@@ -1019,7 +1021,7 @@ mod files {
         assert!(!said.contains(HINT) && !said.ends_with('\n'), "{said:?}");
     }
 
-    /// `[[preview]]` in `yazi.toml` costs the whole file, and says so.
+    /// 33.11: `[[preview]]` in `yazi.toml` costs the whole file, and says so.
     ///
     /// yazi's `[preview]` is a table, so serde reads the array's first entry as
     /// the `wrap` string and reports "invalid type: map, expected a string" -- a
@@ -1096,7 +1098,7 @@ mod files {
         assert_eq!(Misplaced::in_file(&text, ConfigFile::Filer), Misplaced::default());
     }
 
-    /// TESTING.md 33.12: two misplaced sections in one file, and the cost is
+    /// 33.12: two misplaced sections in one file, and the cost is
     /// the file's rather than each section's.
     ///
     /// `[term]` alone is merely ignored (33.13) and `[[preview]]` alone takes
@@ -1127,7 +1129,7 @@ mod files {
         );
     }
 
-    /// TESTING.md 33.14: the sentence the other way round names `yazi.toml`.
+    /// 33.14: the sentence the other way round names `yazi.toml`.
     ///
     /// The same shape read from the other side, because "which file does this
     /// go in" is the only thing either warning is for and half of them point

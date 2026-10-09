@@ -1592,9 +1592,9 @@ mod help_config_rows {
         let warned = rows.iter().find(|r| r.warning).unwrap();
         assert!(warned.goes_to.is_none(), "nor is a warning");
     }
-    /// #203: a file read but none of whose settings took effect is marked,
-    /// and a file waiting on disk turns "nothing found" into "nothing read
-    /// yet".
+    /// 33.20 / #203: a file read but none of whose settings took effect is
+    /// marked, and a file waiting on disk turns "nothing found" into
+    /// "nothing read yet".
     #[test]
     fn a_file_nothing_was_read_from_is_marked() {
         let dir = crate::util::test_dir("help-none-read");
@@ -1620,7 +1620,7 @@ mod help_config_rows {
         assert_eq!(defaults_note(&app, &rows).unwrap().text, "(nothing found in either; the defaults are in use)");
     }
 
-    /// A config file written after the window opened is named, not hidden.
+    /// 33.16: a config file written after the window opened is named, not hidden.
     ///
     /// `filer.toml` created while filer is running is the ordinary way to reach
     /// this: the file is right there in the directory the panel is listing, and
@@ -1672,8 +1672,7 @@ mod help_config_rows {
         (dir, written, app)
     }
 
-    /// TESTING.md 33.17: once the config has been re-read, the row is an
-    /// ordinary one.
+    /// 33.17: once the config has been re-read, the row is an ordinary one.
     ///
     /// The marker has to come off, not merely be joined by a second row. It
     /// says "filer has not looked since it started", and after `<C-F5>` that is
@@ -1703,7 +1702,7 @@ mod help_config_rows {
         );
     }
 
-    /// TESTING.md 33.18: the note on the row names the key that is bound now.
+    /// 33.18: the note on the row names the key that is bound now.
     ///
     /// `the_reload_key_is_looked_up` covers the lookup; this covers the row,
     /// which is the part the reader sees. The two are worth separating because
@@ -2292,7 +2291,7 @@ mod help_frame {
     }
 }
 
-/// TESTING.md 13.10 to 13.16: the spot panel's Link section.
+/// TESTING.md 13.10 -- the spot panel's Link section, rows 13.10 to 13.16.
 ///
 /// The section is `spot::link`'s, and the worker is what normally runs it.
 /// Called here on the test's own thread and put where the worker would have put

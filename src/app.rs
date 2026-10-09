@@ -10036,8 +10036,8 @@ mod said_out_loud {
             a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 
-    /// #265: packing `to-pack.zip` offers another name, and typing its own
-    /// name back is refused before any job is queued.
+    /// 21.22c / #265: packing `to-pack.zip` offers another name, and typing
+    /// its own name back is refused before any job is queued.
     #[test]
     fn an_archive_is_not_packed_into_itself() {
         let dir = crate::util::test_dir("pack-self");

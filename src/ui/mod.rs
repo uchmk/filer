@@ -3548,13 +3548,12 @@ mod link_rows {
 
 /// TESTING.md section 24: names the list has to draw without help.
 ///
-/// Three of the five rows are here, one of them by half. Eliding is egui's,
-/// done inside the galley, and `Galley::text` hands back the string that was
-/// laid out rather than the characters that fit -- so `Painted::glyphs` reads
-/// the rows instead, and 24.2 can at least ask whether the long name was cut
-/// down. Where the `…` lands it cannot ask, because the row and the code
-/// disagree about that; see QA-REPORT.md. 24.4 wants the terminal pane, which is
-/// `#[cfg(windows)]`, and 24.5 wants the recycle bin.
+/// Four of the seven rows are here. `Galley::text` hands back the string that
+/// was laid out rather than the characters that fit, so `Painted::glyphs` reads
+/// the rows instead: a name cut down by `list.rs` (`elide_at`, and `apart` for
+/// neighbours) is asked for whole and drawn whole. The quoting 24.4 is about
+/// lives in `tsumugi-pane` now, 24.5 wants the recycle bin, and 24.6 is a
+/// PowerShell script.
 #[cfg(test)]
 mod awkward_names {
     use super::harness::Screen;
@@ -3637,6 +3636,55 @@ mod awkward_names {
         );
         for n in ["UPPER.TXT", "upper.txt"] {
             assert!(f.texts.iter().any(|t| t == n), "{n} keeps its case: {:?}", f.texts);
+        }
+    }
+
+    /// Whether `row` is `name` with a middle cut out and `…` in its place.
+    fn cut_from(row: &str, name: &str) -> bool {
+        let Some((head, tail)) = row.split_once('…') else { return false };
+        !head.is_empty() && name.starts_with(head) && name.ends_with(tail) && head.len() + tail.len() < name.len()
+    }
+
+    /// 24.7 (Q67): long names that differ only in the middle, in the parent
+    /// column, are each cut to the column and no two neighbours read the same.
+    ///
+    /// The `<State:>` half of the row is a line on stdout and stays with the
+    /// machine; what a frame can say is what the column drew.
+    #[test]
+    fn neighbouring_long_names_in_the_parent_column_read_apart() {
+        let top = crate::util::test_dir("frame-names-apart");
+        let names = [
+            "filer-diagnostics-archive-xx-15484.log",
+            "filer-diagnostics-preview-yy-15484.log",
+            "filer-diagnostics-session-zz-15484.log",
+            "filer-diagnostics-terminal-q-15484.log",
+            "room",
+        ];
+        for n in &names[..4] {
+            std::fs::write(top.join(n), "x").unwrap();
+        }
+        let room = top.join("room");
+        std::fs::create_dir_all(&room).unwrap();
+        let mut s = showing(&room, &[]);
+        let mut parent = Folder::from_entries(top.clone(), super::panes::listing(&top, &names), true);
+        assert!(parent.select_name("room"));
+        s.app.tabs[0].parent = Some(parent);
+        let f = s.draw();
+
+        let rows: Vec<&String> = names[..4]
+            .iter()
+            .map(|n| {
+                f.texts
+                    .iter()
+                    .find(|t| cut_from(t, n))
+                    .unwrap_or_else(|| panic!("{n} is drawn cut down: {:?}", f.texts))
+            })
+            .collect();
+        for r in &rows {
+            assert_eq!(f.drawn(r), Some(r.as_str()), "and it fits its column: {r:?}");
+        }
+        for pair in rows.windows(2) {
+            assert_ne!(pair[0], pair[1], "neighbours read apart: {rows:?}");
         }
     }
 }
@@ -4283,11 +4331,9 @@ mod undo_frame {
     /// The rule 12.8 is about: a fresh action drops what `u` had put on the way
     /// forward.
     ///
-    /// Not 12.8 itself. That row reaches for the fork by creating a file, and
-    /// `a` records no undo step, so the redo survives it and `U` still runs --
-    /// reported rather than asserted. What the fork does answer to is any action
-    /// that lands `Land::Fresh`, and a second rename is the one of those a frame
-    /// can reach.
+    /// The same file renamed twice; the row's own recipe, which renames
+    /// another file, is `renaming_another_file_forks_history` below, and the
+    /// create that forks it too is `a_new_file_forks_history_too`.
     #[test]
     fn a_fresh_action_forks_history() {
         let (dir, mut s) = one_file("frame-undo-fork");
@@ -4365,6 +4411,140 @@ mod undo_frame {
         assert!(f.says("Renamed back to one.txt"), "the second press works: {:?}", f.texts);
         assert_eq!(std::fs::read_to_string(dir.join("one.txt")).unwrap(), "1");
         assert!(!dir.join("two.txt").exists(), "the new name is gone");
+    }
+
+    /// `a`'s prompt, opened by the key and answered with `text` and `<Enter>`.
+    ///
+    /// Filled in rather than typed into, for the reason `rename` gives; what is
+    /// asserted is that `a` is the key that opens a create prompt at all.
+    fn create(s: &mut Screen, text: &str) {
+        s.typed("a");
+        let Overlay::Input(ov) = &mut s.app.overlay else {
+            panic!("`a` opens a prompt");
+        };
+        assert!(matches!(ov.kind, InputKind::Create), "and it is the create prompt");
+        ov.text = text.to_owned();
+        ov.focused = true;
+        s.feed(vec![key(egui::Key::Enter, egui::Modifiers::NONE)]);
+    }
+
+    /// 12.8: a rename undone, then a rename of *another* file, and `U` has
+    /// nothing left to do -- the second rename forked history.
+    #[test]
+    fn renaming_another_file_forks_history() {
+        let (dir, mut s) = one_file("frame-undo-fork-other");
+        std::fs::write(dir.join("other.txt"), "2").unwrap();
+        s.app.tabs[0].current =
+            Folder::from_entries(dir.clone(), listing(&dir, &["one.txt", "other.txt"]), true);
+        rename(&mut s, &dir.join("one.txt"), "two.txt");
+        s.typed("u");
+        assert!(dir.join("one.txt").exists(), "`u` put the first one back");
+        assert_eq!(s.app.undos.redo.len(), 1, "and left it on the way forward");
+
+        rename(&mut s, &dir.join("other.txt"), "renamed.txt");
+        let f = s.typed("U");
+        assert!(f.says("Nothing to redo"), "the redo is gone: {:?}", f.texts);
+        assert!(dir.join("one.txt").exists(), "the first file kept its old name");
+        assert!(!dir.join("two.txt").exists(), "and was not renamed again");
+        assert!(dir.join("renamed.txt").exists(), "while the second rename stands");
+    }
+
+    /// 12.8a: a new file from `a` is an undo step of its own, so it forks
+    /// history the way a second rename does.
+    #[test]
+    fn a_new_file_forks_history_too() {
+        let (dir, mut s) = one_file("frame-undo-fork-create");
+        rename(&mut s, &dir.join("one.txt"), "two.txt");
+        s.typed("u");
+        assert_eq!(s.app.undos.redo.len(), 1, "the rename is on the way forward");
+
+        create(&mut s, "fresh.txt");
+        assert!(dir.join("fresh.txt").exists(), "the file was made");
+        let f = s.typed("U");
+        assert!(f.says("Nothing to redo"), "and that took the redo away: {:?}", f.texts);
+        assert!(dir.join("one.txt").exists(), "so the rename was not done again");
+        assert!(!dir.join("two.txt").exists());
+    }
+
+    /// 12.17: `u` after `a new/deep/note.txt` takes the file and both folders
+    /// made for it, and says how many; `U` makes all three again; a file
+    /// written to since is left alone, with an error saying why.
+    #[test]
+    fn undoing_a_new_file_takes_the_folders_made_for_it() {
+        let (dir, mut s) = one_file("frame-undo-create-deep");
+        create(&mut s, "new/deep/note.txt");
+        let note = dir.join("new").join("deep").join("note.txt");
+        assert!(note.is_file(), "the file and its folders were made");
+
+        let f = s.typed("u");
+        assert!(f.says("Removed note.txt and 2 folder(s)"), "{:?}", f.texts);
+        assert!(!dir.join("new").exists(), "the folders went with the file");
+
+        let f = s.typed("U");
+        assert!(note.is_file(), "`U` makes all three again: {:?}", f.texts);
+
+        std::fs::write(&note, "kept").unwrap();
+        let f = s.typed("u");
+        assert!(f.says("note.txt has been written to since"), "{:?}", f.texts);
+        assert_eq!(std::fs::read_to_string(&note).unwrap(), "kept", "the file stays");
+        assert_eq!(s.app.undos.undo.len(), 1, "and so does the step");
+    }
+}
+
+/// The cursor after a rename or a create, which lands only once the rescan the
+/// action asked for comes back -- so these run the loop, on a real listing.
+#[cfg(test)]
+mod cursor_follows_frame {
+    use super::panes::key;
+    use super::preview_panes::{open, room, until, Screen};
+    use crate::app::{InputKind, InputOverlay, Overlay};
+
+    fn answer(s: &mut Screen, kind: InputKind, text: &str) {
+        s.app.overlay = Overlay::Input(InputOverlay {
+            kind,
+            title: String::new(),
+            text: text.to_owned(),
+            initial_selection: None,
+            focused: true,
+            completion: Vec::new(),
+            completion_at: 0,
+        });
+        s.feed(vec![key(egui::Key::Enter, egui::Modifiers::NONE)]);
+    }
+
+    fn hovered(s: &Screen) -> Option<String> {
+        s.app.tab().current.hovered_name().map(str::to_owned)
+    }
+
+    /// 12.19: `r` to `zz.txt`, `a` `aa.txt` and `a` `new/deep/n.txt` each take
+    /// the cursor with them, to the top and the bottom of a list longer than
+    /// the pane and, for the nested one, to the folder `new`.
+    #[test]
+    fn the_cursor_follows_a_rename_and_a_new_name() {
+        let dir = room("frame-cursor-follows");
+        for i in 0..30 {
+            std::fs::write(dir.join(format!("f{i:02}.txt")), "x").unwrap();
+        }
+        std::fs::write(dir.join("b.txt"), "b").unwrap();
+        let mut s = open(dir.clone());
+        until(&mut s, |s| s.app.tab().current.entries.len() == 31 && s.app.settled());
+        assert!(s.app.tabs[0].current.select_name("b.txt"), "b.txt is listed");
+
+        answer(&mut s, InputKind::Rename { from: dir.join("b.txt") }, "zz.txt");
+        until(&mut s, |s| hovered(s).as_deref() == Some("zz.txt"));
+        assert_eq!(hovered(&s).as_deref(), Some("zz.txt"), "onto the new name, at the bottom");
+
+        answer(&mut s, InputKind::Create, "aa.txt");
+        until(&mut s, |s| hovered(s).as_deref() == Some("aa.txt"));
+        assert_eq!(hovered(&s).as_deref(), Some("aa.txt"), "onto the new file, at the top");
+
+        // Off the top row first: folders sort first, so `new` lands on row 0,
+        // and a cursor that merely stayed on row 0 would pass.
+        assert!(s.app.tabs[0].current.select_name("f15.txt"));
+        answer(&mut s, InputKind::Create, "new/deep/n.txt");
+        until(&mut s, |s| hovered(s).as_deref() == Some("new"));
+        assert_eq!(hovered(&s).as_deref(), Some("new"), "onto the part of the path in this folder");
+        assert!(dir.join("new").join("deep").join("n.txt").is_file());
     }
 }
 

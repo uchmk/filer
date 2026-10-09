@@ -428,7 +428,10 @@ obeys as well, and the module drives each in that form: history forking on a fre
 `U` walking the step forward again under its own sentence (12.4), and an undo blocked by a name
 taken in the meantime keeping the step, so a second press works (12.9). **The rows themselves are
 still unchecked** — nothing here has been through the recycle bin. 12.5's newest-of-two rule is
-`fs::restore`'s own unit test.
+`fs::restore`'s own unit test. Since v0.60.0 `a` records an undo step too, so 12.8a (a new file
+forks history like a second rename), 12.17 (undoing a new file removes the folders made for it,
+and `U` makes them again) and 12.19 (the cursor follows a rename and a new name,
+`ui::cursor_follows_frame`) are automated alongside 12.8 in `ui::undo_frame`.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -650,9 +653,11 @@ was that a gentle turn moved nothing at all.
 
 ## 21. Archives (v0.2.0)
 
-Three of these are automated (`ui::preview::archive_frame`): 21.1, on a zip the test packs itself,
-down to the size column and the `—` a folder inside an archive gets; 21.6; and 21.12. The other
-nine are out of reach and will stay there — `e` and `E` both hand the work to the job queue, and
+Six of these are automated: 21.1 (`ui::preview::archive_frame`), on a zip the test packs itself,
+down to the size column and the `—` a folder inside an archive gets; 21.4 (the cursor lands on the
+archive a compress made); 21.6 and 21.6a (`e` on a folder says so and names the packing key);
+21.12; and 21.22c (packing over an existing name offers another one, `app`). The other
+rows are out of reach and will stay there — `e` and `E` both hand the work to the job queue, and
 the harness runs no workers, so unpacking, packing, the task panel's counts and the sizes two
 formats come out at all need the program running. 21.9 needs 7-Zip besides. QA-REPORT.md says which
 row needs which. 21.6 says something other than what it says here, which is written up there too.
@@ -732,9 +737,11 @@ itself and every character of it gets a glyph, and two names differing only in c
 with their case kept. What is left for an eye in 24.1 is the column arithmetic -- that the glyphs
 are two cells wide and the rows line up. 24.2 is asserted by the harness (the long name is cut down
 to its column and still ends in `name.txt`) since v0.57.0 cuts in the middle of the stem (Q34); the
-ARM64 machine read the same on screen (#126). 24.4 needs the terminal pane, which is `#[cfg(windows)]`; the quoting it is really
-about is `terminal::tests::a_path_reaches_the_shell_as_one_word`, over the same `'` the fixture
-has. 24.5 needs the recycle bin.
+ARM64 machine read the same on screen (#126). 24.4 needs a shell in the terminal pane; the quoting
+it is really about is unit-tested in tsumugi-pane (`a_path_reaches_the_shell_as_one_word`), over
+the same `'` the fixture has. 24.5 needs the recycle bin. 24.7 is automated
+(`ui::awkward_names::neighbouring_long_names_in_the_parent_column_read_apart`): two long names
+that share a start are cut so that each still shows what tells it apart.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -992,7 +999,9 @@ own text, none over the next — are automated there too. That used to be 33.9's
 three broken config files raise one toast, not three (as 33.2's lines do), so 33.9 now says that.
 
 33.11 to 33.14 have unit tests of their own in `config::files`, including the two lines a file
-holding both misplaced sections gets and the `belongs in yazi.toml` direction. **33.16, 33.17 and
+holding both misplaced sections gets and the `belongs in yazi.toml` direction; 33.12 and 33.14 are
+counted from their frame tests in `ui::overlay`, and 33.20 (the `~` panel with only `[[preview]]`
+misplaced, then with both config files empty) is automated there too. **33.16, 33.17 and
 33.18** are unit-tested in `ui::overlay::help_config_rows`, against `config_rows` with a real file
 written into a temp directory: the marked row and its note, the marker coming off once the file is
 among the ones read, and the note naming a rebound `<F9>`.
