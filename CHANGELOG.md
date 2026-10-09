@@ -9,6 +9,13 @@
 
 ## [未リリース]
 
+## [0.86.7] - 2026-10-10
+
+### 変更
+
+- `scripts/merge-lanes.py` を tsumugi と同じものに揃えた。tsumugi の TESTING-KEYS.md で `[~]` を通すようにした分で、
+  filer の規則は変わらない（TESTING-KEYS.md は `[x]` だけ）。
+
 ## [0.86.6] - 2026-10-10
 
 ### 変更
