@@ -3279,6 +3279,22 @@ mod prompt_selection {
         assert_eq!(field(&s), "notes.txt", "the selected stem was replaced, not added to");
     }
 
+    /// #297: `<C-u>` in a prompt deletes from the caret back to the start of the
+    /// line, as readline does; egui's field does it, so this keeps it from going
+    /// quiet if a key handler ever swallows the chord first.
+    #[test]
+    fn ctrl_u_clears_back_to_the_start() {
+        let (_dir, mut s) = showing("q31-ctrl-u", &["report.txt"]);
+        s.typed("g");
+        s.typed(" ");
+        s.draw();
+        s.typed("abc");
+        s.draw();
+        s.feed(vec![super::overlays::chord(egui::Key::U, super::overlays::ctrl())]);
+        s.draw();
+        assert_eq!(field(&s), "");
+    }
+
     /// The archive's name selects the part before `.zip`.
     #[test]
     fn the_archive_name_selects_its_stem() {
