@@ -5388,7 +5388,9 @@ impl App {
         self.term_focus = false;
         self.max_term = false;
         if had {
-            self.toast("Ended the shell");
+            // Replace the `Started …` still up: the newer news hid behind it (#280).
+            let started = format!("Started {}", self.term_shell);
+            self.toast_instead(&[started.as_str()], "Ended the shell".into());
         }
     }
 
@@ -9598,6 +9600,7 @@ mod escape_and_max_preview {
         }
         assert!(a.term.is_none(), "the list's `<C-S-t>` ended the shell");
         assert_eq!(a.toasts.last().map(|t| t.text.as_str()), Some("Ended the shell"));
+        assert!(a.toasts.iter().all(|t| !t.text.starts_with("Started ")), "the Started toast went");
     }
 
     /// `<C-S-t>` asks before ending a shell that is running something, and
