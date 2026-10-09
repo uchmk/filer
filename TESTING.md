@@ -951,7 +951,7 @@ instructions are wrong, which is worse than a missing feature.
 | 32.8b | The same opener from `<S-Enter>` **and** from `<Enter>` with it moved to the top of `edit` | Both start `sakura.exe` on the file, since they take different code paths to the same launcher |
 | 32.8c | An opener with a deliberate typo in the path | A toast naming the failure. On a Japanese Windows expect the exit code rather than `cmd`'s own words — that is intended, not a bug to report |
 | 32.9 | `l` into a Markdown file's outline, `j` to a heading further down, `<S-Enter>` and pick サクラエディタ (v0.47.29 changed its switch from `-L=` to `-Y=`) | `Win32_Process` shows `sakura.exe -Y=<the heading's line> "<file>"`, the line counted from 1 as the preview counts it |
-| 32.9a | The same, then read サクラエディタ's status bar as text (`SendMessage` `SB_GETTEXTW` to its `msctls_statusbar32`) | It reads `<the heading's line> 行 1 桁`, and the character under the caret is the heading's first one. Control: a copy of the file that Sakura has never opened, opened without `-Y=`, reads `1 行 1 桁` (the same file would not: Sakura reopens a file at the line it was left on, `m_bRestoreCurPosition=1`, #198). Sakura ignored `-L=`, so before v0.47.29 it opened at line 1 or where the file was last left (#196 found the status bar readable) |
+| 32.9a | The same, then read サクラエディタ's status bar as text (`SendMessage` `SB_GETTEXTW` to its `msctls_statusbar32`: `scripts\read-statusbar.ps1`) | It reads `<the heading's line> 行 1 桁`, and the character under the caret is the heading's first one. Control: a copy of the file that Sakura has never opened, opened without `-Y=`, reads `1 行 1 桁` (the same file would not: Sakura reopens a file at the line it was left on, `m_bRestoreCurPosition=1`, #198). Sakura ignored `-L=`, so before v0.47.29 it opened at line 1 or where the file was last left (#196 found the status bar readable) |
 | 32.10 | An opener whose program is misspelled (`run = 'Hidemruu.exe %s'`), `<S-Enter>` and pick it (v0.59.1) | The error reads ``Open failed: `Hidemruu.exe` was not found — …``, not `exit code 1`. An opener whose program exists but fails still gives its exit code |
 | 32.11 | Linux: a `block = true` opener (`run = 'nvim %*'`; `vim` will do), `<Enter>` on a file whose folder and name hold a space and a `'` (v0.72.0) | A terminal window opens with the editor in it. `ps` shows the editor got the whole path as one argument, and `/proc/<pid>/cwd` is the list's folder |
 | 32.12 | Linux: the same with `TERMINAL="xterm -title picked"` | The window is titled `picked` (`xdotool getwindowname`). `filer env` names `xterm -title picked` on the `block = true openers` row; with `TERMINAL` unset it names the first of the built-in list that is installed |
@@ -1471,6 +1471,10 @@ What a person downloads from the Releases page, checked as they would get it: no
 nothing fetched by `scripts/fetch-conpty.ps1`. Take the newest release whose tag is v0.64.0 or later
 (48.5 needs its checksum table), download both Windows zips, and `Expand-Archive` each into an empty
 folder. Every row is a file listing, a command's output or a hash.
+
+`scripts\verify-release.ps1 -Tag vX.Y.Z` does the download and rows 48.1-48.5 in one command, and
+`scripts\run48.ps1` does 48.6 for one extracted folder (v0.80.4). Both were written on Linux: until a lane
+run has used them once, check their lines against the rows by hand.
 
 The PE machine of a file, for 48.3:
 `$b = [IO.File]::ReadAllBytes($f); '{0:X4}' -f [BitConverter]::ToUInt16($b, [BitConverter]::ToInt32($b, 0x3C) + 4)`.

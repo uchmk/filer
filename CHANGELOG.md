@@ -9,6 +9,22 @@
 
 ## [未リリース]
 
+## [0.80.4] - 2026-10-09
+
+### 追加
+
+- 順番表と TESTING.md が名指す PowerShell のスクリプトを `scripts/` に置いた。どれも Linux で書いたもので、冒頭に Windows で未実行と書いてある。
+  - `scripts/verify-release.ps1 -Tag vX.Y.Z`: リリースの Windows の zip を 2 つ落として展開し、48.1〜48.5（5 つのファイル、`--version`、PE machine、
+    ライセンスの ConPTY の版、リリースページの SHA-256 の表との照合）を 1 本で確かめる。Linux の PowerShell 7 で v0.72.2 と v0.79.0 に対して回した。
+  - `scripts/run48.ps1`: 同じ PE machine の囮の `conpty.dll` を `PATH` の先頭に置いて展開したフォルダの `filer.exe` を起動し、ペインを開いて、
+    読み込んだ `conpty.dll` がフォルダのものだけかを言う（48.6）。
+  - `scripts/fx45.ps1`: シンボリックリンクの行き先だけが違う 2 つの木を作る（45.11）。`-Run` で `keys.ps1` に比較を押させる。
+  - `scripts/read-statusbar.ps1`: サクラエディタのステータスバーを文字で読む（32.9a）。`-Match` で窓を絞る。
+
+### 修正
+
+- v0.79.0 のリリースページに SHA-256 の表が無いことが分かった（ノートが GitHub の本文の上限 125000 文字に届いて切れている）。直すのは TODO.md に積んだ。
+
 ## [0.80.3] - 2026-10-09
 
 ### 修正
