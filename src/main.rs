@@ -1477,6 +1477,15 @@ fn state_report(app: &App) -> String {
     if let Some(text) = exec::last_set_clipboard() {
         let one: String = text.replace(['\r', '\n'], " / ").chars().take(200).collect();
         lines.push(format!("clipboard set: {one}"));
+        // The whole text, beside `FILER_KEYS_DONE`, for when 200 characters
+        // were not enough (#297).
+        if let Some(done) = std::env::var_os("FILER_KEYS_DONE") {
+            let mut full = done;
+            full.push(".clipboard");
+            if std::fs::write(&full, &text).is_ok() {
+                lines.push(format!("clipboard file: {}", PathBuf::from(full).display()));
+            }
+        }
     }
     // How many frames were drawn: 47's question is whether an idle window
     // keeps drawing, which `(Get-Process).CPU` answered with a second tool

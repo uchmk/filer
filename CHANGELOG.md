@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.85.5] - 2026-10-09
+
+### 追加
+
+- `FILER_KEYS_DONE` の `clipboard set:` は 200 字で切れるので、全文を `FILER_KEYS_DONE.clipboard` に書き、そのパスを `clipboard file:` 行に出す（#297 の提案 3）。
+
 ## [0.85.4] - 2026-10-09
 
 ### 修正
