@@ -9,6 +9,24 @@
 
 ## [未リリース]
 
+## [0.86.6] - 2026-10-10
+
+### 変更
+
+- 実機のレーンの PR（`test/win-*`・`test/arm-*`・`test/linux-*`）は、GitHub Actions のワークフロー `Merge lanes`
+  （`.github/workflows/merge-lanes.yml`、中身は `scripts/merge-lanes.py`）がマージするようにした。触ってよいファイル・印の変わり方・
+  印ごとの証拠の行（`[~]` には画像の名前）を確かめ、`checklists` が緑でぶつかりが無ければ、head の SHA を固定した merge コミットでマージする。
+  守らないもの・赤・ぶつかりには PR にコメントを 1 回残す。Actions のタブから `dry_run` 付きで回すと何をマージするかだけを出す。
+  マージの Routine がしていたマージは、自動モードの分類器が #309・#310 で拒んだため。
+- マージの Routine（`.claude/merge-role.md`・`.claude/merge-routine.md`）はマージをしない。マージ済みで CHANGELOG に `#N` の無い PR の
+  分け前、ぶつかった PR の解決（PR のブランチへの push）、ワークフローが止めた PR を TODO.md の「マージで止めている実機の PR」に積むことをする。
+  そこにある `#N` はワークフローも飛ばす。
+- 自動マージの規則を狭めた: Windows のレーンが `windows-role.md` や `docs/` を変えた PR、`qa-reports/` の新しいファイルが 1 つでない PR、
+  画像の名前の無い `[~]` は自動ではマージされず、持ち主に回る。
+- `scripts/auto-wintest.ps1` は、自分のレーンの最後にマージされた PR（3 日以内）の `#N` が `main` の CHANGELOG.md に無いあいだ待つ
+  （分け前で順番表が進む前に起動して、同じ行を取りに行かないように）。
+- `scripts/verify.sh` が `scripts/merge-lanes.py --self-test` を回す。
+
 ## [0.86.5] - 2026-10-10
 
 ### 追加

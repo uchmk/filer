@@ -42,6 +42,9 @@ run cargo +stable clippy -q --all-targets --target x86_64-pc-windows-msvc -- -D 
 run cargo run -q --example make-testcheck -- --check
 run cargo run -q --example make-testcheck -- --lane linux --check
 run cargo run -q --example make-keycheck -- --check
+# The merge-lanes workflow merges the lanes' pull requests with main's copy
+# of this script; a broken copy would stop every merge.
+run python3 scripts/merge-lanes.py --self-test
 # The Windows lanes run scripts/*.ps1, and one that does not parse stops them
 # until a person steps in (scripts/check-ps1.ps1). CI parses them too; this is
 # the earlier warning, when the machine has pwsh.

@@ -454,6 +454,23 @@ try {
         exit 0
     }
 
+    # Since v0.86.6 the merge-lanes workflow merges this lane's pull request
+    # as soon as its checks are green, and the merge routine does the share
+    # (the queue in windows-role.md, CHANGELOG.md) at :59. Starting between
+    # the two would take the same rows again, so wait while the lane's latest
+    # merged pull request is not named in main's CHANGELOG.md yet.
+    $merged = gh pr list --repo $repo --state merged --limit 30 --json number,headRefName,mergedAt
+    if ($LASTEXITCODE -ne 0) { Say 'gh pr list failed (is gh logged in?). Trying again next time.'; exit 0 }
+    $lastMerged = $merged | ConvertFrom-Json | Where-Object { $_.headRefName -like "test/$Lane-*" } |
+        Sort-Object { [datetime]$_.mergedAt } -Descending | Select-Object -First 1
+    if ($lastMerged -and [datetime]$lastMerged.mergedAt -gt (Get-Date).AddDays(-3)) {
+        $changelog = (git -C $Work show origin/main:CHANGELOG.md) -join "`n"
+        if ($changelog -notmatch "#$($lastMerged.number)(?!\d)") {
+            Say "Waiting: #$($lastMerged.number) is merged, but the merger's share for it is not on main yet."
+            exit 0
+        }
+    }
+
     if (git -C $Work status --porcelain) {
         Say "$Work has uncommitted changes, left by a run that was cut off. Look at them (listed in $dirtyFile), then clean it (git -C $Work stash -u, or git restore/clean) and run again."
         exit 1

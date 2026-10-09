@@ -13,8 +13,8 @@ CLAUDE.md から分けた（2026-10-07）。QA や実機のセッションを立
 - **チェック表に件数を書かない。**TESTING-CHECKS.md / TESTING-LINUX.md / TESTING-KEYS.md の冒頭の「N / M 済み」と節の見出しの
   `d / n` は、印を付けた PR が毎回書き換え、印の無い行でぶつかっていた。件数は `-- --stats` で出す
   （`cargo run --example make-testcheck -- --stats`、`-- --lane linux --stats`、`cargo run --example make-keycheck -- --stats`）。
-- それでもぶつかったとき（切り替え前の PR など）、境界がきれいなら、マージする側はその回のうちに CI を待ってマージしてよい
-  （`merge-role.md` の 2）。
+- それでもぶつかったとき（同じ行に両方が印を付けたなど）は、マージの Routine が PR のブランチに `origin/main` を merge コミットで
+  取り込んで push し、ワークフローが CI の緑を待ってマージする（`merge-role.md` の 3）。
 
 ## QA セッション（テスト専任）
 
@@ -112,8 +112,8 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
 - **無人で回せる（v0.50.0 から）。**`scripts/auto-wintest.ps1` をタスク スケジューラで 1 時間おき（:20。マージの :59 の後。2026-10-05、持ち主の判断）に
   呼ぶと、`main` の TESTING.md / TESTING-CHECKS.md / `windows-role.md` が変わっていて、`test/win-*` の
   PR が開いていないときに 1 本起動する（別 worktree の `C:\dev\filer-wintest` で）。登録の仕方は
-  スクリプトの冒頭。**実機の PR をマージすることが次の実行の引き金になる**ので、マージする側は
-  順番表（`windows-role.md` の「Where the work is」）が次の節を指しているかを確かめてからマージする。
+  スクリプトの冒頭。**レーンは自分の PR がマージされ、その分け前（`#N` の入った CHANGELOG）が `main` に入るまで待つ**（v0.86.6）。
+  分け前で順番表（`windows-role.md` の「Where the work is」）を次の節に進めるので、それより先に起動すると同じ行を取りに行く。
   無人のときの規則は役割定義の「Unattended runs」の節。
   **タスクは作業フォルダの中のスクリプトを動かす**（v0.73.24）。`-File C:\dev\filer-wintest\scripts\auto-wintest.ps1`（ARM64 は
   `filer-armtest`）。作業フォルダは起動のたびに `origin/main` に合わせるので、いつも最新のスクリプトが動き、持ち主の `C:\dev\filer` は触らない。
@@ -133,9 +133,15 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   **モデルは `-Model` で明示する**（v0.78.30。既定は v0.80.15 から `claude-sonnet-5-5`）。機械の `claude` の既定には従わない。
   実機のレーンは 2026-10-04 から Opus だったが、2026-10-09 に持ち主の判断で x64・ARM64 の両方とマージの Routine を Sonnet 5.5 に変えた
   （開発の Routine も Sonnet 5.5）。Opus に戻すときはタスクの引数に `-Model claude-opus-5-5` を足すか、この既定を戻す。
-- **マージする側も無人で回っている（v0.50.2 から）。**クラウドの Routine が 1 時間おきに
-  `.claude/merge-role.md` を読み、`test/win-*` などの PR を確かめてマージし（v0.73.15 から、マージしてよいものは 1 回で全部）、版・CHANGELOG・
-  提案の振り分け・順番表の補充までをする。**無人の実行が `main` に直接 push してよいのは、この
+- **マージはワークフロー、分け前は Routine（v0.86.6 から）。**`.github/workflows/merge-lanes.yml`（中身は `scripts/merge-lanes.py`）が、
+  CI・Checklists・Audit が終わるたびと毎時 :17 に `test/win-*`・`test/arm-*`・`test/linux-*` の PR を見て、規則（触ってよいファイル、
+  印の変わり方、印ごとの証拠の行、`[~]` には画像の名前）を守り、必須のチェック（`checklists`）が緑で、ぶつかりが無いものを
+  head の SHA を固定した merge コミットでマージする。守らないもの・赤・ぶつかりには PR にコメントを 1 回残す
+  （`<!-- merge-lanes:<種類>:<sha> -->`）。Actions のタブから `dry_run` を付けて手で回すと、何をマージするかだけを出す。
+  それまでは Routine がマージしていたが、2026-10-10 に自動モードの分類器が #309・#310 のマージを「レビューの無いマージ」として拒んだ。
+  クラウドの Routine は 1 時間おきに `.claude/merge-role.md` を読み、マージ済みで CHANGELOG に `#N` の無い PR の分け前
+  （版・CHANGELOG・提案の振り分け・順番表の補充）をし、ぶつかった PR は PR のブランチで解いて push し、
+  ワークフローが止めたものは TODO.md の「マージで止めている実機の PR」に積んで持ち主に回す（そこにある `#N` はワークフローも飛ばす）。**無人の実行が `main` に直接 push してよいのは、この
   Markdown と版だけのコミットに限る**（ビルドを壊しうるものが入らないから）。コードの修正が要るものは TODO.md に書いて止まり、
   開発の Routine（「自動実行モード」）が拾う。
 - **レーンは 2 本（v0.51.0 から）。**x64 の機械が `win`（`test/win-*`）、ARM64 のノート PC が
@@ -163,6 +169,6 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   **TESTING-CHECKS.md と TESTING-KEYS.md は触らせない**（あちらの `[x]` は Windows 実機の印）。
 - 道具は `scripts/xrun.sh`（仮想ディスプレイで起動し、画面・タイトル・クリップボードを残す）と
   `scripts/make-fixtures.sh`（`make-fixtures.ps1` の Linux 版）。`xdotool` などは `apt-get` で入る。
-- ブランチは `test/linux-*`。PR を開いたら止まり、マージ・版・CHANGELOG は `.claude/merge-role.md` の側がやる
+- ブランチは `test/linux-*`。PR を開いたら止まり、マージはワークフロー、版・CHANGELOG は `.claude/merge-role.md` の側がやる
   （Windows の 2 レーンと同じ）。
 - **確かめられないもの**: Wayland、ARM64 Linux、macOS、速度と CPU（CPU 描画なので）、見た目（フォントが違う）。

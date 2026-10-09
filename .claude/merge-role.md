@@ -1,11 +1,19 @@
-# Merging the Windows machine's pull requests
+# The merger's share for the machines' pull requests
 
-A scheduled cloud session reads this and does what a person used to ask for by
-hand: take a pull request from a Windows machine's session
-(`.claude/windows-role.md`), check it, merge it, and do the merger's share. The
-merge is also what starts that machine's next run (`scripts/auto-wintest.ps1`
-waits while one of its lane's is open), so a pull request left sitting stops
-the loop.
+A scheduled cloud session reads this and does what a person used to do around
+a pull request from a machine's session (`.claude/windows-role.md`): check
+what the run found, and do the merger's share. **It does not merge.** Since
+v0.86.6 the `Merge lanes` workflow (`.github/workflows/merge-lanes.yml`,
+`scripts/merge-lanes.py`) merges each lane pull request itself, with a merge
+commit pinned to its head, once it keeps to the rules in 2 and its checks are
+green. The routine used to merge, and the cloud session's auto mode refused
+the merge as one nobody had reviewed (#309 and #310, 2026-10-10); a workflow
+whose rules are code does not need a reviewer for each one.
+
+A lane's next run (`scripts/auto-wintest.ps1`) waits while one of its pull
+requests is open, and also while its latest merged one is not named in
+`main`'s CHANGELOG.md. **So the share is what lets the lane go on**: a merged
+pull request left without it stops the loop as surely as an open one did.
 
 There are three lanes: `test/win-*` from the x64 machine, `test/arm-*` from the
 ARM64 laptop, and `test/linux-*` from a cloud session running filer on a
@@ -42,128 +50,115 @@ reply names what changed (`Q57: 多数決 1`).
 
 ## 1. Find the work
 
-- List open pull requests whose head branch starts with `test/win-`,
-  `test/arm-` or `test/linux-`. None: stop here and say so in one line (after
-  the votes in 0). That is most runs.
-- **Every one that may be merged, oldest first** (since v0.73.15). Take them one
-  at a time through 2 and 3, fetching `origin/main` again before each, since the
-  one before moved it. A pull request that cannot be merged yet (CI running, a
-  conflict to stop on, a tick without evidence) is passed over, not waited on:
-  go on to the next. With three lanes and one merge an hour, pull requests
-  queued behind each other while their lanes sat idle; since the reports and
-  the checklists stopped conflicting (v0.73.14), two in one run no longer get in
-  each other's way.
+- **Merged, without a share**: the lane pull requests (head branch
+  `test/win-*`, `test/arm-*` or `test/linux-*`) merged in the last 7 days
+  whose `#N` is nowhere in `origin/main`'s CHANGELOG.md
+  (`gh api "repos/uchmk/filer/pulls?state=closed&sort=updated&direction=desc&per_page=50"`,
+  keep those with `merged_at` set). Each one gets its share in 4. Every
+  merged lane pull request's `（#N）` must end up in CHANGELOG.md: that is how
+  the next run, and the lane's script, know it was done.
+- **Open, and stopped**: the open lane pull requests the workflow commented
+  on. Its comments end in a hidden marker `<!-- merge-lanes:<kind>:<sha> -->`,
+  one per head and kind: `rules` (it breaks 2), `red` (a required check
+  failed), `conflict` (it conflicts with `main`). One whose marker names an
+  older head than the pull request's is stale; look at the pull request as it
+  is now. These go through 3.
+- Open lane pull requests with no such comment are the workflow's: their
+  checks are running, or it will merge them on its next pass (it runs when a
+  check workflow finishes, and at :17 every hour). Leave them.
 
-## 2. Decide whether it may be merged
+Nothing in either list: stop here and say so in one line (after the votes in
+0). That is most runs.
 
-All of these, or it is not merged:
+## 2. What the workflow merges
 
-1. **It only touches what the Windows session may write**: **one new file under
-   `qa-reports/`** (its report; added, not edited -- another run's file is not
-   its to change), `TESTING-CHECKS.md` (every changed line is a `[ ]` turned `[x]` or `[~]`, or a
-   `[~]` turned `[x]` -- the last only by the owner, never by a run),
-   `TESTING-KEYS.md` (ticks only: every changed line is a `[ ]` turned `[x]`), `.claude/windows-role.md` (its queue), and files under
-   `docs/`. Anything else -- `src/`, `Cargo.toml`, `CHANGELOG.md`, TESTING.md, or
-   any other change to TESTING-KEYS.md -- and you do not merge: comment on the pull request naming
-   the files, and add a line to QUESTIONS.md so the owner sees it.
-   **A `test/linux-*` pull request** may touch only its one new `qa-reports/`
-   file, `TESTING-LINUX.md` and files under `docs/`.
-   **Until 2026-10-03 every run appended its report to QA-REPORT.md instead.** A
-   pull request opened before then (#198, #199) may still do that, adding at
-   the end and changing nothing above it; one opened after it may not. A Linux run that changed
-   TESTING-CHECKS.md or TESTING-KEYS.md claimed a Windows result: do not merge.
-2. **CI is green on its head**: every check run on it is `success`. Which ones
-   run depends on the files: a pull request that changes only the checklists,
-   `qa-reports/` and other files in `ci.yml`'s `paths-ignore` runs `audit` and
-   `checklists` (v0.73.15) and nothing else, by design -- those two green is
-   green. Anything else runs `audit`, `clippy`, `smoke`, `test` and `test-linux` as well.
-   **Still running: subscribe to the pull request** (`subscribe_pr_activity`,
-   since v0.73.21) and go on to the next one. When its checks finish, the
-   session is woken with the result: green, take it through 2 and 3 and do its
-   share in 4 then and there; red, as below. Without this a pull request whose
-   CI was still running waited for the next run, an hour, though its CI took
-   minutes. **Unsubscribe** (`unsubscribe_pr_activity`) once it is merged, or
-   once you stop on it for any other reason -- a subscription left behind wakes
-   the session for nothing. A wake for a pull request that is already merged or
-   closed: unsubscribe and stop. Red: read the
-   log. A documentation-only pull request cannot break a build, so a red test is
-   a flaky test on `main`. **Do not fix code from here** -- nobody reviews what an
-   unattended run pushes to `main`. Write the failing test, the log line and your
-   reading of the cause into TODO.md (commit that as in 4), comment on the pull
-   request, and stop. Never merge over red.
-3. **The checklists agree with their generators** on the pull request's head:
-   `cargo run --example make-testcheck -- --check`,
-   `cargo run --example make-testcheck -- --lane linux --check` and
-   `cargo run --example make-keycheck -- --check`, all exit 0. Since v0.73.14 the
-   checklists hold no counts (they come from `-- --stats`), so a pull request
-   that only ticks changes only its tick lines. One made before that still
-   edits the count lines and the section headings: that is the conflict below,
-   and once it is resolved the check passes.
-4. **Every new tick has its evidence line** in the pull request body, and none
-   is an appearance row (`windows-role.md`, "Ticking TESTING-CHECKS.md"). In
-   TESTING-LINUX.md every `[x]` needs its evidence line and every `[-]` its
-   reason (`linux-role.md`). A tick
-   in TESTING-KEYS.md needs both halves on its line: what the key changed, and
-   the before/after snapshot of what it did not (`windows-role.md`,
-   "TESTING-KEYS.md"). A `[~]` (an appearance row judged from a screenshot)
-   needs the picture's path, what was seen, and the failure that was looked for
-   and not found, and its row must be one that cannot be measured
-   (`windows-role.md`, "Ticking TESTING-CHECKS.md"). A tick or a `[~]`
-   you cannot match to evidence: comment, do not merge.
+`scripts/merge-lanes.py` holds the rules; this is what they say, so that you
+can tell the owner why a pull request stopped. All of these, or it is not
+merged:
 
-A conflict with `main` is not a reason to stop: merge `origin/main` into the
-pull request's branch with a merge commit (never rebase or force-push it),
-resolve, and push. A pull request that follows the current roles conflicts
-only where two runs ticked the same row, which should not happen. The older
-ones conflict in two places:
+1. **It only touches what the run may write.** `test/win-*` and `test/arm-*`:
+   **exactly one new file under `qa-reports/`** (its report; added, not edited),
+   `TESTING-CHECKS.md` (every changed line is a `[ ]` turned `[x]` or `[~]`, the
+   row's text unchanged) and `TESTING-KEYS.md` (every changed line a `[ ]`
+   turned `[x]`). `test/linux-*`: one new `qa-reports/` file and
+   `TESTING-LINUX.md` (`[ ]` to `[x]` or `[-]`). Anything else -- `.claude/`,
+   `docs/`, `src/`, `CHANGELOG.md`, TESTING.md, a heading, a count line -- is
+   not merged. (Until v0.86.5 the routine also merged a run's edits to
+   `windows-role.md` and `docs/`; a run cannot write under `.claude/` and
+   applies its queue through the `## Queue` section of its body instead.)
+2. **Every new mark has its evidence line in the pull request body**: a line
+   that names the row (`**49.8**`, `49.8`, a range like `49.7-49.9`, or for
+   TESTING-KEYS.md the key in backticks) and says something beyond the name.
+   A `[~]` (an appearance row judged from a screenshot) also needs the
+   picture's file name on that line. What the line must say beyond that
+   (`windows-role.md`, "Ticking TESTING-CHECKS.md" and "TESTING-KEYS.md") is
+   yours to read in 4; the workflow checks only that it is there.
+3. **The required checks are green on its head** (`checklists`, which runs
+   the three `--check`s; any other check that ran must not have failed).
+4. **It does not conflict with `main`**, and it is not listed under TODO.md's
+   "マージで止めている実機の PR".
 
-- **QA-REPORT.md** (a report appended there, before 2026-10-03): keep both
-  sections whole -- restore the markers with `git checkout --conflict=merge` and
-  read the boundary first. `main`'s side first, then the pull request's.
-- **TESTING-CHECKS.md** (or TESTING-LINUX.md, with `-- --lane linux`): take
-  `main`'s side, put the pull request's ticks back on it, regenerate with
-  `cargo run --example make-testcheck`, and check that every tick from both
-  sides is still there.
+## 3. A pull request the workflow stopped on
 
-Then, which of two:
+- **`conflict`**: merge `origin/main` into the pull request's branch with a
+  merge commit (never rebase or force-push it), resolve, and push to the
+  branch. The workflow merges it once CI is green on the new head; do not
+  wait for that. The resolution:
+  - **TESTING-CHECKS.md** (or TESTING-LINUX.md, with `-- --lane linux`, or
+    TESTING-KEYS.md with `make-keycheck`): take `main`'s side, put the pull
+    request's ticks back on it, regenerate with
+    `cargo run --example make-testcheck`, and run the three `--check`s
+    (`cargo run --example make-testcheck -- --check`,
+    `cargo run --example make-testcheck -- --lane linux --check`,
+    `cargo run --example make-keycheck -- --check`).
+  - **A tick line both sides changed** (the owner's word, 2026-10-05: settle
+    it here, do not ask). `main` rewrote the row after the run (a fix changed
+    its expectation, and unticked it): **take `main`'s line, unticked**; the
+    run checked the old expectation, so its tick does not stand for the new
+    one, and the row stays in the lane's "Re-tests of changed behaviour". Say
+    so in the share (`#N settled A and B; C was rewritten by vX.Y.Z after the
+    run, so it stays open`). The same text on both sides, both ticked: take
+    either; the tick stands.
+  - **Anything else conflicted**: do not guess. Hold it (below).
+- **`rules`**: the workflow will not merge it as it is, and you do not change
+  a run's ticks or its report. Hold it (below), naming each problem the
+  comment lists, what each choice would do, and the recommended one (merge
+  as it is, or close and let the next run press those rows again).
+- **`red`**: read the log. A pull request of Markdown cannot break a build, so
+  a red check is a flaky test or a broken `main`. **Do not fix code from
+  here** -- nobody reviews what an unattended run pushes to `main`. Write the
+  failing check, the log line and your reading of the cause into TODO.md
+  (commit that as in 4). A `checklists` failure on a pull request that only
+  ticks is a mark the generator does not accept: hold it as for `rules`.
 
-- **Only the checklists and QA-REPORT.md conflicted**, every QA-REPORT.md
-  conflict was two whole sections meeting at the end (no marker inside a
-  section, nothing above the pull request's section changed), and after
-  resolving, the pull request's diff against `main` names the same files, the
-  same tick lines and the same added section as before: **wait for CI on the
-  new head in this run** -- subscribe to it as in 2.2 rather than polling -- and
-  once all of 2.2 is green, go on to 3 and merge it now. Such a conflict is two
-  appends meeting, or a count line `main` moved; making it wait an hour each
-  time held #197 back three runs on 2026-10-03, and the lane with it. Red:
-  stop, as below.
-- **A tick line both sides changed** (the owner's word, 2026-10-05: settle it
-  here, do not ask). Two cases, both decided by the row's text:
-  - `main` rewrote the row after the run (a fix changed its expectation, and
-    unticked it): **take `main`'s line, unticked.** The run checked the old
-    expectation, so its tick does not stand for the new one; the row stays in
-    the lane's "Re-tests of changed behaviour". Say so in the merger's share
-    (`#N settled A and B; C was rewritten by vX.Y.Z after the run, so it stays
-    open`). #273 waited on the owner for exactly this (32.20, v0.78.100).
-  - the row's text is the same on both sides and both ticked it (the other
-    lane got there first): take either; the tick stands.
-  Keep the pull request's side for every other row, regenerate with
-  `cargo run --example make-testcheck`, run the three `--check`s of 2.3, push
-  the merge commit to the pull request's branch, and go on as in the case
-  above (wait for CI on the new head in this run, then 3).
-- **Anything else conflicted** (a marker inside a section, any other file):
-  stop; the next run merges it once CI is green.
+**Holding** is a line under TODO.md's "マージで止めている実機の PR" (take out
+`いまは無い`): the pull request's number as `#N`, why it stopped, the choices
+and the recommended one, written so the next run can carry out either answer
+without you. The workflow passes over every `#N` listed there. Commit it as in
+4. The owner answers with a line `- 持ち主の答え: …` under the item; one an
+interactive session wrote (`対話のセッションで`) counts, since the owner
+talks to Claude only there. GitHub names `uchmk` as the merger of every pull
+request, the workflow's merges included, so `merged_by` never tells you the
+owner merged one: only the owner's own words do. **Once the answer is there,
+carry it out in this run** (read `main`'s TODO.md again right before you
+decide):
 
-## 3. Merge
-
-`merge_pull_request` with `merge_method: "merge"` and the **full 40-character**
-head SHA as `expectedHeadSha`. Never squash, never rebase. Then back to 2 for
-the next pull request in the list.
+- **Merge it**: resolve what the answer settles on the pull request's branch
+  as above, push, and take the item out of the section, in this run's share.
+  The workflow then merges it when its checks are green. When it stopped on
+  `rules` and the answer keeps it as it is, the workflow will still refuse
+  it: say so under the item and reply `not merged #N: the workflow's rules
+  (…); the owner merges it by hand`.
+- **Close it**: close the pull request with a one-line comment naming the
+  answer, check that its rows are still in that lane's "Re-tests of changed
+  behaviour", and take the item out.
+- An answer you cannot carry out as written: write under the item what
+  stopped you, and reply `not merged #N: …`.
 
 ## 4. The merger's share, straight on `main`
 
-One commit for the run, however many were merged, pushed to `main` after the
-last merge (CLAUDE.md: one version per push). Each pull request gets its own
+One commit for the run, for every pull request found in 1 without its share
+(CLAUDE.md: one version per push). Each pull request gets its own
 CHANGELOG line, proposals and queue edit inside it. It holds **Markdown, `Cargo.toml` and `Cargo.lock`
 only** -- this is the one push to `main` an unattended run may make, and it is
 allowed because nothing in it can break a build. **Push it with
@@ -181,6 +176,12 @@ What goes in it:
 - **Version**: PATCH up in `Cargo.toml`, `cargo build` for `Cargo.lock`.
 - **CHANGELOG.md**: a new section, with each merged pull request's changelog line
   in the file's own style (Japanese), and its `（#NN）`.
+- **The evidence, read as a merger would**: the workflow checked only that
+  each mark has a line naming its row. Read those lines against
+  `windows-role.md` ("Ticking TESTING-CHECKS.md", "TESTING-KEYS.md"). A mark
+  whose line does not hold up (no before/after for a key, a `[~]` on a row
+  that can be measured): untick it in this commit, put the row back in the
+  lane's "Re-tests of changed behaviour", and say why in the CHANGELOG line.
 - **Proposals and findings**: every item under the run's `### Proposals` and
   every bug in its report (its `qa-reports/` file, or its QA-REPORT.md section
   for a pull request from before 2026-10-03) goes somewhere -- TODO.md for what needs
@@ -226,9 +227,9 @@ What goes in it:
 
 ## Never
 
-- Merge a pull request that touches anything outside the list in 2.1.
+- Merge a pull request, or ask anything else to: that is the workflow's.
 - Tick a row yourself, or edit TESTING.md's rows or numbering.
 - Vote for a lane, or count a question that is not `投票中`.
-- Push to the pull request's branch except to resolve a conflict.
+- Push to the pull request's branch except to resolve a conflict (3).
 - Change code, workflows or scripts. Anything that needs it goes to TODO.md.
 - Cut a release, run `cargo fmt`, or force-push anything.

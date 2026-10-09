@@ -33,7 +33,8 @@
 
 ## マージで止めている実機の PR
 
-マージの Routine が止めた実機の PR。持ち主の答えがここに書かれるまで、どの回もマージしない（`.claude/merge-routine.md` の 2）。
+マージのワークフローか Routine が止めた実機の PR。ここにある `#N` はワークフロー（`scripts/merge-lanes.py`）がマージしない。
+持ち主の答えがここに書かれたら、Routine がその回のうちにそのとおりにする（`.claude/merge-role.md` の 3）。
 
 いまは無い
 
