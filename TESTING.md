@@ -656,7 +656,10 @@ was that a gentle turn moved nothing at all.
 Six of these are automated: 21.1 (`ui::preview::archive_frame`), on a zip the test packs itself,
 down to the size column and the `—` a folder inside an archive gets; 21.4 (the cursor lands on the
 archive a compress made); 21.6 and 21.6a (`e` on a folder says so and names the packing key);
-21.12; and 21.22c (packing over an existing name offers another one, `app`). The other
+21.12; and 21.22c (packing over an existing name offers another one, `app`). 21.17 and 21.19
+are automated in `app::archive_view` through the list's keymap: `l` / `h`, `<Right>` / `<Left>`
+and `<Esc>` walking a zip the test packs, and `x d a r p` each refused with the read-only message
+while the folder and the archive stay byte for byte as they were. The other
 rows are out of reach and will stay there — `e` and `E` both hand the work to the job queue, and
 the harness runs no workers, so unpacking, packing, the task panel's counts and the sizes two
 formats come out at all need the program running. 21.9 needs 7-Zip besides. QA-REPORT.md says which
@@ -1004,7 +1007,12 @@ counted from their frame tests in `ui::overlay`, and 33.20 (the `~` panel with o
 misplaced, then with both config files empty) is automated there too. **33.16, 33.17 and
 33.18** are unit-tested in `ui::overlay::help_config_rows`, against `config_rows` with a real file
 written into a temp directory: the marked row and its note, the marker coming off once the file is
-among the ones read, and the note naming a rebound `<F9>`.
+among the ones read, and the note naming a rebound `<F9>`. **33.19, 33.21 and 33.22** are
+end-to-end in `config::reload_tests`: real `keymap.toml` and `yazi.toml` files in a yazi and a
+filer folder, read and then re-read the way `<C-F5>` does, with the warnings and overrides `filer env`
+prints asserted word for word (full paths included) and `q` resolved through the keymap. **33.23**
+is a frame test in `ui::config_warning_frame`: 33.22's warning in a 520-pixel window wraps onto
+indented rows, none cut, and `C` copies it as one line.
 
 What is left for an eye: that the yellow *reads* as advice rather than as a failure at a glance
 (33.4 — a test can say the two colours differ and which is which, not that a person tells them

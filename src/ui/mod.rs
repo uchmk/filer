@@ -3391,6 +3391,38 @@ mod config_warning_frame {
             assert!(window.contains_rect(*b), "all five inside the window: {b:?} in {window:?}");
         }
     }
+
+    /// TESTING.md 33.23 (v0.78.185): 33.22's warning, in a window too narrow
+    /// for it, continues on the next rows, indented, every row drawn whole;
+    /// `C` copies it as the one line it is.
+    #[test]
+    fn a_long_warning_wraps_on_the_panel_and_copies_as_one_line() {
+        let user = "[[mgr.keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n";
+        let (_km, warnings) = Keymap::load_named(&[("/home/me/.config/filer/keymap.toml", user)]);
+        let warning = warnings.iter().find(|w| w.contains("did you mean")).cloned().expect("33.22's warning");
+        let cfg = Config { warnings: vec![warning.clone()], ..Config::load() };
+        let mut s = Screen::with_config(cfg, crate::util::test_dir("cfg-warn-wrap")).sized(520.0, 700.0);
+        let theme = s.app.cfg.theme.clone();
+
+        let f = s.typed("~");
+        // The start-up toast says it too, in the same colour; it is not the panel.
+        let rows: Vec<&String> =
+            f.inked.iter().filter(|(t, c)| *c == theme.warning && !t.starts_with("Config: ")).map(|(t, _)| t).collect();
+        assert!(rows.len() > 1, "wider than the panel, so more than one row: {rows:?}");
+        assert!(rows[1..].iter().all(|r| r.starts_with("    ") && !r.starts_with("     ")), "indented by four: {rows:?}");
+        let joined: String = rows.iter().enumerate().map(|(i, r)| if i == 0 { r.as_str() } else { &r[4..] }).collect();
+        assert_eq!(joined, warning, "nothing lost between the rows");
+        for r in &rows {
+            let drawn = f.drawn(r).unwrap_or_default();
+            assert!(!drawn.contains('\u{2026}') && drawn.trim_end().ends_with(r.trim_end()), "{r:?} was cut: {drawn:?}");
+            let at = f.placed(r).expect("placed");
+            assert!(at.x < s.rect().right(), "{r:?} starts inside the window");
+        }
+
+        s.typed("C");
+        let copied = crate::exec::get_clipboard().expect("the copy");
+        assert!(copied.lines().any(|l| l == warning), "the warning as one line: {copied}");
+    }
 }
 
 /// TESTING.md section 13's list half: the `->` marker, the type column, and

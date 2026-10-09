@@ -8527,6 +8527,97 @@ mod archive_view {
         assert_eq!(a.tabs[a.active].memo.get(&dir).map(String::as_str), Some("pack.zip"));
     }
 
+    /// Each token one key through the list's keymap, as the window sends it.
+    fn keys(a: &mut App, tokens: &[&str]) {
+        for t in tokens {
+            a.feed_key(crate::config::keys::Key::parse(t).expect("notation the keymap can spell"));
+        }
+    }
+
+    fn hovered(a: &App) -> Option<String> {
+        a.tabs[a.active].current.hovered().map(|e| e.name.clone())
+    }
+
+    /// TESTING.md 21.17 (Q75): `l` / `h` and `<Right>` / `<Left>` through
+    /// the keymap go in, down, up with the cursor on the folder come out
+    /// of, and out at the top; `<Esc>` leaves from any level.
+    #[test]
+    fn the_arrow_keys_and_esc_walk_the_archive() {
+        let (mut a, zip) = app_on_archive();
+        let dir = zip.parent().unwrap().to_path_buf();
+        keys(&mut a, &["l"]);
+        wait(&mut a);
+        assert!(a.in_archive_view());
+        assert_eq!(names(&a), ["docs", "top.txt"]);
+        assert!(a.tabs[a.active].current.hovered().is_some_and(|e| e.path == zip.join("docs")), "hovered: names the member under the archive");
+        keys(&mut a, &["<Right>"]);
+        assert_eq!(names(&a), ["a"]);
+        keys(&mut a, &["l"]);
+        assert_eq!(names(&a), ["readme.md"]);
+        keys(&mut a, &["h"]);
+        assert_eq!((names(&a), hovered(&a)), (vec!["a".to_owned()], Some("a".to_owned())));
+        keys(&mut a, &["<Left>"]);
+        assert_eq!((names(&a), hovered(&a)), (vec!["docs".to_owned(), "top.txt".to_owned()], Some("docs".to_owned())));
+        keys(&mut a, &["<Left>"]);
+        assert!(!a.in_archive_view(), "`<Left>` at the top leaves");
+        assert_eq!(a.tabs[a.active].current.path, dir);
+        assert_eq!(a.tabs[a.active].memo.get(&dir).map(String::as_str), Some("pack.zip"));
+
+        // `<Esc>` from two levels down leaves the whole view at once.
+        let entries = vec![Entry::from_path(zip.clone()).unwrap()];
+        a.tabs[a.active].current = Folder::from_entries(dir.clone(), Arc::new(entries), true);
+        keys(&mut a, &["<Right>"]);
+        wait(&mut a);
+        keys(&mut a, &["l", "l"]);
+        assert_eq!(names(&a), ["readme.md"]);
+        keys(&mut a, &["<Esc>"]);
+        assert!(!a.in_archive_view(), "`<Esc>` leaves from any level");
+        assert_eq!(a.tabs[a.active].current.path, dir);
+    }
+
+    /// TESTING.md 21.19: `x`, `d`, `a`, `r` and `p` through the keymap each
+    /// say the archive is read only, open nothing, and leave the folder the
+    /// archive sits in as it was.
+    #[test]
+    fn the_writing_keys_are_refused_inside_an_archive() {
+        let (mut a, zip) = app_on_archive();
+        let dir = zip.parent().unwrap().to_path_buf();
+        fn tree(d: &Path) -> Vec<PathBuf> {
+            let mut all = Vec::new();
+            for e in std::fs::read_dir(d).unwrap() {
+                let p = e.unwrap().path();
+                if p.is_dir() {
+                    all.extend(tree(&p));
+                }
+                all.push(p);
+            }
+            all.sort();
+            all
+        }
+        let before = tree(&dir);
+        let zip_bytes = std::fs::read(&zip).unwrap();
+        // Something in the register, so `p` has something it could paste.
+        a.yank.paths = vec![dir.join("src").join("top.txt")];
+        keys(&mut a, &["l"]);
+        wait(&mut a);
+        for k in ["x", "d", "a", "r", "p"] {
+            a.toasts.clear();
+            keys(&mut a, &[k]);
+            let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
+            assert_eq!(
+                said,
+                ["Inside an archive: read only — this would change the archive, which filer never writes. y then p in a folder takes a copy out, Esc leaves"],
+                "`{k}`",
+            );
+            assert!(matches!(a.overlay, Overlay::None), "`{k}` opened nothing");
+            assert!(a.in_archive_view(), "`{k}` stays in the view");
+        }
+        assert!(!a.yank.cut, "nothing was cut");
+        std::thread::sleep(Duration::from_millis(50));
+        assert_eq!(tree(&dir), before, "the folder is unchanged");
+        assert_eq!(std::fs::read(&zip).unwrap(), zip_bytes, "and so is the archive");
+    }
+
     /// Nothing that writes runs on rows that are not files yet.
     #[test]
     fn inside_an_archive_is_read_only() {

@@ -1203,4 +1203,89 @@ mod reload_tests {
         let said = cfg.warnings.iter().find(|w| w.contains("keymap.toml")).cloned().unwrap_or_default();
         assert!(said.ends_with("stay in force until it parses again)"), "{said}");
     }
+
+    /// A yazi folder and a filer folder, each made empty, in the order the
+    /// app reads them.
+    fn two_dirs(label: &str) -> (PathBuf, PathBuf, Vec<PathBuf>) {
+        let root = crate::util::test_dir(label);
+        let (yazi, filer) = (root.join("yazi"), root.join("filer"));
+        std::fs::create_dir_all(&yazi).unwrap();
+        std::fs::create_dir_all(&filer).unwrap();
+        (yazi.clone(), filer.clone(), vec![yazi, filer])
+    }
+
+    fn mgr_run(c: &Config, key: &str) -> Option<String> {
+        use crate::config::keymap::{resolve, Match};
+        match resolve(&c.keymap.mgr, &[crate::config::keys::Key::parse(key).unwrap()]) {
+            Match::Exact(b) => Some(b.raw.clone()),
+            _ => None,
+        }
+    }
+
+    /// TESTING.md 33.19 (Q57, Q60): `Q` bound in both folders is a warning
+    /// naming each file by its full path; `T` rebound in filer's file only is
+    /// an override, not a warning; `T` bound to its own default is neither.
+    /// What `filer env` prints under Warnings and Overrides is these two lists.
+    #[test]
+    fn a_key_bound_in_both_folders_names_both_paths() {
+        let (yazi, filer, dirs) = two_dirs("keymap-both-dirs");
+        std::fs::write(yazi.join("keymap.toml"), "[[mgr.prepend_keymap]]\non = \"Q\"\nrun = \"quit\"\n").unwrap();
+        let mine = "[[mgr.prepend_keymap]]\non = \"Q\"\nrun = \"hidden toggle\"\n\
+                    [[mgr.prepend_keymap]]\non = \"T\"\nrun = \"hidden toggle\"\n";
+        std::fs::write(filer.join("keymap.toml"), mine).unwrap();
+        let cfg = Config::read(&dirs).0;
+        let (y, f) = (yazi.join("keymap.toml").display().to_string(), filer.join("keymap.toml").display().to_string());
+        let want = format!("[mgr] `Q` is bound more than once; only `hidden toggle` ({f}) runs, not `quit` ({y})");
+        assert!(cfg.warnings.contains(&want), "{:?}", cfg.warnings);
+        assert!(!cfg.warnings.iter().any(|w| w.contains("`T`")), "{:?}", cfg.warnings);
+        let want = format!("[mgr] `T`: `hidden toggle` ({f}) instead of the default `plugin toggle-pane max-preview`");
+        assert!(cfg.keymap.overrides.contains(&want), "{:?}", cfg.keymap.overrides);
+        assert_eq!(mgr_run(&cfg, "Q").as_deref(), Some("hidden toggle"));
+
+        let same = "[[mgr.prepend_keymap]]\non = \"T\"\nrun = \"plugin toggle-pane max-preview\"\n";
+        std::fs::write(filer.join("keymap.toml"), same).unwrap();
+        let mut prev = cfg;
+        let cfg = Config::reload_from(&mut prev, &dirs);
+        assert!(!cfg.warnings.iter().any(|w| w.contains("`T`")), "{:?}", cfg.warnings);
+        assert!(!cfg.keymap.overrides.iter().any(|o| o.contains("`T`")), "{:?}", cfg.keymap.overrides);
+    }
+
+    /// TESTING.md 33.21: a Windows path in double quotes in `yazi.toml` is a
+    /// parse error whose last line says to use single quotes; written in
+    /// single quotes and reloaded, nothing is said.
+    #[test]
+    fn a_windows_path_in_double_quotes_says_to_use_single_ones() {
+        let (yazi, _, dirs) = two_dirs("opener-backslash");
+        std::fs::write(yazi.join("yazi.toml"), "[opener]\nedit = [{ run = \"C:\\Users\\me\\nvim.exe\" }]\n").unwrap();
+        let mut cfg = Config::read(&dirs).0;
+        let said = cfg.warnings.iter().find(|w| w.contains("yazi.toml")).cloned().unwrap_or_else(|| panic!("{:?}", cfg.warnings));
+        let last = said.lines().rfind(|l| !l.trim().is_empty()).unwrap_or_default();
+        assert_eq!(last, "(a backslash in \"double quotes\" starts an escape: write a Windows path in 'single quotes')", "{said}");
+
+        std::fs::write(yazi.join("yazi.toml"), "[opener]\nedit = [{ run = 'C:\\Users\\me\\nvim.exe' }]\n").unwrap();
+        let cfg = Config::reload_from(&mut cfg, &dirs);
+        assert!(cfg.warnings.is_empty(), "{:?}", cfg.warnings);
+    }
+
+    /// TESTING.md 33.22 (#164, #258): one `[[mgr.keymap]]` entry replaces the
+    /// list, `q` with it, and says so with the file's path; renamed to
+    /// `prepend_keymap` and reloaded, nothing is said and `q` quits again.
+    #[test]
+    fn a_one_entry_replacement_is_named_and_a_prepend_is_not() {
+        let (_, filer, dirs) = two_dirs("keymap-short-replace");
+        let path = filer.join("keymap.toml");
+        std::fs::write(&path, "[[mgr.keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n").unwrap();
+        let mut cfg = Config::read(&dirs).0;
+        let start = format!("{}: `[[mgr.keymap]]` replaces all ", path.display());
+        let said = cfg.warnings.iter().find(|w| w.starts_with(&start)).unwrap_or_else(|| panic!("{:?}", cfg.warnings));
+        assert!(said.ends_with(" with 1 -- did you mean `[[mgr.prepend_keymap]]`?"), "{said}");
+        assert_eq!(mgr_run(&cfg, "q"), None, "the replacement is yazi's rule");
+        assert_eq!(mgr_run(&cfg, "<F9>").as_deref(), Some("config_reload"));
+
+        std::fs::write(&path, "[[mgr.prepend_keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n").unwrap();
+        let cfg = Config::reload_from(&mut cfg, &dirs);
+        assert!(cfg.warnings.is_empty(), "{:?}", cfg.warnings);
+        assert_eq!(mgr_run(&cfg, "q").as_deref(), Some("quit"));
+        assert_eq!(mgr_run(&cfg, "<F9>").as_deref(), Some("config_reload"));
+    }
 }
