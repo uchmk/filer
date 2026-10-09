@@ -1424,6 +1424,8 @@ fn state_report(app: &App) -> String {
     if let Some(t) = &app.term {
         let (col, row) = t.with_grid(terminal::cursor_cell);
         lines.push(format!("pane cursor: {col},{row}"));
+        // The title the pane reports; empty is shown too, since v0.85.3 asks the dialog whether it is.
+        lines.push(format!("pane title: {}", t.title));
     }
     // The panes that are not overlays (#165): `T` and `<F3>`'s quick look.
     lines.push(format!("max preview: {}", if app.max_preview { "on" } else { "off" }));
