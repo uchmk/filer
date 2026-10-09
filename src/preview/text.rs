@@ -1,6 +1,8 @@
 //! Text previews, syntax-highlighted in the worker so the UI thread only ever
 //! paints already-colored spans.
 
+use std::sync::OnceLock;
+
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{
     FontStyle, HighlightIterator, HighlightState, Highlighter as ThemeHighlighter, Style, Theme, ThemeSet,
@@ -11,11 +13,20 @@ use syntect::util::LinesWithEndings;
 use super::symbols::Collector;
 use super::{Extent, Payload, Request, Span};
 
-/// Syntax and theme sets are loaded on first use — a few hundred milliseconds
-/// that would be wasted for someone who only ever previews images.
+/// Syntax and theme sets, loaded on first use — a few hundred milliseconds
+/// that would be wasted for someone who only ever previews images — and once
+/// per process. Every `App` starts a worker, and each loading its own copy
+/// made the test binary seven times slower: Windows CI timed out (v0.86.12).
+/// A grammar's regexes are compiled inside the set, so they are shared too.
+pub(super) fn sets() -> &'static (SyntaxSet, ThemeSet) {
+    static SETS: OnceLock<(SyntaxSet, ThemeSet)> = OnceLock::new();
+    // bat's collection: syntect's own bundle has no TOML, TypeScript,
+    // Dockerfile, Kotlin and so on.
+    SETS.get_or_init(|| (two_face::syntax::extra_newlines(), ThemeSet::load_defaults()))
+}
+
 #[derive(Default)]
 pub struct Highlighter {
-    sets: Option<(SyntaxSet, ThemeSet)>,
     theme_name: String,
     theme: Option<Theme>,
     /// Handed the first screen of a long text before the rest is colored, then
@@ -30,24 +41,16 @@ pub struct Highlighter {
 }
 
 impl Highlighter {
-    fn load_sets(&mut self) {
-        if self.sets.is_none() {
-            // bat's collection: syntect's own bundle has no TOML, TypeScript,
-            // Dockerfile, Kotlin and so on.
-            self.sets = Some((two_face::syntax::extra_newlines(), ThemeSet::load_defaults()));
-        }
-    }
-
     /// Parses a little Markdown, with fences of the languages most looked at,
     /// while `idle` says nothing is asked for. A grammar's rules are read and
     /// its regexes compiled the first time they are tried, which made the first
     /// Markdown file of a session take 0.15 s longer than the next one. Returns
     /// whether it got through; one stopped early starts again next time, the
-    /// part already done costing nearly nothing.
+    /// part already done costing nearly nothing, as it does for every worker
+    /// after the first in a process.
     pub(super) fn warm(&mut self, idle: &dyn Fn() -> bool) -> bool {
         const SAMPLE: &str = include_str!("warm-up.md");
-        self.load_sets();
-        let Some((syntaxes, _)) = self.sets.as_ref() else { return true };
+        let (syntaxes, _) = sets();
         let Some(md) = syntaxes.find_syntax_by_extension("md") else { return true };
         let mut parse = ParseState::new(md);
         for line in LinesWithEndings::from(SAMPLE) {
@@ -62,9 +65,8 @@ impl Highlighter {
     }
 
     fn ensure(&mut self, theme_name: &str) {
-        self.load_sets();
         if self.theme.is_none() || self.theme_name != theme_name {
-            let (_, themes) = self.sets.as_ref().unwrap();
+            let (_, themes) = sets();
             let theme = themes
                 .themes
                 .get(theme_name)
@@ -104,9 +106,7 @@ pub fn render_cut(bytes: &[u8], cut: bool, req: &Request, hl: &mut Highlighter) 
     let extent = Extent { truncated: total_lines > MAX_LINES || cut, total: total_lines, cut, rows: None };
 
     hl.ensure(&req.syntect_theme);
-    let Some((syntaxes, _)) = hl.sets.as_ref() else {
-        return plain(&expanded, extent);
-    };
+    let (syntaxes, _) = sets();
     let Some(theme) = hl.theme.as_ref() else {
         return plain(&expanded, extent);
     };
@@ -464,10 +464,16 @@ mod tests {
     }
 
     #[test]
+    fn the_sets_are_loaded_once_per_process() {
+        // Each worker loading its own made the tests time out on Windows CI.
+        assert!(std::ptr::eq(sets(), sets()));
+        let a = std::thread::spawn(|| sets() as *const _ as usize).join().unwrap();
+        assert_eq!(a, sets() as *const _ as usize);
+    }
+
+    #[test]
     fn fence_languages_resolve() {
-        let mut hl = Highlighter::default();
-        hl.ensure("base16-ocean.dark");
-        let (syntaxes, _) = hl.sets.as_ref().unwrap();
+        let (syntaxes, _) = sets();
         for (info, name) in [
             ("rust", "Rust"),
             ("rust,ignore", "Rust"),

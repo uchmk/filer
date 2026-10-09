@@ -74,3 +74,6 @@ cargo check --release --target x86_64-pc-windows-msvc --all-targets
   **呼ぶたびに中身を消す**ので、1 つのテストで複数のファイルが要るときは
   1 回呼んでから `join` すること。名前は `filer-test-` で始まり、プロセスごとの最初の呼び出しで、
   ほかのプロセスが 1 時間以上前に残した `filer-test-…-<pid>` を消す（v0.73.70、#227）。
+- **テストの `App` はどれもプレビューのワーカーを起こす。**ワーカーの起動時に重いことをするなら、プロセスで 1 回にする（`OnceLock`）。
+  v0.86.12 は起動のたびにシンタックスの定義を読み込み、テスト全体が 7 倍遅くなって Windows の `test` だけが 10 秒の待ちで落ちた
+  （Linux の CI は緑のまま）。確かめるなら `taskset -c 0,1 cargo test --bin filer -- --test-threads=4` で前の版と時間を比べる。

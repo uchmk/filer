@@ -1113,15 +1113,11 @@ fn entity(name: &str) -> Option<char> {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
-    use std::sync::OnceLock;
-
-    use syntect::highlighting::ThemeSet;
 
     use super::*;
 
     fn doc(src: &str, cols: u16) -> Doc {
-        static SETS: OnceLock<(SyntaxSet, ThemeSet)> = OnceLock::new();
-        let (syntaxes, themes) = SETS.get_or_init(|| (two_face::syntax::extra_newlines(), ThemeSet::load_defaults()));
+        let (syntaxes, themes) = super::super::text::sets();
         render(src, cols, &themes.themes["base16-ocean.dark"], syntaxes).0
     }
 

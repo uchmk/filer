@@ -150,8 +150,7 @@ mod tests {
     use super::*;
 
     fn syntaxes() -> &'static SyntaxSet {
-        static SET: OnceLock<SyntaxSet> = OnceLock::new();
-        SET.get_or_init(two_face::syntax::extra_newlines)
+        &super::super::text::sets().0
     }
 
     fn outline(ext: &str, src: &str) -> Vec<(usize, u8, String)> {
