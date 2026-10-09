@@ -36,22 +36,41 @@ mapfile -t commits < <(git log --reverse --no-merges --format='%H %s' "$range" \
 [ "${#commits[@]}" -gt 0 ] || mapfile -t commits < <(git log --reverse --no-merges --format=%H "$range")
 [ "${#commits[@]}" -gt 0 ] || exit 0
 
+# One section per version, not per commit: a version number on two commits is
+# one release of both. That happened when sessions pushed side by side
+# (v0.78.29 twice, v0.78.31 three times, 2026-10-05; push-main.sh renumbers
+# since v0.78.38), and the page listed the same heading twice or three times.
+# The later commits go under the first one's heading, each led by its own
+# subject. A section sits where its version first appears.
 work=$(mktemp -d)
 trap 'rm -rf "${work:?}"' EXIT
-n=${#commits[@]}
-for ((i = 0; i < n; i++)); do
-  sha=${commits[$i]}
-  {
-    printf '## %s\n\n' "$(git log -1 --format=%s "$sha")"
-    git log -1 --format=%b "$sha" | awk '
-      /^(Co-Authored-By|Co-authored-by|Claude-Session|Signed-off-by):/ { next }
-      NF == 0 { if (seen) exit; next }
-      { print; seen = 1 }
-    '
-    printf '\n'
-  } > "$work/$i.md"
+declare -A slot=()
+keys=()
+para() {
+  git log -1 --format=%b "$1" | awk '
+    /^(Co-Authored-By|Co-authored-by|Claude-Session|Signed-off-by):/ { next }
+    NF == 0 { if (seen) exit; next }
+    { print; seen = 1 }
+  '
+}
+for sha in "${commits[@]}"; do
+  subject=$(git log -1 --format=%s "$sha")
+  # The version, or the whole hash for the fallback's unversioned commits.
+  key=$(printf '%s\n' "$subject" | grep -oE '^v[0-9]+\.[0-9]+\.[0-9]+' || echo "$sha")
+  if [ -z "${slot[$key]+x}" ]; then
+    i=${#keys[@]}
+    slot[$key]=$i
+    keys+=("$key")
+    commits[$i]=$sha
+    { printf '## %s\n\n' "$subject"; para "$sha"; printf '\n'; } > "$work/$i.md"
+  else
+    rest=${subject#"$key"}
+    rest=${rest#:}
+    rest=${rest# }
+    { printf '**%s**\n\n' "$rest"; para "$sha"; printf '\n'; } >> "$work/${slot[$key]}.md"
+  fi
 done
-
+n=${#keys[@]}
 # Newest first until the budget runs out, leaving room for the line that says
 # what was cut.
 room=$((budget - 400))
