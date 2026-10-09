@@ -123,6 +123,12 @@
 # tried once more (v0.78.104); three failed runs in a row put a line of
 # `!!!!!` in the log.
 #
+# The desktop. tsumugi's lane (uchmk/tsumugi, :50) drives the same desktop
+# with SendInput, so both scripts hold Local\wintest-desktop while their run
+# goes, and wait up to -DesktopWaitMin minutes (20) for the other. Still held
+# after that: the trigger is left for the next firing, and the log says
+# "desktop lock: still held". A wait is logged as "desktop lock: waited N min".
+#
 # The run works in its own worktree ($Work), not in the checkout you use, so
 # it never meets your uncommitted changes and you can keep working while it
 # runs. Needs `claude` and an authenticated `gh` on PATH.
@@ -140,7 +146,8 @@ param(
     [switch]$KeepScreenSaver,
     [string]$TargetDir,
     [switch]$TargetOnDisk,
-    [string]$Model = 'claude-sonnet-5-5'
+    [string]$Model = 'claude-sonnet-5-5',
+    [int]$DesktopWaitMin = 20
 )
 
 $ErrorActionPreference = 'Stop'
@@ -314,6 +321,7 @@ function Resume-ScreenSaver {
 # covers one started by hand while a scheduled one is running.
 $mutex = [Threading.Mutex]::new($false, "Local\filer-auto-wintest$suffix")
 if (-not $mutex.WaitOne(0)) { Say 'A run is already going. Nothing to do.'; exit 0 }
+$desktop = $null
 
 try {
     Restore-LeftOverSaver
@@ -408,6 +416,22 @@ try {
     $env:CARGO_INCREMENTAL = '0'
     Say "Build output: $(Set-BuildTarget)"
 
+    # The desktop, shared with tsumugi's lane (see the top).
+    $desktop = [Threading.Mutex]::new($false, 'Local\wintest-desktop')
+    $t = Get-Date
+    try { $got = $desktop.WaitOne([TimeSpan]::FromMinutes($DesktopWaitMin)) } catch [Threading.AbandonedMutexException] { $got = $true }
+    $waited = ((Get-Date) - $t).TotalMinutes
+    if (-not $got) {
+        $desktop = $null
+        Say ("desktop lock: still held after {0:N0} min (tsumugi's run?). Trying again next time." -f $waited)
+        exit 0
+    }
+    if ($waited -ge 0.5) { Say ("desktop lock: waited {0:N0} min" -f $waited) }
+    if (Get-Process LogonUI -ErrorAction SilentlyContinue) {
+        Say 'The screen locked while waiting. Trying again next time.'
+        exit 0
+    }
+
     if (-not $KeepScreenSaver) {
         Suspend-ScreenSaver
         $prompt += " スクリーンセーバーはこのスクリプトが実行の間だけ止めています（起動していれば 5 秒以内に止めます）。"
@@ -472,5 +496,6 @@ try {
         exit 1
     }
 } finally {
+    if ($desktop) { $desktop.ReleaseMutex() }
     $mutex.ReleaseMutex()
 }

@@ -122,6 +122,9 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   スクリプトだけが合わせていた頃、v0.78.167 の構文エラーを 2 台とも取り込み、読めない写しは直しを fetch できないまま、
   2026-10-06 から 10-09 まで実機の PR が 1 本も来なかった（直しの v0.78.169 は 1 時間後に入っていた）。**`scripts/*.ps1` は CI の
   `powershell` ジョブ（`scripts/check-ps1.ps1`）が構文を見る。**pwsh のある機械なら `verify.sh` も見る。
+  **同じ机の tsumugi のレーン（:50）とはロック `Local\wintest-desktop` を分け合う**（v0.80.17）。実行の間だけ取り、取れなければ最大 20 分
+  （`-DesktopWaitMin`）待って次回に回す（引き金は使わない）。どちらも SendInput でキーを送るので、重なると互いの窓に入力が混ざる。
+  ログの `desktop lock: waited N min` / `still held` がその印。
   **ビルドの成果物は RAM ディスクに置く**（v0.73.17）。R: があれば、作業フォルダの `target` を `R:\cargo-target\<作業フォルダ名>` への
   ジャンクションにする（パスは変わらない）。2026-10-03 に `C:\dev` が 45 GB になり、うち 33 GB が 2 つの `target` だった。
   R: の空きが 8 GB を切っていれば C: のまま。`-TargetOnDisk` で止める。
