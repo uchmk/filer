@@ -557,7 +557,7 @@ to answer a click.
 | 16.2 | A paragraph with mixed bold and plain in one sentence | **One line**, not one per run |
 | 16.3 | A document with Heading 1/2 styles, then `<S-Tab>`, and move through the outline | The headings are the outline, and the preview follows the cursor to each heading |
 | 16.3a | `<Enter>` on one of 16.3's outline entries (#249, #250) | The document opens in its app (Word for a `.docx`), at its start: an app like that takes no line, so none is passed, and that is not a failure |
-| 16.3b | `<Enter>` on an outline entry of a `.docx` (the default app is Word) | The toast ends with `(line N not passed: this opener takes no line)`. An editor that takes a line (`code -g`) has no such note |
+| 16.3b | `<Enter>` on an outline entry of a `.docx` whose `[opener]` is `start "" %*` (Word opens it) | The toast ends with `(line N not passed: this opener takes no line)`. An editor that takes a line (`code -g`) has no such note |
 | 16.4 | Hover a `.xlsx` | Rows as tab-separated cells, each sheet announced |
 | 16.5 | A workbook whose **first tab is not `sheet1.xml`** | The tabs come out in the workbook's order, with their real names |
 | 16.6 | A sheet holding dates | `2023-03-15`, **not** `45000` |
