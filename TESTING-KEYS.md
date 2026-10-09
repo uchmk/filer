@@ -224,9 +224,9 @@ While the terminal pane holds the keys. Everything not listed here goes to the s
 - [x] `<C-S-f>` — Find in the scrollback · `term_find`
 - [x] `<C-S-n>` — Find the next match · `term_find --repeat`
 - [x] `<C-S-b>` — Find the previous match · `term_find --repeat --prev`
-- [ ] `<C-S-Up>` — Scroll to the prompt above · `term_prompt --prev`
-- [ ] `<C-S-Down>` — Scroll to the prompt below · `term_prompt`
-- [ ] `<C-S-l>` — Copy the last command's output · `term_copy_output`
+- [x] `<C-S-Up>` — Scroll to the prompt above · `term_prompt --prev`
+- [x] `<C-S-Down>` — Scroll to the prompt below · `term_prompt`
+- [x] `<C-S-l>` — Copy the last command's output · `term_copy_output`
 
 ## `[input]`
 
@@ -359,7 +359,7 @@ The side-by-side comparison (`<A-d>`).
 - [x] `N` — To the previous difference · `find_arrow --previous`
 - [x] `<Enter>` — Compare the files on this row (folders) · `enter`
 - [x] `z` — Hide or show the matching rows of a folder comparison · `hide_same`
-- [ ] `C` — Copy the rows on screen (folders): state<TAB>path · `copy all`
+- [x] `C` — Copy the rows on screen (folders): state<TAB>path · `copy all`
 - [x] `<C-+>` — Make everything bigger · `scale in`
 - [x] `<C-=>` — Make everything bigger · `scale in`
 - [x] `<C-->` — Make everything smaller · `scale out`
