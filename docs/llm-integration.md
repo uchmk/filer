@@ -1,7 +1,8 @@
 # LLM との連携 — 案
 
 2026-10-09 に書いた。持ち主の希望は「filer・tsumugi・これから作るアプリを LLM とつなげたい。ソースを使い回せるかも含めて課題にしたい」。
-この文書は案を並べて 1 つを勧めるところまで。範囲は QUESTIONS.md の Q95 と Q96 で持ち主が決める。決まるまでコードは書かない。
+案を並べて 1 つを勧めた。持ち主は Q95・Q96 とも推奨の 1 を選んだ（2026-10-09）: 読むだけの道具の MCP サーバー、口は既定で入れる、共有のクレートは tsumugi に置き MCP は自分で書く。
+段の 1〜3 は済み（tsumugi v0.75.0、filer v0.85.0）。4 は実機の TESTING.md 50 節を待つ。
 
 ## 言葉
 
@@ -36,7 +37,7 @@ Claude Code ──stdio(JSON-RPC)── filer mcp ──名前付きパイプ / 
 ```
 
 - `filer mcp` はクライアントが起こす。窓が動いていなければ「filer が動いていない」と返す（窓は起こさない。最初の版）。
-- 窓が複数あれば、最後に触った窓につなぐ（道具で窓を選べるようにするのは後）。
+- 窓が複数あれば、最初に口を開けた窓が答える。ほかの窓は 30 秒ごとに口を開け直そうとするので、その窓を閉じると次の窓が引き継ぐ（道具で窓を選べるようにするのは後）。
 - tsumugi も同じ形で `tsumugi mcp` を足せる。サーバー（`tsumugi server`）がもうあるので、道具はそこに足すだけ。
 
 道具の例（最初は読むだけ）:
@@ -114,17 +115,17 @@ Claude Code ──stdio(JSON-RPC)── filer mcp ──名前付きパイプ / 
 ## 安全
 
 - ネットワークには口を開けない（ローカルの口だけ）。ほかのユーザーからはつなげない。
-- 設定で切れるようにする（`filer.toml` の `[mcp] enable`）。既定を入れるか切るかは Q95 で決める。
+- 設定で切れるようにする（`filer.toml` の `[mcp] enable`）。既定は入れる（Q95 の 1）。
 - 書く道具は 2 段目。足すときは窓の確認の箱を通す。確認の箱を通さない書き込みは作らない。
 - 道具が返したものは、Claude Code の側で LLM に渡る。画面に出ているファイル名やペインの文字が外に出ることを README に書く。
 
-## 段（決まったら）
+## 段
 
 | 段 | 中身 | 状態 |
 | --- | --- | --- |
 | 0 | この文書。Q95・Q96 | 済み（2026-10-09） |
-| 1 | tsumugi: `tsumugi-ipc` を `tsumugi-mux` から切り出す（動きは変えない） | — |
-| 2 | tsumugi: `tsumugi-mcp`、`tsumugi mcp` と `tsumugi_sessions` / `tsumugi_screen` | — |
-| 3 | filer: 口と `filer mcp`、`filer_state` / `filer_reveal`。Xvfb で、窓を起こして `filer mcp` に JSON-RPC を流して確かめる | — |
-| 4 | 実機: Claude Code の設定に足して呼べるか（Windows の名前付きパイプ、TESTING.md に行を足す） | — |
+| 1 | tsumugi: `tsumugi-ipc` を `tsumugi-mux` から切り出す（動きは変えない） | 済み（tsumugi v0.75.0） |
+| 2 | tsumugi: `tsumugi-mcp`、`tsumugi mcp` と `tsumugi_sessions` / `tsumugi_screen` | 済み（tsumugi v0.75.0） |
+| 3 | filer: 口と `filer mcp`、`filer_state` / `filer_reveal`。Xvfb で、窓を起こして `filer mcp` に JSON-RPC を流して確かめる | 済み（filer v0.85.0） |
+| 4 | 実機: Claude Code の設定に足して呼べるか（Windows の名前付きパイプ、TESTING.md に行を足す） | 行は足した（TESTING.md 50 節）。実機待ち |
 | 5 | 書く道具（確認の箱つき） | — |

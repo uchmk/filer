@@ -362,8 +362,11 @@ filer・tsumugi・これから作るアプリを LLM とつなげたい。ソー
 - [x] （2026-10-09、v0.84.1）案を書く: [docs/llm-integration.md](docs/llm-integration.md)。(a) アプリが MCP サーバーになる・(b) アプリが LLM を呼ぶ・(c) 両方を比べ、
   (a) を読むだけの道具から始めるのを勧めた。GUI は標準入出力を持たないので、同じ exe の `filer mcp` が Claude Code と窓の間の橋になる。
   口は tsumugi の `tsumugi-mux` の通信を `tsumugi-ipc` に切り出して使い回す
-- [ ] 範囲を決める 【人】（要確認: Q95、Q96）
-- [ ] 決まったら、文書の「段」の 1〜4 を進める（1・2 は tsumugi の側） 【人】（要確認: Q95、Q96。答えが出るまで着手できない）
+- [x] 範囲を決める（2026-10-09、持ち主: Q95・Q96 とも 1）
+- [x] （tsumugi v0.75.0）段 1・2: `tsumugi-ipc` を `tsumugi-mux` から切り出し、`tsumugi-mcp` と `tsumugi mcp`（`tsumugi_sessions` / `tsumugi_screen`）
+- [x] （v0.85.0）段 3: 窓の口（`[mcp] enable`、既定は入）と `filer mcp`、`filer_state` / `filer_reveal`。Xvfb で窓に JSON-RPC を流して確かめた
+- [ ] 段 4: 実機で Claude Code に登録して呼ぶ（TESTING.md 50 節） 【実機】
+- [ ] 段 5: 書く道具（窓の確認の箱つき）。使ってみてから範囲を QUESTIONS.md で聞く 【後】
 - [x] 「別アプリと双方向 API」（ロードマップの案 3）とまとめて考える: (a) の `filer_reveal` が Q16 の「このファイルへ飛べ」になる（docs/llm-integration.md）
 
 ## テストの揺れ（2026-10-05）

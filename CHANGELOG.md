@@ -9,6 +9,21 @@
 
 ## [未リリース]
 
+## [0.85.0] - 2026-10-09
+
+### 追加
+- `filer mcp`: Claude Code から filer の窓を読む MCP サーバー（Q95・Q96 の 1）。`claude mcp add filer -- filer mcp` で登録すると、
+  `filer_state`（今のフォルダ・カーソルの下・選んだもの・タブ）と `filer_reveal`（そのファイルへ飛ぶ。ファイルは変えない）を呼べる。
+  同じ exe が Claude Code と窓の間の橋になり、窓とはそのユーザーだけが開ける口（Windows は `\\.\pipe\filer-<ユーザー>`）で話す。
+  窓が複数なら最初の窓が答え、閉じれば 30 秒以内に次の窓が引き継ぐ。README に「Claude Code (MCP)」の節
+- `filer.toml` の `[mcp] enable`（既定は `true`）。`false` で窓は口を開けない
+- TESTING.md 50 節（実機で Claude Code に登録して呼ぶ）
+
+### 変更
+- tsumugi の共有のクレート `tsumugi-ipc`（口）と `tsumugi-mcp`（MCP のプロトコル。serde_json の上に手で書いたもので、tokio は入らない）を
+  tsumugi v0.75.0 の `rev` で読む。ペインと分割のクレートの `rev` はそのまま
+- `filer.com mcp` は `filer.exe` に入出力ごと渡す（ほかの答えを待つコマンドと同じ扱い）
+
 ## [0.84.3] - 2026-10-09
 
 ### 変更

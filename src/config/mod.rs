@@ -133,6 +133,24 @@ impl Default for Ui {
 /// `pwsh` -- and the login shell elsewhere. Those are different programs
 /// reading different profiles, so a hook that works in one is simply absent in
 /// the other, and there was no way to say which one to start.
+/// `[mcp]` in `filer.toml`: the local door `filer mcp` reads the window
+/// through (Q95). On unless `enable = false`; only the same user can reach it.
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct McpCfg {
+    #[serde(default = "yes")]
+    pub enable: bool,
+}
+
+impl Default for McpCfg {
+    fn default() -> Self {
+        Self { enable: true }
+    }
+}
+
+fn yes() -> bool {
+    true
+}
+
 #[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct TermCfg {
     /// The program, e.g. `pwsh`. Looked up on `PATH`, or an absolute path.
@@ -263,6 +281,8 @@ struct FilerToml {
     term: TermCfg,
     #[serde(default)]
     preview: Vec<PreviewRule>,
+    #[serde(default)]
+    mcp: McpCfg,
     /// `[line_args]`: editor name (`mikan`, `notepad++`) to the arguments that
     /// open a file at a line, e.g. `"-l {line} {path}"`.
     #[serde(default)]
@@ -276,6 +296,8 @@ pub struct Config {
     pub term: TermCfg,
     /// Commands that draw what filer cannot, in the order they are tried.
     pub preview: Vec<PreviewRule>,
+    /// `[mcp]`: whether the window answers `filer mcp`.
+    pub mcp: McpCfg,
     /// Behind an `Arc` because every draw function starts by taking a copy to
     /// get out of the borrow checker's way, and the theme carries the icon and
     /// filetype tables -- a hundred-odd `String`s by default, more from a real
@@ -356,6 +378,7 @@ impl Config {
             cfg.ui = take(&mut prev.ui);
             cfg.term = take(&mut prev.term);
             cfg.preview = take(&mut prev.preview);
+            cfg.mcp = take(&mut prev.mcp);
             cfg.line_args = take(&mut prev.line_args);
         }
         for &i in &broken.said {
@@ -376,6 +399,7 @@ impl Config {
         let mut ui = Ui::default();
         let mut term = TermCfg::default();
         let mut preview: Vec<PreviewRule> = Vec::new();
+        let mut mcp = McpCfg::default();
         let mut line_args: HashMap<String, String> = HashMap::new();
 
         for dir in dirs {
@@ -432,6 +456,7 @@ impl Config {
                         ui = v.ui;
                         term = v.term;
                         preview = v.preview;
+                        mcp = v.mcp;
                         for (name, template) in v.line_args {
                             if crate::exec::template_is_valid(&template) {
                                 line_args.insert(crate::exec::editor_key(&name), template);
@@ -467,7 +492,7 @@ impl Config {
         warnings.append(&mut km_warnings);
 
         let theme = std::sync::Arc::new(theme);
-        (Self { yazi: yazi_cfg, keymap, theme, ui, term, preview, line_args, loaded, unread, warnings }, broken)
+        (Self { yazi: yazi_cfg, keymap, theme, ui, term, preview, mcp, line_args, loaded, unread, warnings }, broken)
     }
 
     pub fn state_dir() -> PathBuf {
@@ -665,7 +690,7 @@ impl Misplaced {
         let Ok(table) = text.parse::<toml::Table>() else { return Self::default() };
 
         let foreign: &[&str] = match file {
-            ConfigFile::Yazi => &["ui", "term", "line_args"],
+            ConfigFile::Yazi => &["ui", "term", "mcp", "line_args"],
             ConfigFile::Filer => &["mgr", "manager", "opener", "open", "tasks"],
         };
         let mut out = Self::default();
@@ -926,6 +951,18 @@ mod files {
         assert_eq!((t.args.clone(), t.args_from_env, t.args_unused), (vec!["-NoLogo".to_string()], false, true));
         t.take_env(None, Some("  ".into()));
         assert!(!t.args_unused, "a blank value is no value");
+    }
+
+    /// `[mcp]` is on unless a file turns it off (Q95), and an empty table
+    /// keeps the default rather than reading as `false`.
+    #[test]
+    fn the_mcp_door_is_on_until_turned_off() {
+        let none: FilerToml = toml::from_str("[ui]\nfont_size = 14.0\n").unwrap();
+        assert!(none.mcp.enable);
+        let empty: FilerToml = toml::from_str("[mcp]\n").unwrap();
+        assert!(empty.mcp.enable);
+        let off: FilerToml = toml::from_str("[mcp]\nenable = false\n").unwrap();
+        assert!(!off.mcp.enable);
     }
 
     /// `[term]` decides what the pane starts, and says nothing by default.

@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 531 件（TESTING.md の全 724 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 538 件（TESTING.md の全 731 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -777,3 +777,15 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **49.6** リポジトリのフォルダで `echo src\main.rs:10` → Ctrl+クリック → 一覧が `src` に移り、カーソルが `main.rs` に乗る（行番号は使わない）。無いパスなら一覧は動かない — *`echo src\main.rs:10` from the repository's folder in the pane, then Ctrl+click it → The file list goes to `src` with the cursor on `main.rs` (the line number is not used). A path that does not exist leaves the list where it was*
 - [ ] **49.7** ``Write-Host "`e]8;;https://example.com`e\click me`e]8;;`e\"``（OSC 8 のリンク）→ `click me` を Ctrl+クリック → Ctrl を押す前から `click me` に点線の下線があり、クリックで `https://example.com` が開く — *``Write-Host "`e]8;;https://example.com`e\click me`e]8;;`e\"`` (an OSC 8 link), then Ctrl+click `click me` → `click me` has a dotted underline before Ctrl is held, and the click opens `https://example.com`*
 - [ ] **49.8** 画像: `chafa -f sixels some.png`（`winget install hpjansson.Chafa`）か `wezterm imgcat some.png` → プログラムが出した位置に画像が描かれ、文字と一緒にスクロールする（`<S-PageUp>`）。`clear` で消える — *A picture: `chafa -f sixels some.png` (`winget install hpjansson.Chafa`), or `wezterm imgcat some.png` → The picture is drawn in the pane where the program printed it, and scrolls with the text (`<S-PageUp>`). `clear` removes it*
+
+## 50. Claude Code が窓を読む（v0.85.0）
+
+確かめる `filer.exe` をフルパスで、`claude` を動かすターミナルから 1 度だけ登録する: `claude mcp add filer -- "<フォルダ>\filer.exe" mcp`。終わったら `claude mcp remove filer` で外す。
+
+- [ ] **50.1** filer を起動してフォルダに入り、カーソルをファイルに置く → `claude` で `/mcp` → `filer` が接続済みで、ツールが 2 つ（`filer_state` と `filer_reveal`） — *Start filer, go to a folder and put the cursor on a file; then in `claude`, `/mcp` → `filer` is listed as connected, with two tools, `filer_state` and `filer_reveal`*
+- [ ] **50.2** `<Space>` で 2 ファイル選び、Claude に「filer でカーソルの下のファイルと選んだものは？」と聞く → Claude が `filer_state` を呼び、そのフォルダ・そのファイル・選んだ 2 つのパスを Windows のフルパス（`C:\…`）で答える — *Select two files with `<Space>`, then ask Claude "which file is under the cursor in filer, and what is selected?" → Claude calls `filer_state` and answers with that folder, that file and the two selected paths, as full Windows paths (`C:\…`)*
+- [ ] **50.3** Claude に「filer で `C:\Windows\notepad.exe` を見せて」→ Claude が `filer_reveal` を呼び、窓をクリックしなくても `C:\Windows` に移ってカーソルが `notepad.exe` に乗る。Claude は `filer is showing …` と言う。無いパスなら `… does not exist` で、窓は動かない — *Ask Claude "show me `C:\Windows\notepad.exe` in filer" → Claude calls `filer_reveal`; the window goes to `C:\Windows` with the cursor on `notepad.exe`, without being clicked first, and Claude reports `filer is showing …`. Asking for a path that does not exist gets `… does not exist` and the window does not move*
+- [ ] **50.4** filer の窓を全部閉じて、もう一度 `filer_state` を頼む → ツールが `filer is not running (or its [mcp] enable is false in filer.toml); start filer and ask again` で失敗する。Claude Code 自体は動き続け、`/mcp` にも `filer` が残る — *Close every filer window, then ask Claude for `filer_state` again → The tool fails with `filer is not running (or its [mcp] enable is false in filer.toml); start filer and ask again`. Claude Code itself keeps working, and `/mcp` still lists `filer`*
+- [ ] **50.5** `filer.toml` に `[mcp]` / `enable = false` を書いて起動し、`filer_state` を頼む → 同じ `filer is not running …`: 窓は扉を開かない。終わったら行を消す — *Put `[mcp]` / `enable = false` in `filer.toml`, start filer, ask for `filer_state` → The same `filer is not running …` answer: the window opens no door. Take the line out again afterwards*
+- [ ] **50.6** 別々のフォルダで filer の窓を 2 つ開き、`filer_state` を頼む。1 つ目の窓を閉じて 30 秒待ち、もう一度 → 1 回目は 1 つ目の窓のフォルダ。閉じたあとの 2 回目は 2 つ目の窓のフォルダ — *Open two filer windows on different folders, ask for `filer_state`; close the first window, wait 30 seconds, ask again → The first answer is the first window's folder. After it closes, the second answer is the second window's folder*
+- [ ] **50.7** `filer.com` で登録し直し（`claude mcp add filer -- "<フォルダ>\filer.com" mcp`）、50.2 をする → 同じ答え: `filer.com` が `mcp` を入出力ごと `filer.exe` に渡す。Claude Code が起動するときにコンソールの窓は出ない — *Register `filer.com` instead (`claude mcp add filer -- "<folder>\filer.com" mcp`) and repeat 50.2 → The same answer: `filer.com` passes `mcp` to `filer.exe` with its input and output. No console window flashes when Claude Code starts it*
