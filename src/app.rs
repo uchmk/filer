@@ -5336,6 +5336,7 @@ impl App {
         };
         let label = crate::terminal::shell_label(shell.as_ref().map(|(p, _)| p.as_str()));
         let program = shell.as_ref().map(|(p, _)| p.clone());
+        let args = shell.as_ref().map(|(_, a)| a.clone()).unwrap_or_default();
         let log = std::env::var_os("FILER_PTY_LOG").map(PathBuf::from);
         match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), shell, log.as_deref(), move || {
             ctx.request_repaint()
@@ -5343,11 +5344,11 @@ impl App {
             Ok(t) => {
                 self.term = Some(t);
                 self.term_focus = true;
-                // The arguments only when `FILER_TERM_ARGS` gave them: a run
-                // that set it could not see they had arrived (#267).
-                let shown = match self.cfg.term.args_from_env {
-                    true => format!("{label} {}", self.cfg.term.args.join(" ")),
-                    false => label.clone(),
+                // The arguments the shell started with, from `FILER_TERM_ARGS`
+                // or `[term] args`: a run could not see they had arrived (#267, #281).
+                let shown = match args.is_empty() {
+                    false => format!("{label} {}", args.join(" ")),
+                    true => label.clone(),
                 };
                 self.toast(format!("Started {shown} — <C-t> back to the list"));
                 crate::runinfo::remember_shell(&label);

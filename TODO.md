@@ -282,7 +282,7 @@ x64 の順番表からは 32.23 を外した（直したら、その項目が両
   `split_whitespace().join(" ")` のままなので、同じ文が `外部コマンド、操作可能な`（17.12）と `外部コマンド、 操作可能な`（`;nosuchprog-xyz`）の 2 通りに出る。`one_line` を `util` に移して両方から呼ぶ。直したら 32.23 を両レーンの再テストに積む
 - [x] （v0.78.151。`toasts shown:` の 1 行を足した）`<State:>` に、いま画面に出ているトーストを出す（#282 の提案 3）。`toasts:` は実行全体の記録、`toast:` は最後の 1 つだけなので、「`$ …` のトーストが消えた」（32.23 の v0.78.143 の節）を画像を目で読まないと確かめられなかった。
   `src/main.rs` の `state_report` に `toasts shown: …`（`app.toasts`）の 1 行を足す
-- [ ] `[term] args` から来た引数も、ペインを開いたときのトーストに出す（#281 の提案 2、29.12）。`FILER_TERM_ARGS` なら `Started pwsh -NoProfile — …`（29.13）だが、`filer.toml` の `args = ["-NoLogo"]` では `Started pwsh — …` だけ。
+- [x] （v0.79.2。トーストは filer 側。`[term] args` の引数も出す）`[term] args` から来た引数も、ペインを開いたときのトーストに出す（#281 の提案 2、29.12）。`FILER_TERM_ARGS` なら `Started pwsh -NoProfile — …`（29.13）だが、`filer.toml` の `args = ["-NoLogo"]` では `Started pwsh — …` だけ。
   トーストを出すのが filer 側か tsumugi-pane 側かを先に確かめ、後者なら `【pane】` を付ける
 - [x] （v0.78.153。説明を `Create a new tab at the hovered folder, or the current directory` にした）パレットの `tab_create --current` の説明を動きに合わせる（#281 の提案 3、1.15）。説明は `Create a new tab with the current directory`（`src/config/defaults/keymap.toml`）だが、新しいタブはカーソルの下のフォルダで開く（`new_tab_target`）。
   説明を「the hovered folder, or the current directory」のように直す（動きは変えない。yazi の `--current` と同じかは README で確かめる）。TESTING-KEYS.md は `make-keycheck` で作り直す
