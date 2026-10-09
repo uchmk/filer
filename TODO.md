@@ -38,7 +38,7 @@ v0.78.167 が `scripts/auto-wintest.ps1` に構文エラーを入れ、2 台の�
 
 ## ARM64 の再テストの所見（#297）
 
-- [ ] （#297 の提案 1）1.35 の「End the shell?」の箱はタイトルが空のとき、起動した実行ファイルの名前（`pwsh`）で言い換える。
+- [x] （v0.85.3。タイトルが空なら起動したシェルの名前を出す）（#297 の提案 1）1.35 の「End the shell?」の箱はタイトルが空のとき、起動した実行ファイルの名前（`pwsh`）で言い換える。
 - [ ] （#297 の提案 2）`file_version()` は `filer.exe` に Windows 10 の `supportedOS` manifest を付けるか、`RtlGetVersion` 系でなく `VerQueryValueW` の `\StringFileInfo\…\FileVersion` を読む（25.4e が ARM64 で `v6.2.28000.2804` と出る）。
 - [ ] （#297 の提案 3）`<State:>` の `clipboard set:` は切り詰めず、全文を別ファイルに書く。
 - [ ] （#297 の提案 4）入力欄に `<C-u>` を効かせる（今は `<C-a>` の後に打つと置き換わる）。
