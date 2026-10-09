@@ -1672,7 +1672,16 @@ use tsumugi_pane::gpu::{auto_backends, has_adapter};
 /// typed -- are only correct as a pair, and asserting on them from anywhere
 /// else would be asserting on a copy.
 pub(crate) fn handle_input(app: &mut App, ctx: &egui::Context) {
-    let events = ctx.input(|i| i.events.clone());
+    let mut events = ctx.input(|i| i.events.clone());
+    // egui-winit reports Ctrl+Shift+C and Ctrl+Shift+X as a bare `Copy` /
+    // `Cut` with no modifiers, so the chord arrived as `<C-c>` / `<C-x>`. With
+    // the modifiers held this frame they are key presses again (tsumugi 2.37).
+    // Only with Shift held and no overlay open: the plain chords keep the
+    // `Copy` / `Cut` arms below, and a panel leaves them to its text field.
+    let held = ctx.input(|i| i.modifiers);
+    if held.shift && matches!(app.overlay, Overlay::None) {
+        tsumugi_pane::input::chords_back(&mut events, held);
+    }
     // Windows sends a chord *and* the character it would have typed: `<A-m>`
     // arrives as a key event with alt set and then as `Text("m")`, so one
     // keystroke ran `send_pane --cut` and went on to open "Save bookmark as…"
@@ -1861,9 +1870,23 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
                 None => None,
             };
             // A chord with no record form (`Ctrl+[`, `Ctrl+Space`) keeps its
-            // old bytes rather than going missing.
+            // old bytes rather than going missing. So does Ctrl+C: ConPTY
+            // raises the console's Ctrl+C event for a plain ETX, and a press
+            // record alone left `Start-Sleep` running (tsumugi 2.58).
+            let interrupt = mods.ctrl && !mods.alt && keys::printable(key) == Some('c');
+            // Shift+Enter goes as CSI-u once a program behind ConPTY asked for
+            // keys told apart: ConPTY made its record a plain `\r`, so Claude
+            // Code's new line was a send (tsumugi 2.55).
+            let told_apart = win32
+                && key == egui::Key::Enter
+                && mods.shift
+                && !mods.ctrl
+                && !mods.alt
+                && app.term.as_ref().is_some_and(|t| terminal::Pane::kitty_flags(t) != 0);
             let bytes = match (win32, special(key, mods.shift)) {
+                (true, Some(_)) if told_apart => Some(b"\x1b[13;2u".to_vec()),
                 (true, Some(s)) => Some(terminal::special_record(s, mods)),
+                (true, None) if interrupt => vt,
                 (true, None) if mods.ctrl || mods.alt => keys::printable(key)
                     .or_else(|| key.name().chars().next())
                     .and_then(|c| terminal::char_record(c, mods))

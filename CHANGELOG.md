@@ -9,6 +9,27 @@
 
 ## [未リリース]
 
+## [0.86.1] - 2026-10-10
+
+### 修正
+
+- `filer env` が Windows でファイルの版を、固定情報（`VS_FIXEDFILEINFO`）より先に文字列テーブルの `FileVersion` から読むようにした。
+  `supportedOS` の manifest が無いと互換性の層が OS を 6.2 に偽り、ARM64 で `powershell.exe` が `v6.2.28000.2804` と出ていた（25.4e）。
+
+## [0.86.0] - 2026-10-10
+
+### 変更
+
+- ターミナルペインを tsumugi v0.76.0 の `tsumugi-pane` に上げた（`tsumugi-layout` / `tsumugi-ipc` / `tsumugi-mcp` も同じコミット）。
+- LLM の書く道具（段 5）の範囲を QUESTIONS.md の Q97 で聞いた。段 4（実機で Claude Code から呼ぶ、TESTING.md 50 節）は済み。
+
+### 修正
+
+- Windows（ConPTY）で、ペインの `<C-c>` がキーの記録でなく素の `\x03` で届くようにした。`Start-Sleep` などが止まらなかった。
+- アプリが kitty のキー拡張を求めているとき（`claude` など）、`<S-Enter>` を `CSI 13;2 u` で送り、`<Enter>` と見分けられるようにした。
+- `<C-S-c>` / `<C-S-x>` が `<C-c>` / `<C-x>` として届いていたのを直した（egui-winit が修飾なしの Copy / Cut にしていた）。
+- ペインが `CSI 16 t`（セルの大きさ）に答えるようになり、`wezterm imgcat` などの絵が出る。
+
 ## [0.85.11] - 2026-10-10
 
 ### 変更

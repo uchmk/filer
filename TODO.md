@@ -47,7 +47,7 @@ v0.78.167 が `scripts/auto-wintest.ps1` に構文エラーを入れ、2 台の�
 ## ARM64 の再テストの所見（#297）
 
 - [x] （v0.85.3。タイトルが空なら `term_shell`（起動したシェルの名前）で言う）（#297 の提案 1）1.35 の「End the shell?」の箱はタイトルが空のとき、起動した実行ファイルの名前（`pwsh`）で言い換える。
-- [ ] （#297 の提案 2）`file_version()` は `filer.exe` に Windows 10 の `supportedOS` manifest を付けるか、`RtlGetVersion` 系でなく `VerQueryValueW` の `\StringFileInfo\…\FileVersion` を読む（25.4e が ARM64 で `v6.2.28000.2804` と出る）。
+- [x] （v0.86.1。`file_version()` は文字列テーブルの `FileVersion` を先に読み、無ければ固定情報へ。25.4e は ARM64 で再テスト）
 - [x] （v0.85.5。全文は `FILER_KEYS_DONE.clipboard` に書き、`clipboard file:` 行にパスを出す）（#297 の提案 3）`<State:>` の `clipboard set:` は切り詰めず、全文を別ファイルに書く。
 - [x] （v0.85.10。egui の欄がもともと処理していた。テスト `ctrl_u_clears_back_to_the_start` を足した）（#297 の提案 4）入力欄に `<C-u>` を効かせる（今は `<C-a>` の後に打つと置き換わる）。
 
@@ -391,8 +391,8 @@ filer・tsumugi・これから作るアプリを LLM とつなげたい。ソー
 - [x] 範囲を決める（2026-10-09、持ち主: Q95・Q96 とも 1）
 - [x] （tsumugi v0.75.0）段 1・2: `tsumugi-ipc` を `tsumugi-mux` から切り出し、`tsumugi-mcp` と `tsumugi mcp`（`tsumugi_sessions` / `tsumugi_screen`）
 - [x] （v0.85.0）段 3: 窓の口（`[mcp] enable`、既定は入）と `filer mcp`、`filer_state` / `filer_reveal`。Xvfb で窓に JSON-RPC を流して確かめた
-- [ ] 段 4: 実機で Claude Code に登録して呼ぶ（TESTING.md 50 節） 【実機】
-- [ ] 段 5: 書く道具（窓の確認の箱つき）。使ってみてから範囲を QUESTIONS.md で聞く 【後】
+- [x] （#302 / #303、v0.85.8）段 4: 実機で Claude Code に登録して呼ぶ（TESTING.md 50 節）
+- [ ] 段 5: 書く道具（窓の確認の箱つき）。範囲は QUESTIONS.md の Q97 で聞いている 【人】
 - [x] 「別アプリと双方向 API」（ロードマップの案 3）とまとめて考える: (a) の `filer_reveal` が Q16 の「このファイルへ飛べ」になる（docs/llm-integration.md）
 
 ## テストの揺れ（2026-10-05）

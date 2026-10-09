@@ -7,10 +7,12 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 538 件（TESTING.md の全 731 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 541 件（TESTING.md の全 734 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
+
+未訳 3 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -446,7 +448,7 @@ fsutil hardlink list <新しくできたパス>
 - [x] **25.4a** `[term] shell = "pwsh"` を設定した状態で、続けて `[term] shell` を書かない状態で（v0.29.1）→ 設定したときはシェルとして `pwsh` が並ぶ。書かないときは、`PATH` に `pwsh` があれば `pwsh`（v0.55.0 からの既定。Q29）、無ければ `powershell`。**実際に起動するほう**であって推測ではない。Windows 以外では `$SHELL` のシェル — *With `[term] shell = "pwsh"` set (v0.29.1), then with no `[term] shell` → `pwsh` is the shell listed. Without it, `pwsh` if it is on the `PATH` (the default since v0.55.0, Q29), else `powershell` — the one that will actually launch, not a guess. Off Windows, the shell in `$SHELL`*
 - [x] **25.4b** オープナーを設定した状態で → 指定された各プログラムが、属するオープナーの種類とともに並ぶ（見つかったかどうかも） — *With openers configured → Each named program is listed with the opener kind it belongs to, found or not*
 - [x] **25.4c** **引用符付きのフルパス**を指定したオープナー（秀丸、サクラ）→ 最初の空白までではなく、パス全体が解決される — *An opener naming a **quoted full path** (秀丸, サクラ) → The whole path is resolved, not just up to the first space*
-- [x] **25.4e** Windows で `pwsh`（または `powershell`）をペインのシェルにして `filer env` → シェルの行が `パス   v<a.b.c.d>   (terminal pane, …)` で、その版が `(Get-Item パス).VersionInfo.FileVersion` と一致する。何も起動しない — *On Windows, `filer env` with `pwsh` (or `powershell`) as the pane shell → The shell row reads `<path>   v<a.b.c.d>   (terminal pane, …)`, the version of that file (`(Get-Item <path>).VersionInfo.FileVersion` agrees). Nothing launches*
+- [ ] **25.4e** Windows で `pwsh`（または `powershell`）をペインのシェルにして `filer env` → シェルの行が `パス   v<a.b.c.d>   (terminal pane, …)` で、その版が `(Get-Item パス).VersionInfo.FileVersion` と一致する。何も起動しない — *On Windows, `filer env` with `pwsh` (or `powershell`) as the pane shell → The shell row reads `<path>   v<a.b.c.d>   (terminal pane, …)`, the version of that file (`(Get-Item <path>).VersionInfo.FileVersion` agrees). Nothing launches*
 - [x] **25.4d** `filer env` の実行中に画面を見る → **エディタやビューアが 1 つも起動しない。**`PATH` を調べるだけで、実行はしない — *Watch the screen while `filer env` runs → **No editor or viewer opens.** The programs are looked up on `PATH`, never executed*
 - [x] **25.4f** `[ui] backend` を書かない（`auto`）で `filer env`、続けて `"gl"`（または `WGPU_BACKEND` を設定）で（v0.78.209）→ `Backend` の行は、GL のある Windows では `[ui] backend = "auto" (this machine: Gl)`。`"gl"` や `WGPU_BACKEND` のときは末尾が付かない — *`filer env` with no `[ui] backend` (`auto`), then with `"gl"` (or `WGPU_BACKEND` set) (v0.78.209) → The `Backend` row reads `[ui] backend = "auto" (this machine: Gl)` on Windows with GL. With `"gl"` or `WGPU_BACKEND` the row has no such tail*
 - [x] **25.5** ARM 版 Windows で x64 ビルドを使う → `OS arch` と `Process arch` が**食い違う。**その食い違いを見せることが、両方を出している理由 — *On Windows on ARM with the x64 build → `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed*
@@ -825,6 +827,9 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [x] **49.6** リポジトリのフォルダで `echo src\main.rs:10` → Ctrl+クリック → 一覧が `src` に移り、カーソルが `main.rs` に乗る（行番号は使わない）。無いパスなら一覧は動かない — *`echo src\main.rs:10` from the repository's folder in the pane, then Ctrl+click it → The file list goes to `src` with the cursor on `main.rs` (the line number is not used). A path that does not exist leaves the list where it was*
 - [ ] **49.7** ``Write-Host "`e]8;;https://example.com`e\click me`e]8;;`e\"``（OSC 8 のリンク）→ `click me` を Ctrl+クリック → Ctrl を押す前から `click me` に点線の下線があり、クリックで `https://example.com` が開く — *``Write-Host "`e]8;;https://example.com`e\click me`e]8;;`e\"`` (an OSC 8 link), then Ctrl+click `click me` → `click me` has a dotted underline before Ctrl is held, and the click opens `https://example.com`*
 - [~] **49.8** 画像: `chafa -f sixels some.png`（`winget install hpjansson.Chafa`）か `wezterm imgcat some.png` → プログラムが出した位置に画像が描かれ、文字と一緒にスクロールする（`<S-PageUp>`）。`clear` で消える — *A picture: `chafa -f sixels some.png` (`winget install hpjansson.Chafa`), or `wezterm imgcat some.png` → The picture is drawn in the pane where the program printed it, and scrolls with the text (`<S-PageUp>`). `clear` removes it*
+- [ ] **49.9** `Start-Sleep 300` in pwsh in the pane, then `<C-c>` (v0.86.0, tsumugi 2.58) → The command stops within a second and the prompt comes back; filer stays open. With `FILER_PTY_LOG` set, the `in` line for the press is a plain `\x03`, not a key record 〔未訳〕
+- [ ] **49.10** `claude` in the pane, type `one`, `<S-Enter>`, `two` (v0.86.0, tsumugi 2.55) → Claude Code's box shows `one` and `two` on two lines and sends nothing; `<Enter>` then sends both. Outside Claude Code (a plain pwsh prompt) `<S-Enter>` runs the line as before 〔未訳〕
+- [ ] **49.11** `wezterm imgcat some.png` in the pane (v0.86.0, tsumugi 2.48) → The picture is drawn; `imgcat` no longer stops on a division by zero (the pane answers `CSI 16 t`, the cell size) 〔未訳〕
 
 ## 50. Claude Code が窓を読む（v0.85.0）
 

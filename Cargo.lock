@@ -1356,7 +1356,7 @@ checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
 
 [[package]]
 name = "filer"
-version = "0.85.11"
+version = "0.86.1"
 dependencies = [
  "ab_glyph",
  "alacritty_terminal",
@@ -3318,6 +3318,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "regex"
+version = "1.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f020237b6c8eed93db2e2cb53c00c60a8e1bc73da7d073199a1180401450218d"
+dependencies = [
+ "aho-corasick",
+ "memchr",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
 name = "regex-automata"
 version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4127,8 +4139,8 @@ dependencies = [
 
 [[package]]
 name = "tsumugi-ipc"
-version = "0.75.0"
-source = "git+https://github.com/uchmk/tsumugi?rev=81390105dcd22a2cc01daed743d01b224112e6e0#81390105dcd22a2cc01daed743d01b224112e6e0"
+version = "0.76.0"
+source = "git+https://github.com/uchmk/tsumugi?rev=085c421f5c3c738f9d5782c39aae68d31ee7db37#085c421f5c3c738f9d5782c39aae68d31ee7db37"
 dependencies = [
  "postcard",
  "serde",
@@ -4137,24 +4149,24 @@ dependencies = [
 
 [[package]]
 name = "tsumugi-layout"
-version = "0.65.1"
-source = "git+https://github.com/uchmk/tsumugi?rev=fc88385cbf8d955a7c339643e0ada7fa03e96227#fc88385cbf8d955a7c339643e0ada7fa03e96227"
+version = "0.76.0"
+source = "git+https://github.com/uchmk/tsumugi?rev=085c421f5c3c738f9d5782c39aae68d31ee7db37#085c421f5c3c738f9d5782c39aae68d31ee7db37"
 dependencies = [
  "egui",
 ]
 
 [[package]]
 name = "tsumugi-mcp"
-version = "0.75.0"
-source = "git+https://github.com/uchmk/tsumugi?rev=81390105dcd22a2cc01daed743d01b224112e6e0#81390105dcd22a2cc01daed743d01b224112e6e0"
+version = "0.76.0"
+source = "git+https://github.com/uchmk/tsumugi?rev=085c421f5c3c738f9d5782c39aae68d31ee7db37#085c421f5c3c738f9d5782c39aae68d31ee7db37"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "tsumugi-pane"
-version = "0.65.1"
-source = "git+https://github.com/uchmk/tsumugi?rev=fc88385cbf8d955a7c339643e0ada7fa03e96227#fc88385cbf8d955a7c339643e0ada7fa03e96227"
+version = "0.76.0"
+source = "git+https://github.com/uchmk/tsumugi?rev=085c421f5c3c738f9d5782c39aae68d31ee7db37#085c421f5c3c738f9d5782c39aae68d31ee7db37"
 dependencies = [
  "alacritty_terminal",
  "crossbeam-channel",
@@ -4165,6 +4177,7 @@ dependencies = [
  "image",
  "miniz_oxide 0.8.9",
  "polling",
+ "regex",
  "skrifa",
  "vello_cpu",
  "windows",

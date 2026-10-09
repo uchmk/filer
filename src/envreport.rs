@@ -295,9 +295,39 @@ fn file_version(path: &std::path::Path) -> Option<String> {
         if !VerQueryValueW(buf.as_ptr().cast(), w!("\\"), &mut info, &mut len).as_bool() || info.is_null() || (len as usize) < std::mem::size_of::<VS_FIXEDFILEINFO>() {
             return None;
         }
+        // The string table first: under the compatibility layer that makes an app
+        // see Windows 6.2 (no `supportedOS` manifest), the fixed block of a system
+        // file reads `6.2.x` where the string says `10.0.x` (25.4e, ARM64).
+        if let Some(v) = string_file_version(&buf) {
+            return Some(v);
+        }
         let f = &*(info as *const VS_FIXEDFILEINFO);
         Some(format!("{}.{}.{}.{}", f.dwFileVersionMS >> 16, f.dwFileVersionMS & 0xffff, f.dwFileVersionLS >> 16, f.dwFileVersionLS & 0xffff))
     }
+}
+
+/// `FileVersion` from the first language of the string table, cut at the first
+/// space (`10.0.28000.2113 (WinBuild...)` -> `10.0.28000.2113`).
+///
+/// # Safety
+/// `buf` must be a block filled by `GetFileVersionInfoW`.
+#[cfg(windows)]
+unsafe fn string_file_version(buf: &[u8]) -> Option<String> {
+    use windows::Win32::Storage::FileSystem::VerQueryValueW;
+    use windows::core::{w, PCWSTR};
+    let mut p: *mut std::ffi::c_void = std::ptr::null_mut();
+    let mut len = 0u32;
+    if !VerQueryValueW(buf.as_ptr().cast(), w!("\\VarFileInfo\\Translation"), &mut p, &mut len).as_bool() || p.is_null() || len < 4 {
+        return None;
+    }
+    let (lang, page) = (*(p as *const u16), *(p as *const u16).add(1));
+    let key: Vec<u16> = format!("\\StringFileInfo\\{lang:04x}{page:04x}\\FileVersion").encode_utf16().chain(Some(0)).collect();
+    if !VerQueryValueW(buf.as_ptr().cast(), PCWSTR(key.as_ptr()), &mut p, &mut len).as_bool() || p.is_null() || len == 0 {
+        return None;
+    }
+    let text = String::from_utf16_lossy(std::slice::from_raw_parts(p as *const u16, len as usize));
+    let v = text.trim_end_matches('\0').split_whitespace().next()?;
+    (v.split('.').count() == 4 && v.split('.').all(|n| n.parse::<u32>().is_ok())).then(|| v.to_string())
 }
 
 #[cfg(windows)]

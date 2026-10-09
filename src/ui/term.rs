@@ -24,8 +24,9 @@ fn palette(theme: &Theme) -> tsumugi_pane::Palette {
 
 pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let pal = palette(&app.cfg.theme);
-    // A panel over the pane owns the wheel; see `Overlay::is_modal`.
-    let opts = tsumugi_pane::ViewOptions { focused: app.term_focus, wheel: !app.overlay.is_modal() };
+    // A panel over the pane owns the wheel; see `Overlay::is_modal`. Letting
+    // go of a selection always copies it (below), and filer has no triggers.
+    let opts = tsumugi_pane::ViewOptions { focused: app.term_focus, wheel: !app.overlay.is_modal(), copy_on_select: true, highlights: &[] };
     let mut state = tsumugi_pane::ViewState { scroll_rows: app.term_scroll_rows };
     let shown = tsumugi_pane::show(ui, app.term.as_mut(), &mut state, rect, f, row_h, &pal, opts);
     app.term_scroll_rows = state.scroll_rows;
