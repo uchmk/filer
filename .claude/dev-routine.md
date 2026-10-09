@@ -66,7 +66,14 @@ Match the surrounding code (comment density, names, the one-line layout).
      `【pane】` `要確認` (`scripts/todo-open.sh -v` lists them, top first, with their
      line numbers): **the first one you can claim.** One item, and its own
      sub-items with it. A large item is cut into steps, written into TODO.md
-     as sub-items, and only the first step done.
+     as sub-items, and only the first step done;
+   - when that list is empty, a `【QA】` item (`scripts/todo-open.sh --qa -v`,
+     items whose only mark is `【QA】`), top first. The QA session runs only
+     when the owner starts one, so these waited for days while the routine
+     ended every run with nothing to do (2026-10-09, the owner's choice).
+     Most are TESTING.md wording: change the row and its Japanese, regenerate,
+     and untick the row only when what it expects changed. Tests go where
+     the QA role would put them. Tick the item as usual and leave `【QA】` on it.
 
    **Claim it before anything else**: `scripts/claim.sh take <its line>`
    (for a question, the line of the TODO.md item it belongs to). Exit 1 means
@@ -82,6 +89,12 @@ Match the surrounding code (comment density, names, the one-line layout).
    and `（要確認: Qn）`. Only a Windows machine can measure it: `【実機】`. Only
    the owner can do it: `【人】`. Add a few words saying why. A round that only
    adds marks is still a round: commit and push it.
+   `【実機】` is for what has to be **run or measured** on Windows. A
+   PowerShell script, a Windows-only code path or a TESTING.md row can be
+   written here: write it, say at its top that it has not run yet, and queue
+   the run in the order tables. v0.78.236 marked two such items `【実機】`
+   and the routine had nothing to take for a day. A mark quoted in backticks
+   (`` `【pane】` ``) is a mention and does not count; write a real mark bare.
 6. Do the work. When behaviour changes (CLAUDE.md, 作業ルール): check it on
    the virtual display (`scripts/xrun.sh`, `--keys`, `<State:name>`); add or fix
    the TESTING.md row and its Japanese in `scripts/testcheck-ja.toml`, then
@@ -110,8 +123,8 @@ Match the surrounding code (comment density, names, the one-line layout).
 ## When to end
 
 - After the round's push, or after a round that found nothing to take.
-- **`ALL_DONE` only when `scripts/todo-open.sh` prints `0`** and no answered
-  question is waiting to be carried out. Never on your own reading of what is
+- **`ALL_DONE` only when `scripts/todo-open.sh` and `scripts/todo-open.sh --qa`
+  both print `0`** and no answered question is waiting to be carried out. Never on your own reading of what is
   left: on 2026-10-05 a session stopped on "the rest is mostly for the machine
   or the eye" with 70 such items open. When an item cannot be taken, step 5
   marks it, and the count goes down.
