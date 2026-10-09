@@ -10,6 +10,10 @@
 - `【QA】` TESTING.md の文言や、テストの探索など、QA セッションの分（`.claude/qa-role.md`）
 - `【実機】` Windows の実機でしか測れないこと。順番表（`.claude/windows-role.md`）に積んで待つ
 
+- [ ] `<State:>` に `pane title:` の行（tsumugi-pane が返すタイトル。空でも出す）を足す。1.35 で確認ダイアログの文言は読めるが、v0.85.3 が変えた「タイトルが空か」は読めず、x64 と ARM64 を同じ行で比べられない（#300 の提案 1）。
+- [ ] 再テストの順番表に「前の run から変わった行」を書く欄を足し、1 行の修正で約 50 行を押し直させないようにする。`.claude/windows-role.md` の段落（#300 の提案 2）【人】
+- [ ] TESTING.md の節 50（`filer mcp`、v0.85.0）は標準入出力の JSON-RPC と `<State:>` で文字で読める行が多いのに、どちらのレーンの表にも無く 0 / 7 のまま。ARM64 の「Unticked rows no queue owns」に節 50 を足す（#301 の提案 1）【人】
+
 ## マージで止めている実機の PR
 
 マージの Routine が止めた実機の PR。持ち主の答えがここに書かれるまで、どの回もマージしない（`.claude/merge-routine.md` の 2）。
