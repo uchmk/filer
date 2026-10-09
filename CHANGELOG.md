@@ -9,6 +9,13 @@
 
 ## [未リリース]
 
+## [0.86.1] - 2026-10-10
+
+### 修正
+
+- `filer env` が Windows でファイルの版を、固定情報（`VS_FIXEDFILEINFO`）より先に文字列テーブルの `FileVersion` から読むようにした。
+  `supportedOS` の manifest が無いと互換性の層が OS を 6.2 に偽り、ARM64 で `powershell.exe` が `v6.2.28000.2804` と出ていた（25.4e）。
+
 ## [0.86.0] - 2026-10-10
 
 ### 変更
