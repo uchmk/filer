@@ -214,7 +214,9 @@ that exists but fails to start its program is not caught this way.
 
 As in yazi, `[open] prepend_rules` and `append_rules` add to the rules without restating them
 (v0.78.6): the prepended ones are tried before `rules`, the appended ones after. Before v0.78.6 they
-were ignored without a word.
+were ignored without a word. In the `<S-Enter>` list, an opener that came from one of them carries
+` [prepend]` or ` [append]` at the end of its command, so a layered setup shows where each row came from;
+openers from `rules` have no mark.
 
 Two Windows details worth knowing, both of which turn "it does nothing" into "it works":
 
@@ -569,6 +571,8 @@ program that asked to hear about the mouse (`nvim`, `htop`, `tmux` — so the vi
 cursor stays put), and as arrow keys to one that did not (`less`), rather than walking a scrollback
 that does not exist. Keys that are not about scrolling stay filer's:
 `<C-t>` has to get you out of a full-screen program as much as out of a shell.
+So that the way out is never off screen, a small `<C-t> list` tag sits at the pane's top-right
+corner while a full-screen program has the pane's keys (it names whatever `[term]` binds to `close`).
 
 To take the scrolling keys back on the ordinary screen too, replace the whole section with a
 `[term] keymap = [...]` of your own, minus these two — `prepend_keymap` cannot do it, because a key

@@ -3,7 +3,7 @@
 //! and saying so when the clipboard will not open -- is done here with what
 //! the view hands back.
 
-use egui::{FontId, Rect, Stroke, Ui};
+use egui::{pos2, vec2, CornerRadius, FontId, Rect, Stroke, Ui};
 
 use crate::app::App;
 use crate::config::theme::Theme;
@@ -36,6 +36,18 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     // in the same colour -- see `super::focus_rule` for why it is shared.
     let rule = super::focus_rule(&app.cfg.theme, app.term_focus);
     ui.painter_at(rect).line_segment([rect.left_top(), rect.right_top()], Stroke::new(1.0, rule));
+    // A full-screen program covers every row, so the way back out is put in
+    // the corner while it runs (Q77). On a plate, as the preview's zoom note
+    // is: it sits over the program's first row and has to read over anything.
+    if let Some(badge) = app.term_leave_badge() {
+        let theme = &app.cfg.theme;
+        let painter = ui.painter_at(rect);
+        let g = painter.layout_no_wrap(badge, FontId::new(f.size * 0.85, f.family.clone()), theme.fg_dim);
+        let at = pos2(rect.right() - g.size().x - 10.0, rect.top() + 4.0);
+        let plate = Rect::from_min_size(at, g.size()).expand2(vec2(6.0, 1.0));
+        painter.rect_filled(plate, CornerRadius::same(4), theme.bg.gamma_multiply(0.85));
+        painter.galley(at, g, theme.fg_dim);
+    }
     // Letting go of a selection copies it, which is what a terminal means by
     // selecting: there is no other step.
     if let Some(text) = shown.copy {

@@ -11,14 +11,45 @@ use crate::glob;
 
 /// Openers that apply to `entry`, in the order the rules declare them.
 pub fn openers_for<'a>(cfg: &'a YaziToml, entry: &Entry, mime: &str) -> Vec<&'a Opener> {
-    let mut names: Vec<&str> = Vec::new();
-    for rule in cfg.open.all_rules() {
+    openers_from(cfg, entry, mime).into_iter().map(|(o, _)| o).collect()
+}
+
+/// Which list of `[open]` rules an opener came in by: the `<S-Enter>` list
+/// marks the two that are added on top of `rules` (Q88).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RuleSet {
+    Prepend,
+    Rules,
+    Append,
+}
+
+impl RuleSet {
+    /// The mark after an opener's line in the `<S-Enter>` list: none for
+    /// `rules`, so a config that adds nothing looks as it always did.
+    pub fn mark(self) -> &'static str {
+        match self {
+            RuleSet::Prepend => " [prepend]",
+            RuleSet::Rules => "",
+            RuleSet::Append => " [append]",
+        }
+    }
+}
+
+/// [`openers_for`], with the list of rules each opener first came in by. An
+/// opener named by no rule (the `open` / `edit` fallback) counts as `rules`.
+pub fn openers_from<'a>(cfg: &'a YaziToml, entry: &Entry, mime: &str) -> Vec<(&'a Opener, RuleSet)> {
+    let open = &cfg.open;
+    let sets = open.prepend_rules.iter().map(|r| (r, RuleSet::Prepend))
+        .chain(open.rules.iter().map(|r| (r, RuleSet::Rules)))
+        .chain(open.append_rules.iter().map(|r| (r, RuleSet::Append)));
+    let mut names: Vec<(&str, RuleSet)> = Vec::new();
+    for (rule, set) in sets {
         if !rule_matches(rule, entry, mime) {
             continue;
         }
         for n in &rule.use_.0 {
-            if !names.contains(&n.as_str()) {
-                names.push(n);
+            if !names.iter().any(|(m, _)| *m == n.as_str()) {
+                names.push((n, set));
             }
         }
     }
@@ -26,14 +57,14 @@ pub fn openers_for<'a>(cfg: &'a YaziToml, entry: &Entry, mime: &str) -> Vec<&'a 
         // No rule matched: fall back to the conventional bucket names.
         for n in ["open", "edit"] {
             if cfg.opener.contains_key(n) {
-                names.push(n);
+                names.push((n, RuleSet::Rules));
             }
         }
     }
     let mut out = Vec::new();
-    for n in names {
+    for (n, set) in names {
         if let Some(list) = cfg.opener.get(n) {
-            out.extend(list.iter().filter(|o| o.matches_platform()));
+            out.extend(list.iter().filter(|o| o.matches_platform()).map(|o| (o, set)));
         }
     }
     out
@@ -912,6 +943,30 @@ mod tests {
         let descs = |name: &str| openers_for(&cfg, &entry(name), "").iter().filter_map(|o| o.desc.clone()).collect::<Vec<_>>();
         assert_eq!(descs("a.txt"), ["View", "Edit", "Last"]);
         assert_eq!(descs("a.bin"), ["Last"], "only the catch-all");
+        // Q88: the `<S-Enter>` list marks the two added lists, not `rules`.
+        let marks = |name: &str| openers_from(&cfg, &entry(name), "").iter().map(|(_, set)| set.mark()).collect::<Vec<_>>();
+        assert_eq!(marks("a.txt"), [" [prepend]", "", " [append]"]);
+    }
+
+    /// Q88: an opener two lists name is marked by the first, where it is
+    /// listed; one that only the `open` / `edit` fallback found is unmarked.
+    #[test]
+    fn an_opener_is_marked_by_the_list_it_first_came_in_by() {
+        let cfg: YaziToml = toml::from_str(
+            r#"
+            [opener]
+            edit = [{ run = "edit %s" }]
+            open = [{ run = "open %s" }]
+            [open]
+            rules = [{ name = "*.txt", use = "edit" }]
+            prepend_rules = [{ name = "*.txt", use = "edit" }]
+            "#,
+        )
+        .unwrap();
+        let entry = |name: &str| Entry { path: PathBuf::from(name), name: name.into(), ..Default::default() };
+        let marks = |name: &str| openers_from(&cfg, &entry(name), "").iter().map(|(_, set)| *set).collect::<Vec<_>>();
+        assert_eq!(marks("a.txt"), [RuleSet::Prepend]);
+        assert_eq!(marks("a.bin"), [RuleSet::Rules, RuleSet::Rules], "the fallback is not marked");
     }
 
     /// #96: a program that is not there is named; one that is, or a shell's

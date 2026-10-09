@@ -127,13 +127,6 @@ pub struct Open {
     pub append_rules: Vec<OpenRule>,
 }
 
-impl Open {
-    /// Every rule, in the order they are tried.
-    pub fn all_rules(&self) -> impl Iterator<Item = &OpenRule> {
-        self.prepend_rules.iter().chain(&self.rules).chain(&self.append_rules)
-    }
-}
-
 #[derive(Deserialize, Debug, Clone)]
 pub struct OpenRule {
     /// Glob against the file name; a trailing `/` means "directories only".

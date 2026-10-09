@@ -4413,10 +4413,9 @@ impl App {
         }
         let line = line.filter(|_| paths.len() == 1 && paths[0] == entry.path);
         let mime = crate::mime::guess(&entry);
-        let openers: Vec<(String, bool, bool, String)> = exec::openers_for(&self.cfg.yazi, &entry, mime)
-            .into_iter()
-            .map(|o| (o.run.clone(), o.block, o.orphan, o.label()))
-            .collect();
+        let from = exec::openers_from(&self.cfg.yazi, &entry, mime);
+        let openers: Vec<(String, bool, bool, String)> =
+            from.iter().map(|(o, _)| (o.run.clone(), o.block, o.orphan, o.label())).collect();
 
         if interactive {
             if openers.is_empty() {
@@ -4432,7 +4431,10 @@ impl App {
                     false => o.3.clone(),
                 })
                 .collect();
-            let details: Vec<String> = openers.iter().map(|o| o.0.clone()).collect();
+            // Where a row came from, for a config that layers `prepend_rules`
+            // or `append_rules` over its `rules` (Q88).
+            let details: Vec<String> =
+                openers.iter().zip(&from).map(|(o, (_, set))| format!("{}{}", o.0, set.mark())).collect();
             // The cursor starts on the first opener that is installed (Q86);
             // all missing, or none to skip, leaves it on the first row.
             let first_found = openers.iter().position(|o| !exec::opener_missing(&o.0)).unwrap_or(0);
@@ -5676,6 +5678,22 @@ impl App {
     /// True while a full-screen program is drawing in the terminal pane.
     pub fn term_alt_screen(&self) -> bool {
         self.term.as_ref().is_some_and(|t| t.with_grid(crate::terminal::alt_screen))
+    }
+
+    /// The tag in the pane's corner while a full-screen program has the keys
+    /// (Q77): such a program draws over every row, so nothing on screen said
+    /// how to get back to the list once the start toast had gone.
+    pub fn term_leave_badge(&self) -> Option<String> {
+        if !self.term_focus || !self.term_alt_screen() {
+            return None;
+        }
+        Some(format!("{} list", self.term_leave_key()?))
+    }
+
+    /// How the pane's keymap spells handing the keys back to the list.
+    fn term_leave_key(&self) -> Option<String> {
+        let b = self.cfg.keymap.term.iter().find(|b| matches!(b.run.as_slice(), [Act::Close | Act::Escape(_)]))?;
+        Some(crate::config::keys::render_seq(&b.on))
     }
 
     /// What git says about the rows of `dir`, or nothing while the answer is
@@ -9731,6 +9749,18 @@ mod escape_and_max_preview {
         a.act(Act::MaxTerm);
         assert!(!a.max_term, "nothing to maximise, so nothing is armed");
         assert!(!a.term_focus, "and no keys are sent anywhere");
+    }
+
+    /// Q77: the corner tag names the pane's own way out, as bound, and is not
+    /// there without a full-screen program to cover the start toast's advice.
+    #[test]
+    fn the_pane_tag_names_the_key_that_leaves() {
+        let mut a = app();
+        assert_eq!(a.term_leave_key().as_deref(), Some("<C-t>"));
+        a.term_focus = true;
+        assert_eq!(a.term_leave_badge(), None, "no pane, no full-screen program");
+        a.cfg.keymap.term.retain(|b| !matches!(b.run.as_slice(), [Act::Close]));
+        assert_eq!(a.term_leave_key(), None, "nothing bound, nothing to name");
     }
 
     /// Leaving the pane hands the window back, by every route out of it.

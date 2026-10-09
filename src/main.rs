@@ -1366,6 +1366,10 @@ fn state_report(app: &App) -> String {
         let (back, of) = t.scrollback();
         lines.push(format!("pane back: {back} of {of}"));
     }
+    // The corner tag a full-screen program gets (Q77), read as text.
+    if let Some(b) = app.term_leave_badge() {
+        lines.push(format!("pane badge: {b}"));
+    }
     // Where the list and the preview are scrolled, and how the preview is
     // shown: what the wheel, zoom and minimap rows of TESTING.md move, read
     // as numbers instead of judged from a picture (2026-10-03).
