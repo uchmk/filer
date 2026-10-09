@@ -13,7 +13,7 @@
 - [x] （v0.85.7。`pane title:` の行を足した）`<State:>` に `pane title:` の行（tsumugi-pane が返すタイトル。空でも出す）を足す。1.35 で確認ダイアログの文言は読めるが、v0.85.3 が変えた「タイトルが空か」は読めず、x64 と ARM64 を同じ行で比べられない（#300 の提案 1）。
 - [ ] （#302・#303 の提案）`scripts\mcp.ps1`（`-Address … -Tool filer_state`）を足し、`filer mcp` に JSON-RPC を流す道具にする。ARM64 は `Start-Mcp` / `Rpc` / `Call` を scratch に書いて `$args` の衝突で 1 回余計に回した。`【実機】`
 - [ ] （#302・#303 の提案）TESTING.md の節 50 の前書きに `FILER_ADDRESS`（持ち主の窓と扉を奪い合わない）と `claude -p --mcp-config … --output-format stream-json` の `init` で 50.1 の `/mcp` を読めることを書く。`【QA】`
-- [ ] （#303 の提案）`<State:>` に `mcp:`（扉の名前か `off`）の行を足す。「窓が無い」と「`enable = false`」を 50.4 / 50.5 で見分けるには `config:` の行から推すしかない。
+- [x] （v0.85.9。`mcp:` の行を足した）`<State:>` に `mcp:`（扉の名前か `off`）の行を足す。「窓が無い」と「`enable = false`」を 50.4 / 50.5 で見分けるには `config:` の行から推すしかない。
 - [ ] （#302 の提案）50.7 の「コンソールの窓が出ない」は、ARM64 は測れないとして `[ ]` に残し、x64 は約 5ms 間隔の窓の列挙（753 回）で出なかったと `[x]` にした。5ms より短い窓は取りこぼすので、持ち主が外観の行として扱うか決める。`【人】`
 - [ ] 再テストの順番表に「前の run から変わった行」を書く欄を足し、1 行の修正で約 50 行を押し直させないようにする。`.claude/windows-role.md` の段落（#300 の提案 2）【人】
 - [ ] TESTING.md の節 50（`filer mcp`、v0.85.0）は標準入出力の JSON-RPC と `<State:>` で文字で読める行が多いのに、どちらのレーンの表にも無く 0 / 7 のまま。ARM64 の「Unticked rows no queue owns」に節 50 を足す（#301 の提案 1）【人】

@@ -1434,6 +1434,9 @@ fn state_report(app: &App) -> String {
     // (#165): every file read, or `none`.
     let read: Vec<String> = app.cfg.loaded.iter().map(|p| p.display().to_string()).collect();
     lines.push(format!("config: {}", if read.is_empty() { "none".into() } else { read.join(" | ") }));
+    // The door `filer mcp` reads through, or `off` for `[mcp] enable = false`: 50.4 and 50.5
+    // told "no window" from "no door" only by inferring it from `config:` (#303).
+    lines.push(format!("mcp: {}", if app.cfg.mcp.enable { mcp::address().0.display().to_string() } else { "off".into() }));
     // How many rows the list holds, and the filter on it: "a row more or
     // fewer" and "the filter stayed" were read off a picture (#231). `listing…`
     // while the folder is still being read, so an empty folder and one not yet
@@ -2003,6 +2006,7 @@ mod tests {
         let dir = crate::util::test_dir("state-clip");
         let app = App::new(crate::config::Config::load(), dir, egui::Context::default());
         assert!(state_report(&app).lines().any(|l| l.starts_with("frames: ")));
+        assert!(state_report(&app).lines().any(|l| l.starts_with("mcp: ")));
         exec::set_clipboard("one\r\ntwo").unwrap();
         assert!(state_report(&app).lines().any(|l| l == "clipboard set: one /  / two"), "{}", state_report(&app));
     }
