@@ -845,6 +845,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "core_detect"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f8f80099a98041a3d1622845c271458a2d73e688351bf3cb999266764b81d48"
+
+[[package]]
 name = "cpubits"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1167,6 +1173,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "encoding_rs"
+version = "0.8.42"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e985e0451871ad22fb8d2b6b076e2028a502a0d3950998c2c5c0a4f9b5d9679"
+dependencies = [
+ "cfg-if",
+ "core_detect",
+ "multiversion_no_op",
+ "rustversion",
+ "scopeguard",
+ "simdutf8",
+]
+
+[[package]]
 name = "endi"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1315,7 +1335,7 @@ checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
 
 [[package]]
 name = "filer"
-version = "0.78.237"
+version = "0.79.0"
 dependencies = [
  "ab_glyph",
  "alacritty_terminal",
@@ -2334,6 +2354,12 @@ dependencies = [
  "num-traits",
  "pxfm",
 ]
+
+[[package]]
+name = "multiversion_no_op"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 
 [[package]]
 name = "naga"
@@ -4065,14 +4091,20 @@ dependencies = [
 
 [[package]]
 name = "tsumugi-pane"
-version = "0.2.0"
-source = "git+https://github.com/uchmk/tsumugi?rev=d2405616e8a07131e4b87a277a8407f9c19bd1c9#d2405616e8a07131e4b87a277a8407f9c19bd1c9"
+version = "0.65.1"
+source = "git+https://github.com/uchmk/tsumugi?rev=fc88385cbf8d955a7c339643e0ada7fa03e96227#fc88385cbf8d955a7c339643e0ada7fa03e96227"
 dependencies = [
  "alacritty_terminal",
  "crossbeam-channel",
  "egui",
  "egui-wgpu",
+ "encoding_rs",
+ "harfrust",
+ "image",
+ "miniz_oxide 0.8.9",
  "polling",
+ "skrifa",
+ "vello_cpu",
  "windows",
 ]
 

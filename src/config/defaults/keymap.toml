@@ -846,6 +846,20 @@ desc = "Find the next match"
 on = "<C-S-b>"
 run = "term_find --repeat --prev"
 desc = "Find the previous match"
+# The same chords as tsumugi, whose pane this is. They need a shell that marks
+# its prompts (OSC 133); without one they say so.
+[[term.keymap]]
+on = "<C-S-Up>"
+run = "term_prompt --prev"
+desc = "Scroll to the prompt above"
+[[term.keymap]]
+on = "<C-S-Down>"
+run = "term_prompt"
+desc = "Scroll to the prompt below"
+[[term.keymap]]
+on = "<C-S-l>"
+run = "term_copy_output"
+desc = "Copy the last command's output"
 
 # --- Input line ---------------------------------------------------------------
 # The input line is a native widget (so IME and clipboard behave), which means

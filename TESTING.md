@@ -1482,3 +1482,26 @@ The PE machine of a file, for 48.3:
 | 48.5 | `Get-FileHash -Algorithm SHA256` on each zip and on each extracted file | Every hash equals the row for that file in the **SHA-256** table at the end of the release page. A missing table means the `sums` job did not run: say so |
 | 48.6 | To give it a wrong answer to find, put another `conpty.dll` on the `PATH` first, of the **same PE machine** as the `filer.exe` under test (48.3's line reads it): WezTerm's is `8664`, which an ARM64 process cannot load at all, so with it the ARM64 zip's half proves nothing (#199). Then start `filer.exe` from each folder, open the pane (`<C-t>`), and list the process's modules: `(Get-Process filer).Modules \| ? ModuleName -eq conpty.dll \| % FileName` | The full path is **that folder's** `conpty.dll`, the same folder as `filer.exe`. That is what the zip is for. A wrong answer is another program's copy (WezTerm's, say), not one under `C:\Windows`: Windows has no `conpty.dll` of its own (v0.70.3, #151 / #184) |
 | 48.7 | Copy `filer.exe` **alone** into an empty folder. Put a `conpty.dll` and `OpenConsole.exe` (the zip's) in a second folder, `cd` there, and start the lone exe by its full path; `<C-t>`, then the modules as in 48.6. Again from a folder with none, with a `conpty.dll` somewhere on the `PATH` (v0.70.3, #184) | **No** `conpty.dll` among the modules either time: the pane runs on the ConPTY built into Windows. Before v0.70.3 the first loaded the working folder's copy and the second the `PATH`'s |
+
+## 49. What the pane gained from tsumugi (v0.79.0)
+
+The pane's code lives in tsumugi's `tsumugi-pane` crate, and v0.79.0 moved filer to a newer one:
+prompt jumps, copying a command's output and the margin bars all read the prompt marks a shell
+writes (OSC 133), links are opened by Ctrl+click, and pictures (sixel, kitty, iTerm2) are drawn in
+the cells. filer's own shell sets no prompt marks, so give pwsh a prompt that writes them first
+(`FILER_TERM_SHELL=pwsh`, `FILER_TERM_ARGS=-NoProfile`, then paste this into the pane):
+
+```powershell
+function prompt { $e = [char]27; $c = if ($?) { 0 } else { 1 }; "$e]133;D;$c$e\$e]133;A$e\PS $PWD> $e]133;B$e\" }
+```
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 49.1 | With the prompt above, run `dir`, `echo hi` and `Get-Date`, then `<C-S-Up>` twice and `<C-S-Down>` once | Each press scrolls the view so a prompt is on its top row: the `echo hi` one, then the `dir` one, then `echo hi` again. With no prompt left above, the toast says `No prompt above this one` |
+| 49.2 | A fresh pane **without** the prompt above (plain `pwsh -NoProfile`), `<C-S-Up>`, then `<C-S-l>` | The toasts say `The shell does not mark its prompts (OSC 133), so there is none to jump to` and `No finished command to copy (the shell has to mark its prompts, OSC 133)`. Nothing is put on the clipboard |
+| 49.3 | With the prompt above, run `dir`, then `<C-S-l>`, then `Get-Clipboard` in another window | The toast reads `Copied the last command's output (N lines)` (`1 line` for one), and the clipboard holds `dir`'s listing alone -- no prompt line, no `dir` command line, no blank lines at the end |
+| 49.4 | With the prompt above, run `dir` (exit 0) and `Get-Item nothing-here` (an error) | A thin bar in the pane's left margin beside each: green beside `dir`'s, red beside the failed one. None inside a full-screen program (`nvim`) |
+| 49.5 | `echo https://example.com` in the pane, then hold Ctrl and point at it | Under Ctrl the address is underlined and the pointer is a hand; a Ctrl+click opens it in the default browser. A plain click only selects, as before |
+| 49.6 | `echo src\main.rs:10` from the repository's folder in the pane, then Ctrl+click it | The file list goes to `src` with the cursor on `main.rs` (the line number is not used). A path that does not exist leaves the list where it was |
+| 49.7 | ``Write-Host "`e]8;;https://example.com`e\click me`e]8;;`e\"`` (an OSC 8 link), then Ctrl+click `click me` | `click me` has a dotted underline before Ctrl is held, and the click opens `https://example.com` |
+| 49.8 | A picture: `chafa -f sixels some.png` (`winget install hpjansson.Chafa`), or `wezterm imgcat some.png` | The picture is drawn in the pane where the program printed it, and scrolls with the text (`<S-PageUp>`). `clear` removes it |

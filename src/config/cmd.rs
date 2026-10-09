@@ -227,6 +227,11 @@ pub enum Act {
     TermFind { prev: bool, repeat: bool },
     /// Move the terminal's view through its scrollback.
     TermScroll(Step),
+    /// Scroll the terminal to the prompt above the view's top, or below it
+    /// (`prev` goes up). Needs a shell that marks its prompts (OSC 133).
+    TermPrompt { prev: bool },
+    /// Put the last command's output on the clipboard (OSC 133 again).
+    TermCopyOutput,
     /// Give the terminal pane the window, or hand it back.
     MaxTerm,
 
@@ -556,6 +561,8 @@ pub fn parse(line: &str) -> Act {
         "term_cd" => Act::TermCd,
         "term_find" => Act::TermFind { prev: a.has("prev"), repeat: a.has("repeat") },
         "term_scroll" => Act::TermScroll(parse_step(a.first().unwrap_or("-1"))),
+        "term_prompt" => Act::TermPrompt { prev: a.has("prev") },
+        "term_copy_output" => Act::TermCopyOutput,
         "term_max" => Act::MaxTerm,
         "toggle_render" => Act::ToggleRender,
         "toggle_outline" => Act::ToggleOutline,

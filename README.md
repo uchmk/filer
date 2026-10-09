@@ -254,7 +254,7 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `hardlink`, `remove`, `create`, `rename`, `copy`, `shell`, `hidden`, `linemode`, `sort`, `find`,
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `undo`, `redo`, `jump`,
 `bulk_rename`, `compare`, `quick`, `zoom`, `minimap`, `config_reload`, `palette`,
-`menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `term_cd`, `term_find`, `term_scroll`, `task_toggle`, `task_cancel`, `task_top`,
+`menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `term_cd`, `term_find`, `term_scroll`, `term_prompt`, `term_copy_output`, `task_toggle`, `task_cancel`, `task_top`,
 `split`, `pane_focus`, `toggle_render`, `toggle_outline`, `usage` and `bug-report` (the last two
 this project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
@@ -532,6 +532,9 @@ rather than another set of bindings. Only what the `[term]` keymap section binds
 | `<S-PageUp>` `<S-PageDown>` | half a screen back / forward through the scrollback |
 | `<S-Home>` `<S-End>` | to the top of the scrollback / back to the bottom |
 | `<C-S-f>` `<C-S-n>` `<C-S-b>` | find in the scrollback / next match / previous |
+| `<C-S-Up>` `<C-S-Down>` | scroll to the prompt above / below (the shell has to mark its prompts, OSC 133) |
+| `<C-S-l>` | copy the last command's output (OSC 133 again) |
+| Ctrl+click | open a web address in the browser, or show a printed path in the list |
 
 Shift is what keeps most of those out of the shell's way: a program reading the keyboard sees
 `PageUp`, never `<S-PageUp>`. `<A-j>` and `<A-k>` are the exception, and they cost something — a

@@ -18,6 +18,7 @@ fn palette(theme: &Theme) -> tsumugi_pane::Palette {
         selection: theme.hovered_bg,
         cursor: theme.cwd.fg.unwrap_or(theme.fg),
         on_cursor: theme.bg,
+        ansi: None,
     }
 }
 
@@ -39,6 +40,26 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     // selecting: there is no other step.
     if let Some(text) = shown.copy {
         let _ = crate::exec::set_clipboard(&text);
+    }
+    // Ctrl+click (Cmd on a Mac) on a link: a web address goes to the browser,
+    // a path is shown in the list -- this is a file manager, and the list is
+    // where the next thing to do with a file is one key away.
+    match shown.open {
+        Some(tsumugi_pane::Link::Url(url)) => {
+            if let Err(e) = crate::exec::open_url(&url) {
+                app.error(format!("Could not open {url}: {e}"));
+            }
+        }
+        Some(tsumugi_pane::Link::Path { path, .. }) => {
+            // Relative to the shell, which is where it was printed.
+            let base = app.term.as_ref().and_then(|t| t.shell_cwd.clone());
+            let target = match base {
+                Some(dir) => crate::util::resolve_against(&dir, &path).to_string_lossy().into_owned(),
+                None => path,
+            };
+            app.reveal(target);
+        }
+        None => {}
     }
     // Right-click pastes. `<C-v>` reaches the pane as egui's paste event; a
     // right-click is not one, so the clipboard is read here.

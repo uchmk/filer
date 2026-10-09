@@ -3178,6 +3178,8 @@ impl App {
             Act::TermCd => self.term_pull_cwd(),
             Act::TermFind { prev, repeat } => self.term_search(prev, repeat),
             Act::TermScroll(step) => self.term_scroll(step),
+            Act::TermPrompt { prev } => self.term_prompt(prev),
+            Act::TermCopyOutput => self.term_copy_output(),
             Act::Extract => self.do_extract(),
             Act::Compress => self.ask_compress(),
             Act::SendPane { cut } => self.send_to_pane(cut),
@@ -3247,7 +3249,7 @@ impl App {
     }
 
     /// Go to a path and put the cursor on it, rather than merely into its folder.
-    fn reveal(&mut self, target: String) {
+    pub(crate) fn reveal(&mut self, target: String) {
             let base = self.tabs[self.active].cwd.clone();
             let p = util::resolve_against(&base, &target);
             let name = util::file_name(&p);
@@ -3385,6 +3387,38 @@ impl App {
                     Step::Pct(p) => Scroll::Delta(-((page * p / 100) as i32)),
                 });
             }
+    }
+
+    /// Scroll the terminal to the next prompt up or down. Says why when it
+    /// cannot: a shell that marks no prompts looks the same as one with no
+    /// prompt left to go to, and only the first has something to fix.
+    fn term_prompt(&mut self, prev: bool) {
+        let Some(t) = &self.term else { return };
+        if t.jump_prompt(prev) {
+            return;
+        }
+        let said = match t.blocks().is_empty() && !t.prompt_seen() {
+            true => "The shell does not mark its prompts (OSC 133), so there is none to jump to",
+            false if prev => "No prompt above this one",
+            false => "No prompt below this one",
+        };
+        self.toast(said);
+    }
+
+    /// Copy what the last command printed, between its prompt and the next.
+    fn term_copy_output(&mut self) {
+        let Some(t) = &self.term else { return };
+        let Some(text) = t.command_output() else {
+            self.toast("No finished command to copy (the shell has to mark its prompts, OSC 133)");
+            return;
+        };
+        match crate::exec::set_clipboard(&text) {
+            Ok(()) => {
+                let n = text.lines().count();
+                self.toast(format!("Copied the last command's output ({n} line{})", if n == 1 { "" } else { "s" }));
+            }
+            Err(e) => self.error(format!("Could not copy: {e}")),
+        }
     }
 
     /// Scroll the preview, or step to the next picture where a configured
@@ -10469,5 +10503,24 @@ mod said_out_loud {
         let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
         assert_eq!(said.len(), 1, "{said:?}");
         assert_eq!(a.tabs[a.active].cwd, dir, "taken back");
+    }
+}
+
+/// The keys for the pane's prompt marks, the same chords tsumugi uses.
+#[cfg(test)]
+mod term_prompt_keys {
+    use super::*;
+
+    fn run_of(layer: &[keymap::Binding], key: &str) -> Vec<Act> {
+        layer.iter().find(|b| crate::config::keys::render_seq(&b.on) == key).unwrap_or_else(|| panic!("`{key}` is not bound")).run.clone()
+    }
+
+    #[test]
+    fn the_pane_binds_prompt_jumps_and_copying_the_output() {
+        let (km, warnings) = keymap::Keymap::load(&[]);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert_eq!(run_of(&km.term, "<C-S-Up>"), vec![Act::TermPrompt { prev: true }]);
+        assert_eq!(run_of(&km.term, "<C-S-Down>"), vec![Act::TermPrompt { prev: false }]);
+        assert_eq!(run_of(&km.term, "<C-S-l>"), vec![Act::TermCopyOutput]);
     }
 }

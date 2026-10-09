@@ -4,7 +4,7 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-259 keys. How many are checked is not written here, so that two pull requests ticking
+262 keys. How many are checked is not written here, so that two pull requests ticking
 keys do not conflict over a total: `cargo run --example make-keycheck -- --stats`.
 
 A key is checked when it did what the description says _and_ did nothing else —
@@ -224,6 +224,9 @@ While the terminal pane holds the keys. Everything not listed here goes to the s
 - [x] `<C-S-f>` — Find in the scrollback · `term_find`
 - [x] `<C-S-n>` — Find the next match · `term_find --repeat`
 - [x] `<C-S-b>` — Find the previous match · `term_find --repeat --prev`
+- [ ] `<C-S-Up>` — Scroll to the prompt above · `term_prompt --prev`
+- [ ] `<C-S-Down>` — Scroll to the prompt below · `term_prompt`
+- [ ] `<C-S-l>` — Copy the last command's output · `term_copy_output`
 
 ## `[input]`
 
