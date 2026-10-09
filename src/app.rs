@@ -5435,7 +5435,12 @@ impl App {
             // looks just like `<C-t>` hiding the pane -- so a running program
             // is asked about first, and a prompt is not (Q21).
             if let Some(t) = self.term.as_ref().filter(|t| t.busy()) {
-                let what = if t.title.is_empty() { "A program".to_owned() } else { format!("`{}`", program_label(&t.title)) };
+                // An empty title (ConPTY before the program sets one) falls back to the shell's own name.
+                let what = match (t.title.is_empty(), self.term_shell.is_empty()) {
+                    (false, _) => format!("`{}`", program_label(&t.title)),
+                    (true, false) => format!("`{}`", self.term_shell),
+                    (true, true) => "A program".to_owned(),
+                };
                 self.overlay = Overlay::Confirm(ConfirmOverlay {
                     title: "End the shell?".into(),
                     body: vec![format!("{what} is still running in the terminal, and ends with it.")],
