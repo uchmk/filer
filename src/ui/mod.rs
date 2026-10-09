@@ -39,6 +39,50 @@ pub fn focus_rule(theme: &Theme, focused: bool) -> Color32 {
     }
 }
 
+/// The terminal pane's share of the window's height until the border above it
+/// is dragged (Q94).
+pub const TERM_SHARE: f32 = 0.35;
+
+/// The terminal pane's height in a window `full_h` tall: `share` of it, but at
+/// least four rows, and never so much that the list above keeps fewer than six
+/// (`chrome` is the header and the status bar). On a window too short for
+/// both, the four rows win.
+fn term_height(full_h: f32, chrome: f32, row_h: f32, share: f32) -> f32 {
+    let least = row_h * 4.0;
+    (full_h * share).clamp(least, (full_h - chrome - row_h * 6.0).max(least))
+}
+
+/// The border between the list and the terminal pane, dragged to change the
+/// pane's height and double-clicked to halve the two (Q94). It is
+/// `tsumugi-layout`'s divider, the one tsumugi's panes have, over a split of
+/// two: the list and the terminal. Drawn after the terminal so it takes the
+/// pointer from the pane's top rows. The height goes in `app.term_share` and is
+/// not saved; a share rather than pixels, so it follows the window's size.
+fn term_border(app: &mut App, ui: &Ui, body: Rect, term_h: f32, full_h: f32) {
+    use tsumugi_layout::{Dir, Node, ui as lay};
+    let span = Rect::from_min_max(body.left_top(), egui::pos2(body.right(), body.bottom() + term_h));
+    if span.height() < 1.0 || full_h < 1.0 {
+        return;
+    }
+    let layout = Node::Split {
+        dir: Dir::Down,
+        ratio: body.height().max(0.0) / span.height(),
+        first: Box::new(Node::Leaf(0u8)),
+        second: Box::new(Node::Leaf(1u8)),
+    };
+    let look = lay::Look { gap: 0.0, grab: 8.0, line: focus_rule(&app.cfg.theme, true) };
+    let moved = lay::dividers(ui, ui.id().with("term-border"), &layout, lay::from_egui(span), look);
+    if let Some(lay::Moved::Dragging(Node::Split { ratio, .. }) | lay::Moved::Halved(Node::Split { ratio, .. })) = moved {
+        app.term_share = term_share(span.height(), ratio, full_h);
+    }
+}
+
+/// The share of a window `full_h` tall that the terminal pane takes when the
+/// split of `span` above the status bar gives the list `ratio` of it.
+fn term_share(span: f32, ratio: f32, full_h: f32) -> f32 {
+    (span * (1.0 - ratio) / full_h).clamp(0.05, 0.95)
+}
+
 /// Turn wheel movement, measured in rows, into whole rows, keeping the part
 /// that is not yet one. In `tsumugi-pane` with the terminal pane, which uses it
 /// too; its tests are there.
@@ -117,7 +161,8 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
         egui::pos2(full.left(), full.bottom() - status_h),
         Vec2::new(full.width(), status_h),
     );
-    // The terminal takes the bottom third, and never so much that the list it
+    // The terminal takes the bottom third (or what the border above it was
+    // dragged to), and never so much that the list it
     // sits under stops being usable -- until `term_max`, where the point is to
     // hand the pane the window. A third is plenty for a shell and cramped for a
     // full-screen program: gh-dash drew its own split panes inside 35% of the
@@ -132,8 +177,7 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
     let maxed = app.term.is_some() && app.max_term;
     let term_h = match (app.term.is_some(), maxed) {
         (_, true) => full.height() - status_h,
-        (true, false) => (full.height() * 0.35)
-            .clamp(row_h * 4.0, full.height() - header_h - status_h - row_h * 6.0),
+        (true, false) => term_height(full.height(), header_h + status_h, row_h, app.term_share),
         (false, _) => 0.0,
     };
     let bottom_extra = which_h + input_h + term_h;
@@ -154,6 +198,9 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
             Vec2::new(full.width(), term_h),
         );
         term::draw(app, ui, r, &f, row_h);
+        if !maxed {
+            term_border(app, ui, body, term_h, full.height());
+        }
     }
     draw_status(app, ui, status, &f);
 
@@ -4583,5 +4630,32 @@ mod terminal_chords {
         assert!(!s.app.term_focus, "the list has the keys");
         s.feed(vec![egui::Event::Copy]);
         assert!(s.app.quit, "`<C-c>` is `close`, and this is the last tab");
+    }
+}
+
+#[cfg(test)]
+mod term_border_tests {
+    use super::*;
+
+    /// The share holds between the two limits, and the limits win outside
+    /// them: four rows at least, six rows left to the list at most.
+    #[test]
+    fn the_terminal_height_follows_the_share_within_its_limits() {
+        let (full, chrome, row) = (1000.0, 80.0, 20.0);
+        assert_eq!(term_height(full, chrome, row, TERM_SHARE), 350.0);
+        assert_eq!(term_height(full, chrome, row, 0.6), 600.0);
+        assert_eq!(term_height(full, chrome, row, 0.01), 80.0);
+        assert_eq!(term_height(full, chrome, row, 0.95), 800.0);
+        // Too short for both: four rows, rather than a panic in `clamp`.
+        assert_eq!(term_height(200.0, chrome, row, 0.5), 80.0);
+    }
+
+    /// Dropping the border at a ratio of the span gives the terminal the rest
+    /// of the span, as a share of the window.
+    #[test]
+    fn a_dropped_border_gives_the_terminal_the_rest_of_the_span() {
+        assert!((term_share(800.0, 0.5, 1000.0) - 0.4).abs() < 1e-6);
+        assert!((term_share(800.0, 0.25, 1000.0) - 0.6).abs() < 1e-6);
+        assert_eq!(term_share(800.0, 1.0, 1000.0), 0.05);
     }
 }

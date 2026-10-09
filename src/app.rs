@@ -1292,6 +1292,10 @@ pub struct App {
     /// The terminal pane has the window. A third of the height is right for a
     /// shell and too little for a full-screen program, so this is the way out.
     pub max_term: bool,
+    /// The terminal pane's share of the window's height, dragged by the border
+    /// above it (Q94). Kept while the window is open, not written anywhere:
+    /// the next window starts at 35% again.
+    pub term_share: f32,
     /// The quick-look panel is up: the hovered file, big, over the panes.
     pub quick: bool,
     pub hide_parent: bool,
@@ -1469,6 +1473,7 @@ impl App {
             preview: PreviewSlot::default(),
             max_preview: false,
             max_term: false,
+            term_share: crate::ui::TERM_SHARE,
             quick: false,
             hide_parent: false,
             render_markdown,

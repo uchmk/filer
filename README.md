@@ -133,6 +133,11 @@ since a hidden list is nowhere to aim them, and **every way out of the pane rest
 binding them here would stop them reaching the shell, and a pane whose keys filer keeps is not a
 terminal.
 
+The border above the pane can be **dragged** to change its height, and double-clicked to halve the
+list and the pane (Q94). The height stays while the window is open and is not saved: the next window
+starts at a third again. The border is the divider of tsumugi's own panes (`tsumugi-layout`). The
+columns keep `[mgr] ratio` from `yazi.toml`.
+
 When a program in the pane misbehaves, two tools show what actually passed between them. Set
 `FILER_PTY_LOG` to a file path before starting filer, and every chunk crossing the pane's PTY is
 appended to it — what the shell side wrote (`out`), and what filer wrote back, split into `in key`,

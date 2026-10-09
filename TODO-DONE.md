@@ -369,3 +369,7 @@
 - [x] （v0.78.125。uchmk/tsumugi の `tsumugi-pane`、計画と経緯は tsumugi の `docs/pane-extraction.md`。`shellhook.rs` は filer の文言なので残した。ペインに触る項目は `【pane】` のまま、tsumugi の側で直す）filer のターミナルペイン（`src/terminal.rs`、`src/ui/term.rs`、`src/shellhook.rs`）を独立したクレートに切り出す。OS ごとの処理を `cfg` で閉じ込め、
   egui に依らない層（PTY・キー変換・OSC）と描画の層を分け、Pure Rust を保つ。filer は使う側の 1 つになる
 - [x] （2026-10-05、uchmk/tsumugi。範囲は tsumugi の `docs/v1-scope.md`）新しいリポジトリを作り、最初の版の範囲（縦タブ、セッションの状態、入力待ちの印、分割と復元）を決める
+
+## 境目をマウスで引く（2026-10-09、tsumugi の TODO から）
+
+- [x] ターミナルペインの高さ（今は 35% 固定）や列の境目を、tsumugi の `tsumugi_layout::ui::dividers` で引けるようにする（Q94 は 1: ターミナルペインの高さだけ。v0.80.0）
