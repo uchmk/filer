@@ -900,7 +900,7 @@ mod tests {
         let src = dir.join("src");
         std::fs::create_dir_all(src.join("d").join("e")).unwrap();
         std::fs::write(src.join("d").join("e").join("f.txt"), "x").unwrap();
-        let old = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_623_760_496); // 2021-06-15 12:34:56 UTC
+        let old = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_623_760_497); // 2021-06-15 12:34:57 UTC, an odd second
         for p in [src.join("d").join("e").join("f.txt"), src.join("d").join("e"), src.join("d")] {
             open_dir_for_times(&p).or_else(|_| File::options().write(true).open(&p)).unwrap().set_modified(old).unwrap();
         }
@@ -912,7 +912,7 @@ mod tests {
             for p in [out.join("d"), out.join("d").join("e")] {
                 let got = std::fs::metadata(&p).unwrap().modified().unwrap();
                 let off = got.duration_since(old).unwrap_or_else(|e| e.duration());
-                assert!(off.as_secs() <= 2, "{format:?} {}: {got:?}", p.display());
+                assert!(off.as_secs() == 0, "{format:?} {}: {got:?}", p.display());
             }
         }
     }
