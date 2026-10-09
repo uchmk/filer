@@ -127,8 +127,9 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   R: の空きが 8 GB を切っていれば C: のまま。`-TargetOnDisk` で止める。
   **実行の間はスクリーンセーバーを止める**（v0.64.3。ノート PC の ASUS OLED Care が入力を握って `SendInput` を潰していた）。
   止め方と戻し方はスクリプトの冒頭。`-KeepScreenSaver` で止めない。
-  **モデルは `-Model` で明示する**（v0.78.30。既定は `claude-opus-5-5`）。機械の `claude` の既定には従わない。実機のレーンは Opus のまま
-  （2026-10-04、持ち主の判断。誤った `[x]` は後から誰も捕まえられない）、クラウドの開発の Routine は Sonnet 5.5 で試している。
+  **モデルは `-Model` で明示する**（v0.78.30。既定は v0.80.15 から `claude-sonnet-5-5`）。機械の `claude` の既定には従わない。
+  実機のレーンは 2026-10-04 から Opus だったが、2026-10-09 に持ち主の判断で x64・ARM64 の両方とマージの Routine を Sonnet 5.5 に変えた
+  （開発の Routine も Sonnet 5.5）。Opus に戻すときはタスクの引数に `-Model claude-opus-5-5` を足すか、この既定を戻す。
 - **マージする側も無人で回っている（v0.50.2 から）。**クラウドの Routine が 1 時間おきに
   `.claude/merge-role.md` を読み、`test/win-*` などの PR を確かめてマージし（v0.73.15 から、マージしてよいものは 1 回で全部）、版・CHANGELOG・
   提案の振り分け・順番表の補充までをする。**無人の実行が `main` に直接 push してよいのは、この

@@ -60,7 +60,7 @@
 #   ... -LogDir R:\Temp                           # the log on the RAM disk
 #   ... -Lane arm                                 # the ARM64 machine's lane
 #   ... -TargetOnDisk                             # keep the build output on C:
-#   ... -Model claude-sonnet-5-5                  # another model for this run
+#   ... -Model claude-opus-5-5                    # another model for this run
 #
 # Lanes. The x64 machine runs lane `win` (the default), the ARM64 laptop lane
 # `arm`. Each has its own queue in windows-role.md, its own branch prefix
@@ -114,12 +114,11 @@
 # -TargetOnDisk turns all of this off. Incremental compilation is off for the
 # run as well: an unattended run builds once, and its caches were 6 GB.
 #
-# Model. The run is given --model $Model, claude-opus-5-5 by default, so the
-# lanes do not follow whatever model the machine's own `claude` was last set to
-# (2026-10-04, the owner's choice: the real-machine lanes stay on Opus -- a
-# wrong [x] here is the one mistake nothing downstream catches -- while the
-# cloud's development routine may run on a cheaper one). To change it, add
-# -Model to the task's arguments; the log names the model of every run.
+# Model. The run is given --model $Model, claude-sonnet-5-5 by default, so the
+# lanes do not follow whatever model the machine's own `claude` was last set to.
+# The lanes ran on Opus until v0.80.15; on 2026-10-09 the owner moved both
+# lanes, and the merge routine, to Sonnet 5.5. To change it, add -Model to the
+# task's arguments; the log names the model of every run.
 # A `claude` too old for the model is updated with `claude update` and the run
 # tried once more (v0.78.104); three failed runs in a row put a line of
 # `!!!!!` in the log.
@@ -141,7 +140,7 @@ param(
     [switch]$KeepScreenSaver,
     [string]$TargetDir,
     [switch]$TargetOnDisk,
-    [string]$Model = 'claude-opus-5-5'
+    [string]$Model = 'claude-sonnet-5-5'
 )
 
 $ErrorActionPreference = 'Stop'
