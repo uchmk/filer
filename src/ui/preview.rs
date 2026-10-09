@@ -1361,6 +1361,46 @@ mod focus_rule_frame {
         let f = s.draw();
         assert_eq!(at_pane(&f, red).len(), 1, "and so does the terminal's, from the same entry");
     }
+
+    /// 38.7 from a file: a `theme.toml` read the way `<C-F5>` reads it turns
+    /// both rules red. The files come from a directory of the test's own
+    /// rather than the machine's, which is the one step this skips.
+    #[test]
+    fn a_theme_toml_reaches_both_rules_through_a_reload() {
+        let mut s = screen("focus-theme-file", source(plain(400), toc(), 400));
+        let dir = crate::util::test_dir("focus-theme-file-cfg");
+        std::fs::write(dir.join("theme.toml"), "[mgr]\ntab_active = { bg = \"#ff0000\" }\n").unwrap();
+        let red = egui::Color32::from_rgb(255, 0, 0);
+        let full = s.rect();
+        let down = |f: &crate::ui::harness::Painted| -> Vec<egui::Rect> {
+            f.stroked(red).into_iter().filter(|r| r.width() < 1.0 && r.height() > 500.0).collect()
+        };
+        let across = |f: &crate::ui::harness::Painted| -> Vec<egui::Rect> {
+            f.stroked(red).into_iter().filter(|r| r.height() < 1.0 && r.width() > full.width() - 1.0).collect()
+        };
+
+        let cfg = crate::config::Config::reload_from(&mut s.app.cfg, &[dir]);
+        assert_eq!(cfg.theme.tab_active.bg, Some(red), "the file was read: {:?}", cfg.warnings);
+        s.app.take_config(cfg);
+        let said: Vec<&String> = s.app.toasts.iter().map(|t| &t.text).collect();
+        assert!(said.iter().any(|t| t.starts_with("Reloaded 1 config file")), "{said:?}");
+
+        // The reload drops the preview, which the worker would refill; the
+        // harness has no worker, so the test puts the same text back.
+        let again = screen("focus-theme-file", source(plain(400), toc(), 400));
+        s.app.preview.key = again.app.preview.key.clone();
+        s.app.preview.state = source(plain(400), toc(), 400);
+        s.feed(vec![back_tab()]);
+        assert!(s.app.preview.outline.is_some(), "the outline has the keys");
+        let f = s.draw();
+        assert_eq!(down(&f).len(), 1, "the outline's rule is red: {:?}", f.strokes);
+
+        s.feed(vec![key(egui::Key::T, ctrl())]);
+        assert!(s.app.term_focus, "the terminal has the keys");
+        let f = s.draw();
+        assert_eq!(across(&f).len(), 1, "and so is the terminal's, from the same file: {:?}", f.strokes);
+        assert!(down(&f).is_empty(), "while the outline's is not lit any more");
+    }
 }
 
 /// TESTING.md section 42: the card against the minimap's strip.
@@ -1523,8 +1563,10 @@ mod minimap_hover_frame {
         assert!(f.filled(fill).is_empty(), "letting go off the strip ends it");
     }
 
-    /// 42.6 and 42.7: a blank line is the number on its own, and a very long
-    /// one is cut rather than laid out in full.
+    /// 42.6 and 42.7: a blank line is the number on its own, in a card no
+    /// wider than the number, and a very long one is cut rather than laid out
+    /// in full -- two hundred characters at most, which is what keeps a
+    /// 2000-character line from costing the hover frame anything.
     #[test]
     fn a_blank_line_is_the_number_alone_and_a_long_one_is_cut() {
         let mut lines = plain(400);
@@ -1542,6 +1584,19 @@ mod minimap_hover_frame {
         let blank = card_text(&f, 101, 400).unwrap_or_else(|| panic!("{:?}", f.texts));
         assert_eq!(blank.trim(), "101", "the number and nothing else: {blank:?}");
         let narrow = f.filled(fill)[0].width();
+
+        // "Shrinks to the gutter": the card is as wide as what it holds, so
+        // beside the card for `line 99` (`100 line 99`, eleven monospace
+        // characters) the blank one holds the number's four and nothing more.
+        s.feed(vec![moved(egui::pos2(10.0, 10.0))]);
+        let f = hover(&mut s, egui::pos2(st.center().x, y(99)));
+        assert_eq!(card_text(&f, 100, 400).map(String::as_str), Some("100 line 99"), "{:?}", f.texts);
+        let wide = f.filled(fill)[0].width();
+        let per_char = (wide - 12.0) / 11.0;
+        assert!(
+            ((narrow - 12.0) - 4.0 * per_char).abs() < 1.0,
+            "the blank card fits its number: {narrow} against {wide}"
+        );
 
         // A fresh hover, so the delay is measured from arriving here.
         s.feed(vec![moved(egui::pos2(10.0, 10.0))]);

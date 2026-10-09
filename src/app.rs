@@ -4948,8 +4948,14 @@ impl App {
     /// surprise. The fonts are the one thing this cannot do itself — installing
     /// a face belongs to the frame loop — so it asks for it with a flag.
     fn reload_config(&mut self) {
-        let old_term = self.cfg.term.clone();
         let cfg = Config::reload(&mut self.cfg);
+        self.take_config(cfg);
+    }
+
+    /// The half of `<C-F5>` after the files are read: what a test drives with
+    /// a config read from a directory of its own.
+    pub(crate) fn take_config(&mut self, cfg: Config) {
+        let old_term = self.cfg.term.clone();
         let files = cfg.loaded.len();
         let warning = cfg.warnings.first().cloned();
         // A pane already running keeps the shell it started with; the new

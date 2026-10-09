@@ -337,7 +337,7 @@ impl Config {
         cfg
     }
 
-    fn reload_from(prev: &mut Config, dirs: &[PathBuf]) -> Self {
+    pub(crate) fn reload_from(prev: &mut Config, dirs: &[PathBuf]) -> Self {
         let (mut cfg, broken) = Self::read(dirs);
         if !broken.any() {
             return cfg;

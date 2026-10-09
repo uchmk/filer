@@ -1179,9 +1179,11 @@ pane is not laid out at all without one. What it checks is that exactly one rule
 both panes on screen, either way round, that the mouse moves it as the key does, and that the cell
 cursor is filled while the pane has the keys and outlined when it does not. 38.7 and 38.8 are
 covered where they are about the *theme* — both rules read one `tab_active` entry, and clearing it
-falls back to the foreground rather than to the border — but the entry is set in memory, not read
-from a `theme.toml` and reloaded. What is left for an eye: that `#7ab8f5` and `border` are
-distinguishable at one pixel, and that a `theme.toml` really reaches them through `<C-F5>`.
+falls back to the foreground rather than to the border. Since v0.80.11 38.7 is also driven from a
+file: a `theme.toml` in a directory of the test's own is read the way `<C-F5>` reads it, the app
+takes the result as `<C-F5>` does, and both rules come out red. (38.8's fallback is reachable only
+in code: a `theme.toml` that leaves `tab_active` out keeps the built-in `#7ab8f5` under it.) What
+is left for an eye: that `#7ab8f5` and `border` are distinguishable at one pixel.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -1277,13 +1279,15 @@ needs a machine is real files, and the panel's own geometry.
 The geometry and the clamp are unit-tested. What needs a machine is the timing, the drag, and whether
 it is legible against a real theme.
 
-All of 42.1 to 42.13 except 42.6's "shrinks to the gutter" and 42.7's "no frame hitch" are automated
+All of 42.1 to 42.13 except 42.7's "no frame hitch" are automated
 (`ui::preview::minimap_hover_frame`): the harness delivers egui's own pointer events and moves the
 clock the delay is measured against, so the card can be hovered, dragged, clicked, themed and turned
 off from a test. Note that the delay is egui's `tooltip_delay`, half a second by default rather than
 the 0.4 s 42.1 says; the tests assert that there is no card a fifth of a second in and one after the
-delay, not a number. What is left for an eye: that the card is legible where it lands, and that a
-2000-character line costs no visible hitch.
+delay, not a number. 42.6's card is measured against a card for an ordinary line and holds the
+number and nothing more (v0.80.11). For 42.7 the test asserts the cause rather than the hitch: the
+card lays out two hundred characters at most, whatever the line's length. What is left for an eye:
+that the card is legible where it lands, and that a 2000-character line costs no visible hitch.
 
 | # | Do | Expect |
 | --- | --- | --- |
