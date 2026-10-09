@@ -2522,3 +2522,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   見ないと分からない。`terminal pane, from FILER_TERM_SHELL ([term] args not used)` のように、`args` があるときだけ足す。
   v0.73.11 で入れた。`TermCfg::dropped_args` に覚え、`terminal pane, from FILER_TERM_SHELL; [term] args not used: -NoLogo` のように中身も挙げる。
   Linux の本物のバイナリで、`args` があるときだけ付くのを確かめた。29.12 の期待値に足し、印を外して x64 の再テストに回した。
+
+## 境目をマウスで引く（2026-10-09、tsumugi の TODO から）
+
+- [ ] ターミナルペインの高さ（今は 35% 固定）や列の境目を、tsumugi の `tsumugi_layout::ui::dividers` で引けるようにする（要確認: Q94）
