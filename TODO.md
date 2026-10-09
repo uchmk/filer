@@ -2564,3 +2564,20 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   見ないと分からない。`terminal pane, from FILER_TERM_SHELL ([term] args not used)` のように、`args` があるときだけ足す。
   v0.73.11 で入れた。`TermCfg::dropped_args` に覚え、`terminal pane, from FILER_TERM_SHELL; [term] args not used: -NoLogo` のように中身も挙げる。
   Linux の本物のバイナリで、`args` があるときだけ付くのを確かめた。29.12 の期待値に足し、印を外して x64 の再テストに回した。
+
+
+## 実機のレーンから
+- [ ] （実機 #311）報告の所見と印の証拠を読み、振り分ける（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
+- [ ] （実機 #311）1. **TESTING.md 27.6 / 27.7 の行に「`j<Now>` を N 回 → `<Wait:100>` → `<State:>`」の測り方を足す。** 所見 2。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
+- [ ] （実機 #311）2. **49.10 を「信頼済みのフォルダで」と書く、または人の run に回す。** 所見 3。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
+- [ ] （実機 #311）3. **`ending_a_busy_shell_asks_first` の待ち時間を見直す。** 所見 1。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
+- [ ] （実機 #311・キュー）再テスト行の先頭から外す提案: 27.6 / 27.7 / 49.10a（今回 `[x]`）、21.22d。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
+- [ ] （実機 #311・キュー）残る: 49.10（`claude`、信頼ダイアログ）、49.10a の bash の半分、33.7（x64 の #309 の直しを待つ）。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
+- [ ] （実機 #311・キュー）`.claude/windows-role.md` の ARM64 の再テスト行は長く古くなっている。押し終えた行を外して縮める提案。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
+- [ ] （実機 #311・キュー）注: この run は ef94a0c（0.86.13）で測った。`origin/main` は 6d75a44 まで進んでいて、`src/preview/text.rs` などが変わっている。27.6 / 27.7 は次の回に新しい main で一度見直すとよい。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
+- [ ] （実機 #311・票）`origin/main`（6d75a44）の QUESTIONS.md に、状態が `投票中` の質問は無かった（`投票中` を含む 7 行はすべて凡例のコメントで、状態は `反映済み`）。投票なし。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
+- [ ] （実機 #311・キュー）Drop 27.6 / 27.7 / 49.10a / 21.22d from the ARM64 re-test row; the row in `.claude/windows-role.md` is long and stale and could be trimmed.（PR 本文）【後】
+- [ ] （実機 #311・キュー）`origin/main` is now at 6d75a44 (changes `src/preview/text.rs`); worth one more look at 27.6 / 27.7 there.（PR 本文）【後】
+- [ ] （実機 #311・キュー）Proposals: 3 (see report). Votes: none (no `投票中` question on origin/main).（PR 本文）【後】
+- [ ] （実機 #311・キュー）Changelog: QA report and checklist ticks only; no code change.（PR 本文）【後】
+- [ ] （実機 #311・キュー）🤖 Generated with [Claude Code](https://claude.com/claude-code)（PR 本文）【後】
