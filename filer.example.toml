@@ -64,6 +64,15 @@ backend = "auto"
 # shell = "pwsh"
 # args = ["-NoLogo"]
 
+[mcp]
+# `filer mcp` lets Claude Code read what this window shows: the folder, the
+# file under the cursor, the selection and the tabs (`filer_state`), and move
+# the cursor to a file (`filer_reveal`). The window answers through a door only
+# your own user can open; nothing listens on the network. Whatever filer_state
+# returns is passed to the model, so file names on screen leave the machine
+# when Claude Code is used. `false` keeps the door shut. Read at start.
+enable = true
+
 # Files filer cannot draw itself, drawn by something that can. Each rule is
 # tried in order and the first whose `match` fits wins.
 #

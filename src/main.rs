@@ -11,6 +11,7 @@ mod exec;
 mod fs;
 mod glob;
 mod keyscript;
+mod mcp;
 mod mime;
 mod preview;
 mod rename;
@@ -176,7 +177,9 @@ fn parse_cli() -> Cli {
                      env --out FILE   the same, written to FILE as UTF-8{ENV_OUT_WAIT}\n    \
                      shell-hook [pwsh|bash|zsh]\n                     \
                      the lines that let <A-Up> in the terminal pane\n                     \
-                     follow the shell; filer shell-hook | Add-Content $PROFILE\n\n\
+                     follow the shell; filer shell-hook | Add-Content $PROFILE\n    \
+                     mcp              an MCP server for Claude Code, reading the\n                     \
+                     running window: claude mcp add filer -- filer mcp\n\n\
                      Config is read from yazi's config directory, then from filer's own.\n\
                      Press ~ or F1 inside the app for the key list.",
                 ));
@@ -234,6 +237,10 @@ fn parse_cli() -> Cli {
                     std::process::exit(2);
                 }
             },
+            // Claude Code's way in (Q95): it starts `filer mcp` and talks
+            // JSON-RPC on its standard input and output, which a windowed
+            // program still inherits when they are pipes. Never opens a window.
+            "mcp" => mcp::run(),
             // The bug report's own line, so the two cannot drift apart (26.3).
             "--version" | "-V" => {
                 say(&bugreport::version_line());
@@ -367,6 +374,7 @@ fn main() -> eframe::Result<()> {
             // What earlier runs unpacked from archives and left (a copy `l`
             // opened is kept while its editor may hold it).
             util::sweep_archive_scratch();
+            let mcp = cfg.mcp.enable.then(|| mcp::listen(cc.egui_ctx.clone()));
             let mut a = App::new(cfg, start, cc.egui_ctx.clone());
             a.start_unproven(home);
             a.bold_font = has_bold;
@@ -406,6 +414,7 @@ fn main() -> eframe::Result<()> {
                     .unwrap_or_else(|| PathBuf::from(".")),
                 script_done,
                 script_watch,
+                mcp,
             }))
         }),
     )
@@ -717,6 +726,9 @@ struct Filer {
     /// What the watchdog reads (`watch_script`). `None` without a script or
     /// without `FILER_KEYS_DONE`, where there is nobody to tell.
     script_watch: Option<Arc<Mutex<ScriptWatch>>>,
+    /// What `filer mcp` asks through the door (`mcp::listen`); `None` with
+    /// `[mcp] enable = false`.
+    mcp: Option<crossbeam_channel::Receiver<mcp::Ask>>,
 }
 
 /// How far `--keys` has got, shared with the thread that watches it.
@@ -827,6 +839,23 @@ impl Filer {
             self.app.error(format!("Shot {name}: {e}"));
         }
         self.script_shot = None;
+    }
+
+    /// What `filer mcp` asked through the door, answered from the state in
+    /// memory. A reveal moves the cursor as `reveal` would; the door checked
+    /// the path exists before it came here.
+    fn answer_mcp(&mut self) {
+        let Some(rx) = &self.mcp else { return };
+        while let Ok(ask) = rx.try_recv() {
+            let reply = match ask.request {
+                mcp::Request::State => Ok(mcp::state_json(&self.app, overlay_name(&self.app), view_name(&self.app))),
+                mcp::Request::Reveal(path) => {
+                    self.app.reveal(path.display().to_string());
+                    Ok(format!("filer is showing {}", path.display()))
+                }
+            };
+            let _ = ask.reply.send(reply);
+        }
     }
 
     /// Put the window's own view of its size into `last-run.toml`.
@@ -1013,6 +1042,7 @@ impl eframe::App for Filer {
         let ctx = ui.ctx().clone();
 
         self.app.drain_channels(&ctx);
+        self.answer_mcp();
         self.record_geometry(&ctx);
         self.take_shot(&ctx);
         let frame_nr = ctx.cumulative_frame_nr();
@@ -1202,12 +1232,9 @@ fn preview_text(state: &app::PreviewState) -> String {
     out
 }
 
-/// What `FILER_KEYS_DONE` holds once `--keys` is done: the state a check reads
-/// afterwards, one `name: value` per line. Reading it any other way meant
-/// pressing a key, and a key changes what it reads (#103, proposal 3).
-fn state_report(app: &App) -> String {
-    let tab = app.tab();
-    let overlay = match &app.overlay {
+/// The open overlay, in one word, for the state report and `filer_state`.
+fn overlay_name(app: &App) -> &'static str {
+    match &app.overlay {
         app::Overlay::None => "none",
         app::Overlay::Input(_) => "input",
         app::Overlay::Confirm(_) => "confirm",
@@ -1216,7 +1243,29 @@ fn state_report(app: &App) -> String {
         app::Overlay::Tasks(_) => "tasks",
         app::Overlay::Spot(_) => "spot",
         app::Overlay::Diff(_) => "diff",
-    };
+    }
+}
+
+/// What stands in for the listing: the cwd alone cannot tell a usage view
+/// from the plain folder it was opened on.
+fn view_name(app: &App) -> &'static str {
+    if app.in_usage_view() {
+        "usage"
+    } else if app.in_archive_view() {
+        "archive"
+    } else if app.in_search_view() {
+        "search"
+    } else {
+        "list"
+    }
+}
+
+/// What `FILER_KEYS_DONE` holds once `--keys` is done: the state a check reads
+/// afterwards, one `name: value` per line. Reading it any other way meant
+/// pressing a key, and a key changes what it reads (#103, proposal 3).
+fn state_report(app: &App) -> String {
+    let tab = app.tab();
+    let overlay = overlay_name(app);
     let mut lines = vec![
         format!("cwd: {}", tab.cwd.display()),
         format!("hovered: {}", tab.current.hovered().map_or(String::new(), |e| e.path.display().to_string())),
@@ -1229,20 +1278,7 @@ fn state_report(app: &App) -> String {
         },
         format!("tab: {} of {}", app.active + 1, app.tabs.len()),
         format!("overlay: {overlay}"),
-        // What stands in for the listing: the cwd alone cannot tell a usage
-        // view from the plain folder it was opened on.
-        format!(
-            "view: {}",
-            if app.in_usage_view() {
-                "usage"
-            } else if app.in_archive_view() {
-                "archive"
-            } else if app.in_search_view() {
-                "search"
-            } else {
-                "list"
-            }
-        ),
+        format!("view: {}", view_name(app)),
     ];
     // Which archive and which level of it (#251, #252): `hovered:` said it
     // only while a row was under the cursor, and an empty folder has none.

@@ -1543,3 +1543,20 @@ function prompt { $e = [char]27; $c = if ($?) { 0 } else { 1 }; "$e]133;D;$c$e\$
 | 49.6 | `echo src\main.rs:10` from the repository's folder in the pane, then Ctrl+click it | The file list goes to `src` with the cursor on `main.rs` (the line number is not used). A path that does not exist leaves the list where it was |
 | 49.7 | ``Write-Host "`e]8;;https://example.com`e\click me`e]8;;`e\"`` (an OSC 8 link), then Ctrl+click `click me` | `click me` has a dotted underline before Ctrl is held, and the click opens `https://example.com` |
 | 49.8 | A picture: `chafa -f sixels some.png` (`winget install hpjansson.Chafa`), or `wezterm imgcat some.png` | The picture is drawn in the pane where the program printed it, and scrolls with the text (`<S-PageUp>`). `clear` removes it |
+
+## 50. Claude Code reads the window (v0.85.0)
+
+`filer mcp` is an MCP server for Claude Code: it asks the running filer window, over a door only the
+same user can open (`\\.\pipe\filer-<user>` on Windows), what it is showing (Q95, Q96). Register it once
+in a terminal where `claude` runs, with the full path of the `filer.exe` under test:
+`claude mcp add filer -- "<folder>\filer.exe" mcp`, and remove it afterwards with `claude mcp remove filer`.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 50.1 | Start filer, go to a folder and put the cursor on a file; then in `claude`, `/mcp` | `filer` is listed as connected, with two tools, `filer_state` and `filer_reveal` |
+| 50.2 | Select two files with `<Space>`, then ask Claude "which file is under the cursor in filer, and what is selected?" | Claude calls `filer_state` and answers with that folder, that file and the two selected paths, as full Windows paths (`C:\…`) |
+| 50.3 | Ask Claude "show me `C:\Windows\notepad.exe` in filer" | Claude calls `filer_reveal`; the window goes to `C:\Windows` with the cursor on `notepad.exe`, without being clicked first, and Claude reports `filer is showing …`. Asking for a path that does not exist gets `… does not exist` and the window does not move |
+| 50.4 | Close every filer window, then ask Claude for `filer_state` again | The tool fails with `filer is not running (or its [mcp] enable is false in filer.toml); start filer and ask again`. Claude Code itself keeps working, and `/mcp` still lists `filer` |
+| 50.5 | Put `[mcp]` / `enable = false` in `filer.toml`, start filer, ask for `filer_state` | The same `filer is not running …` answer: the window opens no door. Take the line out again afterwards |
+| 50.6 | Open two filer windows on different folders, ask for `filer_state`; close the first window, wait 30 seconds, ask again | The first answer is the first window's folder. After it closes, the second answer is the second window's folder |
+| 50.7 | Register `filer.com` instead (`claude mcp add filer -- "<folder>\filer.com" mcp`) and repeat 50.2 | The same answer: `filer.com` passes `mcp` to `filer.exe` with its input and output. No console window flashes when Claude Code starts it |

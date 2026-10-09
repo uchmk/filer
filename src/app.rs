@@ -598,8 +598,15 @@ impl Task {
 /// The first line names the file and the place, which is what the toast is
 /// for; the rest is a key away.
 pub fn config_toast(warnings: &[String]) -> Option<String> {
+    config_toast_at(warnings, dirs::home_dir().as_deref())
+}
+
+/// [`config_toast`] with the home folder given. The first line starts with the
+/// file's path, and under a long one the toast wrapped to three lines and
+/// covered the preview's top (#295); `~` for home keeps it to one.
+fn config_toast_at(warnings: &[String], home: Option<&Path>) -> Option<String> {
     let first = warnings.first()?;
-    let line = first.lines().next().unwrap_or_default();
+    let line = crate::bugreport::without_home(first.lines().next().unwrap_or_default(), home);
     let cut = first.lines().nth(1).is_some();
     let tail = match (cut, warnings.len() - 1) {
         (false, 0) => String::new(),
@@ -6802,6 +6809,17 @@ mod tests {
         assert_eq!(
             config_toast(&w(&[parse, "b"])).unwrap(),
             "Config: C:/cfg/yazi.toml: TOML parse error at line 1, column 5 — the rest and 1 more in `~`",
+        );
+    }
+
+    /// #295: the file's path under home is shown as `~`, so the toast stays short.
+    #[test]
+    fn a_config_toast_shortens_home() {
+        let home = Path::new("/home/someone/with/a/long/name");
+        let w = vec!["/home/someone/with/a/long/name/.config/yazi/yazi.toml: TOML parse error at line 1\n  |".to_string()];
+        assert_eq!(
+            config_toast_at(&w, Some(home)).unwrap(),
+            "Config: ~/.config/yazi/yazi.toml: TOML parse error at line 1 — the rest in `~`",
         );
     }
 

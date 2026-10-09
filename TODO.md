@@ -39,7 +39,7 @@ v0.78.167 が `scripts/auto-wintest.ps1` に構文エラーを入れ、2 台の�
 ## ARM64 の再テストの所見（#295）
 
 - [ ] （#295 の所見 1）16.13 / 16.13a が ARM64（build 28000）で失敗する: `has_default_app`（`src/exec.rs`）は `AssocQueryStringW(ASSOCSTR_EXECUTABLE, ".xyz")` の成功を「アプリあり」と見るが、この機械では関連付けの無い拡張子でも `OpenWith.exe` を返し、`start` が「アプリを選ぶ」の箱を出す。x64（v0.82.0 で通った）との差。`OpenWith.exe`（と `rundll32.exe` 系）を「アプリ無し」に数える案。x64 でも同じ値が出るか先に確かめる【実機】
-- [ ] （#295 の所見 2）設定ファイルが長いパスにあると警告のトーストが 3 行に折れてプレビューの先頭を覆う（33.7 の「1 行」に反する）。1 行目のパスを `~` や相対に短縮してから折る
+- [x] （v0.85.1。トーストの 1 行目のホームフォルダを `~` にした）（#295 の所見 2）設定ファイルが長いパスにあると警告のトーストが 3 行に折れてプレビューの先頭を覆う（33.7 の「1 行」に反する）。1 行目のパスを `~` や相対に短縮してから折る
 
 ## Sonnet の見張り（2026-10-05 まで）
 
@@ -362,8 +362,11 @@ filer・tsumugi・これから作るアプリを LLM とつなげたい。ソー
 - [x] （2026-10-09、v0.84.1）案を書く: [docs/llm-integration.md](docs/llm-integration.md)。(a) アプリが MCP サーバーになる・(b) アプリが LLM を呼ぶ・(c) 両方を比べ、
   (a) を読むだけの道具から始めるのを勧めた。GUI は標準入出力を持たないので、同じ exe の `filer mcp` が Claude Code と窓の間の橋になる。
   口は tsumugi の `tsumugi-mux` の通信を `tsumugi-ipc` に切り出して使い回す
-- [ ] 範囲を決める 【人】（要確認: Q95、Q96）
-- [ ] 決まったら、文書の「段」の 1〜4 を進める（1・2 は tsumugi の側） 【人】（要確認: Q95、Q96。答えが出るまで着手できない）
+- [x] 範囲を決める（2026-10-09、持ち主: Q95・Q96 とも 1）
+- [x] （tsumugi v0.75.0）段 1・2: `tsumugi-ipc` を `tsumugi-mux` から切り出し、`tsumugi-mcp` と `tsumugi mcp`（`tsumugi_sessions` / `tsumugi_screen`）
+- [x] （v0.85.0）段 3: 窓の口（`[mcp] enable`、既定は入）と `filer mcp`、`filer_state` / `filer_reveal`。Xvfb で窓に JSON-RPC を流して確かめた
+- [ ] 段 4: 実機で Claude Code に登録して呼ぶ（TESTING.md 50 節） 【実機】
+- [ ] 段 5: 書く道具（窓の確認の箱つき）。使ってみてから範囲を QUESTIONS.md で聞く 【後】
 - [x] 「別アプリと双方向 API」（ロードマップの案 3）とまとめて考える: (a) の `filer_reveal` が Q16 の「このファイルへ飛べ」になる（docs/llm-integration.md）
 
 ## テストの揺れ（2026-10-05）
