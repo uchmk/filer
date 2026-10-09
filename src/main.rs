@@ -407,6 +407,7 @@ fn main() -> eframe::Result<()> {
                 script,
                 script_at: (0, std::time::Instant::now()),
                 script_now: false,
+                cursor_icon: egui::CursorIcon::Default,
                 script_shot: None,
                 shot_dir: std::env::var_os("FILER_KEYS_DONE")
                     .and_then(|p| PathBuf::from(p).parent().map(std::path::Path::to_path_buf))
@@ -712,6 +713,8 @@ struct Filer {
     /// `<Now>` was read: the next key goes in a frame after the last, without
     /// the settled wait.
     script_now: bool,
+    /// The shape the window asked of the mouse cursor in the last frame, for `<State:>` (a hover row, 1.44).
+    cursor_icon: egui::CursorIcon,
     /// `<Shot:name>`: asked for in the frame loop (`Some(name, false)`), then
     /// sent and waited on (`true`) until the picture is on disk.
     script_shot: Option<(String, bool)>,
@@ -978,6 +981,11 @@ impl eframe::App for Filer {
                 self.script_at = (frame, std::time::Instant::now());
                 self.script_now = false;
             }
+            Some(keyscript::Press::PasteText(text)) => {
+                raw_input.events.push(keyscript::paste_text_event(&text));
+                self.script_at = (frame, std::time::Instant::now());
+                self.script_now = false;
+            }
             Some(p @ (keyscript::Press::Click { .. } | keyscript::Press::Hover { .. } | keyscript::Press::Wheel { .. } | keyscript::Press::Drag { .. })) => {
                 let rect = ctx.input(|i| i.viewport_rect());
                 let mut events = keyscript::pointer_events(&p, rect);
@@ -999,7 +1007,7 @@ impl eframe::App for Filer {
             // the state the key before it left (#230).
             Some(keyscript::Press::State(name)) => {
                 let path = self.shot_dir.join(format!("{name}.txt"));
-                if let Err(e) = std::fs::write(&path, state_report(&self.app)) {
+                if let Err(e) = std::fs::write(&path, state_report(&self.app) + &format!("cursor icon: {:?}\n", self.cursor_icon)) {
                     self.app.error(format!("State {name}: {e}"));
                 }
                 self.script_at = (frame, std::time::Instant::now());
@@ -1130,6 +1138,7 @@ impl eframe::App for Filer {
         {
             ctx.request_repaint_after(Duration::from_millis(80));
         }
+        self.cursor_icon = ctx.output(|o| o.cursor_icon);
     }
 }
 

@@ -60,6 +60,10 @@ pub enum Step {
     /// as the paste event the platform makes of Ctrl+V. A real keyboard never
     /// sends the press, so a text field hears nothing from one (#260).
     Paste,
+    /// `<Paste:text>`: that text as the paste event, with `\n`, `\t`, `\e`, `\\` and `\xNN`
+    /// for what a control byte or the closing `>` (`\x3e`) cannot be written as. For a program that reads a bracketed
+    /// paste off the pane (49.6), where the clipboard would need setting from outside first.
+    PasteText(String),
     /// `<Click:0.5,0.4>` and `<RClick:…>`: the left or right button at that
     /// place in the window, as fractions of its width and height. The right-click
     /// and wheel rows were each driven by a hundred lines of `SendInput`
@@ -98,6 +102,7 @@ pub enum Press {
     PaneText(String),
     PreviewText(String),
     Paste,
+    PasteText(String),
     /// Pointer steps wait for the window's size, known only in the frame loop.
     Click { right: bool, mods: u8, at: At },
     Hover { at: At },
@@ -111,6 +116,7 @@ pub fn press(step: &Step) -> Option<Press> {
         Step::Key(k) if k.code == Code::Char('v') && k.ctrl && !k.alt && !k.sup => Some(Press::Paste),
         Step::Key(k) => events(k).map(Press::Events),
         Step::Paste => Some(Press::Paste),
+        Step::PasteText(t) => Some(Press::PasteText(t.clone())),
         Step::PaneText(name) => Some(Press::PaneText(name.clone())),
         Step::PreviewText(name) => Some(Press::PreviewText(name.clone())),
         Step::Click { right, mods, at } => Some(Press::Click { right: *right, mods: *mods, at: *at }),
@@ -135,6 +141,7 @@ pub fn label(step: &Step) -> String {
         Step::State(name) => format!("<State:{name}>"),
         Step::Quit => "<Quit>".into(),
         Step::Paste => "<Paste>".into(),
+        Step::PasteText(t) => format!("<Paste:{}>", paste_text_escape(t)),
         Step::PaneText(name) => format!("<PaneText:{name}>"),
         Step::PreviewText(name) => format!("<PreviewText:{name}>"),
         Step::Click { right, mods, at } => format!("<{}Click:{}{}>", if *right { "R" } else { "" }, held_text(*mods), at_text(*at)),
@@ -242,6 +249,11 @@ pub fn paste_event() -> egui::Event {
     egui::Event::Paste(crate::exec::get_clipboard().unwrap_or_default())
 }
 
+/// `<Paste:text>`: the text itself as the paste event.
+pub fn paste_text_event(text: &str) -> egui::Event {
+    egui::Event::Paste(text.to_owned())
+}
+
 /// How long nothing may be pressed, past any `<Wait:N>` due, before a script
 /// counts as stuck. A key waits at most five seconds for things to settle, so
 /// this is only reached when the frame loop itself has stopped running.
@@ -339,6 +351,46 @@ fn named(token: &str, what: &str) -> Result<String, String> {
     Ok(name.to_owned())
 }
 
+/// The text in `<Paste:text>`; see `Step::PasteText` for the escapes.
+fn paste_text(token: &str) -> Result<String, String> {
+    let bad = |why: &str| format!("`{token}` is not a paste: {why}");
+    let inner = token.strip_prefix("<Paste:").and_then(|t| t.strip_suffix('>')).unwrap_or("");
+    let mut out = String::new();
+    let mut it = inner.chars();
+    while let Some(c) = it.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match it.next() {
+            Some('n') => out.push('\n'),
+            Some('t') => out.push('\t'),
+            Some('e') => out.push('\x1b'),
+            Some('x') => {
+                let hex: String = it.by_ref().take(2).collect();
+                let b = u8::from_str_radix(&hex, 16).ok().filter(|_| hex.len() == 2).ok_or_else(|| bad("`\\x` takes two hex digits"))?;
+                out.push(b as char);
+            }
+            Some('\\') => out.push('\\'),
+            _ => return Err(bad("write a backslash as `\\\\`")),
+        }
+    }
+    Ok(out)
+}
+
+/// `paste_text`'s inverse, for the label of a step.
+fn paste_text_escape(t: &str) -> String {
+    t.chars().map(|c| match c {
+        '\n' => "\\n".into(),
+        '\t' => "\\t".into(),
+        '\x1b' => "\\e".into(),
+        '\\' => "\\\\".into(),
+        '>' => "\\x3e".into(),
+        c if (c as u32) < 0x20 => format!("\\x{:02x}", c as u32),
+        c => c.to_string(),
+    }).collect()
+}
+
 /// The name in `<Shot:name>` or `<Shot:name@preview>`; the `@preview` stays on
 /// the name, which `shot_crop` splits off where the picture is saved.
 fn shot_name(token: &str) -> Result<String, String> {
@@ -390,6 +442,7 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
             None if token.starts_with("<Shot:") => Step::Shot(shot_name(token)?),
             None if token.starts_with("<State:") => Step::State(named(token, "State")?),
             None if token == "<Paste>" => Step::Paste,
+            None if token.starts_with("<Paste:") => Step::PasteText(paste_text(token)?),
             None if token.starts_with("<PaneText:") => Step::PaneText(named(token, "PaneText")?),
             None if token.starts_with("<PreviewText:") => Step::PreviewText(named(token, "PreviewText")?),
             None if pointer(token).is_some() => pointer(token).unwrap_or_else(|| unreachable!())?,
@@ -419,7 +472,7 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
     }
     // `<Now>` is about the key after it, so there has to be one.
     for (i, step) in out.iter().enumerate() {
-        if *step == Step::Now && !matches!(out.get(i + 1), Some(Step::Key(_) | Step::State(_) | Step::Shot(_) | Step::PaneText(_) | Step::PreviewText(_) | Step::Paste | Step::Click { .. } | Step::Hover { .. } | Step::Wheel { .. } | Step::Drag { .. })) {
+        if *step == Step::Now && !matches!(out.get(i + 1), Some(Step::Key(_) | Step::State(_) | Step::Shot(_) | Step::PaneText(_) | Step::PreviewText(_) | Step::Paste | Step::PasteText(_) | Step::Click { .. } | Step::Hover { .. } | Step::Wheel { .. } | Step::Drag { .. })) {
             return Err("`<Now>` has to come right before a key or a reading (`<State:x>`, `<Shot:x>`, `<PaneText:x>`), as `d<Now>w` or `<A-c><Now><State:mid>`".into());
         }
     }
@@ -599,6 +652,18 @@ mod tests {
         match &s.app.overlay {
             crate::app::Overlay::Input(ov) => assert!(ov.text.contains("pasted-name"), "{:?}", ov.text),
             _ => panic!("the cd prompt is not open"),
+        }
+    }
+
+    /// `<Paste:text>` pastes that text, with the escapes of `Step::PasteText`.
+    #[test]
+    fn paste_text_reads_its_escapes() {
+        let got = parse("<Paste:a b\\n\\x1b[200~\\\\\\x3e>").unwrap();
+        assert_eq!(got, [Step::PasteText("a b\n\x1b[200~\\>".into())]);
+        assert_eq!(press(&got[0]), Some(Press::PasteText("a b\n\x1b[200~\\>".into())));
+        assert_eq!(label(&got[0]), "<Paste:a b\\n\\e[200~\\\\\\x3e>");
+        for bad in ["<Paste:\\q>", "<Paste:\\x1>", "<Paste:\\>"] {
+            assert!(parse(bad).unwrap_err().contains("not a paste"), "{bad}");
         }
     }
 
