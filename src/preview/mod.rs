@@ -53,6 +53,9 @@ pub struct Request {
     pub max_bytes: usize,
     pub tab_size: u8,
     pub syntect_theme: String,
+    /// Markdown is drawn laid out, so its colored source is not on screen: the
+    /// first screen of a long one goes out before any of the source is colored.
+    pub markdown_rendered: bool,
     /// The command that draws this file, when one is configured for it. Copied
     /// in rather than looked up: the worker has no config, in the same way it
     /// is handed `tab_size` and the theme.
@@ -303,6 +306,9 @@ pub enum Payload {
 pub struct Response {
     pub key: Key,
     pub payload: Payload,
+    /// The first screen of a long text, sent while the rest is colored. Shown,
+    /// but not cached: the whole one follows under the same key.
+    pub partial: bool,
 }
 
 pub struct Previewer {
@@ -319,15 +325,35 @@ impl Previewer {
             .name("preview".into())
             .spawn(move || {
                 shell_thumb::init_thread();
+                let wake = std::rc::Rc::new(wake);
                 let mut syntax = text::Highlighter::default();
-                while let Ok(req) = req_rx.recv() {
+                let mut warmed = false;
+                loop {
+                    if !warmed {
+                        warmed = syntax.warm(&|| req_rx.is_empty());
+                    }
+                    let Ok(req) = req_rx.recv() else { return };
                     // Skip anything already superseded while we were busy.
                     let mut req = req;
                     while let Ok(newer) = req_rx.try_recv() {
                         req = newer;
                     }
+                    let (tx, newer, key, wake_early) = (res_tx.clone(), req_rx.clone(), req.key.clone(), wake.clone());
+                    syntax.early = Some(Box::new(move |payload| {
+                        if let Some(payload) = payload {
+                            let _ = tx.send(Response { key: key.clone(), payload, partial: true });
+                            wake_early();
+                        }
+                        // Moving on through a folder colors only the first
+                        // screen of each file it passes.
+                        newer.is_empty()
+                    }));
                     let payload = render(&req, &mut syntax);
-                    if res_tx.send(Response { key: req.key, payload }).is_err() {
+                    syntax.early = None;
+                    if std::mem::take(&mut syntax.abandoned) {
+                        continue;
+                    }
+                    if res_tx.send(Response { key: req.key, payload, partial: false }).is_err() {
                         return;
                     }
                     wake();
@@ -801,6 +827,7 @@ pub(crate) mod for_tests {
             max_bytes: 1 << 20,
             tab_size: 4,
             syntect_theme: "base16-ocean.dark".into(),
+            markdown_rendered: true,
             preview: None,
         };
         super::render(&req, &mut super::text::Highlighter::default())

@@ -65,6 +65,11 @@ impl Collector {
         });
     }
 
+    /// The entries found in the lines fed so far.
+    pub fn so_far(&self) -> Vec<TocEntry> {
+        self.entries.clone()
+    }
+
     pub fn finish(self) -> Vec<TocEntry> {
         self.entries
     }

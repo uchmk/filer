@@ -2234,6 +2234,7 @@ impl App {
             max_bytes: self.cfg.ui.max_text_bytes,
             tab_size: self.cfg.yazi.preview.tab_size,
             syntect_theme: self.cfg.theme.syntect_theme.clone(),
+            markdown_rendered: self.render_markdown,
             preview: rule,
         });
     }
@@ -2241,6 +2242,12 @@ impl App {
     fn on_preview(&mut self, res: preview::Response, ctx: &egui::Context) {
         if self.preview.key.as_ref() != Some(&res.key) {
             return; // stale
+        }
+        if res.partial {
+            // Shown while the rest is colored. Still in flight, and the scroll
+            // position is kept for the whole one that replaces it.
+            self.preview.state = PreviewState::Ready(res.payload);
+            return;
         }
         self.preview.in_flight = false;
         self.preview.texture = match &res.payload {
@@ -7471,7 +7478,7 @@ mod preview_delivery {
         app.preview.state = PreviewState::Loading;
 
         app.on_preview(
-            preview::Response { key, payload: Payload::Error("x".into()) },
+            preview::Response { key, payload: Payload::Error("x".into()), partial: false },
             &ctx,
         );
 
@@ -7518,6 +7525,36 @@ mod preview_delivery {
         assert!(a.settled());
     }
 
+    /// The first screen of a long text is shown at once, but it is not the
+    /// answer: the request is still in flight and nothing is cached until the
+    /// whole one comes.
+    #[test]
+    fn a_first_screen_is_shown_but_not_cached() {
+        let ctx = egui::Context::default();
+        let mut app = App::new(Config::load(), std::env::temp_dir(), ctx.clone());
+        let key = preview::Key {
+            path: PathBuf::from("/nowhere/todo.md"),
+            len: 7,
+            mtime: None,
+            box_size: (640, 480),
+            cols: 80,
+            n: 0,
+        };
+        app.preview.key = Some(key.clone());
+        app.preview.state = PreviewState::Loading;
+        app.preview.in_flight = true;
+        let text = || Payload::Text { lines: vec![], map: vec![], extent: Default::default(), outline: vec![] };
+
+        app.on_preview(preview::Response { key: key.clone(), payload: text(), partial: true }, &ctx);
+        assert!(matches!(app.preview.state, PreviewState::Ready(Payload::Text { .. })));
+        assert!(app.preview.in_flight && !app.settled());
+        assert!(app.preview.cache.get(&key).is_none());
+
+        app.on_preview(preview::Response { key: key.clone(), payload: text(), partial: false }, &ctx);
+        assert!(!app.preview.in_flight);
+        assert!(app.preview.cache.get(&key).is_some());
+    }
+
     /// The other half: a reply for a file the cursor has already left is still
     /// dropped, and dropping it must not knock out the preview on screen.
     #[test]
@@ -7538,7 +7575,7 @@ mod preview_delivery {
         app.preview.state = PreviewState::Loading;
 
         app.on_preview(
-            preview::Response { key: old, payload: Payload::Error("x".into()) },
+            preview::Response { key: old, payload: Payload::Error("x".into()), partial: false },
             &ctx,
         );
 

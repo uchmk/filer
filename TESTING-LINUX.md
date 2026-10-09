@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 541 件（TESTING.md の全 734 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 543 件（TESTING.md の全 736 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -458,9 +458,12 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **26.10** 26.8 と同じく関連付けを壊した状態で `<F12>`（v0.52.0）→ エラーのトーストが、報告のリンクが**クリップボードにある**とも言う。ブラウザに貼ると同じ、埋まった状態のフォームが開く。ブラウザが開けたときはクリップボードに触らない — *`<F12>` with the browser association broken, as in 26.8 (v0.52.0) → The error toast also says the report's link is **on the clipboard**; pasting it into a browser opens the same pre-filled form. When the browser *does* open, the clipboard is left alone*
 - [ ] **26.11** `<F12>` のあと `c`。もう一度 `<F12>` のあと `<Esc>`（v0.73.58、Q62）→ `c` は同じリンクをクリップボードに置いてそう言い、`FILER_KEYS_DONE` に `report:` の行が出る。ブラウザは開かない。`<Esc>`（または `n`）はパネルを閉じ、何も開かず何も写さない — *`<F12>`, then `c`; again `<F12>`, then `<Esc>` (v0.73.58, Q62) → `c` puts the same link on the clipboard and says so, and `FILER_KEYS_DONE` has a `report:` line with it; no browser opens. `<Esc>` (or `n`) closes the panel and nothing opens or is copied*
 
-## 27. 届かなかったプレビュー — 全 5 件が自動
+## 27. 届かなかったプレビュー
 
-`cargo test` が全部見ているので、押すものはありません。
+自動テスト済みなので下には出していない: 27.1, 27.2, 27.3, 27.4, 27.5
+
+- [ ] **27.6** filer の clone で filer を冷えた状態から起動し、Markdown を整形表示のまま `TODO.md`（2500 行超）に乗せ、`M` でソースにし、続けて `TESTING-CHECKS.md` と `src\app.rs` に乗せる（v0.86.12）→ どれも最初の 1 画面がすぐ出て、0.5 秒の待ちが無い。`<A-G>` で末尾まで行くとソースは最後まで色が付いていて（`preview top: N of N`）、右のミニマップも同じ — *Start filer cold in a clone of filer, hover `TODO.md` (2500+ lines) with Markdown rendered, `M` for its source, then hover `TESTING-CHECKS.md` and `src\app.rs` (v0.86.12) → Each shows its first screen at once, with no half-second wait. The source is coloured to the end once `<A-G>` takes it there (`preview top: N of N`), and so is the minimap down the right*
+- [ ] **27.7** リポジトリの直下で `j` を押しっぱなしにし、大きなテキストファイルで止める → カーソルはプレビューを待たず、止まったファイルは最後まで色付きで出る。最初の 1 画面のまま、または途中で通ったファイルのままにならない — *Hold `j` through the repository's root, then stop on a big text file → The cursor never waits on the preview, and the file it stops on is shown whole and coloured, not left on a first screen or on a file passed earlier*
 
 ## 28. 外から加えられた変更
 

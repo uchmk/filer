@@ -18,15 +18,51 @@ pub struct Highlighter {
     sets: Option<(SyntaxSet, ThemeSet)>,
     theme_name: String,
     theme: Option<Theme>,
+    /// Handed the first screen of a long text before the rest is colored, then
+    /// asked with `None` every few lines after, and answers whether to go on:
+    /// coloring every line is what a first look at a big file waited for
+    /// (TODO.md took 0.65 s), and a cached second look did not. Set by the
+    /// worker for each request.
+    pub(super) early: Option<Box<dyn FnMut(Option<Payload>) -> bool>>,
+    /// The last render stopped after its first screen because `early` said a
+    /// newer request was waiting; what it returned is not worth sending.
+    pub(super) abandoned: bool,
 }
 
 impl Highlighter {
-    fn ensure(&mut self, theme_name: &str) {
+    fn load_sets(&mut self) {
         if self.sets.is_none() {
             // bat's collection: syntect's own bundle has no TOML, TypeScript,
             // Dockerfile, Kotlin and so on.
             self.sets = Some((two_face::syntax::extra_newlines(), ThemeSet::load_defaults()));
         }
+    }
+
+    /// Parses a little Markdown, with fences of the languages most looked at,
+    /// while `idle` says nothing is asked for. A grammar's rules are read and
+    /// its regexes compiled the first time they are tried, which made the first
+    /// Markdown file of a session take 0.15 s longer than the next one. Returns
+    /// whether it got through; one stopped early starts again next time, the
+    /// part already done costing nearly nothing.
+    pub(super) fn warm(&mut self, idle: &dyn Fn() -> bool) -> bool {
+        const SAMPLE: &str = include_str!("warm-up.md");
+        self.load_sets();
+        let Some((syntaxes, _)) = self.sets.as_ref() else { return true };
+        let Some(md) = syntaxes.find_syntax_by_extension("md") else { return true };
+        let mut parse = ParseState::new(md);
+        for line in LinesWithEndings::from(SAMPLE) {
+            if !idle() {
+                return false;
+            }
+            if parse.parse_line(line, syntaxes).is_err() {
+                return true;
+            }
+        }
+        true
+    }
+
+    fn ensure(&mut self, theme_name: &str) {
+        self.load_sets();
         if self.theme.is_none() || self.theme_name != theme_name {
             let (_, themes) = self.sets.as_ref().unwrap();
             let theme = themes
@@ -49,6 +85,9 @@ impl Highlighter {
 }
 
 pub(crate) const MAX_LINES: usize = 4000;
+/// Lines colored before `Highlighter::early` is handed a first screen: about
+/// what a full-height pane shows. Any further down are colored a moment later.
+const HEAD_LINES: usize = 80;
 const MAX_LINE_CHARS: usize = 2000;
 
 pub fn render(bytes: &[u8], req: &Request, hl: &mut Highlighter) -> Payload {
@@ -103,7 +142,41 @@ pub fn render_cut(bytes: &[u8], cut: bool, req: &Request, hl: &mut Highlighter) 
     let mut symbols = Collector::default();
     let mut fence: Option<Fence<'_>> = None;
     let mut lines: Vec<Vec<Span>> = Vec::with_capacity(total_lines.min(MAX_LINES));
+    // Laid out once: the first screen of a long Markdown file carries all of
+    // it, which is cheap next to coloring the source beside it.
+    let mut doc = None;
+    let head = if is_markdown && req.markdown_rendered { 0 } else { HEAD_LINES };
     for (i, line) in LinesWithEndings::from(&expanded).take(MAX_LINES).enumerate() {
+        // Past the first screen, a newer request stops the rest.
+        if i > head && i % 32 == 0 && total_lines > HEAD_LINES {
+            if let Some(early) = hl.early.as_mut() {
+                if !early(None) {
+                    hl.abandoned = true;
+                    return Payload::Error("superseded".into());
+                }
+            }
+        }
+        if i == head && total_lines > HEAD_LINES {
+            if let Some(early) = hl.early.as_mut() {
+                // Every line is there, the rest uncolored for now, so the
+                // scroll range and the minimap's length do not change under
+                // the reader when the colors arrive.
+                let mut source = lines.clone();
+                source.extend(LinesWithEndings::from(&expanded).take(MAX_LINES).skip(i).map(plain_line));
+                let map = super::minimap(&source);
+                let payload = if is_markdown {
+                    let (d, clipped) = doc.get_or_insert_with(|| super::markdown::render(&expanded, req.key.cols, theme, syntaxes));
+                    let extent = Extent { truncated: extent.truncated || *clipped, ..extent };
+                    Payload::Markdown { doc: d.clone(), source, map, extent }
+                } else {
+                    Payload::Text { lines: source, map, extent, outline: symbols.so_far() }
+                };
+                if !early(Some(payload)) {
+                    hl.abandoned = true;
+                    return Payload::Error("superseded".into());
+                }
+            }
+        }
         // Always fed, even when its output is discarded, to keep its state in sync.
         let md = parse.parse_line(line, syntaxes).map(|ops| {
             if !is_markdown {
@@ -146,7 +219,7 @@ pub fn render_cut(bytes: &[u8], cut: bool, req: &Request, hl: &mut Highlighter) 
         lines.push(spans);
     }
     if is_markdown {
-        let (doc, clipped) = super::markdown::render(&expanded, req.key.cols, theme, syntaxes);
+        let (doc, clipped) = doc.unwrap_or_else(|| super::markdown::render(&expanded, req.key.cols, theme, syntaxes));
         let map = super::minimap(&lines);
         let extent = Extent { truncated: extent.truncated || clipped, ..extent };
         return Payload::Markdown { doc, source: lines, map, extent };
@@ -356,6 +429,7 @@ mod tests {
             tab_size: 4,
             preview: None,
             syntect_theme: "base16-ocean.dark".into(),
+            markdown_rendered: false,
         }
     }
 
@@ -449,5 +523,98 @@ mod tests {
         assert_eq!(fence_marker("    ```\n"), None);
         assert_eq!(fence_marker("``\n"), None);
         assert_eq!(fence_marker("``` a`b\n"), None);
+    }
+
+    /// The first screen of a long file goes out as soon as it is colored: every
+    /// line is in it, the ones past the head still plain, and the whole one that
+    /// follows colors them without moving anything.
+    #[test]
+    fn a_long_file_sends_its_first_screen_early() {
+        let src: String = (0..HEAD_LINES * 2).map(|i| format!("fn f{i}() {{ let x = {i}; }}\n")).collect();
+        let sent = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut hl = Highlighter::default();
+        let into = sent.clone();
+        hl.early = Some(Box::new(move |p| {
+            into.borrow_mut().extend(p);
+            true
+        }));
+        let Payload::Text { lines: whole, outline, .. } = render(src.as_bytes(), &request("rs"), &mut hl) else {
+            panic!("text expected")
+        };
+        assert!(!hl.abandoned);
+        let sent = sent.borrow();
+        assert_eq!(sent.len(), 1, "one first screen, then the whole");
+        let Payload::Text { lines: head, outline: head_outline, .. } = &sent[0] else { panic!("text expected") };
+        assert_eq!(head.len(), whole.len(), "the scroll range does not change");
+        assert_eq!(head[..HEAD_LINES], whole[..HEAD_LINES], "the head is colored already");
+        assert_eq!(head[HEAD_LINES].len(), 1, "the rest waits, plain: {:?}", head[HEAD_LINES]);
+        assert_eq!(head[HEAD_LINES][0].color, None);
+        assert_eq!(head_outline.len(), HEAD_LINES);
+        assert_eq!(outline.len(), HEAD_LINES * 2);
+    }
+
+    /// Told a newer request is waiting, whether as the first screen goes out or
+    /// while the rest is colored, it stops there.
+    #[test]
+    fn a_newer_request_stops_the_rest() {
+        let src = "line\n".repeat(HEAD_LINES * 2);
+        let mut hl = Highlighter { early: Some(Box::new(|_| false)), ..Default::default() };
+        render(src.as_bytes(), &request("md"), &mut hl);
+        assert!(std::mem::take(&mut hl.abandoned));
+
+        let asked = std::rc::Rc::new(std::cell::Cell::new(0));
+        let n = asked.clone();
+        hl.early = Some(Box::new(move |p| {
+            n.set(n.get() + usize::from(p.is_none()));
+            p.is_some()
+        }));
+        render(src.as_bytes(), &request("md"), &mut hl);
+        assert!(hl.abandoned);
+        assert_eq!(asked.get(), 1, "stopped at the first question");
+    }
+
+    /// A short file has nothing to send early, and Markdown's first screen
+    /// carries the whole laid-out document.
+    #[test]
+    fn a_short_file_is_sent_once_and_markdown_whole() {
+        let calls = std::rc::Rc::new(std::cell::Cell::new(0));
+        let mut hl = Highlighter::default();
+        let n = calls.clone();
+        hl.early = Some(Box::new(move |p| {
+            n.set(n.get() + usize::from(p.is_some()));
+            true
+        }));
+        render(b"# a\n\nb\n", &request("md"), &mut hl);
+        assert_eq!(calls.get(), 0);
+
+        let src: String = (0..HEAD_LINES).map(|i| format!("# H{i}\n\ntext\n\n")).collect();
+        let first = std::rc::Rc::new(std::cell::RefCell::new(None));
+        let into = first.clone();
+        hl.early = Some(Box::new(move |p| {
+            if p.is_some() {
+                *into.borrow_mut() = p;
+            }
+            true
+        }));
+        let Payload::Markdown { doc, .. } = render(src.as_bytes(), &request("md"), &mut hl) else { panic!("markdown") };
+        let Some(Payload::Markdown { doc: early, .. }) = first.borrow_mut().take() else { panic!("markdown first") };
+        assert_eq!(early.toc.len(), HEAD_LINES);
+        assert_eq!(early.toc.len(), doc.toc.len());
+        assert_eq!(early.lines.len(), doc.lines.len());
+
+        // Drawn laid out, its source is not on screen: none of it waits to be colored.
+        let mut req = request("md");
+        req.markdown_rendered = true;
+        let into = first.clone();
+        hl.early = Some(Box::new(move |p| {
+            if p.is_some() {
+                *into.borrow_mut() = p;
+            }
+            true
+        }));
+        render(src.as_bytes(), &req, &mut hl);
+        let Some(Payload::Markdown { doc: early, source, .. }) = first.borrow_mut().take() else { panic!("markdown first") };
+        assert_eq!(early.toc.len(), HEAD_LINES);
+        assert!(source.iter().all(|l| l.iter().all(|s| s.color.is_none())));
     }
 }

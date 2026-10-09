@@ -74,7 +74,7 @@ Nothing that touches the disk runs on the UI thread.
 | Directory listing | A small pool of scan threads (`[tasks] micro_workers`); results are routed by request id, stale ones are dropped |
 | Revisiting a directory | An LRU of listings makes `h`/`l` instant; a background rescan refreshes behind the scenes |
 | Huge directories | Only the visible rows are laid out and painted — a 200k-entry directory costs the same as a 20-entry one |
-| Previews | One worker, newest-request-wins, plus a 40 ms debounce so scrolling never hits the disk; syntax highlighting happens in the worker |
+| Previews | One worker, newest-request-wins, plus a 40 ms debounce so scrolling never hits the disk; syntax highlighting happens in the worker, which sends a long file's first screen before colouring the rest and drops the rest when the cursor moves on |
 | Images | Decoded and downscaled off-thread, uploaded once as a texture |
 | File operations | A sequential job queue with progress and conflict prompts |
 | Repaints | Event-driven: egui only redraws when something actually changed |
