@@ -2581,3 +2581,14 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [ ] （実機 #311・キュー）Proposals: 3 (see report). Votes: none (no `投票中` question on origin/main).（PR 本文）【後】
 - [ ] （実機 #311・キュー）Changelog: QA report and checklist ticks only; no code change.（PR 本文）【後】
 - [ ] （実機 #311・キュー）🤖 Generated with [Claude Code](https://claude.com/claude-code)（PR 本文）【後】
+- [ ] （実機 #312）報告の所見と印の証拠を読み、振り分ける（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
+- [ ] （実機 #312）1. **`<State:>` could say which preview is on screen.** `App::settled()` includes `preview.in_flight`, so an ordinary key settles only after the whole preview; to see the early first-screen payload of v0.86.12 I needed `<Now>` + `<Wait:>` + `<State:>`. A `preview: early|whole` line would make 27.6's first half readable without the timing trick.（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
+- [ ] （実機 #312）2. **27.6 wording**: say how to read it (`<Now><State:a><Wait:150><State:b>`), since a plain `<State:>` hides the early stage.（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
+- [ ] （実機 #312）3. The 1.43 / 40.16 wording proposals of the earlier runs stand (`<C-c>` is a plain `\x03`).（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
+- [ ] （実機 #312・キュー）x64 and ARM64 "Re-tests of changed behaviour": delete everything that is `[x]` now (25.4e, 49.9, 49.11, 49.10, 49.10a, 27.6, 27.7, 16.3 / 16.3a, 37.8a, 49.1-49.4, 1.38, 21.22d …). Keep only **1.44, 16.13 / 16.13a, 16.3b, 33.7 (waiting on TODO.md fixes)** and **49.7 (ConPTY / OSC 8)**.（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
+- [ ] （実機 #312・キュー）With only those left and all `【pane】` / TODO-blocked, the next run should answer `WINTEST_NOTHING` quickly.（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
+- [ ] （実機 #312・票）`QUESTIONS.md` on `origin/main` has no item with `状態: 投票中`, so there was nothing to vote on.（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
+- [ ] （実機 #312）Three: (1) `<State:>` should say whether the early or the whole preview is shown; (2) say in 27.6 how to read the early stage (`<Now>` + `<Wait:>` + `<State:>`); (3) the earlier 1.43 / 40.16 wording proposals stand.（PR 本文）【後】
+- [ ] （実機 #312・キュー）x64 and ARM64 "Re-tests of changed behaviour": delete everything that is `[x]` now (25.4e, 49.9, 49.11, 49.10, 49.10a, 27.6, 27.7, 16.3 / 16.3a, 37.8a, 49.1-49.4, 1.38, 21.22d …). Keep only 1.44, 16.13 / 16.13a, 16.3b, 33.7 (waiting on TODO.md fixes) and 49.7 (ConPTY / OSC 8).（PR 本文）【後】
+- [ ] （実機 #312・キュー）🤖 Generated with [Claude Code](https://claude.com/claude-code)（PR 本文）【後】
+- [ ] （実機 #312・票）Nothing to vote on: `QUESTIONS.md` has no `投票中` item.（PR 本文）【後】
