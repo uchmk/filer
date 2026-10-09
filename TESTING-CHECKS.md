@@ -7,10 +7,12 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 538 件（TESTING.md の全 731 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 541 件（TESTING.md の全 734 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
+
+未訳 3 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -825,6 +827,9 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [x] **49.6** リポジトリのフォルダで `echo src\main.rs:10` → Ctrl+クリック → 一覧が `src` に移り、カーソルが `main.rs` に乗る（行番号は使わない）。無いパスなら一覧は動かない — *`echo src\main.rs:10` from the repository's folder in the pane, then Ctrl+click it → The file list goes to `src` with the cursor on `main.rs` (the line number is not used). A path that does not exist leaves the list where it was*
 - [ ] **49.7** ``Write-Host "`e]8;;https://example.com`e\click me`e]8;;`e\"``（OSC 8 のリンク）→ `click me` を Ctrl+クリック → Ctrl を押す前から `click me` に点線の下線があり、クリックで `https://example.com` が開く — *``Write-Host "`e]8;;https://example.com`e\click me`e]8;;`e\"`` (an OSC 8 link), then Ctrl+click `click me` → `click me` has a dotted underline before Ctrl is held, and the click opens `https://example.com`*
 - [ ] **49.8** 画像: `chafa -f sixels some.png`（`winget install hpjansson.Chafa`）か `wezterm imgcat some.png` → プログラムが出した位置に画像が描かれ、文字と一緒にスクロールする（`<S-PageUp>`）。`clear` で消える — *A picture: `chafa -f sixels some.png` (`winget install hpjansson.Chafa`), or `wezterm imgcat some.png` → The picture is drawn in the pane where the program printed it, and scrolls with the text (`<S-PageUp>`). `clear` removes it*
+- [ ] **49.9** `Start-Sleep 300` in pwsh in the pane, then `<C-c>` (v0.86.0, tsumugi 2.58) → The command stops within a second and the prompt comes back; filer stays open. With `FILER_PTY_LOG` set, the `in` line for the press is a plain `\x03`, not a key record 〔未訳〕
+- [ ] **49.10** `claude` in the pane, type `one`, `<S-Enter>`, `two` (v0.86.0, tsumugi 2.55) → Claude Code's box shows `one` and `two` on two lines and sends nothing; `<Enter>` then sends both. Outside Claude Code (a plain pwsh prompt) `<S-Enter>` runs the line as before 〔未訳〕
+- [ ] **49.11** `wezterm imgcat some.png` in the pane (v0.86.0, tsumugi 2.48) → The picture is drawn; `imgcat` no longer stops on a division by zero (the pane answers `CSI 16 t`, the cell size) 〔未訳〕
 
 ## 50. Claude Code が窓を読む（v0.85.0）
 
