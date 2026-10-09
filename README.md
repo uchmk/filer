@@ -37,8 +37,8 @@ Windows, which is old enough to break programs run in it: lazygit starts with a 
 `filer.com` is a small console program that makes `filer` behave like any other command in a
 terminal. `filer.exe` is a windowed program, and PowerShell neither waits for one at the end of a
 pipeline nor connects its `>` to one, so `$v = & filer.exe env` comes back empty. Windows tries
-`.com` before `.exe` when you type `filer`, so `filer.com` answers. For `env`, `--version`, `--help`
-and `shell-hook` it runs `filer.exe` and waits; for anything else it opens the window and gives the
+`.com` before `.exe` when you type `filer`, so `filer.com` answers. For `env`, `--version`, `--help`,
+`shell-hook` and `mcp` it runs `filer.exe` and waits; for anything else it opens the window and gives the
 prompt back once the window is up. Visual Studio ships `devenv.com` beside `devenv.exe` for the same
 reason.
 
@@ -332,6 +332,9 @@ backend = "auto"           # auto | vulkan | dx12 | metal | gl; read at start
 [term]                     # what `<C-t>` starts; omit for the default
 # shell = "powershell"     # Windows without this is pwsh (7) when installed, else 5.1
 # args = ["-NoLogo"]
+
+[mcp]
+enable = true              # false: `filer mcp` cannot reach this window; read at start
 ```
 
 `backend` picks what draws the window (v0.74.0). `auto` is GL on Windows when the machine has it,
@@ -1193,6 +1196,10 @@ name up to its extension, and the archive name `E` offers selects the part befor
 copied out of Explorer's address bar therefore takes one right-click to get into `cd`, with no
 hand leaving the mouse.
 
+While the name typed into `r` or `E` is already taken in the folder, a red line above the prompt
+says so and what `<Enter>` will do: a rename onto it is refused, an archive over it asks before
+replacing it, and an archive named as one of the files being packed is refused.
+
 ## Running a command on the selection
 
 `;` and `:` both run a shell command on the selection. They differ in one thing: the console. `;`
@@ -1441,6 +1448,35 @@ function f {
 }
 ```
 
+
+## Claude Code (MCP)
+
+`filer mcp` is an [MCP](https://modelcontextprotocol.io) server, so Claude Code can ask what the
+filer window is showing. Add it once:
+
+```powershell
+claude mcp add filer -- "C:\tools\filer\filer.exe" mcp     # Windows: the full path to filer.exe
+claude mcp add filer -- filer mcp                             # macOS / Linux, with filer on PATH
+```
+
+| Tool | What it does |
+| --- | --- |
+| `filer_state` | The current folder, the path under the cursor, the selected paths (up to 500) and the tabs, as JSON |
+| `filer_reveal` | Goes to a file's folder and puts the cursor on it. Takes an absolute `path`; changes no file |
+
+Then "what's the file I have open in filer?" or "show me the config you just edited in filer" work
+without pasting paths. Claude Code reads the files with its own tools; filer only says where you are.
+
+`filer mcp` opens no window. It talks to the window that is already running, through a door only
+your own user can open (`\\.\pipe\filer-<user>` on Windows, `$XDG_RUNTIME_DIR/filer/sock` elsewhere;
+`FILER_ADDRESS` names another). Nothing listens on the network. With no window open the tool answers
+"filer is not running". With two windows, the first one opened answers; when it closes the next one
+takes over within half a minute.
+
+What the tools return goes to the model like anything else Claude Code reads, so the file names you
+have on screen leave the machine. `[mcp] enable = false` in `filer.toml` keeps the door shut. Tools
+that change files are not there yet; when they come they will ask in the window first
+([docs/llm-integration.md](docs/llm-integration.md)).
 
 ## Scripted keys
 

@@ -238,6 +238,10 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 title = "tsumugi から入ったペインの機能（v0.79.0）"
 note = "プロンプトの移動・出力のコピー・左の帯は、シェルが書くプロンプトの印（OSC 133）を読む。filer のシェルは印を書かないので、先に節の冒頭の `prompt` 関数をペインに貼る（`FILER_TERM_SHELL=pwsh`、`FILER_TERM_ARGS=-NoProfile`）。"
 
+[section.50]
+title = "Claude Code が窓を読む（v0.85.0）"
+note = "確かめる `filer.exe` をフルパスで、`claude` を動かすターミナルから 1 度だけ登録する: `claude mcp add filer -- \"<フォルダ>\\filer.exe\" mcp`。終わったら `claude mcp remove filer` で外す。"
+
 [row]
 # 1. ターミナルペイン
 "1.1" = '`<C-t>` を一覧から押す → 下部にシェルが開き、一覧が表示しているディレクトリに既にいる'
@@ -503,6 +507,7 @@ note = "プロンプトの移動・出力のコピー・左の帯は、シェル
 '21.22' = '一番上が 1 つのフォルダ（`inner\\`）の書庫と、そうでない書庫で `e`（v0.78.1）→ 終わるとカーソルができたものに乗る（1 つ目は `inner`、2 つ目は `<書庫の名前>\\`。`hovered:`）。`E` が作った書庫に乗るのと同じ（21.4）。トーストは `Unpacked into …`'
 '21.22b' = 'ファイルを選んで `E`、`<Tab>` を 3 回。途中で語幹に 1 文字打つ（v0.78.40、Q79）→ 名前が `.zip` → `.tar.gz` → `.7z` → `.zip` と回り、語幹（と打った文字）はそのまま。押すたびに語幹の部分が選択される。`.tar.gz` の形で `<Enter>` すると `.tar.gz` ができる'
 '21.22c' = '''書庫（`to-pack.zip`）を選んで `E`。欄を空にして `to-pack.zip` と打ち `<Enter>`（v0.78.41、#265）→ 欄は書庫自身の名前でなく `to-pack-packed.zip` で開く。書庫自身の名前を打つと赤い `Can't pack to-pack.zip into itself — give the archive another name` が出て、仕事は始まらず、`to-pack.zip` は変わらない（大きさもハッシュも同じ）'''
+'21.22d' = '''`a.txt` と `b.txt` のあるフォルダで `a.txt` の上で `r`、欄を空にして `b.txt` と打つ。`<Esc>` の後、隣に `a.zip` がある状態で `a.txt` を選んで `E`、`a.zip`、次に `a.txt` と打つ（v0.84.0、#264 / #265）→ `b.txt` を打っている間、欄の上に赤い枠の行 `b.txt already exists — Enter is refused` が出て、名前を戻すと消える。`E` では `a.zip` で `a.zip already exists — Enter asks before replacing it`、`a.txt` で `a.txt is being packed — Enter is refused`。`<State:>` にも `name hint: …` で同じ文が出る。`<Enter>` までは何も名前が変わらず、書庫も作られない'''
 '21.23' = '''`to-pack\` とその中のフォルダに古い日付を付け（`(Get-Item …).LastWriteTime = '2021-06-15 12:34:56'`）、`.zip`・`.tar.gz`・`.7z` で `E`、それぞれを `e`（v0.78.10）→ 展開したフォルダもその日付になる（`Get-Item … | % LastWriteTime`）。展開した時刻にならない（ファイルは 21.14 から同じ）。エクスプローラーの zip の展開はフォルダの日付を残さないが、それはエクスプローラーの話'''
 '21.24' = '書庫の中で 2 つのメンバーに `<Space>`、`<Esc>`（v0.78.16）→ `<Esc>` の後の状態ファイルは `selected: 0`（外で書庫そのものを選んでいたら、それは残る）。以前は `selected: 2` が残り、続く `d` が無いパスに `Trashed 2 item(s) — u to undo` と言った（#251）。確かめるのに `d` は押さない。選択が無ければカーソルの下の書庫を捨てる（それが正しい動き）'
 
@@ -886,3 +891,10 @@ note = "プロンプトの移動・出力のコピー・左の帯は、シェル
 "49.6" = "リポジトリのフォルダで `echo src\\main.rs:10` → Ctrl+クリック → 一覧が `src` に移り、カーソルが `main.rs` に乗る（行番号は使わない）。無いパスなら一覧は動かない"
 "49.7" = "``Write-Host \"`e]8;;https://example.com`e\\click me`e]8;;`e\\\"``（OSC 8 のリンク）→ `click me` を Ctrl+クリック → Ctrl を押す前から `click me` に点線の下線があり、クリックで `https://example.com` が開く"
 "49.8" = "画像: `chafa -f sixels some.png`（`winget install hpjansson.Chafa`）か `wezterm imgcat some.png` → プログラムが出した位置に画像が描かれ、文字と一緒にスクロールする（`<S-PageUp>`）。`clear` で消える"
+"50.1" = 'filer を起動してフォルダに入り、カーソルをファイルに置く → `claude` で `/mcp` → `filer` が接続済みで、ツールが 2 つ（`filer_state` と `filer_reveal`）'
+"50.2" = '`<Space>` で 2 ファイル選び、Claude に「filer でカーソルの下のファイルと選んだものは？」と聞く → Claude が `filer_state` を呼び、そのフォルダ・そのファイル・選んだ 2 つのパスを Windows のフルパス（`C:\…`）で答える'
+"50.3" = 'Claude に「filer で `C:\Windows\notepad.exe` を見せて」→ Claude が `filer_reveal` を呼び、窓をクリックしなくても `C:\Windows` に移ってカーソルが `notepad.exe` に乗る。Claude は `filer is showing …` と言う。無いパスなら `… does not exist` で、窓は動かない'
+"50.4" = 'filer の窓を全部閉じて、もう一度 `filer_state` を頼む → ツールが `filer is not running (or its [mcp] enable is false in filer.toml); start filer and ask again` で失敗する。Claude Code 自体は動き続け、`/mcp` にも `filer` が残る'
+"50.5" = '`filer.toml` に `[mcp]` / `enable = false` を書いて起動し、`filer_state` を頼む → 同じ `filer is not running …`: 窓は扉を開かない。終わったら行を消す'
+"50.6" = '別々のフォルダで filer の窓を 2 つ開き、`filer_state` を頼む。1 つ目の窓を閉じて 30 秒待ち、もう一度 → 1 回目は 1 つ目の窓のフォルダ。閉じたあとの 2 回目は 2 つ目の窓のフォルダ'
+"50.7" = '`filer.com` で登録し直し（`claude mcp add filer -- "<フォルダ>\filer.com" mcp`）、50.2 をする → 同じ答え: `filer.com` が `mcp` を入出力ごと `filer.exe` に渡す。Claude Code が起動するときにコンソールの窓は出ない'

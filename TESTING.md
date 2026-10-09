@@ -696,6 +696,7 @@ row needs which. 21.6 says something other than what it says here, which is writ
 | 21.22 | `e` on an archive whose top level is one folder (`inner\`), and on one that is not (v0.78.1) | When it finishes the cursor is on what it made -- `inner` in the first case, `<archive name>\` in the second (`hovered:`) -- as `E` puts it on the archive it made (21.4); the toast says `Unpacked into …` |
 | 21.22b | Select a file, `E`, then `<Tab>` three times, typing a letter into the stem between presses (v0.78.40, Q79) | The name goes `.zip` → `.tar.gz` → `.7z` → `.zip`, the stem (and the letter typed into it) untouched, and the stem part is selected after each press. `<Enter>` on the `.tar.gz` form makes a `.tar.gz` |
 | 21.22c | Select an archive (`to-pack.zip`), `E`; then clear the field, type `to-pack.zip` and `<Enter>` (v0.78.41, #265) | The field opens with `to-pack-packed.zip`, not the archive's own name. Typing the archive's own name gives a red `Can't pack to-pack.zip into itself — give the archive another name`, no job starts, and `to-pack.zip` is unchanged (same size, same hash) |
+| 21.22d | With `a.txt` and `b.txt` in a folder, `r` on `a.txt`, clear the field and type `b.txt`; then `<Esc>`, select `a.txt` with an existing `a.zip` beside it, `E`, and type `a.zip`, then `a.txt` (v0.84.0, #264 / #265) | While `b.txt` is typed a red-bordered line above the prompt reads `b.txt already exists — Enter is refused`; it goes when the name is changed back. On `E`, `a.zip` gives `a.zip already exists — Enter asks before replacing it` and `a.txt` gives `a.txt is being packed — Enter is refused`. `<State:>` shows the same text as `name hint: …`. Nothing is renamed or packed until `<Enter>` |
 | 21.23 | Give `to-pack\` and a folder inside it an old date (`(Get-Item …).LastWriteTime = '2021-06-15 12:34:56'`), `E` as `.zip`, `.tar.gz` and `.7z`, then `e` each (v0.78.10) | The unpacked folders read that date too (`Get-Item … | % LastWriteTime`), not the moment of the unpack -- as the files have since 21.14. Explorer's own zip unpack does not keep folder dates; that is Explorer |
 | 21.24 | Inside the archive, `<Space>` on two members, then `<Esc>` (v0.78.16) | After `<Esc>` the state file reads `selected: 0` (the archive itself, if it was selected outside, stays selected). Before, `selected: 2` survived and a `d` then said `Trashed 2 item(s) — u to undo` over paths that were never there (#251). Do not press `d` to check: with nothing selected it trashes the archive under the cursor, as it should |
 
@@ -1542,3 +1543,20 @@ function prompt { $e = [char]27; $c = if ($?) { 0 } else { 1 }; "$e]133;D;$c$e\$
 | 49.6 | `echo src\main.rs:10` from the repository's folder in the pane, then Ctrl+click it | The file list goes to `src` with the cursor on `main.rs` (the line number is not used). A path that does not exist leaves the list where it was |
 | 49.7 | ``Write-Host "`e]8;;https://example.com`e\click me`e]8;;`e\"`` (an OSC 8 link), then Ctrl+click `click me` | `click me` has a dotted underline before Ctrl is held, and the click opens `https://example.com` |
 | 49.8 | A picture: `chafa -f sixels some.png` (`winget install hpjansson.Chafa`), or `wezterm imgcat some.png` | The picture is drawn in the pane where the program printed it, and scrolls with the text (`<S-PageUp>`). `clear` removes it |
+
+## 50. Claude Code reads the window (v0.85.0)
+
+`filer mcp` is an MCP server for Claude Code: it asks the running filer window, over a door only the
+same user can open (`\\.\pipe\filer-<user>` on Windows), what it is showing (Q95, Q96). Register it once
+in a terminal where `claude` runs, with the full path of the `filer.exe` under test:
+`claude mcp add filer -- "<folder>\filer.exe" mcp`, and remove it afterwards with `claude mcp remove filer`.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 50.1 | Start filer, go to a folder and put the cursor on a file; then in `claude`, `/mcp` | `filer` is listed as connected, with two tools, `filer_state` and `filer_reveal` |
+| 50.2 | Select two files with `<Space>`, then ask Claude "which file is under the cursor in filer, and what is selected?" | Claude calls `filer_state` and answers with that folder, that file and the two selected paths, as full Windows paths (`C:\…`) |
+| 50.3 | Ask Claude "show me `C:\Windows\notepad.exe` in filer" | Claude calls `filer_reveal`; the window goes to `C:\Windows` with the cursor on `notepad.exe`, without being clicked first, and Claude reports `filer is showing …`. Asking for a path that does not exist gets `… does not exist` and the window does not move |
+| 50.4 | Close every filer window, then ask Claude for `filer_state` again | The tool fails with `filer is not running (or its [mcp] enable is false in filer.toml); start filer and ask again`. Claude Code itself keeps working, and `/mcp` still lists `filer` |
+| 50.5 | Put `[mcp]` / `enable = false` in `filer.toml`, start filer, ask for `filer_state` | The same `filer is not running …` answer: the window opens no door. Take the line out again afterwards |
+| 50.6 | Open two filer windows on different folders, ask for `filer_state`; close the first window, wait 30 seconds, ask again | The first answer is the first window's folder. After it closes, the second answer is the second window's folder |
+| 50.7 | Register `filer.com` instead (`claude mcp add filer -- "<folder>\filer.com" mcp`) and repeat 50.2 | The same answer: `filer.com` passes `mcp` to `filer.exe` with its input and output. No console window flashes when Claude Code starts it |

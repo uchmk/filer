@@ -598,8 +598,15 @@ impl Task {
 /// The first line names the file and the place, which is what the toast is
 /// for; the rest is a key away.
 pub fn config_toast(warnings: &[String]) -> Option<String> {
+    config_toast_at(warnings, dirs::home_dir().as_deref())
+}
+
+/// [`config_toast`] with the home folder given. The first line starts with the
+/// file's path, and under a long one the toast wrapped to three lines and
+/// covered the preview's top (#295); `~` for home keeps it to one.
+fn config_toast_at(warnings: &[String], home: Option<&Path>) -> Option<String> {
     let first = warnings.first()?;
-    let line = first.lines().next().unwrap_or_default();
+    let line = crate::bugreport::without_home(first.lines().next().unwrap_or_default(), home);
     let cut = first.lines().nth(1).is_some();
     let tail = match (cut, warnings.len() - 1) {
         (false, 0) => String::new(),
@@ -4900,6 +4907,46 @@ impl App {
         });
     }
 
+    /// The line above the `r` and `E` prompts while the name typed is already
+    /// taken, saying what `<Enter>` will do about it. Until v0.84.0 that was
+    /// first learnt from the box after `<Enter>` (#264, #265). Read from the
+    /// listing in memory, as the bulk preview is, so typing never waits on the
+    /// disk; a name in another folder says nothing until `<Enter>`.
+    pub fn name_hint(&self) -> Option<String> {
+        let Overlay::Input(ov) = &self.overlay else { return None };
+        let tab = &self.tabs[self.active];
+        let taken = |to: &Path| {
+            to.parent().is_some_and(|d| same_place(d, &tab.cwd))
+                && tab.current.entries.iter().any(|e| same_place(&e.path, to))
+        };
+        match &ov.kind {
+            // As `do_rename` reads it: untrimmed, and the file's own name is
+            // no change at all.
+            InputKind::Rename { from } => {
+                if ov.text.is_empty() {
+                    return None;
+                }
+                let to = util::resolve_against(&tab.cwd, &ov.text);
+                (to != *from && taken(&to))
+                    .then(|| format!("{} already exists — Enter is refused", util::file_name(&to)))
+            }
+            InputKind::Compress => {
+                let name = ov.text.trim();
+                if name.is_empty() {
+                    return None;
+                }
+                let dest = util::resolve_against(&tab.cwd, name);
+                let file = util::file_name(&dest);
+                if tab.targets().iter().any(|p| same_place(p, &dest)) {
+                    Some(format!("{file} is being packed — Enter is refused"))
+                } else {
+                    taken(&dest).then(|| format!("{file} already exists — Enter asks before replacing it"))
+                }
+            }
+            _ => None,
+        }
+    }
+
     /// What the preview panel under the prompt shows, and what the apply step
     /// works from. Both read the directory out of the listing already in
     /// memory, so typing a rule never touches the disk.
@@ -6762,6 +6809,17 @@ mod tests {
         assert_eq!(
             config_toast(&w(&[parse, "b"])).unwrap(),
             "Config: C:/cfg/yazi.toml: TOML parse error at line 1, column 5 — the rest and 1 more in `~`",
+        );
+    }
+
+    /// #295: the file's path under home is shown as `~`, so the toast stays short.
+    #[test]
+    fn a_config_toast_shortens_home() {
+        let home = Path::new("/home/someone/with/a/long/name");
+        let w = vec!["/home/someone/with/a/long/name/.config/yazi/yazi.toml: TOML parse error at line 1\n  |".to_string()];
+        assert_eq!(
+            config_toast_at(&w, Some(home)).unwrap(),
+            "Config: ~/.config/yazi/yazi.toml: TOML parse error at line 1 — the rest in `~`",
         );
     }
 
