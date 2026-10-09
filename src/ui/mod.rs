@@ -226,6 +226,7 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
         // rather than by the rule that says it.
         overlay::bulk(app, ui, full, &f, row_h, r.top());
         overlay::shell_hint(app, ui, full, &f, row_h, r.top());
+        overlay::name_hint(app, ui, full, &f, row_h, r.top());
         overlay::input(app, ui, r, &f, &mut queued);
     }
 
@@ -4871,5 +4872,55 @@ mod term_border_tests {
         assert!((term_share(800.0, 0.5, 1000.0) - 0.4).abs() < 1e-6);
         assert!((term_share(800.0, 0.25, 1000.0) - 0.6).abs() < 1e-6);
         assert_eq!(term_share(800.0, 1.0, 1000.0), 0.05);
+    }
+}
+
+/// 21.22d: the `r` and `E` prompts say a taken name while it is typed, read
+/// off the listing (#264).
+#[cfg(test)]
+mod name_hint {
+    use super::preview_panes::{open, room, until};
+    use crate::app::{InputKind, InputOverlay, Overlay};
+
+    fn typing(s: &mut super::preview_panes::Screen, kind: InputKind, text: &str) -> Option<String> {
+        s.app.overlay = Overlay::Input(InputOverlay {
+            kind,
+            title: String::new(),
+            text: text.to_owned(),
+            initial_selection: None,
+            focused: true,
+            completion: Vec::new(),
+            completion_at: 0,
+        });
+        s.app.name_hint()
+    }
+
+    #[test]
+    fn a_taken_name_is_said_before_enter() {
+        let dir = room("name-hint");
+        for name in ["a.txt", "b.txt", "pack.zip"] {
+            std::fs::write(dir.join(name), "x").unwrap();
+        }
+        let mut s = open(dir.clone());
+        until(&mut s, |s| s.app.tab().current.entries.len() == 3 && s.app.settled());
+
+        let rename = || InputKind::Rename { from: dir.join("a.txt") };
+        let hint = typing(&mut s, rename(), "b.txt").unwrap_or_default();
+        assert!(hint.contains("b.txt already exists — Enter is refused"), "{hint}");
+        assert_eq!(typing(&mut s, rename(), "a.txt"), None, "its own name is no change");
+        assert_eq!(typing(&mut s, rename(), "c.txt"), None, "a free name says nothing");
+        assert_eq!(typing(&mut s, rename(), ""), None);
+
+        assert!(s.app.tabs[0].current.select_name("a.txt"));
+        let hint = typing(&mut s, InputKind::Compress, " pack.zip ").unwrap_or_default();
+        assert!(hint.contains("pack.zip already exists — Enter asks"), "{hint}");
+        assert_eq!(typing(&mut s, InputKind::Compress, "a.zip"), None);
+
+        assert!(s.app.tabs[0].current.select_name("pack.zip"));
+        let hint = typing(&mut s, InputKind::Compress, "pack.zip").unwrap_or_default();
+        assert!(hint.contains("pack.zip is being packed — Enter is refused"), "{hint}");
+
+        // Other prompts never say it.
+        assert_eq!(typing(&mut s, InputKind::Create, "b.txt"), None);
     }
 }

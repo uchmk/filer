@@ -1410,6 +1410,10 @@ fn state_report(app: &App) -> String {
     if let Some(f) = &tab.current.filter {
         lines.push(format!("filter: {}", f.query));
     }
+    // The line over the `r` / `E` prompt when the name is taken.
+    if let Some(hint) = app.name_hint() {
+        lines.push(format!("name hint: {hint}"));
+    }
     // What the preview says about itself, as the pane writes it under the
     // picture, or why there is none (#223).
     match &app.preview.state {
