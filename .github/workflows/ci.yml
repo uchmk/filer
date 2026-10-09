@@ -22,6 +22,9 @@ on:
       - 'TESTING-KEYS.md'
       - '.claude/**'
       - 'LICENSE'
+  # the merge-lanes workflow's share bumps the version on main with a token
+  # whose pushes start no workflows, so it starts this run itself
+  workflow_dispatch:
   pull_request:
     # Repeated rather than anchored: GitHub's own parser handles YAML anchors,
     # but every tool that reads this file has to, and a silently-ignored alias

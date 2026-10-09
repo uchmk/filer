@@ -109,11 +109,11 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
 - **改善案を出す。**実機のセッションは毎回、報告の `### Proposals` に「こうするべき」を
   書いてくる（役割の定義の Proposals の節）。**マージする側は、そのうち採るものを TODO.md のタスクに、
   持ち主の判断が要るものを QUESTIONS.md の質問に移す。**PR をマージしただけで終わらせない。
-- **無人で回せる（v0.50.0 から）。**`scripts/auto-wintest.ps1` をタスク スケジューラで 1 時間おき（:20。マージの :59 の後。2026-10-05、持ち主の判断）に
+- **無人で回せる（v0.50.0 から）。**`scripts/auto-wintest.ps1` をタスク スケジューラで 1 時間おき（:20。2026-10-05、持ち主の判断）に
   呼ぶと、`main` の TESTING.md / TESTING-CHECKS.md / `windows-role.md` が変わっていて、`test/win-*` の
   PR が開いていないときに 1 本起動する（別 worktree の `C:\dev\filer-wintest` で）。登録の仕方は
   スクリプトの冒頭。**レーンは自分の PR がマージされ、その分け前（`#N` の入った CHANGELOG）が `main` に入るまで待つ**（v0.86.6）。
-  分け前で順番表（`windows-role.md` の「Where the work is」）を次の節に進めるので、それより先に起動すると同じ行を取りに行く。
+  その分け前は v0.86.11 からマージしたワークフローがすぐ push するので、待つのは数分。
   無人のときの規則は役割定義の「Unattended runs」の節。
   **タスクは作業フォルダの中のスクリプトを動かす**（v0.73.24）。`-File C:\dev\filer-wintest\scripts\auto-wintest.ps1`（ARM64 は
   `filer-armtest`）。作業フォルダは起動のたびに `origin/main` に合わせるので、いつも最新のスクリプトが動き、持ち主の `C:\dev\filer` は触らない。
@@ -133,15 +133,18 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   **モデルは `-Model` で明示する**（v0.78.30。既定は v0.80.15 から `claude-sonnet-5-5`）。機械の `claude` の既定には従わない。
   実機のレーンは 2026-10-04 から Opus だったが、2026-10-09 に持ち主の判断で x64・ARM64 の両方とマージの Routine を Sonnet 5.5 に変えた
   （開発の Routine も Sonnet 5.5）。Opus に戻すときはタスクの引数に `-Model claude-opus-5-5` を足すか、この既定を戻す。
-- **マージはワークフロー、分け前は Routine（v0.86.6 から）。**`.github/workflows/merge-lanes.yml`（中身は `scripts/merge-lanes.py`）が、
+- **マージと機械的な分け前はワークフロー、振り分けは Routine（v0.86.6、v0.86.11 から）。**`.github/workflows/merge-lanes.yml`（中身は `scripts/merge-lanes.py`）が、
   CI・Checklists・Audit が終わるたびと毎時 :17 に `test/win-*`・`test/arm-*`・`test/linux-*` の PR を見て、規則（触ってよいファイル、
   印の変わり方、印ごとの証拠の行、`[~]` には画像の名前）を守り、必須のチェック（`checklists`）が緑で、ぶつかりが無いものを
   head の SHA を固定した merge コミットでマージする。守らないもの・赤・ぶつかりには PR にコメントを 1 回残す
   （`<!-- merge-lanes:<種類>:<sha> -->`）。チェック表だけのぶつかりは、main の表に PR の印を入れ直し、印の変化だけかを確かめて自分でマージする
   （v0.86.9 から。main が言葉を変えた行の印は落とし、`dropped` のコメントで名前を出す）。Actions のタブから `dry_run` を付けて手で回すと、何をマージするかだけを出す。
   それまでは Routine がマージしていたが、2026-10-10 に自動モードの分類器が #309・#310 のマージを「レビューの無いマージ」として拒んだ。
-  クラウドの Routine は 1 時間おきに `.claude/merge-role.md` を読み、マージ済みで CHANGELOG に `#N` の無い PR の分け前
-  （版・CHANGELOG・提案の振り分け・順番表の補充）をし、ぶつかった PR は PR のブランチで解いて push し、
+  マージした PR の機械的な分け前（PATCH・Cargo.lock・CHANGELOG の 1 行・報告の Proposals / Queue / Votes を TODO.md の
+  「実機のレーンから」へ `【後】` 付きで、PR ごとに「報告を読んで振り分ける」の 1 行）もワークフローが push し、
+  `ci.yml` を `workflow_dispatch` で起こす（v0.86.11 から。GITHUB_TOKEN の push はワークフローを起こさない）。
+  クラウドの Routine は 1 日 1 回（10:01 JST。2026-10-10、持ち主の設定）`.claude/merge-role.md` を読み、`【後】` の行を
+  振り分け（証拠の読み直し・提案を TODO / QUESTIONS へ・票・順番表の補充）、ワークフローが分け前をしそこねた PR は手でし、ぶつかった PR は PR のブランチで解いて push し、
   ワークフローが止めたものは TODO.md の「マージで止めている実機の PR」に積んで持ち主に回す（そこにある `#N` はワークフローも飛ばす）。**無人の実行が `main` に直接 push してよいのは、この
   Markdown と版だけのコミットに限る**（ビルドを壊しうるものが入らないから）。コードの修正が要るものは TODO.md に書いて止まり、
   開発の Routine（「自動実行モード」）が拾う。

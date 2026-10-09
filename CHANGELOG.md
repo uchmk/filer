@@ -9,6 +9,17 @@
 
 ## [未リリース]
 
+## [0.86.11] - 2026-10-10
+
+### 変更
+
+- 実機の PR のマージのワークフロー（`Merge lanes`）が、マージした PR の機械的な分け前もするようにした。PATCH の繰り上げ・Cargo.lock・
+  CHANGELOG の 1 行・報告の Proposals / Queue / Votes を TODO.md の「実機のレーンから」へ `【後】` 付きで（PR ごとに「報告を読んで振り分ける」の 1 行も）
+  main に push し、`ci.yml` を `workflow_dispatch` で起こす（`ci.yml` に引き金を足し、ワークフローに `actions: write` を足した）。
+  レーンは分け前を Routine まで待たなくてよくなった。マージの Routine は 1 日 1 回（10:01 JST）になり、`【後】` の行の振り分け
+  （証拠の読み直し・TODO / QUESTIONS への移し・票・順番表）と、ワークフローが止めた PR だけをする。
+  `scripts/merge-lanes.py` は tsumugi と同じ中身（`todo_mark` と `review_line` を repo ごとの規則に足した）。
+
 ## [0.86.10] - 2026-10-10
 
 ### 変更

@@ -18,8 +18,8 @@
 #     and a Windows notification says so once a day (see Note-Dirty).
 #
 # It is meant to be run by Task Scheduler once an hour at :20, as you, "only
-# when the user is logged on" -- the run drives a real window. The merge
-# routine runs at :59 and is usually done by :15; a firing while the lane's pull
+# when the user is logged on" -- the run drives a real window. The merge-lanes
+# workflow merges and shares within minutes; a firing while the lane's pull
 # request is still open does nothing, so every 15 minutes only added firings that
 # passed (the owner's word, 2026-10-05):
 #
@@ -455,8 +455,8 @@ try {
     }
 
     # Since v0.86.6 the merge-lanes workflow merges this lane's pull request
-    # as soon as its checks are green, and the merge routine does the share
-    # (the queue in windows-role.md, CHANGELOG.md) at :59. Starting between
+    # as soon as its checks are green, and since v0.86.11 pushes the share
+    # (CHANGELOG.md, the report's items into TODO.md) right after. Starting between
     # the two would take the same rows again, so wait while the lane's latest
     # merged pull request is not named in main's CHANGELOG.md yet.
     $merged = gh pr list --repo $repo --state merged --limit 30 --json number,headRefName,mergedAt

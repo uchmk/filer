@@ -1,6 +1,7 @@
 # The merge routine
 
-A claude.ai Routine starts a new cloud session at :59 every hour, with
+A claude.ai Routine starts a new cloud session once a day, at 10:01 JST (the
+owner's choice, 2026-10-10), with
 `uchmk/filer` attached, and its whole instruction is one line: read this file
 and do what it says. This file is the one place the routine's own steps live
 (CLAUDE.md, 自動実行モード); **what to do for each pull request is in
@@ -10,9 +11,11 @@ wins.
 
 **The routine no longer merges** (v0.86.6). The `Merge lanes` workflow merges
 the lanes' pull requests, and since v0.86.9 also those that conflict only in
-the checklists; the routine does the merger's share for the ones it merged,
-resolves the other conflicts, and tells the owner about the ones it stopped
-on. The cloud session's auto mode refused the routine's merges of
+the checklists, and since v0.86.11 it also does the mechanical half of the
+merger's share (the version, CHANGELOG.md, the reports' sections copied into
+TODO.md with `【後】`) and starts `main`'s CI. The routine sorts those `【後】`
+lines, resolves the other conflicts, and tells the owner about the ones the
+workflow stopped on. The cloud session's auto mode refused the routine's merges of
 #309 and #310 on 2026-10-10. Do not merge, and do not look for another way
 to: a merge the workflow will not make is the owner's.
 
@@ -24,9 +27,9 @@ and merge-role.md from `origin/main` at the start of every run.
 ## A run
 
 1. `git fetch origin main && git checkout -B claude/merge-run origin/main`.
-2. Do merge-role.md from 0 to 4: the votes; the merged lane pull requests
-   without a share and the open ones the workflow stopped on (1); conflicts
-   and holds (3); the share (4). GitHub from here: the GitHub tools your
+2. Do merge-role.md from 0 to 4: the votes; the open pull requests the
+   workflow stopped on, and any merged one still without a share (1);
+   conflicts and holds (3); the sorting of the `【後】` lines (4). GitHub from here: the GitHub tools your
    session has, or `gh api` (`gh api "repos/uchmk/filer/pulls?state=open"`,
    `gh api repos/uchmk/filer/issues/N/comments` for the workflow's
    comments; GraphQL may be unavailable).
@@ -38,14 +41,12 @@ and merge-role.md from `origin/main` at the start of every run.
    says, in a worktree of its own (`git worktree add`, with `CARGO_TARGET_DIR`
    set to this checkout's `target`), and push the merge commit to the
    branch. Do not wait for its CI; the workflow merges it when that is green.
-   One whose share is then missing is picked up by the next run.
-4. **Push the merger's share with `scripts/push-main.sh`**, in the background,
+   The workflow does its share once it has merged it.
+4. **Push what you sorted with `scripts/push-main.sh`**, in the background,
    and wait for it to finish (merge-role.md, 4). It replays your commit on top
    when the development routine pushed first, renumbers it, runs the checks,
    and waits for `main`'s CI. Never `git merge origin/main` + `git push`, never
-   `--force`. The share's push is also what runs CI on `main` after the
-   workflow's merges (a merge made with the workflow's token starts no
-   workflows).
+   `--force`. Nothing to sort and nothing else to fix: no commit.
 5. Then the development routine's pushes (below).
 
 ## Watching the development routine's pushes
@@ -75,7 +76,8 @@ needs code goes near the top of TODO.md, in the "Sonnet の見張り" section, a
 
 In Japanese:
 
-- one line per pull request: `shared #N` (its share is in this run's commit) /
+- one line per pull request: `sorted #N` (its `【後】` lines are sorted in this
+  run's commit) / `shared #N` (a share the workflow missed, done by hand) /
   `resolved conflict on #N` / `held #N: why（TODO.md）` / `closed #N: …` /
   `not merged #N: why`; a held one with no answer yet:
   `held #N: 持ち主の答え待ち（TODO.md）`; nothing to do: `nothing to do`;

@@ -1,7 +1,7 @@
 # The development routine
 
 A claude.ai Routine starts a new cloud session once an hour, at :30 (the owner's
-choice, 2026-10-05; the merge routine runs once, at :59), with
+choice, 2026-10-05; the merge routine runs once a day, at 10:01 JST), with
 `uchmk/filer` attached, and its whole instruction is one line: read this file
 and do what it says. This file is the one place the routine's steps live
 (CLAUDE.md, 自動実行モード). To change what the routine does, change this file;
@@ -16,8 +16,8 @@ day reached 550,000 tokens, and every call re-read all of it (2026-10-05).
 Until v0.78.95 a run was meant to go on for five rounds; four runs in a row
 pushed one version and ended anyway, whatever the wording. So the schedule
 carries the rounds now, three runs an hour (the owner's choice, 2026-10-05),
-and the merge routine runs at :59 between them (a Routine set to minute 0
-is moved to the minute it was saved, so :00 cannot be had).
+(a Routine set to minute 0 is moved to the minute it was saved, so :00
+cannot be had).
 
 **Runs overlap.** A round takes 10 to 20 minutes, mostly `push-main.sh`
 waiting for `main`'s CI, so the previous run is often still pushing when the

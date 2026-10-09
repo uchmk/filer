@@ -4,14 +4,19 @@ name: Merge lanes
 # test/linux-*) once they keep to the rules in scripts/merge-lanes.py and
 # their checks are green, with a merge commit pinned to the head. The merge
 # routine (.claude/merge-routine.md) used to merge them, and the cloud
-# session's auto mode refused the merge (2026-10-10, #309 / #310); the
-# routine now does the merger's share. A pull request that conflicts only in
-# the checklists it merges itself (v0.86.9): main's file with the pull
-# request's marks made again, checked to be marks only, pushed to main.
+# session's auto mode refused the merge (2026-10-10, #309 / #310). A pull
+# request that conflicts only in the checklists it merges itself (v0.86.9):
+# main's file with the pull request's marks made again, checked to be marks
+# only, pushed to main. Since v0.86.11 it also does the mechanical part of the
+# merger's share (version, CHANGELOG, the reports' lines into TODO.md marked
+# 【後】) and pushes it to main, so a lane need not wait for the merge routine,
+# which now runs once a day and sorts those lines.
 #
 # It runs when a check workflow finishes (a lane's pull request turns green),
 # every hour as a fallback, and by hand. It reads pull requests through the
-# API and runs only main's copy of the script, never the pull request's code.
+# API and git and runs only main's copy of the script, never the pull
+# request's code. Its pushes start no workflows, so it starts CI on main by
+# workflow_dispatch after a share.
 
 on:
   workflow_run:
@@ -32,6 +37,7 @@ permissions:
   issues: write
   checks: read
   statuses: read
+  actions: write
 
 concurrency:
   group: merge-lanes

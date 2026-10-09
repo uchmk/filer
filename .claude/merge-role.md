@@ -14,6 +14,13 @@ A lane's next run (`scripts/auto-wintest.ps1`) waits while one of its pull
 requests is open, and also while its latest merged one is not named in
 `main`'s CHANGELOG.md. **So the share is what lets the lane go on**: a merged
 pull request left without it stops the loop as surely as an open one did.
+Since v0.86.11 the workflow does the mechanical half right after its merges,
+so a lane no longer waits for this routine (which runs once a day): it bumps
+the PATCH, writes a CHANGELOG line per pull request, copies the report's
+`### Proposals`, `### Queue` and `### Votes` items into TODO.md under
+"実機のレーンから", each ending in `【後】`, adds one line per pull request
+asking for its report to be read, pushes, and starts `main`'s CI. What is
+left for you is the judgment in 4.
 
 There are three lanes: `test/win-*` from the x64 machine, `test/arm-*` from the
 ARM64 laptop, and `test/linux-*` from a cloud session running filer on a
@@ -50,11 +57,14 @@ reply names what changed (`Q57: 多数決 1`).
 
 ## 1. Find the work
 
-- **Merged, without a share**: the lane pull requests (head branch
+- **The workflow's `【後】` lines**: TODO.md's "実機のレーンから" section.
+  Each one is sorted in 4.
+- **Merged, without a share** (the workflow failed or was off): the lane pull requests (head branch
   `test/win-*`, `test/arm-*` or `test/linux-*`) merged in the last 7 days
   whose `#N` is nowhere in `origin/main`'s CHANGELOG.md
   (`gh api "repos/uchmk/filer/pulls?state=closed&sort=updated&direction=desc&per_page=50"`,
-  keep those with `merged_at` set). Each one gets its share in 4. Every
+  keep those with `merged_at` set). Each one gets its share in 4, done by
+  hand as the workflow would have (`scripts/merge-lanes.py`, `share_once`). Every
   merged lane pull request's `（#N）` must end up in CHANGELOG.md: that is how
   the next run, and the lane's script, know it was done.
 - **Open, and stopped**: the open lane pull requests the workflow commented
@@ -67,8 +77,8 @@ reply names what changed (`Q57: 多数決 1`).
   checks are running, or it will merge them on its next pass (it runs when a
   check workflow finishes, and at :17 every hour). Leave them.
 
-Nothing in either list: stop here and say so in one line (after the votes in
-0). That is most runs.
+Nothing in any of these lists: stop here and say so in one line (after the
+votes in 0).
 
 ## 2. What the workflow merges
 
@@ -164,9 +174,13 @@ decide):
 
 ## 4. The merger's share, straight on `main`
 
-One commit for the run, for every pull request found in 1 without its share
-(CLAUDE.md: one version per push). Each pull request gets its own
-CHANGELOG line, proposals and queue edit inside it. It holds **Markdown, `Cargo.toml` and `Cargo.lock`
+The workflow has already pushed the version, the CHANGELOG lines and the
+`【後】` lines for each merged pull request. Your part is to sort them: read
+each report, do what the items below ask, and take every `【後】` line out of
+"実機のレーンから" (or replace it with the task it became). One commit for the
+run (CLAUDE.md: one version per push), with its own PATCH and a CHANGELOG line
+naming the `#N` it sorted.
+It holds **Markdown, `Cargo.toml` and `Cargo.lock`
 only** -- this is the one push to `main` an unattended run may make, and it is
 allowed because nothing in it can break a build. **Push it with
 `scripts/push-main.sh`, never `git merge origin/main` + `git push`** (v0.78.38):
@@ -181,8 +195,8 @@ it says (`git rebase origin/main`: the commit was never pushed) and run it again
 What goes in it:
 
 - **Version**: PATCH up in `Cargo.toml`, `cargo build` for `Cargo.lock`.
-- **CHANGELOG.md**: a new section, with each merged pull request's changelog line
-  in the file's own style (Japanese), and its `（#NN）`.
+- **CHANGELOG.md**: a new section, one line per pull request sorted, with its
+  `（#NN）` (for a share done by hand: the line the workflow would have written).
 - **The evidence, read as a merger would**: the workflow checked only that
   each mark has a line naming its row. Read those lines against
   `windows-role.md` ("Ticking TESTING-CHECKS.md", "TESTING-KEYS.md"). A mark
@@ -198,7 +212,7 @@ What goes in it:
   key, a default or a design choice. Merging without this is half the job.
   A new question that has an arguable technical answer goes out as `投票中`,
   with your own vote and no "（推奨）" (CLAUDE.md, "多数決で進める質問").
-- **Votes**: copy each line under the run's `### Votes` into that question's
+- **Votes** (the workflow copied them to TODO.md as `【後】` lines): copy each line under the run's `### Votes` into that question's
   `投票` field as `- win: …` or `- arm: …` with `（#NN）`, then count as in 0.
 - **The queue of the pull request's lane** in `windows-role.md`: the section just
   run must be out of the table, or cut down to what is left and why. **The run
