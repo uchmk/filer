@@ -13,7 +13,9 @@
 #   - the screen is not locked (SendInput does nothing on a locked desktop, and
 #     the run would record every key as having done nothing);
 #   - the working copy is clean (a dirty one is a run that was cut off, and
-#     only a person can say what to do with it).
+#     only a person can say what to do with it). While it is dirty, every
+#     firing says so in the log and in dirty<suffix>.txt in the state folder,
+#     and a Windows notification says so once a day (see Note-Dirty).
 #
 # It is meant to be run by Task Scheduler once an hour at :20, as you, "only
 # when the user is logged on" -- the run drives a real window. The merge
@@ -214,6 +216,61 @@ function Say([string]$line) {
     Add-Content -Path $log -Value $stamped
 }
 
+# A notification in the corner of the screen (a balloon, which Windows 10 and
+# 11 show as a toast). NotifyIcon rather than the WinRT toast API, which pwsh 7
+# cannot load. Not yet run on Windows.
+function Show-Notice([string]$title, [string]$text) {
+    try {
+        Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+        $icon = [Windows.Forms.NotifyIcon]::new()
+        $icon.Icon = [Drawing.SystemIcons]::Warning
+        $icon.Text = 'filer auto-wintest'
+        $icon.Visible = $true
+        if ($text.Length -gt 250) { $text = $text.Substring(0, 250) + '...' }
+        $icon.ShowBalloonTip(30000, $title, $text, [Windows.Forms.ToolTipIcon]::Warning)
+        Start-Sleep -Seconds 10   # the balloon goes with the icon
+        $icon.Dispose()
+    } catch {
+        Say "Could not show a notification: $_"
+    }
+}
+
+# A dirty worktree stops every run until a person cleans it. On 2026-09-30 a
+# cut-off run left TESTING-CHECKS.md half written, and for two days the lane
+# made no pull request and said nothing anywhere: Task Scheduler showed only
+# LastTaskResult 1, and the log was on the RAM disk. So the reason goes into
+# the state folder (whatever -LogDir says), with the time it was first seen,
+# and a notification says so when first seen and then once a day.
+$dirtyFile = Join-Path $state "dirty$suffix.txt"
+function Note-Dirty([string[]]$changes) {
+    $now = Get-Date
+    $since = $now
+    $told = [datetime]::MinValue
+    if (Test-Path $dirtyFile) {
+        foreach ($line in Get-Content $dirtyFile) {
+            if ($line -match '^since: (.+)$') { $since = [datetime]::Parse($Matches[1]) }
+            if ($line -match '^told: (.+)$') { $told = [datetime]::Parse($Matches[1]) }
+        }
+    }
+    $hours = [int]($now - $since).TotalHours
+    $what = "$Work has uncommitted changes (first seen $('{0:yyyy-MM-dd HH:mm}' -f $since), $hours h ago). No run starts until a person looks at them and cleans the worktree."
+    $tell = ($now - $told).TotalHours -ge 24
+    if ($tell) {
+        Say "!!!!! [$Lane] $what !!!!!"
+        Show-Notice "filer auto-wintest ($Lane) is stopped" "$what $($changes.Count) changed path(s), e.g. $($changes[0].Trim())"
+        $told = $now
+    }
+    $body = @(
+        "since: $('{0:o}' -f $since)"
+        "told: $('{0:o}' -f $told)"
+        "checked: $('{0:o}' -f $now)"
+        $what
+        ''
+        'git status --porcelain:'
+    ) + @($changes | Select-Object -First 40)
+    Set-Content -Path $dirtyFile -Value $body
+}
+
 # The screen saver, held off while a run drives the window (see the top).
 $saverFile = Join-Path $state "screensaver$suffix.json"
 Add-Type -Namespace FilerWintest -Name Power -MemberDefinition @'
@@ -345,7 +402,18 @@ try {
     # copy of this script inside it is the newest by the next firing (see the
     # top: the task runs that copy). A worktree with changes in it is left to
     # the check further down.
-    if (-not (git -C $Work status --porcelain)) { git -C $Work checkout -q --detach origin/main }
+    $changes = @(git -C $Work status --porcelain)
+    if ($changes.Count -eq 0) {
+        git -C $Work checkout -q --detach origin/main
+        if (Test-Path $dirtyFile) {
+            Say "$Work is clean again."
+            Remove-Item -LiteralPath $dirtyFile
+        }
+    } else {
+        # Before the trigger check, which quietly ends most firings: a dirty
+        # worktree also keeps this script's own copy from following main.
+        Note-Dirty $changes
+    }
 
     $trigger = (git -C $Work log -1 --format=%H origin/main -- $watched).Trim()
     $seen = if (Test-Path $last) { (Get-Content -Raw $last).Trim() } else { '' }
@@ -379,7 +447,7 @@ try {
     }
 
     if (git -C $Work status --porcelain) {
-        Say "$Work has uncommitted changes, left by a run that was cut off. Look at them, then clean it (git -C $Work stash -u, or git restore/clean) and run again."
+        Say "$Work has uncommitted changes, left by a run that was cut off. Look at them (listed in $dirtyFile), then clean it (git -C $Work stash -u, or git restore/clean) and run again."
         exit 1
     }
 

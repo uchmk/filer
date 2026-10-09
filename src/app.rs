@@ -1977,7 +1977,17 @@ impl App {
             if let Some(name) = near.or(keep).or(memo) {
                 f.select_name(&name);
             }
-            let land = self.land_on.take().filter(|p| p.parent() == Some(path));
+            // A scan sent before the name was made can answer after it, and
+            // is then the one without the name; the rescan sent for it is
+            // still on its way, so the landing waits for that one (12.19 lost
+            // the cursor to the rename's rescan about one run in a few
+            // hundred).
+            let waits = self.land_on.as_ref().is_some_and(|p| {
+                p.parent() == Some(path)
+                    && !entries.iter().any(|e| e.path == *p)
+                    && self.inflight.values().any(|q| q == path)
+            });
+            let land = if waits { None } else { self.land_on.take().filter(|p| p.parent() == Some(path)) };
             if let Some(p) = land {
                 let name = util::file_name(&p);
                 self.tabs[self.active].memo.insert(path.to_path_buf(), name.clone());
@@ -10601,6 +10611,35 @@ mod said_out_loud {
         a.on_scan(ScanResult::Failed { id: 0, path: dir.join("here.txt"), error: "not a dir".into() });
         assert!(a.toasts.is_empty(), "{:?}", a.toasts.iter().map(|t| &t.text).collect::<Vec<_>>());
         assert_eq!(a.tabs[a.active].current.hovered_name(), Some("here.txt"));
+    }
+
+    /// 12.19: a listing sent before `a` made the file, answering after it,
+    /// leaves the cursor's landing to the rescan `a` sent; once no scan of
+    /// the folder is left, a name that never showed up is let go.
+    #[test]
+    fn a_new_name_waits_for_the_listing_that_has_it() {
+        let dir = crate::util::test_dir("land-on-late");
+        std::fs::write(dir.join("b.txt"), "x").unwrap();
+        let mut a = app_in(&dir);
+        a.apply_listing(&dir, Arc::new(vec![Entry::from_path(dir.join("b.txt")).unwrap()]));
+        let before = vec![Entry::from_path(dir.join("b.txt")).unwrap()];
+
+        a.inflight.clear(); // App::new's own scans, never answered here
+        a.inflight.insert(901, dir.clone());
+        a.do_create("aa.txt");
+        a.on_scan(ScanResult::Listed { id: 901, path: dir.clone(), entries: before.clone() });
+        assert_eq!(a.tabs[a.active].current.hovered_name(), Some("b.txt"), "not there yet");
+        assert!(a.land_on.is_some(), "so the landing still waits");
+
+        let id = *a.inflight.iter().find(|(_, p)| **p == dir).map(|(id, _)| id).expect("a's own rescan");
+        let after = vec![Entry::from_path(dir.join("aa.txt")).unwrap(), Entry::from_path(dir.join("b.txt")).unwrap()];
+        a.on_scan(ScanResult::Listed { id, path: dir.clone(), entries: after });
+        assert_eq!(a.tabs[a.active].current.hovered_name(), Some("aa.txt"), "onto the new file");
+        assert!(a.land_on.is_none());
+
+        a.land_on = Some(dir.join("gone.txt"));
+        a.on_scan(ScanResult::Listed { id: 902, path: dir.clone(), entries: before });
+        assert!(a.land_on.is_none(), "no scan left to wait for");
     }
 
     /// #105: `<Esc>` while a jump is still waiting takes the tab
