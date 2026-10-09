@@ -1541,7 +1541,7 @@ function prompt { $e = [char]27; $c = if ($?) { 0 } else { 1 }; "$e]133;D;$c$e\$
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 49.1 | With the prompt above, run `dir`, `echo hi` and `Get-Date`, then `<C-S-Up>` twice and `<C-S-Down>` once | Each press scrolls the view so a prompt is on its top row: the `echo hi` one, then the `dir` one, then `echo hi` again. With no prompt left above, the toast says `No prompt above this one` |
+| 49.1 | With the prompt above, run `dir`, `echo hi` and `Get-Date` (print 13 or more lines between the commands, e.g. `1..13`; the pane is 12 rows), then `<C-S-Up>` twice and `<C-S-Down>` once | Each press scrolls the view so a prompt is on its top row: the `echo hi` one, then the `dir` one, then `echo hi` again. With no prompt left above, the toast says `No prompt above this one` |
 | 49.2 | A fresh pane **without** the prompt above (plain `pwsh -NoProfile`), `<C-S-Up>`, then `<C-S-l>` | The toasts say `The shell does not mark its prompts (OSC 133), so there is none to jump to` and `No finished command to copy (the shell has to mark its prompts, OSC 133)`. Nothing is put on the clipboard |
 | 49.3 | With the prompt above, run `dir`, then `<C-S-l>`, then `Get-Clipboard` in another window | The toast reads `Copied the last command's output (N lines)` (`1 line` for one), and the clipboard holds `dir`'s listing alone -- no prompt line, no `dir` command line, no blank lines at the end |
 | 49.4 | With the prompt above, run `dir` (exit 0) and `Get-Item nothing-here` (an error) | A thin bar in the pane's left margin beside each: green beside `dir`'s, red beside the failed one. None inside a full-screen program (`nvim`) |
