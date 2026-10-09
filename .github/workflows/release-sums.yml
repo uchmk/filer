@@ -47,5 +47,13 @@ jobs:
           body=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body \
                  | sed '/^<!-- checksums -->$/,$d')
           { printf '%s\n\n' "$body"; cat "$work/sums.md"; } > "$work/notes.md"
+          # GitHub refuses a body over 125000 characters. Say so and fail
+          # rather than leave a page without its table (v0.79.0's notes were
+          # 124999 characters and the table never went on).
+          chars=$(python3 -c 'import sys; print(len(open(sys.argv[1], encoding="utf-8").read()))' "$work/notes.md")
+          if [ "$chars" -gt 125000 ]; then
+            echo "::error::the notes with the table come to $chars characters, over GitHub's 125000; shorten the notes above the table (scripts/release-notes.sh caps new ones)"
+            exit 1
+          fi
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$work/notes.md"
           cat "$work/sums.md"

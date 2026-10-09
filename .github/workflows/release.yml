@@ -144,31 +144,9 @@ jobs:
           [ -n "$prev" ] || range="HEAD~1..HEAD"
           echo "notes from $range"
 
-          # Version commits only, which here is not a filter so much as the
-          # shape of the history: the version bump and the changelog entry are
-          # committed together, so `vX.Y.Z: ...` is one released change and
-          # nothing else is. What it leaves out is the traffic in between --
-          # ticking off TESTING-KEYS.md, a regenerated checklist -- which
-          # carries no message body and would list itself as a heading with
-          # nothing underneath. Merges go too: their body is the conflict list.
-          #
-          # Falling back to every non-merge commit if that matches nothing, so
-          # a release whose commits were named some other way still says
-          # something rather than coming out blank.
-          commits=$(git log --reverse --no-merges --format='%H %s' "$range" \
-                    | grep -E '^[0-9a-f]+ v[0-9]+\.[0-9]+\.[0-9]+' | cut -d' ' -f1)
-          [ -n "$commits" ] || commits=$(git log --reverse --no-merges --format=%H "$range")
-
-          : > notes.md
-          for sha in $commits; do
-            printf '## %s\n\n' "$(git log -1 --format=%s "$sha")" >> notes.md
-            git log -1 --format=%b "$sha" | awk '
-              /^(Co-Authored-By|Co-authored-by|Claude-Session|Signed-off-by):/ { next }
-              NF == 0 { if (seen) exit; next }
-              { print; seen = 1 }
-            ' >> notes.md
-            printf '\n' >> notes.md
-          done
+          # The versions in the range, newest kept when they would not all
+          # fit on the page (v0.79.0 lost its SHA-256 table that way).
+          bash scripts/release-notes.sh "$range" > notes.md
 
           # Checked before the footer is appended, since the footer alone would
           # make an empty set of notes look like a full one.
