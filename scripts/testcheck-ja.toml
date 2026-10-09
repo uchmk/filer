@@ -412,7 +412,8 @@ note = "プロンプトの移動・出力のコピー・左の帯は、シェル
 # 16. Word / Excel / PowerPoint
 "16.1" = '`.docx` をホバー → 段落ごとの本文が出る。16 進ダンプでもメタデータの一覧でもない'
 "16.2" = '1 文の中で太字と通常が混ざった段落 → **1 行になる**（書式の切れ目ごとに改行されない）'
-"16.3" = '見出し 1 / 2 のスタイルを使った文書で `<S-Tab>` → 見出しがアウトラインになり、`<Enter>` でその位置へ飛ぶ'
+"16.3" = '見出し 1 / 2 のスタイルを使った文書で `<S-Tab>` を押し、アウトラインを動く → 見出しがアウトラインになり、プレビューがカーソルの見出しへ付いてくる'
+"16.3a" = '16.3 のアウトラインの項目で `<Enter>`（#249、#250）→ 文書がアプリ（`.docx` なら Word）で先頭から開く。そうしたアプリは行を受け取らないので行は渡らず、それは失敗ではない'
 "16.3b" = 'Word で開く `.docx` のアウトラインで `<Enter>` → トーストの末尾に `(line N not passed: this opener takes no line)`。行を受け取るエディタ（`code -g` など）では付かない'
 "16.13" = '''Windows で、既定のアプリが無い拡張子のファイル（`HKCR\.xyz` が無い。`fixtures\unknown.xyz`）をオープナー無しで `<Enter>` → トーストが `Handed unknown.xyz to the system, which has no default app for it (Windows asks which to use)` で、「このファイルを開く方法を選んでください」の箱が出る。`.txt` は今までどおり `Opened … with the system's default app`'''
 "16.4" = '`.xlsx` をホバー → 行がタブ区切りのセルとして出て、シートごとに名前が示される'
@@ -672,7 +673,9 @@ note = "プロンプトの移動・出力のコピー・左の帯は、シェル
 '32.19' = '''`.txt` に効く最初の `edit` のオープナー（何であれ。x64 では nvim。サクラやメモ帳だと持ち主の未保存の窓や復元したタブの隣に窓が増えるので、どのエディタでもよい）で `.txt` を `<Enter>` し、`<State:x>`（v0.78.81、#162）→ `x.txt` に `launched: <PID> <コマンドライン>` がある。`Get-CimInstance Win32_Process -Filter "ProcessId=<PID> or ParentProcessId=<PID>"` に、その行を走らせた `cmd` と、その下のエディタが出る。エディタの PID に `Stop-Process -Id` すると、その窓だけが閉じ、前から開いていた同じプログラムの窓は残る'''
 '32.20' = '''カーソルを `a.txt` に置いて `;echo hello >out.txt`、続けて `;echo %*`（v0.78.92、Q82）→ `out.txt` は `hello` だけで、末尾にパスが付かず、トーストの末尾に ` (no path: the line has a shell operator; use %* to place it)` と出る（v0.78.100）。`;echo %*` はプレースホルダがあるのでパスが入り、トーストに注記は出ない。そのあと失敗する行（`;type nothing.txt >t.txt`）の `Command failed: …` のトーストも、末尾に同じ ` (no path: …)` の注記が付く（v0.78.172）'''
 '32.22' = '''Windows で、カーソルを `a.txt` に置いて `;echo a;b >semi.txt`、続けて `;echo a;b`（v0.78.111、Q85）→ `semi.txt` は `a;b` だけ（`>` が演算子なのでパスは付かない）。2 行目のトーストは末尾にパスが付き（`a;b "…\a.txt"`）、`(no path: …)` の注記は出ない（`cmd` では `;` は演算子でないため）。Linux では 2 行目にパスが付かない（`sh -c` は `;` で分けるため）'''
-'32.23' = '''日本語の Windows で、カーソルを `a.txt` に置いて `;type nothing.txt >t.txt`（v0.78.116）→ トーストは `cmd` の言ったこと（ファイルが見つからない、が文字化けせず日本語で）を出し、`` `type` was not found `` とは言わない（`type` は `cmd` の内部コマンド）。`;nosuchprog-xyz` は今までどおり `` `nosuchprog-xyz` was not found `` と出て、同じ起動の `$ nosuchprog-xyz …` のトーストは失敗が出たら消え、同じパスが 2 度並ばない（v0.78.143）。どちらのトーストも先頭は `Open failed:` でなく `Command failed:`（オープナーの失敗は `Open failed:` のまま。32.10）（v0.78.159）'''
+'32.23' = '''日本語の Windows で、カーソルを `a.txt` に置いて `;type nothing.txt >t.txt`（v0.78.116）→ トーストは `cmd` の言ったこと（ファイルが見つからない、が文字化けせず日本語で）を出し、`` `type` was not found `` とは言わない（`type` は `cmd` の内部コマンド）'''
+'32.23a' = '''同じところで `;nosuchprog-xyz`（v0.78.174、Q89）→ トーストは `` `nosuchprog-xyz` was not found ``。`cmd /c` はこれに 9009 でなく 1 を返すが、決め手は最初の語が `PATH` に無いこと'''
+'32.23b' = '''32.23 と 32.23a の両方の起動 → それぞれトーストは 1 つ: 同じ起動の `$ …` のトーストは失敗が出たら消え、コマンドが 2 度並ばない（v0.78.143）。`cmd` が折り返した文は、プレビューと同じく `、` `。` の後に空白を入れずに継ぐ（`外部コマンド、操作可能な`。v0.78.150）。どちらも先頭は `Open failed:` でなく `Command failed:`（オープナーの失敗は `Open failed:` のまま。32.10）（v0.78.159）'''
 '32.14' = 'macOS: `block = true` のオープナーでファイルを `<Enter>` → Terminal.app が前に出て、新しい窓で一覧のフォルダからエディタが動く。初回は macOS が filer に Terminal の操作を許すかを聞く。拒むと理由がトーストに出る'
 
 # 33. 設定の警告と、その色
@@ -726,7 +729,8 @@ note = "プロンプトの移動・出力のコピー・左の帯は、シェル
 "37.6" = 'PDF を 2 つ選んで `<Enter>` → 引用符でひと塊にならず、別々の引数として両方開く'
 '37.7' = '''`start` を通らないフルパスのオープナー（サクラエディタの `"C:\Program Files (x86)\sakura\sakura.exe" %*`）→ `start` の扱いで変わらない。`Win32_Process` で、`sakura.exe` が `block = false` のオープナーがみな通る `cmd /S /C`（`"cmd" /S /C ""C:\…\sakura.exe" "<ファイル>""`）の子として出る。行に `start` が無く、自分のコンソール窓も出ない'''
 '37.8' = '''README の設定例（32.1）で、PDF で `O` → Edge、Chrome、既定アプリ、そのあとエディタ群がこの順に並ぶ。`FILER_KEYS_DONE` の `pick:` の行で読める'''
-'37.8a' = '''37.8 の一覧の項目を順に選ぶ → それぞれ表示どおりのものが起動する。この機械に入っていないプログラムや、関連付けの無い拡張子は、理由を書いて飛ばす（失敗ではない）'''
+'37.8a' = '''37.8 の一覧の項目のうち、ブラウザ（Edge・Chrome）以外を順に選ぶ（既定のアプリと各エディタ）→ それぞれ表示どおりのものが起動する。この機械に入っていないプログラム、関連付けの無い拡張子、動いている窓に合流するもの（文書がその窓に入り、新しいプロセスが起きない）は、理由を書いて飛ばす（失敗ではない）'''
+'37.8b' = '''37.8 の一覧のブラウザの項目（Edge・Chrome）を、**そのブラウザの窓が 1 つも開いていないときだけ**選ぶ（#256）→ それぞれ新しいブラウザのプロセスで PDF を開く。持ち主の窓が開いていれば PDF はそこへ合流するので、そのブラウザは理由を書いて飛ばす（37.8a と同じ飛ばし方）'''
 
 # 39. ターミナルペインの <A-j> / <A-k>
 "39.1" = '`<C-t>` で長いもの（`dir /s` や `ls -R`）を実行してから `<A-k>` → スクロールバックが 1 回につき 5 行**上**へ'
@@ -860,7 +864,8 @@ note = "プロンプトの移動・出力のコピー・左の帯は、シェル
 '47.5' = '''`f` のプロンプトを開いて 10 秒何も触らず、前後で CPU を読む（v0.59.3）。47.1 と同じく `--keys` なしで起動する → プロンプトを開いていないとき（47.1）と同じく増えない。キャレットは点滅せず常に出ている。v0.59.3 までは点滅のために毎秒 2 回描いていて、10 秒で 0.14〜0.30 CPU 秒（#103、#110）'''
 "47.6" = '`filer.toml` に `[ui] backend = "gl"`、`WGPU_BACKEND` は無しで起動し、47.1 をする（v0.74.0、Q70）→ `filer env` の `Adapter` の行が `(Gl, …; set by [ui] backend = "gl")` で終わり（`WGPU_BACKEND` が勝つときは `set by WGPU_BACKEND=…`。v0.78.148）、Vulkan と DX12 では通らなかった 47.1 が通る（x64 の AMD の機械）'
 "47.7" = '`[ui] backend = "directx"`、次に Windows で `"metal"`（v0.74.0、Q70）→ どちらも窓は開き、`auto` と同じに描く（GL のある機械では `Adapter` が `(Gl, …)`。v0.75.5。以前は Vulkan で、x64 の AMD の機械ではまた 1 コアを使った）。設定の警告が `"directx" is not one of auto, vulkan, dx12, metal, gl`、次に `"metal" is macOS only`（v0.74.8）と言う。`filer env` の `Warnings` の行も 2 回とも同じことを言い、`Backend` の行は `[ui] backend = "directx"`。窓のトーストは、何で描いたかを `drawing with Gl instead` と言って終わる（v0.75.6）。`filer env` も同じく `drawing with Gl instead` と言う（v0.78.107。以前は `drawing with the default` のまま）'
-"47.8" = '`[ui] backend` も `WGPU_BACKEND` も無しで起動し、次に `backend = "vulkan"`（Windows、v0.75.0）→ `filer env` の `Adapter` が 1 回目は `(Gl, …; set by [ui] backend = "auto")`、2 回目は `(Vulkan, …; set by [ui] backend = "vulkan")` で終わり（v0.78.148）、どちらも警告は出ない。x64 の AMD の機械では、何も書かずに 47.1 が通る'
+"47.8" = '`[ui] backend` も `WGPU_BACKEND` も無しで起動し、次に `backend = "vulkan"`（Windows、v0.75.0）→ `filer env` の `Adapter` が 1 回目は `(Gl, …; set by [ui] backend = "auto")`、2 回目は `(Vulkan, …; set by [ui] backend = "vulkan")` で終わり（v0.78.148）、どちらも警告は出ない'
+"47.8a" = 'AMD の GPU の x64 の機械だけ: 何も書かずに（`[ui] backend` も `WGPU_BACKEND` も無し）47.1（#287）→ 47.1 が通る: 既定が GL を選び、何もしていない間の CPU は 0。ほかの機械はこの行を飛ばす'
 "48.1" = '展開した各フォルダで `Get-ChildItem -Recurse` → フォルダが 1 つ（`filer-<タグ>-windows-x64` か `-arm64`）で、中はちょうど 5 ファイル: `filer.exe`、`filer.com`（v0.71.0）、`conpty.dll`、`OpenConsole.exe`、`ConPTY-LICENSE.txt`。他には何も無く、フォルダの横にも何も無い'
 "48.2" = '各フォルダで `.\filer.exe --version` → x64 の zip は `filer <版> (x86_64)`、ARM64 の zip は `filer <版> (aarch64)`。版はタグから `v` を除いたもの'
 "48.3" = '各 zip の 4 つのバイナリ（v0.71.0 から `filer.com` も）の PE machine（節の冒頭の式）→ x64 の zip は 4 つとも `8664`、ARM64 の zip は 4 つとも `AA64`。混ざっていたらこの行が探している不具合（ARM64 版に x64 の ConPTY が入ると、起動はしてペインでおかしくなる）'
