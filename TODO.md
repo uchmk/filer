@@ -10,6 +10,12 @@
 - `【QA】` TESTING.md の文言や、テストの探索など、QA セッションの分（`.claude/qa-role.md`）
 - `【実機】` Windows の実機でしか測れないこと。順番表（`.claude/windows-role.md`）に積んで待つ
 
+- [ ] （#307・#308 の提案）TESTING.md の 49.10 を書き直す: PSReadLine は pwsh で `<S-Enter>` を `AddLine` に結ぶので「kitty を求めないシェルで変わらない」の後半は通らない。前半（`claude` で 2 行）と後半（`cmd` か `bash` で測る）に分ける。`【QA】`
+- [ ] （#307 の提案 1）TESTING.md の 49.1 に「コマンドの間に 13 行以上出力する（ペインは 12 行）」を書く。`【QA】`
+- [ ] （#308 の提案 2）TESTING.md の 1.43 / 40.16 の `<C-c>` を 49.9 に寄せる（`<C-c>` は v0.86.0 から素の `\x03`、`(Ctrl+c)` の記録は出ない）。1.43 は `(Alt+b)` と `(Up)` だけにする。`【QA】`
+- [ ] （#307 の提案 3・5、#308 の提案 3）`--keys` に生バイトの貼り付けと `<Clip:>` の状態、クリックとホバーの手順を足す（49.3 / 49.6）。`<Wheel:N>` と `<Drag:…>` の例を README のキー表に書く。
+- [ ] （#308 の所見）`wezterm imgcat` で 2560x1280 の PNG が何も描かれない（160x80 は描かれる）。tsumugi 側で調べる。`【pane】`
+- [ ] （#307・#308 の提案、マージ担当は `.claude/` に書けないのでここに積む）`.claude/windows-role.md` の x64 と ARM64 の両方の「Re-tests of changed behaviour」から、済んだ 25.4e、49.9、49.11 を外す（x64 は #307、ARM64 は #308 で `[x]`）。残りは 49.10（行の書き換え待ち）、49.6（マウスが要る）、1.43 / 40.16（書き換え待ち）、1.44 / 16.13 / 16.13a / 33.7（直し待ち）。次の run は ARM64 が節 1・19・40 のホイール・ドラッグ・nvim の行を押し直す。`【人】`
 - [ ] （#306 の所見）49.7 が x64 で落ちた: 同梱の ConPTY（1.24.2607.10001）が OSC 8 の始まりと終わりを落とし、ペインには `click me` しか届かない（`FILER_PTY_LOG`）。sixel（`chafa -f sixels`）も DCS を落とされて本文が文字で出る。filer か tsumugi が ConPTY にパススルーを頼めるか調べる。`【pane】`
 - [ ] （#306 の所見）`wezterm imgcat` がペインの中で `attempt to divide by zero` で panic する（`wezterm\src\main.rs:383`）。セルのピクセル寸法が 0 で返っている疑い（`CSI 16 t` / `CSI 14 t` の返事、`TIOCGWINSZ`）。49.11 と同じ点。`【pane】`
 - [ ] （#306 の提案 2）TESTING.md の 49.7 を ConPTY の落とす OSC 8 に合わせて書き直し、49.8 は `chafa -f sixels` でなく通る iTerm2 の OSC 1337 を名指しにする。`【QA】`
