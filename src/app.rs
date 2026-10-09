@@ -5306,7 +5306,7 @@ impl App {
             // looks just like `<C-t>` hiding the pane -- so a running program
             // is asked about first, and a prompt is not (Q21).
             if let Some(t) = self.term.as_ref().filter(|t| t.busy()) {
-                let what = if t.title.is_empty() { "A program".to_owned() } else { format!("`{}`", t.title) };
+                let what = if t.title.is_empty() { "A program".to_owned() } else { format!("`{}`", program_label(&t.title)) };
                 self.overlay = Overlay::Confirm(ConfirmOverlay {
                     title: "End the shell?".into(),
                     body: vec![format!("{what} is still running in the terminal, and ends with it.")],
@@ -10531,5 +10531,29 @@ mod term_prompt_keys {
         assert_eq!(run_of(&km.term, "<C-S-Up>"), vec![Act::TermPrompt { prev: true }]);
         assert_eq!(run_of(&km.term, "<C-S-Down>"), vec![Act::TermPrompt { prev: false }]);
         assert_eq!(run_of(&km.term, "<C-S-l>"), vec![Act::TermCopyOutput]);
+    }
+}
+
+/// The console's default title is the shell's full path (`C:\...\pwsh.exe`); name the program by its file stem instead.
+fn program_label(title: &str) -> &str {
+    let t = title.trim();
+    if !t.contains(['/', '\\']) || t.contains(' ') && !t.to_ascii_lowercase().ends_with(".exe") {
+        return t;
+    }
+    let name = t.rsplit(['/', '\\']).next().unwrap_or(t);
+    let stem = name.strip_suffix(".exe").or_else(|| name.strip_suffix(".EXE")).unwrap_or(name);
+    if stem.is_empty() { t } else { stem }
+}
+
+#[cfg(test)]
+mod program_label_tests {
+    use super::program_label;
+
+    #[test]
+    fn full_path_becomes_the_program_name() {
+        assert_eq!(program_label("C:\\Program Files\\PowerShell\\7\\pwsh.exe"), "pwsh");
+        assert_eq!(program_label("/usr/bin/zsh"), "zsh");
+        assert_eq!(program_label("lazygit"), "lazygit");
+        assert_eq!(program_label("vim notes/a.txt"), "vim notes/a.txt");
     }
 }
