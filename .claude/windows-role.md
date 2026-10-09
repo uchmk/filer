@@ -70,6 +70,10 @@ and `--extensions-dir`. It reads no picture and none of the owner's settings, an
 deleted the registry key it made afterwards; it put everything back, but a run that dies in between leaves the owner's desk at 150%.
 **A run that presses `d` takes back what it trashed** (#231): `u` before it ends, or remove from the Recycle Bin only the items whose
 original location is under its own scratch. #231 found 38 items in the owner's bin left by earlier runs.
+**Earlier runs' leftovers are yours to clear too** (v0.83.2, #256 / #263): once per run, before the queue, remove from the Recycle Bin the items whose
+original location is under the launcher's scratch root (`R:\Temp` on x64, `%TEMP%\filer-scratch` on ARM64: any `run-<time>` folder, not only yours),
+and close the Chrome tabs whose address is a `file:///` under that root or under the fixture tree, each with `<C-w>` on its window in front.
+Touch nothing else in the bin or the browser -- the rest is the owner's -- and write both counts (before / removed) in your report.
 **A row that opens a browser tab** (26.1, `<F12>`): count the tabs titled "New issue" before and after, close the one
 you opened by its title, and write both counts in your report (#226 found four left over by earlier runs).
 

@@ -1865,7 +1865,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   - [x] （v0.78.179。`.git` ごとに `config`・`refs/remotes/origin/HEAD`・`packed-refs` の更新時刻と大きさで覚え、変われば捨てる）`remote.origin.url` と `origin/HEAD` を、リポジトリの根ごとに覚える
 - [x] （v0.80.7。TESTING.md と訳を直した）TESTING.md 46.11 に何を測るかを書く（#263 の提案 3: `conhost.exe` の数ではなく、`ConsoleWindowClass` の見える窓が増えないこと。上の `DETACHED_PROCESS` が入れば数で測れる）【QA】
 - [x] （v0.78.176。`C` の出力だけ `#42` と `bb23a4e` の間を TAB にした。見た目は変えない）spot の `C` で `Came in via` の 2 つの値を分ける（#263 の提案 4）
-- [ ] （所見）前の run（2026-10-04 12:02 の 37 節）が開いた Chrome のタブが ARM64 機に残っている（#263 の所見 1、#256 の所見 2 と同じ）。持ち主が閉じる【人】
+- [ ] （所見）前の run（2026-10-04 12:02 の 37 節）が開いた Chrome のタブが ARM64 機に残っている（#263 の所見 1、#256 の所見 2 と同じ）。v0.83.2 から実機の run が閉じる（`.claude/windows-role.md` の「Earlier runs' leftovers」。下の #256 の項目と一緒に片付く）【実機】
 
 ## 実機のセッションの報告（v0.78.22 で受けた分: #260 ARM64、2 台目として押す run）
 
@@ -1915,7 +1915,8 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 - [x] （v0.82.0、Q92 = 1。`exec::starts_default` の行とオープナー無しは開く前に引き、無ければ `No default app for .xyz` で開かない。16.13・16.13a）`start ""` の既定のアプリが何も開かないとき、走らせる前に `AssocQueryStringW(ASSOCSTR_EXECUTABLE)` で引いて言う（#256 の提案 2。
   #252 の提案 2 の項目と同じ問題を、開く前に見る形。どちらにするか合わせて決める）
 - [ ] （所見）ARM64 の持ち主のごみ箱に、前の run の scratch から来たものが 38 個（#256 の所見 1。#231 の x64 と同じ）。前の run の Chrome のタブも 1 枚
-  残っている（所見 2）。役割定義の後片付けが前の run の分に届いていない。持ち主が空にするか、後片付けの手順を見直す【人】
+  残っている（所見 2）。役割定義の後片付けが前の run の分に届いていない。v0.83.2 で `.claude/windows-role.md` に「前の run の残り物も片付ける」
+  （ごみ箱は元の場所が scratch の根の下のものだけ、Chrome は `file:///` が scratch か fixture の下のタブだけ）を足した。実機の run が 1 回片付けて数を報告したら済み【実機】
 
 ## 実機のセッションの報告（v0.78.15 で受けた分: #251 x64 と #252 ARM64 の書庫の中）
 
