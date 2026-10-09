@@ -978,7 +978,7 @@ impl eframe::App for Filer {
                 self.script_at = (frame, std::time::Instant::now());
                 self.script_now = false;
             }
-            Some(p @ (keyscript::Press::Click { .. } | keyscript::Press::Wheel { .. } | keyscript::Press::Drag { .. })) => {
+            Some(p @ (keyscript::Press::Click { .. } | keyscript::Press::Hover { .. } | keyscript::Press::Wheel { .. } | keyscript::Press::Drag { .. })) => {
                 let rect = ctx.input(|i| i.viewport_rect());
                 let mut events = keyscript::pointer_events(&p, rect);
                 // A drag one event per frame: in one frame egui never sees the

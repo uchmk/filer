@@ -1532,6 +1532,7 @@ a bare `*` is still the key `*`.
 `<Click:0.2,0.1>` and `<RClick:0.2,0.1>` press the left or right button at that place in the window, as
 fractions of its width and height; `<Wheel:-3@0.5,0.4>` turns the wheel three lines (negative is down)
 there (`<Wheel:0.25@…>` is a quarter notch, and `C-` / `A-` / `S-` before the number holds that key: `<Wheel:C-1@…>`);
+`C-` / `A-` / `S-` before a click's place holds that key too (`<Click:C-0.5,0.4>`), and `<Hover:0.5,0.4>` moves the pointer there with no button;
 `<Drag:0.2,0.3-0.6,0.3>` presses the left button at the first place, moves to the second and lets go (v0.78.145; since v0.78.175 each of the press, the moves and the release goes in its own frame, so a pane or a list sees a real drag); `<Paste>` pastes the clipboard as it is at that point, and so does `<C-v>` (v0.78.53).
 `<Wheel:N>` with N above 1 is **one** event, not N notches: the terminal pane reads a smoothed delta, so `<Wheel:2>`
 moved it 4 lines where two `<Wheel:1>` moved it 2 (#283). To count notches, send N steps of one: `<Wheel:1@0.5,0.8>*3`.
