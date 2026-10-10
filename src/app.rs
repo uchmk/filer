@@ -2217,6 +2217,7 @@ impl App {
             self.preview.texture = hit.texture;
             self.preview.state = PreviewState::Ready(hit.payload);
             self.preview.max_offset = 0;
+            self.show_first_match();
             self.grant_outline_wish();
             return;
         }
@@ -2330,7 +2331,36 @@ impl App {
             let avail = egui::vec2(bw as f32 / 2.0, bh as f32 / 2.0);
             self.preview.fit = image_fit(avail, source.0 as f32, source.1 as f32);
         }
+        self.show_first_match();
         self.grant_outline_wish();
+    }
+
+    /// The lines of the text on show that the search view's body search finds,
+    /// top to bottom. Empty when the view is not a body search or the preview
+    /// is not text.
+    pub fn body_matches(&self) -> Vec<usize> {
+        let Some(m) = self.tabs[self.active].finder.as_ref().filter(|f| f.body).and_then(|f| f.matcher.as_ref())
+        else {
+            return Vec::new();
+        };
+        let PreviewState::Ready(Payload::Text { lines, .. }) = &self.preview.state else {
+            return Vec::new();
+        };
+        lines
+            .iter()
+            .enumerate()
+            .filter(|(_, l)| m.is_match(&l.iter().map(|s| s.text.as_str()).collect::<String>()))
+            .map(|(i, _)| i)
+            .collect()
+    }
+
+    /// A file that has just landed in the preview of a body search opens at
+    /// its first match, a few lines down from the top so the lines before it
+    /// show.
+    fn show_first_match(&mut self) {
+        if let Some(&first) = self.body_matches().first() {
+            self.tabs[self.active].preview_offset = first.saturating_sub(3);
+        }
     }
 
     /// The outline of the preview as it is shown: declarations in source
@@ -4430,11 +4460,12 @@ impl App {
         if len == 0 {
             return;
         }
+        let Some(matcher) = finder.matcher else { return };
         let dir: i64 = if prev != finder.prev { -1 } else { 1 };
         for step in 1..=len as i64 {
             let idx = (tab.current.cursor as i64 + dir * step).rem_euclid(len as i64) as usize;
             let Some(e) = tab.current.at(idx) else { continue };
-            if fuzzy::find_substring(&finder.query, &e.name, finder.case_sensitive).is_some() {
+            if matcher.is_match(&e.name) {
                 tab.current.cursor = idx;
                 tab.sync_visual();
                 return;
@@ -4626,12 +4657,26 @@ impl App {
             }
             InputKind::Find { prev } => {
                 let query = ov.text.clone();
-                let cs = fuzzy::is_case_sensitive(&query, true, false);
+                // As `f` does: half-typed, `(` is not an expression yet, so
+                // nothing moves and the prompt says why until the next key.
+                let (title, matcher) = match tsumugi_match::Matcher::new(&query) {
+                    _ if query.is_empty() => (None, None),
+                    Ok(m) => (None, Some(m)),
+                    Err(e) => (Some(e), None),
+                };
+                let base = if prev { "Find previous" } else { "Find next" };
+                if let Overlay::Input(ov) = &mut self.overlay {
+                    ov.title = match &title {
+                        Some(e) => format!("{base} -- {e}"),
+                        None => base.to_owned(),
+                    };
+                }
                 let tab = &mut self.tabs[self.active];
-                tab.finder = Some(Finder { query: query.clone(), case_sensitive: cs, prev });
-                if query.is_empty() {
+                if title.is_some() {
                     return;
                 }
+                tab.finder = Some(Finder { query, matcher: matcher.clone(), prev, names: true, body: false });
+                let Some(matcher) = matcher else { return };
                 let len = tab.current.view.len();
                 let start = tab.current.cursor;
                 for step in 0..len {
@@ -4641,7 +4686,7 @@ impl App {
                         (start + step) % len
                     };
                     let Some(e) = tab.current.at(idx) else { continue };
-                    if fuzzy::find_substring(&query, &e.name, cs).is_some() {
+                    if matcher.is_match(&e.name) {
                         tab.current.cursor = idx;
                         break;
                     }
@@ -5839,6 +5884,13 @@ impl App {
         let root = self.tabs[self.active].cwd.clone();
         let show_hidden = self.tabs[self.active].show_hidden;
         let ctx = self.ctx.clone();
+        let finder = Finder {
+            query: query.to_owned(),
+            matcher: Some(matcher.clone()),
+            prev: false,
+            names: via != SearchVia::Content,
+            body: via != SearchVia::Name,
+        };
         let handle = crate::search::spawn(&root, matcher, query, via, show_hidden, 5000, move || {
             ctx.request_repaint()
         });
@@ -5848,7 +5900,7 @@ impl App {
         let mut folder = Folder::loading(search_path(query, &root), None);
         folder.state = LoadState::Ready;
         tab.current = folder;
-        tab.finder = Some(Finder { query: query.to_owned(), case_sensitive: false, prev: false });
+        tab.finder = Some(finder);
         self.search = Some(handle);
         self.preview.state = PreviewState::Empty;
         self.preview.key = None;
@@ -11037,5 +11089,127 @@ mod program_label_tests {
         assert_eq!(program_label("/usr/bin/zsh"), "zsh");
         assert_eq!(program_label("lazygit"), "lazygit");
         assert_eq!(program_label("vim notes/a.txt"), "vim notes/a.txt");
+    }
+}
+
+/// `/` `?` `S` `F` find with the matcher the other searches use, and what they
+/// find is marked in the list and in the preview body.
+#[cfg(test)]
+mod find_marks {
+    use super::*;
+    use crate::preview::Span;
+
+    fn app_in(dir: &Path) -> App {
+        let mut a = App::new(Config::load(), dir.to_path_buf(), egui::Context::default());
+        a.tabs[a.active].cwd = dir.to_path_buf();
+        a.tabs[a.active].current = Folder::loading(dir.to_path_buf(), None);
+        a
+    }
+
+    fn text(lines: &[&str]) -> PreviewState {
+        let lines = lines.iter().map(|l| vec![Span { text: (*l).to_owned(), ..Default::default() }]).collect();
+        PreviewState::Ready(Payload::Text { lines, map: Vec::new(), extent: Default::default(), outline: Vec::new() })
+    }
+
+    fn typed(a: &mut App, prev: bool, query: &str) {
+        a.open_input(InputKind::Find { prev }, "Find next", String::new());
+        if let Overlay::Input(ov) = &mut a.overlay {
+            ov.text = query.to_owned();
+        }
+        a.input_changed();
+    }
+
+    /// `/` takes a regular expression, in smart case, and jumps to the first
+    /// name it matches.
+    #[test]
+    fn slash_finds_by_expression() {
+        let dir = crate::util::test_dir("find-marks-slash");
+        for n in ["alpha.txt", "beta.log", "Gamma.log"] {
+            std::fs::write(dir.join(n), "x").unwrap();
+        }
+        let mut a = app_in(&dir);
+        a.tabs[a.active].current = Folder::from_entries(
+            dir.clone(),
+            Arc::new(["alpha.txt", "beta.log", "Gamma.log"].iter().map(|n| Entry::from_path(dir.join(n)).unwrap()).collect()),
+            false,
+        );
+
+        typed(&mut a, false, r"\.log$");
+        let cur = a.tabs[a.active].current.cursor;
+        assert_eq!(a.tabs[a.active].current.at(cur).unwrap().name, "beta.log");
+        let f = a.tabs[a.active].finder.clone().unwrap();
+        assert!(f.names && !f.body && f.matcher.is_some());
+
+        typed(&mut a, false, "GAMMA");
+        let cur = a.tabs[a.active].current.cursor;
+        assert_ne!(a.tabs[a.active].current.at(cur).unwrap().name, "Gamma.log", "a capital makes it case-sensitive");
+        typed(&mut a, false, "gamma");
+        let cur = a.tabs[a.active].current.cursor;
+        assert_eq!(a.tabs[a.active].current.at(cur).unwrap().name, "Gamma.log");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A half-typed expression leaves the finder and the cursor alone and says
+    /// why in the prompt.
+    #[test]
+    fn a_half_typed_expression_says_why() {
+        let dir = crate::util::test_dir("find-marks-bad");
+        let mut a = app_in(&dir);
+        typed(&mut a, false, "a");
+        let before = a.tabs[a.active].finder.clone().unwrap();
+        typed(&mut a, false, "a(");
+        let Overlay::Input(ov) = &a.overlay else { panic!("the prompt is still up") };
+        assert!(ov.title.starts_with("Find next -- "), "{}", ov.title);
+        assert_eq!(a.tabs[a.active].finder.as_ref().unwrap().query, before.query);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// `S` marks the body, `s` only names, `F` both.
+    #[test]
+    fn each_search_marks_what_it_searches() {
+        let dir = crate::util::test_dir("find-marks-via");
+        let mut a = app_in(&dir);
+        for (via, names, body) in
+            [(SearchVia::Name, true, false), (SearchVia::Content, false, true), (SearchVia::Fuzzy, true, true)]
+        {
+            a.start_search("needle", via);
+            let f = a.tabs[a.active].finder.clone().unwrap();
+            assert_eq!((f.names, f.body), (names, body), "{via:?}");
+            assert_eq!(f.matcher.as_ref().map(|m| m.is_fuzzy()), Some(via == SearchVia::Fuzzy));
+            a.exit_search_view();
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_bad_expression_starts_no_search() {
+        let dir = crate::util::test_dir("find-marks-start");
+        let mut a = app_in(&dir);
+        a.start_search("a(", SearchVia::Content);
+        assert!(a.search.is_none() && !a.in_search_view());
+        assert!(a.tabs[a.active].finder.is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The lines of the file on show that the body search finds, and the file
+    /// opening at the first of them.
+    #[test]
+    fn the_body_matches_are_the_lines_with_the_query() {
+        let dir = crate::util::test_dir("find-marks-body");
+        let mut a = app_in(&dir);
+        assert!(a.body_matches().is_empty(), "no search, no matches");
+        a.preview.state = text(&["a", "needle one", "b", "c", "d", "e", "needle two"]);
+        assert!(a.body_matches().is_empty(), "a name search does not look in the body");
+
+        a.start_search("needle", SearchVia::Content);
+        a.preview.state = text(&["a", "needle one", "b", "c", "d", "e", "needle two"]);
+        assert_eq!(a.body_matches(), [1, 6]);
+        a.show_first_match();
+        assert_eq!(a.tabs[a.active].preview_offset, 0, "a few lines of context, not below the top");
+
+        a.preview.state = text(&["x", "x", "x", "x", "x", "x", "x", "x", "needle"]);
+        a.show_first_match();
+        assert_eq!(a.tabs[a.active].preview_offset, 5);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

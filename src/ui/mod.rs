@@ -505,7 +505,7 @@ pub(super) fn draw_preview(
                 selected: false,
                 yanked: None,
                 git: git::State::Clean,
-            }, false);
+            }, false, None);
             app.preview.max_offset = dir_max;
             if app.tabs[app.active].preview_offset > dir_max {
                 app.tabs[app.active].preview_offset = dir_max;
@@ -528,6 +528,7 @@ pub(super) fn draw_preview(
                 minimap: app.cfg.ui.minimap,
                 zoom: app.preview.zoom,
                 pan: app.preview.pan,
+                find: app.tabs[app.active].finder.as_ref().filter(|f| f.body).and_then(|f| f.matcher.as_ref()),
             };
             let drawn = preview::draw(
                 ui,
@@ -675,7 +676,7 @@ fn draw_parent(app: &mut App, ui: &mut Ui, rect: Rect, ctx: &PaneCtx, queued: &m
             selected: false,
             yanked: None,
             git: git::State::Clean,
-        }, false);
+        }, false, None);
         if let Some(row) = res.clicked.or(res.double_clicked) {
             if let Some(e) = p.at(row) {
                 queued.push(parent_click(e));
@@ -724,6 +725,7 @@ fn draw_pane(
     app.pane_rects.push((idx, rect));
     let has_filter = app.tabs[idx].current.filter.is_some();
     let git = app.git_status(&app.tabs[idx].cwd);
+    let find = app.tabs[idx].finder.as_ref().filter(|f| f.names).and_then(|f| f.matcher.as_ref());
     let res = list::draw(
         ui,
         rect,
@@ -735,6 +737,7 @@ fn draw_pane(
             git: git.as_ref().map(|g| g.get(&e.name)).unwrap_or(git::State::Clean),
         },
         has_filter,
+        find,
     );
     // Which side has the keys should be clear at a glance.
     if app.split.is_some() {

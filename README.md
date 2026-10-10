@@ -1100,7 +1100,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` filer's config, `gy` yazi's config, `gt` temp, `g<Space>` type a path, `gf` follow the link |
 | `c…` | `cc` copy the path, `cd` the parent, `cf` the file name, `cn` the name without its extension |
 | `o` `O` `<Enter>` `<S-Enter>` | open / open with… / open (at the outline's line) / open with… |
-| `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter. `f` takes a regular expression (a plain word is a substring); no capital in it means case does not matter, one capital means it does (v0.87.0). An invalid expression says why and changes nothing |
+| `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter. `f` and (v0.90.0) `/` `?` take a regular expression (a plain word is a substring); no capital in it means case does not matter, one capital means it does (v0.87.0). An invalid expression says why and changes nothing. Every match is coloured, in the list and, after `S` or `F`, in the preview body, which opens at its first match (v0.90.0) |
 | `s` `S` `F` `<C-s>` | search by name / by content / fuzzily by path / stop. `s` and `S` take a regular expression, with the same capital rule as above (v0.87.0); a content search reads the first 1 MB of each file, never opens known binary types (`.exe`, `.png`, `.zip` …), turns away any file with a NUL byte in its first 8 KB, and says how many it left out (v0.89.0). `F` takes the letters in order across the whole relative path (`srcmain` finds `src/main.rs`) and lists the best match first (v0.88.0) |
 | `z` | fuzzy-jump to a bookmark or recent directory |
 | `'` | go to a bookmark (then press its letter), as in vim |

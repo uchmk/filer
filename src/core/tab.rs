@@ -17,8 +17,14 @@ pub struct VisualState {
 #[derive(Clone, Debug, Default)]
 pub struct Finder {
     pub query: String,
-    pub case_sensitive: bool,
+    /// What finds: a regular expression (smart case), or letters in order for
+    /// `F`. `None` while the query is not an expression yet.
+    pub matcher: Option<tsumugi_match::Matcher>,
     pub prev: bool,
+    /// The names in the list are what is searched, and get marked.
+    pub names: bool,
+    /// The lines of the preview are searched too (`S` and `F`), and get marked.
+    pub body: bool,
 }
 
 /// A jump whose directory has not been listed yet. Nothing on disk is touched

@@ -6,6 +6,8 @@ use egui::{
 use crate::app::PreviewState;
 use crate::config::theme::Theme;
 use crate::preview::{cells, outline_cols, Doc, Extent, LineKind, MapRow, Payload, Span, TocEntry};
+use std::ops::Range;
+use tsumugi_match::Matcher;
 
 pub struct PreviewStyle<'a> {
     pub theme: &'a Theme,
@@ -26,6 +28,8 @@ pub struct PreviewStyle<'a> {
     pub zoom: Option<f32>,
     /// How far a zoomed image has been dragged from centered.
     pub pan: Vec2,
+    /// What a search (`S`, `F`) looks for: its matches in the lines are marked.
+    pub find: Option<&'a Matcher>,
 }
 
 #[derive(Default)]
@@ -551,6 +555,33 @@ fn code(
     Drawn { lines, jump, scroll_to: None }
 }
 
+/// `line`'s spans cut where `marks` (byte ranges of the whole line, left to
+/// right) begin and end: which span, which part of its text, and whether that
+/// part is inside a mark. The parts of a span put back together are the span.
+fn split_marked(line: &[Span], marks: &[Range<usize>]) -> Vec<(usize, Range<usize>, bool)> {
+    let mut out = Vec::new();
+    let mut at = 0;
+    for (k, span) in line.iter().enumerate() {
+        let end = at + span.text.len();
+        let mut from = at;
+        for m in marks.iter().filter(|m| m.start < end && m.end > at) {
+            let (s, e) = (m.start.max(from), m.end.min(end));
+            if s > from {
+                out.push((k, from - at..s - at, false));
+            }
+            if e > s {
+                out.push((k, s - at..e - at, true));
+            }
+            from = e.max(from);
+        }
+        if from < end || span.text.is_empty() {
+            out.push((k, from - at..end - at, false));
+        }
+        at = end;
+    }
+    out
+}
+
 /// Highlighted source, one file line per row.
 fn text(
     ui: &Ui,
@@ -564,19 +595,33 @@ fn text(
     let start = offset.min(lines.len().saturating_sub(1));
     let end = (start + rows(rect, st)).min(lines.len());
     let bold_dx = overstrike(ui, st);
+    let (mark_fg, mark_bg) = (st.theme.find_keyword.fg, st.theme.find_keyword.bg);
     for (i, line) in lines[start..end].iter().enumerate() {
         if line.is_empty() {
             continue;
         }
+        let marks = match st.find {
+            Some(m) => m.ranges(&line.iter().map(|s| s.text.as_str()).collect::<String>()),
+            None => Vec::new(),
+        };
         let job_for = |bold_only: bool| {
             let mut job = LayoutJob::default();
             job.wrap.max_width = if st.wrap { rect.width() - 16.0 } else { f32::INFINITY };
             job.wrap.max_rows = if st.wrap { 3 } else { 1 };
             job.wrap.break_anywhere = true;
             job.wrap.overflow_character = None;
-            for span in line {
+            // The faked-bold second pass is only the bold glyphs, over the first
+            // pass: the marks are painted once, by the first.
+            let marks: &[Range<usize>] = if bold_only { &[] } else { &marks };
+            for (k, part, marked) in split_marked(line, marks) {
+                let span = &line[k];
                 let color = if bold_only && !span.bold { Color32::TRANSPARENT } else { span_color(span, st) };
-                job.append(&span.text, 0.0, format(span, color, st));
+                let mut fmt = format(span, color, st);
+                if marked {
+                    fmt.color = mark_fg.unwrap_or(color);
+                    fmt.background = mark_bg.unwrap_or(Color32::TRANSPARENT);
+                }
+                job.append(&span.text[part], 0.0, fmt);
             }
             job
         };
@@ -870,6 +915,7 @@ mod tests {
             minimap,
             zoom: None,
             pan: Vec2::ZERO,
+            find: None,
         };
         (rect, st)
     }
@@ -1933,6 +1979,56 @@ mod pixel_grid {
         let at15 = on_pixels(r, 1.5);
         assert!(((at15.min.x * 1.5).fract()).abs() < 1e-4 && ((at15.min.y * 1.5).fract()).abs() < 1e-4, "{:?}", at15.min);
         assert!((at15.min.x - r.min.x).abs() <= 1.0 / 3.0 + 1e-4, "moved by at most half a pixel");
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::single_range_in_vec_init)]
+mod split_marks {
+    use super::split_marked;
+    use crate::preview::Span;
+
+    fn span(t: &str) -> Span {
+        Span { text: t.to_owned(), ..Default::default() }
+    }
+
+    /// Each piece as (span, its text, marked).
+    fn pieces(line: &[Span], marks: &[std::ops::Range<usize>]) -> Vec<(usize, String, bool)> {
+        split_marked(line, marks).into_iter().map(|(k, r, m)| (k, line[k].text[r].to_owned(), m)).collect()
+    }
+
+    #[test]
+    fn a_mark_inside_a_span_cuts_it_in_three() {
+        let line = [span("let needle = 1;")];
+        assert_eq!(
+            pieces(&line, &[4..10]),
+            [(0, "let ".into(), false), (0, "needle".into(), true), (0, " = 1;".into(), false)]
+        );
+    }
+
+    #[test]
+    fn a_mark_across_spans_is_cut_at_the_seam() {
+        let line = [span("fn nee"), span("dle()")];
+        assert_eq!(
+            pieces(&line, &[3..9]),
+            [(0, "fn ".into(), false), (0, "nee".into(), true), (1, "dle".into(), true), (1, "()".into(), false)]
+        );
+    }
+
+    #[test]
+    fn no_marks_leaves_the_spans_as_they_were() {
+        let line = [span("ab"), span("cd")];
+        assert_eq!(pieces(&line, &[]), [(0, "ab".into(), false), (1, "cd".into(), false)]);
+    }
+
+    #[test]
+    fn several_marks_and_japanese_text() {
+        let line = [span("あいうあい")];
+        // Byte ranges, three bytes a letter.
+        assert_eq!(
+            pieces(&line, &[0..3, 9..12]),
+            [(0, "あ".into(), true), (0, "いう".into(), false), (0, "あ".into(), true), (0, "い".into(), false)]
+        );
     }
 }
 

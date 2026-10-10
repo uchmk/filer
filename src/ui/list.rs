@@ -55,6 +55,7 @@ pub fn draw(
     st: &ListStyle<'_>,
     flags: &dyn Fn(&Entry) -> RowFlags,
     hits: bool,
+    find: Option<&tsumugi_match::Matcher>,
 ) -> ListResult {
     let painter = ui.painter_at(rect);
     let rows = ((rect.height() / st.row_h).floor() as usize).max(1);
@@ -214,7 +215,18 @@ pub fn draw(
         }
 
         let avail = (row_rect.right() - right_w - x - 6.0).max(16.0);
-        let positions = if hits { folder.hit_at(row) } else { &[] };
+        // The filter's hits are worked out when the list is built; `/`, `?`
+        // and the search views mark what they look for as the row is drawn.
+        let found;
+        let positions: &[usize] = match (hits, find) {
+            (true, _) if !folder.hit_at(row).is_empty() => folder.hit_at(row),
+            (_, Some(m)) => {
+                found = m.positions(&entry.name);
+                &found
+            }
+            (true, None) => folder.hit_at(row),
+            (false, None) => &[],
+        };
         // Too long for the row: cut inside the stem so the extension stays
         // readable (Q34, 24.2), and move the search hits along with the text.
         let width = |s: &str| painter.layout_no_wrap(s.to_owned(), st.font.clone(), base_color).size().x;
