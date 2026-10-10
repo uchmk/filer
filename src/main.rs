@@ -1732,11 +1732,7 @@ pub(crate) fn handle_input(app: &mut App, ctx: &egui::Context) {
             }
             // The terminal takes a paste as text for the shell; everywhere
             // else it is the yank register's `p`.
-            egui::Event::Paste(text) if app.term_focus => {
-                if let Some(t) = &app.term {
-                    t.paste(&text);
-                }
-            }
+            egui::Event::Paste(text) if app.term_focus => app.paste_to_term(&text),
             egui::Event::Paste(_) if matches!(app.overlay, Overlay::None) => {
                 app.feed_key(Key::ctrl('v'));
             }

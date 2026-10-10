@@ -1356,7 +1356,7 @@ checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
 
 [[package]]
 name = "filer"
-version = "0.86.31"
+version = "0.86.32"
 dependencies = [
  "ab_glyph",
  "alacritty_terminal",
@@ -4139,8 +4139,8 @@ dependencies = [
 
 [[package]]
 name = "tsumugi-ipc"
-version = "0.76.0"
-source = "git+https://github.com/uchmk/tsumugi?rev=085c421f5c3c738f9d5782c39aae68d31ee7db37#085c421f5c3c738f9d5782c39aae68d31ee7db37"
+version = "0.77.6"
+source = "git+https://github.com/uchmk/tsumugi?rev=3d15cb0f27d6a9371ab289dde597c052f198447b#3d15cb0f27d6a9371ab289dde597c052f198447b"
 dependencies = [
  "postcard",
  "serde",
@@ -4149,24 +4149,24 @@ dependencies = [
 
 [[package]]
 name = "tsumugi-layout"
-version = "0.76.0"
-source = "git+https://github.com/uchmk/tsumugi?rev=085c421f5c3c738f9d5782c39aae68d31ee7db37#085c421f5c3c738f9d5782c39aae68d31ee7db37"
+version = "0.77.6"
+source = "git+https://github.com/uchmk/tsumugi?rev=3d15cb0f27d6a9371ab289dde597c052f198447b#3d15cb0f27d6a9371ab289dde597c052f198447b"
 dependencies = [
  "egui",
 ]
 
 [[package]]
 name = "tsumugi-mcp"
-version = "0.76.0"
-source = "git+https://github.com/uchmk/tsumugi?rev=085c421f5c3c738f9d5782c39aae68d31ee7db37#085c421f5c3c738f9d5782c39aae68d31ee7db37"
+version = "0.77.6"
+source = "git+https://github.com/uchmk/tsumugi?rev=3d15cb0f27d6a9371ab289dde597c052f198447b#3d15cb0f27d6a9371ab289dde597c052f198447b"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "tsumugi-pane"
-version = "0.76.0"
-source = "git+https://github.com/uchmk/tsumugi?rev=085c421f5c3c738f9d5782c39aae68d31ee7db37#085c421f5c3c738f9d5782c39aae68d31ee7db37"
+version = "0.77.6"
+source = "git+https://github.com/uchmk/tsumugi?rev=3d15cb0f27d6a9371ab289dde597c052f198447b#3d15cb0f27d6a9371ab289dde597c052f198447b"
 dependencies = [
  "alacritty_terminal",
  "crossbeam-channel",

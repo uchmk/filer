@@ -598,10 +598,12 @@ Click the pane to take the keys back.
 
 A paste is wrapped in the bracketed-paste markers when the program on the other end asks for
 them — bash, zsh, fish and vim do; PowerShell's PSReadLine on Windows does not (5.1 and 7.6 both
-measured), so there a multi-line paste runs line by line. That is what keeps a clipboard holding three
+measured), so there a multi-line paste runs line by line (after the question below). That is what keeps a clipboard holding three
 lines from running as two commands and a half-typed third: inside the markers a line editor puts
 the text in the buffer and waits. A shell that does not ask gets the text plain, where a newline
-is Enter and always has been.
+is Enter and always has been -- except that several lines going to a program that did not ask are
+held behind a **Paste N lines?** box first (`y` / `<Enter>` pastes, `n` / `<Esc>` drops them), the same
+question tsumugi puts. A single line, with or without its line end, goes in without asking.
 
 The grid is drawn with the list's own font and the theme's colors, so the 16 ANSI colors match
 the rest of the window; the 256-color cube and true-color values are used as the program asked

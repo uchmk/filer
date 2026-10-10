@@ -70,6 +70,9 @@ pub enum ConfirmAction {
     BookmarkDeleteAll,
     /// `<C-S-t>` while a program runs under the shell.
     EndShell,
+    /// Several lines pasted into a program that did not ask for bracketed
+    /// paste, where each line break is an Enter. Holds the text until answered.
+    PasteToTerm { text: String },
     /// Folder symlinks Windows refused, offered again as junctions (Q46).
     Junctions { links: Vec<ops::Link> },
     /// `<F12>`'s report, shown before anything leaves the machine (Q62).
@@ -96,6 +99,31 @@ impl ConfirmOverlay {
             _ => format!("[{k}] {l}"),
         }
     }
+}
+
+/// How many lines `text` pastes as, when that is more than one and the program
+/// did not ask for bracketed paste. One trailing line break is the usual end of
+/// a copied line, and CRLF is one break.
+fn multiline_paste(text: &str, bracketed: bool) -> Option<usize> {
+    let body = text.strip_suffix("\r\n").or_else(|| text.strip_suffix('\n')).or_else(|| text.strip_suffix('\r')).unwrap_or(text);
+    let lines = body.replace("\r\n", "\n").split(['\n', '\r']).count();
+    (!bracketed && lines >= 2).then_some(lines)
+}
+
+/// The first lines of a paste, as the question shows them.
+fn paste_preview(text: &str) -> Vec<String> {
+    const LINES: usize = 5;
+    const WIDTH: usize = 80;
+    let lines: Vec<&str> = text.lines().collect();
+    let mut out: Vec<String> = lines
+        .iter()
+        .take(LINES)
+        .map(|l| if l.chars().count() > WIDTH { format!("{}…", l.chars().take(WIDTH).collect::<String>()) } else { (*l).to_owned() })
+        .collect();
+    if lines.len() > LINES {
+        out.push(format!("… {} more lines", lines.len() - LINES));
+    }
+    out
 }
 
 #[derive(Clone, Debug)]
@@ -6338,6 +6366,29 @@ impl App {
         }
     }
 
+    /// Paste `text` into the terminal. Several lines into a program that did
+    /// not ask for bracketed paste would run each one as it lands, so that case
+    /// is asked about first -- the same question tsumugi puts (Windows
+    /// Terminal's and iTerm2's warning). A shell that asks for bracketed paste
+    /// gets the lines without a word: there they are only text until Enter.
+    pub fn paste_to_term(&mut self, text: &str) {
+        let Some(t) = &self.term else { return };
+        let Some(lines) = multiline_paste(text, t.bracketed_paste()) else {
+            t.paste(text);
+            return;
+        };
+        self.overlay = Overlay::Confirm(ConfirmOverlay {
+            title: format!("Paste {lines} lines?"),
+            body: ["The program here did not ask for bracketed paste, so each line runs as it lands.".to_owned(), String::new()]
+                .into_iter()
+                .chain(paste_preview(text))
+                .collect(),
+            options: vec![('y', "Paste".into()), ('n', "Cancel".into())],
+            action: ConfirmAction::PasteToTerm { text: text.to_owned() },
+            dest: None,
+        });
+    }
+
     pub fn answer_confirm(&mut self, ch: char) {
         // A key the box does not offer leaves it open (Q71): a stray `(`
         // used to close the `<F12>` box in silence, and the `<Enter>` meant
@@ -6387,6 +6438,13 @@ impl App {
             ConfirmAction::EndShell => {
                 if ch == 'y' {
                     self.end_shell();
+                }
+            }
+            ConfirmAction::PasteToTerm { text } => {
+                if ch == 'y' {
+                    if let Some(t) = &self.term {
+                        t.paste(&text);
+                    }
                 }
             }
             ConfirmAction::Junctions { links } => match ch {
@@ -6812,6 +6870,27 @@ fn spot_text_of(entries: &[Entry]) -> String {
 mod tests {
     use super::*;
     use crate::config::keys::Key;
+
+    /// Several lines into a program without bracketed paste are asked about,
+    /// as tsumugi does; one copied line (with its end) and a bracketed paste
+    /// go in without a word.
+    #[test]
+    fn several_lines_are_asked_about_unless_bracketed() {
+        assert_eq!(multiline_paste("ls -l", false), None);
+        assert_eq!(multiline_paste("ls -l\n", false), None, "one copied line with its end");
+        assert_eq!(multiline_paste("ls -l\r\n", false), None);
+        assert_eq!(multiline_paste("cd /\nrm -rf x\n", false), Some(2));
+        assert_eq!(multiline_paste("a\r\nb\r\nc", false), Some(3), "CRLF is one break");
+        assert_eq!(multiline_paste("cd /\nrm -rf x\n", true), None, "bracketed: only text until Enter");
+    }
+
+    #[test]
+    fn the_paste_preview_is_the_first_lines() {
+        assert_eq!(paste_preview("a\nb"), ["a", "b"]);
+        let many = (1..=8).map(|n| n.to_string()).collect::<Vec<_>>().join("\n");
+        assert_eq!(paste_preview(&many), ["1", "2", "3", "4", "5", "… 3 more lines"]);
+        assert_eq!(paste_preview(&"y".repeat(100))[0].chars().count(), 81);
+    }
 
     /// Q84: the toast is the first line, and says where the rest is.
     #[test]

@@ -7,12 +7,12 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 544 件（TESTING.md の全 737 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 546 件（TESTING.md の全 739 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
 
-未訳 2 件は原文のまま `〔未訳〕` を付けて出している。
+未訳 4 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -85,6 +85,8 @@
 - [ ] **1.44** `<C-t>` のあと、一覧とターミナルペインの境目を上へ、次に下へ引く（v0.80.0、Q94）→ 境目の上でポインタが上下の矢印になり、細いアクセントの線が出る。ボタンを押している間は境目がポインタに付いてきて、ペインの行数が増減する（`filer env` の pane か `<State:>` の `pane:`）。上は一覧が 6 行残るところで、下はターミナルが 4 行のところで止まる。ターミナルの 1 行内側から始めたドラッグは今までどおり文字を選ぶ（1.11） — *`<C-t>`, then drag the border between the list and the terminal pane up, then down (v0.80.0, Q94) → Over the border the pointer turns into the up-and-down arrows and a thin accent line shows. The border follows the pointer while the button is held, and the pane's rows grow and shrink with it (`filer env`'s pane or `<State:>`'s `pane:`). It stops with six rows of the list left above, and with four rows of terminal at the bottom. A drag that starts a row inside the terminal selects text as before (1.11)*
 - [ ] **1.45** 1.44 のあと境目をダブルクリックし、次に `<C-t>` を 2 回（ペインのキーを離して戻す）、`<C-S-Enter>` を 2 回、窓の大きさを変える（v0.80.0、Q94）→ ダブルクリックで境目が一覧の上端とステータスバーの上端の真ん中に来る。ほかの操作のあとも引いた高さのまま（窓に対する割合なので、大きさを変えても比率が保たれる）。新しい filer の窓は 3 分の 1 から始まる（高さは保存しない） — *After 1.44, double-click the border; then `<C-t>` twice (close and reopen the pane's keys), `<C-S-Enter>` twice, and resize the window (v0.80.0, Q94) → The double-click puts the border halfway between the top of the list and the top of the status bar. The height stays as dragged through the other steps (it is a share of the window, so a resize keeps the proportion). A new filer window starts at a third again: the height is not saved*
 - [ ] **1.46** `<C-t>` のあと長いファイルを `less` で開き（`less /etc/passwd`、Windows では `Get-Content` を `less` か `more` に流す）、`q` を押す。もう一度 `less` を開いて `<C-t>`（v0.83.0、Q77）→ `less` が画面を使っている間、ペインの右上に小さく `<C-t> list` が薄い下地と淡い文字色で出る。ペインを離れるキーの名前で、`[term]` の `close` を割り当て直せば表示も変わる。`q` で `less` を終えると消え、`<C-t>` で一覧にキーを戻しても消える。出ている間 `<State:>` に `pane badge: <C-t> list` が出る — *`<C-t>`, then `less` a long file (`less /etc/passwd`, or `Get-Content` piped into `less`/`more` on Windows); press `q`; run `less` again and press `<C-t>` (v0.83.0, Q77) → While `less` has the screen, a small `<C-t> list` tag shows at the pane's top-right corner on a faint plate, in the dim text colour; it names the key that leaves the pane (rebind `[term]`'s `close` and the tag follows). It goes when `less` quits with `q`, and when `<C-t>` hands the keys back to the list. `<State:>` reads `pane badge: <C-t> list` while it shows*
+- [ ] **1.47** `<C-t>`; in the pane run `cat` (no bracketed paste); copy two lines of text elsewhere, press `<C-v>` in the pane, then right-click it. Answer `n` once and `y` once. Then at pwsh/bash prompt (bash asks for bracketed paste) copy two lines and paste (v0.86.32) → In `cat` and pwsh: a **Paste 2 lines?** box with the first lines of the text; `y` / `<Enter>` pastes, `n` / `<Esc>` pastes nothing; both `<C-v>` and right-click ask. A single copied line (with or without its line end) never asks, and neither does bash/zsh at the prompt 〔未訳〕
+- [ ] **1.48** `<C-t>`; `seq 300` in the pane; drag from a line in the middle of the pane up past its top edge and hold the button there; then drag down past the bottom edge; let go and paste in Notepad (v0.86.32) → While the pointer is above the pane the view scrolls back and the selection grows with it, faster the farther away; below the pane it scrolls toward the newest; held still inside the pane nothing scrolls; the pasted text runs from where it started to where it ended 〔未訳〕
 
 ## 2. ミニマップ
 

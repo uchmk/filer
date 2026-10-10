@@ -78,11 +78,7 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     // right-click is not one, so the clipboard is read here.
     if shown.paste {
         match crate::exec::get_clipboard() {
-            Ok(text) if !text.is_empty() => {
-                if let Some(term) = &app.term {
-                    term.paste(&text);
-                }
-            }
+            Ok(text) if !text.is_empty() => app.paste_to_term(&text),
             Ok(_) => {}
             // Said out loud because the right-click looked like it did nothing.
             Err(e) => app.error(format!("Could not read the clipboard: {e}")),
