@@ -7,12 +7,12 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 572 件（TESTING.md の全 765 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 574 件（TESTING.md の全 767 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
 
-未訳 30 件は原文のまま `〔未訳〕` を付けて出している。
+未訳 32 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -818,10 +818,10 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **52.1** `F`, type `srcmain`, `<Enter>` (v0.88.0) → The prompt is titled `Search fuzzily`. The list holds `src\main.rs`: the letters run across the folder and the file name 〔未訳〕
 - [ ] **52.2** `F`, type `awa`, `<Enter>` (v0.88.0) → `a-w-a.txt` is found (letters in order, not a substring); `s` with the same query finds nothing of it 〔未訳〕
 - [ ] **52.3** `F`, type `rs`, `<Enter>` (v0.88.0) → Both `.rs` files, and the cursor is on the best match at the top of the list once the search ends. The status bar showed `fuzzy searching rs…` while it ran 〔未訳〕
-- [ ] **52.4** `F`, type `(`, `<Enter>` (v0.88.0) → No error: it is letters, not a regular expression. Nothing matches a `(` so the toast says `No matches` 〔未訳〕
+- [ ] **52.4** `F`, type `(`, `<Enter>` (v0.88.0) → No error: it is letters, not a regular expression. Nothing matches a `(` so the toast says `No matches in <folder> (hidden files skipped, .gitignore honoured)` 〔未訳〕
 - [ ] **52.5** Press `?` (help) or open `~` (v0.88.0) → `F` is listed as `Search files fuzzily, recursively, best match first` 〔未訳〕
 - [ ] **52.6** In a folder with `a.txt` holding `needle`, `tool.exe`, `Pic.PNG` and `data.bin` (a NUL byte in it), all three binaries also containing the word `needle`: `S`, type `needle`, `<Enter>` (v0.89.0) → Only `a.txt` is listed. The toast reads `1 match(es); 3 binary file(s) not searched — <Esc> to leave the search view` 〔未訳〕
-- [ ] **52.7** `S`, type `zzzznotthere`, `<Enter>` in the same folder (v0.89.0) → The red toast reads `No matches; 3 binary file(s) not searched`, so a miss says what was left out 〔未訳〕
+- [ ] **52.7** `S`, type `zzzznotthere`, `<Enter>` in the same folder (v0.89.0) → The red toast reads `No matches in <folder> (…); 3 binary file(s) not searched`, so a miss says what was left out 〔未訳〕
 - [ ] **52.8** `s`, type `exe`, `<Enter>` (v0.89.0) → `tool.exe` is found: a search by name still takes binaries, and no binary count is shown 〔未訳〕
 - [ ] **52.9** `s`, type `rs`, `<Enter>` (v0.90.0) → In the result list the `rs` of each name is coloured (the search colour of the theme) 〔未訳〕
 - [ ] **52.10** `S`, type `fn \w+`, `<Enter>` in a folder with Rust sources (v0.90.0) → The preview of the first result opens at its first match, a few lines down from the top, and every match in the visible lines is coloured; the bold of a keyword is kept on the coloured part. Moving to another result opens that file at its first match too. The names in the list are not coloured 〔未訳〕
@@ -832,3 +832,5 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **52.15** `S`, type a word that occurs several times in some files, `<Enter>`, then `n` (v0.91.0) → The preview scrolls to the next matching line of the file on show, the match coloured, and `N` goes back. The list cursor stays 〔未訳〕
 - [ ] **52.16** Keep pressing `n` past the last match of the file (v0.91.0) → The cursor moves to the next file and its preview opens at its first match. `N` past the first match goes to the file before and opens at its last match. Past the last file it wraps to the first 〔未訳〕
 - [ ] **52.17** `s`, type a name, `<Enter>`, then `n` (v0.91.0) → Still steps over names as before, the preview body is left alone. `F` + `n` walks the body as `S` does 〔未訳〕
+- [ ] **52.18** `S`, type a word that occurs in a few files, `<Enter>` (v0.92.0) → The toast reads `N match(es) in <the folder you started from> (hidden files skipped, .gitignore honoured) — <Esc> to leave the search view` 〔未訳〕
+- [ ] **52.19** Press `.` to show hidden files, then repeat 52.18 (v0.92.0) → The toast now says `hidden files included`, and a word that is only in a hidden file is found 〔未訳〕

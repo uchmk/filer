@@ -6282,7 +6282,7 @@ impl App {
             f.rebuild(show_hidden);
         }
         if let Some((total, truncated, order, binary)) = done {
-            self.search = None;
+            let scope = self.search.take().map(|h| crate::search::scope(&h.root, h.show_hidden)).unwrap_or_default();
             if !order.is_empty() {
                 // Best match first, and the cursor on it.
                 let f = &mut self.tabs[self.active].current;
@@ -6296,10 +6296,10 @@ impl App {
             // mystery: binary files are never searched.
             let skipped = if binary > 0 { format!("; {binary} binary file(s) not searched") } else { String::new() };
             if total == 0 {
-                self.error(format!("No matches{skipped}"));
+                self.error(format!("No matches {scope}{skipped}"));
             } else {
                 self.toast(format!(
-                    "{total} match(es){}{skipped} — <Esc> to leave the search view",
+                    "{total} match(es) {scope}{}{skipped} — <Esc> to leave the search view",
                     if truncated { " (truncated)" } else { "" }
                 ));
             }
@@ -11339,6 +11339,29 @@ mod find_marks {
         assert_eq!(name(&a), "b.txt", "the list is a ring");
         land(&mut a, &B);
         assert_eq!(at(&a), Some(2));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The end of a search says how many it found and where it looked, a miss
+    /// as well as a hit.
+    #[test]
+    fn a_finished_search_says_where_it_looked() {
+        let dir = crate::util::test_dir("find-marks-scope");
+        std::fs::write(dir.join("a.txt"), "needle").unwrap();
+        let mut a = app_in(&dir);
+        for (query, want) in [("needle", "1 match(es) in "), ("zzzz", "No matches in ")] {
+            a.toast_log.clear();
+            a.start_search(query, SearchVia::Content);
+            let t = Instant::now();
+            while a.search.is_some() && t.elapsed().as_secs() < 10 {
+                std::thread::sleep(std::time::Duration::from_millis(5));
+                a.drain_search();
+            }
+            let said = a.toast_log.back().cloned().unwrap_or_default();
+            assert!(said.starts_with(want), "{said}");
+            assert!(said.contains("hidden files skipped") && said.contains(".gitignore"), "{said}");
+            a.tabs[a.active].current = Folder::loading(dir.clone(), None);
+        }
         let _ = std::fs::remove_dir_all(&dir);
     }
 

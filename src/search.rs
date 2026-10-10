@@ -26,6 +26,9 @@ pub struct Handle {
     pub rx: Receiver<Msg>,
     pub query: String,
     pub via: SearchVia,
+    /// Where it looks and whether it goes into hidden files (see [`scope`]).
+    pub root: PathBuf,
+    pub show_hidden: bool,
     cancel: Arc<AtomicBool>,
 }
 
@@ -80,6 +83,7 @@ pub fn spawn(
     let cancel = Arc::new(AtomicBool::new(false));
 
     let root = root.to_path_buf();
+    let root_for_handle = root.clone();
     let cancel_t = cancel.clone();
     std::thread::Builder::new()
         .name("search".into())
@@ -172,7 +176,7 @@ pub fn spawn(
         })
         .expect("spawn search worker");
 
-    Handle { rx, query: query.to_owned(), via, cancel }
+    Handle { rx, query: query.to_owned(), via, root: root_for_handle, show_hidden, cancel }
 }
 
 fn look(path: &Path, matcher: &Matcher) -> Look {
@@ -196,6 +200,14 @@ fn look(path: &Path, matcher: &Matcher) -> Look {
     } else {
         Look::Miss
     }
+}
+
+/// What a search covers, so a miss (or a short list) is not a mystery: the
+/// folder it started from and what it leaves out. Only hidden files are a
+/// choice; `.gitignore` and `.ignore` are always honoured.
+pub fn scope(root: &Path, show_hidden: bool) -> String {
+    let hidden = if show_hidden { "hidden files included" } else { "hidden files skipped" };
+    format!("in {} ({hidden}, .gitignore honoured)", root.display())
 }
 
 #[cfg(test)]
@@ -328,5 +340,12 @@ mod tests {
         let t = Tree::new("rank", &[("a.txt", b"x"), ("b.txt", b"x")]);
         assert!(t.run("txt", SearchVia::Name).1.is_empty());
         assert_eq!(t.run("txt", SearchVia::Fuzzy).1.len(), 2);
+    }
+
+    #[test]
+    fn the_scope_names_the_folder_and_what_is_left_out() {
+        let s = scope(Path::new("/work/proj"), false);
+        assert!(s.contains("/work/proj") && s.contains("hidden files skipped") && s.contains(".gitignore"), "{s}");
+        assert!(scope(Path::new("/w"), true).contains("hidden files included"));
     }
 }
