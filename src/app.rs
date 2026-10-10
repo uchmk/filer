@@ -173,6 +173,10 @@ pub type OpenerRow = (String, bool, bool, String);
 /// the same length; the overlay indexes all of them by the row picked.
 pub type PickRows = (Vec<String>, Vec<String>, Vec<Vec<Act>>);
 
+/// common.toml as `ito_common::Common::read` gives it: the settings and what
+/// in them is not known, or why the file did not read.
+pub type CommonRead = Result<(ito_common::Common, Vec<String>), String>;
+
 /// Turn the `mgr` bindings into palette rows.
 ///
 /// The label carries both the description and the command text so either one
@@ -1369,6 +1373,9 @@ pub struct App {
     /// shared common.toml (`set_common`); the defaults until then.
     pub clock: ito_common::Clock,
     pub lang: String,
+    /// common.toml read again by its watcher each time the file changes
+    /// (`load_common`), so another uchmk app's settings screen reaches here.
+    common_rx: Option<crossbeam_channel::Receiver<CommonRead>>,
     pub preview: PreviewSlot,
     pub max_preview: bool,
     /// The terminal pane has the window. A third of the height is right for a
@@ -1526,6 +1533,7 @@ impl App {
         let mut app = Self {
             clock: ito_common::Clock::default(),
             lang: "en".into(),
+            common_rx: None,
             cfg,
             tabs: vec![tab],
             active: 0,
@@ -1624,11 +1632,28 @@ impl App {
     }
 
     /// Take the clock and the language from the shared common.toml
-    /// (`ito_common`, uchmk's common spec). Read once at start-up like
-    /// kura.toml; a problem in the file is a toast, and the defaults stay.
+    /// (`ito_common`, uchmk's common spec), then watch it: every 2 seconds
+    /// its time is looked at, and a changed file is read again off the UI
+    /// thread and applied by `drain_channels`, with no restart.
     pub fn load_common(&mut self) {
         let Some(base) = ito_common::base_dir() else { return };
-        match ito_common::Common::read(&base) {
+        self.set_common(ito_common::Common::read(&base));
+        let (tx, rx) = crossbeam_channel::unbounded();
+        let ctx = self.ctx.clone();
+        ito_common::watch(vec![ito_common::common_path(&base)], Duration::from_secs(2), move |_| {
+            let alive = tx.send(ito_common::Common::read(&base)).is_ok();
+            ctx.request_repaint();
+            alive
+        });
+        self.common_rx = Some(rx);
+    }
+
+    /// Apply what common.toml said. A file that does not read keeps what was
+    /// there before (the defaults at start-up), so a save half-way through an
+    /// edit does not flip the clock; either way the problem is a toast. A
+    /// file gone is the defaults again, as at a start without one.
+    pub fn set_common(&mut self, read: CommonRead) {
+        match read {
             Ok((common, warnings)) => {
                 self.clock = common.clock_or(None);
                 let lang = match common.language.as_deref() {
@@ -1637,10 +1662,10 @@ impl App {
                 };
                 self.lang = if lang.starts_with("ja") { "ja".into() } else { "en".into() };
                 if let Some(w) = warnings.first() {
-                    self.warn(format!("common.toml: {w}"));
+                    self.warn(w.clone());
                 }
             }
-            Err(e) => self.warn(format!("common.toml: {e}")),
+            Err(e) => self.warn(e),
         }
     }
 
@@ -1853,6 +1878,9 @@ impl App {
         }
         while let Ok(rep) = self.git.rx.try_recv() {
             self.git_status.put(rep.dir, Arc::new(rep.status));
+        }
+        while let Some(read) = self.common_rx.as_ref().and_then(|rx| rx.try_recv().ok()) {
+            self.set_common(read);
         }
         // A launch reports at most once, and its watcher lets go of the channel
         // when it stops caring, so a disconnected one is finished with.
@@ -9451,6 +9479,36 @@ mod usage_view {
         a.tabs[a.active].cwd = dir.to_path_buf();
         a.tabs[a.active].current = Folder::loading(dir.to_path_buf(), None);
         a
+    }
+
+    /// A common.toml its watcher read again is applied by the next frame;
+    /// one that does not read leaves the last good settings, with a toast.
+    #[test]
+    fn a_changed_common_toml_applies_without_a_restart() {
+        let dir = util::test_dir("common-watch");
+        let mut a = app_in(&dir);
+        let (tx, rx) = crossbeam_channel::unbounded();
+        a.common_rx = Some(rx);
+        let ctx = a.ctx.clone();
+        tx.send(ito_common::Common::parse("language = \"ja\"\n[clock]\nhour24 = false\n")).unwrap();
+        a.drain_channels(&ctx);
+        assert_eq!(a.lang, "ja");
+        assert!(!a.clock.hour24 && a.clock.show);
+        assert!(a.toasts.is_empty(), "a good file says nothing");
+        tx.send(ito_common::Common::parse("language = \"e")).unwrap();
+        a.drain_channels(&ctx);
+        assert_eq!(a.lang, "ja", "a file caught half-saved keeps the last good one");
+        assert!(!a.clock.hour24);
+        assert!(a.toasts.last().is_some_and(|t| t.text.starts_with("common.toml:")), "{:?}", a.toasts.last().map(|t| &t.text));
+        assert!(!a.toasts.last().unwrap().text.starts_with("common.toml: common.toml:"), "said once");
+        tx.send(ito_common::Common::parse("language = \"en\"\n[clock]\nshow = false\n")).unwrap();
+        a.drain_channels(&ctx);
+        assert_eq!(a.lang, "en");
+        assert!(!a.clock.show);
+        // The file removed reads as empty: the defaults again.
+        tx.send(Ok(Default::default())).unwrap();
+        a.drain_channels(&ctx);
+        assert_eq!(a.clock, ito_common::Clock::default());
     }
 
     #[test]

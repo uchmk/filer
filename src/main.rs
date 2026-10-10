@@ -1588,6 +1588,10 @@ fn state_report(app: &App) -> String {
         "split: {}",
         app.split.map_or("no".into(), |s| format!("yes, keys {}", if s.right { "right" } else { "left" }))
     ));
+    // What the clock shows and in which language, from common.toml, so a
+    // change to the file can be read without a picture (53.7).
+    let clock = if app.clock.show { app.clock.format() } else { "off".into() };
+    lines.push(format!("clock: {clock}, lang {}", app.lang));
     lines.push(format!("toast: {}", app.toasts.last().map_or("", |t| t.text.as_str())));
     // The kind alone (`Command failed`, `Open failed`): the text before the
     // first `:` of its first line, so a wording check reads one short line and
@@ -2207,6 +2211,7 @@ mod tests {
             "preview top: 0 of 0",
             "zoom: fit",
             "split: no",
+            "clock: %Y/%m/%d (%a) %H:%M, lang en",
             "toast: Copied a.txt",
         ] {
             assert!(report.lines().any(|l| l == line), "{line:?} in {report}");

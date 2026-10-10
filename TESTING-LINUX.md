@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 591 件（TESTING.md の全 784 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 594 件（TESTING.md の全 787 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -848,7 +848,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 
 ## 53. ステータスバー右端の時計（v0.94.0）
 
-時計は共有の `uchmk/common.toml` の `[clock]` と `language` を読む（Windows は `%APPDATA%\uchmk\common.toml`、`UCHMK_CONFIG_DIR` でフォルダを変えられる）。ファイルが無ければ 24 時間表記の `2026/10/05 (Mon) 14:32`。起動時に 1 度だけ読む（見張りは後の版）。
+時計は共有の `uchmk/common.toml` の `[clock]` と `language` を読む（Windows は `%APPDATA%\uchmk\common.toml`、`UCHMK_CONFIG_DIR` でフォルダを変えられる）。ファイルが無ければ 24 時間表記の `2026/10/05 (Mon) 14:32`。起動時に読み、ファイルが変わると 2 秒以内に読み直して、再起動なしで当てる（v0.96.0）。当たっているものは `<State:>` の `clock:` の行で読める。
 
 - [ ] **53.1** `common.toml` なしで kura を起動する → 時計がステータスバーの右端、位置（`3/12`）の後ろに、バーと同じ字体・一番強い文字の色（左の薄い項目より明るい）で出る。システムの日時と一致する — *Start kura with no `common.toml` → The clock is the last thing on the status bar's right, after the position (`3/12`), in the same font as the bar and the strongest text colour (brighter than the dim items to its left). It matches the system date and time*
 - [ ] **53.2** 時計にポインタを載せる → ツールチップに日付が全部出る（`Saturday, 10 October 2026`） — *Rest the pointer on the clock → A tooltip gives the whole date: `Saturday, 10 October 2026`*
@@ -856,3 +856,6 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **53.4** `common.toml` に `language = "ja"` と `[clock]`（`hour24 = false`、`date_format = "YYYY-MM-DD"`、`weekday = false`）を書いて再起動する → 曜日なしの `2026-10-10 2:32 PM` のような文。`weekday = true` なら `(土)`。ツールチップは `2026年10月10日 土曜日` — *Write `language = "ja"` and `[clock]` with `hour24 = false`, `date_format = "YYYY-MM-DD"`, `weekday = false` in `common.toml`; restart → `2026-10-10 2:32 PM`-like text (no weekday); with `weekday = true` it reads `(土)`; the tooltip reads `2026年10月10日 土曜日`*
 - [ ] **53.5** `[clock]` / `show = false` を書いて再起動する → 時計が出ず、右の項目が端まで戻る — *Write `[clock]` / `show = false`; restart → No clock; the other right-hand items move back to the edge*
 - [ ] **53.6** `[clock]` / `bogus = 1` を書いて再起動する → ファイルは当たらず（既定の時計が出る）、`common.toml:` で始まるトーストが出る — *Write `[clock]` / `bogus = 1`; restart → The file is not applied (the default clock shows) and a toast starts `common.toml:`*
+- [ ] **53.7** kura を `common.toml` なしで動かしたまま、`language = "ja"` と `[clock]` / `hour24 = false` を書いて保存し、何も押さない（v0.96.0） → 3 秒以内に時計が 12 時間表記の `(土)` 付きに変わる。再起動もトーストも無い。`<State:>` は `clock: %Y/%m/%d (%a) %-I:%M %p, lang ja` — *With kura running and no `common.toml`, write `language = "ja"` and `[clock]` / `hour24 = false` into it and save; press nothing (v0.96.0) → Within 3 seconds the clock turns to the 12-hour form with `(土)`, no restart and no toast. `<State:>` reads `clock: %Y/%m/%d (%a) %-I:%M %p, lang ja`*
+- [ ] **53.8** kura を動かしたまま、`common.toml` を `language = "e`（壊れた行）で保存し、次に `language = "en"` に直して保存する（v0.96.0） → 1 回目の保存から 3 秒以内に `common.toml:` で始まるトーストが出て（1 度だけ。`common.toml: common.toml:` ではない）、時計はそれまでの表示のまま。2 回目のあとは曜日が `(Sat)` に戻る — *With kura running, save `common.toml` as `language = "e` (a broken line); then fix it to `language = "en"` and save (v0.96.0) → Within 3 seconds of the first save a toast starts `common.toml:` (once, not `common.toml: common.toml:`) and the clock keeps what it showed. After the second, the weekday reads `(Sat)` again*
+- [ ] **53.9** kura を `[clock]` / `show = false` の `common.toml` で動かしたまま、ファイルを消す（v0.96.0） → 3 秒以内に既定の時計（`2026/10/10 (Sat) 14:32`）が戻る — *With kura running on a `common.toml` with `[clock]` / `show = false`, delete the file (v0.96.0) → Within 3 seconds the default clock comes back (`2026/10/10 (Sat) 14:32`)*

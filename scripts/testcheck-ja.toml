@@ -244,7 +244,7 @@ note = "確かめる `kura.exe` をフルパスで、`claude` を動かすター
 
 [section.53]
 title = "ステータスバー右端の時計（v0.94.0）"
-note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を読む（Windows は `%APPDATA%\\uchmk\\common.toml`、`UCHMK_CONFIG_DIR` でフォルダを変えられる）。ファイルが無ければ 24 時間表記の `2026/10/05 (Mon) 14:32`。起動時に 1 度だけ読む（見張りは後の版）。"
+note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を読む（Windows は `%APPDATA%\\uchmk\\common.toml`、`UCHMK_CONFIG_DIR` でフォルダを変えられる）。ファイルが無ければ 24 時間表記の `2026/10/05 (Mon) 14:32`。起動時に読み、ファイルが変わると 2 秒以内に読み直して、再起動なしで当てる（v0.96.0）。当たっているものは `<State:>` の `clock:` の行で読める。"
 
 [row]
 # 1. ターミナルペイン
@@ -912,3 +912,6 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "53.4" = '`common.toml` に `language = "ja"` と `[clock]`（`hour24 = false`、`date_format = "YYYY-MM-DD"`、`weekday = false`）を書いて再起動する → 曜日なしの `2026-10-10 2:32 PM` のような文。`weekday = true` なら `(土)`。ツールチップは `2026年10月10日 土曜日`'
 "53.5" = '`[clock]` / `show = false` を書いて再起動する → 時計が出ず、右の項目が端まで戻る'
 "53.6" = '`[clock]` / `bogus = 1` を書いて再起動する → ファイルは当たらず（既定の時計が出る）、`common.toml:` で始まるトーストが出る'
+"53.7" = 'kura を `common.toml` なしで動かしたまま、`language = "ja"` と `[clock]` / `hour24 = false` を書いて保存し、何も押さない（v0.96.0） → 3 秒以内に時計が 12 時間表記の `(土)` 付きに変わる。再起動もトーストも無い。`<State:>` は `clock: %Y/%m/%d (%a) %-I:%M %p, lang ja`'
+"53.8" = 'kura を動かしたまま、`common.toml` を `language = "e`（壊れた行）で保存し、次に `language = "en"` に直して保存する（v0.96.0） → 1 回目の保存から 3 秒以内に `common.toml:` で始まるトーストが出て（1 度だけ。`common.toml: common.toml:` ではない）、時計はそれまでの表示のまま。2 回目のあとは曜日が `(Sat)` に戻る'
+"53.9" = 'kura を `[clock]` / `show = false` の `common.toml` で動かしたまま、ファイルを消す（v0.96.0） → 3 秒以内に既定の時計（`2026/10/10 (Sat) 14:32`）が戻る'

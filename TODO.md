@@ -68,7 +68,7 @@
   テーマと yazi の `theme.toml` の関係が決まるまで、Theme のページは作らずに残してよい（要確認: Q98）
 - [x] （v0.94.0。`App::load_common` が起動時に読み、`draw_status` が右端に描く。見張りは次の項目）ステータスバーの右端に時計を出す: 字体は一覧と同じ、色は一番強い文字の色。ポインタを載せると日付を全部出す。分が変わるときだけ再描画する（`Clock::next_minute`）。
   `[clock]` は common.toml だけから読む（filer.toml に上書きは持たない）。
-- [ ] common.toml の見張りを足し、言語・テーマ・時計を再起動なしで当て直す（`ito_common::watch`。上の「多言語対応」の節と同じ `language` を読む）。
+- [x] （v0.96.0。`load_common` が `ito_common::watch` で 2 秒ごとに見て、変わればワーカーで読み直し、`drain_channels` の `set_common` が当てる。読めないファイルは前の設定のままトースト、消せば既定。テーマは Q98 が決まるまで当てるものが無い）common.toml の見張りを足し、言語・テーマ・時計を再起動なしで当て直す（`ito_common::watch`。上の「多言語対応」の節と同じ `language` を読む）。
 - [ ] common.toml のテーマを filer の色に当てる（要確認: Q98）
 - [ ] README（キー表・設定の画面の節・common.toml）、TESTING.md（設定の画面・時計・common.toml を外で書き換えると tsumugi と mimamori と一緒に変わる行）を更新する。
 

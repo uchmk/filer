@@ -362,8 +362,9 @@ drawing the glyphs twice.
 
 The status bar's right end shows a clock, set in the config shared by every uchmk app
 (`%APPDATA%\uchmk\common.toml` on Windows, `~/Library/Application Support/uchmk/common.toml` on macOS,
-`$XDG_CONFIG_HOME/uchmk/common.toml` on Linux; `UCHMK_CONFIG_DIR` moves the folder). It is read once at start-up;
-there is no override in `kura.toml`.
+`$XDG_CONFIG_HOME/uchmk/common.toml` on Linux; `UCHMK_CONFIG_DIR` moves the folder). It is read at start-up and
+watched: a change saved by another uchmk app or an editor applies within 2 seconds, with no restart, and a file that
+does not read keeps the clock as it was, with a toast. There is no override in `kura.toml`.
 
 ```toml
 language = "auto"          # auto / en / ja: with "ja" the weekday reads (月)

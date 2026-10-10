@@ -1639,8 +1639,8 @@ press these in: `src\main.rs`, `src\lib.rs`, `docs\domain-notes.md`, `a-w-a.txt`
 ## 53. The clock at the status bar's right end (v0.94.0)
 
 The clock reads `[clock]` and `language` in the shared `uchmk/common.toml` (`%APPDATA%\uchmk\common.toml` on Windows;
-`UCHMK_CONFIG_DIR` moves the folder). Without the file it shows `2026/10/05 (Mon) 14:32` in 24-hour form. Read once at start-up
-(watching the file arrives with a later version).
+`UCHMK_CONFIG_DIR` moves the folder). Without the file it shows `2026/10/05 (Mon) 14:32` in 24-hour form. Read at start-up and
+again within 2 seconds of the file changing, with no restart (v0.96.0); `<State:>`'s `clock:` line reads what is applied.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -1650,3 +1650,6 @@ The clock reads `[clock]` and `language` in the shared `uchmk/common.toml` (`%AP
 | 53.4 | Write `language = "ja"` and `[clock]` with `hour24 = false`, `date_format = "YYYY-MM-DD"`, `weekday = false` in `common.toml`; restart | `2026-10-10 2:32 PM`-like text (no weekday); with `weekday = true` it reads `(土)`; the tooltip reads `2026年10月10日 土曜日` |
 | 53.5 | Write `[clock]` / `show = false`; restart | No clock; the other right-hand items move back to the edge |
 | 53.6 | Write `[clock]` / `bogus = 1`; restart | The file is not applied (the default clock shows) and a toast starts `common.toml:` |
+| 53.7 | With kura running and no `common.toml`, write `language = "ja"` and `[clock]` / `hour24 = false` into it and save; press nothing (v0.96.0) | Within 3 seconds the clock turns to the 12-hour form with `(土)`, no restart and no toast. `<State:>` reads `clock: %Y/%m/%d (%a) %-I:%M %p, lang ja` |
+| 53.8 | With kura running, save `common.toml` as `language = "e` (a broken line); then fix it to `language = "en"` and save (v0.96.0) | Within 3 seconds of the first save a toast starts `common.toml:` (once, not `common.toml: common.toml:`) and the clock keeps what it showed. After the second, the weekday reads `(Sat)` again |
+| 53.9 | With kura running on a `common.toml` with `[clock]` / `show = false`, delete the file (v0.96.0) | Within 3 seconds the default clock comes back (`2026/10/10 (Sat) 14:32`) |
