@@ -5927,9 +5927,21 @@ impl App {
         (p.since.elapsed() >= Self::SLOW_COMPLETION).then(|| p.dir.display().to_string())
     }
 
-    fn start_search(&mut self, query: &str, via: SearchVia) {
-        if query.is_empty() {
+    fn start_search(&mut self, typed: &str, via: SearchVia) {
+        // `ext:log` words narrow what is searched; the rest is what to look for.
+        let (query, exts) = crate::search::split_ext(typed);
+        let query = query.as_str();
+        // Only an extension: every file of that kind, which a content search
+        // has nothing to look for in and a ranking has nothing to rank.
+        let via = match via {
+            SearchVia::Fuzzy if query.is_empty() => SearchVia::Name,
+            v => v,
+        };
+        if typed.trim().is_empty() {
             return;
+        }
+        if query.is_empty() && via == SearchVia::Content {
+            return self.error("A content search needs something to look for besides ext:");
         }
         // A query that is not a regular expression says why and starts nothing;
         // `F` is the one search that takes letters in order instead.
@@ -5941,7 +5953,7 @@ impl App {
             },
         };
         let root = self.tabs[self.active].cwd.clone();
-        let show_hidden = self.tabs[self.active].show_hidden;
+        let reach = crate::search::Reach { hidden: self.tabs[self.active].show_hidden, exts };
         let ctx = self.ctx.clone();
         let finder = Finder {
             query: query.to_owned(),
@@ -5951,13 +5963,13 @@ impl App {
             body: via != SearchVia::Name,
             ..Default::default()
         };
-        let handle = crate::search::spawn(&root, matcher, query, via, show_hidden, 5000, move || {
+        let handle = crate::search::spawn(&root, matcher, typed, via, reach, 5000, move || {
             ctx.request_repaint()
         });
 
         let tab = &mut self.tabs[self.active];
         tab.remember_cursor();
-        let mut folder = Folder::loading(search_path(query, &root), None);
+        let mut folder = Folder::loading(search_path(typed, &root), None);
         folder.state = LoadState::Ready;
         tab.current = folder;
         tab.finder = Some(finder);
@@ -6282,7 +6294,7 @@ impl App {
             f.rebuild(show_hidden);
         }
         if let Some((total, truncated, order, binary)) = done {
-            let scope = self.search.take().map(|h| crate::search::scope(&h.root, h.show_hidden)).unwrap_or_default();
+            let scope = self.search.take().map(|h| crate::search::scope(&h.root, &h.reach)).unwrap_or_default();
             if !order.is_empty() {
                 // Best match first, and the cursor on it.
                 let f = &mut self.tabs[self.active].current;
@@ -11362,6 +11374,33 @@ mod find_marks {
             assert!(said.contains("hidden files skipped") && said.contains(".gitignore"), "{said}");
             a.tabs[a.active].current = Folder::loading(dir.clone(), None);
         }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// `ext:log` in a search narrows it to those files, the rest of the query
+    /// is what to look for (and what gets coloured), and the toast says so.
+    #[test]
+    fn ext_narrows_a_search_to_those_files() {
+        let dir = crate::util::test_dir("find-marks-ext");
+        std::fs::write(dir.join("a.log"), "needle").unwrap();
+        std::fs::write(dir.join("b.txt"), "needle").unwrap();
+        let mut a = app_in(&dir);
+        a.start_search("needle ext:log", SearchVia::Content);
+        let t = Instant::now();
+        while a.search.is_some() && t.elapsed().as_secs() < 10 {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+            a.drain_search();
+        }
+        let names: Vec<_> = a.tabs[a.active].current.entries.iter().map(|e| e.name.clone()).collect();
+        assert_eq!(names, ["a.log"]);
+        assert_eq!(a.tabs[a.active].finder.as_ref().map(|f| f.query.as_str()), Some("needle"));
+        assert!(a.toast_log.back().is_some_and(|s| s.contains("only .log")), "{:?}", a.toast_log);
+
+        a.tabs[a.active].current = Folder::loading(dir.clone(), None);
+        a.toast_log.clear();
+        a.start_search("ext:log", SearchVia::Content);
+        assert!(a.search.is_none(), "an extension alone has nothing to look for in a file");
+        assert!(a.last_error.as_deref().is_some_and(|e| e.contains("ext:")));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

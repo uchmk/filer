@@ -28,7 +28,7 @@ pub struct Handle {
     pub via: SearchVia,
     /// Where it looks and whether it goes into hidden files (see [`scope`]).
     pub root: PathBuf,
-    pub show_hidden: bool,
+    pub reach: Reach,
     cancel: Arc<AtomicBool>,
 }
 
@@ -75,7 +75,7 @@ pub fn spawn(
     matcher: Matcher,
     query: &str,
     via: SearchVia,
-    show_hidden: bool,
+    reach: Reach,
     limit: usize,
     wake: impl Fn() + Send + Sync + 'static,
 ) -> Handle {
@@ -84,6 +84,8 @@ pub fn spawn(
 
     let root = root.to_path_buf();
     let root_for_handle = root.clone();
+    let reach_for_handle = reach.clone();
+    let reach = Arc::new(reach);
     let cancel_t = cancel.clone();
     std::thread::Builder::new()
         .name("search".into())
@@ -93,7 +95,7 @@ pub fn spawn(
             let binary = Arc::new(AtomicUsize::new(0));
 
             let walker = ignore::WalkBuilder::new(&root)
-                .hidden(!show_hidden)
+                .hidden(!reach.hidden)
                 .git_ignore(true)
                 .git_global(false)
                 .ignore(true)
@@ -113,6 +115,7 @@ pub fn spawn(
                 let matcher = matcher.clone();
                 let wake = wake.clone();
                 let root = root.clone();
+                let reach = reach.clone();
                 Box::new(move |res| {
                     if cancel.load(Ordering::Relaxed) || found.load(Ordering::Relaxed) >= limit {
                         return ignore::WalkState::Quit;
@@ -122,7 +125,7 @@ pub fn spawn(
                     let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
 
                     let mut score = None;
-                    let hit = match via {
+                    let hit = reach.admits(path, is_dir) && match via {
                         SearchVia::Name => {
                             let name = entry.file_name().to_string_lossy();
                             matcher.is_match(&name)
@@ -176,7 +179,7 @@ pub fn spawn(
         })
         .expect("spawn search worker");
 
-    Handle { rx, query: query.to_owned(), via, root: root_for_handle, show_hidden, cancel }
+    Handle { rx, query: query.to_owned(), via, root: root_for_handle, reach: reach_for_handle, cancel }
 }
 
 fn look(path: &Path, matcher: &Matcher) -> Look {
@@ -202,12 +205,58 @@ fn look(path: &Path, matcher: &Matcher) -> Look {
     }
 }
 
+/// What a search reaches into besides the folder: hidden files, and, when the
+/// query carried `ext:`, only the files with one of those extensions.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Reach {
+    pub hidden: bool,
+    /// Lower case, without the dot. Empty means every kind of file.
+    pub exts: Vec<String>,
+}
+
+impl Reach {
+    #[cfg(test)]
+    fn all() -> Self {
+        Self { hidden: true, exts: Vec::new() }
+    }
+
+    /// Whether `path` is the kind of thing the search is asked for: with an
+    /// extension filter on, only files that have one of them.
+    fn admits(&self, path: &Path, is_dir: bool) -> bool {
+        if self.exts.is_empty() {
+            return true;
+        }
+        !is_dir && path.extension().and_then(|e| e.to_str()).is_some_and(|e| self.exts.iter().any(|x| x.eq_ignore_ascii_case(e)))
+    }
+}
+
+/// Takes the `ext:log` / `ext:rs,toml` words out of a query: what is left is
+/// what to look for, and the extensions are what to look in. A leading dot
+/// (`ext:.log`) is allowed; a bare `ext:` stays part of the query.
+pub fn split_ext(query: &str) -> (String, Vec<String>) {
+    let (mut rest, mut exts) = (Vec::new(), Vec::new());
+    for word in query.split_whitespace() {
+        match word.strip_prefix("ext:") {
+            Some(list) if !list.trim_matches([',', '.']).is_empty() => {
+                exts.extend(list.split(',').map(|e| e.trim_start_matches('.').to_lowercase()).filter(|e| !e.is_empty()));
+            }
+            _ => rest.push(word),
+        }
+    }
+    (rest.join(" "), exts)
+}
+
 /// What a search covers, so a miss (or a short list) is not a mystery: the
-/// folder it started from and what it leaves out. Only hidden files are a
-/// choice; `.gitignore` and `.ignore` are always honoured.
-pub fn scope(root: &Path, show_hidden: bool) -> String {
-    let hidden = if show_hidden { "hidden files included" } else { "hidden files skipped" };
-    format!("in {} ({hidden}, .gitignore honoured)", root.display())
+/// folder it started from and what it leaves out. Hidden files and the kinds
+/// of file are a choice; `.gitignore` and `.ignore` are always honoured.
+pub fn scope(root: &Path, reach: &Reach) -> String {
+    let hidden = if reach.hidden { "hidden files included" } else { "hidden files skipped" };
+    let only = if reach.exts.is_empty() {
+        String::new()
+    } else {
+        format!(", only {}", reach.exts.iter().map(|e| format!(".{e}")).collect::<Vec<_>>().join(" "))
+    };
+    format!("in {} ({hidden}, .gitignore honoured{only})", root.display())
 }
 
 #[cfg(test)]
@@ -242,7 +291,7 @@ mod tests {
                 SearchVia::Fuzzy => Matcher::fuzzy(query),
                 _ => Matcher::new(query).unwrap(),
             };
-            let handle = spawn(&self.0, matcher, query, via, true, 100, || {});
+            let handle = spawn(&self.0, matcher, query, via, Reach::all(), 100, || {});
             let name = |p: &PathBuf| p.file_name().unwrap().to_string_lossy().into_owned();
             let (mut names, mut order) = (Vec::new(), Vec::new());
             while let Ok(msg) = handle.rx.recv_timeout(std::time::Duration::from_secs(10)) {
@@ -304,7 +353,7 @@ mod tests {
 
     /// How many files the finished search says it did not read as text.
     fn binary_count(t: &Tree, query: &str) -> usize {
-        let handle = spawn(&t.0, Matcher::new(query).unwrap(), query, SearchVia::Content, true, 100, || {});
+        let handle = spawn(&t.0, Matcher::new(query).unwrap(), query, SearchVia::Content, Reach::all(), 100, || {});
         while let Ok(msg) = handle.rx.recv_timeout(std::time::Duration::from_secs(10)) {
             if let Msg::Done { binary, .. } = msg {
                 return binary;
@@ -336,6 +385,42 @@ mod tests {
     }
 
     #[test]
+    fn ext_words_come_out_of_the_query() {
+        let split = |q: &str| split_ext(q);
+        assert_eq!(split("error ext:log"), ("error".into(), vec!["log".into()]));
+        assert_eq!(split("ext:Rs,.toml main"), ("main".into(), vec!["rs".into(), "toml".into()]));
+        assert_eq!(split("ext:log"), (String::new(), vec!["log".into()]));
+        assert_eq!(split("ext: a"), ("ext: a".into(), vec![]), "a bare ext: is just text");
+        assert_eq!(split("a b"), ("a b".into(), vec![]));
+    }
+
+    #[test]
+    fn an_extension_narrows_a_name_and_a_content_search() {
+        let t = Tree::new("ext", &[("a.log", b"needle"), ("b.txt", b"needle"), ("sub.log/c.txt", b"needle"), ("d.LOG", b"x")]);
+        let run = |via: SearchVia, query: &str| {
+            let reach = Reach { hidden: true, exts: vec!["log".into()] };
+            let handle = spawn(&t.0, Matcher::new(query).unwrap(), query, via, reach, 100, || {});
+            let mut names = Vec::new();
+            while let Ok(msg) = handle.rx.recv_timeout(std::time::Duration::from_secs(10)) {
+                match msg {
+                    Msg::Found(paths) => names.extend(paths.iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned())),
+                    Msg::Done { .. } => break,
+                }
+            }
+            names.sort();
+            names
+        };
+        assert_eq!(run(SearchVia::Name, ""), ["a.log", "d.LOG"], "every .log file, and not the folder called sub.log");
+        assert_eq!(run(SearchVia::Content, "needle"), ["a.log"], "and a content search reads only those");
+    }
+
+    #[test]
+    fn the_scope_names_the_extensions() {
+        let s = scope(Path::new("/w"), &Reach { hidden: false, exts: vec!["log".into(), "txt".into()] });
+        assert!(s.contains("only .log .txt"), "{s}");
+    }
+
+    #[test]
     fn only_a_fuzzy_search_ranks() {
         let t = Tree::new("rank", &[("a.txt", b"x"), ("b.txt", b"x")]);
         assert!(t.run("txt", SearchVia::Name).1.is_empty());
@@ -344,8 +429,8 @@ mod tests {
 
     #[test]
     fn the_scope_names_the_folder_and_what_is_left_out() {
-        let s = scope(Path::new("/work/proj"), false);
+        let s = scope(Path::new("/work/proj"), &Reach::default());
         assert!(s.contains("/work/proj") && s.contains("hidden files skipped") && s.contains(".gitignore"), "{s}");
-        assert!(scope(Path::new("/w"), true).contains("hidden files included"));
+        assert!(scope(Path::new("/w"), &Reach::all()).contains("hidden files included"));
     }
 }

@@ -7,12 +7,12 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 574 件（TESTING.md の全 767 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 577 件（TESTING.md の全 770 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
 
-未訳 32 件は原文のまま `〔未訳〕` を付けて出している。
+未訳 35 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -882,3 +882,6 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [ ] **52.17** `s`, type a name, `<Enter>`, then `n` (v0.91.0) → Still steps over names as before, the preview body is left alone. `F` + `n` walks the body as `S` does 〔未訳〕
 - [ ] **52.18** `S`, type a word that occurs in a few files, `<Enter>` (v0.92.0) → The toast reads `N match(es) in <the folder you started from> (hidden files skipped, .gitignore honoured) — <Esc> to leave the search view` 〔未訳〕
 - [ ] **52.19** Press `.` to show hidden files, then repeat 52.18 (v0.92.0) → The toast now says `hidden files included`, and a word that is only in a hidden file is found 〔未訳〕
+- [ ] **52.20** `s`, type `ext:log`, `<Enter>` in a folder with `.log`, `.txt` files and a folder named `x.log` (v0.93.0) → Every `.log` file below shows (upper case `.LOG` too), no `.txt` and not the folder. The toast ends `only .log)` 〔未訳〕
+- [ ] **52.21** `S`, type `error ext:log`, `<Enter>` (v0.93.0) → Only `.log` files holding `error` are listed, and only `error` is coloured in the preview. `ext:rs,toml` takes both kinds 〔未訳〕
+- [ ] **52.22** `S`, type `ext:log`, `<Enter>` (v0.93.0) → No search starts; the red toast says a content search needs something to look for besides `ext:` 〔未訳〕

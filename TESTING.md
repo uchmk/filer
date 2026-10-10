@@ -1624,3 +1624,6 @@ press these in: `src\main.rs`, `src\lib.rs`, `docs\domain-notes.md`, `a-w-a.txt`
 | 52.17 | `s`, type a name, `<Enter>`, then `n` (v0.91.0) | Still steps over names as before, the preview body is left alone. `F` + `n` walks the body as `S` does |
 | 52.18 | `S`, type a word that occurs in a few files, `<Enter>` (v0.92.0) | The toast reads `N match(es) in <the folder you started from> (hidden files skipped, .gitignore honoured) — <Esc> to leave the search view` |
 | 52.19 | Press `.` to show hidden files, then repeat 52.18 (v0.92.0) | The toast now says `hidden files included`, and a word that is only in a hidden file is found |
+| 52.20 | `s`, type `ext:log`, `<Enter>` in a folder with `.log`, `.txt` files and a folder named `x.log` (v0.93.0) | Every `.log` file below shows (upper case `.LOG` too), no `.txt` and not the folder. The toast ends `only .log)` |
+| 52.21 | `S`, type `error ext:log`, `<Enter>` (v0.93.0) | Only `.log` files holding `error` are listed, and only `error` is coloured in the preview. `ext:rs,toml` takes both kinds |
+| 52.22 | `S`, type `ext:log`, `<Enter>` (v0.93.0) | No search starts; the red toast says a content search needs something to look for besides `ext:` |
