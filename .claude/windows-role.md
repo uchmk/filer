@@ -302,7 +302,10 @@ will answer a question**, so:
   lists your section sends the next run to it again.
 - **Finish the run yourself**: commit, `git push -u origin <your branch>`, and
   `gh pr create --base main` with the body this file asks for. Never merge,
-  never push to `main`.
+  never push to `main`, and do not merge `main` into your branch: after you
+  finish, the script does (when only the checklists conflict) and puts your
+  marks back on main's rows; a row main reworded meanwhile loses its mark, and
+  the script says so on the pull request.
 - **Close every `kura.exe` you started** before you finish.
 - **The last line you print** is one of these, alone, so the script can log it:
   - `WINTEST_DONE <pull request URL>`
@@ -491,7 +494,11 @@ prevent. So the moment you have it, copy it out:
 - **Your report**, in the repository, for anything longer -- a failing
   command's full output, a `kura env` dump you are comparing against. **Each
   run writes a file of its own: `qa-reports/<YYYY-MM-DD>-<branch without
-  test/>.md`** (`qa-reports/2026-10-03-win-32-9a.md`), never QA-REPORT.md.
+  test/>-<HHmm>.md`**, the time being the one the prompt gives
+  (`qa-reports/2026-10-11-win-32-9a-0920.md`), never QA-REPORT.md, and never an
+  earlier run's report: a section run twice on one day used to write the same
+  file again, and the Merge lanes workflow takes only added reports. (Before
+  v0.99.2 the name had no time.)
   Until 2026-10-03 every run appended to the end of QA-REPORT.md, so any two
   pull requests open at once conflicted there, and each conflict held this
   lane up for an hour. A new file conflicts with nothing. QA-REPORT.md stays

@@ -9,10 +9,15 @@ CLAUDE.md から分けた（2026-10-07）。QA や実機のセッションを立
 
 - **報告は 1 実行 1 ファイル。**実機・Linux・QA のセッションは `qa-reports/<YYYY-MM-DD>-<ブランチ名から test/ を除いたもの>.md` を
   新しく足す（例 `qa-reports/2026-10-03-win-32-9a.md`）。全員が QA-REPORT.md の末尾に足していた頃は、どの 2 本も末尾でぶつかった。
+  Windows のレーン（x64・ARM64）は末尾に開始の時刻 `-<HHmm>` を付け、名前は `auto-wintest.ps1` がプロンプトで渡す（v0.99.2。
+  同じ日に同じ節を 2 回走らせると前の報告を書き直し、ワークフローが「足した報告だけ」の規則で止めていた）。
   QA-REPORT.md は 2026-10-03 までの記録として残し、もう足さない。
 - **チェック表に件数を書かない。**TESTING-CHECKS.md / TESTING-LINUX.md / TESTING-KEYS.md の冒頭の「N / M 済み」と節の見出しの
   `d / n` は、印を付けた PR が毎回書き換え、印の無い行でぶつかっていた。件数は `-- --stats` で出す
   （`cargo run --example make-testcheck -- --stats`、`-- --lane linux --stats`、`cargo run --example make-keycheck -- --stats`）。
+- Windows のレーンは、実行の後に main とチェック表（TESTING-CHECKS.md・TESTING-KEYS.md）だけがぶつかるなら、`auto-wintest.ps1` が
+  main をブランチに取り込み、その回の印を main の同じ文言の行に入れ直して push する（v0.99.2、`scripts/lane-marks.ps1`）。
+  実行の間に main が文言を変えた行は印を落とし、PR にそう書く。
 - それでもぶつかったとき（同じ行に両方が印を付けたなど）は、マージの Routine が PR のブランチに `origin/main` を merge コミットで
   取り込んで push し、ワークフローが CI の緑を待ってマージする（`merge-role.md` の 3）。
 

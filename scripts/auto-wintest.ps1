@@ -279,6 +279,62 @@ function Note-Dirty([string[]]$changes) {
     Set-Content -Path $dirtyFile -Value $body
 }
 
+. (Join-Path $PSScriptRoot 'lane-marks.ps1')
+
+# A run takes an hour and main moves under it: a row reworded, another lane's
+# ticks, a re-test list changed. The run's marks then sit beside lines main
+# changed, and its pull request opens in conflict and waits for the Merge
+# lanes workflow or a person. When only the checklists conflict, merge main
+# into the run's branch with main's checklists and the run's marks made again
+# on them (Set-LaneMarks), and push, so the pull request is mergeable from the
+# start. A row main reworded or took out keeps no mark, and the pull request
+# says so. Anything else that conflicts is left as it is. Never throws.
+function Sync-LaneBranch([string]$Branch) {
+    $lists = @('TESTING-CHECKS.md', 'TESTING-KEYS.md')
+    Push-Location $Work
+    try {
+        if ((git rev-parse --abbrev-ref HEAD).Trim() -ne $Branch) { Say "Sync: $Work is not on $Branch; left as it is."; return }
+        git fetch -q origin main $Branch
+        if ($LASTEXITCODE -ne 0) { Say 'Sync: git fetch failed; left as it is.'; return }
+        # Only what the run pushed: an unpushed commit stays the run's.
+        if ((git rev-parse HEAD).Trim() -ne (git rev-parse "origin/$Branch").Trim()) { Say "Sync: $Branch is not what was pushed; left as it is."; return }
+        git merge-base --is-ancestor origin/main HEAD
+        if ($LASTEXITCODE -eq 0) { return }
+        $base = (git merge-base origin/main HEAD).Trim()
+        git merge -q --no-ff --no-commit origin/main *> $null
+        $conflicted = @(git diff --name-only --diff-filter=U)
+        if (-not $conflicted) { git merge --abort; return }   # GitHub merges it as it is
+        $others = @($conflicted | Where-Object { $_ -notin $lists })
+        if ($others) { git merge --abort; Say "Sync: $Branch conflicts with main in $($others -join ', '); left for a person."; return }
+        $dropped = @()
+        foreach ($path in $conflicted) {
+            $marks = Get-LaneMarks -Base ((git show "${base}:$path") -join "`n") -Branch ((git show "HEAD:$path") -join "`n")
+            git checkout -q --theirs -- $path
+            $file = Join-Path $Work $path
+            $r = Set-LaneMarks -Main ([IO.File]::ReadAllText($file)) -Marks $marks
+            [IO.File]::WriteAllText($file, $r.Text, $utf8)
+            git add -- $path
+            $dropped += $r.Dropped
+        }
+        git commit -q --no-edit
+        if ($LASTEXITCODE -ne 0) { throw 'git commit failed' }
+        git push -q origin "HEAD:refs/heads/$Branch"
+        if ($LASTEXITCODE -ne 0) { Say "Sync: git push failed; $Branch stays in conflict for the Merge lanes workflow."; return }
+        Say "Sync: merged main into $Branch with the run's marks made again ($($conflicted -join ', '))."
+        if ($dropped) {
+            $body = "Merged main into this branch: main changed these rows while the run was going, so their marks were not kept (what the run checked is not what the rows say now): $($dropped -join ', ')."
+            gh pr comment $Branch --repo $repo --body $body *> $null
+            Say "Sync: marks dropped for $($dropped -join ', ')."
+        }
+    } catch {
+        Say "Sync: $_; left as it is."
+    } finally {
+        git rev-parse -q --verify MERGE_HEAD *> $null
+        if ($LASTEXITCODE -eq 0) { git merge --abort }
+        Pop-Location
+    }
+}
+
 # The screen saver, held off while a run drives the window (see the top).
 $saverFile = Join-Path $state "screensaver$suffix.json"
 Add-Type -Namespace KuraWintest -Name Power -MemberDefinition @'
@@ -500,10 +556,15 @@ try {
             Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-3) } |
             ForEach-Object { Remove-Item -Recurse -Force -LiteralPath $_.FullName -ErrorAction SilentlyContinue }
     }
-    $Scratch = Join-Path $Scratch ('run-{0:yyyyMMdd-HHmmss}' -f (Get-Date))
+    # The report's name carries the start time: a section run twice on one day
+    # (a re-test) wrote the earlier run's file again, which the Merge lanes
+    # workflow refuses (a run only adds its own report).
+    $started = Get-Date
+    $report = 'qa-reports/{0:yyyy-MM-dd}-<ブランチ名から test/ を除いたもの>-{0:HHmm}.md' -f $started
+    $Scratch = Join-Path $Scratch ('run-{0:yyyyMMdd-HHmmss}' -f $started)
     New-Item -ItemType Directory -Force -Path $Scratch | Out-Null
 
-    $prompt = "無人実行です。人は見ていません。.claude/windows-role.md を読み、その「Unattended runs」の節に従って、$queue の次の節を 1 つだけ進めてください。レーンは $Lane で、ブランチは test/$Lane-<節> です。チェックアウトは $Work です（役割定義に出てくる C:\dev\kura は、すべてここに読み替えてください）。作業用の一時ディレクトリは $Scratch で、TEMP / TMP も既にそこを指しています（役割定義に出てくる R:\Temp は、すべてここに読み替えてください）。"
+    $prompt = "無人実行です。人は見ていません。.claude/windows-role.md を読み、その「Unattended runs」の節に従って、$queue の次の節を 1 つだけ進めてください。レーンは $Lane で、ブランチは test/$Lane-<節> です。チェックアウトは $Work です（役割定義に出てくる C:\dev\kura は、すべてここに読み替えてください）。作業用の一時ディレクトリは $Scratch で、TEMP / TMP も既にそこを指しています（役割定義に出てくる R:\Temp は、すべてここに読み替えてください）。報告は $report に書きます（新しいファイル。既にある報告は直しません）。main の取り込みはしないでください（終わった後にこのスクリプトがします）。"
     $env:TEMP = $Scratch
     $env:TMP = $Scratch
     $env:CARGO_INCREMENTAL = '0'
@@ -577,6 +638,11 @@ try {
         Set-Content -NoNewline -Path $last -Value $trigger
         Remove-Item -LiteralPath $failFile -ErrorAction SilentlyContinue
         Say "Done: $tail"
+        # The run's branch, from its pull request: kept mergeable while main moves.
+        if ($tail -match '^WINTEST_DONE\s+(\S+)') {
+            $branch = (gh pr view $Matches[1] --repo $repo --json headRefName --jq .headRefName 2>$null | Out-String).Trim()
+            if ($branch -like "test/$Lane-*") { Sync-LaneBranch $branch } else { Say "Sync: no lane branch for $($Matches[1]); left as it is." }
+        }
     } elseif ($out -match 'limit') {
         Say 'Hit a usage limit. Trying again next time.'
     } else {
