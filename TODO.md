@@ -16,21 +16,21 @@
 - [x] （v0.86.8）（#307 の提案 3・5、#308 の提案 3）`--keys` に生バイトの貼り付けと `<Clip:>` の状態、クリックとホバーの手順を足す（49.3 / 49.6）。`<Wheel:N>` と `<Drag:…>` の例を README のキー表に書く。
   - [x] （v0.86.5。`<Click:C-0.5,0.4>` の修飾キーと `<Hover:x,y>` を足し、README に書いた。`<Wheel:>` / `<Drag:>` の例は README に既にある）
   - [x] （v0.86.8。`<Paste:text>` と、`<State:>` の `cursor icon:` を足した。クリップボードの中身は `clipboard set:` の行が既に出しているので `<Clip:>` は足さない。持ち主のクリップボードを `<State:>` が読まないため）
-- [ ] （#308 の所見）`wezterm imgcat` で 2560x1280 の PNG が何も描かれない（160x80 は描かれる）。tsumugi 側で調べる。`【pane】`
+- [ ] （#308 の所見）`wezterm imgcat` で 2560x1280 の PNG が何も描かれない（160x80 は描かれる）。tsumugi 側で調べる。【pane】
 - [x] （v0.86.26。済んだ行は合流側の #311 / #312 の整理で外れていた。待ち一覧に残っていた 16.3b を外し、ほかの済んだ行の一覧に足した）（#307・#308 の提案、マージ担当は `.claude/` に書けないのでここに積む）`.claude/windows-role.md` の x64 と ARM64 の両方の「Re-tests of changed behaviour」から、済んだ 25.4e、49.9、49.11 を外す（x64 は #307、ARM64 は #308 で `[x]`）。残りは 49.10（行の書き換え待ち）、49.6（マウスが要る）、1.43 / 40.16（書き換え待ち）、1.44 / 16.13 / 16.13a / 33.7（直し待ち）。次の run は ARM64 が節 1・19・40 のホイール・ドラッグ・nvim の行を押し直す。`【人】`
-- [ ] （#306 の所見）49.7 が x64 で落ちた: 同梱の ConPTY（1.24.2607.10001）が OSC 8 の始まりと終わりを落とし、ペインには `click me` しか届かない（`FILER_PTY_LOG`）。sixel（`chafa -f sixels`）も DCS を落とされて本文が文字で出る。filer か tsumugi が ConPTY にパススルーを頼めるか調べる。`【pane】`
-- [ ] （#306 の所見）`wezterm imgcat` がペインの中で `attempt to divide by zero` で panic する（`wezterm\src\main.rs:383`）。セルのピクセル寸法が 0 で返っている疑い（`CSI 16 t` / `CSI 14 t` の返事、`TIOCGWINSZ`）。49.11 と同じ点。`【pane】`
-- [ ] （#306 の提案 2）TESTING.md の 49.7 を ConPTY の落とす OSC 8 に合わせて書き直し、49.8 は `chafa -f sixels` でなく通る iTerm2 の OSC 1337 を名指しにする。`【QA】`
-- [ ] （#305 の提案 1）`scripts/make-fixtures.ps1`（と `.sh`）に `outline.docx`（見出し 1 / 2 / 1 と本文 2 段落の最小 OOXML）を足す。16.3 / 16.3a / 16.3b が要る。`【実機】`
+- [ ] （#306 の所見）49.7 が x64 で落ちた: 同梱の ConPTY（1.24.2607.10001）が OSC 8 の始まりと終わりを落とし、ペインには `click me` しか届かない（`FILER_PTY_LOG`）。sixel（`chafa -f sixels`）も DCS を落とされて本文が文字で出る。filer か tsumugi が ConPTY にパススルーを頼めるか調べる。【pane】
+- [ ] （#306 の所見）`wezterm imgcat` がペインの中で `attempt to divide by zero` で panic する（`wezterm\src\main.rs:383`）。セルのピクセル寸法が 0 で返っている疑い（`CSI 16 t` / `CSI 14 t` の返事、`TIOCGWINSZ`）。49.11 と同じ点。【pane】
+- [ ] （#306 の提案 2）TESTING.md の 49.7 を ConPTY の落とす OSC 8 に合わせて書き直し、49.8 は `chafa -f sixels` でなく通る iTerm2 の OSC 1337 を名指しにする。【QA】
+- [ ] （#305 の提案 1）`scripts/make-fixtures.ps1`（と `.sh`）に `outline.docx`（見出し 1 / 2 / 1 と本文 2 段落の最小 OOXML）を足す。16.3 / 16.3a / 16.3b が要る。【実機】
 - [x] （v0.86.26。16.3b・37.8b・49.5 は一覧から外した）（#305・#306 の提案、マージ担当は `.claude/` に書けないのでここに積む）`.claude/windows-role.md` の x64 と ARM64 の両方の「Re-tests of changed behaviour」から、済んだ 16.3b、37.8b、49.5 を外す（16.3b は #305 / #306 で `[x]`、49.5 と 37.8b は x64 で `[x]`）。ARM64 の表には 37.8b・49.5 を ARM64 の二台目として足してよい。`【人】`
 - [x] （v0.85.7。`pane title:` の行を足した）`<State:>` に `pane title:` の行（tsumugi-pane が返すタイトル。空でも出す）を足す。1.35 で確認ダイアログの文言は読めるが、v0.85.3 が変えた「タイトルが空か」は読めず、x64 と ARM64 を同じ行で比べられない（#300 の提案 1）。
 - [x] （v0.86.19。`scripts\mcp.ps1` を足した: `filer mcp` を起動して `initialize` から `tools/call`（`-Tool` / `-Arguments`）か `tools/list`（`-List`）まで流し、結果を JSON で出す。`-Address` は子プロセスだけの `FILER_ADDRESS`。Linux で書いたので Windows では未実行、最初のレーンが 50.1 / 50.2 で一度確かめる）（#302・#303 の提案）`scripts\mcp.ps1`（`-Address … -Tool filer_state`）を足し、`filer mcp` に JSON-RPC を流す道具にする。ARM64 は `Start-Mcp` / `Rpc` / `Call` を scratch に書いて `$args` の衝突で 1 回余計に回した。`【実機】`
-- [ ] （#302・#303 の提案）TESTING.md の節 50 の前書きに `FILER_ADDRESS`（持ち主の窓と扉を奪い合わない）と `claude -p --mcp-config … --output-format stream-json` の `init` で 50.1 の `/mcp` を読めることを書く。`【QA】`
+- [ ] （#302・#303 の提案）TESTING.md の節 50 の前書きに `FILER_ADDRESS`（持ち主の窓と扉を奪い合わない）と `claude -p --mcp-config … --output-format stream-json` の `init` で 50.1 の `/mcp` を読めることを書く。【QA】
 - [x] （v0.85.9。`mcp:` の行を足した）`<State:>` に `mcp:`（扉の名前か `off`）の行を足す。「窓が無い」と「`enable = false`」を 50.4 / 50.5 で見分けるには `config:` の行から推すしかない。
-- [ ] （#302 の提案）50.7 の「コンソールの窓が出ない」は、ARM64 は測れないとして `[ ]` に残し、x64 は約 5ms 間隔の窓の列挙（753 回）で出なかったと `[x]` にした。5ms より短い窓は取りこぼすので、持ち主が外観の行として扱うか決める。`【人】`
+- [ ] （#302 の提案）50.7 の「コンソールの窓が出ない」は、ARM64 は測れないとして `[ ]` に残し、x64 は約 5ms 間隔の窓の列挙（753 回）で出なかったと `[x]` にした。5ms より短い窓は取りこぼすので、持ち主が外観の行として扱うか決める。【人】
 - [ ] 再テストの順番表に「前の run から変わった行」を書く欄を足し、1 行の修正で約 50 行を押し直させないようにする。`.claude/windows-role.md` の段落（#300 の提案 2）【人】
 - [ ] TESTING.md の節 50（`filer mcp`、v0.85.0）は標準入出力の JSON-RPC と `<State:>` で文字で読める行が多いのに、どちらのレーンの表にも無く 0 / 7 のまま。ARM64 の「Unticked rows no queue owns」に節 50 を足す（#301 の提案 1）【人】
-- [ ] （2026-10-10、持ち主の窓）x64（RX 9070 XT、Adrenalin 26.8.1 = ドライバ 32.0.31041.1004。最新）で、`cargo run` の filer が panic の出力なしに `exit code: 0xc000041d` で落ちる。イベントログ（Application、ID 1000）では 6:43 と 8:33 の 2 回とも、AMD の GL ドライバ `atio6axx.dll` の同じオフセット `0x51b5b9` で `0xc0000005` が出て、2〜3 秒後に同じ箇所で `0xc000041d`（窓のコールバックの中の例外）。既定の `auto` が GL を選ぶ機械（#204）。きっかけを切り分ける: (1) 落ちた時刻にレーン（別の filer の起動・終了、キー、スクリーンセーバーを止める処理）が動いていたか、(2) 画面の電源オフ・ロック・解像度や DPI の変更・窓のリサイズや最小化で再現するか、(3) WER の LocalDumps（`HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\filer.exe`）でダンプを取り、`atio6axx.dll` を呼んだ wgpu の関数を見る、(4) `[ui] backend = "dx12"` で同じきっかけを当てて落ちないか（あわせて #204 のアイドルで 1 コアが今のドライバで戻るか）。filer の側で避けられるなら（GL の面の作り直し、既定の見直し）提案する。`【実機】`
+- [ ] （2026-10-10、持ち主の窓）x64（RX 9070 XT、Adrenalin 26.8.1 = ドライバ 32.0.31041.1004。最新）で、`cargo run` の filer が panic の出力なしに `exit code: 0xc000041d` で落ちる。イベントログ（Application、ID 1000）では 6:43 と 8:33 の 2 回とも、AMD の GL ドライバ `atio6axx.dll` の同じオフセット `0x51b5b9` で `0xc0000005` が出て、2〜3 秒後に同じ箇所で `0xc000041d`（窓のコールバックの中の例外）。既定の `auto` が GL を選ぶ機械（#204）。きっかけを切り分ける: (1) 落ちた時刻にレーン（別の filer の起動・終了、キー、スクリーンセーバーを止める処理）が動いていたか、(2) 画面の電源オフ・ロック・解像度や DPI の変更・窓のリサイズや最小化で再現するか、(3) WER の LocalDumps（`HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\filer.exe`）でダンプを取り、`atio6axx.dll` を呼んだ wgpu の関数を見る、(4) `[ui] backend = "dx12"` で同じきっかけを当てて落ちないか（あわせて #204 のアイドルで 1 コアが今のドライバで戻るか）。filer の側で避けられるなら（GL の面の作り直し、既定の見直し）提案する。【実機】
 
 ## 多言語対応（2026-10-10、持ち主の希望）
 
