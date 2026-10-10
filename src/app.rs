@@ -694,6 +694,9 @@ pub struct PreviewSlot {
     /// keeps the old one up meanwhile, and `settled()` has to see past it
     /// (#166: `<A-j><Shot:p2>` pictured page 1 again).
     pub in_flight: bool,
+    /// What is on screen is the uncoloured first screen the worker sent ahead
+    /// of the whole one (`<State:>` says `preview: early`).
+    pub early: bool,
     pub cache: Lru<preview::Key, CachedPreview>,
     /// Size of the preview pane in pixels, used when decoding images.
     pub box_size: (u32, u32),
@@ -793,6 +796,7 @@ impl Default for PreviewSlot {
             request_id: 0,
             pending_since: None,
             in_flight: false,
+            early: false,
             cache: Lru::new(24),
             box_size: (900, 900),
             rect: None,
@@ -2226,6 +2230,7 @@ impl App {
             self.preview.state = PreviewState::Loading;
         }
         self.preview.in_flight = true;
+        self.preview.early = false;
         self.preview.request_id = self.previewer.request(preview::Request {
             id: 0,
             key,
@@ -2247,8 +2252,10 @@ impl App {
             // Shown while the rest is colored. Still in flight, and the scroll
             // position is kept for the whole one that replaces it.
             self.preview.state = PreviewState::Ready(res.payload);
+            self.preview.early = true;
             return;
         }
+        self.preview.early = false;
         self.preview.in_flight = false;
         self.preview.texture = match &res.payload {
             Payload::Image { width, height, rgba, .. } => {
@@ -7547,11 +7554,11 @@ mod preview_delivery {
 
         app.on_preview(preview::Response { key: key.clone(), payload: text(), partial: true }, &ctx);
         assert!(matches!(app.preview.state, PreviewState::Ready(Payload::Text { .. })));
-        assert!(app.preview.in_flight && !app.settled());
+        assert!(app.preview.in_flight && app.preview.early && !app.settled());
         assert!(app.preview.cache.get(&key).is_none());
 
         app.on_preview(preview::Response { key: key.clone(), payload: text(), partial: false }, &ctx);
-        assert!(!app.preview.in_flight);
+        assert!(!app.preview.in_flight && !app.preview.early);
         assert!(app.preview.cache.get(&key).is_some());
     }
 

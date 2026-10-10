@@ -1527,6 +1527,9 @@ fn state_report(app: &App) -> String {
         lines.push(format!("other list top: {}", app.tabs[other].current.offset));
     }
     lines.push(format!("preview top: {} of {}", tab.preview_offset, app.preview.max_offset));
+    // The first screen sent ahead of the coloured whole (v0.86.12): `settled`
+    // waits it out, so only `<Now>` and a short `<Wait:>` can read it.
+    lines.push(format!("preview: {}", if app.preview.early { "early" } else { "whole" }));
     // How long the text on show is (`5237+` when the read was cut): the top
     // above is the last place to scroll to, which is not the line count
     // (#262).
