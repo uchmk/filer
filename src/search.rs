@@ -18,7 +18,8 @@ pub enum Msg {
     Found(Vec<PathBuf>),
     /// `order` is the whole result, best match first, for the one search that
     /// ranks (`F`); the others leave it empty and keep the order they arrived in.
-    Done { total: usize, truncated: bool, order: Vec<PathBuf> },
+    /// `binary` counts the files a content search left unread because they are not text.
+    Done { total: usize, truncated: bool, order: Vec<PathBuf>, binary: usize },
 }
 
 pub struct Handle {
@@ -42,6 +43,30 @@ impl Drop for Handle {
 
 const MAX_CONTENT_BYTES: usize = 1024 * 1024;
 
+/// How much of a file is looked at before deciding it is not text. Text has no
+/// NUL; a binary almost always shows one in its header.
+const SNIFF_BYTES: usize = 8 * 1024;
+
+/// Extensions that are never text, skipped without opening the file.
+const BINARY_EXTENSIONS: &[&str] = &[
+    "exe", "dll", "so", "dylib", "o", "obj", "a", "lib", "pdb", "class", "jar", "pyc", "wasm", "bin", "dat", "iso", "img", "dmg", "msi", "png",
+    "jpg", "jpeg", "gif", "bmp", "ico", "webp", "tif", "tiff", "psd", "mp3", "wav", "flac", "ogg", "m4a", "mp4", "mkv", "avi", "mov", "webm",
+    "zip", "7z", "rar", "gz", "bz2", "xz", "zst", "tar", "tgz", "pdf", "doc", "xls", "ppt", "docx", "xlsx", "pptx", "ttf", "otf", "woff",
+    "woff2", "sqlite", "db",
+];
+
+fn binary_extension(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| BINARY_EXTENSIONS.iter().any(|b| b.eq_ignore_ascii_case(e)))
+}
+
+enum Look {
+    Hit,
+    Miss,
+    Binary,
+}
+
 pub fn spawn(
     root: &Path,
     matcher: Matcher,
@@ -61,6 +86,7 @@ pub fn spawn(
         .spawn(move || {
             let found = Arc::new(AtomicUsize::new(0));
             let ranked: Arc<Mutex<Vec<(i32, PathBuf)>>> = Arc::default();
+            let binary = Arc::new(AtomicUsize::new(0));
 
             let walker = ignore::WalkBuilder::new(&root)
                 .hidden(!show_hidden)
@@ -79,6 +105,7 @@ pub fn spawn(
                 let cancel = cancel_t.clone();
                 let found = found.clone();
                 let ranked = ranked.clone();
+                let binary = binary.clone();
                 let matcher = matcher.clone();
                 let wake = wake.clone();
                 let root = root.clone();
@@ -108,7 +135,14 @@ pub fn spawn(
                             if is_dir {
                                 false
                             } else {
-                                contains(path, &matcher)
+                                match look(path, &matcher) {
+                                    Look::Hit => true,
+                                    Look::Miss => false,
+                                    Look::Binary => {
+                                        binary.fetch_add(1, Ordering::Relaxed);
+                                        false
+                                    }
+                                }
                             }
                         }
                     };
@@ -132,7 +166,8 @@ pub fn spawn(
             // which thread got there first.
             ranked.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
             let order = ranked.into_iter().map(|(_, p)| p).collect();
-            let _ = tx.send(Msg::Done { total, truncated: total >= limit, order });
+            let binary = binary.load(Ordering::Relaxed);
+            let _ = tx.send(Msg::Done { total, truncated: total >= limit, order, binary });
             wake();
         })
         .expect("spawn search worker");
@@ -140,16 +175,27 @@ pub fn spawn(
     Handle { rx, query: query.to_owned(), via, cancel }
 }
 
-fn contains(path: &Path, matcher: &Matcher) -> bool {
-    let Ok(mut f) = std::fs::File::open(path) else { return false };
+fn look(path: &Path, matcher: &Matcher) -> Look {
+    if binary_extension(path) {
+        return Look::Binary;
+    }
+    let Ok(mut f) = std::fs::File::open(path) else { return Look::Miss };
     let mut buf = Vec::new();
-    if f.by_ref().take(MAX_CONTENT_BYTES as u64).read_to_end(&mut buf).is_err() {
-        return false;
+    // The head first: a binary is turned away after 8 KB, not after 1 MB.
+    if f.by_ref().take(SNIFF_BYTES as u64).read_to_end(&mut buf).is_err() {
+        return Look::Miss;
     }
     if buf.contains(&0) {
-        return false; // binary
+        return Look::Binary;
     }
-    matcher.is_match(&String::from_utf8_lossy(&buf))
+    if f.by_ref().take((MAX_CONTENT_BYTES - SNIFF_BYTES) as u64).read_to_end(&mut buf).is_err() {
+        return Look::Miss;
+    }
+    if matcher.is_match(&String::from_utf8_lossy(&buf)) {
+        Look::Hit
+    } else {
+        Look::Miss
+    }
 }
 
 #[cfg(test)]
@@ -242,6 +288,39 @@ mod tests {
 
         let (_, order) = t.run("rs", SearchVia::Fuzzy);
         assert_eq!(order.len(), 2, "both .rs files, and nothing else: {order:?}");
+    }
+
+    /// How many files the finished search says it did not read as text.
+    fn binary_count(t: &Tree, query: &str) -> usize {
+        let handle = spawn(&t.0, Matcher::new(query).unwrap(), query, SearchVia::Content, true, 100, || {});
+        while let Ok(msg) = handle.rx.recv_timeout(std::time::Duration::from_secs(10)) {
+            if let Msg::Done { binary, .. } = msg {
+                return binary;
+            }
+        }
+        panic!("the search never finished");
+    }
+
+    #[test]
+    fn a_content_search_leaves_binaries_out_and_counts_them() {
+        let mut nul = b"needle ".to_vec();
+        nul.push(0);
+        let t = Tree::new(
+            "binary",
+            &[("a.txt", b"needle\n"), ("tool.exe", b"needle"), ("data.bin", &nul), ("tail.txt", b"needle"), ("Pic.PNG", b"needle")],
+        );
+        assert_eq!(t.find("needle", SearchVia::Content), ["a.txt", "tail.txt"]);
+        assert_eq!(binary_count(&t, "needle"), 3, "the .exe and .PNG by extension, data.bin by its NUL");
+        assert_eq!(t.find("exe", SearchVia::Name), ["tool.exe"], "a name search still finds binaries");
+    }
+
+    #[test]
+    fn a_text_file_longer_than_the_sniffed_head_is_still_searched() {
+        let mut body = vec![b'x'; SNIFF_BYTES + 10];
+        body.extend_from_slice(b" needle");
+        let t = Tree::new("longtext", &[("long.txt", &body)]);
+        assert_eq!(t.find("needle", SearchVia::Content), ["long.txt"]);
+        assert_eq!(binary_count(&t, "needle"), 0);
     }
 
     #[test]

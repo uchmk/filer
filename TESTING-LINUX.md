@@ -7,12 +7,12 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 560 件（TESTING.md の全 753 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 563 件（TESTING.md の全 756 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
 
-未訳 18 件は原文のまま `〔未訳〕` を付けて出している。
+未訳 21 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -820,3 +820,6 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **52.3** `F`, type `rs`, `<Enter>` (v0.88.0) → Both `.rs` files, and the cursor is on the best match at the top of the list once the search ends. The status bar showed `fuzzy searching rs…` while it ran 〔未訳〕
 - [ ] **52.4** `F`, type `(`, `<Enter>` (v0.88.0) → No error: it is letters, not a regular expression. Nothing matches a `(` so the toast says `No matches` 〔未訳〕
 - [ ] **52.5** Press `?` (help) or open `~` (v0.88.0) → `F` is listed as `Search files fuzzily, recursively, best match first` 〔未訳〕
+- [ ] **52.6** In a folder with `a.txt` holding `needle`, `tool.exe`, `Pic.PNG` and `data.bin` (a NUL byte in it), all three binaries also containing the word `needle`: `S`, type `needle`, `<Enter>` (v0.89.0) → Only `a.txt` is listed. The toast reads `1 match(es); 3 binary file(s) not searched — <Esc> to leave the search view` 〔未訳〕
+- [ ] **52.7** `S`, type `zzzznotthere`, `<Enter>` in the same folder (v0.89.0) → The red toast reads `No matches; 3 binary file(s) not searched`, so a miss says what was left out 〔未訳〕
+- [ ] **52.8** `s`, type `exe`, `<Enter>` (v0.89.0) → `tool.exe` is found: a search by name still takes binaries, and no binary count is shown 〔未訳〕

@@ -1610,3 +1610,6 @@ press these in: `src\main.rs`, `src\lib.rs`, `docs\domain-notes.md`, `a-w-a.txt`
 | 52.3 | `F`, type `rs`, `<Enter>` (v0.88.0) | Both `.rs` files, and the cursor is on the best match at the top of the list once the search ends. The status bar showed `fuzzy searching rs…` while it ran |
 | 52.4 | `F`, type `(`, `<Enter>` (v0.88.0) | No error: it is letters, not a regular expression. Nothing matches a `(` so the toast says `No matches` |
 | 52.5 | Press `?` (help) or open `~` (v0.88.0) | `F` is listed as `Search files fuzzily, recursively, best match first` |
+| 52.6 | In a folder with `a.txt` holding `needle`, `tool.exe`, `Pic.PNG` and `data.bin` (a NUL byte in it), all three binaries also containing the word `needle`: `S`, type `needle`, `<Enter>` (v0.89.0) | Only `a.txt` is listed. The toast reads `1 match(es); 3 binary file(s) not searched — <Esc> to leave the search view` |
+| 52.7 | `S`, type `zzzznotthere`, `<Enter>` in the same folder (v0.89.0) | The red toast reads `No matches; 3 binary file(s) not searched`, so a miss says what was left out |
+| 52.8 | `s`, type `exe`, `<Enter>` (v0.89.0) | `tool.exe` is found: a search by name still takes binaries, and no binary count is shown |

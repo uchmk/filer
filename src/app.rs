@@ -6148,12 +6148,12 @@ impl App {
     fn drain_search(&mut self) {
         let Some(handle) = &self.search else { return };
         let mut batch: Vec<PathBuf> = Vec::new();
-        let mut done: Option<(usize, bool, Vec<PathBuf>)> = None;
+        let mut done: Option<(usize, bool, Vec<PathBuf>, usize)> = None;
         while let Ok(msg) = handle.rx.try_recv() {
             match msg {
                 crate::search::Msg::Found(mut v) => batch.append(&mut v),
-                crate::search::Msg::Done { total, truncated, order } => {
-                    done = Some((total, truncated, order));
+                crate::search::Msg::Done { total, truncated, order, binary } => {
+                    done = Some((total, truncated, order, binary));
                     break;
                 }
             }
@@ -6169,7 +6169,7 @@ impl App {
             }
             f.rebuild(show_hidden);
         }
-        if let Some((total, truncated, order)) = done {
+        if let Some((total, truncated, order, binary)) = done {
             self.search = None;
             if !order.is_empty() {
                 // Best match first, and the cursor on it.
@@ -6180,11 +6180,14 @@ impl App {
                 f.cursor = 0;
                 f.offset = 0;
             }
+            // A content search says what it did not read, so a miss is not a
+            // mystery: binary files are never searched.
+            let skipped = if binary > 0 { format!("; {binary} binary file(s) not searched") } else { String::new() };
             if total == 0 {
-                self.error("No matches");
+                self.error(format!("No matches{skipped}"));
             } else {
                 self.toast(format!(
-                    "{total} match(es){} — <Esc> to leave the search view",
+                    "{total} match(es){}{skipped} — <Esc> to leave the search view",
                     if truncated { " (truncated)" } else { "" }
                 ));
             }
