@@ -984,8 +984,22 @@ fn draw_status(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId) {
         format!("{}/{}", tab.current.cursor + 1, tab.current.view.len())
     };
     right.push(pos);
+    // The clock sits at the very end, in the strongest text colour; the
+    // other items end where it begins.
+    let mut right_edge = rect.right() - 10.0;
+    if app.clock.show {
+        let now = chrono::Local::now().naive_local();
+        let g = painter.layout_no_wrap(app.clock.text(&now, &app.lang), f.clone(), theme.fg);
+        let at = egui::pos2(right_edge - g.size().x, cy - g.size().y / 2.0);
+        let area = Rect::from_min_size(at, g.size());
+        painter.galley(at, g, theme.fg);
+        right_edge = area.left() - 16.0;
+        let hover = ui.interact(area, ui.id().with("status-clock"), egui::Sense::hover());
+        hover.on_hover_text(ito_common::Clock::full(&now, &app.lang));
+        ui.ctx().request_repaint_after(ito_common::Clock::next_minute(&now));
+    }
     painter.text(
-        egui::pos2(rect.right() - 10.0, cy),
+        egui::pos2(right_edge, cy),
         Align2::RIGHT_CENTER,
         right.join("   "),
         f.clone(),

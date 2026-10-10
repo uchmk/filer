@@ -7,7 +7,7 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 585 件（TESTING.md の全 778 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 591 件（TESTING.md の全 784 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
@@ -845,3 +845,14 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **52.27** `S`, type a word that is in `src/app.rs` (500 KB), `<Enter>`, move to that result (v0.93.5) → The preview opens at the first match at once, uncoloured at first and coloured a moment later without moving. A 2-4 MB source file is shown whole (the part past line 40000 stays plain); the search itself still reads only the first 1 MB of each file 〔未訳〕
 - [ ] **52.28** `s`, type `foo`, `<Enter>`; `S`, type `bar`, `<Enter>`; `f`, then `<Up>` (v0.93.5) → `bar` comes back, `<Up>` again `foo`, `<Down>` twice gives back what was typed before the first `<Up>`. The filter follows the text as it changes. Restart filer and open `s`: `<Up>` still brings back `bar`. A file-name prompt (`a`, `r`) has no history 〔未訳〕
 - [ ] **52.29** `s`, type a word, `<Enter>`, `s` again; hold `<Up>` (v0.93.6) → The caret stays at the end of the word as the history steps back. It does not jump to the start and back between key repeats 〔未訳〕
+
+## 53. ステータスバー右端の時計（v0.94.0）
+
+時計は共有の `uchmk/common.toml` の `[clock]` と `language` を読む（Windows は `%APPDATA%\uchmk\common.toml`、`UCHMK_CONFIG_DIR` でフォルダを変えられる）。ファイルが無ければ 24 時間表記の `2026/10/05 (Mon) 14:32`。起動時に 1 度だけ読む（見張りは後の版）。
+
+- [ ] **53.1** `common.toml` なしで filer を起動する → 時計がステータスバーの右端、位置（`3/12`）の後ろに、バーと同じ字体・一番強い文字の色（左の薄い項目より明るい）で出る。システムの日時と一致する — *Start filer with no `common.toml` → The clock is the last thing on the status bar's right, after the position (`3/12`), in the same font as the bar and the strongest text colour (brighter than the dim items to its left). It matches the system date and time*
+- [ ] **53.2** 時計にポインタを載せる → ツールチップに日付が全部出る（`Saturday, 10 October 2026`） — *Rest the pointer on the clock → A tooltip gives the whole date: `Saturday, 10 October 2026`*
+- [ ] **53.3** 何も押さずに分が変わるのを見る → 分が変わるとき（1 秒以内）に、入力なしで時計が変わる — *Watch the clock across a minute change, with no key pressed → It changes at the minute (within a second), without any input*
+- [ ] **53.4** `common.toml` に `language = "ja"` と `[clock]`（`hour24 = false`、`date_format = "YYYY-MM-DD"`、`weekday = false`）を書いて再起動する → 曜日なしの `2026-10-10 2:32 PM` のような文。`weekday = true` なら `(土)`。ツールチップは `2026年10月10日 土曜日` — *Write `language = "ja"` and `[clock]` with `hour24 = false`, `date_format = "YYYY-MM-DD"`, `weekday = false` in `common.toml`; restart → `2026-10-10 2:32 PM`-like text (no weekday); with `weekday = true` it reads `(土)`; the tooltip reads `2026年10月10日 土曜日`*
+- [ ] **53.5** `[clock]` / `show = false` を書いて再起動する → 時計が出ず、右の項目が端まで戻る — *Write `[clock]` / `show = false`; restart → No clock; the other right-hand items move back to the edge*
+- [ ] **53.6** `[clock]` / `bogus = 1` を書いて再起動する → ファイルは当たらず（既定の時計が出る）、`common.toml:` で始まるトーストが出る — *Write `[clock]` / `bogus = 1`; restart → The file is not applied (the default clock shows) and a toast starts `common.toml:`*

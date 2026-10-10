@@ -1365,6 +1365,10 @@ pub struct App {
     pub pending_bookmark: Option<BookmarkOp>,
 
     pub yank: Yank,
+    /// The status bar's clock and the language its words use, from the
+    /// shared common.toml (`set_common`); the defaults until then.
+    pub clock: ito_common::Clock,
+    pub lang: String,
     pub preview: PreviewSlot,
     pub max_preview: bool,
     /// The terminal pane has the window. A third of the height is right for a
@@ -1520,6 +1524,8 @@ impl App {
         let render_markdown = cfg.ui.render_markdown;
 
         let mut app = Self {
+            clock: ito_common::Clock::default(),
+            lang: "en".into(),
             cfg,
             tabs: vec![tab],
             active: 0,
@@ -1615,6 +1621,27 @@ impl App {
             app.warn(text);
         }
         app
+    }
+
+    /// Take the clock and the language from the shared common.toml
+    /// (`ito_common`, uchmk's common spec). Read once at start-up like
+    /// filer.toml; a problem in the file is a toast, and the defaults stay.
+    pub fn load_common(&mut self) {
+        let Some(base) = ito_common::base_dir() else { return };
+        match ito_common::Common::read(&base) {
+            Ok((common, warnings)) => {
+                self.clock = common.clock_or(None);
+                let lang = match common.language.as_deref() {
+                    Some(l) if l != "auto" => l.to_owned(),
+                    _ => ito_common::os_language().unwrap_or_default(),
+                };
+                self.lang = if lang.starts_with("ja") { "ja".into() } else { "en".into() };
+                if let Some(w) = warnings.first() {
+                    self.warn(format!("common.toml: {w}"));
+                }
+            }
+            Err(e) => self.warn(format!("common.toml: {e}")),
+        }
     }
 
     /// Treat the directory the app opened on as unproven, the way a typed `cd`

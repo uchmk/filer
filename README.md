@@ -356,6 +356,25 @@ Bold text (headings, `**strong**`) uses a real bold face: the `-Bold` sibling of
 (e.g. `HackGen35ConsoleNF-Bold.ttf`) or Meiryo / Yu Gothic Bold. Without one it is faked by
 drawing the glyphs twice.
 
+### common.toml (the clock)
+
+The status bar's right end shows a clock, set in the config shared by every uchmk app
+(`%APPDATA%\uchmk\common.toml` on Windows, `~/Library/Application Support/uchmk/common.toml` on macOS,
+`$XDG_CONFIG_HOME/uchmk/common.toml` on Linux; `UCHMK_CONFIG_DIR` moves the folder). It is read once at start-up;
+there is no override in `filer.toml`.
+
+```toml
+language = "auto"          # auto / en / ja: with "ja" the weekday reads (月)
+[clock]
+show = true
+hour24 = true
+date = true
+date_format = "YYYY/MM/DD"  # YYYY/MM/DD, YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY
+weekday = true
+```
+
+Rest the pointer on the clock for the whole date.
+
 ### line_args (opening an editor at a line)
 
 Opening at a line (see [Outline](#outline-contents)) knows a list of editors by heart. Any other

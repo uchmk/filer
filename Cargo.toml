@@ -1,6 +1,6 @@
 [package]
 name = "filer"
-version = "0.93.10"
+version = "0.94.0"
 edition = "2021"
 rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"
@@ -50,6 +50,9 @@ ito-layout = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b
 ito-ipc = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f" }
 # The rule a search query matches by (`f` `s` `S` `/` `?` `F`), shared with tsumugi; the same commit as the others.
 ito-match = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f" }
+# The clock at the status bar's right end and the `[clock]` / `language` of the
+# config shared by every uchmk app (common.toml); the same commit as the others.
+ito-common = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f", features = ["clock"] }
 ito-mcp = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f" }
 # Already in the tree: syntect's `default-fancy` builds it. Naming it here is
 # what lets bulk rename use it, and adds no crate to the build.

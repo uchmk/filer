@@ -1635,3 +1635,18 @@ press these in: `src\main.rs`, `src\lib.rs`, `docs\domain-notes.md`, `a-w-a.txt`
 | 52.27 | `S`, type a word that is in `src/app.rs` (500 KB), `<Enter>`, move to that result (v0.93.5) | The preview opens at the first match at once, uncoloured at first and coloured a moment later without moving. A 2-4 MB source file is shown whole (the part past line 40000 stays plain); the search itself still reads only the first 1 MB of each file |
 | 52.28 | `s`, type `foo`, `<Enter>`; `S`, type `bar`, `<Enter>`; `f`, then `<Up>` (v0.93.5) | `bar` comes back, `<Up>` again `foo`, `<Down>` twice gives back what was typed before the first `<Up>`. The filter follows the text as it changes. Restart filer and open `s`: `<Up>` still brings back `bar`. A file-name prompt (`a`, `r`) has no history |
 | 52.29 | `s`, type a word, `<Enter>`, `s` again; hold `<Up>` (v0.93.6) | The caret stays at the end of the word as the history steps back. It does not jump to the start and back between key repeats |
+
+## 53. The clock at the status bar's right end (v0.94.0)
+
+The clock reads `[clock]` and `language` in the shared `uchmk/common.toml` (`%APPDATA%\uchmk\common.toml` on Windows;
+`UCHMK_CONFIG_DIR` moves the folder). Without the file it shows `2026/10/05 (Mon) 14:32` in 24-hour form. Read once at start-up
+(watching the file arrives with a later version).
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 53.1 | Start filer with no `common.toml` | The clock is the last thing on the status bar's right, after the position (`3/12`), in the same font as the bar and the strongest text colour (brighter than the dim items to its left). It matches the system date and time |
+| 53.2 | Rest the pointer on the clock | A tooltip gives the whole date: `Saturday, 10 October 2026` |
+| 53.3 | Watch the clock across a minute change, with no key pressed | It changes at the minute (within a second), without any input |
+| 53.4 | Write `language = "ja"` and `[clock]` with `hour24 = false`, `date_format = "YYYY-MM-DD"`, `weekday = false` in `common.toml`; restart | `2026-10-10 2:32 PM`-like text (no weekday); with `weekday = true` it reads `(土)`; the tooltip reads `2026年10月10日 土曜日` |
+| 53.5 | Write `[clock]` / `show = false`; restart | No clock; the other right-hand items move back to the edge |
+| 53.6 | Write `[clock]` / `bogus = 1`; restart | The file is not applied (the default clock shows) and a toast starts `common.toml:` |

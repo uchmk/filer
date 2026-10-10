@@ -377,6 +377,7 @@ fn main() -> eframe::Result<()> {
             let mcp = cfg.mcp.enable.then(|| mcp::listen(cc.egui_ctx.clone()));
             let mut a = App::new(cfg, start, cc.egui_ctx.clone());
             a.start_unproven(home);
+            a.load_common();
             a.bold_font = has_bold;
             a.start_scaled(std::env::var("FILER_SCALE").ok().as_deref());
             a.cwd_file = cli.cwd_file;

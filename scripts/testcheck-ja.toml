@@ -242,6 +242,10 @@ note = "プロンプトの移動・出力のコピー・左の帯は、シェル
 title = "Claude Code が窓を読む（v0.85.0）"
 note = "確かめる `filer.exe` をフルパスで、`claude` を動かすターミナルから 1 度だけ登録する: `claude mcp add filer -- \"<フォルダ>\\filer.exe\" mcp`。終わったら `claude mcp remove filer` で外す。持ち主の窓と扉を奪い合わないよう、確かめる窓と `claude` の両方を、同じ値の `FILER_ADDRESS`（自分用のパス）を付けて起動する。`claude` の画面に打てないときは、`claude -p \"hi\" --mcp-config <ファイル> --output-format stream-json --verbose` の `init` イベントで 50.1 が読める: `mcp_servers` に `filer` が `connected` で、`tools` に `mcp__filer__filer_state` と `mcp__filer__filer_reveal` がある。"
 
+[section.53]
+title = "ステータスバー右端の時計（v0.94.0）"
+note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を読む（Windows は `%APPDATA%\\uchmk\\common.toml`、`UCHMK_CONFIG_DIR` でフォルダを変えられる）。ファイルが無ければ 24 時間表記の `2026/10/05 (Mon) 14:32`。起動時に 1 度だけ読む（見張りは後の版）。"
+
 [row]
 # 1. ターミナルペイン
 "1.1" = '`<C-t>` を一覧から押す → 下部にシェルが開き、一覧が表示しているディレクトリに既にいる'
@@ -902,3 +906,9 @@ note = "確かめる `filer.exe` をフルパスで、`claude` を動かすタ�
 "50.5" = '`filer.toml` に `[mcp]` / `enable = false` を書いて起動し、`filer_state` を頼む → 同じ `filer is not running …`: 窓は扉を開かない。終わったら行を消す'
 "50.6" = '別々のフォルダで filer の窓を 2 つ開き、`filer_state` を頼む。1 つ目の窓を閉じて 30 秒待ち、もう一度 → 1 回目は 1 つ目の窓のフォルダ。閉じたあとの 2 回目は 2 つ目の窓のフォルダ'
 "50.7" = '`filer.com` で登録し直し（`claude mcp add filer -- "<フォルダ>\filer.com" mcp`）、50.2 をする → 同じ答え: `filer.com` が `mcp` を入出力ごと `filer.exe` に渡す。Claude Code が起動するときにコンソールの窓は出ない'
+"53.1" = '`common.toml` なしで filer を起動する → 時計がステータスバーの右端、位置（`3/12`）の後ろに、バーと同じ字体・一番強い文字の色（左の薄い項目より明るい）で出る。システムの日時と一致する'
+"53.2" = '時計にポインタを載せる → ツールチップに日付が全部出る（`Saturday, 10 October 2026`）'
+"53.3" = '何も押さずに分が変わるのを見る → 分が変わるとき（1 秒以内）に、入力なしで時計が変わる'
+"53.4" = '`common.toml` に `language = "ja"` と `[clock]`（`hour24 = false`、`date_format = "YYYY-MM-DD"`、`weekday = false`）を書いて再起動する → 曜日なしの `2026-10-10 2:32 PM` のような文。`weekday = true` なら `(土)`。ツールチップは `2026年10月10日 土曜日`'
+"53.5" = '`[clock]` / `show = false` を書いて再起動する → 時計が出ず、右の項目が端まで戻る'
+"53.6" = '`[clock]` / `bogus = 1` を書いて再起動する → ファイルは当たらず（既定の時計が出る）、`common.toml:` で始まるトーストが出る'

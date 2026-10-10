@@ -57,7 +57,7 @@
   ページは General（Language と CLOCK のカードは共通の部品）、Theme（共通のページ。見本は filer の一覧とプレビューを今の色で描く）、filer.toml の主な行、
   Advanced（設定のフォルダのパスと Copy・Open、読み込みの警告）。filer.toml への書き込みは toml_edit でコメントを残し、UI ではないスレッドで行う。
   テーマと yazi の `theme.toml` の関係が決まるまで、Theme のページは作らずに残してよい（要確認: Q98）
-- [ ] ステータスバーの右端に時計を出す: 字体は一覧と同じ、色は一番強い文字の色。ポインタを載せると日付を全部出す。分が変わるときだけ再描画する（`Clock::next_minute`）。
+- [x] （v0.94.0。`App::load_common` が起動時に読み、`draw_status` が右端に描く。見張りは次の項目）ステータスバーの右端に時計を出す: 字体は一覧と同じ、色は一番強い文字の色。ポインタを載せると日付を全部出す。分が変わるときだけ再描画する（`Clock::next_minute`）。
   `[clock]` は common.toml だけから読む（filer.toml に上書きは持たない）。
 - [ ] common.toml の見張りを足し、言語・テーマ・時計を再起動なしで当て直す（`ito_common::watch`。上の「多言語対応」の節と同じ `language` を読む）。
 - [ ] common.toml のテーマを filer の色に当てる（要確認: Q98）
