@@ -2358,9 +2358,65 @@ impl App {
     /// its first match, a few lines down from the top so the lines before it
     /// show.
     fn show_first_match(&mut self) {
-        if let Some(&first) = self.body_matches().first() {
-            self.tabs[self.active].preview_offset = first.saturating_sub(3);
+        let ms = self.body_matches();
+        let last = self.tabs[self.active].finder.as_mut().is_some_and(|f| std::mem::take(&mut f.last));
+        if let Some(&line) = if last { ms.last() } else { ms.first() } {
+            self.show_match(line);
         }
+    }
+
+    /// Scroll to a line of the preview that a body search found, and remember
+    /// it so `n` / `N` go on from there.
+    fn show_match(&mut self, line: usize) {
+        let tab = &mut self.tabs[self.active];
+        tab.preview_offset = line.saturating_sub(3);
+        if let Some(f) = tab.finder.as_mut() {
+            f.at = Some(line);
+        }
+    }
+
+    /// `n` / `N` in the result of `S` or `F`: the next / previous matching line
+    /// of the file on show, and past its last / first one the next / previous
+    /// file in the list. False when this is not such a view.
+    fn find_in_body(&mut self, prev: bool) -> bool {
+        let Some(finder) = self.tabs[self.active].finder.clone() else { return false };
+        if !finder.body || !self.in_search_view() {
+            return false;
+        }
+        let Some(e) = self.tabs[self.active].current.hovered().cloned() else { return true };
+        // A file crossed into is still on its way; going on now would step over
+        // it on the old file's lines.
+        let landed = self.preview.key.as_ref().is_some_and(|k| k.path == e.path) && !self.preview.in_flight;
+        if !e.is_dir_like() && !landed {
+            return true;
+        }
+        let ms = self.body_matches();
+        let next = if prev {
+            ms.iter().rev().find(|&&m| finder.at.is_none_or(|a| m < a))
+        } else {
+            ms.iter().find(|&&m| finder.at.is_none_or(|a| m > a))
+        };
+        if let Some(&line) = next {
+            self.show_match(line);
+            return true;
+        }
+        let tab = &mut self.tabs[self.active];
+        let len = tab.current.view.len();
+        if len <= 1 {
+            // The one file there is: round again inside it.
+            if let Some(&line) = if prev { ms.last() } else { ms.first() } {
+                self.show_match(line);
+            }
+            return true;
+        }
+        let cursor = tab.current.cursor;
+        tab.current.cursor = if prev { (cursor + len - 1) % len } else { (cursor + 1) % len };
+        tab.sync_visual();
+        if let Some(f) = tab.finder.as_mut() {
+            f.at = None;
+            f.last = prev;
+        }
+        true
     }
 
     /// The outline of the preview as it is shown: declarations in source
@@ -4454,6 +4510,9 @@ impl App {
     }
 
     fn find_arrow(&mut self, prev: bool) {
+        if self.find_in_body(prev) {
+            return;
+        }
         let Some(finder) = self.tabs[self.active].finder.clone() else { return };
         let tab = &mut self.tabs[self.active];
         let len = tab.current.view.len();
@@ -4675,7 +4734,7 @@ impl App {
                 if title.is_some() {
                     return;
                 }
-                tab.finder = Some(Finder { query, matcher: matcher.clone(), prev, names: true, body: false });
+                tab.finder = Some(Finder { query, matcher: matcher.clone(), prev, names: true, ..Default::default() });
                 let Some(matcher) = matcher else { return };
                 let len = tab.current.view.len();
                 let start = tab.current.cursor;
@@ -5890,6 +5949,7 @@ impl App {
             prev: false,
             names: via != SearchVia::Content,
             body: via != SearchVia::Name,
+            ..Default::default()
         };
         let handle = crate::search::spawn(&root, matcher, query, via, show_hidden, 5000, move || {
             ctx.request_repaint()
@@ -11210,6 +11270,94 @@ mod find_marks {
         a.preview.state = text(&["x", "x", "x", "x", "x", "x", "x", "x", "needle"]);
         a.show_first_match();
         assert_eq!(a.tabs[a.active].preview_offset, 5);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Puts the hovered file's lines in the preview as the worker's answer
+    /// would, and opens it at its first (or, after `N`, last) match.
+    fn land(a: &mut App, lines: &[&str]) {
+        let path = a.tabs[a.active].current.hovered().unwrap().path.clone();
+        a.preview.key = Some(preview::Key { path, len: 0, mtime: None, box_size: (0, 0), cols: 0, n: 0 });
+        a.preview.in_flight = false;
+        a.preview.state = text(lines);
+        a.show_first_match();
+    }
+
+    fn at(a: &App) -> Option<usize> {
+        a.tabs[a.active].finder.as_ref().and_then(|f| f.at)
+    }
+
+    fn name(a: &App) -> String {
+        a.tabs[a.active].current.hovered().unwrap().name.clone()
+    }
+
+    /// `n` / `N` after `S` walk the matching lines of the file on show, step
+    /// over to the next / previous file past its last / first one, and wrap
+    /// round the list.
+    #[test]
+    fn n_and_shift_n_walk_the_body_across_files() {
+        const A: [&str; 7] = ["x", "needle", "x", "x", "x", "x", "needle"];
+        const B: [&str; 3] = ["needle", "y", "needle"];
+        let dir = crate::util::test_dir("find-marks-walk");
+        for n in ["a.txt", "b.txt"] {
+            std::fs::write(dir.join(n), "x").unwrap();
+        }
+        let mut a = app_in(&dir);
+        a.start_search("needle", SearchVia::Content);
+        a.search = None;
+        let entries = ["a.txt", "b.txt"].iter().map(|n| Entry::from_path(dir.join(n)).unwrap()).collect();
+        let mut found = Folder::from_entries(dir.join("search"), Arc::new(entries), true);
+        found.state = LoadState::Ready;
+        a.tabs[a.active].current = found;
+        assert!(a.in_search_view());
+
+        land(&mut a, &A);
+        assert_eq!((name(&a), at(&a)), ("a.txt".into(), Some(1)), "the file opens at its first match");
+        a.act(Act::FindArrow { prev: false });
+        assert_eq!(at(&a), Some(6));
+        assert_eq!(a.tabs[a.active].preview_offset, 3);
+
+        a.act(Act::FindArrow { prev: false });
+        assert_eq!(name(&a), "b.txt", "past the last match, the next file");
+        a.act(Act::FindArrow { prev: false });
+        assert_eq!(name(&a), "b.txt", "and a press before it has landed waits");
+        land(&mut a, &B);
+        assert_eq!(at(&a), Some(0));
+        a.act(Act::FindArrow { prev: false });
+        assert_eq!(at(&a), Some(2));
+
+        a.act(Act::FindArrow { prev: true });
+        assert_eq!(at(&a), Some(0), "N goes back up the same file");
+        a.act(Act::FindArrow { prev: true });
+        assert_eq!(name(&a), "a.txt", "and before the first match, to the file before");
+        land(&mut a, &A);
+        assert_eq!(at(&a), Some(6), "which opens at its last match");
+        a.act(Act::FindArrow { prev: true });
+        assert_eq!(at(&a), Some(1));
+
+        a.act(Act::FindArrow { prev: true });
+        assert_eq!(name(&a), "b.txt", "the list is a ring");
+        land(&mut a, &B);
+        assert_eq!(at(&a), Some(2));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A name search keeps `n` for names, and the body of the file on show is
+    /// left alone.
+    #[test]
+    fn a_name_search_still_steps_over_names() {
+        let dir = crate::util::test_dir("find-marks-names");
+        for n in ["one.log", "two.txt", "three.log"] {
+            std::fs::write(dir.join(n), "x").unwrap();
+        }
+        let mut a = app_in(&dir);
+        let entries = ["one.log", "three.log", "two.txt"].iter().map(|n| Entry::from_path(dir.join(n)).unwrap()).collect();
+        a.tabs[a.active].current = Folder::from_entries(dir.clone(), Arc::new(entries), false);
+        typed(&mut a, false, r"\.log$");
+        assert_eq!(name(&a), "one.log");
+        a.act(Act::FindArrow { prev: false });
+        assert_eq!(name(&a), "three.log");
+        assert!(!a.find_in_body(false));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

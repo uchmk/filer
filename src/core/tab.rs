@@ -25,6 +25,10 @@ pub struct Finder {
     pub names: bool,
     /// The lines of the preview are searched too (`S` and `F`), and get marked.
     pub body: bool,
+    /// The line of the file on show that `n` / `N` last stopped on.
+    pub at: Option<usize>,
+    /// `N` stepped back into a file: it opens at its last match, not its first.
+    pub last: bool,
 }
 
 /// A jump whose directory has not been listed yet. Nothing on disk is touched

@@ -1619,3 +1619,6 @@ press these in: `src\main.rs`, `src\lib.rs`, `docs\domain-notes.md`, `a-w-a.txt`
 | 52.12 | `/`, type `\.rs$` (v0.90.0) | The cursor jumps to the first name ending in `.rs`, and every name ending in `.rs` is coloured as you type. `<Esc>` or `<Enter>` keeps the colours while the search is the current one |
 | 52.13 | `/`, type `README` then `readme` (v0.90.0) | `README` (a capital) finds only names with that case; `readme` finds either |
 | 52.14 | `/`, type `a(` (v0.90.0) | The prompt reads `Find next -- …` with the reason and the cursor does not move. Delete the `(` and it works again. `?` does the same with `Find previous -- …` |
+| 52.15 | `S`, type a word that occurs several times in some files, `<Enter>`, then `n` (v0.91.0) | The preview scrolls to the next matching line of the file on show, the match coloured, and `N` goes back. The list cursor stays |
+| 52.16 | Keep pressing `n` past the last match of the file (v0.91.0) | The cursor moves to the next file and its preview opens at its first match. `N` past the first match goes to the file before and opens at its last match. Past the last file it wraps to the first |
+| 52.17 | `s`, type a name, `<Enter>`, then `n` (v0.91.0) | Still steps over names as before, the preview body is left alone. `F` + `n` walks the body as `S` does |

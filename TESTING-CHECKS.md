@@ -7,12 +7,12 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 569 件（TESTING.md の全 762 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 572 件（TESTING.md の全 765 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
 
-未訳 27 件は原文のまま `〔未訳〕` を付けて出している。
+未訳 30 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -877,3 +877,6 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [ ] **52.12** `/`, type `\.rs$` (v0.90.0) → The cursor jumps to the first name ending in `.rs`, and every name ending in `.rs` is coloured as you type. `<Esc>` or `<Enter>` keeps the colours while the search is the current one 〔未訳〕
 - [ ] **52.13** `/`, type `README` then `readme` (v0.90.0) → `README` (a capital) finds only names with that case; `readme` finds either 〔未訳〕
 - [ ] **52.14** `/`, type `a(` (v0.90.0) → The prompt reads `Find next -- …` with the reason and the cursor does not move. Delete the `(` and it works again. `?` does the same with `Find previous -- …` 〔未訳〕
+- [ ] **52.15** `S`, type a word that occurs several times in some files, `<Enter>`, then `n` (v0.91.0) → The preview scrolls to the next matching line of the file on show, the match coloured, and `N` goes back. The list cursor stays 〔未訳〕
+- [ ] **52.16** Keep pressing `n` past the last match of the file (v0.91.0) → The cursor moves to the next file and its preview opens at its first match. `N` past the first match goes to the file before and opens at its last match. Past the last file it wraps to the first 〔未訳〕
+- [ ] **52.17** `s`, type a name, `<Enter>`, then `n` (v0.91.0) → Still steps over names as before, the preview body is left alone. `F` + `n` walks the body as `S` does 〔未訳〕
