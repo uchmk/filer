@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use crossbeam_channel::Receiver;
 
 use crate::config::cmd::SearchVia;
-use tsumugi_match::Matcher;
+use ito_match::Matcher;
 
 pub enum Msg {
     Found(Vec<PathBuf>),

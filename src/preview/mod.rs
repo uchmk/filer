@@ -103,7 +103,7 @@ impl Doc {
     /// finds an `a` and a `b` on different lines), so a match is found where
     /// the source line has it, however the pane wraps it. The quote bars and
     /// list markers in front of a line are not text and never match.
-    pub fn marks(&self, m: &tsumugi_match::Matcher, from: usize, to: usize) -> Vec<Vec<std::ops::Range<usize>>> {
+    pub fn marks(&self, m: &ito_match::Matcher, from: usize, to: usize) -> Vec<Vec<std::ops::Range<usize>>> {
         let to = to.min(self.lines.len());
         let mut out = vec![Vec::new(); to.saturating_sub(from)];
         let mut at = from.min(to);

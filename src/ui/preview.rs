@@ -7,7 +7,7 @@ use crate::app::PreviewState;
 use crate::config::theme::Theme;
 use crate::preview::{cells, outline_cols, Doc, Extent, LineKind, MapRow, Payload, Span, TocEntry};
 use std::ops::Range;
-use tsumugi_match::Matcher;
+use ito_match::Matcher;
 
 pub struct PreviewStyle<'a> {
     pub theme: &'a Theme,

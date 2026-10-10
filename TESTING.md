@@ -747,7 +747,7 @@ with their case kept. What is left for an eye in 24.1 is the column arithmetic -
 are two cells wide and the rows line up. 24.2 is asserted by the harness (the long name is cut down
 to its column and still ends in `name.txt`) since v0.57.0 cuts in the middle of the stem (Q34); the
 ARM64 machine read the same on screen (#126). 24.4 needs a shell in the terminal pane; the quoting
-it is really about is unit-tested in tsumugi-pane (`a_path_reaches_the_shell_as_one_word`), over
+it is really about is unit-tested in ito-pane (`a_path_reaches_the_shell_as_one_word`), over
 the same `'` the fixture has. 24.5 needs the recycle bin. 24.7 is automated
 (`ui::awkward_names::neighbouring_long_names_in_the_parent_column_read_apart`): two long names
 that share a start are cut so that each still shows what tells it apart.
@@ -1532,7 +1532,7 @@ The PE machine of a file, for 48.3:
 
 ## 49. What the pane gained from tsumugi (v0.79.0)
 
-The pane's code lives in tsumugi's `tsumugi-pane` crate, and v0.79.0 moved filer to a newer one:
+The pane's code lives in the shared `ito-pane` crate (tsumugi's `tsumugi-pane` until v0.93.10), and v0.79.0 moved filer to a newer one:
 prompt jumps, copying a command's output and the margin bars all read the prompt marks a shell
 writes (OSC 133), links are opened by Ctrl+click, and pictures (sixel, kitty, iTerm2) are drawn in
 the cells. filer's own shell sets no prompt marks, so give pwsh a prompt that writes them first

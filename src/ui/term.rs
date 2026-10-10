@@ -1,4 +1,4 @@
-//! The terminal pane, drawn by `tsumugi-pane`'s egui view in the theme's
+//! The terminal pane, drawn by `ito-pane`'s egui view in the theme's
 //! colours. What only filer can do -- give the pane the keys, the clipboard,
 //! and saying so when the clipboard will not open -- is done here with what
 //! the view hands back.
@@ -10,8 +10,8 @@ use crate::config::theme::Theme;
 
 /// The pane's colours out of the theme: the pane sits on `bg_alt`, a selection
 /// takes the list's cursor-row background, and the cursor the `cwd` colour.
-fn palette(theme: &Theme) -> tsumugi_pane::Palette {
-    tsumugi_pane::Palette {
+fn palette(theme: &Theme) -> ito_pane::Palette {
+    ito_pane::Palette {
         bg: theme.bg_alt,
         fg: theme.fg,
         fg_dim: theme.fg_dim,
@@ -26,9 +26,9 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let pal = palette(&app.cfg.theme);
     // A panel over the pane owns the wheel; see `Overlay::is_modal`. Letting
     // go of a selection always copies it (below), and filer has no triggers.
-    let opts = tsumugi_pane::ViewOptions { focused: app.term_focus, wheel: !app.overlay.is_modal(), copy_on_select: true, highlights: &[] };
-    let mut state = tsumugi_pane::ViewState { scroll_rows: app.term_scroll_rows };
-    let shown = tsumugi_pane::show(ui, app.term.as_mut(), &mut state, rect, f, row_h, &pal, opts);
+    let opts = ito_pane::ViewOptions { focused: app.term_focus, wheel: !app.overlay.is_modal(), copy_on_select: true, highlights: &[] };
+    let mut state = ito_pane::ViewState { scroll_rows: app.term_scroll_rows };
+    let shown = ito_pane::show(ui, app.term.as_mut(), &mut state, rect, f, row_h, &pal, opts);
     app.term_scroll_rows = state.scroll_rows;
     if shown.focus {
         app.term_focus = true;
@@ -58,12 +58,12 @@ pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     // a path is shown in the list -- this is a file manager, and the list is
     // where the next thing to do with a file is one key away.
     match shown.open {
-        Some(tsumugi_pane::Link::Url(url)) => {
+        Some(ito_pane::Link::Url(url)) => {
             if let Err(e) = crate::exec::open_url(&url) {
                 app.error(format!("Could not open {url}: {e}"));
             }
         }
-        Some(tsumugi_pane::Link::Path { path, .. }) => {
+        Some(ito_pane::Link::Path { path, .. }) => {
             // Relative to the shell, which is where it was printed.
             let base = app.term.as_ref().and_then(|t| t.shell_cwd.clone());
             let target = match base {

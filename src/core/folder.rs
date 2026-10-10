@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::config::cmd::Step;
 use crate::fs::{Entry, SortSpec};
 
-use tsumugi_match::Matcher;
+use ito_match::Matcher;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LoadState {

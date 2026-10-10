@@ -4830,7 +4830,7 @@ impl App {
                 let query = ov.text.clone();
                 // As `f` does: half-typed, `(` is not an expression yet, so
                 // nothing moves and the prompt says why until the next key.
-                let (title, matcher) = match tsumugi_match::Matcher::new(&query) {
+                let (title, matcher) = match ito_match::Matcher::new(&query) {
                     _ if query.is_empty() => (None, None),
                     Ok(m) => (None, Some(m)),
                     Err(e) => (Some(e), None),
@@ -6063,8 +6063,8 @@ impl App {
         // A query that is not a regular expression says why and starts nothing;
         // `F` is the one search that takes letters in order instead.
         let matcher = match via {
-            SearchVia::Fuzzy => tsumugi_match::Matcher::fuzzy(query),
-            _ => match tsumugi_match::Matcher::new(query) {
+            SearchVia::Fuzzy => ito_match::Matcher::fuzzy(query),
+            _ => match ito_match::Matcher::new(query) {
                 Ok(m) => m,
                 Err(e) => return self.error(format!("Not a regular expression: {e}")),
             },
@@ -11478,7 +11478,7 @@ mod find_marks {
             ..Default::default()
         };
         let doc = Doc { lines: vec![line("one", false), line("an auto", false), line("matic list of ids", true), line("tail", false)], ..Default::default() };
-        let m = tsumugi_match::Matcher::new("auto.*ids").unwrap();
+        let m = ito_match::Matcher::new("auto.*ids").unwrap();
         let one = |a: usize, b: usize| std::iter::once(a..b).collect::<Vec<_>>();
         assert_eq!(doc.marks(&m, 1, 3), [one(3, 7), one(0, 17)]);
         assert_eq!(doc.marks(&m, 2, 3), [one(0, 17)], "asked for the second half alone");

@@ -55,7 +55,7 @@ pub fn draw(
     st: &ListStyle<'_>,
     flags: &dyn Fn(&Entry) -> RowFlags,
     hits: bool,
-    find: Option<&tsumugi_match::Matcher>,
+    find: Option<&ito_match::Matcher>,
 ) -> ListResult {
     let painter = ui.painter_at(rect);
     let rows = ((rect.height() / st.row_h).floor() as usize).max(1);

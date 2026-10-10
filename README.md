@@ -138,7 +138,7 @@ terminal.
 
 The border above the pane can be **dragged** to change its height, and double-clicked to halve the
 list and the pane (Q94). The height stays while the window is open and is not saved: the next window
-starts at a third again. The border is the divider of tsumugi's own panes (`tsumugi-layout`). The
+starts at a third again. The border is the divider of tsumugi's own panes (`ito-layout`). The
 columns keep `[mgr] ratio` from `yazi.toml`.
 
 When a program in the pane misbehaves, two tools show what actually passed between them. Set
@@ -1737,12 +1737,12 @@ src/
   main.rs        window, fonts, icon, CLI, input routing
   app.rs         state and the Act dispatcher — every key and click goes through it
   config/        yazi.toml, keymap.toml, theme.toml, key notation, command parsing
-  core/          folder + cursor state, tabs (the matching rule is the tsumugi-match crate)
+  core/          folder + cursor state, tabs (the matching rule is the ito-match crate)
   fs/            entries, sorting, scan pool, file operations, watcher, archives, git status, undelete
   rename.rs      bulk-rename rules and the order a batch of renames has to happen in
   diff.rs        comparing two files line by line, and the worker that reads them
   preview/       preview worker: text + syntect, Markdown layout, images, SVG, fonts, shell thumbnails, minimap rows
-  terminal.rs    the embedded shell, from the tsumugi-pane crate shared with tsumugi
+  terminal.rs    the embedded shell, from the ito-pane crate shared with tsumugi
   ui/            painting: columns, preview pane, terminal pane, overlays
   spot.rs        the spot panel's providers (<Tab>)
   search.rs      recursive name/content search

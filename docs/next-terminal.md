@@ -22,7 +22,7 @@ filer のターミナルペインは、実機で叩かれながら一番難し�
 
 ## 先にやること: ペインを独立したクレートに切り出す
 
-**v0.78.125 で済んだ**（2026-10-05）。クレートは uchmk/tsumugi の `crates/tsumugi-pane`、経緯は tsumugi の `docs/pane-extraction.md`。下は着手前に書いた構想。
+**v0.78.125 で済んだ**（2026-10-05）。クレートは uchmk/tsumugi の `crates/tsumugi-pane`（v0.93.10 からは uchmk/ito の `crates/ito-pane`）、経緯は tsumugi の `docs/pane-extraction.md`。下は着手前に書いた構想。
 
 filer の中にあるうちに、ペインの部分をクレート（たとえば `filer-term`）に分ける。filer はそれを使う側の 1 つになり、
 新しいターミナルはもう 1 つの使う側になる。ペインに入れた直しが両方に効く。

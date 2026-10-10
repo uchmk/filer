@@ -1356,7 +1356,7 @@ checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
 
 [[package]]
 name = "filer"
-version = "0.93.9"
+version = "0.93.10"
 dependencies = [
  "ab_glyph",
  "alacritty_terminal",
@@ -1370,6 +1370,11 @@ dependencies = [
  "flate2",
  "ignore",
  "image",
+ "ito-ipc",
+ "ito-layout",
+ "ito-match",
+ "ito-mcp",
+ "ito-pane",
  "notify",
  "open",
  "pulldown-cmark",
@@ -1380,11 +1385,6 @@ dependencies = [
  "tar",
  "toml",
  "trash",
- "tsumugi-ipc",
- "tsumugi-layout",
- "tsumugi-match",
- "tsumugi-mcp",
- "tsumugi-pane",
  "ttf-parser",
  "two-face",
  "unicode-width",
@@ -2072,6 +2072,60 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
 dependencies = [
  "either",
+]
+
+[[package]]
+name = "ito-ipc"
+version = "0.2.0"
+source = "git+https://github.com/uchmk/ito?rev=90314f94820ed2b1c08b8610c0cf7bad59b07f7f#90314f94820ed2b1c08b8610c0cf7bad59b07f7f"
+dependencies = [
+ "postcard",
+ "serde",
+ "windows",
+]
+
+[[package]]
+name = "ito-layout"
+version = "0.2.0"
+source = "git+https://github.com/uchmk/ito?rev=90314f94820ed2b1c08b8610c0cf7bad59b07f7f#90314f94820ed2b1c08b8610c0cf7bad59b07f7f"
+dependencies = [
+ "egui",
+]
+
+[[package]]
+name = "ito-match"
+version = "0.2.0"
+source = "git+https://github.com/uchmk/ito?rev=90314f94820ed2b1c08b8610c0cf7bad59b07f7f#90314f94820ed2b1c08b8610c0cf7bad59b07f7f"
+dependencies = [
+ "fancy-regex",
+]
+
+[[package]]
+name = "ito-mcp"
+version = "0.2.0"
+source = "git+https://github.com/uchmk/ito?rev=90314f94820ed2b1c08b8610c0cf7bad59b07f7f#90314f94820ed2b1c08b8610c0cf7bad59b07f7f"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "ito-pane"
+version = "0.2.0"
+source = "git+https://github.com/uchmk/ito?rev=90314f94820ed2b1c08b8610c0cf7bad59b07f7f#90314f94820ed2b1c08b8610c0cf7bad59b07f7f"
+dependencies = [
+ "alacritty_terminal",
+ "crossbeam-channel",
+ "egui",
+ "egui-wgpu",
+ "encoding_rs",
+ "harfrust",
+ "image",
+ "miniz_oxide 0.8.9",
+ "polling",
+ "regex",
+ "skrifa",
+ "vello_cpu",
+ "windows",
 ]
 
 [[package]]
@@ -4135,60 +4189,6 @@ dependencies = [
  "percent-encoding",
  "scopeguard",
  "urlencoding",
- "windows",
-]
-
-[[package]]
-name = "tsumugi-ipc"
-version = "0.79.0"
-source = "git+https://github.com/uchmk/tsumugi?rev=de184944bbec9bf1c690e8d0d4ebe853f6c86a02#de184944bbec9bf1c690e8d0d4ebe853f6c86a02"
-dependencies = [
- "postcard",
- "serde",
- "windows",
-]
-
-[[package]]
-name = "tsumugi-layout"
-version = "0.79.0"
-source = "git+https://github.com/uchmk/tsumugi?rev=de184944bbec9bf1c690e8d0d4ebe853f6c86a02#de184944bbec9bf1c690e8d0d4ebe853f6c86a02"
-dependencies = [
- "egui",
-]
-
-[[package]]
-name = "tsumugi-match"
-version = "0.79.0"
-source = "git+https://github.com/uchmk/tsumugi?rev=de184944bbec9bf1c690e8d0d4ebe853f6c86a02#de184944bbec9bf1c690e8d0d4ebe853f6c86a02"
-dependencies = [
- "fancy-regex",
-]
-
-[[package]]
-name = "tsumugi-mcp"
-version = "0.79.0"
-source = "git+https://github.com/uchmk/tsumugi?rev=de184944bbec9bf1c690e8d0d4ebe853f6c86a02#de184944bbec9bf1c690e8d0d4ebe853f6c86a02"
-dependencies = [
- "serde_json",
-]
-
-[[package]]
-name = "tsumugi-pane"
-version = "0.79.0"
-source = "git+https://github.com/uchmk/tsumugi?rev=de184944bbec9bf1c690e8d0d4ebe853f6c86a02#de184944bbec9bf1c690e8d0d4ebe853f6c86a02"
-dependencies = [
- "alacritty_terminal",
- "crossbeam-channel",
- "egui",
- "egui-wgpu",
- "encoding_rs",
- "harfrust",
- "image",
- "miniz_oxide 0.8.9",
- "polling",
- "regex",
- "skrifa",
- "vello_cpu",
  "windows",
 ]
 

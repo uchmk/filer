@@ -89,7 +89,7 @@ Claude Code ──stdio(JSON-RPC)── filer mcp ──名前付きパイプ / 
 
 ## 使い回しの形（共有のクレート）
 
-`tsumugi-pane` と同じく tsumugi のリポジトリの `crates/` に置き、filer は `Cargo.toml` の `rev` で固定して読む。
+`tsumugi-pane` と同じく tsumugi のリポジトリの `crates/` に置き、filer は `Cargo.toml` の `rev` で固定して読む（v0.93.10 から、どれも uchmk/ito の `ito-*`）。
 
 | クレート（仮名） | 中身 | 出どころ |
 | --- | --- | --- |

@@ -45,21 +45,21 @@
 
 ## 設定の画面・テーマ・時計（uchmk の共通仕様、2026-10-10、持ち主の希望）
 
-持ち主は filer にも tsumugi・mimamori と同じ設定の画面を足したい。uchmk のアプリの共通仕様は tsumugi の
-[docs/common-spec.md](https://github.com/uchmk/tsumugi/blob/main/docs/common-spec.md)（tsumugi v0.81.0、mimamori v0.32.0 が先に従った）:
+持ち主は filer にも tsumugi・mimamori と同じ設定の画面を足したい。uchmk のアプリの共通仕様は ito の
+[docs/common-spec.md](https://github.com/uchmk/ito/blob/main/docs/common-spec.md)（tsumugi v0.81.0、mimamori v0.32.0 が先に従った）:
 共通の設定は `<設定のフォルダ>/uchmk/common.toml`（`language`・`theme`・`dark_theme`・`light_theme`・`[clock]`）、自分のテーマは
-`<設定のフォルダ>/uchmk/themes/*.toml`、アプリは common.toml を 2 秒ごとに見て、変わったらすぐ当てる。共有のクレートは tsumugi の workspace の
-`tsumugi-common`（置き場所・読み書き・時計・見張り）、`tsumugi-theme`（13 の組み込みのテーマと色の読みやすさ）、`tsumugi-prefs`（設定の画面の枠と部品）で、
-`tsumugi-pane` と同じく `Cargo.toml` の `rev` で固定して読む（`rev` を上げるときは 4 つとも揃える）。
+`<設定のフォルダ>/uchmk/themes/*.toml`、アプリは common.toml を 2 秒ごとに見て、変わったらすぐ当てる。共有のクレートは uchmk/ito の
+`ito-common`（置き場所・読み書き・時計・見張り）、`ito-theme`（13 の組み込みのテーマと色の読みやすさ）、`ito-prefs`（設定の画面の枠と部品）で、
+`ito-pane` と同じく `Cargo.toml` の `rev` で固定して読む（`rev` は ito のクレート全部で揃える）。
 
-- [ ] 設定の画面を `tsumugi-prefs` の上に作る: `<P-,>`（Windows / Linux は Ctrl+,、macOS は Cmd+,）で窓いっぱいに開く。左に帯（検索・ページの一覧・下に「Open filer.toml」）、
+- [ ] 設定の画面を `ito-prefs` の上に作る: `<P-,>`（Windows / Linux は Ctrl+,、macOS は Cmd+,）で窓いっぱいに開く。左に帯（検索・ページの一覧・下に「Open filer.toml」）、
   右にページ（題・lead・見出し付きのカード、行の高さ 48）。キーは keymap の新しいセクション（`close`・ページを移る・検索）と `feed_*_key` で、Esc は 2 段。
   ページは General（Language と CLOCK のカードは共通の部品）、Theme（共通のページ。見本は filer の一覧とプレビューを今の色で描く）、filer.toml の主な行、
   Advanced（設定のフォルダのパスと Copy・Open、読み込みの警告）。filer.toml への書き込みは toml_edit でコメントを残し、UI ではないスレッドで行う。
   テーマと yazi の `theme.toml` の関係が決まるまで、Theme のページは作らずに残してよい（要確認: Q98）
 - [ ] ステータスバーの右端に時計を出す: 字体は一覧と同じ、色は一番強い文字の色。ポインタを載せると日付を全部出す。分が変わるときだけ再描画する（`Clock::next_minute`）。
   `[clock]` は common.toml だけから読む（filer.toml に上書きは持たない）。
-- [ ] common.toml の見張りを足し、言語・テーマ・時計を再起動なしで当て直す（`tsumugi_common::watch`。上の「多言語対応」の節と同じ `language` を読む）。
+- [ ] common.toml の見張りを足し、言語・テーマ・時計を再起動なしで当て直す（`ito_common::watch`。上の「多言語対応」の節と同じ `language` を読む）。
 - [ ] common.toml のテーマを filer の色に当てる（要確認: Q98）
 - [ ] README（キー表・設定の画面の節・common.toml）、TESTING.md（設定の画面・時計・common.toml を外で書き換えると tsumugi と mimamori と一緒に変わる行）を更新する。
 
@@ -446,7 +446,7 @@ v0.78.131 で止めていたが、v0.78.132 の規則（`merge-role.md` の 2）
 ## LLM との連携（2026-10-09、持ち主の希望）
 
 filer・tsumugi・これから作るアプリを LLM とつなげたい。ソースを使い回せる形にすることも含めて課題にする（持ち主の言葉）。
-`tsumugi-pane` と同じく、共有のクレートに入れて各アプリが `rev` で固定して読む形が第一候補。
+`ito-pane`（旧 `tsumugi-pane`）と同じく、共有のクレートに入れて各アプリが `rev` で固定して読む形が第一候補。
 
 - [x] （2026-10-09、v0.84.1）案を書く: [docs/llm-integration.md](docs/llm-integration.md)。(a) アプリが MCP サーバーになる・(b) アプリが LLM を呼ぶ・(c) 両方を比べ、
   (a) を読むだけの道具から始めるのを勧めた。GUI は標準入出力を持たないので、同じ exe の `filer mcp` が Claude Code と窓の間の橋になる。
@@ -1293,7 +1293,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
   `filer.exe` は署名が無い（Q14）ので、どう判定されるかは試さないと分からない。
 - [ ] 通ったら、release.yml の Windows の成果物を zip から exe に戻す（zip を残すかも決める）。 【実機】
   2026-10-09、持ち主: 最終的には filer も tsumugi も、これから作る別のアプリも exe 1 つにしたい。方向は決まったので、上の Defender の確認待ち。
-  埋め込みと書き出しは tsumugi でも要るので、共有のクレート（`tsumugi-pane` の側）に置くのがよい。
+  埋め込みと書き出しは tsumugi でも要るので、共有のクレート（ito の `ito-pane` の側）に置くのがよい。
 
 ## GitHub の情報を見る口（Q16）
 

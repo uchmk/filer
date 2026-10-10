@@ -22,9 +22,9 @@ use std::time::Duration;
 
 use crossbeam_channel::{bounded, Receiver, Sender};
 use serde::{Deserialize, Serialize};
-use tsumugi_ipc::{frame, Address, Listener};
-use tsumugi_mcp::serde_json::{json, Value};
-use tsumugi_mcp::{arg_str, Server, Tool};
+use ito_ipc::{frame, Address, Listener};
+use ito_mcp::serde_json::{json, Value};
+use ito_mcp::{arg_str, Server, Tool};
 
 /// Bumped when [`Request`] or [`Reply`] change shape, so a window and a
 /// `filer mcp` from different versions say so instead of misreading.
@@ -87,7 +87,7 @@ pub fn listen(ctx: egui::Context) -> Receiver<Ask> {
 
 /// One connection: one request, one reply. A probe that connects and goes
 /// away (another window checking whether the door is taken) ends here at the read.
-fn serve_one(conn: tsumugi_ipc::Conn, tx: &Sender<Ask>, ctx: &egui::Context) -> io::Result<()> {
+fn serve_one(conn: ito_ipc::Conn, tx: &Sender<Ask>, ctx: &egui::Context) -> io::Result<()> {
     let (mut r, mut w) = conn.split()?;
     let (proto, request): (u32, Request) = frame::read(&mut r)?;
     let reply = if proto != PROTO {
@@ -118,7 +118,7 @@ fn answer(request: Request, tx: &Sender<Ask>, ctx: &egui::Context) -> Reply {
 /// Asks the running window, for `filer mcp`.
 fn ask(request: Request) -> Reply {
     let at = address();
-    let conn = tsumugi_ipc::connect(&at).map_err(|_| {
+    let conn = ito_ipc::connect(&at).map_err(|_| {
         "filer is not running (or its [mcp] enable is false in filer.toml); start filer and ask again".to_owned()
     })?;
     let (mut r, mut w) = conn.split().map_err(|e| e.to_string())?;
@@ -188,7 +188,7 @@ pub fn state_json(app: &crate::app::App, overlay: &str, view: &str) -> String {
         "view": view,
         "overlay": overlay,
     });
-    tsumugi_mcp::serde_json::to_string_pretty(&v).unwrap_or_default()
+    ito_mcp::serde_json::to_string_pretty(&v).unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -198,14 +198,14 @@ mod tests {
     fn call(server: &Server, name: &str, args: Value) -> Value {
         let line = json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": { "name": name, "arguments": args } });
         let out = server.handle(&line.to_string()).expect("a call is answered");
-        tsumugi_mcp::serde_json::from_str(&out).unwrap()
+        ito_mcp::serde_json::from_str(&out).unwrap()
     }
 
     /// The tools Claude Code is offered, and that `filer_reveal` asks for a path.
     #[test]
     fn lists_the_two_tools() {
         let out = server().handle(r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#).unwrap();
-        let v: Value = tsumugi_mcp::serde_json::from_str(&out).unwrap();
+        let v: Value = ito_mcp::serde_json::from_str(&out).unwrap();
         let names: Vec<&str> = v["result"]["tools"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
         assert_eq!(names, ["filer_state", "filer_reveal"]);
         assert_eq!(v["result"]["tools"][1]["inputSchema"]["required"][0], "path");
@@ -247,7 +247,7 @@ mod tests {
             }
         });
         let send = |req: Request| -> Reply {
-            let (mut r, mut w) = tsumugi_ipc::connect(&at).unwrap().split().unwrap();
+            let (mut r, mut w) = ito_ipc::connect(&at).unwrap().split().unwrap();
             frame::write(&mut w, &(PROTO, req)).unwrap();
             frame::read(&mut r).unwrap()
         };

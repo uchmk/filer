@@ -54,12 +54,12 @@ fn term_height(full_h: f32, chrome: f32, row_h: f32, share: f32) -> f32 {
 
 /// The border between the list and the terminal pane, dragged to change the
 /// pane's height and double-clicked to halve the two (Q94). It is
-/// `tsumugi-layout`'s divider, the one tsumugi's panes have, over a split of
+/// `ito-layout`'s divider, the one tsumugi's panes have, over a split of
 /// two: the list and the terminal. Drawn after the terminal so it takes the
 /// pointer from the pane's top rows. The height goes in `app.term_share` and is
 /// not saved; a share rather than pixels, so it follows the window's size.
 fn term_border(app: &mut App, ui: &Ui, body: Rect, term_h: f32, full_h: f32) {
-    use tsumugi_layout::{Dir, Node, ui as lay};
+    use ito_layout::{Dir, Node, ui as lay};
     let span = Rect::from_min_max(body.left_top(), egui::pos2(body.right(), body.bottom() + term_h));
     if span.height() < 1.0 || full_h < 1.0 {
         return;
@@ -84,9 +84,9 @@ fn term_share(span: f32, ratio: f32, full_h: f32) -> f32 {
 }
 
 /// Turn wheel movement, measured in rows, into whole rows, keeping the part
-/// that is not yet one. In `tsumugi-pane` with the terminal pane, which uses it
+/// that is not yet one. In `ito-pane` with the terminal pane, which uses it
 /// too; its tests are there.
-pub use tsumugi_pane::wheel_whole;
+pub use ito_pane::wheel_whole;
 
 /// The listing's right-hand summary.
 ///
@@ -3593,7 +3593,7 @@ mod link_rows {
 /// was laid out rather than the characters that fit, so `Painted::glyphs` reads
 /// the rows instead: a name cut down by `list.rs` (`elide_at`, and `apart` for
 /// neighbours) is asked for whole and drawn whole. The quoting 24.4 is about
-/// lives in `tsumugi-pane` now, 24.5 wants the recycle bin, and 24.6 is a
+/// lives in `ito-pane` now, 24.5 wants the recycle bin, and 24.6 is a
 /// PowerShell script.
 #[cfg(test)]
 mod awkward_names {

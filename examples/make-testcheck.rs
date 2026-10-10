@@ -519,7 +519,7 @@ fn ids_in(s: &str, out: &mut BTreeSet<String>) {
     }
 }
 
-/// The source of `tsumugi-pane`, where the terminal pane's tests went in
+/// The source of `ito-pane`, where the terminal pane's tests went in
 /// v0.78.125 (they still name filer's TESTING.md rows). Found through `cargo
 /// metadata`, since a git dependency lives in Cargo's own checkout folder.
 /// Without it those rows would quietly come back onto the human's list, so
@@ -531,17 +531,17 @@ fn pane_src() -> std::path::PathBuf {
         .output()
         .expect("cargo metadata runs");
     let json = String::from_utf8_lossy(&out.stdout);
-    // `"manifest_path":"…/crates/tsumugi-pane/Cargo.toml"`, read without a
+    // `"manifest_path":"…/crates/ito-pane/Cargo.toml"`, read without a
     // JSON parser: the example has none, and the path is the one string that
     // ends that way.
-    let end = json.find("tsumugi-pane/Cargo.toml\"").or_else(|| json.find("tsumugi-pane\\\\Cargo.toml\""));
+    let end = json.find("ito-pane/Cargo.toml\"").or_else(|| json.find("ito-pane\\\\Cargo.toml\""));
     let Some(end) = end else {
-        eprintln!("tsumugi-pane is not in `cargo metadata`; run `cargo build` first");
+        eprintln!("ito-pane is not in `cargo metadata`; run `cargo build` first");
         std::process::exit(2);
     };
     let start = json[..end].rfind('"').map_or(0, |i| i + 1);
     let manifest = json[start..end].replace("\\\\", "\\");
-    Path::new(&manifest).join("tsumugi-pane").join("src")
+    Path::new(&manifest).join("ito-pane").join("src")
 }
 
 fn collect_rs(dir: &Path, out: &mut Vec<std::path::PathBuf>) {

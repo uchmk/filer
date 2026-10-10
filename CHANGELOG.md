@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.93.10] - 2026-10-11
+
+### 変更
+
+- ターミナルペインなどの共有のクレートを、tsumugi のリポジトリから新しい [uchmk/ito](https://github.com/uchmk/ito)（糸）に読み替えた。名前は `tsumugi-*` から `ito-*` になった（`ito-pane`・`ito-layout`・`ito-ipc`・`ito-match`・`ito-mcp`、`rev` は ito 0.2.0 の `90314f9`）。中身は前の `rev`（tsumugi v0.79.0 の `de18494`）と同じで、動きは変えていない。uchmk の共通仕様（`docs/common-spec.md`）も ito に移ったので、CLAUDE.md と TODO.md の参照を直した。
+
 ## [0.93.9] - 2026-10-11
 
 ### 変更

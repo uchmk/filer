@@ -301,7 +301,7 @@ fn take_path(cli: &mut Cli, arg: &str) -> Result<(), String> {
 fn main() -> eframe::Result<()> {
     // Before anything loads a DLL: `conpty.dll` only from beside filer.exe
     // (or System32), never the working folder or the `PATH` (#184).
-    tsumugi_pane::restrict_dll_search();
+    ito_pane::restrict_dll_search();
     let cli = parse_cli();
     let cfg = Config::load();
 
@@ -1646,7 +1646,7 @@ fn pick_backends(
     has: impl Fn(eframe::wgpu::Backends) -> bool,
 ) -> (Option<eframe::wgpu::Backends>, Option<String>) {
     let name = name.ok().flatten();
-    match tsumugi_pane::gpu::pick_backends(name, windows, has) {
+    match ito_pane::gpu::pick_backends(name, windows, has) {
         Ok(backends) => (backends, None),
         Err(auto) => (auto, Some(format!(
             "[ui] backend = \"{}\": this machine has no adapter for it; drawing with the default",
@@ -1676,7 +1676,7 @@ pub(crate) fn predicted_fallback() -> String {
     auto_backends(cfg!(windows), || has_adapter(eframe::wgpu::Backends::GL)).map_or(String::new(), |_| "Gl".into())
 }
 
-use tsumugi_pane::gpu::{auto_backends, has_adapter};
+use ito_pane::gpu::{auto_backends, has_adapter};
 
 /// `pub(crate)` for [`crate::ui::harness`]: a test that drives the program with
 /// `egui::Event`s has to enter through the same door the window does. The chord
@@ -1692,7 +1692,7 @@ pub(crate) fn handle_input(app: &mut App, ctx: &egui::Context) {
     // `Copy` / `Cut` arms below, and a panel leaves them to its text field.
     let held = ctx.input(|i| i.modifiers);
     if held.shift && matches!(app.overlay, Overlay::None) {
-        tsumugi_pane::input::chords_back(&mut events, held);
+        ito_pane::input::chords_back(&mut events, held);
     }
     // Windows sends a chord *and* the character it would have typed: `<A-m>`
     // arrives as a key event with alt set and then as `Text("m")`, so one

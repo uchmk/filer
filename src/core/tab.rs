@@ -19,7 +19,7 @@ pub struct Finder {
     pub query: String,
     /// What finds: a regular expression (smart case), or letters in order for
     /// `F`. `None` while the query is not an expression yet.
-    pub matcher: Option<tsumugi_match::Matcher>,
+    pub matcher: Option<ito_match::Matcher>,
     pub prev: bool,
     /// The names in the list are what is searched, and get marked.
     pub names: bool,

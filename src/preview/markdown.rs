@@ -1155,7 +1155,7 @@ mod tests {
     fn marks_follow_a_wrapped_paragraph_and_skip_the_prefix() {
         let d = doc("- the automated run of the whole thing lists all its ids today\n\n> quoted text\n", 24);
         assert!(d.lines.iter().filter(|l| l.wrap).count() >= 2, "{:?}", texts(&d));
-        let m = tsumugi_match::Matcher::new("auto.*ids").unwrap();
+        let m = ito_match::Matcher::new("auto.*ids").unwrap();
         let marks = d.marks(&m, 0, d.lines.len());
         let marked: Vec<usize> = (0..marks.len()).filter(|&i| !marks[i].is_empty()).collect();
         assert!(marked.len() >= 3, "{marked:?} in {:?}", texts(&d));
@@ -1163,7 +1163,7 @@ mod tests {
             let t = line_text(&d.lines[i]);
             assert!(!t[marks[i][0].clone()].contains('•') && !t[marks[i][0].clone()].starts_with(' '), "{t:?}");
         }
-        let bars = tsumugi_match::Matcher::new("│").unwrap();
+        let bars = ito_match::Matcher::new("│").unwrap();
         let bm = d.marks(&bars, 0, d.lines.len());
         assert!(bm[4].is_empty(), "the quote bar of a line of text is not text: {bm:?}");
     }

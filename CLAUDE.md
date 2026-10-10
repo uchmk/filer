@@ -20,7 +20,7 @@ yazi 風のキーボード操作ファイルマネージャーを Rust + egui 0.
 - 改行は LF（`.gitattributes` の `eol=lf`）。スクリプトで書き換えるときは改行を変えない（Python なら `newline=''`）。
 - タスクは [TODO.md](TODO.md)、人への確認事項は [QUESTIONS.md](QUESTIONS.md)（書き方は docs/claude/questions.md）。
   - 未完了の項目の末尾の `【人】` `【QA】` `【実機】` `【後】` `【pane】` は開発のセッションが進めない印。「次の項目」を探すときは飛ばす。
-    `【pane】` はターミナルペイン: コードは uchmk/tsumugi の `tsumugi-pane` にあり、filer は `Cargo.toml` の `rev` で固定して読む
+    `【pane】` はターミナルペイン: コードは uchmk/ito の `ito-pane` にあり、filer は `Cargo.toml` の `rev` で固定して読む
     （直すときは tsumugi 側で直し、`rev` を上げて `cargo build` で `Cargo.lock` を合わせる）。
   - 節の項目が全部済んだら、その節を [TODO-DONE.md](TODO-DONE.md) の末尾に移す。
 - **直した分は再テストに回す。**動きが変わった行は TESTING-CHECKS.md の `[x]` を外し、`.claude/windows-role.md` の
@@ -69,7 +69,7 @@ QUESTIONS.md の書き方と「多数決で進める質問」は [docs/claude/qu
 | `src/fs/`      | 一覧のスキャン、ソート、監視、ファイル操作のジョブ                                                                                      |
 | `src/preview/` | プレビューワーカー（最新の依頼だけ処理）。テキスト / Markdown / 画像 / SVG / フォント / シェルサムネイル / アウトライン（`symbols.rs`） |
 | `src/spot.rs`  | spot パネルの情報。`inspect()` の provider 関数を足せば項目が増える                                                                     |
-| `src/terminal.rs` | ターミナルペイン。中身は tsumugi の `tsumugi-pane`（git の依存）。`ui/term.rs` はその描画にテーマの色を渡す                         |
+| `src/terminal.rs` | ターミナルペイン。中身は ito の `ito-pane`（git の依存）。`ui/term.rs` はその描画にテーマの色を渡す                         |
 | `src/exec.rs`  | オープナーのテンプレート展開、行番号付き起動（`at_line`）、クリップボード                                                               |
 | `src/ui/`      | 描画。`list.rs`、`preview.rs`、`overlay.rs`（help / tasks / confirm / pick / spot など）                                                |
 
@@ -77,8 +77,8 @@ QUESTIONS.md の書き方と「多数決で進める質問」は [docs/claude/qu
 
 - ディスクに触る処理は UI スレッドで実行しない。ワーカースレッドと crossbeam チャネルを使い、古い依頼は捨てる（newest-wins）。
 - キーは keymap 経由で動かす（ハードコードしない）。新しいオーバーレイには keymap のセクションと `feed_*_key` を用意する。
-- **uchmk の共通仕様**（設定の画面 Ctrl+,・`<設定のフォルダ>/uchmk/common.toml` の言語・テーマ・時計）は tsumugi の `docs/common-spec.md` が正。
-  部品は tsumugi の `tsumugi-common`・`tsumugi-theme`・`tsumugi-prefs`（TODO.md「設定の画面・テーマ・時計」）。
+- **uchmk の共通仕様**（設定の画面 Ctrl+,・`<設定のフォルダ>/uchmk/common.toml` の言語・テーマ・時計）は ito の [docs/common-spec.md](https://github.com/uchmk/ito/blob/main/docs/common-spec.md) が正。
+  部品は ito の `ito-common`・`ito-theme`・`ito-prefs`（TODO.md「設定の画面・テーマ・時計」）。
 - yazi に無い独自コマンドは README の「Commands implemented」に書く。
 - 機能を足したら README（キー表・各節）も更新する。
 - **Lua は動かさない**（`init.lua` も `plugins/*.lua` も読まない。2026-10-04 に持ち主の依頼で理由を書き残した）。
