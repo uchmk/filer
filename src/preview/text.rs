@@ -87,6 +87,12 @@ impl Highlighter {
 }
 
 pub(crate) const MAX_LINES: usize = 4000;
+/// The same for a deep preview (see `Key::deep`): a megabyte of source.
+pub(crate) const DEEP_MAX_LINES: usize = 40_000;
+
+fn max_lines(req: &Request) -> usize {
+    if req.key.deep { DEEP_MAX_LINES } else { MAX_LINES }
+}
 /// Lines colored before `Highlighter::early` is handed a first screen: about
 /// what a full-height pane shows. Any further down are colored a moment later.
 const HEAD_LINES: usize = 80;
@@ -103,12 +109,12 @@ pub fn render_cut(bytes: &[u8], cut: bool, req: &Request, hl: &mut Highlighter) 
     let text = strip_bom(&text);
     let expanded = expand_tabs(text, req.tab_size.max(1) as usize);
     let total_lines = expanded.lines().count();
-    let extent = Extent { truncated: total_lines > MAX_LINES || cut, total: total_lines, cut, rows: None };
+    let extent = Extent { truncated: total_lines > max_lines(req) || cut, total: total_lines, cut, rows: None };
 
     hl.ensure(&req.syntect_theme);
     let (syntaxes, _) = sets();
     let Some(theme) = hl.theme.as_ref() else {
-        return plain(&expanded, extent);
+        return plain_to(&expanded, extent, max_lines(req));
     };
 
     let syntax = req
@@ -128,7 +134,7 @@ pub fn render_cut(bytes: &[u8], cut: bool, req: &Request, hl: &mut Highlighter) 
         .or_else(|| syntaxes.find_syntax_by_first_line(expanded.lines().next().unwrap_or("")));
 
     let Some(syntax) = syntax else {
-        return plain(&expanded, extent);
+        return plain_to(&expanded, extent, max_lines(req));
     };
 
     // The Markdown grammar paints fenced code as one flat color, so fence
@@ -141,12 +147,12 @@ pub fn render_cut(bytes: &[u8], cut: bool, req: &Request, hl: &mut Highlighter) 
     let mut state = HighlightState::new(&highlighter, ScopeStack::new());
     let mut symbols = Collector::default();
     let mut fence: Option<Fence<'_>> = None;
-    let mut lines: Vec<Vec<Span>> = Vec::with_capacity(total_lines.min(MAX_LINES));
+    let mut lines: Vec<Vec<Span>> = Vec::with_capacity(total_lines.min(max_lines(req)));
     // Laid out once: the first screen of a long Markdown file carries all of
     // it, which is cheap next to coloring the source beside it.
     let mut doc = None;
     let head = if is_markdown && req.markdown_rendered { 0 } else { HEAD_LINES };
-    for (i, line) in LinesWithEndings::from(&expanded).take(MAX_LINES).enumerate() {
+    for (i, line) in LinesWithEndings::from(&expanded).take(max_lines(req)).enumerate() {
         // Past the first screen, a newer request stops the rest.
         if i > head && i % 32 == 0 && total_lines > HEAD_LINES {
             if let Some(early) = hl.early.as_mut() {
@@ -162,7 +168,7 @@ pub fn render_cut(bytes: &[u8], cut: bool, req: &Request, hl: &mut Highlighter) 
                 // scroll range and the minimap's length do not change under
                 // the reader when the colors arrive.
                 let mut source = lines.clone();
-                source.extend(LinesWithEndings::from(&expanded).take(MAX_LINES).skip(i).map(plain_line));
+                source.extend(LinesWithEndings::from(&expanded).take(max_lines(req)).skip(i).map(plain_line));
                 let map = super::minimap(&source);
                 let payload = if is_markdown {
                     let (d, clipped) = doc.get_or_insert_with(|| super::markdown::render(&expanded, req.key.cols, theme, syntaxes));
@@ -332,14 +338,22 @@ fn plain_line(line: &str) -> Vec<Span> {
 /// a previewer that has its own rendering can still offer the raw text beside it
 /// with a working minimap.
 pub fn plain_lines(text: &str) -> Vec<Vec<Span>> {
+    plain_lines_to(text, MAX_LINES)
+}
+
+fn plain_lines_to(text: &str, max: usize) -> Vec<Vec<Span>> {
     text.lines()
-        .take(MAX_LINES)
+        .take(max)
         .map(|l| vec![Span { text: clip(l, MAX_LINE_CHARS), ..Default::default() }])
         .collect()
 }
 
 pub fn plain(text: &str, extent: Extent) -> Payload {
-    let lines = plain_lines(text);
+    plain_to(text, extent, MAX_LINES)
+}
+
+fn plain_to(text: &str, extent: Extent, max: usize) -> Payload {
+    let lines = plain_lines_to(text, max);
     let map = super::minimap(&lines);
     Payload::Text { lines, map, extent, outline: Vec::new() }
 }
@@ -422,6 +436,7 @@ mod tests {
                 box_size: (0, 0),
                 cols: 80,
                 n: 0,
+                deep: false,
             },
             mime,
             ext: Some(ext.into()),
@@ -431,6 +446,23 @@ mod tests {
             syntect_theme: "base16-ocean.dark".into(),
             markdown_rendered: false,
         }
+    }
+
+    /// The result of a content search reads as far as the search did, so a match
+    /// near the end of a long file is on show to be coloured and walked to.
+    #[test]
+    fn a_deep_preview_keeps_the_lines_past_the_usual_cut() {
+        let src = "line\n".repeat(MAX_LINES + 500);
+        let count = |deep: bool| {
+            let mut req = request("txt");
+            req.key.deep = deep;
+            match render(src.as_bytes(), &req, &mut Highlighter::default()) {
+                Payload::Text { lines, .. } => lines.len(),
+                other => panic!("unexpected payload {other:?}"),
+            }
+        };
+        assert_eq!(count(false), MAX_LINES);
+        assert_eq!(count(true), MAX_LINES + 500);
     }
 
     #[test]

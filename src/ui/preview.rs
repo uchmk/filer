@@ -1134,6 +1134,7 @@ mod chrome {
             box_size: (0, 0),
             cols: 0,
             n: 0,
+            deep: false,
         });
         s.app.preview.state = state;
         s

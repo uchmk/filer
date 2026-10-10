@@ -7,12 +7,12 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 581 件（TESTING.md の全 774 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 582 件（TESTING.md の全 775 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
 
-未訳 39 件は原文のまま `〔未訳〕` を付けて出している。
+未訳 40 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -889,3 +889,4 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [ ] **52.23** `S`, type `auto.*ids`, `<Enter>` where a `.md` file holds it (e.g. QA-REPORT.md), rendered view (v0.93.1) → The preview opens a few lines above the first match and the match is coloured, also where it spans bold or code spans. `n` / `N` walk the matches in it, then go on to the next file 〔未訳〕
 - [ ] **52.24** In that Markdown file, toggle to the source view (`M`), then `n` / `N` (v0.93.1) → The source lines are coloured and walked, with their own line numbers; toggling back keeps the place 〔未訳〕
 - [ ] **52.25** `S`, type `auto.*ids`, `<Enter>`; open the result `TESTING.md` (row 52.23 holds it on one very long line), rendered view (v0.93.2) → The match is coloured on every wrapped screen line that holds a part of it (the end of one line and the start of the next), and the preview opens at it. Narrowing the window so the paragraph wraps differently keeps the colour. `n` / `N` step through such matches 〔未訳〕
+- [ ] **52.26** `S`, type `auto.*ids`, `<Enter>`; move to `src/app.rs` (500 KB, a match past line 4000) or `TESTING-CHECKS.md` (289 KB, a match near its end) (v0.93.3) → The preview opens at the match instead of at the top, the match is coloured, and `n` / `N` reach it. Leaving the results (`<Esc>`) and previewing the same file again shows the usual cut (the footer says the file is cut) 〔未訳〕

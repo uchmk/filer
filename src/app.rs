@@ -2194,6 +2194,7 @@ impl App {
             return;
         }
 
+        let deep = self.body_search_open();
         let mime = crate::mime::guess(&entry);
         let key = preview::Key {
             path: entry.path.clone(),
@@ -2207,6 +2208,7 @@ impl App {
             // never reflow.
             cols: if matches!(mime, "text/markdown" | "text/csv") { self.preview.cols } else { 0 },
             n: self.preview.n,
+            deep,
         };
         if self.preview.key.as_ref() == Some(&key) && !force {
             return;
@@ -2265,7 +2267,10 @@ impl App {
             key,
             mime,
             ext: entry.ext.clone(),
-            max_bytes: self.cfg.ui.max_text_bytes,
+            max_bytes: match deep {
+                true => self.cfg.ui.max_text_bytes.max(preview::DEEP_BYTES),
+                false => self.cfg.ui.max_text_bytes,
+            },
             tab_size: self.cfg.yazi.preview.tab_size,
             syntect_theme: self.cfg.theme.syntect_theme.clone(),
             markdown_rendered: self.render_markdown,
@@ -2338,6 +2343,12 @@ impl App {
     /// The lines of the text on show that the search view's body search finds,
     /// top to bottom. Empty when the view is not a body search or the preview
     /// is not text.
+    /// Whether the list is the result of a content search (`S` / `F`), whose files
+    /// are previewed as deep as the search read them.
+    fn body_search_open(&self) -> bool {
+        self.tabs[self.active].finder.as_ref().is_some_and(|f| f.body) && self.in_search_view()
+    }
+
     pub fn body_matches(&self) -> Vec<usize> {
         let Some(m) = self.tabs[self.active].finder.as_ref().filter(|f| f.body).and_then(|f| f.matcher.as_ref())
         else {
@@ -7691,6 +7702,7 @@ mod preview_delivery {
             box_size: a.preview.box_size,
             cols: 0,
             n: 0,
+            deep: false,
         };
         a.preview.cache.put(cached, CachedPreview { payload: Payload::Error("x".into()), texture: None });
         hover(&mut a, "a.txt");
@@ -7730,6 +7742,7 @@ mod preview_delivery {
             box_size: (640, 480),
             cols: 80,
             n: 0,
+            deep: false,
         };
         // What `request_preview` leaves behind once it has dispatched.
         app.preview.key = Some(key.clone());
@@ -7797,6 +7810,7 @@ mod preview_delivery {
             box_size: (640, 480),
             cols: 80,
             n: 0,
+            deep: false,
         };
         app.preview.key = Some(key.clone());
         app.preview.state = PreviewState::Loading;
@@ -7827,6 +7841,7 @@ mod preview_delivery {
             box_size: (640, 480),
             cols: 80,
             n: 0,
+            deep: false,
         };
         let old = preview::Key { path: PathBuf::from("/nowhere/old.md"), ..wanted.clone() };
         app.preview.key = Some(wanted);
@@ -11387,7 +11402,7 @@ mod find_marks {
     /// would, and opens it at its first (or, after `N`, last) match.
     fn land(a: &mut App, lines: &[&str]) {
         let path = a.tabs[a.active].current.hovered().unwrap().path.clone();
-        a.preview.key = Some(preview::Key { path, len: 0, mtime: None, box_size: (0, 0), cols: 0, n: 0 });
+        a.preview.key = Some(preview::Key { path, len: 0, mtime: None, box_size: (0, 0), cols: 0, n: 0, deep: false });
         a.preview.in_flight = false;
         a.preview.state = text(lines);
         a.show_first_match();
