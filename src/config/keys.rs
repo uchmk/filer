@@ -221,6 +221,45 @@ pub fn render_seq(keys: &[Key]) -> String {
     keys.iter().map(|k| k.to_string()).collect()
 }
 
+/// How a key is shown to a person: `<C-q>` is `⌘Q` on macOS, where `C` is
+/// Cmd, and stays `<C-q>` elsewhere. Matching and the keymap keep using
+/// [`render_seq`]; this is only for text a reader sees.
+pub fn display_seq(keys: &[Key]) -> String {
+    display_seq_for(keys, cfg!(target_os = "macos"))
+}
+
+fn display_seq_for(keys: &[Key], mac: bool) -> String {
+    if !mac {
+        return render_seq(keys);
+    }
+    keys.iter().map(mac_key).collect()
+}
+
+/// One key the macOS way: `⌃⌥⇧⌘` in that order, then the key.
+fn mac_key(k: &Key) -> String {
+    let label = match k.code {
+        Code::Char(' ') => "Space".to_string(),
+        Code::Char(c) => c.to_uppercase().to_string(),
+        Code::Named(n) => n.label(),
+    };
+    let named = !matches!(k.code, Code::Char(c) if c != ' ');
+    let shift = k.shift && k.code != Code::Named(Named::BackTab);
+    if !(k.ctrl || k.alt || k.sup || shift) {
+        return if named { format!("<{label}>") } else { k.to_string() };
+    }
+    let mut out = String::new();
+    if k.alt {
+        out.push('⌥');
+    }
+    if shift {
+        out.push('⇧');
+    }
+    if k.ctrl || k.sup {
+        out.push('⌘');
+    }
+    out + &label
+}
+
 /// Translate an egui key event into our representation.
 ///
 /// Returns `None` for events that arrive as text instead (bare printable
@@ -364,6 +403,23 @@ mod tests {
         let alt = egui::Modifiers { alt: true, ..Default::default() };
         assert_eq!(from_egui(egui::Key::G, &alt), Some(Key::parse("<A-g>").unwrap()));
         assert_ne!(Key::parse("<A-g>"), Key::parse("<A-G>"));
+    }
+
+    /// What a reader sees on macOS (Cmd is `C` there) and elsewhere.
+    #[test]
+    fn display_seq_spells_macos_keys_with_symbols() {
+        let seq = |s: &str| -> Vec<Key> { s.split(' ').map(|k| Key::parse(k).unwrap()).collect() };
+        let mac = |s: &str| display_seq_for(&seq(s), true);
+        assert_eq!(mac("<C-q>"), "⌘Q");
+        assert_eq!(mac("<C-A-x>"), "⌥⌘X");
+        assert_eq!(mac("<C-A>"), "⇧⌘A");
+        assert_eq!(mac("<A-g>"), "⌥G");
+        assert_eq!(mac("<C-F5>"), "⌘F5");
+        assert_eq!(mac("<Enter>"), "<Enter>");
+        assert_eq!(mac("<BackTab>"), "<BackTab>");
+        assert_eq!(mac("g g"), "gg");
+        assert_eq!(mac("G"), "G");
+        assert_eq!(display_seq_for(&seq("<C-q>"), false), "<C-q>");
     }
 
     #[test]

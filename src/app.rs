@@ -196,7 +196,7 @@ pub fn palette_items(bindings: &[keymap::Binding], openers: &[OpenerRow]) -> Pic
         }
         seen.push(&b.raw);
         items.push(binding_label(b));
-        details.push(crate::config::keys::render_seq(&b.on));
+        details.push(crate::config::keys::display_seq(&b.on));
         runs.push(b.run.clone());
     }
     push_openers(&mut items, &mut details, &mut runs, openers, "Open with ");
@@ -228,7 +228,7 @@ pub fn menu_items(bindings: &[keymap::Binding], openers: &[OpenerRow]) -> PickRo
             }
             seen.push(&b.raw);
             items.push(binding_label(b));
-            details.push(crate::config::keys::render_seq(&b.on));
+            details.push(crate::config::keys::display_seq(&b.on));
             runs.push(b.run.clone());
         }
     }
@@ -5879,21 +5879,21 @@ impl App {
     /// someone to press it.
     fn compress_key(&self) -> Option<String> {
         let b = self.cfg.keymap.mgr.iter().find(|b| b.run.as_slice() == [Act::Compress])?;
-        Some(crate::config::keys::render_seq(&b.on))
+        Some(crate::config::keys::display_seq(&b.on))
     }
 
     /// How the list's keymap spells `open --interactive`, for a message that
     /// tells someone to pick an opener.
     fn pick_opener_key(&self) -> Option<String> {
         let b = self.cfg.keymap.mgr.iter().find(|b| matches!(b.run.as_slice(), [Act::Open { interactive: true, .. }]))?;
-        Some(crate::config::keys::render_seq(&b.on))
+        Some(crate::config::keys::display_seq(&b.on))
     }
 
     /// How the pane's keymap spells `terminal close`, for a message that tells
     /// someone to press it.
     fn term_close_key(&self) -> Option<String> {
         let b = self.cfg.keymap.term.iter().find(|b| b.raw == "terminal close")?;
-        Some(crate::config::keys::render_seq(&b.on))
+        Some(crate::config::keys::display_seq(&b.on))
     }
 
     /// Take back the newest step. A step that will not go back stays on the
@@ -6457,7 +6457,7 @@ impl App {
     /// How the pane's keymap spells handing the keys back to the list.
     fn term_leave_key(&self) -> Option<String> {
         let b = self.cfg.keymap.term.iter().find(|b| matches!(b.run.as_slice(), [Act::Close | Act::Escape(_)]))?;
-        Some(crate::config::keys::render_seq(&b.on))
+        Some(crate::config::keys::display_seq(&b.on))
     }
 
     /// What git says about the rows of `dir`, or nothing while the answer is
@@ -7264,7 +7264,7 @@ impl App {
                     .filter(|b| b.on.len() > depth)
                     .map(|b| {
                         (
-                            crate::config::keys::render_seq(&b.on[depth..]),
+                            crate::config::keys::display_seq(&b.on[depth..]),
                             b.desc.clone(),
                             b.raw.clone(),
                         )

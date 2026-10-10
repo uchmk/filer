@@ -547,7 +547,7 @@ impl HelpRow {
 fn key_for(app: &App, act: &Act) -> Option<String> {
     let one = std::slice::from_ref(act);
     let found = app.cfg.keymap.mgr.iter().find(|b| b.run.as_slice() == one)?;
-    Some(crate::config::keys::render_seq(&found.on))
+    Some(crate::config::keys::display_seq(&found.on))
 }
 
 fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
@@ -704,7 +704,7 @@ fn help_lines(app: &App) -> Vec<HelpRow> {
     ));
     lines.push(HelpRow::blank());
     let row = |b: &crate::config::keymap::Binding| HelpRow {
-        keys: crate::config::keys::render_seq(&b.on),
+        keys: crate::config::keys::display_seq(&b.on),
         text: if b.desc.is_empty() { b.raw.clone() } else { b.desc.clone() },
         raw: b.raw.clone(),
         warning: false,
