@@ -1100,8 +1100,8 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` filer's config, `gy` yazi's config, `gt` temp, `g<Space>` type a path, `gf` follow the link |
 | `c…` | `cc` copy the path, `cd` the parent, `cf` the file name, `cn` the name without its extension |
 | `o` `O` `<Enter>` `<S-Enter>` | open / open with… / open (at the outline's line) / open with… |
-| `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter |
-| `s` `S` `<C-s>` | search by name / by content / stop |
+| `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter. `f` takes a regular expression (a plain word is a substring); no capital in it means case does not matter, one capital means it does (v0.87.0). An invalid expression says why and changes nothing |
+| `s` `S` `<C-s>` | search by name / by content / stop. Both take a regular expression, with the same capital rule as above (v0.87.0); a content search reads the first 1 MB of each file and skips any with a NUL byte |
 | `z` | fuzzy-jump to a bookmark or recent directory |
 | `'` | go to a bookmark (then press its letter), as in vim |
 | `b``b` | list the bookmarks and pick one |
@@ -1737,7 +1737,7 @@ src/
   main.rs        window, fonts, icon, CLI, input routing
   app.rs         state and the Act dispatcher — every key and click goes through it
   config/        yazi.toml, keymap.toml, theme.toml, key notation, command parsing
-  core/          folder + cursor state, tabs, fuzzy matching
+  core/          folder + cursor state, tabs (the matching rule is the tsumugi-match crate)
   fs/            entries, sorting, scan pool, file operations, watcher, archives, git status, undelete
   rename.rs      bulk-rename rules and the order a batch of renames has to happen in
   diff.rs        comparing two files line by line, and the worker that reads them

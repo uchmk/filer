@@ -12,7 +12,7 @@ use std::sync::Arc;
 use crossbeam_channel::Receiver;
 
 use crate::config::cmd::SearchVia;
-use crate::core::fuzzy;
+use tsumugi_match::Matcher;
 
 pub enum Msg {
     Found(Vec<PathBuf>),
@@ -42,6 +42,7 @@ const MAX_CONTENT_BYTES: usize = 1024 * 1024;
 
 pub fn spawn(
     root: &Path,
+    matcher: Matcher,
     query: &str,
     via: SearchVia,
     show_hidden: bool,
@@ -52,14 +53,11 @@ pub fn spawn(
     let cancel = Arc::new(AtomicBool::new(false));
 
     let root = root.to_path_buf();
-    let query_s = query.to_owned();
     let cancel_t = cancel.clone();
     std::thread::Builder::new()
         .name("search".into())
         .spawn(move || {
             let found = Arc::new(AtomicUsize::new(0));
-            let case_sensitive = fuzzy::is_case_sensitive(&query_s, true, false);
-            let needle = if case_sensitive { query_s.clone() } else { query_s.to_lowercase() };
 
             let walker = ignore::WalkBuilder::new(&root)
                 .hidden(!show_hidden)
@@ -77,7 +75,7 @@ pub fn spawn(
                 let tx = tx_w.clone();
                 let cancel = cancel_t.clone();
                 let found = found.clone();
-                let needle = needle.clone();
+                let matcher = matcher.clone();
                 let wake = wake.clone();
                 let root = root.clone();
                 Box::new(move |res| {
@@ -91,18 +89,13 @@ pub fn spawn(
                     let hit = match via {
                         SearchVia::Name => {
                             let name = entry.file_name().to_string_lossy();
-                            let hay = if case_sensitive {
-                                name.to_string()
-                            } else {
-                                name.to_lowercase()
-                            };
-                            fuzzy::match_str(&needle, &hay, true).is_some()
+                            matcher.is_match(&name)
                         }
                         SearchVia::Content => {
                             if is_dir {
                                 false
                             } else {
-                                contains(path, &needle, case_sensitive)
+                                contains(path, &matcher)
                             }
                         }
                     };
@@ -126,7 +119,7 @@ pub fn spawn(
     Handle { rx, query: query.to_owned(), via, cancel }
 }
 
-fn contains(path: &Path, needle: &str, case_sensitive: bool) -> bool {
+fn contains(path: &Path, matcher: &Matcher) -> bool {
     let Ok(mut f) = std::fs::File::open(path) else { return false };
     let mut buf = Vec::new();
     if f.by_ref().take(MAX_CONTENT_BYTES as u64).read_to_end(&mut buf).is_err() {
@@ -135,10 +128,67 @@ fn contains(path: &Path, needle: &str, case_sensitive: bool) -> bool {
     if buf.contains(&0) {
         return false; // binary
     }
-    let text = String::from_utf8_lossy(&buf);
-    if case_sensitive {
-        text.contains(needle)
-    } else {
-        text.to_lowercase().contains(needle)
+    matcher.is_match(&String::from_utf8_lossy(&buf))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A tree made fresh under the temp dir, gone when the test is.
+    struct Tree(PathBuf);
+
+    impl Tree {
+        fn new(name: &str, files: &[(&str, &[u8])]) -> Self {
+            let root = std::env::temp_dir().join(format!("filer-search-{}-{name}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&root);
+            for (rel, body) in files {
+                let at = root.join(rel);
+                std::fs::create_dir_all(at.parent().unwrap()).unwrap();
+                std::fs::write(at, body).unwrap();
+            }
+            Self(root)
+        }
+
+        /// The names found, sorted, once the search says it is done.
+        fn find(&self, query: &str, via: SearchVia) -> Vec<String> {
+            let handle = spawn(&self.0, Matcher::new(query).unwrap(), query, via, true, 100, || {});
+            let mut names = Vec::new();
+            while let Ok(msg) = handle.rx.recv_timeout(std::time::Duration::from_secs(10)) {
+                match msg {
+                    Msg::Found(paths) => names.extend(paths.iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned())),
+                    Msg::Done { .. } => break,
+                }
+            }
+            names.sort();
+            names
+        }
+    }
+
+    impl Drop for Tree {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn a_name_search_takes_a_regular_expression() {
+        let t = Tree::new("name", &[("a.log", b""), ("a.log.1", b""), ("b.txt", b""), ("sub/c.log", b"")]);
+        assert_eq!(t.find(r"\.log$", SearchVia::Name), ["a.log", "c.log"]);
+        assert_eq!(t.find("^b", SearchVia::Name), ["b.txt"]);
+    }
+
+    #[test]
+    fn a_name_search_is_a_substring_not_letters_in_order() {
+        let t = Tree::new("substr", &[("awake.txt", b""), ("a-w-a.txt", b"")]);
+        assert_eq!(t.find("awa", SearchVia::Name), ["awake.txt"]);
+    }
+
+    #[test]
+    fn a_content_search_takes_a_regular_expression() {
+        let t = Tree::new("content", &[("one.txt", b"alpha 123\n"), ("two.txt", b"alpha beta\n"), ("sub/three.txt", b"nothing\n")]);
+        assert_eq!(t.find(r"alpha \d+", SearchVia::Content), ["one.txt"]);
+        assert_eq!(t.find("ALPHA", SearchVia::Content), Vec::<String>::new(), "a capital makes it case-sensitive");
+        assert_eq!(t.find("alpha", SearchVia::Content), ["one.txt", "two.txt"]);
     }
 }

@@ -4607,11 +4607,21 @@ impl App {
         let Overlay::Input(ov) = &self.overlay else { return };
         match ov.kind.clone() {
             InputKind::Filter => {
-                let query = ov.text.clone();
-                let tab = &mut self.tabs[self.active];
-                tab.current.filter = Some(Filter { query, smart: true, insensitive: false });
-                let show = tab.show_hidden;
-                tab.current.rebuild(show);
+                // Half-typed, `(` is not an expression yet: the list stays as
+                // it was and the prompt says why, until the next key fixes it.
+                let (title, filter) = match Filter::new(ov.text.clone()) {
+                    Ok(f) => ("Filter".to_owned(), Some(f)),
+                    Err(e) => (format!("Filter -- {e}"), None),
+                };
+                if let Overlay::Input(ov) = &mut self.overlay {
+                    ov.title = title;
+                }
+                if let Some(filter) = filter {
+                    let tab = &mut self.tabs[self.active];
+                    tab.current.filter = Some(filter);
+                    let show = tab.show_hidden;
+                    tab.current.rebuild(show);
+                }
             }
             InputKind::Find { prev } => {
                 let query = ov.text.clone();
@@ -5816,10 +5826,15 @@ impl App {
         if query.is_empty() {
             return;
         }
+        // A query that is not a regular expression says why and starts nothing.
+        let matcher = match tsumugi_match::Matcher::new(query) {
+            Ok(m) => m,
+            Err(e) => return self.error(format!("Not a regular expression: {e}")),
+        };
         let root = self.tabs[self.active].cwd.clone();
         let show_hidden = self.tabs[self.active].show_hidden;
         let ctx = self.ctx.clone();
-        let handle = crate::search::spawn(&root, query, via, show_hidden, 5000, move || {
+        let handle = crate::search::spawn(&root, matcher, query, via, show_hidden, 5000, move || {
             ctx.request_repaint()
         });
 

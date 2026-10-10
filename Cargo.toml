@@ -1,6 +1,6 @@
 [package]
 name = "filer"
-version = "0.86.33"
+version = "0.87.0"
 edition = "2021"
 rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"
@@ -38,15 +38,17 @@ alacritty_terminal = { version = "0.26", default-features = false }
 # The terminal pane (src/terminal.rs, src/ui/term.rs), shared with tsumugi
 # since v0.78.125. Pinned to a commit; to take a fix, move `rev` and run
 # `cargo build` so Cargo.lock follows. Pure Rust, like the rest.
-tsumugi-pane = { git = "https://github.com/uchmk/tsumugi", rev = "3d15cb0f27d6a9371ab289dde597c052f198447b", features = ["egui", "wgpu"] }
+tsumugi-pane = { git = "https://github.com/uchmk/tsumugi", rev = "de184944bbec9bf1c690e8d0d4ebe853f6c86a02", features = ["egui", "wgpu"] }
 # The border above the terminal pane, dragged to change its height (Q94).
 # From the same commit as the pane; it depends on nothing but egui.
-tsumugi-layout = { git = "https://github.com/uchmk/tsumugi", rev = "3d15cb0f27d6a9371ab289dde597c052f198447b", features = ["egui"] }
+tsumugi-layout = { git = "https://github.com/uchmk/tsumugi", rev = "de184944bbec9bf1c690e8d0d4ebe853f6c86a02", features = ["egui"] }
 # `filer mcp` (Q95, Q96): the per-user door into the running window (Unix
 # socket / named pipe) and the MCP server Claude Code talks to over stdio.
 # Hand-written on serde_json, no async runtime. The same commit as the pane.
-tsumugi-ipc = { git = "https://github.com/uchmk/tsumugi", rev = "3d15cb0f27d6a9371ab289dde597c052f198447b" }
-tsumugi-mcp = { git = "https://github.com/uchmk/tsumugi", rev = "3d15cb0f27d6a9371ab289dde597c052f198447b" }
+tsumugi-ipc = { git = "https://github.com/uchmk/tsumugi", rev = "de184944bbec9bf1c690e8d0d4ebe853f6c86a02" }
+# The rule a search query matches by (`f` `s` `S` `/` `?` `F`), shared with tsumugi; the same commit as the others.
+tsumugi-match = { git = "https://github.com/uchmk/tsumugi", rev = "de184944bbec9bf1c690e8d0d4ebe853f6c86a02" }
+tsumugi-mcp = { git = "https://github.com/uchmk/tsumugi", rev = "de184944bbec9bf1c690e8d0d4ebe853f6c86a02" }
 # Already in the tree: syntect's `default-fancy` builds it. Naming it here is
 # what lets bulk rename use it, and adds no crate to the build.
 #

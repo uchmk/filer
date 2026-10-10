@@ -1578,3 +1578,21 @@ and its `tools` lists `mcp__filer__filer_state` and `mcp__filer__filer_reveal`.
 | 50.5 | Put `[mcp]` / `enable = false` in `filer.toml`, start filer, ask for `filer_state` | The same `filer is not running …` answer: the window opens no door. Take the line out again afterwards |
 | 50.6 | Open two filer windows on different folders, ask for `filer_state`; close the first window, wait 30 seconds, ask again | The first answer is the first window's folder. After it closes, the second answer is the second window's folder |
 | 50.7 | Register `filer.com` instead (`claude mcp add filer -- "<folder>\filer.com" mcp`) and repeat 50.2 | The same answer: `filer.com` passes `mcp` to `filer.exe` with its input and output. No console window flashes when Claude Code starts it |
+
+## 51. One rule for `s`, `S` and `f` (v0.87.0)
+
+`s` (by name), `S` (by content) and `f` (filter) take a regular expression. A plain word is a substring;
+a query with no capital letter ignores case, one capital letter makes it exact. Make a folder to press these in:
+`a.log`, `a.log.1`, `b.txt` holding the line `alpha 123`, `Report.TXT`, and `sub\c.log` holding `alpha beta`.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 51.1 | In that folder, `s`, type `\.log$`, `<Enter>` | The list holds `a.log` and `c.log` only: not `a.log.1`, not `b.txt` |
+| 51.2 | `s`, type `awa`, `<Enter>` in a folder with `awake.txt` and `a-w-a.txt` | Only `awake.txt` (a substring; before v0.87.0 both matched, by letters in order) |
+| 51.3 | `s`, type `report`, `<Enter>`; then `s`, type `Report`, `<Enter>` | The first finds `Report.TXT` (no capital: case ignored). The second finds it too, and a folder holding only `report.txt` would not show for it (a capital: exact) |
+| 51.4 | `S`, type `alpha \d+`, `<Enter>` | Only `b.txt`. `sub\c.log` has `alpha beta`, which the digits rule out |
+| 51.5 | `S`, type `ALPHA`, `<Enter>` | Nothing is found: a capital makes it exact |
+| 51.6 | `s`, type `(`, `<Enter>` | A red toast `Not a regular expression: …` naming what is wrong; the list stays as it was, no search starts |
+| 51.7 | `f`, type `\.log$` | The list narrows to `a.log` (and, with the sub-folder open, its `.log` files); the matched letters are coloured. The prompt's title is still `Filter` |
+| 51.8 | `f`, type `a.log(` (an unfinished group) | The prompt's title reads `Filter -- …` with the reason, and the list keeps the rows of the last good query. Type `)` and it narrows again |
+| 51.9 | `f`, type `r`, `<Enter>`; then `f` again | The prompt shows `r` again, and the list shows what `r` kept (`Report.TXT` for a folder of the files above) |

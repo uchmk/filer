@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::config::cmd::Step;
 use crate::fs::{Entry, SortSpec};
 
-use super::fuzzy;
+use tsumugi_match::Matcher;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LoadState {
@@ -13,16 +13,19 @@ pub enum LoadState {
     Error(String),
 }
 
+/// What `f` keeps: the names a regular expression finds (smart case, as every
+/// search is), with the query kept as typed so the prompt can show it again.
 #[derive(Clone, Debug, Default)]
 pub struct Filter {
     pub query: String,
-    pub smart: bool,
-    pub insensitive: bool,
+    pub matcher: Option<Matcher>,
 }
 
 impl Filter {
-    fn case_sensitive(&self) -> bool {
-        fuzzy::is_case_sensitive(&self.query, self.smart, self.insensitive)
+    /// `Err` is why `query` is not a regular expression.
+    pub fn new(query: String) -> Result<Self, String> {
+        let matcher = if query.is_empty() { None } else { Some(Matcher::new(&query)?) };
+        Ok(Self { query, matcher })
     }
 }
 
@@ -102,22 +105,21 @@ impl Folder {
         let keep = self.hovered().map(|e| e.name.clone());
         self.view.clear();
         self.hits.clear();
-        let filter = self.filter.clone().filter(|f| !f.query.is_empty());
-        let case_sensitive = filter.as_ref().map(Filter::case_sensitive).unwrap_or(false);
+        let matcher = self.filter.as_ref().and_then(|f| f.matcher.clone());
 
         for (i, e) in self.entries.iter().enumerate() {
             if !show_hidden && e.hidden {
                 continue;
             }
-            match &filter {
+            match &matcher {
                 None => {
                     self.view.push(i as u32);
                     self.hits.push(Vec::new());
                 }
-                Some(f) => {
-                    if let Some(hit) = fuzzy::match_str(&f.query, &e.name, case_sensitive) {
+                Some(m) => {
+                    if m.is_match(&e.name) {
                         self.view.push(i as u32);
-                        self.hits.push(hit.positions);
+                        self.hits.push(m.positions(&e.name));
                     }
                 }
             }

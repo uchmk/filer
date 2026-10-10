@@ -2856,11 +2856,7 @@ mod max_preview_frame {
     /// the layout would be doing something it was not asked to.
     #[test]
     fn the_maximized_column_goes_before_the_filter_unless_asked_otherwise() {
-        let filter = || crate::core::folder::Filter {
-            query: "a".into(),
-            smart: true,
-            insensitive: false,
-        };
+        let filter = || crate::core::folder::Filter::new("a".into()).unwrap();
 
         let mut s = one("max-escape-filter");
         s.app.tabs[0].current.filter = Some(filter());

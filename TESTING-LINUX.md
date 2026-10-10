@@ -7,12 +7,12 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 546 件（TESTING.md の全 739 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 555 件（TESTING.md の全 748 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
 
-未訳 4 件は原文のまま `〔未訳〕` を付けて出している。
+未訳 13 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -800,3 +800,15 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **50.5** `filer.toml` に `[mcp]` / `enable = false` を書いて起動し、`filer_state` を頼む → 同じ `filer is not running …`: 窓は扉を開かない。終わったら行を消す — *Put `[mcp]` / `enable = false` in `filer.toml`, start filer, ask for `filer_state` → The same `filer is not running …` answer: the window opens no door. Take the line out again afterwards*
 - [ ] **50.6** 別々のフォルダで filer の窓を 2 つ開き、`filer_state` を頼む。1 つ目の窓を閉じて 30 秒待ち、もう一度 → 1 回目は 1 つ目の窓のフォルダ。閉じたあとの 2 回目は 2 つ目の窓のフォルダ — *Open two filer windows on different folders, ask for `filer_state`; close the first window, wait 30 seconds, ask again → The first answer is the first window's folder. After it closes, the second answer is the second window's folder*
 - [ ] **50.7** `filer.com` で登録し直し（`claude mcp add filer -- "<フォルダ>\filer.com" mcp`）、50.2 をする → 同じ答え: `filer.com` が `mcp` を入出力ごと `filer.exe` に渡す。Claude Code が起動するときにコンソールの窓は出ない — *Register `filer.com` instead (`claude mcp add filer -- "<folder>\filer.com" mcp`) and repeat 50.2 → The same answer: `filer.com` passes `mcp` to `filer.exe` with its input and output. No console window flashes when Claude Code starts it*
+
+## 51. One rule for `s`, `S` and `f` (v0.87.0)
+
+- [ ] **51.1** In that folder, `s`, type `\.log$`, `<Enter>` → The list holds `a.log` and `c.log` only: not `a.log.1`, not `b.txt` 〔未訳〕
+- [ ] **51.2** `s`, type `awa`, `<Enter>` in a folder with `awake.txt` and `a-w-a.txt` → Only `awake.txt` (a substring; before v0.87.0 both matched, by letters in order) 〔未訳〕
+- [ ] **51.3** `s`, type `report`, `<Enter>`; then `s`, type `Report`, `<Enter>` → The first finds `Report.TXT` (no capital: case ignored). The second finds it too, and a folder holding only `report.txt` would not show for it (a capital: exact) 〔未訳〕
+- [ ] **51.4** `S`, type `alpha \d+`, `<Enter>` → Only `b.txt`. `sub\c.log` has `alpha beta`, which the digits rule out 〔未訳〕
+- [ ] **51.5** `S`, type `ALPHA`, `<Enter>` → Nothing is found: a capital makes it exact 〔未訳〕
+- [ ] **51.6** `s`, type `(`, `<Enter>` → A red toast `Not a regular expression: …` naming what is wrong; the list stays as it was, no search starts 〔未訳〕
+- [ ] **51.7** `f`, type `\.log$` → The list narrows to `a.log` (and, with the sub-folder open, its `.log` files); the matched letters are coloured. The prompt's title is still `Filter` 〔未訳〕
+- [ ] **51.8** `f`, type `a.log(` (an unfinished group) → The prompt's title reads `Filter -- …` with the reason, and the list keeps the rows of the last good query. Type `)` and it narrows again 〔未訳〕
+- [ ] **51.9** `f`, type `r`, `<Enter>`; then `f` again → The prompt shows `r` again, and the list shows what `r` kept (`Report.TXT` for a folder of the files above) 〔未訳〕
