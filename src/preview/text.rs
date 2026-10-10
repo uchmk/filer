@@ -87,12 +87,21 @@ impl Highlighter {
 }
 
 pub(crate) const MAX_LINES: usize = 4000;
-/// The same for a deep preview (see `Key::deep`): a megabyte of source.
-pub(crate) const DEEP_MAX_LINES: usize = 40_000;
+/// The same for a deep preview (see `Key::deep`): a few megabytes of source.
+pub(crate) const DEEP_MAX_LINES: usize = 100_000;
+/// Lines of a deep preview that are coloured. The rest are shown plain: they
+/// are there to be found and read, and colouring a hundred thousand lines is
+/// seconds of the worker's time for lines nobody asked to see coloured.
+const DEEP_COLOR_LINES: usize = if cfg!(test) { 200 } else { 40_000 };
 
 fn max_lines(req: &Request) -> usize {
     if req.key.deep { DEEP_MAX_LINES } else { MAX_LINES }
 }
+
+fn color_lines(req: &Request) -> usize {
+    if req.key.deep { DEEP_COLOR_LINES } else { MAX_LINES }
+}
+
 /// Lines colored before `Highlighter::early` is handed a first screen: about
 /// what a full-height pane shows. Any further down are colored a moment later.
 const HEAD_LINES: usize = 80;
@@ -153,6 +162,10 @@ pub fn render_cut(bytes: &[u8], cut: bool, req: &Request, hl: &mut Highlighter) 
     let mut doc = None;
     let head = if is_markdown && req.markdown_rendered { 0 } else { HEAD_LINES };
     for (i, line) in LinesWithEndings::from(&expanded).take(max_lines(req)).enumerate() {
+        if i >= color_lines(req) {
+            lines.extend(LinesWithEndings::from(&expanded).take(max_lines(req)).skip(i).map(plain_line));
+            break;
+        }
         // Past the first screen, a newer request stops the rest.
         if i > head && i % 32 == 0 && total_lines > HEAD_LINES {
             if let Some(early) = hl.early.as_mut() {
@@ -463,6 +476,23 @@ mod tests {
         };
         assert_eq!(count(false), MAX_LINES);
         assert_eq!(count(true), MAX_LINES + 500);
+    }
+
+    /// Past the coloured stretch a deep preview carries on in one plain colour:
+    /// every line is there to be found, the far ones are not painted.
+    #[test]
+    fn a_deep_preview_colours_only_its_first_stretch() {
+        let src = "fn a() { let x = 1; }
+".repeat(DEEP_COLOR_LINES + 50);
+        let mut req = request("rs");
+        req.key.deep = true;
+        let Payload::Text { lines, .. } = render(src.as_bytes(), &req, &mut Highlighter::default()) else {
+            panic!("not text")
+        };
+        assert_eq!(lines.len(), DEEP_COLOR_LINES + 50);
+        assert!(colors(&lines[10]).len() > 1, "{:?}", lines[10]);
+        assert!(colors(&lines[DEEP_COLOR_LINES + 10]).is_empty(), "{:?}", lines[DEEP_COLOR_LINES + 10]);
+        assert_eq!(lines[DEEP_COLOR_LINES + 10].iter().map(|s| s.text.as_str()).collect::<String>(), "fn a() { let x = 1; }");
     }
 
     #[test]

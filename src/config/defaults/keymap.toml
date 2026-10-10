@@ -867,7 +867,8 @@ desc = "Copy the last command's output"
 
 # --- Input line ---------------------------------------------------------------
 # The input line is a native widget (so IME and clipboard behave), which means
-# only these three actions are configurable.
+# only these three actions are configurable. `<Up>` / `<Down>` (and `<C-p>` / `<C-n>`)
+# recall what was typed before, and are not rebindable.
 
 [[input.keymap]]
 on = "<Enter>"

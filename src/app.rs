@@ -725,6 +725,9 @@ pub struct PreviewSlot {
     /// What is on screen is the uncoloured first screen the worker sent ahead
     /// of the whole one (`<State:>` says `preview: early`).
     pub early: bool,
+    /// A body search has already scrolled to its first match on the early
+    /// payload, so the whole one that follows keeps the reader where they are.
+    pub placed: bool,
     pub cache: Lru<preview::Key, CachedPreview>,
     /// Size of the preview pane in pixels, used when decoding images.
     pub box_size: (u32, u32),
@@ -825,6 +828,7 @@ impl Default for PreviewSlot {
             pending_since: None,
             in_flight: false,
             early: false,
+            placed: false,
             cache: Lru::new(24),
             box_size: (900, 900),
             rect: None,
@@ -1408,6 +1412,12 @@ pub struct App {
     /// Where `z` can jump, in visit order (newest last). Ranked by [`frecency`]
     /// when the picker opens.
     pub history: Vec<Visit>,
+    /// What was typed into the prompts that take a search word and the ones that
+    /// take a shell command, oldest first: `<Up>` brings them back, as a terminal does.
+    pub input_history: [Vec<String>; 2],
+    /// Which of them the prompt is showing, and what was being typed before the
+    /// first `<Up>`, so `<Down>` past the newest gives it back.
+    input_recall: Option<(usize, String)>,
     pub undos: Undos,
     /// Jobs whose step joins a stack once they finish, and where it goes. A job
     /// that fails puts its step back rather than losing it.
@@ -1564,6 +1574,8 @@ impl App {
             launches: Vec::new(),
             bookmarks: Vec::new(),
             history: Vec::new(),
+            input_history: Default::default(),
+            input_recall: None,
             undos: Undos::default(),
             op_undo: HashMap::new(),
             cut_jobs: HashMap::new(),
@@ -2262,6 +2274,7 @@ impl App {
         }
         self.preview.in_flight = true;
         self.preview.early = false;
+        self.preview.placed = false;
         self.preview.request_id = self.previewer.request(preview::Request {
             id: 0,
             key,
@@ -2287,6 +2300,13 @@ impl App {
             // position is kept for the whole one that replaces it.
             self.preview.state = PreviewState::Ready(res.payload);
             self.preview.early = true;
+            // Every line is there, only the colours are to come, so the match
+            // can be walked to now instead of when the last line is coloured.
+            if self.body_search_open() {
+                self.preview.max_offset = 0;
+                self.show_first_match();
+                self.preview.placed = true;
+            }
             return;
         }
         self.preview.early = false;
@@ -2336,7 +2356,9 @@ impl App {
             let avail = egui::vec2(bw as f32 / 2.0, bh as f32 / 2.0);
             self.preview.fit = image_fit(avail, source.0 as f32, source.1 as f32);
         }
-        self.show_first_match();
+        if !std::mem::take(&mut self.preview.placed) {
+            self.show_first_match();
+        }
         self.grant_outline_wish();
     }
 
@@ -4709,6 +4731,7 @@ impl App {
             InputKind::Compress => (0, util::stem_and_ext(&text).0.chars().count()),
             _ => (0, len),
         };
+        self.input_recall = None;
         self.overlay = Overlay::Input(InputOverlay {
             kind,
             title: title.to_owned(),
@@ -4718,6 +4741,68 @@ impl App {
             completion: Vec::new(),
             completion_at: 0,
         });
+    }
+
+    /// Which list of past input a prompt draws on: search words (shared by
+    /// `s S F f / ?` and the terminal's find) or shell commands.
+    fn input_group(kind: &InputKind) -> Option<usize> {
+        match kind {
+            InputKind::Search { .. } | InputKind::Filter | InputKind::Find { .. } | InputKind::TermFind => Some(0),
+            InputKind::Shell { .. } => Some(1),
+            _ => None,
+        }
+    }
+
+    const INPUT_HISTORY_FILES: [&'static str; 2] = ["search-history.txt", "shell-history.txt"];
+    const INPUT_HISTORY_MAX: usize = 100;
+
+    /// Remember what was submitted: newest last, a repeat moves up rather than
+    /// appearing twice.
+    fn remember_input(&mut self, group: usize, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        let list = &mut self.input_history[group];
+        list.retain(|t| t != text);
+        list.push(text.to_owned());
+        if list.len() > Self::INPUT_HISTORY_MAX {
+            list.remove(0);
+        }
+        // A test must not write the real state directory.
+        if !cfg!(test) {
+            let dir = Config::state_dir();
+            if std::fs::create_dir_all(&dir).is_ok() {
+                let _ = std::fs::write(dir.join(Self::INPUT_HISTORY_FILES[group]), list.join("\n"));
+            }
+        }
+    }
+
+    /// `<Up>` / `<Down>` in a prompt: step back through what was typed before,
+    /// and forward again to the unfinished line.
+    pub fn recall_input(&mut self, older: bool) {
+        let Overlay::Input(ov) = &self.overlay else { return };
+        let Some(group) = Self::input_group(&ov.kind) else { return };
+        let list = &self.input_history[group];
+        if list.is_empty() {
+            return;
+        }
+        let (at, text) = match (&self.input_recall, older) {
+            (None, true) => (Some(list.len() - 1), None),
+            (None, false) => return,
+            (Some((i, draft)), true) => (Some(i.saturating_sub(1)), Some(draft.clone())),
+            (Some((i, draft)), false) if i + 1 < list.len() => (Some(i + 1), Some(draft.clone())),
+            (Some((_, draft)), false) => (None, Some(draft.clone())),
+        };
+        let draft = text.unwrap_or_else(|| ov.text.clone());
+        let shown = at.map_or_else(|| draft.clone(), |i| list[i].clone());
+        self.input_recall = at.map(|i| (i, draft));
+        if let Overlay::Input(ov) = &mut self.overlay {
+            let n = shown.chars().count();
+            ov.text = shown;
+            ov.initial_selection = Some((n, n));
+            ov.focused = false;
+        }
+        self.input_changed();
     }
 
     /// Called on every keystroke for the live-updating inputs.
@@ -4788,6 +4873,10 @@ impl App {
         };
         self.pending_completion = None;
         let text = ov.text.trim().to_owned();
+        if let Some(group) = Self::input_group(&ov.kind) {
+            self.remember_input(group, &text);
+        }
+        self.input_recall = None;
         match ov.kind {
             InputKind::Create => self.do_create(&text),
             InputKind::Compress => self.do_compress(&text),
@@ -4825,6 +4914,7 @@ impl App {
     /// must still be told something, or its worker stays parked forever.
     pub fn cancel_input(&mut self) {
         self.pending_completion = None;
+        self.input_recall = None;
         if let Some(reply) = self.pending_conflict.take() {
             let _ = reply.send(Resolution::Skip);
         }
@@ -6670,6 +6760,11 @@ impl App {
         }
         if let Ok(text) = std::fs::read_to_string(Self::state_file("history.txt")) {
             self.history = text.lines().map(parse_visit).collect();
+        }
+        for (list, name) in self.input_history.iter_mut().zip(Self::INPUT_HISTORY_FILES) {
+            if let Ok(text) = std::fs::read_to_string(Self::state_file(name)) {
+                *list = text.lines().filter(|l| !l.is_empty()).map(str::to_owned).collect();
+            }
         }
     }
 
@@ -11465,6 +11560,88 @@ mod find_marks {
         land(&mut a, &B);
         assert_eq!(at(&a), Some(2));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The result of `S` opens at its first match as soon as the uncoloured
+    /// lines arrive, not when the last of them is coloured, and the coloured
+    /// whole that follows leaves the reader where they have got to.
+    #[test]
+    fn a_deep_preview_opens_at_its_match_on_the_early_payload() {
+        let dir = crate::util::test_dir("find-marks-early");
+        std::fs::write(dir.join("a.txt"), "x").unwrap();
+        let ctx = egui::Context::default();
+        let mut a = app_in(&dir);
+        a.start_search("needle", SearchVia::Content);
+        a.search = None;
+        let entries = vec![Entry::from_path(dir.join("a.txt")).unwrap()];
+        let mut found = Folder::from_entries(dir.join("search"), Arc::new(entries), true);
+        found.state = LoadState::Ready;
+        a.tabs[a.active].current = found;
+        let path = a.tabs[a.active].current.hovered().unwrap().path.clone();
+        let key = preview::Key { path, len: 0, mtime: None, box_size: (0, 0), cols: 0, n: 0, deep: true };
+        a.preview.key = Some(key.clone());
+        a.preview.in_flight = true;
+        let lines = ["x", "x", "x", "x", "x", "x", "needle"];
+        let payload = || match text(&lines) {
+            PreviewState::Ready(p) => p,
+            _ => unreachable!(),
+        };
+
+        a.on_preview(preview::Response { key: key.clone(), payload: payload(), partial: true }, &ctx);
+        assert!(a.preview.early && a.preview.in_flight);
+        assert_eq!((a.tabs[a.active].preview_offset, at(&a)), (3, Some(6)), "opened at the match already");
+
+        a.tabs[a.active].preview_offset = 1;
+        a.on_preview(preview::Response { key, payload: payload(), partial: false }, &ctx);
+        assert!(!a.preview.early && !a.preview.in_flight);
+        assert_eq!(a.tabs[a.active].preview_offset, 1, "the coloured whole does not scroll back");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// `<Up>` in a prompt brings back what was submitted before, newest first,
+    /// `<Down>` walks forward to the line that was being written, and a repeat
+    /// is kept once. Search words are shared by `s S F f / ?`; a shell command
+    /// has a list of its own.
+    #[test]
+    fn up_in_a_prompt_recalls_what_was_typed_before() {
+        let dir = std::env::temp_dir().join(format!("filer-recall-{}", std::process::id()));
+        let mut a = app_in(&dir);
+        let submit = |a: &mut App, kind: InputKind, text: &str| {
+            a.open_input(kind, "x", text.to_owned());
+            a.submit_input();
+        };
+        submit(&mut a, InputKind::Filter, "alpha");
+        submit(&mut a, InputKind::Find { prev: false }, "beta");
+        submit(&mut a, InputKind::Filter, "alpha");
+        submit(&mut a, InputKind::Shell { block: false }, "echo hi");
+        submit(&mut a, InputKind::Filter, "");
+        assert_eq!(a.input_history[0], vec!["beta", "alpha"], "a repeat moves up, empty is not kept");
+        assert_eq!(a.input_history[1], vec!["echo hi"]);
+
+        let text = |a: &App| match &a.overlay {
+            Overlay::Input(ov) => ov.text.clone(),
+            _ => panic!("no prompt"),
+        };
+        a.open_input(InputKind::Search { via: SearchVia::Name }, "Search", "dra".to_owned());
+        a.recall_input(true);
+        assert_eq!(text(&a), "alpha");
+        a.recall_input(true);
+        assert_eq!(text(&a), "beta");
+        a.recall_input(true);
+        assert_eq!(text(&a), "beta", "the oldest stays put");
+        a.recall_input(false);
+        assert_eq!(text(&a), "alpha");
+        a.recall_input(false);
+        assert_eq!(text(&a), "dra", "past the newest comes the unfinished line back");
+        a.recall_input(false);
+        assert_eq!(text(&a), "dra");
+
+        a.open_input(InputKind::Shell { block: false }, "Shell", String::new());
+        a.recall_input(true);
+        assert_eq!(text(&a), "echo hi");
+        a.open_input(InputKind::Create, "New", String::new());
+        a.recall_input(true);
+        assert_eq!(text(&a), "", "a file name prompt has no history");
     }
 
     /// The end of a search says how many it found and where it looked, a miss

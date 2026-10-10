@@ -1785,6 +1785,12 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
             K::Escape => app.cancel_input(),
             K::Enter => app.submit_input(),
             K::Tab => app.act(Act::Complete),
+            // As a terminal does: `<Up>` for what was typed before, `<Down>` back
+            // towards the line being written. `<C-p>` / `<C-n>` are the same keys.
+            K::ArrowUp => app.recall_input(true),
+            K::ArrowDown => app.recall_input(false),
+            K::P if modifiers.ctrl => app.recall_input(true),
+            K::N if modifiers.ctrl => app.recall_input(false),
             _ => {}
         },
         Overlay::Pick(_) => {

@@ -27,8 +27,10 @@ pub use shell_thumb::init_thread as init_com_thread;
 /// OOXML document properties, for the spot panel.
 pub use office::properties as office_properties;
 
-/// How much of a file a deep preview reads: what a content search reads.
-pub const DEEP_BYTES: usize = 1 << 20;
+/// How much of a file a deep preview reads. A content search stops at a
+/// megabyte; the file it found is read further, since a match past that is
+/// still worth showing once the search has pointed at the file.
+pub const DEEP_BYTES: usize = 4 << 20;
 
 /// Identity of a preview: re-reading is only needed when one of these changes.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -45,7 +47,7 @@ pub struct Key {
     /// key so that paging back to one already seen is instant, and so that two
     /// pages of the same file are never mistaken for each other.
     pub n: i64,
-    /// Read as far as a content search does (`DEEP_BYTES`, `text::DEEP_MAX_LINES`):
+    /// Read further than the usual cut (`DEEP_BYTES`, `text::DEEP_MAX_LINES`):
     /// in the result of `S` / `F` a match can sit past the usual cut, and a
     /// preview that ends before it has nothing to colour or walk to.
     pub deep: bool,
