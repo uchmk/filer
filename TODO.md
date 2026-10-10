@@ -86,7 +86,7 @@ v0.78.167 が `scripts/auto-wintest.ps1` に構文エラーを入れ、2 台の�
 
 - [x] （v0.85.11。16.3b の行を「`start "" %*` のオープナーで」に書き換えた。`open_default` の道は行を渡さない旨のトーストを出さないまま）（#299 の所見 2）16.3b: `.docx` のアウトラインの `<Enter>` で、`[opener]` が無いとき（`open_default`、`app.rs` の 4501 行あたり）のトーストに `(line N not passed: this opener takes no line)` が付かない。オープナーの道（`exec::no_line_note`）だけが付ける。`open_default` にも付けるか、16.3b の行を「`start "" %*` のオープナーで」に書き換える。
 - [x] （v0.86.3。33.7 の行を「文面は 1 行、狭い窓や長いパスでは 2 行まで」に書き換えた）（#298 の所見 4 / #299 の所見 3）33.7: 設定の警告のトーストが `~` にしても 2 行に折り返してプレビューの先頭を覆う（v0.85.1 は 3 行から 2 行にしただけ）。1 行に収める（パスの途中を省く、トーストの幅を広げる）か、行を「2 行まで」に書き換える。
-- [ ] （#298 の所見 6）25.4e: ARM64 で `filer env` の `powershell.exe` の版が `v6.2.28000.2804`、`VersionInfo.FileVersionRaw` は `10.0.28000.2804`（`FileVersion` の文字列は `10.0.28000.2113 …`）。互換性の層が OS の版を 6.2 に偽る。`filer.exe` に Windows 10 の `supportedOS` の manifest を付けるか、行をどの版に合わせるか決めて書き直す。
+- [x] （v0.86.27。v0.86.1 の「文字列表の `FileVersion` を先に読む」で `10.0.x` が出るようになっており、25.4e は `[x]`。`supportedOS` の manifest は付けない: Rust の MSVC リンクが既定の manifest を埋めるので、`winresource` で足すと重複しやすく、Linux では確かめられない）（#298 の所見 6）25.4e: ARM64 で `filer env` の `powershell.exe` の版が `v6.2.28000.2804`、`VersionInfo.FileVersionRaw` は `10.0.28000.2804`（`FileVersion` の文字列は `10.0.28000.2113 …`）。互換性の層が OS の版を 6.2 に偽る。`filer.exe` に Windows 10 の `supportedOS` の manifest を付けるか、行をどの版に合わせるか決めて書き直す。
 - [ ] （#298 の所見 3 / #299 の所見 4）1.44: 下限が行では「ターミナル 4 行」だが `pane:` は 3 行（`3x159`）で止まる。行か実装のどちらかを揃える。【QA】（行を 3 行に直すなら TESTING.md、実装なら code）
 - [ ] （#298 の所見 2）49.4: TESTING.md の節 49 の冒頭の `prompt` の例は `$e = …` のあとで `$?` を読むため失敗も緑になる。`$ok = $?` を先に取る形に直す。【QA】
 - [ ] （#298 の所見 5）49.1: 例の 3 コマンドだけでは 12 行の表示に全部入り `No prompt above this one` しか出ない。「前のプロンプトが表示の上から外れるまで出力を重ねる（`dir` を 2 回）」と書く。【QA】
