@@ -2568,28 +2568,10 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 
 ## 実機のレーンから
-- [ ] （実機 #311）報告の所見と印の証拠を読み、振り分ける（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
-- [ ] （実機 #311）1. **TESTING.md 27.6 / 27.7 の行に「`j<Now>` を N 回 → `<Wait:100>` → `<State:>`」の測り方を足す。** 所見 2。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
-- [ ] （実機 #311）2. **49.10 を「信頼済みのフォルダで」と書く、または人の run に回す。** 所見 3。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
-- [ ] （実機 #311）3. **`ending_a_busy_shell_asks_first` の待ち時間を見直す。** 所見 1。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
-- [ ] （実機 #311・キュー）再テスト行の先頭から外す提案: 27.6 / 27.7 / 49.10a（今回 `[x]`）、21.22d。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
-- [ ] （実機 #311・キュー）残る: 49.10（`claude`、信頼ダイアログ）、49.10a の bash の半分、33.7（x64 の #309 の直しを待つ）。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
-- [ ] （実機 #311・キュー）`.claude/windows-role.md` の ARM64 の再テスト行は長く古くなっている。押し終えた行を外して縮める提案。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
-- [ ] （実機 #311・キュー）注: この run は ef94a0c（0.86.13）で測った。`origin/main` は 6d75a44 まで進んでいて、`src/preview/text.rs` などが変わっている。27.6 / 27.7 は次の回に新しい main で一度見直すとよい。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
-- [ ] （実機 #311・票）`origin/main`（6d75a44）の QUESTIONS.md に、状態が `投票中` の質問は無かった（`投票中` を含む 7 行はすべて凡例のコメントで、状態は `反映済み`）。投票なし。（qa-reports/2026-10-10-arm-retests-20261010c.md）【後】
-- [ ] （実機 #311・キュー）Drop 27.6 / 27.7 / 49.10a / 21.22d from the ARM64 re-test row; the row in `.claude/windows-role.md` is long and stale and could be trimmed.（PR 本文）【後】
-- [ ] （実機 #311・キュー）`origin/main` is now at 6d75a44 (changes `src/preview/text.rs`); worth one more look at 27.6 / 27.7 there.（PR 本文）【後】
-- [ ] （実機 #311・キュー）Proposals: 3 (see report). Votes: none (no `投票中` question on origin/main).（PR 本文）【後】
-- [ ] （実機 #311・キュー）Changelog: QA report and checklist ticks only; no code change.（PR 本文）【後】
-- [ ] （実機 #311・キュー）🤖 Generated with [Claude Code](https://claude.com/claude-code)（PR 本文）【後】
-- [ ] （実機 #312）報告の所見と印の証拠を読み、振り分ける（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
-- [ ] （実機 #312）1. **`<State:>` could say which preview is on screen.** `App::settled()` includes `preview.in_flight`, so an ordinary key settles only after the whole preview; to see the early first-screen payload of v0.86.12 I needed `<Now>` + `<Wait:>` + `<State:>`. A `preview: early|whole` line would make 27.6's first half readable without the timing trick.（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
-- [ ] （実機 #312）2. **27.6 wording**: say how to read it (`<Now><State:a><Wait:150><State:b>`), since a plain `<State:>` hides the early stage.（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
-- [ ] （実機 #312）3. The 1.43 / 40.16 wording proposals of the earlier runs stand (`<C-c>` is a plain `\x03`).（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
-- [ ] （実機 #312・キュー）x64 and ARM64 "Re-tests of changed behaviour": delete everything that is `[x]` now (25.4e, 49.9, 49.11, 49.10, 49.10a, 27.6, 27.7, 16.3 / 16.3a, 37.8a, 49.1-49.4, 1.38, 21.22d …). Keep only **1.44, 16.13 / 16.13a, 16.3b, 33.7 (waiting on TODO.md fixes)** and **49.7 (ConPTY / OSC 8)**.（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
-- [ ] （実機 #312・キュー）With only those left and all `【pane】` / TODO-blocked, the next run should answer `WINTEST_NOTHING` quickly.（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
-- [ ] （実機 #312・票）`QUESTIONS.md` on `origin/main` has no item with `状態: 投票中`, so there was nothing to vote on.（qa-reports/2026-10-10-win-retests-20261010d.md）【後】
-- [ ] （実機 #312）Three: (1) `<State:>` should say whether the early or the whole preview is shown; (2) say in 27.6 how to read the early stage (`<Now>` + `<Wait:>` + `<State:>`); (3) the earlier 1.43 / 40.16 wording proposals stand.（PR 本文）【後】
-- [ ] （実機 #312・キュー）x64 and ARM64 "Re-tests of changed behaviour": delete everything that is `[x]` now (25.4e, 49.9, 49.11, 49.10, 49.10a, 27.6, 27.7, 16.3 / 16.3a, 37.8a, 49.1-49.4, 1.38, 21.22d …). Keep only 1.44, 16.13 / 16.13a, 16.3b, 33.7 (waiting on TODO.md fixes) and 49.7 (ConPTY / OSC 8).（PR 本文）【後】
-- [ ] （実機 #312・キュー）🤖 Generated with [Claude Code](https://claude.com/claude-code)（PR 本文）【後】
-- [ ] （実機 #312・票）Nothing to vote on: `QUESTIONS.md` has no `投票中` item.（PR 本文）【後】
+
+- [ ] （#311・#312 の提案）TESTING.md 27.6 / 27.7 の行に測り方を足す: `j<Now>` を N 回 → `<Wait:100>` → `<State:>`、27.6 の前半は `<Now><State:a><Wait:150><State:b>`（素の `<State:>` は先頭の早い画面を隠す）。`scripts/testcheck-ja.toml` の訳も。【QA】
+- [ ] （#311 の提案）TESTING.md 49.10 を「信頼済みのフォルダで」と書く（`claude` の信頼ダイアログが出ると行が押せない）。書けないなら人の run に回す。【QA】
+- [ ] （#311 の提案）`ending_a_busy_shell_asks_first`（`src/app.rs`）の待ち時間を見直す。ARM64 の機械で時間切れに近い。
+- [ ] （#312 の提案）`<State:>` に `preview: early|whole` の行を足す。`App::settled()` が `preview.in_flight` を含むので、普通のキーでは全体が出るまで待ってしまい、v0.86.12 の早い画面が `<Now>` + `<Wait:>` 抜きでは見えない。
+- [x] （2026-10-10、#311・#312 の share）再テストの順番表（x64 と ARM64）から `[x]` になった行を外した。残りは 1.44 / 16.13 / 16.13a / 16.3b / 33.7（直し待ち）と 49.7。両方の表が空に近いので、次の run は `WINTEST_NOTHING` に近い。
+- 1.43 / 40.16 の書き換えの提案（#312 の 3）は、この節の上にある既存の項目と同じ。足していない。
