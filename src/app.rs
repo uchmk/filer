@@ -9970,11 +9970,11 @@ mod escape_and_max_preview {
         // A shell starting up runs short-lived children of its own (profile
         // scripts), and the first version of this test caught one of those
         // instead of the command and then found it gone. So let it settle
-        // first: idle for a stretch, or give up waiting after a few seconds
+        // first: idle for a stretch, or give up waiting after ten seconds
         // (a shell that keeps a helper for ever never goes idle, and that is
         // fine -- the command still has to show up below).
         let (settle, mut idle_since) = (std::time::Instant::now(), std::time::Instant::now());
-        while settle.elapsed() < std::time::Duration::from_secs(5) {
+        while settle.elapsed() < std::time::Duration::from_secs(10) {
             if t.busy() {
                 idle_since = std::time::Instant::now();
             } else if idle_since.elapsed() > std::time::Duration::from_millis(500) {
@@ -9985,11 +9985,11 @@ mod escape_and_max_preview {
         let cmd: &[u8] = if cfg!(windows) { b"ping -n 60 127.0.0.1\r" } else { b"sleep 60\r" };
         t.send(cmd.to_vec());
         // Busy for a stretch, not for one look: the settling above gives up
-        // after five seconds, and on a loaded machine a profile script's child
+        // after ten seconds, and on a loaded machine a profile script's child
         // was still about, so one glance saw it and went on before the command
         // had started (#122 saw this once in 553 on ARM64). The command runs
         // for a minute; a child that is gone within half a second is not it.
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
         let mut busy_since: Option<std::time::Instant> = None;
         loop {
             match a.term.as_ref().is_some_and(|t| t.busy()) {
