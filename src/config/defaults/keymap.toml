@@ -724,6 +724,12 @@ desc = "Open help"
 on = "<F1>"
 run = "help"
 desc = "Open help"
+# The settings screen every uchmk app opens with Ctrl+, (Cmd+, on macOS, the
+# key every Mac app keeps for its preferences).
+[[mgr.keymap]]
+on = "<C-,>"
+run = "settings"
+desc = "Open the settings screen"
 [[mgr.keymap]]
 on = "<F12>"
 run = "bug-report"
@@ -781,6 +787,12 @@ desc = "Show the key list"
 on = "<C-S-p>"
 run = "palette"
 desc = "Command palette"
+# No terminal program can be sent Ctrl+, (it has no control code), so the
+# settings screen is reachable from the pane too.
+[[term.keymap]]
+on = "<C-,>"
+run = "settings"
+desc = "Open the settings screen"
 # Trying a config change means pressing this often, and leaving the pane to do
 # it also un-maximises the pane. Hardly any terminal program reads Ctrl+F5.
 [[term.keymap]]
@@ -1258,6 +1270,57 @@ on = "<C-->"
 run = "scale out"
 desc = "Make everything smaller"
 [[diff.keymap]]
+on = "<C-0>"
+run = "scale reset"
+desc = "Back to the original size"
+
+# --- Settings screen (`<C-,>`) -------------------------------------------------
+# Only these keys are the screen's: everything else goes to its controls (Tab
+# and Shift+Tab from one to the next, Space and Enter to press one, the arrows
+# in a list). `<Esc>` while a control is being typed in or a list is open
+# leaves the control first; the next one closes the screen.
+[[settings.keymap]]
+on = "<Esc>"
+run = "close"
+desc = "Close the settings screen"
+[[settings.keymap]]
+on = "<C-,>"
+run = "settings"
+desc = "Close the settings screen"
+# The pages as tabs are elsewhere: Ctrl+Tab and Ctrl+PageDown to the next one.
+[[settings.keymap]]
+on = "<C-Tab>"
+run = "tab_switch 1 --relative"
+desc = "To the next page"
+[[settings.keymap]]
+on = "<C-PageDown>"
+run = "tab_switch 1 --relative"
+desc = "To the next page"
+[[settings.keymap]]
+on = "<C-BackTab>"
+run = "tab_switch -1 --relative"
+desc = "To the page before"
+[[settings.keymap]]
+on = "<C-PageUp>"
+run = "tab_switch -1 --relative"
+desc = "To the page before"
+[[settings.keymap]]
+on = "<C-f>"
+run = "find"
+desc = "Search the settings"
+[[settings.keymap]]
+on = "<C-+>"
+run = "scale in"
+desc = "Make everything bigger"
+[[settings.keymap]]
+on = "<C-=>"
+run = "scale in"
+desc = "Make everything bigger"
+[[settings.keymap]]
+on = "<C-->"
+run = "scale out"
+desc = "Make everything smaller"
+[[settings.keymap]]
 on = "<C-0>"
 run = "scale reset"
 desc = "Back to the original size"

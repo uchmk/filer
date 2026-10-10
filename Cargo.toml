@@ -1,6 +1,6 @@
 [package]
 name = "kura"
-version = "0.96.1"
+version = "0.97.0"
 edition = "2021"
 rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"
@@ -54,6 +54,11 @@ ito-match = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8
 # config shared by every uchmk app (common.toml); the same commit as the others.
 ito-common = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f", features = ["clock"] }
 ito-mcp = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f" }
+# The settings screen (Ctrl+,): the frame, side nav, search and the shared
+# Language / CLOCK rows every uchmk app draws alike, and the palette it paints
+# with. The same commit as the others; pure Rust on egui.
+ito-prefs = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f" }
+ito-theme = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f" }
 # Already in the tree: syntect's `default-fancy` builds it. Naming it here is
 # what lets bulk rename use it, and adds no crate to the build.
 #

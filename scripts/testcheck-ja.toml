@@ -246,6 +246,10 @@ note = "確かめる `kura.exe` をフルパスで、`claude` を動かすター
 title = "ステータスバー右端の時計（v0.94.0）"
 note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を読む（Windows は `%APPDATA%\\uchmk\\common.toml`、`UCHMK_CONFIG_DIR` で置き場所のフォルダを変えられる）。ファイルが無ければ 24 時間表記の `2026/10/05 (Mon) 14:32`。起動時に読み、ファイルが変わると 2 秒以内に読み直して、再起動なしで当てる（v0.96.0）。当たっているものは `<State:>` の `clock:` の行で読める。"
 
+[section.54]
+title = "設定の画面（v0.97.0）"
+note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）が窓いっぱいに開く。一般は言語と時計を `common.toml` に書き（53 節と同じ）、詳細は設定のフォルダと読んだときの問題を出す。開いている間 `<State:>` は `overlay: settings`。54.4 のために tsumugi か mimamori を用意する。"
+
 [row]
 # 1. ターミナルペイン
 "1.1" = '`<C-t>` を一覧から押す → 下部にシェルが開き、一覧が表示しているディレクトリに既にいる'
@@ -916,3 +920,13 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "53.8" = 'kura を動かしたまま、`common.toml` を `language = "e`（壊れた行）で保存し、次に `language = "en"` に直して保存する（v0.96.0） → 1 回目の保存から 3 秒以内に `common.toml:` で始まるトーストが出て（1 度だけ。`common.toml: common.toml:` ではない）、時計はそれまでの表示のまま。2 回目のあとは曜日が `(Sat)` に戻る'
 "53.9" = 'kura を `[clock]` / `show = false` の `common.toml` で動かしたまま、ファイルを消す（v0.96.0） → 3 秒以内に既定の時計（`2026/10/10 (Sat) 14:32`）が戻る'
 "53.10" = 'kura・tsumugi・mimamori を一緒に開き、tsumugi の設定の画面（`Ctrl+,`）で時計の 24 時間表記を切り、次に言語を日本語にする（v0.96.0） → それぞれの変更から 3 秒以内に 3 つの時計が揃って変わる（12 時間表記、次に `(土)`）。kura にトーストは出ない。mimamori の設定の画面で戻すと 3 つとも戻る'
+"54.1" = '一覧で `<C-,>`、もう一度 `<C-,>` → 画面が窓全体を覆う。左に `Search settings`・`General`・`Advanced`、下に **Open kura.toml**、右にページ。色は `theme.toml` のもの。2 回目の `<C-,>` で閉じ、一覧は元のまま。ターミナルペイン（`<C-t>`）でも `<C-,>` で開く'
+"54.2" = '開いて `<C-Tab>`・`<C-Tab>`・`<C-S-Tab>`、`<C-PageDown>`・`<C-PageUp>` → ページが Advanced、General（一周）、Advanced、次に次・前と動く。後ろの一覧にはキーが届かない'
+"54.3" = '開いて `<C-f>`、`date` と打つ。`<Esc>`、`<Esc>` → 検索欄がキーを取り、ナビには General だけが残り、日付の行が光る。1 回目の `<Esc>` は欄から出るだけで画面は開いたまま。2 回目で閉じる。欄に打った `j` は文字で、カーソル移動ではない'
+"54.4" = 'tsumugi も開いたまま、General で言語を日本語にし、`Show the time in the status bar` を切って戻し、時刻の形式を変える → どの変更もすぐ出る: 画面の言葉と kura の時計（`(土)`、12 時間表記）が同じかその次のフレームで、tsumugi は 3 秒以内に変わる。`common.toml` のコメントは残る。トーストは出ない'
+"54.5" = 'General で `<Tab>` / `<S-Tab>` と `<Space>` を使う → フォーカスが見える輪付きで部品の間を動き、`<Space>` でスイッチが切り替わる。後ろの一覧では何も起きない'
+"54.6" = 'Advanced の `kura` の行で **Copy** を押し、メモ帳に貼る → kura の設定のフォルダ（`%APPDATA%\kura`）のパス。`Copied: …` のトーストが出る'
+"54.7" = 'Advanced の `yazi` の行で **Open** を押す → 画面が閉じ、一覧が yazi の設定のフォルダ（`%APPDATA%\yazi\config`）にいる'
+"54.8" = 'yazi の `yazi.toml` に `bogus = [` を保存して `<C-F5>`、Advanced を開く。ファイルを直して **Reload** → `PROBLEMS READING THE CONFIG` の下に読み込みのエラーが警告の色・等幅の字で出て、`^` が指す桁の下にある。**Reload** のあとは `No problems`'
+"54.9" = '`kura.toml` がまだ無い状態で **Open kura.toml** を押す → コメント 2 行のファイルが作られ、`.toml` のエディタ（無ければメモ帳）で開く。画面は開いたまま。ファイルがあればそのまま開く'
+"54.10" = '言語を日本語にして画面を開く → ナビが `一般` / `詳細`、行の言葉が日本語になり、検索欄で `時計` が見つかる'

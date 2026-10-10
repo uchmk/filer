@@ -275,12 +275,12 @@ Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `bac
 `find_arrow`, `filter`, `search`, `help`, `tasks_show`, `spot`, `noop`, plus `undo`, `redo`, `jump`,
 `bulk_rename`, `compare`, `quick`, `zoom`, `minimap`, `config_reload`, `palette`,
 `menu`, `extract`, `compress`, `send_pane`, `terminal`, `term_send`, `term_cd`, `term_find`, `term_scroll`, `term_prompt`, `term_copy_output`, `task_toggle`, `task_cancel`, `task_top`,
-`split`, `pane_focus`, `toggle_render`, `toggle_outline`, `usage` and `bug-report` (the last two
-this project's own). `select` and `select_all` are accepted as `toggle --state=on` /
+`split`, `pane_focus`, `toggle_render`, `toggle_outline`, `usage`, `settings` and `bug-report` (the last
+three this project's own). `select` and `select_all` are accepted as `toggle --state=on` /
 `toggle_all --state=on`. In the `[input]` section: `close --submit` (and the `*_do` spellings),
 `close` and `complete`; in `[spot]`: `close`, `arrow`, `swipe`, `enter`, `copy cell` and `copy all` (this project's own: the whole panel, `Label<TAB>value` per row; with two or more files selected, one panel per file under `#### <path>`, v0.78.205); in `[term]`:
 `close` and anything from `[mgr]`, with every other key going to the shell; in `[diff]`:
-`close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) `hide_same` (this project's own: hide or show a folder comparison's matching rows) and `copy all` (`C`, comparing folders: the rows on screen, `state<TAB>path` per row, v0.82.0); in `[help]`: `close`, `help` (which closes it too), `arrow`, `copy all` (the whole panel as text, as in `[spot]`) and `config_reload` (`<C-F5>`, the key the panel's config rows name; the panel stays open).
+`close`, `arrow`, `find_arrow`, `enter` (comparing folders: compare the files on the row) `hide_same` (this project's own: hide or show a folder comparison's matching rows) and `copy all` (`C`, comparing folders: the rows on screen, `state<TAB>path` per row, v0.82.0); in `[help]`: `close`, `help` (which closes it too), `arrow`, `copy all` (the whole panel as text, as in `[spot]`) and `config_reload` (`<C-F5>`, the key the panel's config rows name; the panel stays open); in `[settings]`: `close`, `settings` (which closes it too), `tab_switch 1 --relative` / `tab_switch -1 --relative` (the next / previous page), `find` (the search box) and `scale`.
 
 A few plugin invocations are mapped onto built-in behavior so common setups keep working:
 
@@ -367,7 +367,8 @@ start-up and watched: a change saved by another uchmk app (tsumugi's or mimamori
 applies within 2 seconds, with no restart, so every open uchmk app changes its clock together. A file that does not
 read keeps the clock as it was, with a toast; a key no uchmk app reads is skipped with a toast and the rest applies.
 There is no override in `kura.toml`. `theme`, `dark_theme` and `light_theme` are read by the other apps; kura keeps
-the colours of yazi's `theme.toml` for now.
+the colours of yazi's `theme.toml` for now. kura's own [settings screen](#settings-screen) (`<C-,>`) writes the
+language and the clock here too, keeping the file's comments.
 
 ```toml
 language = "auto"          # auto / en / ja: with "ja" the weekday reads (月)
@@ -524,6 +525,23 @@ dim pane takes the keys first, so a click, a `Shift`+click or a double-click alw
 pane you aimed at. Both panes are watched for changes and rescanned, the passive one at a lower
 priority so the focused directory is never made to wait behind it.
 
+## Settings screen
+
+`<C-,>` (`<Cmd-,>` on macOS; `settings`) opens the settings screen every uchmk app shares: the pages
+down the left, a search box over them, and **Open kura.toml** at the bottom (made with a first line
+saying what goes in it, when there is none yet). `<C-,>` again closes it, as does `<Esc>` — the
+first `<Esc>` only leaves the search box or a control that has the keys. `<C-Tab>` / `<C-PageDown>`
+and `<C-S-Tab>` / `<C-PageUp>` go to the next / previous page, `<C-f>` puts the keys in the search
+box, and `<Tab>` moves between the controls. Nothing pressed here reaches the list behind it. These
+are the `[settings]` keymap section.
+
+| Page | |
+| --- | --- |
+| General | The language and the clock, written into [common.toml](#commontoml-the-clock) as soon as they are changed, off the UI thread and keeping the file's comments; every other open uchmk app follows within 2 seconds. The language sets the words of this screen and the clock's weekday; the rest of kura is in English for now |
+| Advanced | Where the config is read from — kura's folder, yazi's and the `uchmk` one — each with **Copy** (the path) and **Open** (the list goes there), what was wrong when the config was last read, and **Reload** (`<C-F5>`) |
+
+The colours come from yazi's `theme.toml`, as the rest of kura's are.
+
 ## Command palette
 
 `<C-S-p>` (`Cmd`+`Shift`+`P` on macOS) lists every `mgr` binding — the built-in ones and whatever
@@ -575,6 +593,7 @@ rather than another set of bindings. Only what the `[term]` keymap section binds
 | `<C-t>` | give the keys back to the list, leaving the shell running |
 | `<C-S-t>` | close the pane and end the shell — asking first when a program (lazygit, an editor, a build) is still running under it |
 | `<F1>` `<C-S-p>` | the key list / the command palette |
+| `<C-,>` | the settings screen |
 | `<C-F5>` | read the config files again, as in the list |
 | `<A-Up>` | put the file list where the shell is |
 | `<A-j>` `<A-k>` | five lines down / up the scrollback — the keys that scroll the preview from the list |
@@ -1148,6 +1167,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `<C-S-p>` | command palette: fuzzy-search every key binding and run it |
 | `<S-F10>` | context menu for the file under the cursor |
 | `<F12>` | bug report: shows what it would carry, then `<Enter>` opens the form with it filled in, `c` copies the link |
+| `<C-,>` | the [settings screen](#settings-screen) (`<Cmd-,>` on macOS) |
 | `w` `q` | tasks (`p` pause, `x` cancel, `t` to the front) / quit |
 
 #### Yank, copy, and sending to the other pane

@@ -5,6 +5,7 @@
 mod list;
 pub(crate) mod overlay;
 pub(crate) mod preview;
+mod settings;
 mod term;
 
 use egui::{Align2, Color32, CornerRadius, FontFamily, FontId, Rect, Stroke, Ui, Vec2};
@@ -146,6 +147,14 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
     // Rebuilt every frame as the panes are laid out.
     app.pane_rects.clear();
     app.preview.rect = None;
+
+    // The settings screen takes the whole window, so nothing behind it is laid out.
+    if matches!(app.overlay, Overlay::Settings(_)) {
+        settings::draw(app, ui, full, &mut queued);
+        draw_toasts(app, ui, full, &f, row_h);
+        app.run(&queued);
+        return;
+    }
 
     let header_h = header_height(row_h);
     let status_h = row_h + 8.0;

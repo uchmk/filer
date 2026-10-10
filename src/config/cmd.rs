@@ -200,6 +200,8 @@ pub enum Act {
     Compare,
 
     Help,
+    /// Open the settings screen (`<C-,>`), or close it from inside.
+    Settings,
     /// Open a bug report in the browser with the version, architecture
     /// and OS build already filled in.
     BugReport,
@@ -536,6 +538,7 @@ pub fn parse(line: &str) -> Act {
         "filter_do" | "find_do" | "search_do" | "cd_do" | "rename_do" | "create_do" => Act::Submit,
 
         "help" => Act::Help,
+        "settings" => Act::Settings,
         // `scale in` / `scale out` / `scale reset`. egui has this built in and
         // takes the same three chords for itself; kura turns that off and
         // runs it through the keymap instead, so it is listed under `~` and
@@ -704,6 +707,7 @@ mod tests {
         assert_eq!(parse("plugin bookmarks jump"), Act::BookmarkJump);
         assert_eq!(parse("plugin bookmarks list"), Act::BookmarkList);
         assert_eq!(parse("palette"), Act::Palette);
+        assert_eq!(parse("settings"), Act::Settings);
         assert_eq!(parse("menu"), Act::Menu);
         assert_eq!(parse("split"), Act::Split(None));
         assert_eq!(parse("split close"), Act::Split(Some(false)));

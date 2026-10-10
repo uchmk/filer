@@ -358,7 +358,7 @@ const LIGHT_WARNING: Color32 = Color32::from_rgb(0x7a, 0x56, 0x00);
 
 /// Whether dark text reads better on `bg` than light text: WCAG's relative
 /// luminance against the point where black and white contrast alike.
-fn is_light(bg: Color32) -> bool {
+pub(crate) fn is_light(bg: Color32) -> bool {
     let lin = |c: u8| {
         let c = c as f32 / 255.0;
         if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }

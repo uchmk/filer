@@ -1102,8 +1102,9 @@ impl eframe::App for Kura {
         // egui walks focus across clickable rows on Tab / Shift+Tab, and a
         // focused row then takes Space / Enter as a click. The keymap owns
         // those keys, so nothing keeps focus outside of a text field or a
-        // picker (the spot panel takes Tab to close).
-        if !matches!(self.app.overlay, Overlay::Input(_) | Overlay::Pick(_)) {
+        // picker (the spot panel takes Tab to close). The settings screen is
+        // made of controls that Tab walks and Space presses, as in a dialog.
+        if !matches!(self.app.overlay, Overlay::Input(_) | Overlay::Pick(_) | Overlay::Settings(_)) {
             if let Some(id) = ctx.memory(|m| m.focused()) {
                 ctx.memory_mut(|m| m.surrender_focus(id));
             }
@@ -1256,6 +1257,7 @@ fn overlay_name(app: &App) -> &'static str {
         app::Overlay::Tasks(_) => "tasks",
         app::Overlay::Spot(_) => "spot",
         app::Overlay::Diff(_) => "diff",
+        app::Overlay::Settings(_) => "settings",
     }
 }
 
@@ -1842,6 +1844,17 @@ fn on_key_event(app: &mut App, key: egui::Key, modifiers: &egui::Modifiers) {
             _ => {}
         },
         Overlay::Help | Overlay::Tasks(_) | Overlay::Spot(_) | Overlay::Diff(_) => {
+            if let Some(k) = keys::from_egui(key, modifiers) {
+                app.feed_overlay_key(k);
+            }
+        }
+        // While one of its controls has the keys (a field being typed in), a
+        // key without Ctrl or Alt is the control's: Esc leaves the field, and
+        // only the next one closes the screen. Chords stay the screen's.
+        Overlay::Settings(ov) => {
+            if ov.state.held && !(modifiers.ctrl || modifiers.command || modifiers.alt) {
+                return;
+            }
             if let Some(k) = keys::from_egui(key, modifiers) {
                 app.feed_overlay_key(k);
             }

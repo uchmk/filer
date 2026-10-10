@@ -979,7 +979,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1278,7 +1278,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2048,6 +2048,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ito-i18n"
+version = "0.2.0"
+source = "git+https://github.com/uchmk/ito?rev=90314f94820ed2b1c08b8610c0cf7bad59b07f7f#90314f94820ed2b1c08b8610c0cf7bad59b07f7f"
+dependencies = [
+ "ito-common",
+ "toml",
+]
+
+[[package]]
 name = "ito-ipc"
 version = "0.2.0"
 source = "git+https://github.com/uchmk/ito?rev=90314f94820ed2b1c08b8610c0cf7bad59b07f7f#90314f94820ed2b1c08b8610c0cf7bad59b07f7f"
@@ -2099,6 +2108,26 @@ dependencies = [
  "skrifa",
  "vello_cpu",
  "windows",
+]
+
+[[package]]
+name = "ito-prefs"
+version = "0.2.0"
+source = "git+https://github.com/uchmk/ito?rev=90314f94820ed2b1c08b8610c0cf7bad59b07f7f#90314f94820ed2b1c08b8610c0cf7bad59b07f7f"
+dependencies = [
+ "egui",
+ "ito-common",
+ "ito-i18n",
+ "ito-theme",
+]
+
+[[package]]
+name = "ito-theme"
+version = "0.2.0"
+source = "git+https://github.com/uchmk/ito?rev=90314f94820ed2b1c08b8610c0cf7bad59b07f7f#90314f94820ed2b1c08b8610c0cf7bad59b07f7f"
+dependencies = [
+ "egui",
+ "toml",
 ]
 
 [[package]]
@@ -2225,7 +2254,7 @@ dependencies = [
 
 [[package]]
 name = "kura"
-version = "0.96.1"
+version = "0.97.0"
 dependencies = [
  "ab_glyph",
  "alacritty_terminal",
@@ -2245,6 +2274,8 @@ dependencies = [
  "ito-match",
  "ito-mcp",
  "ito-pane",
+ "ito-prefs",
+ "ito-theme",
  "notify",
  "open",
  "pulldown-cmark",
@@ -2434,7 +2465,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "536bfad37a309d62069485248eeaba1e8d9853aaf951caaeaed0585a95346f08"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3503,7 +3534,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3950,7 +3981,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.5",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4282,7 +4313,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4887,7 +4918,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

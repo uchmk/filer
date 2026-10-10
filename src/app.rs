@@ -321,6 +321,17 @@ pub enum Overlay {
     Tasks(TasksOverlay),
     Spot(SpotOverlay),
     Diff(DiffOverlay),
+    Settings(SettingsOverlay),
+}
+
+/// The settings screen (`<C-,>`), drawn by `ito_prefs` over the whole window.
+#[derive(Default)]
+pub struct SettingsOverlay {
+    /// The page, the search, and whether a control had the keys last frame.
+    pub state: ito_prefs::State,
+    /// What the `[settings]` layer asked of the screen since it was last
+    /// drawn: the next page, the search. Taken by the draw.
+    pub keys: ito_prefs::Keys,
 }
 
 /// Which keymap layer a panel reads, and which dispatcher runs what it names.
@@ -334,6 +345,7 @@ enum PanelLayer {
     Tasks,
     Spot,
     Diff,
+    Settings,
 }
 
 impl PanelLayer {
@@ -343,6 +355,7 @@ impl PanelLayer {
             Overlay::Tasks(_) => Some(Self::Tasks),
             Overlay::Spot(_) => Some(Self::Spot),
             Overlay::Diff(_) => Some(Self::Diff),
+            Overlay::Settings(_) => Some(Self::Settings),
             Overlay::None | Overlay::Input(_) | Overlay::Confirm(_) | Overlay::Pick(_) => None,
         }
     }
@@ -353,6 +366,7 @@ impl PanelLayer {
             Self::Tasks => &km.tasks,
             Self::Spot => &km.spot,
             Self::Diff => &km.diff,
+            Self::Settings => &km.settings,
         }
     }
 
@@ -362,6 +376,7 @@ impl PanelLayer {
             Self::Tasks => app.tasks_act(a),
             Self::Spot => app.spot_act(a),
             Self::Diff => app.diff_act(a),
+            Self::Settings => app.settings_act(a),
         }
     }
 }
@@ -687,6 +702,12 @@ fn keymap_render(k: &Key) -> String {
 
 /// How many toasts [`App::toast_log`] keeps.
 pub const TOAST_LOG: usize = 16;
+
+/// A kura.toml the settings screen's "Open kura.toml" makes when there is
+/// none yet: only comments, so it changes nothing until a line is added.
+const KURA_TOML_START: &str = "# kura's own settings, beside yazi's yazi.toml, keymap.toml and theme.toml.
+# Every key, with what it does, is in the README: \"kura.toml\".
+";
 
 pub struct Toast {
     pub text: String,
@@ -1376,6 +1397,16 @@ pub struct App {
     /// common.toml read again by its watcher each time the file changes
     /// (`load_common`), so another uchmk app's settings screen reaches here.
     common_rx: Option<crossbeam_channel::Receiver<CommonRead>>,
+    /// The same channel's other end, for the settings screen's writes: what
+    /// it wrote is read back and applied at once, not at the next look.
+    common_tx: Option<crossbeam_channel::Sender<CommonRead>>,
+    /// The `uchmk` folder common.toml is in, and what it said last.
+    pub common_base: Option<PathBuf>,
+    pub common: ito_common::Common,
+    /// What went wrong opening kura.toml from the settings screen, said
+    /// from the thread that tried.
+    settings_rx: crossbeam_channel::Receiver<String>,
+    settings_tx: crossbeam_channel::Sender<String>,
     pub preview: PreviewSlot,
     pub max_preview: bool,
     /// The terminal pane has the window. A third of the height is right for a
@@ -1530,10 +1561,16 @@ impl App {
         let tab = Tab::new(start, sort, cfg.yazi.mgr.show_hidden, cfg.yazi.mgr.linemode);
         let render_markdown = cfg.ui.render_markdown;
 
+        let (settings_tx, settings_rx) = crossbeam_channel::unbounded();
         let mut app = Self {
             clock: ito_common::Clock::default(),
             lang: "en".into(),
             common_rx: None,
+            common_tx: None,
+            common_base: None,
+            common: ito_common::Common::default(),
+            settings_rx,
+            settings_tx,
             cfg,
             tabs: vec![tab],
             active: 0,
@@ -1639,6 +1676,8 @@ impl App {
         let Some(base) = ito_common::base_dir() else { return };
         self.set_common(ito_common::Common::read(&base));
         let (tx, rx) = crossbeam_channel::unbounded();
+        self.common_base = Some(base.clone());
+        self.common_tx = Some(tx.clone());
         let ctx = self.ctx.clone();
         ito_common::watch(vec![ito_common::common_path(&base)], Duration::from_secs(2), move |_| {
             let alive = tx.send(ito_common::Common::read(&base)).is_ok();
@@ -1661,11 +1700,91 @@ impl App {
                     _ => ito_common::os_language().unwrap_or_default(),
                 };
                 self.lang = if lang.starts_with("ja") { "ja".into() } else { "en".into() };
+                self.common = common;
                 if let Some(w) = warnings.first() {
                     self.warn(w.clone());
                 }
             }
             Err(e) => self.warn(e),
+        }
+    }
+
+    /// Write what the settings screen changed into common.toml, off the UI
+    /// thread (`edit_common` keeps the comments and takes one write at a
+    /// time), then read the file back and apply it like the watcher does.
+    /// Every other uchmk app sees the same change through its own watcher.
+    pub fn write_common(&mut self, changes: Vec<ito_common::CommonChange>) {
+        if changes.is_empty() {
+            return;
+        }
+        let Some(base) = self.common_base.clone() else {
+            self.error("common.toml: there is no config folder to keep it in");
+            return;
+        };
+        let tx = self.common_tx.clone();
+        let ctx = self.ctx.clone();
+        std::thread::spawn(move || {
+            let written = ito_common::edit_common(&base, |text| changes.iter().try_fold(text.to_owned(), |t, c| c.apply(&t)));
+            let read = match written {
+                Ok(()) => ito_common::Common::read(&base),
+                Err(e) if e.contains("common.toml") => Err(e),
+                Err(e) => Err(format!("common.toml: {e}")),
+            };
+            if let Some(tx) = tx {
+                let _ = tx.send(read);
+            }
+            ctx.request_repaint();
+        });
+    }
+
+    /// kura's own config folder, where kura.toml is (`KURA_CONFIG_HOME`).
+    pub fn kura_config_dir() -> Option<PathBuf> {
+        crate::config::config_home("KURA_CONFIG_HOME")
+    }
+
+    /// Open kura.toml in the system's editor for it, off the UI thread. A
+    /// first one is made, with a line saying what goes in it, so the button
+    /// works before there is anything to change.
+    pub fn open_kura_toml(&mut self) {
+        let Some(dir) = Self::kura_config_dir() else {
+            self.error("kura.toml: there is no config folder to keep it in");
+            return;
+        };
+        let tx = self.settings_tx.clone();
+        let ctx = self.ctx.clone();
+        std::thread::spawn(move || {
+            let path = dir.join("kura.toml");
+            let made = if path.exists() {
+                Ok(())
+            } else {
+                std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(&path, KURA_TOML_START))
+            };
+            if let Err(e) = made.and_then(|()| exec::open_default(&path)) {
+                let _ = tx.send(format!("{}: {e}", path.display()));
+                ctx.request_repaint();
+            }
+        });
+    }
+
+    /// Open the settings screen, or close it.
+    pub fn toggle_settings(&mut self) {
+        self.overlay = match self.overlay {
+            Overlay::Settings(_) => Overlay::None,
+            _ => Overlay::Settings(SettingsOverlay::default()),
+        };
+        self.pending.clear();
+    }
+
+    /// The settings screen's own keys, from the `[settings]` layer. The rest
+    /// go to its controls, which egui hands them to.
+    fn settings_act(&mut self, a: Act) {
+        let Overlay::Settings(ov) = &mut self.overlay else { return };
+        match a {
+            Act::Close | Act::Escape(_) | Act::Quit | Act::Settings => self.overlay = Overlay::None,
+            Act::TabSwitch { n, relative: true } if n > 0 => ov.keys.next = true,
+            Act::TabSwitch { n, relative: true } if n < 0 => ov.keys.back = true,
+            Act::Find { .. } => ov.keys.find = true,
+            _ => {}
         }
     }
 
@@ -1881,6 +2000,9 @@ impl App {
         }
         while let Some(read) = self.common_rx.as_ref().and_then(|rx| rx.try_recv().ok()) {
             self.set_common(read);
+        }
+        while let Ok(e) = self.settings_rx.try_recv() {
+            self.error(e);
         }
         // A launch reports at most once, and its watcher lets go of the channel
         // when it stops caring, so a disconnected one is finished with.
@@ -3440,6 +3562,7 @@ impl App {
             // that off and doing it here is not a change in feel.
             Act::Scale(to) => self.scale(to),
             Act::BugReport => self.bug_report(),
+            Act::Settings => self.toggle_settings(),
             Act::TasksShow => self.overlay = Overlay::Tasks(TasksOverlay { cursor: 0 }),
             // These act on the row the task panel has under its cursor, so
             // they open it first when it is not the overlay in front.
@@ -8784,6 +8907,7 @@ mod panel_layers {
             (PanelLayer::Tasks, &km.tasks, "tasks"),
             (PanelLayer::Spot, &km.spot, "spot"),
             (PanelLayer::Diff, &km.diff, "diff"),
+            (PanelLayer::Settings, &km.settings, "settings"),
         ] {
             let got = layer.bindings(km);
             assert!(
@@ -9511,6 +9635,81 @@ mod usage_view {
         assert_eq!(a.clock, ito_common::Clock::default());
     }
 
+    /// What the settings screen changes goes into common.toml, keeping what
+    /// was in it, and comes back through the watcher's channel to be applied.
+    #[test]
+    fn the_settings_screen_writes_common_toml_and_applies_it() {
+        let dir = util::test_dir("settings-common");
+        let base = dir.join("uchmk");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::write(base.join("common.toml"), "# mine\ntheme = \"dark\"\n").unwrap();
+        let mut a = app_in(&dir);
+        let (tx, rx) = crossbeam_channel::unbounded();
+        a.common_base = Some(base.clone());
+        a.common_tx = Some(tx);
+        a.common_rx = Some(rx.clone());
+        a.write_common(vec![
+            ito_common::CommonChange { table: None, key: "language", value: "\"ja\"".into() },
+            ito_common::CommonChange { table: Some("clock"), key: "hour24", value: "false".into() },
+        ]);
+        let read = rx.recv_timeout(Duration::from_secs(10)).expect("the write reports back");
+        a.set_common(read);
+        assert_eq!(a.lang, "ja");
+        assert!(!a.clock.hour24);
+        let text = std::fs::read_to_string(base.join("common.toml")).unwrap();
+        assert!(text.starts_with("# mine\ntheme = \"dark\"\n"), "kept what was there: {text}");
+        // Nothing changed is nothing written.
+        a.write_common(Vec::new());
+        assert!(rx.recv_timeout(Duration::from_millis(300)).is_err());
+    }
+
+    /// With no config folder there is nowhere to write, and the screen says so.
+    #[test]
+    fn the_settings_screen_without_a_folder_says_so() {
+        let dir = util::test_dir("settings-no-base");
+        let mut a = app_in(&dir);
+        a.common_base = None;
+        a.write_common(vec![ito_common::CommonChange { table: None, key: "language", value: "\"en\"".into() }]);
+        assert!(a.toasts.last().is_some_and(|t| t.text.starts_with("common.toml:")));
+    }
+
+    /// `<C-,>` opens the screen and closes it; Esc closes it; the page and
+    /// search chords reach `ito_prefs` as its `Keys`, not the list behind.
+    #[test]
+    fn the_settings_screen_keys() {
+        let dir = util::test_dir("settings-keys");
+        let mut a = app_in(&dir);
+        let opens = a.cfg.keymap.mgr.iter().find(|b| b.on == vec![Key::parse("<C-,>").unwrap()]);
+        assert_eq!(opens.map(|b| b.run.clone()), Some(vec![Act::Settings]), "`<C-,>` opens it from the list");
+        a.act(Act::Settings);
+        assert!(matches!(a.overlay, Overlay::Settings(_)));
+        let keys = |a: &App| match &a.overlay {
+            Overlay::Settings(ov) => (ov.keys.next, ov.keys.back, ov.keys.find),
+            _ => panic!("the screen closed"),
+        };
+        for (k, want) in [
+            ("<C-Tab>", (true, false, false)),
+            ("<C-PageDown>", (true, false, false)),
+            ("<C-BackTab>", (false, true, false)),
+            ("<C-PageUp>", (false, true, false)),
+            ("<C-f>", (false, false, true)),
+        ] {
+            a.overlay = Overlay::Settings(Default::default());
+            a.feed_overlay_key(Key::parse(k).unwrap());
+            assert_eq!(keys(&a), want, "{k}");
+        }
+        // A plain key is the controls', and moves nothing behind the screen.
+        let before = a.tabs[a.active].current.cursor;
+        a.feed_overlay_key(Key::parse("j").unwrap());
+        assert_eq!(a.tabs[a.active].current.cursor, before);
+        assert!(matches!(a.overlay, Overlay::Settings(_)));
+        a.feed_overlay_key(Key::parse("<C-,>").unwrap());
+        assert!(matches!(a.overlay, Overlay::None), "`<C-,>` closes it again");
+        a.act(Act::Settings);
+        a.feed_overlay_key(Key::parse("<Esc>").unwrap());
+        assert!(matches!(a.overlay, Overlay::None), "Esc closes it");
+    }
+
     #[test]
     fn a_completion_names_its_folder_once_it_has_waited_long_enough() {
         let dir = util::test_dir("slow-completion");
@@ -10120,6 +10319,7 @@ mod window_scale {
                 cursor: 0,
                 hide_same: false, back: None,
             })),
+            ("settings", Overlay::Settings(Default::default())),
         ];
         for (name, overlay) in panels {
             a.scale = 1.0;

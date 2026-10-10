@@ -1654,3 +1654,22 @@ again within 2 seconds of the file changing, with no restart (v0.96.0); `<State:
 | 53.8 | With kura running, save `common.toml` as `language = "e` (a broken line); then fix it to `language = "en"` and save (v0.96.0) | Within 3 seconds of the first save a toast starts `common.toml:` (once, not `common.toml: common.toml:`) and the clock keeps what it showed. After the second, the weekday reads `(Sat)` again |
 | 53.9 | With kura running on a `common.toml` with `[clock]` / `show = false`, delete the file (v0.96.0) | Within 3 seconds the default clock comes back (`2026/10/10 (Sat) 14:32`) |
 | 53.10 | Open kura, tsumugi and mimamori together; in tsumugi's settings screen (`Ctrl+,`) turn the clock's 24-hour form off, then set the language to Japanese (v0.96.0) | Within 3 seconds of each change all three clocks change together: the 12-hour form, then `(土)`. kura shows no toast. Turning them back in mimamori's settings screen brings all three back |
+
+## 54. The settings screen (v0.97.0)
+
+`<C-,>` opens the settings screen uchmk's apps share (`ito_prefs`), over the whole window. General writes the
+language and the clock into `common.toml` (as in section 53); Advanced shows the config folders and what went wrong
+reading them. `<State:>` reads `overlay: settings` while it is open. Have tsumugi or mimamori at hand for 54.4.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 54.1 | Press `<C-,>` in the list, then `<C-,>` again | The screen covers the whole window: `Search settings`, `General` and `Advanced` on the left with **Open kura.toml** at the bottom, the page on the right, in the colours of `theme.toml`. The second `<C-,>` closes it and the list is as it was. In the terminal pane (`<C-t>`), `<C-,>` opens it too |
+| 54.2 | Open it; `<C-Tab>`, `<C-Tab>`, `<C-S-Tab>`; `<C-PageDown>`, `<C-PageUp>` | The page goes Advanced, General (wrapping), Advanced; then the next and previous. No key reaches the list behind it |
+| 54.3 | Open it; `<C-f>`, type `date`; `<Esc>`; `<Esc>` | The search box takes the keys, only General stays in the nav and the date rows are lit. The first `<Esc>` leaves the box with the screen still open; the second closes the screen. `j` typed in the box is a letter, not a cursor move |
+| 54.4 | With tsumugi open too, on General set the language to Japanese, then turn `Show the time in the status bar` off and on, and change the time format | Each change shows at once: the screen's words and kura's clock (`(土)`, the 12-hour form) change in the same frame or the next, and tsumugi's within 3 seconds. `common.toml` keeps any comment it had. No toast |
+| 54.5 | Use `<Tab>` / `<S-Tab>` and `<Space>` on General | The focus moves between the controls with a visible ring, and `<Space>` flips a switch. Nothing happens in the list behind |
+| 54.6 | On Advanced, press **Copy** on the `kura` row, then paste into Notepad | The path of kura's config folder (`%APPDATA%\kura`), with a toast `Copied: …` |
+| 54.7 | On Advanced, press **Open** on the `yazi` row | The screen closes and the list is in yazi's config folder (`%APPDATA%\yazi\config`) |
+| 54.8 | Save `bogus = [` into yazi's `yazi.toml`, `<C-F5>`, then open Advanced; fix the file and press **Reload** | The parse error is listed under `PROBLEMS READING THE CONFIG` in the warning colour, in a fixed-width font, its `^` under the column it means. After **Reload** it reads `No problems` |
+| 54.9 | Press **Open kura.toml** with no `kura.toml` yet | The file is made with two comment lines and opens in the editor for `.toml` (or Notepad); the screen stays open. With the file there it opens as it is |
+| 54.10 | With the language on Japanese, open the screen | The nav reads `一般` / `詳細`, the rows' words are Japanese, and the search box finds `時計` |

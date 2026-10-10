@@ -40,6 +40,8 @@ pub struct Keymap {
     pub spot: Vec<Binding>,
     /// The side-by-side compare view's own keys.
     pub diff: Vec<Binding>,
+    /// The settings screen's keys (`<C-,>`): the rest go to its controls.
+    pub settings: Vec<Binding>,
     /// The few keys the terminal pane keeps for itself; everything else it
     /// hears goes to the shell.
     pub term: Vec<Binding>,
@@ -93,6 +95,8 @@ struct KeymapFile {
     spot: Section,
     #[serde(default)]
     diff: Section,
+    #[serde(default)]
+    settings: Section,
     #[serde(default)]
     term: Section,
     #[serde(default)]
@@ -264,6 +268,7 @@ impl Keymap {
             km.tasks = fold("tasks", std::mem::take(&mut km.tasks), &f.tasks, from, &mut warnings);
             km.spot = fold("spot", std::mem::take(&mut km.spot), &f.spot, from, &mut warnings);
             km.diff = fold("diff", std::mem::take(&mut km.diff), &f.diff, from, &mut warnings);
+            km.settings = fold("settings", std::mem::take(&mut km.settings), &f.settings, from, &mut warnings);
             km.term = fold("term", std::mem::take(&mut km.term), &f.term, from, &mut warnings);
             let _ = &f.cmp; // parsed for compatibility; completion is native here
         }
@@ -280,7 +285,7 @@ impl Keymap {
 
     /// Every layer with the name it is written under, for the checks and tests
     /// that have to treat them alike.
-    fn layers(&self) -> [(&'static str, &[Binding]); 9] {
+    fn layers(&self) -> [(&'static str, &[Binding]); 10] {
         [
             ("mgr", &self.mgr),
             ("input", &self.input),
@@ -291,6 +296,7 @@ impl Keymap {
             ("spot", &self.spot),
             ("term", &self.term),
             ("diff", &self.diff),
+            ("settings", &self.settings),
         ]
     }
 }
@@ -547,7 +553,7 @@ run = "plugin bookmarks save"
     #[test]
     fn no_layer_binds_a_key_twice_or_swallows_its_own_chords() {
         let (km, _) = Keymap::load(&[]);
-        let layers: [(&str, &[Binding]); 9] = [
+        let layers: [(&str, &[Binding]); 10] = [
             ("mgr", &km.mgr),
             ("input", &km.input),
             ("confirm", &km.confirm),
@@ -557,6 +563,7 @@ run = "plugin bookmarks save"
             ("spot", &km.spot),
             ("term", &km.term),
             ("diff", &km.diff),
+            ("settings", &km.settings),
         ];
         for (name, bindings) in layers {
             for (i, b) in bindings.iter().enumerate() {

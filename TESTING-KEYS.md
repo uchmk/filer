@@ -4,7 +4,7 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-264 keys. How many are checked is not written here, so that two pull requests ticking
+277 keys. How many are checked is not written here, so that two pull requests ticking
 keys do not conflict over a total: `cargo run --example make-keycheck -- --stats`.
 
 A key is checked when it did what the description says _and_ did nothing else —
@@ -195,6 +195,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `w` — Show the task manager · `tasks_show`
 - [x] `~` — Open help · `help`
 - [x] `<F1>` — Open help · `help`
+- [ ] `<C-,>` — Open the settings screen · `settings`
 - [x] `<F12>` — Open a pre-filled bug report in the browser · `bug-report`
 - [x] `<C-S-p>` — Open the command palette · `palette`
 - [x] `<S-F10>` — Open the context menu · `menu`
@@ -213,6 +214,7 @@ While the terminal pane holds the keys. Everything not listed here goes to the s
 - [x] `<C-S-t>` — Close the terminal and end the shell · `terminal close`
 - [x] `<F1>` — Show the key list · `help`
 - [x] `<C-S-p>` — Command palette · `palette`
+- [ ] `<C-,>` — Open the settings screen · `settings`
 - [x] `<C-F5>` — Read the config files again (theme, icons, keys) · `config_reload`
 - [x] `<A-Up>` — Put the pane where the shell is · `term_cd`
 - [x] `<C-S-Enter>` — Give the terminal pane the window, or hand it back · `term_max`
@@ -365,3 +367,19 @@ The side-by-side comparison (`<A-d>`).
 - [x] `<C-=>` — Make everything bigger · `scale in`
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
+
+## `[settings]`
+
+### Settings screen (`<C-,>`)
+
+- [ ] `<Esc>` — Close the settings screen · `close`
+- [ ] `<C-,>` — Close the settings screen · `settings`
+- [ ] `<C-Tab>` — To the next page · `tab_switch 1 --relative`
+- [ ] `<C-PageDown>` — To the next page · `tab_switch 1 --relative`
+- [ ] `<C-BackTab>` — To the page before · `tab_switch -1 --relative`
+- [ ] `<C-PageUp>` — To the page before · `tab_switch -1 --relative`
+- [ ] `<C-f>` — Search the settings · `find`
+- [ ] `<C-+>` — Make everything bigger · `scale in`
+- [ ] `<C-=>` — Make everything bigger · `scale in`
+- [ ] `<C-->` — Make everything smaller · `scale out`
+- [ ] `<C-0>` — Back to the original size · `scale reset`
