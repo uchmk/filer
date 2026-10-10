@@ -1627,3 +1627,5 @@ press these in: `src\main.rs`, `src\lib.rs`, `docs\domain-notes.md`, `a-w-a.txt`
 | 52.20 | `s`, type `ext:log`, `<Enter>` in a folder with `.log`, `.txt` files and a folder named `x.log` (v0.93.0) | Every `.log` file below shows (upper case `.LOG` too), no `.txt` and not the folder. The toast ends `only .log)` |
 | 52.21 | `S`, type `error ext:log`, `<Enter>` (v0.93.0) | Only `.log` files holding `error` are listed, and only `error` is coloured in the preview. `ext:rs,toml` takes both kinds |
 | 52.22 | `S`, type `ext:log`, `<Enter>` (v0.93.0) | No search starts; the red toast says a content search needs something to look for besides `ext:` |
+| 52.23 | `S`, type `auto.*ids`, `<Enter>` where a `.md` file holds it (e.g. QA-REPORT.md), rendered view (v0.93.1) | The preview opens a few lines above the first match and the match is coloured, also where it spans bold or code spans. `n` / `N` walk the matches in it, then go on to the next file |
+| 52.24 | In that Markdown file, toggle to the source view (`M`), then `n` / `N` (v0.93.1) | The source lines are coloured and walked, with their own line numbers; toggling back keeps the place |

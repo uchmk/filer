@@ -2343,8 +2343,15 @@ impl App {
         else {
             return Vec::new();
         };
-        let PreviewState::Ready(Payload::Text { lines, .. }) = &self.preview.state else {
-            return Vec::new();
+        // Markdown is searched where it is drawn: the rendered text has no
+        // markup characters, the source view does.
+        let lines: Vec<&Vec<crate::preview::Span>> = match &self.preview.state {
+            PreviewState::Ready(Payload::Text { lines, .. }) => lines.iter().collect(),
+            PreviewState::Ready(Payload::Markdown { doc, .. }) if self.render_markdown => {
+                doc.lines.iter().map(|l| &l.spans).collect()
+            }
+            PreviewState::Ready(Payload::Markdown { source, .. }) => source.iter().collect(),
+            _ => return Vec::new(),
         };
         lines
             .iter()
@@ -11282,6 +11289,37 @@ mod find_marks {
         a.preview.state = text(&["x", "x", "x", "x", "x", "x", "x", "x", "needle"]);
         a.show_first_match();
         assert_eq!(a.tabs[a.active].preview_offset, 5);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A Markdown file is searched where it is drawn: the rendered lines
+    /// (markup gone, a match may span several styled spans) while rendered,
+    /// the source lines once toggled to the source.
+    #[test]
+    fn markdown_matches_are_found_in_what_is_drawn() {
+        use crate::preview::{Doc, DocLine};
+        let dir = crate::util::test_dir("find-marks-md");
+        let mut a = app_in(&dir);
+        a.start_search("auto.*ids", SearchVia::Content);
+        let span = |t: &str, bold: bool| Span { text: t.to_owned(), bold, ..Default::default() };
+        let doc = Doc {
+            lines: vec![
+                DocLine { spans: vec![span("intro", false)], ..Default::default() },
+                DocLine { spans: vec![span("the ", false), span("automated", true), span("_ids()", false)], ..Default::default() },
+            ],
+            ..Default::default()
+        };
+        let source = vec![vec![span("intro", false)], vec![span("blank", false)], vec![span("the **automated**_ids()", false)]];
+        a.preview.state = PreviewState::Ready(Payload::Markdown {
+            doc,
+            source,
+            map: Vec::new(),
+            extent: Default::default(),
+        });
+        a.render_markdown = true;
+        assert_eq!(a.body_matches(), [1], "rendered: the second line, split over three spans");
+        a.render_markdown = false;
+        assert_eq!(a.body_matches(), [2], "source: its own line numbers");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

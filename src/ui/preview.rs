@@ -683,9 +683,14 @@ fn markdown(
 
         // Each span starts on its own column, so tables stay aligned even
         // where a fallback font's glyphs are not exactly one or two cells.
+        let marks = match st.find {
+            Some(m) => m.ranges(&line.spans.iter().map(|s| s.text.as_str()).collect::<String>()),
+            None => Vec::new(),
+        };
+        let parts = split_marked(&line.spans, &marks);
         let mut col = 0;
         let mut prev_end = left;
-        for span in &line.spans {
+        for (k, span) in line.spans.iter().enumerate() {
             let w = cells(&span.text);
             if span.text.trim().is_empty() {
                 col += w;
@@ -693,7 +698,16 @@ fn markdown(
             }
             let x = prev_end.max(x_at(col));
             let color = span_color(span, st);
-            let galley = painter.layout_job(LayoutJob::single_section(span.text.clone(), format(span, color, st)));
+            let mut job = LayoutJob::default();
+            for (_, part, marked) in parts.iter().filter(|(j, ..)| *j == k) {
+                let mut fmt = format(span, color, st);
+                if *marked {
+                    fmt.color = theme.find_keyword.fg.unwrap_or(color);
+                    fmt.background = theme.find_keyword.bg.unwrap_or(Color32::TRANSPARENT);
+                }
+                job.append(&span.text[part.clone()], 0.0, fmt);
+            }
+            let galley = painter.layout_job(job);
             let size = galley.size();
             let pos = pos2(x, y + lift);
             if span.code {
