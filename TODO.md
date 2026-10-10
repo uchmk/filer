@@ -43,6 +43,26 @@
   yazi の keymap の `desc` は利用者の設定から来るので訳さない。表に無いキーはテストで落とす。【後】
 - [ ] 日本語の表を足す。CJK のフォントは tsumugi の `fonts.rs` の取り方を使う。filer.toml に `language` を足し、README に書く。【後】
 
+## 設定の画面・テーマ・時計（uchmk の共通仕様、2026-10-10、持ち主の希望）
+
+持ち主は filer にも tsumugi・mimamori と同じ設定の画面を足したい。uchmk のアプリの共通仕様は tsumugi の
+[docs/common-spec.md](https://github.com/uchmk/tsumugi/blob/main/docs/common-spec.md)（tsumugi v0.81.0、mimamori v0.32.0 が先に従った）:
+共通の設定は `<設定のフォルダ>/uchmk/common.toml`（`language`・`theme`・`dark_theme`・`light_theme`・`[clock]`）、自分のテーマは
+`<設定のフォルダ>/uchmk/themes/*.toml`、アプリは common.toml を 2 秒ごとに見て、変わったらすぐ当てる。共有のクレートは tsumugi の workspace の
+`tsumugi-common`（置き場所・読み書き・時計・見張り）、`tsumugi-theme`（13 の組み込みのテーマと色の読みやすさ）、`tsumugi-prefs`（設定の画面の枠と部品）で、
+`tsumugi-pane` と同じく `Cargo.toml` の `rev` で固定して読む（`rev` を上げるときは 4 つとも揃える）。
+
+- [ ] 設定の画面を `tsumugi-prefs` の上に作る: `<P-,>`（Windows / Linux は Ctrl+,、macOS は Cmd+,）で窓いっぱいに開く。左に帯（検索・ページの一覧・下に「Open filer.toml」）、
+  右にページ（題・lead・見出し付きのカード、行の高さ 48）。キーは keymap の新しいセクション（`close`・ページを移る・検索）と `feed_*_key` で、Esc は 2 段。
+  ページは General（Language と CLOCK のカードは共通の部品）、Theme（共通のページ。見本は filer の一覧とプレビューを今の色で描く）、filer.toml の主な行、
+  Advanced（設定のフォルダのパスと Copy・Open、読み込みの警告）。filer.toml への書き込みは toml_edit でコメントを残し、UI ではないスレッドで行う。
+  テーマと yazi の `theme.toml` の関係が決まるまで、Theme のページは作らずに残してよい（要確認: Q98）
+- [ ] ステータスバーの右端に時計を出す: 字体は一覧と同じ、色は一番強い文字の色。ポインタを載せると日付を全部出す。分が変わるときだけ再描画する（`Clock::next_minute`）。
+  `[clock]` は common.toml だけから読む（filer.toml に上書きは持たない）。
+- [ ] common.toml の見張りを足し、言語・テーマ・時計を再起動なしで当て直す（`tsumugi_common::watch`。上の「多言語対応」の節と同じ `language` を読む）。
+- [ ] common.toml のテーマを filer の色に当てる（要確認: Q98）
+- [ ] README（キー表・設定の画面の節・common.toml）、TESTING.md（設定の画面・時計・common.toml を外で書き換えると tsumugi と mimamori と一緒に変わる行）を更新する。
+
 ## 検索（`s` / `S`）が不要なファイルを出しすぎる（2026-10-10、持ち主の希望）
 
 `C:\Users\yuu06\AppData\Local\tsumugi-wintest\auto-wintest-arm.log` を探したのに、`s`（名前の曖昧一致）も `S`（中身の部分一致）も

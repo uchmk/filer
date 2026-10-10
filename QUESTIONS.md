@@ -1567,3 +1567,18 @@ Claude が判断に迷った点をここに書きます。各質問の「回答�
   3. tsumugi のセッションへの入力だけ足す（filer は読むだけのまま）: 一番狭い。ファイルを動かすのは Claude Code 自身の道具に任せる。
   4. まだ足さない: 読むだけで使ってみて、足りないものが見えてから決める。
 - 回答:
+
+## Q98: uchmk の共通のテーマ（common.toml）と yazi の `theme.toml` を、filer でどう重ねるか
+- 状態: 未回答            <!-- 未回答 / 回答済み / 反映済み -->
+- タスク: TODO.md「設定の画面・テーマ・時計（uchmk の共通仕様）」
+- 背景: tsumugi v0.81.0 と mimamori v0.32.0 は、テーマを `<設定のフォルダ>/uchmk/common.toml` の `theme`（13 の組み込みか `uchmk/themes/*.toml`、
+  `dark` / `light` / `system`）から読み、このファイルを変えれば両方が 2 秒で変わる。filer は yazi の `theme.toml`（`[app] overall`・`[mgr]`・`[status]`・
+  `[filetype]` の色・`[git]`・`syntect_theme`）をそのまま読んでおり、yazi の利用者の色を壊さないことが前からの約束。共通のテーマは 11 色ほど
+  （bg・panel・border・fg・dim・run・wait・err・done・blue・magenta）で、yazi の `theme.toml` のほうが細かい。見た目の決定なので持ち主に聞く。
+- 選択肢:
+  1. **共通のテーマを土台にし、yazi の `theme.toml` に書いてある色だけが上に重なる（推奨）**: `theme.toml` が無い人は common.toml だけで tsumugi・mimamori と揃う。
+     `theme.toml` がある人は今の見た目のまま（書いていない色だけが共通のテーマから来る）。今の「組み込みの暗いテーマ」の役を共通のテーマに渡す形。
+  2. `theme.toml` があれば共通のテーマを無視し、無いときだけ共通のテーマを使う: 分かりやすいが、`theme.toml` の一部だけ書いた人は他のアプリと揃わない。
+  3. filer.toml に `theme = "yazi" | "common"` を足して選ばせる（既定は `yazi`）: 互換は一番固いが、common.toml を変えても filer だけ変わらないのが既定になる。
+  4. 共通のテーマを使わない（filer は `theme.toml` だけ）。時計と言語だけ共通にする。
+- 回答:

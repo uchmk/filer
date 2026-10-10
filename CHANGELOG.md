@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.93.9] - 2026-10-11
+
+### 変更
+
+- TODO.md に「設定の画面・テーマ・時計（uchmk の共通仕様）」の節を積んだ（Ctrl+, の設定の画面、ステータスバーの右端の時計、`common.toml` の見張り。部品は tsumugi の `tsumugi-common`・`tsumugi-theme`・`tsumugi-prefs`）。共通のテーマと yazi の `theme.toml` の重ね方は QUESTIONS.md の Q98 で持ち主に聞く。CLAUDE.md に共通仕様への参照を足した。
+
 ## [0.93.8] - 2026-10-11
 
 ### 変更

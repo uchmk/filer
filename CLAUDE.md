@@ -77,6 +77,8 @@ QUESTIONS.md の書き方と「多数決で進める質問」は [docs/claude/qu
 
 - ディスクに触る処理は UI スレッドで実行しない。ワーカースレッドと crossbeam チャネルを使い、古い依頼は捨てる（newest-wins）。
 - キーは keymap 経由で動かす（ハードコードしない）。新しいオーバーレイには keymap のセクションと `feed_*_key` を用意する。
+- **uchmk の共通仕様**（設定の画面 Ctrl+,・`<設定のフォルダ>/uchmk/common.toml` の言語・テーマ・時計）は tsumugi の `docs/common-spec.md` が正。
+  部品は tsumugi の `tsumugi-common`・`tsumugi-theme`・`tsumugi-prefs`（TODO.md「設定の画面・テーマ・時計」）。
 - yazi に無い独自コマンドは README の「Commands implemented」に書く。
 - 機能を足したら README（キー表・各節）も更新する。
 - **Lua は動かさない**（`init.lua` も `plugins/*.lua` も読まない。2026-10-04 に持ち主の依頼で理由を書き残した）。
