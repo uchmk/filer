@@ -125,15 +125,24 @@ fn summary(total: usize, selected: usize, yank: Option<(usize, bool)>, hidden: b
     out
 }
 
-/// egui's dark look, with a caret that does not blink (Q38). A blinking one
+/// egui's dark look, or its light one under a light theme (Q98), with a
+/// caret that does not blink (Q38). A blinking one
 /// redraws the window twice a second for as long as a prompt is open, which
 /// was the 0.14-0.30 CPU-s per 10 s #103 and #110 measured with `f` left open
 /// and nothing touched; egui already confines it to the toggles and stops it
 /// in a background window, so not blinking was the only way to zero.
-pub fn visuals() -> egui::Visuals {
-    let mut v = egui::Visuals::dark();
+pub fn visuals(light: bool) -> egui::Visuals {
+    let mut v = if light { egui::Visuals::light() } else { egui::Visuals::dark() };
     v.text_cursor.blink = false;
     v
+}
+
+/// Put [`visuals`] in force for both of egui's styles: egui picks one by
+/// the OS's mode, and kura's colours are its theme's whichever that is.
+pub fn set_look(ctx: &egui::Context, light: bool) {
+    for t in [egui::Theme::Dark, egui::Theme::Light] {
+        ctx.set_visuals_of(t, visuals(light));
+    }
 }
 
 pub fn draw(app: &mut App, ui: &mut Ui) {
@@ -1286,8 +1295,9 @@ mod summary_line {
     /// Q38: the caret stays put, so an open prompt asks for no frames.
     #[test]
     fn the_caret_does_not_blink() {
-        assert!(!visuals().text_cursor.blink);
-        assert!(visuals().dark_mode, "still egui's dark look");
+        assert!(!visuals(false).text_cursor.blink && !visuals(true).text_cursor.blink);
+        assert!(visuals(false).dark_mode, "still egui's dark look");
+        assert!(!visuals(true).dark_mode, "and its light one under a light theme");
     }
 
     #[test]
@@ -1502,7 +1512,7 @@ pub(crate) mod harness {
             at: impl Into<std::path::PathBuf>,
         ) -> Self {
             let ctx = egui::Context::default();
-            ctx.set_visuals(super::visuals());
+            ctx.set_visuals(super::visuals(false));
             let app = App::new(cfg, at.into(), ctx.clone());
             Self { app, ctx, size: Vec2::new(1280.0, 800.0), time: 0.0 }
         }

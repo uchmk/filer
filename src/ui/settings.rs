@@ -3,14 +3,16 @@
 //! CLOCK rows; kura hands it its pages and its colours.
 //!
 //! General writes common.toml (the language and the clock every uchmk app
-//! shares) through `App::write_common`, off the UI thread. config.toml shows
+//! shares) through `App::write_common`, off the UI thread. Theme picks the
+//! common theme the same way, and shows it as kura's list with theme.toml's
+//! colours drawn over it. config.toml shows
 //! the main rows of kura's own file and writes a change through
 //! `App::write_kura`, off the UI thread and keeping the file's comments.
 //! Advanced says where the config is read from and what was wrong with it.
 
 use std::path::PathBuf;
 
-use egui::{Rect, RichText, Ui};
+use egui::{Color32, Rect, RichText, Ui};
 use ito_prefs::{button, clock_card, field, language_row, row, scale_row, section, select, sep, switch, Drafts, Look, Nav, Words};
 use ito_theme::{mix, Colors};
 
@@ -22,6 +24,9 @@ use crate::config::theme::{is_light, Theme};
 pub struct KuraWords {
     pub general: &'static str,
     pub general_lead: &'static str,
+    pub theme: &'static str,
+    pub theme_lead: &'static str,
+    pub theme_note: &'static str,
     pub language_note: &'static str,
     pub scale_note: &'static str,
     pub advanced: &'static str,
@@ -89,6 +94,9 @@ fn not_a_number_ja(label: &str, text: &str, lo: f64, hi: f64) -> String {
 pub const EN: KuraWords = KuraWords {
     general: "General",
     general_lead: "The language, the scale and the clock, shared with every uchmk app through common.toml.",
+    theme: "Theme",
+    theme_lead: "The colours every uchmk app shares through common.toml. A theme.toml of yazi's is drawn over them.",
+    theme_note: "Your own themes go in <config>/uchmk/themes/*.toml. Colours a theme.toml sets stay as it sets them.",
     language_note: "The words of this screen and the clock's weekday; the rest of kura is in English for now",
     scale_note: "The size of everything on screen (the same as Ctrl+= and Ctrl+-)",
     advanced: "Advanced",
@@ -146,6 +154,9 @@ pub const EN: KuraWords = KuraWords {
 pub const JA: KuraWords = KuraWords {
     general: "一般",
     general_lead: "言語・倍率・時計。common.toml を通して uchmk のどのアプリにも同じものが当たる。",
+    theme: "テーマ",
+    theme_lead: "common.toml を通して uchmk のどのアプリにも当たる色。yazi の theme.toml はその上に重なる。",
+    theme_note: "自分のテーマは <設定のフォルダ>/uchmk/themes/*.toml に置く。theme.toml が決めた色はそのまま。",
     language_note: "この画面の言葉と時計の曜日。kura のほかの言葉はいまは英語",
     scale_note: "画面のすべての大きさ（Ctrl+= と Ctrl+- と同じ）",
     advanced: "詳細",
@@ -213,6 +224,11 @@ impl KuraWords {
 /// background, the header's band for the nav, the text and its dim, and the
 /// status colours for what is on, waiting and wrong.
 pub fn colors(t: &Theme) -> Colors {
+    // Unless a theme.toml repainted the window, the screen is the common
+    // theme itself, which is how the Theme page knows which one is in force.
+    if !t.overall {
+        return t.common;
+    }
     let run = t.mode_normal.bg.unwrap_or(t.progress_fg);
     Colors {
         light: is_light(t.bg),
@@ -234,8 +250,9 @@ pub fn colors(t: &Theme) -> Colors {
 
 /// The pages, in the nav's order.
 const GENERAL: usize = 0;
-const KURA: usize = 1;
-const ADVANCED: usize = 2;
+const THEME: usize = 1;
+const KURA: usize = 2;
+const ADVANCED: usize = 3;
 
 /// What the config.toml page shows: the settings in force, read before the
 /// screen takes the overlay.
@@ -385,6 +402,69 @@ fn kura_page(ui: &mut Ui, l: Look, k: &KuraWords, now: &KuraNow, drafts: &mut Dr
     });
 }
 
+/// The Theme page's preview: a few rows of kura's list in the theme in
+/// force, theme.toml and all, with the cursor's bar, the markers and the
+/// mode at the foot.
+fn sample(ui: &mut Ui, t: &Theme) {
+    use crate::fs::{Entry, Kind};
+    let f = super::font(13.0);
+    let row_h = 22.0;
+    let rows: [(&str, bool, Option<Color32>); 7] = [
+        ("docs", true, None),
+        ("src", true, None),
+        (".gitignore", false, None),
+        ("Cargo.toml", false, Some(t.marker_selected)),
+        ("README.md", false, None),
+        ("logo.png", false, Some(t.marker_copied)),
+        ("notes.txt", false, Some(t.marker_cut)),
+    ];
+    let hovered = 3;
+    let (r, _) = ui.allocate_exact_size(egui::vec2(300.0, row_h * (rows.len() as f32 + 2.0) + 8.0), egui::Sense::hover());
+    let p = ui.painter_at(r);
+    p.rect_filled(r, 8.0, t.bg);
+    p.rect_stroke(r, 8.0, egui::Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
+    let left = r.left() + 6.0;
+    let width = r.width() - 12.0;
+    let cwd = egui::pos2(left + 6.0, r.top() + 4.0 + row_h / 2.0);
+    p.text(cwd, egui::Align2::LEFT_CENTER, "~/kura", f.clone(), t.cwd.fg.unwrap_or(t.fg));
+    for (i, (name, dir, marker)) in rows.iter().enumerate() {
+        let y = r.top() + 4.0 + row_h * (i as f32 + 1.0);
+        let row = Rect::from_min_size(egui::pos2(left, y), egui::vec2(width, row_h));
+        if i == hovered {
+            p.rect_filled(row, 3.0, t.hovered_bg);
+        }
+        if let Some(m) = marker {
+            p.rect_filled(Rect::from_min_size(row.left_top() + egui::vec2(1.0, 2.0), egui::vec2(3.0, row_h - 4.0)), 2.0, *m);
+        }
+        let entry = Entry {
+            path: PathBuf::from(name),
+            name: (*name).to_owned(),
+            ext: name.rsplit_once('.').filter(|(stem, _)| !stem.is_empty()).map(|(_, e)| e.to_owned()),
+            kind: if *dir { Kind::Dir } else { Kind::File },
+            hidden: name.starts_with('.'),
+            ..Default::default()
+        };
+        let style = t.style_for(&entry, crate::mime::guess(&entry));
+        let color = style.fg.unwrap_or(t.fg);
+        let icon = t.icon_for(&entry);
+        let mid = row.center().y;
+        let mut x = row.left() + 8.0;
+        if !icon.text.is_empty() {
+            p.text(egui::pos2(x, mid), egui::Align2::LEFT_CENTER, &icon.text, f.clone(), icon.fg.unwrap_or(color));
+            x += f.size + 8.0;
+        }
+        p.text(egui::pos2(x, mid), egui::Align2::LEFT_CENTER, *name, f.clone(), color);
+    }
+    // The status bar: the mode's chip on the bar's ground.
+    let bar = Rect::from_min_max(egui::pos2(r.left() + 1.0, r.bottom() - row_h - 1.0), egui::pos2(r.right() - 1.0, r.bottom() - 1.0));
+    p.rect_filled(bar, egui::CornerRadius { nw: 0, ne: 0, sw: 7, se: 7 }, t.status_bg);
+    let mode = p.layout_no_wrap(" NOR ".to_owned(), f.clone(), t.mode_normal.fg.unwrap_or(t.bg));
+    let chip = Rect::from_min_size(egui::pos2(bar.left() + 6.0, bar.center().y - mode.size().y / 2.0), mode.size());
+    p.rect_filled(chip, 3.0, t.mode_normal.bg.unwrap_or(t.progress_fg));
+    p.galley(chip.min, mode, t.fg);
+    p.text(egui::pos2(chip.right() + 8.0, bar.center().y), egui::Align2::LEFT_CENTER, "4/7", f, t.fg_dim);
+}
+
 /// A config folder on the Advanced page: its name, its note, and where it is.
 struct Folder {
     name: &'static str,
@@ -408,12 +488,15 @@ pub fn draw(app: &mut App, ui: &mut Ui, full: Rect, queued: &mut Vec<Act>) {
         Folder { name: "uchmk", note: k.common_note, dir: app.common_base.clone() },
     ];
     let now = KuraNow::of(app);
+    let themes = app.themes.clone();
+    let (theme, dark, light) = app.common.theme_choice(None);
+    let look = app.cfg.theme.clone();
     let Overlay::Settings(ov) = &mut app.overlay else { return };
     let keys = std::mem::take(&mut ov.keys);
     let mut state = std::mem::take(&mut ov.state);
     let mut drafts = std::mem::take(&mut ov.drafts);
 
-    let pages = [(k.general, k.general_lead), ("config.toml", k.kura_lead), (k.advanced, k.advanced_lead)];
+    let pages = [(k.general, k.general_lead), (k.theme, k.theme_lead), ("config.toml", k.kura_lead), (k.advanced, k.advanced_lead)];
     let mut index = vec![
         (GENERAL, w.language),
         (GENERAL, k.language_note),
@@ -425,6 +508,12 @@ pub fn draw(app: &mut App, ui: &mut Ui, full: Rect, queued: &mut Vec<Act>) {
         (GENERAL, w.show_date),
         (GENERAL, w.date_format),
         (GENERAL, w.weekday),
+        (THEME, w.mode),
+        (THEME, w.follow_os),
+        (THEME, w.light),
+        (THEME, w.dark),
+        (THEME, w.themes),
+        (THEME, k.theme_note),
         (KURA, k.look),
         (KURA, k.font_size),
         (KURA, k.font_size_note),
@@ -481,6 +570,10 @@ pub fn draw(app: &mut App, ui: &mut Ui, full: Rect, queued: &mut Vec<Act>) {
                 changes.extend(scale_row(ui, l, w, scale, k.scale_note));
             });
             changes.extend(clock_card(ui, l, w, &clock));
+        }
+        THEME => {
+            let choice = (theme.as_str(), dark.as_str(), light.as_str());
+            changes.extend(ito_prefs::theme_page(ui, l, w, &themes, choice, k.theme_note, |ui| sample(ui, &look)));
         }
         KURA => kura_page(ui, l, k, &now, &mut drafts, &mut kura, &mut bad),
         _ => {
@@ -569,6 +662,61 @@ mod tests {
         assert_eq!(number_toml("73", 6.0, 72.0, false), None);
         assert_eq!(number_toml("inf", 6.0, f64::INFINITY, false), None);
         assert_eq!(number_toml("1.5", 0.0, 100.0, true), None);
+    }
+
+    /// The screen is drawn in the common theme itself, so the Theme page
+    /// lights the one in force; a theme.toml that paints the window makes
+    /// the screen its colours.
+    #[test]
+    fn the_screen_is_the_common_theme_unless_theme_toml_paints_the_window() {
+        let t = Theme::default();
+        assert_eq!(colors(&t), t.common);
+        let toml = "[app]\noverall = { bg = \"#ffffff\" }\n";
+        let t = Theme::layered(&t.common, vec![toml::from_str(toml).unwrap()]);
+        let c = colors(&t);
+        assert_eq!(c.bg, egui::Color32::WHITE);
+        assert!(c.light);
+    }
+
+    /// Q98: the Theme page lists the themes beside kura's list in the one in
+    /// force, and a theme clicked goes into common.toml.
+    #[test]
+    fn the_theme_page_shows_kura_and_writes_the_theme() {
+        let dir = crate::util::test_dir("settings-theme");
+        let base = dir.join("uchmk");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::write(base.join("common.toml"), "# mine\n").unwrap();
+        let mut s = crate::ui::harness::Screen::open(dir.clone());
+        s.app.common_base = Some(base.clone());
+        s.app.overlay = Overlay::Settings(Default::default());
+        if let Overlay::Settings(ov) = &mut s.app.overlay {
+            ov.state.page = THEME;
+        }
+        let f = s.draw();
+        assert!(f.says("tsumugi Dark") && f.says("Nord"), "the dark themes are listed");
+        assert!(f.says("Cargo.toml") && f.says("~/kura"), "kura's list is the preview");
+        let hovered = s.app.cfg.theme.hovered_bg;
+        assert!(!f.filled(hovered).is_empty(), "with the cursor's bar");
+        let at = f.placed("Nord").expect("the theme is drawn") + egui::vec2(4.0, 6.0);
+        let click = |pressed| egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        };
+        s.feed(vec![egui::Event::PointerMoved(at)]);
+        s.feed(vec![click(true)]);
+        s.feed(vec![click(false)]);
+        let file = base.join("common.toml");
+        let mut text = String::new();
+        for _ in 0..500 {
+            text = std::fs::read_to_string(&file).unwrap();
+            if text.contains("theme") {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(text.contains("theme = \"Nord\"") && text.contains("# mine"), "{text}");
     }
 
     /// What was typed and the range it takes are said, in either language.

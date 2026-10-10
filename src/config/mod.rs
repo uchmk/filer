@@ -423,7 +423,7 @@ impl Config {
 
         let mut yazi_cfg = YaziToml::default();
         let mut keymap_texts: Vec<(String, String)> = Vec::new();
-        let mut theme = Theme::default();
+        let mut themes: Vec<theme::ThemeToml> = Vec::new();
         let mut ui = Ui::default();
         let mut term = TermCfg::default();
         let mut preview: Vec<PreviewRule> = Vec::new();
@@ -461,7 +461,7 @@ impl Config {
             }
             if let Some(text) = read(dir, "theme.toml", &mut loaded) {
                 match toml::from_str::<theme::ThemeToml>(&text) {
-                    Ok(v) => theme.apply(&v),
+                    Ok(v) => themes.push(v),
                     Err(e) => {
                         broken.theme = true;
                         unread.push(dir.join("theme.toml"));
@@ -519,7 +519,9 @@ impl Config {
         let (keymap, mut km_warnings) = Keymap::load_named(&refs);
         warnings.append(&mut km_warnings);
 
-        let theme = std::sync::Arc::new(theme);
+        // Over the default common theme; the window lays them over the one
+        // common.toml chooses ([`Theme::with_common`]).
+        let theme = std::sync::Arc::new(Theme::layered(&theme::default_colors(), themes));
         (Self { yazi: yazi_cfg, keymap, theme, ui, term, preview, mcp, line_args, loaded, unread, warnings }, broken)
     }
 

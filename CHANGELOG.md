@@ -9,6 +9,21 @@
 
 ## [未リリース]
 
+## [0.100.0] - 2026-10-11
+
+kura の色を uchmk の共通のテーマ（`common.toml` の `theme`）から作り、yazi の `theme.toml` をその上に重ねる（Q98 = 1）。設定の画面に Theme のページを足した。
+
+### 追加
+
+- 共通のテーマで kura の色が決まる。`theme` は組み込みの 13（`tsumugi Dark`・`tsumugi Light`・`Nord`・`Catppuccin Latte` など）か `<uchmk>/themes/*.toml` の自分のテーマ。`theme = "system"` なら `dark_theme` / `light_theme` を OS の明暗に合わせて使い、OS が切り替われば kura も従う。common.toml を変えれば kura も tsumugi・mimamori と一緒に 2 秒以内に変わる。無い名前は色をそのままにしてトーストで 1 回言う。
+- 設定の画面の Theme のページ: モード（OS に従う・ライト・ダーク）とテーマの一覧。選べば common.toml に書き（コメントは残る）、kura はすぐ変わる。横の見本は kura の一覧を今の色（theme.toml 込み）で描く。
+
+### 変更
+
+- 色の土台が「組み込みの暗いテーマ」から共通のテーマに変わった。`theme.toml` が無ければ tsumugi・mimamori と同じ色になり、カーソルの帯・控えめの字のグレー・`F` で見つけた語の字の色が少し変わる（common.toml が無いときは `tsumugi Dark`）。`theme.toml` に書いた色はそのまま上に乗り、書いていない色が共通のテーマから来る。
+- 窓が明るいとき（明るい共通のテーマか、`theme.toml` の `[app] overall` の明るい地）は、egui の部品（入力欄・スクロールバー）も明るくなる。
+- 設定の画面は共通のテーマの色で描く（`theme.toml` の `[app] overall` が窓の色を決めていればそれで）。ページの並びは General・Theme・config.toml・Advanced。
+
 ## [0.99.2] - 2026-10-11
 
 ### 修正

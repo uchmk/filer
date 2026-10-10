@@ -318,7 +318,9 @@ registered: the menu is read back out of the config every time it opens.
 
 `[app] overall` (the window's background and text), `[mgr]` colors, `[status]` modes, `[which]`,
 `[git]`, `[filetype].rules` and `[icon]` (`globs`, `dirs`, `exts`, `files`, `conds`) are applied on
-top of a built-in dark theme. A light theme starts with `[app]` / `overall = { bg = "#ffffff", fg =
+top of the [common theme](#commontoml-the-clock) (`tsumugi Dark` when common.toml chooses none), and stay
+over it when another is chosen: what `theme.toml` sets keeps its colour, the rest takes the common
+theme's. Without a `theme.toml`, kura has the colours of tsumugi and mimamori (v0.100.0). A light theme starts with `[app]` / `overall = { bg = "#ffffff", fg =
 "#222222" }`; the preview's text keeps its own colours, from `syntect_theme` below. On a light
 background (by its relative luminance) the warning colour and a plain file's name turn dark amber
 and dark grey, and so does the text when `fg` is not given; the cursor's bar becomes a light tint
@@ -383,9 +385,18 @@ The status bar's right end shows a clock, set in the config shared by every uchm
 start-up and watched: a change saved by another uchmk app (tsumugi's or mimamori's settings screen) or an editor
 applies within 2 seconds, with no restart, so every open uchmk app changes its clock together. A file that does not
 read keeps the clock as it was, with a toast; a key no uchmk app reads is skipped with a toast and the rest applies.
-There is no override in `config.toml`. The scale (`<C-=>` / `<C-->` / `<C-0>`) is kept here too, as `scale`, so every uchmk app open follows it. `theme`, `dark_theme` and `light_theme` are read by the other apps; kura keeps
-the colours of yazi's `theme.toml` for now. kura's own [settings screen](#settings-screen) (`<C-,>`) writes the
-language and the clock here too, keeping the file's comments.
+There is no override in `config.toml`. The scale (`<C-=>` / `<C-->` / `<C-0>`) is kept here too, as `scale`, so every uchmk app open follows it.
+
+`theme` names the colours every uchmk app is drawn in: one of the 13 built in (`tsumugi Dark`,
+`tsumugi Light`, `Nord`, `Catppuccin Latte`, …) or one of your own in `<uchmk>/themes/*.toml`. With
+`theme = "system"`, `dark_theme` and `light_theme` are used as the OS is dark or light, and kura
+follows the OS when it changes. kura's colours start from this theme and yazi's [theme.toml](#themetoml)
+is drawn over it, so with no `theme.toml` kura matches tsumugi and mimamori; a name no theme has keeps the
+colours as they were, with a toast. egui's own widgets (the text boxes, the scroll bars) turn light
+with a light window, whichever of the two made it light.
+
+kura's own [settings screen](#settings-screen) (`<C-,>`) writes the language, the clock and the theme here too,
+keeping the file's comments.
 
 ```toml
 language = "auto"          # auto / en / ja: with "ja" the weekday reads (月)
@@ -555,10 +566,11 @@ are the `[settings]` keymap section.
 | Page | |
 | --- | --- |
 | General | The language and the clock, written into [common.toml](#commontoml-the-clock) as soon as they are changed, off the UI thread and keeping the file's comments; every other open uchmk app follows within 2 seconds. The language sets the words of this screen and the clock's weekday; the rest of kura is in English for now |
+| Theme | The common theme: dark, light or the OS's (with a theme for each), and the themes to pick from, the built-in ones and those in `<uchmk>/themes/*.toml`. A pick is written into common.toml as `theme` (`dark_theme` / `light_theme` when following the OS) and recolours kura at once, the other uchmk apps within 2 seconds. A sample of kura's list beside the themes shows the colours in force, `theme.toml` included, since what `theme.toml` sets keeps its colour |
 | config.toml | The main rows of [config.toml](#configtoml-gui-only-settings) — font size, row padding, icons, the minimap, Markdown rendering, the preview's debounce and text limit, the history length, the window size, the backend, the MCP server and the terminal pane's shell — written into the config.toml in force (the last one read; kura's own folder when there is none) as soon as they are changed, keeping its comments, and read back as `<C-F5>` does. A number is written on `<Enter>` or on leaving the field, and one out of range is not written but said in a toast. An emptied shell takes the line out. The window, backend, MCP and Markdown rows are read at start |
 | Advanced | Where the config is read from — kura's folder, yazi's and the `uchmk` one — each with **Copy** (the path) and **Open** (the list goes there), what was wrong when the config was last read, and **Reload** (`<C-F5>`) |
 
-The colours come from yazi's `theme.toml`, as the rest of kura's are.
+The screen is drawn in the common theme's colours, or in `theme.toml`'s when its `[app] overall` sets the window's.
 
 ## Command palette
 

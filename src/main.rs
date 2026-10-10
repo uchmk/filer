@@ -362,7 +362,7 @@ fn main() -> eframe::Result<()> {
             name_the_fallback(&mut cfg.warnings, &used.backend);
             let has_bold = apply_fonts(&cc.egui_ctx, &mut cfg, &mut used);
             crate::runinfo::save(&used);
-            cc.egui_ctx.set_visuals(ui::visuals());
+            ui::set_look(&cc.egui_ctx, cfg.theme.light());
             // egui zooms on Ctrl +/-/0 of its own accord, at the end of the
             // frame, without consuming the key first. Every one of those is a
             // key kura binds, so both would run -- `<C-->` hardlinked *and*
@@ -1024,6 +1024,8 @@ impl eframe::App for Kura {
         let ctx = ui.ctx().clone();
 
         self.app.drain_channels(&ctx);
+        // `theme = "system"` follows the OS turning light or dark.
+        self.app.set_os_light(ctx.system_theme() == Some(egui::Theme::Light));
         self.answer_mcp();
         self.record_geometry(&ctx);
         self.take_shot(&ctx);

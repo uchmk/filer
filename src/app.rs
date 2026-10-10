@@ -177,6 +177,20 @@ pub type PickRows = (Vec<String>, Vec<String>, Vec<Vec<Act>>);
 /// in them is not known, or why the file did not read.
 pub type CommonRead = Result<(ito_common::Common, Vec<String>), String>;
 
+/// The themes there are to choose from: the built-in ones, then a person's
+/// own in `<config>/uchmk/themes/`, with what is wrong with those that do
+/// not read.
+pub type Themes = (Vec<ito_theme::Theme>, Vec<String>);
+
+/// [`Themes`] read from the `uchmk` folder `base`. On the disk, so off the
+/// UI thread but at start-up.
+pub fn read_themes(base: &Path) -> Themes {
+    let (own, bad) = ito_theme::load_dir(&ito_common::themes_dir(base));
+    let mut all = ito_theme::builtin();
+    all.extend(own);
+    (all, bad)
+}
+
 /// Turn the `mgr` bindings into palette rows.
 ///
 /// The label carries both the description and the command text so either one
@@ -1501,6 +1515,17 @@ pub struct App {
     /// The `uchmk` folder common.toml is in, and what it said last.
     pub common_base: Option<PathBuf>,
     pub common: ito_common::Common,
+    /// The themes common.toml's `theme` chooses among (Q98), read again
+    /// with common.toml; and what was said last about one that does not read.
+    pub themes: Vec<ito_theme::Theme>,
+    themes_bad: Vec<String>,
+    themes_rx: crossbeam_channel::Receiver<Themes>,
+    themes_tx: crossbeam_channel::Sender<Themes>,
+    /// Whether the OS is in light mode, for `theme = "system"`; the frame
+    /// loop keeps it.
+    pub os_light: bool,
+    /// The last problem said about common.toml's `theme`, to say it once.
+    theme_said: Option<String>,
     /// What went wrong opening config.toml from the settings screen, said
     /// from the thread that tried.
     settings_rx: crossbeam_channel::Receiver<String>,
@@ -1681,6 +1706,7 @@ impl App {
 
         let (settings_tx, settings_rx) = crossbeam_channel::unbounded();
         let (kura_tx, kura_rx) = crossbeam_channel::unbounded();
+        let (themes_tx, themes_rx) = crossbeam_channel::unbounded();
         let mut app = Self {
             clock: ito_common::Clock::default(),
             lang: "en".into(),
@@ -1688,6 +1714,12 @@ impl App {
             common_tx: None,
             common_base: None,
             common: ito_common::Common::default(),
+            themes: ito_theme::builtin(),
+            themes_bad: Vec::new(),
+            themes_rx,
+            themes_tx,
+            os_light: false,
+            theme_said: None,
             settings_rx,
             settings_tx,
             kura_jobs: None,
@@ -1799,7 +1831,9 @@ impl App {
     /// Take the clock, the language and the scale from the shared common.toml
     /// (`ito_common`, uchmk's common spec), then watch it and kura's own files.
     pub fn load_common(&mut self) {
+        self.os_light = self.ctx.system_theme() == Some(egui::Theme::Light);
         let Some(base) = ito_common::base_dir() else { return };
+        self.set_themes(read_themes(&base));
         self.set_common(ito_common::Common::read(&base));
         self.start_watching(&base);
         self.common_base = Some(base);
@@ -1816,9 +1850,13 @@ impl App {
         let common = ito_common::common_path(base);
         let paths: Vec<PathBuf> = std::iter::once(common.clone()).chain(crate::config::watched_files()).collect();
         let (base, ctx, to_common, to_app) = (base.to_path_buf(), self.ctx.clone(), common_tx.clone(), tx.clone());
+        let to_themes = self.themes_tx.clone();
         ito_common::watch(paths, Duration::from_secs(2), move |changed| {
             let mut alive = true;
             if changed.contains(&common) {
+                // The themes first: the `theme` the file names may be one
+                // just added.
+                alive &= to_themes.send(read_themes(&base)).is_ok();
                 alive &= to_common.send(ito_common::Common::read(&base)).is_ok();
             }
             if changed.iter().any(|p| *p != common) {
@@ -1875,9 +1913,64 @@ impl App {
                 if let Some(w) = warnings.first() {
                     self.warn(w.clone());
                 }
+                self.resolve_theme();
             }
             Err(e) => self.warn(e),
         }
+    }
+
+    /// Take the themes there are, read again; a theme file that does not
+    /// read is said once, not at every look at common.toml.
+    pub fn set_themes(&mut self, (themes, bad): Themes) {
+        if bad != self.themes_bad {
+            if let Some(b) = bad.first() {
+                self.warn(format!("theme: {b}"));
+            }
+            self.themes_bad = bad;
+        }
+        if themes != self.themes {
+            self.themes = themes;
+            self.resolve_theme();
+        }
+    }
+
+    /// Put in force the theme common.toml's `theme` chooses (Q98): its
+    /// colours under kura's, and `theme.toml`'s over them. A name no theme
+    /// has keeps the colours there were, and is said once.
+    pub fn resolve_theme(&mut self) {
+        let (choice, dark, light) = self.common.theme_choice(None);
+        match ito_theme::pick(&self.themes, &choice, &dark, &light, self.os_light) {
+            Ok(t) => {
+                self.theme_said = None;
+                let c = t.colors;
+                if self.cfg.theme.common != c {
+                    self.cfg.theme = Arc::new(self.cfg.theme.with_common(&c));
+                    self.look_changed();
+                }
+            }
+            Err(e) => {
+                let e = format!("common.toml: {e}");
+                if self.theme_said.as_ref() != Some(&e) {
+                    self.warn(e.clone());
+                    self.theme_said = Some(e);
+                }
+            }
+        }
+    }
+
+    /// The OS turned light or dark, which `theme = "system"` follows.
+    pub fn set_os_light(&mut self, light: bool) {
+        if light != self.os_light {
+            self.os_light = light;
+            self.resolve_theme();
+        }
+    }
+
+    /// The colours changed: egui's own widgets follow, and the preview holds
+    /// a highlighted copy in the old ones.
+    fn look_changed(&mut self) {
+        crate::ui::set_look(&self.ctx, self.cfg.theme.light());
+        self.preview = PreviewSlot::default();
     }
 
     /// Write what the settings screen changed into common.toml, off the UI
@@ -1893,6 +1986,7 @@ impl App {
             return;
         };
         let tx = self.common_tx.clone();
+        let to_themes = self.themes_tx.clone();
         let ctx = self.ctx.clone();
         std::thread::spawn(move || {
             let written = ito_common::edit_common(&base, |text| changes.iter().try_fold(text.to_owned(), |t, c| c.apply(&t)));
@@ -1901,6 +1995,7 @@ impl App {
                 Err(e) if e.contains("common.toml") => Err(e),
                 Err(e) => Err(format!("common.toml: {e}")),
             };
+            let _ = to_themes.send(read_themes(&base));
             if let Some(tx) = tx {
                 let _ = tx.send(read);
             }
@@ -2217,6 +2312,9 @@ impl App {
         }
         while let Ok(rep) = self.git.rx.try_recv() {
             self.git_status.put(rep.dir, Arc::new(rep.status));
+        }
+        while let Ok(themes) = self.themes_rx.try_recv() {
+            self.set_themes(themes);
         }
         while let Some(read) = self.common_rx.as_ref().and_then(|rx| rx.try_recv().ok()) {
             self.set_common(read);
@@ -5779,7 +5877,12 @@ impl App {
 
     /// [`App::take_config`], with `said` in the toast in place of "Reloaded";
     /// an empty `said`, no toast but a warning.
-    fn take_config_saying(&mut self, cfg: Config, said: Option<String>) {
+    fn take_config_saying(&mut self, mut cfg: Config, said: Option<String>) {
+        // The files were read over the default theme; the one common.toml
+        // chose stays under them.
+        if cfg.theme.common != self.cfg.theme.common {
+            cfg.theme = Arc::new(cfg.theme.with_common(&self.cfg.theme.common));
+        }
         let old_term = self.cfg.term.clone();
         let files = cfg.loaded.len();
         let warning = config_toast(&cfg.warnings);
@@ -5791,7 +5894,7 @@ impl App {
         self.refont = true;
         // A theme change can turn every row a different color, and the preview
         // holds a highlighted copy of the old one.
-        self.preview = PreviewSlot::default();
+        self.look_changed();
         let done = said.unwrap_or_else(|| format!("Reloaded {files} config file(s)"));
         match warning {
             Some(w) => self.warn(w),
@@ -11462,6 +11565,26 @@ mod said_out_loud {
         a.act(Act::Scale(ScaleTo::In));
         a.set_common(common(1.5));
         assert_eq!(a.scale, 1.6, "a step the writer has not reached yet is not undone");
+    }
+
+    /// Q98: common.toml's theme is kura's colours, followed as the file
+    /// changes; a name no theme has is said once and keeps the colours.
+    #[test]
+    fn the_common_theme_colours_kura() {
+        let dir = crate::util::test_dir("common-theme");
+        let mut a = app_in(&dir);
+        let theme = |name: &str| Ok((ito_common::Common { theme: Some(name.into()), ..Default::default() }, Vec::new()));
+        assert!(!a.cfg.theme.light());
+        a.set_common(theme("tsumugi Light"));
+        assert!(a.cfg.theme.light());
+        a.set_common(theme("No Such Theme"));
+        a.set_common(theme("No Such Theme"));
+        assert!(a.cfg.theme.light(), "kept");
+        assert_eq!(a.toasts.iter().filter(|t| t.text.contains("No Such Theme")).count(), 1, "said once");
+        a.set_common(theme("system"));
+        assert!(!a.cfg.theme.light(), "the OS is dark here");
+        a.set_os_light(true);
+        assert!(a.cfg.theme.light(), "and turned light");
     }
 
     /// #174: the packing job names the format the typed name made.

@@ -251,7 +251,7 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 
 [section.54]
 title = "設定の画面（v0.97.0）"
-note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）が窓いっぱいに開く。一般は言語と倍率と時計を `common.toml` に書き（53 節と同じ）、詳細は設定のフォルダと読んだときの問題を出す。開いている間 `<State:>` は `overlay: settings`。54.4 のために tsumugi か mimamori を用意する。"
+note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）が窓いっぱいに開く。一般は言語と倍率と時計を `common.toml` に書き（53 節と同じ）、テーマは共通のテーマを書いて kura の色もそこから決まり（v0.100.0）、詳細は設定のフォルダと読んだときの問題を出す。開いている間 `<State:>` は `overlay: settings`。54.4 と 54.18 のために tsumugi か mimamori を用意する。"
 
 [row]
 # 1. ターミナルペイン
@@ -704,7 +704,7 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 
 # 33. 設定の警告と、その色
 "33.4" = '実際に失敗するものを作る（入っていないプログラムを指定したオープナー、25.8）→ こちらは**赤**のまま。一目で区別が付くこと'
-"33.6" = '背景の明るいテーマ（`theme.toml` に `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }`。v0.73.42 より前は窓の背景を決める手段が無かった）で、設定の警告（33.1）を出し、一覧に `.txt` を置く → v0.81.0（Q93）から警告は**暗い琥珀**、`.txt` の名前は**濃いグレー**で、白の上でも楽に読める。カーソルの行の帯は薄い青で、その上の `.txt` の名前も読める。`overall = { bg = "#000000" }` なら明るい黄色とグレーに戻る'
+"33.6" = '背景の明るいテーマ（`theme.toml` に `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }`。v0.73.42 より前は窓の背景を決める手段が無かった）で、設定の警告（33.1）を出し、一覧に `.txt` を置く → v0.81.0（Q93）から警告は**暗い琥珀**、`.txt` の名前は**濃いグレー**で、白の上でも楽に読める。カーソルの行の帯は薄い青で、その上の `.txt` の名前も読める。`overall = { bg = "#000000" }` なら明るい黄色とグレーに戻る。v0.100.0 から白い窓では egui の部品（入力欄・スクロールバー）も明るい'
 '33.9' = '''設定ファイルを**3 つ同時に**壊して（`yazi.toml`、`keymap.toml`、`config.toml`）起動する → 3 つで **1 行のトーストが 1 つ**: 最初のファイルのエラーの 1 行目で、末尾が ``— the rest and 2 more in `~` ``（v0.81.0。1 行の警告がほかにもあるときは ``(+2 more, see `~`)``）。`~` には 3 つとも全文で並ぶ。箱は窓の中に収まる'''
 "33.11" = '`[[preview]]` を `yazi.toml` に入れて（本来は `config.toml`）起動 → **1 行で** `…\yazi.toml: [[preview]] belongs in config.toml, and nothing in this file was read`。以前の `invalid type: map, expected a string` ではない（v0.33.13）'
 "33.12" = '`[term]` も `yazi.toml` に入れる → それについても同じ形の行が 1 つ増える。どちらも「このファイルは読まれなかった」と述べる。実際そうだから'
@@ -928,8 +928,8 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 "53.8" = 'kura を動かしたまま、`common.toml` を `language = "e`（壊れた行）で保存し、次に `language = "en"` に直して保存する（v0.96.0） → 1 回目の保存から 3 秒以内に `common.toml:` で始まるトーストが出て（1 度だけ。`common.toml: common.toml:` ではない）、時計はそれまでの表示のまま。2 回目のあとは曜日が `(Sat)` に戻る'
 "53.9" = 'kura を `[clock]` / `show = false` の `common.toml` で動かしたまま、ファイルを消す（v0.96.0） → 3 秒以内に既定の時計（`2026/10/10 (Sat) 14:32`）が戻る'
 "53.10" = 'kura・tsumugi・mimamori を一緒に開き、tsumugi の設定の画面（`Ctrl+,`）で時計の 24 時間表記を切り、次に言語を日本語にする（v0.96.0） → それぞれの変更から 3 秒以内に 3 つの時計が揃って変わる（12 時間表記、次に `(土)`）。kura にトーストは出ない。mimamori の設定の画面で戻すと 3 つとも戻る'
-"54.1" = '一覧で `<C-,>`、もう一度 `<C-,>` → 画面が窓全体を覆う。左に `Search settings`・`General`・`config.toml`・`Advanced`、下に **Open config.toml**、右にページ。色は `theme.toml` のもの。2 回目の `<C-,>` で閉じ、一覧は元のまま。ターミナルペイン（`<C-t>`）では `<C-,>` はシェルに届き、画面は開かない'
-"54.2" = '開いて `<C-Tab>` を 3 回、`<C-S-Tab>`、`<C-PageDown>`・`<C-PageUp>` → ページが kura.toml、Advanced、General（一周）、Advanced（逆に一周）、次に General、Advanced と動く。後ろの一覧にはキーが届かない'
+"54.1" = '一覧で `<C-,>`、もう一度 `<C-,>` → 画面が窓全体を覆う。左に `Search settings`・`General`・`Theme`・`config.toml`・`Advanced`、下に **Open config.toml**、右にページ。色は共通のテーマのもの（`common.toml` が無ければ tsumugi Dark）。2 回目の `<C-,>` で閉じ、一覧は元のまま。ターミナルペイン（`<C-t>`）では `<C-,>` はシェルに届き、画面は開かない'
+"54.2" = '開いて `<C-Tab>` を 4 回、`<C-S-Tab>`、`<C-PageDown>`・`<C-PageUp>` → ページが Theme、config.toml、Advanced、General（一周）、Advanced（逆に一周）、次に General、Advanced と動く。後ろの一覧にはキーが届かない'
 "54.3" = '開いて `<C-f>`、`date` と打つ。`<Esc>`、`<Esc>` → 検索欄がキーを取り、ナビには General だけが残り、日付の行が光る。1 回目の `<Esc>` は欄から出るだけで画面は開いたまま。2 回目で閉じる。欄に打った `j` は文字で、カーソル移動ではない'
 "54.4" = 'tsumugi も開いたまま、General で言語を日本語にし、`Show the time in the status bar` を切って戻し、時刻の形式を変える → どの変更もすぐ出る: 画面の言葉と kura の時計（`(土)`、12 時間表記）が同じかその次のフレームで、tsumugi は 3 秒以内に変わる。`common.toml` のコメントは残る。トーストは出ない'
 "54.5" = 'General で `<Tab>` / `<S-Tab>` と `<Space>` を使う → フォーカスが見える輪付きで部品の間を動き、`<Space>` でスイッチが切り替わる。後ろの一覧では何も起きない'
@@ -937,10 +937,17 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 "54.7" = 'Advanced の `yazi` の行で **Open** を押す → 画面が閉じ、一覧が yazi の設定のフォルダ（`%APPDATA%\yazi\config`）にいる'
 "54.8" = 'yazi の `yazi.toml` に `bogus = [` を保存して `<C-F5>`、Advanced を開く。ファイルを直して **Reload** → `PROBLEMS READING THE CONFIG` の下に読み込みのエラーが警告の色・等幅の字で出て、`^` が指す桁の下にある。**Reload** のあとは `No problems`'
 "54.9" = '`config.toml` がまだ無い状態で **Open config.toml** を押す → コメント 2 行のファイルが作られ、`.toml` のエディタ（無ければメモ帳）で開く。画面は開いたまま。ファイルがあればそのまま開く'
-"54.10" = '言語を日本語にして画面を開く → ナビが `一般` / `config.toml` / `詳細`、行の言葉が日本語になり、検索欄で `時計` が見つかる'
+"54.10" = '言語を日本語にして画面を開く → ナビが `一般` / `テーマ` / `config.toml` / `詳細`、行の言葉が日本語になり、検索欄で `時計` が見つかる'
 "54.11" = 'config.toml の `[ui]` に `font_size = 14.0 # mine` を書く。config.toml のページの `Font size` に `16` と打って `<Enter>` → 一覧の字がすぐ大きくなり、`Saved config.toml: font_size = 16.0` のトーストが出る。ファイルは `font_size = 16.0 # mine` になり、ほかの行とコメントは元のまま'
 "54.12" = '`Font size` に `abc` と打って `<Enter>`、次に `100` と打って `<Enter>` → 赤いトースト `Font size: "abc" is not a number from 6 to 72`、`100` でも同じ。config.toml は変わらない'
 "54.13" = '`Minimap` を切り、`Icons` を `ascii` にし、`Shell` に `pwsh` と入れて `<Tab>` で欄を出る。`<C-t>` でペインを開く。`Shell` を空にし、ペインを閉じてまた開く → ミニマップとアイコンはすぐ変わる。config.toml に `minimap = false`・`icons = "ascii"`・`[term]` の `shell = "pwsh"` が入り、ペインは PowerShell 7 で開く。空にすると `shell` の行が消え、次のペインは既定のシェル'
 "54.14" = 'config.toml に `[ui` と保存し、ページで `Font size` を変える → config.toml と読み込みのエラーを言う赤いトースト。ファイルはそのまま。直せばまた書ける'
 "54.15" = 'config.toml が yazi のフォルダ（`%APPDATA%\yazi\config\config.toml`）にだけある状態で `<C-F5>`、`Row padding` を変えて **Open config.toml** を押す → どちらもそのファイルに向かい、`%APPDATA%\uchmk\kura` に config.toml は作られない'
 "54.16" = '一般の `倍率` の行で `150%` を選ぶ（v0.99.0）→ kura がすぐ大きくなり、common.toml に `scale = 1.5` が入る。隣に開いた tsumugi か yagura も 3 秒ほどで従う'
+"54.17" = '`theme.toml` を無くし（yazi のを退ける）、`common.toml` も無しで kura と tsumugi を並べて起動し、テーマのページを開く（v0.100.0）→ kura の窓・パネル・枠・字が tsumugi の色。ページに `Mode` があって `Dark` が点き、`THEME · ` の下にダークのテーマが並んで `tsumugi Dark` が点く。`PREVIEW · tsumugi Dark` の下に小さな kura の一覧（`~/kura`・`docs`・`src`・カーソルの帯の `Cargo.toml`・` NOR ` の札・`4/7`）'
+"54.18" = 'テーマのページで `Light` を押す。次に `Catppuccin Latte` を選ぶ。次に `Dark` を押して `Nord` を選ぶ（v0.100.0）→ どれも同じフレームで kura の色が変わる: 明るい地に暗い字、egui の部品（検索欄・スクロールバー）も明るくなる。common.toml は `theme = "tsumugi Light"`、`"Catppuccin Latte"`、`"Nord"` と変わり、コメントは残る。tsumugi と mimamori も 3 秒以内に従う。控えめの字（サイズ・日付）・警告・`F` で見つけた語はどれでも読める'
+"54.19" = '`Follow OS` を押し、`Nord` と `tsumugi Light` を選ぶ。Windows をライトモードにし（設定 > 個人用設定 > 色）、ダークに戻す（v0.100.0）→ common.toml に `theme = "system"`・`dark_theme = "Nord"`・`light_theme = "tsumugi Light"`。両方のテーマが並び、`when dark` / `when light` の札が付く。切り替えるたびに 1 秒以内に kura が tsumugi Light と Nord を行き来する。キーは押さない'
+"54.20" = 'yazi のフォルダに `[mgr]` の `hovered = { bg = "#aa3355" }` と `[status]` の `mode_normal = { bg = "#33aa55" }` だけの `theme.toml` を置いて `<C-F5>`。`tsumugi Light`、次に `tsumugi Dark` を選ぶ（v0.100.0）→ どちらのテーマでもカーソルの帯はその赤、` NOR ` の札はその緑（一覧でもページの見本でも）。ほかはそれぞれのテーマの色'
+"54.21" = 'その `theme.toml` を `[app]` の `overall = { bg = "#ffffff", fg = "#222222" }` だけにして `<C-F5>`。画面を開いて `Nord` を選ぶ（v0.100.0）→ Nord でも kura は白地に暗い字のまま。設定の画面自体と egui の部品（スクロールバーが明るい）も同じ。ほか（パネル・枠・ファイルの色）は Nord のもの'
+"54.22" = 'common.toml に `theme = "No Such Theme"` と書いて保存し、もう一度保存する（v0.100.0）→ `common.toml:` で始まり `No Such Theme` を挙げるトーストが 1 回だけ出る。色は元のまま。名前を直せば 3 秒以内に色が変わる'
+"54.23" = '`%APPDATA%\uchmk\themes\mine.toml` に `name = "Mine"`・`light = false`・`bg = "#202830"`・`fg = "#e0e0e0"` を保存し、kura を起動し直してテーマのページを開く（v0.100.0）→ ダークのテーマの中に `Mine` が並ぶ。選ぶと kura の地が `#202830` になり、`theme = "Mine"` が書かれる。`bg = "nope"` のファイルは並ばず、`theme:` で始まりそのファイルを挙げるトーストが出る'

@@ -63,32 +63,6 @@
   yazi の keymap の `desc` は利用者の設定から来るので訳さない。表に無いキーはテストで落とす。【後】
 - [ ] 日本語の表を足す。CJK のフォントは tsumugi の `fonts.rs` の取り方を使う。filer.toml に `language` を足し、README に書く。【後】
 
-## 設定の画面・テーマ・時計（uchmk の共通仕様、2026-10-10、持ち主の希望）
-
-持ち主は filer にも tsumugi・mimamori と同じ設定の画面を足したい。uchmk のアプリの共通仕様は ito の
-[docs/common-spec.md](https://github.com/uchmk/ito/blob/main/docs/common-spec.md)（tsumugi v0.81.0、mimamori v0.32.0 が先に従った）:
-共通の設定は `<設定のフォルダ>/uchmk/common.toml`（`language`・`theme`・`dark_theme`・`light_theme`・`[clock]`）、自分のテーマは
-`<設定のフォルダ>/uchmk/themes/*.toml`、アプリは common.toml を 2 秒ごとに見て、変わったらすぐ当てる。共有のクレートは uchmk/ito の
-`ito-common`（置き場所・読み書き・時計・見張り）、`ito-theme`（13 の組み込みのテーマと色の読みやすさ）、`ito-prefs`（設定の画面の枠と部品）で、
-`ito-pane` と同じく `Cargo.toml` の `rev` で固定して読む（`rev` は ito のクレート全部で揃える）。
-
-- [ ] 設定の画面を `ito-prefs` の上に作る: `<C-,>`（Windows / Linux は Ctrl+,、macOS は Cmd+,）で窓いっぱいに開く。左に帯（検索・ページの一覧・下に「Open kura.toml」）、
-  右にページ（題・lead・見出し付きのカード、行の高さ 48）。キーは keymap の新しいセクション（`close`・ページを移る・検索）と `feed_*_key` で、Esc は 2 段。
-  ページは General（Language と CLOCK のカードは共通の部品）、Theme（共通のページ。見本は kura の一覧とプレビューを今の色で描く）、kura.toml の主な行、
-  Advanced（設定のフォルダのパスと Copy・Open、読み込みの警告）。kura.toml への書き込みは toml_edit でコメントを残し、UI ではないスレッドで行う。
-  - [x] （v0.97.0。`src/ui/settings.rs` が `ito_prefs::show` に kura のページと色を渡す。キーは `PanelLayer::Settings`、書き込みは `App::write_common`、フォルダの Open は一覧をそこへ移す）枠と General・Advanced: `<C-,>` で開く overlay、keymap の `[settings]`、Esc は 2 段、General（Language と CLOCK を common.toml へ UI ではないスレッドで書く）、
-    Advanced（設定のフォルダと Copy・Open、読み込みの警告）、帯の下の「Open kura.toml」。
-  - [x] （v0.98.0。`kura_page` が行を `KuraChange` にし、`App::write_kura` が読んでいる kura.toml（最後に読んだもの）へ書き込み用のスレッドで `ito_common::set_key` / `remove_key` を当てて書き、読み直した設定を `<C-F5>` と同じに当てる。範囲の外の数はトースト）kura.toml の主な行のページ（toml_edit でコメントを残して書く）。
-  - [ ] Theme のページ（共通のページ。見本は kura の一覧とプレビューを今の色で描く）。テーマと yazi の `theme.toml` の関係が決まるまで作らずに残してよい（要確認: Q98）
-- [x] （v0.94.0。`App::load_common` が起動時に読み、`draw_status` が右端に描く。見張りは次の項目）ステータスバーの右端に時計を出す: 字体は一覧と同じ、色は一番強い文字の色。ポインタを載せると日付を全部出す。分が変わるときだけ再描画する（`Clock::next_minute`）。
-  `[clock]` は common.toml だけから読む（filer.toml に上書きは持たない）。
-- [x] （v0.96.0。`load_common` が `ito_common::watch` で 2 秒ごとに見て、変わればワーカーで読み直し、`drain_channels` の `set_common` が当てる。読めないファイルは前の設定のままトースト、消せば既定。テーマは Q98 が決まるまで当てるものが無い）common.toml の見張りを足し、言語・テーマ・時計を再起動なしで当て直す（`ito_common::watch`。上の「多言語対応」の節と同じ `language` を読む）。
-- [ ] common.toml のテーマを filer の色に当てる（要確認: Q98）
-- [ ] README（キー表・設定の画面の節・common.toml）、TESTING.md（設定の画面・時計・common.toml を外で書き換えると tsumugi と mimamori と一緒に変わる行）を更新する。
-  - [x] （v0.96.1）common.toml と時計の分: README の節に見張り・ほかのアプリと揃って変わること・知らないキーは飛ばすこと・テーマはまだ当てないことを書き、TESTING.md 53.6 を今の動き（ファイルの残りは当たる）に直し、53.10（tsumugi・mimamori と一緒に変わる）を足した。
-  - [ ] 設定の画面の分（README のキー表と節、TESTING.md の新しい節）。上の「設定の画面を `ito-prefs` の上に作る」が入ってから。
-    v0.97.0 で枠と General・Advanced の分は書いた（README「Settings screen」、TESTING.md 54 節）。v0.98.0 で kura.toml のページ（54.11-54.15）。残るのは Theme のページ。
-
 ## 検索（`s` / `S`）が不要なファイルを出しすぎる（2026-10-10、持ち主の希望）
 
 `C:\Users\yuu06\AppData\Local\tsumugi-wintest\auto-wintest-arm.log` を探したのに、`s`（名前の曖昧一致）も `S`（中身の部分一致）も

@@ -1,7 +1,11 @@
 //! yazi-compatible theming: `theme.toml` colors, `[filetype]` rules and
-//! `[icon]` rules, on top of a built-in dark theme.
+//! `[icon]` rules, on top of the common theme every uchmk app shares
+//! (common.toml's `theme`, `tsumugi Dark` unless chosen otherwise; Q98).
+
+use std::sync::Arc;
 
 use egui::Color32;
+use ito_theme::{mix, Colors};
 use serde::Deserialize;
 
 use crate::fs::Entry;
@@ -345,6 +349,18 @@ pub struct Theme {
     pub icon_dir_default: Icon,
     pub icon_file_default: Icon,
     pub icon_link_default: Icon,
+
+    /// The common theme these colours start from (Q98): what the settings
+    /// screen's Theme page shows as chosen.
+    pub common: Colors,
+    /// Whether a `theme.toml` set the window's own colours (`[app] overall`),
+    /// so the settings screen draws in those rather than the common theme's.
+    pub overall: bool,
+    /// Whether [`Theme::without_nerd_icons`] took the glyphs out, to do it
+    /// again when the common theme changes underneath.
+    pub plain_icons: bool,
+    /// The `theme.toml`s read, in order, to lay over another common theme.
+    layers: Arc<Vec<ThemeToml>>,
 }
 
 /// The default text, and the colour of a plain file's name: light, for the
@@ -366,103 +382,131 @@ pub(crate) fn is_light(bg: Color32) -> bool {
     0.2126 * lin(bg.r()) + 0.7152 * lin(bg.g()) + 0.0722 * lin(bg.b()) > 0.179
 }
 
+/// The warning on a dark background: the common dark theme's yellow, for a
+/// `theme.toml` that puts a dark window over a light common theme.
+const DARK_WARNING: Color32 = Color32::from_rgb(0xe8, 0xc8, 0x7a);
+
 impl Default for Theme {
     fn default() -> Self {
-        let fg = DARK_TEXT;
-        Self {
-            bg: Color32::from_rgb(0x16, 0x18, 0x1d),
-            bg_alt: Color32::from_rgb(0x1b, 0x1e, 0x24),
-            border: Color32::from_rgb(0x2c, 0x30, 0x39),
-            fg,
-            fg_dim: Color32::from_rgb(0x79, 0x80, 0x90),
-
-            cwd: Style::fg(Color32::from_rgb(0x6f, 0xd0, 0xd0)),
-            hovered: Style::default(),
-            hovered_bg: Color32::from_rgb(0x2f, 0x4a, 0x6b),
-            inactive_hovered_bg: Color32::from_rgb(0x26, 0x2b, 0x34),
-            preview_hovered: Style { underline: true, ..Default::default() },
-            find_keyword: Style {
-                fg: Some(Color32::from_rgb(0x1a, 0x1a, 0x1a)),
-                bg: Some(Color32::from_rgb(0xe8, 0xc8, 0x7a)),
-                bold: true,
-                ..Default::default()
-            },
-            find_position: Style::fg(Color32::from_rgb(0xc9, 0x9c, 0xf0)),
-            marker_copied: Color32::from_rgb(0x8e, 0xd0, 0x8e),
-            marker_cut: Color32::from_rgb(0xf0, 0x71, 0x78),
-            marker_marked: Color32::from_rgb(0x6f, 0xd0, 0xd0),
-            marker_selected: Color32::from_rgb(0xe8, 0xc8, 0x7a),
-            tab_active: Style {
-                fg: Some(Color32::from_rgb(0x16, 0x18, 0x1d)),
-                bg: Some(Color32::from_rgb(0x7a, 0xb8, 0xf5)),
-                bold: true,
-                ..Default::default()
-            },
-            tab_inactive: Style::fg(Color32::from_rgb(0x79, 0x80, 0x90)),
-
-            mode_normal: Style {
-                fg: Some(Color32::from_rgb(0x16, 0x18, 0x1d)),
-                bg: Some(Color32::from_rgb(0x7a, 0xb8, 0xf5)),
-                bold: true,
-                ..Default::default()
-            },
-            mode_select: Style {
-                fg: Some(Color32::from_rgb(0x16, 0x18, 0x1d)),
-                bg: Some(Color32::from_rgb(0x8e, 0xd0, 0x8e)),
-                bold: true,
-                ..Default::default()
-            },
-            mode_unset: Style {
-                fg: Some(Color32::from_rgb(0x16, 0x18, 0x1d)),
-                bg: Some(Color32::from_rgb(0xf0, 0x71, 0x78)),
-                bold: true,
-                ..Default::default()
-            },
-            status_bg: Color32::from_rgb(0x20, 0x23, 0x2b),
-            progress_fg: Color32::from_rgb(0x7a, 0xb8, 0xf5),
-            progress_error: Color32::from_rgb(0xf0, 0x71, 0x78),
-            warning: Color32::from_rgb(0xe8, 0xc8, 0x7a),
-
-            which_cols: 3,
-            which_cand: Style {
-                fg: Some(Color32::from_rgb(0x6f, 0xd0, 0xd0)),
-                bold: true,
-                ..Default::default()
-            },
-            which_rest: Style::fg(Color32::from_rgb(0x79, 0x80, 0x90)),
-            which_desc: Style::fg(Color32::from_rgb(0xc9, 0x9c, 0xf0)),
-
-            // Git signs, in the colors the TODO asks for and yazi uses:
-            // changed is yellow, added green, untracked quiet, a conflict red.
-            git_modified: Color32::from_rgb(0xe8, 0xc8, 0x7a),
-            git_deleted: Color32::from_rgb(0xf0, 0x71, 0x78),
-            git_added: Color32::from_rgb(0x8e, 0xd0, 0x8e),
-            git_untracked: Color32::from_rgb(0x79, 0x80, 0x90),
-            git_conflict: Color32::from_rgb(0xf0, 0x71, 0x78),
-
-            syntect_theme: "base16-ocean.dark".into(),
-
-            filetypes: default_filetypes(),
-            icon_globs: Vec::new(),
-            icon_dirs: default_dir_icons(),
-            icon_exts: default_ext_icons(),
-            icon_files: default_file_icons(),
-            icon_dir_default: Icon {
-                text: "\u{f07b}".into(),
-                fg: Some(Color32::from_rgb(0x7a, 0xb8, 0xf5)),
-            },
-            icon_file_default: Icon { text: "\u{f15b}".into(), fg: None },
-            icon_link_default: Icon {
-                text: "\u{f0c1}".into(),
-                fg: Some(Color32::from_rgb(0x6f, 0xd0, 0xd0)),
-            },
-        }
+        Self::from_common(&default_colors())
     }
 }
 
+/// The common theme when common.toml chooses none: `tsumugi Dark`, which is
+/// the colours kura had built in before there was a common theme.
+pub fn default_colors() -> Colors {
+    ito_theme::builtin()[0].colors
+}
+
 impl Theme {
+    /// kura's colours from a common theme's (Q98): every colour kura draws
+    /// is one of the theme's, or mixed from them, so `tsumugi Light` gives a
+    /// light kura that matches tsumugi and mimamori.
+    pub fn from_common(c: &Colors) -> Self {
+        let dim = quiet(c);
+        // Text on a filled accent: the mode, the active tab.
+        let on = |bg: Color32| Style { fg: Some(c.on_accent()), bg: Some(bg), bold: true, ..Default::default() };
+        Self {
+            bg: c.bg,
+            bg_alt: c.panel,
+            border: c.border,
+            fg: c.fg,
+            fg_dim: dim,
+
+            cwd: Style::fg(c.run),
+            hovered: Style::default(),
+            hovered_bg: mix(c.bg, c.blue, if c.light { 0.35 } else { 0.3 }),
+            inactive_hovered_bg: mix(c.bg, c.fg, 0.1),
+            preview_hovered: Style { underline: true, ..Default::default() },
+            // White on the yellow reads at 3:1, so the text or the ground,
+            // whichever reads better on it.
+            find_keyword: Style {
+                fg: Some(text_on(c, c.wait)),
+                bg: Some(c.wait),
+                bold: true,
+                ..Default::default()
+            },
+            find_position: Style::fg(c.magenta),
+            marker_copied: c.done,
+            marker_cut: c.err,
+            marker_marked: c.run,
+            marker_selected: c.wait,
+            tab_active: on(c.blue),
+            tab_inactive: Style::fg(dim),
+
+            mode_normal: on(c.blue),
+            mode_select: on(c.done),
+            mode_unset: on(c.err),
+            status_bg: mix(c.panel, c.fg, 0.03),
+            progress_fg: c.blue,
+            progress_error: c.err,
+            // A light theme's yellow is a mark's, 3:1; as text it is darkened
+            // to read at 4.5 (Q93).
+            warning: if c.light { mix(c.wait, Color32::BLACK, 0.3) } else { c.wait },
+
+            which_cols: 3,
+            which_cand: Style { fg: Some(c.run), bold: true, ..Default::default() },
+            which_rest: Style::fg(dim),
+            which_desc: Style::fg(c.magenta),
+
+            // Git signs, in the colors the TODO asks for and yazi uses:
+            // changed is yellow, added green, untracked quiet, a conflict red.
+            git_modified: c.wait,
+            git_deleted: c.err,
+            git_added: c.done,
+            git_untracked: dim,
+            git_conflict: c.err,
+
+            syntect_theme: if c.light { "base16-ocean.light" } else { "base16-ocean.dark" }.into(),
+
+            filetypes: default_filetypes(c),
+            icon_globs: Vec::new(),
+            icon_dirs: default_dir_icons(c),
+            icon_exts: default_ext_icons(c),
+            icon_files: default_file_icons(c),
+            icon_dir_default: Icon { text: "\u{f07b}".into(), fg: Some(c.blue) },
+            icon_file_default: Icon { text: "\u{f15b}".into(), fg: None },
+            icon_link_default: Icon { text: "\u{f0c1}".into(), fg: Some(c.run) },
+
+            common: *c,
+            overall: false,
+            plain_icons: false,
+            layers: Arc::default(),
+        }
+    }
+
+    /// The common theme `c` with the `theme.toml`s read over it, in order.
+    pub fn layered(c: &Colors, layers: Vec<ThemeToml>) -> Self {
+        let mut t = Self::from_common(c);
+        for l in &layers {
+            t.apply(l);
+        }
+        t.layers = Arc::new(layers);
+        t
+    }
+
+    /// The same `theme.toml`s over another common theme: what choosing a
+    /// theme on the settings screen, or in common.toml, does.
+    pub fn with_common(&self, c: &Colors) -> Self {
+        let mut t = Self::from_common(c);
+        for l in self.layers.iter() {
+            t.apply(l);
+        }
+        t.layers = self.layers.clone();
+        if self.plain_icons {
+            t.without_nerd_icons();
+        }
+        t
+    }
+
+    /// Whether the window is light, for egui's own widgets.
+    pub fn light(&self) -> bool {
+        is_light(self.bg)
+    }
+
     /// Swap the Nerd Font glyphs for plain ASCII when no icon font is available.
     pub fn without_nerd_icons(&mut self) {
+        self.plain_icons = true;
         self.icon_globs.clear();
         self.icon_dirs.clear();
         self.icon_exts.clear();
@@ -490,28 +534,37 @@ impl Theme {
         // First, so the rest of the file can still set its own colours over a
         // background chosen here. The second background -- panels, the help
         // box -- follows it a step towards the text, as the built-in pair do.
-        if let Some(fg) = t.app.overall.fg.as_deref().and_then(parse_color) {
+        let before = self.fg;
+        let fg = t.app.overall.fg.as_deref().and_then(parse_color);
+        if let Some(fg) = fg {
             self.fg = fg;
+            self.overall = true;
         }
         if let Some(bg) = t.app.overall.bg.as_deref().and_then(parse_color) {
-            // Q93: the built-in yellow and the plain file name are light, for
-            // the dark default, and on white they read at 1.5:1 (#213). On a
-            // light background they turn dark -- these two, and the text when
-            // the file did not set one, which is the same grey.
-            if is_light(bg) {
-                if t.app.overall.fg.as_deref().and_then(parse_color).is_none() {
-                    self.fg = LIGHT_TEXT;
+            self.overall = true;
+            let light = is_light(bg);
+            // Q93: the text and the yellow were chosen for the background
+            // underneath, and on the other kind they read at 1.5:1 (#213).
+            // They turn over -- these two, and the plain file name, which is
+            // the text's colour -- unless the file set the text itself.
+            let turned = light != is_light(self.bg);
+            if turned {
+                let (text, warning) = if light { (LIGHT_TEXT, LIGHT_WARNING) } else { (DARK_TEXT, DARK_WARNING) };
+                if fg.is_none() {
+                    self.fg = text;
                 }
-                self.warning = LIGHT_WARNING;
+                self.warning = warning;
                 for r in &mut self.filetypes {
-                    if r.style.fg == Some(DARK_TEXT) {
-                        r.style.fg = Some(LIGHT_TEXT);
+                    if r.style.fg == Some(before) {
+                        r.style.fg = Some(text);
                     }
                 }
-                // The cursor's dark bars would put that dark grey on dark
-                // blue; on a light window they are a tint of it instead, the
-                // way `bg_alt` is. `[mgr] hovered` still sets its own below.
-                self.hovered_bg = toward(bg, self.progress_fg, 0.35);
+            }
+            // The cursor's dark bars would put dark text on dark blue; on a
+            // light window they are a tint of it instead, the way `bg_alt`
+            // is. `[mgr] hovered` still sets its own below.
+            if light || turned {
+                self.hovered_bg = toward(bg, self.progress_fg, if light { 0.35 } else { 0.3 });
                 self.inactive_hovered_bg = toward(bg, self.fg, 0.1);
             }
             self.bg = bg;
@@ -711,16 +764,51 @@ fn rule_matches(
 
 // ------------------------------------------------------------ built-in content
 
-fn c(hex: u32) -> Option<Color32> {
-    Some(Color32::from_rgb((hex >> 16) as u8, (hex >> 8) as u8, hex as u8))
+/// A built-in rule's colour in the common theme `t`. The tables below are
+/// written in `tsumugi Dark`'s hexes, and each of those is the theme's own
+/// colour of that name, so another theme recolours them; the rest are a
+/// language's own colour (Rust's orange, Python's yellow) and stay.
+/// The quiet text: a dark theme's dim a step into the ground, as kura's
+/// own grey was; a light theme's dim as it is, which reads at 3:1 already.
+fn quiet(t: &Colors) -> Color32 {
+    if t.light {
+        t.dim
+    } else {
+        mix(t.dim, t.bg, 0.25)
+    }
 }
 
-fn default_filetypes() -> Vec<FileRule> {
+/// Of the theme's text and its ground, the one that reads better on `fill`.
+fn text_on(t: &Colors, fill: Color32) -> Color32 {
+    if ito_theme::contrast(t.fg, fill) >= ito_theme::contrast(t.bg, fill) {
+        t.fg
+    } else {
+        t.bg
+    }
+}
+
+fn c(t: &Colors, hex: u32) -> Color32 {
+    match hex {
+        0xf07178 => t.err,
+        0x6fd0d0 => t.run,
+        0x7ab8f5 => t.blue,
+        0xc99cf0 => t.magenta,
+        0xe8c87a => t.wait,
+        0x8ed08e => t.done,
+        0xc8cdd8 => t.fg,
+        0x798090 => quiet(t),
+        // The deeper red of a PDF, Java, Ruby.
+        0xd05151 => mix(t.err, Color32::BLACK, 0.15),
+        _ => Color32::from_rgb((hex >> 16) as u8, (hex >> 8) as u8, hex as u8),
+    }
+}
+
+fn default_filetypes(t: &Colors) -> Vec<FileRule> {
     let mk = |name: Option<&str>, mime: Option<&str>, is: Option<&str>, col: u32, bold: bool| FileRule {
         name: name.map(str::to_owned),
         mime: mime.map(str::to_owned),
         is: is.map(str::to_owned),
-        style: Style { fg: c(col), bold, ..Default::default() },
+        style: Style { fg: Some(c(t, col)), bold, ..Default::default() },
     };
     vec![
         mk(None, None, Some("orphan"), 0xf07178, false),
@@ -739,16 +827,16 @@ fn default_filetypes() -> Vec<FileRule> {
         mk(None, Some("application/pdf"), None, 0xd05151, false),
         mk(None, Some("application/vnd.microsoft.portable-executable"), None, 0x8ed08e, true),
         mk(None, Some("application/x-sharedlib"), None, 0x798090, false),
-        mk(None, Some("text/*"), None, 0xc8cdd8, false), // DARK_TEXT
+        mk(None, Some("text/*"), None, 0xc8cdd8, false), // the text
         mk(None, None, Some("hidden"), 0x798090, false),
     ]
 }
 
-fn icon(glyph: &str, col: Option<u32>) -> Icon {
-    Icon { text: glyph.to_owned(), fg: col.and_then(c) }
+fn icon(t: &Colors, glyph: &str, col: Option<u32>) -> Icon {
+    Icon { text: glyph.to_owned(), fg: col.map(|h| c(t, h)) }
 }
 
-fn default_dir_icons() -> Vec<(String, Icon)> {
+fn default_dir_icons(t: &Colors) -> Vec<(String, Icon)> {
     [
         (".git", "\u{e5fb}", Some(0xf07178u32)),
         (".github", "\u{e5fd}", None),
@@ -763,11 +851,11 @@ fn default_dir_icons() -> Vec<(String, Icon)> {
         ("Videos", "\u{f03d}", None),
     ]
     .into_iter()
-    .map(|(n, g, col)| (n.to_owned(), icon(g, col)))
+    .map(|(n, g, col)| (n.to_owned(), icon(t, g, col)))
     .collect()
 }
 
-fn default_file_icons() -> Vec<(String, Icon)> {
+fn default_file_icons(t: &Colors) -> Vec<(String, Icon)> {
     [
         ("cargo.toml", "\u{e7a8}", Some(0xdea584u32)),
         ("cargo.lock", "\u{e7a8}", Some(0x798090)),
@@ -780,11 +868,11 @@ fn default_file_icons() -> Vec<(String, Icon)> {
         (".env", "\u{f462}", Some(0xe8c87a)),
     ]
     .into_iter()
-    .map(|(n, g, col)| (n.to_owned(), icon(g, col)))
+    .map(|(n, g, col)| (n.to_owned(), icon(t, g, col)))
     .collect()
 }
 
-fn default_ext_icons() -> Vec<(String, Icon)> {
+fn default_ext_icons(t: &Colors) -> Vec<(String, Icon)> {
     [
         ("rs", "\u{e7a8}", Some(0xdea584u32)),
         ("toml", "\u{e6b2}", Some(0x9c6644)),
@@ -852,13 +940,19 @@ fn default_ext_icons() -> Vec<(String, Icon)> {
         ("lock", "\u{f023}", Some(0x798090)),
     ]
     .into_iter()
-    .map(|(n, g, col)| (n.to_owned(), icon(g, col)))
+    .map(|(n, g, col)| (n.to_owned(), icon(t, g, col)))
     .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ito_theme::contrast;
+
+    /// The colour a plain file's name is drawn in.
+    fn plain(t: &Theme) -> Color32 {
+        t.filetypes.iter().find(|r| r.mime.as_deref() == Some("text/*")).unwrap().style.fg.unwrap()
+    }
 
     /// #203: yazi's `[app] overall` sets the window's background and text,
     /// and the second background follows the first.
@@ -882,19 +976,6 @@ mod tests {
     /// second one and the cursor's bar; a dark background keeps the light pair.
     #[test]
     fn a_light_background_darkens_the_warning_and_plain_names() {
-        fn lum(c: Color32) -> f32 {
-            let lin = |c: u8| {
-                let c = c as f32 / 255.0;
-                if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
-            };
-            0.2126 * lin(c.r()) + 0.7152 * lin(c.g()) + 0.0722 * lin(c.b())
-        }
-        fn contrast(a: Color32, b: Color32) -> f32 {
-            let (x, y) = (lum(a).min(lum(b)), lum(a).max(lum(b)));
-            (y + 0.05) / (x + 0.05)
-        }
-        let plain = |t: &Theme| t.filetypes.iter().find(|r| r.mime.as_deref() == Some("text/*")).unwrap().style.fg.unwrap();
-
         let dark = Theme::default();
         assert!(contrast(dark.warning, dark.bg) >= 4.5 && contrast(plain(&dark), dark.bg) >= 4.5);
         assert!(contrast(plain(&dark), dark.hovered_bg) >= 4.5, "the cursor's row, dark");
@@ -922,5 +1003,70 @@ mod tests {
         t.apply(&toml::from_str::<ThemeToml>("[app]\noverall = { bg = \"#000000\" }\n").unwrap());
         assert_eq!((t.warning, plain(&t), t.fg), (dark.warning, plain(&dark), dark.fg));
         assert_eq!(t.hovered_bg, dark.hovered_bg);
+    }
+
+    /// Q98: with no theme.toml, kura is the common theme, so every built-in
+    /// one, light or dark, reads: the text on each ground, the quiet text,
+    /// the warnings, the found words.
+    #[test]
+    fn every_common_theme_reads_in_kura() {
+        for th in ito_theme::builtin() {
+            let t = Theme::from_common(&th.colors);
+            let n = &th.name;
+            assert_eq!(t.light(), th.colors.light, "{n}");
+            assert_eq!((t.bg, t.fg), (th.colors.bg, th.colors.fg), "{n} is the window");
+            for bg in [t.bg, t.bg_alt, t.hovered_bg, t.inactive_hovered_bg] {
+                assert!(contrast(t.fg, bg) >= 4.0, "{n}: text on {bg:?}");
+                assert!(contrast(plain(&t), bg) >= 4.0, "{n}: plain name on {bg:?}");
+            }
+            assert!(contrast(t.warning, t.bg) >= 4.5, "{n}: warning");
+            assert!(contrast(t.fg_dim, t.bg) >= 3.5, "{n}: quiet text");
+            let kw = t.find_keyword;
+            assert!(contrast(kw.fg.unwrap(), kw.bg.unwrap()) >= 3.5, "{n}: a found word");
+        }
+    }
+
+    /// No common.toml is `tsumugi Dark`, kura's colours before Q98.
+    #[test]
+    fn the_default_is_tsumugi_dark() {
+        let t = Theme::default();
+        let c = ito_theme::builtin()[0].colors;
+        assert_eq!(t.common, c);
+        assert_eq!((t.bg, t.fg, t.border), (c.bg, c.fg, c.border));
+        assert!(!t.light() && !t.overall);
+        assert_eq!(t.syntect_theme, "base16-ocean.dark");
+    }
+
+    /// theme.toml is drawn over the common theme, whichever it is, and stays
+    /// over it when another is chosen; so do the ASCII icons.
+    #[test]
+    fn theme_toml_is_drawn_over_the_common_theme() {
+        let builtin = ito_theme::builtin();
+        let light = builtin.iter().find(|t| t.name == "tsumugi Light").unwrap().colors;
+        let marker = "[mgr]\nmarker_selected = { fg = \"#ff0000\" }\n";
+        let t = Theme::layered(&light, vec![toml::from_str(marker).unwrap()]);
+        assert!(t.light() && !t.overall, "the window is still the common theme's");
+        assert_eq!(t.marker_selected, Color32::from_rgb(255, 0, 0));
+        assert_eq!(t.syntect_theme, "base16-ocean.light");
+
+        let mut back = t.with_common(&builtin[0].colors);
+        assert!(!back.light());
+        assert_eq!(back.marker_selected, Color32::from_rgb(255, 0, 0), "the layer goes along");
+        back.without_nerd_icons();
+        let again = back.with_common(&light);
+        assert!(again.light() && again.plain_icons);
+        assert_eq!(again.icon_dir_default.text, "/");
+        assert_eq!(again.marker_selected, Color32::from_rgb(255, 0, 0));
+
+        // A theme.toml that paints the window dark over a light theme turns
+        // the rest with it.
+        let dark = "[app]\noverall = { bg = \"#101010\" }\n";
+        let t = Theme::layered(&light, vec![toml::from_str(dark).unwrap()]);
+        assert!(!t.light() && t.overall);
+        for bg in [t.bg, t.bg_alt, t.hovered_bg] {
+            assert!(contrast(t.fg, bg) >= 4.5, "text on {bg:?}");
+            assert!(contrast(plain(&t), bg) >= 4.5, "plain name on {bg:?}");
+        }
+        assert!(contrast(t.warning, t.bg) >= 4.5);
     }
 }

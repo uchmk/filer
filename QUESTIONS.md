@@ -1569,7 +1569,7 @@ Claude が判断に迷った点をここに書きます。各質問の「回答�
 - 回答:
 
 ## Q98: uchmk の共通のテーマ（common.toml）と yazi の `theme.toml` を、filer でどう重ねるか
-- 状態: 未回答            <!-- 未回答 / 回答済み / 反映済み -->
+- 状態: 反映済み            <!-- 未回答 / 回答済み / 反映済み -->
 - タスク: TODO.md「設定の画面・テーマ・時計（uchmk の共通仕様）」
 - 背景: tsumugi v0.81.0 と mimamori v0.32.0 は、テーマを `<設定のフォルダ>/uchmk/common.toml` の `theme`（13 の組み込みか `uchmk/themes/*.toml`、
   `dark` / `light` / `system`）から読み、このファイルを変えれば両方が 2 秒で変わる。filer は yazi の `theme.toml`（`[app] overall`・`[mgr]`・`[status]`・
@@ -1581,4 +1581,4 @@ Claude が判断に迷った点をここに書きます。各質問の「回答�
   2. `theme.toml` があれば共通のテーマを無視し、無いときだけ共通のテーマを使う: 分かりやすいが、`theme.toml` の一部だけ書いた人は他のアプリと揃わない。
   3. filer.toml に `theme = "yazi" | "common"` を足して選ばせる（既定は `yazi`）: 互換は一番固いが、common.toml を変えても filer だけ変わらないのが既定になる。
   4. 共通のテーマを使わない（filer は `theme.toml` だけ）。時計と言語だけ共通にする。
-- 回答:
+- 回答: 1（2026-10-11、持ち主）。v0.100.0 で反映: `Theme::from_common` が共通のテーマから kura の色を作り、yazi の `theme.toml` が書いた色だけがその上に重なる（`Theme::layered`）。`theme.toml` が無ければ tsumugi・mimamori と同じ色。設定の画面に Theme のページを足した
