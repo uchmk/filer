@@ -71,6 +71,8 @@
 - [x] （v0.96.0。`load_common` が `ito_common::watch` で 2 秒ごとに見て、変わればワーカーで読み直し、`drain_channels` の `set_common` が当てる。読めないファイルは前の設定のままトースト、消せば既定。テーマは Q98 が決まるまで当てるものが無い）common.toml の見張りを足し、言語・テーマ・時計を再起動なしで当て直す（`ito_common::watch`。上の「多言語対応」の節と同じ `language` を読む）。
 - [ ] common.toml のテーマを filer の色に当てる（要確認: Q98）
 - [ ] README（キー表・設定の画面の節・common.toml）、TESTING.md（設定の画面・時計・common.toml を外で書き換えると tsumugi と mimamori と一緒に変わる行）を更新する。
+  - [x] （v0.96.1）common.toml と時計の分: README の節に見張り・ほかのアプリと揃って変わること・知らないキーは飛ばすこと・テーマはまだ当てないことを書き、TESTING.md 53.6 を今の動き（ファイルの残りは当たる）に直し、53.10（tsumugi・mimamori と一緒に変わる）を足した。
+  - [ ] 設定の画面の分（README のキー表と節、TESTING.md の新しい節）。上の「設定の画面を `ito-prefs` の上に作る」が入ってから。
 
 ## 検索（`s` / `S`）が不要なファイルを出しすぎる（2026-10-10、持ち主の希望）
 

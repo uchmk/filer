@@ -362,9 +362,12 @@ drawing the glyphs twice.
 
 The status bar's right end shows a clock, set in the config shared by every uchmk app
 (`%APPDATA%\uchmk\common.toml` on Windows, `~/Library/Application Support/uchmk/common.toml` on macOS,
-`$XDG_CONFIG_HOME/uchmk/common.toml` on Linux; `UCHMK_CONFIG_DIR` moves the folder). It is read at start-up and
-watched: a change saved by another uchmk app or an editor applies within 2 seconds, with no restart, and a file that
-does not read keeps the clock as it was, with a toast. There is no override in `kura.toml`.
+`$XDG_CONFIG_HOME/uchmk/common.toml` on Linux; `UCHMK_CONFIG_DIR` names another folder to hold it). It is read at
+start-up and watched: a change saved by another uchmk app (tsumugi's or mimamori's settings screen) or an editor
+applies within 2 seconds, with no restart, so every open uchmk app changes its clock together. A file that does not
+read keeps the clock as it was, with a toast; a key no uchmk app reads is skipped with a toast and the rest applies.
+There is no override in `kura.toml`. `theme`, `dark_theme` and `light_theme` are read by the other apps; kura keeps
+the colours of yazi's `theme.toml` for now.
 
 ```toml
 language = "auto"          # auto / en / ja: with "ja" the weekday reads (月)
