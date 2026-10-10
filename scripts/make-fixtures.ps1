@@ -3,7 +3,7 @@
     Build the files TESTING.md's checklist needs, under one directory.
 
 .DESCRIPTION
-    Everything the manual checks want to point filer at: an archive of each
+    Everything the manual checks want to point kura at: an archive of each
     supported format, a picture big enough to zoom into, a file long enough for
     the minimap to compress, two files that differ in one line, a git
     repository with every state a sign is drawn for, and the awkward names that
@@ -13,7 +13,7 @@
     inside it.
 
 .PARAMETER Path
-    Where to build them. Defaults to a `filer-fixtures` folder on the desktop,
+    Where to build them. Defaults to a `kura-fixtures` folder on the desktop,
     which is somewhere you can find it and somewhere you will not mind losing.
 
 .EXAMPLE
@@ -22,7 +22,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string] $Path = (Join-Path ([Environment]::GetFolderPath('Desktop')) 'filer-fixtures')
+    [string] $Path = (Join-Path ([Environment]::GetFolderPath('Desktop')) 'kura-fixtures')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -242,5 +242,5 @@ Test-Count $many 500 'many'
 if ($script:short -gt 0) {
     Write-Warning "$($script:short) group(s) did not come out as intended; see above"
 }
-Write-Host "`nDone. Point filer at:`n  $root"
+Write-Host "`nDone. Point kura at:`n  $root"
 Write-Host 'The checklist that uses these is TESTING.md in the repository root.'

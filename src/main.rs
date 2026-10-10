@@ -35,7 +35,7 @@ struct Cli {
     path: Option<PathBuf>,
     cwd_file: Option<PathBuf>,
     chooser_file: Option<PathBuf>,
-    /// `--keys`: pressed by filer itself once it has started (Q24).
+    /// `--keys`: pressed by kura itself once it has started (Q24).
     keys: Vec<keyscript::Step>,
 }
 
@@ -54,8 +54,8 @@ struct Cli {
 /// goes nowhere — which is what should happen, since nobody asked for it.
 ///
 /// **Redirected output comes first.** `CONOUT$` is the screen, not standard
-/// output, so until v0.54.4 `filer env > out.txt` wrote an empty file and
-/// `filer env | Select-String arch` printed the whole report unfiltered -- the
+/// output, so until v0.54.4 `kura env > out.txt` wrote an empty file and
+/// `kura env | Select-String arch` printed the whole report unfiltered -- the
 /// very captures a bug report is made of, silently lost. A GUI binary still
 /// inherits whatever handles its parent redirected, so when standard output is
 /// a file or a pipe, the text goes there; the console path is only for a real
@@ -64,17 +64,17 @@ struct Cli {
 /// **What reaches it is up to the shell.** `cmd`'s `>` and a pipe into another
 /// command hand it the file or the pipe. PowerShell does not wait for a
 /// windowed program at the end of a pipeline, so its own `>` and a bare
-/// `$v = & filer.exe env` connect nothing and come back empty, whatever this
-/// does (#176, #183). That is why the release zip has `filer.com`, the console
-/// front PowerShell does wait for (v0.71.0, `src/bin/filer-com.rs`).
+/// `$v = & kura.exe env` connect nothing and come back empty, whatever this
+/// does (#176, #183). That is why the release zip has `kura.com`, the console
+/// front PowerShell does wait for (v0.71.0, `src/bin/kura-com.rs`).
 #[cfg(windows)]
 fn say(text: &str) {
     say_on(text, false);
 }
 
 /// [`say`] on standard error, for a line about the output rather than the
-/// output itself: `filer: wrote <path>` on standard output was captured along
-/// with everything else by `$p = & filer env --out x.txt` and handed on as a
+/// output itself: `kura: wrote <path>` on standard output was captured along
+/// with everything else by `$p = & kura env --out x.txt` and handed on as a
 /// path (#200). On a console the two look the same.
 #[cfg(windows)]
 fn say_err(text: &str) {
@@ -132,11 +132,11 @@ fn say_err(text: &str) {
 }
 
 /// PowerShell does not wait for a windowed program, so a script that calls
-/// `filer.exe env --out` itself reads the file before it is there and sees
-/// `$LASTEXITCODE` 0 (#188). `filer env --out` goes through `filer.com`,
+/// `kura.exe env --out` itself reads the file before it is there and sees
+/// `$LASTEXITCODE` 0 (#188). `kura env --out` goes through `kura.com`,
 /// which the shell waits for; this is for the other way.
 #[cfg(windows)]
-const ENV_OUT_WAIT: &str = "\n                     (filer.exe in a script: add | Out-Null to wait)";
+const ENV_OUT_WAIT: &str = "\n                     (kura.exe in a script: add | Out-Null to wait)";
 #[cfg(not(windows))]
 const ENV_OUT_WAIT: &str = "";
 
@@ -161,8 +161,8 @@ fn parse_cli() -> Cli {
             }
             "--help" | "-h" => {
                 say(&format!(
-                    "filer — a yazi-flavored file manager\n\n\
-                     USAGE:\n    filer [PATH] [--cwd-file FILE] [--chooser-file FILE] [--keys KEYS]\n\n\
+                    "kura — a yazi-flavored file manager\n\n\
+                     USAGE:\n    kura [PATH] [--cwd-file FILE] [--chooser-file FILE] [--keys KEYS]\n\n\
                      OPTIONS:\n    -h, --help       this text\n    \
                      -V, --version    the version and the architecture\n    \
                      --keys KEYS      press these keys once started, in keymap notation:\n                     \
@@ -170,17 +170,17 @@ fn parse_cli() -> Cli {
                      500 ms; <Now> presses the next key without waiting\n                     \
                      for the last to settle; <Shot:name> saves the window\n                     \
                      as name.png, <State:name> the state as name.txt;\n                     \
-                     <Quit> ends filer whatever is open.\n                     \
+                     <Quit> ends kura whatever is open.\n                     \
                      For scripted checks\n\n\
                      COMMANDS:\n    env              config files, outside tools and environment,\n                     \
                      for pasting into a bug report\n    \
                      env --out FILE   the same, written to FILE as UTF-8{ENV_OUT_WAIT}\n    \
                      shell-hook [pwsh|bash|zsh]\n                     \
                      the lines that let <A-Up> in the terminal pane\n                     \
-                     follow the shell; filer shell-hook | Add-Content $PROFILE\n    \
+                     follow the shell; kura shell-hook | Add-Content $PROFILE\n    \
                      mcp              an MCP server for Claude Code, reading the\n                     \
-                     running window: claude mcp add filer -- filer mcp\n\n\
-                     Config is read from yazi's config directory, then from filer's own.\n\
+                     running window: claude mcp add kura -- kura mcp\n\n\
+                     Config is read from yazi's config directory, then from kura's own.\n\
                      Press ~ or F1 inside the app for the key list.",
                 ));
                 std::process::exit(0);
@@ -199,7 +199,7 @@ fn parse_cli() -> Cli {
             // questions it answers are ones only the machine can.
             // `--out` writes the report itself, as UTF-8, because every way a
             // shell has of doing that went wrong somewhere: PowerShell's `>`
-            // and a bare `$v = & filer env` get nothing from a windowed
+            // and a bare `$v = & kura env` get nothing from a windowed
             // program, and what does arrive is decoded with the console's code
             // page (#81, #84, #88, #93, #176, #183; Q55).
             "env" | "--env" => match env_out(args.next().as_deref(), args.next()) {
@@ -211,16 +211,16 @@ fn parse_cli() -> Cli {
                 }
                 Ok(Some(path)) => match write_whole(&path, &crate::envreport::text()) {
                     Ok(()) => {
-                        say_err(&format!("filer: wrote {}", std::path::absolute(&path).unwrap_or(path).display()));
+                        say_err(&format!("kura: wrote {}", std::path::absolute(&path).unwrap_or(path).display()));
                         std::process::exit(0);
                     }
                     Err(why) => {
-                        say(&format!("filer: env --out {}: {why}", path.display()));
+                        say(&format!("kura: env --out {}: {why}", path.display()));
                         std::process::exit(1);
                     }
                 },
                 Err(why) => {
-                    say(&format!("filer: env: {why}"));
+                    say(&format!("kura: env: {why}"));
                     std::process::exit(2);
                 }
             },
@@ -233,11 +233,11 @@ fn parse_cli() -> Cli {
                     std::process::exit(0);
                 }
                 Err(why) => {
-                    say(&format!("filer: shell-hook: {why}"));
+                    say(&format!("kura: shell-hook: {why}"));
                     std::process::exit(2);
                 }
             },
-            // Claude Code's way in (Q95): it starts `filer mcp` and talks
+            // Claude Code's way in (Q95): it starts `kura mcp` and talks
             // JSON-RPC on its standard input and output, which a windowed
             // program still inherits when they are pipes. Never opens a window.
             "mcp" => mcp::run(),
@@ -248,7 +248,7 @@ fn parse_cli() -> Cli {
             }
             other if !other.starts_with('-') => {
                 if let Err(why) = take_path(&mut cli, other) {
-                    say(&format!("filer: {why}"));
+                    say(&format!("kura: {why}"));
                     std::process::exit(2);
                 }
             }
@@ -284,7 +284,7 @@ fn write_whole(path: &std::path::Path, text: &str) -> std::io::Result<()> {
 
 /// The one path the command line may name. A second used to replace the
 /// first in silence, and that is exactly what a path with a space in it looks
-/// like when its quotes are forgotten: `filer C:\x\awkward names` opened
+/// like when its quotes are forgotten: `kura C:\x\awkward names` opened
 /// somewhere else with no word as to why (#126). The paths go in quotes as
 /// typed: `{:?}` doubled every `\` of a Windows path (#194).
 fn take_path(cli: &mut Cli, arg: &str) -> Result<(), String> {
@@ -299,11 +299,15 @@ fn take_path(cli: &mut Cli, arg: &str) -> Result<(), String> {
 }
 
 fn main() -> eframe::Result<()> {
-    // Before anything loads a DLL: `conpty.dll` only from beside filer.exe
+    // Before anything loads a DLL: `conpty.dll` only from beside kura.exe
     // (or System32), never the working folder or the `PATH` (#184).
     ito_pane::restrict_dll_search();
+    // Before `kura env` or the config reads them: an upgrade from filer
+    // finds its folders under the new name.
+    let moved = crate::config::move_old_dirs();
     let cli = parse_cli();
-    let cfg = Config::load();
+    let mut cfg = Config::load();
+    cfg.warnings.extend(moved);
 
     // Where the window opens if the command line named nothing usable. The
     // path it did name is taken on faith: `is_dir` on a share that stopped
@@ -313,32 +317,31 @@ fn main() -> eframe::Result<()> {
         .ok()
         .or_else(dirs::home_dir)
         .unwrap_or_else(|| PathBuf::from("."));
-    // Against the directory filer was started in, as `g<Space>` resolves what
-    // is typed there: `filer .` and `filer ..\other` are how a shell names a
+    // Against the directory kura was started in, as `g<Space>` resolves what
+    // is typed there: `kura .` and `kura ..\other` are how a shell names a
     // place, and a relative one left the tab with no parent column (#126).
     let start = cli.path.as_deref().map(|p| util::resolve_path(&home, p)).unwrap_or_else(|| home.clone());
 
     let mut viewport = egui::ViewportBuilder::default()
         .with_inner_size([cfg.ui.window_width, cfg.ui.window_height])
         .with_min_inner_size([520.0, 360.0])
-        .with_title("Filer");
-    // The title bar, Alt+Tab and the taskbar button. `filer.exe`'s own icon is
+        .with_title("Kura");
+    // The title bar, Alt+Tab and the taskbar button. `kura.exe`'s own icon is
     // a resource compiled in by `build.rs`, from an `.ico` made of this same
     // drawing. Without an icon the window still opens.
     if let Some(icon) = app_icon(ICON_SVG, 256) {
         viewport = viewport.with_icon(icon);
     }
-    let mut cfg = cfg;
     let wgpu_options = wgpu_options(&mut cfg);
     let options = eframe::NativeOptions { viewport, wgpu_options, ..Default::default() };
 
     eframe::run_native(
-        "Filer",
+        "Kura",
         options,
         Box::new(move |cc| {
             let mut cfg = cfg;
             // Filled as the run sets itself up, and written down at the end of
-            // it: `filer env` cannot work either of these out for itself.
+            // it: `kura env` cannot work either of these out for itself.
             let mut used = crate::runinfo::RunInfo {
                 version: env!("CARGO_PKG_VERSION").into(),
                 started: std::time::SystemTime::now()
@@ -362,8 +365,8 @@ fn main() -> eframe::Result<()> {
             cc.egui_ctx.set_visuals(ui::visuals());
             // egui zooms on Ctrl +/-/0 of its own accord, at the end of the
             // frame, without consuming the key first. Every one of those is a
-            // key filer binds, so both would run -- `<C-->` hardlinked *and*
-            // shrank the window. Zoom is a filer command now, in the keymap
+            // key kura binds, so both would run -- `<C-->` hardlinked *and*
+            // shrank the window. Zoom is a kura command now, in the keymap
             // with everything else.
             cc.egui_ctx.options_mut(|o| o.zoom_with_keyboard = false);
             cc.egui_ctx.all_styles_mut(|s| {
@@ -379,11 +382,11 @@ fn main() -> eframe::Result<()> {
             a.start_unproven(home);
             a.load_common();
             a.bold_font = has_bold;
-            a.start_scaled(std::env::var("FILER_SCALE").ok().as_deref());
+            a.start_scaled(std::env::var("KURA_SCALE").ok().as_deref());
             a.cwd_file = cli.cwd_file;
             a.chooser_file = cli.chooser_file;
             let script_done =
-                std::env::var_os("FILER_KEYS_DONE").filter(|_| !cli.keys.is_empty()).map(PathBuf::from);
+                std::env::var_os("KURA_KEYS_DONE").filter(|_| !cli.keys.is_empty()).map(PathBuf::from);
             if let Some(done) = &script_done {
                 keyscript::install_panic_report(done.clone());
             }
@@ -399,7 +402,7 @@ fn main() -> eframe::Result<()> {
                 watch_script(watch.clone(), labels, done.clone(), cc.egui_ctx.clone());
                 watch
             });
-            Ok(Box::new(Filer {
+            Ok(Box::new(Kura {
                 app: a,
                 title: String::new(),
                 focused: true,
@@ -410,7 +413,7 @@ fn main() -> eframe::Result<()> {
                 script_now: false,
                 cursor_icon: egui::CursorIcon::Default,
                 script_shot: None,
-                shot_dir: std::env::var_os("FILER_KEYS_DONE")
+                shot_dir: std::env::var_os("KURA_KEYS_DONE")
                     .and_then(|p| PathBuf::from(p).parent().map(std::path::Path::to_path_buf))
                     .filter(|p| !p.as_os_str().is_empty())
                     .unwrap_or_else(|| PathBuf::from(".")),
@@ -423,11 +426,11 @@ fn main() -> eframe::Result<()> {
 }
 
 /// A `--keys` script that cannot be pressed: said on the command line, and
-/// written to `FILER_KEYS_DONE` for a run started detached, which has no
+/// written to `KURA_KEYS_DONE` for a run started detached, which has no
 /// command line to read (#193).
 fn refuse_keys(why: &str) -> ! {
-    say(&format!("filer: --keys: {why}"));
-    if let Some(done) = std::env::var_os("FILER_KEYS_DONE") {
+    say(&format!("kura: --keys: {why}"));
+    if let Some(done) = std::env::var_os("KURA_KEYS_DONE") {
         let _ = std::fs::write(done, keyscript::refused_report(why));
     }
     std::process::exit(2);
@@ -441,7 +444,7 @@ fn refuse_keys(why: &str) -> ! {
 /// worth having, a window that refuses to open is not.
 ///
 /// This is the *window's* icon — the title bar, Alt+Tab and the taskbar button.
-/// The icon Explorer draws on `filer.exe` itself is a resource compiled into the
+/// The icon Explorer draws on `kura.exe` itself is a resource compiled into the
 /// binary, which is a separate thing and not this.
 /// The artwork, kept as a vector so there is one file to change. `build.rs`
 /// works from `assets/icon.ico`, which `cargo run --example make-icon` rebuilds
@@ -696,7 +699,7 @@ fn bold_siblings(path: &std::path::Path) -> Vec<PathBuf> {
     out
 }
 
-struct Filer {
+struct Kura {
     app: App,
     title: String,
     focused: bool,
@@ -719,18 +722,18 @@ struct Filer {
     /// `<Shot:name>`: asked for in the frame loop (`Some(name, false)`), then
     /// sent and waited on (`true`) until the picture is on disk.
     script_shot: Option<(String, bool)>,
-    /// Where `<Shot:name>` saves: beside `FILER_KEYS_DONE`, else the folder
-    /// filer was started from.
+    /// Where `<Shot:name>` saves: beside `KURA_KEYS_DONE`, else the folder
+    /// kura was started from.
     shot_dir: PathBuf,
-    /// `FILER_KEYS_DONE`: a file to write once the last scripted key has been
-    /// pressed and what it started has landed. A script that drives filer
+    /// `KURA_KEYS_DONE`: a file to write once the last scripted key has been
+    /// pressed and what it started has landed. A script that drives kura
     /// from outside (`scripts/xrun.sh`) waits for it instead of guessing how
     /// long the keys take -- a guess that read half-pressed results (#134).
     script_done: Option<PathBuf>,
     /// What the watchdog reads (`watch_script`). `None` without a script or
-    /// without `FILER_KEYS_DONE`, where there is nobody to tell.
+    /// without `KURA_KEYS_DONE`, where there is nobody to tell.
     script_watch: Option<Arc<Mutex<ScriptWatch>>>,
-    /// What `filer mcp` asks through the door (`mcp::listen`); `None` with
+    /// What `kura mcp` asks through the door (`mcp::listen`); `None` with
     /// `[mcp] enable = false`.
     mcp: Option<crossbeam_channel::Receiver<mcp::Ask>>,
 }
@@ -751,7 +754,7 @@ struct ScriptWatch {
 /// stops pressing -- one ARM64 run sat 60 s with `u` never pressed and nothing
 /// to show for it (#168, proposal 5). This thread nudges the loop once a
 /// second, and if nothing is pressed for [`keyscript::STALL`] past any wait due,
-/// writes `FILER_KEYS_DONE` with where the script stopped. A script that then
+/// writes `KURA_KEYS_DONE` with where the script stopped. A script that then
 /// finishes after all overwrites it with the usual report.
 fn watch_script(watch: Arc<Mutex<ScriptWatch>>, labels: Vec<String>, done: PathBuf, ctx: egui::Context) {
     std::thread::spawn(move || {
@@ -769,15 +772,15 @@ fn watch_script(watch: Arc<Mutex<ScriptWatch>>, labels: Vec<String>, done: PathB
                 let report = keyscript::stalled_report(&labels, w.left, quiet);
                 let _ = std::fs::write(&done, &report);
                 use std::io::Write;
-                // Not `eprintln!`: started from `filer.com`, this is a pipe
+                // Not `eprintln!`: started from `kura.com`, this is a pipe
                 // nobody reads once the window is up, and that would panic.
-                let _ = writeln!(std::io::stderr(), "filer --keys: {}", report.lines().collect::<Vec<_>>().join("; "));
+                let _ = writeln!(std::io::stderr(), "kura --keys: {}", report.lines().collect::<Vec<_>>().join("; "));
             }
         }
     });
 }
 
-impl Filer {
+impl Kura {
     /// Tell the watchdog the script has moved.
     fn note_progress(&self) {
         let Some(watch) = &self.script_watch else { return };
@@ -845,7 +848,7 @@ impl Filer {
         self.script_shot = None;
     }
 
-    /// What `filer mcp` asked through the door, answered from the state in
+    /// What `kura mcp` asked through the door, answered from the state in
     /// memory. A reveal moves the cursor as `reveal` would; the door checked
     /// the path exists before it came here.
     fn answer_mcp(&mut self) {
@@ -855,7 +858,7 @@ impl Filer {
                 mcp::Request::State => Ok(mcp::state_json(&self.app, overlay_name(&self.app), view_name(&self.app))),
                 mcp::Request::Reveal(path) => {
                     self.app.reveal(path.display().to_string());
-                    Ok(format!("filer is showing {}", path.display()))
+                    Ok(format!("kura is showing {}", path.display()))
                 }
             };
             let _ = ask.reply.send(reply);
@@ -894,7 +897,7 @@ impl Filer {
     }
 }
 
-impl eframe::App for Filer {
+impl eframe::App for Kura {
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
         self.app.cfg.theme.bg.to_normalized_gamma_f32()
     }
@@ -1147,9 +1150,9 @@ fn title_for(app: &App) -> String {
     let fmt = &app.cfg.yazi.mgr.title_format;
     let cwd = app.tab().cwd.display().to_string();
     if !fmt.contains("{cwd}") {
-        return format!("Filer: {cwd}");
+        return format!("Kura: {cwd}");
     }
-    // `{rows}` and `{pane}` are filer's own: how many list rows are on screen,
+    // `{rows}` and `{pane}` are kura's own: how many list rows are on screen,
     // and the terminal pane's grid (`12x159`, empty when closed). A test run
     // measured them with five key presses (TESTING.md 1.30); a title is read
     // with one call from outside.
@@ -1242,7 +1245,7 @@ fn preview_text(state: &app::PreviewState) -> String {
     out
 }
 
-/// The open overlay, in one word, for the state report and `filer_state`.
+/// The open overlay, in one word, for the state report and `kura_state`.
 fn overlay_name(app: &App) -> &'static str {
     match &app.overlay {
         app::Overlay::None => "none",
@@ -1270,7 +1273,7 @@ fn view_name(app: &App) -> &'static str {
     }
 }
 
-/// What `FILER_KEYS_DONE` holds once `--keys` is done: the state a check reads
+/// What `KURA_KEYS_DONE` holds once `--keys` is done: the state a check reads
 /// afterwards, one `name: value` per line. Reading it any other way meant
 /// pressing a key, and a key changes what it reads (#103, proposal 3).
 fn state_report(app: &App) -> String {
@@ -1330,7 +1333,7 @@ fn state_report(app: &App) -> String {
         lines.push(format!("picked: {}", ov.selected().map_or("", |i| ov.items[i].as_str())));
     }
     // What a confirm box asks and what it offers, shaped like `pick:`: 26.1
-    // was ten lines read off a picture and compared with `filer env` by hand,
+    // was ten lines read off a picture and compared with `kura env` by hand,
     // and every trash, junction, overwrite and link question was a picture
     // too (#230). Blank body lines are spacing and are left out.
     if let app::Overlay::Confirm(c) = &app.overlay {
@@ -1444,7 +1447,7 @@ fn state_report(app: &App) -> String {
     // (#165): every file read, or `none`.
     let read: Vec<String> = app.cfg.loaded.iter().map(|p| p.display().to_string()).collect();
     lines.push(format!("config: {}", if read.is_empty() { "none".into() } else { read.join(" | ") }));
-    // The door `filer mcp` reads through, or `off` for `[mcp] enable = false`: 50.4 and 50.5
+    // The door `kura mcp` reads through, or `off` for `[mcp] enable = false`: 50.4 and 50.5
     // told "no window" from "no door" only by inferring it from `config:` (#303).
     lines.push(format!("mcp: {}", if app.cfg.mcp.enable { mcp::address().0.display().to_string() } else { "off".into() }));
     // How many rows the list holds, and the filter on it: "a row more or
@@ -1474,7 +1477,7 @@ fn state_report(app: &App) -> String {
         app::PreviewState::Ready(preview::Payload::Error(e)) => lines.push(format!("preview error: {}", e.replace('\n', " / "))),
         _ => {}
     }
-    // The adapter this run drew with, as the record `filer env` reads has it
+    // The adapter this run drew with, as the record `kura env` reads has it
     // (#232): a run measuring the backend could only read it from there.
     if let Some(info) = crate::runinfo::load().filter(|i| !i.adapter.is_empty() && i.version == env!("CARGO_PKG_VERSION")) {
         lines.push(format!("adapter: {} ({}, {})", info.adapter, info.backend, info.device));
@@ -1486,15 +1489,15 @@ fn state_report(app: &App) -> String {
         .iter()
         .filter(|t| t.state.is_live())
         .collect();
-    // What filer last put on the clipboard (`c` and friends), one line, cut
+    // What kura last put on the clipboard (`c` and friends), one line, cut
     // at 200 characters: read from outside it needed a second tool (#197).
     // Not what is on the clipboard, which may be someone else's.
     if let Some(text) = exec::last_set_clipboard() {
         let one: String = text.replace(['\r', '\n'], " / ").chars().take(200).collect();
         lines.push(format!("clipboard set: {one}"));
-        // The whole text, beside `FILER_KEYS_DONE`, for when 200 characters
+        // The whole text, beside `KURA_KEYS_DONE`, for when 200 characters
         // were not enough (#297).
-        if let Some(done) = std::env::var_os("FILER_KEYS_DONE") {
+        if let Some(done) = std::env::var_os("KURA_KEYS_DONE") {
             let mut full = done;
             full.push(".clipboard");
             if std::fs::write(&full, &text).is_ok() {
@@ -1564,10 +1567,10 @@ fn state_report(app: &App) -> String {
         false => "fit".into(),
     };
     lines.push(format!("zoom: {}", app.preview.zoom.map_or(fit, |z| format!("{:.0}%", scale(z) * 100.0))));
-    // The scale the run was measured at: filer's own (`<C-=>`) and what egui
+    // The scale the run was measured at: kura's own (`<C-=>`) and what egui
     // made of it with the display's, which is what every size above was
     // drawn at. Before, it was read back from the `Scale N%` toasts or the
-    // next run's `filer env` (#227, #228).
+    // next run's `kura env` (#227, #228).
     lines.push(format!("scale: {:.0}% (ppp {})", app.scale * 100.0, (ppp * 1000.0).round() / 1000.0));
     let size = app.ctx.input(|i| i.viewport_rect().size());
     let window = crate::runinfo::RunInfo { window_pt: [size.x.round(), size.y.round()], ppp, ..Default::default() };
@@ -1610,7 +1613,7 @@ fn state_report(app: &App) -> String {
 
 /// The wgpu setup, with `[ui] backend` applied (Q70).
 ///
-/// `WGPU_BACKEND` wins, as `FILER_TERM_SHELL` wins over `[term] shell`: it is
+/// `WGPU_BACKEND` wins, as `KURA_TERM_SHELL` wins over `[term] shell`: it is
 /// the one-run override. A backend this machine has no adapter for is not
 /// handed on, because eframe would then fail to open any window at all and
 /// say so only on a console nobody sees; it falls back to wgpu's own pick
@@ -1637,7 +1640,7 @@ fn wgpu_options(cfg: &mut Config) -> eframe::WgpuConfiguration {
 /// spinning a core under Vulkan and DX12 on AMD (#232, #240); GL drew both
 /// test machines, the ARM64 one through a translation layer (#239). A machine
 /// without it gets wgpu's own pick, silently -- nobody asked for GL there (the
-/// owner's word, 2026-10-04, over Q70). A name filer rejects, or one this
+/// owner's word, 2026-10-04, over Q70). A name kura rejects, or one this
 /// machine has no adapter for, falls back to that same `auto`: it used to fall
 /// to wgpu's pick, so a typo in the setting put the spinning core back (#243,
 /// #244). The rejected name was warned about when the file was read.
@@ -1657,7 +1660,7 @@ fn pick_backends(
 }
 
 /// Once the window is up, a `[ui] backend` warning can say what it fell back
-/// to instead of "the default" (#244): `drawing with Gl instead`. `filer env`,
+/// to instead of "the default" (#244): `drawing with Gl instead`. `kura env`,
 /// which opens no window, keeps the general words.
 pub(crate) fn name_the_fallback(warnings: &mut [String], backend: &str) {
     if backend.is_empty() {
@@ -1671,7 +1674,7 @@ pub(crate) fn name_the_fallback(warnings: &mut [String], backend: &str) {
 }
 
 /// What a `[ui] backend` warning names as the fallback when no window is up
-/// (`filer env`): the backend `auto` would pick, which is only known on
+/// (`kura env`): the backend `auto` would pick, which is only known on
 /// Windows (GL when the machine has it). Empty elsewhere, where wgpu chooses.
 pub(crate) fn predicted_fallback() -> String {
     auto_backends(cfg!(windows), || has_adapter(eframe::wgpu::Backends::GL)).map_or(String::new(), |_| "Gl".into())
@@ -1720,7 +1723,7 @@ pub(crate) fn handle_input(app: &mut App, ctx: &egui::Context) {
             // terminal is not an overlay: `Overlay::None` is still true while a
             // shell has the keys, and feeding the keymap there ran `[mgr]`
             // `close`. So `<C-c>` -- the one key everybody presses to stop a
-            // command -- closed the tab, and on the last one quit filer and
+            // command -- closed the tab, and on the last one quit kura and
             // took the shell with it. `on_key_event` is where the `term_focus`
             // arm turns the chord into the control code the shell is waiting
             // for, which `control_code` could already produce and nothing was
@@ -1997,8 +2000,8 @@ mod tests {
         let dir = crate::util::test_dir("env-out");
         let path = dir.join("レポート.txt");
         std::fs::write(&path, "old and longer than the new text").unwrap();
-        write_whole(&path, "Filer\n  名前: ü\n").unwrap();
-        assert_eq!(std::fs::read(&path).unwrap(), "Filer\n  名前: ü\n".as_bytes());
+        write_whole(&path, "Kura\n  名前: ü\n").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), "Kura\n  名前: ü\n".as_bytes());
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
         assert!(write_whole(&dir.join("no-such-dir").join("r.txt"), "x").is_err());
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
@@ -2038,7 +2041,7 @@ mod tests {
         assert!(report.lines().any(|l| l.starts_with("spot row: ")) && report.lines().any(|l| l == format!("spot top: 0 of {total}")), "{report}");
     }
 
-    /// #197, #201: what filer put on the clipboard, and the frames drawn.
+    /// #197, #201: what kura put on the clipboard, and the frames drawn.
     #[test]
     fn the_state_names_the_last_copy_and_the_frames() {
         let dir = crate::util::test_dir("state-clip");
@@ -2179,7 +2182,7 @@ mod tests {
         assert_eq!(said[2], "compare row 3: ~ gone | new", "nothing in common: the whole row is the change");
     }
 
-    /// `FILER_KEYS_DONE`: what a check reads after `--keys`, without pressing
+    /// `KURA_KEYS_DONE`: what a check reads after `--keys`, without pressing
     /// anything more to read it.
     #[test]
     fn the_state_after_the_keys_reads_as_lines() {
@@ -2292,14 +2295,14 @@ mod tests {
         // A confirm box says what it asks and offers (#230), without its blank lines.
         app.overlay = app::Overlay::Confirm(app::ConfirmOverlay {
             title: "Report a bug".into(),
-            body: vec!["filer 0.0.0".into(), String::new(), "Nothing is sent.".into()],
+            body: vec!["kura 0.0.0".into(), String::new(), "Nothing is sent.".into()],
             options: vec![('o', "Open the form".into()), ('n', "Cancel".into())],
             action: app::ConfirmAction::BugReport { url: String::new() },
             dest: None,
         });
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "overlay: confirm"), "{report}");
-        assert!(report.lines().any(|l| l == "confirm: Report a bug | filer 0.0.0 | Nothing is sent."), "{report}");
+        assert!(report.lines().any(|l| l == "confirm: Report a bug | kura 0.0.0 | Nothing is sent."), "{report}");
         assert!(report.lines().any(|l| l == "confirm keys: [o] / <Enter> Open the form | [n] Cancel"), "{report}");
 
         // The outline entry under the cursor while the outline has the keys,
@@ -2318,7 +2321,7 @@ mod tests {
         let report = state_report(&app);
         assert!(report.lines().any(|l| l == "outline: 2/2 fn beta (line 42)"), "{report}");
 
-        // The scale the run is at, filer's own beside egui's (#227, #228).
+        // The scale the run is at, kura's own beside egui's (#227, #228).
         assert!(report.lines().any(|l| l == "scale: 100% (ppp 1)"), "{report}");
         app.scale = 1.5;
         assert!(state_report(&app).lines().any(|l| l == "scale: 150% (ppp 1)"), "{report}");
@@ -2344,7 +2347,7 @@ mod tests {
 
         // The window names what it fell back to; other warnings are left be.
         let mut w = vec![
-            "x/filer.toml: [ui] backend = \"directx\" is not one of auto, vulkan, dx12, metal, gl; drawing with the default".to_owned(),
+            "x/kura.toml: [ui] backend = \"directx\" is not one of auto, vulkan, dx12, metal, gl; drawing with the default".to_owned(),
             "[mgr] `x` is bound twice; drawing with the default".to_owned(),
         ];
         name_the_fallback(&mut w, "Gl");
@@ -2495,7 +2498,7 @@ mod bug_report_f12 {
     fn screen(label: &str) -> Screen {
         let dir = crate::util::test_dir(label);
         let home = std::path::Path::new("/home/someone-in-a-test/.config");
-        let loaded = vec![home.join("yazi").join("keymap.toml"), home.join("filer").join("filer.toml")];
+        let loaded = vec![home.join("yazi").join("keymap.toml"), home.join("kura").join("kura.toml")];
         let cfg = Config { keymap: Keymap::load(&[]).0, loaded, warnings: Vec::new(), ..Config::load() };
         Screen::with_config(cfg, dir)
     }
@@ -2544,7 +2547,7 @@ mod bug_report_f12 {
             assert!(f.texts.iter().any(|t| t == l), "{l:?} is drawn: {:?}", f.texts);
         }
         let sep = std::path::MAIN_SEPARATOR;
-        assert!(f.texts.iter().any(|t| *t == format!("Config: yazi{sep}keymap.toml, filer{sep}filer.toml")), "{:?}", f.texts);
+        assert!(f.texts.iter().any(|t| *t == format!("Config: yazi{sep}keymap.toml, kura{sep}kura.toml")), "{:?}", f.texts);
         assert!(f.texts.iter().any(|t| t == "Last error: Copy: a.txt: denied"), "{:?}", f.texts);
 
         // The buttons, under the body, the first naming the key that picks it.
@@ -2568,8 +2571,8 @@ mod bug_report_f12 {
         assert!(!r.lines().any(|l| l.starts_with("report:")), "no report line before one is opened: {r}");
     }
 
-    /// Row 26.2, the half that is filer's: the link fills in the version, the
-    /// OS, the keys and what filer knew, and nothing else; and the config
+    /// Row 26.2, the half that is kura's: the link fills in the version, the
+    /// OS, the keys and what kura knew, and nothing else; and the config
     /// files read from under a home directory are named without it (Q64).
     #[test]
     fn the_link_fills_four_fields_and_names_no_home() {
@@ -2657,7 +2660,7 @@ mod bug_report_f12 {
         assert!(says_line(&state_report(&s.app), "overlay: none"));
     }
 
-    /// Row 26.9, the half that is filer's: with the terminal pane holding the
+    /// Row 26.9, the half that is kura's: with the terminal pane holding the
     /// keys, `<F12>` is not the report -- the `[term]` layer does not claim
     /// it, so it goes to the shell. (No pane runs in a test, so where the
     /// key lands in the shell is the machine's half.)

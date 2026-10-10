@@ -1,9 +1,9 @@
-//! What the last run actually used, written down so `filer env` can say it.
+//! What the last run actually used, written down so `kura env` can say it.
 //!
 //! Two of the questions a report needs answered are only knowable with a
 //! window open. Which GPU adapter and backend egui ended up on is decided by
 //! wgpu at startup, and which font files were loaded is decided by a search
-//! whose result depends on what is installed. `filer env` exits before any of
+//! whose result depends on what is installed. `kura env` exits before any of
 //! that happens — it has no window and deliberately costs nothing — so asking
 //! it to work them out would mean initialising wgpu in a diagnostic, which is
 //! both slow and the thing most likely to be broken on the machine being
@@ -12,7 +12,7 @@
 //! So the run that does know writes it down, and the diagnostic reads it back.
 //! It reports the *last* run rather than this one, which is exactly right: the
 //! run being reported on is the one that went wrong, not the one typing
-//! `filer env` afterwards.
+//! `kura env` afterwards.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -49,9 +49,9 @@ pub struct RunInfo {
     /// the scale factor in a way that stays self-consistent.
     ///
     /// On 2026-09-29 that cost a whole section of TESTING.md: a run reported
-    /// that filer was laying out a window half again too large for itself, and
+    /// that kura was laying out a window half again too large for itself, and
     /// nothing available could tell whether the window or the ruler was at
-    /// fault. These two fields are filer's own answer, which no amount of DPI
+    /// fault. These two fields are kura's own answer, which no amount of DPI
     /// virtualisation can distort.
     pub window_pt: [f32; 2],
     /// Pixels per point, as egui had it for the frame this was written on.
@@ -80,12 +80,12 @@ pub struct RunInfo {
     #[serde(default)]
     pub pane_shell: String,
     /// Why the pane's shell did not start, when it did not; empty otherwise.
-    /// `filer env` could only say `not opened in that run`, the same as a
+    /// `kura env` could only say `not opened in that run`, the same as a
     /// pane nobody asked for (#254).
     #[serde(default)]
     pub pane_failed: String,
     /// What asked for the backend in that run: `[ui] backend = "gl"`, or
-    /// `WGPU_BACKEND=vulkan` when the variable won. `filer env` could not tell
+    /// `WGPU_BACKEND=vulkan` when the variable won. `kura env` could not tell
     /// whether the adapter it lists came from the setting as it is now or as it
     /// was before an edit (#245). Defaulted, so a record from before it loads.
     #[serde(default)]
@@ -105,7 +105,7 @@ impl RunInfo {
     }
 }
 
-/// How many launches `filer env` shows.
+/// How many launches `kura env` shows.
 pub const LAUNCHES_KEPT: usize = 5;
 
 /// Add `line` to `list`, dropping the oldest past [`LAUNCHES_KEPT`].
@@ -160,7 +160,7 @@ impl RunInfo {
     /// The window as one line for a bug report: pixels first, because that is
     /// what a person measures, with the points and the scale that produced it.
     ///
-    /// `None` before any frame has been drawn, which `filer env` prints as its
+    /// `None` before any frame has been drawn, which `kura env` prints as its
     /// own sentence rather than as a row of zeroes.
     pub fn window_line(&self) -> Option<String> {
         let [w, h] = self.window_pt;
@@ -189,14 +189,14 @@ pub fn save(info: &RunInfo) {
     save_to(&path(), info);
 }
 
-/// What the last run wrote, or nothing when filer has not run on this machine
+/// What the last run wrote, or nothing when kura has not run on this machine
 /// — which is itself worth printing rather than papering over.
 pub fn load() -> Option<RunInfo> {
     load_from(&path())
 }
 
 // The pair below takes the path so the test can use one of its own. Going
-// through `FILER_STATE_HOME` instead would move the state directory for every
+// through `KURA_STATE_HOME` instead would move the state directory for every
 // other test running beside it, several of which build an `App` and read it.
 fn save_to(p: &std::path::Path, info: &RunInfo) {
     if let Some(dir) = p.parent() {
@@ -223,7 +223,7 @@ mod tests {
     /// The case that matters is the one the row exists for: 1360 x 860 points
     /// at 1.5 needs 2040 x 1290 pixels. Anyone reading the row can check the
     /// arithmetic against the window they are looking at, which is the whole
-    /// point of printing all three numbers rather than the one filer used.
+    /// point of printing all three numbers rather than the one kura used.
     /// #244: the record says when its run started, and how long ago; one
     /// from before the field reads as not recorded.
     #[test]
@@ -273,14 +273,14 @@ mod tests {
     #[test]
     fn a_record_from_before_the_first_frame_has_no_window_line() {
         assert_eq!(RunInfo::default().window_line(), None, "nothing drawn yet");
-        // A record written by a filer too old to know about the field also
+        // A record written by a kura too old to know about the field also
         // arrives with zeroes, and must not be read as `0 x 0 px`.
         let old = RunInfo { adapter: "some GPU".into(), ..Default::default() };
-        assert_eq!(old.window_line(), None, "an older filer left the field empty");
+        assert_eq!(old.window_line(), None, "an older kura left the field empty");
     }
 
     /// It survives the round trip, and an absent one is absent rather than
-    /// empty: "filer has never opened a window here" and "it opened one and
+    /// empty: "kura has never opened a window here" and "it opened one and
     /// found no fonts" are different answers and must not look alike.
     #[test]
     fn it_is_written_and_read_back() {

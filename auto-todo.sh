@@ -6,13 +6,13 @@
 #
 #   bash auto-todo.sh
 #
-# Log: $HOME/filer-auto.log
+# Log: $HOME/kura-auto.log
 
 set -u
 cd "$(dirname "$0")" || exit 1
 export PATH="$HOME/.cargo/bin:$PATH"
 
-LOG="$HOME/filer-auto.log"
+LOG="$HOME/kura-auto.log"
 BRANCH="auto/todo"
 LIMIT_WAIT=3600   # seconds to wait when a usage limit is hit
 ERROR_WAIT=300    # seconds to wait after any other failure

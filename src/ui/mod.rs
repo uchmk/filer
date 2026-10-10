@@ -172,7 +172,7 @@ pub fn draw(app: &mut App, ui: &mut Ui) {
     // not drawn at all, rather than squeezed to a sliver. A sliver is worse than
     // nothing -- it costs the pane rows and shows too little to read.
     //
-    // The status bar stays. It is one row, and it is what says filer is still
+    // The status bar stays. It is one row, and it is what says kura is still
     // here rather than that a terminal has taken the window.
     let maxed = app.term.is_some() && app.max_term;
     let term_h = match (app.term.is_some(), maxed) {
@@ -1224,10 +1224,10 @@ mod breadcrumb_tests {
     /// from, so this read as though the file were in the top directory.
     #[test]
     fn a_search_hit_shows_its_own_directory() {
-        let hit = p(&["dev", "filer", "docs", "guide", "README.md"]);
-        let root = p(&["dev", "filer"]);
+        let hit = p(&["dev", "kura", "docs", "guide", "README.md"]);
+        let root = p(&["dev", "kura"]);
         let (dir, name) = breadcrumb(Some(&hit), &root, Some("README.md"));
-        assert_eq!(dir, p(&["dev", "filer", "docs", "guide"]).display().to_string());
+        assert_eq!(dir, p(&["dev", "kura", "docs", "guide"]).display().to_string());
         assert_eq!(name.as_deref(), Some("README.md"));
     }
 
@@ -1248,7 +1248,7 @@ mod breadcrumb_tests {
     /// cursor is on.
     #[test]
     fn an_ordinary_listing_uses_the_tab_directory() {
-        let dir_in = p(&["dev", "filer"]);
+        let dir_in = p(&["dev", "kura"]);
         let (dir, name) = breadcrumb(None, &dir_in, Some("Cargo.toml"));
         assert_eq!(dir, dir_in.display().to_string());
         assert_eq!(name.as_deref(), Some("Cargo.toml"));
@@ -1476,7 +1476,7 @@ pub(crate) mod harness {
     }
 
     impl Screen {
-        /// filer's own defaults, listing `at`, in a 1280x800 window.
+        /// kura's own defaults, listing `at`, in a 1280x800 window.
         pub(crate) fn open(at: impl Into<std::path::PathBuf>) -> Self {
             Self::with_config(crate::config::Config::load(), at)
         }
@@ -1507,7 +1507,7 @@ pub(crate) mod harness {
 
         /// Where the prompt's caret is, in characters, as the field holds it.
         pub(crate) fn caret(&self) -> Option<usize> {
-            let state = egui::text_edit::TextEditState::load(&self.ctx, egui::Id::new("filer-input"))?;
+            let state = egui::text_edit::TextEditState::load(&self.ctx, egui::Id::new("kura-input"))?;
             state.cursor.char_range().map(|r| usize::from(r.primary.index))
         }
 
@@ -1524,7 +1524,7 @@ pub(crate) mod harness {
         /// thing to do. But the preview *arriving* is what several of
         /// TESTING.md's sections are about, and it cannot be set up by hand and
         /// still be that: the payload has to come back through the real channel.
-        /// So this mirrors `Filer::ui`'s order exactly -- drain, then
+        /// So this mirrors `Kura::ui`'s order exactly -- drain, then
         /// `kick_scans`, then `request_preview`, then draw -- and leaves the
         /// deciding to the caller.
         pub(crate) fn turn(&mut self) -> Painted {
@@ -3421,7 +3421,7 @@ mod config_warning_frame {
     #[test]
     fn a_long_warning_wraps_on_the_panel_and_copies_as_one_line() {
         let user = "[[mgr.keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n";
-        let (_km, warnings) = Keymap::load_named(&[("/home/me/.config/filer/keymap.toml", user)]);
+        let (_km, warnings) = Keymap::load_named(&[("/home/you/.config/kura/keymap.toml", user)]);
         let warning = warnings.iter().find(|w| w.contains("did you mean")).cloned().expect("33.22's warning");
         let cfg = Config { warnings: vec![warning.clone()], ..Config::load() };
         let mut s = Screen::with_config(cfg, crate::util::test_dir("cfg-warn-wrap")).sized(520.0, 700.0);
@@ -3677,7 +3677,7 @@ mod awkward_names {
     ///
     /// On a case-insensitive filesystem -- which is the one the checklist is
     /// written for -- those two paths are one file, so what this can check is
-    /// the half that is filer's either way: the list draws back the case it was
+    /// the half that is kura's either way: the list draws back the case it was
     /// handed and does not fold the pair into one row. That both are openable
     /// is still a row for a machine.
     #[test]
@@ -3709,10 +3709,10 @@ mod awkward_names {
     fn neighbouring_long_names_in_the_parent_column_read_apart() {
         let top = crate::util::test_dir("frame-names-apart");
         let names = [
-            "filer-diagnostics-archive-xx-15484.log",
-            "filer-diagnostics-preview-yy-15484.log",
-            "filer-diagnostics-session-zz-15484.log",
-            "filer-diagnostics-terminal-q-15484.log",
+            "kura-diagnostics-archive-xx-15484.log",
+            "kura-diagnostics-preview-yy-15484.log",
+            "kura-diagnostics-session-zz-15484.log",
+            "kura-diagnostics-terminal-q-15484.log",
             "room",
         ];
         for n in &names[..4] {
@@ -4340,7 +4340,7 @@ mod undo_frame {
     /// The prompt is filled in here rather than typed into: it is a native
     /// `TextEdit` whose contents come from egui's focus handling, so typing at
     /// it from a test would be a test of egui. What this does drive is the half
-    /// that is filer's -- `confirm_input`, the rename itself, and the undo step
+    /// that is kura's -- `confirm_input`, the rename itself, and the undo step
     /// it records.
     fn rename(s: &mut Screen, from: &Path, to: &str) {
         s.app.overlay = Overlay::Input(InputOverlay {
@@ -4824,10 +4824,10 @@ mod csv_table_frame {
 /// `<C-c>` while the shell has the keys is the shell's, not the keymap's.
 ///
 /// egui-winit never emits a key event for the clipboard chords -- it turns them
-/// into `Copy` and `Cut` -- so filer puts the chord back by hand. It put it back
+/// into `Copy` and `Cut` -- so kura puts the chord back by hand. It put it back
 /// into the keymap, guarded only on no overlay being open. The terminal is not
 /// an overlay, so with a shell focused `[mgr]` `close` ran: the tab closed, and
-/// on the last tab filer quit and took the shell with it.
+/// on the last tab kura quit and took the shell with it.
 ///
 /// Section 1 on the Windows machine found it the way anybody would -- by
 /// pressing the key that stops a running command.
@@ -4848,7 +4848,7 @@ mod terminal_chords {
 
         s.app.term_focus = true;
         s.feed(vec![egui::Event::Copy]);
-        assert!(!s.app.quit, "the shell's interrupt is not filer's `close`");
+        assert!(!s.app.quit, "the shell's interrupt is not kura's `close`");
         assert_eq!(s.app.tabs.len(), 1, "and no tab was closed");
 
         // `Cut` is the same shape and was never checked; `<C-x>` is unbound in

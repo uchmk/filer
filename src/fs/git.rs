@@ -227,7 +227,7 @@ const LOG_CAP: usize = 50;
 /// joins stay visible -- the merge that brought a commit in **carries the pull
 /// request number in its own subject**, so the answer is already on disk.
 ///
-/// Nothing here reaches the network. No token to keep out of `filer env`, no
+/// Nothing here reaches the network. No token to keep out of `kura env`, no
 /// request that might never return, and the two rules the Git section is held
 /// to keep applying word for word: 46.8 (no pause where there is no
 /// repository) and 46.9 (silence where there is no `git`), because this is one
@@ -508,17 +508,17 @@ mod tests {
     /// remote that is not GitHub leads nowhere rather than somewhere wrong.
     #[test]
     fn a_github_remote_gives_the_pull_request_page() {
-        let page = Some("https://github.com/uchmk/filer/pull/71".to_string());
+        let page = Some("https://github.com/uchmk/kura/pull/71".to_string());
         for remote in [
-            "https://github.com/uchmk/filer",
-            "https://github.com/uchmk/filer.git",
-            "https://github.com/uchmk/filer/",
-            "git@github.com:uchmk/filer.git",
-            "ssh://git@github.com/uchmk/filer.git",
+            "https://github.com/uchmk/kura",
+            "https://github.com/uchmk/kura.git",
+            "https://github.com/uchmk/kura/",
+            "git@github.com:uchmk/kura.git",
+            "ssh://git@github.com/uchmk/kura.git",
         ] {
             assert_eq!(github_pr_url(remote, 71), page, "{remote}");
         }
-        for remote in ["https://gitlab.com/uchmk/filer.git", "git@github.com:uchmk", "https://github.com/uchmk/filer/tree/main", ""] {
+        for remote in ["https://gitlab.com/uchmk/kura.git", "git@github.com:uchmk", "https://github.com/uchmk/kura/tree/main", ""] {
             assert_eq!(github_pr_url(remote, 71), None, "{remote}");
         }
     }

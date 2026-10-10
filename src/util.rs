@@ -313,9 +313,9 @@ pub fn expand(input: &str) -> PathBuf {
         let name = &s[start + 1..end];
         let val = match std::env::var(name) {
             Ok(v) if !v.is_empty() => v,
-            // `%FILER_CONFIG_HOME%` and `%YAZI_CONFIG_HOME%` are usually unset,
+            // `%KURA_CONFIG_HOME%` and `%YAZI_CONFIG_HOME%` are usually unset,
             // and a path written with one still has to lead somewhere: they
-            // stand for the directory filer would search. Every other unset
+            // stand for the directory kura would search. Every other unset
             // variable keeps expanding to nothing, as the shells do.
             _ => crate::config::config_dir_default(name)
                 .map(|p| p.to_string_lossy().into_owned())
@@ -554,7 +554,7 @@ pub fn test_dir(what: &str) -> std::path::PathBuf {
         sweep_test_dirs();
         // The test binary has no "after all" hook, so ask the C runtime (both
         // glibc and the UCRT export `atexit`; no crate needed) to clear this
-        // run's own folders when the harness exits. Set FILER_KEEP_TEST_DIRS
+        // run's own folders when the harness exits. Set KURA_KEEP_TEST_DIRS
         // to keep them for a look.
         unsafe extern "C" {
             fn atexit(cb: extern "C" fn()) -> i32;
@@ -574,10 +574,10 @@ pub fn test_dir(what: &str) -> std::path::PathBuf {
 }
 
 /// What every [`test_dir`] starts with. Its own prefix, because the program
-/// itself puts `filer-preview-<pid>-<n>` in the same folder, and a sweep
-/// matching `filer-…-<digits>` would take a running filer's files.
+/// itself puts `kura-preview-<pid>-<n>` in the same folder, and a sweep
+/// matching `kura-…-<digits>` would take a running kura's files.
 #[cfg(test)]
-const TEST_DIR_PREFIX: &str = "filer-test-";
+const TEST_DIR_PREFIX: &str = "kura-test-";
 
 /// Whether a directory in the temp folder is one an earlier `cargo test` left:
 /// a [`test_dir`] name, of another process, untouched for an hour. The age
@@ -597,7 +597,7 @@ fn stale_test_dir(name: &str, own_pid: u32, age: std::time::Duration) -> bool {
 /// Where this process puts members of archives it unpacked to open or to
 /// preview (the archive view, `l` on an archive).
 pub fn archive_scratch() -> PathBuf {
-    // Under test, a name the test folders' sweep knows (`filer-test-…-<pid>`):
+    // Under test, a name the test folders' sweep knows (`kura-test-…-<pid>`):
     // a worker still unpacking when its test ends writes after the view has
     // tidied up, and each `cargo test` left a folder behind (#253, #259).
     //
@@ -618,9 +618,9 @@ pub fn archive_scratch() -> PathBuf {
     std::env::temp_dir().join(format!("{ARCHIVE_SCRATCH_PREFIX}{}", std::process::id()))
 }
 
-const ARCHIVE_SCRATCH_PREFIX: &str = "filer-archive-";
+const ARCHIVE_SCRATCH_PREFIX: &str = "kura-archive-";
 
-/// Whether `name` in the temporary folder is another filer's archive
+/// Whether `name` in the temporary folder is another kura's archive
 /// scratch, a day old or more. A day, not the hour the tests get: a copy
 /// `l` opened may still be in an editor, and this is the only cleaning the
 /// copies get.
@@ -649,10 +649,10 @@ pub fn sweep_archive_scratch() {
     });
 }
 
-/// What `atexit` runs: remove this process's `filer-test-…-<pid>` folders.
+/// What `atexit` runs: remove this process's `kura-test-…-<pid>` folders.
 #[cfg(test)]
 extern "C" fn remove_own_test_dirs() {
-    if std::env::var_os("FILER_KEEP_TEST_DIRS").is_some() {
+    if std::env::var_os("KURA_KEEP_TEST_DIRS").is_some() {
         return;
     }
     let Ok(entries) = std::fs::read_dir(std::env::temp_dir()) else { return };
@@ -689,14 +689,14 @@ mod tests {
     #[test]
     fn only_an_old_archive_scratch_of_another_run_is_swept() {
         let day = std::time::Duration::from_secs(24 * 3600);
-        assert!(stale_archive_scratch("filer-archive-41", 7, day));
-        assert!(!stale_archive_scratch("filer-archive-7", 7, day), "this run's own");
-        assert!(!stale_archive_scratch("filer-archive-41", 7, day / 2), "less than a day");
-        assert!(!stale_archive_scratch("filer-archive-x", 7, day));
-        assert!(!stale_archive_scratch("filer-test-a-41", 7, day), "not an archive scratch");
+        assert!(stale_archive_scratch("kura-archive-41", 7, day));
+        assert!(!stale_archive_scratch("kura-archive-7", 7, day), "this run's own");
+        assert!(!stale_archive_scratch("kura-archive-41", 7, day / 2), "less than a day");
+        assert!(!stale_archive_scratch("kura-archive-x", 7, day));
+        assert!(!stale_archive_scratch("kura-test-a-41", 7, day), "not an archive scratch");
     }
 
-    /// #126: a path from the command line is made absolute against where filer
+    /// #126: a path from the command line is made absolute against where kura
     /// started, so the tab has a parent; an absolute one stays as it is.
     #[test]
     fn a_relative_start_path_becomes_absolute() {
@@ -735,19 +735,19 @@ mod tests {
     }
 
     /// #227: what an earlier run left goes, and nothing else does -- not a
-    /// run going on now, not the program's own `filer-preview-<pid>-<n>`, not
+    /// run going on now, not the program's own `kura-preview-<pid>-<n>`, not
     /// a folder of the same look under another name.
     #[test]
     fn only_an_old_test_dir_of_another_run_is_swept() {
         let hour = std::time::Duration::from_secs(3600);
         let old = hour * 2;
-        assert!(stale_test_dir("filer-test-twice-util-tests-x-4242", 1, old));
-        assert!(!stale_test_dir("filer-test-twice-util-tests-x-4242", 4242, old), "this run's own");
-        assert!(!stale_test_dir("filer-test-twice-util-tests-x-4242", 1, hour / 2), "a run going on now");
-        assert!(!stale_test_dir("filer-preview-4242-3", 1, old), "the program's preview files");
-        assert!(!stale_test_dir("filer-conpty-1.24.260710001", 1, old), "fetch-conpty's download");
-        assert!(!stale_test_dir("filer-test-no-config", 1, old), "no pid at the end");
-        assert!(!stale_test_dir("filer-twice-util-tests-x-4242", 1, old), "the name before the prefix");
+        assert!(stale_test_dir("kura-test-twice-util-tests-x-4242", 1, old));
+        assert!(!stale_test_dir("kura-test-twice-util-tests-x-4242", 4242, old), "this run's own");
+        assert!(!stale_test_dir("kura-test-twice-util-tests-x-4242", 1, hour / 2), "a run going on now");
+        assert!(!stale_test_dir("kura-preview-4242-3", 1, old), "the program's preview files");
+        assert!(!stale_test_dir("kura-conpty-1.24.260710001", 1, old), "fetch-conpty's download");
+        assert!(!stale_test_dir("kura-test-no-config", 1, old), "no pid at the end");
+        assert!(!stale_test_dir("kura-twice-util-tests-x-4242", 1, old), "the name before the prefix");
         assert!(test_dir("prefix").file_name().unwrap().to_str().unwrap().starts_with(TEST_DIR_PREFIX));
     }
 
@@ -762,13 +762,13 @@ mod tests {
         assert!(!second.join("stale").exists(), "the second call wiped the first");
     }
 
-    /// An unset config variable expands to the directory filer searches, and
+    /// An unset config variable expands to the directory kura searches, and
     /// every other unset variable still expands to nothing.
     ///
-    /// The distinction is the whole point: `gc` reads `cd %FILER_CONFIG_HOME%`,
+    /// The distinction is the whole point: `gc` reads `cd %KURA_CONFIG_HOME%`,
     /// and if an unset variable vanished the way the others do, the key would
     /// walk to the filesystem root instead — which is exactly what the old
-    /// `cd %APPDATA%/filer` did on anything but Windows.
+    /// `cd %APPDATA%/kura` did on anything but Windows.
     #[test]
     fn config_variables_expand_even_when_unset() {
         for var in crate::config::CONFIG_VARS {
@@ -822,7 +822,7 @@ mod tests {
         // The host itself is the top; there is nothing above it.
         assert_eq!(host(r"\\192.0.2.10"), None);
         // Not UNC at all.
-        assert_eq!(host(r"C:\dev\filer"), None);
+        assert_eq!(host(r"C:\dev\kura"), None);
         assert_eq!(host("/home/user"), None);
     }
 
@@ -884,7 +884,7 @@ mod tests {
         assert_eq!(up(r"\\192.0.2.10\Backup"), Some(PathBuf::from(r"\\192.0.2.10")));
         // Deeper in, and off UNC entirely, it is `parent()`'s answer.
         assert_eq!(up(r"\\192.0.2.10\Backup\2025"), Some(PathBuf::from(r"\\192.0.2.10\Backup")));
-        assert_eq!(up(r"C:\dev\filer"), Some(PathBuf::from(r"C:\dev")));
+        assert_eq!(up(r"C:\dev\kura"), Some(PathBuf::from(r"C:\dev")));
         // A drive root is a top too.
         assert_eq!(up(r"C:\"), None);
     }

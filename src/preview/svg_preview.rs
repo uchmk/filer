@@ -130,7 +130,7 @@ mod tests {
         assert!(families.iter().any(|f| f == "Hack"), "the folder's font is offered");
 
         let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="40">
-            <text x="0" y="30" font-family="Hack" font-size="30">filer</text></svg>"#;
+            <text x="0" y="30" font-family="Hack" font-size="30">kura</text></svg>"#;
         assert!(render_bytes(svg, Some(&dir), (400, 80)).is_ok(), "and the picture renders");
         // A folder without one leaves the system's set as it is.
         assert!(Arc::ptr_eq(&fonts_for(Some(&crate::util::test_dir("svg-nofont"))), &system_fonts()));

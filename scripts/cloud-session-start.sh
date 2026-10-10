@@ -21,7 +21,7 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
   echo 'export CARGO_INCREMENTAL=0' >> "$CLAUDE_ENV_FILE"
 fi
 
-limit_gb="${FILER_TARGET_LIMIT_GB:-12}"
+limit_gb="${KURA_TARGET_LIMIT_GB:-12}"
 if [ -d target ]; then
   used_gb=$(du -s --block-size=1G target 2>/dev/null | cut -f1)
   if [ "${used_gb:-0}" -gt "$limit_gb" ]; then

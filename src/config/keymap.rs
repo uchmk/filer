@@ -47,7 +47,7 @@ pub struct Keymap {
     pub unsupported: Vec<String>,
     /// A key of the built-in defaults that a user's file binds to something
     /// else: meant, so not a warning, but kept where "what did my `T`
-    /// displace?" can be looked up -- the help panel and `filer env` (Q60).
+    /// displace?" can be looked up -- the help panel and `kura env` (Q60).
     pub overrides: Vec<String>,
 }
 
@@ -249,7 +249,7 @@ impl Keymap {
             match toml::from_str::<KeymapFile>(text) {
                 Ok(k) => files.push((Arc::from(*path), k)),
                 // Trimmed: the parser's message ends in a newline, which left
-                // a blank line at the end of `filer env`'s Warnings.
+                // a blank line at the end of `kura env`'s Warnings.
                 Err(e) => warnings.push(format!("{path}: {}", super::parse_error(text, &e))),
             }
         }
@@ -386,9 +386,9 @@ mod tests {
     /// files, and the warning does not end in a blank line.
     #[test]
     fn a_broken_keymap_names_its_path() {
-        let (_, warnings) = Keymap::load_named(&[("/cfg/filer/keymap.toml", "[[mgr.keymap]\n")]);
+        let (_, warnings) = Keymap::load_named(&[("/cfg/kura/keymap.toml", "[[mgr.keymap]\n")]);
         assert_eq!(warnings.len(), 1, "{warnings:?}");
-        assert!(warnings[0].starts_with("/cfg/filer/keymap.toml: TOML parse error"), "{}", warnings[0]);
+        assert!(warnings[0].starts_with("/cfg/kura/keymap.toml: TOML parse error"), "{}", warnings[0]);
         assert!(!warnings[0].ends_with('\n'), "{:?}", warnings[0]);
     }
 
@@ -632,22 +632,22 @@ run = "plugin bookmarks save"
     #[test]
     fn a_duplicate_names_each_sides_file() {
         let yazi = "[[mgr.prepend_keymap]]\non = \"Q\"\nrun = \"quit\"\n";
-        let filer = "[[mgr.prepend_keymap]]\non = \"Q\"\nrun = \"hidden toggle\"\n";
-        let (_, warnings) = Keymap::load_named(&[("/cfg/yazi/keymap.toml", yazi), ("/cfg/filer/keymap.toml", filer)]);
+        let kura = "[[mgr.prepend_keymap]]\non = \"Q\"\nrun = \"hidden toggle\"\n";
+        let (_, warnings) = Keymap::load_named(&[("/cfg/yazi/keymap.toml", yazi), ("/cfg/kura/keymap.toml", kura)]);
         let w = warnings.iter().find(|w| w.contains("`Q`")).unwrap_or_else(|| panic!("{warnings:?}"));
         assert_eq!(
             w,
-            "[mgr] `Q` is bound more than once; only `hidden toggle` (/cfg/filer/keymap.toml) runs, \
+            "[mgr] `Q` is bound more than once; only `hidden toggle` (/cfg/kura/keymap.toml) runs, \
              not `quit` (/cfg/yazi/keymap.toml)",
         );
 
         // A default bound again in a user's own file wins over it on purpose:
         // not a warning, an override (Q60).
         let one = "[[mgr.prepend_keymap]]\non = \"T\"\nrun = \"quit\"\n";
-        let (km, warnings) = Keymap::load_named(&[("/cfg/filer/keymap.toml", one)]);
+        let (km, warnings) = Keymap::load_named(&[("/cfg/kura/keymap.toml", one)]);
         assert!(!warnings.iter().any(|w| w.contains("`T`")), "{warnings:?}");
         let o = km.overrides.iter().find(|o| o.contains("`T`")).unwrap_or_else(|| panic!("{:?}", km.overrides));
-        assert!(o.starts_with("[mgr] `T`: `quit` (/cfg/filer/keymap.toml) instead of the default `"), "{o}");
+        assert!(o.starts_with("[mgr] `T`: `quit` (/cfg/kura/keymap.toml) instead of the default `"), "{o}");
     }
 
     /// Q60: the same command on both sides loses nothing and says nothing;
@@ -656,14 +656,14 @@ run = "plugin bookmarks save"
     #[test]
     fn a_rebinding_to_the_same_command_is_silent() {
         let same = "[[mgr.prepend_keymap]]\non = \"T\"\nrun = \"plugin toggle-pane max-preview\"\n";
-        let (km, warnings) = Keymap::load_named(&[("/cfg/filer/keymap.toml", same)]);
+        let (km, warnings) = Keymap::load_named(&[("/cfg/kura/keymap.toml", same)]);
         assert!(!warnings.iter().any(|w| w.contains("`T`")), "{warnings:?}");
         assert!(!km.overrides.iter().any(|o| o.contains("`T`")), "{:?}", km.overrides);
 
         let shut_out = "[[mgr.append_keymap]]\non = \"T\"\nrun = \"quit\"\n";
-        let (km, warnings) = Keymap::load_named(&[("/cfg/filer/keymap.toml", shut_out)]);
+        let (km, warnings) = Keymap::load_named(&[("/cfg/kura/keymap.toml", shut_out)]);
         let w = warnings.iter().find(|w| w.contains("`T`")).unwrap_or_else(|| panic!("{warnings:?}"));
-        assert!(w.contains(&format!("({BUILT_IN}) runs, not `quit` (/cfg/filer/keymap.toml)")), "{w}");
+        assert!(w.contains(&format!("({BUILT_IN}) runs, not `quit` (/cfg/kura/keymap.toml)")), "{w}");
         assert!(km.overrides.is_empty(), "{:?}", km.overrides);
     }
 }

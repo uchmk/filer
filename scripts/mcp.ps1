@@ -1,15 +1,15 @@
 <#
-Talk to `filer mcp` without Claude Code -- TESTING.md section 50 needs the MCP
+Talk to `kura mcp` without Claude Code -- TESTING.md section 50 needs the MCP
 server's answers, and #302 / #303 (ARM64 and x64) each wrote a throwaway
 Start-Mcp / Rpc / Call helper to get them (ARM64's tripped over `$args`).
 
-  scripts\mcp.ps1 [-Exe .\target\debug\filer.exe] [-Address \\.\pipe\x] [-Tool filer_state] [-Arguments '{}']
-  scripts\mcp.ps1 -Tool filer_reveal -Arguments '{"path":"C:\\Windows"}'
+  scripts\mcp.ps1 [-Exe .\target\debug\kura.exe] [-Address \\.\pipe\x] [-Tool kura_state] [-Arguments '{}']
+  scripts\mcp.ps1 -Tool kura_reveal -Arguments '{"path":"C:\\Windows"}'
   scripts\mcp.ps1 -List
 
 Starts `<Exe> mcp`, sends `initialize`, `notifications/initialized`, then either
 `tools/list` (-List) or `tools/call` for -Tool, prints the result as JSON on
-stdout, and closes the server's input. -Address sets FILER_ADDRESS for the child
+stdout, and closes the server's input. -Address sets KURA_ADDRESS for the child
 only, so a test window does not fight the owner's window for the door.
 
 Exit code: 0 on a result, 1 when the tool answered isError or the server sent
@@ -19,9 +19,9 @@ Written on Linux, where it cannot run: not yet run on Windows. The first lane
 run that uses it checks it against 50.1 / 50.2 by hand once.
 #>
 param(
-    [string]$Exe = (Join-Path $PSScriptRoot '..\target\debug\filer.exe'),
+    [string]$Exe = (Join-Path $PSScriptRoot '..\target\debug\kura.exe'),
     [string]$Address = '',
-    [string]$Tool = 'filer_state',
+    [string]$Tool = 'kura_state',
     [string]$Arguments = '{}',
     [switch]$List,
     [int]$TimeoutSec = 20
@@ -35,7 +35,7 @@ $psi.UseShellExecute = $false
 $psi.RedirectStandardInput = $true
 $psi.RedirectStandardOutput = $true
 $psi.CreateNoWindow = $true
-if ($Address) { $psi.EnvironmentVariables['FILER_ADDRESS'] = $Address }
+if ($Address) { $psi.EnvironmentVariables['KURA_ADDRESS'] = $Address }
 $proc = [System.Diagnostics.Process]::Start($psi)
 
 function Send($obj) {
@@ -63,7 +63,7 @@ try {
     $init = Rpc 1 'initialize' @{
         protocolVersion = '2024-11-05'
         capabilities    = @{}
-        clientInfo      = @{ name = 'filer-mcp.ps1'; version = '1' }
+        clientInfo      = @{ name = 'kura-mcp.ps1'; version = '1' }
     }
     if ($null -eq $init) { Write-Error 'no answer to initialize'; $code = 2 }
     else {

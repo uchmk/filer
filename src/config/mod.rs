@@ -2,7 +2,7 @@
 //!
 //! Search order (later wins):
 //!   1. `$YAZI_CONFIG_HOME`, else yazi's own directory — `yazi.toml`, `keymap.toml`, `theme.toml`
-//!   2. `$FILER_CONFIG_HOME`, else `<base>/filer`      — the same three, plus `filer.toml`
+//!   2. `$KURA_CONFIG_HOME`, else `<base>/kura`      — the same three, plus `kura.toml`
 //!
 //! `<base>` is `%APPDATA%` on Windows and `$XDG_CONFIG_HOME` (default `~/.config`)
 //! on Unix, macOS included. Layer 1 is `<base>/yazi/config` on Windows but
@@ -42,7 +42,7 @@ impl<'de> Deserialize<'de> for StrOrVec {
     }
 }
 
-/// GUI-only settings, from `filer.toml`. yazi has no equivalent for these.
+/// GUI-only settings, from `kura.toml`. yazi has no equivalent for these.
 #[derive(Deserialize, Debug)]
 #[serde(default)]
 pub struct Ui {
@@ -70,7 +70,7 @@ pub struct Ui {
     pub window_height: f32,
     /// What draws the window: `auto` (GL on Windows when the machine has it,
     /// else wgpu's pick), `vulkan`, `dx12`, `metal` or `gl`. `WGPU_BACKEND` overrides it for one run (Q70: an AMD
-    /// driver thread keeps a core busy under Vulkan and DX12 while filer
+    /// driver thread keeps a core busy under Vulkan and DX12 while kura
     /// sits idle, and only GL stops it, #204, #207, #232).
     pub backend: String,
 }
@@ -133,7 +133,7 @@ impl Default for Ui {
 /// `pwsh` -- and the login shell elsewhere. Those are different programs
 /// reading different profiles, so a hook that works in one is simply absent in
 /// the other, and there was no way to say which one to start.
-/// `[mcp]` in `filer.toml`: the local door `filer mcp` reads the window
+/// `[mcp]` in `kura.toml`: the local door `kura mcp` reads the window
 /// through (Q95). On unless `enable = false`; only the same user can reach it.
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct McpCfg {
@@ -159,17 +159,17 @@ pub struct TermCfg {
     /// Arguments for it, e.g. `["-NoLogo"]`. Ignored without a `shell`.
     #[serde(default)]
     pub args: Vec<String>,
-    /// The shell came from `FILER_TERM_SHELL`, not from a file.
+    /// The shell came from `KURA_TERM_SHELL`, not from a file.
     #[serde(skip)]
     pub from_env: bool,
-    /// The args came from `FILER_TERM_ARGS` (Q81).
+    /// The args came from `KURA_TERM_ARGS` (Q81).
     #[serde(skip)]
     pub args_from_env: bool,
-    /// `FILER_TERM_ARGS` was set but `FILER_TERM_SHELL` was not, so it counted
-    /// for nothing; `filer env` says so (#267).
+    /// `KURA_TERM_ARGS` was set but `KURA_TERM_SHELL` was not, so it counted
+    /// for nothing; `kura env` says so (#267).
     #[serde(skip)]
     pub args_unused: bool,
-    /// The `[term] args` that `FILER_TERM_SHELL` set aside, for `filer env`
+    /// The `[term] args` that `KURA_TERM_SHELL` set aside, for `kura env`
     /// to name: without it, seeing them gone took the process's command line
     /// (#190).
     #[serde(skip)]
@@ -177,16 +177,16 @@ pub struct TermCfg {
 }
 
 impl TermCfg {
-    /// `FILER_TERM_SHELL` names the pane's shell for this run, over
+    /// `KURA_TERM_SHELL` names the pane's shell for this run, over
     /// `[term] shell` (Q51). Checking a row in another shell meant pointing
-    /// `FILER_CONFIG_HOME` at an empty folder and losing every other setting
+    /// `KURA_CONFIG_HOME` at an empty folder and losing every other setting
     /// with it (#176). The whole value is the program, a path with spaces
     /// included, and `[term] args` are dropped: they were written for the
     /// shell this one replaces.
     ///
-    /// `FILER_TERM_ARGS` gives that shell its arguments (Q81): words split at
+    /// `KURA_TERM_ARGS` gives that shell its arguments (Q81): words split at
     /// white space, with `"…"` keeping its spaces together. It counts only
-    /// beside `FILER_TERM_SHELL`, since it is written for that shell.
+    /// beside `KURA_TERM_SHELL`, since it is written for that shell.
     fn take_env(&mut self, var: Option<std::ffi::OsString>, args: Option<std::ffi::OsString>) {
         let Some(shell) = var.and_then(|v| v.into_string().ok()).filter(|v| !v.trim().is_empty()) else {
             self.args_unused = args.and_then(|v| v.into_string().ok()).is_some_and(|v| !v.trim().is_empty());
@@ -226,7 +226,7 @@ fn split_words(text: &str) -> Vec<String> {
     words
 }
 
-/// `[[preview]]`: a command that draws a file filer cannot draw itself.
+/// `[[preview]]`: a command that draws a file kura cannot draw itself.
 ///
 /// The shape is deliberately one thing, not two. A PDF's pages and a video's
 /// seconds are the same problem — "give me picture number N of this file" —
@@ -274,7 +274,7 @@ impl PreviewRule {
 }
 
 #[derive(Deserialize, Debug, Default)]
-struct FilerToml {
+struct KuraToml {
     #[serde(default)]
     ui: Ui,
     #[serde(default)]
@@ -294,9 +294,9 @@ pub struct Config {
     pub keymap: Keymap,
     /// What the terminal pane runs; empty `shell` means the platform default.
     pub term: TermCfg,
-    /// Commands that draw what filer cannot, in the order they are tried.
+    /// Commands that draw what kura cannot, in the order they are tried.
     pub preview: Vec<PreviewRule>,
-    /// `[mcp]`: whether the window answers `filer mcp`.
+    /// `[mcp]`: whether the window answers `kura mcp`.
     pub mcp: McpCfg,
     /// Behind an `Arc` because every draw function starts by taking a copy to
     /// get out of the borrow checker's way, and the theme carries the icon and
@@ -327,21 +327,21 @@ struct Broken {
     yazi: bool,
     keymap: bool,
     theme: bool,
-    filer: bool,
+    kura: bool,
     /// Indices into `warnings` of the parse errors, to say what was kept.
     said: Vec<usize>,
 }
 
 impl Broken {
     fn any(&self) -> bool {
-        self.yazi || self.keymap || self.theme || self.filer
+        self.yazi || self.keymap || self.theme || self.kura
     }
 }
 
 impl Config {
     pub fn load() -> Self {
         let mut cfg = Self::read(&dirs_to_read()).0;
-        cfg.term.take_env(std::env::var_os("FILER_TERM_SHELL"), std::env::var_os("FILER_TERM_ARGS"));
+        cfg.term.take_env(std::env::var_os("KURA_TERM_SHELL"), std::env::var_os("KURA_TERM_ARGS"));
         cfg
     }
 
@@ -355,7 +355,7 @@ impl Config {
     /// `prev` is emptied of what is kept: it is the config being replaced.
     pub fn reload(prev: &mut Config) -> Self {
         let mut cfg = Self::reload_from(prev, &dirs_to_read());
-        cfg.term.take_env(std::env::var_os("FILER_TERM_SHELL"), std::env::var_os("FILER_TERM_ARGS"));
+        cfg.term.take_env(std::env::var_os("KURA_TERM_SHELL"), std::env::var_os("KURA_TERM_ARGS"));
         cfg
     }
 
@@ -374,7 +374,7 @@ impl Config {
         if broken.theme {
             cfg.theme = prev.theme.clone();
         }
-        if broken.filer {
+        if broken.kura {
             cfg.ui = take(&mut prev.ui);
             cfg.term = take(&mut prev.term);
             cfg.preview = take(&mut prev.preview);
@@ -405,7 +405,7 @@ impl Config {
         for dir in dirs {
             if let Some(text) = read(dir, "yazi.toml", &mut loaded) {
                 let wrong = Misplaced::in_file(&text, ConfigFile::Yazi);
-                wrong.warn(&at(dir, "yazi.toml"), "filer.toml", &mut warnings);
+                wrong.warn(&at(dir, "yazi.toml"), "kura.toml", &mut warnings);
                 match toml::from_str::<YaziToml>(&text) {
                     Ok(v) => yazi_cfg = merge_yazi(yazi_cfg, v),
                     // The serde message for a `preview` in the wrong shape is
@@ -442,16 +442,16 @@ impl Config {
                     }
                 }
             }
-            if let Some(text) = read(dir, "filer.toml", &mut loaded) {
-                let wrong = Misplaced::in_file(&text, ConfigFile::Filer);
-                wrong.warn(&at(dir, "filer.toml"), "yazi.toml", &mut warnings);
-                match toml::from_str::<FilerToml>(&text) {
+            if let Some(text) = read(dir, "kura.toml", &mut loaded) {
+                let wrong = Misplaced::in_file(&text, ConfigFile::Kura);
+                wrong.warn(&at(dir, "kura.toml"), "yazi.toml", &mut warnings);
+                match toml::from_str::<KuraToml>(&text) {
                     Ok(v) => {
-                        // Here rather than at start-up only, so `filer env`
+                        // Here rather than at start-up only, so `kura env`
                         // says it too: it printed `Warnings : none` while the
                         // window warned (#239, #240).
                         if let Err(e) = v.ui.backend_name() {
-                            warnings.push(format!("{}: {e}", at(dir, "filer.toml")));
+                            warnings.push(format!("{}: {e}", at(dir, "kura.toml")));
                         }
                         ui = v.ui;
                         term = v.term;
@@ -463,20 +463,20 @@ impl Config {
                             } else {
                                 warnings.push(format!(
                                     "{}: [line_args] {name}: needs exactly one {{path}}",
-                                    at(dir, "filer.toml")
+                                    at(dir, "kura.toml")
                                 ));
                             }
                         }
                     }
                     Err(_) if wrong.breaks_parse => {
-                        broken.filer = true;
-                        unread.push(dir.join("filer.toml"));
+                        broken.kura = true;
+                        unread.push(dir.join("kura.toml"));
                     }
                     Err(e) => {
-                        broken.filer = true;
-                        unread.push(dir.join("filer.toml"));
+                        broken.kura = true;
+                        unread.push(dir.join("kura.toml"));
                         broken.said.push(warnings.len());
-                        warnings.push(format!("{}: {}", at(dir, "filer.toml"), parse_error(&text, &e)));
+                        warnings.push(format!("{}: {}", at(dir, "kura.toml"), parse_error(&text, &e)));
                     }
                 }
             }
@@ -496,10 +496,10 @@ impl Config {
     }
 
     pub fn state_dir() -> PathBuf {
-        if let Ok(p) = std::env::var("FILER_STATE_HOME") {
+        if let Ok(p) = std::env::var("KURA_STATE_HOME") {
             return PathBuf::from(p);
         }
-        dirs::data_dir().unwrap_or_else(std::env::temp_dir).join("filer")
+        dirs::data_dir().unwrap_or_else(std::env::temp_dir).join("kura")
     }
 }
 
@@ -508,8 +508,8 @@ impl Config {
 /// `dirs::config_dir()` is right on Windows (`%APPDATA%`) but not on macOS, where
 /// it answers `~/Library/Application Support` -- and yazi does not keep its config
 /// there. yazi uses XDG on every Unix, macOS included, so following `dirs` there
-/// had filer hunting for a `yazi.toml` in a directory yazi never writes to. Since
-/// filer's whole premise is reading yazi's own files, it has to look where yazi
+/// had kura hunting for a `yazi.toml` in a directory yazi never writes to. Since
+/// kura's whole premise is reading yazi's own files, it has to look where yazi
 /// put them.
 #[cfg(windows)]
 fn base_config_dir() -> Option<PathBuf> {
@@ -545,20 +545,20 @@ fn yazi_config_dir(base: &Path) -> PathBuf {
 }
 
 /// The two variables that name a config directory, in search order.
-pub const CONFIG_VARS: [&str; 2] = ["YAZI_CONFIG_HOME", "FILER_CONFIG_HOME"];
+pub const CONFIG_VARS: [&str; 2] = ["YAZI_CONFIG_HOME", "KURA_CONFIG_HOME"];
 
 /// Where one of [`CONFIG_VARS`] points when it is not set — which is the usual case.
 ///
-/// Exposed so a path can be written `%FILER_CONFIG_HOME%` and still resolve on a
+/// Exposed so a path can be written `%KURA_CONFIG_HOME%` and still resolve on a
 /// machine where nobody set it. The `gc` and `gy` keys used to hardcode
-/// `%APPDATA%/filer` and `%APPDATA%/yazi/config`, which named nothing outside
+/// `%APPDATA%/kura` and `%APPDATA%/yazi/config`, which named nothing outside
 /// Windows: an unset `%VAR%` expands to the empty string, so `gc` walked to
-/// `/filer`. Returns `None` for any other name, leaving ordinary variables alone.
+/// `/kura`. Returns `None` for any other name, leaving ordinary variables alone.
 pub fn config_dir_default(var: &str) -> Option<PathBuf> {
     let base = base_config_dir()?;
     match var {
         "YAZI_CONFIG_HOME" => Some(yazi_config_dir(&base)),
-        "FILER_CONFIG_HOME" => Some(base.join("filer")),
+        "KURA_CONFIG_HOME" => Some(base.join("kura")),
         _ => None,
     }
 }
@@ -574,14 +574,54 @@ pub fn config_home(var: &str) -> Option<PathBuf> {
     }
 }
 
+/// The app's name before v0.95.0, still on the folders an older build made.
+const OLD_NAME: &str = "filer";
+
+/// Moves the folders and the file an older build named after filer to kura's
+/// names, so an upgrade keeps its settings, bookmarks and history.
+///
+/// Only when the old one is there and the new one is not: a machine that
+/// already has both keeps both, and nothing is merged. A folder a variable
+/// names is the user's own and is left where it is; only `filer.toml` inside
+/// it is renamed. Run before anything reads the config, once per start.
+pub fn move_old_dirs() -> Vec<String> {
+    let mut warn = Vec::new();
+    let set = |var: &str| std::env::var_os(var).is_some_and(|v| !v.is_empty());
+    if !set("KURA_CONFIG_HOME") {
+        if let Some(base) = base_config_dir() {
+            move_old(&base.join(OLD_NAME), &base.join("kura"), &mut warn);
+        }
+    }
+    if let Some(dir) = config_home("KURA_CONFIG_HOME") {
+        move_old(&dir.join(format!("{OLD_NAME}.toml")), &dir.join("kura.toml"), &mut warn);
+    }
+    // On Windows this is the same `%APPDATA%` as above, so the first move
+    // already took it; on Unix it is `~/.local/share`.
+    if !set("KURA_STATE_HOME") {
+        if let Some(base) = dirs::data_dir() {
+            move_old(&base.join(OLD_NAME), &base.join("kura"), &mut warn);
+        }
+    }
+    warn
+}
+
+fn move_old(old: &Path, new: &Path, warn: &mut Vec<String>) {
+    if !old.exists() || new.exists() {
+        return;
+    }
+    if let Err(e) = std::fs::rename(old, new) {
+        warn.push(format!("could not move {} to {}: {e}", old.display(), new.display()));
+    }
+}
+
 /// Later directories override earlier ones.
 pub fn config_dirs() -> Vec<PathBuf> {
     distinct(CONFIG_VARS.iter().filter_map(|v| config_home(v)).collect())
 }
 
-/// The directories, each once. With `YAZI_CONFIG_HOME` and `FILER_CONFIG_HOME`
-/// naming one folder, its `filer.toml` was read twice, the help panel and
-/// `filer env` listed the folder twice, and `<C-F5>` counted every file double
+/// The directories, each once. With `YAZI_CONFIG_HOME` and `KURA_CONFIG_HOME`
+/// naming one folder, its `kura.toml` was read twice, the help panel and
+/// `kura env` listed the folder twice, and `<C-F5>` counted every file double
 /// (#180). Every layer reads the same files, so the first of two is enough.
 /// Two spellings of one folder (`C:\cfg` and `c:\cfg\`) are one folder too.
 fn distinct(dirs: Vec<PathBuf>) -> Vec<PathBuf> {
@@ -608,7 +648,7 @@ fn comparable(dir: &Path) -> PathBuf {
 /// The directories [`Config::load`] actually opens files in.
 ///
 /// Separate from [`config_dirs`] because the two answer different questions.
-/// `config_dirs` says *where filer looks*, and the help panel and `filer env`
+/// `config_dirs` says *where kura looks*, and the help panel and `kura env`
 /// print that whether or not anything is there -- so a test about the listing
 /// still wants the real answer. This says *what gets read*, and under
 /// `cfg(test)` that is nothing: the state every test was written against.
@@ -638,7 +678,7 @@ fn dirs_to_read() -> Vec<PathBuf> {
 /// A file in a config directory, written the way the platform writes a path.
 ///
 /// `format!("{}/{name}", dir.display())` put a forward slash in the middle of a
-/// Windows path -- `…\\Roaming\\filer/yazi.toml` -- in the one message whose
+/// Windows path -- `…\\Roaming\\kura/yazi.toml` -- in the one message whose
 /// whole job is to name the file to go and edit.
 fn at(dir: &Path, name: &str) -> String {
     dir.join(name).display().to_string()
@@ -646,9 +686,9 @@ fn at(dir: &Path, name: &str) -> String {
 
 /// Every file name either config directory is searched for.
 ///
-/// Shared so the help panel and `filer env` cannot come to different answers
+/// Shared so the help panel and `kura env` cannot come to different answers
 /// about what is on disk -- which is the confusion they exist to settle.
-pub const FILES: [&str; 4] = ["yazi.toml", "keymap.toml", "theme.toml", "filer.toml"];
+pub const FILES: [&str; 4] = ["yazi.toml", "keymap.toml", "theme.toml", "kura.toml"];
 
 /// Which of the two config files is being read.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -656,7 +696,7 @@ enum ConfigFile {
     /// yazi's own: keys, colors, openers, sorting.
     Yazi,
     /// This app's: `[ui]`, `[term]`, `[[preview]]`, `[line_args]`.
-    Filer,
+    Kura,
 }
 
 /// Sections written into one config file that the other one reads.
@@ -665,10 +705,10 @@ enum ConfigFile {
 /// for another version of yazi still load -- and also what made putting a
 /// section in the wrong half of the pair silent. `[term] shell = "pwsh"` in
 /// `yazi.toml` left the terminal pane on the platform default with nothing on
-/// screen to say why, and `filer env` reported the shell it was not using.
+/// screen to say why, and `kura env` reported the shell it was not using.
 ///
 /// `preview` is the one name both files use, for different things: yazi's
-/// `[preview]` is a table of sizes and filters, filer's `[[preview]]` an array
+/// `[preview]` is a table of sizes and filters, kura's `[[preview]]` an array
 /// of commands. So the shape decides which file a `preview` belongs to, and
 /// getting it wrong is worse than ignored -- it fails the whole file, taking
 /// every opener in it along, under a type error that names neither the section
@@ -691,7 +731,7 @@ impl Misplaced {
 
         let foreign: &[&str] = match file {
             ConfigFile::Yazi => &["ui", "term", "mcp", "line_args"],
-            ConfigFile::Filer => &["mgr", "manager", "opener", "open", "tasks"],
+            ConfigFile::Kura => &["mgr", "manager", "opener", "open", "tasks"],
         };
         let mut out = Self::default();
         for key in foreign.iter().filter(|k| table.contains_key(**k)) {
@@ -704,7 +744,7 @@ impl Misplaced {
                 out.sections.push("[[preview]]".into());
                 out.breaks_parse = true;
             }
-            Some(v) if file == ConfigFile::Filer && v.is_table() => {
+            Some(v) if file == ConfigFile::Kura && v.is_table() => {
                 out.sections.push("[preview]".into());
                 out.breaks_parse = true;
             }
@@ -779,7 +819,7 @@ mod dirs_tests {
     use super::*;
 
     /// The trailing `config` belongs to yazi's Windows layout only. Appending it
-    /// everywhere sent filer to `~/.config/yazi/config/yazi.toml`, which yazi
+    /// everywhere sent kura to `~/.config/yazi/config/yazi.toml`, which yazi
     /// never writes -- so a Linux user's existing yazi config went unread.
     /// The suite reads no config of its own, whatever machine it runs on.
     ///
@@ -798,8 +838,8 @@ mod dirs_tests {
         let cfg = Config::load();
         assert!(cfg.loaded.is_empty(), "so nothing was loaded: {:?}", cfg.loaded);
         assert!(cfg.warnings.is_empty(), "and nothing complained: {:?}", cfg.warnings);
-        // `config_dirs` is the other question -- where filer *looks* -- and the
-        // help panel and `filer env` print it whether or not anything is there.
+        // `config_dirs` is the other question -- where kura *looks* -- and the
+        // help panel and `kura env` print it whether or not anything is there.
         assert!(!config_dirs().is_empty(), "which is still answered");
     }
 
@@ -813,21 +853,42 @@ mod dirs_tests {
         }
     }
 
-    /// filer's own layer has no such quirk: it is `<base>/filer` on every platform.
+    /// kura's own layer has no such quirk: it is `<base>/kura` on every platform.
     ///
     /// Reads the ambient environment, so it steps aside when either variable is
     /// set rather than making the suite depend on how it was launched.
     #[test]
-    fn the_filer_layer_is_one_level_down_everywhere() {
+    fn the_kura_layer_is_one_level_down_everywhere() {
         let overridden = std::env::var_os("YAZI_CONFIG_HOME").is_some()
-            || std::env::var_os("FILER_CONFIG_HOME").is_some();
+            || std::env::var_os("KURA_CONFIG_HOME").is_some();
         if overridden || base_config_dir().is_none() {
             return;
         }
         let dirs = config_dirs();
         assert_eq!(dirs.len(), 2, "both layers are always listed: {dirs:?}");
-        assert_eq!(dirs[1].file_name().unwrap(), "filer");
+        assert_eq!(dirs[1].file_name().unwrap(), "kura");
         assert_ne!(dirs[0], dirs[1], "a layer that overrode itself would merge nothing");
+    }
+
+    /// v0.95.0: the folder an older build made under filer's name is moved,
+    /// but never over one kura already has.
+    #[test]
+    fn the_folder_from_before_the_rename_is_moved() {
+        let dir = crate::util::test_dir("move-old");
+        let (old, new) = (dir.join("filer"), dir.join("kura"));
+        std::fs::create_dir(&old).unwrap();
+        std::fs::write(old.join("kura.toml"), "[ui]
+").unwrap();
+        let mut warn = Vec::new();
+        move_old(&old, &new, &mut warn);
+        assert!(warn.is_empty(), "{warn:?}");
+        assert!(!old.exists());
+        assert!(new.join("kura.toml").exists(), "the contents come along");
+
+        std::fs::create_dir(&old).unwrap();
+        move_old(&old, &new, &mut warn);
+        assert!(old.exists() && new.join("kura.toml").exists(), "both stay when both are there");
+        assert!(warn.is_empty(), "{warn:?}");
     }
 
     /// #180: one folder named by both variables is read once, however it is
@@ -920,7 +981,7 @@ mod shared_theme {
 mod files {
     use super::*;
 
-    /// Q51: `FILER_TERM_SHELL` wins over `[term]`, drops the args written for
+    /// Q51: `KURA_TERM_SHELL` wins over `[term]`, drops the args written for
     /// the other shell, and an empty or blank value is no value.
     #[test]
     fn the_variable_names_the_shell_for_one_run() {
@@ -928,7 +989,7 @@ mod files {
         let mut t = file();
         t.take_env(Some(r"C:\Program Files\Git\bin\bash.exe ".into()), None);
         assert_eq!((t.shell.as_str(), t.args.len(), t.from_env), (r"C:\Program Files\Git\bin\bash.exe", 0, true));
-        assert_eq!(t.dropped_args, ["-NoLogo"], "kept for `filer env` to name (#190)");
+        assert_eq!(t.dropped_args, ["-NoLogo"], "kept for `kura env` to name (#190)");
         for unset in [None, Some("".into()), Some("  ".into())] {
             let mut t = file();
             t.take_env(unset, Some("-x".into()));
@@ -936,8 +997,8 @@ mod files {
         }
     }
 
-    /// Q81: `FILER_TERM_ARGS` splits at white space, keeps a quoted run whole,
-    /// and counts only beside `FILER_TERM_SHELL`.
+    /// Q81: `KURA_TERM_ARGS` splits at white space, keeps a quoted run whole,
+    /// and counts only beside `KURA_TERM_SHELL`.
     #[test]
     fn the_args_variable_is_split_into_words() {
         assert_eq!(split_words(r#"-NoProfile  -Command "a b" c"d e"f"#), ["-NoProfile", "-Command", "a b", "cd ef"]);
@@ -957,11 +1018,11 @@ mod files {
     /// keeps the default rather than reading as `false`.
     #[test]
     fn the_mcp_door_is_on_until_turned_off() {
-        let none: FilerToml = toml::from_str("[ui]\nfont_size = 14.0\n").unwrap();
+        let none: KuraToml = toml::from_str("[ui]\nfont_size = 14.0\n").unwrap();
         assert!(none.mcp.enable);
-        let empty: FilerToml = toml::from_str("[mcp]\n").unwrap();
+        let empty: KuraToml = toml::from_str("[mcp]\n").unwrap();
         assert!(empty.mcp.enable);
-        let off: FilerToml = toml::from_str("[mcp]\nenable = false\n").unwrap();
+        let off: KuraToml = toml::from_str("[mcp]\nenable = false\n").unwrap();
         assert!(!off.mcp.enable);
     }
 
@@ -975,15 +1036,15 @@ mod files {
     /// every existing install already gets.
     #[test]
     fn it_is_absent_until_it_is_asked_for() {
-        let none: FilerToml = toml::from_str("[ui]\nfont_size = 14.0\n").unwrap();
+        let none: KuraToml = toml::from_str("[ui]\nfont_size = 14.0\n").unwrap();
         assert_eq!(none.term, TermCfg::default());
         assert!(none.term.shell.is_empty(), "nothing said means the platform default");
 
-        let named: FilerToml = toml::from_str("[term]\nshell = \"pwsh\"\n").unwrap();
+        let named: KuraToml = toml::from_str("[term]\nshell = \"pwsh\"\n").unwrap();
         assert_eq!(named.term.shell, "pwsh");
         assert!(named.term.args.is_empty(), "args are optional");
 
-        let with_args: FilerToml =
+        let with_args: KuraToml =
             toml::from_str("[term]\nshell = \"pwsh\"\nargs = [\"-NoLogo\"]\n").unwrap();
         assert_eq!(with_args.term.args, vec!["-NoLogo".to_string()]);
     }
@@ -991,7 +1052,7 @@ mod files {
     /// `[[preview]]` parses, defaults sensibly, and the first match wins.
     #[test]
     fn a_preview_rule_is_read_and_matched() {
-        let cfg: FilerToml = toml::from_str(
+        let cfg: KuraToml = toml::from_str(
             "[[preview]]\n\
              match = \"*.pdf\"\n\
              run = 'pdftoppm -f {n} -l {n} {path} {out}'\n\
@@ -1019,7 +1080,7 @@ mod files {
         // Case does not decide it: `.PDF` is how a download arrives.
         assert_eq!(m("/a/REPORT.PDF"), Some("*.pdf"));
         assert_eq!(m("/a/clip.mkv"), Some("*.{mp4,mkv}"));
-        assert_eq!(m("/a/notes.txt"), None, "anything else is filer's own job");
+        assert_eq!(m("/a/notes.txt"), None, "anything else is kura's own job");
     }
 
     /// A section in the wrong half of the pair is named, with where it goes.
@@ -1030,14 +1091,14 @@ mod files {
     /// error anywhere, it simply does nothing, and every report of the problem
     /// arrives as "my shell setting is being ignored".
     #[test]
-    fn a_filer_section_in_yazi_toml_is_named() {
+    fn a_kura_section_in_yazi_toml_is_named() {
         let m = Misplaced::in_file("[term]\nshell = \"pwsh\"\n", ConfigFile::Yazi);
         assert_eq!(m.sections, ["[term]"]);
         assert!(!m.breaks_parse, "yazi.toml still parses; the section is just unread");
 
         let mut w = Vec::new();
-        m.warn(r"C:\x\yazi.toml", "filer.toml", &mut w);
-        assert_eq!(w, [r"C:\x\yazi.toml: [term] belongs in filer.toml and was ignored"]);
+        m.warn(r"C:\x\yazi.toml", "kura.toml", &mut w);
+        assert_eq!(w, [r"C:\x\yazi.toml: [term] belongs in kura.toml and was ignored"]);
 
         let text = "[ui]\na = 1\n[term]\nb = 2\n[line_args]\nc = \"d\"\n";
         assert_eq!(Misplaced::in_file(text, ConfigFile::Yazi).sections, ["[ui]", "[term]", "[line_args]"]);
@@ -1062,7 +1123,7 @@ mod files {
     ///
     /// yazi's `[preview]` is a table, so serde reads the array's first entry as
     /// the `wrap` string and reports "invalid type: map, expected a string" -- a
-    /// message that sends the reader to a line they copied out of filer's own
+    /// message that sends the reader to a line they copied out of kura's own
     /// README. Worse, the failure drops the file entirely, openers and all.
     #[test]
     fn a_preview_rule_in_yazi_toml_is_named_as_fatal() {
@@ -1074,8 +1135,8 @@ mod files {
         assert!(m.breaks_parse);
 
         let mut w = Vec::new();
-        m.warn(r"C:\x\yazi.toml", "filer.toml", &mut w);
-        let said = r"C:\x\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read";
+        m.warn(r"C:\x\yazi.toml", "kura.toml", &mut w);
+        let said = r"C:\x\yazi.toml: [[preview]] belongs in kura.toml, and nothing in this file was read";
         assert_eq!(w, [said]);
     }
 
@@ -1088,11 +1149,11 @@ mod files {
         std::fs::write(dir.join("yazi.toml"), "[[preview]]\nmatch = \"*.pdf\"\nrun = \"x\"\n").unwrap();
         std::fs::write(dir.join("theme.toml"), "[mgr\n").unwrap();
         std::fs::write(dir.join("keymap.toml"), "[[mgr.keymap]\n").unwrap();
-        std::fs::write(dir.join("filer.toml"), "[ui]\nfont_size = 16.0\n[opener]\nedit = []\n").unwrap();
+        std::fs::write(dir.join("kura.toml"), "[ui]\nfont_size = 16.0\n[opener]\nedit = []\n").unwrap();
         let (cfg, _) = Config::read(std::slice::from_ref(&dir));
         let mut unread: Vec<String> = cfg.unread.iter().map(|p| crate::util::file_name(p)).collect();
         unread.sort();
-        assert_eq!(unread, ["keymap.toml", "theme.toml", "yazi.toml"], "filer.toml was read, [opener] aside");
+        assert_eq!(unread, ["keymap.toml", "theme.toml", "yazi.toml"], "kura.toml was read, [opener] aside");
         assert_eq!(cfg.loaded.len(), 4, "all four were read from disk");
     }
 
@@ -1101,20 +1162,20 @@ mod files {
     fn the_right_preview_shape_is_not_flagged() {
         let yazi = "[preview]\nmax_width = 600\nimage_filter = \"triangle\"\n";
         assert_eq!(Misplaced::in_file(yazi, ConfigFile::Yazi), Misplaced::default());
-        // And the same table in filer.toml is the one that belongs elsewhere.
-        let m = Misplaced::in_file(yazi, ConfigFile::Filer);
+        // And the same table in kura.toml is the one that belongs elsewhere.
+        let m = Misplaced::in_file(yazi, ConfigFile::Kura);
         assert_eq!(m.sections, ["[preview]"]);
         assert!(m.breaks_parse);
 
         let rules = "[[preview]]\nmatch = \"*.pdf\"\nrun = \"x\"\n";
-        assert_eq!(Misplaced::in_file(rules, ConfigFile::Filer), Misplaced::default());
+        assert_eq!(Misplaced::in_file(rules, ConfigFile::Kura), Misplaced::default());
     }
 
-    /// The check runs both ways: yazi's tables in `filer.toml` are dead too.
+    /// The check runs both ways: yazi's tables in `kura.toml` are dead too.
     #[test]
-    fn a_yazi_section_in_filer_toml_is_named() {
+    fn a_yazi_section_in_kura_toml_is_named() {
         let text = "[opener]\nedit = []\n\n[mgr]\nratio = [1, 4, 3]\n";
-        let m = Misplaced::in_file(text, ConfigFile::Filer);
+        let m = Misplaced::in_file(text, ConfigFile::Kura);
         assert_eq!(m.sections, ["[mgr]", "[opener]"]);
         assert!(!m.breaks_parse);
     }
@@ -1131,8 +1192,8 @@ mod files {
     /// The shipped example belongs where it says to copy it.
     #[test]
     fn the_example_is_in_the_right_file() {
-        let text = std::fs::read_to_string("filer.example.toml").expect("the shipped example");
-        assert_eq!(Misplaced::in_file(&text, ConfigFile::Filer), Misplaced::default());
+        let text = std::fs::read_to_string("kura.example.toml").expect("the shipped example");
+        assert_eq!(Misplaced::in_file(&text, ConfigFile::Kura), Misplaced::default());
     }
 
     /// 33.12: two misplaced sections in one file, and the cost is
@@ -1155,12 +1216,12 @@ mod files {
         assert!(m.breaks_parse, "one of them is fatal, so the file is");
 
         let mut w = Vec::new();
-        m.warn(r"C:\x\yazi.toml", "filer.toml", &mut w);
+        m.warn(r"C:\x\yazi.toml", "kura.toml", &mut w);
         assert_eq!(
             w,
             [
-                r"C:\x\yazi.toml: [term] belongs in filer.toml, and nothing in this file was read",
-                r"C:\x\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read",
+                r"C:\x\yazi.toml: [term] belongs in kura.toml, and nothing in this file was read",
+                r"C:\x\yazi.toml: [[preview]] belongs in kura.toml, and nothing in this file was read",
             ],
             "a line each, and both name the file's cost rather than the section's",
         );
@@ -1173,32 +1234,32 @@ mod files {
     /// the other way. `[opener]` is the row's own example and it is the
     /// expensive one to get wrong: every opener in the file is dead.
     #[test]
-    fn a_yazi_section_in_filer_toml_is_told_where_to_go() {
-        let m = Misplaced::in_file("[opener]\nedit = []\n", ConfigFile::Filer);
+    fn a_yazi_section_in_kura_toml_is_told_where_to_go() {
+        let m = Misplaced::in_file("[opener]\nedit = []\n", ConfigFile::Kura);
         let mut w = Vec::new();
-        m.warn(r"C:\x\filer.toml", "yazi.toml", &mut w);
-        assert_eq!(w, [r"C:\x\filer.toml: [opener] belongs in yazi.toml and was ignored"]);
+        m.warn(r"C:\x\kura.toml", "yazi.toml", &mut w);
+        assert_eq!(w, [r"C:\x\kura.toml: [opener] belongs in yazi.toml and was ignored"]);
     }
 
-    /// A `filer.toml` written before `[term]` existed still reads.
+    /// A `kura.toml` written before `[term]` existed still reads.
     #[test]
     fn an_older_config_is_unaffected() {
-        let text = std::fs::read_to_string("filer.example.toml").expect("the shipped example");
-        let cfg: FilerToml = toml::from_str(&text).expect("the example has to parse");
+        let text = std::fs::read_to_string("kura.example.toml").expect("the shipped example");
+        let cfg: KuraToml = toml::from_str(&text).expect("the example has to parse");
         assert_eq!(cfg.ui.font_size, 14.0);
     }
 
-    /// #239, #240: a `[ui] backend` filer cannot use is a warning when the
-    /// file is read, so `filer env` says it as the window does.
+    /// #239, #240: a `[ui] backend` kura cannot use is a warning when the
+    /// file is read, so `kura env` says it as the window does.
     #[test]
     fn a_bad_backend_is_warned_about_when_the_file_is_read() {
         let dir = crate::util::test_dir("backend-warn");
-        std::fs::write(dir.join("filer.toml"), "[ui]\nbackend = \"directx\"\n").unwrap();
+        std::fs::write(dir.join("kura.toml"), "[ui]\nbackend = \"directx\"\n").unwrap();
         let (cfg, _) = Config::read(std::slice::from_ref(&dir));
         let said: Vec<_> = cfg.warnings.iter().filter(|w| w.contains("\"directx\"")).collect();
         assert_eq!(said.len(), 1, "{:?}", cfg.warnings);
-        assert!(said[0].contains("filer.toml: [ui] backend"), "names the file: {}", said[0]);
-        std::fs::write(dir.join("filer.toml"), "[ui]\nbackend = \"gl\"\n").unwrap();
+        assert!(said[0].contains("kura.toml: [ui] backend"), "names the file: {}", said[0]);
+        std::fs::write(dir.join("kura.toml"), "[ui]\nbackend = \"gl\"\n").unwrap();
         let (cfg, _) = Config::read(std::slice::from_ref(&dir));
         assert!(!cfg.warnings.iter().any(|w| w.contains("backend")), "{:?}", cfg.warnings);
     }
@@ -1209,13 +1270,13 @@ mod files {
 mod reload_tests {
     use super::*;
 
-    /// A `filer.toml` broken mid-edit keeps the `[ui]` it gave last time, and
+    /// A `kura.toml` broken mid-edit keeps the `[ui]` it gave last time, and
     /// the warning says so; a fresh start on the same file gets the defaults.
     /// The files that still parse are read as usual.
     #[test]
     fn a_broken_file_keeps_what_it_gave_last_time() {
         let dir = crate::util::test_dir("reload-broken");
-        std::fs::write(dir.join("filer.toml"), "[ui]\nfont_size = 28.0\n").unwrap();
+        std::fs::write(dir.join("kura.toml"), "[ui]\nfont_size = 28.0\n").unwrap();
         std::fs::write(dir.join("keymap.toml"), "[[mgr.prepend_keymap]]\non = \"<F9>\"\nrun = \"quit\"\n").unwrap();
         let dirs = vec![dir.clone()];
         let f9 = |c: &Config| c.keymap.mgr.iter().any(|b| crate::config::keys::render_seq(&b.on) == "<F9>");
@@ -1223,16 +1284,16 @@ mod reload_tests {
         assert_eq!(cfg.ui.font_size, 28.0);
         assert!(f9(&cfg));
 
-        std::fs::write(dir.join("filer.toml"), "[ui]\nfont_size = 28.0\nthis line is not toml\n").unwrap();
+        std::fs::write(dir.join("kura.toml"), "[ui]\nfont_size = 28.0\nthis line is not toml\n").unwrap();
         let mut cfg = Config::reload_from(&mut cfg, &dirs);
         assert_eq!(cfg.ui.font_size, 28.0, "kept from the last good read");
         assert!(f9(&cfg), "the keymap still parses and is read as usual");
         let said = cfg.warnings.first().cloned().unwrap_or_default();
-        assert!(said.contains("filer.toml") && said.ends_with("stay in force until it parses again)"), "{said}");
+        assert!(said.contains("kura.toml") && said.ends_with("stay in force until it parses again)"), "{said}");
         assert_eq!(Config::read(&dirs).0.ui.font_size, Ui::default().font_size, "at start there is nothing to keep");
 
-        // The keymap the same way, while the fixed `filer.toml` is read again.
-        std::fs::write(dir.join("filer.toml"), "[ui]\nfont_size = 20.0\n").unwrap();
+        // The keymap the same way, while the fixed `kura.toml` is read again.
+        std::fs::write(dir.join("kura.toml"), "[ui]\nfont_size = 20.0\n").unwrap();
         std::fs::write(dir.join("keymap.toml"), "[[mgr.prepend_keymap]\n").unwrap();
         let cfg = Config::reload_from(&mut cfg, &dirs);
         assert_eq!(cfg.ui.font_size, 20.0, "fixed, so read again");
@@ -1241,14 +1302,14 @@ mod reload_tests {
         assert!(said.ends_with("stay in force until it parses again)"), "{said}");
     }
 
-    /// A yazi folder and a filer folder, each made empty, in the order the
+    /// A yazi folder and a kura folder, each made empty, in the order the
     /// app reads them.
     fn two_dirs(label: &str) -> (PathBuf, PathBuf, Vec<PathBuf>) {
         let root = crate::util::test_dir(label);
-        let (yazi, filer) = (root.join("yazi"), root.join("filer"));
+        let (yazi, kura) = (root.join("yazi"), root.join("kura"));
         std::fs::create_dir_all(&yazi).unwrap();
-        std::fs::create_dir_all(&filer).unwrap();
-        (yazi.clone(), filer.clone(), vec![yazi, filer])
+        std::fs::create_dir_all(&kura).unwrap();
+        (yazi.clone(), kura.clone(), vec![yazi, kura])
     }
 
     fn mgr_run(c: &Config, key: &str) -> Option<String> {
@@ -1260,18 +1321,18 @@ mod reload_tests {
     }
 
     /// TESTING.md 33.19 (Q57, Q60): `Q` bound in both folders is a warning
-    /// naming each file by its full path; `T` rebound in filer's file only is
+    /// naming each file by its full path; `T` rebound in kura's file only is
     /// an override, not a warning; `T` bound to its own default is neither.
-    /// What `filer env` prints under Warnings and Overrides is these two lists.
+    /// What `kura env` prints under Warnings and Overrides is these two lists.
     #[test]
     fn a_key_bound_in_both_folders_names_both_paths() {
-        let (yazi, filer, dirs) = two_dirs("keymap-both-dirs");
+        let (yazi, kura, dirs) = two_dirs("keymap-both-dirs");
         std::fs::write(yazi.join("keymap.toml"), "[[mgr.prepend_keymap]]\non = \"Q\"\nrun = \"quit\"\n").unwrap();
         let mine = "[[mgr.prepend_keymap]]\non = \"Q\"\nrun = \"hidden toggle\"\n\
                     [[mgr.prepend_keymap]]\non = \"T\"\nrun = \"hidden toggle\"\n";
-        std::fs::write(filer.join("keymap.toml"), mine).unwrap();
+        std::fs::write(kura.join("keymap.toml"), mine).unwrap();
         let cfg = Config::read(&dirs).0;
-        let (y, f) = (yazi.join("keymap.toml").display().to_string(), filer.join("keymap.toml").display().to_string());
+        let (y, f) = (yazi.join("keymap.toml").display().to_string(), kura.join("keymap.toml").display().to_string());
         let want = format!("[mgr] `Q` is bound more than once; only `hidden toggle` ({f}) runs, not `quit` ({y})");
         assert!(cfg.warnings.contains(&want), "{:?}", cfg.warnings);
         assert!(!cfg.warnings.iter().any(|w| w.contains("`T`")), "{:?}", cfg.warnings);
@@ -1280,7 +1341,7 @@ mod reload_tests {
         assert_eq!(mgr_run(&cfg, "Q").as_deref(), Some("hidden toggle"));
 
         let same = "[[mgr.prepend_keymap]]\non = \"T\"\nrun = \"plugin toggle-pane max-preview\"\n";
-        std::fs::write(filer.join("keymap.toml"), same).unwrap();
+        std::fs::write(kura.join("keymap.toml"), same).unwrap();
         let mut prev = cfg;
         let cfg = Config::reload_from(&mut prev, &dirs);
         assert!(!cfg.warnings.iter().any(|w| w.contains("`T`")), "{:?}", cfg.warnings);
@@ -1309,8 +1370,8 @@ mod reload_tests {
     /// `prepend_keymap` and reloaded, nothing is said and `q` quits again.
     #[test]
     fn a_one_entry_replacement_is_named_and_a_prepend_is_not() {
-        let (_, filer, dirs) = two_dirs("keymap-short-replace");
-        let path = filer.join("keymap.toml");
+        let (_, kura, dirs) = two_dirs("keymap-short-replace");
+        let path = kura.join("keymap.toml");
         std::fs::write(&path, "[[mgr.keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n").unwrap();
         let mut cfg = Config::read(&dirs).0;
         let start = format!("{}: `[[mgr.keymap]]` replaces all ", path.display());

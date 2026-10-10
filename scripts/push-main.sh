@@ -177,7 +177,7 @@ try:
         tip = version(open(os.path.join(wt, "Cargo.toml"), encoding="utf-8", newline="").read())
         new = bump(tip, base, own)
 
-        # Cargo.toml and Cargo.lock may differ only in filer's own version.
+        # Cargo.toml and Cargo.lock may differ only in kura's own version.
         for f in ("Cargo.toml", "Cargo.lock"):
             for line in out("diff", "-U0", f"{c}^", c, "--", f).splitlines():
                 if line.startswith(("+++", "---", "@@", "diff ", "index ")):
@@ -216,7 +216,7 @@ try:
             open(path, "w", encoding="utf-8", newline="").write(log)
 
             for f, pat in (("Cargo.toml", r'^(version = ")[\d.]+(")'),
-                           ("Cargo.lock", r'^(name = "filer"\nversion = ")[\d.]+(")')):
+                           ("Cargo.lock", r'^(name = "kura"\nversion = ")[\d.]+(")')):
                 path = os.path.join(wt, f)
                 text = open(path, encoding="utf-8", newline="").read()
                 text, n = re.subn(pat, r"\g<1>" + vs(new) + r"\g<2>", text, count=1, flags=re.M)

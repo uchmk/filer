@@ -10,7 +10,7 @@
 /// Where the form lives. A fork should point this at its own tracker; the
 /// program cannot know it has been forked, and silently filing reports against
 /// somebody else's repository would be worse than not opening a browser.
-const REPO: &str = "https://github.com/uchmk/filer";
+const REPO: &str = "https://github.com/uchmk/kura";
 
 /// The template's filename, and the `id`s of the two fields filled in here,
 /// from `.github/ISSUE_TEMPLATE/bug_report.yml`. Renaming a field there without
@@ -86,7 +86,7 @@ pub(crate) fn without_home(text: &str, home: Option<&std::path::Path>) -> String
 /// that say whose file it is, without the home directory above them.
 fn short_name(p: &std::path::Path) -> String {
     let parts: Vec<String> = p.components().rev().take(3).map(|c| c.as_os_str().to_string_lossy().into_owned()).collect();
-    let tail: Vec<&String> = parts.iter().rev().skip_while(|c| !matches!(c.as_str(), "yazi" | "filer")).collect();
+    let tail: Vec<&String> = parts.iter().rev().skip_while(|c| !matches!(c.as_str(), "yazi" | "kura")).collect();
     let keep = if tail.is_empty() { parts.iter().rev().skip(1).collect() } else { tail };
     keep.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(std::path::MAIN_SEPARATOR_STR)
 }
@@ -94,7 +94,7 @@ fn short_name(p: &std::path::Path) -> String {
 /// What `--version` prints, and for the same reason: with more than one Windows
 /// binary in circulation, which one is running is the first thing to settle.
 pub fn version_line() -> String {
-    format!("filer {} ({})", env!("CARGO_PKG_VERSION"), std::env::consts::ARCH)
+    format!("kura {} ({})", env!("CARGO_PKG_VERSION"), std::env::consts::ARCH)
 }
 
 /// The OS line, in the shape the form's own PowerShell snippet produces, so a
@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     fn encodes_the_characters_a_query_string_cannot_carry() {
-        assert_eq!(encode("filer 0.1.0 (x86_64)"), "filer%200.1.0%20%28x86_64%29");
+        assert_eq!(encode("kura 0.1.0 (x86_64)"), "kura%200.1.0%20%28x86_64%29");
         // The ones that would end the parameter or start another.
         assert_eq!(encode("a&b=c#d"), "a%26b%3Dc%23d");
         // A newline separates the OS line from the architecture line.
@@ -359,10 +359,10 @@ mod tests {
         let p = |s: &str| std::path::PathBuf::from(s.replace('/', &sep.to_string()));
         assert_eq!(short_name(&p("/home/someone/.config/yazi/keymap.toml")), format!("yazi{sep}keymap.toml"));
         assert_eq!(short_name(&p("/Users/someone/AppData/Roaming/yazi/config/yazi.toml")), format!("yazi{sep}config{sep}yazi.toml"));
-        assert_eq!(short_name(&p("/somewhere/else/conf/filer.toml")), format!("conf{sep}filer.toml"));
-        let c = context(Some("Copy: a.txt: denied"), &[p("/home/someone/.config/filer/filer.toml")]);
+        assert_eq!(short_name(&p("/somewhere/else/conf/kura.toml")), format!("conf{sep}kura.toml"));
+        let c = context(Some("Copy: a.txt: denied"), &[p("/home/someone/.config/kura/kura.toml")]);
         assert!(c.starts_with("Last error: Copy: a.txt: denied\n"), "{c}");
-        assert!(c.ends_with(&format!("Config: filer{sep}filer.toml")), "{c}");
+        assert!(c.ends_with(&format!("Config: kura{sep}kura.toml")), "{c}");
         assert!(!c.contains("someone"), "no home directory: {c}");
 
         // The QA agent's finding on section 26: an error that names a full
@@ -385,9 +385,9 @@ mod tests {
     #[test]
     fn the_url_carries_the_template_and_both_fields() {
         let u = url(&[]);
-        assert!(u.starts_with("https://github.com/uchmk/filer/issues/new?"), "{u}");
+        assert!(u.starts_with("https://github.com/uchmk/kura/issues/new?"), "{u}");
         assert!(u.contains("template=bug_report.yml"), "{u}");
-        assert!(u.contains("&version=filer%20"), "{u}");
+        assert!(u.contains("&version=kura%20"), "{u}");
         assert!(u.contains("&os=OS%3A%20"), "{u}");
         // Nothing unescaped can have leaked in and split the parameters.
         assert!(!u.contains(' '), "{u}");

@@ -65,10 +65,10 @@ file cannot give you, because from in here every row looks equally undone.
 
 ## What you need
 
-1. **A `filer.exe`.** Either:
-   - a [release](https://github.com/uchmk/filer/releases) — a plain download, no
+1. **A `kura.exe`.** Either:
+   - a [release](https://github.com/uchmk/kura/releases) — a plain download, no
      account needed; or
-   - the artifact on the newest green [Build run](https://github.com/uchmk/filer/actions/workflows/build.yml)
+   - the artifact on the newest green [Build run](https://github.com/uchmk/kura/actions/workflows/build.yml)
      — needs a signed-in GitHub account with access, and expires after 90 days; or
    - `cargo build --release` in a clone, which needs a Rust toolchain (1.95 or
      newer, as egui 0.36 requires) and the MSVC build tools.
@@ -77,10 +77,10 @@ file cannot give you, because from in here every row looks equally undone.
    ```powershell
    .\scripts\make-fixtures.ps1
    ```
-   It writes to `filer-fixtures` on your desktop unless `-Path` says otherwise,
+   It writes to `kura-fixtures` on your desktop unless `-Path` says otherwise,
    and clears that directory first. `git` on `PATH` is optional; without it the
    repository fixture is skipped and the git checks with it.
-3. **Nothing else.** With no `yazi.toml` or `keymap.toml` anywhere, filer uses
+3. **Nothing else.** With no `yazi.toml` or `keymap.toml` anywhere, kura uses
    its built-in defaults, which is what the key names below mean. If you *do*
    have a yazi config, it is read, and your own bindings win — worth knowing
    before reporting a key as wrong.
@@ -102,7 +102,7 @@ at the end to avoid the renumbering is how 11 came to be followed by 28, 27, 32,
 31, 30 and then 12, which is what this note exists to prevent.
 
 Versions matter
-— say which `filer.exe` (the release tag, or the commit the artifact is named
+— say which `kura.exe` (the release tag, or the commit the artifact is named
 for). A check that cannot be run at all (no editor installed, no network share)
 is a skip, not a failure; say which.
 
@@ -145,11 +145,11 @@ drawing has been seen. `<C-t>` opens it.
 | 1.15 | `<C-S-p>` inside the terminal | The command palette opens, and running something from it works |
 | 1.16 | With the OSC 7 hook loaded (as 1.18), `cd` somewhere in the shell, then `<A-Up>` | The file list follows to where the shell is |
 | 1.17 | Select two files, `<A-t>` | Their paths are typed onto the shell's line, quoted, **not run** |
-| 1.18 | With a shell that reports OSC 7, change directory in the list. PowerShell 7 does not by itself (pwsh 7.6.6 sent none): load the hook first (`filer shell-hook \| Add-Content $PROFILE` for pwsh, `filer shell-hook bash >> ~/.bashrc` for bash; section 29), then `<C-S-t>` and `<C-t>` | No stray `cd` is typed into the shell |
-| 1.19 | Run something slow in the pane (`sleep 30`) and press `<C-c>` (v0.47.34) | The command stops and the prompt comes back. **filer is still open** — until v0.47.34 this ran `[mgr]` `close`, so the tab went and the last one took filer and the shell with it |
+| 1.18 | With a shell that reports OSC 7, change directory in the list. PowerShell 7 does not by itself (pwsh 7.6.6 sent none): load the hook first (`kura shell-hook \| Add-Content $PROFILE` for pwsh, `kura shell-hook bash >> ~/.bashrc` for bash; section 29), then `<C-S-t>` and `<C-t>` | No stray `cd` is typed into the shell |
+| 1.19 | Run something slow in the pane (`sleep 30`) and press `<C-c>` (v0.47.34) | The command stops and the prompt comes back. **kura is still open** — until v0.47.34 this ran `[mgr]` `close`, so the tab went and the last one took kura and the shell with it |
 | 1.20 | `<A-t>` on a file with a `'` in its name, in each shell `[term] shell` can name (v0.47.34) | The line is one word the shell can read: `''` doubled for PowerShell, `'\''` for bash, plain `"…"` for cmd. **No `>>` continuation prompt** |
-| 1.21 | Walk the list into a directory with a `'` in its name, with the pane open (v0.47.34) | The `cd` lands and the prompt returns. The same quoting as 1.20, on the path filer types for itself |
-| 1.22 | With `[term] shell` set to Git Bash's full path, walk the list into an **ordinary** directory — no `'`, no space (v0.48.1) | The `cd` lands and the prompt is in that directory. **Not `bash: cd: R:Tempfiler-fixtures: No such file or directory`** — an unquoted `\` is an escape to a POSIX shell, so until v0.48.1 no ordinary Windows path could be walked into at all. 1.20 and 1.21 both name a `'`, which is why they missed it |
+| 1.21 | Walk the list into a directory with a `'` in its name, with the pane open (v0.47.34) | The `cd` lands and the prompt returns. The same quoting as 1.20, on the path kura types for itself |
+| 1.22 | With `[term] shell` set to Git Bash's full path, walk the list into an **ordinary** directory — no `'`, no space (v0.48.1) | The `cd` lands and the prompt is in that directory. **Not `bash: cd: R:Tempkura-fixtures: No such file or directory`** — an unquoted `\` is an escape to a POSIX shell, so until v0.48.1 no ordinary Windows path could be walked into at all. 1.20 and 1.21 both name a `'`, which is why they missed it |
 | 1.23 | The same shell, `<A-t>` on a file with an **ordinary** name (v0.48.1) | The path arrives whole, backslashes and all. This shares `quote()` with 1.22 and was only ever inferred from it, never pressed |
 | 1.24 | In the pane, run a full-screen TUI — `gh dash`, or `lazygit` (v0.48.2) | It draws: alternate screen, colours, box drawing, its own split panes. Seen once already; this row is for keeping it seen |
 | 1.25 | Drive that TUI, then quit it (`j` / `k` to move, `q` to leave) | The keys reach it, and quitting gives the pane back with a working prompt. **Drawing and driving are separate claims** — 1.24 passing says nothing about this one, and a TUI that cannot be left would strand the pane |
@@ -160,19 +160,19 @@ drawing has been seen. `<C-t>` opens it.
 | 1.30 | Maximise, then `<C-S-t>` (end the shell) | The pane goes, and the list is drawn full height rather than under a gap. Nothing is left maximised with no pane in it |
 | 1.31 | In the pane, `lazygit`, then `?` to open its key list, then `Esc` (v0.48.6) | **The list closes.** Until v0.48.6 it never did, however often `Esc` was pressed — the same in gh-dash, or any tcell program. Windows Terminal is the control: it has always closed there |
 | 1.32 | At the pwsh prompt in the pane, type `abc` without Enter, then `Esc` | The line empties. PSReadLine was never affected; this row is there so the change that fixed 1.31 is seen not to have broken it |
-| 1.33 | With the bundled ConPTY beside filer.exe, `pwsh -File scripts\keyprobe.ps1 -Query` in the pane (v0.49.0) | The primary DA reply reads `\e[?6c` — filer's own answer, passed through — and no `{up:…}` appears between characters. `\e[?61;6;7;22;23;24;28;32;42c` means the ConPTY built into Windows answered instead: the two files are missing, or not beside filer.exe |
+| 1.33 | With the bundled ConPTY beside kura.exe, `pwsh -File scripts\keyprobe.ps1 -Query` in the pane (v0.49.0) | The primary DA reply reads `\e[?6c` — kura's own answer, passed through — and no `{up:…}` appears between characters. `\e[?61;6;7;22;23;24;28;32;42c` means the ConPTY built into Windows answered instead: the two files are missing, or not beside kura.exe |
 | 1.34 | Then `lazygit` in the pane | It opens on its usual view with **no menu open**. On the ConPTY built into Windows it started with its copy menu showing, a key nobody pressed |
 | 1.35 | Run `lazygit` (or any long command) in the pane, then `<C-S-t>` (v0.52.0) | A dialog asks **End the shell?** and names what is running -- by program name (`pwsh`), not the console's default full-path title (`C:\...\pwsh.exe`; v0.80.3, #280 proposal 3). `n` keeps the shell and the program; `y` ends both, and a toast says **Ended the shell** |
 | 1.36 | At a bare prompt with nothing running, `<C-S-t>` | **No dialog**: the pane goes at once, and the toast says **Ended the shell** — so it no longer looks like `<C-t>` merely hiding it |
-| 1.37 | With the pane **closed**, select a file and `<A-t>` (v0.57.0) | The pane opens and, once the shell's prompt is up, the quoted path is on its line -- not "The terminal is not open", and not lost to a shell still loading its profile. The keys are in the pane. Since v0.75.17 (Q39) the path waits until the shell has gone quiet after its first output -- for 800 ms since v0.78.3 (#250: x64's pwsh is silent for over 300 ms while its profile loads), at once when the shell marks its prompt with OSC 133 -- 5 s at most, not just for that first output: with `FILER_PTY_LOG` set, the `in` record of the path comes after the last `out` record of the profile and the prompt, not after the banner |
+| 1.37 | With the pane **closed**, select a file and `<A-t>` (v0.57.0) | The pane opens and, once the shell's prompt is up, the quoted path is on its line -- not "The terminal is not open", and not lost to a shell still loading its profile. The keys are in the pane. Since v0.75.17 (Q39) the path waits until the shell has gone quiet after its first output -- for 800 ms since v0.78.3 (#250: x64's pwsh is silent for over 300 ms while its profile loads), at once when the shell marks its prompt with OSC 133 -- 5 s at most, not just for that first output: with `KURA_PTY_LOG` set, the `in` record of the path comes after the last `out` record of the profile and the prompt, not after the banner |
 | 1.38 | With a shell open, `<C-t>` back to the list, then `<C-S-t>`; then `<C-S-t>` again (v0.67.25, Q53) | The first ends the shell from the list: the pane goes and the toast is **Ended the shell** (with a program running, the **End the shell?** question first, as in 1.35). The second, with no pane left, says **No terminal to close** — it used to do nothing at all. Ending it with `<C-S-t>` right after `<C-t>` started it leaves no **Started …** toast beside **Ended the shell**: only **Ended the shell** shows (v0.79.4, #280 proposal 2) |
-| 1.39 | macOS / Linux: start filer with no `TERM` (`env -u TERM filer`, or from a desktop launcher), `<C-t>`, then `echo $TERM $COLORTERM` (v0.75.23) | `xterm-256color truecolor`. A long path typed with `<A-t>` wraps onto the next row whole, rather than scrolling sideways inside one row as on a dumb terminal |
-| 1.40 | `FILER_TERM_SHELL=nosuchshell`, `<C-t>`; then without it, `<C-t>`, quit, and `filer env` (v0.78.13) | The first says ``Terminal failed: `nosuchshell` was not found on PATH — set [term] shell to one that is``, naming the program. `filer env`'s `Terminal pane` row names the shell the last run's pane started, with its size: `pwsh, 12 x 159 (lines x columns)`. Read `filer env` right after the first run instead (quit, no second `<C-t>`) and the row reads `did not start: `nosuchshell` was not found on PATH …` (v0.78.50, #254). With a full path instead (`FILER_TERM_SHELL=C:\nope\x.exe`) the toast says ``Terminal failed: `C:\nope\x.exe` does not exist — set [term] shell to one that is``, never `PATH`, and `filer env` agrees (v0.78.98) |
-| 1.41 | With `FILER_PTY_LOG` set, in the pane write `\e]11;?\e\\`, then `\e]10;?\e\\` (`printf`, or a script that writes them), and read the log (v0.78.47, #265; the second sentence reworded in v0.78.89, #269) | Each query's `out` line is followed by an `in reply` line: `\e]11;rgb:RRRR/GGGG/BBBB\e\\` with the pane's own background (the theme's `bg_alt`), and for `\e]10;?` the foreground (`fg`). Each reply's time (the log's first column, in ms) is within 50 ms of its query's: a bubbletea program such as `gh dash` waits for this reply before it starts, and guesses after a pause when none comes, so a quick reply is what lets it start at once. Running `gh dash` itself is not needed (it signs in to the owner's GitHub; a person may try it) |
-| 1.42 | Note the `OpenConsole.exe` processes under filer (`Get-CimInstance Win32_Process -Filter "ParentProcessId=$((Get-Process filer).Id)"`); `FILER_TERM_SHELL=nosuchshell`, `<C-t>` three times, and read them again (v0.78.130) | The same ones as before: none added. Each failed `<C-t>` used to leave an `OpenConsole.exe --headless` that stayed until filer quit (the 2026-10 x64 run, finding 3) |
-| 1.43 | With `FILER_PTY_LOG` set, in pwsh press `<A-b>` and `<Up>` in the pane, then read the log (v0.78.130, #243) | Each key's `in key` line ends with its name in brackets after the record: `\e[66;48;98;1;2;1_  (Alt+b)`, then `(Up)`. A line that is not a key record (a paste, a reply) has no name |
-| 1.44 | `<C-t>`, then drag the border between the list and the terminal pane up, then down (v0.80.0, Q94) | Over the border the pointer turns into the up-and-down arrows and a thin accent line shows. The border follows the pointer while the button is held, and the pane's rows grow and shrink with it (`filer env`'s pane or `<State:>`'s `pane:`). It stops with six rows of the list left above, and with a terminal four rows tall at the bottom (its frame takes one, so `pane:` stops at 3 rows, e.g. `3x159`). A drag that starts a row inside the terminal selects text as before (1.11) |
-| 1.45 | After 1.44, double-click the border; then `<C-t>` twice (close and reopen the pane's keys), `<C-S-Enter>` twice, and resize the window (v0.80.0, Q94) | The double-click puts the border halfway between the top of the list and the top of the status bar. The height stays as dragged through the other steps (it is a share of the window, so a resize keeps the proportion). A new filer window starts at a third again: the height is not saved |
+| 1.39 | macOS / Linux: start kura with no `TERM` (`env -u TERM kura`, or from a desktop launcher), `<C-t>`, then `echo $TERM $COLORTERM` (v0.75.23) | `xterm-256color truecolor`. A long path typed with `<A-t>` wraps onto the next row whole, rather than scrolling sideways inside one row as on a dumb terminal |
+| 1.40 | `KURA_TERM_SHELL=nosuchshell`, `<C-t>`; then without it, `<C-t>`, quit, and `kura env` (v0.78.13) | The first says ``Terminal failed: `nosuchshell` was not found on PATH — set [term] shell to one that is``, naming the program. `kura env`'s `Terminal pane` row names the shell the last run's pane started, with its size: `pwsh, 12 x 159 (lines x columns)`. Read `kura env` right after the first run instead (quit, no second `<C-t>`) and the row reads `did not start: `nosuchshell` was not found on PATH …` (v0.78.50, #254). With a full path instead (`KURA_TERM_SHELL=C:\nope\x.exe`) the toast says ``Terminal failed: `C:\nope\x.exe` does not exist — set [term] shell to one that is``, never `PATH`, and `kura env` agrees (v0.78.98) |
+| 1.41 | With `KURA_PTY_LOG` set, in the pane write `\e]11;?\e\\`, then `\e]10;?\e\\` (`printf`, or a script that writes them), and read the log (v0.78.47, #265; the second sentence reworded in v0.78.89, #269) | Each query's `out` line is followed by an `in reply` line: `\e]11;rgb:RRRR/GGGG/BBBB\e\\` with the pane's own background (the theme's `bg_alt`), and for `\e]10;?` the foreground (`fg`). Each reply's time (the log's first column, in ms) is within 50 ms of its query's: a bubbletea program such as `gh dash` waits for this reply before it starts, and guesses after a pause when none comes, so a quick reply is what lets it start at once. Running `gh dash` itself is not needed (it signs in to the owner's GitHub; a person may try it) |
+| 1.42 | Note the `OpenConsole.exe` processes under kura (`Get-CimInstance Win32_Process -Filter "ParentProcessId=$((Get-Process kura).Id)"`); `KURA_TERM_SHELL=nosuchshell`, `<C-t>` three times, and read them again (v0.78.130) | The same ones as before: none added. Each failed `<C-t>` used to leave an `OpenConsole.exe --headless` that stayed until kura quit (the 2026-10 x64 run, finding 3) |
+| 1.43 | With `KURA_PTY_LOG` set, in pwsh press `<A-b>` and `<Up>` in the pane, then read the log (v0.78.130, #243) | Each key's `in key` line ends with its name in brackets after the record: `\e[66;48;98;1;2;1_  (Alt+b)`, then `(Up)`. A line that is not a key record (a paste, a reply) has no name |
+| 1.44 | `<C-t>`, then drag the border between the list and the terminal pane up, then down (v0.80.0, Q94) | Over the border the pointer turns into the up-and-down arrows and a thin accent line shows. The border follows the pointer while the button is held, and the pane's rows grow and shrink with it (`kura env`'s pane or `<State:>`'s `pane:`). It stops with six rows of the list left above, and with a terminal four rows tall at the bottom (its frame takes one, so `pane:` stops at 3 rows, e.g. `3x159`). A drag that starts a row inside the terminal selects text as before (1.11) |
+| 1.45 | After 1.44, double-click the border; then `<C-t>` twice (close and reopen the pane's keys), `<C-S-Enter>` twice, and resize the window (v0.80.0, Q94) | The double-click puts the border halfway between the top of the list and the top of the status bar. The height stays as dragged through the other steps (it is a share of the window, so a resize keeps the proportion). A new kura window starts at a third again: the height is not saved |
 | 1.46 | `<C-t>`, then `less` a long file (`less /etc/passwd`, or `Get-Content` piped into `less`/`more` on Windows); press `q`; run `less` again and press `<C-t>` (v0.83.0, Q77) | While `less` has the screen, a small `<C-t> list` tag shows at the pane's top-right corner on a faint plate, in the dim text colour; it names the key that leaves the pane (rebind `[term]`'s `close` and the tag follows). It goes when `less` quits with `q`, and when `<C-t>` hands the keys back to the list. `<State:>` reads `pane badge: <C-t> list` while it shows |
 | 1.47 | `<C-t>`; in the pane run `cat` (no bracketed paste); copy two lines of text elsewhere, press `<C-v>` in the pane, then right-click it. Answer `n` once and `y` once. Then at pwsh/bash prompt (bash asks for bracketed paste) copy two lines and paste (v0.86.32) | In `cat` and pwsh: a **Paste 2 lines?** box with the first lines of the text; `y` / `<Enter>` pastes, `n` / `<Esc>` pastes nothing; both `<C-v>` and right-click ask. A single copied line (with or without its line end) never asks, and neither does bash/zsh at the prompt |
 | 1.48 | `<C-t>`; `seq 300` in the pane; drag from a line in the middle of the pane up past its top edge and hold the button there; then drag down past the bottom edge; let go and paste in Notepad (v0.86.32) | While the pointer is above the pane the view scrolls back and the selection grows with it, faster the farther away; below the pane it scrolls toward the newest; held still inside the pane nothing scrolls; the pasted text runs from where it started to where it ended |
@@ -242,7 +242,7 @@ for commit `f2b30c5` is it, for as long as the 90 days last.
 | 4.3 | An SVG with **Japanese** text | Same. A font with kana and kanji is picked, rather than the text vanishing |
 | 4.4 | An SVG naming a font that is **not installed** | A fallback is used and something readable appears; it does not fail the whole render |
 | 4.5 | An SVG with **bold** or *italic* text | The weight and slant are there, not flattened to regular |
-| 4.6 | An SVG using a font **file next to it** rather than a system font: `font-family` names the family inside the file (v0.73.54) | The text is set in that font, not the Times fallback. filer reads `.ttf` / `.otf` / `.ttc` / `.otc` in the SVG's own folder (not below it); an `@font-face` `url()` is not followed, so the family name is what matches |
+| 4.6 | An SVG using a font **file next to it** rather than a system font: `font-family` names the family inside the file (v0.73.54) | The text is set in that font, not the Times fallback. kura reads `.ttf` / `.otf` / `.ttc` / `.otc` in the SVG's own folder (not below it); an `@font-face` `url()` is not followed, so the family name is what matches |
 | 4.7 | A **malformed** SVG (truncate one) | `bad SVG: …` on the preview, and the window keeps working |
 | 4.8 | Compare 4.2 and 4.3 against v0.33.5's build | Any difference in the glyphs is the new shaper; say what changed and attach both |
 | 4.9 | An SVG of a known size (a 100 × 100 with a circle of radius 40): `<A-i>` once, wait two seconds; then `<A-1>` (v0.73.53, #219) | `<A-i>` grows the picture by one step (1.25×) and it stays there -- before v0.73.53 it kept growing to the 4096 px cap as each sharper render lowered the fit. `<A-1>` shows the SVG at its own size in logical pixels, as a browser shows it (the circle 80 px across at 100% display scale, 120 at 150%; v0.73.62, Q65), caption `· 1:1`, `zoom: 100%` |
@@ -319,27 +319,27 @@ job's progress, its speed, and cancelling it from `w` all need a copy big enough
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 7.1 | `~` with no `filer.toml` anywhere | **Both** directories are listed, the empty one marked `nothing here`. Before v0.25.0 only files that existed were shown |
+| 7.1 | `~` with no `kura.toml` anywhere | **Both** directories are listed, the empty one marked `nothing here`. Before v0.25.0 only files that existed were shown |
 | 7.2 | Hover a path | The row lights up and the pointer becomes a hand |
 | 7.3 | Hover a key row | Nothing happens — it is not a link |
 | 7.4 | Click a config **file** | The panel closes, the list opens its directory with that file under the cursor. `<Enter>` then opens it |
 | 7.5 | Click a **directory** | The panel closes and the list goes there, empty or not |
-| 7.6 | Click the empty one, then create `filer.toml` there and `<C-F5>` | It appears in the panel next time, without `nothing here` |
-| 7.7 | With `YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` set | The listed directories follow them |
-| 7.7a | Both variables naming **one** folder that holds a `filer.toml`, spelled differently: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`, `$env:FILER_CONFIG_HOME = 'c:\CFG\'` (v0.73.12, #180); then `~`, `filer env`, and `<C-F5>` | The folder is listed **once** in the panel and in `filer env`'s Config section, and `<C-F5>` says `Reloaded 1 config file(s)`. Before, it was listed twice and counted 2 |
-| 7.7b | `$env:FILER_CONFIG_HOME` set to a 67-character folder, then `filer env` (v0.78.87, #248) | A key longer than 24 characters sits on its own line with its value indented below it, and the other rows' columns do not widen |
+| 7.6 | Click the empty one, then create `kura.toml` there and `<C-F5>` | It appears in the panel next time, without `nothing here` |
+| 7.7 | With `YAZI_CONFIG_HOME` / `KURA_CONFIG_HOME` set | The listed directories follow them |
+| 7.7a | Both variables naming **one** folder that holds a `kura.toml`, spelled differently: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`, `$env:KURA_CONFIG_HOME = 'c:\CFG\'` (v0.73.12, #180); then `~`, `kura env`, and `<C-F5>` | The folder is listed **once** in the panel and in `kura env`'s Config section, and `<C-F5>` says `Reloaded 1 config file(s)`. Before, it was listed twice and counted 2 |
+| 7.7b | `$env:KURA_CONFIG_HOME` set to a 67-character folder, then `kura env` (v0.78.87, #248) | A key longer than 24 characters sits on its own line with its value indented below it, and the other rows' columns do not widen |
 | 7.8 | A config warning line | Still yellow, and not clickable |
 
 ## 8. Which shell the pane runs (v0.24.0)
 
 The setting is one line; the point of the section is that the **default** is the
-thing that surprises people. filer reads the config only at start and on `<C-F5>`
+thing that surprises people. kura reads the config only at start and on `<C-F5>`
 (Q49), and a pane already running keeps the shell it started with, so a change to
 `[term]` takes `<C-F5>`, then `<C-S-t>` to end the old shell, then `<C-t>`.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 8.1 | `<C-t>` with no `[term]` in `filer.toml`, then `$PSVersionTable.PSVersion` | `7.x` — `pwsh`, the default since v0.55.0 wherever it is installed (Q29). `5.1.x`, Windows PowerShell, only on a machine without `pwsh` |
+| 8.1 | `<C-t>` with no `[term]` in `kura.toml`, then `$PSVersionTable.PSVersion` | `7.x` — `pwsh`, the default since v0.55.0 wherever it is installed (Q29). `5.1.x`, Windows PowerShell, only on a machine without `pwsh` |
 | 8.2 | With the pane open, add `[term]` / `shell = "powershell"`, `<C-F5>`, then `<C-S-t>`, `<C-t>`, ask again (v0.67.17) | The `<C-F5>` toast ends `— the pane keeps its shell until <C-S-t> closes it`; after `<C-S-t>` `<C-t>`, `5.1.x` |
 | 8.3 | `$PROFILE` in each | Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7 |
 | 8.4 | With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each | Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report |
@@ -466,7 +466,7 @@ and `U` makes them again) and 12.19 (the cursor follows a rename and a new name,
 Windows makes these awkward to create. A **junction** needs no admin rights:
 `mklink /J linktest C:\dev` from `cmd`. A symlink to a *file* needs an elevated
 shell or developer mode: `New-Item -ItemType SymbolicLink -Path l.md -Target
-C:\dev\filer\README.md`. There are real ones under `C:\Users\<you>\` if you
+C:\dev\kura\README.md`. There are real ones under `C:\Users\<you>\` if you
 would rather not make any.
 
 13.1 to 13.6 are automated (`ui::link_rows`): the `->` after the name, the `l` in `m`+`p`'s column,
@@ -485,13 +485,13 @@ For 13.16, that other program can be PowerShell. In one window, take an exclusiv
 leave it held -- `FileShare.None` means nothing else may so much as open the file:
 
 ```powershell
-cd $HOME\Desktop\filer-fixtures
+cd $HOME\Desktop\kura-fixtures
 "x" | Out-File locked.txt
 fsutil hardlink create locked-2.txt locked.txt
 $fs = [IO.File]::Open("$PWD\locked.txt", 'Open', 'Write', 'None')
 ```
 
-Leave that window alone, press `<Tab>` on `locked.txt` in filer, then come back and run `$fs.Close()`.
+Leave that window alone, press `<Tab>` on `locked.txt` in kura, then come back and run `$fs.Close()`.
 While the lock is held, `Get-Content locked.txt` fails -- worth running once, so you know the lock is
 real and the section answering anyway is the finding. The previous wording named `hiberfil.sys`,
 which has one link and therefore draws no Link section at all (13.15): nothing to see, on a file most
@@ -506,10 +506,10 @@ machines do not have.
 | 13.5 | `g`+`f` on an ordinary file (v0.26.8) | `Only a symlink can be followed — a link shows -> after its name`. Until v0.26.8 nothing happened at all, which was indistinguishable from an unbound key |
 | 13.6 | `g`+`f` in an empty directory | Nothing, and no message — there is no row to say anything about |
 | 13.7 | A junction (`mklink /J`), not just a symlink | Treated the same: `->`, and `g`+`f` follows it |
-| 13.8 | `y`, then `-` in another directory | The symlink appears. **On Windows this needs Developer Mode on** (Settings > System > For developers) — without it, and without running filer elevated, it fails with `os error 1314` and the toast says which two remedies there are. The privilege is the OS's, not the app's: `std` already passes `SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, which is what makes Developer Mode enough |
-| 13.8a | Without Developer Mode and not elevated: `y` on a **folder**, then `-` in another directory (v0.67.11) | The same refusal, and after it `A junction needs neither: cmd /d /c mklink /J "<the link>" "<the folder>"`, both paths absolute (`cmd /d /c` since v0.72.6, #193). Pasting that into `cmd` **and** into `pwsh` (filer's own pane, `<C-t>`) makes a junction that `g` `f` follows. `-` on a file says nothing of junctions (they are folders only). Since v0.67.19 a question follows: `Make a junction instead?`, naming both paths and saying a junction is not relative and cannot reach a network location; `n` leaves nothing behind |
+| 13.8 | `y`, then `-` in another directory | The symlink appears. **On Windows this needs Developer Mode on** (Settings > System > For developers) — without it, and without running kura elevated, it fails with `os error 1314` and the toast says which two remedies there are. The privilege is the OS's, not the app's: `std` already passes `SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE`, which is what makes Developer Mode enough |
+| 13.8a | Without Developer Mode and not elevated: `y` on a **folder**, then `-` in another directory (v0.67.11) | The same refusal, and after it `A junction needs neither: cmd /d /c mklink /J "<the link>" "<the folder>"`, both paths absolute (`cmd /d /c` since v0.72.6, #193). Pasting that into `cmd` **and** into `pwsh` (kura's own pane, `<C-t>`) makes a junction that `g` `f` follows. `-` on a file says nothing of junctions (they are folders only). Since v0.67.19 a question follows: `Make a junction instead?`, naming both paths and saying a junction is not relative and cannot reach a network location; `n` leaves nothing behind |
 | 13.8b | As 13.8a, then `y` (v0.67.19, Q46) | Toast `Made a junction <name> — u to undo`; `(Get-Item <link>).LinkType` reads `Junction` and `g` `f` follows it. `u` removes the junction and only the junction (the folder and its files stay), saying `Removed the junction <name>`; `U` makes it again, still a junction, saying `Made the junction <name> again` (v0.70.3; before that the two said `link`, #185) |
-| 13.8c | As 13.8a, then `c` at the question (v0.71.4, Q56) | The question offers `[c] Copy the mklink command` between `y` and `n`. `c` closes it, makes nothing (the destination folder is still empty), toasts `Copied the mklink command — it runs in cmd or PowerShell`, and `Get-Clipboard` holds exactly the `cmd /d /c mklink /J "<the link>" "<the folder>"` line the refusal shows. Pasted into filer's own pane (`<C-t>`, PowerShell), it makes the junction (v0.72.6; before, the bare `mklink` was not recognized there, #193). The question's own text ends with `` `c` copies: `` and that same `cmd /d /c mklink /J …` line, so what `c` takes is on screen (v0.78.65, #197) |
+| 13.8c | As 13.8a, then `c` at the question (v0.71.4, Q56) | The question offers `[c] Copy the mklink command` between `y` and `n`. `c` closes it, makes nothing (the destination folder is still empty), toasts `Copied the mklink command — it runs in cmd or PowerShell`, and `Get-Clipboard` holds exactly the `cmd /d /c mklink /J "<the link>" "<the folder>"` line the refusal shows. Pasted into kura's own pane (`<C-t>`, PowerShell), it makes the junction (v0.72.6; before, the bare `mklink` was not recognized there, #193). The question's own text ends with `` `c` copies: `` and that same `cmd /d /c mklink /J …` line, so what `c` takes is on screen (v0.78.65, #197) |
 | 13.9 | `y`, then `_` in a **sibling** directory | The same link, written relative (`..\other\file`). `g`+`f` follows it, and it survives moving both directories together — which is the point of `_` over `-` |
 | 13.10 | `<Tab>` on a symlink (v0.46.0) | A **Link** section: `Kind` reads `Symlink`, `Target` the stored path, `Resolves` where it lands |
 | 13.11 | `<Tab>` on a link made with `_` | `Kind` reads `Symlink (relative)`, and `Target` is the relative path while `Resolves` is absolute — the two rows differ, which is the whole point of the pair |
@@ -575,8 +575,8 @@ to answer a click.
 
 ## 17. Previewers of your own (v0.30.0)
 
-Needs `pdftoppm` and `ffmpeg` on the `PATH` (`filer env` says), and the two
-rules from the README in `filer.toml`. **The end-to-end test runs `sh`, so it is
+Needs `pdftoppm` and `ffmpeg` on the `PATH` (`kura env` says), and the two
+rules from the README in `kura.toml`. **The end-to-end test runs `sh`, so it is
 skipped on Windows — this section is the only coverage of the `cmd` path.**
 
 | # | Do | Expect |
@@ -595,10 +595,10 @@ skipped on Windows — this section is the only coverage of the `cmd` path.**
 | 17.9 | Hover a video (v0.30.2) | **A frame appears.** Until v0.30.2 none ever did on Windows: `{out}.png` was quoted as `"…page".png`, which `cmd` hands to ffmpeg with the quotes in the filename |
 | 17.9a | The same on a path with a space | Still draws — the quoting wraps the whole word, suffix included |
 | 17.10 | `<A-j>` on it | Ten seconds in, by `step` |
-| 17.11 | A PDF with a **space** in its name, and one in a Japanese folder | Both draw. The quoting is filer's, not the rule's |
-| 17.12 | Take `pdftoppm` away -- rename it, or start filer from a shell whose `PATH` lacks Poppler's folder (in that shell `Get-Command pdftoppm` prints nothing) -- then hover a PDF | An error naming the tool, not a hang. On a Japanese Windows the words are readable, not mojibake: the `cmd` that runs the line answers in the OEM code page (CP932) and filer reads it as that (v0.78.101, #270) |
+| 17.11 | A PDF with a **space** in its name, and one in a Japanese folder | Both draw. The quoting is kura's, not the rule's |
+| 17.12 | Take `pdftoppm` away -- rename it, or start kura from a shell whose `PATH` lacks Poppler's folder (in that shell `Get-Command pdftoppm` prints nothing) -- then hover a PDF | An error naming the tool, not a hang. On a Japanese Windows the words are readable, not mojibake: the `cmd` that runs the line answers in the OEM code page (CP932) and kura reads it as that (v0.78.101, #270) |
 | 17.13 | Remove the `[[preview]]` rules, `<C-F5>`, hover a PDF | Back to the shell thumbnail, unchanged |
-| 17.14 | `filer env` with the rules in place | `pdftoppm` and `ffmpeg` listed under Tools, with `preview *.pdf` beside them |
+| 17.14 | `kura env` with the rules in place | `pdftoppm` and `ffmpeg` listed under Tools, with `preview *.pdf` beside them |
 | 17.15 | A PDF with the `pdftoppm` rule, `--keys '<State:p1><Shot:p1><A-j><State:p2><Shot:p2>'` (v0.78.17) | `p1.txt` reads `picture: 1` and `p2.txt` `picture: 2`, and `p2.png` shows page 2, not page 1 again: `--keys` waits for the next page's picture before the next key. Before, the old page stayed up while the new one was drawn and counted as settled, so both shots were of page 1 (#166) |
 
 ## 18. Quick look, minimap's neighbours, and the rest of the panes
@@ -639,7 +639,7 @@ was that a gentle turn moved nothing at all.
 | 19.2 | Turn the wheel as slowly as you can over the preview | It still moves. Every fraction counts; nothing is discarded |
 | 19.3 | Wheel over the **file list** | The same, and with the split open, over each pane in turn |
 | 19.4 | Wheel over the **terminal** pane at a shell prompt, with output above it | The scrollback moves: 1, 3 and 5 lines for 1, 2 and 3 notches, a quarter notch four times the same as one. Fixed earlier, in v0.20.4, and sharing `wheel_whole` with the list |
-| 19.4a | Wheel over the terminal pane with a full-screen program in it that does not ask for the mouse (`less` a long file) (v0.38.0) | The program scrolls: each notch is sent to it as arrow keys (`FILER_PTY_LOG` shows them): one notch moves one line, and a bigger turn moves more. With a synthetic wheel the exact counts depend on how it is sent (#260 read 1 / 4 / 5 where 19.4 says 1 / 3 / 5), so compare the trend, or two machines with the same `<Wheel:>` steps, not the numbers. A separate path in `ui/term.rs` from the scrollback's; a program that asks for the mouse, like nvim, gets wheel reports instead (40.14, 40.17) |
+| 19.4a | Wheel over the terminal pane with a full-screen program in it that does not ask for the mouse (`less` a long file) (v0.38.0) | The program scrolls: each notch is sent to it as arrow keys (`KURA_PTY_LOG` shows them): one notch moves one line, and a bigger turn moves more. With a synthetic wheel the exact counts depend on how it is sent (#260 read 1 / 4 / 5 where 19.4 says 1 / 3 / 5), so compare the trend, or two machines with the same `<Wheel:>` steps, not the numbers. A separate path in `ui/term.rs` from the scrollback's; a program that asks for the mouse, like nvim, gets wheel reports instead (40.14, 40.17) |
 | 19.5 | Turn one way then straight back | It reverses at once, with no dead travel from a stranded remainder |
 | 19.6 | `Ctrl` and the wheel over an image | Zooms, and does **not** scroll the pane with the same turn |
 | 19.7 | Move the pointer between panes mid-turn | Neither jumps: each keeps its own remainder |
@@ -648,11 +648,11 @@ was that a gentle turn moved nothing at all.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 20.1 | With filer open, edit `theme.toml` (change `[mgr] cwd` to something loud) and press `<C-F5>` | The color changes without restarting |
-| 20.2 | Change `[ui] font_size` in `filer.toml`, `<C-F5>` | The text resizes |
+| 20.1 | With kura open, edit `theme.toml` (change `[mgr] cwd` to something loud) and press `<C-F5>` | The color changes without restarting |
+| 20.2 | Change `[ui] font_size` in `kura.toml`, `<C-F5>` | The text resizes |
 | 20.3 | Add a `keymap.toml` binding, `<C-F5>` | The new key works, and `<F1>` lists it |
 | 20.4 | Sort with `,s`, then `<C-F5>` | The sort **stays** as you set it — a reload does not undo what you changed by hand |
-| 20.5 | Put a syntax error in `filer.toml`, `<C-F5>` | An error toast naming the problem; the old config stays in force -- **including what the broken file itself set** (v0.67.18, Q47: before, its `[ui]` fell back to the defaults), and the toast ends `(the last settings read from it stay in force until it parses again)` |
+| 20.5 | Put a syntax error in `kura.toml`, `<C-F5>` | An error toast naming the problem; the old config stays in force -- **including what the broken file itself set** (v0.67.18, Q47: before, its `[ui]` fell back to the defaults), and the toast ends `(the last settings read from it stay in force until it parses again)` |
 | 20.6 | `[ui] minimap = false`, `<C-F5>` | No minimap |
 | 20.7 | In `keymap.toml`, `[[mgr.prepend_keymap]]` `on = "<F8>"`, `run = 'cd C:\Windows\System32'` -- no quotes inside the command (v0.59.0) | `<F8>` lands in `C:\Windows\System32`. Until v0.59.0 the backslashes were dropped and the error named `C:WindowsSystem32` |
 
@@ -687,15 +687,15 @@ row needs which. 21.6 says something other than what it says here, which is writ
 | 21.12 | `E` with a name ending in something else (`.rar`) | `Name it .zip, .7z, .tar or .tar.gz to say which format` |
 | 21.13 | Pack `to-pack\` as `.zip`, then `7z l` the archive (v0.57.2) | Every entry carries its file's own date and time (to the even second), not `1980-01-01 00:00:00` |
 | 21.14 | Give `to-pack\` files with old dates, on an **odd** second (`(Get-Item f).LastWriteTime = "2021-06-15 12:34:57"`; an even one passes on a zip from before v0.73.16 too), pack it with `E` as `.zip`, `.tar.gz` and `.7z`, then `e` each one (v0.65.7). Give a folder inside `to-pack\` the same odd second. Between the formats put the cursor back on `to-pack\` (`gg` when it is the first entry): after `E` the cursor sits on the archive it made (Q25), so a second `E` would pack that archive | Every unpacked file has its original `LastWriteTime` back, to the second in all three (a zip only to the even second before v0.73.16), not the moment it was unpacked. So has every unpacked folder, `to-pack\` and the one inside it, to the same odd second (21.23 reads the date; `a_folder_keeps_its_time_through_a_round_trip` checks the second on Linux since v0.80.7). Before v0.65.7 every one read the time of the `e` (#156) |
-| 21.14a | A file dated `2019-02-28 23:59:59` (`(Get-Item f).LastWriteTime = …`), zipped by **7-Zip** (`7z a x.zip f`), then `e` on it in filer. And the other way: an odd-second file packed with filer's `E` as `.zip`, unpacked by 7-Zip (`7z x`) (v0.73.16, #174) | filer's `e` gives `2019-02-28 23:59:59` back (from the exact time 7-Zip keeps beside the MS-DOS field), not `2019-03-01 00:00:00`. 7-Zip gives the odd second back from filer's zip (its extended timestamp), not one second lower |
-| 21.14b | The same file zipped by **Explorer**'s "Compressed (zipped) folder", then `e` on it in filer. And the other way: the odd-second file packed with filer's `E` as `.zip`, unpacked by Explorer (v0.73.31, Q58; #200) | Explorer writes and reads only the MS-DOS field, two-second steps rounded **up**, so: filer's `e` gives back `2019-03-01 00:00:00`, the time that zip holds (the exact second is not in it). Explorer gives back from filer's zip the odd second rounded up to the next even one (`…:57` → `…:58`; `23:59:59` → the next day's `00:00:00`), the same as from its own zip or 7-Zip's. Before v0.73.31 filer rounded down, and Explorer gave one second lower |
+| 21.14a | A file dated `2019-02-28 23:59:59` (`(Get-Item f).LastWriteTime = …`), zipped by **7-Zip** (`7z a x.zip f`), then `e` on it in kura. And the other way: an odd-second file packed with kura's `E` as `.zip`, unpacked by 7-Zip (`7z x`) (v0.73.16, #174) | kura's `e` gives `2019-02-28 23:59:59` back (from the exact time 7-Zip keeps beside the MS-DOS field), not `2019-03-01 00:00:00`. 7-Zip gives the odd second back from kura's zip (its extended timestamp), not one second lower |
+| 21.14b | The same file zipped by **Explorer**'s "Compressed (zipped) folder", then `e` on it in kura. And the other way: the odd-second file packed with kura's `E` as `.zip`, unpacked by Explorer (v0.73.31, Q58; #200) | Explorer writes and reads only the MS-DOS field, two-second steps rounded **up**, so: kura's `e` gives back `2019-03-01 00:00:00`, the time that zip holds (the exact second is not in it). Explorer gives back from kura's zip the odd second rounded up to the next even one (`…:57` → `…:58`; `23:59:59` → the next day's `00:00:00`), the same as from its own zip or 7-Zip's. Before v0.73.31 kura rounded down, and Explorer gave one second lower |
 | 21.15 | `E` on `to-pack\` alone (the archive's top level is one folder), then `e` on `to-pack.zip`; then the same with `sample.zip`, whose top level is loose files (v0.66.0) | `to-pack_1\` holds the files directly -- no `to-pack_1\to-pack\` (Q43). `sample.zip` still unpacks into its own `sample\` (or `sample_1\`) folder |
 | 21.16 | `E` on `to-pack\` as `.zip`, then `e` on the archive; then `e` on two archives selected together (v0.73.36, #205) | A toast `Packed into to-pack.zip` when the pack ends, `Unpacked into to-pack\` when the unpack does -- the folder the contents really landed in, after 21.15's lifting -- and `Unpacked 2 archives into <first>\ and 1 more` for two. Before, neither said anything |
 | 21.17 | `l` on `to-pack.zip` (made by 21.1), then `l` on a folder inside it, `h`, `h` (v0.76.0, Q75) | `view: archive` in the state file and the archive's top level listed (`hovered:` names `…\to-pack.zip\<member>`); `l` goes a level down, `h` comes up with the cursor on the folder it came out of, and `h` at the top leaves: `view: list`, the cursor on `to-pack.zip`. `<Right>` and `<Left>` do the same. `<Esc>` leaves from any level |
-| 21.18 | Inside the archive, `<Enter>` on `to-pack\nested\deep.txt` (v0.76.0; v0.78.16). If `.txt`'s default app is already running, or opens nothing on this machine, copy a `.png` into `to-pack\nested\` before 21.1 and use that | It opens in the default app, from `%TEMP%\filer-archive-<pid>\to-pack.zip\to-pack\nested\<name>` -- the archive's folders kept (before v0.78.16 they were dropped, and `a\readme.txt` and `b\readme.txt` shared one copy); the toast says `Opened a copy of <name> — changes stay out of the archive`. `<Enter>` on the archive itself, outside, still opens it with its opener |
-| 21.19 | Inside the archive, `x`, `d`, `a`, `r` and `p` (v0.76.0, `r` and `p` v0.78.196; `y` is let through since v0.77.0, 21.20) | Nothing is cut, trashed, made, renamed or pasted; each says `Inside an archive: read only — this would change the archive, which filer never writes. y then p in a folder takes a copy out, Esc leaves`. The folder the archive sits in is unchanged (`Get-ChildItem` before and after) |
-| 21.20 | Inside the archive, `y` on `top.txt`, `<Esc>`, `l` into another folder, `p`; then `p` again and `s` (v0.77.0) | The toast after `y` reads `Yanked 1 item from the archive — p in a folder takes them out`. After `p`: `top.txt` is there with the archive's contents and its time, the cursor on it, and the toast `Took top.txt out of the archive`; `yank: 1 copied` stays. The second `p` asks `File already exists`, `s` keeps the file that was there, and no `.filer-take-out-*` folder is left. A folder yanked inside comes out with everything under it |
-| 21.21 | Inside the archive, the cursor on a `.txt` member, then a `.png` one, then a folder; then `<Esc>` (v0.78.0) | The text and the picture are previewed as if they were files (`<A-G>` reaches the text's end: `preview top: N of N`); the folder shows a card with `Holds  N items`. A member over 4 MB shows a card with its size. After `<Esc>`, `%TEMP%\filer-archive-<pid>\preview` holds nothing of this view |
+| 21.18 | Inside the archive, `<Enter>` on `to-pack\nested\deep.txt` (v0.76.0; v0.78.16). If `.txt`'s default app is already running, or opens nothing on this machine, copy a `.png` into `to-pack\nested\` before 21.1 and use that | It opens in the default app, from `%TEMP%\kura-archive-<pid>\to-pack.zip\to-pack\nested\<name>` -- the archive's folders kept (before v0.78.16 they were dropped, and `a\readme.txt` and `b\readme.txt` shared one copy); the toast says `Opened a copy of <name> — changes stay out of the archive`. `<Enter>` on the archive itself, outside, still opens it with its opener |
+| 21.19 | Inside the archive, `x`, `d`, `a`, `r` and `p` (v0.76.0, `r` and `p` v0.78.196; `y` is let through since v0.77.0, 21.20) | Nothing is cut, trashed, made, renamed or pasted; each says `Inside an archive: read only — this would change the archive, which kura never writes. y then p in a folder takes a copy out, Esc leaves`. The folder the archive sits in is unchanged (`Get-ChildItem` before and after) |
+| 21.20 | Inside the archive, `y` on `top.txt`, `<Esc>`, `l` into another folder, `p`; then `p` again and `s` (v0.77.0) | The toast after `y` reads `Yanked 1 item from the archive — p in a folder takes them out`. After `p`: `top.txt` is there with the archive's contents and its time, the cursor on it, and the toast `Took top.txt out of the archive`; `yank: 1 copied` stays. The second `p` asks `File already exists`, `s` keeps the file that was there, and no `.kura-take-out-*` folder is left. A folder yanked inside comes out with everything under it |
+| 21.21 | Inside the archive, the cursor on a `.txt` member, then a `.png` one, then a folder; then `<Esc>` (v0.78.0) | The text and the picture are previewed as if they were files (`<A-G>` reaches the text's end: `preview top: N of N`); the folder shows a card with `Holds  N items`. A member over 4 MB shows a card with its size. After `<Esc>`, `%TEMP%\kura-archive-<pid>\preview` holds nothing of this view |
 | 21.22 | `e` on an archive whose top level is one folder (`inner\`), and on one that is not (v0.78.1) | When it finishes the cursor is on what it made -- `inner` in the first case, `<archive name>\` in the second (`hovered:`) -- as `E` puts it on the archive it made (21.4); the toast says `Unpacked into …` |
 | 21.22b | Select a file, `E`, then `<Tab>` three times, typing a letter into the stem between presses (v0.78.40, Q79) | The name goes `.zip` → `.tar.gz` → `.7z` → `.zip`, the stem (and the letter typed into it) untouched, and the stem part is selected after each press. `<Enter>` on the `.tar.gz` form makes a `.tar.gz` |
 | 21.22c | Select an archive (`to-pack.zip`), `E`; then clear the field, type `to-pack.zip` and `<Enter>` (v0.78.41, #265) | The field opens with `to-pack-packed.zip`, not the archive's own name. Typing the archive's own name gives a red `Can't pack to-pack.zip into itself — give the archive another name`, no job starts, and `to-pack.zip` is unchanged (same size, same hash) |
@@ -709,7 +709,7 @@ Open a file's outline with `l` or `<S-Tab>`, put the cursor on an entry, press
 Enter. Each of these is a skip if the editor is not installed.
 
 For an editor that is not installed, a stand-in program by the same name (a `sakura.exe` that logs
-its own command line) shows the arguments filer hands it -- `/j42`, `-Y=42`, `/l 42`, `-n42` -- and
+its own command line) shows the arguments kura hands it -- `/j42`, `-Y=42`, `/l 42`, `-n42` -- and
 that is worth writing in the report. It is not a tick: each row is about the editor landing on the line.
 
 | # | Editor | Expect |
@@ -719,8 +719,8 @@ that is worth writing in the report. It is not a tick: each row is about the edi
 | 22.3 | EmEditor | Same |
 | 22.4 | Notepad++ | Same |
 | 22.5 | メモ帳 | Opens, at the top — it has no line argument, and that is correct |
-| 22.6 | VS Code, if you have it | At the line (filer passes `-g <path>:N`) |
-| 22.6a | nvim, if you have it | At the line (filer passes `+N`; a separate branch of `exec::at_line` from 22.6's) |
+| 22.6 | VS Code, if you have it | At the line (kura passes `-g <path>:N`) |
+| 22.6a | nvim, if you have it | At the line (kura passes `+N`; a separate branch of `exec::at_line` from 22.6's) |
 
 ## 23. Network paths (needs a share)
 
@@ -735,7 +735,7 @@ that is worth writing in the report. It is not a tick: each row is about the edi
 | 23.4c | `g<Space>`, type `\\192.168.0.150\Ba` (a host that answers, with a share `Backup`), `<Tab>` (v0.78.234) | The line becomes `\\192.168.0.150\Backup\`: the host's shares that begin with `Ba` are offered, and more presses walk them |
 | 23.4a | In a folder with `alpha\`, `alps\` and `zeta\`: `g<Space>`, type the folder's full path then `al`, and `<Tab>` three times (v0.78.58, #222) | The line goes `…\alpha\`, then `…\alps\`, then `…\alpha\` again: each press takes the next folder that began with `al` instead of listing what is inside the one just chosen |
 | 23.5 | `g<Space>`, type a path with a `\|` in a folder name partway down (`C:\Temp\a\|b\c\d`), `<Enter>` (v0.57.3) | **One** error toast, naming the path as typed (`C:\Temp\a|b\c\d`, not its parent `…\c`: v0.75.19). Until v0.57.3 the parent columns each added their own, naming only a fragment (`b: …`, `c: …`) |
-| 23.6 | `filer <a folder>\tpyo`, or `g<Space>` with a name that is not there (v0.57.4) | The folder above opens, as before, and a red toast says `No such file or folder: <the folder>\tpyo — showing <the folder>` (the whole missing path, the home folder as `~`, v0.78.31). A name that *is* a file opens the folder with the file under the cursor and says nothing. A name that is not there puts the cursor on the nearest name in the folder (`tpyo` -> `typo`; a swap of two neighbours counts as one edit), and on the first row when nothing is near (v0.78.146; the toast then ends `(nearest: typo)`, and says nothing of the kind when nothing is near, v0.78.173; `a_mistyped_name_lands_the_cursor_on_the_nearest`) |
+| 23.6 | `kura <a folder>\tpyo`, or `g<Space>` with a name that is not there (v0.57.4) | The folder above opens, as before, and a red toast says `No such file or folder: <the folder>\tpyo — showing <the folder>` (the whole missing path, the home folder as `~`, v0.78.31). A name that *is* a file opens the folder with the file under the cursor and says nothing. A name that is not there puts the cursor on the nearest name in the folder (`tpyo` -> `typo`; a swap of two neighbours counts as one edit), and on the first row when nothing is near (v0.78.146; the toast then ends `(nearest: typo)`, and says nothing of the kind when nothing is near, v0.78.173; `a_mistyped_name_lands_the_cursor_on_the_nearest`) |
 
 ## 24. Awkward names
 
@@ -760,53 +760,53 @@ that share a start are cut so that each still shows what tells it apart.
 | 24.4 | Copy the name with a quote in it, `<A-t>` into the terminal | Quoted so the shell sees one word |
 | 24.5 | `d` then `u` on the CJK-named file | Comes back under the same name |
 | 24.6 | Run `scripts\make-fixtures.ps1` in a fresh folder (v0.59.1) | No warning, except on an ordinary (case-insensitive) NTFS folder: `awkward names: 5 entries on disk, expected 6`, naming `fsutil file setCaseSensitiveInfo` -- the reason 24.3 cannot be pressed there |
-| 24.7 | A folder of long names that differ only in the middle (`filer-archive-x-15484.log`, `filer-test-yy-15484.log`, …), in the parent column (v0.75.15, Q67) | Each row is still cut to the column, but no two neighbouring rows read the same: one keeps more of its head (`filer-a….log` against `filer-t….log`) or of its tail. Rows that already read differently are cut as before. Before, the whole column read `filer…84.log` (#227). Since v0.78.84 a `<State:>` lists the column as drawn: `parent: filer-a….log | filer-t….log | …` |
+| 24.7 | A folder of long names that differ only in the middle (`kura-archive-x-15484.log`, `kura-test-yy-15484.log`, …), in the parent column (v0.75.15, Q67) | Each row is still cut to the column, but no two neighbouring rows read the same: one keeps more of its head (`kura-a….log` against `kura-t….log`) or of its tail. Rows that already read differently are cut as before. Before, the whole column read `kura…84.log` (#227). Since v0.78.84 a `<State:>` lists the column as drawn: `parent: kura-a….log | kura-t….log | …` |
 
-## 25. `filer env` (v0.28.0)
+## 25. `kura env` (v0.28.0)
 
 Run from a shell, not from inside the app.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 25.1 | `filer env` from PowerShell | The five sections print (Filer, Config, Last run, Tools, Variables). A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears** |
+| 25.1 | `kura env` from PowerShell | The five sections print (Kura, Config, Last run, Tools, Variables). A release build is a GUI binary, so this is the same `CONOUT$` path `--version` uses — **text actually appears** |
 | 25.2 | The Config section | Both directories, each saying what is in it or `nothing here`, and `not here:` listing the rest |
 | 25.3 | With a deliberate typo in `keymap.toml` | The warning appears under `Warnings`, its several lines indented under the one key |
-| 25.4 | The Tools section | `git` with its version, the shell the terminal pane starts, and every program a `[[preview]]` rule or an opener names -- each with its path (or `not found`) and what it is for. Nothing filer does not run (no `pdftoppm`, `ffmpeg`) |
+| 25.4 | The Tools section | `git` with its version, the shell the terminal pane starts, and every program a `[[preview]]` rule or an opener names -- each with its path (or `not found`) and what it is for. Nothing kura does not run (no `pdftoppm`, `ffmpeg`) |
 | 25.4a | With `[term] shell = "pwsh"` set (v0.29.1), then with no `[term] shell` | `pwsh` is the shell listed. Without it, `pwsh` if it is on the `PATH` (the default since v0.55.0, Q29), else `powershell` — the one that will actually launch, not a guess. Off Windows, the shell in `$SHELL` |
 | 25.4b | With openers configured | Each named program is listed with the opener kind it belongs to, found or not |
 | 25.4c | An opener naming a **quoted full path** (秀丸, サクラ) | The whole path is resolved, not just up to the first space |
-| 25.4e | On Windows, `filer env` with `pwsh` (or `powershell`) as the pane shell | The shell row reads `<path>   v<a.b.c.d>   (terminal pane, …)`, the version of that file (`(Get-Item <path>).VersionInfo.FileVersion` agrees). Nothing launches |
-| 25.4d | Watch the screen while `filer env` runs | **No editor or viewer opens.** The programs are looked up on `PATH`, never executed |
-| 25.4f | `filer env` with no `[ui] backend` (`auto`), then with `"gl"` (or `WGPU_BACKEND` set) (v0.78.209) | The `Backend` row reads `[ui] backend = "auto" (this machine: Gl)` on Windows with GL. With `"gl"` or `WGPU_BACKEND` the row has no such tail |
+| 25.4e | On Windows, `kura env` with `pwsh` (or `powershell`) as the pane shell | The shell row reads `<path>   v<a.b.c.d>   (terminal pane, …)`, the version of that file (`(Get-Item <path>).VersionInfo.FileVersion` agrees). Nothing launches |
+| 25.4d | Watch the screen while `kura env` runs | **No editor or viewer opens.** The programs are looked up on `PATH`, never executed |
+| 25.4f | `kura env` with no `[ui] backend` (`auto`), then with `"gl"` (or `WGPU_BACKEND` set) (v0.78.209) | The `Backend` row reads `[ui] backend = "auto" (this machine: Gl)` on Windows with GL. With `"gl"` or `WGPU_BACKEND` the row has no such tail |
 | 25.5 | On Windows on ARM with the x64 build | `OS arch` and `Process arch` **disagree** — that disagreement is the whole reason both are printed |
-| 25.6 | `filer --help` | `env` is listed under COMMANDS, and `env --out FILE` under it (v0.68.0) |
-| 25.7 | Double-click `filer.exe` (no console) | Unchanged: the window opens, nothing is printed anywhere |
-| 25.8 | Open filer once, quit, then `filer env` (v0.29.0) | A **Last run** section: the adapter with its backend and device type, and every font file that was loaded |
-| 25.9 | On a fresh machine, `filer env` **before** ever opening filer | `not recorded — filer has not opened a window on this machine yet`, not an empty section |
-| 25.10 | Name a different font in `filer.toml`, `<C-F5>`, then `filer env` again | The new file is listed; the reload updates the record |
-| 25.8a | Open filer, quit, `filer env`, and check the **Window** row against the screen (v0.47.33) | The pixels are the window you can see, and `pt x scale` multiplies out to them. **This is the row that settles a DPI argument** — what a script measures with `GetClientRect`, or a `PrintWindow` capture, depends on the DPI awareness of whatever did the measuring, and can disagree with the window while looking right |
-| 25.8b | On a display at 150%, open filer, quit, then `filer env` | The Window row reads e.g. `2040 x 1290 px (1360 x 860 pt @ 1.5)` — the pixels are half again the points, and **nothing is cut off the right or bottom edge of the window** |
+| 25.6 | `kura --help` | `env` is listed under COMMANDS, and `env --out FILE` under it (v0.68.0) |
+| 25.7 | Double-click `kura.exe` (no console) | Unchanged: the window opens, nothing is printed anywhere |
+| 25.8 | Open kura once, quit, then `kura env` (v0.29.0) | A **Last run** section: the adapter with its backend and device type, and every font file that was loaded |
+| 25.9 | On a fresh machine, `kura env` **before** ever opening kura | `not recorded — kura has not opened a window on this machine yet`, not an empty section |
+| 25.10 | Name a different font in `kura.toml`, `<C-F5>`, then `kura env` again | The new file is listed; the reload updates the record |
+| 25.8a | Open kura, quit, `kura env`, and check the **Window** row against the screen (v0.47.33) | The pixels are the window you can see, and `pt x scale` multiplies out to them. **This is the row that settles a DPI argument** — what a script measures with `GetClientRect`, or a `PrintWindow` capture, depends on the DPI awareness of whatever did the measuring, and can disagree with the window while looking right |
+| 25.8b | On a display at 150%, open kura, quit, then `kura env` | The Window row reads e.g. `2040 x 1290 px (1360 x 860 pt @ 1.5)` — the pixels are half again the points, and **nothing is cut off the right or bottom edge of the window** |
 | 25.11 | Linux / macOS: with no bold face anywhere (Windows cannot reach this: `system_bold_fonts()` always offers Meiryo, Yu Gothic and Consolas bold, which every Windows has) | `none found; bold is faked by overstriking` — the bold list is separate from the regular one on purpose |
 | 25.12 | An opener starting with `start` (the default-app one) | **`built into cmd`**, not `not found`. It is one of `cmd`'s own commands and is never a file on the `PATH`, so the lookup every other row uses cannot see it (v0.33.12) |
 | 25.13 | `<Enter>` on a file whose rule uses that opener | It really does open — the row and the behaviour agree |
 | 25.14 | An opener naming a program that genuinely is not installed | Still **`not found`**. The exemption is for the shell's own names only |
-| 25.15 | Break `yazi.toml` and read the Warnings row | The path is written **`…\filer\yazi.toml`**, all backslashes. It used to come out `…\filer/yazi.toml`, in the one message whose job is to name the file to edit (v0.33.12) |
-| 25.16 | `filer <a folder with files> --keys "<Tab>C"`, then `Get-Clipboard` (v0.54.0) | The window opens, spot opens on the first row by itself, and the clipboard holds the whole panel as `Label<TAB>value` lines — `Name` and `Path` naming that first row |
-| 25.17 | `filer --keys "<Tab"` and `filer --keys "<Bogus>"` | **No window**: one line naming the problem (`has no closing >` / `is not a key`), exit code 2 |
-| 25.18 | Release build: `filer env \| Out-File out.txt`, then `Get-Content out.txt`; and `cmd /c "filer env > out2.txt"` (v0.54.4) | The whole report is **in both files**, and nothing is printed on screen. Before v0.54.4 both were empty. (PowerShell's own `filer env > out.txt` still gives an empty file: PowerShell does not connect a windowed program's output to a file. README says so) |
-| 25.19 | `filer env \| Select-String "arch\s+:"` (a bare `arch` also matches any path with `Archive` in it, such as an opener's) | **Only the two arch lines** (Windows; elsewhere there is one, `Process arch`), not the whole report |
-| 25.19a | `$v = & filer env \| Write-Output; $v.Count` in PowerShell (v0.67.26, Q54) | The report's line count, not 0. **With nothing after it** -- `$v = & filer env` -- PowerShell does not wait for a windowed program at the end of a pipeline, and `$v` is empty: that is PowerShell, not filer (#183), and why the row has the `\| Write-Output` |
-| 25.19b | `filer env --out out3.txt` from PowerShell, in a folder whose path has Japanese in it, then `Get-Content -Encoding utf8 out3.txt` (v0.68.0, Q55) | One line `filer: wrote <full path>`, on standard error since v0.78.29 (`$p = & filer env --out out3.txt` leaves `$p` empty, #200), and the file holds the whole report with the Japanese **readable**, whatever the console's code page. `filer env --out` with no name, and `filer env --outt x`, print one line naming the problem, exit code 2, and write nothing |
-| 25.19c | With the zip's folder on the `PATH` (v0.71.0, Q44): `(Get-Command filer).Source`; `$v = & filer env; $v.Count`; `filer --version > v.txt; Get-Content v.txt`; `filer --keys "<Tab"; $LASTEXITCODE`; then `filer` alone | `Source` ends in `filer.com`. The count is the report's line count with **nothing after the call** (25.19a's form without `Write-Output`); `v.txt` holds the version line; the refusal prints one line and `$LASTEXITCODE` is 2. `filer` alone opens the window, and the prompt comes back while the window stays open |
-| 25.19d | With the zip's folder on the `PATH`, a script `w.ps1` holding the one line `filer`, then `pwsh -File w.ps1 \| Tee-Object t.txt; "back"` (v0.73.6, #192); then the same with `filer C:\dev C:\Windows` in `w.ps1` | The window opens and `back` is printed **while it is still open** (before, the pipeline waited until the window closed). With the two paths, no window: the refusal line is printed and is in `t.txt` too |
-| 25.19e | In a `.ps1` run with `pwsh -File`, in an empty folder (v0.73.8, #188): `filer env --out a.txt; Test-Path a.txt; $LASTEXITCODE`, then `& <zip folder>\filer.exe env --out b.txt \| Out-Null; Test-Path b.txt`, then `& <zip folder>\filer.exe env --out \| Out-Null; $LASTEXITCODE`; and `filer --help` | `True` and `0`, then `True`, then `2` -- the README's way of waiting works through both `filer.com` and `filer.exe`. `--help` has `(filer.exe in a script: add \| Out-Null to wait)` under `env --out FILE` |
-| 25.20 | `filer env` with nothing redirected, and `filer --version` | Still printed on screen, as 25.1 has it — the console path is unchanged |
-| 25.21 | `filer env` (v0.58.1) | An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone |
-| 25.22 | `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `FILER_PTY_LOG` set (v0.59.0) | The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `filer --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>` |
-| 25.23 | Open the pane, `<C-S-Enter>`, close filer, then `filer env` (v0.59.4) | A `Terminal pane` row under `Last run` gives the grid as `N x M (lines x columns)`, the size it last had. After a run that never opened the pane: `not opened in that run` |
-| 25.24 | From a shell in some folder, `filer .`, then `filer ..`, then `filer two words` unquoted (v0.59.5) | `.` opens that folder with its **absolute** path in the title and a parent column, and `h` goes up; `..` opens the one above. The unquoted pair is refused before any window: `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` |
-| 25.24a | `filer C:\dev C:\Windows` unquoted, from PowerShell (v0.73.5, #194) | Refused before any window, the paths as typed: `filer: more than one path: "C:\dev" and "C:\Windows" (a path with a space in it needs quotes)`, one `\` each. Before, every `\` came out doubled (`"C:\\dev"`). On Linux, `filer 'a\b' c` names `"a\b"` the same way |
-| 25.25 | Open a file with an opener (`<Enter>` or `<S-Enter>`), run one `;` shell command, close filer, then `filer env` (v0.59.9) | A `Launched` row under `Last run` lists both command lines exactly as filer built them, newest last, at most five. After a run that launched nothing: `nothing in that run` |
+| 25.15 | Break `yazi.toml` and read the Warnings row | The path is written **`…\kura\yazi.toml`**, all backslashes. It used to come out `…\kura/yazi.toml`, in the one message whose job is to name the file to edit (v0.33.12) |
+| 25.16 | `kura <a folder with files> --keys "<Tab>C"`, then `Get-Clipboard` (v0.54.0) | The window opens, spot opens on the first row by itself, and the clipboard holds the whole panel as `Label<TAB>value` lines — `Name` and `Path` naming that first row |
+| 25.17 | `kura --keys "<Tab"` and `kura --keys "<Bogus>"` | **No window**: one line naming the problem (`has no closing >` / `is not a key`), exit code 2 |
+| 25.18 | Release build: `kura env \| Out-File out.txt`, then `Get-Content out.txt`; and `cmd /c "kura env > out2.txt"` (v0.54.4) | The whole report is **in both files**, and nothing is printed on screen. Before v0.54.4 both were empty. (PowerShell's own `kura env > out.txt` still gives an empty file: PowerShell does not connect a windowed program's output to a file. README says so) |
+| 25.19 | `kura env \| Select-String "arch\s+:"` (a bare `arch` also matches any path with `Archive` in it, such as an opener's) | **Only the two arch lines** (Windows; elsewhere there is one, `Process arch`), not the whole report |
+| 25.19a | `$v = & kura env \| Write-Output; $v.Count` in PowerShell (v0.67.26, Q54) | The report's line count, not 0. **With nothing after it** -- `$v = & kura env` -- PowerShell does not wait for a windowed program at the end of a pipeline, and `$v` is empty: that is PowerShell, not kura (#183), and why the row has the `\| Write-Output` |
+| 25.19b | `kura env --out out3.txt` from PowerShell, in a folder whose path has Japanese in it, then `Get-Content -Encoding utf8 out3.txt` (v0.68.0, Q55) | One line `kura: wrote <full path>`, on standard error since v0.78.29 (`$p = & kura env --out out3.txt` leaves `$p` empty, #200), and the file holds the whole report with the Japanese **readable**, whatever the console's code page. `kura env --out` with no name, and `kura env --outt x`, print one line naming the problem, exit code 2, and write nothing |
+| 25.19c | With the zip's folder on the `PATH` (v0.71.0, Q44): `(Get-Command kura).Source`; `$v = & kura env; $v.Count`; `kura --version > v.txt; Get-Content v.txt`; `kura --keys "<Tab"; $LASTEXITCODE`; then `kura` alone | `Source` ends in `kura.com`. The count is the report's line count with **nothing after the call** (25.19a's form without `Write-Output`); `v.txt` holds the version line; the refusal prints one line and `$LASTEXITCODE` is 2. `kura` alone opens the window, and the prompt comes back while the window stays open |
+| 25.19d | With the zip's folder on the `PATH`, a script `w.ps1` holding the one line `kura`, then `pwsh -File w.ps1 \| Tee-Object t.txt; "back"` (v0.73.6, #192); then the same with `kura C:\dev C:\Windows` in `w.ps1` | The window opens and `back` is printed **while it is still open** (before, the pipeline waited until the window closed). With the two paths, no window: the refusal line is printed and is in `t.txt` too |
+| 25.19e | In a `.ps1` run with `pwsh -File`, in an empty folder (v0.73.8, #188): `kura env --out a.txt; Test-Path a.txt; $LASTEXITCODE`, then `& <zip folder>\kura.exe env --out b.txt \| Out-Null; Test-Path b.txt`, then `& <zip folder>\kura.exe env --out \| Out-Null; $LASTEXITCODE`; and `kura --help` | `True` and `0`, then `True`, then `2` -- the README's way of waiting works through both `kura.com` and `kura.exe`. `--help` has `(kura.exe in a script: add \| Out-Null to wait)` under `env --out FILE` |
+| 25.20 | `kura env` with nothing redirected, and `kura --version` | Still printed on screen, as 25.1 has it — the console path is unchanged |
+| 25.21 | `kura env` (v0.58.1) | An `Executable` row with the full path of the `.exe` that answered. On the ARM64 machine, the **x64** build's `Process arch` reads `x86_64 (emulated on aarch64)`; the ARM64 build's reads `aarch64` alone |
+| 25.22 | `kura --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"` with `KURA_PTY_LOG` set (v0.59.0) | The shell's prompt is up before `echo` arrives (the log's `out` lines show it ahead of the `in key` lines), `hi` is printed, and the pane takes the window a second later. `kura --keys "<Wait:1.5s>"` is refused on the command line, naming `<Wait:500>` |
+| 25.23 | Open the pane, `<C-S-Enter>`, close kura, then `kura env` (v0.59.4) | A `Terminal pane` row under `Last run` gives the grid as `N x M (lines x columns)`, the size it last had. After a run that never opened the pane: `not opened in that run` |
+| 25.24 | From a shell in some folder, `kura .`, then `kura ..`, then `kura two words` unquoted (v0.59.5) | `.` opens that folder with its **absolute** path in the title and a parent column, and `h` goes up; `..` opens the one above. The unquoted pair is refused before any window: `kura: more than one path: "two" and "words" (a path with a space in it needs quotes)` |
+| 25.24a | `kura C:\dev C:\Windows` unquoted, from PowerShell (v0.73.5, #194) | Refused before any window, the paths as typed: `kura: more than one path: "C:\dev" and "C:\Windows" (a path with a space in it needs quotes)`, one `\` each. Before, every `\` came out doubled (`"C:\\dev"`). On Linux, `kura 'a\b' c` names `"a\b"` the same way |
+| 25.25 | Open a file with an opener (`<Enter>` or `<S-Enter>`), run one `;` shell command, close kura, then `kura env` (v0.59.9) | A `Launched` row under `Last run` lists both command lines exactly as kura built them, newest last, at most five. After a run that launched nothing: `nothing in that run` |
 
 ## 26. Bug report from inside the app (v0.11.0)
 
@@ -815,7 +815,7 @@ without a browser, a desktop session and the repository in front of you: the
 tests cover the encoding and the shape of the URL, not what GitHub does with it.
 
 26.12 is automated whole (`bug_report_f12` in `src/main.rs`, through `handle_input` and the
-`<State:>` lines). The same module holds filer's half of four more rows, which stay on the list
+`<State:>` lines). The same module holds kura's half of four more rows, which stay on the list
 because their other half is the browser, the clipboard or the shell: 26.1's panel (every line it
 carries, the `[o] / <Enter>` button under them, nothing opened, copied or toasted before an answer;
 the box's bottom edge is `ui::overlay`'s `the_box_ends_below_its_last_row_of_buttons`), 26.2's link
@@ -828,8 +828,8 @@ shell receiving `<F12>` (26.9), and every comparison with Windows' own answers (
 | # | Do | Expect |
 | --- | --- | --- |
 | 26.1 | `<F12>`, then `<Enter>` (or `o`) | `<F12>` first shows **Report a bug**: the version, the OS lines, the last keys, the last error, the rendering, the scale and the config files by name (v0.73.58, Q62). The box ends just below its buttons, with no empty band under them (v0.73.64, Q66), and the first button reads `[o] / <Enter> Open the form in your browser`: `<Enter>` picks it (v0.73.73, Q69). Nothing opens until `<Enter>`; then the default browser opens GitHub's new-issue form, and a toast says so |
-| 26.2 | Look at the form | Every heading is in English and Japanese (`What happened / 何が起きたか`, Q63). **filer version**, **OS and architecture**, **Keys that reproduce it** (`Last keys, oldest first: …`) and **What filer knew** (the panel's lines) are filled in; the rest is empty. No path with the user's name in it appears anywhere (Q64) -- also after an error that named one: open a folder under your home that is not there (`g<Space>` and a made-up name) first, and the form's `Last error` reads `~\…` (v0.74.6) |
-| 26.3 | Compare the filled version against `filer --version` in a terminal | The same string, architecture included |
+| 26.2 | Look at the form | Every heading is in English and Japanese (`What happened / 何が起きたか`, Q63). **kura version**, **OS and architecture**, **Keys that reproduce it** (`Last keys, oldest first: …`) and **What kura knew** (the panel's lines) are filled in; the rest is empty. No path with the user's name in it appears anywhere (Q64) -- also after an error that named one: open a folder under your home that is not there (`g<Space>` and a made-up name) first, and the form's `Last error` reads `~\…` (v0.74.6) |
+| 26.3 | Compare the filled version against `kura --version` in a terminal | The same string, architecture included |
 | 26.4 | Compare the filled OS line against `winver` | Edition, feature update and build all match, UBR included (`Windows 11 Pro 25H2 (build 26200.9457)`) |
 | 26.4b | Compare it against the form's own PowerShell snippet | The same facts. Nothing left worth pasting over the top |
 | 26.5 | On the ARM64 machine, with the **ARM64** build | OS arch and Process arch both read `aarch64` |
@@ -838,7 +838,7 @@ shell receiving `<F12>` (26.9), and every comparison with Windows' own answers (
 | 26.8 | `<F12>` with no browser set as default (or a broken association) | An error toast naming the failure. **The window keeps working** |
 | 26.9 | `<F12>` from the terminal pane (`<C-t>` first) | Nothing: `[term]` passes it to the shell, which is correct |
 | 26.10 | `<F12>` with the browser association broken, as in 26.8 (v0.52.0) | The error toast also says the report's link is **on the clipboard**; pasting it into a browser opens the same pre-filled form. When the browser *does* open, the clipboard is left alone |
-| 26.11 | `<F12>`, then `c`; again `<F12>`, then `<Esc>` (v0.73.58, Q62) | `c` puts the same link on the clipboard and says so, and `FILER_KEYS_DONE` has a `report:` line with it; no browser opens. `<Esc>` (or `n`) closes the panel and nothing opens or is copied |
+| 26.11 | `<F12>`, then `c`; again `<F12>`, then `<Esc>` (v0.73.58, Q62) | `c` puts the same link on the clipboard and says so, and `KURA_KEYS_DONE` has a `report:` line with it; no browser opens. `<Esc>` (or `n`) closes the panel and nothing opens or is copied |
 | 26.12 | `<F12>`, then a key the panel does not offer (`(`), then `n` (v0.73.78, Q71) | `(` leaves the panel up (`overlay: confirm` in a `<State:>` after it) and nothing opens or is copied; `n` then closes it. Before, any other key closed it without a word, and the next `<Enter>` went to the list |
 
 ## 27. The preview that would not arrive (v0.12.0)
@@ -862,12 +862,12 @@ before the rest.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 27.1 | Start filer cold, move to a text file as soon as the listing appears | The preview arrives **without touching anything else** |
+| 27.1 | Start kura cold, move to a text file as soon as the listing appears | The preview arrives **without touching anything else** |
 | 27.2 | Walk onto a file never opened in this session — a fresh clone, a folder you have not browsed | It appears. **This is the case that was broken: not cold starts, but anything not already cached** |
 | 27.3 | Walk off the file and back | Still fine (this always worked — it was the cache) |
 | 27.4 | Open an image never seen this session, then zoom with `+` | It steps from the picture's own fit, not from the last image's scale. **The same commit killed this and it has never been exercised** |
 | 27.5 | Restart, open ten different files in a row without revisiting any | All ten appear |
-| 27.6 | Start filer cold in a clone of filer, hover `TODO.md` (2500+ lines) with Markdown rendered, `M` for its source, then hover `TESTING-CHECKS.md` and `src\app.rs` (v0.86.12). Measure with `<Now><State:a><Wait:150><State:b>` (a bare `<State:>` waits past the early screen) | Each shows its first screen at once, with no half-second wait. The source is coloured to the end once `<A-G>` takes it there (`preview top: N of N`), and so is the minimap down the right |
+| 27.6 | Start kura cold in a clone of kura, hover `TODO.md` (2500+ lines) with Markdown rendered, `M` for its source, then hover `TESTING-CHECKS.md` and `src\app.rs` (v0.86.12). Measure with `<Now><State:a><Wait:150><State:b>` (a bare `<State:>` waits past the early screen) | Each shows its first screen at once, with no half-second wait. The source is coloured to the end once `<A-G>` takes it there (`preview top: N of N`), and so is the minimap down the right |
 | 27.7 | Hold `j` through the repository's root, then stop on a big text file. With `--keys`: `j<Now>` N times, then `<Wait:100>`, then `<State:>` | The cursor never waits on the preview, and the file it stops on is shown whole and coloured, not left on a first screen or on a file passed earlier |
 
 ## 28. Changes made from outside (v0.12.4)
@@ -892,24 +892,24 @@ the unit tests alone.
 
 `<A-Up>` in the terminal pane (`term_cd`) asks the shell where it is, which only
 works if the shell says so with OSC 7. PowerShell says nothing unless the hook
-is in `$PROFILE` -- `filer shell-hook` prints it since v0.69.0, and the README shows
+is in `$PROFILE` -- `kura shell-hook` prints it since v0.69.0, and the README shows
 the same lines -- so what is being tested here is mostly the instructions.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 29.1 | With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` | A toast naming OSC 7 and the command that adds the hook, `filer shell-hook \| Add-Content $PROFILE, then <C-S-t> and <C-t>` (v0.69.0, Q50) — **not** silence, and not a wait. With the zip's `filer.exe` not on the `PATH`, `filer` is its full path: `& 'C:\…\filer.exe' shell-hook …` |
+| 29.1 | With **no** hook in `$PROFILE`, open the terminal (`<C-t>`), `cd` somewhere, press `<A-Up>` | A toast naming OSC 7 and the command that adds the hook, `kura shell-hook \| Add-Content $PROFILE, then <C-S-t> and <C-t>` (v0.69.0, Q50) — **not** silence, and not a wait. With the zip's `kura.exe` not on the `PATH`, `kura` is its full path: `& 'C:\…\kura.exe' shell-hook …` |
 | 29.2 | Paste the README hook into `$PROFILE`, open a new terminal, `cd C:\dev`, press `<A-Up>` | The file list moves to `C:\dev` |
 | 29.3 | Same with a directory whose name has a **space** and one with **Japanese** in it | Both arrive intact |
 | 29.4 | `cd` to a UNC path (`\\server\share`) and press `<A-Up>` | Either it follows or it says why; no crash |
 | 29.5 | Run the hook line by hand in a shell that already has Starship | The prompt still draws normally (the hook uses `LocationChangedAction`, not `prompt`) |
-| 29.6 | With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` | 7.x — the pane started `pwsh`, and `filer env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again |
+| 29.6 | With no `[term] shell` and PowerShell 7 installed (v0.55.0), `<C-t>` and `$PSVersionTable.PSVersion` | 7.x — the pane started `pwsh`, and `kura env` names `pwsh` as the pane's shell. With `shell = "powershell"` in `[term]`, 5.1 again |
 | 29.7 | `<C-t>` with no `[term] shell`, then again with `shell = "powershell"` (v0.57.4) | The first toast names the shell: `Started pwsh — <C-t> back to the list`, then `Started powershell (Windows PowerShell 5.1) — …` (v0.65.3; before that the configured one said only `powershell`). It has to match what `$PSVersionTable.PSVersion` says |
 | 29.8 | In a pane started as `powershell` (5.1) with no hook, `<A-Up>` (v0.59.4) | The red toast names the shell and says it **cannot** have the hook -- `` `powershell (Windows PowerShell 5.1)` has not said where it is (no OSC 7), and cannot: the hook needs PowerShell 7 (winget install Microsoft.PowerShell) `` (v0.69.0, Q50; before that it sent you to 5.1's `$PROFILE`, where the hook fails at every start) |
 | 29.9 | Put a handler of another tool's in `$PROFILE` first (`mise activate pwsh`, or a stand-in: `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`), the README hook after it, open a new pane, `cd C:\dev`, `<A-Up>` (v0.64.2) | Both run: the list moves to `C:\dev` **and** the other tool's handler still does its job (the stand-in's title reads `other: C:\dev`). Before v0.64.2 the README hook replaced the other one |
-| 29.10 | With no hook, in the pane (`pwsh`): exactly what the 29.1 toast says, then `<C-S-t>`, `<C-t>`, `cd C:\dev`, `<A-Up>` (v0.69.0, Q50) | The list moves to `C:\dev`. `Get-Content $PROFILE` ends with the lines `filer shell-hook` prints (a `# filer:` comment first), on lines of their own -- not glued to the profile's last line. `filer shell-hook powershell` and `filer shell-hook fish` print one line naming the problem, exit code 2 |
-| 29.11 | Linux: `filer shell-hook bash >> ~/.bashrc` (and `zsh >> ~/.zshrc` with `[term] shell = "zsh"`), new pane, `cd` to a folder with a space and Japanese in its name, `<A-Up>` (v0.69.0, Q50) | The list moves there, both names intact. Without the hook the toast names `shell-hook bash >> ~/.bashrc` |
-| 29.12 | With `[term] shell = "pwsh"` and `args` in `filer.toml`: `$env:FILER_TERM_SHELL = 'powershell'`, start filer, `<C-t>`, then `filer env` from the same shell; then `Remove-Item Env:FILER_TERM_SHELL` and again (v0.70.0, Q51) | With the variable: the toast is `Started powershell (Windows PowerShell 5.1) — …`, and `filer env` lists `powershell` as `terminal pane, from FILER_TERM_SHELL; [term] args not used: <the args>` (the `args` from `filer.toml`, since v0.73.11, #190) with `FILER_TERM_SHELL` among the variables. Without it: `pwsh` and `from [term] shell` again, and with `args = ["-NoLogo"]` in `filer.toml` the toast names them too: `Started pwsh -NoLogo — …` (v0.79.2, #281). The rest of the config took effect both times: `filer.toml`'s other settings (the font) and the `theme.toml` beside it (the theme lives there, not in `filer.toml`) |
-| 29.13 | `$env:FILER_TERM_SHELL = 'pwsh'; $env:FILER_TERM_ARGS = '-NoProfile'`, start filer, `<C-t>`, then `filer env` from the same shell; then with `FILER_TERM_ARGS` alone (v0.78.37, Q81) | With both: the toast reads `Started pwsh -NoProfile — …`, the pane's PTY log shows no profile output, and `filer env` lists `terminal pane, from FILER_TERM_SHELL; args from FILER_TERM_ARGS: -NoProfile` with `FILER_TERM_ARGS` among the variables. With the arguments alone: the shell is the one `[term]` names (or the platform default), the arguments are not used, and `filer env` says `FILER_TERM_ARGS not used: it needs FILER_TERM_SHELL` (v0.78.49) |
+| 29.10 | With no hook, in the pane (`pwsh`): exactly what the 29.1 toast says, then `<C-S-t>`, `<C-t>`, `cd C:\dev`, `<A-Up>` (v0.69.0, Q50) | The list moves to `C:\dev`. `Get-Content $PROFILE` ends with the lines `kura shell-hook` prints (a `# kura:` comment first), on lines of their own -- not glued to the profile's last line. `kura shell-hook powershell` and `kura shell-hook fish` print one line naming the problem, exit code 2 |
+| 29.11 | Linux: `kura shell-hook bash >> ~/.bashrc` (and `zsh >> ~/.zshrc` with `[term] shell = "zsh"`), new pane, `cd` to a folder with a space and Japanese in its name, `<A-Up>` (v0.69.0, Q50) | The list moves there, both names intact. Without the hook the toast names `shell-hook bash >> ~/.bashrc` |
+| 29.12 | With `[term] shell = "pwsh"` and `args` in `kura.toml`: `$env:KURA_TERM_SHELL = 'powershell'`, start kura, `<C-t>`, then `kura env` from the same shell; then `Remove-Item Env:KURA_TERM_SHELL` and again (v0.70.0, Q51) | With the variable: the toast is `Started powershell (Windows PowerShell 5.1) — …`, and `kura env` lists `powershell` as `terminal pane, from KURA_TERM_SHELL; [term] args not used: <the args>` (the `args` from `kura.toml`, since v0.73.11, #190) with `KURA_TERM_SHELL` among the variables. Without it: `pwsh` and `from [term] shell` again, and with `args = ["-NoLogo"]` in `kura.toml` the toast names them too: `Started pwsh -NoLogo — …` (v0.79.2, #281). The rest of the config took effect both times: `kura.toml`'s other settings (the font) and the `theme.toml` beside it (the theme lives there, not in `kura.toml`) |
+| 29.13 | `$env:KURA_TERM_SHELL = 'pwsh'; $env:KURA_TERM_ARGS = '-NoProfile'`, start kura, `<C-t>`, then `kura env` from the same shell; then with `KURA_TERM_ARGS` alone (v0.78.37, Q81) | With both: the toast reads `Started pwsh -NoProfile — …`, the pane's PTY log shows no profile output, and `kura env` lists `terminal pane, from KURA_TERM_SHELL; args from KURA_TERM_ARGS: -NoProfile` with `KURA_TERM_ARGS` among the variables. With the arguments alone: the shell is the one `[term]` names (or the platform default), the arguments are not used, and `kura env` says `KURA_TERM_ARGS not used: it needs KURA_TERM_SHELL` (v0.78.49) |
 
 ## 30. Right-click paste in a prompt (v0.14.0)
 
@@ -925,7 +925,7 @@ the same lines -- so what is being tested here is mostly the instructions.
 | 30.8 | Right-click in the **file list** | Still the context menu — the list is unchanged |
 | 30.9 | Right-click in the **terminal** pane (`<C-t>`) | The clipboard is typed in, and the pane takes the keys if it did not have them |
 | 30.10 | Select text in the terminal with a drag, then right-click | The selection was copied on release; the right-click pastes it back — select to copy, right-click to paste |
-| 30.11 | Copy **three lines** and right-click into the terminal at the prompt of a shell that asks for bracketed paste (`\e[?2004h` in `FILER_PTY_LOG`'s `out` lines): bash, such as Git Bash. Windows PowerShell 5.1 (PSReadLine 2.0.0) and pwsh 7.6 (PSReadLine 2.4.5) do not ask, so neither is the shell for this row, and filer is right to send them no markers | All three sit in the buffer, **nothing runs** until `<Enter>` |
+| 30.11 | Copy **three lines** and right-click into the terminal at the prompt of a shell that asks for bracketed paste (`\e[?2004h` in `KURA_PTY_LOG`'s `out` lines): bash, such as Git Bash. Windows PowerShell 5.1 (PSReadLine 2.0.0) and pwsh 7.6 (PSReadLine 2.4.5) do not ask, so neither is the shell for this row, and kura is right to send them no markers | All three sit in the buffer, **nothing runs** until `<Enter>` |
 | 30.12 | The same in a shell that does **not** ask for bracketed paste (`cmd.exe`) | The lines run, as they always have — and no stray `[200~` appears |
 | 30.13 | Right-click in the terminal while `vim` is open | The text is inserted; no `[200~` on screen |
 | 30.14 | `<C-v>` in the terminal | Same as the right-click, including 23.11 |
@@ -977,11 +977,11 @@ instructions are wrong, which is worse than a missing feature.
 | 32.9a | The same, then read サクラエディタ's status bar as text (`SendMessage` `SB_GETTEXTW` to its `msctls_statusbar32`: `scripts\read-statusbar.ps1`) | It reads `<the heading's line> 行 1 桁`, and the character under the caret is the heading's first one. Control: a copy of the file that Sakura has never opened, opened without `-Y=`, reads `1 行 1 桁` (the same file would not: Sakura reopens a file at the line it was left on, `m_bRestoreCurPosition=1`, #198). Sakura ignored `-L=`, so before v0.47.29 it opened at line 1 or where the file was last left (#196 found the status bar readable) |
 | 32.10 | An opener whose program is misspelled (`run = 'Hidemruu.exe %s'`), `<S-Enter>` and pick it (v0.59.1) | The error reads ``Open failed: `Hidemruu.exe` was not found — …``, not `exit code 1`. An opener whose program exists but fails still gives its exit code |
 | 32.11 | Linux: a `block = true` opener (`run = 'nvim %*'`; `vim` will do), `<Enter>` on a file whose folder and name hold a space and a `'` (v0.72.0) | A terminal window opens with the editor in it. `ps` shows the editor got the whole path as one argument, and `/proc/<pid>/cwd` is the list's folder |
-| 32.12 | Linux: the same with `TERMINAL="xterm -title picked"` | The window is titled `picked` (`xdotool getwindowname`). `filer env` names `xterm -title picked` on the `block = true openers` row; with `TERMINAL` unset it names the first of the built-in list that is installed |
+| 32.12 | Linux: the same with `TERMINAL="xterm -title picked"` | The window is titled `picked` (`xdotool getwindowname`). `kura env` names `xterm -title picked` on the `block = true openers` row; with `TERMINAL` unset it names the first of the built-in list that is installed |
 | 32.13 | Linux: a `block = true` opener naming a program that is not installed | The terminal stays open on `[exit 127] Press Enter to close.` instead of flashing shut; `<Enter>` in it closes it |
-| 32.14 | macOS: a `block = true` opener, `<Enter>` on a file | Terminal.app comes forward with a new window running the editor in the list's folder. The first time, macOS asks whether filer may control Terminal; refused, a toast says why |
-| 32.15 | Windows, **the release `filer.exe`** (no console of its own; `cargo run` has one and never showed this): `:` then `nvim` (v0.75.14, Q12) | nvim draws in the new console (its `~` column and status line), not a black window with a blinking cursor. The same through a `block = true` opener on `<Enter>`. Read it with `ReadConsoleOutputCharacter` on the new console, or `nvim`'s own `:redir`; before, `Win32_Process` showed `nvim` running with nothing drawn |
-| 32.16 | Windows, the release `filer.exe`: `:` then `git log -5 --oneline` (v0.75.14, Q13) | The console stays open on the five lines and `Press any key to continue . . .` (`続行するには何かキーを押してください . . .` on a Japanese Windows); a key closes it. `:` then `dir & pause` asks once, not twice. `;` is unchanged: no console and no pause |
+| 32.14 | macOS: a `block = true` opener, `<Enter>` on a file | Terminal.app comes forward with a new window running the editor in the list's folder. The first time, macOS asks whether kura may control Terminal; refused, a toast says why |
+| 32.15 | Windows, **the release `kura.exe`** (no console of its own; `cargo run` has one and never showed this): `:` then `nvim` (v0.75.14, Q12) | nvim draws in the new console (its `~` column and status line), not a black window with a blinking cursor. The same through a `block = true` opener on `<Enter>`. Read it with `ReadConsoleOutputCharacter` on the new console, or `nvim`'s own `:redir`; before, `Win32_Process` showed `nvim` running with nothing drawn |
+| 32.16 | Windows, the release `kura.exe`: `:` then `git log -5 --oneline` (v0.75.14, Q13) | The console stays open on the five lines and `Press any key to continue . . .` (`続行するには何かキーを押してください . . .` on a Japanese Windows); a key closes it. `:` then `dir & pause` asks once, not twice. `;` is unchanged: no console and no pause |
 | 32.17 | `[open] prepend_rules = [{ name = "*.txt", use = "<an opener>" }]` in `yazi.toml`, with no `rules` of your own; `<Enter>` on a `.txt`, then `<S-Enter>` (v0.78.6, #250) | `<Enter>` runs that opener (its `$ …` toast), and `<S-Enter>` lists it first, above what your own `rules` name if you write any (Windows has no built-in openers). An `append_rules` entry is listed last |
 | 32.18 | `O` on a file with two or more openers, then `<C-n>` / `<C-j>`, `<C-p>` / `<C-k>`; type `jj` (v0.78.39, Q80) | The cursor row moves down with `<C-n>` and `<C-j>` and up with `<C-p>` and `<C-k>`, one row each; `jj` is typed into the filter (`Nothing matches` or a shorter list), not a move. The hint line reads `<Down>/<Up> or <C-n>/<C-p> choose`. After `<Esc>`, `<F1>` in the list shows a `keys in the picker` section with the four keys (`<F1>` inside the picker is the filter's, v0.78.68) |
 | 32.19 | `<Enter>` on a `.txt` with whatever the first `edit` opener for `.txt` is (on x64 that is nvim; サクラ or Notepad would open a window beside the owner's unsaved ones and restored tabs, so any editor will do), then `<State:x>` (v0.78.81, #162) | `x.txt` has `launched: <PID> <the command line>`. `Get-CimInstance Win32_Process -Filter "ProcessId=<PID> or ParentProcessId=<PID>"` lists the `cmd` that ran the line and the editor under it, and `Stop-Process -Id` on the editor's PID closes that window alone, not another one of the same program already open |
@@ -1022,7 +1022,7 @@ misplaced, then with both config files empty) is automated there too. **33.16, 3
 written into a temp directory: the marked row and its note, the marker coming off once the file is
 among the ones read, and the note naming a rebound `<F9>`. **33.19, 33.21 and 33.22** are
 end-to-end in `config::reload_tests`: real `keymap.toml` and `yazi.toml` files in a yazi and a
-filer folder, read and then re-read the way `<C-F5>` does, with the warnings and overrides `filer env`
+kura folder, read and then re-read the way `<C-F5>` does, with the warnings and overrides `kura env`
 prints asserted word for word (full paths included) and `q` resolved through the keymap. **33.23**
 is a frame test in `ui::config_warning_frame`: 33.22's warning in a 520-pixel window wraps onto
 indented rows, none cut, and `C` copies it as one line.
@@ -1030,7 +1030,7 @@ indented rows, none cut, and `C` copies it as one line.
 What is left for an eye: that the yellow *reads* as advice rather than as a failure at a glance
 (33.4 — a test can say the two colours differ and which is which, not that a person tells them
 apart), that it is legible on a light theme (33.6), the parse error's own wording (33.7), and
-33.15, which needs the files really on disk, `filer env`, and a terminal pane that starts.
+33.15, which needs the files really on disk, `kura env`, and a terminal pane that starts.
 
 | # | Do | Expect |
 | --- | --- | --- |
@@ -1040,20 +1040,20 @@ apart), that it is legible on a light theme (33.6), the parse error's own wordin
 | 33.4 | Make something actually fail (an opener naming a program that is not installed, 25.8) | Still **red**, so the two are told apart at a glance |
 | 33.5 | Remove the duplicate lines, `<C-F5>` | `Reloaded N config file(s)` in the plain colour; no yellow |
 | 33.6 | A theme with a light background: `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }` in `theme.toml` (v0.73.42; nothing could set the window's background before), with a config warning on screen (33.1) and a `.txt` file in the list | Since v0.81.0 (Q93) the warning is **dark amber** and the `.txt` name **dark grey**, both easy to read on white, and the cursor's bar is a light blue the `.txt` name reads on; with `overall = { bg = "#000000" }` they are the light yellow and grey again |
-| 33.7 | Put a real syntax error in `yazi.toml` (`[mgr` with no `]`) and start | Since v0.81.0 (Q84) the toast's text is **one line** (it may wrap to **two** on a narrow window or under a long path, never more): `Config: <path>\yazi.toml: TOML parse error at line 1, column 5 — the rest in \`~\``. It does not cover the preview's first lines. `~` and `filer env` show all five lines, pointing at the line. **Inside its box**: nothing over the header, nothing past either edge of the window (v0.33.11) |
+| 33.7 | Put a real syntax error in `yazi.toml` (`[mgr` with no `]`) and start | Since v0.81.0 (Q84) the toast's text is **one line** (it may wrap to **two** on a narrow window or under a long path, never more): `Config: <path>\yazi.toml: TOML parse error at line 1, column 5 — the rest in \`~\``. It does not cover the preview's first lines. `~` and `kura env` show all five lines, pointing at the line. **Inside its box**: nothing over the header, nothing past either edge of the window (v0.33.11) |
 | 33.8 | Narrow the window to about a third of the screen, with 33.7 still broken | The line wraps rather than running off; the box stays against the right edge |
-| 33.9 | Break **three** config files at once (`yazi.toml`, `keymap.toml`, `filer.toml`) and start | **One** one-line toast for all three: the first line of the first file's error, ending `— the rest and 2 more in \`~\`` (v0.81.0; a one-line warning with others ends `(+2 more, see \`~\`)`). `~` lists all three in full. The box stays inside the window |
+| 33.9 | Break **three** config files at once (`yazi.toml`, `keymap.toml`, `kura.toml`) and start | **One** one-line toast for all three: the first line of the first file's error, ending `— the rest and 2 more in \`~\`` (v0.81.0; a one-line warning with others ends `(+2 more, see \`~\`)`). `~` lists all three in full. The box stays inside the window |
 | 33.10 | A single error longer than eight lines | The toast is its first line and `— the rest in \`~\`` (v0.81.0); the whole error is in `~` |
-| 33.11 | Put `[[preview]]` into `yazi.toml` (it belongs in `filer.toml`) and start | **One line**: `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13) |
+| 33.11 | Put `[[preview]]` into `yazi.toml` (it belongs in `kura.toml`) and start | **One line**: `…\yazi.toml: [[preview]] belongs in kura.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13) |
 | 33.12 | Put `[term]` into `yazi.toml` as well | A second line for it, same shape. Both say the file went unread, because it did |
-| 33.13 | Put `[term]` into a `yazi.toml` that is otherwise fine (no `[[preview]]`) | `… belongs in filer.toml and was ignored` — *ignored*, not *unread*: the rest of the file did load |
-| 33.14 | Put `[opener]` into `filer.toml` | The same warning the other way round: `belongs in yazi.toml` |
-| 33.15 | Move both into the right files, `<C-F5>` | No warnings. `filer env` agrees, and the terminal pane now starts what `[term] shell` names |
-| 33.16 | With filer **already running**, create `%APPDATA%\filer\filer.toml`, then press `~` | The file is a row of its own, in the warning colour, reading `on disk, not read yet — <C-F5> re-reads config`. The directory is **not** `nothing here` (v0.34.0) |
+| 33.13 | Put `[term]` into a `yazi.toml` that is otherwise fine (no `[[preview]]`) | `… belongs in kura.toml and was ignored` — *ignored*, not *unread*: the rest of the file did load |
+| 33.14 | Put `[opener]` into `kura.toml` | The same warning the other way round: `belongs in yazi.toml` |
+| 33.15 | Move both into the right files, `<C-F5>` | No warnings. `kura env` agrees, and the terminal pane now starts what `[term] shell` names |
+| 33.16 | With kura **already running**, create `%APPDATA%\kura\kura.toml`, then press `~` | The file is a row of its own, in the warning colour, reading `on disk, not read yet — <C-F5> re-reads config`. The directory is **not** `nothing here` (v0.34.0) |
 | 33.17 | `<C-F5>`, then `~` again | The row is now an ordinary loaded file, no marker |
 | 33.18 | Rebind `config_reload` to `<F9>` and repeat 33.16 | The row names `<F9>`, not `<C-F5>` — it is read from the keymap, not written into the message |
-| 33.19 | Bind `Q` to `quit` in `%APPDATA%\yazi\config\keymap.toml` and to `hidden toggle` in `%APPDATA%\filer\keymap.toml`, then run `filer env` (v0.73.33, Q57) | Warnings: `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<filer's path>) runs, not \`quit\` (<yazi's path>)`, both full paths. Bind `T` to `hidden toggle` in the filer file only: not a warning since v0.73.49 (Q60) -- an `Overrides` row says `` [mgr] `T`: `hidden toggle` (<filer's path>) instead of the default `plugin toggle-pane max-preview` ``; bound to that same default command, it is in neither |
-| 33.20 | With 33.11's `yazi.toml` (only `[[preview]]`) press `~`; then empty both config folders, start filer, create `filer.toml` and press `~` again (v0.73.41, #203) | The first time, the `yazi.toml` row is in the warning colour with `nothing in it was read — see below`, not listed as an ordinary read file. The second time, under the `on disk, not read yet` row: `(nothing read yet; the defaults are in use)`, not `(nothing found in either; …)` |
+| 33.19 | Bind `Q` to `quit` in `%APPDATA%\yazi\config\keymap.toml` and to `hidden toggle` in `%APPDATA%\kura\keymap.toml`, then run `kura env` (v0.73.33, Q57) | Warnings: `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<kura's path>) runs, not \`quit\` (<yazi's path>)`, both full paths. Bind `T` to `hidden toggle` in the kura file only: not a warning since v0.73.49 (Q60) -- an `Overrides` row says `` [mgr] `T`: `hidden toggle` (<kura's path>) instead of the default `plugin toggle-pane max-preview` ``; bound to that same default command, it is in neither |
+| 33.20 | With 33.11's `yazi.toml` (only `[[preview]]`) press `~`; then empty both config folders, start kura, create `kura.toml` and press `~` again (v0.73.41, #203) | The first time, the `yazi.toml` row is in the warning colour with `nothing in it was read — see below`, not listed as an ordinary read file. The second time, under the `on disk, not read yet` row: `(nothing read yet; the defaults are in use)`, not `(nothing found in either; …)` |
 | 33.21 | In `yazi.toml`, write an opener with a Windows path in double quotes (`edit = [{ run = "C:\Users\me\nvim.exe" }]`) and start (v0.78.27) | The parse error, then one more line: `(a backslash in "double quotes" starts an escape: write a Windows path in 'single quotes')`. Change the quotes to `'…'`, `<C-F5>`: no warning |
 | 33.22 | Put a one-entry `[[mgr.keymap]]` (`on = "<F9>"`, `run = "config_reload"`) in `keymap.toml` and start (v0.78.27, #164, #258) | A warning: ``…keymap.toml: `[[mgr.keymap]]` replaces all N keys of [mgr] with 1 -- did you mean `[[mgr.prepend_keymap]]`?``. `q` still does nothing (the replacement is yazi's rule). Rename it to `[[mgr.prepend_keymap]]`, `<F9>`: no warning, and `q` quits |
 | 33.23 | With 33.22's `keymap.toml`, press `~` and narrow the window until the warning is wider than the panel; then press `C` and paste (v0.78.185) | The warning is not cut off at the right edge: it continues on the next row, indented. The copied text has the warning as one line |
@@ -1100,23 +1100,23 @@ size the panel comes out.
 
 ## 35. Where the config is looked for, per platform (v0.35.0)
 
-`filer env` prints the two directories in effect and whether each file was
+`kura env` prints the two directories in effect and whether each file was
 found, so most of this is readable without a GUI. The Linux and `XDG_CONFIG_HOME`
 rows were verified in the development container; **the macOS rows cannot be, and
 Windows needs confirming that nothing moved.**
 
 | # | Platform | Do | Expect |
 | --- | --- | --- | --- |
-| 35.1 | Windows | `filer env` with both variables unset | `%APPDATA%\yazi\config` and `%APPDATA%\filer` — **unchanged from v0.34.0.** This is the row that must not have moved |
-| 35.2 | Windows | Put `[mgr] sort_by = "mtime"` in `%APPDATA%\yazi\config\yazi.toml` | Read. yazi's own directory still shares with filer |
-| 35.3 | macOS | `filer env` | `~/.config/yazi` and `~/.config/filer`, **not** `~/Library/Application Support/…` |
-| 35.4 | macOS | Install yazi, run `yazi` once, put a `yazi.toml` where yazi reads it | filer reads the same file. This is the whole point of the change: before v0.35.0 filer looked under `~/Library/Application Support/yazi/config/`, which yazi never writes |
-| 35.5 | macOS | Anyone upgrading with config in `~/Library/Application Support/filer/` | It is **no longer read** — `filer env` lists it as missing. Move it to `~/.config/filer/`. Called out as a 変更 in CHANGELOG |
-| 35.6 | Linux | `filer env` | `~/.config/yazi` — **not** `~/.config/yazi/config` |
-| 35.7 | Linux / macOS | `XDG_CONFIG_HOME=/tmp/x filer env` | `/tmp/x/yazi` and `/tmp/x/filer` |
-| 35.8 | Linux / macOS | `XDG_CONFIG_HOME=relative filer env`, and again with it empty | Falls back to `~/.config/…`. XDG says a relative value is ignored |
-| 35.9 | Any | `last-run.toml` | Still in the state directory (`data_dir()`), which this change did **not** touch. On Windows that is the same `%APPDATA%\filer`; on Linux `~/.local/share/filer` |
-| 35.10 | Any | Symlink `filer.toml` into the config directory from elsewhere, then `<C-F5>` | Read through the link. Re-check after editing via the **link path** with an editor that saves by rename — that replaces the symlink with a regular file |
+| 35.1 | Windows | `kura env` with both variables unset | `%APPDATA%\yazi\config` and `%APPDATA%\kura` — **unchanged from v0.34.0.** This is the row that must not have moved |
+| 35.2 | Windows | Put `[mgr] sort_by = "mtime"` in `%APPDATA%\yazi\config\yazi.toml` | Read. yazi's own directory still shares with kura |
+| 35.3 | macOS | `kura env` | `~/.config/yazi` and `~/.config/kura`, **not** `~/Library/Application Support/…` |
+| 35.4 | macOS | Install yazi, run `yazi` once, put a `yazi.toml` where yazi reads it | kura reads the same file. This is the whole point of the change: before v0.35.0 kura looked under `~/Library/Application Support/yazi/config/`, which yazi never writes |
+| 35.5 | macOS | Anyone upgrading with config in `~/Library/Application Support/kura/` | It is **no longer read** — `kura env` lists it as missing. Move it to `~/.config/kura/`. Called out as a 変更 in CHANGELOG |
+| 35.6 | Linux | `kura env` | `~/.config/yazi` — **not** `~/.config/yazi/config` |
+| 35.7 | Linux / macOS | `XDG_CONFIG_HOME=/tmp/x kura env` | `/tmp/x/yazi` and `/tmp/x/kura` |
+| 35.8 | Linux / macOS | `XDG_CONFIG_HOME=relative kura env`, and again with it empty | Falls back to `~/.config/…`. XDG says a relative value is ignored |
+| 35.9 | Any | `last-run.toml` | Still in the state directory (`data_dir()`), which this change did **not** touch. On Windows that is the same `%APPDATA%\kura`; on Linux `~/.local/share/kura` |
+| 35.10 | Any | Symlink `kura.toml` into the config directory from elsewhere, then `<C-F5>` | Read through the link. Re-check after editing via the **link path** with an editor that saves by rename — that replaces the symlink with a regular file |
 
 ---
 
@@ -1146,7 +1146,7 @@ with the code. See QA-REPORT.md.
 | 36.7 | `T`, then `<F3>`, then `<Esc>` | The panel closes and the **maximized column is still maximized** — the two flags are independent |
 | 36.8 | Hide the parent pane (`toggle-pane max-parent`), then `T` on and `T` off | The parent pane is **back** — turning `T` on clears `hide_parent`, and toggling off does not restore it. Deliberate, but it means `T` is not quite a round trip |
 | 36.9 | `T` on a directory, and on a file with no preview | No panic, no stuck layout; `T` still toggles back |
-| 36.10 | Bind `<S-t>` in `[[mgr.prepend_keymap]]` to something that shows (`run = "quit"`), `<C-F5>`, then press `T` (Shift and t) | **The binding never fires**: filer keeps running, and `T` does what the default `T` does (36.1). A shifted letter arrives as the letter itself, so `<S-t>` matches no key — the lesson the tests pin. A warning says so (v0.78.7): `filer env`'s `Warnings` lists `` `<S-t>` can never be pressed: Shift with a printable key arrives as the character it types -- write `T` ``, and the same shows as a toast after the `<C-F5>`. (With `[[mgr.keymap]]`, which replaces the defaults, no key in the list does anything at all, `q` included, and a warning says so: 33.22) |
+| 36.10 | Bind `<S-t>` in `[[mgr.prepend_keymap]]` to something that shows (`run = "quit"`), `<C-F5>`, then press `T` (Shift and t) | **The binding never fires**: kura keeps running, and `T` does what the default `T` does (36.1). A shifted letter arrives as the letter itself, so `<S-t>` matches no key — the lesson the tests pin. A warning says so (v0.78.7): `kura env`'s `Warnings` lists `` `<S-t>` can never be pressed: Shift with a printable key arrives as the character it types -- write `T` ``, and the same shows as a toast after the `<C-F5>`. (With `[[mgr.keymap]]`, which replaces the defaults, no key in the list does anything at all, `q` included, and a warning says so: 33.22) |
 | 36.11 | `~` / `F1` | `T` is listed with its description, in the keymap the panel shows |
 
 ### `q` means the same thing everywhere (v0.36.1)
@@ -1182,7 +1182,7 @@ needs a machine is that the program really starts.
 | 37.5 | An opener written `start "" msedge "%*"` (placeholder quoted by hand) | Same result as 37.1 — the pair around the placeholder is still absorbed |
 | 37.6 | Select two PDFs, `<Enter>` | Both open as separate arguments, not one quoted blob |
 | 37.7 | An opener given as a full path that does not go through `start`: サクラエディタ's `"C:\Program Files (x86)\sakura\sakura.exe" %*` | Unchanged by the `start` handling: `Win32_Process` shows `sakura.exe` as the child of the `cmd /S /C` every `block = false` opener runs through (`"cmd" /S /C ""C:\…\sakura.exe" "<file>""`), with no `start` on the line and no console window of its own |
-| 37.8 | `O` on a PDF, with the README's example config (32.1) | The picker lists Edge, Chrome, the default app, then the editors, in that order: `FILER_KEYS_DONE`'s `pick:` line reads them |
+| 37.8 | `O` on a PDF, with the README's example config (32.1) | The picker lists Edge, Chrome, the default app, then the editors, in that order: `KURA_KEYS_DONE`'s `pick:` line reads them |
 | 37.8a | Pick each entry of 37.8's list in turn except the browsers (Edge, Chrome): the default app and each editor | Each launches what it says. A program not installed on this machine, an extension with no app associated, or one that joins a window already running (the document lands in it and no new process starts) is a skip with the reason, not a failure |
 | 37.8b | The browser entries of 37.8's list, Edge and Chrome, **only when no window of that browser is open** (#256) | Each opens the PDF in a new browser process. With one of the owner's windows open the PDF joins it, so skip that browser with the reason -- the same skips as 37.8a |
 
@@ -1249,13 +1249,13 @@ What needs a machine is the handover, in a real `nvim` and a real pager.
 | --- | --- | --- |
 | 40.1 | `<C-t>`, `nvim` a long file, `<A-j>` / `<A-k>` with `nnoremap <A-j> :m+1<CR>` bound | **nvim sees the key.** The v0.37.0 collision is gone |
 | 40.2 | In the same nvim, `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` | All reach nvim. Every `term_scroll` key is handed over, not just the two |
-| 40.3 | In the same nvim, `<C-t>` | **Still filer's** — it leaves the pane, with nvim left running. Non-scrolling keys are never handed over |
-| 40.4 | Quit nvim, then `<A-j>` / `<A-k>` at the shell prompt | Back to scrolling filer's scrollback. The handover follows the program, not a setting |
+| 40.3 | In the same nvim, `<C-t>` | **Still kura's** — it leaves the pane, with nvim left running. Non-scrolling keys are never handed over |
+| 40.4 | Quit nvim, then `<A-j>` / `<A-k>` at the shell prompt | Back to scrolling kura's scrollback. The handover follows the program, not a setting |
 | 40.5 | The wheel inside nvim, and inside `less` | Scrolls the document. Before v0.38.0 it tried to walk a scrollback that does not exist, so nothing moved |
 | 40.6 | The wheel at the shell prompt | Still walks the scrollback, unchanged |
 | 40.7 | `nvim` a long file, `<S-PageUp>`, then `:q` to quit, then `<S-PageUp>` again | Inside nvim it pages the document; after quitting it scrolls the pane's scrollback and sends nothing. (Not `less`: it is handed the same `\e[5;2~` and does not page on a shifted key, though an unshifted `PageUp` moves it) |
 | 40.8 | In `less`, one notch up then one notch down (v0.55.0) | Lands back where it started — one notch is the same number of arrows each way. Until v0.55.0 the first notch after turning round was lost (#100) |
-| 40.9 | A program using the alternate screen **and** application-cursor mode (`\e[?1h`): `less` asks for it | The wheel's arrows arrive as SS3 (`ESC O A`), not CSI. Check it with a program that reads the raw input (a script that runs `read -rsn3` and prints the bytes), not with `FILER_PTY_LOG`: since v0.55.0 filer sends ConPTY win32-input-mode records (`(Down)`), so `\eOB` never shows in that log. Not nvim: it never asks for this mode, so its arrows are CSI in any mode |
+| 40.9 | A program using the alternate screen **and** application-cursor mode (`\e[?1h`): `less` asks for it | The wheel's arrows arrive as SS3 (`ESC O A`), not CSI. Check it with a program that reads the raw input (a script that runs `read -rsn3` and prints the bytes), not with `KURA_PTY_LOG`: since v0.55.0 kura sends ConPTY win32-input-mode records (`(Down)`), so `\eOB` never shows in that log. Not nvim: it never asks for this mode, so its arrows are CSI in any mode |
 
 ### `Alt`+letter reaches the shell at all (v0.38.0)
 
@@ -1263,12 +1263,12 @@ What needs a machine is the handover, in a real `nvim` and a real pager.
 | --- | --- | --- |
 | 40.10 | At a `bash`/`zsh` prompt in the pane, type a few words, then `Alt-b` / `Alt-f` | The cursor moves **by word**. Before v0.38.0 nothing happened — the key was dropped with no bytes behind it |
 | 40.11 | `Alt-d` at the same prompt | Deletes the word ahead |
-| 40.12 | PowerShell (PSReadLine) in the pane, after `Set-PSReadLineOption -EditMode Emacs`, `Alt-b` / `Alt-f` | Same word motions, as in bash. Under PSReadLine's default `EditMode Windows` there is no `Alt+b` / `Alt+f`, and a `b` is typed instead: that is PSReadLine, since filer sends the same bytes either way (`Alt-d` works in both) |
-| 40.13 | `Alt-j` / `Alt-k` at an ordinary prompt | **Still filer's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen |
-| 40.14 | The wheel inside nvim, with `FILER_PTY_LOG` set (v0.55.0), the cursor mid-window and the pane maximised (`<C-S-Enter>`) or `:set scrolloff=0`: in a pane a third high nvim's own `scrolloff` (4 of 11 rows) drags the cursor along whatever filer sends (#107) | nvim's view scrolls and **its cursor stays on the same line** (`:echo line('.')` before and after). The log shows `\e[<64;…M` / `\e[<65;…M`, not `\e[A` |
+| 40.12 | PowerShell (PSReadLine) in the pane, after `Set-PSReadLineOption -EditMode Emacs`, `Alt-b` / `Alt-f` | Same word motions, as in bash. Under PSReadLine's default `EditMode Windows` there is no `Alt+b` / `Alt+f`, and a `b` is typed instead: that is PSReadLine, since kura sends the same bytes either way (`Alt-d` works in both) |
+| 40.13 | `Alt-j` / `Alt-k` at an ordinary prompt | **Still kura's scroll** — these two are bound in the `[term]` layer, and the prompt is not the alternate screen |
+| 40.14 | The wheel inside nvim, with `KURA_PTY_LOG` set (v0.55.0), the cursor mid-window and the pane maximised (`<C-S-Enter>`) or `:set scrolloff=0`: in a pane a third high nvim's own `scrolloff` (4 of 11 rows) drags the cursor along whatever kura sends (#107) | nvim's view scrolls and **its cursor stays on the same line** (`:echo line('.')` before and after). The log shows `\e[<64;…M` / `\e[<65;…M`, not `\e[A` |
 | 40.15 | lazygit in the pane (v0.55.0): about 300 `<S-End>` at 30 a second, with `?` then `<Esc>` in the middle of them, as #99 rebuilt #93 | The key list closes within a second of the `<Esc>`. Until v0.55.0 it stayed open for minutes: `<Esc>` sent as a record and `<S-End>` as `\e[1;2F` right behind it read to tcell as one sequence |
-| 40.16 | With `FILER_PTY_LOG` set (v0.55.0): open the pane, type a few words, then `<C-Left>` over a typed word and `<Tab>` completion (`<C-c>` is 49.9) | The log's `out` lines hold `\e[?9001h` near the start, and the `in key` lines are records (`\e[…;…;…;1;…;1_`) rather than `\e[1;5D`; `<C-Left>` moves by a word, `<Tab>` completes — the shell reads records as it reads a real keyboard |
-| 40.17 | With `FILER_PTY_LOG` set, inside nvim, one notch of the wheel; then three (v0.58.1) | One `\e[<64;…M` (or `65`) per notch: 1, then 3. Until v0.58.1 three notches sent five, because the smoothed delta was counted |
+| 40.16 | With `KURA_PTY_LOG` set (v0.55.0): open the pane, type a few words, then `<C-Left>` over a typed word and `<Tab>` completion (`<C-c>` is 49.9) | The log's `out` lines hold `\e[?9001h` near the start, and the `in key` lines are records (`\e[…;…;…;1;…;1_`) rather than `\e[1;5D`; `<C-Left>` moves by a word, `<Tab>` completes — the shell reads records as it reads a real keyboard |
+| 40.17 | With `KURA_PTY_LOG` set, inside nvim, one notch of the wheel; then three (v0.58.1) | One `\e[<64;…M` (or `65`) per notch: 1, then 3. Until v0.58.1 three notches sent five, because the smoothed delta was counted |
 
 ---
 
@@ -1380,7 +1380,7 @@ The walk and the ordering are unit-tested on a small tree. What needs a machine 
 | 44.16 | `gu` on a tree big enough to take seconds, and watch the header (v0.57.3) | `N measured so far`, growing, while it walks; `N items` once the total's toast is up |
 | 44.17 | `gu`, then `m t` inside the view, then `m u` (v0.58.0) | `m t` swaps the numbers for dates with the bars left; `m u` brings the sizes back **without** walking again (no `Measuring…`). `<Esc>` still gives the tab its own mode back |
 | 44.18 | In an ordinary listing (no `gu`), `m u` (v0.59.2) | Folders are **blank**, as under `m s`; files show their own size. Until v0.59.2 every folder read `0 B` |
-| 44.19 | `gu` on a tree that takes seconds, then wait past the total's toast (v0.59.2) | The header reads `N items · <size> total` for as long as the view is up -- the one sign left that this is the usage view. And `filer --keys "gu<Wait:0>j"` on that tree moves the cursor only after the walk is done |
+| 44.19 | `gu` on a tree that takes seconds, then wait past the total's toast (v0.59.2) | The header reads `N items · <size> total` for as long as the view is up -- the one sign left that this is the usage view. And `kura --keys "gu<Wait:0>j"` on that tree moves the cursor only after the walk is done |
 | 44.20 | macOS / Linux: a 400 KB file in `one/`, hard-linked as `two/a` (`ln one/a two/a`), then `gu` on their parent (v0.75.21) | The total is 400 KB once (`391 K`), not twice: the second name is not counted, as `du` does. On Windows NTFS hard links are still counted per name (README) |
 
 ## 45. Comparing two folders (v0.43.0)
@@ -1475,18 +1475,18 @@ real repository with a history — this one will do.
 | 46.13 | Check `#<n>` against the pull request on GitHub | **The same number**, and the file is in that pull request's diff. The number is read out of the merge commit's subject — nothing is fetched, so this is the row that proves the subject is the source |
 | 46.14 | `<Tab>` on a file whose last commit was pushed **straight to `main`** | **No `Came in via` and no `From branch`** — the history rows only. A merge that merely came later must not be credited |
 | 46.15 | `<Tab>` on a file committed on the current branch and **not merged yet** | The same: history rows, no `Came in via`. It has not arrived anywhere to be asked about |
-| 46.16 | Pull the network cable, turn off Wi-Fi, or block `filer.exe` and `git.exe` outbound in Windows Firewall — then repeat 46.12 | **Identical output, at the same speed.** Nothing here leaves the machine. The firewall form is for a session on the machine, which the other two would cut off |
+| 46.16 | Pull the network cable, turn off Wi-Fi, or block `kura.exe` and `git.exe` outbound in Windows Firewall — then repeat 46.12 | **Identical output, at the same speed.** Nothing here leaves the machine. The firewall form is for a session on the machine, which the other two would cut off |
 | 46.17 | In the spot panel, `C` (v0.52.0) | Every row is on the clipboard as `Label<TAB>value`, under each section's title, sections a blank line apart. `Came in via` is `Came in via<TAB>#n<TAB>hash`, three columns (v0.78.176). The toast counts the rows |
 | 46.17b | In the spot panel with two or more files selected (also ones selected in another folder), `C` (v0.78.207) | The clipboard has, per selected file, a `#### <full path>` line and under it the 46.17 panel, a blank line between files. The toast says `Copied the spot panels of N files`. With one file selected or none, `C` is 46.17 as before |
 | 46.18 | On a 46.12 file in a clone of a GitHub repository, the `Pull request` row | It reads `https://github.com/<owner>/<repo>/pull/<n>` for the `#<n>` above it. `<Enter>` on it — or on `Came in via` — opens that page in the browser |
 | 46.19 | On a 46.15 file (committed, not merged) in a clone that has `origin/HEAD` | A **`Not merged`** row: `not in origin/main yet` (the clone's own default branch). A 46.14 file (straight to main) has **no** such row, so the two no longer look alike |
-| 46.20 | The same in a repository with no `origin/HEAD` (`git remote set-head origin -d`) | A **`Not merged`** row reading `unknown (no origin/HEAD)` (v0.78.66; before, no row at all) — filer does not guess the default branch, and the row stops "merged" and "unknown" looking alike. A repository with no `origin` at all has no such row |
+| 46.20 | The same in a repository with no `origin/HEAD` (`git remote set-head origin -d`) | A **`Not merged`** row reading `unknown (no origin/HEAD)` (v0.78.66; before, no row at all) — kura does not guess the default branch, and the row stops "merged" and "unknown" looking alike. A repository with no `origin` at all has no such row |
 | 46.21 | On a file that came in through a pull request, `<Tab>`, the cursor on `From branch`, `<Enter>` (v0.59.1) | The browser opens the branch's page (`…/tree/<branch>`), and the toast says `Opened …`. A branch deleted after the merge opens GitHub's own 404, which is still the right address |
 
 
 ## 47. An idle window uses no CPU (v0.54.2)
 
-The Windows machine measured an idle, even minimised, filer at 1.0 CPU-second per second (#86).
+The Windows machine measured an idle, even minimised, kura at 1.0 CPU-second per second (#86).
 v0.54.2 found one way to get there -- the preview's debounce timer, left running for good when the
 cursor moved off a file onto a directory, a cached file or the file already shown, which kept the
 window redrawing 60 times a second -- and fixed it. These rows are what says whether that was *the*
@@ -1495,16 +1495,16 @@ no prompt, no panel -- except where the row opens one itself (47.5).
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 47.1 | Open filer on a folder of files and subfolders, touch nothing for 10 s, then read `(Get-Process filer).CPU` twice, 10 s apart. Start it without `--keys`: during a `<Wait:>` it is the wait that gets measured | The two readings differ by **well under 1 s** (a few hundredths is normal) |
+| 47.1 | Open kura on a folder of files and subfolders, touch nothing for 10 s, then read `(Get-Process kura).CPU` twice, 10 s apart. Start it without `--keys`: during a `<Wait:>` it is the wait that gets measured | The two readings differ by **well under 1 s** (a few hundredths is normal) |
 | 47.2 | From the last subfolder, `j` onto the first file and at once `k` back onto the subfolder (inside the 40 ms debounce), then hands off; read the CPU twice, 10 s apart. Folders sort first by default (`sort_dir_first`), so a `j` from a file never reaches one | The same: **no rise**. Before v0.54.2 this was the sequence that left it drawing for ever |
 | 47.3 | The same as 47.2, then minimise the window | Still no rise while minimised |
-| 47.4 | If 47.1-47.3 still rise: `Get-Process filer \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart | Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at |
-| 47.5 | Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3). Start filer without `--keys`, as in 47.1 | No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110) |
-| 47.6 | `[ui] backend = "gl"` in `filer.toml`, no `WGPU_BACKEND`; start filer, then 47.1 (v0.74.0, Q70) | `filer env`'s `Adapter` line ends `(Gl, …; set by [ui] backend = "gl")` (`set by WGPU_BACKEND=…` where that variable wins; v0.78.148), and 47.1 holds where it failed under Vulkan and DX12 (the x64 AMD machine) |
-| 47.7 | `[ui] backend = "directx"`, then `"metal"` on Windows (v0.74.0, Q70) | The window opens both times, drawn the way `auto` draws (`Adapter` reads `(Gl, …)` where the machine has GL; v0.75.5 -- before, Vulkan, which spun the x64 AMD machine's core again). A config warning says `"directx" is not one of auto, vulkan, dx12, metal, gl`, then `"metal" is macOS only` (v0.74.8); `filer env`'s `Warnings` row says the same both times, and its `Backend` row reads `[ui] backend = "directx"`. The window's toast ends with what it fell back to, `drawing with Gl instead` (v0.75.6); `filer env` says the same, `drawing with Gl instead` (v0.78.107; before, it kept `drawing with the default`) |
-| 47.8 | No `[ui] backend` and no `WGPU_BACKEND`, then `backend = "vulkan"` (Windows, v0.75.0) | `filer env`'s `Adapter` ends `(Gl, …; set by [ui] backend = "auto")` the first time and `(Vulkan, …; set by [ui] backend = "vulkan")` the second (v0.78.148), no warning either time |
+| 47.4 | If 47.1-47.3 still rise: `Get-Process kura \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart | Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at |
+| 47.5 | Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3). Start kura without `--keys`, as in 47.1 | No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110) |
+| 47.6 | `[ui] backend = "gl"` in `kura.toml`, no `WGPU_BACKEND`; start kura, then 47.1 (v0.74.0, Q70) | `kura env`'s `Adapter` line ends `(Gl, …; set by [ui] backend = "gl")` (`set by WGPU_BACKEND=…` where that variable wins; v0.78.148), and 47.1 holds where it failed under Vulkan and DX12 (the x64 AMD machine) |
+| 47.7 | `[ui] backend = "directx"`, then `"metal"` on Windows (v0.74.0, Q70) | The window opens both times, drawn the way `auto` draws (`Adapter` reads `(Gl, …)` where the machine has GL; v0.75.5 -- before, Vulkan, which spun the x64 AMD machine's core again). A config warning says `"directx" is not one of auto, vulkan, dx12, metal, gl`, then `"metal" is macOS only` (v0.74.8); `kura env`'s `Warnings` row says the same both times, and its `Backend` row reads `[ui] backend = "directx"`. The window's toast ends with what it fell back to, `drawing with Gl instead` (v0.75.6); `kura env` says the same, `drawing with Gl instead` (v0.78.107; before, it kept `drawing with the default`) |
+| 47.8 | No `[ui] backend` and no `WGPU_BACKEND`, then `backend = "vulkan"` (Windows, v0.75.0) | `kura env`'s `Adapter` ends `(Gl, …; set by [ui] backend = "auto")` the first time and `(Vulkan, …; set by [ui] backend = "vulkan")` the second (v0.78.148), no warning either time |
 | 47.8a | x64 with an AMD GPU only: 47.1 with nothing set (no `[ui] backend`, no `WGPU_BACKEND`) (#287) | 47.1 holds: the default picks GL, which idles at 0 CPU. Other machines skip this row |
-| 47.9 | `filer --keys "<Wait:16000>"` on a folder, and read `(Get-Process filer).CPU` twice, 10 s apart, inside the wait (v0.80.9, #287) | About the idle figure of 47.1 (a frame a second, from the script's watchdog), not about 1 CPU second in 10: during a `<Wait:>` filer sleeps rather than drawing frames that change nothing. Before v0.80.9 every backend used 0.94-1.06 there |
+| 47.9 | `kura --keys "<Wait:16000>"` on a folder, and read `(Get-Process kura).CPU` twice, 10 s apart, inside the wait (v0.80.9, #287) | About the idle figure of 47.1 (a frame a second, from the script's watchdog), not about 1 CPU second in 10: during a `<Wait:>` kura sleeps rather than drawing frames that change nothing. Before v0.80.9 every backend used 0.94-1.06 there |
 
 ## 48. The release zips (v0.64.0)
 
@@ -1522,21 +1522,21 @@ The PE machine of a file, for 48.3:
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 48.1 | `Get-ChildItem -Recurse` in each extracted folder | One folder, `filer-<tag>-windows-x64` (or `-arm64`), holding exactly five files: `filer.exe`, `filer.com` (v0.71.0), `conpty.dll`, `OpenConsole.exe` and `ConPTY-LICENSE.txt`. Nothing else, and nothing at the top level beside the folder |
-| 48.2 | `.\filer.exe --version` from each folder | `filer <version> (x86_64)` from the x64 zip and `filer <version> (aarch64)` from the ARM64 one, the version being the tag without its `v` |
-| 48.3 | The PE machine (above) of all four binaries in each zip (`filer.com` is one since v0.71.0) | `8664` for all four in the x64 zip, `AA64` for all four in the ARM64 one. A mixed zip is the bug this row exists for: the ARM64 build with an x64 ConPTY would start and then misbehave in the pane |
+| 48.1 | `Get-ChildItem -Recurse` in each extracted folder | One folder, `kura-<tag>-windows-x64` (or `-arm64`), holding exactly five files: `kura.exe`, `kura.com` (v0.71.0), `conpty.dll`, `OpenConsole.exe` and `ConPTY-LICENSE.txt`. Nothing else, and nothing at the top level beside the folder |
+| 48.2 | `.\kura.exe --version` from each folder | `kura <version> (x86_64)` from the x64 zip and `kura <version> (aarch64)` from the ARM64 one, the version being the tag without its `v` |
+| 48.3 | The PE machine (above) of all four binaries in each zip (`kura.com` is one since v0.71.0) | `8664` for all four in the x64 zip, `AA64` for all four in the ARM64 one. A mixed zip is the bug this row exists for: the ARM64 build with an x64 ConPTY would start and then misbehave in the pane |
 | 48.4 | Read `ConPTY-LICENSE.txt` | Names the version `scripts/fetch-conpty.ps1` pins (`$version`) on the release's commit, and no `{VERSION}` is left in it |
 | 48.5 | `Get-FileHash -Algorithm SHA256` on each zip and on each extracted file | Every hash equals the row for that file in the **SHA-256** table at the end of the release page. A missing table means the `sums` job did not run: say so |
-| 48.6 | To give it a wrong answer to find, put another `conpty.dll` on the `PATH` first, of the **same PE machine** as the `filer.exe` under test (48.3's line reads it): WezTerm's is `8664`, which an ARM64 process cannot load at all, so with it the ARM64 zip's half proves nothing (#199). Then start `filer.exe` from each folder, open the pane (`<C-t>`), and list the process's modules: `(Get-Process filer).Modules \| ? ModuleName -eq conpty.dll \| % FileName` | The full path is **that folder's** `conpty.dll`, the same folder as `filer.exe`. That is what the zip is for. A wrong answer is another program's copy (WezTerm's, say), not one under `C:\Windows`: Windows has no `conpty.dll` of its own (v0.70.3, #151 / #184) |
-| 48.7 | Copy `filer.exe` **alone** into an empty folder. Put a `conpty.dll` and `OpenConsole.exe` (the zip's) in a second folder, `cd` there, and start the lone exe by its full path; `<C-t>`, then the modules as in 48.6. Again from a folder with none, with a `conpty.dll` somewhere on the `PATH` (v0.70.3, #184). As in 48.6, both `conpty.dll` must be of the **same PE machine** as the `filer.exe` under test (48.3's line reads it): one the process cannot load at all (WezTerm's `8664` under ARM64) is absent from the modules whatever filer does, and proves nothing | **No** `conpty.dll` among the modules either time: the pane runs on the ConPTY built into Windows. Before v0.70.3 the first loaded the working folder's copy and the second the `PATH`'s |
+| 48.6 | To give it a wrong answer to find, put another `conpty.dll` on the `PATH` first, of the **same PE machine** as the `kura.exe` under test (48.3's line reads it): WezTerm's is `8664`, which an ARM64 process cannot load at all, so with it the ARM64 zip's half proves nothing (#199). Then start `kura.exe` from each folder, open the pane (`<C-t>`), and list the process's modules: `(Get-Process kura).Modules \| ? ModuleName -eq conpty.dll \| % FileName` | The full path is **that folder's** `conpty.dll`, the same folder as `kura.exe`. That is what the zip is for. A wrong answer is another program's copy (WezTerm's, say), not one under `C:\Windows`: Windows has no `conpty.dll` of its own (v0.70.3, #151 / #184) |
+| 48.7 | Copy `kura.exe` **alone** into an empty folder. Put a `conpty.dll` and `OpenConsole.exe` (the zip's) in a second folder, `cd` there, and start the lone exe by its full path; `<C-t>`, then the modules as in 48.6. Again from a folder with none, with a `conpty.dll` somewhere on the `PATH` (v0.70.3, #184). As in 48.6, both `conpty.dll` must be of the **same PE machine** as the `kura.exe` under test (48.3's line reads it): one the process cannot load at all (WezTerm's `8664` under ARM64) is absent from the modules whatever kura does, and proves nothing | **No** `conpty.dll` among the modules either time: the pane runs on the ConPTY built into Windows. Before v0.70.3 the first loaded the working folder's copy and the second the `PATH`'s |
 
 ## 49. What the pane gained from tsumugi (v0.79.0)
 
-The pane's code lives in the shared `ito-pane` crate (tsumugi's `tsumugi-pane` until v0.93.10), and v0.79.0 moved filer to a newer one:
+The pane's code lives in the shared `ito-pane` crate (tsumugi's `tsumugi-pane` until v0.93.10), and v0.79.0 moved kura to a newer one:
 prompt jumps, copying a command's output and the margin bars all read the prompt marks a shell
 writes (OSC 133), links are opened by Ctrl+click, and pictures (sixel, kitty, iTerm2) are drawn in
-the cells. filer's own shell sets no prompt marks, so give pwsh a prompt that writes them first
-(`FILER_TERM_SHELL=pwsh`, `FILER_TERM_ARGS=-NoProfile`, then paste this into the pane):
+the cells. kura's own shell sets no prompt marks, so give pwsh a prompt that writes them first
+(`KURA_TERM_SHELL=pwsh`, `KURA_TERM_ARGS=-NoProfile`, then paste this into the pane):
 
 ```powershell
 function prompt { $ok = $?; $e = [char]27; $c = if ($ok) { 0 } else { 1 }; "$e]133;D;$c$e\$e]133;A$e\PS $PWD> $e]133;B$e\" }
@@ -1550,35 +1550,35 @@ function prompt { $ok = $?; $e = [char]27; $c = if ($ok) { 0 } else { 1 }; "$e]1
 | 49.4 | With the prompt above, run `dir` (exit 0) and `Get-Item nothing-here` (an error) | A thin bar in the pane's left margin beside each: green beside `dir`'s, red beside the failed one. None inside a full-screen program (`nvim`) |
 | 49.5 | `echo https://example.com` in the pane, then hold Ctrl and point at it | Under Ctrl the address is underlined and the pointer is a hand; a Ctrl+click opens it in the default browser. A plain click only selects, as before |
 | 49.6 | `echo src\main.rs:10` from the repository's folder in the pane, then Ctrl+click it | The file list goes to `src` with the cursor on `main.rs` (the line number is not used). A path that does not exist leaves the list where it was |
-| 49.7 | ``Write-Host "`e]8;;https://example.com`e\click me`e]8;;`e\"`` (an OSC 8 link) with `FILER_PTY_LOG` set, then Ctrl+click `click me` (v0.86.29: the bundled ConPTY 1.24.2607.10001 drops the OSC 8 introducer and terminator, so this row cannot pass until TODO.md's `【pane】` item lets the sequence through; leave it `[ ]` and note whether the `out` line still holds `]8;;`) | `click me` has a dotted underline before Ctrl is held, and the click opens `https://example.com`. If the log's `out` line holds only `click me`, the pane never saw the link: that is the ConPTY limit, not a filer failure |
+| 49.7 | ``Write-Host "`e]8;;https://example.com`e\click me`e]8;;`e\"`` (an OSC 8 link) with `KURA_PTY_LOG` set, then Ctrl+click `click me` (v0.86.29: the bundled ConPTY 1.24.2607.10001 drops the OSC 8 introducer and terminator, so this row cannot pass until TODO.md's `【pane】` item lets the sequence through; leave it `[ ]` and note whether the `out` line still holds `]8;;`) | `click me` has a dotted underline before Ctrl is held, and the click opens `https://example.com`. If the log's `out` line holds only `click me`, the pane never saw the link: that is the ConPTY limit, not a kura failure |
 | 49.8 | A picture through the iTerm2 inline sequence (OSC 1337, which ConPTY passes): `wezterm imgcat some.png`, or from pwsh `$e=[char]27; Write-Host "$e]1337;File=inline=1;width=8;height=4:$([Convert]::ToBase64String([IO.File]::ReadAllBytes('some.png')))`a"` (`chafa -f sixels` is no test: ConPTY strips the DCS and the body prints as text) | The picture is drawn in the pane where the program printed it, and scrolls with the text (`<S-PageUp>`). `clear` removes it |
-| 49.9 | `Start-Sleep 300` in pwsh in the pane, then `<C-c>` (v0.86.0, tsumugi 2.58) | The command stops within a second and the prompt comes back; filer stays open. With `FILER_PTY_LOG` set, the `in` line for the press is a plain `\x03`, not a key record |
+| 49.9 | `Start-Sleep 300` in pwsh in the pane, then `<C-c>` (v0.86.0, tsumugi 2.58) | The command stops within a second and the prompt comes back; kura stays open. With `KURA_PTY_LOG` set, the `in` line for the press is a plain `\x03`, not a key record |
 | 49.10 | In a folder `claude` already trusts (otherwise its trust dialog takes the keys), `claude` in the pane, type `one`, `<S-Enter>`, `two` (v0.86.0, tsumugi 2.55) | Claude Code's box shows `one` and `two` on two lines and sends nothing; `<Enter>` then sends both |
 | 49.10a | `cmd` (or `bash`) in the pane, type `echo one`, `<S-Enter>` (v0.86.0, tsumugi 2.55) | The line runs as with `<Enter>`: a shell that does not ask for the kitty keyboard protocol sees no change. (pwsh is not a test of this: PSReadLine binds `<S-Enter>` to `AddLine`, so the line is continued, not run) |
 | 49.11 | `wezterm imgcat some.png` in the pane (v0.86.0, tsumugi 2.48) | The picture is drawn; `imgcat` no longer stops on a division by zero (the pane answers `CSI 16 t`, the cell size) |
 
 ## 50. Claude Code reads the window (v0.85.0)
 
-`filer mcp` is an MCP server for Claude Code: it asks the running filer window, over a door only the
-same user can open (`\\.\pipe\filer-<user>` on Windows), what it is showing (Q95, Q96). Register it once
-in a terminal where `claude` runs, with the full path of the `filer.exe` under test:
-`claude mcp add filer -- "<folder>\filer.exe" mcp`, and remove it afterwards with `claude mcp remove filer`.
+`kura mcp` is an MCP server for Claude Code: it asks the running kura window, over a door only the
+same user can open (`\\.\pipe\kura-<user>` on Windows), what it is showing (Q95, Q96). Register it once
+in a terminal where `claude` runs, with the full path of the `kura.exe` under test:
+`claude mcp add kura -- "<folder>\kura.exe" mcp`, and remove it afterwards with `claude mcp remove kura`.
 
-The owner's own filer window may be open on the same door. To not fight it for the door, set `FILER_ADDRESS` to a path of
+The owner's own kura window may be open on the same door. To not fight it for the door, set `KURA_ADDRESS` to a path of
 your own (the same value for the window under test and for `claude`) before starting both. Without a Claude Code session
 to type into, 50.1 can be read from the `init` event of
-`claude -p "hi" --mcp-config <file> --output-format stream-json --verbose`: its `mcp_servers` lists `filer` as `connected`,
-and its `tools` lists `mcp__filer__filer_state` and `mcp__filer__filer_reveal`.
+`claude -p "hi" --mcp-config <file> --output-format stream-json --verbose`: its `mcp_servers` lists `kura` as `connected`,
+and its `tools` lists `mcp__kura__kura_state` and `mcp__kura__kura_reveal`.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 50.1 | Start filer, go to a folder and put the cursor on a file; then in `claude`, `/mcp` | `filer` is listed as connected, with two tools, `filer_state` and `filer_reveal` |
-| 50.2 | Select two files with `<Space>`, then ask Claude "which file is under the cursor in filer, and what is selected?" | Claude calls `filer_state` and answers with that folder, that file and the two selected paths, as full Windows paths (`C:\…`) |
-| 50.3 | Ask Claude "show me `C:\Windows\notepad.exe` in filer" | Claude calls `filer_reveal`; the window goes to `C:\Windows` with the cursor on `notepad.exe`, without being clicked first, and Claude reports `filer is showing …`. Asking for a path that does not exist gets `… does not exist` and the window does not move |
-| 50.4 | Close every filer window, then ask Claude for `filer_state` again | The tool fails with `filer is not running (or its [mcp] enable is false in filer.toml); start filer and ask again`. Claude Code itself keeps working, and `/mcp` still lists `filer` |
-| 50.5 | Put `[mcp]` / `enable = false` in `filer.toml`, start filer, ask for `filer_state` | The same `filer is not running …` answer: the window opens no door. Take the line out again afterwards |
-| 50.6 | Open two filer windows on different folders, ask for `filer_state`; close the first window, wait 30 seconds, ask again | The first answer is the first window's folder. After it closes, the second answer is the second window's folder |
-| 50.7 | Register `filer.com` instead (`claude mcp add filer -- "<folder>\filer.com" mcp`) and repeat 50.2 | The same answer: `filer.com` passes `mcp` to `filer.exe` with its input and output. No console window flashes when Claude Code starts it |
+| 50.1 | Start kura, go to a folder and put the cursor on a file; then in `claude`, `/mcp` | `kura` is listed as connected, with two tools, `kura_state` and `kura_reveal` |
+| 50.2 | Select two files with `<Space>`, then ask Claude "which file is under the cursor in kura, and what is selected?" | Claude calls `kura_state` and answers with that folder, that file and the two selected paths, as full Windows paths (`C:\…`) |
+| 50.3 | Ask Claude "show me `C:\Windows\notepad.exe` in kura" | Claude calls `kura_reveal`; the window goes to `C:\Windows` with the cursor on `notepad.exe`, without being clicked first, and Claude reports `kura is showing …`. Asking for a path that does not exist gets `… does not exist` and the window does not move |
+| 50.4 | Close every kura window, then ask Claude for `kura_state` again | The tool fails with `kura is not running (or its [mcp] enable is false in kura.toml); start kura and ask again`. Claude Code itself keeps working, and `/mcp` still lists `kura` |
+| 50.5 | Put `[mcp]` / `enable = false` in `kura.toml`, start kura, ask for `kura_state` | The same `kura is not running …` answer: the window opens no door. Take the line out again afterwards |
+| 50.6 | Open two kura windows on different folders, ask for `kura_state`; close the first window, wait 30 seconds, ask again | The first answer is the first window's folder. After it closes, the second answer is the second window's folder |
+| 50.7 | Register `kura.com` instead (`claude mcp add kura -- "<folder>\kura.com" mcp`) and repeat 50.2 | The same answer: `kura.com` passes `mcp` to `kura.exe` with its input and output. No console window flashes when Claude Code starts it |
 
 ## 51. One rule for `s`, `S` and `f` (v0.87.0)
 
@@ -1633,7 +1633,7 @@ press these in: `src\main.rs`, `src\lib.rs`, `docs\domain-notes.md`, `a-w-a.txt`
 | 52.25 | `S`, type `auto.*ids`, `<Enter>`; open the result `TESTING.md` (row 52.23 holds it on one very long line), rendered view (v0.93.2) | The match is coloured on every wrapped screen line that holds a part of it (the end of one line and the start of the next), and the preview opens at it. Narrowing the window so the paragraph wraps differently keeps the colour. `n` / `N` step through such matches |
 | 52.26 | `S`, type `auto.*ids`, `<Enter>`; move to `src/app.rs` (500 KB, a match past line 4000) or `TESTING-CHECKS.md` (289 KB, a match near its end) (v0.93.3) | The preview opens at the match instead of at the top, the match is coloured, and `n` / `N` reach it. Leaving the results (`<Esc>`) and previewing the same file again shows the usual cut (the footer says the file is cut) |
 | 52.27 | `S`, type a word that is in `src/app.rs` (500 KB), `<Enter>`, move to that result (v0.93.5) | The preview opens at the first match at once, uncoloured at first and coloured a moment later without moving. A 2-4 MB source file is shown whole (the part past line 40000 stays plain); the search itself still reads only the first 1 MB of each file |
-| 52.28 | `s`, type `foo`, `<Enter>`; `S`, type `bar`, `<Enter>`; `f`, then `<Up>` (v0.93.5) | `bar` comes back, `<Up>` again `foo`, `<Down>` twice gives back what was typed before the first `<Up>`. The filter follows the text as it changes. Restart filer and open `s`: `<Up>` still brings back `bar`. A file-name prompt (`a`, `r`) has no history |
+| 52.28 | `s`, type `foo`, `<Enter>`; `S`, type `bar`, `<Enter>`; `f`, then `<Up>` (v0.93.5) | `bar` comes back, `<Up>` again `foo`, `<Down>` twice gives back what was typed before the first `<Up>`. The filter follows the text as it changes. Restart kura and open `s`: `<Up>` still brings back `bar`. A file-name prompt (`a`, `r`) has no history |
 | 52.29 | `s`, type a word, `<Enter>`, `s` again; hold `<Up>` (v0.93.6) | The caret stays at the end of the word as the history steps back. It does not jump to the start and back between key repeats |
 
 ## 53. The clock at the status bar's right end (v0.94.0)
@@ -1644,7 +1644,7 @@ The clock reads `[clock]` and `language` in the shared `uchmk/common.toml` (`%AP
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 53.1 | Start filer with no `common.toml` | The clock is the last thing on the status bar's right, after the position (`3/12`), in the same font as the bar and the strongest text colour (brighter than the dim items to its left). It matches the system date and time |
+| 53.1 | Start kura with no `common.toml` | The clock is the last thing on the status bar's right, after the position (`3/12`), in the same font as the bar and the strongest text colour (brighter than the dim items to its left). It matches the system date and time |
 | 53.2 | Rest the pointer on the clock | A tooltip gives the whole date: `Saturday, 10 October 2026` |
 | 53.3 | Watch the clock across a minute change, with no key pressed | It changes at the minute (within a second), without any input |
 | 53.4 | Write `language = "ja"` and `[clock]` with `hour24 = false`, `date_format = "YYYY-MM-DD"`, `weekday = false` in `common.toml`; restart | `2026-10-10 2:32 PM`-like text (no weekday); with `weekday = true` it reads `(土)`; the tooltip reads `2026年10月10日 土曜日` |

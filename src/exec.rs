@@ -190,7 +190,7 @@ pub fn command_line(run: &str, paths: &[PathBuf], line: Option<usize>, custom: &
     line.and_then(|n| at_line(run, paths, n, custom)).unwrap_or_else(|| substitute(run, paths))
 }
 
-/// Line-jump argument templates from `filer.toml`'s `[line_args]`, keyed by
+/// Line-jump argument templates from `kura.toml`'s `[line_args]`, keyed by
 /// [`editor_key`]. A template is written as the arguments themselves, e.g.
 /// `"/j{line} {path}"` or `"-g {path}:{line}"`; it wins over the built-in table.
 pub type LineArgs = std::collections::HashMap<String, String>;
@@ -310,7 +310,7 @@ pub fn shell(cmdline: &str, cwd: &Path, block: bool, orphan: bool) -> std::io::R
         return in_terminal(cmdline, cwd);
     }
     // Windows: `Command` always hands the child our standard handles, and a
-    // release filer has none, so a console program would get a console with
+    // release kura has none, so a console program would get a console with
     // nothing wired to it (Q12). Spawned the way `start` does it instead.
     #[cfg(windows)]
     if block {
@@ -798,13 +798,13 @@ pub fn set_clipboard(text: &str) -> Result<(), String> {
     set_real_clipboard(text)
 }
 
-/// What filer itself last put on the clipboard, for the state file (#197).
+/// What kura itself last put on the clipboard, for the state file (#197).
 /// Only that: what is on the clipboard was often put there by something else,
 /// and a file written beside a run is no place for it.
 #[cfg(not(test))]
 static LAST_SET: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
-/// The text of filer's last `set_clipboard`, if it has made one.
+/// The text of kura's last `set_clipboard`, if it has made one.
 #[cfg(not(test))]
 pub fn last_set_clipboard() -> Option<String> {
     LAST_SET.lock().unwrap_or_else(|e| e.into_inner()).clone()

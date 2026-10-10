@@ -622,7 +622,7 @@ impl Task {
 
 /// The one line a config warning gets in the corner (Q84). A `toml` parse
 /// error is five lines and covered half the window and the top of the preview
-/// on every start (#174), while all of it is already in `~` and `filer env`.
+/// on every start (#174), while all of it is already in `~` and `kura env`.
 /// The first line names the file and the place, which is what the toast is
 /// for; the rest is a key away.
 pub fn config_toast(warnings: &[String]) -> Option<String> {
@@ -1392,7 +1392,7 @@ pub struct App {
     pub tasks: Vec<Task>,
     pub toasts: Vec<Toast>,
     /// Every toast raised, newest last, at most [`TOAST_LOG`] of them --
-    /// including those that have already faded. `FILER_KEYS_DONE` writes it
+    /// including those that have already faded. `KURA_KEYS_DONE` writes it
     /// out, so a check whose expected result is a toast does not have to
     /// catch it on screen before it goes (#176, #190, #196).
     pub toast_log: std::collections::VecDeque<String>,
@@ -1625,7 +1625,7 @@ impl App {
 
     /// Take the clock and the language from the shared common.toml
     /// (`ito_common`, uchmk's common spec). Read once at start-up like
-    /// filer.toml; a problem in the file is a toast, and the defaults stay.
+    /// kura.toml; a problem in the file is a toast, and the defaults stay.
     pub fn load_common(&mut self) {
         let Some(base) = ito_common::base_dir() else { return };
         match ito_common::Common::read(&base) {
@@ -1648,7 +1648,7 @@ impl App {
     /// is: nothing checked it before the window went up, since `is_dir` on a
     /// dead share can hold the first frame for half a minute. If the first
     /// listing fails, the tab falls back to `home` — by way of the parent, so
-    /// `filer C:\dir\file.txt` reveals the file instead of giving up.
+    /// `kura C:\dir\file.txt` reveals the file instead of giving up.
     pub fn start_unproven(&mut self, home: PathBuf) {
         if self.tabs[self.active].cwd == home {
             return;
@@ -1865,7 +1865,7 @@ impl App {
                     None => msg,
                 };
                 // The `(no path: …)` note of the `$ …` toast this replaces, kept so the
-                // failure still says filer left the path off (#290).
+                // failure still says kura left the path off (#290).
                 failed.push((format!("{msg}{note}"), line.clone()));
                 false
             }
@@ -3540,7 +3540,7 @@ impl App {
     }
 
     /// Zoom an image preview, which asks for a sharper decode as it grows.
-    /// `FILER_SCALE` for one run: the scale `<C-=>` and `<C-->` would reach,
+    /// `KURA_SCALE` for one run: the scale `<C-=>` and `<C-->` would reach,
     /// without a press (#228). A value that is not a number in 0.2 to 5.0 is
     /// ignored, and the toast says so.
     pub fn start_scaled(&mut self, text: Option<&str>) {
@@ -3550,7 +3550,7 @@ impl App {
                 self.scale = next;
                 self.ctx.set_zoom_factor(next);
             }
-            None => self.error(format!("FILER_SCALE={text} is not a number from 0.2 to 5.0")),
+            None => self.error(format!("KURA_SCALE={text} is not a number from 0.2 to 5.0")),
         }
     }
 
@@ -4102,7 +4102,7 @@ impl App {
             } else {
                 format!("None of the {n} selected item(s) is")
             };
-            self.error(format!("{what} an archive filer can read (zip, tar, tar.gz, tgz, 7z)"));
+            self.error(format!("{what} an archive kura can read (zip, tar, tar.gz, tgz, 7z)"));
             return;
         }
         if !rest.is_empty() {
@@ -5777,14 +5777,14 @@ impl App {
         let label = crate::terminal::shell_label(shell.as_ref().map(|(p, _)| p.as_str()));
         let program = shell.as_ref().map(|(p, _)| p.clone());
         let args = shell.as_ref().map(|(_, a)| a.clone()).unwrap_or_default();
-        let log = std::env::var_os("FILER_PTY_LOG").map(PathBuf::from);
+        let log = std::env::var_os("KURA_PTY_LOG").map(PathBuf::from);
         match crate::terminal::Terminal::spawn(&cwd, size, (8, 16), shell, log.as_deref(), move || {
             ctx.request_repaint()
         }) {
             Ok(t) => {
                 self.term = Some(t);
                 self.term_focus = true;
-                // The arguments the shell started with, from `FILER_TERM_ARGS`
+                // The arguments the shell started with, from `KURA_TERM_ARGS`
                 // or `[term] args`: a run could not see they had arrived (#267, #281).
                 let shown = match args.is_empty() {
                     false => format!("{label} {}", args.join(" ")),
@@ -5799,7 +5799,7 @@ impl App {
             // start failed, so a shell found some way other than `PATH` is
             // never refused on a guess.
             Err(e) => {
-                // `reason` is what `filer env` repeats after its own
+                // `reason` is what `kura env` repeats after its own
                 // "did not start:"; the OS's own sentence is left out when the
                 // missing program is named (it is in the OS language).
                 let (reason, said) = match program.filter(|p| util::locate(p).is_none()) {
@@ -5934,7 +5934,7 @@ impl App {
             // actually run. The hook that does not is named here, and the
             // command that prints it (Q50): a toast does not wrap, and the
             // hook itself is wider than any window.
-            let said = no_osc7(&self.term_shell, &filer_command());
+            let said = no_osc7(&self.term_shell, &kura_command());
             self.error(said);
             return;
         };
@@ -6212,7 +6212,7 @@ impl App {
     }
 
     /// `l` or `<Enter>` on a file inside an archive: unpack that one member
-    /// into a folder of filer's own under the temporary folder, on a worker,
+    /// into a folder of kura's own under the temporary folder, on a worker,
     /// and open the copy with the system's default app. A copy, and said to
     /// be one: changes to it do not go back into the archive.
     fn open_member(&mut self, entry: &Entry) {
@@ -6908,7 +6908,7 @@ fn archive_refusal(a: &Act) -> &'static str {
         | Act::Paste { .. }
         | Act::Link { .. }
         | Act::Hardlink => {
-            "Inside an archive: read only — this would change the archive, which filer never writes. y then p in a folder takes a copy out, Esc leaves"
+            "Inside an archive: read only — this would change the archive, which kura never writes. y then p in a folder takes a copy out, Esc leaves"
         }
         _ => "Inside an archive: not available here yet — y then p in a folder takes a copy out, Esc leaves",
     }
@@ -6942,7 +6942,7 @@ pub(crate) struct ArchiveView {
 const ARCHIVE_PREVIEW_LIMIT: u64 = 4 << 20;
 
 impl Drop for ArchiveView {
-    /// The preview's copies go with the view: nothing outside filer has
+    /// The preview's copies go with the view: nothing outside kura has
     /// them open. The copies `l` opened stay -- an editor may be holding one
     /// -- and are swept by a later start (`util::sweep_archive_scratch`).
     fn drop(&mut self) {
@@ -7692,10 +7692,10 @@ mod tests {
     /// directories; they simply rank below anything visited since.
     #[test]
     fn a_history_line_without_counts_still_reads_as_a_visit() {
-        let old = parse_visit(r"C:\work\filer");
-        assert_eq!(old, Visit { path: PathBuf::from(r"C:\work\filer"), hits: 1, at: 0 });
+        let old = parse_visit(r"C:\work\kura");
+        assert_eq!(old, Visit { path: PathBuf::from(r"C:\work\kura"), hits: 1, at: 0 });
 
-        let new = Visit { path: PathBuf::from(r"C:\work\filer"), hits: 7, at: 1_700_000_000 };
+        let new = Visit { path: PathBuf::from(r"C:\work\kura"), hits: 7, at: 1_700_000_000 };
         assert_eq!(parse_visit(&write_visit(&new)), new, "a round trip keeps everything");
     }
 
@@ -8534,10 +8534,10 @@ mod move_undo {
     /// the second call would delete the first file. The three tests here use
     /// distinct names, so the process id is uniqueness enough. Named the way
     /// `test_dir` names its own, so its sweep clears what a run leaves: as
-    /// `filer-move-undo-<pid>` one was left per run, 448 in the cloud
+    /// `kura-move-undo-<pid>` one was left per run, 448 in the cloud
     /// container by v0.77.0.
     fn tmp(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("filer-test-move-undo-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("kura-test-move-undo-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&d);
         d.join(name)
     }
@@ -8979,7 +8979,7 @@ mod diff_tree_keys {
 /// 5.1 was sent to the same README line again and again (#101). Where there
 /// is a hook for it, the command that adds it is the rest of the message
 /// (Q50); 5.1 is told it cannot have one rather than handed one that fails.
-fn no_osc7(shell: &str, filer: &str) -> String {
+fn no_osc7(shell: &str, kura: &str) -> String {
     let who = if shell.is_empty() { "The shell".to_owned() } else { format!("`{shell}`") };
     let name = shell.split(' ').next().unwrap_or("").to_ascii_lowercase();
     let what = match name.trim_end_matches(".exe") {
@@ -8989,23 +8989,23 @@ fn no_osc7(shell: &str, filer: &str) -> String {
                  (winget install Microsoft.PowerShell)"
             )
         }
-        "bash" => format!("{filer} shell-hook bash >> ~/.bashrc"),
-        "zsh" => format!("{filer} shell-hook zsh >> ~/.zshrc"),
-        "" | "pwsh" => format!("{filer} shell-hook | Add-Content $PROFILE"),
-        _ => return format!("{who} has not said where it is (no OSC 7). `filer shell-hook` has hooks for {}", crate::shellhook::SHELLS),
+        "bash" => format!("{kura} shell-hook bash >> ~/.bashrc"),
+        "zsh" => format!("{kura} shell-hook zsh >> ~/.zshrc"),
+        "" | "pwsh" => format!("{kura} shell-hook | Add-Content $PROFILE"),
+        _ => return format!("{who} has not said where it is (no OSC 7). `kura shell-hook` has hooks for {}", crate::shellhook::SHELLS),
     };
     format!("{who} has not said where it is (no OSC 7). In that shell: {what}, then <C-S-t> and <C-t>")
 }
 
-/// How the pane's shell can run this filer: by name when that is what the
+/// How the pane's shell can run this kura: by name when that is what the
 /// `PATH` finds, by its full path when it is not (a zip unpacked anywhere).
-fn filer_command() -> String {
-    let Ok(me) = std::env::current_exe() else { return "filer".into() };
-    let name = if cfg!(windows) { "filer.exe" } else { "filer" };
+fn kura_command() -> String {
+    let Ok(me) = std::env::current_exe() else { return "kura".into() };
+    let name = if cfg!(windows) { "kura.exe" } else { "kura" };
     let found = std::env::var_os("PATH")
         .is_some_and(|p| std::env::split_paths(&p).any(|d| same_file(&d.join(name), &me)));
     if found {
-        "filer".into()
+        "kura".into()
     } else if cfg!(windows) {
         format!("& '{}'", me.display())
     } else {
@@ -9043,21 +9043,21 @@ mod no_osc7_message {
     /// #101: the toast names the shell whose profile the hook belongs in.
     #[test]
     fn it_names_the_shell() {
-        let said = super::no_osc7("powershell (Windows PowerShell 5.1)", "filer");
+        let said = super::no_osc7("powershell (Windows PowerShell 5.1)", "kura");
         assert!(said.starts_with("`powershell (Windows PowerShell 5.1)` has not said where it is"), "{said}");
         assert!(said.contains("needs PowerShell 7"), "{said}");
-        assert!(super::no_osc7("", "filer").starts_with("The shell has not said"));
+        assert!(super::no_osc7("", "kura").starts_with("The shell has not said"));
     }
 
     /// Q50: the command that adds the hook, for the shell the pane runs.
     #[test]
     fn it_gives_the_command_for_that_shell() {
-        let said = super::no_osc7("pwsh", "& 'C:\\x\\filer.exe'");
-        assert!(said.contains("In that shell: & 'C:\\x\\filer.exe' shell-hook | Add-Content $PROFILE, then"), "{said}");
-        assert!(super::no_osc7("bash", "filer").contains("filer shell-hook bash >> ~/.bashrc"));
-        assert!(super::no_osc7("zsh", "filer").contains("filer shell-hook zsh >> ~/.zshrc"));
-        assert!(super::no_osc7("cmd.exe", "filer").contains("hooks for pwsh, bash, zsh"));
-        assert!(super::no_osc7("", "filer").contains("filer shell-hook | Add-Content $PROFILE"));
+        let said = super::no_osc7("pwsh", "& 'C:\\x\\kura.exe'");
+        assert!(said.contains("In that shell: & 'C:\\x\\kura.exe' shell-hook | Add-Content $PROFILE, then"), "{said}");
+        assert!(super::no_osc7("bash", "kura").contains("kura shell-hook bash >> ~/.bashrc"));
+        assert!(super::no_osc7("zsh", "kura").contains("kura shell-hook zsh >> ~/.zshrc"));
+        assert!(super::no_osc7("cmd.exe", "kura").contains("hooks for pwsh, bash, zsh"));
+        assert!(super::no_osc7("", "kura").contains("kura shell-hook | Add-Content $PROFILE"));
     }
 }
 
@@ -9071,16 +9071,16 @@ mod spot_pages {
         let rows: Vec<(String, String)> = [
             ("Came in via", "#71  48b6c9c"),
             ("From branch", "claude/task-09i0cs"),
-            (crate::spot::PR_ROW, "https://github.com/uchmk/filer/pull/71"),
+            (crate::spot::PR_ROW, "https://github.com/uchmk/kura/pull/71"),
             ("Subject", "x"),
         ]
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect();
-        assert_eq!(page_for(&rows, "Came in via").as_deref(), Some("https://github.com/uchmk/filer/pull/71"));
+        assert_eq!(page_for(&rows, "Came in via").as_deref(), Some("https://github.com/uchmk/kura/pull/71"));
         assert_eq!(
             page_for(&rows, "From branch").as_deref(),
-            Some("https://github.com/uchmk/filer/tree/claude/task-09i0cs")
+            Some("https://github.com/uchmk/kura/tree/claude/task-09i0cs")
         );
         assert_eq!(page_for(&rows, "Subject"), None);
         // No pull request, no repository to build a branch page from.
@@ -9227,7 +9227,7 @@ mod archive_view {
             let said: Vec<&String> = a.toasts.iter().map(|t| &t.text).collect();
             assert_eq!(
                 said,
-                ["Inside an archive: read only — this would change the archive, which filer never writes. y then p in a folder takes a copy out, Esc leaves"],
+                ["Inside an archive: read only — this would change the archive, which kura never writes. y then p in a folder takes a copy out, Esc leaves"],
                 "`{k}`",
             );
             assert!(matches!(a.overlay, Overlay::None), "`{k}` opened nothing");
@@ -9819,10 +9819,10 @@ mod outline_jump {
 mod goto_and_history_keys {
     use crate::config::keymap;
 
-    /// `g`+`c` goes to filer's own directory, not yazi's.
+    /// `g`+`c` goes to kura's own directory, not yazi's.
     ///
-    /// Both are read, but they hold different things: `filer.toml` only ever
-    /// belongs in filer's, and that is the one a reader cannot find, because
+    /// Both are read, but they hold different things: `kura.toml` only ever
+    /// belongs in kura's, and that is the one a reader cannot find, because
     /// it is often the directory that does not exist yet. yazi's keeps its own
     /// key rather than the shared one.
     #[test]
@@ -9837,22 +9837,22 @@ mod goto_and_history_keys {
                 .raw
                 .clone()
         };
-        // Written as the variables filer actually searches, so they resolve on
+        // Written as the variables kura actually searches, so they resolve on
         // every platform. `%APPDATA%` named nothing outside Windows, and an unset
-        // `%VAR%` expands to nothing, so `gc` used to walk to `/filer` there.
-        assert_eq!(run("gc"), "cd %FILER_CONFIG_HOME%");
+        // `%VAR%` expands to nothing, so `gc` used to walk to `/kura` there.
+        assert_eq!(run("gc"), "cd %KURA_CONFIG_HOME%");
         assert_eq!(run("gy"), "cd %YAZI_CONFIG_HOME%");
-        for (key, var) in [("gc", "FILER_CONFIG_HOME"), ("gy", "YAZI_CONFIG_HOME")] {
+        for (key, var) in [("gc", "KURA_CONFIG_HOME"), ("gy", "YAZI_CONFIG_HOME")] {
             let dir = crate::config::config_home(var).expect("a config directory");
             assert_eq!(crate::util::expand(&format!("%{var}%")), dir, "{key}");
             assert!(dir.is_absolute(), "{key} must not land on a relative path: {dir:?}");
         }
-        // The pair is the same two directories the help panel and `filer env` list.
+        // The pair is the same two directories the help panel and `kura env` list.
         assert_eq!(
             crate::config::config_dirs(),
             vec![
                 crate::config::config_home("YAZI_CONFIG_HOME").unwrap(),
-                crate::config::config_home("FILER_CONFIG_HOME").unwrap(),
+                crate::config::config_home("KURA_CONFIG_HOME").unwrap(),
             ]
         );
 
@@ -10007,7 +10007,7 @@ mod window_scale {
     /// Scaling steps and stops where egui's own did.
     ///
     /// egui zooms on Ctrl +/-/0 at the end of every frame, and does not
-    /// consume the key on the way: each of those three is a key filer binds,
+    /// consume the key on the way: each of those three is a key kura binds,
     /// so both ran. `<C-->` made a hardlink *and* shrank the window, which is
     /// the sort of thing that reads as the program being possessed.
     #[test]
@@ -10800,7 +10800,7 @@ mod said_out_loud {
         assert_eq!(cycling_in(&wrapped, &hits, 3), Some(dir), "the last one wraps to the first");
     }
 
-    /// #228: `FILER_SCALE` names a scale the keys could also reach.
+    /// #228: `KURA_SCALE` names a scale the keys could also reach.
     #[test]
     fn the_scale_variable_is_a_number_the_keys_reach() {
         assert_eq!(scale_from_text("1.5"), Some(1.5));
@@ -11359,7 +11359,7 @@ mod find_marks {
 
     #[test]
     fn copy_targets_follow_the_selection() {
-        let dir = std::env::temp_dir().join(format!("filer-copy-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("kura-copy-{}", std::process::id()));
         let mut a = app_in(&dir);
         a.tabs[a.active].selected.insert(dir.join("x"));
         a.tabs[a.active].selected.insert(dir.join("y"));
@@ -11631,7 +11631,7 @@ mod find_marks {
     /// has a list of its own.
     #[test]
     fn up_in_a_prompt_recalls_what_was_typed_before() {
-        let dir = std::env::temp_dir().join(format!("filer-recall-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("kura-recall-{}", std::process::id()));
         let mut a = app_in(&dir);
         // `app_in` loads the real state directory's lists, which have words in them.
         a.input_history = Default::default();

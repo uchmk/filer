@@ -359,7 +359,7 @@ fn preamble(out: &mut String, lane: Lane, all: &[&Check], manual: &[&&Check], un
     writeln!(
         out,
         "\n## 使い方\n\n\
-         1. `filer.exe` と、`scripts\\make-fixtures.ps1` が作るテスト用ファイルを用意する\
+         1. `kura.exe` と、`scripts\\make-fixtures.ps1` が作るテスト用ファイルを用意する\
          （詳しくは {SRC} の\n   「What you need」）。\n\
          2. 節ごとに「準備」を走らせてから、上から押していく。\n\
          3. 期待どおりなら `[ ]` を `[x]` にする。違ったら `<F12>` で issue を出すか、\
@@ -520,7 +520,7 @@ fn ids_in(s: &str, out: &mut BTreeSet<String>) {
 }
 
 /// The source of `ito-pane`, where the terminal pane's tests went in
-/// v0.78.125 (they still name filer's TESTING.md rows). Found through `cargo
+/// v0.78.125 (they still name kura's TESTING.md rows). Found through `cargo
 /// metadata`, since a git dependency lives in Cargo's own checkout folder.
 /// Without it those rows would quietly come back onto the human's list, so
 /// not finding it stops the run instead.

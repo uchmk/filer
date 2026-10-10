@@ -1,6 +1,6 @@
 # Built-in keymap. Mirrors yazi's defaults so an existing yazi keymap.toml can
 # prepend/append/replace on top of it. Users never edit this file; put your
-# changes in yazi's keymap.toml (or filer's own keymap.toml).
+# changes in yazi's keymap.toml (or kura's own keymap.toml).
 
 [[mgr.keymap]]
 on = "<Esc>"
@@ -603,19 +603,19 @@ on = [ "g", "D" ]
 run = "cd ~/Documents"
 desc = "Go to the documents directory"
 # Two directories are read, and the one you are most likely to be looking for
-# is filer's own -- `filer.toml` belongs there, and `<F1>` names both with the
-# empty one marked. `g`+`c` goes to filer's, `g`+`y` to yazi's, which is where
+# is kura's own -- `kura.toml` belongs there, and `<F1>` names both with the
+# empty one marked. `g`+`c` goes to kura's, `g`+`y` to yazi's, which is where
 # `keymap.toml`, `theme.toml` and `yazi.toml` usually live.
 #
-# The variables are what filer searched, not what the platform calls the folder,
+# The variables are what kura searched, not what the platform calls the folder,
 # and they resolve whether or not anyone set them. These used to read
-# `%APPDATA%/filer` and `%APPDATA%/yazi/config`, which named the right places on
+# `%APPDATA%/kura` and `%APPDATA%/yazi/config`, which named the right places on
 # Windows and nothing at all anywhere else: an unset `%VAR%` expands to the empty
-# string, so `gc` walked to `/filer` and reported it missing.
+# string, so `gc` walked to `/kura` and reported it missing.
 [[mgr.keymap]]
 on = [ "g", "c" ]
-run = "cd %FILER_CONFIG_HOME%"
-desc = "Go to filer's config directory"
+run = "cd %KURA_CONFIG_HOME%"
+desc = "Go to kura's config directory"
 [[mgr.keymap]]
 on = [ "g", "y" ]
 run = "cd %YAZI_CONFIG_HOME%"
@@ -698,7 +698,7 @@ run = "tab_swap 1"
 desc = "Swap the current tab with the next one"
 
 # --- Split view ---------------------------------------------------------------
-# A filer extra; yazi shows one pane. The second pane borrows another tab, so
+# A kura extra; yazi shows one pane. The second pane borrows another tab, so
 # every tab command keeps working while the view is split.
 
 [[mgr.keymap]]

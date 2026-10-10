@@ -53,7 +53,7 @@ impl Default for Mgr {
             show_hidden: false,
             show_symlink: true,
             scrolloff: 5,
-            title_format: "Filer: {cwd}".into(),
+            title_format: "Kura: {cwd}".into(),
         }
     }
 }

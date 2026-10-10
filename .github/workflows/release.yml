@@ -85,7 +85,7 @@ jobs:
       # filename because it is the first thing a bug report needs to establish,
       # and a downloaded file is otherwise silent about which one it is.
       #
-      # A zip rather than a bare .exe since v0.49.0: filer.exe travels with a
+      # A zip rather than a bare .exe since v0.49.0: kura.exe travels with a
       # newer ConPTY (conpty.dll, OpenConsole.exe) and its licence notice. The
       # ConPTY built into Windows breaks programs run in the terminal pane --
       # scripts/fetch-conpty.ps1 says how -- and alacritty_terminal picks the
@@ -98,13 +98,13 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           foreach ($pair in @(@('x64', 'x86_64-pc-windows-msvc'), @('arm64', 'aarch64-pc-windows-msvc'))) {
             $arch, $target = $pair
-            $name = "filer-$tag-windows-$arch"
+            $name = "kura-$tag-windows-$arch"
             $stage = "stage/$name"
             New-Item -ItemType Directory -Force $stage | Out-Null
-            Copy-Item "target/$target/release/filer.exe" $stage
-            # The console front (v0.71.0, Q44): `filer env` and `--version`
-            # typed in PowerShell find filer.com first and are waited for.
-            Copy-Item "target/$target/release/filer-com.exe" "$stage/filer.com"
+            Copy-Item "target/$target/release/kura.exe" $stage
+            # The console front (v0.71.0, Q44): `kura env` and `--version`
+            # typed in PowerShell find kura.com first and are waited for.
+            Copy-Item "target/$target/release/kura-com.exe" "$stage/kura.com"
             pwsh -File scripts/fetch-conpty.ps1 -Arch $arch -Dest $stage
             if ($LASTEXITCODE -ne 0) { throw "fetching ConPTY for $arch failed" }
             Compress-Archive -Path $stage -DestinationPath "dist/$name.zip" -Force
@@ -219,14 +219,14 @@ jobs:
         run: cargo build --release --locked --target ${{ matrix.target }}
 
       # `.tar.gz` rather than the bare binary: a GitHub release asset does not
-      # carry the executable bit, so a downloaded `filer` would need `chmod +x`
+      # carry the executable bit, so a downloaded `kura` would need `chmod +x`
       # before it would run. A tar does carry it.
       - name: Pack
         run: |
           tag="${{ steps.tag.outputs.name }}"
           mkdir -p dist
           tar -C "target/${{ matrix.target }}/release" \
-              -czf "dist/filer-$tag-${{ matrix.name }}.tar.gz" filer
+              -czf "dist/kura-$tag-${{ matrix.name }}.tar.gz" kura
           ls -l dist
 
       # No `body` and no `name`: the Windows job wrote those, and passing them
@@ -250,7 +250,7 @@ jobs:
   # Windows job writes the notes before the other four exist, and those four
   # run at once, so any of them appending to the body would race the others.
   # Somebody who downloaded the zip cannot run fetch-conpty.ps1 to check the
-  # two ConPTY files beside filer.exe; this table is how they check them.
+  # two ConPTY files beside kura.exe; this table is how they check them.
   #
   # `always()` so a platform that failed to build does not keep the others'
   # hashes off the page -- the table lists what is there. The work is in

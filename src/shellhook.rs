@@ -1,4 +1,4 @@
-//! `filer shell-hook`: the lines that make a shell report its directory
+//! `kura shell-hook`: the lines that make a shell report its directory
 //! (OSC 7), so `<A-Up>` in the terminal pane can follow it.
 //!
 //! They were only in the README, and the way to them was to find a 7-line
@@ -13,7 +13,7 @@
 /// would break Starship and the other prompt generators, and calls whatever
 /// handler was there before, which `mise activate pwsh` puts there.
 pub const PWSH: &str = r#"
-# filer: report the directory to filer's terminal pane (OSC 7)
+# kura: report the directory to kura's terminal pane (OSC 7)
 $prev = $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
 $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
     param($sender, $e)
@@ -23,22 +23,22 @@ $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
 }.GetNewClosure()
 "#;
 
-/// bash has no hook on `cd`, so this says it at every prompt; filer only acts
+/// bash has no hook on `cd`, so this says it at every prompt; kura only acts
 /// on a directory that differs from the one it already has.
 pub const BASH: &str = r#"
-# filer: report the directory to filer's terminal pane (OSC 7)
-__filer_osc7() { printf '\e]7;file://%s%s\e\\' "$HOSTNAME" "$PWD"; }
-PROMPT_COMMAND="__filer_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+# kura: report the directory to kura's terminal pane (OSC 7)
+__kura_osc7() { printf '\e]7;file://%s%s\e\\' "$HOSTNAME" "$PWD"; }
+PROMPT_COMMAND="__kura_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 "#;
 
 /// zsh has one: `chpwd`. It does not fire for the directory the shell starts
 /// in, hence the call at the end.
 pub const ZSH: &str = r#"
-# filer: report the directory to filer's terminal pane (OSC 7)
-__filer_osc7() { printf '\e]7;file://%s%s\e\\' "$HOST" "$PWD" }
+# kura: report the directory to kura's terminal pane (OSC 7)
+__kura_osc7() { printf '\e]7;file://%s%s\e\\' "$HOST" "$PWD" }
 autoload -Uz add-zsh-hook
-add-zsh-hook chpwd __filer_osc7
-__filer_osc7
+add-zsh-hook chpwd __kura_osc7
+__kura_osc7
 "#;
 
 /// The shells there is a hook for, as `shell-hook` takes them.
@@ -70,7 +70,7 @@ mod tests {
         let readme = include_str!("../README.md");
         for (fence, hook) in [("powershell", PWSH), ("bash", BASH), ("zsh", ZSH)] {
             let block = format!("```{fence}\n{hook}```");
-            assert!(readme.contains(&block), "README lacks the {fence} hook as `filer shell-hook` prints it");
+            assert!(readme.contains(&block), "README lacks the {fence} hook as `kura shell-hook` prints it");
         }
     }
 

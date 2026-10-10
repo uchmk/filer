@@ -1,4 +1,4 @@
-//! Compile the Windows resource that gives `filer.exe` its own icon.
+//! Compile the Windows resource that gives `kura.exe` its own icon.
 //!
 //! This is the icon Explorer draws on the file, and the one a shortcut or a
 //! pinned taskbar entry uses. It is a different thing from the window's icon,
@@ -30,6 +30,6 @@ fn embed_icon() {
     // having, and whoever is building it should hear about it rather than be
     // stopped by it.
     if let Err(e) = res.compile() {
-        println!("cargo:warning=filer.exe has no icon: {e}");
+        println!("cargo:warning=kura.exe has no icon: {e}");
     }
 }

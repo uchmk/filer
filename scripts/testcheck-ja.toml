@@ -33,7 +33,7 @@ title = "ターミナルペイン"
 setup = """
 ```powershell
 # `many\\` と `repo` は make-fixtures.ps1 が作る
-cd $HOME\\Desktop\\filer-fixtures
+cd $HOME\\Desktop\\kura-fixtures
 ```
 """
 
@@ -42,7 +42,7 @@ title = "ミニマップ"
 note = "`long.rs`（4000 行）を開く。帯の形が元のファイルに見えるかどうかが本題。"
 setup = """
 ```powershell
-cd $HOME\\Desktop\\filer-fixtures
+cd $HOME\\Desktop\\kura-fixtures
 # long.rs は 4000 行。コメント見出し・インデント・40 行ごとの空行で形が出るように作ってある
 ```
 """
@@ -52,7 +52,7 @@ title = "画像の拡大と移動"
 note = "`zoom-me.png` は 3200×2400 で 8px のグリッド入り。ぼけたらすぐ分かる。"
 setup = """
 ```powershell
-cd $HOME\\Desktop\\filer-fixtures
+cd $HOME\\Desktop\\kura-fixtures
 # zoom-me.png（3200x2400、グリッド入り）と tiny.png（48x48）を使う
 ```
 """
@@ -78,7 +78,7 @@ note = "`~` か `<F1>` でヘルプを開く。上部の設定パスの並びが
 [section.8]
 title = "ターミナルペインが起動するシェル"
 note = """
-**`[term]` は `filer.toml` に書く。**`yazi.toml` に書いても黙って無視される
+**`[term]` は `kura.toml` に書く。**`yazi.toml` に書いても黙って無視される
 （v0.33.13 でそれを警告するようにした）。設定を変えたら `<C-S-t>` でシェルを終わらせてから
 `<C-t>` で開き直すこと。`<C-t>` の往復では同じシェルが生き続ける（1.5 / 1.6）。
 """
@@ -105,7 +105,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 """
 setup = """
 ```powershell
-cd $HOME\\Desktop\\filer-fixtures
+cd $HOME\\Desktop\\kura-fixtures
 # ハードリンク（13.13, 13.14, 13.16 用）
 "x" | Out-File locked.txt
 fsutil hardlink create locked-2.txt locked.txt
@@ -159,7 +159,7 @@ title = "ネットワークパス（共有が要る）"
 title = "扱いにくい名前"
 
 [section.25]
-title = "`filer env`"
+title = "`kura env`"
 
 [section.26]
 title = "アプリの中からのバグ報告"
@@ -229,18 +229,18 @@ title = "spot パネルの Git セクション"
 setup = """
 ```powershell
 # git リポジトリの中で実行すること。fixtures の `repo` がそれ
-cd $HOME\\Desktop\\filer-fixtures\\repo
+cd $HOME\\Desktop\\kura-fixtures\\repo
 git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 ```
 """
 
 [section.49]
 title = "tsumugi から入ったペインの機能（v0.79.0）"
-note = "プロンプトの移動・出力のコピー・左の帯は、シェルが書くプロンプトの印（OSC 133）を読む。filer のシェルは印を書かないので、先に節の冒頭の `prompt` 関数をペインに貼る（`FILER_TERM_SHELL=pwsh`、`FILER_TERM_ARGS=-NoProfile`）。"
+note = "プロンプトの移動・出力のコピー・左の帯は、シェルが書くプロンプトの印（OSC 133）を読む。kura のシェルは印を書かないので、先に節の冒頭の `prompt` 関数をペインに貼る（`KURA_TERM_SHELL=pwsh`、`KURA_TERM_ARGS=-NoProfile`）。"
 
 [section.50]
 title = "Claude Code が窓を読む（v0.85.0）"
-note = "確かめる `filer.exe` をフルパスで、`claude` を動かすターミナルから 1 度だけ登録する: `claude mcp add filer -- \"<フォルダ>\\filer.exe\" mcp`。終わったら `claude mcp remove filer` で外す。持ち主の窓と扉を奪い合わないよう、確かめる窓と `claude` の両方を、同じ値の `FILER_ADDRESS`（自分用のパス）を付けて起動する。`claude` の画面に打てないときは、`claude -p \"hi\" --mcp-config <ファイル> --output-format stream-json --verbose` の `init` イベントで 50.1 が読める: `mcp_servers` に `filer` が `connected` で、`tools` に `mcp__filer__filer_state` と `mcp__filer__filer_reveal` がある。"
+note = "確かめる `kura.exe` をフルパスで、`claude` を動かすターミナルから 1 度だけ登録する: `claude mcp add kura -- \"<フォルダ>\\kura.exe\" mcp`。終わったら `claude mcp remove kura` で外す。持ち主の窓と扉を奪い合わないよう、確かめる窓と `claude` の両方を、同じ値の `KURA_ADDRESS`（自分用のパス）を付けて起動する。`claude` の画面に打てないときは、`claude -p \"hi\" --mcp-config <ファイル> --output-format stream-json --verbose` の `init` イベントで 50.1 が読める: `mcp_servers` に `kura` が `connected` で、`tools` に `mcp__kura__kura_state` と `mcp__kura__kura_reveal` がある。"
 
 [section.53]
 title = "ステータスバー右端の時計（v0.94.0）"
@@ -277,10 +277,10 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "1.15" = 'ターミナルの中で `<C-S-p>` → コマンドパレットが開き、そこから実行できる'
 '1.16' = '''OSC 7 のフックを読み込んだ状態で（1.18 と同じ）、シェルで `cd` してから `<A-Up>` → 一覧がシェルのいる場所へ追従する'''
 "1.17" = '2 つ選んで `<A-t>` → パスが引用符付きでシェルの行に打ち込まれる。**実行はされない**'
-"1.19" = "ペインで時間のかかるもの（`sleep 30`）を走らせて `<C-c>` を押す（v0.47.34） → コマンドが止まってプロンプトが戻る。**filer は開いたまま。**v0.47.34 までは `[mgr]` の `close` が走り、タブが閉じ、最後の 1 枚なら filer ごと終了してシェルも道連れになっていた"
+"1.19" = "ペインで時間のかかるもの（`sleep 30`）を走らせて `<C-c>` を押す（v0.47.34） → コマンドが止まってプロンプトが戻る。**kura は開いたまま。**v0.47.34 までは `[mgr]` の `close` が走り、タブが閉じ、最後の 1 枚なら kura ごと終了してシェルも道連れになっていた"
 "1.20" = "名前に `'` を含むファイルで `<A-t>`、`[term] shell` で指定できる各シェルについて（v0.47.34）→ シェルが 1 語として読める形で入る。PowerShell なら `''` と重ね、bash なら `'\\''`、cmd なら素の `\"…\"`。**`>>` の継続プロンプトにならない**"
-"1.21" = "ペインを開いたまま、名前に `'` を含むディレクトリへ一覧を移動する（v0.47.34） → `cd` が通ってプロンプトが戻る。1.20 と同じ引用が、filer 自身が打つパスにも効いていること"
-"1.22" = "`[term] shell` を Git Bash のフルパスにして、ペインを開いたまま **普通の**ディレクトリ（`'` も空白も無い）へ一覧を移動する → `cd` が着いて、プロンプトがそのディレクトリになる。**`bash: cd: R:Tempfiler-fixtures: No such file or directory` にならないこと** —— 引用の外の `\\` は POSIX シェルではエスケープなので、v0.48.1 まで普通の Windows パスには一切入れなかった。1.20 と 1.21 はどちらも `'` のある名前を指定しているので、これを見落としていた"
+"1.21" = "ペインを開いたまま、名前に `'` を含むディレクトリへ一覧を移動する（v0.47.34） → `cd` が通ってプロンプトが戻る。1.20 と同じ引用が、kura 自身が打つパスにも効いていること"
+"1.22" = "`[term] shell` を Git Bash のフルパスにして、ペインを開いたまま **普通の**ディレクトリ（`'` も空白も無い）へ一覧を移動する → `cd` が着いて、プロンプトがそのディレクトリになる。**`bash: cd: R:Tempkura-fixtures: No such file or directory` にならないこと** —— 引用の外の `\\` は POSIX シェルではエスケープなので、v0.48.1 まで普通の Windows パスには一切入れなかった。1.20 と 1.21 はどちらも `'` のある名前を指定しているので、これを見落としていた"
 "1.23" = "同じシェルで、**普通の**名前のファイルに `<A-t>` → パスがバックスラッシュごとそのまま入る。1.22 と `quote()` を共有していて、これまで推定されただけで一度も押されていない"
 "1.24" = "ペインの中で全画面 TUI を走らせる（`gh dash`、または `lazygit`）（v0.48.2） → ちゃんと描ける。代替画面・色・罫線・TUI 自身の分割ペイン。**一度は見えている**ので、この行はそれを見続けるためのもの"
 "1.25" = "その TUI を操作して、抜ける（`j` / `k` で移動、`q` で終了） → キーが届き、抜けるとペインが返ってきてプロンプトが使える。**描けることと操作できることは別の主張で、1.24 が通ってもこちらは何も言えない。**抜けられない TUI はペインを道連れにする"
@@ -291,21 +291,21 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "1.30" = "最大化してから `<C-S-t>`（シェルを終わらせる） → ペインが消え、一覧が全高で描かれる（隙間の下に押し込まれない）。ペインの無い最大化が残らないこと"
 "1.31" = "ペインで `lazygit` → `?` でキー一覧を開く → `Esc`（v0.48.6） → **一覧が閉じる。**v0.48.6 までは何度押しても閉じなかった（gh-dash など tcell のプログラムすべて同じ）。Windows Terminal が対照で、あちらでは最初から閉じる"
 "1.32" = "ペインの pwsh のプロンプトで `abc` と打ち（Enter は押さない）、`Esc` → 行が空になる。PSReadLine は元々影響を受けていなかった。1.31 を直した変更がこちらを壊していないことを見る行"
-"1.33" = "同梱の ConPTY を filer.exe の横に置いた状態で、ペインで `pwsh -File scripts\\keyprobe.ps1 -Query`（v0.49.0） → DA1 の応答が `\\e[?6c`（filer 自身の答えがそのまま通ったもの）で、文字の間に `{up:…}` が出ない。`\\e[?61;6;7;22;23;24;28;32;42c` なら Windows 標準の ConPTY が答えている —— 2 つのファイルが無いか、filer.exe の横に無い"
+"1.33" = "同梱の ConPTY を kura.exe の横に置いた状態で、ペインで `pwsh -File scripts\\keyprobe.ps1 -Query`（v0.49.0） → DA1 の応答が `\\e[?6c`（kura 自身の答えがそのまま通ったもの）で、文字の間に `{up:…}` が出ない。`\\e[?61;6;7;22;23;24;28;32;42c` なら Windows 標準の ConPTY が答えている —— 2 つのファイルが無いか、kura.exe の横に無い"
 "1.34" = "続けてペインで `lazygit` → いつもの画面で開き、**メニューが開いていない。**Windows 標準の ConPTY では、押していないキーでコピー画面が開いた状態で始まっていた"
 "1.35" = "ペインで `lazygit`（または長く動くコマンド）を動かしたまま `<C-S-t>`（v0.52.0）→ **End the shell?** と聞かれ、動いているものの名前が出る（コンソールの既定のタイトルのフルパス `C:\\...\\pwsh.exe` ではなく、プログラム名 `pwsh`。v0.80.3、#280 の提案 3）。`n` でシェルもプログラムも残り、`y` で両方終わって **Ended the shell** とトーストが出る"
 "1.36" = "何も動いていないプロンプトで `<C-S-t>` → **確認は出ない。**ペインはすぐ消え、トーストに **Ended the shell** と出る。`<C-t>` で隠しただけのようには見えなくなった"
-"1.37" = "ペインを**閉じた**まま、ファイルを選んで `<A-t>`（v0.57.0）→ ペインが開き、シェルのプロンプトが出たところで引用されたパスが行に入る。「The terminal is not open」とは言わず、プロファイル読み込み中のシェルに打って消えることもない。キーはペインに移る。v0.75.17（Q39）から、パスは最初の出力ではなく、最初の出力のあとシェルが静かになるまで待つ。v0.78.3 から 800 ms（#250: x64 の pwsh はプロファイルを読む間 300 ms 以上黙る）、シェルが OSC 133 でプロンプトの印を出せばすぐ（最長 5 秒）。`FILER_PTY_LOG` を付けると、パスの `in` の記録がバナーの後ではなく、プロファイルとプロンプトの最後の `out` の後に来る"
+"1.37" = "ペインを**閉じた**まま、ファイルを選んで `<A-t>`（v0.57.0）→ ペインが開き、シェルのプロンプトが出たところで引用されたパスが行に入る。「The terminal is not open」とは言わず、プロファイル読み込み中のシェルに打って消えることもない。キーはペインに移る。v0.75.17（Q39）から、パスは最初の出力ではなく、最初の出力のあとシェルが静かになるまで待つ。v0.78.3 から 800 ms（#250: x64 の pwsh はプロファイルを読む間 300 ms 以上黙る）、シェルが OSC 133 でプロンプトの印を出せばすぐ（最長 5 秒）。`KURA_PTY_LOG` を付けると、パスの `in` の記録がバナーの後ではなく、プロファイルとプロンプトの最後の `out` の後に来る"
 "1.38" = 'シェルを開いたまま `<C-t>` で一覧に戻り、`<C-S-t>`。続けてもう一度 `<C-S-t>`（v0.67.25、Q53）→ 1 回目は一覧からシェルを終える。ペインが消え、トーストは **Ended the shell**（何か動いていれば 1.35 と同じく先に **End the shell?** と聞く）。2 回目はペインが無いので **No terminal to close** と言う（以前は何も起きなかった）。`<C-t>` で始めてすぐ `<C-S-t>` で終えても、**Started …** のトーストは残らず **Ended the shell** だけが見える（v0.79.4、#280 の提案 2）'
-'1.39' = 'macOS / Linux: `TERM` 無しで filer を起動し（`env -u TERM filer`、またはデスクトップのランチャーから）、`<C-t>` で `echo $TERM $COLORTERM`（v0.75.23）→ `xterm-256color truecolor`。`<A-t>` で打った長いパスは次の行へそのまま折り返し、dumb 端末のように 1 行の中で横に流れない'
-'1.40' = '''`FILER_TERM_SHELL=nosuchshell` で `<C-t>`。次にそれ無しで `<C-t>`、終了して `filer env`（v0.78.13）→ 1 つ目は ``Terminal failed: `nosuchshell` was not found on PATH — set [term] shell to one that is`` とプログラムを名指す。`filer env` の `Terminal pane` の行が、前回のペインが起動したシェルと大きさを言う: `pwsh, 12 x 159 (lines x columns)`。1 回目の直後に（`<C-t>` をやり直さずに）`filer env` を読むと、その行は `did not start: `nosuchshell` was not found on PATH …` になる（v0.78.50、#254）。フルパス（`FILER_TERM_SHELL=C:\nope\x.exe`）なら ``Terminal failed: `C:\nope\x.exe` does not exist — set [term] shell to one that is`` と出て、`PATH` とは言わない。`filer env` も同じ（v0.78.98）'''
-'1.41' = '''`FILER_PTY_LOG` を付け、ペインで `\e]11;?\e\\`、続けて `\e]10;?\e\\` を書き（`printf` か、それを書くスクリプト）、ログを読む（v0.78.46、#265。2 文目は v0.78.89 で書き直した、#269）→ 問い合わせの `out` の行のあとに `in reply` の行が来る: `\e]11;rgb:RRRR/GGGG/BBBB\e\\` で色はペインの背景（テーマの `bg_alt`）、`\e]10;?` には前景色（`fg`）。返答の時刻（ログの 1 列目、ms）は、どちらも問い合わせの 50 ms 以内。`gh dash` などの bubbletea のプログラムはこの返答を待ってから始まり、来なければ間を置いて推測するので、すぐ返ることがすぐ始まることになる。`gh dash` そのものは起動しなくてよい（持ち主の GitHub にサインインする。人が試すのは構わない）'''
-'1.42' = '''filer の子の `OpenConsole.exe` を控え（`Get-CimInstance Win32_Process -Filter "ParentProcessId=$((Get-Process filer).Id)"`）、`FILER_TERM_SHELL=nosuchshell` で `<C-t>` を 3 回押し、もう一度読む（v0.78.130）→ 前と同じものだけで、増えていない。以前は失敗した `<C-t>` のたびに `OpenConsole.exe --headless` が 1 つ残り、filer を閉じるまで消えなかった（2026-10 の x64 の実行、所見 3）'''
-'1.43' = '''`FILER_PTY_LOG` を付け、pwsh のペインで `<A-b>` と `<Up>` を押し、ログを読む（v0.78.130、#243）→ 各キーの `in key` の行の末尾、記録のあとに括弧で名前が付く: `\e[66;48;98;1;2;1_  (Alt+b)`、続けて `(Up)`。キーの記録でない行（貼り付け、返答）には付かない'''
-'1.44' = '''`<C-t>` のあと、一覧とターミナルペインの境目を上へ、次に下へ引く（v0.80.0、Q94）→ 境目の上でポインタが上下の矢印になり、細いアクセントの線が出る。ボタンを押している間は境目がポインタに付いてきて、ペインの行数が増減する（`filer env` の pane か `<State:>` の `pane:`）。上は一覧が 6 行残るところで、下はターミナルが高さ 4 行のところで止まる（枠が 1 行ぶん取るので `pane:` は 3 行、`3x159` などで止まる）。ターミナルの 1 行内側から始めたドラッグは今までどおり文字を選ぶ（1.11）'''
-'1.45' = '''1.44 のあと境目をダブルクリックし、次に `<C-t>` を 2 回（ペインのキーを離して戻す）、`<C-S-Enter>` を 2 回、窓の大きさを変える（v0.80.0、Q94）→ ダブルクリックで境目が一覧の上端とステータスバーの上端の真ん中に来る。ほかの操作のあとも引いた高さのまま（窓に対する割合なので、大きさを変えても比率が保たれる）。新しい filer の窓は 3 分の 1 から始まる（高さは保存しない）'''
+'1.39' = 'macOS / Linux: `TERM` 無しで kura を起動し（`env -u TERM kura`、またはデスクトップのランチャーから）、`<C-t>` で `echo $TERM $COLORTERM`（v0.75.23）→ `xterm-256color truecolor`。`<A-t>` で打った長いパスは次の行へそのまま折り返し、dumb 端末のように 1 行の中で横に流れない'
+'1.40' = '''`KURA_TERM_SHELL=nosuchshell` で `<C-t>`。次にそれ無しで `<C-t>`、終了して `kura env`（v0.78.13）→ 1 つ目は ``Terminal failed: `nosuchshell` was not found on PATH — set [term] shell to one that is`` とプログラムを名指す。`kura env` の `Terminal pane` の行が、前回のペインが起動したシェルと大きさを言う: `pwsh, 12 x 159 (lines x columns)`。1 回目の直後に（`<C-t>` をやり直さずに）`kura env` を読むと、その行は `did not start: `nosuchshell` was not found on PATH …` になる（v0.78.50、#254）。フルパス（`KURA_TERM_SHELL=C:\nope\x.exe`）なら ``Terminal failed: `C:\nope\x.exe` does not exist — set [term] shell to one that is`` と出て、`PATH` とは言わない。`kura env` も同じ（v0.78.98）'''
+'1.41' = '''`KURA_PTY_LOG` を付け、ペインで `\e]11;?\e\\`、続けて `\e]10;?\e\\` を書き（`printf` か、それを書くスクリプト）、ログを読む（v0.78.46、#265。2 文目は v0.78.89 で書き直した、#269）→ 問い合わせの `out` の行のあとに `in reply` の行が来る: `\e]11;rgb:RRRR/GGGG/BBBB\e\\` で色はペインの背景（テーマの `bg_alt`）、`\e]10;?` には前景色（`fg`）。返答の時刻（ログの 1 列目、ms）は、どちらも問い合わせの 50 ms 以内。`gh dash` などの bubbletea のプログラムはこの返答を待ってから始まり、来なければ間を置いて推測するので、すぐ返ることがすぐ始まることになる。`gh dash` そのものは起動しなくてよい（持ち主の GitHub にサインインする。人が試すのは構わない）'''
+'1.42' = '''kura の子の `OpenConsole.exe` を控え（`Get-CimInstance Win32_Process -Filter "ParentProcessId=$((Get-Process kura).Id)"`）、`KURA_TERM_SHELL=nosuchshell` で `<C-t>` を 3 回押し、もう一度読む（v0.78.130）→ 前と同じものだけで、増えていない。以前は失敗した `<C-t>` のたびに `OpenConsole.exe --headless` が 1 つ残り、kura を閉じるまで消えなかった（2026-10 の x64 の実行、所見 3）'''
+'1.43' = '''`KURA_PTY_LOG` を付け、pwsh のペインで `<A-b>` と `<Up>` を押し、ログを読む（v0.78.130、#243）→ 各キーの `in key` の行の末尾、記録のあとに括弧で名前が付く: `\e[66;48;98;1;2;1_  (Alt+b)`、続けて `(Up)`。キーの記録でない行（貼り付け、返答）には付かない'''
+'1.44' = '''`<C-t>` のあと、一覧とターミナルペインの境目を上へ、次に下へ引く（v0.80.0、Q94）→ 境目の上でポインタが上下の矢印になり、細いアクセントの線が出る。ボタンを押している間は境目がポインタに付いてきて、ペインの行数が増減する（`kura env` の pane か `<State:>` の `pane:`）。上は一覧が 6 行残るところで、下はターミナルが高さ 4 行のところで止まる（枠が 1 行ぶん取るので `pane:` は 3 行、`3x159` などで止まる）。ターミナルの 1 行内側から始めたドラッグは今までどおり文字を選ぶ（1.11）'''
+'1.45' = '''1.44 のあと境目をダブルクリックし、次に `<C-t>` を 2 回（ペインのキーを離して戻す）、`<C-S-Enter>` を 2 回、窓の大きさを変える（v0.80.0、Q94）→ ダブルクリックで境目が一覧の上端とステータスバーの上端の真ん中に来る。ほかの操作のあとも引いた高さのまま（窓に対する割合なので、大きさを変えても比率が保たれる）。新しい kura の窓は 3 分の 1 から始まる（高さは保存しない）'''
 '1.46' = '''`<C-t>` のあと長いファイルを `less` で開き（`less /etc/passwd`、Windows では `Get-Content` を `less` か `more` に流す）、`q` を押す。もう一度 `less` を開いて `<C-t>`（v0.83.0、Q77）→ `less` が画面を使っている間、ペインの右上に小さく `<C-t> list` が薄い下地と淡い文字色で出る。ペインを離れるキーの名前で、`[term]` の `close` を割り当て直せば表示も変わる。`q` で `less` を終えると消え、`<C-t>` で一覧にキーを戻しても消える。出ている間 `<State:>` に `pane badge: <C-t> list` が出る'''
-'1.18' = '''OSC 7 を報告するシェルで、一覧側のディレクトリを変える。PowerShell 7 は自分では報告しない（pwsh 7.6.6 は 1 つも出さなかった）ので、先にフックを読み込む（pwsh は `filer shell-hook \| Add-Content $PROFILE`、bash は `filer shell-hook bash >> ~/.bashrc`。29 節）。そのあと `<C-S-t>` と `<C-t>` → シェルに余計な `cd` が打ち込まれない'''
+'1.18' = '''OSC 7 を報告するシェルで、一覧側のディレクトリを変える。PowerShell 7 は自分では報告しない（pwsh 7.6.6 は 1 つも出さなかった）ので、先にフックを読み込む（pwsh は `kura shell-hook \| Add-Content $PROFILE`、bash は `kura shell-hook bash >> ~/.bashrc`。29 節）。そのあと `<C-S-t>` と `<C-t>` → シェルに余計な `cd` が打ち込まれない'''
 
 # 2. ミニマップ
 '2.2' = '''形を見る → コメント見出しが長い帯で 40 行ごとに並び、インデントされた塊は右から始まる帯。`long.rs` では 40 行ごとの空行が見出しのすぐ上にあって同じ帯に入る（帯 1 本が約 2 行なので、空行 1 本では丸ごとの隙間にならない。v0.73.59 から）ので、空行だけの帯を探さなくてよい。それ以外の縞は無い（v0.73.59 より前は、ファイルに関係なく丸めから 17〜19 px ごとに 1 px の隙間が出た）。**元のファイルの形に見えること**'''
@@ -338,25 +338,25 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "4.3" = '**日本語**の入った SVG → 同じ。かなと漢字のあるフォントが選ばれる（文字が消えない）'
 "4.4" = '**インストールされていない**フォントを指定した SVG → 代替フォントが使われて読める形で出る。描画全体が失敗しない'
 "4.5" = '**太字**や*斜体*の文字が入った SVG → 太さと傾きが反映される（普通の字に潰れない）'
-"4.6" = 'システムフォントではなく**隣に置いたフォントファイル**を使う SVG。`font-family` はファイルの中のファミリー名にする（v0.73.54）→ 文字がそのフォントで描かれ、Times に落ちない。filer は SVG と同じフォルダ（その下は見ない）の `.ttf` / `.otf` / `.ttc` / `.otc` を読む。`@font-face` の `url()` はたどらないので、合うのはファミリー名'
+"4.6" = 'システムフォントではなく**隣に置いたフォントファイル**を使う SVG。`font-family` はファイルの中のファミリー名にする（v0.73.54）→ 文字がそのフォントで描かれ、Times に落ちない。kura は SVG と同じフォルダ（その下は見ない）の `.ttf` / `.otf` / `.ttc` / `.otc` を読む。`@font-face` の `url()` はたどらないので、合うのはファミリー名'
 "4.7" = '**壊れた** SVG（途中で切ったもの）→ プレビューに `bad SVG: …` と出て、ウィンドウは動き続ける'
 "4.8" = '4.2 と 4.3 を v0.33.5 のビルドと見比べる → 字形の違いがあれば新しいシェイパーの影響。何が変わったかを書いて両方添える（**v0.33.5 のビルドが要るので、無ければ飛ばす**）'
 "4.9" = '大きさの分かる SVG（100 × 100 に半径 40 の円）で `<A-i>` を 1 回押して 2 秒待つ。次に `<A-1>`（v0.73.53、#219）→ `<A-i>` で 1 段（1.25 倍）大きくなり、そこで止まる。v0.73.53 より前は、くっきり描き直すたびに収まる倍率が下がり、4096 px の上限まで大きくなり続けた。`<A-1>` は SVG 自身の大きさを論理ピクセルで出す。ブラウザーと同じ大きさ（画面の倍率 100% なら円の直径 80 px、150% なら 120 px。v0.73.62、Q65）で、注記は `· 1:1`、`zoom: 100%`'
 
 # 7. ヘルプパネルの設定ファイルパス
-"7.1" = 'どこにも `filer.toml` が無い状態で `~` → **両方の**ディレクトリが並び、空のほうに `nothing here` が付く（v0.25.0 までは存在するファイルしか出なかった）'
+"7.1" = 'どこにも `kura.toml` が無い状態で `~` → **両方の**ディレクトリが並び、空のほうに `nothing here` が付く（v0.25.0 までは存在するファイルしか出なかった）'
 "7.2" = 'パスの行をホバー → 行が光り、ポインタが手の形になる'
 "7.3" = 'キーの行をホバー → 何も起きない。そこはリンクではない'
 "7.4" = '設定**ファイル**をクリック → パネルが閉じ、そのファイルにカーソルを置いた状態でディレクトリが開く。`<Enter>` でそのまま開ける'
 "7.5" = '**ディレクトリ**をクリック → パネルが閉じ、空でもそこへ移動する'
-"7.6" = '空のほうをクリックし、そこに `filer.toml` を作って `<C-F5>` → 次に開いたとき `nothing here` が消えている'
-"7.7" = '`YAZI_CONFIG_HOME` / `FILER_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う'
-'7.7a' = '''2 つの変数に、`filer.toml` のある**同じ**フォルダを綴りを変えて渡す: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`、`$env:FILER_CONFIG_HOME = 'c:\CFG\'`（v0.73.12、#180）。それから `~`、`filer env`、`<C-F5>` → パネルにも `filer env` の Config の節にもフォルダは **1 回**だけ出て、`<C-F5>` は `Reloaded 1 config file(s)`。以前は 2 回出て 2 と数えた'''
-'7.7b' = '''67 文字のフォルダを `$env:FILER_CONFIG_HOME` に入れて `filer env`（v0.78.87、#248）→ 24 文字を超えるキーは自分の行に出て、値はその下に字下げされ、ほかの行の桁は広がらない'''
+"7.6" = '空のほうをクリックし、そこに `kura.toml` を作って `<C-F5>` → 次に開いたとき `nothing here` が消えている'
+"7.7" = '`YAZI_CONFIG_HOME` / `KURA_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う'
+'7.7a' = '''2 つの変数に、`kura.toml` のある**同じ**フォルダを綴りを変えて渡す: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`、`$env:KURA_CONFIG_HOME = 'c:\CFG\'`（v0.73.12、#180）。それから `~`、`kura env`、`<C-F5>` → パネルにも `kura env` の Config の節にもフォルダは **1 回**だけ出て、`<C-F5>` は `Reloaded 1 config file(s)`。以前は 2 回出て 2 と数えた'''
+'7.7b' = '''67 文字のフォルダを `$env:KURA_CONFIG_HOME` に入れて `kura env`（v0.78.87、#248）→ 24 文字を超えるキーは自分の行に出て、値はその下に字下げされ、ほかの行の桁は広がらない'''
 "7.8" = '設定の警告行 → 黄色のまま。クリックできない'
 
 # 8. ターミナルペインが起動するシェル
-"8.1" = '`filer.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `7.x`（`pwsh`。v0.55.0 から、入っていればこれが既定。Q29）。`pwsh` の無い機械でだけ `5.1.x`（Windows PowerShell）'
+"8.1" = '`kura.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `7.x`（`pwsh`。v0.55.0 から、入っていればこれが既定。Q29）。`pwsh` の無い機械でだけ `5.1.x`（Windows PowerShell）'
 "8.2" = 'ペインを開いたまま `[term]` / `shell = "powershell"` を足し、`<C-F5>`、続けて `<C-S-t>` → `<C-t>` → もう一度聞く（v0.67.17）→ `<C-F5>` のトーストの末尾が `— the pane keeps its shell until <C-S-t> closes it`。`<C-S-t>` `<C-t>` のあとは `5.1.x`'
 "8.3" = 'それぞれで `$PROFILE` → 別のパスが出る（5.1 は `WindowsPowerShell\`、7 は `PowerShell\`）'
 "8.4" = 'OSC 7 のフックを pwsh のプロファイルにだけ入れて、それぞれで `cd` して `<A-Up>` → pwsh では追従し、5.1 ではその旨が出る。**この非対称そのものが報告の中身**'
@@ -451,10 +451,10 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "17.9" = '動画をホバー → **フレームが出る。**v0.30.2 まで Windows では一度も出なかった（`{out}.png` が `"…page".png` と引用され、`cmd` がファイル名に引用符ごと渡していた）'
 "17.9a" = '空白を含むパスで同じこと → やはり描ける。引用が拡張子まで含めて単語全体を包むため'
 "17.10" = 'その上で `<A-j>` → `step` に従って 10 秒先へ'
-"17.11" = '名前に**空白**を含む PDF と、日本語フォルダの中の PDF → どちらも描ける。引用はルール側ではなく filer 側がやっている'
-"17.12" = '`pdftoppm` を外してから（名前を変えるか、Poppler のフォルダを `PATH` から外したシェルから filer を起動する。同じシェルで `Get-Command pdftoppm` が何も出さないこと）PDF をホバー → ツール名を挙げたエラーが出る（固まらない）。日本語の Windows でも読める文字で出る、文字化けしない（実行する `cmd` は OEM コードページ（CP932）で答えるので、そう読む。v0.78.101、#270）'
+"17.11" = '名前に**空白**を含む PDF と、日本語フォルダの中の PDF → どちらも描ける。引用はルール側ではなく kura 側がやっている'
+"17.12" = '`pdftoppm` を外してから（名前を変えるか、Poppler のフォルダを `PATH` から外したシェルから kura を起動する。同じシェルで `Get-Command pdftoppm` が何も出さないこと）PDF をホバー → ツール名を挙げたエラーが出る（固まらない）。日本語の Windows でも読める文字で出る、文字化けしない（実行する `cmd` は OEM コードページ（CP932）で答えるので、そう読む。v0.78.101、#270）'
 "17.13" = '`[[preview]]` のルールを消して `<C-F5>`、PDF をホバー → シェルのサムネイルに戻る（以前のまま）'
-"17.14" = 'ルールを入れた状態で `filer env` → Tools の下に `pdftoppm` と `ffmpeg` が並び、横に `preview *.pdf` が出る'
+"17.14" = 'ルールを入れた状態で `kura env` → Tools の下に `pdftoppm` と `ffmpeg` が並び、横に `preview *.pdf` が出る'
 "17.15" = '`pdftoppm` のルールのある PDF で `--keys` に `<State:p1><Shot:p1><A-j><State:p2><Shot:p2>` を渡す（v0.78.17）→ `p1.txt` が `picture: 1`、`p2.txt` が `picture: 2` で、`p2.png` は 2 ページ目（1 ページ目の撮り直しではない）。`--keys` が次のページの絵を待ってから次のキーへ進む。以前は描き直しの間も古いページが出たまま「落ち着いた」と数えられ、2 枚とも 1 ページ目だった（#166）'
 
 # 18. クイックルックと他のペイン
@@ -472,17 +472,17 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "19.2" = 'プレビューの上でできる限りゆっくり回す → それでも動く。端数も捨てずに積算される'
 "19.3" = '**ファイル一覧**の上でホイール → 同じ。分割しているときは、それぞれのペインの上で'
 '19.4' = '''シェルのプロンプトで、上に出力がある状態の**ターミナル**ペインの上でホイール → スクロールバックが動く。1 / 2 / 3 ノッチで 1 / 3 / 5 行、4 分の 1 ノッチ 4 回は 1 ノッチと同じ。v0.20.4 で先に直してあり、一覧と `wheel_whole` を共有している'''
-'19.4a' = '''マウスを求めない全画面のプログラム（長いファイルを `less`）が動いているターミナルペインの上でホイール（v0.38.0）→ プログラムがスクロールする。1 ノッチごとに矢印キーとして送られ（`FILER_PTY_LOG` に出る）、1 ノッチで 1 行、大きく回すほど多く動く。合成のホイールでは送り方で数が変わる（#260 は 19.4 の 1 / 3 / 5 でなく 1 / 4 / 5 を読んだ）ので、数ではなく増え方を見るか、同じ `<Wheel:>` の手順で機械どうしを比べる。`ui/term.rs` の中でスクロールバックとは別の道。マウスを求めるプログラム（nvim など）にはホイールの報告が行く（40.14、40.17）'''
+'19.4a' = '''マウスを求めない全画面のプログラム（長いファイルを `less`）が動いているターミナルペインの上でホイール（v0.38.0）→ プログラムがスクロールする。1 ノッチごとに矢印キーとして送られ（`KURA_PTY_LOG` に出る）、1 ノッチで 1 行、大きく回すほど多く動く。合成のホイールでは送り方で数が変わる（#260 は 19.4 の 1 / 3 / 5 でなく 1 / 4 / 5 を読んだ）ので、数ではなく増え方を見るか、同じ `<Wheel:>` の手順で機械どうしを比べる。`ui/term.rs` の中でスクロールバックとは別の道。マウスを求めるプログラム（nvim など）にはホイールの報告が行く（40.14、40.17）'''
 "19.5" = '一方に回してすぐ逆に回す → 即座に反転する。取り残された端数による空走りが無い'
 "19.6" = '画像の上で `Ctrl`+ホイール → 拡大縮小し、同じ操作でペインが**スクロールしない**'
 "19.7" = '回している途中でポインタを別のペインへ移す → どちらも飛ばない。端数はペインごとに別々に持っている'
 
 # 20. 設定とテーマ
-"20.1" = 'filer を開いたまま `theme.toml` を編集し（`[mgr] cwd` を目立つ色に）、`<C-F5>` → 再起動せずに色が変わる'
-"20.2" = '`filer.toml` の `[ui] font_size` を変えて `<C-F5>` → 文字の大きさが変わる'
+"20.1" = 'kura を開いたまま `theme.toml` を編集し（`[mgr] cwd` を目立つ色に）、`<C-F5>` → 再起動せずに色が変わる'
+"20.2" = '`kura.toml` の `[ui] font_size` を変えて `<C-F5>` → 文字の大きさが変わる'
 "20.3" = '`keymap.toml` に割り当てを足して `<C-F5>` → 新しいキーが効き、`<F1>` の一覧にも出る'
 "20.4" = '`,s` で並べ替えてから `<C-F5>` → **並び順は自分で設定したまま残る。**再読み込みが手で変えたものを元に戻さないこと'
-"20.5" = '`filer.toml` に構文エラーを入れて `<C-F5>` → 問題を挙げたエラーのトーストが出て、**以前の設定がそのまま効き続ける**。**壊れたファイル自身が決めていた値も含めて**（v0.67.18、Q47。それまでは、その `[ui]` が既定値に戻っていた）。トーストの末尾は `(the last settings read from it stay in force until it parses again)`'
+"20.5" = '`kura.toml` に構文エラーを入れて `<C-F5>` → 問題を挙げたエラーのトーストが出て、**以前の設定がそのまま効き続ける**。**壊れたファイル自身が決めていた値も含めて**（v0.67.18、Q47。それまでは、その `[ui]` が既定値に戻っていた）。トーストの末尾は `(the last settings read from it stay in force until it parses again)`'
 "20.6" = '`[ui] minimap = false` にして `<C-F5>` → ミニマップが出なくなる'
 '20.7' = '''`keymap.toml` に `[[mgr.prepend_keymap]]` で `on = "<F8>"`、`run = 'cd C:\Windows\System32'`（コマンドの中に引用符なし）を書く（v0.59.0）→ `<F8>` で `C:\Windows\System32` に着く。v0.59.0 までは `\` が落ち、エラーが `C:WindowsSystem32` を挙げていた'''
 
@@ -499,15 +499,15 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "21.11" = '同じ入力の `.7z` と `.zip` を比べる → 7z のほうが小さい。それが持っている理由'
 "21.13" = "`to-pack\\` を `.zip` に圧縮し、`7z l` で見る（v0.57.2）→ どのエントリも元のファイルの日時（偶数秒まで）を持つ。`1980-01-01 00:00:00` ではない"
 '21.14' = '''`to-pack\` のファイルを古い日時、それも**奇数**秒にし（`(Get-Item f).LastWriteTime = "2021-06-15 12:34:57"`。偶数秒だと v0.73.16 より前の zip でも通ってしまう）、`E` で `.zip`・`.tar.gz`・`.7z` に固めて、それぞれ `e` で展開する（v0.65.7）。`to-pack\` の中のフォルダも同じ奇数秒にする。形式の間ではカーソルを `to-pack\` に戻す（先頭にあれば `gg`）: `E` の後はカーソルが作った書庫に乗る（Q25）ので、続けて `E` を押すと前の書庫を包む → 展開したどのファイルも元の `LastWriteTime` に戻っている（3 形式とも秒まで。v0.73.16 より前の zip は偶数秒まで）。展開した時刻ではない。展開したフォルダ（`to-pack\` とその中のもの）も同じ奇数秒に戻る（日付は 21.23 が見る。秒は v0.80.7 から `a_folder_keeps_its_time_through_a_round_trip` が Linux で見ている）。v0.65.7 より前は、どれも `e` の時刻になっていた（#156）'''
-'21.14a' = '''`2019-02-28 23:59:59` の日時のファイルを **7-Zip** で zip にし（`7z a x.zip f`）、filer の `e` で展開する。逆向きに、奇数秒のファイルを filer の `E` で `.zip` にし、7-Zip で展開する（`7z x`）（v0.73.16、#174）→ filer の `e` は `2019-02-28 23:59:59` に戻す（7-Zip が MS-DOS の欄の横に残す正確な時刻から。`2019-03-01 00:00:00` ではない）。7-Zip も filer の zip から奇数秒のまま戻す（filer の拡張タイムスタンプから。1 秒下がらない）'''
-'21.14b' = '''同じファイルを**エクスプローラー**の「圧縮 (zip 形式) フォルダー」で zip にし、filer の `e` で展開する。逆向きに、奇数秒のファイルを filer の `E` で `.zip` にし、エクスプローラーで展開する（v0.73.31、Q58。#200）→ エクスプローラーは MS-DOS の欄（2 秒刻み、**切り上げ**）しか読み書きしない。だから filer の `e` はその zip にある `2019-03-01 00:00:00` を戻す（正確な秒は zip に無い）。エクスプローラーは filer の zip から、奇数秒を次の偶数秒に上げた時刻を戻す（`…:57` → `…:58`、`23:59:59` → 次の日の `00:00:00`）。自分の zip や 7-Zip の zip からと同じ。v0.73.31 より前は filer が切り捨てていたので、エクスプローラーでは 1 秒下がった'''
+'21.14a' = '''`2019-02-28 23:59:59` の日時のファイルを **7-Zip** で zip にし（`7z a x.zip f`）、kura の `e` で展開する。逆向きに、奇数秒のファイルを kura の `E` で `.zip` にし、7-Zip で展開する（`7z x`）（v0.73.16、#174）→ kura の `e` は `2019-02-28 23:59:59` に戻す（7-Zip が MS-DOS の欄の横に残す正確な時刻から。`2019-03-01 00:00:00` ではない）。7-Zip も kura の zip から奇数秒のまま戻す（kura の拡張タイムスタンプから。1 秒下がらない）'''
+'21.14b' = '''同じファイルを**エクスプローラー**の「圧縮 (zip 形式) フォルダー」で zip にし、kura の `e` で展開する。逆向きに、奇数秒のファイルを kura の `E` で `.zip` にし、エクスプローラーで展開する（v0.73.31、Q58。#200）→ エクスプローラーは MS-DOS の欄（2 秒刻み、**切り上げ**）しか読み書きしない。だから kura の `e` はその zip にある `2019-03-01 00:00:00` を戻す（正確な秒は zip に無い）。エクスプローラーは kura の zip から、奇数秒を次の偶数秒に上げた時刻を戻す（`…:57` → `…:58`、`23:59:59` → 次の日の `00:00:00`）。自分の zip や 7-Zip の zip からと同じ。v0.73.31 より前は kura が切り捨てていたので、エクスプローラーでは 1 秒下がった'''
 "21.15" = '`to-pack\` だけを選んで `E`（書庫の一番上がフォルダ 1 つ）、`to-pack.zip` で `e`。続けて一番上がファイルの `sample.zip` でも同じ（v0.66.0）→ `to-pack_1\` の中に直接ファイルが入る。`to-pack_1\to-pack\` にはならない（Q43）。`sample.zip` は今までどおり自分の `sample\`（か `sample_1\`）フォルダに展開される'
 "21.16" = '`to-pack\` を `E` で `.zip` にし、その書庫を `e` で展開する。次に書庫を 2 つ選んで `e`（v0.73.36、#205）→ 固め終わると `Packed into to-pack.zip`、展開し終わると `Unpacked into to-pack\` のトーストが出る（21.15 の持ち上げのあとの、中身が実際に入ったフォルダの名前）。2 つなら `Unpacked 2 archives into <最初>\ and 1 more`。以前はどちらも何も言わなかった'
 '21.17' = '`to-pack.zip`（21.1 で作ったもの）で `l`、中のフォルダで `l`、`h`、`h`（v0.76.0、Q75）→ 状態ファイルが `view: archive` で、書庫の一番上が並ぶ（`hovered:` が `…\\to-pack.zip\\<メンバー>`）。`l` で 1 段下り、`h` で上がるとカーソルは出てきたフォルダの上、一番上の `h` で外へ出て `view: list`、カーソルは `to-pack.zip` の上。`<Right>` と `<Left>` も同じ。`<Esc>` はどの段からでも抜ける'
-'21.18' = '書庫の中で `to-pack\\nested\\deep.txt` に `<Enter>`（v0.76.0、v0.78.16）。`.txt` の既定のアプリがもう動いている、またはこの機械では何も開かないなら、21.1 の前に `to-pack\\nested\\` へ `.png` を写してそれを使う → 既定のアプリで開く。開いたのは `%TEMP%\\filer-archive-<pid>\\to-pack.zip\\to-pack\\nested\\<名前>` で、書庫の中のフォルダが残る（v0.78.16 より前は落ち、`a\\readme.txt` と `b\\readme.txt` が 1 つの写しを取り合った）。トーストは `Opened a copy of <名前> — changes stay out of the archive`。外で書庫そのものに `<Enter>` は今までどおりオープナーで開く'
-'21.19' = '書庫の中で `x`、`d`、`a`、`r`、`p`（v0.76.0、`r` と `p` は v0.78.196。`y` は v0.77.0 から通す。21.20）→ 切り取り・ごみ箱・作成・改名・貼り付けのどれもしない。どれも `Inside an archive: read only — this would change the archive, which filer never writes. y then p in a folder takes a copy out, Esc leaves` と言う。書庫のあるフォルダは変わらない（前後の `Get-ChildItem`）'
-'21.20' = '書庫の中で `top.txt` に `y`、`<Esc>`、別のフォルダへ `l`、`p`。続けてもう一度 `p` して `s`（v0.77.0）→ `y` のあとのトーストは `Yanked 1 item from the archive — p in a folder takes them out`。`p` のあと `top.txt` が書庫の中身と時刻で現れ、カーソルが乗り、トーストは `Took top.txt out of the archive`。`yank: 1 copied` は残る。2 回目の `p` は `File already exists` を聞き、`s` で元のファイルが残り、`.filer-take-out-*` のフォルダは残らない。中で `y` したフォルダは中身ごと出る'
-'21.21' = '書庫の中で `.txt` のメンバー、次に `.png`、次にフォルダにカーソルを置き、最後に `<Esc>`（v0.78.0）→ テキストと画像はファイルと同じくプレビューされる（`<A-G>` でテキストの末尾に届き `preview top: N of N`）。フォルダは `Holds  N items` のカード。4 MB を超えるメンバーは大きさのカード。`<Esc>` のあと `%TEMP%\\filer-archive-<pid>\\preview` にこのビューの分は残らない'
+'21.18' = '書庫の中で `to-pack\\nested\\deep.txt` に `<Enter>`（v0.76.0、v0.78.16）。`.txt` の既定のアプリがもう動いている、またはこの機械では何も開かないなら、21.1 の前に `to-pack\\nested\\` へ `.png` を写してそれを使う → 既定のアプリで開く。開いたのは `%TEMP%\\kura-archive-<pid>\\to-pack.zip\\to-pack\\nested\\<名前>` で、書庫の中のフォルダが残る（v0.78.16 より前は落ち、`a\\readme.txt` と `b\\readme.txt` が 1 つの写しを取り合った）。トーストは `Opened a copy of <名前> — changes stay out of the archive`。外で書庫そのものに `<Enter>` は今までどおりオープナーで開く'
+'21.19' = '書庫の中で `x`、`d`、`a`、`r`、`p`（v0.76.0、`r` と `p` は v0.78.196。`y` は v0.77.0 から通す。21.20）→ 切り取り・ごみ箱・作成・改名・貼り付けのどれもしない。どれも `Inside an archive: read only — this would change the archive, which kura never writes. y then p in a folder takes a copy out, Esc leaves` と言う。書庫のあるフォルダは変わらない（前後の `Get-ChildItem`）'
+'21.20' = '書庫の中で `top.txt` に `y`、`<Esc>`、別のフォルダへ `l`、`p`。続けてもう一度 `p` して `s`（v0.77.0）→ `y` のあとのトーストは `Yanked 1 item from the archive — p in a folder takes them out`。`p` のあと `top.txt` が書庫の中身と時刻で現れ、カーソルが乗り、トーストは `Took top.txt out of the archive`。`yank: 1 copied` は残る。2 回目の `p` は `File already exists` を聞き、`s` で元のファイルが残り、`.kura-take-out-*` のフォルダは残らない。中で `y` したフォルダは中身ごと出る'
+'21.21' = '書庫の中で `.txt` のメンバー、次に `.png`、次にフォルダにカーソルを置き、最後に `<Esc>`（v0.78.0）→ テキストと画像はファイルと同じくプレビューされる（`<A-G>` でテキストの末尾に届き `preview top: N of N`）。フォルダは `Holds  N items` のカード。4 MB を超えるメンバーは大きさのカード。`<Esc>` のあと `%TEMP%\\kura-archive-<pid>\\preview` にこのビューの分は残らない'
 '21.22' = '一番上が 1 つのフォルダ（`inner\\`）の書庫と、そうでない書庫で `e`（v0.78.1）→ 終わるとカーソルができたものに乗る（1 つ目は `inner`、2 つ目は `<書庫の名前>\\`。`hovered:`）。`E` が作った書庫に乗るのと同じ（21.4）。トーストは `Unpacked into …`'
 '21.22b' = 'ファイルを選んで `E`、`<Tab>` を 3 回。途中で語幹に 1 文字打つ（v0.78.40、Q79）→ 名前が `.zip` → `.tar.gz` → `.7z` → `.zip` と回り、語幹（と打った文字）はそのまま。押すたびに語幹の部分が選択される。`.tar.gz` の形で `<Enter>` すると `.tar.gz` ができる'
 '21.22c' = '''書庫（`to-pack.zip`）を選んで `E`。欄を空にして `to-pack.zip` と打ち `<Enter>`（v0.78.41、#265）→ 欄は書庫自身の名前でなく `to-pack-packed.zip` で開く。書庫自身の名前を打つと赤い `Can't pack to-pack.zip into itself — give the archive another name` が出て、仕事は始まらず、`to-pack.zip` は変わらない（大きさもハッシュも同じ）'''
@@ -521,8 +521,8 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "22.3" = 'EmEditor → 同じ'
 "22.4" = 'Notepad++ → 同じ'
 "22.5" = 'メモ帳 → 開くが先頭から。行を指定する引数が無いので、**これが正しい**'
-'22.6' = '''VS Code（入っていれば）→ その行で開く（filer は `-g <パス>:N` を渡す）'''
-'22.6a' = '''nvim（入っていれば）→ その行で開く（filer は `+N` を渡す。`exec::at_line` の中で 22.6 とは別の分岐）'''
+'22.6' = '''VS Code（入っていれば）→ その行で開く（kura は `-g <パス>:N` を渡す）'''
+'22.6a' = '''nvim（入っていれば）→ その行で開く（kura は `+N` を渡す。`exec::at_line` の中で 22.6 とは別の分岐）'''
 
 # 23. ネットワークパス
 "23.1" = '`g<Space>` から `\\server\share` と入力 → 開く'
@@ -540,53 +540,53 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "24.4" = '引用符を含む名前をコピーして、`<A-t>` でターミナルへ → シェルが 1 語として受け取る形に引用される'
 "24.5" = '日本語名のファイルで `d` してから `u` → 同じ名前で戻る'
 '24.6' = '''新しいフォルダで `scripts\make-fixtures.ps1` を走らせる（v0.59.1）→ 警告は出ない。ただし普通の（大文字小文字を区別しない）NTFS のフォルダでは `awkward names: 5 entries on disk, expected 6` が出て、`fsutil file setCaseSensitiveInfo` を挙げる（24.3 がそこで押せない理由）'''
-'24.7' = '真ん中だけが違う長い名前が並ぶフォルダ（`filer-archive-x-15484.log`、`filer-test-yy-15484.log` …）を親の列で見る（v0.75.15、Q67）→ どの行も列の幅で縮められるが、隣り合う行が同じ見た目にならない。頭を長く残すか（`filer-a….log` と `filer-t….log`）、末尾を長く残す。もともと違って見える行は今までどおり。以前は列全体が `filer…84.log` になった（#227）。v0.78.84 から `<State:>` に描いたとおりの列が出る: `parent: filer-a….log | filer-t….log | …`'
+'24.7' = '真ん中だけが違う長い名前が並ぶフォルダ（`kura-archive-x-15484.log`、`kura-test-yy-15484.log` …）を親の列で見る（v0.75.15、Q67）→ どの行も列の幅で縮められるが、隣り合う行が同じ見た目にならない。頭を長く残すか（`kura-a….log` と `kura-t….log`）、末尾を長く残す。もともと違って見える行は今までどおり。以前は列全体が `kura…84.log` になった（#227）。v0.78.84 から `<State:>` に描いたとおりの列が出る: `parent: kura-a….log | kura-t….log | …`'
 
-# 25. filer env
-"25.1" = 'PowerShell から `filer env` → 5 つの節（Filer、Config、Last run、Tools、Variables）が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること**'
+# 25. kura env
+"25.1" = 'PowerShell から `kura env` → 5 つの節（Kura、Config、Last run、Tools、Variables）が表示される。release ビルドは GUI バイナリなので、`--version` と同じ `CONOUT$` の経路を通る —— **実際に文字が出ること**'
 "25.2" = 'Config の節 → 両方のディレクトリが出て、それぞれ中身か `nothing here` を述べ、`not here:` に残りが並ぶ'
 "25.3" = '`keymap.toml` にわざと打ち間違いを入れる → `Warnings` の下に警告が出て、複数行がそのキーの下に字下げされる'
-"25.4" = 'Tools の節 → `git` とその版、ペインが起動するシェル、`[[preview]]` の規則とオープナーが名指すプログラムが、それぞれパス（無ければ `not found`）と用途付きで並ぶ。filer が走らせないもの（`pdftoppm`、`ffmpeg`）は出ない'
+"25.4" = 'Tools の節 → `git` とその版、ペインが起動するシェル、`[[preview]]` の規則とオープナーが名指すプログラムが、それぞれパス（無ければ `not found`）と用途付きで並ぶ。kura が走らせないもの（`pdftoppm`、`ffmpeg`）は出ない'
 '25.4a' = '''`[term] shell = "pwsh"` を設定した状態で、続けて `[term] shell` を書かない状態で（v0.29.1）→ 設定したときはシェルとして `pwsh` が並ぶ。書かないときは、`PATH` に `pwsh` があれば `pwsh`（v0.55.0 からの既定。Q29）、無ければ `powershell`。**実際に起動するほう**であって推測ではない。Windows 以外では `$SHELL` のシェル'''
 "25.4b" = 'オープナーを設定した状態で → 指定された各プログラムが、属するオープナーの種類とともに並ぶ（見つかったかどうかも）'
 "25.4c" = '**引用符付きのフルパス**を指定したオープナー（秀丸、サクラ）→ 最初の空白までではなく、パス全体が解決される'
-"25.4e" = 'Windows で `pwsh`（または `powershell`）をペインのシェルにして `filer env` → シェルの行が `パス   v<a.b.c.d>   (terminal pane, …)` で、その版が `(Get-Item パス).VersionInfo.FileVersion` と一致する。何も起動しない'
-"25.4d" = '`filer env` の実行中に画面を見る → **エディタやビューアが 1 つも起動しない。**`PATH` を調べるだけで、実行はしない'
-'25.4f' = '`[ui] backend` を書かない（`auto`）で `filer env`、続けて `"gl"`（または `WGPU_BACKEND` を設定）で（v0.78.209）→ `Backend` の行は、GL のある Windows では `[ui] backend = "auto" (this machine: Gl)`。`"gl"` や `WGPU_BACKEND` のときは末尾が付かない'
+"25.4e" = 'Windows で `pwsh`（または `powershell`）をペインのシェルにして `kura env` → シェルの行が `パス   v<a.b.c.d>   (terminal pane, …)` で、その版が `(Get-Item パス).VersionInfo.FileVersion` と一致する。何も起動しない'
+"25.4d" = '`kura env` の実行中に画面を見る → **エディタやビューアが 1 つも起動しない。**`PATH` を調べるだけで、実行はしない'
+'25.4f' = '`[ui] backend` を書かない（`auto`）で `kura env`、続けて `"gl"`（または `WGPU_BACKEND` を設定）で（v0.78.209）→ `Backend` の行は、GL のある Windows では `[ui] backend = "auto" (this machine: Gl)`。`"gl"` や `WGPU_BACKEND` のときは末尾が付かない'
 "25.5" = 'ARM 版 Windows で x64 ビルドを使う → `OS arch` と `Process arch` が**食い違う。**その食い違いを見せることが、両方を出している理由'
-"25.6" = '`filer --help` → COMMANDS の下に `env` が並び、その下に `env --out FILE` も並ぶ（v0.68.0）'
-"25.7" = '`filer.exe` をダブルクリック（コンソール無し）→ 以前のまま。ウィンドウが開き、どこにも何も出力されない'
-"25.8" = 'filer を一度開いて終了し、そのあと `filer env` → **Last run** の節が出る。アダプタとそのバックエンド・デバイス種別、読み込まれた全フォントファイル'
-"25.9" = '新しい機械で、filer を一度も開かずに `filer env` → `not recorded — filer has not opened a window on this machine yet` と出る（空の節ではない）'
-"25.10" = '`filer.toml` で別のフォントを指定して `<C-F5>`、もう一度 `filer env` → 新しいファイルが並ぶ。再読み込みが記録を更新している'
-"25.8a" = 'filer を開いて終了し、`filer env` の **Window** の行を画面と突き合わせる（v0.47.33）→ ピクセルの数が目の前の窓と一致し、`pt × 倍率` がその数になる。**DPI の議論に決着を付けるのはこの行。**外から `GetClientRect` で測った値も `PrintWindow` のキャプチャも、**測った側のプロセスの DPI 認識に依存する**ので、窓と食い違ったまま両方もっともらしく見えることがある'
-"25.8b" = '150% 表示の画面で filer を開いて終了し、`filer env` → Window の行が例えば `2040 x 1290 px (1360 x 860 pt @ 1.5)` と出る。ピクセルがポイントの 1.5 倍で、**窓の右端も下端も何も切れていない**'
+"25.6" = '`kura --help` → COMMANDS の下に `env` が並び、その下に `env --out FILE` も並ぶ（v0.68.0）'
+"25.7" = '`kura.exe` をダブルクリック（コンソール無し）→ 以前のまま。ウィンドウが開き、どこにも何も出力されない'
+"25.8" = 'kura を一度開いて終了し、そのあと `kura env` → **Last run** の節が出る。アダプタとそのバックエンド・デバイス種別、読み込まれた全フォントファイル'
+"25.9" = '新しい機械で、kura を一度も開かずに `kura env` → `not recorded — kura has not opened a window on this machine yet` と出る（空の節ではない）'
+"25.10" = '`kura.toml` で別のフォントを指定して `<C-F5>`、もう一度 `kura env` → 新しいファイルが並ぶ。再読み込みが記録を更新している'
+"25.8a" = 'kura を開いて終了し、`kura env` の **Window** の行を画面と突き合わせる（v0.47.33）→ ピクセルの数が目の前の窓と一致し、`pt × 倍率` がその数になる。**DPI の議論に決着を付けるのはこの行。**外から `GetClientRect` で測った値も `PrintWindow` のキャプチャも、**測った側のプロセスの DPI 認識に依存する**ので、窓と食い違ったまま両方もっともらしく見えることがある'
+"25.8b" = '150% 表示の画面で kura を開いて終了し、`kura env` → Window の行が例えば `2040 x 1290 px (1360 x 860 pt @ 1.5)` と出る。ピクセルがポイントの 1.5 倍で、**窓の右端も下端も何も切れていない**'
 "25.11" = 'Linux / macOS: ボールド体がどこにも無い状態で（Windows では届かない。`system_bold_fonts()` がどの Windows にもあるメイリオ・游ゴシック・Consolas の太字を必ず候補に入れる）→ `none found; bold is faked by overstriking` と出る。ボールドの一覧を通常のものと分けてあるのは、このため'
 "25.12" = '`start` で始まるオープナー（既定のアプリで開くもの）→ **`built into cmd`** と出る（`not found` ではない）。`cmd` 自身のコマンドで `PATH` 上のファイルではないため、他の行と同じ探索では見つけられない（v0.33.12）'
 "25.13" = 'そのオープナーを使うルールのファイルで `<Enter>` → 実際に開く。表示と挙動が一致していること'
 "25.14" = '本当に入っていないプログラムを指定したオープナー → やはり **`not found`**。例外扱いはシェル自身の名前だけ'
-"25.15" = '`yazi.toml` を壊して Warnings の行を読む → パスが **`…\filer\yazi.toml`** と、すべて円記号で書かれている。以前は `…\filer/yazi.toml` と出ていた —— **編集すべきファイルを指し示すのが仕事のメッセージなのに、そこが壊れていた**（v0.33.12）'
-"25.16" = "ファイルのあるフォルダで `filer <フォルダ> --keys \"<Tab>C\"`、続けて `Get-Clipboard`（v0.54.0）→ 窓が開き、spot が勝手に先頭の行で開き、クリップボードにパネル全体が `ラベル<TAB>値` の行で入っている。`Name` と `Path` がその先頭の行を指している"
-"25.17" = "`filer --keys \"<Tab\"` と `filer --keys \"<Bogus>\"` → **窓は開かない。**問題を言う 1 行（`has no closing >` / `is not a key`）と、終了コード 2"
-"25.18" = "release ビルドで `filer env \\| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c \"filer env > out2.txt\"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `filer env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた）"
-'25.19' = '''`filer env \| Select-String "arch\s+:"`（ただの `arch` だと、オープナーなどの `Archive` を含むパスにも当たる）→ **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない）'''
-"25.19a" = "PowerShell で `$v = & filer env \\| Write-Output; $v.Count`（v0.67.26、Q54）→ レポートの行数で、0 ではない。**後ろに何も置かない** `$v = & filer env` だと、PowerShell はパイプラインの最後にある窓のプログラムを待たず、`$v` は空になる。filer ではなく PowerShell の動き（#183）なので、行には `\\| Write-Output` を付けてある"
-"25.19b" = "PowerShell で、パスに日本語を含むフォルダから `filer env --out out3.txt`、続けて `Get-Content -Encoding utf8 out3.txt`（v0.68.0、Q55）→ `filer: wrote <フルパス>` の 1 行が標準エラーに出て（v0.78.29。`$p = & filer env --out out3.txt` で `$p` は空、#200）、ファイルにレポート全体が入り、日本語がコンソールのコードページに関係なく**読める**。`filer env --out`（名前なし）と `filer env --outt x` は問題を 1 行で言い、終了コード 2 で、何も書かない"
-'25.19c' = '''zip のフォルダを `PATH` に入れた状態で（v0.71.0、Q44）: `(Get-Command filer).Source`、`$v = & filer env; $v.Count`、`filer --version > v.txt; Get-Content v.txt`、`filer --keys "<Tab"; $LASTEXITCODE`、最後に `filer` だけ → `Source` は `filer.com` で終わる。行数は**後ろに何も置かない**形（25.19a から `Write-Output` を除いた形）でレポートの行数になる。`v.txt` に版の行が入る。拒否は 1 行出て `$LASTEXITCODE` が 2。`filer` だけなら窓が開き、窓が開いたままプロンプトが戻る'''
-'25.19d' = '''zip のフォルダを `PATH` に入れ、`filer` の 1 行だけの `w.ps1` を作って `pwsh -File w.ps1 | Tee-Object t.txt; "back"`（v0.73.6、#192）。次に `w.ps1` を `filer C:\dev C:\Windows` にして同じことをする → 窓が開き、**窓を開いたまま** `back` が出る（以前は窓を閉じるまでパイプラインが終わらなかった）。2 つのパスでは窓が出ず、拒否の 1 行が画面に出て `t.txt` にも入る'''
-'25.19e' = '''空のフォルダで `pwsh -File` から走らせる `.ps1` の中で（v0.73.8、#188）: `filer env --out a.txt; Test-Path a.txt; $LASTEXITCODE`、次に `& <zip のフォルダ>\filer.exe env --out b.txt | Out-Null; Test-Path b.txt`、次に `& <zip のフォルダ>\filer.exe env --out | Out-Null; $LASTEXITCODE`。それと `filer --help` → `True` と `0`、次に `True`、次に `2`。README の待ち方が `filer.com` でも `filer.exe` でも効く。`--help` の `env --out FILE` の下に `(filer.exe in a script: add | Out-Null to wait)` がある'''
-"25.21" = '`filer env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ'
-'25.23' = '''ペインを開いて `<C-S-Enter>`、filer を閉じてから `filer env`（v0.59.4）→ `Last run` の下に `Terminal pane` の行があり、最後の大きさを `N x M (lines x columns)` で出す。ペインを一度も開かなかった run の後は `not opened in that run`'''
-'25.24' = '''どこかのフォルダのシェルから `filer .`、次に `filer ..`、次に引用符なしで `filer two words`（v0.59.5）→ `.` はそのフォルダを開き、タイトルが**絶対**パスで親の列があり、`h` で上がれる。`..` は 1 つ上を開く。引用符なしの 2 語は窓を開く前に `filer: more than one path: "two" and "words" (a path with a space in it needs quotes)` と断られる'''
-'25.24a' = '''PowerShell から引用符なしで `filer C:\dev C:\Windows`（v0.73.5、#194）→ 窓を開く前に断られ、パスは打ったとおり: `filer: more than one path: "C:\dev" and "C:\Windows" (a path with a space in it needs quotes)`。`\` は 1 つずつ。以前は `\` が全部二重に出た（`"C:\\dev"`）。Linux では `filer 'a\b' c` が同じように `"a\b"` と出す'''
-'25.25' = '''オープナーでファイルを開き（`<Enter>` か `<S-Enter>`）、`;` のシェルを 1 つ走らせ、filer を閉じてから `filer env`（v0.59.9）→ `Last run` の下の `Launched` の行に、filer が組み立てたとおりのコマンド行が 2 つ、新しいものが後で、最大 5 つ並ぶ。何も起動しなかった run の後は `nothing in that run`'''
-'25.22' = '''`FILER_PTY_LOG` を設定して `filer --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"`（v0.59.0）→ `echo` が届く前にシェルのプロンプトが出ている（ログの `out` の行が `in key` の行より前）、`hi` が表示され、1 秒後にペインが窓を取る。`filer --keys "<Wait:1.5s>"` はコマンド行で断られ、`<Wait:500>` と書き方を示す'''
-"25.20" = "何もリダイレクトせずに `filer env` と `filer --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない"
+"25.15" = '`yazi.toml` を壊して Warnings の行を読む → パスが **`…\kura\yazi.toml`** と、すべて円記号で書かれている。以前は `…\kura/yazi.toml` と出ていた —— **編集すべきファイルを指し示すのが仕事のメッセージなのに、そこが壊れていた**（v0.33.12）'
+"25.16" = "ファイルのあるフォルダで `kura <フォルダ> --keys \"<Tab>C\"`、続けて `Get-Clipboard`（v0.54.0）→ 窓が開き、spot が勝手に先頭の行で開き、クリップボードにパネル全体が `ラベル<TAB>値` の行で入っている。`Name` と `Path` がその先頭の行を指している"
+"25.17" = "`kura --keys \"<Tab\"` と `kura --keys \"<Bogus>\"` → **窓は開かない。**問題を言う 1 行（`has no closing >` / `is not a key`）と、終了コード 2"
+"25.18" = "release ビルドで `kura env \\| Out-File out.txt` と `Get-Content out.txt`、それと `cmd /c \"kura env > out2.txt\"`（v0.54.4）→ レポート全体が**両方のファイルに入り**、画面には何も出ない。v0.54.4 より前はどちらも空だった。（PowerShell 自身の `kura env > out.txt` は今も空になる。PowerShell が窓のアプリの出力をファイルにつながないため。README にそう書いた）"
+'25.19' = '''`kura env \| Select-String "arch\s+:"`（ただの `arch` だと、オープナーなどの `Archive` を含むパスにも当たる）→ **arch の 2 行だけ**が出る（Windows。それ以外は `Process arch` の 1 行）（レポート全体ではない）'''
+"25.19a" = "PowerShell で `$v = & kura env \\| Write-Output; $v.Count`（v0.67.26、Q54）→ レポートの行数で、0 ではない。**後ろに何も置かない** `$v = & kura env` だと、PowerShell はパイプラインの最後にある窓のプログラムを待たず、`$v` は空になる。kura ではなく PowerShell の動き（#183）なので、行には `\\| Write-Output` を付けてある"
+"25.19b" = "PowerShell で、パスに日本語を含むフォルダから `kura env --out out3.txt`、続けて `Get-Content -Encoding utf8 out3.txt`（v0.68.0、Q55）→ `kura: wrote <フルパス>` の 1 行が標準エラーに出て（v0.78.29。`$p = & kura env --out out3.txt` で `$p` は空、#200）、ファイルにレポート全体が入り、日本語がコンソールのコードページに関係なく**読める**。`kura env --out`（名前なし）と `kura env --outt x` は問題を 1 行で言い、終了コード 2 で、何も書かない"
+'25.19c' = '''zip のフォルダを `PATH` に入れた状態で（v0.71.0、Q44）: `(Get-Command kura).Source`、`$v = & kura env; $v.Count`、`kura --version > v.txt; Get-Content v.txt`、`kura --keys "<Tab"; $LASTEXITCODE`、最後に `kura` だけ → `Source` は `kura.com` で終わる。行数は**後ろに何も置かない**形（25.19a から `Write-Output` を除いた形）でレポートの行数になる。`v.txt` に版の行が入る。拒否は 1 行出て `$LASTEXITCODE` が 2。`kura` だけなら窓が開き、窓が開いたままプロンプトが戻る'''
+'25.19d' = '''zip のフォルダを `PATH` に入れ、`kura` の 1 行だけの `w.ps1` を作って `pwsh -File w.ps1 | Tee-Object t.txt; "back"`（v0.73.6、#192）。次に `w.ps1` を `kura C:\dev C:\Windows` にして同じことをする → 窓が開き、**窓を開いたまま** `back` が出る（以前は窓を閉じるまでパイプラインが終わらなかった）。2 つのパスでは窓が出ず、拒否の 1 行が画面に出て `t.txt` にも入る'''
+'25.19e' = '''空のフォルダで `pwsh -File` から走らせる `.ps1` の中で（v0.73.8、#188）: `kura env --out a.txt; Test-Path a.txt; $LASTEXITCODE`、次に `& <zip のフォルダ>\kura.exe env --out b.txt | Out-Null; Test-Path b.txt`、次に `& <zip のフォルダ>\kura.exe env --out | Out-Null; $LASTEXITCODE`。それと `kura --help` → `True` と `0`、次に `True`、次に `2`。README の待ち方が `kura.com` でも `kura.exe` でも効く。`--help` の `env --out FILE` の下に `(kura.exe in a script: add | Out-Null to wait)` がある'''
+"25.21" = '`kura env`（v0.58.1）→ 答えた `.exe` のフルパスを `Executable` の行に出す。ARM64 の機械では、**x64** ビルドの `Process arch` が `x86_64 (emulated on aarch64)`、ARM64 ビルドは `aarch64` だけ'
+'25.23' = '''ペインを開いて `<C-S-Enter>`、kura を閉じてから `kura env`（v0.59.4）→ `Last run` の下に `Terminal pane` の行があり、最後の大きさを `N x M (lines x columns)` で出す。ペインを一度も開かなかった run の後は `not opened in that run`'''
+'25.24' = '''どこかのフォルダのシェルから `kura .`、次に `kura ..`、次に引用符なしで `kura two words`（v0.59.5）→ `.` はそのフォルダを開き、タイトルが**絶対**パスで親の列があり、`h` で上がれる。`..` は 1 つ上を開く。引用符なしの 2 語は窓を開く前に `kura: more than one path: "two" and "words" (a path with a space in it needs quotes)` と断られる'''
+'25.24a' = '''PowerShell から引用符なしで `kura C:\dev C:\Windows`（v0.73.5、#194）→ 窓を開く前に断られ、パスは打ったとおり: `kura: more than one path: "C:\dev" and "C:\Windows" (a path with a space in it needs quotes)`。`\` は 1 つずつ。以前は `\` が全部二重に出た（`"C:\\dev"`）。Linux では `kura 'a\b' c` が同じように `"a\b"` と出す'''
+'25.25' = '''オープナーでファイルを開き（`<Enter>` か `<S-Enter>`）、`;` のシェルを 1 つ走らせ、kura を閉じてから `kura env`（v0.59.9）→ `Last run` の下の `Launched` の行に、kura が組み立てたとおりのコマンド行が 2 つ、新しいものが後で、最大 5 つ並ぶ。何も起動しなかった run の後は `nothing in that run`'''
+'25.22' = '''`KURA_PTY_LOG` を設定して `kura --keys "<C-t><Wait:2000>echo<Space>hi<Enter><Wait:1000><C-S-Enter>"`（v0.59.0）→ `echo` が届く前にシェルのプロンプトが出ている（ログの `out` の行が `in key` の行より前）、`hi` が表示され、1 秒後にペインが窓を取る。`kura --keys "<Wait:1.5s>"` はコマンド行で断られ、`<Wait:500>` と書き方を示す'''
+"25.20" = "何もリダイレクトせずに `kura env` と `kura --version` → 25.1 のとおり、今までどおり画面に出る。コンソールの経路は変わっていない"
 
 # 26. アプリ内からのバグ報告
 "26.1" = '`<F12>` を押し、`<Enter>`（または `o`）→ `<F12>` はまず **Report a bug** のパネルを出し、版・OS の行・直前のキー・最新のエラー・描画・倍率・設定ファイルの名前を並べる（v0.73.58、Q62）。枠はボタンのすぐ下で終わり、下に空いた帯が無い（v0.73.64、Q66）。最初のボタンは `[o] / <Enter> Open the form in your browser` と書かれ、`<Enter>` がそれを選ぶ（v0.73.73、Q69）。`<Enter>` までは何も開かない。そのあと既定のブラウザで GitHub の新規 issue フォームが開き、トーストがそう言う'
-"26.2" = 'フォームを見る → 見出しがどれも英語と日本語の 2 段（`What happened / 何が起きたか`、Q63）。**filer version**、**OS and architecture**、**Keys that reproduce it**（`Last keys, oldest first: …`）、**What filer knew**（パネルの行）が埋まっていて、残りは空。ユーザー名の入ったパスはどこにも出ない（Q64）。ホームの下のフルパスを含むエラーのあとでも同じ: 先にホームの下の無いフォルダを開き（`g<Space>` と作った名前）、フォームの `Last error` が `~\…` になる（v0.74.6）'
-"26.3" = '埋まっている版を、ターミナルの `filer --version` と比べる → アーキテクチャも含めて同じ文字列'
+"26.2" = 'フォームを見る → 見出しがどれも英語と日本語の 2 段（`What happened / 何が起きたか`、Q63）。**kura version**、**OS and architecture**、**Keys that reproduce it**（`Last keys, oldest first: …`）、**What kura knew**（パネルの行）が埋まっていて、残りは空。ユーザー名の入ったパスはどこにも出ない（Q64）。ホームの下のフルパスを含むエラーのあとでも同じ: 先にホームの下の無いフォルダを開き（`g<Space>` と作った名前）、フォームの `Last error` が `~\…` になる（v0.74.6）'
+"26.3" = '埋まっている版を、ターミナルの `kura --version` と比べる → アーキテクチャも含めて同じ文字列'
 "26.4" = '埋まっている OS の行を `winver` と比べる → エディション・機能更新・ビルドがすべて一致し、UBR も入っている（`Windows 11 Pro 25H2 (build 26200.9457)`）'
 "26.4b" = 'フォーム自身が載せている PowerShell の断片と比べる → 同じ事実。上から貼り直す価値のあるものが残っていない'
 "26.5" = 'ARM64 機で **ARM64** ビルドを使う → OS arch と Process arch がどちらも `aarch64`'
@@ -595,9 +595,9 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "26.8" = '既定のブラウザが未設定（または関連付けが壊れている）状態で `<F12>` → 失敗を述べるエラーのトースト。**ウィンドウは動き続ける**'
 "26.9" = 'ターミナルペインの中から `<F12>`（先に `<C-t>`）→ 何も起きない。`[term]` がシェルに渡しているためで、これが正しい'
 "26.10" = "26.8 と同じく関連付けを壊した状態で `<F12>`（v0.52.0）→ エラーのトーストが、報告のリンクが**クリップボードにある**とも言う。ブラウザに貼ると同じ、埋まった状態のフォームが開く。ブラウザが開けたときはクリップボードに触らない"
-"26.11" = '`<F12>` のあと `c`。もう一度 `<F12>` のあと `<Esc>`（v0.73.58、Q62）→ `c` は同じリンクをクリップボードに置いてそう言い、`FILER_KEYS_DONE` に `report:` の行が出る。ブラウザは開かない。`<Esc>`（または `n`）はパネルを閉じ、何も開かず何も写さない'
+"26.11" = '`<F12>` のあと `c`。もう一度 `<F12>` のあと `<Esc>`（v0.73.58、Q62）→ `c` は同じリンクをクリップボードに置いてそう言い、`KURA_KEYS_DONE` に `report:` の行が出る。ブラウザは開かない。`<Esc>`（または `n`）はパネルを閉じ、何も開かず何も写さない'
 "26.12" = '`<F12>` のあと、パネルに無いキー（`(`）、次に `n`（v0.73.78、Q71）→ `(` ではパネルが閉じない（後の `<State:>` で `overlay: confirm`）。何も開かず、何もコピーされない。`n` で閉じる。以前はほかのキーで黙って閉じ、次の `<Enter>` が一覧に届いた'
-"27.6" = 'filer の clone で filer を冷えた状態から起動し、Markdown を整形表示のまま `TODO.md`（2500 行超）に乗せ、`M` でソースにし、続けて `TESTING-CHECKS.md` と `src\app.rs` に乗せる（v0.86.12）。測り方は `<Now><State:a><Wait:150><State:b>`（素の `<State:>` は早い画面を飛ばして待つ）→ どれも最初の 1 画面がすぐ出て、0.5 秒の待ちが無い。`<A-G>` で末尾まで行くとソースは最後まで色が付いていて（`preview top: N of N`）、右のミニマップも同じ'
+"27.6" = 'kura の clone で kura を冷えた状態から起動し、Markdown を整形表示のまま `TODO.md`（2500 行超）に乗せ、`M` でソースにし、続けて `TESTING-CHECKS.md` と `src\app.rs` に乗せる（v0.86.12）。測り方は `<Now><State:a><Wait:150><State:b>`（素の `<State:>` は早い画面を飛ばして待つ）→ どれも最初の 1 画面がすぐ出て、0.5 秒の待ちが無い。`<A-G>` で末尾まで行くとソースは最後まで色が付いていて（`preview top: N of N`）、右のミニマップも同じ'
 "27.7" = 'リポジトリの直下で `j` を押しっぱなしにし、大きなテキストファイルで止める。`--keys` では `j<Now>` を N 回、`<Wait:100>`、`<State:>` → カーソルはプレビューを待たず、止まったファイルは最後まで色付きで出る。最初の 1 画面のまま、または途中で通ったファイルのままにならない'
 
 # 28. 外から加えられた変更
@@ -611,19 +611,19 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "28.8" = "窓に触らず（キーもマウスも使わず）、一覧にあるファイルをエクスプローラーから削除する（v0.57.2）→ キーを押さなくても 0.5 秒以内に行が消える。v0.57.2 までは次にキーを押すまで残っていた（#108）"
 
 # 29. ターミナルのディレクトリを持ち帰る
-"29.1" = '''`$PROFILE` にフックが**無い**状態でターミナルを開き（`<C-t>`）、`cd` してから `<A-Up>` → OSC 7 と、フックを足すコマンド `filer shell-hook \| Add-Content $PROFILE, then <C-S-t> and <C-t>` を挙げるトーストが出る（v0.69.0、Q50）。**無反応でも待ちでもない**。zip の `filer.exe` が `PATH` に無いときは、`filer` の所がフルパス（`& 'C:\…\filer.exe' shell-hook …`）になる'''
+"29.1" = '''`$PROFILE` にフックが**無い**状態でターミナルを開き（`<C-t>`）、`cd` してから `<A-Up>` → OSC 7 と、フックを足すコマンド `kura shell-hook \| Add-Content $PROFILE, then <C-S-t> and <C-t>` を挙げるトーストが出る（v0.69.0、Q50）。**無反応でも待ちでもない**。zip の `kura.exe` が `PATH` に無いときは、`kura` の所がフルパス（`& 'C:\…\kura.exe' shell-hook …`）になる'''
 "29.2" = 'README のフックを `$PROFILE` に貼り、新しいターミナルを開いて `cd C:\dev`、`<A-Up>` → ファイル一覧が `C:\dev` へ移動する'
 "29.3" = '名前に**空白**を含むディレクトリと、**日本語**を含むディレクトリで同じこと → どちらも壊れずに届く'
 "29.4" = 'UNC パス（`\\server\share`）へ `cd` して `<A-Up>` → 追従するか、できない理由を述べる。落ちない'
 "29.5" = 'Starship を既に入れているシェルで、フックの行を手で実行 → プロンプトはこれまでどおり描かれる（フックは `prompt` ではなく `LocationChangedAction` を使うため）'
-"29.6" = '`[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`filer env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る'
+"29.6" = '`[term] shell` を書かず、PowerShell 7 が入っている機械で（v0.55.0）`<C-t>` と `$PSVersionTable.PSVersion` → 7.x。ペインは `pwsh` で始まり、`kura env` もペインのシェルとして `pwsh` を挙げる。`[term]` に `shell = "powershell"` と書けば 5.1 に戻る'
 "29.7" = '`[term] shell` なしで `<C-t>`、次に `shell = "powershell"` にしてもう一度（v0.57.4）→ 最初のトーストがシェルの名前を言う: `Started pwsh — <C-t> back to the list`、次に `Started powershell (Windows PowerShell 5.1) — …`（v0.65.3。それ以前は設定で書いたときは `powershell` だけだった）。`$PSVersionTable.PSVersion` の答えと合っていること'
 '29.8' = '''フックの無い `powershell`（5.1）で開いたペインで `<A-Up>`（v0.59.4）→ 赤いトーストがシェルの名前を挙げ、フックを**持てない**と言う（`` `powershell (Windows PowerShell 5.1)` has not said where it is (no OSC 7), and cannot: the hook needs PowerShell 7 (winget install Microsoft.PowerShell) ``。v0.69.0、Q50。それまでは 5.1 の `$PROFILE` に案内していたが、そこではフックが起動のたびに失敗する）'''
 '29.9' = '''`$PROFILE` に別のツールのハンドラを先に置き（`mise activate pwsh`、または代わりに `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`）、その後に README のフックを置いて、新しいペインで `cd C:\dev`、`<A-Up>`（v0.64.2）→ 両方動く: 一覧が `C:\dev` に移り、**かつ**別のツールのハンドラも働いている（代わりのものならタイトルが `other: C:\dev`）。v0.64.2 より前は README のフックが別のものを置き換えていた'''
-'29.10' = '''フックの無い状態で、ペイン（`pwsh`）で 29.1 のトーストのとおりに打ち、`<C-S-t>`、`<C-t>`、`cd C:\dev`、`<A-Up>`（v0.69.0、Q50）→ 一覧が `C:\dev` に移る。`Get-Content $PROFILE` の末尾が `filer shell-hook` の出力（先頭は `# filer:` のコメント）で、プロファイルの最後の行にくっつかず別の行になっている。`filer shell-hook powershell` と `filer shell-hook fish` は問題を 1 行で言い、終了コード 2'''
-'29.11' = '''Linux で `filer shell-hook bash >> ~/.bashrc`（と、`[term] shell = "zsh"` で `zsh >> ~/.zshrc`）、新しいペインで名前に空白と日本語を含むフォルダへ `cd`、`<A-Up>`（v0.69.0、Q50）→ 一覧がそこへ移り、名前はどちらも崩れない。フックが無いとトーストが `shell-hook bash >> ~/.bashrc` を挙げる'''
-'29.12' = '''`filer.toml` に `[term] shell = "pwsh"` と `args` を書いた状態で、`$env:FILER_TERM_SHELL = 'powershell'` にして filer を起動し `<C-t>`、同じシェルから `filer env`。次に `Remove-Item Env:FILER_TERM_SHELL` してもう一度（v0.70.0、Q51）→ 変数があるときはトーストが `Started powershell (Windows PowerShell 5.1) — …` で、`filer env` は `powershell` を `terminal pane, from FILER_TERM_SHELL; [term] args not used: <args>` と出し（`filer.toml` の `args`。v0.73.11 から、#190）、変数の欄に `FILER_TERM_SHELL` がある。無いときは `pwsh` と `from [term] shell` に戻り、`filer.toml` に `args = ["-NoLogo"]` があればトーストにも `Started pwsh -NoLogo — …` と出る（v0.79.2、#281）。どちらでも `filer.toml` の他の設定（フォント、テーマ）は効いている'''
-'29.13' = '''`$env:FILER_TERM_SHELL = 'pwsh'; $env:FILER_TERM_ARGS = '-NoProfile'` にして filer を起動し `<C-t>`、同じシェルから `filer env`。次に `FILER_TERM_ARGS` だけにしてもう一度（v0.78.34、Q81）→ 両方あるときはトーストが `Started pwsh -NoProfile — …` で、PTY ログにプロファイルの出力が無く、`filer env` は `terminal pane, from FILER_TERM_SHELL; args from FILER_TERM_ARGS: -NoProfile` と出し、変数の欄に `FILER_TERM_ARGS` がある。引数だけのときは、シェルは `[term]` が決めたもの（無ければ既定）のままで、引数は使われず、`filer env` が `FILER_TERM_ARGS not used: it needs FILER_TERM_SHELL` と言う（v0.78.49）'''
+'29.10' = '''フックの無い状態で、ペイン（`pwsh`）で 29.1 のトーストのとおりに打ち、`<C-S-t>`、`<C-t>`、`cd C:\dev`、`<A-Up>`（v0.69.0、Q50）→ 一覧が `C:\dev` に移る。`Get-Content $PROFILE` の末尾が `kura shell-hook` の出力（先頭は `# kura:` のコメント）で、プロファイルの最後の行にくっつかず別の行になっている。`kura shell-hook powershell` と `kura shell-hook fish` は問題を 1 行で言い、終了コード 2'''
+'29.11' = '''Linux で `kura shell-hook bash >> ~/.bashrc`（と、`[term] shell = "zsh"` で `zsh >> ~/.zshrc`）、新しいペインで名前に空白と日本語を含むフォルダへ `cd`、`<A-Up>`（v0.69.0、Q50）→ 一覧がそこへ移り、名前はどちらも崩れない。フックが無いとトーストが `shell-hook bash >> ~/.bashrc` を挙げる'''
+'29.12' = '''`kura.toml` に `[term] shell = "pwsh"` と `args` を書いた状態で、`$env:KURA_TERM_SHELL = 'powershell'` にして kura を起動し `<C-t>`、同じシェルから `kura env`。次に `Remove-Item Env:KURA_TERM_SHELL` してもう一度（v0.70.0、Q51）→ 変数があるときはトーストが `Started powershell (Windows PowerShell 5.1) — …` で、`kura env` は `powershell` を `terminal pane, from KURA_TERM_SHELL; [term] args not used: <args>` と出し（`kura.toml` の `args`。v0.73.11 から、#190）、変数の欄に `KURA_TERM_SHELL` がある。無いときは `pwsh` と `from [term] shell` に戻り、`kura.toml` に `args = ["-NoLogo"]` があればトーストにも `Started pwsh -NoLogo — …` と出る（v0.79.2、#281）。どちらでも `kura.toml` の他の設定（フォント、テーマ）は効いている'''
+'29.13' = '''`$env:KURA_TERM_SHELL = 'pwsh'; $env:KURA_TERM_ARGS = '-NoProfile'` にして kura を起動し `<C-t>`、同じシェルから `kura env`。次に `KURA_TERM_ARGS` だけにしてもう一度（v0.78.34、Q81）→ 両方あるときはトーストが `Started pwsh -NoProfile — …` で、PTY ログにプロファイルの出力が無く、`kura env` は `terminal pane, from KURA_TERM_SHELL; args from KURA_TERM_ARGS: -NoProfile` と出し、変数の欄に `KURA_TERM_ARGS` がある。引数だけのときは、シェルは `[term]` が決めたもの（無ければ既定）のままで、引数は使われず、`kura env` が `KURA_TERM_ARGS not used: it needs KURA_TERM_SHELL` と言う（v0.78.49）'''
 
 # 30. プロンプトでの右クリック貼り付け
 "30.1" = 'エクスプローラーのアドレスバーでパスをコピーし、`c`+`d` で `cd` のプロンプトを出し、入力欄を右クリック → パスが入る。`<Enter>` でそこへ移動する'
@@ -636,7 +636,7 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "30.8" = '**ファイル一覧**を右クリック → これまでどおりコンテキストメニュー。一覧側は変わっていない'
 "30.9" = '**ターミナル**ペイン（`<C-t>`）を右クリック → クリップボードの内容が打ち込まれ、キーを持っていなければペインがキーを受け取る'
 "30.10" = 'ターミナルでドラッグして選択し、そのあと右クリック → 離した時点でコピーされていて、右クリックで貼り戻される（選択でコピー、右クリックで貼り付け）'
-'30.11' = '''**3 行**をコピーして、bracketed paste を要求するシェル（`FILER_PTY_LOG` の `out` に `\e[?2004h` が出る）のプロンプトでターミナルに右クリック。Git Bash などの bash。Windows PowerShell 5.1（PSReadLine 2.0.0）も pwsh 7.6（PSReadLine 2.4.5）も要求しないので、この行のシェルではない（filer が印を付けないのは正しい）→ 3 行ともバッファに入り、`<Enter>` を押すまで**何も実行されない**'''
+'30.11' = '''**3 行**をコピーして、bracketed paste を要求するシェル（`KURA_PTY_LOG` の `out` に `\e[?2004h` が出る）のプロンプトでターミナルに右クリック。Git Bash などの bash。Windows PowerShell 5.1（PSReadLine 2.0.0）も pwsh 7.6（PSReadLine 2.4.5）も要求しないので、この行のシェルではない（kura が印を付けないのは正しい）→ 3 行ともバッファに入り、`<Enter>` を押すまで**何も実行されない**'''
 "30.12" = 'bracketed paste を**要求しない**シェル（`cmd.exe`）で同じこと → これまでどおり行が実行される。そして `[200~` のような余計な文字が出ない'
 "30.13" = '`vim` を開いた状態のターミナルで右クリック → 文字が挿入される。画面に `[200~` が出ない'
 "30.14" = 'ターミナルで `<C-v>` → 右クリックと同じ（30.11 の挙動も含めて）'
@@ -677,10 +677,10 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 '32.9a' = '''同じことをして、サクラエディタのステータスバーを文字で読む（`msctls_statusbar32` に `SendMessage` `SB_GETTEXTW`。`scripts\read-statusbar.ps1`）→ `<その見出しの行> 行 1 桁` と出て、カーソルの下の文字が見出しの最初の文字。対照として、サクラが一度も開いていない写しを `-Y=` 無しで開くと `1 行 1 桁`（同じファイルでは成り立たない。サクラは前に閉じた行で開き直す。`m_bRestoreCurPosition=1`、#198）。サクラは `-L=` を無視するので、v0.47.29 より前は 1 行目か前回の位置で開いた（#196 でステータスバーが読めると分かった）'''
 '32.10' = '''プログラム名を打ち間違えたオープナー（`run = 'Hidemruu.exe %s'`）を `<S-Enter>` で選ぶ（v0.59.1）→ エラーが `exit code 1` ではなく ``Open failed: `Hidemruu.exe` was not found — …`` と言う。プログラムはあるが失敗したときは今までどおり終了コードを言う'''
 '32.11' = '''Linux: `block = true` のオープナー（`run = 'nvim %*'`。`vim` でもよい）で、フォルダ名とファイル名に空白と `'` を含むファイルを `<Enter>`（v0.72.0）→ 端末の窓が開いてエディタが動く。`ps` でエディタがパス全体を 1 つの引数で受け取ったこと、`/proc/<pid>/cwd` が一覧のフォルダであることが読める'''
-'32.12' = 'Linux: 同じことを `TERMINAL="xterm -title picked"` で → 窓のタイトルが `picked`（`xdotool getwindowname`）。`filer env` の `block = true openers` の行が `xterm -title picked` を名指す。`TERMINAL` が無ければ、組み込みの一覧で最初に入っているものを名指す'
+'32.12' = 'Linux: 同じことを `TERMINAL="xterm -title picked"` で → 窓のタイトルが `picked`（`xdotool getwindowname`）。`kura env` の `block = true openers` の行が `xterm -title picked` を名指す。`TERMINAL` が無ければ、組み込みの一覧で最初に入っているものを名指す'
 '32.13' = 'Linux: 入っていないプログラムを指定した `block = true` のオープナー → 端末が一瞬で閉じず、`[exit 127] Press Enter to close.` で止まる。そこで `<Enter>` を押すと閉じる'
-'32.15' = '''Windows で **release の `filer.exe`**（自分のコンソールを持たない。`cargo run` は持つので出なかった）: `:` で `nvim`（v0.75.14、Q12）→ 新しいコンソールに nvim が描かれる（`~` の列とステータス行）。黒い窓でカーソルが点滅するだけにならない。`block = true` のオープナーで `<Enter>` しても同じ。新しいコンソールを `ReadConsoleOutputCharacter` で読むか、nvim の `:redir` で確かめる。以前は `Win32_Process` に `nvim` がいるのに何も描かれていなかった'''
-'32.16' = '''Windows で release の `filer.exe`: `:` で `git log -5 --oneline`（v0.75.14、Q13）→ コンソールが 5 行と `続行するには何かキーを押してください . . .` のまま開いていて、キーで閉じる。`:` で `dir & pause` は 1 回だけ聞く。`;` は変わらない（コンソールも pause も無い）'''
+'32.15' = '''Windows で **release の `kura.exe`**（自分のコンソールを持たない。`cargo run` は持つので出なかった）: `:` で `nvim`（v0.75.14、Q12）→ 新しいコンソールに nvim が描かれる（`~` の列とステータス行）。黒い窓でカーソルが点滅するだけにならない。`block = true` のオープナーで `<Enter>` しても同じ。新しいコンソールを `ReadConsoleOutputCharacter` で読むか、nvim の `:redir` で確かめる。以前は `Win32_Process` に `nvim` がいるのに何も描かれていなかった'''
+'32.16' = '''Windows で release の `kura.exe`: `:` で `git log -5 --oneline`（v0.75.14、Q13）→ コンソールが 5 行と `続行するには何かキーを押してください . . .` のまま開いていて、キーで閉じる。`:` で `dir & pause` は 1 回だけ聞く。`;` は変わらない（コンソールも pause も無い）'''
 '32.17' = '`yazi.toml` に `[open] prepend_rules = [{ name = "*.txt", use = "<オープナー>" }]` だけを書き（自分の `rules` は無し）、`.txt` で `<Enter>`、次に `<S-Enter>`（v0.78.6、#250）→ `<Enter>` がそのオープナーを動かし（`$ …` のトースト）、`<S-Enter>` が先頭に並べる（自分の `rules` を書けばそれより上。Windows には組み込みのオープナーが無い）。`append_rules` に書いたものは最後に並ぶ'
 '32.18' = '`O` でオープナーが 2 つ以上あるファイルに開き、`<C-n>` / `<C-j>`、`<C-p>` / `<C-k>`。`jj` も打つ（v0.78.39、Q80）→ `<C-n>` と `<C-j>` で 1 行下、`<C-p>` と `<C-k>` で 1 行上へ動く。`jj` は移動でなく絞り込みの文字になる（`Nothing matches` か短くなった一覧）。ヒントの行は `<Down>/<Up> or <C-n>/<C-p> choose`、`<Esc>` のあと一覧で `<F1>` を押すと、`keys in the picker` の節に 4 つのキーが並ぶ（picker の中の `<F1>` は絞り込みの文字。v0.78.68）'
 '32.19' = '''`.txt` に効く最初の `edit` のオープナー（何であれ。x64 では nvim。サクラやメモ帳だと持ち主の未保存の窓や復元したタブの隣に窓が増えるので、どのエディタでもよい）で `.txt` を `<Enter>` し、`<State:x>`（v0.78.81、#162）→ `x.txt` に `launched: <PID> <コマンドライン>` がある。`Get-CimInstance Win32_Process -Filter "ProcessId=<PID> or ParentProcessId=<PID>"` に、その行を走らせた `cmd` と、その下のエディタが出る。エディタの PID に `Stop-Process -Id` すると、その窓だけが閉じ、前から開いていた同じプログラムの窓は残る'''
@@ -690,22 +690,22 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 '32.23a' = '''同じところで `;nosuchprog-xyz`（v0.78.174、Q89）→ トーストは `` `nosuchprog-xyz` was not found ``。`cmd /c` はこれに 9009 でなく 1 を返すが、決め手は最初の語が `PATH` に無いこと'''
 '32.23b' = '''32.23 と 32.23a の両方の起動 → それぞれトーストは 1 つ: 同じ起動の `$ …` のトーストは失敗が出たら消え、コマンドが 2 度並ばない（v0.78.143）。`cmd` が折り返した文は、プレビューと同じく `、` `。` の後に空白を入れずに継ぐ（`外部コマンド、操作可能な`。v0.78.150）。どちらも先頭は `Open failed:` でなく `Command failed:`（オープナーの失敗は `Open failed:` のまま。32.10）（v0.78.159）'''
 '32.24' = '''`prepend_rules`・`rules`・`append_rules` がそれぞれ `*.txt` に別のオープナーを指す `yazi.toml` で、`.txt` に `<S-Enter>`（v0.83.0、Q88）→ prepend のオープナーの行の詳細の末尾に ` [prepend]`、append のものに ` [append]` が付き、`rules` のものには付かない。2 つのリストに出るオープナーは先に出たほうの印になる。`<State:x>` の `pick runs:` にも同じ印が出る'''
-'32.14' = 'macOS: `block = true` のオープナーでファイルを `<Enter>` → Terminal.app が前に出て、新しい窓で一覧のフォルダからエディタが動く。初回は macOS が filer に Terminal の操作を許すかを聞く。拒むと理由がトーストに出る'
+'32.14' = 'macOS: `block = true` のオープナーでファイルを `<Enter>` → Terminal.app が前に出て、新しい窓で一覧のフォルダからエディタが動く。初回は macOS が kura に Terminal の操作を許すかを聞く。拒むと理由がトーストに出る'
 
 # 33. 設定の警告と、その色
 "33.4" = '実際に失敗するものを作る（入っていないプログラムを指定したオープナー、25.8）→ こちらは**赤**のまま。一目で区別が付くこと'
 "33.6" = '背景の明るいテーマ（`theme.toml` に `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }`。v0.73.42 より前は窓の背景を決める手段が無かった）で、設定の警告（33.1）を出し、一覧に `.txt` を置く → v0.81.0（Q93）から警告は**暗い琥珀**、`.txt` の名前は**濃いグレー**で、白の上でも楽に読める。カーソルの行の帯は薄い青で、その上の `.txt` の名前も読める。`overall = { bg = "#000000" }` なら明るい黄色とグレーに戻る'
-'33.9' = '''設定ファイルを**3 つ同時に**壊して（`yazi.toml`、`keymap.toml`、`filer.toml`）起動する → 3 つで **1 行のトーストが 1 つ**: 最初のファイルのエラーの 1 行目で、末尾が ``— the rest and 2 more in `~` ``（v0.81.0。1 行の警告がほかにもあるときは ``(+2 more, see `~`)``）。`~` には 3 つとも全文で並ぶ。箱は窓の中に収まる'''
-"33.11" = '`[[preview]]` を `yazi.toml` に入れて（本来は `filer.toml`）起動 → **1 行で** `…\yazi.toml: [[preview]] belongs in filer.toml, and nothing in this file was read`。以前の `invalid type: map, expected a string` ではない（v0.33.13）'
+'33.9' = '''設定ファイルを**3 つ同時に**壊して（`yazi.toml`、`keymap.toml`、`kura.toml`）起動する → 3 つで **1 行のトーストが 1 つ**: 最初のファイルのエラーの 1 行目で、末尾が ``— the rest and 2 more in `~` ``（v0.81.0。1 行の警告がほかにもあるときは ``(+2 more, see `~`)``）。`~` には 3 つとも全文で並ぶ。箱は窓の中に収まる'''
+"33.11" = '`[[preview]]` を `yazi.toml` に入れて（本来は `kura.toml`）起動 → **1 行で** `…\yazi.toml: [[preview]] belongs in kura.toml, and nothing in this file was read`。以前の `invalid type: map, expected a string` ではない（v0.33.13）'
 "33.12" = '`[term]` も `yazi.toml` に入れる → それについても同じ形の行が 1 つ増える。どちらも「このファイルは読まれなかった」と述べる。実際そうだから'
-"33.13" = '`[[preview]]` の無い、それ以外は正常な `yazi.toml` に `[term]` を入れる → `… belongs in filer.toml and was ignored`。*unread* ではなく *ignored* —— ファイルの残りは読み込まれている'
-"33.14" = '`[opener]` を `filer.toml` に入れる → 逆向きの同じ警告（`belongs in yazi.toml`）'
-"33.15" = '両方を正しいファイルへ移して `<C-F5>` → 警告が消える。`filer env` の表示も一致し、ターミナルペインが `[term] shell` の指すものを起動するようになる'
-"33.16" = 'filer を**起動したまま** `%APPDATA%\filer\filer.toml` を作り、`~` を押す → そのファイルが 1 行として、警告色で `on disk, not read yet — <C-F5> re-reads config` と出る。ディレクトリは `nothing here` に**ならない**（v0.34.0）'
+"33.13" = '`[[preview]]` の無い、それ以外は正常な `yazi.toml` に `[term]` を入れる → `… belongs in kura.toml and was ignored`。*unread* ではなく *ignored* —— ファイルの残りは読み込まれている'
+"33.14" = '`[opener]` を `kura.toml` に入れる → 逆向きの同じ警告（`belongs in yazi.toml`）'
+"33.15" = '両方を正しいファイルへ移して `<C-F5>` → 警告が消える。`kura env` の表示も一致し、ターミナルペインが `[term] shell` の指すものを起動するようになる'
+"33.16" = 'kura を**起動したまま** `%APPDATA%\kura\kura.toml` を作り、`~` を押す → そのファイルが 1 行として、警告色で `on disk, not read yet — <C-F5> re-reads config` と出る。ディレクトリは `nothing here` に**ならない**（v0.34.0）'
 "33.17" = '`<C-F5>` してから、もう一度 `~` → 普通に読み込まれたファイルの行になり、印が消える'
 "33.18" = '`config_reload` を `<F9>` に割り当て直して 33.16 を繰り返す → 行が `<C-F5>` ではなく `<F9>` を示す。メッセージに埋め込まれているのではなく、keymap から読んでいるため'
-"33.19" = '`%APPDATA%\yazi\config\keymap.toml` で `Q` を `quit` に、`%APPDATA%\filer\keymap.toml` で `hidden toggle` に割り当て、`filer env` を回す（v0.73.33、Q57）→ Warnings が `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<filer のパス>) runs, not \`quit\` (<yazi のパス>)` と、両方のファイルをフルパスで言う。`T` を filer のファイルだけで `hidden toggle` にすると、v0.73.49 からは警告ではなく（Q60）、`Overrides` の行に `` [mgr] `T`: `hidden toggle` (<filer のパス>) instead of the default `plugin toggle-pane max-preview` `` と出る。既定と同じコマンドにすると、どちらにも出ない'
-"33.20" = '33.11 の `yazi.toml`（`[[preview]]` だけ）で `~` を押す。次に両方の設定フォルダを空にして起動し、`filer.toml` を作ってからもう一度 `~`（v0.73.41、#203）→ 1 回目は `yazi.toml` の行が警告色で `nothing in it was read — see below` と出て、普通に読んだファイルとしては並ばない。2 回目は `on disk, not read yet` の行の下が `(nothing read yet; the defaults are in use)` で、`(nothing found in either; …)` ではない'
+"33.19" = '`%APPDATA%\yazi\config\keymap.toml` で `Q` を `quit` に、`%APPDATA%\kura\keymap.toml` で `hidden toggle` に割り当て、`kura env` を回す（v0.73.33、Q57）→ Warnings が `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<kura のパス>) runs, not \`quit\` (<yazi のパス>)` と、両方のファイルをフルパスで言う。`T` を kura のファイルだけで `hidden toggle` にすると、v0.73.49 からは警告ではなく（Q60）、`Overrides` の行に `` [mgr] `T`: `hidden toggle` (<kura のパス>) instead of the default `plugin toggle-pane max-preview` `` と出る。既定と同じコマンドにすると、どちらにも出ない'
+"33.20" = '33.11 の `yazi.toml`（`[[preview]]` だけ）で `~` を押す。次に両方の設定フォルダを空にして起動し、`kura.toml` を作ってからもう一度 `~`（v0.73.41、#203）→ 1 回目は `yazi.toml` の行が警告色で `nothing in it was read — see below` と出て、普通に読んだファイルとしては並ばない。2 回目は `on disk, not read yet` の行の下が `(nothing read yet; the defaults are in use)` で、`(nothing found in either; …)` ではない'
 "33.21" = '`yazi.toml` に、Windows のパスを二重引用符で書いたオープナー（`edit = [{ run = "C:\Users\me\nvim.exe" }]`）を書いて起動する（v0.78.27）→ 読み込みエラーの後にもう 1 行、二重引用符の中のバックスラッシュはエスケープになるので Windows のパスは単一引用符で書く、という英語の 1 行（`(a backslash in "double quotes" starts an escape: …)`）が出る。単一引用符に変えて `<C-F5>` すると警告は出ない'
 "33.22" = '`keymap.toml` に 1 項目だけの `[[mgr.keymap]]`（`on = "<F9>"`、`run = "config_reload"`）を書いて起動する（v0.78.27、#164、#258）→ ``…keymap.toml: `[[mgr.keymap]]` replaces all N keys of [mgr] with 1 -- did you mean `[[mgr.prepend_keymap]]`?`` と警告が出る。`q` は効かないまま（置き換えは yazi の規則）。`[[mgr.prepend_keymap]]` に直して `<F9>` すると警告は消え、`q` で終わる'
 "33.23" = '33.22 の `keymap.toml` で `~` を押し、警告がパネルより広くなるまで窓を狭める。次に `C` で写して貼る（v0.78.185）→ 警告は右端で切れず、字下げして次の行に続く。写した文では警告は 1 行のまま'
@@ -715,19 +715,19 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "34.15" = '`C`（v0.67.16）→ トースト `Copied the help panel: N keys`。クリップボードにパネルが文字で入る: `config` とパス、続いて 1 行だけの `keys`、そのあと 1 キー 1 行の `キー<TAB>説明<TAB>コマンド`。`Get-Clipboard | Select-String "^j\t"` で `j<TAB>Move cursor down<TAB>arrow 1` が見つかる。パネルは開いたまま'
 
 # 35. 設定の探索場所（OS ごと）
-"35.1" = '[Windows] 両方の環境変数を未設定にして `filer env` → `%APPDATA%\yazi\config` と `%APPDATA%\filer`。**v0.34.0 から変わっていないこと。**動いていてはいけない行'
-"35.2" = '[Windows] `%APPDATA%\yazi\config\yazi.toml` に `[mgr] sort_by = "mtime"` を置く → 読まれる。yazi 自身のディレクトリを filer と共有したまま'
-"35.3" = '[macOS] `filer env` → `~/.config/yazi` と `~/.config/filer`。`~/Library/Application Support/…` では**ない**'
-"35.4" = '[macOS] yazi を入れて一度 `yazi` を起動し、yazi が読む場所に `yazi.toml` を置く → filer が同じファイルを読む。**これがこの変更の目的。**v0.35.0 以前は `~/Library/Application Support/yazi/config/` を見ていて、yazi はそこに書かない'
-"35.5" = '[macOS] `~/Library/Application Support/filer/` に設定を置いたまま更新した場合 → **もう読まれない。**`filer env` には無いものとして出る。`~/.config/filer/` へ移すこと（CHANGELOG に**変更**として明記した）'
-"35.6" = '[Linux] `filer env` → `~/.config/yazi`。`~/.config/yazi/config` では**ない**'
-"35.7" = '[Linux / macOS] `XDG_CONFIG_HOME=/tmp/x filer env` → `/tmp/x/yazi` と `/tmp/x/filer`'
-"35.8" = '[Linux / macOS] `XDG_CONFIG_HOME=relative filer env` と、空にした場合 → どちらも `~/.config/…` に戻る。XDG の仕様では相対値は無視する'
-"35.9" = '[共通] `last-run.toml` → 状態ディレクトリ（`data_dir()`）のまま。この変更では**触っていない**。Windows では同じ `%APPDATA%\filer`、Linux では `~/.local/share/filer`'
-"35.10" = '[共通] 別の場所から設定ディレクトリへ `filer.toml` をシンボリックリンクして `<C-F5>` → リンク越しに読まれる。**リンクのパス経由で、保存時に改名するエディタで編集したあと**もう一度確かめること（それをするとシンボリックリンクが普通のファイルに置き換わる）'
+"35.1" = '[Windows] 両方の環境変数を未設定にして `kura env` → `%APPDATA%\yazi\config` と `%APPDATA%\kura`。**v0.34.0 から変わっていないこと。**動いていてはいけない行'
+"35.2" = '[Windows] `%APPDATA%\yazi\config\yazi.toml` に `[mgr] sort_by = "mtime"` を置く → 読まれる。yazi 自身のディレクトリを kura と共有したまま'
+"35.3" = '[macOS] `kura env` → `~/.config/yazi` と `~/.config/kura`。`~/Library/Application Support/…` では**ない**'
+"35.4" = '[macOS] yazi を入れて一度 `yazi` を起動し、yazi が読む場所に `yazi.toml` を置く → kura が同じファイルを読む。**これがこの変更の目的。**v0.35.0 以前は `~/Library/Application Support/yazi/config/` を見ていて、yazi はそこに書かない'
+"35.5" = '[macOS] `~/Library/Application Support/kura/` に設定を置いたまま更新した場合 → **もう読まれない。**`kura env` には無いものとして出る。`~/.config/kura/` へ移すこと（CHANGELOG に**変更**として明記した）'
+"35.6" = '[Linux] `kura env` → `~/.config/yazi`。`~/.config/yazi/config` では**ない**'
+"35.7" = '[Linux / macOS] `XDG_CONFIG_HOME=/tmp/x kura env` → `/tmp/x/yazi` と `/tmp/x/kura`'
+"35.8" = '[Linux / macOS] `XDG_CONFIG_HOME=relative kura env` と、空にした場合 → どちらも `~/.config/…` に戻る。XDG の仕様では相対値は無視する'
+"35.9" = '[共通] `last-run.toml` → 状態ディレクトリ（`data_dir()`）のまま。この変更では**触っていない**。Windows では同じ `%APPDATA%\kura`、Linux では `~/.local/share/kura`'
+"35.10" = '[共通] 別の場所から設定ディレクトリへ `kura.toml` をシンボリックリンクして `<C-F5>` → リンク越しに読まれる。**リンクのパス経由で、保存時に改名するエディタで編集したあと**もう一度確かめること（それをするとシンボリックリンクが普通のファイルに置き換わる）'
 
 # 36. T と <F3> の違い
-'36.10' = '''`[[mgr.prepend_keymap]]` で `<S-t>` を目に見えるもの（`run = "quit"`）に割り当てて `<C-F5>`、続けて `T`（Shift と t）を押す → **割り当ては発火しない**: filer は終わらず、`T` は既定の `T` の動き（36.1）をする。Shift と文字はその文字そのものとして届くので、`<S-t>` はどのキーにも当たらない。テストが固定している教訓そのもの。警告がそれを言う（v0.78.7）: `filer env` の `Warnings` に `` `<S-t>` can never be pressed: Shift with a printable key arrives as the character it types -- write `T` `` が出て、`<C-F5>` の後にトーストにも出る。（既定を置き換える `[[mgr.keymap]]` に書くと、一覧ではどのキーも、`q` も含めて何も起きない）'''
+'36.10' = '''`[[mgr.prepend_keymap]]` で `<S-t>` を目に見えるもの（`run = "quit"`）に割り当てて `<C-F5>`、続けて `T`（Shift と t）を押す → **割り当ては発火しない**: kura は終わらず、`T` は既定の `T` の動き（36.1）をする。Shift と文字はその文字そのものとして届くので、`<S-t>` はどのキーにも当たらない。テストが固定している教訓そのもの。警告がそれを言う（v0.78.7）: `kura env` の `Warnings` に `` `<S-t>` can never be pressed: Shift with a printable key arrives as the character it types -- write `T` `` が出て、`<C-F5>` の後にトーストにも出る。（既定を置き換える `[[mgr.keymap]]` に書くと、一覧ではどのキーも、`q` も含めて何も起きない）'''
 "36.13" = '最大化プレビュー（`T`）の状態で `q` → 列が戻り、アプリは動き続ける'
 "36.15" = '何も開いていない状態で `q` → 1 回目で終了する'
 '36.18' = '''`[[mgr.prepend_keymap]]` で `on = "Q"` / `run = "quit"` を割り当て、`<F3>` を開いた状態で `Q`（`[[mgr.keymap]]` だと既定が置き換わり、`<F3>` も消える）→ `q` と同じくまずパネルが閉じる。**挙動は文字ではなく動作に紐づいている**'''
@@ -742,7 +742,7 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "37.5" = '`start "" msedge "%*"` と書いたオープナー（プレースホルダを手で引用したもの）→ 37.1 と同じ結果。プレースホルダを囲む対は変わらず吸収される'
 "37.6" = 'PDF を 2 つ選んで `<Enter>` → 引用符でひと塊にならず、別々の引数として両方開く'
 '37.7' = '''`start` を通らないフルパスのオープナー（サクラエディタの `"C:\Program Files (x86)\sakura\sakura.exe" %*`）→ `start` の扱いで変わらない。`Win32_Process` で、`sakura.exe` が `block = false` のオープナーがみな通る `cmd /S /C`（`"cmd" /S /C ""C:\…\sakura.exe" "<ファイル>""`）の子として出る。行に `start` が無く、自分のコンソール窓も出ない'''
-'37.8' = '''README の設定例（32.1）で、PDF で `O` → Edge、Chrome、既定アプリ、そのあとエディタ群がこの順に並ぶ。`FILER_KEYS_DONE` の `pick:` の行で読める'''
+'37.8' = '''README の設定例（32.1）で、PDF で `O` → Edge、Chrome、既定アプリ、そのあとエディタ群がこの順に並ぶ。`KURA_KEYS_DONE` の `pick:` の行で読める'''
 '37.8a' = '''37.8 の一覧の項目のうち、ブラウザ（Edge・Chrome）以外を順に選ぶ（既定のアプリと各エディタ）→ それぞれ表示どおりのものが起動する。この機械に入っていないプログラム、関連付けの無い拡張子、動いている窓に合流するもの（文書がその窓に入り、新しいプロセスが起きない）は、理由を書いて飛ばす（失敗ではない）'''
 '37.8b' = '''37.8 の一覧のブラウザの項目（Edge・Chrome）を、**そのブラウザの窓が 1 つも開いていないときだけ**選ぶ（#256）→ それぞれ新しいブラウザのプロセスで PDF を開く。持ち主の窓が開いていれば PDF はそこへ合流するので、そのブラウザは理由を書いて飛ばす（37.8a と同じ飛ばし方）'''
 
@@ -760,21 +760,21 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 # 40. 全画面プログラムとスクロール
 "40.1" = '`<C-t>` から長いファイルを `nvim` で開き、`nnoremap <A-j> :m+1<CR>` を割り当てた状態で `<A-j>` / `<A-k>` → **nvim にキーが届く。**v0.37.0 の衝突が解消されている'
 "40.2" = '同じ nvim の中で `<S-PageUp>` / `<S-PageDown>` / `<S-Home>` / `<S-End>` → すべて nvim に届く。2 つだけでなく `term_scroll` のキー全部が渡される'
-"40.3" = '同じ nvim の中で `<C-t>` → **これは filer のまま。**nvim を動かしたままペインから出る。スクロール以外のキーは決して渡さない'
-"40.4" = 'nvim を終了してから、シェルのプロンプトで `<A-j>` / `<A-k>` → filer のスクロールバック操作に戻る。受け渡しは設定ではなくプログラムに追従している'
+"40.3" = '同じ nvim の中で `<C-t>` → **これは kura のまま。**nvim を動かしたままペインから出る。スクロール以外のキーは決して渡さない'
+"40.4" = 'nvim を終了してから、シェルのプロンプトで `<A-j>` / `<A-k>` → kura のスクロールバック操作に戻る。受け渡しは設定ではなくプログラムに追従している'
 "40.5" = 'nvim の中と `less` の中でホイール → 文書がスクロールする。v0.38.0 以前は存在しないスクロールバックを歩こうとして何も動かなかった'
 "40.6" = 'シェルのプロンプトでホイール → これまでどおりスクロールバックを歩く'
 '40.7' = '''長いファイルを `nvim` で開いて `<S-PageUp>`、`:q` で終了してからもう一度 `<S-PageUp>` → nvim の中では文書がページ送りされ、終了後はペインのスクロールバックが動いて何も送らない。（`less` では確かめない: 同じ `\e[5;2~` を受け取るが、Shift 付きではページ送りしない。Shift 無しの `PageUp` なら動く）'''
 "40.8" = '`less` の中でホイールを 1 ノッチ上、1 ノッチ下（v0.55.0）→ 元の位置に戻る。1 ノッチはどちら向きも同じ本数の矢印。v0.55.0 までは向きを変えた直後の 1 ノッチが消えていた（#100）'
-'40.9' = '''代替画面**かつ**アプリケーションカーソルモード（`\e[?1h`）を使うプログラム。`less` がそれを要求する → ホイールの矢印が CSI ではなく SS3（`ESC O A`）で届く。確かめるのは生の入力を読むプログラム（`read -rsn3` してバイトを出すスクリプトなど）で、`FILER_PTY_LOG` ではない: v0.55.0 から filer は ConPTY へ win32-input-mode の記録（`(Down)`）を送るので、そのログに `\eOB` は出ない。nvim では確かめない: このモードを要求しないので、どのモードでも矢印は CSI'''
+'40.9' = '''代替画面**かつ**アプリケーションカーソルモード（`\e[?1h`）を使うプログラム。`less` がそれを要求する → ホイールの矢印が CSI ではなく SS3（`ESC O A`）で届く。確かめるのは生の入力を読むプログラム（`read -rsn3` してバイトを出すスクリプトなど）で、`KURA_PTY_LOG` ではない: v0.55.0 から kura は ConPTY へ win32-input-mode の記録（`(Down)`）を送るので、そのログに `\eOB` は出ない。nvim では確かめない: このモードを要求しないので、どのモードでも矢印は CSI'''
 "40.10" = 'ペインの `bash` / `zsh` プロンプトで数語打ってから `Alt-b` / `Alt-f` → カーソルが**単語単位**で動く。v0.38.0 以前は何も起きなかった（キーが、送るバイトを持たないまま捨てられていた）'
 "40.11" = '同じプロンプトで `Alt-d` → 前方の単語を削除する'
-'40.12' = '''ペインの PowerShell（PSReadLine）で `Set-PSReadLineOption -EditMode Emacs` のあと `Alt-b` / `Alt-f` → bash と同じ単語移動。PSReadLine の既定の `EditMode Windows` には `Alt+b` / `Alt+f` が無く、`b` が入る。それは PSReadLine の側で、filer が送るバイトはどちらでも同じ（`Alt-d` はどちらでも効く）'''
-"40.13" = '普通のプロンプトで `Alt-j` / `Alt-k` → **これは filer のスクロールのまま。**この 2 つは `[term]` レイヤーに割り当てられていて、プロンプトは代替画面ではないため'
-'40.14' = '''`FILER_PTY_LOG` を設定して nvim の中でホイール（v0.55.0）。カーソルを窓の中ほどに置き、ペインを最大化する（`<C-S-Enter>`）か `:set scrolloff=0` にする。3 分の 1 の高さのペインでは nvim 自身の `scrolloff`（11 行のうち 4）が、filer が何を送ってもカーソルを引きずる（#107）→ nvim の表示がスクロールし、**カーソルは同じ行のまま**（前後で `:echo line('.')`）。ログには `\e[A` ではなく `\e[<64;…M` / `\e[<65;…M` が出る'''
+'40.12' = '''ペインの PowerShell（PSReadLine）で `Set-PSReadLineOption -EditMode Emacs` のあと `Alt-b` / `Alt-f` → bash と同じ単語移動。PSReadLine の既定の `EditMode Windows` には `Alt+b` / `Alt+f` が無く、`b` が入る。それは PSReadLine の側で、kura が送るバイトはどちらでも同じ（`Alt-d` はどちらでも効く）'''
+"40.13" = '普通のプロンプトで `Alt-j` / `Alt-k` → **これは kura のスクロールのまま。**この 2 つは `[term]` レイヤーに割り当てられていて、プロンプトは代替画面ではないため'
+'40.14' = '''`KURA_PTY_LOG` を設定して nvim の中でホイール（v0.55.0）。カーソルを窓の中ほどに置き、ペインを最大化する（`<C-S-Enter>`）か `:set scrolloff=0` にする。3 分の 1 の高さのペインでは nvim 自身の `scrolloff`（11 行のうち 4）が、kura が何を送ってもカーソルを引きずる（#107）→ nvim の表示がスクロールし、**カーソルは同じ行のまま**（前後で `:echo line('.')`）。ログには `\e[A` ではなく `\e[<64;…M` / `\e[<65;…M` が出る'''
 "40.15" = "ペインで lazygit を動かし（v0.55.0）、`<S-End>` を毎秒 30 回で約 300 回、その途中に `?` と `<Esc>` を入れる（#99 が #93 を組み直した形）→ `<Esc>` から 1 秒以内にキー一覧が閉じる。v0.55.0 までは数分開いたままだった。レコードで送った `<Esc>` の直後に `\\e[1;2F` の `<S-End>` が来ると、tcell には 1 つの列に読めていた"
-"40.16" = "`FILER_PTY_LOG` を設定して（v0.55.0）ペインを開き、数語を打ち、打った語の上で `<C-Left>` と `<Tab>` の補完（`<C-c>` は 49.9）→ ログの `out` の最初のほうに `\\e[?9001h` があり、`in key` の行は `\\e[1;5D` ではなくレコード（`\\e[…;…;…;1;…;1_`）。`<C-Left>` は 1 語戻り、`<Tab>` は補完する。シェルはレコードを本物のキーボードと同じに読む"
-"40.17" = '`FILER_PTY_LOG` を設定して、nvim の中でホイールを 1 ノッチ、次に 3 ノッチ（v0.58.1）→ ノッチ 1 つにつき `\\e[<64;…M`（または `65`）が 1 本: 1 本、次に 3 本。v0.58.1 までは平滑化した量を数えていたので、3 ノッチで 5 本出ていた'
+"40.16" = "`KURA_PTY_LOG` を設定して（v0.55.0）ペインを開き、数語を打ち、打った語の上で `<C-Left>` と `<Tab>` の補完（`<C-c>` は 49.9）→ ログの `out` の最初のほうに `\\e[?9001h` があり、`in key` の行は `\\e[1;5D` ではなくレコード（`\\e[…;…;…;1;…;1_`）。`<C-Left>` は 1 語戻り、`<Tab>` は補完する。シェルはレコードを本物のキーボードと同じに読む"
+"40.17" = '`KURA_PTY_LOG` を設定して、nvim の中でホイールを 1 ノッチ、次に 3 ノッチ（v0.58.1）→ ノッチ 1 つにつき `\\e[<64;…M`（または `65`）が 1 本: 1 本、次に 3 本。v0.58.1 までは平滑化した量を数えていたので、3 ノッチで 5 本出ていた'
 
 # 41. spot パネルの 4 つの provider
 "41.1" = 'fixtures の `.zip` で `<Tab>` → **Archive** セクション（形式、エントリ数とフォルダ数、展開後サイズ、圧縮率、`Encrypted: no`）'
@@ -813,7 +813,7 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "44.14" = "タブを `linemode mtime`（`m t`）にして `gu`、すぐ `<Esc>`（v0.56.0）→ 行には日付ではなくサイズ（`1.5 M`、`6.0 K`）が出る。`<Esc>` の後は日付に戻り、`Measuring…` のトーストもすぐ消える"
 "44.17" = '`gu` のあと、ビューの中で `m t`、続けて `m u`（v0.58.0）→ `m t` で数字が日付に替わり棒だけが残る。`m u` で**歩き直さずに**サイズが戻る（`Measuring…` が出ない）。`<Esc>` でタブ自身の表示に戻るのは今までどおり'
 "44.16" = '数秒かかる大きさの木で `gu` して、見出しを見る（v0.57.3）→ 歩いている間は `N measured so far` で増えていき、合計のトーストが出たら `N items` になる'
-'44.19' = '''数秒かかる木で `gu` し、合計のトーストが消えるまで待つ（v0.59.2）→ ビューを開いている間ずっと、見出しが `N items · <大きさ> total` と言う（ここが使用量ビューだと分かる唯一の印）。その木で `filer --keys "gu<Wait:0>j"` とすると、カーソルは歩きが終わってから動く'''
+'44.19' = '''数秒かかる木で `gu` し、合計のトーストが消えるまで待つ（v0.59.2）→ ビューを開いている間ずっと、見出しが `N items · <大きさ> total` と言う（ここが使用量ビューだと分かる唯一の印）。その木で `kura --keys "gu<Wait:0>j"` とすると、カーソルは歩きが終わってから動く'''
 '44.20' = 'macOS / Linux: `one/` に 400 KB のファイルを置き、`two/a` としてハードリンクし（`ln one/a two/a`）、親で `gu`（v0.75.21）→ 合計は 400 KB が 1 回（`391 K`）で、2 回ではない。`du` と同じく 2 つ目の名前は数えない。Windows の NTFS のハードリンクは今も名前ごとに数える（README）'
 
 # 45. 2 つのフォルダを比べる
@@ -849,7 +849,7 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "46.13" = '`#<n>` を GitHub の pull request と突き合わせる → **同じ番号**で、そのファイルがその PR の差分に入っている。番号は merge コミットの件名から読んでいて何も取得していないので、**件名が出所であることを示すのがこの行**'
 "46.14" = '最後のコミットが **`main` に直接** push されたファイルで `<Tab>` → **`Came in via` も `From branch` も出ない。**履歴の行だけ。あとから来ただけの merge に帰属させてはいけない'
 "46.15" = '現在のブランチでコミットし **まだマージしていない**ファイルで `<Tab>` → 同じく履歴の行だけで `Came in via` は出ない。まだどこにも到着していないので訊く相手がいない'
-"46.16" = "回線を抜く、Wi-Fi を切る、または Windows ファイアウォールで `filer.exe` と `git.exe` の外向き通信を塞ぐ —— そのうえで 46.12 をやり直す → **同じ出力・同じ速さ。**ここは何もマシンの外に出ない。ファイアウォールの方法は、実機で動くセッション向け（前の 2 つだとセッション自体が切れる）"
+"46.16" = "回線を抜く、Wi-Fi を切る、または Windows ファイアウォールで `kura.exe` と `git.exe` の外向き通信を塞ぐ —— そのうえで 46.12 をやり直す → **同じ出力・同じ速さ。**ここは何もマシンの外に出ない。ファイアウォールの方法は、実機で動くセッション向け（前の 2 つだとセッション自体が切れる）"
 "46.17" = "spot パネルで `C`（v0.52.0）→ 全部の行が `ラベル<TAB>値` の形でクリップボードに入る。節ごとに見出しの下、節と節の間は空行。`Came in via` は `Came in via<TAB>#n<TAB>hash` の 3 列（v0.78.176）。トーストが行数を言う"
 "46.17b" = "2 つ以上選んだ（別のフォルダで選んだものも含む）状態で spot パネルの `C`（v0.78.207）→ クリップボードに、選んだファイルごとに `#### <フルパス>` の行とその下に 46.17 のパネル、ファイルの間は空行 1 つ。トーストは `Copied the spot panels of N files`。1 つだけ選んでいる・選んでいないときは 46.17 のまま"
 "46.18" = "GitHub のリポジトリの clone で、46.12 のファイルの `Pull request` の行 → 上の `#<n>` の `https://github.com/<owner>/<repo>/pull/<n>` と出る。その行か `Came in via` の行で `<Enter>` を押すと、そのページがブラウザで開く"
@@ -860,9 +860,9 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 # 13. シンボリックリンク
 "13.7" = 'ジャンクション（`mklink /J`）で試す → シンボリックリンクと同じ扱い（名前の後ろに `->` が付き、`g`+`f` で追える）'
 "13.8" = '`y` してから、別のディレクトリで `-` → シンボリックリンクができる。**Windows では開発者モードが要る**（設定 > システム > 開発者向け）。無いと `os error 1314` で失敗し、トーストが対処法を 2 つ示す'
-"13.8a" = '開発者モードが無く昇格もしていない状態で、**フォルダ**を `y` し、別のディレクトリで `-`（v0.67.11）→ 同じ拒否のあとに `A junction needs neither: cmd /d /c mklink /J "<リンク>" "<フォルダ>"` が続き、パスは両方とも絶対パス（`cmd /d /c` は v0.72.6 から、#193）。それを `cmd` **にも** `pwsh`（filer のペイン、`<C-t>`）にも貼ってジャンクションができ、`g` `f` でたどれる。ファイルへの `-` ではジャンクションのことは言わない（フォルダ専用なので）。v0.67.19 からは続けて `Make a junction instead?` と聞く（両方のパスを挙げ、ジャンクションは相対にならずネットワークの場所を指せないと言う）。`n` なら何も残らない'
+"13.8a" = '開発者モードが無く昇格もしていない状態で、**フォルダ**を `y` し、別のディレクトリで `-`（v0.67.11）→ 同じ拒否のあとに `A junction needs neither: cmd /d /c mklink /J "<リンク>" "<フォルダ>"` が続き、パスは両方とも絶対パス（`cmd /d /c` は v0.72.6 から、#193）。それを `cmd` **にも** `pwsh`（kura のペイン、`<C-t>`）にも貼ってジャンクションができ、`g` `f` でたどれる。ファイルへの `-` ではジャンクションのことは言わない（フォルダ専用なので）。v0.67.19 からは続けて `Make a junction instead?` と聞く（両方のパスを挙げ、ジャンクションは相対にならずネットワークの場所を指せないと言う）。`n` なら何も残らない'
 "13.8b" = '13.8a に続けて `y`（v0.67.19、Q46）→ トースト `Made a junction <名前> — u to undo`。`(Get-Item <リンク>).LinkType` が `Junction` で、`g` `f` でたどれる。`u` はジャンクションだけを消し（フォルダと中身は残る）、`Removed the junction <名前>` と言う。`U` でまたジャンクションとして作られ、`Made the junction <名前> again` と言う（v0.70.3。それまでは 2 つとも `link` と言っていた、#185）'
-'13.8c' = '''13.8a に続けて、質問で `c`（v0.71.4、Q56）→ 質問の `y` と `n` の間に `[c] Copy the mklink command` がある。`c` で質問が閉じ、何も作られず（作り先のフォルダは空のまま）、トースト `Copied the mklink command — it runs in cmd or PowerShell` が出て、`Get-Clipboard` は拒否のトーストが出すのと同じ `cmd /d /c mklink /J "<リンク>" "<フォルダ>"` の 1 行だけ。それを filer のペイン（`<C-t>`、PowerShell）に貼るとジャンクションができる（v0.72.6。それまでは素の `mklink` がそこで認識されなかった、#193）。質問の本文の末尾に `` `c` copies: `` と同じ `cmd /d /c mklink /J …` の行も出ていて、`c` が取るものが画面に見える（v0.78.65、#197）'''
+'13.8c' = '''13.8a に続けて、質問で `c`（v0.71.4、Q56）→ 質問の `y` と `n` の間に `[c] Copy the mklink command` がある。`c` で質問が閉じ、何も作られず（作り先のフォルダは空のまま）、トースト `Copied the mklink command — it runs in cmd or PowerShell` が出て、`Get-Clipboard` は拒否のトーストが出すのと同じ `cmd /d /c mklink /J "<リンク>" "<フォルダ>"` の 1 行だけ。それを kura のペイン（`<C-t>`、PowerShell）に貼るとジャンクションができる（v0.72.6。それまでは素の `mklink` がそこで認識されなかった、#193）。質問の本文の末尾に `` `c` copies: `` と同じ `cmd /d /c mklink /J …` の行も出ていて、`c` が取るものが画面に見える（v0.78.65、#197）'''
 "13.9" = '`y` してから、**隣の**ディレクトリで `_` → 同じリンクが相対パス（`..\other\file`）で作られる。`g`+`f` で追え、両方のディレクトリを一緒に移動しても壊れない（これが `-` に対する `_` の利点）'
 "13.10" = 'シンボリックリンクの上で `<Tab>` → **Link** セクションが出る。`Kind` が `Symlink`、`Target` が保存されたパス、`Resolves` が実際の着地点'
 "13.11" = '`_` で作ったリンクの上で `<Tab>` → `Kind` が `Symlink (relative)`。`Target` は相対パス、`Resolves` は絶対パスで、**2 行が食い違うことがこの対の要点**'
@@ -872,41 +872,41 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 "13.14" = '同じものを Windows で → `Also at` に別名のパスが並ぶ。`fsutil hardlink list` と突き合わせる（自分自身のパスを除いた同じ集合になる）'
 "13.16" = 'ハードリンクを作り、別のプログラムに共有なしの書き込みロックを握らせた状態で `<Tab>`（コマンドは上の「準備」）→ `Links` は `2` のまま、`Also at` も出る。ハンドルがアクセス権を一切要求しないので、排他ロックでも数えられる'
 '13.17' = '''ジャンクション（`mklink /J`）で `<Tab>`（v0.59.4）→ `Kind` が `Symlink` ではなく `Junction`。同じフォルダへのシンボリックリンク（`mklink /D`）は今までどおり `Symlink`。一覧の `->` はどちらも変わらない（13.7）'''
-"47.1" = "ファイルとサブフォルダのあるフォルダで filer を開き、10 秒何も触らない。`(Get-Process filer).CPU` を 10 秒あけて 2 回読む。`--keys` なしで起動する（`<Wait:>` の間は待ち自体を測ってしまう）→ 2 つの差は **1 秒よりずっと小さい**（100 分の数秒なら普通）"
+"47.1" = "ファイルとサブフォルダのあるフォルダで kura を開き、10 秒何も触らない。`(Get-Process kura).CPU` を 10 秒あけて 2 回読む。`--keys` なしで起動する（`<Wait:>` の間は待ち自体を測ってしまう）→ 2 つの差は **1 秒よりずっと小さい**（100 分の数秒なら普通）"
 '47.2' = '''最後のサブフォルダから `j` で最初のファイルに乗り、すぐ（40 ms のデバウンスの内に）`k` でサブフォルダに戻って手を離す。CPU を 10 秒あけて 2 回読む。既定ではフォルダが上に並ぶ（`sort_dir_first`）ので、ファイルから `j` ではフォルダに乗れない → 同じく**増えない**。v0.54.2 より前は、これが描き続けたまま止まらなくなる手順だった'''
 "47.3" = "47.2 のあと窓を最小化する → 最小化していても増えない"
-"47.4" = "47.1〜47.3 でまだ増えるとき: `Get-Process filer \\| % Threads \\| sort TotalProcessorTime -desc \\| select -first 3 Id, TotalProcessorTime` を 10 秒あけて 2 回 → どのスレッドの時間が増えるかと、分かれば開始アドレスを報告する。次に調べるのはそのスレッド"
+"47.4" = "47.1〜47.3 でまだ増えるとき: `Get-Process kura \\| % Threads \\| sort TotalProcessorTime -desc \\| select -first 3 Id, TotalProcessorTime` を 10 秒あけて 2 回 → どのスレッドの時間が増えるかと、分かれば開始アドレスを報告する。次に調べるのはそのスレッド"
 '47.5' = '''`f` のプロンプトを開いて 10 秒何も触らず、前後で CPU を読む（v0.59.3）。47.1 と同じく `--keys` なしで起動する → プロンプトを開いていないとき（47.1）と同じく増えない。キャレットは点滅せず常に出ている。v0.59.3 までは点滅のために毎秒 2 回描いていて、10 秒で 0.14〜0.30 CPU 秒（#103、#110）'''
-"47.6" = '`filer.toml` に `[ui] backend = "gl"`、`WGPU_BACKEND` は無しで起動し、47.1 をする（v0.74.0、Q70）→ `filer env` の `Adapter` の行が `(Gl, …; set by [ui] backend = "gl")` で終わり（`WGPU_BACKEND` が勝つときは `set by WGPU_BACKEND=…`。v0.78.148）、Vulkan と DX12 では通らなかった 47.1 が通る（x64 の AMD の機械）'
-"47.7" = '`[ui] backend = "directx"`、次に Windows で `"metal"`（v0.74.0、Q70）→ どちらも窓は開き、`auto` と同じに描く（GL のある機械では `Adapter` が `(Gl, …)`。v0.75.5。以前は Vulkan で、x64 の AMD の機械ではまた 1 コアを使った）。設定の警告が `"directx" is not one of auto, vulkan, dx12, metal, gl`、次に `"metal" is macOS only`（v0.74.8）と言う。`filer env` の `Warnings` の行も 2 回とも同じことを言い、`Backend` の行は `[ui] backend = "directx"`。窓のトーストは、何で描いたかを `drawing with Gl instead` と言って終わる（v0.75.6）。`filer env` も同じく `drawing with Gl instead` と言う（v0.78.107。以前は `drawing with the default` のまま）'
-"47.8" = '`[ui] backend` も `WGPU_BACKEND` も無しで起動し、次に `backend = "vulkan"`（Windows、v0.75.0）→ `filer env` の `Adapter` が 1 回目は `(Gl, …; set by [ui] backend = "auto")`、2 回目は `(Vulkan, …; set by [ui] backend = "vulkan")` で終わり（v0.78.148）、どちらも警告は出ない'
+"47.6" = '`kura.toml` に `[ui] backend = "gl"`、`WGPU_BACKEND` は無しで起動し、47.1 をする（v0.74.0、Q70）→ `kura env` の `Adapter` の行が `(Gl, …; set by [ui] backend = "gl")` で終わり（`WGPU_BACKEND` が勝つときは `set by WGPU_BACKEND=…`。v0.78.148）、Vulkan と DX12 では通らなかった 47.1 が通る（x64 の AMD の機械）'
+"47.7" = '`[ui] backend = "directx"`、次に Windows で `"metal"`（v0.74.0、Q70）→ どちらも窓は開き、`auto` と同じに描く（GL のある機械では `Adapter` が `(Gl, …)`。v0.75.5。以前は Vulkan で、x64 の AMD の機械ではまた 1 コアを使った）。設定の警告が `"directx" is not one of auto, vulkan, dx12, metal, gl`、次に `"metal" is macOS only`（v0.74.8）と言う。`kura env` の `Warnings` の行も 2 回とも同じことを言い、`Backend` の行は `[ui] backend = "directx"`。窓のトーストは、何で描いたかを `drawing with Gl instead` と言って終わる（v0.75.6）。`kura env` も同じく `drawing with Gl instead` と言う（v0.78.107。以前は `drawing with the default` のまま）'
+"47.8" = '`[ui] backend` も `WGPU_BACKEND` も無しで起動し、次に `backend = "vulkan"`（Windows、v0.75.0）→ `kura env` の `Adapter` が 1 回目は `(Gl, …; set by [ui] backend = "auto")`、2 回目は `(Vulkan, …; set by [ui] backend = "vulkan")` で終わり（v0.78.148）、どちらも警告は出ない'
 "47.8a" = 'AMD の GPU の x64 の機械だけ: 何も書かずに（`[ui] backend` も `WGPU_BACKEND` も無し）47.1（#287）→ 47.1 が通る: 既定が GL を選び、何もしていない間の CPU は 0。ほかの機械はこの行を飛ばす'
-"47.9" = 'フォルダを開いて `filer --keys "<Wait:16000>"`、待ちの間に `(Get-Process filer).CPU` を 10 秒あけて 2 回読む（v0.80.9、#287）→ 47.1 の何もしていないときの数字に近い（スクリプトの見張りが 1 秒に 1 度描かせる分だけ）。10 秒で約 1 CPU 秒ではない: `<Wait:>` の間は、何も変わらないフレームを描かずに眠る。v0.80.9 より前は、どのバックエンドでも 0.94〜1.06 だった'
-"48.1" = '展開した各フォルダで `Get-ChildItem -Recurse` → フォルダが 1 つ（`filer-<タグ>-windows-x64` か `-arm64`）で、中はちょうど 5 ファイル: `filer.exe`、`filer.com`（v0.71.0）、`conpty.dll`、`OpenConsole.exe`、`ConPTY-LICENSE.txt`。他には何も無く、フォルダの横にも何も無い'
-"48.2" = '各フォルダで `.\filer.exe --version` → x64 の zip は `filer <版> (x86_64)`、ARM64 の zip は `filer <版> (aarch64)`。版はタグから `v` を除いたもの'
-"48.3" = '各 zip の 4 つのバイナリ（v0.71.0 から `filer.com` も）の PE machine（節の冒頭の式）→ x64 の zip は 4 つとも `8664`、ARM64 の zip は 4 つとも `AA64`。混ざっていたらこの行が探している不具合（ARM64 版に x64 の ConPTY が入ると、起動はしてペインでおかしくなる）'
+"47.9" = 'フォルダを開いて `kura --keys "<Wait:16000>"`、待ちの間に `(Get-Process kura).CPU` を 10 秒あけて 2 回読む（v0.80.9、#287）→ 47.1 の何もしていないときの数字に近い（スクリプトの見張りが 1 秒に 1 度描かせる分だけ）。10 秒で約 1 CPU 秒ではない: `<Wait:>` の間は、何も変わらないフレームを描かずに眠る。v0.80.9 より前は、どのバックエンドでも 0.94〜1.06 だった'
+"48.1" = '展開した各フォルダで `Get-ChildItem -Recurse` → フォルダが 1 つ（`kura-<タグ>-windows-x64` か `-arm64`）で、中はちょうど 5 ファイル: `kura.exe`、`kura.com`（v0.71.0）、`conpty.dll`、`OpenConsole.exe`、`ConPTY-LICENSE.txt`。他には何も無く、フォルダの横にも何も無い'
+"48.2" = '各フォルダで `.\kura.exe --version` → x64 の zip は `kura <版> (x86_64)`、ARM64 の zip は `kura <版> (aarch64)`。版はタグから `v` を除いたもの'
+"48.3" = '各 zip の 4 つのバイナリ（v0.71.0 から `kura.com` も）の PE machine（節の冒頭の式）→ x64 の zip は 4 つとも `8664`、ARM64 の zip は 4 つとも `AA64`。混ざっていたらこの行が探している不具合（ARM64 版に x64 の ConPTY が入ると、起動はしてペインでおかしくなる）'
 "48.4" = '`ConPTY-LICENSE.txt` を読む → リリースのコミットの `scripts/fetch-conpty.ps1` が固定している版（`$version`）が書いてあり、`{VERSION}` が残っていない'
 "48.5" = '各 zip と展開した各ファイルに `Get-FileHash -Algorithm SHA256` → リリースページ末尾の **SHA-256** の表の、そのファイルの行と全部一致する。表が無ければ `sums` ジョブが動かなかったということなので、そう書く'
-'48.6' = '''間違いを見つけられるように、先に別の `conpty.dll` を `PATH` に置く。確かめる `filer.exe` と**同じ PE machine** のもの（48.3 の 1 行で読める）。WezTerm のものは `8664` で、ARM64 のプロセスにはそもそも読み込めないので、それでは ARM64 の zip の半分は何も確かめていない（#199）。そのうえで各フォルダの `filer.exe` を起動してペインを開き（`<C-t>`）、プロセスのモジュールを見る: `(Get-Process filer).Modules \| ? ModuleName -eq conpty.dll \| % FileName` → フルパスが **そのフォルダの** `conpty.dll`（`filer.exe` と同じフォルダ）。zip はそのためにある。間違っているときに出るのは別のアプリ（WezTerm など）のもので、`C:\Windows` の下ではない。Windows に `conpty.dll` は無い（v0.70.3、#151 / #184）'''
-'48.7' = '''`filer.exe` **だけ**を空のフォルダに写す。別のフォルダに `conpty.dll` と `OpenConsole.exe`（zip のもの）を置いてそこへ `cd` し、その exe をフルパスで起動、`<C-t>`、48.6 と同じくモジュールを見る。`conpty.dll` の無いフォルダから、`PATH` のどこかに `conpty.dll` がある状態でもう一度（v0.70.3、#184）。48.6 と同じく、どちらの `conpty.dll` も確かめる `filer.exe` と**同じ PE machine** のものにする（48.3 の 1 行で読める）。プロセスがそもそも読み込めないもの（ARM64 での WezTerm の `8664`）は filer が何をしてもモジュールに出ないので、何も確かめていない → どちらでもモジュールに `conpty.dll` が**無い**: ペインは Windows 標準の ConPTY で動く。v0.70.3 より前は、1 回目は作業フォルダの、2 回目は `PATH` のものを読み込んでいた'''
+'48.6' = '''間違いを見つけられるように、先に別の `conpty.dll` を `PATH` に置く。確かめる `kura.exe` と**同じ PE machine** のもの（48.3 の 1 行で読める）。WezTerm のものは `8664` で、ARM64 のプロセスにはそもそも読み込めないので、それでは ARM64 の zip の半分は何も確かめていない（#199）。そのうえで各フォルダの `kura.exe` を起動してペインを開き（`<C-t>`）、プロセスのモジュールを見る: `(Get-Process kura).Modules \| ? ModuleName -eq conpty.dll \| % FileName` → フルパスが **そのフォルダの** `conpty.dll`（`kura.exe` と同じフォルダ）。zip はそのためにある。間違っているときに出るのは別のアプリ（WezTerm など）のもので、`C:\Windows` の下ではない。Windows に `conpty.dll` は無い（v0.70.3、#151 / #184）'''
+'48.7' = '''`kura.exe` **だけ**を空のフォルダに写す。別のフォルダに `conpty.dll` と `OpenConsole.exe`（zip のもの）を置いてそこへ `cd` し、その exe をフルパスで起動、`<C-t>`、48.6 と同じくモジュールを見る。`conpty.dll` の無いフォルダから、`PATH` のどこかに `conpty.dll` がある状態でもう一度（v0.70.3、#184）。48.6 と同じく、どちらの `conpty.dll` も確かめる `kura.exe` と**同じ PE machine** のものにする（48.3 の 1 行で読める）。プロセスがそもそも読み込めないもの（ARM64 での WezTerm の `8664`）は kura が何をしてもモジュールに出ないので、何も確かめていない → どちらでもモジュールに `conpty.dll` が**無い**: ペインは Windows 標準の ConPTY で動く。v0.70.3 より前は、1 回目は作業フォルダの、2 回目は `PATH` のものを読み込んでいた'''
 "49.1" = "冒頭の prompt で `dir`、`echo hi`、`Get-Date` を実行（コマンドの間に 13 行以上出力する。例 `1..13`。ペインは 12 行） → `<C-S-Up>` を 2 回、`<C-S-Down>` を 1 回 → 押すたびにプロンプトが表示の一番上に来る: `echo hi` の、`dir` の、また `echo hi` の。上に無ければトーストが `No prompt above this one`"
 "49.2" = "冒頭の prompt を**入れない**新しいペイン（素の `pwsh -NoProfile`）で `<C-S-Up>`、`<C-S-l>` → トーストが `The shell does not mark its prompts (OSC 133), so there is none to jump to` と `No finished command to copy (the shell has to mark its prompts, OSC 133)`。クリップボードは変わらない"
 "49.3" = "冒頭の prompt で `dir` → `<C-S-l>` → 別の窓で `Get-Clipboard` → トーストが `Copied the last command's output (N lines)` (`1 line` for one)、クリップボードは `dir` の一覧だけ（プロンプトの行もコマンドの行も末尾の空行も無い）"
 "49.4" = "冒頭の prompt で `dir`（成功）と `Get-Item nothing-here`（エラー）→ ペインの左の余白にそれぞれ細い帯: `dir` は緑、失敗したほうは赤。全画面のプログラム（`nvim`）の中には出ない"
 "49.5" = "ペインで `echo https://example.com` → Ctrl を押しながら指す → Ctrl の間だけ下線が付き、ポインタが手になる。Ctrl+クリックで既定のブラウザが開く。普通のクリックは今までどおり選択だけ"
 "49.6" = "リポジトリのフォルダで `echo src\\main.rs:10` → Ctrl+クリック → 一覧が `src` に移り、カーソルが `main.rs` に乗る（行番号は使わない）。無いパスなら一覧は動かない"
-"49.7" = "``Write-Host \"`e]8;;https://example.com`e\\click me`e]8;;`e\\\"``（OSC 8 のリンク）を `FILER_PTY_LOG` を付けて出し、`click me` を Ctrl+クリック（v0.86.29: 同梱の ConPTY 1.24.2607.10001 は OSC 8 の始まりと終わりを落とすので、TODO.md の `【pane】` の項目で通せるようになるまでこの行は通らない。`[ ]` のままにして、ログの `out` の行に `]8;;` が残っているかを書く）→ Ctrl を押す前から `click me` に点線の下線があり、クリックで `https://example.com` が開く。ログの `out` の行が `click me` だけなら、ペインにリンクは届いていない: filer の失敗でなく ConPTY の限界"
+"49.7" = "``Write-Host \"`e]8;;https://example.com`e\\click me`e]8;;`e\\\"``（OSC 8 のリンク）を `KURA_PTY_LOG` を付けて出し、`click me` を Ctrl+クリック（v0.86.29: 同梱の ConPTY 1.24.2607.10001 は OSC 8 の始まりと終わりを落とすので、TODO.md の `【pane】` の項目で通せるようになるまでこの行は通らない。`[ ]` のままにして、ログの `out` の行に `]8;;` が残っているかを書く）→ Ctrl を押す前から `click me` に点線の下線があり、クリックで `https://example.com` が開く。ログの `out` の行が `click me` だけなら、ペインにリンクは届いていない: kura の失敗でなく ConPTY の限界"
 "49.8" = "iTerm2 のインライン画像（OSC 1337。ConPTY を通る）: `wezterm imgcat some.png`、または pwsh から `$e=[char]27; Write-Host \"$e]1337;File=inline=1;width=8;height=4:$([Convert]::ToBase64String([IO.File]::ReadAllBytes('some.png')))`a\"`（`chafa -f sixels` は試験にならない: ConPTY が DCS を落とし、本文が文字で出る）→ プログラムが出した位置に画像が描かれ、文字と一緒にスクロールする（`<S-PageUp>`）。`clear` で消える"
 "49.10" = "`claude` が信頼済みのフォルダ（でないと信頼ダイアログがキーを取る）のペインで `claude` → `one`、`<S-Enter>`、`two` と打つ (v0.86.0, tsumugi 2.55) → Claude Code の入力欄に `one` と `two` が 2 行で入り、何も送られない。`<Enter>` で両方が送られる"
 "49.10a" = "ペインで `cmd`（か `bash`）→ `echo one`、`<S-Enter>` (v0.86.0, tsumugi 2.55) → `<Enter>` と同じく行が実行される: kitty のキーボードプロトコルを求めないシェルでは変わらない（pwsh は検証にならない: PSReadLine が `<S-Enter>` を `AddLine` に結ぶので、行は実行されず続きになる）"
-"50.1" = 'filer を起動してフォルダに入り、カーソルをファイルに置く → `claude` で `/mcp` → `filer` が接続済みで、ツールが 2 つ（`filer_state` と `filer_reveal`）'
-"50.2" = '`<Space>` で 2 ファイル選び、Claude に「filer でカーソルの下のファイルと選んだものは？」と聞く → Claude が `filer_state` を呼び、そのフォルダ・そのファイル・選んだ 2 つのパスを Windows のフルパス（`C:\…`）で答える'
-"50.3" = 'Claude に「filer で `C:\Windows\notepad.exe` を見せて」→ Claude が `filer_reveal` を呼び、窓をクリックしなくても `C:\Windows` に移ってカーソルが `notepad.exe` に乗る。Claude は `filer is showing …` と言う。無いパスなら `… does not exist` で、窓は動かない'
-"50.4" = 'filer の窓を全部閉じて、もう一度 `filer_state` を頼む → ツールが `filer is not running (or its [mcp] enable is false in filer.toml); start filer and ask again` で失敗する。Claude Code 自体は動き続け、`/mcp` にも `filer` が残る'
-"50.5" = '`filer.toml` に `[mcp]` / `enable = false` を書いて起動し、`filer_state` を頼む → 同じ `filer is not running …`: 窓は扉を開かない。終わったら行を消す'
-"50.6" = '別々のフォルダで filer の窓を 2 つ開き、`filer_state` を頼む。1 つ目の窓を閉じて 30 秒待ち、もう一度 → 1 回目は 1 つ目の窓のフォルダ。閉じたあとの 2 回目は 2 つ目の窓のフォルダ'
-"50.7" = '`filer.com` で登録し直し（`claude mcp add filer -- "<フォルダ>\filer.com" mcp`）、50.2 をする → 同じ答え: `filer.com` が `mcp` を入出力ごと `filer.exe` に渡す。Claude Code が起動するときにコンソールの窓は出ない'
-"53.1" = '`common.toml` なしで filer を起動する → 時計がステータスバーの右端、位置（`3/12`）の後ろに、バーと同じ字体・一番強い文字の色（左の薄い項目より明るい）で出る。システムの日時と一致する'
+"50.1" = 'kura を起動してフォルダに入り、カーソルをファイルに置く → `claude` で `/mcp` → `kura` が接続済みで、ツールが 2 つ（`kura_state` と `kura_reveal`）'
+"50.2" = '`<Space>` で 2 ファイル選び、Claude に「kura でカーソルの下のファイルと選んだものは？」と聞く → Claude が `kura_state` を呼び、そのフォルダ・そのファイル・選んだ 2 つのパスを Windows のフルパス（`C:\…`）で答える'
+"50.3" = 'Claude に「kura で `C:\Windows\notepad.exe` を見せて」→ Claude が `kura_reveal` を呼び、窓をクリックしなくても `C:\Windows` に移ってカーソルが `notepad.exe` に乗る。Claude は `kura is showing …` と言う。無いパスなら `… does not exist` で、窓は動かない'
+"50.4" = 'kura の窓を全部閉じて、もう一度 `kura_state` を頼む → ツールが `kura is not running (or its [mcp] enable is false in kura.toml); start kura and ask again` で失敗する。Claude Code 自体は動き続け、`/mcp` にも `kura` が残る'
+"50.5" = '`kura.toml` に `[mcp]` / `enable = false` を書いて起動し、`kura_state` を頼む → 同じ `kura is not running …`: 窓は扉を開かない。終わったら行を消す'
+"50.6" = '別々のフォルダで kura の窓を 2 つ開き、`kura_state` を頼む。1 つ目の窓を閉じて 30 秒待ち、もう一度 → 1 回目は 1 つ目の窓のフォルダ。閉じたあとの 2 回目は 2 つ目の窓のフォルダ'
+"50.7" = '`kura.com` で登録し直し（`claude mcp add kura -- "<フォルダ>\kura.com" mcp`）、50.2 をする → 同じ答え: `kura.com` が `mcp` を入出力ごと `kura.exe` に渡す。Claude Code が起動するときにコンソールの窓は出ない'
+"53.1" = '`common.toml` なしで kura を起動する → 時計がステータスバーの右端、位置（`3/12`）の後ろに、バーと同じ字体・一番強い文字の色（左の薄い項目より明るい）で出る。システムの日時と一致する'
 "53.2" = '時計にポインタを載せる → ツールチップに日付が全部出る（`Saturday, 10 October 2026`）'
 "53.3" = '何も押さずに分が変わるのを見る → 分が変わるとき（1 秒以内）に、入力なしで時計が変わる'
 "53.4" = '`common.toml` に `language = "ja"` と `[clock]`（`hour24 = false`、`date_format = "YYYY-MM-DD"`、`weekday = false`）を書いて再起動する → 曜日なしの `2026-10-10 2:32 PM` のような文。`weekday = true` なら `(土)`。ツールチップは `2026年10月10日 土曜日`'

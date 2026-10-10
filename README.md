@@ -1,4 +1,6 @@
-# Filer
+# kura 蔵
+
+*Formerly filer; renamed in v0.95.0.*
 
 A keyboard-driven file manager for Windows, written in Rust with [egui](https://github.com/emilk/egui).
 It keeps yazi's feel — three columns, vim keys, chords with a which-key panel, instant previews —
@@ -26,25 +28,25 @@ previewer found inside it, the commit that last touched it, how it is encoded:
 
 ## Getting a build
 
-A [release](https://github.com/uchmk/filer/releases) carries a `.zip` for Windows x64 and ARM64, and
+A [release](https://github.com/uchmk/kura/releases) carries a `.zip` for Windows x64 and ARM64, and
 a `.tar.gz` for macOS and Linux. No account needed.
 
-The Windows zip holds `filer.exe` with `conpty.dll` and `OpenConsole.exe` — a newer ConPTY, from
-Microsoft's own package, with its MIT notice — and `filer.com` (v0.71.0). **Keep them in one folder.**
-filer runs without the ConPTY pair, but then the terminal pane falls back to the one built into
+The Windows zip holds `kura.exe` with `conpty.dll` and `OpenConsole.exe` — a newer ConPTY, from
+Microsoft's own package, with its MIT notice — and `kura.com` (v0.71.0). **Keep them in one folder.**
+kura runs without the ConPTY pair, but then the terminal pane falls back to the one built into
 Windows, which is old enough to break programs run in it: lazygit starts with a menu nobody opened.
 
-`filer.com` is a small console program that makes `filer` behave like any other command in a
-terminal. `filer.exe` is a windowed program, and PowerShell neither waits for one at the end of a
-pipeline nor connects its `>` to one, so `$v = & filer.exe env` comes back empty. Windows tries
-`.com` before `.exe` when you type `filer`, so `filer.com` answers. For `env`, `--version`, `--help`,
-`shell-hook` and `mcp` it runs `filer.exe` and waits; for anything else it opens the window and gives the
+`kura.com` is a small console program that makes `kura` behave like any other command in a
+terminal. `kura.exe` is a windowed program, and PowerShell neither waits for one at the end of a
+pipeline nor connects its `>` to one, so `$v = & kura.exe env` comes back empty. Windows tries
+`.com` before `.exe` when you type `kura`, so `kura.com` answers. For `env`, `--version`, `--help`,
+`shell-hook` and `mcp` it runs `kura.exe` and waits; for anything else it opens the window and gives the
 prompt back once the window is up. Visual Studio ships `devenv.com` beside `devenv.exe` for the same
 reason.
 
-Building filer yourself, `cargo build --release` makes `filer-com.exe`: copy it to `filer.com`
-beside `filer.exe`. `pwsh -File scripts\fetch-conpty.ps1` puts the pinned ConPTY beside
-`target\release\filer.exe` (and `-Dest target\debug` beside a debug build).
+Building kura yourself, `cargo build --release` makes `kura-com.exe`: copy it to `kura.com`
+beside `kura.exe`. `pwsh -File scripts\fetch-conpty.ps1` puts the pinned ConPTY beside
+`target\release\kura.exe` (and `-Dest target\debug` beside a debug build).
 
 **Windows will warn you about the download, and it is right to.** The binaries are not code-signed,
 so the publisher shows as unknown; SmartScreen adds its own warning because a file published today
@@ -56,7 +58,7 @@ published on the release page, so comparing it tells you the file is the one CI 
 tag's commit, unaltered in transit:
 
 ```powershell
-Get-FileHash .\filer-v0.0.0-windows-x64.zip -Algorithm SHA256 | Format-List Hash
+Get-FileHash .\kura-v0.0.0-windows-x64.zip -Algorithm SHA256 | Format-List Hash
 ```
 
 A matching hash does not remove the warning — only a signing certificate does, and there isn't one.
@@ -85,33 +87,33 @@ Nothing that touches the disk runs on the UI thread.
 Files are read in this order — later ones win:
 
 1. `%YAZI_CONFIG_HOME%`, else yazi's own directory — `yazi.toml`, `keymap.toml`, `theme.toml`
-2. `%FILER_CONFIG_HOME%`, else `<base>\filer` — the same three, plus `filer.toml`
+2. `%KURA_CONFIG_HOME%`, else `<base>\kura` — the same three, plus `kura.toml`
 
-`<base>` and the first layer differ by platform, because filer looks wherever yazi itself keeps
+`<base>` and the first layer differ by platform, because kura looks wherever yazi itself keeps
 its files:
 
-| Platform | yazi's files (layer 1) | filer's overrides (layer 2) |
+| Platform | yazi's files (layer 1) | kura's overrides (layer 2) |
 | --- | --- | --- |
-| Windows | `%APPDATA%\yazi\config` | `%APPDATA%\filer` |
-| Linux | `$XDG_CONFIG_HOME/yazi` (default `~/.config/yazi`) | `~/.config/filer` |
-| macOS | `~/.config/yazi` | `~/.config/filer` |
+| Windows | `%APPDATA%\yazi\config` | `%APPDATA%\kura` |
+| Linux | `$XDG_CONFIG_HOME/yazi` (default `~/.config/yazi`) | `~/.config/kura` |
+| macOS | `~/.config/yazi` | `~/.config/kura` |
 
 The trailing `config` in layer 1 is a quirk of yazi's Windows layout, not part of the path
 elsewhere. macOS uses `~/.config` rather than `~/Library/Application Support` for the same
-reason: that is where yazi reads from. Run `filer env` to print the directories in effect and
+reason: that is where yazi reads from. Run `kura env` to print the directories in effect and
 which files were actually found.
 
 Press `~` or `F1` in the app: the help panel lists which config files were actually loaded, any
 warnings, and every key binding in effect. A config warning on startup or `<C-F5>` is one line in
 the corner — its first line, ending ``— the rest in `~` `` when there is more, since a `toml` parse
 error alone is five lines (v0.81.0). `C` there copies it as text, one key per line. On Windows
-everything filer copies ends its lines with CRLF, as Windows programs expect (v0.67.24).
+everything kura copies ends its lines with CRLF, as Windows programs expect (v0.67.24).
 
 The two files are not interchangeable: `[ui]`, `[term]`, `[[preview]]` and `[line_args]` are read
-only from `filer.toml`, and `[mgr]`, `[opener]`, `[open]`, `[tasks]` and `[preview]` only from
+only from `kura.toml`, and `[mgr]`, `[opener]`, `[open]`, `[tasks]` and `[preview]` only from
 `yazi.toml`. Putting one in the other is reported as a warning, since both files ignore keys they
 do not know and the setting would otherwise just quietly do nothing. `preview` is the one name
-both use — a table of sizes in `yazi.toml`, an array of commands in `filer.toml` — so the wrong
+both use — a table of sizes in `yazi.toml`, an array of commands in `kura.toml` — so the wrong
 shape fails the whole file rather than being ignored, and the warning says so.
 
 ### yazi.toml
@@ -121,9 +123,9 @@ Honored: `[mgr]` (`ratio`, `sort_by`, `sort_reverse`, `sort_dir_first`, `sort_se
 `max_width`, `max_height`), `[opener]`, `[open].rules`, `[tasks].micro_workers`.
 `[manager]` is accepted as an alias for `[mgr]`. Unknown keys are ignored rather than rejected.
 
-`title_format` takes yazi's `{cwd}`, and two of filer's own (v0.59.8): `{rows}`, the list rows on
+`title_format` takes yazi's `{cwd}`, and two of kura's own (v0.59.8): `{rows}`, the list rows on
 screen, and `{pane}`, the terminal pane's grid as `12x159` (empty while it is closed). A script that
-reads the window title gets both without pressing a key: `title_format = "Filer: {cwd} [{rows}] {pane}"`.
+reads the window title gets both without pressing a key: `title_format = "Kura: {cwd} [{rows}] {pane}"`.
 
 Opener placeholders `$@`, `$0`, `%*`, `%0` and `%s` all expand to the selected paths.
 
@@ -133,7 +135,7 @@ window **to the top edge** — no header, no list, only the status bar below —
 terminal holds the keys, which is the state a TUI puts you in. Maximizing hands the pane the keys,
 since a hidden list is nowhere to aim them, and **every way out of the pane restores the size**:
 `<C-t>` gives the keys back and the window with them, in one press. `q` and `Esc` cannot do this —
-binding them here would stop them reaching the shell, and a pane whose keys filer keeps is not a
+binding them here would stop them reaching the shell, and a pane whose keys kura keeps is not a
 terminal.
 
 The border above the pane can be **dragged** to change its height, and double-clicked to halve the
@@ -142,8 +144,8 @@ starts at a third again. The border is the divider of tsumugi's own panes (`ito-
 columns keep `[mgr] ratio` from `yazi.toml`.
 
 When a program in the pane misbehaves, two tools show what actually passed between them. Set
-`FILER_PTY_LOG` to a file path before starting filer, and every chunk crossing the pane's PTY is
-appended to it — what the shell side wrote (`out`), and what filer wrote back, split into `in key`,
+`KURA_PTY_LOG` to a file path before starting kura, and every chunk crossing the pane's PTY is
+appended to it — what the shell side wrote (`out`), and what kura wrote back, split into `in key`,
 `in paste` and `in reply` (the terminal's own answers to a program's queries). `scripts/keyprobe.ps1`
 shows the other end: the console key records a program receives, read the way tcell reads them, and
 with `-Query` it sends tcell's startup queries and prints the replies as they arrive.
@@ -152,7 +154,7 @@ On Linux and macOS, where a GUI program has no console to give, `block = true` o
 window instead: `$TERMINAL` if set (arguments allowed, e.g. `TERMINAL="kitty --single-instance"`),
 then Terminal.app on macOS, then the first installed of `x-terminal-emulator`, `gnome-terminal`,
 `konsole`, `xfce4-terminal`, `kitty`, `alacritty`, `wezterm`, `foot`, `ghostty` and `xterm`.
-If the program fails, the window stays open on its exit code until you press Enter. `filer env`
+If the program fails, the window stays open on its exit code until you press Enter. `kura env`
 names the terminal it will use.
 Rule patterns take `*`, `?`, `[abc]` and `{jpg,png}`, which is what yazi's own rules are written
 with.
@@ -206,7 +208,7 @@ Every rule that matches contributes, in the order written, so the catch-all at t
 
 A file Windows has no app for is not handed over (v0.82.0, Q92). Before `<Enter>` opens with the
 default app, either because no opener applies or because the first one is a bare `start "" %*`,
-filer asks Windows which program the extension opens with; when there is none it says
+kura asks Windows which program the extension opens with; when there is none it says
 `No default app for .xyz` (with `— <S-Enter> to pick one` when the file has other openers) and opens
 nothing. Handed over anyway, such a file got a "How do you want to open this file?" box at best and
 nothing at all at worst. `start "" msedge %*` names its program and is not checked. An association
@@ -224,10 +226,10 @@ Two Windows details worth knowing, both of which turn "it does nothing" into "it
   `cmd /C`, which searches `PATH` and nothing else; `excel.exe` and `msedge.exe` are not on it.
   `start` asks the shell instead, which knows where installed programs live. The empty `""` is
   the window title `start` would otherwise steal the program name for.
-- **Full paths need the quotes shown above**, and the `%*` stays outside them. The paths filer
+- **Full paths need the quotes shown above**, and the `%*` stays outside them. The paths kura
   substitutes are quoted for you, so a name with a space stays one argument either way.
 
-An editor listed here also gets the line number when you open from the outline, if filer knows
+An editor listed here also gets the line number when you open from the outline, if kura knows
 its syntax — サクラ, EmEditor, Notepad++, VS Code and the vim family are known already, and
 [line_args](#line_args-opening-an-editor-at-a-line) covers the rest.
 
@@ -256,7 +258,7 @@ the usage view after another `m` key), and `m`+`n` turns the column off. `[mgr] 
 the one you start with.
 
 The names are `none`, `size`, `usage`, `mtime` (or `modified`), `btime` (or `created`),
-`permissions` and `owner` — `owner` is accepted and shows nothing, because filer does not read it
+`permissions` and `owner` — `owner` is accepted and shows nothing, because kura does not read it
 yet. Anything else is **refused rather than ignored**: a misspelling in `yazi.toml` is a warning
 about that file, and one in a `linemode` binding is listed as an unsupported command in the help
 panel and says so when the key is pressed. It used to leave the column silently blank, which looked
@@ -264,7 +266,7 @@ the same as asking for no column at all.
 
 > If `m` on its own does something — saves a bookmark, say — none of these run: the bookmark
 > plugins for yazi bind `m`, and a `prepend_keymap` line goes in front of every chord that starts
-> with it. Filer reports this on startup and lists it under `~`.
+> with it. Kura reports this on startup and lists it under `~`.
 
 Commands implemented: `escape`, `quit`, `close`, `arrow`, `leave`, `enter`, `back`, `forward`,
 `cd`, `reveal`, `follow`, `refresh`, `seek`/`peek`, `tab_create`, `tab_close`, `tab_switch`,
@@ -309,10 +311,10 @@ of the background (v0.81.0). Colors may be ANSI names
 (`lightblue`, `darkgray`, `reset`) or hex (`#7ab8f5`). `syntect_theme` selects the preview's
 syntax theme.
 
-### filer.toml (GUI-only settings)
+### kura.toml (GUI-only settings)
 
-[`filer.example.toml`](filer.example.toml) in this repository is a commented copy of the defaults —
-copy it to `%APPDATA%\filer\filer.toml` and edit from there.
+[`kura.example.toml`](kura.example.toml) in this repository is a commented copy of the defaults —
+copy it to `%APPDATA%\kura\kura.toml` and edit from there.
 
 ```toml
 [ui]
@@ -334,7 +336,7 @@ backend = "auto"           # auto | vulkan | dx12 | metal | gl; read at start
 # args = ["-NoLogo"]
 
 [mcp]
-enable = true              # false: `filer mcp` cannot reach this window; read at start
+enable = true              # false: `kura mcp` cannot reach this window; read at start
 ```
 
 `backend` picks what draws the window (v0.74.0). `auto` is GL on Windows when the machine has it,
@@ -342,11 +344,11 @@ and wgpu's own pick otherwise (v0.75.0): on some AMD GPUs a driver thread keeps 
 busy under Vulkan and DX12, and GL stops it. A Windows machine without GL gets Vulkan or DX12 without
 a word; write `backend = "vulkan"` or `"dx12"` to choose one of them yourself. The
 `WGPU_BACKEND` environment variable still wins for one run. On Windows `gl` may come through a
-translation layer, so `filer env`'s `Adapter` can read `D3D12 (…) (Gl, Other)` and still be GL (the
+translation layer, so `kura env`'s `Adapter` can read `D3D12 (…) (Gl, Other)` and still be GL (the
 ARM64 laptop's does, #239). A backend this machine has no adapter
 for falls back to `auto` and says so among the config warnings, rather than leaving no window; a
-name filer does not know, or `metal` off macOS and `dx12` off Windows, is warned about when the file
-is read, so `filer env` shows it too, beside a `Backend` row with the value in force.
+name kura does not know, or `metal` off macOS and `dx12` off Windows, is warned about when the file
+is read, so `kura env` shows it too, beside a `Backend` row with the value in force.
 
 Fonts are auto-detected: a Nerd Font from your user font directory (HackGen, FiraCode,
 CaskaydiaCove, JetBrainsMono) first, then Meiryo / Yu Gothic for CJK coverage. If no Nerd Font is
@@ -361,7 +363,7 @@ drawing the glyphs twice.
 The status bar's right end shows a clock, set in the config shared by every uchmk app
 (`%APPDATA%\uchmk\common.toml` on Windows, `~/Library/Application Support/uchmk/common.toml` on macOS,
 `$XDG_CONFIG_HOME/uchmk/common.toml` on Linux; `UCHMK_CONFIG_DIR` moves the folder). It is read once at start-up;
-there is no override in `filer.toml`.
+there is no override in `kura.toml`.
 
 ```toml
 language = "auto"          # auto / en / ja: with "ja" the weekday reads (月)
@@ -418,7 +420,7 @@ editor you pick. The line is passed as `+N` to nvim / vim / nano / emacs / micro
 `-g file:N` to VS Code / Cursor / Windsurf, as `file:N` to Helix / Sublime / Zed, and on Windows
 as `-Y=N` to Sakura, `/l N` to EmEditor and `-nN` to Notepad++; other openers
 (Notepad among them) just open the file. Any editor can be taught the syntax — or an entry of the
-list above overridden — with [`[line_args]` in filer.toml](#line_args-opening-an-editor-at-a-line). `<Esc>`, `h` / `←` or `<S-Tab>` gives the keys back to the file list,
+list above overridden — with [`[line_args]` in kura.toml](#line_args-opening-an-editor-at-a-line). `<Esc>`, `h` / `←` or `<S-Tab>` gives the keys back to the file list,
 and any other key does so too before doing its usual job. In a narrow pane the outline shows as an
 overlay only while it has the keys.
 
@@ -591,7 +593,7 @@ a scrolling key there would be spent on a scroll that cannot move anything. Whil
 every `term_scroll` key goes to the program instead, and so does the wheel: as the mouse to a
 program that asked to hear about the mouse (`nvim`, `htop`, `tmux` — so the view scrolls and the
 cursor stays put), and as arrow keys to one that did not (`less`), rather than walking a scrollback
-that does not exist. Keys that are not about scrolling stay filer's:
+that does not exist. Keys that are not about scrolling stay kura's:
 `<C-t>` has to get you out of a full-screen program as much as out of a shell.
 So that the way out is never off screen, a small `<C-t> list` tag sits at the pane's top-right
 corner while a full-screen program has the pane's keys (it names whatever `[term]` binds to `close`).
@@ -634,7 +636,7 @@ harmless at a prompt and a nuisance in the middle of a command. It is therefore 
 it can be: not when the pane has not moved, and not when the shell has already said it is there.
 
 The saying is OSC 7, the escape a shell emits to report its directory; most send it out of the
-box and some have to be told to. filer reads it off the PTY as the bytes go past. A shell that
+box and some have to be told to. kura reads it off the PTY as the bytes go past. A shell that
 sends it never hears a `cd` it does not need — including the one that would otherwise chase its
 own. `<A-Up>` in the pane goes the other way: it puts the file list where the shell is, which is
 what you want after a command has moved it somewhere the list knows nothing about.
@@ -819,14 +821,14 @@ still be empty — once something has been written into it, `u` says so and leav
 to still be the link that was made: a symlink, or for a hardlink the same file as its source, not
 something else that has taken the name since.
 
-On Windows a symlink needs Developer Mode or an elevated filer. When `-` on a **folder** is refused
-for that, filer asks whether to make a junction instead (v0.67.19): a junction needs no privilege,
+On Windows a symlink needs Developer Mode or an elevated kura. When `-` on a **folder** is refused
+for that, kura asks whether to make a junction instead (v0.67.19): a junction needs no privilege,
 but it always holds the full path — never a relative one — and cannot point at a network location,
 which is why it is asked and not done. `y` makes it, and `u` / `U` take it back and make it again
 like any other link. `c` makes nothing and copies the `cmd /d /c mklink /J …` line instead, for
 pasting into a shell yourself (v0.71.4): two absolute paths are too long to retype, and a toast cannot
 be copied. The `cmd /d /c` is there because `mklink` exists only inside `cmd`; with it the line runs
-in PowerShell too, filer's own pane included (v0.72.6).
+in PowerShell too, kura's own pane included (v0.72.6).
 
 Undoing a move starts from where each file actually landed, not from where it was sent: a paste onto
 a name already taken lands as `name_1`, and an undo built from the name you asked for would go
@@ -952,7 +954,7 @@ entries are listed and the pane says when there are more.
 **`l` (or `<Right>`) on an archive goes into it** (v0.76.0, Q75): its members are listed like a
 folder's, `l` goes down into a folder inside it, `h` comes back up, and `h` at the top -- or `<Esc>`
 -- leaves, with the cursor back on the archive. `l` or `<Enter>` on a file unpacks a copy of that
-one file into a folder of filer's own under the temporary folder and opens it with the system's
+one file into a folder of kura's own under the temporary folder and opens it with the system's
 default app; changes to the copy do not go back into the archive. `<Enter>` on the archive itself
 still opens it with its opener, as before. **`y` on members, then `p` in a folder, takes them out**
 (v0.77.0): each comes out under its own name, a folder with everything under it, through the same
@@ -993,7 +995,7 @@ before letting go. Style it with `[mgr] preview_hovered` in a yazi `theme.toml`;
 underlines it.
 
 It appears where the pane is wide enough to spare seven columns, and `<A-n>` (or `[ui] minimap = false`
-in `filer.toml`) turns it off. Rendered Markdown gets none: its lines are not the file's lines, so
+in `kura.toml`) turns it off. Rendered Markdown gets none: its lines are not the file's lines, so
 the box would point at the wrong place, and its [Contents](#outline-contents) column already answers
 "where am I". Switch it to source with `M` and the map comes back.
 
@@ -1032,7 +1034,7 @@ what one buys you:
 | docx, xlsx, pptx | read out as text: paragraphs, rows, slides. **No Office needed** |
 | heic, avif, jxl, psd, video, audio, pdf | the Windows shell thumbnail — the same one Explorer shows |
 
-Office files are zip archives of XML, so filer reads them itself rather than asking the shell for a
+Office files are zip archives of XML, so kura reads them itself rather than asking the shell for a
 thumbnail Office would have to be installed to provide. It does not try to draw the document — it
 takes the text out, which then behaves like any other text preview: scrolling, search, the minimap,
 and an outline of a document's headings, a workbook's sheets or a deck's slides. A workbook's sheets
@@ -1055,7 +1057,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 ### Previewers of your own
 
 A shell thumbnail is one picture — page one of a PDF, the poster frame of a video — and there is no
-way to ask it for a second. `[[preview]]` in `filer.toml` names a command that can be asked:
+way to ask it for a second. `[[preview]]` in `kura.toml` names a command that can be asked:
 
 ```toml
 [[preview]]
@@ -1089,7 +1091,7 @@ Nothing counts the pages. The end of a document arrives as the command refusing,
 is what you see — `Wrong page range given`, from `pdftoppm` itself. Starting a second process
 merely to learn a total is not worth it when the first one will say so anyway.
 
-Neither tool ships with filer. `filer env` lists the programs your rules name and whether they are
+Neither tool ships with kura. `kura env` lists the programs your rules name and whether they are
 on the `PATH`.
 
 ## Default keys
@@ -1116,7 +1118,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `T` | maximize the preview column, or put it back |
 | `e` `E` | extract the selected archives / compress the selection |
 | `<A-c>` `<A-m>` | copy / move the selection to the other pane |
-| `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` filer's config, `gy` yazi's config, `gt` temp, `g<Space>` type a path, `gf` follow the link |
+| `g…` | `gh` home, `gd` Downloads, `gD` Documents, `gc` kura's config, `gy` yazi's config, `gt` temp, `g<Space>` type a path, `gf` follow the link |
 | `c…` | `cc` copy the path, `cd` the parent, `cf` the file name, `cn` the name without its extension; with files marked (`<Space>`) every marked file goes on the clipboard, one per line (v0.93.2) |
 | `o` `O` `<Enter>` `<S-Enter>` | open / open with… / open (at the outline's line) / open with… |
 | `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter. `f` and (v0.90.0) `/` `?` take a regular expression (a plain word is a substring); no capital in it means case does not matter, one capital means it does (v0.87.0). An invalid expression says why and changes nothing. (v0.91.0) After `S` or `F`, `n` `N` walk the matching lines of the preview and step over to the next / previous file at its ends. Every match is coloured, in the list and, after `S` or `F`, in the preview body, which opens at its first match (v0.90.0) (v0.93.5) In this prompt, and in `s` `S` `F`, `<Up>` / `<Down>` (or `<C-p>` / `<C-n>`) bring back what was typed before, as a terminal does; the list is kept between runs (`search-history.txt` in the state directory, 100 entries, a repeat counted once), and `;` `:` shell commands keep their own |
@@ -1150,7 +1152,7 @@ Three words, three different things, and the difference is what each one touches
 
 | | Keys | Touches | Steps |
 | --- | --- | --- | --- |
-| **yank** / **cut** | `y` `x` → `p` | files, through filer's own register | two: the destination is chosen afterwards, and can be anywhere |
+| **yank** / **cut** | `y` `x` → `p` | files, through kura's own register | two: the destination is chosen afterwards, and can be anywhere |
 | **copy** | `c``c` `c``d` `c``f` `c``n` | **text**, onto the system clipboard | one |
 | **send to the pane** | `<A-c>` `<A-m>` | files, straight into the other pane | one: the destination is the other pane, and the work starts at once |
 
@@ -1180,7 +1182,7 @@ fingers came from there, these six lines put them back — `prepend_keymap` is r
 defaults, so nothing has to be deleted:
 
 ```toml
-# ~/.config/filer/keymap.toml (or %APPDATA%\filer\keymap.toml)
+# ~/.config/kura/keymap.toml (or %APPDATA%\kura\keymap.toml)
 [[mgr.prepend_keymap]]
 on = "d"                 # lf: cut, not delete
 run = "yank --cut"
@@ -1225,15 +1227,15 @@ replacing it, and an archive named as one of the files being packed is refused.
 
 `;` and `:` both run a shell command on the selection. They differ in one thing: the console. `;`
 hides it (`CREATE_NO_WINDOW`), so a GUI program does not flash a black box on the way up, and
-because nothing would be readable there anyway filer captures the shell's stderr for three seconds
+because nothing would be readable there anyway kura captures the shell's stderr for three seconds
 and reports a failure as a toast. `:` gives the command a console of its own
 (`CREATE_NEW_CONSOLE`, and its own standard handles, so `nvim` draws there even from the release
 build, which has no console to lend), which is how you read a command's output — at the cost of that
 error reporting, since the output is yours to look at now.
 
-**Neither waits.** filer never blocks on the command; `--block` on `:` is the flag name yazi uses
+**Neither waits.** kura never blocks on the command; `--block` on `:` is the flag name yazi uses
 for the same key, and here it buys the console rather than the wait. So that a command which
-finishes instantly (`git log -5`) does not flash and vanish, filer runs a `--block` shell command as
+finishes instantly (`git log -5`) does not flash and vanish, kura runs a `--block` shell command as
 `<line> & pause`: the console waits for a key. A line that already says `pause` is left alone, and
 openers (`block = true` in `yazi.toml`) are not paused. Off Windows the command runs in a terminal
 window, which stays open only when the command fails.
@@ -1267,7 +1269,7 @@ as you leave it open, and `<A-t>` sends it the hovered file's name.
 ### Bringing the terminal's directory back
 
 `<A-Up>` in the terminal pane moves the list to wherever the shell now is. It does not guess: the
-shell has to announce itself with **OSC 7**, and filer only believes what it is told. Without it
+shell has to announce itself with **OSC 7**, and kura only believes what it is told. Without it
 `<A-Up>` says so and does nothing.
 
 PowerShell sends nothing by default. Most recipes for it replace `prompt`, which breaks Starship and
@@ -1276,19 +1278,19 @@ every other prompt generator; this hook runs on each `cd` instead and leaves the
 **Run this in the pane**, and the hook goes at the end of `$PROFILE` (v0.69.0):
 
 ```powershell
-filer shell-hook | Add-Content $PROFILE
+kura shell-hook | Add-Content $PROFILE
 ```
 
-`filer shell-hook` prints the lines; nothing else needs to go in the profile. Through a pipe and
+`kura shell-hook` prints the lines; nothing else needs to go in the profile. Through a pipe and
 `Add-Content`, not `>>`: PowerShell's `>>`, like its `>`, gets nothing from a windowed program
-(see [Reporting a problem](#reporting-a-problem)). If `filer` is not on the `PATH`, give its full
-path, `& 'C:\tools\filer\filer.exe' shell-hook | Add-Content $PROFILE` — the `<A-Up>` toast
+(see [Reporting a problem](#reporting-a-problem)). If `kura` is not on the `PATH`, give its full
+path, `& 'C:\tools\kura\kura.exe' shell-hook | Add-Content $PROFILE` — the `<A-Up>` toast
 names it that way when it has to. These are the lines it prints, to read before trusting them or
 to paste by hand:
 
 ```powershell
 
-# filer: report the directory to filer's terminal pane (OSC 7)
+# kura: report the directory to kura's terminal pane (OSC 7)
 $prev = $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
 $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
     param($sender, $e)
@@ -1316,7 +1318,7 @@ is not (since v0.55.0; before that it was always 5.1). **The hook needs 7**: 5.1
 `LocationChangedAction` at all, so the lines above fail there every time the shell starts. On
 a machine with only 5.1, `winget install Microsoft.PowerShell` and a new pane.
 
-To change the shell, set `[term] shell` in `filer.toml`, then `<C-F5>`, `<C-S-t>` and `<C-t>`. The
+To change the shell, set `[term] shell` in `kura.toml`, then `<C-F5>`, `<C-S-t>` and `<C-t>`. The
 config is read only at start and on `<C-F5>`, and a pane that is running keeps the shell it started
 with; the `<C-F5>` toast says so when a pane is open (v0.67.17).
 
@@ -1339,35 +1341,35 @@ $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction
 
 An empty third line means the hook is not loaded here.
 
-Running `filer shell-hook | Add-Content $PROFILE` **in the pane** is what makes this right:
+Running `kura shell-hook | Add-Content $PROFILE` **in the pane** is what makes this right:
 whichever file *this* shell reads is the one that gets the hook, so the 5.1-or-7 question above
 cannot be answered wrongly. Then `<C-S-t>` and `<C-t>` as before. Before v0.69.0 the same was done
 with a `@' … '@ | Add-Content` here-string copied out of this page.
 
 bash and zsh on Linux and macOS: most distributions' bash does not send OSC 7, and zsh does not
-either unless a framework does it for it. `filer shell-hook bash >> ~/.bashrc` and
-`filer shell-hook zsh >> ~/.zshrc` add these (`>>` works there; filer is an ordinary program
+either unless a framework does it for it. `kura shell-hook bash >> ~/.bashrc` and
+`kura shell-hook zsh >> ~/.zshrc` add these (`>>` works there; kura is an ordinary program
 outside Windows):
 
 ```bash
 
-# filer: report the directory to filer's terminal pane (OSC 7)
-__filer_osc7() { printf '\e]7;file://%s%s\e\\' "$HOSTNAME" "$PWD"; }
-PROMPT_COMMAND="__filer_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+# kura: report the directory to kura's terminal pane (OSC 7)
+__kura_osc7() { printf '\e]7;file://%s%s\e\\' "$HOSTNAME" "$PWD"; }
+PROMPT_COMMAND="__kura_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 ```
 
 ```zsh
 
-# filer: report the directory to filer's terminal pane (OSC 7)
-__filer_osc7() { printf '\e]7;file://%s%s\e\\' "$HOST" "$PWD" }
+# kura: report the directory to kura's terminal pane (OSC 7)
+__kura_osc7() { printf '\e]7;file://%s%s\e\\' "$HOST" "$PWD" }
 autoload -Uz add-zsh-hook
-add-zsh-hook chpwd __filer_osc7
-__filer_osc7
+add-zsh-hook chpwd __kura_osc7
+__kura_osc7
 ```
 
-`filer shell-hook powershell` refuses rather than print a hook 5.1 cannot run.
+`kura shell-hook powershell` refuses rather than print a hook 5.1 cannot run.
 
-To choose the shell yourself — 5.1 on a machine that has 7, say, or `cmd` — name it in `filer.toml`:
+To choose the shell yourself — 5.1 on a machine that has 7, say, or `cmd` — name it in `kura.toml`:
 
 ```toml
 [term]
@@ -1378,77 +1380,77 @@ shell = "powershell"
 Leaving `[term]` out keeps the default above. The same setting names a shell on macOS and Linux,
 where the default is the login shell.
 
-`FILER_SCALE=1.5` starts one run at that scale (0.2 to 5.0, in tenths), as if `<C-=>` had been pressed
+`KURA_SCALE=1.5` starts one run at that scale (0.2 to 5.0, in tenths), as if `<C-=>` had been pressed
 until it was reached, without touching what the keys saved (v0.78.64). A value that is not a number in
 that range is ignored with a red toast.
 
-For one run only, set `FILER_TERM_SHELL` before starting filer (v0.70.0). It wins over
+For one run only, set `KURA_TERM_SHELL` before starting kura (v0.70.0). It wins over
 `[term] shell`, leaves every other setting as it is, and drops `[term] args`, which were written for
 the shell it replaces. The whole value is the program, so a path with spaces needs no quotes:
 
 ```powershell
-$env:FILER_TERM_SHELL = 'powershell'; filer; Remove-Item Env:FILER_TERM_SHELL
+$env:KURA_TERM_SHELL = 'powershell'; kura; Remove-Item Env:KURA_TERM_SHELL
 ```
 
-`<C-F5>` reads it again with the files, and `filer env` says which of the two the shell came from.
+`<C-F5>` reads it again with the files, and `kura env` says which of the two the shell came from.
 
-`FILER_TERM_ARGS` gives that shell its arguments (v0.78.37, Q81): words split at white space, and a
-`"…"` run keeps its spaces. It counts only beside `FILER_TERM_SHELL`, and `filer env` names it:
+`KURA_TERM_ARGS` gives that shell its arguments (v0.78.37, Q81): words split at white space, and a
+`"…"` run keeps its spaces. It counts only beside `KURA_TERM_SHELL`, and `kura env` names it:
 
 ```powershell
-$env:FILER_TERM_SHELL = 'pwsh'; $env:FILER_TERM_ARGS = '-NoProfile'; filer
+$env:KURA_TERM_SHELL = 'pwsh'; $env:KURA_TERM_ARGS = '-NoProfile'; kura
 ```
 
 ## Reporting a problem
 
 `<F12>` first shows what a report would carry: the version, both architectures and the OS build,
-the last keys pressed, the last error, how filer is drawing (adapter, backend, scale) and the config
+the last keys pressed, the last error, how kura is drawing (adapter, backend, scale) and the config
 files it read — by name, never by path. `<Enter>` opens the report form with all of it filled in,
 `c` copies its link instead, `<Esc>` drops it; nothing leaves the machine until you submit the
 form. If no browser can be opened, the form's link — every field travels in it — is put on the
-clipboard instead, to paste into one. For everything else a report tends to need, `filer env` prints it:
+clipboard instead, to paste into one. For everything else a report tends to need, `kura env` prints it:
 
 ```
-filer env --out filer-env.txt        # into a file, to attach
-filer env                            # on screen
-filer env | Select-String "arch\s+:" # or through a pipe
+kura env --out kura-env.txt        # into a file, to attach
+kura env                            # on screen
+kura env | Select-String "arch\s+:" # or through a pipe
 ```
 
-`--out` (v0.68.0) is the way to get a file to attach: filer writes it itself, as UTF-8, so neither
+`--out` (v0.68.0) is the way to get a file to attach: kura writes it itself, as UTF-8, so neither
 the shell's redirection rules nor the console's code page has a say. It is written under another
-name and renamed into place, so it is never seen half written. Typed as `filer env --out …`, it
-runs through `filer.com`, which the shell waits for: the file is there on the next line and
-`$LASTEXITCODE` is filer's own. **Calling `filer.exe` itself from a script, add `| Out-Null`**
-(`& filer.exe env --out r.txt | Out-Null`): PowerShell does not wait for a windowed program, so
+name and renamed into place, so it is never seen half written. Typed as `kura env --out …`, it
+runs through `kura.com`, which the shell waits for: the file is there on the next line and
+`$LASTEXITCODE` is kura's own. **Calling `kura.exe` itself from a script, add `| Out-Null`**
+(`& kura.exe env --out r.txt | Out-Null`): PowerShell does not wait for a windowed program, so
 without it the next line runs before the file exists and `$LASTEXITCODE` still reads 0 even when
-filer refused with 2 (#188). `Start-Process -Wait -PassThru` works too, with the exit code in
+kura refused with 2 (#188). `Start-Process -Wait -PassThru` works too, with the exit code in
 `.ExitCode`.
 
 Since v0.54.4 the text goes wherever standard output is sent; before that it went only to the
-screen. With `filer.com` beside `filer.exe` (v0.71.0, see [Getting a build](#getting-a-build)),
-`filer` is a console command and every shell form works: `filer env > out.txt`,
-`$v = & filer env`. Calling `filer.exe` itself, PowerShell does not wait for it at the end of a
-pipeline and its `>` connects nothing, so `filer.exe env > out.txt` gives an empty file and
-`$v = & filer.exe env` an empty variable. Put something after it (`| Out-File`, `| Write-Output`),
-use `cmd /c "filer.exe env > out.txt"`, or `--out`. If a non-ASCII
+screen. With `kura.com` beside `kura.exe` (v0.71.0, see [Getting a build](#getting-a-build)),
+`kura` is a console command and every shell form works: `kura env > out.txt`,
+`$v = & kura env`. Calling `kura.exe` itself, PowerShell does not wait for it at the end of a
+pipeline and its `>` connects nothing, so `kura.exe env > out.txt` gives an empty file and
+`$v = & kura.exe env` an empty variable. Put something after it (`| Out-File`, `| Write-Output`),
+use `cmd /c "kura.exe env > out.txt"`, or `--out`. If a non-ASCII
 path comes out garbled in PowerShell, that is PowerShell decoding the bytes with the console's code
 page: `[Console]::OutputEncoding = [Text.Encoding]::UTF8` first, or go through `cmd`, which writes
 the UTF-8 as it is.
 
 It says which config files were looked for **and where**, which were found and how big they are,
 any warnings from loading them, which outside tools are on the `PATH` and what each one is for,
-and the environment variables that change filer's behaviour. The "and where" is the half that
+and the environment variables that change kura's behaviour. The "and where" is the half that
 matters: a theme that is not taking effect is nearly always a file in the other directory, or a
 name spelled differently, and a list of what was found cannot show that.
 
 It also prints what the **last run** used: the GPU adapter and backend egui ended up on, and the
 font files that were actually loaded. Neither is knowable from a command that exits before a window
-opens, so the run that does know writes it down and `filer env` reads it back — which is the right
+opens, so the run that does know writes it down and `kura env` reads it back — which is the right
 way round anyway, since the run worth reporting on is the one that misbehaved, not the one typing
-`filer env` afterwards. A blank or slow window is nearly always the adapter line (`Cpu` as the
+`kura env` afterwards. A blank or slow window is nearly always the adapter line (`Cpu` as the
 device type answers it on its own), and boxes instead of icons is nearly always the font line.
 
-The tools listed are the ones filer really runs — `git` for the status column, the shell the
+The tools listed are the ones kura really runs — `git` for the status column, the shell the
 terminal pane will launch (the one `[term] shell` names, or the platform's default), and the
 programs your openers name. Previews and archives are handled in-process and need nothing. They are
 **looked up rather than run**: an opener is a command line out of your own config, and asking it for
@@ -1462,7 +1464,7 @@ the same contract yazi uses, so a `cd`-on-exit wrapper works:
 ```powershell
 function f {
     $tmp = New-TemporaryFile
-    filer $args --cwd-file $tmp.FullName
+    kura $args --cwd-file $tmp.FullName
     $dest = Get-Content $tmp
     if ($dest) { Set-Location $dest }
     Remove-Item $tmp
@@ -1472,40 +1474,40 @@ function f {
 
 ## Claude Code (MCP)
 
-`filer mcp` is an [MCP](https://modelcontextprotocol.io) server, so Claude Code can ask what the
-filer window is showing. Add it once:
+`kura mcp` is an [MCP](https://modelcontextprotocol.io) server, so Claude Code can ask what the
+kura window is showing. Add it once:
 
 ```powershell
-claude mcp add filer -- "C:\tools\filer\filer.exe" mcp     # Windows: the full path to filer.exe
-claude mcp add filer -- filer mcp                             # macOS / Linux, with filer on PATH
+claude mcp add kura -- "C:\tools\kura\kura.exe" mcp     # Windows: the full path to kura.exe
+claude mcp add kura -- kura mcp                             # macOS / Linux, with kura on PATH
 ```
 
 | Tool | What it does |
 | --- | --- |
-| `filer_state` | The current folder, the path under the cursor, the selected paths (up to 500) and the tabs, as JSON |
-| `filer_reveal` | Goes to a file's folder and puts the cursor on it. Takes an absolute `path`; changes no file |
+| `kura_state` | The current folder, the path under the cursor, the selected paths (up to 500) and the tabs, as JSON |
+| `kura_reveal` | Goes to a file's folder and puts the cursor on it. Takes an absolute `path`; changes no file |
 
-Then "what's the file I have open in filer?" or "show me the config you just edited in filer" work
-without pasting paths. Claude Code reads the files with its own tools; filer only says where you are.
+Then "what's the file I have open in kura?" or "show me the config you just edited in kura" work
+without pasting paths. Claude Code reads the files with its own tools; kura only says where you are.
 
-`filer mcp` opens no window. It talks to the window that is already running, through a door only
-your own user can open (`\\.\pipe\filer-<user>` on Windows, `$XDG_RUNTIME_DIR/filer/sock` elsewhere;
-`FILER_ADDRESS` names another). Nothing listens on the network. With no window open the tool answers
-"filer is not running". With two windows, the first one opened answers; when it closes the next one
+`kura mcp` opens no window. It talks to the window that is already running, through a door only
+your own user can open (`\\.\pipe\kura-<user>` on Windows, `$XDG_RUNTIME_DIR/kura/sock` elsewhere;
+`KURA_ADDRESS` names another). Nothing listens on the network. With no window open the tool answers
+"kura is not running". With two windows, the first one opened answers; when it closes the next one
 takes over within half a minute.
 
 What the tools return goes to the model like anything else Claude Code reads, so the file names you
-have on screen leave the machine. `[mcp] enable = false` in `filer.toml` keeps the door shut. Tools
+have on screen leave the machine. `[mcp] enable = false` in `kura.toml` keeps the door shut. Tools
 that change files are not there yet; when they come they will ask in the window first
 ([docs/llm-integration.md](docs/llm-integration.md)).
 
 ## Scripted keys
 
-`--keys KEYS` has filer press keys by itself once it has started, written the way the keymap writes
+`--keys KEYS` has kura press keys by itself once it has started, written the way the keymap writes
 them — `<Tab>` is one key, anything outside `<…>` is one key per character:
 
 ```powershell
-filer C:\some\dir --keys "<Tab>C"     # open spot on the first row, copy the whole panel
+kura C:\some\dir --keys "<Tab>C"     # open spot on the first row, copy the whole panel
 Get-Clipboard
 ```
 
@@ -1514,14 +1516,14 @@ does, overlays and terminal included. Each waits until what the last one started
 listing read, the preview up, the spot panel's or a comparison's answer back — and never more than
 five seconds. It is meant for checks run by a script, where driving the window from outside is
 fragile (a screen saver, for one, swallows synthetic input without a word). It only ever acts on the
-filer it starts: nothing is opened for a filer that is already running. A key that cannot be typed
+kura it starts: nothing is opened for a kura that is already running. A key that cannot be typed
 is refused on the command line, before any window opens.
 
-`<Wait:N>` pauses N milliseconds (up to 60000) after the key before it, for what filer cannot see
+`<Wait:N>` pauses N milliseconds (up to 60000) after the key before it, for what kura cannot see
 settle — a shell in the terminal pane, a program running there (v0.59.0):
 
 ```powershell
-filer --keys "<C-t><Wait:1500>git<Space>status<Enter><Wait:1000><C-S-Enter>"
+kura --keys "<C-t><Wait:1500>git<Space>status<Enter><Wait:1000><C-S-Enter>"
 ```
 
 `<Now>` is the other way round: the key right after it goes in on the next frame, without waiting
@@ -1530,17 +1532,17 @@ halfway — `d<Now>w` opens the task panel while the trash is still running, and
 moves inside the preview's 40 ms debounce. It has to come right before a key; anything else is
 refused on the command line.
 
-`<Shot:name>` saves the window as it is at that point as `name.png`, beside the `FILER_KEYS_DONE`
-file (or in the folder filer was started from), and the next key waits until it is on disk
+`<Shot:name>` saves the window as it is at that point as `name.png`, beside the `KURA_KEYS_DONE`
+file (or in the folder kura was started from), and the next key waits until it is on disk
 (v0.67.0). `--keys "<Shot:before><C-t><Shot:after>"` gives the two pictures a comparison needs from
 one run. The name is letters, digits, `-` and `_`. `<Shot:name@preview>` saves only the preview pane's rectangle (v0.78.218).
 
-`<State:name>` writes what the `FILER_KEYS_DONE` file would say at that point to `name.txt` in the
+`<State:name>` writes what the `KURA_KEYS_DONE` file would say at that point to `name.txt` in the
 same folder (v0.73.74). That file is written when the script ends, so a script ending in `q` reports
 `overlay: none`; `--keys "<F12><State:panel><Esc>q"` reads the open box and still quits by itself.
 
 `<PaneText:name>` writes what the terminal pane shows, as text with the blanks at the end of each row
-cut, to `name.pane.txt` beside the `FILER_KEYS_DONE` file (v0.78.63), so a full-screen program's footer
+cut, to `name.pane.txt` beside the `KURA_KEYS_DONE` file (v0.78.63), so a full-screen program's footer
 can be checked as words; with no pane it writes `(no pane)`.
 
 `<Now>` may also come before `<State:name>`, `<Shot:name>` or `<PaneText:name>`, to read a job that is still running (v0.78.69): `<A-c><Now><State:mid>`.
@@ -1561,17 +1563,17 @@ A positive N turns up -- in the pane, back into the scrollback -- and a negative
 as egui's own events, so no foreground window or screen saver matters, and a prompt's text field
 hears `<C-v>` as a real keyboard would deliver it.
 
-`<Quit>` ends filer whatever is open, as the window's close button would (v0.74.2). `q` is a key like
+`<Quit>` ends kura whatever is open, as the window's close button would (v0.74.2). `q` is a key like
 any other, and the compare view, the terminal pane and a prompt take it for something else, so a
 script ending in `q` there never ended. The report it leaves describes what was open when it quit.
 
 A space is written `<Space>`; a plain one is refused.
 
-A script driving filer from outside needs to know when the keys are done, and guessing from the
+A script driving kura from outside needs to know when the keys are done, and guessing from the
 `<Wait:N>` it wrote misses the time each key spends waiting to settle. Nor does the command itself
-wait: `filer.exe`, and `filer.com` too, return as soon as the window is up, keys still to come. Wait
-on `FILER_KEYS_DONE` below, or end the keys with `q` and start filer with `Start-Process -Wait`. Set `FILER_KEYS_DONE` to a
-file path and filer writes that file once the last key has gone in and what it started has landed —
+wait: `kura.exe`, and `kura.com` too, return as soon as the window is up, keys still to come. Wait
+on `KURA_KEYS_DONE` below, or end the keys with `q` and start kura with `Start-Process -Wait`. Set `KURA_KEYS_DONE` to a
+file path and kura writes that file once the last key has gone in and what it started has landed —
 the same wait the keys themselves take (v0.60.1). `scripts/xrun.sh` waits for it. "Landed" includes
 a file job: since v0.67.12 a key waits for a trash, copy, move, link or undo it started to finish,
 so `u<Shot:after>` pictures the toast the restore ends with (`<Now>` still reaches a job mid-run).
@@ -1602,7 +1604,7 @@ toasts: Copied: /tmp/work/a.txt | Yanked 1 item
 keys: done
 ```
 
-`toast kind` is the last toast cut at its first `:` (`Command failed`, `Open failed`), so a wording check reads one short line (v0.78.165); empty when there is no toast (v0.78.171). `yank` is the register as the header says it -- `1 cut`, `2 copied` or `empty` (v0.75.15). Since v0.78.2: `focus` is where the next key goes (`list`, `pane`, `outline` or `overlay`), `pane cursor: col,row` the terminal's cursor while the pane is open, `pane title: …` the title the pane reports (an empty one still prints the line; v0.85.7), `max preview` and `quick` whether `T` and the quick look are up, `config` every config file read (`|`-separated, or `none`), and `mcp: …` the door `filer mcp` reads through (v0.85.9; `off` when `[mcp] enable = false`). Since v0.78.84 `parent: a | b…c.log | …` gives the parent column's rows as drawn, each cut to the column's width (cut at 40 rows), while the column is on screen. Since v0.78.81, after an opener or a `shell` command ran, `launched: 12345 <line>` gives the PID of the process it started (the shell the line runs in, whose child is the program; `-` when there is none) and the line, so a check can stop that process and not every one of the same name. `overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `view` is
+`toast kind` is the last toast cut at its first `:` (`Command failed`, `Open failed`), so a wording check reads one short line (v0.78.165); empty when there is no toast (v0.78.171). `yank` is the register as the header says it -- `1 cut`, `2 copied` or `empty` (v0.75.15). Since v0.78.2: `focus` is where the next key goes (`list`, `pane`, `outline` or `overlay`), `pane cursor: col,row` the terminal's cursor while the pane is open, `pane title: …` the title the pane reports (an empty one still prints the line; v0.85.7), `max preview` and `quick` whether `T` and the quick look are up, `config` every config file read (`|`-separated, or `none`), and `mcp: …` the door `kura mcp` reads through (v0.85.9; `off` when `[mcp] enable = false`). Since v0.78.84 `parent: a | b…c.log | …` gives the parent column's rows as drawn, each cut to the column's width (cut at 40 rows), while the column is on screen. Since v0.78.81, after an opener or a `shell` command ran, `launched: 12345 <line>` gives the PID of the process it started (the shell the line runs in, whose child is the program; `-` when there is none) and the line, so a check can stop that process and not every one of the same name. `overlay` is one of `none`, `input`, `confirm`, `pick`, `help`, `tasks`, `spot`, `diff`; `view` is
 `usage`, `archive` or `search` while one of those views stands in for the listing, else `list` (v0.64.0); `archive` is the archive and the level
 of it on screen (`…/pack.zip/docs`) while `view: archive` (v0.78.16); `picture` is the `{n}` an external preview is on -- a page or a second -- while the file under the cursor has a `[[preview]]` rule (v0.78.17); `input` is
 there only while a prompt is open; `compare: folders <left> | <right>` (or `files`) only while a
@@ -1612,9 +1614,9 @@ there are (v0.73.43); `toast` is
 the newest message still on screen, empty when there is none. Since v0.73.1: `list top` is the first
 row of the list on screen, `preview top: N of M` the preview's first line against the furthest it can
 scroll, `preview: early` while the uncoloured first screen of a long text is up ahead of the whole one (`whole` otherwise; `<Now>` and a short `<Wait:>` can read it, since a plain `<State:>` waits for the whole one; v0.86.22), `zoom` the image's scale (`fit` or `250%`; since v0.78.83 `fit (23%)` while a picture is up, the scale fit comes to in this window), `minimap setting` what `<A-n>` flips, and `split`
-whether the second pane is open and which side has the keys. Since v0.73.69 `scale` is filer's own
-scale (`<C-=>`) with the pixels per point egui drew at -- the display's scale times filer's -- and
-`window` the window in pixels and points, as `filer env` words it. Since v0.73.3, while a picker is open
+whether the second pane is open and which side has the keys. Since v0.73.69 `scale` is kura's own
+scale (`<C-=>`) with the pixels per point egui drew at -- the display's scale times kura's -- and
+`window` the window in pixels and points, as `kura env` words it. Since v0.73.3, while a picker is open
 (`<S-Enter>`, `O`, the palette), `pick: Neovim | VS Code | …` lists what it offers in the order shown
 (after any filter typed into it, cut at 40), with the note a row shows on its right in brackets --
 `…\repo (2h ago)` in the jump list (v0.73.43) and `picked:` the row under its cursor. Since v0.73.72, while a
@@ -1627,7 +1629,7 @@ faded ones too (the last 16, oldest first, `|` between them and ` / ` for a toas
 so a check whose result is a toast need not catch it on screen.
 
 A script that stops part way still leaves the file (v0.67.12). If nothing has been pressed for 30
-seconds past any `<Wait:N>` due -- the window stopped getting frames -- filer writes this instead,
+seconds past any `<Wait:N>` due -- the window stopped getting frames -- kura writes this instead,
 and says the same on standard error:
 
 ```text
@@ -1640,7 +1642,7 @@ left: u <Shot:after>
 Should the keys go on after all, the usual report replaces it. So read the last line: `keys: done`
 is a finished script, and anything else is not.
 
-Two more endings leave the file too (v0.72.8). A script whose last key quits filer (`jq`) writes its
+Two more endings leave the file too (v0.72.8). A script whose last key quits kura (`jq`) writes its
 report as the window closes, with `quit: yes` just before `keys: done`; a quit with keys still to go
 ends `keys: quit` and `left: N not pressed`. A script refused before the window opens (a plain
 space, a key that cannot be typed) writes `keys: refused` and `why: …`, the same reason the command
@@ -1664,7 +1666,7 @@ by two Windows machines, one x64 and one ARM64 laptop, each running the checklis
 [TESTING-CHECKS.md](TESTING-CHECKS.md) against the program itself (see [Testing](#testing)).
 
 Windows on ARM will happily run the x64 build under emulation, which makes it easy to test the
-emulator by accident. `filer --version` prints the architecture it was built for, so it can say
+emulator by accident. `kura --version` prints the architecture it was built for, so it can say
 which one is actually running.
 
 ## Network paths (UNC)
@@ -1692,7 +1694,7 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   simply mistyped.
 - Typing a file's path into the `cd` prompt still lands on its folder with that file under the
   cursor — that answer now comes from the scan rather than from a blocking check.
-- The path on the command line (`filer \\host\share`) is opened the same way: the window goes up
+- The path on the command line (`kura \\host\share`) is opened the same way: the window goes up
   at once and the first listing decides. A path that names a file reveals it in its folder, and
   one that answers nothing falls back to the working directory with the error as a toast.
 - `follow` (`gf`) on a link into a slow share is instant too — the target is read on the scan
@@ -1766,8 +1768,8 @@ src/
   spot.rs        the spot panel's providers (<Tab>)
   search.rs      recursive name/content search
   exec.rs        openers and shell
-  keyscript.rs   --keys, the scripted keys the tests and the Windows lanes drive filer with
-  bugreport.rs   the <F12> report; envreport.rs, `filer env`
+  keyscript.rs   --keys, the scripted keys the tests and the Windows lanes drive kura with
+  bugreport.rs   the <F12> report; envreport.rs, `kura env`
 ```
 
 ## Testing
@@ -1797,7 +1799,7 @@ conflict over a total; `-- --stats` prints them (v0.73.14).
 
 The ticks come from real Windows machines. An unattended Claude Code session on an x64 desktop and
 another on an ARM64 laptop take the next rows from the queue in `.claude/windows-role.md`, drive
-filer with `--keys`, tick what they could read back, and open a pull request with their report in
+kura with `--keys`, tick what they could read back, and open a pull request with their report in
 `qa-reports/`. As of v0.80.13, 460 of the 527 rows in [TESTING-CHECKS.md](TESTING-CHECKS.md) and
 259 of the 262 keys are ticked; `cargo run --example make-testcheck -- --stats` prints the current
 counts.
@@ -1805,7 +1807,7 @@ counts.
 ## Building
 
 ```
-cargo build --release      # target\release\filer.exe
+cargo build --release      # target\release\kura.exe
 cargo test                 # the parsing, sorting and fuzzy-matching tests
 ```
 
@@ -1818,13 +1820,13 @@ behavior run only on Windows.
 ## Reporting a bug
 
 Press `<F12>` in the app, then `<Enter>`. It opens the report form in your browser with the version, the
-architecture, the Windows build and what filer knew already filled in, which is the part of a report most
+architecture, the Windows build and what kura knew already filled in, which is the part of a report most
 likely to be looked up wrongly or not at all — and on Windows on ARM the program is better
 placed to answer than you are, since an x64 build running under emulation will tell the
 shell it is on x64 while knowing perfectly well what it is.
 
-Or open one by hand: <https://github.com/uchmk/filer/issues>. The bug report form asks for the version
-(`filer --version`), your Windows build, and the smallest sequence of keys that shows the problem —
+Or open one by hand: <https://github.com/uchmk/kura/issues>. The bug report form asks for the version
+(`kura --version`), your Windows build, and the smallest sequence of keys that shows the problem —
 this is a keyboard-driven program, so the keys usually *are* the reproduction. It also asks what
 kind of file or folder was involved, since a 3000-line source file and a 40-character filename break
 different code paths, and for a backtrace when the program crashes, which is worth more than
@@ -1832,7 +1834,7 @@ everything else on the form put together:
 
 ```powershell
 $env:RUST_BACKTRACE = 1
-& "C:\path\to\filer.exe"
+& "C:\path\to\kura.exe"
 ```
 
 The `&` is not optional. A quoted path on its own line is a string, and PowerShell prints it rather
@@ -1875,7 +1877,7 @@ conditions.
 
 ### Third-party code
 
-filer links a number of crates, all under permissive licenses (MIT, Apache-2.0, BSD, Zlib, ISC,
+kura links a number of crates, all under permissive licenses (MIT, Apache-2.0, BSD, Zlib, ISC,
 Unlicense, CC0 and one MPL-2.0 file-level component in `option-ext`, reached through `dirs`). None
 of them constrains the choice above. A binary you distribute still carries their notice
 requirements: `cargo about` or `cargo bundle-licenses` will generate the attribution file.
@@ -1885,7 +1887,7 @@ Two of them also ship data rather than only code:
 - **syntect** and **two-face** embed syntax definitions collected by [bat], which are third-party
   Sublime Text grammars under their own (mostly MIT) licenses. See two-face's acknowledgements for
   the list.
-- **resvg** brings its own font handling; the fonts filer draws with are the ones already installed
+- **resvg** brings its own font handling; the fonts kura draws with are the ones already installed
   on your system and are not redistributed here.
 
 [bat]: https://github.com/sharkdp/bat

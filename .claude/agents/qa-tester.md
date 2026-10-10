@@ -1,6 +1,6 @@
 ---
 name: qa-tester
-description: Writes tests and audits the test documentation for filer. Use when TESTING.md rows should become automated tests, when TESTING-KEYS.md may have drifted from the keymap, or when the checklists need checking against the source. It writes only inside `#[cfg(test)]` modules and reports anything else rather than changing it.
+description: Writes tests and audits the test documentation for kura. Use when TESTING.md rows should become automated tests, when TESTING-KEYS.md may have drifted from the keymap, or when the checklists need checking against the source. It writes only inside `#[cfg(test)]` modules and reports anything else rather than changing it.
 tools: Read, Glob, Grep, Bash, Edit, Write, TodoWrite
 ---
 

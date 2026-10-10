@@ -252,7 +252,7 @@ pub fn order(rows: &[(String, String)]) -> Vec<Step> {
 /// purpose: it is only on disk between two renames, and it must not be mistaken
 /// for something worth keeping if a crash leaves it there.
 pub fn park_name(dir: &Path, i: usize) -> PathBuf {
-    dir.join(format!(".filer-bulk-rename-{i}"))
+    dir.join(format!(".kura-bulk-rename-{i}"))
 }
 
 #[cfg(test)]

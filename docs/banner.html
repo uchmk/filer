@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  filer's social preview -- the banner GitHub shows when the repository is
+  kura's social preview -- the banner GitHub shows when the repository is
   linked anywhere. Rendered to docs/social-preview.png and uploaded by hand at
   Settings > General > Social preview; GitHub has no API for that setting.
 
@@ -18,7 +18,7 @@
 
   Two things it is easy to get wrong here, both found by getting them wrong:
 
-  - **The colours are filer's own**, read out of src/config/theme.rs, so the
+  - **The colours are kura's own**, read out of src/config/theme.rs, so the
     banner and the program cannot disagree about what colour the thing is. If
     the default theme changes, change them here too.
   - **The headline is the README's own claim**, from "Why it feels fast": only
@@ -33,7 +33,7 @@
 -->
 <html><head><meta charset="utf-8">
 <style>
-  /* filer's own palette, read out of src/config/theme.rs so the banner and the
+  /* kura's own palette, read out of src/config/theme.rs so the banner and the
      program cannot disagree about what colour the thing is. */
   :root{
     --bg:#16181d; --bg-alt:#1b1e24; --border:#2c3039;
@@ -120,7 +120,7 @@
   <div class="glow"></div>
   <div class="wrap">
     <div class="left">
-      <div class="mark">filer<span class="caret"></span></div>
+      <div class="mark">kura<span class="caret"></span></div>
       <div class="tag"><b>200,000 files.</b><br>Same speed as twenty.</div>
       <div class="sub">A keyboard-driven file manager for Windows.</div>
       <div class="chips">
@@ -132,7 +132,7 @@
 
   <div class="app">
     <div class="bar">
-      <span style="color:var(--cyan)">C:\dev\filer\src</span>
+      <span style="color:var(--cyan)">C:\dev\kura\src</span>
       <span style="margin-left:auto;color:var(--dim);letter-spacing:3px">&#9472; &#9633; &#10005;</span>
     </div>
     <div class="cols">

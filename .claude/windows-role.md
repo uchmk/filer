@@ -1,6 +1,6 @@
 # The session on the Windows machine
 
-You are Claude Code running **on the machine filer is built for**. That is the
+You are Claude Code running **on the machine kura is built for**. That is the
 whole point of you, and it is worth being precise about what it buys, because
 the cloud sessions that do most of the work on this repository cannot do any of
 it.
@@ -16,11 +16,11 @@ A cloud session runs in a Linux container with no display, no MSVC linker and no
 Windows. It type-checks `#[cfg(windows)]` code and cannot execute a line of it.
 So everything below has been written from the source and never once run:
 
-- **Start the real binary.** `filer.exe` on Windows, with the terminal pane, the
+- **Start the real binary.** `kura.exe` on Windows, with the terminal pane, the
   shell openers, the registry lookups and the Win32 calls all live.
 - **Run `scripts/make-fixtures.ps1`**, which is PowerShell and does not exist to
   a Linux session.
-- **Read what the program prints.** `filer env`, `filer --version`, a config
+- **Read what the program prints.** `kura env`, `kura --version`, a config
   warning, a toast -- these are text, and text can be compared.
 - **Check the filesystem afterwards.** Whether a hardlink was made, where a
   symlink points, what an archive unpacked into, whether a file reached the
@@ -34,9 +34,9 @@ So everything below has been written from the source and never once run:
 row down as an appearance row, look for something that can be *read* in its
 place. Most rows that sound like looks have one:
 
-**`scripts\keys.ps1` runs one of these for you** (`scripts\keys.ps1 -Dir <dir> -Keys '<Tab>C<State:spot><Quit>' [-Out <dir>] [-Launches]`): own `FILER_KEYS_DONE` folder, waits on filer's own id (`-Launches` for a run that starts a program), warns when the done file is not `keys: done` (and exits 1; 2 for a timeout), prints it and every `<State:>` file. Use it instead of rewriting the `Start-Process` lines.
+**`scripts\keys.ps1` runs one of these for you** (`scripts\keys.ps1 -Dir <dir> -Keys '<Tab>C<State:spot><Quit>' [-Out <dir>] [-Launches]`): own `KURA_KEYS_DONE` folder, waits on kura's own id (`-Launches` for a run that starts a program), warns when the done file is not `keys: done` (and exits 1; 2 for a timeout), prints it and every `<State:>` file. Use it instead of rewriting the `Start-Process` lines.
 
-**Start with `--keys`.** Since v0.54.0 filer presses keys itself: `filer <dir> --keys "<Tab>C"`
+**Start with `--keys`.** Since v0.54.0 kura presses keys itself: `kura <dir> --keys "<Tab>C"`
 opens spot on the first row and copies the whole panel, and `Get-Clipboard` reads it. No window
 to find, no `SendInput` for a screen saver to swallow. Reach for `PostMessage` / `SendInput` only
 for what `--keys` cannot do -- the mouse, or a sequence that depends on what you read in between.
@@ -44,34 +44,34 @@ for what `--keys` cannot do -- the mouse, or a sequence that depends on what you
 pane: `--keys "<C-t><Wait:1500>git<Space>status<Enter><Wait:1000><C-S-Enter>"`. Do not pad with
 harmless keys any more; a wait says how long it waited.
 **Since v0.65.0 `<Now>`** presses the next key without waiting for the last to settle (`d<Now>w`, `j<Now>j`), and
-**since v0.67.0 `<Shot:name>`** saves the window as `name.png` beside the `FILER_KEYS_DONE` file, so the picture between
+**since v0.67.0 `<Shot:name>`** saves the window as `name.png` beside the `KURA_KEYS_DONE` file, so the picture between
 two keys comes from the same run (`<Shot:focused><C-t><Shot:unfocused>`), and **since v0.73.74 `<State:name>`** writes the
 state lines to `name.txt` there, so a script can read a state halfway and still end in `q` (`<F12><State:panel><Esc>q`, #230). **Since v0.74.2 end a script with `<Quit>`**
 rather than `q` wherever `q` means something else -- the compare view closes on it, a prompt types it, the pane sends it -- or
 `Start-Process -Wait` never returns (#236).
 **Since v0.67.12** a key waits for a file job it started (trash, restore, copy, link) to finish, so `u<Shot:x>` shows the
-toast without a `<Wait:>` -- use `<Now>` to catch a job mid-run. And the `FILER_KEYS_DONE` file always comes: its last line
+toast without a `<Wait:>` -- use `<Now>` to catch a job mid-run. And the `KURA_KEYS_DONE` file always comes: its last line
 is `keys: done`, or it starts `keys: stalled` with the keys pressed, the last one and the rest, when nothing went in for
 30 s past any wait. Since v0.72.8 a script ending in `q` still writes it (`quit: yes`, then `keys: done`), and a refused one
 writes `keys: refused` and `why: …` before any window opens (#193). **A stalled file is not a result** -- say so in your report with its lines.
 **Start each `--keys` run with `Start-Process -Wait`** (#225) -- **except a run that launches a program** (sections 22, 26, 32, 37 and `<F12>`): `-Wait` waits for
-the process's descendants too, so it never returns while the editor or browser is open. Use `-PassThru` and `Wait-Process -Id` on filer's own id (#234).
+the process's descendants too, so it never returns while the editor or browser is open. Use `-PassThru` and `Wait-Process -Id` on kura's own id (#234).
 **Chrome opens a new tab in the window already there**: close only the tab you opened, with `<C-w>` on that window in front, never `WM_CLOSE`
-on the window, which takes every tab in it (#234 closed an earlier run's tab that way). The rule above it: `filer.exe` is a GUI program, so `& filer.exe … --keys …`
+on the window, which takes every tab in it (#234 closed an earlier run's tab that way). The rule above it: `kura.exe` is a GUI program, so `& kura.exe … --keys …`
 returns before the first key goes in, and what you read next is the state before the keys.
 **Did an editor open on the line?** Have the editor say so itself, from a throwaway config: nvim with `NVIM_APPNAME` pointing at an
 `init.lua` that writes the cursor line to a file (#260 did 22.6a this way in five lines), VS Code with its own `--user-data-dir`
 and `--extensions-dir`. It reads no picture and none of the owner's settings, and works for editors that have no console to read.
 **`<C-v>` in `--keys` pastes nothing into a prompt** (#250, #260): a right-click is still the only way to test a paste.
 **`f` filters by subsequence, not substring** (#263): `fone.txt<Enter>` can land on `added-once.txt`. After filtering by name, read `hovered:` back before you report on the row. Give every run its own
-`FILER_KEYS_DONE` file, too: a second run writing the same path overwrites the first one's lines.
-**Do not change the machine's display scale** (#228): a row that wants a scale other than 100% gets it from filer's own `<C-=>`
+`KURA_KEYS_DONE` file, too: a second run writing the same path overwrites the first one's lines.
+**Do not change the machine's display scale** (#228): a row that wants a scale other than 100% gets it from kura's own `<C-=>`
 (five presses reach 150%, `Scale 150%` in `toasts:`), as #227 did. #228 set the laptop to 150% through `SPI_SETLOGICALDPIOVERRIDE` and
 deleted the registry key it made afterwards; it put everything back, but a run that dies in between leaves the owner's desk at 150%.
 **A run that presses `d` takes back what it trashed** (#231): `u` before it ends, or remove from the Recycle Bin only the items whose
 original location is under its own scratch. #231 found 38 items in the owner's bin left by earlier runs.
 **Earlier runs' leftovers are yours to clear too** (v0.83.2, #256 / #263): once per run, before the queue, remove from the Recycle Bin the items whose
-original location is under the launcher's scratch root (`R:\Temp` on x64, `%TEMP%\filer-scratch` on ARM64: any `run-<time>` folder, not only yours),
+original location is under the launcher's scratch root (`R:\Temp` on x64, `%TEMP%\kura-scratch` on ARM64: any `run-<time>` folder, not only yours),
 and close the Chrome tabs whose address is a `file:///` under that root or under the fixture tree, each with `<C-w>` on its window in front.
 Touch nothing else in the bin or the browser -- the rest is the owner's -- and write both counts (before / removed) in your report.
 **A row that opens a browser tab** (26.1, `<F12>`): count the tabs titled "New issue" before and after, close the one
@@ -79,19 +79,19 @@ you opened by its title, and write both counts in your report (#226 found four l
 
 | The row says | What you can read instead |
 | --- | --- |
-| the list went somewhere | the window title -- of **filer's own window**: class `Window Class`, title starting `Filer:`. Not `(Get-Process filer).MainWindowHandle`, which can be winit's untitled `Winit Thread Event Target` window, whose empty title reads like a failure (#88) |
+| the list went somewhere | the window title -- of **kura's own window**: class `Window Class`, title starting `Kura:`. Not `(Get-Process kura).MainWindowHandle`, which can be winit's untitled `Winit Thread Event Target` window, whose empty title reads like a failure (#88) |
 | the cursor landed on a row | `c` `f` on it, then `Get-Clipboard` |
 | keys reached the pane, not the list | type a command that **creates a file**; it exists only if they did |
 | the pane is a third / the whole window | `$Host.UI.RawUI.WindowSize.Height` in the pane |
 | the list is drawn full height | from the top of `many\`, `<C-f>` then `c` `f`: a page move is as many rows as the list shows, so the file it lands on measures the list |
-| no crash, no hang, the walk stopped | `Get-Process filer` -- still there, and its CPU time no longer rising |
-| nothing leaves the machine | Windows Firewall rules blocking `filer.exe` and `git.exe` outbound (needs elevation; delete them afterwards), then the same output at the same speed. Without elevation, `Get-NetTCPConnection` / `Get-NetUDPEndpoint` for filer and its children as supporting evidence |
-| what the pane and a program in it said to each other | `FILER_PTY_LOG`, and `scripts\keyprobe.ps1` in the pane |
+| no crash, no hang, the walk stopped | `Get-Process kura` -- still there, and its CPU time no longer rising |
+| nothing leaves the machine | Windows Firewall rules blocking `kura.exe` and `git.exe` outbound (needs elevation; delete them afterwards), then the same output at the same speed. Without elevation, `Get-NetTCPConnection` / `Get-NetUDPEndpoint` for kura and its children as supporting evidence |
+| what the pane and a program in it said to each other | `KURA_PTY_LOG`, and `scripts\keyprobe.ps1` in the pane |
 | a click, a hover, the pointer | `SendInput` for the mouse, `GetCursorInfo` for the cursor shape, through `Add-Type`. On the x64 machine an absolute `SendInput` move does not move the cursor: move it with `SetCursorPos` and send only the buttons with `SendInput`, after checking the foreground and `WindowFromPoint` (#288 dragged 1.11-1.11c that way). **Never `PostMessage` for the mouse**: a posted click, right-click or `WM_MOUSEWHEEL` reaches egui not at all, though `PostMessageW` returns `True` (#100). A 64-bit `INPUT` is **40 bytes**; padded to 48 for a `MOUSEINPUT`, `SendInput` returns 0 and moves nothing (`KEYBDINPUT` does need padding to reach 40) |
-| a key or a paste reached the program in the pane | `FILER_PTY_LOG`: `in key` / `in paste` lines are the bytes sent, so `\e[200~` around a paste, `\eOA` against `\e[A`, or no line at all, can be read |
-| a program was started, and how | `Get-CimInstance Win32_Process` for filer's children: the `CommandLine` shows the editor and the line number it was given |
-| a toast or a warning said something | a screenshot, read as text. Also `filer env`, which prints the config warnings |
-| the app kept running / quit | `Get-Process filer` after the key |
+| a key or a paste reached the program in the pane | `KURA_PTY_LOG`: `in key` / `in paste` lines are the bytes sent, so `\e[200~` around a paste, `\eOA` against `\e[A`, or no line at all, can be read |
+| a program was started, and how | `Get-CimInstance Win32_Process` for kura's children: the `CommandLine` shows the editor and the line number it was given |
+| a toast or a warning said something | a screenshot, read as text. Also `kura env`, which prints the config warnings |
+| the app kept running / quit | `Get-Process kura` after the key |
 
 Reading text off a screenshot is reading text -- a `~` in a column, a count in a
 footer. Taking a screenshot is always fine, and one is worth attaching.
@@ -116,7 +116,7 @@ machine. That is a genuine privilege and it is easy to spend badly.
 
 Tick a row only when **all** of these hold:
 
-1. You actually performed the action, on the real `filer.exe`, in this session.
+1. You actually performed the action, on the real `kura.exe`, in this session.
 2. The row's expectation is **text you read, or a file state you inspected** --
    not something you looked at and formed an opinion about.
 3. You can show the evidence: the command you ran and what came back.
@@ -142,9 +142,9 @@ glyph's weight, a picture's sharpness) get a first look instead of none. Mark a
 row `[~]` only when all of these hold:
 
 1. **It cannot be measured.** Try first: a position or a colour is pixels, a
-   count is text, a scroll is `FILER_KEYS_DONE`. A row you could have measured and
+   count is text, a scroll is `KURA_KEYS_DONE`. A row you could have measured and
    only looked at is the wrong mark -- measure it and tick it `[x]`.
-2. You performed the action on the real `filer.exe` in this run and took the
+2. You performed the action on the real `kura.exe` in this run and took the
    picture yourself (`<Shot:name>` in `--keys`, or `PrintWindow`), at the moment
    the row is about.
 3. **Before looking, write down what a failure would look like** ("boxes instead
@@ -172,7 +172,7 @@ same way as everything else here: as state, before and after.
   the header's `N selected · M items`, the clipboard (armed with a sentinel and
   read back first), which overlay is open, the scratch directory's listing with
   hashes, and for a key pressed in the pane the `in key` lines of
-  `FILER_PTY_LOG` (a key the pane keeps must add none). Only what the key is
+  `KURA_PTY_LOG` (a key the pane keeps must add none). Only what the key is
   meant to change may differ.
 - **In the pull request, one line per key**: the key, what changed (the
   description's half), and the snapshot that did not (the "nothing else" half).
@@ -193,7 +193,7 @@ still on the human's list when it was written.
 | **Re-tests of changed behaviour** | all | **Waiting on their fixes in TODO.md, do not press until they land (#300, #301): 16.13 / 16.13a, 1.44, 33.7.** Also open: **1.43 / 40.16** (reworded: `<C-c>` moved to 49.9), **49.7** (OSC 8 links in the pane; needs a ConPTY that passes them). Everything else that used to be listed here (27.6, 27.7, 49.1-49.11, 49.10a, 21.22d, 25.4e, 16.3 / 16.3a, 37.8a, 1.38, 16.3b, 37.8b, 49.5 and the rest) is `[x]` in TESTING-CHECKS.md and was taken out by the merger's share of #311 / #312; a row a later fix changes is added back here. **New in 0.94.0: 53.1-53.6 (the clock at the status bar's right end; common.toml).** **New in 0.93.6: 52.29 (holding `<Up>` in a search prompt no longer flickers the caret). New in 0.93.5: 52.27 (the first match of a big file shows at once) and 52.28 (`<Up>` recalls past search words). New in 0.86.32: 1.47 (the multi-line paste box) and 1.48 (dragging a selection past the pane's edge scrolls). New in 0.93.3: 52.26 (a match far down a big file is shown). New in 0.93.2: 10.12 (`cc` copies every marked file) and 52.25 (a wrapped Markdown paragraph is coloured). New in 0.93.1: 52.23-52.24 (a Markdown file shows the match too). New in 0.93.0: 52.20-52.22 (`ext:log` narrows a search). New in 0.92.0: 52.18-52.19 (the end of a search says where it looked). New in 0.91.0: 52.15-52.17 (`n` `N` walk the body after `S` and `F`). New in 0.90.0: 52.9-52.14 (matches are coloured; `/` `?` take a regular expression). New in 0.89.0: 52.6-52.8 (`S` leaves binaries out and counts them). New in 0.88.0: 52.1-52.5 (`F` fuzzy recursive search). New in 0.87.0: 51.1-51.9 (`s` `S` `f` take a regular expression).** Nothing else is open in this row; go on to the next row. |
 | **Unticked keys in TESTING-KEYS.md** | every `[ ]` | Second, every run, right after the re-tests (v0.76.3, the owner's question): a key added or changed since the last run sits there as `[ ]` and no other row of this table sends you to it. `cargo run --example make-keycheck -- --stats` names the layers with open keys; `grep '^- \[ \]' TESTING-KEYS.md` names the keys. Press each as "TESTING-KEYS.md" above says -- `--keys`, the before/after snapshot, one line per key in the pull request with both halves. Empty when this was written (#251 pressed `<A-g>`, `<A-G>`, help's `C` and a comparison's `<Enter>`). A key that needs something this machine lacks: say so in the report and leave it |
 | **31. a host's shares** | 3 left, none for an unattended run | Worked through by #233 (31.2, 31.15). Left: 31.7 and 31.8 need an elevated `New-SmbShare` (a host with a screenful of shares, a share with a space or Japanese); 31.5a waits on its rewrite in TODO.md. A dead address fails in under a second with os error 1203 the second time, since Windows remembers the failure: 31.14 / 31.15 need an address not tried recently (#233). Skip this row unless the run is elevated. **The owner left 31.7 and 31.8 unverified (2026-10-04)**: do not ask for elevation for them; a user's bug report will cover them |
-| **Unticked rows no queue owns** | -- | When the rows above are done, `cargo run --example make-testcheck -- --stats` names sections still short (**left unverified by the owner, 2026-10-04, so never take them: 22.1 / 22.3 / 22.4 (Hidemaru, EmEditor, Notepad++), 31.7 / 31.8 (elevation), 12.11 (a drive with the Recycle Bin off) and 35's macOS / Linux rows**); take one whose open rows read as text, a file state or a process state (`<State:name>` and `FILER_KEYS_DONE` read most of them). Short and measurable when this was written (#235): **45** (13 / 14; 45.11 is a symlink whose target alone differs; it needs elevation or developer mode). Not 40: 40.7 and 40.12 wait on their rewrite in TODO.md (#243 read 40.12 in both PSReadLine modes). 6 is 1 / 1 (#241; the tree has to be on C:, the RAM disk copies it in under 5 s). Not these: 10 (1 / 1 after #237 and #238), 16 (16.3, 16.10 and 16.12 wait on their fixes in TODO.md and come back as re-tests, #238), 22 (22.2 by #235; Hidemaru, EmEditor and Notepad++ are not installed here), 5 (5.9 is stale, TODO.md), 31 (elevation only) #259 (2026-10-05, v0.78.20) went through all 37 open rows and found none this machine can take; until a new row or a rewrite lands, this row is empty |
+| **Unticked rows no queue owns** | -- | When the rows above are done, `cargo run --example make-testcheck -- --stats` names sections still short (**left unverified by the owner, 2026-10-04, so never take them: 22.1 / 22.3 / 22.4 (Hidemaru, EmEditor, Notepad++), 31.7 / 31.8 (elevation), 12.11 (a drive with the Recycle Bin off) and 35's macOS / Linux rows**); take one whose open rows read as text, a file state or a process state (`<State:name>` and `KURA_KEYS_DONE` read most of them). Short and measurable when this was written (#235): **45** (13 / 14; 45.11 is a symlink whose target alone differs; it needs elevation or developer mode). Not 40: 40.7 and 40.12 wait on their rewrite in TODO.md (#243 read 40.12 in both PSReadLine modes). 6 is 1 / 1 (#241; the tree has to be on C:, the RAM disk copies it in under 5 s). Not these: 10 (1 / 1 after #237 and #238), 16 (16.3, 16.10 and 16.12 wait on their fixes in TODO.md and come back as re-tests, #238), 22 (22.2 by #235; Hidemaru, EmEditor and Notepad++ are not installed here), 5 (5.9 is stale, TODO.md), 31 (elevation only) #259 (2026-10-05, v0.78.20) went through all 37 open rows and found none this machine can take; until a new row or a rewrite lands, this row is empty |
 
 Worked through before, and not in the table any more: 4 (4.6, 4.7 and 4.9 hold after the fixes, #223; 4.8 is the owner's; #219), 3 (all ten, #218; 3.2 / 3.4 come back if the pixel-snap and clip fixes in TODO.md land), 2 (2.2 waits on the band-rounding fix in TODO.md, #215), 18 (18.7 `[~]`; its drop half waits on the fix in TODO.md, #208), 14, 19, 25, 41, 35, 32 / 37, 21, 8, 26, 13 / 15, 46, 1, 12, 45, 40 (40.7, 40.8 and 40.12 left for the reasons in TODO.md; #100) 39 (39.9 is a bug in TODO.md; #102) 30 (30.1, 30.3, 30.4 and 30.11 are bugs or wording in TODO.md; #104) 28 (all seven, ARM64, #108) 44 (44.7 waits on the budget fix in TODO.md; #109) and 24 (24.2 waits on Q34, 24.3 on case-sensitive folders; #111) (45.11 waits on the symlink fix in TODO.md; `scripts\fx45.ps1 -Run` rebuilds its tree and presses it).
 46.16 is still open: it needs the firewall rules, so an elevated run -- or a person. 13.17's `mklink /D` half and 45.11 were settled on x64 by #255:
@@ -233,7 +233,7 @@ will answer a question**, so:
   as a finding or a proposal, and the run carries on with what it can settle.
 - **Vote on every open `投票中` question** ([Votes](#votes-questionsmd-items-marked-投票中)),
   queue or no queue.
-- **Your checkout is the worktree the prompt names**, not `C:\dev\filer`: read
+- **Your checkout is the worktree the prompt names**, not `C:\dev\kura`: read
   every path in this file with that swap. Make your branch there with
   `git checkout -B test/<lane>-<section> origin/main`; if git refuses because the
   branch is checked out in another worktree, add `-auto` to the name.
@@ -249,7 +249,7 @@ will answer a question**, so:
   `OpenInputDesktop` + `GetUserObjectInformation(UOI_NAME)` must say `Default`,
   and `SystemParametersInfo(SPI_GETSCREENSAVERRUNNING)` must be false.
 - **Prefer `PostMessage` to `SendInput`** for keys (`WM_KEYDOWN` / `WM_CHAR` /
-  `WM_KEYUP` to filer's own window). It needs no foreground, works under a
+  `WM_KEYUP` to kura's own window). It needs no foreground, works under a
   screen saver, and cannot leak a keystroke into another window. **Put the scan
   code in `lParam`**: `1 | (MapVirtualKey(vk, 0) << 16)`. winit reads the key from
   bits 16-23, so with `lParam = 0` the press is dropped -- that, not PostMessage,
@@ -274,7 +274,7 @@ will answer a question**, so:
   silently; `Get-Process | Where-Object ProcessName -match 'OLED Care' |
   Stop-Process -Force` works, and `OpenInputDesktop` says `Default` at once (#103).
 - **Check you have the foreground before `SendInput` sends a key** (#211): read
-  `GetForegroundWindow()`'s class and title and compare with filer's window. The
+  `GetForegroundWindow()`'s class and title and compare with kura's window. The
   input-desktop checks above all passed while `SetForegroundWindow` had failed, and
   two probe keys landed in the agent's own window -- `Ctrl`+`W` closes most programs.
   On the ARM64 laptop the **first wheel turn after a fresh `pwsh` is dropped**: take
@@ -300,7 +300,7 @@ will answer a question**, so:
 - **Finish the run yourself**: commit, `git push -u origin <your branch>`, and
   `gh pr create --base main` with the body this file asks for. Never merge,
   never push to `main`.
-- **Close every `filer.exe` you started** before you finish.
+- **Close every `kura.exe` you started** before you finish.
 - **The last line you print** is one of these, alone, so the script can log it:
   - `WINTEST_DONE <pull request URL>`
   - `WINTEST_NOTHING` -- the queue is empty, or every section left needs a person,
@@ -320,7 +320,7 @@ these differences:
 - **There is no RAM disk.** The script picks the scratch directory, sets `TEMP`
   and `TMP` to it, and names it in the prompt: read `R:\Temp` in this file as
   that directory.
-- **Check what you are running first**: `filer env` must say `Process arch
+- **Check what you are running first**: `kura env` must say `Process arch
   aarch64` for the native build. A run that tested the x64 build by accident
   proved nothing about ARM64.
 - **Ticks.** TESTING-CHECKS.md has one box per row. A row already `[x]` from
@@ -341,13 +341,13 @@ these differences:
 | **Re-tests of changed behaviour** | -- | **Waiting on their fixes in TODO.md, do not press until they land (#300, #301): 16.13 / 16.13a, 1.44, 33.7.** Also open: **1.43 / 40.16** (reworded: `<C-c>` moved to 49.9), **49.7** (OSC 8 links in the pane; needs a ConPTY that passes them). Everything else that used to be listed here (27.6, 27.7, 49.1-49.11, 49.10a, 21.22d, 25.4e, 16.3 / 16.3a, 37.8a, 1.38, 16.3b, 37.8b, 49.5 and the rest) is `[x]` in TESTING-CHECKS.md and was taken out by the merger's share of #311 / #312; a row a later fix changes is added back here. **New in 0.94.0: 53.1-53.6 (the clock at the status bar's right end; common.toml).** **New in 0.93.6: 52.29 (holding `<Up>` in a search prompt no longer flickers the caret). New in 0.93.5: 52.27 (the first match of a big file shows at once) and 52.28 (`<Up>` recalls past search words). New in 0.86.32: 1.47 (the multi-line paste box) and 1.48 (dragging a selection past the pane's edge scrolls). New in 0.93.3: 52.26 (a match far down a big file is shown). New in 0.93.2: 10.12 (`cc` copies every marked file) and 52.25 (a wrapped Markdown paragraph is coloured). New in 0.93.1: 52.23-52.24 (a Markdown file shows the match too). New in 0.93.0: 52.20-52.22 (`ext:log` narrows a search). New in 0.92.0: 52.18-52.19 (the end of a search says where it looked). New in 0.91.0: 52.15-52.17 (`n` `N` walk the body after `S` and `F`). New in 0.90.0: 52.9-52.14 (matches are coloured; `/` `?` take a regular expression). New in 0.89.0: 52.6-52.8 (`S` leaves binaries out and counts them). New in 0.88.0: 52.1-52.5 (`F` fuzzy recursive search). New in 0.87.0: 51.1-51.9 (`s` `S` `f` take a regular expression).** Nothing else is open in this row; go on to the next row. |
 | **Unticked keys in TESTING-KEYS.md** | every `[ ]` | As in the x64 table: a key added or changed since the last run sits there as `[ ]`. Press it with `--keys` and the before/after snapshot ("TESTING-KEYS.md" above). Empty when this was written |
 | **Unticked rows no queue owns** | -- | When the rows above are done, `cargo run --example make-testcheck -- --stats` names sections still short (**left unverified by the owner, 2026-10-04, so never take them: 22.1 / 22.3 / 22.4 (Hidemaru, EmEditor, Notepad++), 31.7 / 31.8 (elevation), 12.11 (a drive with the Recycle Bin off) and 35's macOS / Linux rows**); take one whose open rows read as text or a file state (#205 found 43.9 this way). **37.8a**: Edge, Neovim and VS Code launched here (#256); `.pdf` has no app the shell resolves on this machine (`UserChoice` says `MSEdgePDF`, `start ""` opens nothing) and Sakura is not installed, both skips the row allows -- only Chrome is left, which is 37.8b since v0.80.8 (take it only when no Chrome window is open); 37.8a and 37.8b are in the re-tests above. **25.11** cannot be reached on Windows (`system_bold_fonts()` always lists Meiryo, Yu Gothic and Consolas bold). **35.2** was settled on x64 by #265 under the owner's one-time leave for that machine; it edits the owner's own `%APPDATA%\yazi\config\yazi.toml`, so it is not for this lane. Short and measurable when this was written (#220; 28 came out 8 / 8 in #231, 32 has no Windows row left after #234): 6 is 1 / 1 (#241 on x64). 10 is 1 / 1 (#237). **5 is 1 / 2 and its last row, 5.9, is stale** (#236: two folders open the tree compare, no refusal); it waits on its rewrite in TODO.md. 37 is 7 / 8, but 37.8 cannot be taken on this machine until `.pdf` has a default app the shell resolves (#234); it waits on its split in TODO.md. **12 is 15 / 17 and both its open rows are blocked** (#225): 12.8's second half is stale until its rewrite (TODO.md), and 12.11 needs a drive with the Recycle Bin turned off. Not these, each blocked as written: 16, 36, 13, 29, 21 (#220), 26 (#217), 46, 41, 15. 15 is 8 / 9 with only 15.4a left, a look no picture can catch (#216). Not these: 46 has only 46.16 left (needs elevation, #212), 41 only 41.14 (needs a slow share, #214), 35's open rows are mostly macOS and Linux (#212), 30 and 31 need right-clicks and `New-SmbShare`. Rows already `[x]` from x64 are recorded in your report, not ticked |
-| **48.2 / 48.6 at each release** | 2 | This lane can start both zips' `filer.exe` -- the ARM64 one natively and the x64 one under emulation -- so it closes these two rows alone (#199). The x64 lane cannot (an ARM64 exe will not start there). Re-press them when a release's tag changes; the decoy on the `PATH` must be a `conpty.dll` of the same PE machine as the exe under test (Zed's is `AA64` on this machine, WezTerm's is `8664`). `scripts\verify-release.ps1 -Tag vX.Y.Z` presses 48.1-48.5 for both zips (and 48.2 here), and `scripts\run48.ps1 -Folder <each extracted folder> -Decoy <a conpty.dll of that machine>` presses 48.6. Nothing to do until the next release |
+| **48.2 / 48.6 at each release** | 2 | This lane can start both zips' `kura.exe` -- the ARM64 one natively and the x64 one under emulation -- so it closes these two rows alone (#199). The x64 lane cannot (an ARM64 exe will not start there). Re-press them when a release's tag changes; the decoy on the `PATH` must be a `conpty.dll` of the same PE machine as the exe under test (Zed's is `AA64` on this machine, WezTerm's is `8664`). `scripts\verify-release.ps1 -Tag vX.Y.Z` presses 48.1-48.5 for both zips (and 48.2 here), and `scripts\run48.ps1 -Folder <each extracted folder> -Decoy <a conpty.dll of that machine>` presses 48.6. Nothing to do until the next release |
 | **the test suite** | -- | `cargo test` natively on ARM64, every run. Green at 0.51.1 (493 / 0, #81), 0.51.3 (494 / 0, #84), 0.52.3 (499 / 0, #88), 0.53.1 (502 / 0, #91), 0.54.0 (505 / 0, #93), 0.54.3 (506 / 0, #96) and 0.54.5 (509 / 0, #98) 0.54.9 (509 / 0, #100 and #101), 0.54.10 (509 / 0, #102), 0.54.12 (509 / 0, #103), 0.54.13 (509 / 0, #104), 0.54.14 (509 / 0, #105), 0.55.1 (523 / 0, #107), 0.55.2 (523 / 0, #108), 0.55.3 (523 / 0, #109), 0.55.4 (523 / 0, #110), 0.55.5 (523 / 0, #111), 0.56.2 (525 / 0, #114), 0.57.2 (538 / 0, #119) and 0.58.2 (553 / 0, #122; one run of `ending_a_busy_shell_asks_first` failed under load, steadied in 0.59.2 -- report it if it comes back) and 0.59.2 (558 / 0, #126). Any failure here and not on the x64 runner is the finding; paste the test name and the panic 0.65.2 (591 / 0, #154 -- the first ARM64 run where #136's help test passed against the machine's real config), 0.67.3 (594 / 0, #163), 0.67.4 (594 / 0, #164, #165), 0.67.5 (594 / 0, #166), 0.67.7 (594 / 0, #168), 0.67.9 (595 / 0, #171), 0.67.13 (602 / 0, #173), 0.67.14 (602 / 0, #174), 0.70.1 (616 / 0, #189), 0.71.0 (619 / 0, #191), 0.72.1 (622 / 0, #193), 0.72.4 (623 / 0, #195), 0.73.29 (631 / 0, #206, with the 67-character scratch as `TEMP`; 0.73.25 read 629 / 1 with the same path), 0.73.32 (632 / 0, #209; section 19 matched x64 row for row), 0.73.37 (637 / 0, #211), 0.73.45 (644 / 0, #212, #214 and #216), 0.73.48 (644 / 0, #220), 0.73.52 (647 / 0, #222), 0.73.57 (651 / 0, #224; 41.12 and 41.6's preview half settled). 1.2 and 1.8 are all that is left of section 1, and both are looks (#154), 0.78.18 (703 / 0, #256), 0.78.20 (703 / 0, #259), 0.78.21 (703 / 0, #260), 0.78.22 (703 / 0, #261), 0.78.24 (703 / 0, #263), 0.78.28 (707 / 0, #264), 0.78.104 (743 / 0, #274), 0.78.110 (744 / 0, #275), 0.78.113 (744 / 0, #276), 0.78.117 (745 / 0, #277), 0.78.123 (746 / 0, #279), 0.78.155 (700 / 0, #287), 0.78.160 (700 / 0, #289), 0.78.162 (700 / 0, #291), 0.78.164 (700 / 0, #292), 0.78.166 (700 / 0, #293), 0.78.168 (700 / 0, #294) |
-| **When every row above is empty** | -- | Last (#259 proposal 4): (1) press, as a second machine, rows x64 ticked that ARM64 has not seen, and say in the report that the ticks stay x64's. #260 pressed 12.8, 12.8a, 22.6a, 30.1, 30.4, 30.11, 30.15 and 37.7 (a stand-in `sakura.exe`) -- all matched x64; 19.4a's arrows reached `less` but its line counts did not reproduce with synthetic wheel input (TODO.md), so it stays x64's. #261 pressed 21.14, 21.14a (with ARM64's own 7-Zip), 21.14b, 25.4a, 5.9, 16.11 and 16.12, and #263 section 46 (19 of 21 rows, with ARM64's own `git.exe`) -- all matched x64. **Nothing is listed here right now** (x64's #265 ticked 33.21 / 33.22, which #264 pressed here, and 35.2, which is x64's alone; x64's #269 ticked 1.41, 23.4a and 29.13, which are in this lane's own re-tests row above; x64's #270 ticked 6.17, 23.3a, 32.18, 32.19 and 46.20, and #271 1.40 and 1.41, which are there too; x64's #280 ticked 13.12, 32.21, 1.42 and 1.43, which #281 then pressed here; x64's #282 ticked 17.12, which is in the re-tests row above; x64's #288 ticked 47.6 and 47.8, which #287 pressed here; x64's #303 ticked 50.1-50.7, of which #302 pressed 50.1-50.6 here with `claude -p --mcp-config`, and 50.7's no-console-window half stays x64's): whoever merges adds x64's new ticks (`merge-role.md`, 4). (2) The panic hook landed in v0.78.54; #275 counted 0 / 20 with #260's pdftoppm script on v0.78.110 (no `keys: panicked`, no `.panic`). Run a heavy `--keys` script (an external preview with `pdftoppm` in it) 20 times and count runs that vanish without `FILER_KEYS_DONE` (TODO.md's two vanishing-run items): #259 counted 0 / 20 with a light one, #260 0 / 20 with a `pdftoppm` one of 10 s a run (its report has the script), #275 0 / 20 with the hook in, #285 0 / 20 on v0.78.150, #291 0 / 20 on v0.78.162, #292 0 / 20 on v0.78.164, #293 0 / 20 on v0.78.166, #294 skipped it on v0.78.168 (only the version line since #293's `8071f80`) #304 0 / 20 twice (the script's keys and #292's) on v0.85.7 after the `rev` moved to `fc88385` (0 / 180 on ARM64 so far). **Count only on a version that bumps the ito-pane `rev` in `Cargo.toml` (tsumugi-pane before v0.93.10), or right before a release** (Q90 = 1, v0.83.1): those are the changes that could make a run vanish. Otherwise skip (2) and say so in one line of the report; when `git diff <the last count's commit> HEAD -- Cargo.toml` shows no new `rev` and no release is being cut, the count would only repeat. (3) Only then `WINTEST_NOTHING` |
+| **When every row above is empty** | -- | Last (#259 proposal 4): (1) press, as a second machine, rows x64 ticked that ARM64 has not seen, and say in the report that the ticks stay x64's. #260 pressed 12.8, 12.8a, 22.6a, 30.1, 30.4, 30.11, 30.15 and 37.7 (a stand-in `sakura.exe`) -- all matched x64; 19.4a's arrows reached `less` but its line counts did not reproduce with synthetic wheel input (TODO.md), so it stays x64's. #261 pressed 21.14, 21.14a (with ARM64's own 7-Zip), 21.14b, 25.4a, 5.9, 16.11 and 16.12, and #263 section 46 (19 of 21 rows, with ARM64's own `git.exe`) -- all matched x64. **Nothing is listed here right now** (x64's #265 ticked 33.21 / 33.22, which #264 pressed here, and 35.2, which is x64's alone; x64's #269 ticked 1.41, 23.4a and 29.13, which are in this lane's own re-tests row above; x64's #270 ticked 6.17, 23.3a, 32.18, 32.19 and 46.20, and #271 1.40 and 1.41, which are there too; x64's #280 ticked 13.12, 32.21, 1.42 and 1.43, which #281 then pressed here; x64's #282 ticked 17.12, which is in the re-tests row above; x64's #288 ticked 47.6 and 47.8, which #287 pressed here; x64's #303 ticked 50.1-50.7, of which #302 pressed 50.1-50.6 here with `claude -p --mcp-config`, and 50.7's no-console-window half stays x64's): whoever merges adds x64's new ticks (`merge-role.md`, 4). (2) The panic hook landed in v0.78.54; #275 counted 0 / 20 with #260's pdftoppm script on v0.78.110 (no `keys: panicked`, no `.panic`). Run a heavy `--keys` script (an external preview with `pdftoppm` in it) 20 times and count runs that vanish without `KURA_KEYS_DONE` (TODO.md's two vanishing-run items): #259 counted 0 / 20 with a light one, #260 0 / 20 with a `pdftoppm` one of 10 s a run (its report has the script), #275 0 / 20 with the hook in, #285 0 / 20 on v0.78.150, #291 0 / 20 on v0.78.162, #292 0 / 20 on v0.78.164, #293 0 / 20 on v0.78.166, #294 skipped it on v0.78.168 (only the version line since #293's `8071f80`) #304 0 / 20 twice (the script's keys and #292's) on v0.85.7 after the `rev` moved to `fc88385` (0 / 180 on ARM64 so far). **Count only on a version that bumps the ito-pane `rev` in `Cargo.toml` (tsumugi-pane before v0.93.10), or right before a release** (Q90 = 1, v0.83.1): those are the changes that could make a run vanish. Otherwise skip (2) and say so in one line of the report; when `git diff <the last count's commit> HEAD -- Cargo.toml` shows no new `rev` and no release is being cut, the count would only repeat. (3) Only then `WINTEST_NOTHING` |
 
 ## Proposals: say what should change
 
-You are the one session that *uses* filer rather than reading it, and the owner
+You are the one session that *uses* kura rather than reading it, and the owner
 wants to hear what that is like. **Every run ends with proposals** -- things that
 should work differently, not only things that are broken. Be direct: "this
 should", "this would be better if", "this gets in the way". An opinion you can
@@ -364,7 +364,7 @@ Write them in your report, under a `### Proposals` heading, and count them in th
 
 Anything goes -- a confusing message, a key that fights another program, a
 default that was wrong for you, a step that took three keys and should take one,
-a feature filer lacks that you reached for. Bugs still go in the report as bugs;
+a feature kura lacks that you reached for. Bugs still go in the report as bugs;
 this is for the things that work as written and should not.
 
 **Do not implement them.** The session that merges your pull request turns the
@@ -410,15 +410,15 @@ $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
 New-Item -ItemType Directory -Force -Path R:\Temp | Out-Null
 $env:TEMP = 'R:\Temp'; $env:TMP = 'R:\Temp'
 
-cargo build --release --manifest-path C:\dev\filer\Cargo.toml
-cargo test   --manifest-path C:\dev\filer\Cargo.toml
+cargo build --release --manifest-path C:\dev\kura\Cargo.toml
+cargo test   --manifest-path C:\dev\kura\Cargo.toml
 
-# The newer ConPTY the Windows release ships beside filer.exe (since v0.49.0).
+# The newer ConPTY the Windows release ships beside kura.exe (since v0.49.0).
 # Without it the terminal pane runs on the one built into Windows, which breaks
 # programs in the pane -- and you would be testing something nobody downloads.
-pwsh -NoProfile -File C:\dev\filer\scripts\fetch-conpty.ps1 -Dest C:\dev\filer\target\release
-# Also copies the build's filer-com.exe to filer.com beside filer.exe, as the release zip has it
-# (cargo builds it as filer-com.exe; run this after the build).
+pwsh -NoProfile -File C:\dev\kura\scripts\fetch-conpty.ps1 -Dest C:\dev\kura\target\release
+# Also copies the build's kura-com.exe to kura.com beside kura.exe, as the release zip has it
+# (cargo builds it as kura-com.exe; run this after the build).
 ```
 
 - **Up to three sections per run, in one pull request** (v0.75.14, the owner's request: the
@@ -428,7 +428,7 @@ pwsh -NoProfile -File C:\dev\filer\scripts\fetch-conpty.ps1 -Dest C:\dev\filer\t
   90 minutes, take the one after, up to three. Read each one first and say which rows you
   can settle and which you cannot, before touching anything. Stop early rather than leave a
   section half done: one finished section is worth more than three started ones.
-- **A run that measures the terminal pane records the `conpty.dll` it loaded** (v0.70.3, #184): `(Get-Process filer).Modules | ? ModuleName -eq conpty.dll | % FileName`. It must be the one beside `filer.exe`; a different path means you measured another app's ConPTY.
+- **A run that measures the terminal pane records the `conpty.dll` it loaded** (v0.70.3, #184): `(Get-Process kura).Modules | ? ModuleName -eq conpty.dll | % FileName`. It must be the one beside `kura.exe`; a different path means you measured another app's ConPTY.
 - **Work on `test/win-<section>`** (`test/arm-<section>` on the ARM64 machine), from the latest `origin/main`. Never push to
   `main`, never `--force`.
 - **Do not bump the version and do not write CHANGELOG.md.** A pull request that
@@ -440,12 +440,12 @@ pwsh -NoProfile -File C:\dev\filer\scripts\fetch-conpty.ps1 -Dest C:\dev\filer\t
 - Anything you find that is a bug in the program, or a row in TESTING.md that is
   wrong, goes in your report. Do not fix it and do not quietly correct the
   row -- renumbering is how a checklist loses its place.
-- **Kill a running `filer.exe` without asking.** CLAUDE.md says the build wins.
+- **Kill a running `kura.exe` without asking.** CLAUDE.md says the build wins.
 
 ## Where to put files: `R:\Temp` is a RAM disk
 
 The machine has a RAM disk mounted at `R:`. **Do all the scratch work under
-`R:\Temp`** -- fixtures, sample trees, archives you unpack, anything filer writes
+`R:\Temp`** -- fixtures, sample trees, archives you unpack, anything kura writes
 while you test it. It is fast, and it keeps the real disks clear of the debris a
 checklist run leaves behind.
 
@@ -454,7 +454,7 @@ nothing breaks, which is exactly why it is easy to end up with several of them
 on three different disks and no idea which run left which. There is one place.
 
 ```powershell
-.\scripts\make-fixtures.ps1 -Path R:\Temp\filer-fixtures
+.\scripts\make-fixtures.ps1 -Path R:\Temp\kura-fixtures
 ```
 
 The two `TEMP` lines in the preamble above carry further than they look:
@@ -486,24 +486,24 @@ prevent. So the moment you have it, copy it out:
 - **The pull request body** is the primary home, one line per tick. It is on
   GitHub, not on this machine at all.
 - **Your report**, in the repository, for anything longer -- a failing
-  command's full output, a `filer env` dump you are comparing against. **Each
+  command's full output, a `kura env` dump you are comparing against. **Each
   run writes a file of its own: `qa-reports/<YYYY-MM-DD>-<branch without
   test/>.md`** (`qa-reports/2026-10-03-win-32-9a.md`), never QA-REPORT.md.
   Until 2026-10-03 every run appended to the end of QA-REPORT.md, so any two
   pull requests open at once conflicted there, and each conflict held this
   lane up for an hour. A new file conflicts with nothing. QA-REPORT.md stays
   as the record of the runs before; read it, do not add to it.
-- **Screenshots and captured files**: `C:\dev\filer\docs\` if they belong in the
+- **Screenshots and captured files**: `C:\dev\kura\docs\` if they belong in the
   repository, otherwise somewhere on `C:`. Never leave the only copy on `R:`.
 
 **Nothing that goes through the Recycle Bin can run on `R:`.** The RAM disk has
 no bin, and `d` fails there before it reaches the shell (`canonicalize` cannot
 read the volume). Section 12, and any row that presses `d` and expects the bin,
-runs in a directory on `C:` instead -- `%LOCALAPPDATA%\Temp\filer-<section>` --
+runs in a directory on `C:` instead -- `%LOCALAPPDATA%\Temp\kura-<section>` --
 and cleans up after itself. (The section 12 run found this, 2026-09-30.)
 
 Two things never go on the RAM disk at all: **the repository checkout**
-(`C:\dev\filer` stays where it is) and **anything not yet committed**.
+(`C:\dev\kura` stays where it is) and **anything not yet committed**.
 
 If `R:` is not mounted, say so and use the default temp directory. It is a
 convenience, not a requirement, and stopping the run over it would be worse than

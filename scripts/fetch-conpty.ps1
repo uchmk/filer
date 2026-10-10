@@ -1,4 +1,4 @@
-# Fetch the ConPTY that filer ships on Windows, and put it beside filer.exe.
+# Fetch the ConPTY that kura ships on Windows, and put it beside kura.exe.
 #
 # The terminal pane runs its shell through ConPTY. The ConPTY built into
 # Windows is an old one, and two things it does break programs that read the
@@ -11,23 +11,23 @@
 #     followed by a release, and lazygit opened its copy menu at startup, a key
 #     nobody pressed.
 #
-# A newer ConPTY does neither: it passes the queries through to filer and the
+# A newer ConPTY does neither: it passes the queries through to kura and the
 # replies back unchanged. `scripts/keyprobe.ps1 -Query` shows which one is in
-# use -- the primary DA reply reads `\e[?6c` (filer's own answer) with this one,
+# use -- the primary DA reply reads `\e[?6c` (kura's own answer) with this one,
 # and `\e[?61;6;7;22;...c` with the one built into Windows.
 #
 # `alacritty_terminal` loads `conpty.dll` from beside the executable when there
 # is one, and `conpty.dll` starts the `OpenConsole.exe` beside itself, so the
-# two files next to filer.exe are all it takes. Alacritty ships them the same
-# way. Without them filer still runs, on the older ConPTY. It also copies the
-# build's filer-com.exe to filer.com, as the release zip has it.
+# two files next to kura.exe are all it takes. Alacritty ships them the same
+# way. Without them kura still runs, on the older ConPTY. It also copies the
+# build's kura-com.exe to kura.com, as the release zip has it.
 #
 #   pwsh -File scripts\fetch-conpty.ps1                     # into target\release, this machine's arch
 #   pwsh -File scripts\fetch-conpty.ps1 -Dest target\debug
 #   pwsh -File scripts\fetch-conpty.ps1 -Arch arm64 -Dest <folder>
 #
 # The version is pinned, and the package's SHA-256 is checked before anything
-# is unpacked, so every build of a given filer ships the same bytes. This is
+# is unpacked, so every build of a given kura ships the same bytes. This is
 # the version that was tried on the real machine; change both lines together,
 # and only after trying the new one there.
 
@@ -43,13 +43,13 @@ $sha256 = '175640566A3B59C4B132070EE96C2C77E5AB7EDD2E92732A5EB3610BBF63D90E'
 $url = "https://api.nuget.org/v3-flatcontainer/microsoft.windows.console.conpty/$version/microsoft.windows.console.conpty.$version.nupkg"
 
 if (-not $Arch) {
-    # The architecture filer.exe is built for, which is rustc's host unless a
+    # The architecture kura.exe is built for, which is rustc's host unless a
     # --target says otherwise -- and then -Arch should be given.
     $hostLine = (rustc -vV | Select-String '^host:').ToString()
     $Arch = if ($hostLine -match 'aarch64') { 'arm64' } else { 'x64' }
 }
 
-$work = Join-Path ([IO.Path]::GetTempPath()) "filer-conpty-$version"
+$work = Join-Path ([IO.Path]::GetTempPath()) "kura-conpty-$version"
 $pkg = Join-Path $work 'conpty.zip'
 New-Item -ItemType Directory -Force -Path $work | Out-Null
 
@@ -78,17 +78,17 @@ $notice.Replace('{VERSION}', $version) | Set-Content -NoNewline (Join-Path $Dest
 
 "ConPTY $version ($Arch) -> $Dest"
 
-# filer.com, the console front the release zip ships beside filer.exe
-# (v0.71.0, src/bin/filer-com.rs). Cargo builds it as filer-com.exe, so a local
-# build had no filer.com, and `filer env` in PowerShell ran filer.exe without
+# kura.com, the console front the release zip ships beside kura.exe
+# (v0.71.0, src/bin/kura-com.rs). Cargo builds it as kura-com.exe, so a local
+# build had no kura.com, and `kura env` in PowerShell ran kura.exe without
 # waiting for it (#225). Run this after `cargo build` to get it; copied, not
 # renamed, so the next build does not leave a stale one beside a new exe.
-$com = Join-Path $Dest 'filer-com.exe'
+$com = Join-Path $Dest 'kura-com.exe'
 if (Test-Path $com) {
-    Copy-Item $com (Join-Path $Dest 'filer.com') -Force
-    "filer.com -> $Dest"
-} elseif (-not (Test-Path (Join-Path $Dest 'filer.com'))) {
-    # The release and build workflows stage filer.com themselves before this
+    Copy-Item $com (Join-Path $Dest 'kura.com') -Force
+    "kura.com -> $Dest"
+} elseif (-not (Test-Path (Join-Path $Dest 'kura.com'))) {
+    # The release and build workflows stage kura.com themselves before this
     # runs, from a folder this cannot see; no need to send them back to build.
-    "No filer-com.exe in $Dest yet: build first, then run this again for filer.com"
+    "No kura-com.exe in $Dest yet: build first, then run this again for kura.com"
 }

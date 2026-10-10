@@ -1355,46 +1355,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
 
 [[package]]
-name = "filer"
-version = "0.94.0"
-dependencies = [
- "ab_glyph",
- "alacritty_terminal",
- "arboard",
- "chrono",
- "crossbeam-channel",
- "dirs",
- "eframe",
- "egui",
- "fancy-regex",
- "flate2",
- "ignore",
- "image",
- "ito-common",
- "ito-ipc",
- "ito-layout",
- "ito-match",
- "ito-mcp",
- "ito-pane",
- "notify",
- "open",
- "pulldown-cmark",
- "resvg",
- "serde",
- "sevenz-rust2",
- "syntect",
- "tar",
- "toml",
- "trash",
- "ttf-parser",
- "two-face",
- "unicode-width",
- "windows",
- "winresource",
- "zip",
-]
-
-[[package]]
 name = "filetime"
 version = "0.2.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2261,6 +2221,46 @@ checksum = "07293a4e297ac234359b510362495713f75ea345d5307140414f20c69ffeb087"
 dependencies = [
  "bitflags 2.13.2",
  "libc",
+]
+
+[[package]]
+name = "kura"
+version = "0.95.0"
+dependencies = [
+ "ab_glyph",
+ "alacritty_terminal",
+ "arboard",
+ "chrono",
+ "crossbeam-channel",
+ "dirs",
+ "eframe",
+ "egui",
+ "fancy-regex",
+ "flate2",
+ "ignore",
+ "image",
+ "ito-common",
+ "ito-ipc",
+ "ito-layout",
+ "ito-match",
+ "ito-mcp",
+ "ito-pane",
+ "notify",
+ "open",
+ "pulldown-cmark",
+ "resvg",
+ "serde",
+ "sevenz-rust2",
+ "syntect",
+ "tar",
+ "toml",
+ "trash",
+ "ttf-parser",
+ "two-face",
+ "unicode-width",
+ "windows",
+ "winresource",
+ "zip",
 ]
 
 [[package]]

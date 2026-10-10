@@ -1,10 +1,10 @@
-//! `filer mcp`: Claude Code reads what the window is showing (Q95, Q96).
+//! `kura mcp`: Claude Code reads what the window is showing (Q95, Q96).
 //!
 //! A windowed program has no standard input to speak MCP on, so the same exe
 //! is the bridge:
 //!
 //! ```text
-//! Claude Code ──stdio (JSON-RPC)── filer mcp ──socket / named pipe── filer (the window)
+//! Claude Code ──stdio (JSON-RPC)── kura mcp ──socket / named pipe── kura (the window)
 //! ```
 //!
 //! The window listens on a per-user door ([`address`]); the first window to
@@ -12,7 +12,7 @@
 //! that one hands the door on. A request is answered on the UI thread, from
 //! the state already in memory: nothing here waits on the disk there.
 //!
-//! The tools only read, `filer_reveal` aside, which moves the cursor and
+//! The tools only read, `kura_reveal` aside, which moves the cursor and
 //! changes no file. Writing tools are a later step, behind a confirm box in
 //! the window (docs/llm-integration.md).
 
@@ -27,17 +27,17 @@ use ito_mcp::serde_json::{json, Value};
 use ito_mcp::{arg_str, Server, Tool};
 
 /// Bumped when [`Request`] or [`Reply`] change shape, so a window and a
-/// `filer mcp` from different versions say so instead of misreading.
+/// `kura mcp` from different versions say so instead of misreading.
 const PROTO: u32 = 1;
 
-/// How long `filer mcp` and the door wait for the window to answer. A window
+/// How long `kura mcp` and the door wait for the window to answer. A window
 /// that is busy for longer (a modal dialog on Windows) is reported, not waited for.
 const ANSWER_WAIT: Duration = Duration::from_secs(5);
 
-/// The door: `\\.\pipe\filer-<user>` on Windows, `$XDG_RUNTIME_DIR/filer/sock`
-/// (or `/tmp/filer-<user>/sock`) elsewhere; `FILER_ADDRESS` names another.
+/// The door: `\\.\pipe\kura-<user>` on Windows, `$XDG_RUNTIME_DIR/kura/sock`
+/// (or `/tmp/kura-<user>/sock`) elsewhere; `KURA_ADDRESS` names another.
 pub fn address() -> Address {
-    Address::per_user("filer", "FILER_ADDRESS")
+    Address::per_user("kura", "KURA_ADDRESS")
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -62,11 +62,11 @@ pub struct Ask {
 pub fn listen(ctx: egui::Context) -> Receiver<Ask> {
     let (tx, rx) = bounded::<Ask>(16);
     let at = address();
-    let _ = std::thread::Builder::new().name("filer-mcp".into()).spawn(move || {
+    let _ = std::thread::Builder::new().name("kura-mcp".into()).spawn(move || {
         let listener = loop {
             match Listener::bind(&at) {
                 Ok(l) => break l,
-                // Another filer window has it. Try again later, so the door
+                // Another kura window has it. Try again later, so the door
                 // moves on when that window closes.
                 Err(e) if e.kind() == io::ErrorKind::AddrInUse => std::thread::sleep(Duration::from_secs(30)),
                 // Nothing to report it to that anyone reads: the door is a
@@ -77,7 +77,7 @@ pub fn listen(ctx: egui::Context) -> Receiver<Ask> {
         while let Ok(conn) = listener.accept() {
             let tx = tx.clone();
             let ctx = ctx.clone();
-            let _ = std::thread::Builder::new().name("filer-mcp-conn".into()).spawn(move || {
+            let _ = std::thread::Builder::new().name("kura-mcp-conn".into()).spawn(move || {
                 let _ = serve_one(conn, &tx, &ctx);
             });
         }
@@ -91,7 +91,7 @@ fn serve_one(conn: ito_ipc::Conn, tx: &Sender<Ask>, ctx: &egui::Context) -> io::
     let (mut r, mut w) = conn.split()?;
     let (proto, request): (u32, Request) = frame::read(&mut r)?;
     let reply = if proto != PROTO {
-        Err(format!("this filer window speaks version {PROTO} of the door and filer mcp spoke {proto}; run the same filer for both"))
+        Err(format!("this kura window speaks version {PROTO} of the door and kura mcp spoke {proto}; run the same kura for both"))
     } else {
         answer(request, tx, ctx)
     };
@@ -110,41 +110,41 @@ fn answer(request: Request, tx: &Sender<Ask>, ctx: &egui::Context) -> Reply {
         }
     }
     let (reply_tx, reply_rx) = bounded(1);
-    tx.send_timeout(Ask { request, reply: reply_tx }, ANSWER_WAIT).map_err(|_| "the filer window is busy".to_owned())?;
+    tx.send_timeout(Ask { request, reply: reply_tx }, ANSWER_WAIT).map_err(|_| "the kura window is busy".to_owned())?;
     ctx.request_repaint();
-    reply_rx.recv_timeout(ANSWER_WAIT).map_err(|_| "the filer window did not answer in time".to_owned())?
+    reply_rx.recv_timeout(ANSWER_WAIT).map_err(|_| "the kura window did not answer in time".to_owned())?
 }
 
-/// Asks the running window, for `filer mcp`.
+/// Asks the running window, for `kura mcp`.
 fn ask(request: Request) -> Reply {
     let at = address();
     let conn = ito_ipc::connect(&at).map_err(|_| {
-        "filer is not running (or its [mcp] enable is false in filer.toml); start filer and ask again".to_owned()
+        "kura is not running (or its [mcp] enable is false in kura.toml); start kura and ask again".to_owned()
     })?;
     let (mut r, mut w) = conn.split().map_err(|e| e.to_string())?;
-    frame::write(&mut w, &(PROTO, request)).map_err(|e| format!("could not reach the filer window: {e}"))?;
-    frame::read::<_, Reply>(&mut r).map_err(|e| format!("the filer window did not answer: {e}"))?
+    frame::write(&mut w, &(PROTO, request)).map_err(|e| format!("could not reach the kura window: {e}"))?;
+    frame::read::<_, Reply>(&mut r).map_err(|e| format!("the kura window did not answer: {e}"))?
 }
 
-/// The MCP server `filer mcp` runs on its standard input and output.
+/// The MCP server `kura mcp` runs on its standard input and output.
 pub fn server() -> Server {
-    Server::new("filer", env!("CARGO_PKG_VERSION"))
+    Server::new("kura", env!("CARGO_PKG_VERSION"))
         .instructions(
-            "filer is the file manager the user has open. filer_state says which folder they are \
-             looking at, the file under the cursor and the files they selected; filer_reveal shows \
+            "kura is the file manager the user has open. kura_state says which folder they are \
+             looking at, the file under the cursor and the files they selected; kura_reveal shows \
              them a file. Read the files themselves with your own tools.",
         )
         .tool(Tool::new(
-            "filer_state",
-            "What the user's filer window is showing: the current folder, the path under the cursor, \
+            "kura_state",
+            "What the user's kura window is showing: the current folder, the path under the cursor, \
              the selected paths and the open tabs. Use it when the user says \"this file\", \"here\" \
              or \"the selected files\".",
             |_| ask(Request::State),
         ))
         .tool(
             Tool::new(
-                "filer_reveal",
-                "Show a file or folder in the user's filer window: go to its folder and put the cursor \
+                "kura_reveal",
+                "Show a file or folder in the user's kura window: go to its folder and put the cursor \
                  on it. Changes no file.",
                 |args| ask(Request::Reveal(PathBuf::from(arg_str(args, "path")?))),
             )
@@ -156,7 +156,7 @@ pub fn server() -> Server {
         )
 }
 
-/// `filer mcp`: serve until the client closes standard input.
+/// `kura mcp`: serve until the client closes standard input.
 pub fn run() -> ! {
     let stdin = io::stdin().lock();
     let stdout = io::stdout().lock();
@@ -167,7 +167,7 @@ pub fn run() -> ! {
     std::process::exit(code)
 }
 
-/// The window's answer to `filer_state`, as pretty JSON.
+/// The window's answer to `kura_state`, as pretty JSON.
 pub fn state_json(app: &crate::app::App, overlay: &str, view: &str) -> String {
     /// A selection of every file in a big folder is not worth the tokens.
     const MAX_SELECTED: usize = 500;
@@ -201,13 +201,13 @@ mod tests {
         ito_mcp::serde_json::from_str(&out).unwrap()
     }
 
-    /// The tools Claude Code is offered, and that `filer_reveal` asks for a path.
+    /// The tools Claude Code is offered, and that `kura_reveal` asks for a path.
     #[test]
     fn lists_the_two_tools() {
         let out = server().handle(r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#).unwrap();
         let v: Value = ito_mcp::serde_json::from_str(&out).unwrap();
         let names: Vec<&str> = v["result"]["tools"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
-        assert_eq!(names, ["filer_state", "filer_reveal"]);
+        assert_eq!(names, ["kura_state", "kura_reveal"]);
         assert_eq!(v["result"]["tools"][1]["inputSchema"]["required"][0], "path");
     }
 
@@ -218,11 +218,11 @@ mod tests {
         let dir = crate::util::test_dir("mcp-no-window");
         std::fs::create_dir_all(&dir).unwrap();
         // No other test reads it: `address` is called by the tools only.
-        std::env::set_var("FILER_ADDRESS", dir.join("sock"));
-        let v = call(&server(), "filer_state", json!({}));
-        std::env::remove_var("FILER_ADDRESS");
+        std::env::set_var("KURA_ADDRESS", dir.join("sock"));
+        let v = call(&server(), "kura_state", json!({}));
+        std::env::remove_var("KURA_ADDRESS");
         assert_eq!(v["result"]["isError"], true);
-        assert!(v["result"]["content"][0]["text"].as_str().unwrap().contains("filer is not running"));
+        assert!(v["result"]["content"][0]["text"].as_str().unwrap().contains("kura is not running"));
     }
 
     /// The door end to end, without a window: a fake UI thread answers what

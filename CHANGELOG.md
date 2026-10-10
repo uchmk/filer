@@ -9,6 +9,19 @@
 
 ## [未リリース]
 
+## [0.95.0] - 2026-10-11
+
+### 変更
+
+- 名前を filer から **kura**（蔵）に変えた。リポジトリは [uchmk/kura](https://github.com/uchmk/kura)。変わるもの:
+  - パッケージとバイナリ: `kura.exe` と `kura-com.exe`。窓のタイトルの既定は `Kura: {cwd}`、`kura env` の最初の節は `Kura`。
+  - 設定のフォルダは `<base>/kura`、上書きのファイルは `kura.toml`（例は `kura.example.toml`）。起動したときに古い `<base>/filer` だけがあれば `kura` に名前を変えて移し、`filer.toml` も `kura.toml` にする。両方あれば何もしない。移せなければ設定の警告に出す。
+  - 環境変数は `FILER_*` から `KURA_*` に（`KURA_CONFIG_HOME`・`KURA_STATE_HOME`・`KURA_ADDRESS`・`KURA_TERM_SHELL` など）。古い名前は読まない。
+  - MCP: サーバの名前は `kura`、道具は `kura_state` と `kura_reveal`。シェルのフックの関数は `__kura_osc7`。
+  - 実機のレーンの作業フォルダ・タスク・状態のフォルダの名前（`filer-wintest` など）は、動いているタスクを壊さないよう変えていない。CHANGELOG・TODO・報告などの古い記録も filer のまま残す。
+  - 【人】Claude Code の MCP の登録（`claude mcp remove filer` → `claude mcp add kura -- kura mcp`）、シェルのプロファイルの `kura shell-hook`、自分で設定した `FILER_*` の変数、ピンとショートカットを直す。TODO.md の「filer から kura への改名」の節に並べた。
+- `scripts/merge-lanes.py` の規則の鍵を `uchmk/kura` にした。リポジトリの名前が変わって `GITHUB_REPOSITORY` が `uchmk/kura` になり、`uchmk/filer` の規則に当たらなくなっていた。
+
 ## [0.94.0] - 2026-10-11
 
 ### 追加

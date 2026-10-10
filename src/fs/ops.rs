@@ -499,7 +499,7 @@ impl Ctx<'_> {
     /// job's own first and then moved to its name, so a Skip leaves nothing
     /// behind and a Rename gets the name typed.
     fn take_out(&mut self, req: &OpRequest) {
-        let staging = req.dest_dir.join(format!(".filer-take-out-{}", self.id));
+        let staging = req.dest_dir.join(format!(".kura-take-out-{}", self.id));
         for src in &req.srcs {
             if self.cancelled {
                 break;
@@ -902,7 +902,7 @@ fn symlink_error(e: &std::io::Error, link: &Link, src: &Path) -> String {
     }
     let mut said = format!(
         "{e} — Windows needs Developer Mode for symlinks \
-         (Settings > System > For developers), or run filer as administrator"
+         (Settings > System > For developers), or run kura as administrator"
     );
     if link.dir {
         said += &format!(". A junction needs neither: {}", mklink_line(&link.at, src));
@@ -915,7 +915,7 @@ fn symlink_error(e: &std::io::Error, link: &Link, src: &Path) -> String {
 /// spelled the same in both.
 ///
 /// Through `cmd /d /c` because `mklink` is built into `cmd` and is nothing
-/// anywhere else: pasted bare into filer's own pane, which runs PowerShell,
+/// anywhere else: pasted bare into kura's own pane, which runs PowerShell,
 /// it answered "the term 'mklink' is not recognized" (#193). With the prefix
 /// the same line works in `cmd`, `pwsh` and Windows PowerShell alike, and it
 /// is what [`junction`] runs.

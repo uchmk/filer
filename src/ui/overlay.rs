@@ -189,7 +189,7 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
         egui::pos2(rect.left() + tw + 18.0, rect.top() + 5.0),
         egui::pos2(rect.right() - 10.0 - gutter, rect.bottom() - 5.0),
     );
-    let id = egui::Id::new("filer-input");
+    let id = egui::Id::new("kura-input");
     // The field keeps the keys for as long as the prompt is open. `<Tab>`
     // completes, but egui also takes it as "focus the next widget", and the
     // focus was only taken back when a completion arrived late: answered
@@ -307,7 +307,7 @@ pub fn shell_hint(app: &App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, bo
     // `;` and `:` differ by nothing visible once the prompt is open, so say
     // which one this is. The difference is the console, not the waiting:
     // `--block` only asks Windows for `CREATE_NEW_CONSOLE` (see
-    // `exec::configure`), and neither key makes filer wait for the command.
+    // `exec::configure`), and neither key makes kura wait for the command.
     let console = if *block { "new console" } else { "no console" };
     let text = format!("$@ all · $0 first · $1 second · no placeholder → appended    ({what}, {console})");
 
@@ -535,7 +535,7 @@ impl HelpRow {
 /// What the panel says about configuration.
 ///
 /// Every directory that is searched, not only the ones something was found in:
-/// "where does `filer.toml` go" is the question a panel listing loaded files
+/// "where does `kura.toml` go" is the question a panel listing loaded files
 /// cannot answer, because the answer is a file that does not exist yet. An
 /// empty directory is the most useful row on the list for the reader who needs
 /// it, and the only one that was missing.
@@ -558,8 +558,8 @@ fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
         // A file that is on disk now but was not among the ones read. Writing a
         // config with the window already open is the ordinary way to get here,
         // and the panel used to answer it with "nothing here" while the file sat
-        // in that very directory -- which reads as "filer cannot see it" rather
-        // than "filer has not looked since".
+        // in that very directory -- which reads as "kura cannot see it" rather
+        // than "kura has not looked since".
         let unread: Vec<std::path::PathBuf> = crate::config::FILES
             .iter()
             .map(|n| dir.join(n))
@@ -603,7 +603,7 @@ fn config_rows(app: &App, dirs: &[std::path::PathBuf]) -> Vec<HelpRow> {
             });
         }
     }
-    // A file from somewhere else entirely: `FILER_CONFIG_HOME` moved after it
+    // A file from somewhere else entirely: `KURA_CONFIG_HOME` moved after it
     // was read, or a path no longer under any searched directory.
     for p in app.cfg.loaded.iter().filter(|p| !p.parent().is_some_and(|d| dirs.iter().any(|x| x == d))) {
         out.push(HelpRow {
@@ -664,17 +664,17 @@ fn shown_config_dirs() -> Vec<std::path::PathBuf> {
 
 /// Under test, a folder that is not there for each: the real ones hold whatever
 /// the person running the suite keeps in them. On a machine with a yazi and a
-/// filer config, their seven files were listed as "not read yet" and pushed
+/// kura config, their seven files were listed as "not read yet" and pushed
 /// the key list's heading out of the frame, so a help test failed there and
 /// nowhere else -- CI has no config (#136). `config_rows`' own tests pass their
 /// directories in and still look on disk.
 #[cfg(test)]
 pub(crate) fn shown_config_dirs() -> Vec<std::path::PathBuf> {
-    crate::config::CONFIG_VARS.iter().map(|v| std::env::temp_dir().join("filer-test-no-config").join(v)).collect()
+    crate::config::CONFIG_VARS.iter().map(|v| std::env::temp_dir().join("kura-test-no-config").join(v)).collect()
 }
 
 /// The line under the config rows when nothing was read. Nothing read is not
-/// the same as nothing there: a file written since filer started is on disk,
+/// the same as nothing there: a file written since kura started is on disk,
 /// listed just above, and "nothing found" under it said the opposite (#203).
 fn defaults_note(app: &App, rows: &[HelpRow]) -> Option<HelpRow> {
     if !app.cfg.loaded.is_empty() {
@@ -1038,7 +1038,7 @@ pub fn pick(app: &mut App, ui: &mut Ui, full: Rect, f: &FontId, row_h: f32, queu
     let Overlay::Pick(p) = &mut app.overlay else { return };
 
     let before = p.query.clone();
-    let pick_id = egui::Id::new("filer-pick");
+    let pick_id = egui::Id::new("kura-pick");
     let selected = selection_at_press(ui, pick_id);
     let resp = ui.put(
         field,
@@ -1595,14 +1595,14 @@ mod help_config_rows {
 
     /// Every searched directory is listed, found in or not.
     ///
-    /// "Where does `filer.toml` go" is the one question a list of loaded files
+    /// "Where does `kura.toml` go" is the one question a list of loaded files
     /// cannot answer, because the answer is a file that does not exist yet.
     /// The empty directory is the row that answers it, and it was the row that
     /// was missing — the panel used to show only what it had read.
     #[test]
     fn an_empty_directory_is_still_a_row() {
-        let yazi = std::path::PathBuf::from("/tmp/filer-help/yazi");
-        let mine = std::path::PathBuf::from("/tmp/filer-help/filer");
+        let yazi = std::path::PathBuf::from("/tmp/kura-help/yazi");
+        let mine = std::path::PathBuf::from("/tmp/kura-help/kura");
 
         let ctx = egui::Context::default();
         let mut app = App::new(crate::config::Config::load(), std::env::temp_dir(), ctx);
@@ -1664,14 +1664,14 @@ mod help_config_rows {
 
     /// 33.16: a config file written after the window opened is named, not hidden.
     ///
-    /// `filer.toml` created while filer is running is the ordinary way to reach
+    /// `kura.toml` created while kura is running is the ordinary way to reach
     /// this: the file is right there in the directory the panel is listing, and
-    /// the panel said "nothing here" -- which reads as filer being unable to see
+    /// the panel said "nothing here" -- which reads as kura being unable to see
     /// it rather than not having looked since it started.
     #[test]
     fn a_file_on_disk_that_was_not_read_says_so() {
         let dir = crate::util::test_dir("help-unread");
-        let written = dir.join("filer.toml");
+        let written = dir.join("kura.toml");
         std::fs::write(&written, "[ui]\nfont_size = 16.0\n").expect("write the config");
 
         let ctx = egui::Context::default();
@@ -1682,7 +1682,7 @@ mod help_config_rows {
         let rows = config_rows(&app, std::slice::from_ref(&dir));
         let unread = rows
             .iter()
-            .find(|r| r.text.trim() == "filer.toml")
+            .find(|r| r.text.trim() == "kura.toml")
             .expect("the file on disk is a row of its own");
         assert!(unread.warning, "and it is marked, not listed as read");
         assert!(unread.raw.contains("not read yet"), "{:?}", unread.raw);
@@ -1706,7 +1706,7 @@ mod help_config_rows {
     /// the row exists because the file does.
     fn unread(label: &str) -> (std::path::PathBuf, std::path::PathBuf, App) {
         let dir = crate::util::test_dir(label);
-        let written = dir.join("filer.toml");
+        let written = dir.join("kura.toml");
         std::fs::write(&written, "[ui]\nfont_size = 16.0\n").expect("write the config");
         let ctx = egui::Context::default();
         let mut app = App::new(crate::config::Config::load(), dir.clone(), ctx);
@@ -1717,7 +1717,7 @@ mod help_config_rows {
     /// 33.17: once the config has been re-read, the row is an ordinary one.
     ///
     /// The marker has to come off, not merely be joined by a second row. It
-    /// says "filer has not looked since it started", and after `<C-F5>` that is
+    /// says "kura has not looked since it started", and after `<C-F5>` that is
     /// no longer true -- a row still carrying it would send the reader to press
     /// the key again, which is the one thing that cannot help. `loaded` is what
     /// `Config::load` fills in, so putting the path there is what a reload
@@ -1727,13 +1727,13 @@ mod help_config_rows {
         let (dir, written, mut app) = unread("help-reread");
 
         let before = config_rows(&app, std::slice::from_ref(&dir));
-        let row = before.iter().find(|r| r.text.trim() == "filer.toml").expect("a row before");
+        let row = before.iter().find(|r| r.text.trim() == "kura.toml").expect("a row before");
         assert!(row.warning, "unread to begin with, or the test proves nothing");
 
         // What the reload changed: the file is now among the ones that were read.
         app.cfg.loaded = vec![written.clone()];
         let after = config_rows(&app, std::slice::from_ref(&dir));
-        let rows: Vec<&HelpRow> = after.iter().filter(|r| r.text.trim() == "filer.toml").collect();
+        let rows: Vec<&HelpRow> = after.iter().filter(|r| r.text.trim() == "kura.toml").collect();
         assert_eq!(rows.len(), 1, "one row for one file, not the read one and the unread one");
         assert!(!rows[0].warning, "and it is no longer marked");
         assert_eq!(rows[0].raw, "", "nor does it carry the note: {:?}", rows[0].raw);
@@ -1760,7 +1760,7 @@ mod help_config_rows {
         app.cfg.keymap = km;
 
         let rows = config_rows(&app, std::slice::from_ref(&dir));
-        let row = rows.iter().find(|r| r.text.trim() == "filer.toml").expect("the unread row");
+        let row = rows.iter().find(|r| r.text.trim() == "kura.toml").expect("the unread row");
         assert_eq!(row.raw, "on disk, not read yet — <F9> re-reads config");
         assert!(!row.raw.contains("<C-F5>"), "the default is not written into it: {:?}", row.raw);
     }
@@ -1954,7 +1954,7 @@ mod help_frame {
         Pos2::new(s.rect().width() * 0.45, s.rect().height() * 0.5)
     }
 
-    /// The panel open on filer's own defaults, having measured itself once.
+    /// The panel open on kura's own defaults, having measured itself once.
     fn showing_help(label: &str) -> Screen {
         let mut s = Screen::open(crate::util::test_dir(label));
         s.typed("~");
@@ -3212,7 +3212,7 @@ mod shell_hint_frame {
         // Whichever key it was, the placeholders are the same, and neither line
         // promises a wait.
         assert!(f.says("$@ all"), "the placeholder legend stays: {:?}", f.texts);
-        assert!(!f.says("waits"), "nothing says filer waits: {:?}", f.texts);
+        assert!(!f.says("waits"), "nothing says kura waits: {:?}", f.texts);
     }
 }
 
@@ -3332,7 +3332,7 @@ mod confirm_frame {
     /// and the link's own name.
     #[test]
     fn a_long_body_line_wraps_rather_than_losing_its_middle() {
-        let long = format!("{}  →  {}", "C:/Users/someone/AppData/Local/Temp/filer-scratch/w/a1/zdst/the-link", "C:/Users/someone/AppData/Local/Temp/filer-scratch/w/a1/real");
+        let long = format!("{}  →  {}", "C:/Users/someone/AppData/Local/Temp/kura-scratch/w/a1/zdst/the-link", "C:/Users/someone/AppData/Local/Temp/kura-scratch/w/a1/real");
         let sentence = "A junction needs neither. Unlike the symlink it holds the full path, not a relative one,";
         let mut s = Screen::open(crate::util::test_dir("confirm-wrap")).sized(1000.0, 700.0);
         // 1000 px wide puts the box at 600: both lines are longer than that.
@@ -3365,7 +3365,7 @@ mod confirm_frame {
             let mut s = Screen::open(crate::util::test_dir("confirm-fit")).sized(width, 700.0);
             s.app.overlay = Overlay::Confirm(ConfirmOverlay {
                 title: "Report a bug".into(),
-                body: vec!["filer 0.0.0".into(), String::new(), "The form opens with these filled in.".into()],
+                body: vec!["kura 0.0.0".into(), String::new(), "The form opens with these filled in.".into()],
                 options: vec![
                     ('o', "Open the form in your browser".into()),
                     ('c', "Copy the link".into()),

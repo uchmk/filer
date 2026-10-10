@@ -1,5 +1,5 @@
 //! The terminal pane, drawn by `ito-pane`'s egui view in the theme's
-//! colours. What only filer can do -- give the pane the keys, the clipboard,
+//! colours. What only kura can do -- give the pane the keys, the clipboard,
 //! and saying so when the clipboard will not open -- is done here with what
 //! the view hands back.
 
@@ -25,7 +25,7 @@ fn palette(theme: &Theme) -> ito_pane::Palette {
 pub fn draw(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, row_h: f32) {
     let pal = palette(&app.cfg.theme);
     // A panel over the pane owns the wheel; see `Overlay::is_modal`. Letting
-    // go of a selection always copies it (below), and filer has no triggers.
+    // go of a selection always copies it (below), and kura has no triggers.
     let opts = ito_pane::ViewOptions { focused: app.term_focus, wheel: !app.overlay.is_modal(), copy_on_select: true, highlights: &[] };
     let mut state = ito_pane::ViewState { scroll_rows: app.term_scroll_rows };
     let shown = ito_pane::show(ui, app.term.as_mut(), &mut state, rect, f, row_h, &pal, opts);

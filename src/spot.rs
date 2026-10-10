@@ -242,7 +242,7 @@ fn hard_links(path: &Path) -> (u64, Vec<String>) {
         return (count, Vec::new());
     }
 
-    // The names come back relative to the volume root (`\dev\filer\x.md`), so the
+    // The names come back relative to the volume root (`\dev\kura\x.md`), so the
     // drive the file is on goes back in front of each one.
     let root: String = path
         .components()

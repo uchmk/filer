@@ -1,11 +1,11 @@
-//! `filer --keys "<Tab>C"`: keys pressed by filer itself, once it has started.
+//! `kura --keys "<Tab>C"`: keys pressed by kura itself, once it has started.
 //!
-//! The real-machine test sessions drive filer from outside, and every run
+//! The real-machine test sessions drive kura from outside, and every run
 //! rebuilt the same Win32 scaffolding to do it -- find the window (not the one
 //! `MainWindowHandle` names, which can be winit's event target), then
 //! `SendInput`, which a screen saver silently swallows, or `PostMessage`. This
-//! does it from inside, for a filer this command line starts, and for no other:
-//! it opens no door into a filer that is already running (Q24).
+//! does it from inside, for a kura this command line starts, and for no other:
+//! it opens no door into a kura that is already running (Q24).
 //!
 //! The keys go in as the `egui::Event`s a keyboard would have produced, through
 //! `raw_input_hook`, so they take the same road as a real press -- the chord
@@ -22,7 +22,7 @@ use crate::config::keys::{self, Code, Key};
 pub enum Step {
     Key(Key),
     /// `<Wait:500>`: this long after the key before it went in, before the
-    /// next one does. A shell in the pane runs at its own pace, which filer
+    /// next one does. A shell in the pane runs at its own pace, which kura
     /// cannot see, so "settled" says nothing about it; every real-machine run
     /// that drove the pane filled the gap with harmless keys instead and
     /// guessed how long they took (#93, #119 and five more).
@@ -35,26 +35,26 @@ pub enum Step {
     Now,
     /// `<Shot:name@preview>` crops it to the preview pane (the name keeps the
     /// suffix). `<Shot:name>`: the window as it is now, saved as `name.png` beside the
-    /// `FILER_KEYS_DONE` file, before the next key goes in. A check that
-    /// compares the screen between two keys started filer once per picture
+    /// `KURA_KEYS_DONE` file, before the next key goes in. A check that
+    /// compares the screen between two keys started kura once per picture
     /// and relied on the windows coming out the same size (Q42, #154).
     Shot(String),
-    /// `<State:name>`: what `FILER_KEYS_DONE` would say now, written to
+    /// `<State:name>`: what `KURA_KEYS_DONE` would say now, written to
     /// `name.txt` beside it. That file is written when the script ends, so a
     /// script ending in `q` reports `overlay: none`, and reading a state
-    /// halfway meant leaving the `q` off and stopping filer from outside (#230).
+    /// halfway meant leaving the `q` off and stopping kura from outside (#230).
     State(String),
-    /// `<Quit>`: end filer whatever is open, as the window's close button
+    /// `<Quit>`: end kura whatever is open, as the window's close button
     /// would. `q` is a key like any other, and the compare view, the pane
     /// and a prompt each take it for something else, so a script ending in
     /// `q` there never ended (#236).
     Quit,
     /// `<PaneText:name>`: what the terminal pane shows, as text, written to
-    /// `name.pane.txt` beside the `FILER_KEYS_DONE` file. A full-screen
+    /// `name.pane.txt` beside the `KURA_KEYS_DONE` file. A full-screen
     /// program's footer or a prompt was read off a picture before (#229).
     PaneText(String),
     /// `<PreviewText:name>`: the text the preview pane holds, written to
-    /// `name.preview.txt` beside the `FILER_KEYS_DONE` file (#165).
+    /// `name.preview.txt` beside the `KURA_KEYS_DONE` file (#165).
     PreviewText(String),
     /// `<Paste>` (and `<C-v>`): the clipboard as it is when the key goes in,
     /// as the paste event the platform makes of Ctrl+V. A real keyboard never
@@ -259,7 +259,7 @@ pub fn paste_text_event(text: &str) -> egui::Event {
 /// this is only reached when the frame loop itself has stopped running.
 pub const STALL: Duration = Duration::from_secs(30);
 
-/// What `FILER_KEYS_DONE` holds for a script that stopped part way (#168,
+/// What `KURA_KEYS_DONE` holds for a script that stopped part way (#168,
 /// proposal 5): which keys went in, the last of them, and what was left.
 /// Before this an unattended run that stalled left nothing at all, so the
 /// result read as missing rather than as failed.
@@ -277,7 +277,7 @@ pub fn stalled_report(labels: &[String], left: usize, quiet: Duration) -> String
 /// What a panic leaves for a script that is running: the done file reads
 /// `keys: panicked`, with where and why, instead of never arriving or
 /// reading as a stall. A run that vanished twice (#259, #173) could not say
-/// whether filer had panicked or been ended from outside.
+/// whether kura had panicked or been ended from outside.
 pub fn panic_report(info: &std::panic::PanicHookInfo<'_>) -> String {
     let why = match (info.payload().downcast_ref::<&str>(), info.payload().downcast_ref::<String>()) {
         (Some(m), _) => (*m).to_owned(),
@@ -289,7 +289,7 @@ pub fn panic_report(info: &std::panic::PanicHookInfo<'_>) -> String {
     format!("keys: panicked\nthread: {thread}\nat: {at}\nwhy: {}\n", why.replace('\n', " / "))
 }
 
-/// Before the window opens, for a run that writes `FILER_KEYS_DONE`: a panic
+/// Before the window opens, for a run that writes `KURA_KEYS_DONE`: a panic
 /// anywhere writes [`panic_report`] to that file and to `<file>.panic`, and
 /// ends the process with a code that is not 0, whichever thread it was on.
 pub fn install_panic_report(done: std::path::PathBuf) {
@@ -305,7 +305,7 @@ pub fn install_panic_report(done: std::path::PathBuf) {
     }));
 }
 
-/// The last line of `FILER_KEYS_DONE` when the app quit while the script ran
+/// The last line of `KURA_KEYS_DONE` when the app quit while the script ran
 /// (`q` as its last key, say): the frame that would have written `keys: done`
 /// never comes for a window that has closed, so the file was missing and read
 /// as a stall. A quit with keys still to go says how many.
@@ -317,7 +317,7 @@ pub fn quit_report(left: usize) -> String {
     }
 }
 
-/// The last line of `FILER_KEYS_DONE` when the window was closed from outside
+/// The last line of `KURA_KEYS_DONE` when the window was closed from outside
 /// (the title bar's ×, `WM_CLOSE`) while the script ran: a script waiting on
 /// the file otherwise waited out its timeout, like for a vanished process.
 pub fn closed_report(left: usize) -> String {
@@ -327,7 +327,7 @@ pub fn closed_report(left: usize) -> String {
     }
 }
 
-/// What `FILER_KEYS_DONE` holds for a script refused before any window opened
+/// What `KURA_KEYS_DONE` holds for a script refused before any window opened
 /// (#193, proposal 1): a run started detached never sees the message on the
 /// command line, and without this the file simply never arrived.
 pub fn refused_report(why: &str) -> String {
@@ -511,7 +511,7 @@ pub fn events(key: &Key) -> Option<Vec<egui::Event>> {
 
 #[cfg(test)]
 mod tests {
-    /// The two endings that used to leave no `FILER_KEYS_DONE` at all: a
+    /// The two endings that used to leave no `KURA_KEYS_DONE` at all: a
     /// script whose last key quits, and one refused before the window opened.
     #[test]
     fn a_quit_or_a_refusal_still_says_how_the_script_ended() {

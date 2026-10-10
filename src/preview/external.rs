@@ -1,6 +1,6 @@
 //! A picture drawn by somebody else.
 //!
-//! filer reads what it can in-process, which is most things, and nothing at
+//! kura reads what it can in-process, which is most things, and nothing at
 //! all of PDF or video: both want a renderer far larger than the rest of the
 //! program. The shell's thumbnail handler gives one picture — page one, or the
 //! poster frame — and has no way to ask for a second.
@@ -59,7 +59,7 @@ pub fn draw(rule: &PreviewRule, path: &Path, n: i64) -> Result<Drawn, String> {
 /// cannot be created. `pdftoppm` was unaffected because its `{out}` stands
 /// alone; `ffmpeg`, which is told `{out}.png`, never drew a single frame.
 ///
-/// Quoting is filer's job either way: a rule that had to quote `{path}` itself
+/// Quoting is kura's job either way: a rule that had to quote `{path}` itself
 /// would be wrong on the first name with a space in it.
 fn fill(run: &str, path: &Path, out: &Path, n: i64) -> String {
     run.split_whitespace()
@@ -129,7 +129,7 @@ impl TempDir {
         use std::sync::atomic::{AtomicU64, Ordering};
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let p = std::env::temp_dir().join(format!("filer-preview-{}-{n}", std::process::id()));
+        let p = std::env::temp_dir().join(format!("kura-preview-{}-{n}", std::process::id()));
         // Fresh every time: a leftover picture from the last run would be
         // found by `newest_file` and shown as this one.
         let _ = std::fs::remove_dir_all(&p);
@@ -178,7 +178,7 @@ mod tests {
 
     /// The placeholders carry a path with a space in it.
     ///
-    /// Quoting is filer's job, not the rule's: a config that had to quote
+    /// Quoting is kura's job, not the rule's: a config that had to quote
     /// `{path}` itself would be wrong on the first file with a space in its
     /// name, and on Windows that is most of them.
     #[test]

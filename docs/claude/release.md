@@ -1,4 +1,4 @@
-# filer — 版・タグ・リリースの詳細
+# kura — 版・タグ・リリースの詳細
 
 CLAUDE.md の「ブランチ・バージョン・変更ログ」から分けた（2026-10-07）。リリースを切るとき、タグや成果物を触るときに読む。
 
@@ -23,8 +23,8 @@ CLAUDE.md の「ブランチ・バージョン・変更ログ」から分けた�
     `git describe --tags --abbrev=0 HEAD^` で探すので、**タグができる前に次を投げると、
     さらに前のタグまで遡って、前回と丸ごと重複したノートになる。**
     タグは workflow の最後に作られるため、投げた直後にはまだ無い。
-  - 成果物は 6 つ。Windows は `.zip`（v0.71.0 から `filer.com` も入る。`src/bin/filer-com.rs` のコンソール用の前段で、
-    `filer env` などを PowerShell が待てるようにする。Q44）、macOS / Linux は `.tar.gz`
+  - 成果物は 6 つ。Windows は `.zip`（v0.71.0 から `kura.com` も入る。`src/bin/kura-com.rs` のコンソール用の前段で、
+    `kura env` などを PowerShell が待てるようにする。Q44）、macOS / Linux は `.tar.gz`
     （リリースのアセットは**実行ビットを保持しない**ので、生のバイナリだと
     `chmod +x` が要る。tar は保持する）。
   - **Windows の zip には、新しい ConPTY（`conpty.dll` と `OpenConsole.exe`）を同梱する**
@@ -32,8 +32,8 @@ CLAUDE.md の「ブランチ・バージョン・変更ログ」から分けた�
     取得は `scripts/fetch-conpty.ps1` の 1 か所で、版と SHA-256 はそこで固定している。
     **版を上げるときは、実機で新しい版を試してから、版とハッシュを一緒に変えること。**
     手元でビルドしたときも、このスクリプトで `target\release` に置かないと古い ConPTY で動く。
-    ビルドの後に回すと、`filer-com.exe` を `filer.com` に写すのもこのスクリプト（v0.73.66、#225）。
-    **`filer.exe` の横に無いとき、作業フォルダや `PATH` の `conpty.dll` は読まない**（v0.70.3、#184。`main` の最初で
+    ビルドの後に回すと、`kura-com.exe` を `kura.com` に写すのもこのスクリプト（v0.73.66、#225）。
+    **`kura.exe` の横に無いとき、作業フォルダや `PATH` の `conpty.dll` は読まない**（v0.70.3、#184。`main` の最初で
     `SetDefaultDllDirectories` を呼び、名前で読む DLL を exe のフォルダと System32 に限っている）。
   - **最後に `sums` ジョブが、全成果物と Windows の zip の中身（ファイルごと）の SHA-256 表をノートの末尾に足す**
     （v0.64.0、`scripts/release-sums.sh`。`<!-- checksums -->` から後ろを置き換えるので再実行しても重ならない）。

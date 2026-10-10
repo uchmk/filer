@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-public static class FilerStatusBar {
+public static class KuraStatusBar {
     const uint WM_USER = 0x0400;
     const uint SB_GETPARTS = WM_USER + 6;
     const uint SB_GETTEXTLENGTHW = WM_USER + 12;
@@ -113,9 +113,9 @@ if (-not $pids.Count) {
     exit 1
 }
 $read = 0
-foreach ($w in [FilerStatusBar]::Windows($pids)) {
+foreach ($w in [KuraStatusBar]::Windows($pids)) {
     if ($Match -and $w.Value -notmatch $Match) { continue }
-    $parts = [FilerStatusBar]::Parts($w.Key)
+    $parts = [KuraStatusBar]::Parts($w.Key)
     if ($null -eq $parts) { continue }
     $read++
     Write-Output $w.Value

@@ -517,7 +517,7 @@ mod tests {
     #[test]
     fn toml_and_lock_files_are_highlighted() {
         for ext in ["toml", "lock"] {
-            let lines = render_ext("[package]\nname = \"filer\"\n", ext);
+            let lines = render_ext("[package]\nname = \"kura\"\n", ext);
             assert!(colors(&lines[1]).len() > 1, "{ext}: {:?}", lines[1]);
         }
         // A JSON lockfile is not TOML.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Start filer on a virtual display, photograph it, and fail if what came back is
+# Start kura on a virtual display, photograph it, and fail if what came back is
 # not a drawn window.
 #
 # Until this existed, CI knew one thing about the Linux and macOS builds: that
@@ -33,10 +33,10 @@ while [ $# -gt 0 ]; do
 done
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BIN="$ROOT/target/debug/filer"
-[ -x "$BIN" ] || BIN="$ROOT/target/release/filer"
+BIN="$ROOT/target/debug/kura"
+[ -x "$BIN" ] || BIN="$ROOT/target/release/kura"
 if [ ! -x "$BIN" ]; then
-  echo "no filer binary; run cargo build first" >&2
+  echo "no kura binary; run cargo build first" >&2
   exit 1
 fi
 
@@ -67,14 +67,14 @@ APP=$!
 # Photographed until a frame shows up, for up to 30 s. A fixed `sleep 12` and
 # one picture was right on a quick runner and a coin toss on a slow one: twice
 # in forty runs the picture came out uniform -- the window not painted yet, not
-# filer failing to paint -- once on a commit that changed nothing near the
+# kura failing to paint -- once on a commit that changed nothing near the
 # window (af126be, #159). The question is still "did anything get drawn", so
 # the threshold is the same one the check below uses.
 SD=0
 for _ in $(seq 1 15); do
   sleep 2
   if ! kill -0 "$APP" 2>/dev/null; then
-    echo "filer exited before it could be photographed:" >&2
+    echo "kura exited before it could be photographed:" >&2
     sed 's/^/    /' "$LOG" >&2
     exit 1
   fi
@@ -92,20 +92,20 @@ done
 # would start failing on a theme change, which is not a regression.
 echo "pixel spread: $SD"
 if awk -v v="$SD" 'BEGIN { exit !(v < 0.01) }'; then
-  echo "the window is blank -- filer started but painted nothing" >&2
+  echo "the window is blank -- kura started but painted nothing" >&2
   exit 1
 fi
 
-# And the frame should be filer's, not a default grey. The theme's background is
+# And the frame should be kura's, not a default grey. The theme's background is
 # #16181d; a wgpu surface that failed over to something else would not be.
 DARK=$(identify -format "%[fx:mean]" "$OUT")
 echo "mean brightness: $DARK"
 if awk -v v="$DARK" 'BEGIN { exit !(v > 0.5) }'; then
-  echo "the frame is light -- filer's default theme is dark, so this is not it" >&2
+  echo "the frame is light -- kura's default theme is dark, so this is not it" >&2
   exit 1
 fi
 
-echo "filer started, drew a frame, and it looks like filer: $OUT"
+echo "kura started, drew a frame, and it looks like kura: $OUT"
 if [ -s "$LOG" ]; then
   echo "--- stderr (not a failure; here because it is easy to lose) ---"
   sed 's/^/    /' "$LOG"

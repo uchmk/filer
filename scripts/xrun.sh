@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Run filer once on a virtual X display and keep what it showed -- the Linux
+# Run kura once on a virtual X display and keep what it showed -- the Linux
 # lane's way of pressing keys and reading the result (.claude/linux-role.md).
 #
-#   scripts/xrun.sh OUTDIR [filer arguments...]
+#   scripts/xrun.sh OUTDIR [kura arguments...]
 #
-# Starts its own Xvfb, launches filer with the arguments (`--keys` included),
+# Starts its own Xvfb, launches kura with the arguments (`--keys` included),
 # waits for the window, and writes into OUTDIR what it shows. With `--keys` it
-# waits until filer says the last key has been pressed and has settled
-# (FILER_KEYS_DONE, at most XRUN_KEYS_TIMEOUT seconds, default 120), then
+# waits until kura says the last key has been pressed and has settled
+# (KURA_KEYS_DONE, at most XRUN_KEYS_TIMEOUT seconds, default 120), then
 # XRUN_WAIT seconds more (default 1) for anything a key started in the
 # background. Without `--keys` it waits XRUN_WAIT seconds (default 3). Until
 # v0.60.1 it only ever waited XRUN_WAIT, and a script with more `<Wait:N>` in it
@@ -15,22 +15,22 @@
 #
 #   shot.png     the whole screen
 #   title.txt    the window's title, which names the folder the list is in
-#   clip.txt     the clipboard, read while filer still owns it (an X clipboard
+#   clip.txt     the clipboard, read while kura still owns it (an X clipboard
 #                dies with its owner, so reading it afterwards gets nothing)
-#   filer.log    what filer printed
+#   kura.log    what kura printed
 #   keys.done    there when every `--keys` key went in (last line `keys: done`);
 #                missing, or `keys: stalled` (v0.67.12), means the script did
 #                not finish and the result is of a half-pressed script
 #
 # The clipboard is armed with XRUN-SENTINEL first, so an unchanged clipboard
-# reads as that rather than as the previous run's. FILER_BIN overrides the
-# binary (default target/debug/filer). Needs Xvfb, xdotool, xclip, ImageMagick.
+# reads as that rather than as the previous run's. KURA_BIN overrides the
+# binary (default target/debug/kura). Needs Xvfb, xdotool, xclip, ImageMagick.
 
 set -u
-out="${1:?usage: scripts/xrun.sh OUTDIR [filer arguments...]}"
+out="${1:?usage: scripts/xrun.sh OUTDIR [kura arguments...]}"
 shift
 mkdir -p -- "$out"
-bin="${FILER_BIN:-target/debug/filer}"
+bin="${KURA_BIN:-target/debug/kura}"
 keyed=0
 for a in "$@"; do [ "$a" = "--keys" ] && keyed=1; done
 if [ "$keyed" = 1 ]; then wait_s="${XRUN_WAIT:-1}"; else wait_s="${XRUN_WAIT:-3}"; fi
@@ -40,7 +40,7 @@ rm -f -- "$out/keys.done"
 for tool in Xvfb xdotool xclip import; do
     command -v "$tool" >/dev/null || { echo "xrun: $tool is missing (apt-get install -y xvfb xdotool xclip imagemagick)" >&2; exit 2; }
 done
-# What winit and the renderer load at start. Missing, filer panics with a
+# What winit and the renderer load at start. Missing, kura panics with a
 # backtrace and this script could only say "no window appeared" (#131).
 for lib in libxkbcommon-x11.so libvulkan.so; do
     ldconfig -p | grep -q "$lib" || { echo "xrun: $lib is missing (apt-get install -y libxkbcommon-x11-0 mesa-vulkan-drivers libvulkan1)" >&2; exit 2; }
@@ -58,7 +58,7 @@ for _ in $(seq 1 50); do xdotool getdisplaygeometry >/dev/null 2>&1 && break; sl
 printf 'XRUN-SENTINEL' | xclip -selection clipboard -i -loops 1 &
 sleep 0.2
 
-FILER_KEYS_DONE="$out/keys.done" "$bin" "$@" >"$out/filer.log" 2>&1 &
+KURA_KEYS_DONE="$out/keys.done" "$bin" "$@" >"$out/kura.log" 2>&1 &
 pid=$!
 win=""
 for _ in $(seq 1 100); do
@@ -68,7 +68,7 @@ for _ in $(seq 1 100); do
     sleep 0.2
 done
 if [ -z "$win" ]; then
-    echo "xrun: no window appeared; see $out/filer.log" >&2
+    echo "xrun: no window appeared; see $out/kura.log" >&2
     kill "$pid" 2>/dev/null
     exit 1
 fi
@@ -79,7 +79,7 @@ if [ "$keyed" = 1 ]; then
         sleep 0.2
     done
     [ -e "$out/keys.done" ] || echo "xrun: --keys did not finish within ${keys_timeout}s; this is a half-pressed result" >&2
-    # filer writes the file for a script that stalled too (v0.67.12), and
+    # kura writes the file for a script that stalled too (v0.67.12), and
     # replaces it if the keys go on after all: wait that out once more.
     if head -1 "$out/keys.done" 2>/dev/null | grep -q '^keys: stalled'; then
         for _ in $(seq 1 $((keys_timeout * 5))); do

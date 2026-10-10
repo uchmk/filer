@@ -368,7 +368,7 @@ fn elide_at(name: &str, max_width: f32, width: &dyn Fn(&str) -> f32) -> Option<(
 
 /// `cut` moved, within the same number of kept characters, so that `name`
 /// no longer reads the same as a neighbouring row's name (Q67, #227: a
-/// column of `filer…84` with the cursor on one of them). More of the head
+/// column of `notes…84` with the cursor on one of them). More of the head
 /// is kept up to the first character the two differ in; failing that, more
 /// of the tail. A neighbour that already reads differently, or one the
 /// budget cannot tell apart, leaves the cut as it was.
@@ -525,7 +525,7 @@ pub fn permissions(entry: &Entry) -> String {
 mod icon_column {
     use crate::ui::harness::Screen;
 
-    /// filer's config as it comes out on a machine with no icon font: what
+    /// kura's config as it comes out on a machine with no icon font: what
     /// `apply_fonts` does to the theme when `install_fonts` finds no Nerd Font.
     fn without_icon_font() -> crate::config::Config {
         let mut cfg = crate::config::Config::load();
@@ -653,12 +653,12 @@ mod elision {
             let cut = elide_at(name, 12.0, &chars).unwrap();
             elided(name, &[], apart(name, cut, near)).0
         };
-        let a = "filer-archive-x-15484.log";
-        let b = "filer-test-yy-15484.log";
-        assert_eq!(shown(a, 12.0), "filer…84.log");
-        assert_eq!(shown(b, 12.0), "filer…84.log", "the case: the two read the same");
-        assert_eq!(show(a, &[b]), "filer-a….log");
-        assert_eq!(show(b, &[a]), "filer-t….log");
+        let a = "notes-archive-x-15484.log";
+        let b = "notes-test-yy-15484.log";
+        assert_eq!(shown(a, 12.0), "notes…84.log");
+        assert_eq!(shown(b, 12.0), "notes…84.log", "the case: the two read the same");
+        assert_eq!(show(a, &[b]), "notes-a….log");
+        assert_eq!(show(b, &[a]), "notes-t….log");
         assert_eq!(show(a, &[b]).chars().count(), shown(a, 12.0).chars().count(), "no wider");
         // They differ near the end: more of the tail instead.
         let c = "build-output-run-1-x.log";

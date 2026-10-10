@@ -1,6 +1,6 @@
-# filer — Claude 向けメモ
+# kura — Claude 向けメモ
 
-yazi 風のキーボード操作ファイルマネージャーを Rust + egui 0.36 で作った GUI 版。yazi の設定ファイル（`yazi.toml` / `keymap.toml` / `theme.toml`）をそのまま読む。Windows 優先。
+yazi 風のキーボード操作ファイルマネージャーを Rust + egui 0.36 で作った GUI 版（v0.95.0 で filer から改名。古い記録には filer のまま残る）。yazi の設定ファイル（`yazi.toml` / `keymap.toml` / `theme.toml`）をそのまま読む。Windows 優先。
 
 **ここには毎回要る規則だけを置く。詳細は `docs/claude/` にあり、該当する作業のときに読む**（2026-10-07、持ち主の判断。全部をここに置くと毎回 18k トークン読み込んでいた）。
 
@@ -16,15 +16,15 @@ yazi 風のキーボード操作ファイルマネージャーを Rust + egui 0.
 
 - 返答は日本語。コード・コメント・コミットメッセージは英語。
 - 頼まれるまでコミットしない（例外は「自動実行モード」）。
-- 実行中の `filer.exe` を止めるときは事前確認を不要とし、ビルドを優先する。
+- 実行中の `kura.exe` を止めるときは事前確認を不要とし、ビルドを優先する。
 - 改行は LF（`.gitattributes` の `eol=lf`）。スクリプトで書き換えるときは改行を変えない（Python なら `newline=''`）。
 - タスクは [TODO.md](TODO.md)、人への確認事項は [QUESTIONS.md](QUESTIONS.md)（書き方は docs/claude/questions.md）。
   - 未完了の項目の末尾の `【人】` `【QA】` `【実機】` `【後】` `【pane】` は開発のセッションが進めない印。「次の項目」を探すときは飛ばす。
-    `【pane】` はターミナルペイン: コードは uchmk/ito の `ito-pane` にあり、filer は `Cargo.toml` の `rev` で固定して読む
+    `【pane】` はターミナルペイン: コードは uchmk/ito の `ito-pane` にあり、kura は `Cargo.toml` の `rev` で固定して読む
     （直すときは tsumugi 側で直し、`rev` を上げて `cargo build` で `Cargo.lock` を合わせる）。
   - 節の項目が全部済んだら、その節を [TODO-DONE.md](TODO-DONE.md) の末尾に移す。
 - **直した分は再テストに回す。**動きが変わった行は TESTING-CHECKS.md の `[x]` を外し、`.claude/windows-role.md` の
-  2 つの順番表（x64 と ARM64）の先頭の「Re-tests of changed behaviour」に足す。自分でも Xvfb で `--keys` と `FILER_KEYS_DONE` を使って先に確かめる。
+  2 つの順番表（x64 と ARM64）の先頭の「Re-tests of changed behaviour」に足す。自分でも Xvfb で `--keys` と `KURA_KEYS_DONE` を使って先に確かめる。
 - **実機でしか確かめられないことは [TESTING.md](TESTING.md) に積む**（チェック項目を足してから完了にする）。`[x]` を付けてよいのは実機のセッションと持ち主だけ。
 
 ## 版・変更ログ・push
@@ -86,7 +86,7 @@ QUESTIONS.md の書き方と「多数決で進める質問」は [docs/claude/qu
     どれも yazi の TUI の内側に直結している。Lua を組み込んでも、これを egui の上に作り直さない限りほとんど動かない。
   - Rust から Lua を動かす定番の `mlua` は C の Lua 本体をビルドに抱える。「Pure Rust を優先し、6 ターゲットへのクロスコンパイルを楽に」に反する。
   - プラグインの主な用途（カーソルの下のファイルに何かする）は、`shell` のバインドと `[opener]` で書け、右クリックメニューとパレットに並ぶ（TODO-DONE の 5 節）。
-  - だから、よく使われるプラグインは **1 つずつ filer の機能で置き換える**（`toggle-pane`・`bookmarks`・`smart-enter`・`smart-filter` がその形。
+  - だから、よく使われるプラグインは **1 つずつ kura の機能で置き換える**（`toggle-pane`・`bookmarks`・`smart-enter`・`smart-filter` がその形。
     `src/config/cmd.rs` の `plugin` の扱い）。知らない `plugin …` は設定の読み込みを壊さず、ヘルプに未対応と出し、押せばトーストで言う。
   - Lua の実行環境を入れるなら依存クレートの追加と大きな設計になるので、QUESTIONS.md で範囲を決めてから。
 

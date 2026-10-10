@@ -2,7 +2,7 @@
 
 A claude.ai Routine starts a new cloud session once an hour, at :30 (the owner's
 choice, 2026-10-05; the merge routine runs once a day, at 10:01 JST), with
-`uchmk/filer` attached, and its whole instruction is one line: read this file
+`uchmk/kura` attached, and its whole instruction is one line: read this file
 and do what it says. This file is the one place the routine's steps live
 (CLAUDE.md, 自動実行モード). To change what the routine does, change this file;
 the Routine's own text can only be edited from its own conversation, so it
@@ -47,7 +47,7 @@ Match the surrounding code (comment density, names, the one-line layout).
    commit:
 
    ```bash
-   gh api "repos/uchmk/filer/commits/$(git rev-parse origin/main)/check-runs" \
+   gh api "repos/uchmk/kura/commits/$(git rev-parse origin/main)/check-runs" \
        --jq '.check_runs[] | select(.name == "test") | "\(.status) \(.conclusion)"'
    ```
 

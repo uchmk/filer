@@ -1,18 +1,18 @@
-//! `filer.com`: the console-subsystem front for `filer.exe` (Q44).
+//! `kura.com`: the console-subsystem front for `kura.exe` (Q44).
 //!
-//! `filer.exe` is a windowed program, so PowerShell does not wait for it at
-//! the end of a pipeline: `$v = & filer env` came back empty, as did
-//! `& filer --version`, and the text arrived after the prompt (#160, #176,
-//! #183). The release zip ships this binary beside `filer.exe` as `filer.com`.
-//! `PATHEXT` lists `.COM` before `.EXE`, so typing `filer` finds this one
+//! `kura.exe` is a windowed program, so PowerShell does not wait for it at
+//! the end of a pipeline: `$v = & kura env` came back empty, as did
+//! `& kura --version`, and the text arrived after the prompt (#160, #176,
+//! #183). The release zip ships this binary beside `kura.exe` as `kura.com`.
+//! `PATHEXT` lists `.COM` before `.EXE`, so typing `kura` finds this one
 //! first. It is the shape of Visual Studio's `devenv.com` and `devenv.exe`.
 //!
-//! For the commands that answer in text, it runs `filer.exe` with the same
+//! For the commands that answer in text, it runs `kura.exe` with the same
 //! arguments and the same standard handles, waits, and passes on the exit
 //! code. Being a console program, it is what the shell waits for. Anything
-//! else opens the window: it starts `filer.exe` and returns as soon as the
-//! window is taking input, much as typing `filer.exe` always did. It waits
-//! that long, not less, so that a command line `filer.exe` refuses before
+//! else opens the window: it starts `kura.exe` and returns as soon as the
+//! window is taking input, much as typing `kura.exe` always did. It waits
+//! that long, not less, so that a command line `kura.exe` refuses before
 //! opening a window (`--keys "<Tab"`, two paths) still prints its one line
 //! here and passes on its exit code.
 //!
@@ -23,19 +23,19 @@
 //! program's own instead, copied out here until the window is up.
 //!
 //! It holds no logic of its own beyond that choice: the report, the help and
-//! the hooks all come from `filer.exe`, so the two cannot disagree.
+//! the hooks all come from `kura.exe`, so the two cannot disagree.
 
-/// The arguments that make `filer.exe` print and exit rather than open a
+/// The arguments that make `kura.exe` print and exit rather than open a
 /// window. Kept in step with `parse_cli` in `main.rs`.
 /// `mcp` too: it talks on the standard handles until its client closes
-/// them, and they are inherited, so `filer.com mcp` serves as `filer.exe mcp` does.
+/// them, and they are inherited, so `kura.com mcp` serves as `kura.exe mcp` does.
 const ANSWERS: &[&str] = &["env", "--env", "--version", "-V", "--help", "-h", "shell-hook", "mcp"];
 
 /// The options that take the next argument as their value, which is then
 /// never a command: `--keys env` types three letters.
 const TAKES_VALUE: &[&str] = &["--cwd-file", "--chooser-file", "--keys"];
 
-/// Whether `filer.exe` will answer this command line in text and exit, read
+/// Whether `kura.exe` will answer this command line in text and exit, read
 /// the way `parse_cli` reads it: left to right, skipping option values.
 fn answers_in_text(args: &[std::ffi::OsString]) -> bool {
     let mut args = args.iter().map(|a| a.to_str().unwrap_or(""));
@@ -54,14 +54,14 @@ fn answers_in_text(args: &[std::ffi::OsString]) -> bool {
 fn main() {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     let exe = match std::env::current_exe() {
-        Ok(me) => me.with_file_name("filer.exe"),
+        Ok(me) => me.with_file_name("kura.exe"),
         Err(e) => {
-            eprintln!("filer.com: cannot tell where it is: {e}");
+            eprintln!("kura.com: cannot tell where it is: {e}");
             std::process::exit(2);
         }
     };
     if !exe.is_file() {
-        eprintln!("filer.com: no filer.exe beside it ({})", exe.display());
+        eprintln!("kura.com: no kura.exe beside it ({})", exe.display());
         std::process::exit(2);
     }
     let mut cmd = std::process::Command::new(&exe);
@@ -70,7 +70,7 @@ fn main() {
         match cmd.status() {
             Ok(status) => std::process::exit(status.code().unwrap_or(1)),
             Err(e) => {
-                eprintln!("filer.com: {}: {e}", exe.display());
+                eprintln!("kura.com: {}: {e}", exe.display());
                 std::process::exit(2);
             }
         }
@@ -80,7 +80,7 @@ fn main() {
     let mut child = match cmd.stdin(std::process::Stdio::null()).stdout(piped()).stderr(piped()).spawn() {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("filer.com: {}: {e}", exe.display());
+            eprintln!("kura.com: {}: {e}", exe.display());
             std::process::exit(2);
         }
     };
@@ -97,7 +97,7 @@ fn main() {
 }
 
 /// Makes this program's standard handles stay here. `Command` starts
-/// `filer.exe` with every inheritable handle, not only the three it is given,
+/// `kura.exe` with every inheritable handle, not only the three it is given,
 /// so the pipe of a `| Tee-Object` would reach the window all the same.
 #[cfg(windows)]
 fn keep_own_handles() {
@@ -114,7 +114,7 @@ fn keep_own_handles() {
 }
 
 /// Copies what the window writes to this console, on a thread of its own so
-/// that a long refusal cannot fill the pipe and stall `filer.exe`. The
+/// that a long refusal cannot fill the pipe and stall `kura.exe`. The
 /// receiver hears once the pipe is closed and everything is copied.
 #[cfg(windows)]
 fn copy_out<R, W>(from: Option<R>, to: fn() -> W) -> std::sync::mpsc::Receiver<()>
@@ -135,7 +135,7 @@ where
 }
 
 /// Waits for the window to start taking input, then lets it be: the prompt
-/// comes back with filer still open. If `filer.exe` exits first, it refused
+/// comes back with kura still open. If `kura.exe` exits first, it refused
 /// the command line, and its exit code is this one's. A refusal comes before
 /// any window, within milliseconds of starting; the cap is for a machine so
 /// slow that neither has happened yet.
@@ -157,7 +157,7 @@ fn until_the_window_is_up(child: &mut std::process::Child) -> i32 {
         match unsafe { WaitForInputIdle(process, 50) } {
             // Idle: its message loop is running and waiting for input -- or
             // it has exited, which WaitForInputIdle also answers with 0. CI
-            // caught that: `--keys "<Tab"` printed its refusal, filer.exe
+            // caught that: `--keys "<Tab"` printed its refusal, kura.exe
             // exited 2, and this returned 0. So look again, giving an exit
             // that is already under way a moment to land.
             0 => {
@@ -190,7 +190,7 @@ fn until_the_window_is_up(child: &mut std::process::Child) -> i32 {
 #[cfg(not(windows))]
 fn main() {
     let _ = answers_in_text;
-    eprintln!("filer-com is the console front for filer.exe, and only does anything on Windows");
+    eprintln!("kura-com is the console front for kura.exe, and only does anything on Windows");
     std::process::exit(2);
 }
 

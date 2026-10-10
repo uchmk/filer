@@ -55,7 +55,7 @@ that somebody can start them, not because they are known to work.
 
 Two things are known to be missing there, by design rather than by accident,
 because the Windows shell is what supplies them: the thumbnail for formats
-filer does not decode itself (HEIC, AVIF, PDF, video) and the listing of a file
+kura does not decode itself (HEIC, AVIF, PDF, video) and the listing of a file
 server's shares. Both say so rather than failing quietly. PDF and video can be
 previewed anyway with a `[[preview]]` rule; see the README.
 
@@ -73,7 +73,7 @@ in the table at the end of this page, and comparing it tells you the file is the
 one CI built from this tag's commit and that nothing altered it on the way:
 
 ```powershell
-Get-FileHash .\filer-...-windows-x64.zip -Algorithm SHA256 | Format-List Hash
+Get-FileHash .\kura-...-windows-x64.zip -Algorithm SHA256 | Format-List Hash
 ```
 
 A matching hash does not remove the warning. Only a certificate does, and there
@@ -82,12 +82,12 @@ is not one.
 The macOS and Linux downloads are `.tar.gz` because a release asset does not carry
 the executable bit and an archive does.
 
-The Windows downloads are `.zip`: `filer.exe` comes with `conpty.dll` and
+The Windows downloads are `.zip`: `kura.exe` comes with `conpty.dll` and
 `OpenConsole.exe`, a newer ConPTY from Microsoft's own package (MIT, notice
-included), and `filer.com`, which makes `filer env` and `filer --version`
+included), and `kura.com`, which makes `kura env` and `kura --version`
 typed in a terminal behave like any console command. The table at the end
 lists each zip's files with their hashes.
-**Keep them together.** filer runs without the others, but on
+**Keep them together.** kura runs without the others, but on
 the older ConPTY built into Windows, programs in the terminal pane such as
 lazygit misread keys.
 NOTE

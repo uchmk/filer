@@ -66,7 +66,7 @@ pub enum CopyWhat {
     /// The spot panel's selected value (yazi's `copy cell`).
     Cell,
     /// The whole spot panel, one `Label<TAB>value` line per row under each
-    /// section's title (filer's own `copy all`).
+    /// section's title (kura's own `copy all`).
     All,
 }
 
@@ -123,7 +123,7 @@ pub enum Act {
     TabSwitch { n: i64, relative: bool },
     TabSwap(i64),
 
-    /// Open / close the second pane (a filer extra; yazi has one pane).
+    /// Open / close the second pane (a kura extra; yazi has one pane).
     Split(Tri),
     /// Move the keys to the left / right pane, or to the other one when no
     /// side is named. Opens the split if it is closed.
@@ -157,7 +157,7 @@ pub enum Act {
 
     Find { prev: bool, smart: bool, insensitive: bool },
     FindArrow { prev: bool },
-    /// In a folder comparison, hide the `=` rows or bring them back (filer's
+    /// In a folder comparison, hide the `=` rows or bring them back (kura's
     /// own `hide_same`, Q23).
     HideSame,
     Filter { smart: bool, insensitive: bool },
@@ -179,7 +179,7 @@ pub enum Act {
     /// Do again what [`Act::Undo`] took back.
     Redo,
 
-    /// Read `yazi.toml`, `keymap.toml`, `theme.toml` and `filer.toml` again
+    /// Read `yazi.toml`, `keymap.toml`, `theme.toml` and `kura.toml` again
     /// without restarting.
     ConfigReload,
 
@@ -537,7 +537,7 @@ pub fn parse(line: &str) -> Act {
 
         "help" => Act::Help,
         // `scale in` / `scale out` / `scale reset`. egui has this built in and
-        // takes the same three chords for itself; filer turns that off and
+        // takes the same three chords for itself; kura turns that off and
         // runs it through the keymap instead, so it is listed under `~` and
         // can be moved like anything else. Leaving it to egui meant `<C-->`
         // both hardlinked and shrank the window.

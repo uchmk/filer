@@ -78,7 +78,7 @@ jobs:
         run: cargo build --locked --all-targets
       - name: Test
         run: cargo test --locked
-      # The ConPTY that Windows builds ship beside filer.exe (see
+      # The ConPTY that Windows builds ship beside kura.exe (see
       # scripts/fetch-conpty.ps1). Fetched here, on every pull request, so that
       # a broken script, a moved URL or a package whose hash no longer matches
       # fails the change that caused it rather than the next release.
@@ -124,7 +124,7 @@ jobs:
   # that they compile and link. The release notes said exactly that -- "nobody
   # has started the program on either" -- so a binary that panicked on launch,
   # or opened a window and painted nothing, would have shipped green. This does
-  # not test what filer *does*; it tests the thing every other check assumes.
+  # not test what kura *does*; it tests the thing every other check assumes.
   #
   # It found something on its first run: with no Nerd Font present the icon
   # column still reserved a full em for a one-character ASCII fallback, so every

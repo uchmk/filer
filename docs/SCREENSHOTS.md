@@ -1,4 +1,4 @@
-# Pictures of filer
+# Pictures of kura
 
 Both the **social preview** and the **three README screenshots** are done. What
 follows is the brief they were shot to, kept because the next reshoot -- a theme
@@ -12,7 +12,7 @@ preview**, and that upload is the only step left.
 
 Edit the HTML rather than the PNG; the file's own header comment has the one
 command that re-renders it, and says which details in it are load-bearing (the
-colours are filer's own, the window chrome is Windows, the listing is the real
+colours are kura's own, the window chrome is Windows, the listing is the real
 contents of `src/`).
 
 ## The three README screenshots
@@ -23,7 +23,7 @@ for, and what it had to contain:
 ### `screenshot-main.png` — what the program is
 
 The three columns with a source file under the cursor and its preview alongside,
-plus the outline down the right. Shot in `filer`'s own `src/`, which matters: a
+plus the outline down the right. Shot in `kura`'s own `src/`, which matters: a
 reader recognises a source tree and cannot tell whether fixtures are a demo.
 
 The frame has to include the **header** (path and counts), the **status bar**

@@ -268,7 +268,7 @@ mod tests {
 
     impl Tree {
         fn new(name: &str, files: &[(&str, &[u8])]) -> Self {
-            let root = std::env::temp_dir().join(format!("filer-search-{}-{name}", std::process::id()));
+            let root = std::env::temp_dir().join(format!("kura-search-{}-{name}", std::process::id()));
             let _ = std::fs::remove_dir_all(&root);
             for (rel, body) in files {
                 let at = root.join(rel);

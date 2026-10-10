@@ -1,4 +1,4 @@
-//! `filer env`: everything a report would otherwise have to ask for.
+//! `kura env`: everything a report would otherwise have to ask for.
 //!
 //! Modelled on yazi's `ya env`, and for the same reason. A bug report that
 //! needs "which config files were read", "is `ffmpeg` on the PATH", "what does
@@ -16,7 +16,7 @@ use std::process::Command;
 pub fn text() -> String {
     let cfg = crate::config::Config::load();
     let mut out = String::new();
-    section(&mut out, "Filer", &version());
+    section(&mut out, "Kura", &version());
     section(&mut out, "Config", &config(&cfg));
     section(&mut out, "Last run", &last_run());
     section(&mut out, "Tools", &tools(&cfg));
@@ -102,7 +102,7 @@ fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
         };
         rows.push((format!("{}{}", dir.display(), std::path::MAIN_SEPARATOR), said));
     }
-    // Not a config file, but the other directory filer touches: bookmarks,
+    // Not a config file, but the other directory kura touches: bookmarks,
     // the jump history and the window size are written here, and "delete this
     // and try again" is a step a report is often asked to take.
     rows.push(("State".into(), crate::config::Config::state_dir().display().to_string()));
@@ -128,9 +128,9 @@ fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
     rows
 }
 
-/// The outside programs filer actually runs, and whether they are there.
+/// The outside programs kura actually runs, and whether they are there.
 ///
-/// Only the ones it really does run. Listing a tool filer has no code for
+/// Only the ones it really does run. Listing a tool kura has no code for
 /// would be the worst kind of wrong in a diagnostic: it reads as a dependency,
 /// and "not found" next to it sends the reader off installing something that
 /// changes nothing. Previews and archives are handled in-process and need
@@ -191,8 +191,8 @@ fn tools(cfg: &crate::config::Config) -> Vec<(String, String)> {
 #[cfg(any(windows, test))]
 fn conpty_source(exe: Option<&std::path::Path>) -> String {
     match exe.and_then(|e| e.parent()).map(|d| d.join("conpty.dll")) {
-        Some(dll) if dll.is_file() => format!("{}   (beside filer.exe)", dll.display()),
-        _ => "built into Windows   (no conpty.dll beside filer.exe)".into(),
+        Some(dll) if dll.is_file() => format!("{}   (beside kura.exe)", dll.display()),
+        _ => "built into Windows   (no conpty.dll beside kura.exe)".into(),
     }
 }
 
@@ -232,20 +232,20 @@ fn row(exe: &str, flag: &str, what: &str) -> (String, String) {
 /// see if it exists would launch their editor, or their image viewer, or
 /// whatever else they have put there, every time they asked what was wrong.
 /// Where the pane's shell came from, and the `[term] args` that
-/// `FILER_TERM_SHELL` left out, when there were any (#190).
+/// `KURA_TERM_SHELL` left out, when there were any (#190).
 fn shell_source(term: &crate::config::TermCfg) -> String {
     let said = shell_source_base(term);
     match (term.args_from_env, term.args_unused) {
-        (true, _) => format!("{said}; args from FILER_TERM_ARGS: {}", term.args.join(" ")),
-        (_, true) => format!("{said}; FILER_TERM_ARGS not used: it needs FILER_TERM_SHELL"),
+        (true, _) => format!("{said}; args from KURA_TERM_ARGS: {}", term.args.join(" ")),
+        (_, true) => format!("{said}; KURA_TERM_ARGS not used: it needs KURA_TERM_SHELL"),
         _ => said,
     }
 }
 
 fn shell_source_base(term: &crate::config::TermCfg) -> String {
     match (term.shell.is_empty(), term.from_env) {
-        (false, true) if term.dropped_args.is_empty() => "terminal pane, from FILER_TERM_SHELL".into(),
-        (false, true) => format!("terminal pane, from FILER_TERM_SHELL; [term] args not used: {}", term.dropped_args.join(" ")),
+        (false, true) if term.dropped_args.is_empty() => "terminal pane, from KURA_TERM_SHELL".into(),
+        (false, true) => format!("terminal pane, from KURA_TERM_SHELL; [term] args not used: {}", term.dropped_args.join(" ")),
         (false, false) => "terminal pane, from [term] shell".into(),
         (true, _) => "terminal pane, the platform default".into(),
     }
@@ -425,7 +425,7 @@ fn last_run() -> Vec<(String, String)> {
     let Some(info) = crate::runinfo::load() else {
         return vec![(
             "Rendering".into(),
-            "not recorded — filer has not opened a window on this machine yet".into(),
+            "not recorded — kura has not opened a window on this machine yet".into(),
         )];
     };
     let list = |paths: &[std::path::PathBuf], none: &str| match paths.is_empty() {
@@ -442,13 +442,13 @@ fn last_run() -> Vec<(String, String)> {
         // ago read as the run just made (#244).
         ("Started".into(), info.started_line(std::time::SystemTime::now()).unwrap_or_else(|| "not recorded".into())),
         // Above the fonts because it is the one row that settles an argument:
-        // what filer thinks its own window is, as against what a capture or a
+        // what kura thinks its own window is, as against what a capture or a
         // script measured from outside.
         ("Window".into(), info.window_line().unwrap_or_else(|| {
             "not recorded — no frame was drawn before the record was written".into()
         })),
         ("Terminal pane".into(), pane_row(&info)),
-        // What was launched, as the command lines filer built (Q40): an opener
+        // What was launched, as the command lines kura built (Q40): an opener
         // that ran the wrong thing is visible here after the toast has gone.
         ("Launched".into(), match info.launched.is_empty() {
             true => "nothing in that run".into(),
@@ -457,16 +457,16 @@ fn last_run() -> Vec<(String, String)> {
         ("Fonts".into(), list(&info.fonts, "none loaded — this is why icons are boxes")),
         ("Bold".into(), list(&info.bold, "none found; bold is faked by overstriking")),
     ];
-    // A record left by an older filer describes an older filer. Saying so
+    // A record left by an older kura describes an older kura. Saying so
     // costs a line and stops a stale answer being read as a current one.
     if info.version != env!("CARGO_PKG_VERSION") {
-        rows.push(("Recorded by".into(), format!("filer {} — an earlier run", info.version)));
+        rows.push(("Recorded by".into(), format!("kura {} — an earlier run", info.version)));
     }
     rows
 }
 
 fn variables() -> Vec<(String, String)> {
-    ["EDITOR", "VISUAL", "SHELL", "TERM", "YAZI_CONFIG_HOME", "FILER_CONFIG_HOME", "FILER_STATE_HOME", "FILER_TERM_SHELL", "FILER_TERM_ARGS", "FILER_SCALE"]
+    ["EDITOR", "VISUAL", "SHELL", "TERM", "YAZI_CONFIG_HOME", "KURA_CONFIG_HOME", "KURA_STATE_HOME", "KURA_TERM_SHELL", "KURA_TERM_ARGS", "KURA_SCALE"]
         .iter()
         .map(|k| (k.to_string(), std::env::var(k).unwrap_or_else(|_| "unset".into())))
         .collect()
@@ -644,11 +644,11 @@ mod tests {
         let me = std::env::current_exe().unwrap();
         assert_eq!(locate(me.to_str().unwrap()), Some(me));
         // And something that certainly does not.
-        assert_eq!(locate("filer-no-such-program-anywhere"), None);
+        assert_eq!(locate("kura-no-such-program-anywhere"), None);
         assert_eq!(locate("/no/such/path/at/all"), None);
     }
 
-    /// #190: the args `FILER_TERM_SHELL` set aside are named, and only when
+    /// #190: the args `KURA_TERM_SHELL` set aside are named, and only when
     /// there were some.
     #[test]
     fn the_shell_row_names_the_args_the_variable_dropped() {
@@ -659,10 +659,10 @@ mod tests {
             dropped_args: dropped.iter().map(|a| a.to_string()).collect(),
             ..TermCfg::default()
         };
-        assert_eq!(shell_source(&env(&[])), "terminal pane, from FILER_TERM_SHELL");
+        assert_eq!(shell_source(&env(&[])), "terminal pane, from KURA_TERM_SHELL");
         assert_eq!(
             shell_source(&env(&["-NoLogo", "-NoProfile"])),
-            "terminal pane, from FILER_TERM_SHELL; [term] args not used: -NoLogo -NoProfile"
+            "terminal pane, from KURA_TERM_SHELL; [term] args not used: -NoLogo -NoProfile"
         );
         let file = TermCfg { shell: "pwsh".into(), args: vec!["-NoLogo".into()], ..TermCfg::default() };
         assert_eq!(shell_source(&file), "terminal pane, from [term] shell");
@@ -672,11 +672,11 @@ mod tests {
     #[test]
     fn conpty_is_the_one_beside_the_exe_or_the_built_in() {
         let dir = crate::util::test_dir("conpty-row");
-        let exe = dir.join("filer.exe");
+        let exe = dir.join("kura.exe");
         assert!(conpty_source(Some(&exe)).starts_with("built into Windows"));
         std::fs::write(dir.join("conpty.dll"), b"").unwrap();
         let row = conpty_source(Some(&exe));
-        assert!(row.contains("conpty.dll") && row.ends_with("(beside filer.exe)"), "{row}");
+        assert!(row.contains("conpty.dll") && row.ends_with("(beside kura.exe)"), "{row}");
         assert!(conpty_source(None).starts_with("built into Windows"));
     }
 
@@ -686,7 +686,7 @@ mod tests {
         let text = text();
         assert!(text.contains(env!("CARGO_PKG_VERSION")), "the version is its own");
         // Every section is present even when a machine has none of the tools.
-        for title in ["Filer", "Config", "Tools", "Variables"] {
+        for title in ["Kura", "Config", "Tools", "Variables"] {
             assert!(text.contains(title), "{title} is missing:\n{text}");
         }
         // A tool says what it is for, found or not, so the reader learns what
@@ -696,7 +696,7 @@ mod tests {
         let exe = std::env::current_exe().unwrap();
         let row = text.lines().find(|l| l.trim_start().starts_with("Executable")).unwrap_or_default();
         assert!(row.ends_with(&format!(": {}", exe.display())), "{text}");
-        // And only tools filer really runs: naming one it has no code for
+        // And only tools kura really runs: naming one it has no code for
         // reads as a dependency and sends the reader off installing something
         // that changes nothing.
         for never_run in ["pdftoppm", "ffmpeg", "ffprobe"] {

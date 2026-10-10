@@ -12,9 +12,9 @@ cargo run --example make-icon
 ```
 
 Both are used. The window's icon — the title bar, Alt+Tab, the taskbar button
-of a running filer — is rasterized from the SVG at startup, so it works on every
+of a running kura — is rasterized from the SVG at startup, so it works on every
 platform and needs nothing but the vector. The icon Explorer draws on
-`filer.exe` itself is the `.ico`, compiled into the binary as a Windows resource
+`kura.exe` itself is the `.ico`, compiled into the binary as a Windows resource
 by `build.rs`, which only happens when both the host and the target are Windows:
 it needs the SDK's `rc.exe`.
 

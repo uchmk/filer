@@ -1,4 +1,4 @@
-# filer — 確認事項（QUESTIONS.md）の書き方と多数決
+# kura — 確認事項（QUESTIONS.md）の書き方と多数決
 
 CLAUDE.md から分けた（2026-10-07）。QUESTIONS.md に質問を書く・回答を反映する・票を数えるときに読む。
 

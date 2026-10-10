@@ -6,13 +6,13 @@
 # fixtures reads the same here. Safe to run again: the directory is emptied
 # first, and nothing is written outside it.
 #
-#   scripts/make-fixtures.sh [DIR]      # default: $TMPDIR/filer-fixtures
+#   scripts/make-fixtures.sh [DIR]      # default: $TMPDIR/kura-fixtures
 #
 # Needs bash, git, zip and ImageMagick's `convert`; a missing one skips its
 # group with a warning rather than stopping the rest.
 
 set -u
-root="${1:-${TMPDIR:-/tmp}/filer-fixtures}"
+root="${1:-${TMPDIR:-/tmp}/kura-fixtures}"
 if [ -e "$root" ]; then
     echo "Clearing $root"
     rm -rf -- "$root"
@@ -182,5 +182,5 @@ if [ "$short" -gt 0 ]; then
     warn "$short group(s) did not come out as intended; see above"
 fi
 echo
-echo "Done. Point filer at:"
+echo "Done. Point kura at:"
 echo "  $root"

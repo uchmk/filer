@@ -161,7 +161,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `g h` — Go to the home directory · `cd ~`
 - [x] `g d` — Go to the downloads directory · `cd ~/Downloads`
 - [x] `g D` — Go to the documents directory · `cd ~/Documents`
-- [x] `g c` — Go to filer's config directory · `cd %FILER_CONFIG_HOME%`
+- [x] `g c` — Go to kura's config directory · `cd %KURA_CONFIG_HOME%`
 - [x] `g y` — Go to yazi's config directory · `cd %YAZI_CONFIG_HOME%`
 - [x] `g t` — Go to the temporary directory · `cd %TEMP%`
 - [x] `g <Space>` — Jump interactively · `cd --interactive`

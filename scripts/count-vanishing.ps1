@@ -1,31 +1,31 @@
 <#
-Count how many `--keys` runs vanish -- filer exits without writing `keys: done`
+Count how many `--keys` runs vanish -- kura exits without writing `keys: done`
 (#259, #260, #291). The Windows lanes used to copy a `loop.ps1` / `mk3.ps1` pair
 from one machine's evidence folder; this is that, in the repo.
 
-  scripts\count-vanishing.ps1 -Runs 20 -Out C:\dev\filer-evidence\flake [-Filer path\filer.exe] [-Timeout 120]
+  scripts\count-vanishing.ps1 -Runs 20 -Out C:\dev\filer-evidence\flake [-Kura path\kura.exe] [-Timeout 120]
 
 Builds a tree in `<Out>\tree` (`a.txt`, `b.zip`, `c.pdf` of three pages), a
-`filer.toml` with the `pdftoppm` `[[preview]]` rule (in `<Out>\config`, passed
-as FILER_CONFIG_HOME so the machine's own config is not read),
-then runs filer `-Runs` times with a heavy key list: the PDF's three pages, the
+`kura.toml` with the `pdftoppm` `[[preview]]` rule (in `<Out>\config`, passed
+as KURA_CONFIG_HOME so the machine's own config is not read),
+then runs kura `-Runs` times with a heavy key list: the PDF's three pages, the
 archive, the text, each with a `<State:>` and a `<Shot:>`. Each run has its own
-folder and its own FILER_KEYS_DONE.
+folder and its own KURA_KEYS_DONE.
 
 Prints the report's table: how many runs ended `keys: done`, the exit codes,
 how many reached `picture: 3`, the pngs, `.panic` files, seconds per run, and
-the `filer.exe` processes left behind. Needs `pdftoppm` on PATH and a
+the `kura.exe` processes left behind. Needs `pdftoppm` on PATH and a
 `System.IO.Compression` (any PowerShell 5.1+).
 #>
 param(
     [int]$Runs = 20,
     [Parameter(Mandatory)][string]$Out,
-    [string]$Filer,
+    [string]$Kura,
     [int]$Timeout = 120
 )
 $ErrorActionPreference = 'Stop'
-if (-not $Filer) { $Filer = Join-Path (Split-Path $PSScriptRoot -Parent) 'target\release\filer.exe' }
-if (-not (Test-Path -LiteralPath $Filer)) { throw "count-vanishing.ps1: $Filer does not exist (cargo build --release, or pass -Filer)" }
+if (-not $Kura) { $Kura = Join-Path (Split-Path $PSScriptRoot -Parent) 'target\release\kura.exe' }
+if (-not (Test-Path -LiteralPath $Kura)) { throw "count-vanishing.ps1: $Kura does not exist (cargo build --release, or pass -Kura)" }
 if (-not (Get-Command pdftoppm -ErrorAction SilentlyContinue)) { throw 'count-vanishing.ps1: pdftoppm is not on PATH' }
 New-Item -ItemType Directory -Force -Path $Out | Out-Null
 $Out = (Resolve-Path -LiteralPath $Out).Path
@@ -62,14 +62,14 @@ foreach ($o in $offs) { [void]$sb.Append(('{0:D10} 00000 n `n' -f $o)) }
 # The config: the README's pdftoppm rule, in a folder of its own.
 $cfg = Join-Path $Out 'config'
 New-Item -ItemType Directory -Force -Path $cfg | Out-Null
-[IO.File]::WriteAllText((Join-Path $cfg 'filer.toml'), @'
+[IO.File]::WriteAllText((Join-Path $cfg 'kura.toml'), @'
 [[preview]]
 match = "*.pdf"
 run = 'pdftoppm -png -singlefile -r 120 -f {n} -l {n} {path} {out}'
 first = 1
 unit = "page {n}"
 '@ + "`n")
-$env:FILER_CONFIG_HOME = $cfg
+$env:KURA_CONFIG_HOME = $cfg
 
 # Cursor order is a.txt, b.zip, c.pdf. Three pages, then the archive, then the text.
 $keys = 'jj<State:p1><Shot:p1><A-j><State:p2><Shot:p2><A-j><State:p3><Shot:p3>k<Enter><State:zip><Esc>k<State:txt><Shot:txt><Quit>'
@@ -82,10 +82,10 @@ for ($n = 1; $n -le $Runs; $n++) {
     Remove-Item -LiteralPath $run -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force -Path $run | Out-Null
     $done = Join-Path $run 'keys.done'
-    $env:FILER_KEYS_DONE = $done
+    $env:KURA_KEYS_DONE = $done
     $argList = @('"' + $tree + '"', '--keys', ('"' + $keys + '"'))
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    $p = Start-Process -FilePath $Filer -ArgumentList $argList -PassThru
+    $p = Start-Process -FilePath $Kura -ArgumentList $argList -PassThru
     $timedOut = -not $p.WaitForExit($Timeout * 1000)
     if ($timedOut) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
     $sw.Stop()
@@ -112,4 +112,4 @@ $vanished = @($rows | Where-Object { -not $_.Done }).Count
 "png          $(($rows | Measure-Object Png -Sum).Sum) ($shots per run expected, $(@($rows | Where-Object { $_.Png -ne $shots }).Count) runs short)"
 ".panic       $(($rows | Measure-Object Panic -Sum).Sum)"
 "seconds      min $(($rows | Measure-Object Seconds -Minimum).Minimum), max $(($rows | Measure-Object Seconds -Maximum).Maximum), avg $([math]::Round(($rows | Measure-Object Seconds -Average).Average, 1))"
-"filer.exe left running: $(@(Get-Process filer -ErrorAction SilentlyContinue).Count)"
+"kura.exe left running: $(@(Get-Process kura -ErrorAction SilentlyContinue).Count)"

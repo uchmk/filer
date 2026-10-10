@@ -1,17 +1,17 @@
 [package]
-name = "filer"
-version = "0.94.0"
+name = "kura"
+version = "0.95.0"
 edition = "2021"
 rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/uchmk/filer"
+repository = "https://github.com/uchmk/kura"
 readme = "README.md"
 # Only for the Windows resource that carries the icon; see build.rs.
 build = "build.rs"
-# `filer-com` (src/bin/filer-com.rs, v0.71.0) made two binaries, and a bare
+# `kura-com` (src/bin/kura-com.rs, v0.71.0) made two binaries, and a bare
 # `cargo run` stopped knowing which one to start.
-default-run = "filer"
+default-run = "kura"
 
 [dependencies]
 eframe = "0.36"
@@ -44,7 +44,7 @@ ito-pane = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b86
 # The border above the terminal pane, dragged to change its height (Q94).
 # From the same commit as the pane; it depends on nothing but egui.
 ito-layout = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f", features = ["egui"] }
-# `filer mcp` (Q95, Q96): the per-user door into the running window (Unix
+# `kura mcp` (Q95, Q96): the per-user door into the running window (Unix
 # socket / named pipe) and the MCP server Claude Code talks to over stdio.
 # Hand-written on serde_json, no async runtime. The same commit as the pane.
 ito-ipc = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f" }
@@ -88,8 +88,8 @@ default-features = false
 [profile.dev]
 opt-level = 1
 
-# No debug info for the dependencies, only for filer itself: a backtrace still
-# names filer's own lines, and the 500-odd crates underneath stop being most of
+# No debug info for the dependencies, only for kura itself: a backtrace still
+# names kura's own lines, and the 500-odd crates underneath stop being most of
 # `target` (a cloud session filled its disk twice on 2026-10-03).
 [profile.dev.package."*"]
 debug = false

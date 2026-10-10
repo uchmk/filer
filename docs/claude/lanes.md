@@ -1,4 +1,4 @@
-# filer — 並行のセッション（報告・QA・Windows 実機・Linux）
+# kura — 並行のセッション（報告・QA・Windows 実機・Linux）
 
 CLAUDE.md から分けた（2026-10-07）。QA や実機のセッションを立てる・マージする・チェック表や報告を触るときに読む。各ロールの定義は `.claude/*-role.md`。
 
@@ -96,7 +96,7 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   根拠を示せる）。**見た目の行には絶対に付けない。**
 - **見た目の行には `[~]` を付けてよい（2026-10-03、持ち主の指示）。**`[~]` は「Agent が自分で撮った画面の画像で判断した」印で、
   `[x]` とは別に数え、**済みには数えない**。持ち主が同じ画像を見て `[x]` に変える。付けてよいのは測れない行だけ（位置や色は
-  ピクセル、数は文字、スクロールは `FILER_KEYS_DONE` で測れるので `[x]` にする）で、見る前に「失敗ならどう見えるか」を書き、
+  ピクセル、数は文字、スクロールは `KURA_KEYS_DONE` で測れるので `[x]` にする）で、見る前に「失敗ならどう見えるか」を書き、
   画像のパスと見たものを PR に 1 行ずつ書く。規則は `windows-role.md` の「Ticking TESTING-CHECKS.md」。
   生成器（`make-testcheck`）は `[~]` を引き継ぎ、見出しと冒頭に件数を別に出す。Linux レーンでは使わない（CPU 描画は実機の描画の代わりにならない）。
 - **TESTING-KEYS.md にもチェックを付けてよい（2026-10-01、持ち主の指示）。**あそこの `[x]` は
@@ -116,7 +116,7 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
   その分け前は v0.86.11 からマージしたワークフローがすぐ push するので、待つのは数分。
   無人のときの規則は役割定義の「Unattended runs」の節。
   **タスクは作業フォルダの中のスクリプトを動かす**（v0.73.24）。`-File C:\dev\filer-wintest\scripts\auto-wintest.ps1`（ARM64 は
-  `filer-armtest`）。作業フォルダは起動のたびに `origin/main` に合わせるので、いつも最新のスクリプトが動き、持ち主の `C:\dev\filer` は触らない。
+  `filer-armtest`）。作業フォルダは起動のたびに `origin/main` に合わせるので、いつも最新のスクリプトが動き、持ち主の `C:\dev\kura` は触らない。
   手元のスクリプトを動かしていた頃、ARM64 のノート PC は v0.51.1 のまま何日も回っていた（#201）。
   **作業フォルダを `origin/main` に合わせるのはタスク自身**（v0.80.13。`-Command` で git を回してからスクリプトを呼ぶ。登録の形はスクリプトの冒頭）。
   スクリプトだけが合わせていた頃、v0.78.167 の構文エラーを 2 台とも取り込み、読めない写しは直しを fetch できないまま、
@@ -164,7 +164,7 @@ claude "$(Get-Content -Raw .claude\windows-role.md)"
 `linux-role.md` の順番表にも再テストを積まない。TESTING-LINUX.md と道具はそのまま残す。再開は TODO.md の `【後】` の項目。
 開発のセッションが自分の修正を Xvfb で確かめるのは続ける（「作業ルール」）。CI の `test-linux` も残す（安く、移植の崩れを捕まえる）。
 
-クラウドのコンテナ（Ubuntu、x86_64）は画面が無いが、**Xvfb の仮想ディスプレイと CPU 描画（lavapipe）で filer を
+クラウドのコンテナ（Ubuntu、x86_64）は画面が無いが、**Xvfb の仮想ディスプレイと CPU 描画（lavapipe）で kura を
 起動できる**（v0.59.6 で確認）。それを使って Linux での動作を確かめるのが Linux レーン。役割の定義は
 [.claude/linux-role.md](.claude/linux-role.md) に 1 か所だけ置いてある。
 

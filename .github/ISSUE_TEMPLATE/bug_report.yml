@@ -5,8 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        English or Japanese, whichever you write more easily. `<F12>` in filer opens this form
-        with the version, the OS and what filer knew already filled in.
+        English or Japanese, whichever you write more easily. `<F12>` in kura opens this form
+        with the version, the OS and what kura knew already filled in.
 
         最初の往復で必要になるものを先に聞きます。空欄でも出せますが、
         埋まっているほど調べ始めるのが早くなります。
@@ -20,7 +20,7 @@ body:
       label: What happened / 何が起きたか
       description: 期待した挙動と、実際の挙動。
       placeholder: |
-        d を押したらファイルはごみ箱に入ったが、そのあと filer のウィンドウが消えた。
+        d を押したらファイルはごみ箱に入ったが、そのあと kura のウィンドウが消えた。
         期待: 一覧に戻り、カーソルが次のファイルに移る。
     validations:
       required: true
@@ -33,7 +33,7 @@ body:
         キーボードで動かすプログラムなので、押したキーの並びがそのまま再現手順になります。
         どのフォルダで始めたか、どの行にカーソルがあったかも書いてください。
       placeholder: |
-        1. C:\dev\filer で起動
+        1. C:\dev\kura で起動
         2. j を 3 回押して README.md にカーソルを合わせる
         3. d を押す
         4. y で確定 → ここで落ちる
@@ -43,12 +43,12 @@ body:
   - type: input
     id: version
     attributes:
-      label: filer version / filer の版
+      label: kura version / kura の版
       description: >
-        `filer --version` の出力。v0.9.0 より前には `--version` が無いので、
-        その場合はダウンロードしたファイル名（`filer-v0.8.0-windows-x64.exe` など）か、
+        `kura --version` の出力。v0.9.0 より前には `--version` が無いので、
+        その場合はダウンロードしたファイル名（`kura-v0.8.0-windows-x64.exe` など）か、
         ビルドした commit を書いてください。
-      placeholder: filer 0.9.0
+      placeholder: kura 0.9.0
     validations:
       required: true
 
@@ -57,8 +57,8 @@ body:
     attributes:
       label: OS and architecture / OS とアーキテクチャ
       description: |
-        **filer が起動するなら `<F12>` を押すのが早いです** —— この欄も版の欄も
-        埋まった状態でこのフォームが開きます。以下は、filer が起動しないときや、
+        **kura が起動するなら `<F12>` を押すのが早いです** —— この欄も版の欄も
+        埋まった状態でこのフォームが開きます。以下は、kura が起動しないときや、
         手で報告を書くときのためのものです。
 
         PowerShell でこれを実行すると、クリップボードに入るので貼ってください。
@@ -89,9 +89,9 @@ body:
   - type: textarea
     id: context
     attributes:
-      label: What filer knew / filer が知っていたこと
+      label: What kura knew / kura が知っていたこと
       description: |
-        Filled in by `<F12>`: the last error filer raised, how it was drawing (adapter and backend), the display
+        Filled in by `<F12>`: the last error kura raised, how it was drawing (adapter and backend), the display
         scale, and the config files it read -- by name, never by path.
         `<F12>` が埋めます: 最後に出たエラー、描画のアダプタとバックエンド、画面の倍率、読んだ設定ファイルの名前（パスは入れない）。
       render: text
@@ -108,7 +108,7 @@ body:
 
         ```powershell
         $env:RUST_BACKTRACE = 1
-        & "C:\path\to\filer.exe"
+        & "C:\path\to\kura.exe"
         ```
 
         `&` は必須です。引用符で囲んだパスをそのまま書くと、PowerShell はそれを
@@ -134,7 +134,7 @@ body:
     attributes:
       label: Config / 設定
       description: >
-        yazi の設定（`yazi.toml` / `keymap.toml` / `theme.toml`）や `filer.toml` を
+        yazi の設定（`yazi.toml` / `keymap.toml` / `theme.toml`）や `kura.toml` を
         使っている場合、関係しそうな部分を貼ってください。既定のままなら「既定」と。
       render: toml
     validations:

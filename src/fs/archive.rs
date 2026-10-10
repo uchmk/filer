@@ -278,7 +278,7 @@ fn open_dir_for_times(p: &Path) -> io::Result<File> {
 
 /// The entry's own time onto the file just written. Without it every file
 /// came out stamped with the moment it was unpacked, so a round trip through
-/// filer's own `E` and `e` lost the dates `E` had kept (#156). A time the
+/// kura's own `E` and `e` lost the dates `E` had kept (#156). A time the
 /// archive does not carry leaves the file as it is.
 fn set_time(out: BufWriter<File>, when: Option<std::time::SystemTime>) -> io::Result<()> {
     if let Some(when) = when {
@@ -289,7 +289,7 @@ fn set_time(out: BufWriter<File>, when: Option<std::time::SystemTime>) -> io::Re
 
 /// The entry's modification time, from the most exact field it carries: NTFS
 /// (`0x000a`, to 100 ns, what 7-Zip writes on Windows), then the extended
-/// timestamp (`0x5455`, to the second, what Info-ZIP and filer write), then
+/// timestamp (`0x5455`, to the second, what Info-ZIP and kura write), then
 /// the MS-DOS field every zip has. The DOS field alone is two-second steps in
 /// local time, and 7-Zip rounds it *up*: `2019-02-28 23:59:59` came back as
 /// `2019-03-01 00:00:00`, a day and a month later, where 7-Zip read the exact
@@ -760,7 +760,7 @@ fn write_zip<W: Write + io::Seek>(
             None => opts.clone(),
         };
         // The exact second as well, in the extended timestamp: the DOS field
-        // alone is two-second steps, so another tool unpacking filer's zip got
+        // alone is two-second steps, so another tool unpacking kura's zip got
         // every odd second one lower (#174).
         if let Some(secs) = unix_secs(&m.path) {
             let mut field = vec![1u8];
@@ -1052,7 +1052,7 @@ mod tests {
     }
 
     /// #156: unpacking puts each entry's time back, for all three formats.
-    /// Packed by filer itself, so it is the round trip a user would make.
+    /// Packed by kura itself, so it is the round trip a user would make.
     #[test]
     fn unpacking_keeps_the_entries_times() {
         let dir = crate::util::test_dir("unpack-time");
@@ -1080,7 +1080,7 @@ mod tests {
         }
     }
 
-    /// #174: an odd second survives filer's own zip, through the extended
+    /// #174: an odd second survives kura's own zip, through the extended
     /// timestamp; the DOS field alone came back one second low.
     #[test]
     fn a_zip_keeps_an_odd_second() {

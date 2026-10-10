@@ -3,7 +3,7 @@
 //! The shell's thumbnail for these comes from Office itself, so on a machine
 //! without Office there is nothing to show and the file falls through to a hex
 //! dump. But the formats are not opaque: `.docx`, `.xlsx` and `.pptx` are zip
-//! archives of XML, and filer already reads zip. What is wanted from a preview
+//! archives of XML, and kura already reads zip. What is wanted from a preview
 //! is the text, and the text is right there.
 //!
 //! So this does not try to draw the document. It reads it out as lines, which

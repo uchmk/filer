@@ -89,7 +89,7 @@ jobs:
         run: cargo build --release --locked --target ${{ matrix.target }}
 
       # The release binary is a GUI-subsystem program, and until v0.54.4 its
-      # `filer env` and `--version` wrote only to the screen: redirected to a
+      # `kura env` and `--version` wrote only to the screen: redirected to a
       # file or a pipe they gave nothing at all, and a debug build -- which is
       # all the test job ever runs -- cannot show it, because it owns a
       # console. So this runs the binary that actually ships. x64 only: the
@@ -98,20 +98,20 @@ jobs:
         if: matrix.target == 'x86_64-pc-windows-msvc'
         shell: pwsh
         run: |
-          $exe = "target/${{ matrix.target }}/release/filer.exe"
+          $exe = "target/${{ matrix.target }}/release/kura.exe"
           # PowerShell's own `>` does not connect a GUI-subsystem program's
           # output to the file at all (found here: 0 bytes, process already
           # gone), so the forms checked are the ones that do reach it: a pipe
           # into Out-File, cmd's `>`, and a pipe into another command.
           & $exe --version | Out-File -Encoding utf8 version.txt
           $v = Get-Content -Raw version.txt
-          if (-not ($v -match '^filer \d')) { throw "--version | Out-File gave: '$v'" }
+          if (-not ($v -match '^kura \d')) { throw "--version | Out-File gave: '$v'" }
           cmd /c "`"$exe`" env > env.txt"
           $e = Get-Content -Raw env.txt
           if (-not ($e -match 'Process arch')) { throw "cmd's > gave: '$e'" }
           $arch = & $exe env | Select-String 'Process arch'
-          if (-not $arch) { throw "filer env | Select-String found no 'Process arch' line" }
-          # `env --out` (v0.68.0): filer writes the file itself. Start-Process
+          if (-not $arch) { throw "kura env | Select-String found no 'Process arch' line" }
+          # `env --out` (v0.68.0): kura writes the file itself. Start-Process
           # -Wait because PowerShell would not wait for it otherwise.
           $p = Start-Process -FilePath $exe -ArgumentList 'env','--out','env-out.txt' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "env --out exited $($p.ExitCode)" }
@@ -121,36 +121,36 @@ jobs:
           "cmd >:    $((Get-Item env.txt).Length) bytes"
           "piped:    $arch"
           "--out:    $((Get-Item env-out.txt).Length) bytes"
-          # filer.com (v0.71.0, Q44): the console front the zip ships beside
-          # filer.exe. Being a console program, PowerShell waits for it, so the
-          # bare forms that come back empty from filer.exe have to work here.
-          $com = "target/${{ matrix.target }}/release/filer.com"
-          Copy-Item "target/${{ matrix.target }}/release/filer-com.exe" $com
+          # kura.com (v0.71.0, Q44): the console front the zip ships beside
+          # kura.exe. Being a console program, PowerShell waits for it, so the
+          # bare forms that come back empty from kura.exe have to work here.
+          $com = "target/${{ matrix.target }}/release/kura.com"
+          Copy-Item "target/${{ matrix.target }}/release/kura-com.exe" $com
           $lines = & $com env
-          if ($lines.Count -lt 10) { throw "`$v = & filer.com env gave $($lines.Count) line(s)" }
+          if ($lines.Count -lt 10) { throw "`$v = & kura.com env gave $($lines.Count) line(s)" }
           $ver = & $com --version
-          if (-not ($ver -match '^filer \d')) { throw "& filer.com --version gave: '$ver'" }
-          # The refusal comes through filer.com's own pipe since v0.73.6 (#192):
+          if (-not ($ver -match '^kura \d')) { throw "& kura.com --version gave: '$ver'" }
+          # The refusal comes through kura.com's own pipe since v0.73.6 (#192):
           # the window no longer gets this console's handles.
           $said = & $com --keys "<Tab"
           $refused = $LASTEXITCODE
-          if (-not ("$said" -match 'filer: --keys')) { throw "filer.com --keys `"<Tab`" said: '$said'" }
+          if (-not ("$said" -match 'kura: --keys')) { throw "kura.com --keys `"<Tab`" said: '$said'" }
           # The step ends with `exit $LASTEXITCODE`, and this 2 is the pass.
           $global:LASTEXITCODE = 0
-          if ($refused -ne 2) { throw "filer.com --keys `"<Tab`" exited $refused, not filer.exe's 2" }
-          "filer.com: $($lines.Count) lines, $ver, refusal exit $refused ($said)"
+          if ($refused -ne 2) { throw "kura.com --keys `"<Tab`" exited $refused, not kura.exe's 2" }
+          "kura.com: $($lines.Count) lines, $ver, refusal exit $refused ($said)"
 
       - name: Gather the files
         shell: bash
         run: |
           mkdir -p dist
-          # Windows is the only one that names the binary `filer.exe`.
-          cp target/${{ matrix.target }}/release/filer${{ runner.os == 'Windows' && '.exe' || '' }} dist/
+          # Windows is the only one that names the binary `kura.exe`.
+          cp target/${{ matrix.target }}/release/kura${{ runner.os == 'Windows' && '.exe' || '' }} dist/
           # And it gets the console front beside it, under the name that makes
-          # `filer` find it first (v0.71.0, src/bin/filer-com.rs).
-          if [ "${{ runner.os }}" = Windows ]; then cp target/${{ matrix.target }}/release/filer-com.exe dist/filer.com; fi
+          # `kura` find it first (v0.71.0, src/bin/kura-com.rs).
+          if [ "${{ runner.os }}" = Windows ]; then cp target/${{ matrix.target }}/release/kura-com.exe dist/kura.com; fi
 
-      # Windows ships a newer ConPTY beside filer.exe; see
+      # Windows ships a newer ConPTY beside kura.exe; see
       # scripts/fetch-conpty.ps1 for why.
       - name: Add the bundled ConPTY
         if: runner.os == 'Windows'
@@ -160,6 +160,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           # The commit is in the name, so two downloads are never confused.
-          name: filer-${{ matrix.name }}-${{ github.sha }}
+          name: kura-${{ matrix.name }}-${{ github.sha }}
           path: dist/
           if-no-files-found: error

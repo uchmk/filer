@@ -1,6 +1,6 @@
 ---
 name: qa-audit
-description: Audit filer's test documentation and turn its checks into automated tests. Use for checking TESTING.md against the source, checking TESTING-KEYS.md against the keymap, or converting a TESTING.md section into `ui::harness::Screen` tests.
+description: Audit kura's test documentation and turn its checks into automated tests. Use for checking TESTING.md against the source, checking TESTING-KEYS.md against the keymap, or converting a TESTING.md section into `ui::harness::Screen` tests.
 ---
 
 # QA audit
@@ -49,7 +49,7 @@ Then the file's own structure:
      JIS `=` is shift+minus. A row that assumes a layout sends half its readers
      looking for a key that is not there.
    - **13** explained how to make a symlink by hand with `mklink`, and never said
-     that filer's own `-` and `_` need Developer Mode too. The section had no row
+     that kura's own `-` and `_` need Developer Mode too. The section had no row
      for either key at all.
    - **18.11** and **36.17** simply disagreed with the code.
 

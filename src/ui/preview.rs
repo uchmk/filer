@@ -54,7 +54,7 @@ const MINIMAP_MIN_COLS: u16 = 56;
 
 /// Where the last frame's minimap answer is kept for the state file:
 /// `drawn, band 15-47 of 3984`, or why none was drawn (#261).
-pub const MINIMAP_NOTE: &str = "filer-minimap-note";
+pub const MINIMAP_NOTE: &str = "kura-minimap-note";
 /// Height of one minimap band. Two pixels is enough to read the shape of a
 /// file and coarse enough that a thousand lines fit in a pane.
 const BAND_H: f32 = 2.0;
@@ -1879,7 +1879,7 @@ mod archive_frame {
         let (dir, mut s) = showing("frame-archive-not-one", &["notes.txt"]);
         let f = s.typed("e");
         assert!(
-            f.says("The file under the cursor is not an archive filer can read (zip, tar, tar.gz, tgz, 7z)"),
+            f.says("The file under the cursor is not an archive kura can read (zip, tar, tar.gz, tgz, 7z)"),
             "the toast names the file it looked at and the formats: {:?}",
             f.texts,
         );

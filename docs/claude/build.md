@@ -1,4 +1,4 @@
-# filer — ビルド・検証の詳細
+# kura — ビルド・検証の詳細
 
 CLAUDE.md から分けた（2026-10-07）。CI・clippy・テストの書き方・Linux での検証を触るときに読む。
 
@@ -6,9 +6,9 @@ CLAUDE.md から分けた（2026-10-07）。CI・clippy・テストの書き方�
 
 ```powershell
 $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
-cargo test          --manifest-path C:\dev\filer\Cargo.toml
-cargo clippy        --manifest-path C:\dev\filer\Cargo.toml
-cargo build --release --manifest-path C:\dev\filer\Cargo.toml
+cargo test          --manifest-path C:\dev\kura\Cargo.toml
+cargo clippy        --manifest-path C:\dev\kura\Cargo.toml
+cargo build --release --manifest-path C:\dev\kura\Cargo.toml
 ```
 
 - **`cargo fmt` は走らせない。**このリポジトリは手で整形してある（`Self { a, b, c }` を 1 行に
@@ -62,7 +62,7 @@ cargo check --release --target x86_64-pc-windows-msvc --all-targets
   （`exec.rs` の `sample()` がその形。`cmd_s_c_arg` のコメントも同じ理由を書いている）。
 - **テストは走らせた機械の設定ファイルに左右されてはいけない。**CI にもクラウドにも設定が無いので、左右されても
   緑のまま通り、設定のある実機でだけ落ちる（v0.47.27 と #136 の 2 回）。設定を読む・一覧するところを触ったら、
-  偽の設定を置いて回す: `XDG_CONFIG_HOME=<yazi/ と filer/ に空の yazi.toml などを置いたフォルダ> cargo test`
+  偽の設定を置いて回す: `XDG_CONFIG_HOME=<yazi/ と kura/ に空の yazi.toml などを置いたフォルダ> cargo test`
   （Linux では `XDG_CONFIG_HOME` が設定フォルダの親になる）。
 - **Xvfb でマウスを動かすときは `xdotool`（v0.80.16 で確かめた）。**ドラッグは `mousedown 1` のあと `mousemove` を 0.1 秒ずつ数段に分け、
   `mouseup 1` で離す（18.7a の 4 つがどれも通った）。窓マネージャーが無いのでキーボードのフォーカスはどの窓にも無く、`xdotool keydown shift` などの
@@ -72,8 +72,8 @@ cargo check --release --target x86_64-pc-windows-msvc --all-targets
   2 つのテストが同じディレクトリを渡されることがない（手書きしていた頃、同名を共有した
   3 テストが並列実行で互いのツリーを消し合うバグが出た）。
   **呼ぶたびに中身を消す**ので、1 つのテストで複数のファイルが要るときは
-  1 回呼んでから `join` すること。名前は `filer-test-` で始まり、プロセスごとの最初の呼び出しで、
-  ほかのプロセスが 1 時間以上前に残した `filer-test-…-<pid>` を消す（v0.73.70、#227）。
+  1 回呼んでから `join` すること。名前は `kura-test-` で始まり、プロセスごとの最初の呼び出しで、
+  ほかのプロセスが 1 時間以上前に残した `kura-test-…-<pid>` を消す（v0.73.70、#227）。
 - **テストの `App` はどれもプレビューのワーカーを起こす。**ワーカーの起動時に重いことをするなら、プロセスで 1 回にする（`OnceLock`）。
   v0.86.12 は起動のたびにシンタックスの定義を読み込み、テスト全体が 7 倍遅くなって Windows の `test` だけが 10 秒の待ちで落ちた
-  （Linux の CI は緑のまま）。確かめるなら `taskset -c 0,1 cargo test --bin filer -- --test-threads=4` で前の版と時間を比べる。
+  （Linux の CI は緑のまま）。確かめるなら `taskset -c 0,1 cargo test --bin kura -- --test-threads=4` で前の版と時間を比べる。

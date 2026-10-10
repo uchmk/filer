@@ -15,12 +15,12 @@
 # `$GH_DASH_CONFIG`, then this file, then `$XDG_CONFIG_HOME/gh-dash/config.yml`,
 # then `%USERPROFILE%\.config\gh-dash\config.yml` on Windows (not `%APPDATA%`).
 #
-# It does the half filer does not: browsing pull requests *as a list*. filer's
+# It does the half kura does not: browsing pull requests *as a list*. kura's
 # spot panel answers the other direction -- `<Tab>` on a file says which pull
 # request brought it in (v0.48.0) -- so the two do not overlap.
 #
 # The `g` binding hands off to lazygit, which is the third piece: gh-dash reads
-# GitHub, lazygit does the git operations. Both are launched from filer's own
+# GitHub, lazygit does the git operations. Both are launched from kura's own
 # terminal pane with `<C-t>`; the pane is a real terminal emulator
 # (`alacritty_terminal`), so a full-screen TUI runs in it. Mouse events are not
 # forwarded, which neither tool needs.
@@ -30,19 +30,19 @@ prSections:
     filters: is:open author:@me
   - title: Needs review
     filters: is:open review-requested:@me
-  - title: filer
-    filters: is:open repo:uchmk/filer
+  - title: kura
+    filters: is:open repo:uchmk/kura
   - title: Recently merged
-    filters: is:merged repo:uchmk/filer
+    filters: is:merged repo:uchmk/kura
     limit: 10
 
 issuesSections:
   - title: Open
-    filters: is:open repo:uchmk/filer
+    filters: is:open repo:uchmk/kura
   - title: Mine
     filters: is:open author:@me
   - title: Recently closed
-    filters: is:closed repo:uchmk/filer
+    filters: is:closed repo:uchmk/kura
     limit: 10
 
 defaults:
@@ -95,9 +95,9 @@ keybindings:
 # {{.HeadRefName}}, {{.BaseRefName}}, {{.Author}}; issues get {{.IssueNumber}}
 # in place of {{.PrNumber}}.
 #
-# There are two ways to reach it from filer, and they are not the same thing.
+# There are two ways to reach it from kura, and they are not the same thing.
 #
-# 1. In filer's own terminal pane: `<C-t>`, then `gh dash`. One window. The pane
+# 1. In kura's own terminal pane: `<C-t>`, then `gh dash`. One window. The pane
 #    is `alacritty_terminal`, so a full-screen TUI has a real terminal to draw
 #    on. Mouse events are not forwarded to the pty, which neither tool needs.
 #
@@ -113,7 +113,7 @@ keybindings:
 #    `exec::configure` passes `CREATE_NEW_CONSOLE` for a blocking command and
 #    `CREATE_NO_WINDOW` otherwise. So without it the process gets no console at
 #    all and the TUI has nowhere to draw; with it, it gets a console of its own
-#    -- a new window beside filer, not filer's pane.
+#    -- a new window beside kura, not kura's pane.
 #
 # Route 1 has been seen to *draw*: gh-dash rendered in the pane with its
 # alternate screen, colours, box drawing and split preview intact. That is the

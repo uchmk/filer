@@ -1227,9 +1227,9 @@ mod tests {
 
     #[test]
     fn quotes_alerts_and_html() {
-        let src = "> [!NOTE]\n> read this\n\n<p align=\"center\"><img alt=\"logo\" src=\"x.png\"> <b>filer</b></p>\n\n<!-- hidden -->\n\nA &amp; B<br>C\n";
+        let src = "> [!NOTE]\n> read this\n\n<p align=\"center\"><img alt=\"logo\" src=\"x.png\"> <b>kura</b></p>\n\n<!-- hidden -->\n\nA &amp; B<br>C\n";
         let d = doc(src, 80);
-        assert_eq!(texts(&d), ["│ Note", "│ read this", "", "[image: logo] filer", "", "A & B", "C"]);
+        assert_eq!(texts(&d), ["│ Note", "│ read this", "", "[image: logo] kura", "", "A & B", "C"]);
     }
 
     #[test]

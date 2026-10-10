@@ -1,7 +1,7 @@
 conpty.dll and OpenConsole.exe in this folder are Microsoft's ConPTY, taken
 unmodified from the NuGet package Microsoft.Windows.Console.ConPTY, version
-{VERSION} (https://github.com/microsoft/terminal). filer uses them in place of
-the older ConPTY built into Windows; see scripts/fetch-conpty.ps1 in filer's
+{VERSION} (https://github.com/microsoft/terminal). kura uses them in place of
+the older ConPTY built into Windows; see scripts/fetch-conpty.ps1 in kura's
 repository for why. They are redistributed under the MIT License:
 
 MIT License

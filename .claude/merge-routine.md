@@ -2,7 +2,7 @@
 
 A claude.ai Routine starts a new cloud session once a day, at 10:01 JST (the
 owner's choice, 2026-10-10), with
-`uchmk/filer` attached, and its whole instruction is one line: read this file
+`uchmk/kura` attached, and its whole instruction is one line: read this file
 and do what it says. This file is the one place the routine's own steps live
 (CLAUDE.md, 自動実行モード); **what to do for each pull request is in
 [merge-role.md](merge-role.md), and that is what you follow.** This file only
@@ -30,8 +30,8 @@ and merge-role.md from `origin/main` at the start of every run.
 2. Do merge-role.md from 0 to 4: the votes; the open pull requests the
    workflow stopped on, and any merged one still without a share (1);
    conflicts and holds (3); the sorting of the `【後】` lines (4). GitHub from here: the GitHub tools your
-   session has, or `gh api` (`gh api "repos/uchmk/filer/pulls?state=open"`,
-   `gh api repos/uchmk/filer/issues/N/comments` for the workflow's
+   session has, or `gh api` (`gh api "repos/uchmk/kura/pulls?state=open"`,
+   `gh api repos/uchmk/kura/issues/N/comments` for the workflow's
    comments; GraphQL may be unavailable).
    **First read TODO.md's "マージで止めている実機の PR" section**: each item
    there waits on the owner, and each run starts with no memory, so that
@@ -63,7 +63,7 @@ share, `Co-Authored-By` naming Sonnet), and check:
   was changed; no item marked `【人】` `【QA】` `【実機】` `【後】` `【pane】` or `要確認`
   was taken; an item it could not take was marked, not skipped.
 - its CI is green:
-  `gh api repos/uchmk/filer/commits/<sha>/check-runs --jq '.check_runs[] | "\(.name) \(.conclusion)"'`.
+  `gh api repos/uchmk/kura/commits/<sha>/check-runs --jq '.check_runs[] | "\(.name) \(.conclusion)"'`.
   A red Windows `test` comes first for the development routine; queue its
   cause (the test name, and what differs on Windows if you can tell) so the
   next development run finds it.

@@ -23,7 +23,7 @@ asking for its report to be read, pushes, and starts `main`'s CI. What is
 left for you is the judgment in 4.
 
 There are three lanes: `test/win-*` from the x64 machine, `test/arm-*` from the
-ARM64 laptop, and `test/linux-*` from a cloud session running filer on a
+ARM64 laptop, and `test/linux-*` from a cloud session running kura on a
 virtual X display (`.claude/linux-role.md`). The two Windows lanes have their
 queues in `windows-role.md` -- "Where the work is" for `win`, "The ARM64 lane"
 for `arm`; the Linux lane's is in `linux-role.md`, "Where the work is".
@@ -62,7 +62,7 @@ reply names what changed (`Q57: 多数決 1`).
 - **Merged, without a share** (the workflow failed or was off): the lane pull requests (head branch
   `test/win-*`, `test/arm-*` or `test/linux-*`) merged in the last 7 days
   whose `#N` is nowhere in `origin/main`'s CHANGELOG.md
-  (`gh api "repos/uchmk/filer/pulls?state=closed&sort=updated&direction=desc&per_page=50"`,
+  (`gh api "repos/uchmk/kura/pulls?state=closed&sort=updated&direction=desc&per_page=50"`,
   keep those with `merged_at` set). Each one gets its share in 4, done by
   hand as the workflow would have (`scripts/merge-lanes.py`, `share_once`). Every
   merged lane pull request's `（#N）` must end up in CHANGELOG.md: that is how
@@ -226,7 +226,7 @@ What goes in it:
   nothing measurable is left, say so in TODO.md and leave the table empty; the
   Windows run then answers `WINTEST_NOTHING`.
 - **The `arm` queue is empty**: refill it with rows that are native code or
-  architecture-specific (ConPTY, the shell, archives, openers, `filer env`),
+  architecture-specific (ConPTY, the shell, archives, openers, `kura env`),
   re-run against their x64 result -- not with appearance rows, which look the
   same on both.
 - **New x64 ticks go to ARM64's last row** (#260 proposal 4): every row a merged

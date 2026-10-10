@@ -27,7 +27,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 2
 
-state="$(git rev-parse --git-dir)/filer-claim"
+state="$(git rev-parse --git-dir)/kura-claim"
 stale=3600
 ref=refs/heads/claims
 

@@ -1,9 +1,9 @@
 <#
 TESTING.md 45.11: build two trees that differ only in where a symlink points,
-and optionally compare them in filer (#192 kept this script in its evidence
+and optionally compare them in kura (#192 kept this script in its evidence
 folder; #198 / #199 asked for it here).
 
-  scripts\fx45.ps1 [-Out C:\dev\fx45] [-Run] [-Filer target\release\filer.exe]
+  scripts\fx45.ps1 [-Out C:\dev\fx45] [-Run] [-Kura target\release\kura.exe]
 
 Under -Out (a new folder under TEMP by default) it writes
 
@@ -27,10 +27,10 @@ The first lane run that uses it checks it against the row by hand once.
 param(
     [string]$Out,
     [switch]$Run,
-    [string]$Filer
+    [string]$Kura
 )
 $ErrorActionPreference = 'Stop'
-if (-not $Out) { $Out = Join-Path ([IO.Path]::GetTempPath()) ('filer-fx45-' + [guid]::NewGuid().ToString('N').Substring(0, 6)) }
+if (-not $Out) { $Out = Join-Path ([IO.Path]::GetTempPath()) ('kura-fx45-' + [guid]::NewGuid().ToString('N').Substring(0, 6)) }
 New-Item -ItemType Directory -Force -Path $Out | Out-Null
 $Out = (Resolve-Path -LiteralPath $Out).Path
 
@@ -52,7 +52,7 @@ Get-ChildItem -LiteralPath (Join-Path $Out 'a'), (Join-Path $Out 'b') -Force |
 
 if ($Run) {
     $keysArgs = @{ Dir = $Out; Keys = '<Space><Space><A-d><Wait:2000><Shot:fx45><Esc><Quit>' }
-    if ($Filer) { $keysArgs.Filer = $Filer }
+    if ($Kura) { $keysArgs.Kura = $Kura }
     & (Join-Path $PSScriptRoot 'keys.ps1') @keysArgs
 }
 $Out

@@ -1,7 +1,7 @@
 # Start the Windows test session by itself when there is new work for it.
 #
 # The session on the Windows machine (.claude/windows-role.md) is the only one
-# that can run filer, and until now a person had to start it by hand for every
+# that can run kura, and until now a person had to start it by hand for every
 # section. This looks once, and starts one unattended run if:
 #
 #   - origin/main has changed TESTING.md, TESTING-CHECKS.md or
@@ -80,12 +80,12 @@
 #
 # Scratch space. Each run gets a folder of its own, run-<time>, under -Scratch,
 # which defaults to R:\Temp when there is an R: drive (the RAM disk on the x64
-# machine) and to %TEMP%\filer-scratch otherwise. TEMP and TMP point into it and
+# machine) and to %TEMP%\kura-scratch otherwise. TEMP and TMP point into it and
 # the prompt says where it is; `cargo test` builds its test trees under TEMP, so
 # they follow. Only the newest three run-* folders are kept: on the ARM64
 # laptop, with no RAM disk to empty itself, ten runs' leftovers had piled up and
 # an old run's script error dialog was still open in the middle of the screen
-# (#103). Directly under -Scratch, filer-test-* and filer-archive-* folders older
+# (#103). Directly under -Scratch, kura-test-* and kura-archive-* folders older
 # than three days are removed too (#259: 11,187 of them, 1.6 GB, had piled up on
 # the ARM64 laptop from before the run-* folders). Nothing else is touched.
 #
@@ -116,7 +116,7 @@
 #
 # Build output. The worktree's `target` is made a junction to a folder on the
 # RAM disk, R:\cargo-target\<worktree name> (or -TargetDir), so the role's
-# paths (`target\release\filer.exe`) still work and the bytes live in memory.
+# paths (`target\release\kura.exe`) still work and the bytes live in memory.
 # On 2026-10-03 C:\dev held 45 GB, and the two `target` folders were 33 GB of
 # it. After a reboot the RAM disk is empty: the folder is made again and the
 # first build takes a few minutes longer, nothing worse. With less than 8 GB
@@ -162,7 +162,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$repo = 'uchmk/filer'
+$repo = 'uchmk/kura'
 $watched = @('TESTING.md', 'TESTING-CHECKS.md', '.claude/windows-role.md')
 $Tools = 'Bash,PowerShell,Read,Edit,Write,Glob,Grep,TodoWrite'
 $Denied = @(
@@ -178,7 +178,7 @@ $Denied = @(
 $suffix = if ($Lane -eq 'win') { '' } else { "-$Lane" }
 if (-not $Work) { $Work = if ($Lane -eq 'win') { 'C:\dev\filer-wintest' } else { "C:\dev\filer-$($Lane)test" } }
 if (-not $Scratch) {
-    $Scratch = if (Test-Path 'R:\') { 'R:\Temp' } else { Join-Path ([IO.Path]::GetTempPath()) 'filer-scratch' }
+    $Scratch = if (Test-Path 'R:\') { 'R:\Temp' } else { Join-Path ([IO.Path]::GetTempPath()) 'kura-scratch' }
 }
 $queue = if ($Lane -eq 'win') { 'the queue in "Where the work is"' } else { 'the ARM64 queue in "The ARM64 lane"' }
 
@@ -232,7 +232,7 @@ function Show-Notice([string]$title, [string]$text) {
         Add-Type -AssemblyName System.Windows.Forms, System.Drawing
         $icon = [Windows.Forms.NotifyIcon]::new()
         $icon.Icon = [Drawing.SystemIcons]::Warning
-        $icon.Text = 'filer auto-wintest'
+        $icon.Text = 'kura auto-wintest'
         $icon.Visible = $true
         if ($text.Length -gt 250) { $text = $text.Substring(0, 250) + '...' }
         $icon.ShowBalloonTip(30000, $title, $text, [Windows.Forms.ToolTipIcon]::Warning)
@@ -265,7 +265,7 @@ function Note-Dirty([string[]]$changes) {
     $tell = ($now - $told).TotalHours -ge 24
     if ($tell) {
         Say "!!!!! [$Lane] $what !!!!!"
-        Show-Notice "filer auto-wintest ($Lane) is stopped" "$what $($changes.Count) changed path(s), e.g. $($changes[0].Trim())"
+        Show-Notice "kura auto-wintest ($Lane) is stopped" "$what $($changes.Count) changed path(s), e.g. $($changes[0].Trim())"
         $told = $now
     }
     $body = @(
@@ -281,7 +281,7 @@ function Note-Dirty([string[]]$changes) {
 
 # The screen saver, held off while a run drives the window (see the top).
 $saverFile = Join-Path $state "screensaver$suffix.json"
-Add-Type -Namespace FilerWintest -Name Power -MemberDefinition @'
+Add-Type -Namespace KuraWintest -Name Power -MemberDefinition @'
 [DllImport("kernel32.dll")]
 public static extern uint SetThreadExecutionState(uint flags);
 [DllImport("user32.dll", SetLastError = true)]
@@ -303,13 +303,13 @@ $SPI_SETSCREENSAVEACTIVE = [uint32]17
 
 function Get-SaverActive {
     $on = $false
-    [void][FilerWintest.Power]::SystemParametersInfo($SPI_GETSCREENSAVEACTIVE, 0, [ref]$on, 0)
+    [void][KuraWintest.Power]::SystemParametersInfo($SPI_GETSCREENSAVEACTIVE, 0, [ref]$on, 0)
     $on
 }
 
 # In memory only: winIni 0, so the profile keeps whatever the owner chose.
 function Set-SaverActive([bool]$on) {
-    $ok = [FilerWintest.Power]::SystemParametersInfo($SPI_SETSCREENSAVEACTIVE, [uint32][int]$on, [IntPtr]::Zero, 0)
+    $ok = [KuraWintest.Power]::SystemParametersInfo($SPI_SETSCREENSAVEACTIVE, [uint32][int]$on, [IntPtr]::Zero, 0)
     # Laptops answer 329 (#201): the saver cannot be switched, only `Stop-ScreenSavers` holds it off.
     if (-not $ok) { Say "SystemParametersInfo(SPI_SETSCREENSAVEACTIVE, $on) failed, GetLastError $([Runtime.InteropServices.Marshal]::GetLastWin32Error()); the screen saver setting is unchanged." }
 }
@@ -327,15 +327,15 @@ function Restore-LeftOverSaver {
 # windows on it, `Screen-saver` or `Winlogon` when they go nowhere. Asked
 # rather than inferred from LogonUI, which a screen saver does not start (#88).
 function Get-InputDesktop {
-    $h = [FilerWintest.Power]::OpenInputDesktop(0, $false, 0x0001)   # DESKTOP_READOBJECTS
+    $h = [KuraWintest.Power]::OpenInputDesktop(0, $false, 0x0001)   # DESKTOP_READOBJECTS
     if ($h -eq [IntPtr]::Zero) { return '(none: OpenInputDesktop failed)' }
     try {
         $name = [Text.StringBuilder]::new(256)
         $needed = 0
-        [void][FilerWintest.Power]::GetUserObjectInformation($h, 2, $name, 512, [ref]$needed)   # UOI_NAME
+        [void][KuraWintest.Power]::GetUserObjectInformation($h, 2, $name, 512, [ref]$needed)   # UOI_NAME
         $name.ToString()
     } finally {
-        [void][FilerWintest.Power]::CloseDesktop($h)
+        [void][KuraWintest.Power]::CloseDesktop($h)
     }
 }
 
@@ -350,7 +350,7 @@ function Suspend-ScreenSaver {
     $was = Get-SaverActive
     @{ active = $was } | ConvertTo-Json | Set-Content -Path $saverFile
     Set-SaverActive $false
-    [void][FilerWintest.Power]::SetThreadExecutionState($ES_CONTINUOUS -bor $ES_SYSTEM_REQUIRED -bor $ES_DISPLAY_REQUIRED)
+    [void][KuraWintest.Power]::SetThreadExecutionState($ES_CONTINUOUS -bor $ES_SYSTEM_REQUIRED -bor $ES_DISPLAY_REQUIRED)
     foreach ($p in Stop-ScreenSavers) { Say "Stopped a running screen saver: $p" }
     # The watcher. A thread job shares nothing with this script but what it is
     # given, so the function goes in as text.
@@ -373,7 +373,7 @@ function Resume-ScreenSaver {
         $script:saverWatch = $null
         if ($stopped) { Say "During the run the watcher stopped a screen saver $(@($stopped).Count) time(s): $(@($stopped)[-1])" }
     }
-    [void][FilerWintest.Power]::SetThreadExecutionState($ES_CONTINUOUS)
+    [void][KuraWintest.Power]::SetThreadExecutionState($ES_CONTINUOUS)
     if (Test-Path $saverFile) {
         $was = (Get-Content -Raw $saverFile | ConvertFrom-Json).active
         Set-SaverActive $was
@@ -495,7 +495,7 @@ try {
         Sort-Object Name -Descending | Select-Object -Skip 2 |
         ForEach-Object { Remove-Item -Recurse -Force -LiteralPath $_.FullName -ErrorAction SilentlyContinue }
     # Leftovers from before the run-* folders: only the two names the tests make, only when old.
-    foreach ($pat in 'filer-test-*', 'filer-archive-*') {
+    foreach ($pat in 'kura-test-*', 'kura-archive-*') {
         Get-ChildItem -Directory -Path $Scratch -Filter $pat -ErrorAction SilentlyContinue |
             Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-3) } |
             ForEach-Object { Remove-Item -Recurse -Force -LiteralPath $_.FullName -ErrorAction SilentlyContinue }
@@ -503,7 +503,7 @@ try {
     $Scratch = Join-Path $Scratch ('run-{0:yyyyMMdd-HHmmss}' -f (Get-Date))
     New-Item -ItemType Directory -Force -Path $Scratch | Out-Null
 
-    $prompt = "無人実行です。人は見ていません。.claude/windows-role.md を読み、その「Unattended runs」の節に従って、$queue の次の節を 1 つだけ進めてください。レーンは $Lane で、ブランチは test/$Lane-<節> です。チェックアウトは $Work です（役割定義に出てくる C:\dev\filer は、すべてここに読み替えてください）。作業用の一時ディレクトリは $Scratch で、TEMP / TMP も既にそこを指しています（役割定義に出てくる R:\Temp は、すべてここに読み替えてください）。"
+    $prompt = "無人実行です。人は見ていません。.claude/windows-role.md を読み、その「Unattended runs」の節に従って、$queue の次の節を 1 つだけ進めてください。レーンは $Lane で、ブランチは test/$Lane-<節> です。チェックアウトは $Work です（役割定義に出てくる C:\dev\kura は、すべてここに読み替えてください）。作業用の一時ディレクトリは $Scratch で、TEMP / TMP も既にそこを指しています（役割定義に出てくる R:\Temp は、すべてここに読み替えてください）。"
     $env:TEMP = $Scratch
     $env:TMP = $Scratch
     $env:CARGO_INCREMENTAL = '0'

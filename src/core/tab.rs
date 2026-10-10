@@ -377,7 +377,7 @@ mod tests {
         assert!(t.back.is_empty());
     }
 
-    /// `filer C:\dir\file.txt`: nothing checked the path before the window
+    /// `kura C:\dir\file.txt`: nothing checked the path before the window
     /// went up, so the first failed listing reveals the file, and a second
     /// failure sends the tab home. No history entry was pushed to undo.
     #[test]

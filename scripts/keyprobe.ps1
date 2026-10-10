@@ -3,7 +3,7 @@
 # Reads input the way tcell does (lazygit, gh-dash): the console in
 # virtual-terminal input mode, records taken with ReadConsoleInputW. Each
 # record is printed with its virtual key, scan code and character, so the
-# same key pressed in filer's pane and in Windows Terminal can be compared.
+# same key pressed in kura's pane and in Windows Terminal can be compared.
 #
 #   pwsh -File scripts\keyprobe.ps1           # VT input, as tcell starts
 #   pwsh -File scripts\keyprobe.ps1 -Win32    # also ask for win32-input-mode,
@@ -18,9 +18,9 @@
 #                                             # virtual key (#99)
 #
 # Every line starts with the time it was printed, in milliseconds since the
-# Unix epoch -- the clock `FILER_PTY_LOG`'s `== pane opened` line also gives,
+# Unix epoch -- the clock `KURA_PTY_LOG`'s `== pane opened` line also gives,
 # so a key's `in key` line there and its records here can be set side by side
-# and the time between them read off. -AltScreen is what makes filer forward
+# and the time between them read off. -AltScreen is what makes kura forward
 # `<S-End>` and the other scroll keys to the program instead of scrolling the
 # pane itself, which is how a burst of them was seen to hold lazygit up (#93).
 #

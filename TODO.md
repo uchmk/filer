@@ -32,6 +32,15 @@
 - [ ] TESTING.md の節 50（`filer mcp`、v0.85.0）は標準入出力の JSON-RPC と `<State:>` で文字で読める行が多いのに、どちらのレーンの表にも無く 0 / 7 のまま。ARM64 の「Unticked rows no queue owns」に節 50 を足す（#301 の提案 1）【人】
 - [ ] （2026-10-10、持ち主の窓）x64（RX 9070 XT、Adrenalin 26.8.1 = ドライバ 32.0.31041.1004。最新）で、`cargo run` の filer が panic の出力なしに `exit code: 0xc000041d` で落ちる。イベントログ（Application、ID 1000）では 6:43 と 8:33 の 2 回とも、AMD の GL ドライバ `atio6axx.dll` の同じオフセット `0x51b5b9` で `0xc0000005` が出て、2〜3 秒後に同じ箇所で `0xc000041d`（窓のコールバックの中の例外）。既定の `auto` が GL を選ぶ機械（#204）。きっかけを切り分ける: (1) 落ちた時刻にレーン（別の filer の起動・終了、キー、スクリーンセーバーを止める処理）が動いていたか、(2) 画面の電源オフ・ロック・解像度や DPI の変更・窓のリサイズや最小化で再現するか、(3) WER の LocalDumps（`HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\filer.exe`）でダンプを取り、`atio6axx.dll` を呼んだ wgpu の関数を見る、(4) `[ui] backend = "dx12"` で同じきっかけを当てて落ちないか（あわせて #204 のアイドルで 1 コアが今のドライバで戻るか）。filer の側で避けられるなら（GL の面の作り直し、既定の見直し）提案する。【実機】
 
+## filer から kura への改名（v0.95.0、2026-10-11）
+
+- [ ] Claude Code の MCP を登録し直す: `claude mcp remove filer` → `claude mcp add kura -- kura mcp`（道具の名前も `kura_state` / `kura_reveal` に変わった）【人】
+- [ ] シェルのプロファイルの `filer shell-hook` を `kura shell-hook` に、自分で設定した `FILER_*` の環境変数を `KURA_*` に、keymap の `%FILER_CONFIG_HOME%` を `%KURA_CONFIG_HOME%` に直す【人】
+- [ ] タスクバーのピン・ショートカット・PATH の `filer.exe` を `kura.exe` に直す【人】
+- [ ] `C:\deviler` を `C:\dev\kura` に変える。変えたら `git -C C:\dev\kura worktree repair C:\deviler-wintest` で実機の作業フォルダのつながりを直す（ARM64 の机も同じ）【人】
+- [ ] 実機のレーンの名前（作業フォルダ `C:\deviler-wintest` / `filer-armtest`、タスク `filer-auto-wintest*`、`%LOCALAPPDATA%iler-wintest`、`C:\deviler-evidence`）は動いているタスクを壊さないよう filer のまま残した。変えるなら、タスクを登録し直すのと一緒に `scripts/auto-wintest.ps1` と `.claude/windows-role.md`・`docs/claude/lanes.md` を直す【人】
+- [ ] 実機の机のデスクトップの `filer-fixtures` は `kura-fixtures` になった。次の run の前に `scripts\make-fixtures.ps1` を回す【人】
+
 ## 多言語対応（2026-10-10、持ち主の希望）
 
 持ち主は filer も後で多言語にしたい。言語は uchmk のアプリ（filer・tsumugi・mimamori）で共通の `<設定のフォルダ>/uchmk/common.toml` の
