@@ -867,8 +867,8 @@ before the rest.
 | 27.3 | Walk off the file and back | Still fine (this always worked — it was the cache) |
 | 27.4 | Open an image never seen this session, then zoom with `+` | It steps from the picture's own fit, not from the last image's scale. **The same commit killed this and it has never been exercised** |
 | 27.5 | Restart, open ten different files in a row without revisiting any | All ten appear |
-| 27.6 | Start filer cold in a clone of filer, hover `TODO.md` (2500+ lines) with Markdown rendered, `M` for its source, then hover `TESTING-CHECKS.md` and `src\app.rs` (v0.86.12) | Each shows its first screen at once, with no half-second wait. The source is coloured to the end once `<A-G>` takes it there (`preview top: N of N`), and so is the minimap down the right |
-| 27.7 | Hold `j` through the repository's root, then stop on a big text file | The cursor never waits on the preview, and the file it stops on is shown whole and coloured, not left on a first screen or on a file passed earlier |
+| 27.6 | Start filer cold in a clone of filer, hover `TODO.md` (2500+ lines) with Markdown rendered, `M` for its source, then hover `TESTING-CHECKS.md` and `src\app.rs` (v0.86.12). Measure with `<Now><State:a><Wait:150><State:b>` (a bare `<State:>` waits past the early screen) | Each shows its first screen at once, with no half-second wait. The source is coloured to the end once `<A-G>` takes it there (`preview top: N of N`), and so is the minimap down the right |
+| 27.7 | Hold `j` through the repository's root, then stop on a big text file. With `--keys`: `j<Now>` N times, then `<Wait:100>`, then `<State:>` | The cursor never waits on the preview, and the file it stops on is shown whole and coloured, not left on a first screen or on a file passed earlier |
 
 ## 28. Changes made from outside (v0.12.4)
 

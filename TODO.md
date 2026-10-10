@@ -2597,7 +2597,7 @@ v0.49.0 から Windows 版は zip（`filer.exe` + `conpty.dll` + `OpenConsole.ex
 
 ## 実機のレーンから
 
-- [ ] （#311・#312 の提案）TESTING.md 27.6 / 27.7 の行に測り方を足す: `j<Now>` を N 回 → `<Wait:100>` → `<State:>`、27.6 の前半は `<Now><State:a><Wait:150><State:b>`（素の `<State:>` は先頭の早い画面を隠す）。`scripts/testcheck-ja.toml` の訳も。【QA】
+- [x] （v0.93.7。27.6 / 27.7 に測り方と訳を足した）（#311・#312 の提案）TESTING.md 27.6 / 27.7 の行に測り方を足す: `j<Now>` を N 回 → `<Wait:100>` → `<State:>`、27.6 の前半は `<Now><State:a><Wait:150><State:b>`（素の `<State:>` は先頭の早い画面を隠す）。`scripts/testcheck-ja.toml` の訳も。【QA】
 - [x] （v0.86.31。49.10 に「信頼済みのフォルダで」を足した）TESTING.md 49.10 を「信頼済みのフォルダで」と書く（`claude` の信頼ダイアログが出ると行が押せない）。書けないなら人の run に回す。【QA】
 - [x] （v0.86.21。待ちを 5→10 秒と 20→40 秒に広げた）（#311 の提案）`ending_a_busy_shell_asks_first`（`src/app.rs`）の待ち時間を見直す。ARM64 の機械で時間切れに近い。
 - [x] （v0.86.22。`PreviewSlot::early` を足し、`<State:>` に出した）（#312 の提案）`<State:>` に `preview: early|whole` の行を足す。`App::settled()` が `preview.in_flight` を含むので、普通のキーでは全体が出るまで待ってしまい、v0.86.12 の早い画面が `<Now>` + `<Wait:>` 抜きでは見えない。
