@@ -2348,7 +2348,7 @@ impl App {
         let lines: Vec<&Vec<crate::preview::Span>> = match &self.preview.state {
             PreviewState::Ready(Payload::Text { lines, .. }) => lines.iter().collect(),
             PreviewState::Ready(Payload::Markdown { doc, .. }) if self.render_markdown => {
-                doc.lines.iter().map(|l| &l.spans).collect()
+                return doc.marks(m, 0, doc.lines.len()).iter().enumerate().filter(|(_, r)| !r.is_empty()).map(|(i, _)| i).collect();
             }
             PreviewState::Ready(Payload::Markdown { source, .. }) => source.iter().collect(),
             _ => return Vec::new(),
@@ -4428,26 +4428,35 @@ impl App {
         self.overlay = Overlay::Input(ov);
     }
 
+    /// What `cc` / `cd` / `cf` / `cn` put on the clipboard, one line per path.
+    fn copy_lines(paths: &[PathBuf], what: CopyWhat) -> String {
+        let line = |p: &PathBuf| match what {
+            // Outside the spot panel the path is the only cell.
+            CopyWhat::Path | CopyWhat::Cell | CopyWhat::All => p.display().to_string(),
+            CopyWhat::Dirname => p.parent().map(|d| d.display().to_string()).unwrap_or_default(),
+            CopyWhat::Filename => util::file_name(p),
+            CopyWhat::NameWithoutExt => util::stem_and_ext(&util::file_name(p)).0.to_owned(),
+        };
+        paths.iter().map(line).collect::<Vec<_>>().join("\n")
+    }
+
+    /// Copy the selection, or the hovered file when nothing is selected --
+    /// the rule every other file command follows. Copying only the row under
+    /// the cursor while several were marked silently dropped the rest.
     fn copy_text(&mut self, what: CopyWhat) {
-        let Some(e) = self.tabs[self.active].current.hovered().cloned() else {
+        let paths = self.tabs[self.active].targets();
+        if paths.is_empty() {
             // Quietly doing nothing left the last thing copied on the
             // clipboard, which looks like a valid path when pasted (#108).
             self.error("Nothing to copy — the list is empty");
             return;
-        };
-        let text = match what {
-            // Outside the spot panel the hovered path is the only cell.
-            CopyWhat::Path | CopyWhat::Cell | CopyWhat::All => e.path.display().to_string(),
-            CopyWhat::Dirname => e
-                .path
-                .parent()
-                .map(|p| p.display().to_string())
-                .unwrap_or_default(),
-            CopyWhat::Filename => e.name.clone(),
-            CopyWhat::NameWithoutExt => util::stem_and_ext(&e.name).0.to_owned(),
-        };
+        }
+        let text = Self::copy_lines(&paths, what);
         match exec::set_clipboard(&text) {
-            Ok(()) => self.toast(format!("Copied: {text}")),
+            Ok(()) => match paths.len() {
+                1 => self.toast(format!("Copied: {text}")),
+                n => self.toast(format!("Copied {n} lines")),
+            },
             Err(err) => self.error(format!("Clipboard: {err}")),
         }
     }
@@ -11198,6 +11207,28 @@ mod find_marks {
         a.input_changed();
     }
 
+    /// `cc` and its siblings copy every marked file, one line each; the
+    /// hovered row is only the answer when nothing is marked.
+    #[test]
+    fn copy_covers_every_selected_path() {
+        let paths = vec![PathBuf::from("/d/a.txt"), PathBuf::from("/d/sub/b.tar.gz")];
+        let sep = |p: &str| PathBuf::from(p).display().to_string();
+        assert_eq!(App::copy_lines(&paths, CopyWhat::Path), format!("{}\n{}", sep("/d/a.txt"), sep("/d/sub/b.tar.gz")));
+        assert_eq!(App::copy_lines(&paths, CopyWhat::Filename), "a.txt\nb.tar.gz");
+        assert_eq!(App::copy_lines(&paths, CopyWhat::NameWithoutExt), "a\nb.tar");
+        assert_eq!(App::copy_lines(&paths, CopyWhat::Dirname), format!("{}\n{}", sep("/d"), sep("/d/sub")));
+        assert_eq!(App::copy_lines(&paths[..1], CopyWhat::Filename), "a.txt", "one path stays one line");
+    }
+
+    #[test]
+    fn copy_targets_follow_the_selection() {
+        let dir = std::env::temp_dir().join(format!("filer-copy-{}", std::process::id()));
+        let mut a = app_in(&dir);
+        a.tabs[a.active].selected.insert(dir.join("x"));
+        a.tabs[a.active].selected.insert(dir.join("y"));
+        assert_eq!(a.tabs[a.active].targets(), vec![dir.join("x"), dir.join("y")]);
+    }
+
     /// `/` takes a regular expression, in smart case, and jumps to the first
     /// name it matches.
     #[test]
@@ -11320,6 +11351,35 @@ mod find_marks {
         assert_eq!(a.body_matches(), [1], "rendered: the second line, split over three spans");
         a.render_markdown = false;
         assert_eq!(a.body_matches(), [2], "source: its own line numbers");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A paragraph the pane cut in two is one run of text to the search: `a.*b`
+    /// with the `a` on one line and the `b` on the next colours both.
+    #[test]
+    fn a_match_over_a_wrapped_line_is_found_on_both_halves() {
+        use crate::preview::{Doc, DocLine};
+        let dir = crate::util::test_dir("find-marks-wrap");
+        let mut a = app_in(&dir);
+        a.start_search("auto.*ids", SearchVia::Content);
+        let line = |t: &str, wrap: bool| DocLine {
+            spans: vec![Span { text: t.to_owned(), ..Default::default() }],
+            wrap,
+            ..Default::default()
+        };
+        let doc = Doc { lines: vec![line("one", false), line("an auto", false), line("matic list of ids", true), line("tail", false)], ..Default::default() };
+        let m = tsumugi_match::Matcher::new("auto.*ids").unwrap();
+        let one = |a: usize, b: usize| std::iter::once(a..b).collect::<Vec<_>>();
+        assert_eq!(doc.marks(&m, 1, 3), [one(3, 7), one(0, 17)]);
+        assert_eq!(doc.marks(&m, 2, 3), [one(0, 17)], "asked for the second half alone");
+        a.preview.state = PreviewState::Ready(Payload::Markdown {
+            doc,
+            source: Vec::new(),
+            map: Vec::new(),
+            extent: Default::default(),
+        });
+        a.render_markdown = true;
+        assert_eq!(a.body_matches(), [1, 2]);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

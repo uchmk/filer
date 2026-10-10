@@ -88,6 +88,62 @@ pub struct Doc {
 }
 
 impl Doc {
+    /// Where `m` matches in the rendered lines `from..to`: for each, the byte
+    /// ranges of its spans' text laid end to end. A paragraph cut into several
+    /// lines to fit the pane is searched as the one run of text it is (`a.*b`
+    /// finds an `a` and a `b` on different lines), so a match is found where
+    /// the source line has it, however the pane wraps it. The quote bars and
+    /// list markers in front of a line are not text and never match.
+    pub fn marks(&self, m: &tsumugi_match::Matcher, from: usize, to: usize) -> Vec<Vec<std::ops::Range<usize>>> {
+        let to = to.min(self.lines.len());
+        let mut out = vec![Vec::new(); to.saturating_sub(from)];
+        let mut at = from.min(to);
+        while at > 0 && self.lines.get(at).is_some_and(|l| l.wrap) {
+            at -= 1;
+        }
+        while at < to {
+            let mut end = at + 1;
+            while self.lines.get(end).is_some_and(|l| l.wrap) {
+                end += 1;
+            }
+            // Each line's content: where it starts in the line's own text, how
+            // long it is, and where it sits in the joined text.
+            let mut joined = String::new();
+            let mut parts = Vec::new();
+            for l in &self.lines[at..end] {
+                let (mut cells_in, mut skip) = (0, 0);
+                for s in &l.spans {
+                    if cells_in >= usize::from(l.indent) {
+                        break;
+                    }
+                    cells_in += cells(&s.text);
+                    skip += s.text.len();
+                }
+                let whole: String = l.spans.iter().map(|s| s.text.as_str()).collect();
+                let body = &whole[skip.min(whole.len())..];
+                if !parts.is_empty() && l.kind != LineKind::Code {
+                    let wide = |c: Option<char>| c.is_some_and(|c| cells(c.encode_utf8(&mut [0; 4])) >= 2);
+                    if !(wide(joined.chars().next_back()) && wide(body.chars().next())) {
+                        joined.push(' ');
+                    }
+                }
+                parts.push((joined.len(), skip, body.len()));
+                joined.push_str(body);
+            }
+            for r in m.ranges(&joined) {
+                for (k, &(off, skip, len)) in parts.iter().enumerate() {
+                    let (s, e) = (r.start.max(off), r.end.min(off + len));
+                    let i = at + k;
+                    if s < e && (from..to).contains(&i) {
+                        out[i - from].push(skip + s - off..skip + e - off);
+                    }
+                }
+            }
+            at = end;
+        }
+        out
+    }
+
     /// The source line a rendered line came from.
     pub fn src_for_line(&self, line: usize) -> usize {
         self.lines.get(line).or(self.lines.last()).map_or(0, |l| l.src)
@@ -167,6 +223,9 @@ pub struct DocLine {
     pub indent: u16,
     /// 0-based line in the source this came from.
     pub src: usize,
+    /// Carries on the line above: the same paragraph (or code line) cut to the
+    /// pane's width, so a search sees the two as one.
+    pub wrap: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

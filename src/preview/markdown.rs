@@ -604,7 +604,11 @@ impl<'a> Builder<'a> {
         let n = lines.len();
         for (i, (spans, src)) in lines.into_iter().enumerate() {
             let kind = if i + 1 == n { last } else { LineKind::Text };
+            let before = self.lines.len();
             self.push_line(spans, kind, src);
+            if i > 0 && self.lines.len() > before {
+                self.lines[before].wrap = true;
+            }
         }
     }
 
@@ -649,7 +653,7 @@ impl<'a> Builder<'a> {
         // Blank lines belong to what precedes them, so jumping to a source
         // line lands on its content rather than the gap above it.
         let src = self.lines.last().map_or(src, |l| l.src);
-        self.lines.push(DocLine { spans, kind: LineKind::Text, indent: 0, src });
+        self.lines.push(DocLine { spans, kind: LineKind::Text, indent: 0, src, wrap: false });
         self.last_blank = true;
     }
 
@@ -661,7 +665,7 @@ impl<'a> Builder<'a> {
         self.settle(src);
         let (mut spans, indent) = self.prefix(true);
         spans.extend(content);
-        self.lines.push(DocLine { spans, kind, indent, src });
+        self.lines.push(DocLine { spans, kind, indent, src, wrap: false });
         self.last_blank = false;
     }
 
@@ -681,10 +685,14 @@ impl<'a> Builder<'a> {
                     if text.is_empty() { Vec::new() } else { vec![span] }
                 }
             };
-            for piece in hard_wrap(&spans, width) {
+            for (j, piece) in hard_wrap(&spans, width).into_iter().enumerate() {
                 let mut row = vec![Span { text: " ".into(), ..Default::default() }];
                 row.extend(piece);
+                let before = self.lines.len();
                 self.push_line(row, LineKind::Code, code.src + i);
+                if j > 0 && self.lines.len() > before {
+                    self.lines[before].wrap = true;
+                }
             }
         }
     }
@@ -1139,6 +1147,25 @@ mod tests {
         assert_eq!(lines_of("hello world foo", 11), ["hello world", "foo"]);
         assert_eq!(lines_of("abcdefgh", 3), ["abc", "def", "gh"]);
         assert_eq!(lines_of("a\nb", 10), ["a", "b"]);
+    }
+
+    /// What the pane wrapped is searched as the paragraph it came from, and a
+    /// quote bar or list marker in front of a line is never part of a match.
+    #[test]
+    fn marks_follow_a_wrapped_paragraph_and_skip_the_prefix() {
+        let d = doc("- the automated run of the whole thing lists all its ids today\n\n> quoted text\n", 24);
+        assert!(d.lines.iter().filter(|l| l.wrap).count() >= 2, "{:?}", texts(&d));
+        let m = tsumugi_match::Matcher::new("auto.*ids").unwrap();
+        let marks = d.marks(&m, 0, d.lines.len());
+        let marked: Vec<usize> = (0..marks.len()).filter(|&i| !marks[i].is_empty()).collect();
+        assert!(marked.len() >= 3, "{marked:?} in {:?}", texts(&d));
+        for &i in &marked {
+            let t = line_text(&d.lines[i]);
+            assert!(!t[marks[i][0].clone()].contains('•') && !t[marks[i][0].clone()].starts_with(' '), "{t:?}");
+        }
+        let bars = tsumugi_match::Matcher::new("│").unwrap();
+        let bm = d.marks(&bars, 0, d.lines.len());
+        assert!(bm[4].is_empty(), "the quote bar of a line of text is not text: {bm:?}");
     }
 
     #[test]

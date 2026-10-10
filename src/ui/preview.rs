@@ -663,6 +663,10 @@ fn markdown(
     let body = painter.with_clip_rect(Rect::from_x_y_ranges(rect.left()..=right + st.cell, rect.y_range()));
     let start = offset.min(doc.lines.len().saturating_sub(1));
     let end = (start + rows).min(doc.lines.len());
+    let found = match st.find {
+        Some(m) => doc.marks(m, start, end),
+        None => vec![Vec::new(); end - start],
+    };
     for (i, line) in doc.lines[start..end].iter().enumerate() {
         let y = rect.top() + i as f32 * st.row_h;
         let x0 = x_at(line.indent as usize);
@@ -683,11 +687,7 @@ fn markdown(
 
         // Each span starts on its own column, so tables stay aligned even
         // where a fallback font's glyphs are not exactly one or two cells.
-        let marks = match st.find {
-            Some(m) => m.ranges(&line.spans.iter().map(|s| s.text.as_str()).collect::<String>()),
-            None => Vec::new(),
-        };
-        let parts = split_marked(&line.spans, &marks);
+        let parts = split_marked(&line.spans, &found[i]);
         let mut col = 0;
         let mut prev_end = left;
         for (k, span) in line.spans.iter().enumerate() {
@@ -1727,6 +1727,7 @@ mod minimap_hover_frame {
                     kind: LineKind::Text,
                     indent: 0,
                     src: i,
+                    wrap: false,
                 })
                 .collect(),
             toc: Vec::new(),

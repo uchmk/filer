@@ -163,7 +163,7 @@ pub fn render(
     let avail = usize::from(if cols == 0 { 80 } else { cols });
     let lines: Vec<DocLine> = markdown::table_lines(&rows, &aligns, avail, dim)
         .into_iter()
-        .map(|(spans, src)| DocLine { spans, kind: LineKind::Text, indent: 0, src })
+        .map(|(spans, src)| DocLine { spans, kind: LineKind::Text, indent: 0, src, wrap: false })
         .collect();
 
     let doc = Doc { lines, toc: Vec::new(), toc_cols: 0, body_cols: avail as u16 };

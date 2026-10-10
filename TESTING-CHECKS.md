@@ -7,12 +7,12 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 579 件（TESTING.md の全 772 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 581 件（TESTING.md の全 774 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
 
-未訳 37 件は原文のまま `〔未訳〕` を付けて出している。
+未訳 39 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -216,6 +216,7 @@ cd $HOME\Desktop\filer-fixtures
 
 - [x] **10.9** ファイルを `x` で切り取り、同名のファイルが既にあるディレクトリで `p` して、上書きに **Skip**（か **Cancel**）で答える → 何も動かず、切り取りが戻る（v0.75.15、Q72）。ヘッダに `1 cut` がまた出て、トーストが `Nothing moved — the cut is still there` と言う。別の場所で `p` すれば動く。以前はジョブを投入した時点でレジスタを空にしたので、ファイルは動かず、レジスタにも残らなかった。何か 1 つでも動いた貼り付けは、10.6 のとおりレジスタを空にする — *Cut a file, then `p` into a directory that already holds that name, and answer **Skip** (or **Cancel**) to the overwrite → Nothing moves, and the cut comes back (v0.75.15, Q72): `1 cut` is in the header again and a toast says `Nothing moved — the cut is still there`. `p` somewhere else then moves it. Before, the register was emptied when the job was *submitted*, so the file was neither moved nor still in the register. A paste that moved anything empties the register as 10.6 has it*
 - [x] **10.11** ファイルで `x` を押し、**同じ**フォルダで `p`（v0.75.19、#238）→ 何も動かず、名前も変わらない。トーストが `Already here — the cut is still there` と言い、ヘッダに `1 cut` が残る。別のフォルダで `p` すれば動く。以前は黙って `same_1.txt` になった — *`x` on a file, then `p` in the **same** folder (v0.75.19, #238) → Nothing moves and nothing is renamed: a toast says `Already here — the cut is still there`, `1 cut` stays in the header, and `p` in another folder then moves it. Before, the file became `same_1.txt` without a word*
+- [ ] **10.12** Mark two or three files with `<Space>`, then `c` `c` (v0.93.2); also `c` `f`, `c` `d`, `c` `n` → The toast says `Copied 3 lines`, and pasting gives one path per line, in the order of the list (name, parent folder and name without extension for the other three). With nothing marked it is still the one path under the cursor, as before 〔未訳〕
 
 ## 11. 一括リネーム — 全 12 件が自動
 
@@ -887,3 +888,4 @@ git log -1 --format="%h %an %ad %s"    # 期待値の答え合わせ用
 - [ ] **52.22** `S`, type `ext:log`, `<Enter>` (v0.93.0) → No search starts; the red toast says a content search needs something to look for besides `ext:` 〔未訳〕
 - [ ] **52.23** `S`, type `auto.*ids`, `<Enter>` where a `.md` file holds it (e.g. QA-REPORT.md), rendered view (v0.93.1) → The preview opens a few lines above the first match and the match is coloured, also where it spans bold or code spans. `n` / `N` walk the matches in it, then go on to the next file 〔未訳〕
 - [ ] **52.24** In that Markdown file, toggle to the source view (`M`), then `n` / `N` (v0.93.1) → The source lines are coloured and walked, with their own line numbers; toggling back keeps the place 〔未訳〕
+- [ ] **52.25** `S`, type `auto.*ids`, `<Enter>`; open the result `TESTING.md` (row 52.23 holds it on one very long line), rendered view (v0.93.2) → The match is coloured on every wrapped screen line that holds a part of it (the end of one line and the start of the next), and the preview opens at it. Narrowing the window so the paragraph wraps differently keeps the colour. `n` / `N` step through such matches 〔未訳〕
