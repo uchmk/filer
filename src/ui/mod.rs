@@ -1491,6 +1491,12 @@ pub(crate) mod harness {
             self
         }
 
+        /// Where the prompt's caret is, in characters, as the field holds it.
+        pub(crate) fn caret(&self) -> Option<usize> {
+            let state = egui::text_edit::TextEditState::load(&self.ctx, egui::Id::new("filer-input"))?;
+            state.cursor.char_range().map(|r| usize::from(r.primary.index))
+        }
+
         /// The window frames are drawn into.
         pub(crate) fn rect(&self) -> Rect {
             Rect::from_min_size(egui::Pos2::ZERO, self.size)

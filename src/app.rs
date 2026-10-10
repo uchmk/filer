@@ -4745,7 +4745,7 @@ impl App {
 
     /// Which list of past input a prompt draws on: search words (shared by
     /// `s S F f / ?` and the terminal's find) or shell commands.
-    fn input_group(kind: &InputKind) -> Option<usize> {
+    pub fn input_group(kind: &InputKind) -> Option<usize> {
         match kind {
             InputKind::Search { .. } | InputKind::Filter | InputKind::Find { .. } | InputKind::TermFind => Some(0),
             InputKind::Shell { .. } => Some(1),
@@ -11606,6 +11606,8 @@ mod find_marks {
     fn up_in_a_prompt_recalls_what_was_typed_before() {
         let dir = std::env::temp_dir().join(format!("filer-recall-{}", std::process::id()));
         let mut a = app_in(&dir);
+        // `app_in` loads the real state directory's lists, which have words in them.
+        a.input_history = Default::default();
         let submit = |a: &mut App, kind: InputKind, text: &str| {
             a.open_input(kind, "x", text.to_owned());
             a.submit_input();

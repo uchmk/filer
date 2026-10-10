@@ -7,12 +7,12 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 584 件（TESTING.md の全 777 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 585 件（TESTING.md の全 778 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
 
-未訳 42 件は原文のまま `〔未訳〕` を付けて出している。
+未訳 43 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -844,3 +844,4 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **52.26** `S`, type `auto.*ids`, `<Enter>`; move to `src/app.rs` (500 KB, a match past line 4000) or `TESTING-CHECKS.md` (289 KB, a match near its end) (v0.93.3) → The preview opens at the match instead of at the top, the match is coloured, and `n` / `N` reach it. Leaving the results (`<Esc>`) and previewing the same file again shows the usual cut (the footer says the file is cut) 〔未訳〕
 - [ ] **52.27** `S`, type a word that is in `src/app.rs` (500 KB), `<Enter>`, move to that result (v0.93.5) → The preview opens at the first match at once, uncoloured at first and coloured a moment later without moving. A 2-4 MB source file is shown whole (the part past line 40000 stays plain); the search itself still reads only the first 1 MB of each file 〔未訳〕
 - [ ] **52.28** `s`, type `foo`, `<Enter>`; `S`, type `bar`, `<Enter>`; `f`, then `<Up>` (v0.93.5) → `bar` comes back, `<Up>` again `foo`, `<Down>` twice gives back what was typed before the first `<Up>`. The filter follows the text as it changes. Restart filer and open `s`: `<Up>` still brings back `bar`. A file-name prompt (`a`, `r`) has no history 〔未訳〕
+- [ ] **52.29** `s`, type a word, `<Enter>`, `s` again; hold `<Up>` (v0.93.6) → The caret stays at the end of the word as the history steps back. It does not jump to the start and back between key repeats 〔未訳〕

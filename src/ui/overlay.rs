@@ -199,6 +199,19 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
     if ov.focused && !ui.memory(|m| m.has_focus(id)) {
         ui.memory_mut(|m| m.request_focus(id));
     }
+    // `<Up>` / `<Down>` recall what was typed before (main.rs), so the field
+    // must not also act on them: it moved the caret to the start for a frame,
+    // and a held key flickered between the two. The caret the recall asked for
+    // is stored before the field is shown for the same reason.
+    if App::input_group(&ov.kind).is_some() {
+        ui.input_mut(|i| {
+            i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp);
+            i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown);
+        });
+    }
+    if !ov.focused && ui.memory(|m| m.has_focus(id)) {
+        set_caret(ui, id, ov.initial_selection.take());
+    }
     let before = ov.text.clone();
     let selected = selection_at_press(ui, id);
     let resp = ui.put(
@@ -216,15 +229,7 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
         // Where the prompt asked the caret to be, or what to select. Until
         // v0.55.0 this was worked out and never handed to the field, so every
         // prompt opened with the caret wherever egui left it.
-        if let Some((from, to)) = ov.initial_selection.take() {
-            let mut state = egui::text_edit::TextEditState::load(ui.ctx(), id).unwrap_or_default();
-            let range = egui::text::CCursorRange::two(
-                egui::text::CCursor::new(from),
-                egui::text::CCursor::new(to),
-            );
-            state.cursor.set_char_range(Some(range));
-            state.store(ui.ctx(), id);
-        }
+        set_caret(ui, id, ov.initial_selection.take());
         ov.focused = true;
     }
     let clip = right_click_paste(ui, &resp, id, &mut ov.text, selected);
@@ -246,6 +251,15 @@ pub fn input(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId, queued: &mut Ve
         app.error(format!("Could not read the clipboard: {e}"));
     }
     let _ = queued;
+}
+
+/// Put the field's caret (or selection) where `at` says, in characters.
+fn set_caret(ui: &Ui, id: egui::Id, at: Option<(usize, usize)>) {
+    let Some((from, to)) = at else { return };
+    let mut state = egui::text_edit::TextEditState::load(ui.ctx(), id).unwrap_or_default();
+    let range = egui::text::CCursorRange::two(egui::text::CCursor::new(from), egui::text::CCursor::new(to));
+    state.cursor.set_char_range(Some(range));
+    state.store(ui.ctx(), id);
 }
 
 /// The hovered file, big, over the panes — macOS's Quick Look.
@@ -3451,6 +3465,34 @@ mod prompt_focus {
         assert!(text(&s).contains("alpha"), "completed: {:?}", text(&s));
         s.typed("q");
         assert!(text(&s).ends_with('q'), "the q after the completion arrived: {:?}", text(&s));
+    }
+
+    /// `<Up>` in a search prompt brings the last word back with the caret at its
+    /// end, in the very frame it arrives: the field also took the key and put the
+    /// caret at the start, so a held `<Up>` flickered between the two. (A smoke
+    /// test: the headless harness does not reproduce the flicker itself, so this
+    /// only guards the end position, not the intermediate frame.)
+    #[test]
+    fn up_leaves_the_caret_at_the_end_of_the_recalled_word() {
+        let dir = crate::util::test_dir("prompt-up");
+        let mut s = Screen::open(dir);
+        s.app.input_history[0] = vec!["alpha".into(), "beta".into()];
+        s.app.act(Act::Search { via: crate::config::cmd::SearchVia::Name, insensitive: false });
+        s.draw();
+        let up = egui::Event::Key {
+            key: egui::Key::ArrowUp,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        for want in ["beta", "alpha"] {
+            // Read straight after the frame that took the key: a settling frame
+            // afterwards would hide the one in which the caret jumped.
+            s.feed(vec![up.clone()]);
+            assert_eq!(text(&s), want);
+            assert_eq!(s.caret(), Some(want.chars().count()), "the caret stays at the end after <Up>");
+        }
     }
 }
 
