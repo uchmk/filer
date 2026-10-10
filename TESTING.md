@@ -1563,6 +1563,12 @@ same user can open (`\\.\pipe\filer-<user>` on Windows), what it is showing (Q95
 in a terminal where `claude` runs, with the full path of the `filer.exe` under test:
 `claude mcp add filer -- "<folder>\filer.exe" mcp`, and remove it afterwards with `claude mcp remove filer`.
 
+The owner's own filer window may be open on the same door. To not fight it for the door, set `FILER_ADDRESS` to a path of
+your own (the same value for the window under test and for `claude`) before starting both. Without a Claude Code session
+to type into, 50.1 can be read from the `init` event of
+`claude -p "hi" --mcp-config <file> --output-format stream-json --verbose`: its `mcp_servers` lists `filer` as `connected`,
+and its `tools` lists `mcp__filer__filer_state` and `mcp__filer__filer_reveal`.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 50.1 | Start filer, go to a folder and put the cursor on a file; then in `claude`, `/mcp` | `filer` is listed as connected, with two tools, `filer_state` and `filer_reveal` |

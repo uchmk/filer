@@ -791,7 +791,7 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 
 ## 50. Claude Code が窓を読む（v0.85.0）
 
-確かめる `filer.exe` をフルパスで、`claude` を動かすターミナルから 1 度だけ登録する: `claude mcp add filer -- "<フォルダ>\filer.exe" mcp`。終わったら `claude mcp remove filer` で外す。
+確かめる `filer.exe` をフルパスで、`claude` を動かすターミナルから 1 度だけ登録する: `claude mcp add filer -- "<フォルダ>\filer.exe" mcp`。終わったら `claude mcp remove filer` で外す。持ち主の窓と扉を奪い合わないよう、確かめる窓と `claude` の両方を、同じ値の `FILER_ADDRESS`（自分用のパス）を付けて起動する。`claude` の画面に打てないときは、`claude -p "hi" --mcp-config <ファイル> --output-format stream-json --verbose` の `init` イベントで 50.1 が読める: `mcp_servers` に `filer` が `connected` で、`tools` に `mcp__filer__filer_state` と `mcp__filer__filer_reveal` がある。
 
 - [ ] **50.1** filer を起動してフォルダに入り、カーソルをファイルに置く → `claude` で `/mcp` → `filer` が接続済みで、ツールが 2 つ（`filer_state` と `filer_reveal`） — *Start filer, go to a folder and put the cursor on a file; then in `claude`, `/mcp` → `filer` is listed as connected, with two tools, `filer_state` and `filer_reveal`*
 - [ ] **50.2** `<Space>` で 2 ファイル選び、Claude に「filer でカーソルの下のファイルと選んだものは？」と聞く → Claude が `filer_state` を呼び、そのフォルダ・そのファイル・選んだ 2 つのパスを Windows のフルパス（`C:\…`）で答える — *Select two files with `<Space>`, then ask Claude "which file is under the cursor in filer, and what is selected?" → Claude calls `filer_state` and answers with that folder, that file and the two selected paths, as full Windows paths (`C:\…`)*

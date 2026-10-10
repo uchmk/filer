@@ -240,7 +240,7 @@ note = "プロンプトの移動・出力のコピー・左の帯は、シェル
 
 [section.50]
 title = "Claude Code が窓を読む（v0.85.0）"
-note = "確かめる `filer.exe` をフルパスで、`claude` を動かすターミナルから 1 度だけ登録する: `claude mcp add filer -- \"<フォルダ>\\filer.exe\" mcp`。終わったら `claude mcp remove filer` で外す。"
+note = "確かめる `filer.exe` をフルパスで、`claude` を動かすターミナルから 1 度だけ登録する: `claude mcp add filer -- \"<フォルダ>\\filer.exe\" mcp`。終わったら `claude mcp remove filer` で外す。持ち主の窓と扉を奪い合わないよう、確かめる窓と `claude` の両方を、同じ値の `FILER_ADDRESS`（自分用のパス）を付けて起動する。`claude` の画面に打てないときは、`claude -p \"hi\" --mcp-config <ファイル> --output-format stream-json --verbose` の `init` イベントで 50.1 が読める: `mcp_servers` に `filer` が `connected` で、`tools` に `mcp__filer__filer_state` と `mcp__filer__filer_reveal` がある。"
 
 [row]
 # 1. ターミナルペイン
