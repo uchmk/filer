@@ -32,6 +32,17 @@
 - [ ] TESTING.md の節 50（`filer mcp`、v0.85.0）は標準入出力の JSON-RPC と `<State:>` で文字で読める行が多いのに、どちらのレーンの表にも無く 0 / 7 のまま。ARM64 の「Unticked rows no queue owns」に節 50 を足す（#301 の提案 1）【人】
 - [ ] （2026-10-10、持ち主の窓）x64（RX 9070 XT、Adrenalin 26.8.1 = ドライバ 32.0.31041.1004。最新）で、`cargo run` の filer が panic の出力なしに `exit code: 0xc000041d` で落ちる。イベントログ（Application、ID 1000）では 6:43 と 8:33 の 2 回とも、AMD の GL ドライバ `atio6axx.dll` の同じオフセット `0x51b5b9` で `0xc0000005` が出て、2〜3 秒後に同じ箇所で `0xc000041d`（窓のコールバックの中の例外）。既定の `auto` が GL を選ぶ機械（#204）。きっかけを切り分ける: (1) 落ちた時刻にレーン（別の filer の起動・終了、キー、スクリーンセーバーを止める処理）が動いていたか、(2) 画面の電源オフ・ロック・解像度や DPI の変更・窓のリサイズや最小化で再現するか、(3) WER の LocalDumps（`HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\filer.exe`）でダンプを取り、`atio6axx.dll` を呼んだ wgpu の関数を見る、(4) `[ui] backend = "dx12"` で同じきっかけを当てて落ちないか（あわせて #204 のアイドルで 1 コアが今のドライバで戻るか）。filer の側で避けられるなら（GL の面の作り直し、既定の見直し）提案する。`【実機】`
 
+## 多言語対応（2026-10-10、持ち主の希望）
+
+持ち主は filer も後で多言語にしたい。言語は uchmk のアプリ（filer・tsumugi・mimamori）で共通の `<設定のフォルダ>/uchmk/common.toml` の
+`language = "auto" | "en" | "ja" | …` で選び、アプリごとの設定に `language` があればそちらが勝つ。`auto` は OS の言語（`sys-locale`）。
+仕組みは先に mimamori の `src/i18n.rs`（`tr("key")` / `trf("key", &[..])`、英語の表は `src/lang/en.toml`）で作った。
+
+- [ ] mimamori の `i18n` を tsumugi の workspace の共有クレートに切り出す（tsumugi を `access:"push"` で付け直す。tsumugi の設定画面の言語の欄 `prefs.rs` もつなぐ）。【後】
+- [ ] filer の画面の文字（ヘルプの見出し・トースト・オーバーレイ・ステータスバー・確認の文）を `tr()` に通し、英語の表を足す。
+  yazi の keymap の `desc` は利用者の設定から来るので訳さない。表に無いキーはテストで落とす。【後】
+- [ ] 日本語の表を足す。CJK のフォントは tsumugi の `fonts.rs` の取り方を使う。filer.toml に `language` を足し、README に書く。【後】
+
 ## マージで止めている実機の PR
 
 マージのワークフローか Routine が止めた実機の PR。ここにある `#N` はワークフロー（`scripts/merge-lanes.py`）がマージしない。
