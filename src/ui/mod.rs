@@ -947,6 +947,7 @@ fn draw_status(app: &mut App, ui: &mut Ui, rect: Rect, f: &FontId) {
         right.push(match h.via {
             crate::config::cmd::SearchVia::Content => format!("grepping {}…", h.query),
             crate::config::cmd::SearchVia::Name => format!("searching {}…", h.query),
+            crate::config::cmd::SearchVia::Fuzzy => format!("fuzzy searching {}…", h.query),
         });
     }
     // The branch, when the directory is in a repository at all.

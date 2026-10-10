@@ -7,7 +7,7 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crossbeam_channel::Receiver;
 
@@ -16,7 +16,9 @@ use tsumugi_match::Matcher;
 
 pub enum Msg {
     Found(Vec<PathBuf>),
-    Done { total: usize, truncated: bool },
+    /// `order` is the whole result, best match first, for the one search that
+    /// ranks (`F`); the others leave it empty and keep the order they arrived in.
+    Done { total: usize, truncated: bool, order: Vec<PathBuf> },
 }
 
 pub struct Handle {
@@ -58,6 +60,7 @@ pub fn spawn(
         .name("search".into())
         .spawn(move || {
             let found = Arc::new(AtomicUsize::new(0));
+            let ranked: Arc<Mutex<Vec<(i32, PathBuf)>>> = Arc::default();
 
             let walker = ignore::WalkBuilder::new(&root)
                 .hidden(!show_hidden)
@@ -75,6 +78,7 @@ pub fn spawn(
                 let tx = tx_w.clone();
                 let cancel = cancel_t.clone();
                 let found = found.clone();
+                let ranked = ranked.clone();
                 let matcher = matcher.clone();
                 let wake = wake.clone();
                 let root = root.clone();
@@ -86,10 +90,19 @@ pub fn spawn(
                     let path = entry.path();
                     let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
 
+                    let mut score = None;
                     let hit = match via {
                         SearchVia::Name => {
                             let name = entry.file_name().to_string_lossy();
                             matcher.is_match(&name)
+                        }
+                        SearchVia::Fuzzy => {
+                            // The path below the root, so a directory name counts
+                            // as it does when the letters are typed from `src/`.
+                            // Always `/`, so a query typed with one matches on Windows.
+                            let rel = path.strip_prefix(root.as_path()).unwrap_or(path).to_string_lossy().replace('\\', "/");
+                            score = matcher.score(&rel);
+                            score.is_some()
                         }
                         SearchVia::Content => {
                             if is_dir {
@@ -101,6 +114,9 @@ pub fn spawn(
                     };
                     if hit && path != root.as_path() {
                         found.fetch_add(1, Ordering::Relaxed);
+                        if let Some(score) = score {
+                            ranked.lock().unwrap().push((score, path.to_path_buf()));
+                        }
                         if tx.send(Msg::Found(vec![path.to_path_buf()])).is_err() {
                             return ignore::WalkState::Quit;
                         }
@@ -111,7 +127,12 @@ pub fn spawn(
             });
 
             let total = found.load(Ordering::Relaxed);
-            let _ = tx.send(Msg::Done { total, truncated: total >= limit });
+            let mut ranked = std::mem::take(&mut *ranked.lock().unwrap());
+            // Best first; the path breaks a tie so the order does not depend on
+            // which thread got there first.
+            ranked.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+            let order = ranked.into_iter().map(|(_, p)| p).collect();
+            let _ = tx.send(Msg::Done { total, truncated: total >= limit, order });
             wake();
         })
         .expect("spawn search worker");
@@ -152,16 +173,30 @@ mod tests {
 
         /// The names found, sorted, once the search says it is done.
         fn find(&self, query: &str, via: SearchVia) -> Vec<String> {
-            let handle = spawn(&self.0, Matcher::new(query).unwrap(), query, via, true, 100, || {});
-            let mut names = Vec::new();
-            while let Ok(msg) = handle.rx.recv_timeout(std::time::Duration::from_secs(10)) {
-                match msg {
-                    Msg::Found(paths) => names.extend(paths.iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned())),
-                    Msg::Done { .. } => break,
-                }
-            }
+            let mut names = self.run(query, via).0;
             names.sort();
             names
+        }
+
+        /// The names as they arrived, and the ranking the search ended with.
+        fn run(&self, query: &str, via: SearchVia) -> (Vec<String>, Vec<String>) {
+            let matcher = match via {
+                SearchVia::Fuzzy => Matcher::fuzzy(query),
+                _ => Matcher::new(query).unwrap(),
+            };
+            let handle = spawn(&self.0, matcher, query, via, true, 100, || {});
+            let name = |p: &PathBuf| p.file_name().unwrap().to_string_lossy().into_owned();
+            let (mut names, mut order) = (Vec::new(), Vec::new());
+            while let Ok(msg) = handle.rx.recv_timeout(std::time::Duration::from_secs(10)) {
+                match msg {
+                    Msg::Found(paths) => names.extend(paths.iter().map(name)),
+                    Msg::Done { order: o, .. } => {
+                        order = o.iter().map(name).collect();
+                        break;
+                    }
+                }
+            }
+            (names, order)
         }
     }
 
@@ -190,5 +225,29 @@ mod tests {
         assert_eq!(t.find(r"alpha \d+", SearchVia::Content), ["one.txt"]);
         assert_eq!(t.find("ALPHA", SearchVia::Content), Vec::<String>::new(), "a capital makes it case-sensitive");
         assert_eq!(t.find("alpha", SearchVia::Content), ["one.txt", "two.txt"]);
+    }
+
+    #[test]
+    fn a_fuzzy_search_takes_letters_in_order_across_the_path() {
+        let t = Tree::new(
+            "fuzzy",
+            &[("src/main.rs", b""), ("src/lib.rs", b""), ("docs/domain-notes.md", b""), ("a-w-a.txt", b""), ("zzz.txt", b"")],
+        );
+        let (found, order) = t.run("srcmain", SearchVia::Fuzzy);
+        assert_eq!(found, ["main.rs"], "the letters run across the directory and the name");
+        assert_eq!(order, ["main.rs"]);
+
+        let (_, order) = t.run("awa", SearchVia::Fuzzy);
+        assert_eq!(order, ["a-w-a.txt"], "letters in order, not a substring");
+
+        let (_, order) = t.run("rs", SearchVia::Fuzzy);
+        assert_eq!(order.len(), 2, "both .rs files, and nothing else: {order:?}");
+    }
+
+    #[test]
+    fn only_a_fuzzy_search_ranks() {
+        let t = Tree::new("rank", &[("a.txt", b"x"), ("b.txt", b"x")]);
+        assert!(t.run("txt", SearchVia::Name).1.is_empty());
+        assert_eq!(t.run("txt", SearchVia::Fuzzy).1.len(), 2);
     }
 }

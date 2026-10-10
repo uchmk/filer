@@ -450,6 +450,10 @@ on = "S"
 run = "search --via=content"
 desc = "Search files by content, recursively"
 [[mgr.keymap]]
+on = "F"
+run = "search --via=fuzzy"
+desc = "Search files fuzzily, recursively, best match first"
+[[mgr.keymap]]
 on = "<C-s>"
 run = "escape --search"
 desc = "Cancel the ongoing search"

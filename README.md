@@ -1101,7 +1101,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `c…` | `cc` copy the path, `cd` the parent, `cf` the file name, `cn` the name without its extension |
 | `o` `O` `<Enter>` `<S-Enter>` | open / open with… / open (at the outline's line) / open with… |
 | `/` `?` `n` `N` `f` | find next / previous / repeat / repeat back / filter. `f` takes a regular expression (a plain word is a substring); no capital in it means case does not matter, one capital means it does (v0.87.0). An invalid expression says why and changes nothing |
-| `s` `S` `<C-s>` | search by name / by content / stop. Both take a regular expression, with the same capital rule as above (v0.87.0); a content search reads the first 1 MB of each file and skips any with a NUL byte |
+| `s` `S` `F` `<C-s>` | search by name / by content / fuzzily by path / stop. `s` and `S` take a regular expression, with the same capital rule as above (v0.87.0); a content search reads the first 1 MB of each file and skips any with a NUL byte. `F` takes the letters in order across the whole relative path (`srcmain` finds `src/main.rs`) and lists the best match first (v0.88.0) |
 | `z` | fuzzy-jump to a bookmark or recent directory |
 | `'` | go to a bookmark (then press its letter), as in vim |
 | `b``b` | list the bookmarks and pick one |

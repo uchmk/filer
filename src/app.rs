@@ -3229,6 +3229,7 @@ impl App {
                 self.open_input(InputKind::Search { via }, match via {
                     SearchVia::Name => "Search by name",
                     SearchVia::Content => "Search by content",
+                    SearchVia::Fuzzy => "Search fuzzily",
                 }, String::new());
             }
             Act::Submit => self.submit_input(),
@@ -5826,10 +5827,14 @@ impl App {
         if query.is_empty() {
             return;
         }
-        // A query that is not a regular expression says why and starts nothing.
-        let matcher = match tsumugi_match::Matcher::new(query) {
-            Ok(m) => m,
-            Err(e) => return self.error(format!("Not a regular expression: {e}")),
+        // A query that is not a regular expression says why and starts nothing;
+        // `F` is the one search that takes letters in order instead.
+        let matcher = match via {
+            SearchVia::Fuzzy => tsumugi_match::Matcher::fuzzy(query),
+            _ => match tsumugi_match::Matcher::new(query) {
+                Ok(m) => m,
+                Err(e) => return self.error(format!("Not a regular expression: {e}")),
+            },
         };
         let root = self.tabs[self.active].cwd.clone();
         let show_hidden = self.tabs[self.active].show_hidden;
@@ -6143,12 +6148,12 @@ impl App {
     fn drain_search(&mut self) {
         let Some(handle) = &self.search else { return };
         let mut batch: Vec<PathBuf> = Vec::new();
-        let mut done: Option<(usize, bool)> = None;
+        let mut done: Option<(usize, bool, Vec<PathBuf>)> = None;
         while let Ok(msg) = handle.rx.try_recv() {
             match msg {
                 crate::search::Msg::Found(mut v) => batch.append(&mut v),
-                crate::search::Msg::Done { total, truncated } => {
-                    done = Some((total, truncated));
+                crate::search::Msg::Done { total, truncated, order } => {
+                    done = Some((total, truncated, order));
                     break;
                 }
             }
@@ -6164,8 +6169,17 @@ impl App {
             }
             f.rebuild(show_hidden);
         }
-        if let Some((total, truncated)) = done {
+        if let Some((total, truncated, order)) = done {
             self.search = None;
+            if !order.is_empty() {
+                // Best match first, and the cursor on it.
+                let f = &mut self.tabs[self.active].current;
+                let rank: HashMap<&Path, usize> = order.iter().enumerate().map(|(i, p)| (p.as_path(), i)).collect();
+                Arc::make_mut(&mut f.entries).sort_by_key(|e| rank.get(e.path.as_path()).copied().unwrap_or(usize::MAX));
+                f.rebuild(true);
+                f.cursor = 0;
+                f.offset = 0;
+            }
             if total == 0 {
                 self.error("No matches");
             } else {

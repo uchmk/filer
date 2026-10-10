@@ -93,6 +93,7 @@ pub enum ZoomTo {
 pub enum SearchVia {
     Name,
     Content,
+    Fuzzy,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -526,6 +527,7 @@ pub fn parse(line: &str) -> Act {
         "search" => Act::Search {
             via: match a.val("via").or(a.first()) {
                 Some("rg") | Some("content") => SearchVia::Content,
+                Some("fuzzy") => SearchVia::Fuzzy,
                 _ => SearchVia::Name,
             },
             insensitive: a.has("insensitive"),

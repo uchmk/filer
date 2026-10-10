@@ -7,12 +7,12 @@
 **チェック（`[x]`）だけは手で書いてよく、生成し直しても残る。**それ以外を書き換えても次の
 生成で消える。
 
-押すものは 555 件（TESTING.md の全 748 件のうち、`cargo test` が見ている 193 件は外してある）。
+押すものは 560 件（TESTING.md の全 753 件のうち、`cargo test` が見ている 193 件は外してある）。
 **済みの数はこのファイルに書かない**（チェックを付けた PR が毎回ここを書き換え、並んだ PR が
 必ず衝突していた）。節ごとの進み具合は `cargo run --example make-testcheck -- --lane linux --stats` で出る。
 `[~]` は済みに数えない（持ち主が同じ画像を見て `[x]` にするまで）。
 
-未訳 13 件は原文のまま `〔未訳〕` を付けて出している。
+未訳 18 件は原文のまま `〔未訳〕` を付けて出している。
 
 ## 使い方
 
@@ -812,3 +812,11 @@ Windows ではリンクを作るのが面倒。**ジャンクション**は管�
 - [ ] **51.7** `f`, type `\.log$` → The list narrows to `a.log` (and, with the sub-folder open, its `.log` files); the matched letters are coloured. The prompt's title is still `Filter` 〔未訳〕
 - [ ] **51.8** `f`, type `a.log(` (an unfinished group) → The prompt's title reads `Filter -- …` with the reason, and the list keeps the rows of the last good query. Type `)` and it narrows again 〔未訳〕
 - [ ] **51.9** `f`, type `r`, `<Enter>`; then `f` again → The prompt shows `r` again, and the list shows what `r` kept (`Report.TXT` for a folder of the files above) 〔未訳〕
+
+## 52. The search view: `F`, binaries, highlight, `n` / `N`
+
+- [ ] **52.1** `F`, type `srcmain`, `<Enter>` (v0.88.0) → The prompt is titled `Search fuzzily`. The list holds `src\main.rs`: the letters run across the folder and the file name 〔未訳〕
+- [ ] **52.2** `F`, type `awa`, `<Enter>` (v0.88.0) → `a-w-a.txt` is found (letters in order, not a substring); `s` with the same query finds nothing of it 〔未訳〕
+- [ ] **52.3** `F`, type `rs`, `<Enter>` (v0.88.0) → Both `.rs` files, and the cursor is on the best match at the top of the list once the search ends. The status bar showed `fuzzy searching rs…` while it ran 〔未訳〕
+- [ ] **52.4** `F`, type `(`, `<Enter>` (v0.88.0) → No error: it is letters, not a regular expression. Nothing matches a `(` so the toast says `No matches` 〔未訳〕
+- [ ] **52.5** Press `?` (help) or open `~` (v0.88.0) → `F` is listed as `Search files fuzzily, recursively, best match first` 〔未訳〕

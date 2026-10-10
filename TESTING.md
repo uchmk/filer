@@ -1596,3 +1596,17 @@ a query with no capital letter ignores case, one capital letter makes it exact. 
 | 51.7 | `f`, type `\.log$` | The list narrows to `a.log` (and, with the sub-folder open, its `.log` files); the matched letters are coloured. The prompt's title is still `Filter` |
 | 51.8 | `f`, type `a.log(` (an unfinished group) | The prompt's title reads `Filter -- …` with the reason, and the list keeps the rows of the last good query. Type `)` and it narrows again |
 | 51.9 | `f`, type `r`, `<Enter>`; then `f` again | The prompt shows `r` again, and the list shows what `r` kept (`Report.TXT` for a folder of the files above) |
+
+## 52. The search view: `F`, binaries, highlight, `n` / `N`
+
+`F` (Shift+F) searches the folder and everything below it fuzzily, best match first. The later rows of this
+section (binaries, highlight, `n` / `N`, the count line, `ext:`) arrive with their versions. Make a folder to
+press these in: `src\main.rs`, `src\lib.rs`, `docs\domain-notes.md`, `a-w-a.txt`, `zzz.txt`.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 52.1 | `F`, type `srcmain`, `<Enter>` (v0.88.0) | The prompt is titled `Search fuzzily`. The list holds `src\main.rs`: the letters run across the folder and the file name |
+| 52.2 | `F`, type `awa`, `<Enter>` (v0.88.0) | `a-w-a.txt` is found (letters in order, not a substring); `s` with the same query finds nothing of it |
+| 52.3 | `F`, type `rs`, `<Enter>` (v0.88.0) | Both `.rs` files, and the cursor is on the best match at the top of the list once the search ends. The status bar showed `fuzzy searching rs…` while it ran |
+| 52.4 | `F`, type `(`, `<Enter>` (v0.88.0) | No error: it is letters, not a regular expression. Nothing matches a `(` so the toast says `No matches` |
+| 52.5 | Press `?` (help) or open `~` (v0.88.0) | `F` is listed as `Search files fuzzily, recursively, best match first` |
