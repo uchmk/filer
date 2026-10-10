@@ -1,6 +1,6 @@
 [package]
 name = "kura"
-version = "0.98.0"
+version = "0.99.0"
 edition = "2021"
 rust-version = "1.95"
 description = "A yazi-flavored, keyboard-driven file manager built with Rust + egui"
@@ -40,25 +40,25 @@ alacritty_terminal = { version = "0.26", default-features = false }
 # v0.93.10. Pinned to a commit, the same one for every ito crate; to take a
 # fix, move `rev` and run `cargo build` so Cargo.lock follows. Pure Rust, like
 # the rest.
-ito-pane = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f", features = ["egui", "wgpu"] }
+ito-pane = { git = "https://github.com/uchmk/ito", rev = "efa73768608cd062ed737fa586681c6932076fdf", features = ["egui", "wgpu"] }
 # The border above the terminal pane, dragged to change its height (Q94).
 # From the same commit as the pane; it depends on nothing but egui.
-ito-layout = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f", features = ["egui"] }
+ito-layout = { git = "https://github.com/uchmk/ito", rev = "efa73768608cd062ed737fa586681c6932076fdf", features = ["egui"] }
 # `kura mcp` (Q95, Q96): the per-user door into the running window (Unix
 # socket / named pipe) and the MCP server Claude Code talks to over stdio.
 # Hand-written on serde_json, no async runtime. The same commit as the pane.
-ito-ipc = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f" }
+ito-ipc = { git = "https://github.com/uchmk/ito", rev = "efa73768608cd062ed737fa586681c6932076fdf" }
 # The rule a search query matches by (`f` `s` `S` `/` `?` `F`), shared with tsumugi; the same commit as the others.
-ito-match = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f" }
+ito-match = { git = "https://github.com/uchmk/ito", rev = "efa73768608cd062ed737fa586681c6932076fdf" }
 # The clock at the status bar's right end and the `[clock]` / `language` of the
 # config shared by every uchmk app (common.toml); the same commit as the others.
-ito-common = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f", features = ["clock"] }
-ito-mcp = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f" }
+ito-common = { git = "https://github.com/uchmk/ito", rev = "efa73768608cd062ed737fa586681c6932076fdf", features = ["clock"] }
+ito-mcp = { git = "https://github.com/uchmk/ito", rev = "efa73768608cd062ed737fa586681c6932076fdf" }
 # The settings screen (Ctrl+,): the frame, side nav, search and the shared
 # Language / CLOCK rows every uchmk app draws alike, and the palette it paints
 # with. The same commit as the others; pure Rust on egui.
-ito-prefs = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f" }
-ito-theme = { git = "https://github.com/uchmk/ito", rev = "90314f94820ed2b1c08b8610c0cf7bad59b07f7f" }
+ito-prefs = { git = "https://github.com/uchmk/ito", rev = "efa73768608cd062ed737fa586681c6932076fdf" }
+ito-theme = { git = "https://github.com/uchmk/ito", rev = "efa73768608cd062ed737fa586681c6932076fdf" }
 # Already in the tree: syntect's `default-fancy` builds it. Naming it here is
 # what lets bulk rename use it, and adds no crate to the build.
 #

@@ -2,11 +2,13 @@
 //!
 //! Search order (later wins):
 //!   1. `$YAZI_CONFIG_HOME`, else yazi's own directory — `yazi.toml`, `keymap.toml`, `theme.toml`
-//!   2. `$KURA_CONFIG_HOME`, else `<base>/kura`      — the same three, plus `kura.toml`
+//!   2. `$KURA_CONFIG_HOME`, else `<uchmk>/kura`     — the same three, plus `config.toml`
 //!
 //! `<base>` is `%APPDATA%` on Windows and `$XDG_CONFIG_HOME` (default `~/.config`)
 //! on Unix, macOS included. Layer 1 is `<base>/yazi/config` on Windows but
 //! `<base>/yazi` on Unix, because that is where yazi itself keeps them.
+//! `<uchmk>` is the folder every uchmk app shares (`ito_common::base_dir`:
+//! `%APPDATA%\uchmk` on Windows).
 
 pub mod cmd;
 pub mod keymap;
@@ -42,7 +44,7 @@ impl<'de> Deserialize<'de> for StrOrVec {
     }
 }
 
-/// GUI-only settings, from `kura.toml`. yazi has no equivalent for these.
+/// GUI-only settings, from `config.toml`. yazi has no equivalent for these.
 #[derive(Deserialize, Debug)]
 #[serde(default)]
 pub struct Ui {
@@ -119,8 +121,8 @@ impl Default for Ui {
             preview_debounce_ms: 40,
             max_text_bytes: 256 * 1024,
             max_history: 200,
-            window_width: 1360.0,
-            window_height: 860.0,
+            window_width: 1280.0,
+            window_height: 800.0,
             backend: "auto".into(),
         }
     }
@@ -133,7 +135,7 @@ impl Default for Ui {
 /// `pwsh` -- and the login shell elsewhere. Those are different programs
 /// reading different profiles, so a hook that works in one is simply absent in
 /// the other, and there was no way to say which one to start.
-/// `[mcp]` in `kura.toml`: the local door `kura mcp` reads the window
+/// `[mcp]` in `config.toml`: the local door `kura mcp` reads the window
 /// through (Q95). On unless `enable = false`; only the same user can reach it.
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct McpCfg {
@@ -431,7 +433,7 @@ impl Config {
         for dir in dirs {
             if let Some(text) = read(dir, "yazi.toml", &mut loaded) {
                 let wrong = Misplaced::in_file(&text, ConfigFile::Yazi);
-                wrong.warn(&at(dir, "yazi.toml"), "kura.toml", &mut warnings);
+                wrong.warn(&at(dir, "yazi.toml"), OWN_FILE, &mut warnings);
                 match toml::from_str::<YaziToml>(&text) {
                     Ok(v) => yazi_cfg = merge_yazi(yazi_cfg, v),
                     // The serde message for a `preview` in the wrong shape is
@@ -468,16 +470,16 @@ impl Config {
                     }
                 }
             }
-            if let Some(text) = read(dir, "kura.toml", &mut loaded) {
+            if let Some(text) = read(dir, OWN_FILE, &mut loaded) {
                 let wrong = Misplaced::in_file(&text, ConfigFile::Kura);
-                wrong.warn(&at(dir, "kura.toml"), "yazi.toml", &mut warnings);
+                wrong.warn(&at(dir, OWN_FILE), "yazi.toml", &mut warnings);
                 match toml::from_str::<KuraToml>(&text) {
                     Ok(v) => {
                         // Here rather than at start-up only, so `kura env`
                         // says it too: it printed `Warnings : none` while the
                         // window warned (#239, #240).
                         if let Err(e) = v.ui.backend_name() {
-                            warnings.push(format!("{}: {e}", at(dir, "kura.toml")));
+                            warnings.push(format!("{}: {e}", at(dir, OWN_FILE)));
                         }
                         ui = v.ui;
                         term = v.term;
@@ -489,20 +491,20 @@ impl Config {
                             } else {
                                 warnings.push(format!(
                                     "{}: [line_args] {name}: needs exactly one {{path}}",
-                                    at(dir, "kura.toml")
+                                    at(dir, OWN_FILE)
                                 ));
                             }
                         }
                     }
                     Err(_) if wrong.breaks_parse => {
                         broken.kura = true;
-                        unread.push(dir.join("kura.toml"));
+                        unread.push(dir.join(OWN_FILE));
                     }
                     Err(e) => {
                         broken.kura = true;
-                        unread.push(dir.join("kura.toml"));
+                        unread.push(dir.join(OWN_FILE));
                         broken.said.push(warnings.len());
-                        warnings.push(format!("{}: {}", at(dir, "kura.toml"), parse_error(&text, &e)));
+                        warnings.push(format!("{}: {}", at(dir, OWN_FILE), parse_error(&text, &e)));
                     }
                 }
             }
@@ -521,11 +523,10 @@ impl Config {
         (Self { yazi: yazi_cfg, keymap, theme, ui, term, preview, mcp, line_args, loaded, unread, warnings }, broken)
     }
 
+    /// `KURA_STATE_HOME`, else uchmk's state folder (`%LOCALAPPDATA%\uchmk\kura`
+    /// on Windows): bookmarks and histories, apart from the settings.
     pub fn state_dir() -> PathBuf {
-        if let Ok(p) = std::env::var("KURA_STATE_HOME") {
-            return PathBuf::from(p);
-        }
-        dirs::data_dir().unwrap_or_else(std::env::temp_dir).join("kura")
+        ito_common::state_dir("kura").unwrap_or_else(|| std::env::temp_dir().join("kura"))
     }
 }
 
@@ -581,10 +582,11 @@ pub const CONFIG_VARS: [&str; 2] = ["YAZI_CONFIG_HOME", "KURA_CONFIG_HOME"];
 /// Windows: an unset `%VAR%` expands to the empty string, so `gc` walked to
 /// `/kura`. Returns `None` for any other name, leaving ordinary variables alone.
 pub fn config_dir_default(var: &str) -> Option<PathBuf> {
-    let base = base_config_dir()?;
     match var {
-        "YAZI_CONFIG_HOME" => Some(yazi_config_dir(&base)),
-        "KURA_CONFIG_HOME" => Some(base.join("kura")),
+        "YAZI_CONFIG_HOME" => Some(yazi_config_dir(&base_config_dir()?)),
+        // uchmk's folder rather than yazi's base: one place for every uchmk
+        // app's settings (since v0.99.0).
+        "KURA_CONFIG_HOME" => Some(ito_common::base_dir()?.join("kura")),
         _ => None,
     }
 }
@@ -603,40 +605,73 @@ pub fn config_home(var: &str) -> Option<PathBuf> {
 /// The app's name before v0.95.0, still on the folders an older build made.
 const OLD_NAME: &str = "filer";
 
-/// Moves the folders and the file an older build named after filer to kura's
-/// names, so an upgrade keeps its settings, bookmarks and history.
+/// kura's own settings file in its folder. `kura.toml` before v0.99.0, when
+/// every uchmk app came to name it the same (ito's common spec).
+pub const OWN_FILE: &str = "config.toml";
+
+/// What kura keeps between runs, in [`Config::state_dir`].
+pub const STATE_FILES: [&str; 5] = ["bookmarks.toml", "history.txt", "search-history.txt", "shell-history.txt", "last-run.toml"];
+
+/// Moves what an older build kept to where this one reads it, so an upgrade
+/// keeps its settings, bookmarks and history:
+///
+/// - v0.95.0: the folders and the file named after filer, to kura's names.
+/// - v0.99.0: kura's folder from `<base>/kura` to `<uchmk>/kura` (the folder
+///   every uchmk app shares), `kura.toml` to `config.toml`, and the state
+///   files to a folder of their own (on Windows they shared `%APPDATA%\kura`
+///   with the settings).
 ///
 /// Only when the old one is there and the new one is not: a machine that
 /// already has both keeps both, and nothing is merged. A folder a variable
-/// names is the user's own and is left where it is; only `filer.toml` inside
+/// names is the user's own and is left where it is; only the file inside
 /// it is renamed. Run before anything reads the config, once per start.
 pub fn move_old_dirs() -> Vec<String> {
     let mut warn = Vec::new();
     let set = |var: &str| std::env::var_os(var).is_some_and(|v| !v.is_empty());
+    let (old_base, old_state) = (base_config_dir(), dirs::data_dir());
     if !set("KURA_CONFIG_HOME") {
-        if let Some(base) = base_config_dir() {
+        if let Some(base) = &old_base {
             move_old(&base.join(OLD_NAME), &base.join("kura"), &mut warn);
         }
-    }
-    if let Some(dir) = config_home("KURA_CONFIG_HOME") {
-        move_old(&dir.join(format!("{OLD_NAME}.toml")), &dir.join("kura.toml"), &mut warn);
     }
     // On Windows this is the same `%APPDATA%` as above, so the first move
     // already took it; on Unix it is `~/.local/share`.
     if !set("KURA_STATE_HOME") {
-        if let Some(base) = dirs::data_dir() {
+        if let Some(base) = &old_state {
             move_old(&base.join(OLD_NAME), &base.join("kura"), &mut warn);
+            // Before the settings: on Windows the state is in the folder they leave.
+            if let Some(new) = ito_common::state_dir("kura") {
+                move_state(&base.join("kura"), &new, &mut warn);
+            }
         }
+    }
+    if !set("KURA_CONFIG_HOME") {
+        if let (Some(old), Some(new)) = (&old_base, config_dir_default("KURA_CONFIG_HOME")) {
+            move_old(&old.join("kura"), &new, &mut warn);
+        }
+    }
+    if let Some(dir) = config_home("KURA_CONFIG_HOME") {
+        move_old(&dir.join("kura.toml"), &dir.join(OWN_FILE), &mut warn);
+        move_old(&dir.join(format!("{OLD_NAME}.toml")), &dir.join(OWN_FILE), &mut warn);
     }
     warn
 }
 
-fn move_old(old: &Path, new: &Path, warn: &mut Vec<String>) {
-    if !old.exists() || new.exists() {
+/// The [`STATE_FILES`] in `old` moved to `new`, each when `new` has none of
+/// its own; `old` itself goes when nothing else is left in it.
+fn move_state(old: &Path, new: &Path, warn: &mut Vec<String>) {
+    if old == new || !old.is_dir() {
         return;
     }
-    if let Err(e) = std::fs::rename(old, new) {
-        warn.push(format!("could not move {} to {}: {e}", old.display(), new.display()));
+    for name in STATE_FILES {
+        move_old(&old.join(name), &new.join(name), warn);
+    }
+    let _ = std::fs::remove_dir(old);
+}
+
+fn move_old(old: &Path, new: &Path, warn: &mut Vec<String>) {
+    if let Err(e) = ito_common::move_old(old, new) {
+        warn.push(e);
     }
 }
 
@@ -646,7 +681,7 @@ pub fn config_dirs() -> Vec<PathBuf> {
 }
 
 /// The directories, each once. With `YAZI_CONFIG_HOME` and `KURA_CONFIG_HOME`
-/// naming one folder, its `kura.toml` was read twice, the help panel and
+/// naming one folder, its `config.toml` was read twice, the help panel and
 /// `kura env` listed the folder twice, and `<C-F5>` counted every file double
 /// (#180). Every layer reads the same files, so the first of two is enough.
 /// Two spellings of one folder (`C:\cfg` and `c:\cfg\`) are one folder too.
@@ -714,7 +749,13 @@ fn at(dir: &Path, name: &str) -> String {
 ///
 /// Shared so the help panel and `kura env` cannot come to different answers
 /// about what is on disk -- which is the confusion they exist to settle.
-pub const FILES: [&str; 4] = ["yazi.toml", "keymap.toml", "theme.toml", "kura.toml"];
+pub const FILES: [&str; 4] = ["yazi.toml", "keymap.toml", "theme.toml", OWN_FILE];
+
+/// Every config file that can be read, there or not yet: what the window
+/// watches to read them again by itself (since v0.99.0). None in a test.
+pub fn watched_files() -> Vec<PathBuf> {
+    dirs_to_read().iter().flat_map(|d| FILES.iter().map(move |f| d.join(f))).collect()
+}
 
 /// Which of the two config files is being read.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -903,18 +944,39 @@ mod dirs_tests {
         let dir = crate::util::test_dir("move-old");
         let (old, new) = (dir.join("filer"), dir.join("kura"));
         std::fs::create_dir(&old).unwrap();
-        std::fs::write(old.join("kura.toml"), "[ui]
-").unwrap();
+        std::fs::write(old.join(OWN_FILE), "[ui]\n").unwrap();
         let mut warn = Vec::new();
         move_old(&old, &new, &mut warn);
         assert!(warn.is_empty(), "{warn:?}");
         assert!(!old.exists());
-        assert!(new.join("kura.toml").exists(), "the contents come along");
+        assert!(new.join(OWN_FILE).exists(), "the contents come along");
 
         std::fs::create_dir(&old).unwrap();
         move_old(&old, &new, &mut warn);
-        assert!(old.exists() && new.join("kura.toml").exists(), "both stay when both are there");
+        assert!(old.exists() && new.join(OWN_FILE).exists(), "both stay when both are there");
         assert!(warn.is_empty(), "{warn:?}");
+    }
+
+    /// v0.99.0: the state files leave the folder they shared with the
+    /// settings on Windows, which stays for the settings to move after them.
+    #[test]
+    fn the_state_files_move_out_and_the_settings_stay() {
+        let dir = crate::util::test_dir("move-state");
+        let (old, new) = (dir.join("kura"), dir.join("state").join("kura"));
+        std::fs::create_dir(&old).unwrap();
+        std::fs::write(old.join("bookmarks.toml"), "a = 1\n").unwrap();
+        std::fs::write(old.join("kura.toml"), "[ui]\n").unwrap();
+        let mut warn = Vec::new();
+        move_state(&old, &new, &mut warn);
+        assert!(warn.is_empty(), "{warn:?}");
+        assert!(new.join("bookmarks.toml").exists() && !old.join("bookmarks.toml").exists());
+        assert!(old.join("kura.toml").exists(), "the settings are not state");
+
+        // With only state in it, the old folder goes too.
+        std::fs::remove_file(old.join("kura.toml")).unwrap();
+        std::fs::write(old.join("history.txt"), "x\n").unwrap();
+        move_state(&old, &new, &mut warn);
+        assert!(!old.exists() && new.join("history.txt").exists());
     }
 
     /// #180: one folder named by both variables is read once, however it is
@@ -1123,8 +1185,8 @@ mod files {
         assert!(!m.breaks_parse, "yazi.toml still parses; the section is just unread");
 
         let mut w = Vec::new();
-        m.warn(r"C:\x\yazi.toml", "kura.toml", &mut w);
-        assert_eq!(w, [r"C:\x\yazi.toml: [term] belongs in kura.toml and was ignored"]);
+        m.warn(r"C:\x\yazi.toml", OWN_FILE, &mut w);
+        assert_eq!(w, [r"C:\x\yazi.toml: [term] belongs in config.toml and was ignored"]);
 
         let text = "[ui]\na = 1\n[term]\nb = 2\n[line_args]\nc = \"d\"\n";
         assert_eq!(Misplaced::in_file(text, ConfigFile::Yazi).sections, ["[ui]", "[term]", "[line_args]"]);
@@ -1161,8 +1223,8 @@ mod files {
         assert!(m.breaks_parse);
 
         let mut w = Vec::new();
-        m.warn(r"C:\x\yazi.toml", "kura.toml", &mut w);
-        let said = r"C:\x\yazi.toml: [[preview]] belongs in kura.toml, and nothing in this file was read";
+        m.warn(r"C:\x\yazi.toml", OWN_FILE, &mut w);
+        let said = r"C:\x\yazi.toml: [[preview]] belongs in config.toml, and nothing in this file was read";
         assert_eq!(w, [said]);
     }
 
@@ -1175,11 +1237,11 @@ mod files {
         std::fs::write(dir.join("yazi.toml"), "[[preview]]\nmatch = \"*.pdf\"\nrun = \"x\"\n").unwrap();
         std::fs::write(dir.join("theme.toml"), "[mgr\n").unwrap();
         std::fs::write(dir.join("keymap.toml"), "[[mgr.keymap]\n").unwrap();
-        std::fs::write(dir.join("kura.toml"), "[ui]\nfont_size = 16.0\n[opener]\nedit = []\n").unwrap();
+        std::fs::write(dir.join(OWN_FILE), "[ui]\nfont_size = 16.0\n[opener]\nedit = []\n").unwrap();
         let (cfg, _) = Config::read(std::slice::from_ref(&dir));
         let mut unread: Vec<String> = cfg.unread.iter().map(|p| crate::util::file_name(p)).collect();
         unread.sort();
-        assert_eq!(unread, ["keymap.toml", "theme.toml", "yazi.toml"], "kura.toml was read, [opener] aside");
+        assert_eq!(unread, ["keymap.toml", "theme.toml", "yazi.toml"], "config.toml was read, [opener] aside");
         assert_eq!(cfg.loaded.len(), 4, "all four were read from disk");
     }
 
@@ -1188,7 +1250,7 @@ mod files {
     fn the_right_preview_shape_is_not_flagged() {
         let yazi = "[preview]\nmax_width = 600\nimage_filter = \"triangle\"\n";
         assert_eq!(Misplaced::in_file(yazi, ConfigFile::Yazi), Misplaced::default());
-        // And the same table in kura.toml is the one that belongs elsewhere.
+        // And the same table in config.toml is the one that belongs elsewhere.
         let m = Misplaced::in_file(yazi, ConfigFile::Kura);
         assert_eq!(m.sections, ["[preview]"]);
         assert!(m.breaks_parse);
@@ -1197,7 +1259,7 @@ mod files {
         assert_eq!(Misplaced::in_file(rules, ConfigFile::Kura), Misplaced::default());
     }
 
-    /// The check runs both ways: yazi's tables in `kura.toml` are dead too.
+    /// The check runs both ways: yazi's tables in `config.toml` are dead too.
     #[test]
     fn a_yazi_section_in_kura_toml_is_named() {
         let text = "[opener]\nedit = []\n\n[mgr]\nratio = [1, 4, 3]\n";
@@ -1242,12 +1304,12 @@ mod files {
         assert!(m.breaks_parse, "one of them is fatal, so the file is");
 
         let mut w = Vec::new();
-        m.warn(r"C:\x\yazi.toml", "kura.toml", &mut w);
+        m.warn(r"C:\x\yazi.toml", OWN_FILE, &mut w);
         assert_eq!(
             w,
             [
-                r"C:\x\yazi.toml: [term] belongs in kura.toml, and nothing in this file was read",
-                r"C:\x\yazi.toml: [[preview]] belongs in kura.toml, and nothing in this file was read",
+                r"C:\x\yazi.toml: [term] belongs in config.toml, and nothing in this file was read",
+                r"C:\x\yazi.toml: [[preview]] belongs in config.toml, and nothing in this file was read",
             ],
             "a line each, and both name the file's cost rather than the section's",
         );
@@ -1263,11 +1325,11 @@ mod files {
     fn a_yazi_section_in_kura_toml_is_told_where_to_go() {
         let m = Misplaced::in_file("[opener]\nedit = []\n", ConfigFile::Kura);
         let mut w = Vec::new();
-        m.warn(r"C:\x\kura.toml", "yazi.toml", &mut w);
-        assert_eq!(w, [r"C:\x\kura.toml: [opener] belongs in yazi.toml and was ignored"]);
+        m.warn(r"C:\x\config.toml", "yazi.toml", &mut w);
+        assert_eq!(w, [r"C:\x\config.toml: [opener] belongs in yazi.toml and was ignored"]);
     }
 
-    /// A `kura.toml` written before `[term]` existed still reads.
+    /// A `config.toml` written before `[term]` existed still reads.
     #[test]
     fn an_older_config_is_unaffected() {
         let text = std::fs::read_to_string("kura.example.toml").expect("the shipped example");
@@ -1280,12 +1342,12 @@ mod files {
     #[test]
     fn a_bad_backend_is_warned_about_when_the_file_is_read() {
         let dir = crate::util::test_dir("backend-warn");
-        std::fs::write(dir.join("kura.toml"), "[ui]\nbackend = \"directx\"\n").unwrap();
+        std::fs::write(dir.join(OWN_FILE), "[ui]\nbackend = \"directx\"\n").unwrap();
         let (cfg, _) = Config::read(std::slice::from_ref(&dir));
         let said: Vec<_> = cfg.warnings.iter().filter(|w| w.contains("\"directx\"")).collect();
         assert_eq!(said.len(), 1, "{:?}", cfg.warnings);
-        assert!(said[0].contains("kura.toml: [ui] backend"), "names the file: {}", said[0]);
-        std::fs::write(dir.join("kura.toml"), "[ui]\nbackend = \"gl\"\n").unwrap();
+        assert!(said[0].contains("config.toml: [ui] backend"), "names the file: {}", said[0]);
+        std::fs::write(dir.join(OWN_FILE), "[ui]\nbackend = \"gl\"\n").unwrap();
         let (cfg, _) = Config::read(std::slice::from_ref(&dir));
         assert!(!cfg.warnings.iter().any(|w| w.contains("backend")), "{:?}", cfg.warnings);
     }
@@ -1296,13 +1358,13 @@ mod files {
 mod reload_tests {
     use super::*;
 
-    /// A `kura.toml` broken mid-edit keeps the `[ui]` it gave last time, and
+    /// A `config.toml` broken mid-edit keeps the `[ui]` it gave last time, and
     /// the warning says so; a fresh start on the same file gets the defaults.
     /// The files that still parse are read as usual.
     #[test]
     fn a_broken_file_keeps_what_it_gave_last_time() {
         let dir = crate::util::test_dir("reload-broken");
-        std::fs::write(dir.join("kura.toml"), "[ui]\nfont_size = 28.0\n").unwrap();
+        std::fs::write(dir.join(OWN_FILE), "[ui]\nfont_size = 28.0\n").unwrap();
         std::fs::write(dir.join("keymap.toml"), "[[mgr.prepend_keymap]]\non = \"<F9>\"\nrun = \"quit\"\n").unwrap();
         let dirs = vec![dir.clone()];
         let f9 = |c: &Config| c.keymap.mgr.iter().any(|b| crate::config::keys::render_seq(&b.on) == "<F9>");
@@ -1310,16 +1372,16 @@ mod reload_tests {
         assert_eq!(cfg.ui.font_size, 28.0);
         assert!(f9(&cfg));
 
-        std::fs::write(dir.join("kura.toml"), "[ui]\nfont_size = 28.0\nthis line is not toml\n").unwrap();
+        std::fs::write(dir.join(OWN_FILE), "[ui]\nfont_size = 28.0\nthis line is not toml\n").unwrap();
         let mut cfg = Config::reload_from(&mut cfg, &dirs);
         assert_eq!(cfg.ui.font_size, 28.0, "kept from the last good read");
         assert!(f9(&cfg), "the keymap still parses and is read as usual");
         let said = cfg.warnings.first().cloned().unwrap_or_default();
-        assert!(said.contains("kura.toml") && said.ends_with("stay in force until it parses again)"), "{said}");
+        assert!(said.contains(OWN_FILE) && said.ends_with("stay in force until it parses again)"), "{said}");
         assert_eq!(Config::read(&dirs).0.ui.font_size, Ui::default().font_size, "at start there is nothing to keep");
 
-        // The keymap the same way, while the fixed `kura.toml` is read again.
-        std::fs::write(dir.join("kura.toml"), "[ui]\nfont_size = 20.0\n").unwrap();
+        // The keymap the same way, while the fixed `config.toml` is read again.
+        std::fs::write(dir.join(OWN_FILE), "[ui]\nfont_size = 20.0\n").unwrap();
         std::fs::write(dir.join("keymap.toml"), "[[mgr.prepend_keymap]\n").unwrap();
         let cfg = Config::reload_from(&mut cfg, &dirs);
         assert_eq!(cfg.ui.font_size, 20.0, "fixed, so read again");

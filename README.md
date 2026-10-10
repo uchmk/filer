@@ -87,21 +87,36 @@ Nothing that touches the disk runs on the UI thread.
 Files are read in this order — later ones win:
 
 1. `%YAZI_CONFIG_HOME%`, else yazi's own directory — `yazi.toml`, `keymap.toml`, `theme.toml`
-2. `%KURA_CONFIG_HOME%`, else `<base>\kura` — the same three, plus `kura.toml`
+2. `%KURA_CONFIG_HOME%`, else `<uchmk>\kura` — the same three, plus `config.toml`
 
-`<base>` and the first layer differ by platform, because kura looks wherever yazi itself keeps
-its files:
+The first layer is wherever yazi itself keeps its files; the second is kura's folder in `uchmk`,
+the folder every uchmk app (kura, tsumugi, yagura) keeps its settings in (since v0.99.0):
 
 | Platform | yazi's files (layer 1) | kura's overrides (layer 2) |
 | --- | --- | --- |
-| Windows | `%APPDATA%\yazi\config` | `%APPDATA%\kura` |
-| Linux | `$XDG_CONFIG_HOME/yazi` (default `~/.config/yazi`) | `~/.config/kura` |
-| macOS | `~/.config/yazi` | `~/.config/kura` |
+| Windows | `%APPDATA%\yazi\config` | `%APPDATA%\uchmk\kura` |
+| Linux | `$XDG_CONFIG_HOME/yazi` (default `~/.config/yazi`) | `~/.config/uchmk/kura` |
+| macOS | `~/.config/yazi` | `~/Library/Application Support/uchmk/kura` |
 
 The trailing `config` in layer 1 is a quirk of yazi's Windows layout, not part of the path
-elsewhere. macOS uses `~/.config` rather than `~/Library/Application Support` for the same
-reason: that is where yazi reads from. Run `kura env` to print the directories in effect and
-which files were actually found.
+elsewhere. macOS uses `~/.config` for yazi's files for the same reason: that is where yazi reads
+from. Run `kura env` to print the directories in effect and which files were actually found.
+
+Before v0.99.0 kura's folder was `<base>\kura` (`%APPDATA%\kura`, `~/.config/kura`) and its own file
+`kura.toml`. The first start of v0.99.0 moves both: the folder to `<uchmk>\kura`, `kura.toml` to
+`config.toml`, and the bookmarks and histories to a folder of their own (`KURA_STATE_HOME`, else
+`%LOCALAPPDATA%\uchmk\kura`, `~/.local/state/uchmk/kura` or
+`~/Library/Application Support/uchmk/kura/state`). Nothing is moved over a file that is already
+there. `UCHMK_CONFIG_DIR` moves the whole `uchmk` folder.
+
+`common.toml` in the `uchmk` folder is shared by every uchmk app: the language, the theme, the
+clock and the scale. A change there, from any of them, reaches kura within two seconds, and kura's
+own files are read again by themselves once saved (`<C-F5>` still does it at once).
+
+`C` in a key is Ctrl on Windows and Linux and Cmd on macOS (where Ctrl works for it too): `<C-q>` is
+Ctrl+Q on the one and Cmd+Q on the other, from the same keymap line. The keys every uchmk app shares
+are written this way: `<C-q>` quit, `<C-S-p>` the palette, `<C-=>` / `<C-->` /
+`<C-0>` the scale and `<F1>` help.
 
 Press `~` or `F1` in the app: the help panel lists which config files were actually loaded, any
 warnings, and every key binding in effect. A config warning on startup or `<C-F5>` is one line in
@@ -110,10 +125,10 @@ error alone is five lines (v0.81.0). `C` there copies it as text, one key per li
 everything kura copies ends its lines with CRLF, as Windows programs expect (v0.67.24).
 
 The two files are not interchangeable: `[ui]`, `[term]`, `[[preview]]` and `[line_args]` are read
-only from `kura.toml`, and `[mgr]`, `[opener]`, `[open]`, `[tasks]` and `[preview]` only from
+only from `config.toml`, and `[mgr]`, `[opener]`, `[open]`, `[tasks]` and `[preview]` only from
 `yazi.toml`. Putting one in the other is reported as a warning, since both files ignore keys they
 do not know and the setting would otherwise just quietly do nothing. `preview` is the one name
-both use — a table of sizes in `yazi.toml`, an array of commands in `kura.toml` — so the wrong
+both use — a table of sizes in `yazi.toml`, an array of commands in `config.toml` — so the wrong
 shape fails the whole file rather than being ignored, and the warning says so.
 
 ### yazi.toml
@@ -311,11 +326,12 @@ of the background (v0.81.0). Colors may be ANSI names
 (`lightblue`, `darkgray`, `reset`) or hex (`#7ab8f5`). `syntect_theme` selects the preview's
 syntax theme.
 
-### kura.toml (GUI-only settings)
+### config.toml (GUI-only settings)
 
 [`kura.example.toml`](kura.example.toml) in this repository is a commented copy of the defaults —
-copy it to `%APPDATA%\kura\kura.toml` and edit from there. The [settings screen](#settings-screen)'s
-kura.toml page writes the main rows for you, keeping the file's comments.
+copy it to `%APPDATA%\uchmk\kura\config.toml` and edit from there. It was `kura.toml` before v0.99.0,
+and an old one is renamed on the first start.
+The [settings screen](#settings-screen)'s config.toml page writes the main rows for you, keeping the file's comments.
 
 ```toml
 [ui]
@@ -328,8 +344,8 @@ render_markdown = true     # start Markdown previews rendered (`M` toggles)
 preview_debounce_ms = 40
 max_text_bytes = 262144
 max_history = 200
-window_width = 1360.0
-window_height = 860.0
+window_width = 1280.0
+window_height = 800.0
 backend = "auto"           # auto | vulkan | dx12 | metal | gl; read at start
 
 [term]                     # what `<C-t>` starts; omit for the default
@@ -367,7 +383,7 @@ The status bar's right end shows a clock, set in the config shared by every uchm
 start-up and watched: a change saved by another uchmk app (tsumugi's or mimamori's settings screen) or an editor
 applies within 2 seconds, with no restart, so every open uchmk app changes its clock together. A file that does not
 read keeps the clock as it was, with a toast; a key no uchmk app reads is skipped with a toast and the rest applies.
-There is no override in `kura.toml`. `theme`, `dark_theme` and `light_theme` are read by the other apps; kura keeps
+There is no override in `config.toml`. The scale (`<C-=>` / `<C-->` / `<C-0>`) is kept here too, as `scale`, so every uchmk app open follows it. `theme`, `dark_theme` and `light_theme` are read by the other apps; kura keeps
 the colours of yazi's `theme.toml` for now. kura's own [settings screen](#settings-screen) (`<C-,>`) writes the
 language and the clock here too, keeping the file's comments.
 
@@ -426,7 +442,7 @@ editor you pick. The line is passed as `+N` to nvim / vim / nano / emacs / micro
 `-g file:N` to VS Code / Cursor / Windsurf, as `file:N` to Helix / Sublime / Zed, and on Windows
 as `-Y=N` to Sakura, `/l N` to EmEditor and `-nN` to Notepad++; other openers
 (Notepad among them) just open the file. Any editor can be taught the syntax — or an entry of the
-list above overridden — with [`[line_args]` in kura.toml](#line_args-opening-an-editor-at-a-line). `<Esc>`, `h` / `←` or `<S-Tab>` gives the keys back to the file list,
+list above overridden — with [`[line_args]` in config.toml](#line_args-opening-an-editor-at-a-line). `<Esc>`, `h` / `←` or `<S-Tab>` gives the keys back to the file list,
 and any other key does so too before doing its usual job. In a narrow pane the outline shows as an
 overlay only while it has the keys.
 
@@ -528,8 +544,8 @@ priority so the focused directory is never made to wait behind it.
 
 ## Settings screen
 
-`<C-,>` (`<Cmd-,>` on macOS; `settings`) in the list opens the settings screen every uchmk app shares: the pages
-down the left, a search box over them, and **Open kura.toml** at the bottom (made with a first line
+`<C-,>` (`Ctrl`+`,`; `Cmd`+`,` on macOS; `settings`) in the list opens the settings screen every uchmk app shares: the pages
+down the left, a search box over them, and **Open config.toml** at the bottom (made with a first line
 saying what goes in it, when there is none yet). `<C-,>` again closes it, as does `<Esc>` — the
 first `<Esc>` only leaves the search box or a control that has the keys. `<C-Tab>` / `<C-PageDown>`
 and `<C-S-Tab>` / `<C-PageUp>` go to the next / previous page, `<C-f>` puts the keys in the search
@@ -539,14 +555,14 @@ are the `[settings]` keymap section.
 | Page | |
 | --- | --- |
 | General | The language and the clock, written into [common.toml](#commontoml-the-clock) as soon as they are changed, off the UI thread and keeping the file's comments; every other open uchmk app follows within 2 seconds. The language sets the words of this screen and the clock's weekday; the rest of kura is in English for now |
-| kura.toml | The main rows of [kura.toml](#kuratoml-gui-only-settings) — font size, row padding, icons, the minimap, Markdown rendering, the preview's debounce and text limit, the history length, the window size, the backend, the MCP server and the terminal pane's shell — written into the kura.toml in force (the last one read; kura's own folder when there is none) as soon as they are changed, keeping its comments, and read back as `<C-F5>` does. A number is written on `<Enter>` or on leaving the field, and one out of range is not written but said in a toast. An emptied shell takes the line out. The window, backend, MCP and Markdown rows are read at start |
+| config.toml | The main rows of [config.toml](#configtoml-gui-only-settings) — font size, row padding, icons, the minimap, Markdown rendering, the preview's debounce and text limit, the history length, the window size, the backend, the MCP server and the terminal pane's shell — written into the config.toml in force (the last one read; kura's own folder when there is none) as soon as they are changed, keeping its comments, and read back as `<C-F5>` does. A number is written on `<Enter>` or on leaving the field, and one out of range is not written but said in a toast. An emptied shell takes the line out. The window, backend, MCP and Markdown rows are read at start |
 | Advanced | Where the config is read from — kura's folder, yazi's and the `uchmk` one — each with **Copy** (the path) and **Open** (the list goes there), what was wrong when the config was last read, and **Reload** (`<C-F5>`) |
 
 The colours come from yazi's `theme.toml`, as the rest of kura's are.
 
 ## Command palette
 
-`<C-S-p>` (`Cmd`+`Shift`+`P` on macOS) lists every `mgr` binding — the built-in ones and whatever
+`<C-S-p>` (`Ctrl`+`Shift`+`P`; `Cmd`+`Shift`+`P` on macOS) lists every `mgr` binding — the built-in ones and whatever
 your `keymap.toml` added — and runs the one you pick. Each row carries the description and the
 command text, so `tasks_show` and `task manager` both find the task panel; the key that runs it is
 shown on the right. A command bound to several keys appears once, under the first key the keymap
@@ -595,6 +611,7 @@ rather than another set of bindings. Only what the `[term]` keymap section binds
 | `<C-t>` | give the keys back to the list, leaving the shell running |
 | `<C-S-t>` | close the pane and end the shell — asking first when a program (lazygit, an editor, a build) is still running under it |
 | `<F1>` `<C-S-p>` | the key list / the command palette |
+| `<C-,>` | the settings screen |
 | `<C-F5>` | read the config files again, as in the list |
 | `<A-Up>` | put the file list where the shell is |
 | `<A-j>` `<A-k>` | five lines down / up the scrollback — the keys that scroll the preview from the list |
@@ -1019,7 +1036,7 @@ before letting go. Style it with `[mgr] preview_hovered` in a yazi `theme.toml`;
 underlines it.
 
 It appears where the pane is wide enough to spare seven columns, and `<A-n>` (or `[ui] minimap = false`
-in `kura.toml`) turns it off. Rendered Markdown gets none: its lines are not the file's lines, so
+in `config.toml`) turns it off. Rendered Markdown gets none: its lines are not the file's lines, so
 the box would point at the wrong place, and its [Contents](#outline-contents) column already answers
 "where am I". Switch it to source with `M` and the map comes back.
 
@@ -1081,7 +1098,7 @@ embedded cover art. Without one, a metadata card says what is missing.
 ### Previewers of your own
 
 A shell thumbnail is one picture — page one of a PDF, the poster frame of a video — and there is no
-way to ask it for a second. `[[preview]]` in `kura.toml` names a command that can be asked:
+way to ask it for a second. `[[preview]]` in `config.toml` names a command that can be asked:
 
 ```toml
 [[preview]]
@@ -1153,7 +1170,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `b``s` `b``d` `b``D` | set one / delete one (then press its letter) / delete them all |
 | `.` `,…` `m…` | hidden files / sort menu / line mode: what the right column of each row shows |
 | `t` `1`–`9` `[` `]` `{` `}` `<C-c>` | new tab / switch / previous / next / move it left / right / close it (quits on the last) |
-| `<C-+>` `<C-->` `<C-0>` | make everything bigger / smaller / back to normal |
+| `<C-=>` `<C-->` `<C-0>` | make everything bigger / smaller / back to normal; `<C-+>` and `<C-;>` are bigger too, for the keyboards where `=` is not the key beside `-`. The scale goes into common.toml, so every uchmk app open follows it |
 | `<F5>` `<C-F5>` | re-read the current directory / re-read the config files |
 | `<C-w>` `<C-S-w>` | split the view in two panes / move between them, close the split |
 | `;` `:` | shell command, hidden / shell command in a console of its own |
@@ -1168,7 +1185,7 @@ keymap layer, so it rebinds like everything else. The essentials:
 | `<C-S-p>` | command palette: fuzzy-search every key binding and run it |
 | `<S-F10>` | context menu for the file under the cursor |
 | `<F12>` | bug report: shows what it would carry, then `<Enter>` opens the form with it filled in, `c` copies the link |
-| `<C-,>` | the [settings screen](#settings-screen) (`<Cmd-,>` on macOS) |
+| `<C-,>` | the [settings screen](#settings-screen) |
 | `w` `q` | tasks (`p` pause, `x` cancel, `t` to the front) / quit |
 
 #### Yank, copy, and sending to the other pane
@@ -1207,7 +1224,7 @@ fingers came from there, these six lines put them back — `prepend_keymap` is r
 defaults, so nothing has to be deleted:
 
 ```toml
-# ~/.config/kura/keymap.toml (or %APPDATA%\kura\keymap.toml)
+# ~/.config/uchmk/kura/keymap.toml (or %APPDATA%\uchmk\kura\keymap.toml)
 [[mgr.prepend_keymap]]
 on = "d"                 # lf: cut, not delete
 run = "yank --cut"
@@ -1343,7 +1360,7 @@ is not (since v0.55.0; before that it was always 5.1). **The hook needs 7**: 5.1
 `LocationChangedAction` at all, so the lines above fail there every time the shell starts. On
 a machine with only 5.1, `winget install Microsoft.PowerShell` and a new pane.
 
-To change the shell, set `[term] shell` in `kura.toml`, then `<C-F5>`, `<C-S-t>` and `<C-t>`. The
+To change the shell, set `[term] shell` in `config.toml`, then `<C-F5>`, `<C-S-t>` and `<C-t>`. The
 config is read only at start and on `<C-F5>`, and a pane that is running keeps the shell it started
 with; the `<C-F5>` toast says so when a pane is open (v0.67.17).
 
@@ -1394,7 +1411,7 @@ __kura_osc7
 
 `kura shell-hook powershell` refuses rather than print a hook 5.1 cannot run.
 
-To choose the shell yourself — 5.1 on a machine that has 7, say, or `cmd` — name it in `kura.toml`:
+To choose the shell yourself — 5.1 on a machine that has 7, say, or `cmd` — name it in `config.toml`:
 
 ```toml
 [term]
@@ -1406,7 +1423,8 @@ Leaving `[term]` out keeps the default above. The same setting names a shell on 
 where the default is the login shell.
 
 `KURA_SCALE=1.5` starts one run at that scale (0.2 to 5.0, in tenths), as if `<C-=>` had been pressed
-until it was reached, without touching what the keys saved (v0.78.64). A value that is not a number in
+until it was reached, without touching what the keys saved (v0.78.64). Since v0.99.0 that is the
+scale in common.toml: while `KURA_SCALE` is set, the run neither writes it nor follows it. A value that is not a number in
 that range is ignored with a red toast.
 
 For one run only, set `KURA_TERM_SHELL` before starting kura (v0.70.0). It wins over
@@ -1522,7 +1540,7 @@ your own user can open (`\\.\pipe\kura-<user>` on Windows, `$XDG_RUNTIME_DIR/kur
 takes over within half a minute.
 
 What the tools return goes to the model like anything else Claude Code reads, so the file names you
-have on screen leave the machine. `[mcp] enable = false` in `kura.toml` keeps the door shut. Tools
+have on screen leave the machine. `[mcp] enable = false` in `config.toml` keeps the door shut. Tools
 that change files are not there yet; when they come they will ask in the window first
 ([docs/llm-integration.md](docs/llm-integration.md)).
 
@@ -1620,7 +1638,7 @@ list top: 0
 preview top: 12 of 480
 zoom: fit
 scale: 100% (ppp 1)
-window: 1360 x 860 px (1360 x 860 pt @ 1)
+window: 1280 x 800 px (1280 x 800 pt @ 1)
 minimap setting: on
 split: no
 toast: Yanked 1 item
@@ -1768,7 +1786,7 @@ letter) into the `cd` prompt and browse it like any folder. Forward slashes work
   height.
 - Zooming an image asks for a sharper decode, but a small image has nothing sharper to give and a
   font specimen or a shell thumbnail is its own source, so those go soft past 1:1.
-- `<C-F5>` re-reads the config, including fonts and the theme, but leaves what you have changed by
+- `<C-F5>` (or saving a config file) re-reads the config, including fonts and the theme, but leaves what you have changed by
   hand since — the sort a `,` key chose, whether Markdown is rendered — as you set it. The window
   size is only read at startup. A file that no longer parses keeps what it set last time until it
   parses again, and the error toast says so (v0.67.18) — a reload is usually pressed mid-edit.

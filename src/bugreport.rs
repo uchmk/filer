@@ -359,10 +359,10 @@ mod tests {
         let p = |s: &str| std::path::PathBuf::from(s.replace('/', &sep.to_string()));
         assert_eq!(short_name(&p("/home/someone/.config/yazi/keymap.toml")), format!("yazi{sep}keymap.toml"));
         assert_eq!(short_name(&p("/Users/someone/AppData/Roaming/yazi/config/yazi.toml")), format!("yazi{sep}config{sep}yazi.toml"));
-        assert_eq!(short_name(&p("/somewhere/else/conf/kura.toml")), format!("conf{sep}kura.toml"));
-        let c = context(Some("Copy: a.txt: denied"), &[p("/home/someone/.config/kura/kura.toml")]);
+        assert_eq!(short_name(&p("/somewhere/else/conf/config.toml")), format!("conf{sep}config.toml"));
+        let c = context(Some("Copy: a.txt: denied"), &[p("/home/someone/.config/kura/config.toml")]);
         assert!(c.starts_with("Last error: Copy: a.txt: denied\n"), "{c}");
-        assert!(c.ends_with(&format!("Config: kura{sep}kura.toml")), "{c}");
+        assert!(c.ends_with(&format!("Config: kura{sep}config.toml")), "{c}");
         assert!(!c.contains("someone"), "no home directory: {c}");
 
         // The QA agent's finding on section 26: an error that names a full

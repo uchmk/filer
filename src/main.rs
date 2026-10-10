@@ -589,18 +589,9 @@ fn install_fonts(
     (has_nerd, has_bold)
 }
 
-/// The user's Nerd Fonts, where each platform keeps a user's fonts.
-const NERD_FONTS: [&str; 6] = [
-    "HackGen35ConsoleNF-Regular.ttf",
-    "HackGenConsoleNF-Regular.ttf",
-    "HackGen35Console-Regular.ttf",
-    "FiraCodeNerdFont-Regular.ttf",
-    "CaskaydiaCoveNerdFont-Regular.ttf",
-    "JetBrainsMonoNerdFont-Regular.ttf",
-];
-
 /// Where to look for faces, in order: the user's Nerd Fonts, then Windows'
-/// own. The faces found here go in front of egui's.
+/// own. The faces found here go in front of egui's. The names and the order
+/// are ito's, which every uchmk app shares (since v0.99.0).
 fn system_fonts() -> Vec<PathBuf> {
     let mut out = Vec::new();
     // `font_dir` is `~/.local/share/fonts` on Linux and `~/Library/Fonts` on
@@ -608,12 +599,11 @@ fn system_fonts() -> Vec<PathBuf> {
     let user = dirs::font_dir()
         .or_else(|| dirs::data_local_dir().map(|d| d.join("Microsoft").join("Windows").join("Fonts")));
     if let Some(dir) = user {
-        out.extend(NERD_FONTS.iter().map(|n| dir.join(n)));
+        out.extend(ito_common::fonts::NERD_FONTS.iter().map(|n| dir.join(n)));
     }
     if cfg!(windows) {
-        for name in ["meiryo.ttc", "YuGothM.ttc", "YuGothR.ttc", "msgothic.ttc", "consola.ttf"] {
-            out.push(PathBuf::from(r"C:\Windows\Fonts").join(name));
-        }
+        out.extend(ito_common::fonts::JAPANESE.iter().map(PathBuf::from));
+        out.push(PathBuf::from(r"C:\Windows\Fonts\consola.ttf"));
     }
     out
 }
@@ -621,34 +611,13 @@ fn system_fonts() -> Vec<PathBuf> {
 /// A system face that covers Japanese on Linux and macOS, used only for what
 /// the faces in front cannot draw. Only Windows' folders were searched before,
 /// so on Linux a Japanese name was a row of boxes even with Noto CJK installed
-/// (the Linux lane's first screenshot). Plain paths rather than fontconfig,
-/// which would be a C dependency for one lookup.
+/// (the Linux lane's first screenshot).
 fn fallback_fonts() -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    if cfg!(windows) {
+    match cfg!(windows) {
         // Meiryo and friends are in `system_fonts`, in front, as they were.
-    } else if cfg!(target_os = "macos") {
-        for p in [
-            "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
-            "/System/Library/Fonts/Hiragino Sans GB.ttc",
-            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-        ] {
-            out.push(PathBuf::from(p));
-        }
-    } else {
-        // Debian and Ubuntu, Arch, Fedora; then IPA and Droid, which older
-        // or smaller installs carry instead of Noto.
-        for p in [
-            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-            "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
-            "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf",
-            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
-        ] {
-            out.push(PathBuf::from(p));
-        }
+        true => Vec::new(),
+        false => ito_common::fonts::JAPANESE.iter().map(PathBuf::from).collect(),
     }
-    out
 }
 
 /// The stock bold faces, after the bold siblings of the faces in use.
@@ -656,9 +625,10 @@ fn fallback_fonts() -> Vec<PathBuf> {
 /// same trap as the regular face; elsewhere bold is overstruck instead.
 fn system_bold_fonts() -> Vec<PathBuf> {
     match cfg!(windows) {
-        true => ["meiryob.ttc", "YuGothB.ttc", "consolab.ttf"]
+        true => ito_common::fonts::JAPANESE_BOLD
             .iter()
-            .map(|n| PathBuf::from(r"C:\Windows\Fonts").join(n))
+            .map(PathBuf::from)
+            .chain([PathBuf::from(r"C:\Windows\Fonts\consolab.ttf")])
             .collect(),
         false => Vec::new(),
     }
@@ -2365,7 +2335,7 @@ mod tests {
 
         // The window names what it fell back to; other warnings are left be.
         let mut w = vec![
-            "x/kura.toml: [ui] backend = \"directx\" is not one of auto, vulkan, dx12, metal, gl; drawing with the default".to_owned(),
+            "x/config.toml: [ui] backend = \"directx\" is not one of auto, vulkan, dx12, metal, gl; drawing with the default".to_owned(),
             "[mgr] `x` is bound twice; drawing with the default".to_owned(),
         ];
         name_the_fallback(&mut w, "Gl");
@@ -2516,7 +2486,7 @@ mod bug_report_f12 {
     fn screen(label: &str) -> Screen {
         let dir = crate::util::test_dir(label);
         let home = std::path::Path::new("/home/someone-in-a-test/.config");
-        let loaded = vec![home.join("yazi").join("keymap.toml"), home.join("kura").join("kura.toml")];
+        let loaded = vec![home.join("yazi").join("keymap.toml"), home.join("kura").join("config.toml")];
         let cfg = Config { keymap: Keymap::load(&[]).0, loaded, warnings: Vec::new(), ..Config::load() };
         Screen::with_config(cfg, dir)
     }
@@ -2565,7 +2535,7 @@ mod bug_report_f12 {
             assert!(f.texts.iter().any(|t| t == l), "{l:?} is drawn: {:?}", f.texts);
         }
         let sep = std::path::MAIN_SEPARATOR;
-        assert!(f.texts.iter().any(|t| *t == format!("Config: yazi{sep}keymap.toml, kura{sep}kura.toml")), "{:?}", f.texts);
+        assert!(f.texts.iter().any(|t| *t == format!("Config: yazi{sep}keymap.toml, kura{sep}config.toml")), "{:?}", f.texts);
         assert!(f.texts.iter().any(|t| t == "Last error: Copy: a.txt: denied"), "{:?}", f.texts);
 
         // The buttons, under the body, the first naming the key that picks it.

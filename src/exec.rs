@@ -190,7 +190,7 @@ pub fn command_line(run: &str, paths: &[PathBuf], line: Option<usize>, custom: &
     line.and_then(|n| at_line(run, paths, n, custom)).unwrap_or_else(|| substitute(run, paths))
 }
 
-/// Line-jump argument templates from `kura.toml`'s `[line_args]`, keyed by
+/// Line-jump argument templates from `config.toml`'s `[line_args]`, keyed by
 /// [`editor_key`]. A template is written as the arguments themselves, e.g.
 /// `"/j{line} {path}"` or `"-g {path}:{line}"`; it wins over the built-in table.
 pub type LineArgs = std::collections::HashMap<String, String>;

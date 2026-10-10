@@ -6,7 +6,7 @@ from one machine's evidence folder; this is that, in the repo.
   scripts\count-vanishing.ps1 -Runs 20 -Out C:\dev\filer-evidence\flake [-Kura path\kura.exe] [-Timeout 120]
 
 Builds a tree in `<Out>\tree` (`a.txt`, `b.zip`, `c.pdf` of three pages), a
-`kura.toml` with the `pdftoppm` `[[preview]]` rule (in `<Out>\config`, passed
+`config.toml` with the `pdftoppm` `[[preview]]` rule (in `<Out>\config`, passed
 as KURA_CONFIG_HOME so the machine's own config is not read),
 then runs kura `-Runs` times with a heavy key list: the PDF's three pages, the
 archive, the text, each with a `<State:>` and a `<Shot:>`. Each run has its own
@@ -62,7 +62,7 @@ foreach ($o in $offs) { [void]$sb.Append(('{0:D10} 00000 n `n' -f $o)) }
 # The config: the README's pdftoppm rule, in a folder of its own.
 $cfg = Join-Path $Out 'config'
 New-Item -ItemType Directory -Force -Path $cfg | Out-Null
-[IO.File]::WriteAllText((Join-Path $cfg 'kura.toml'), @'
+[IO.File]::WriteAllText((Join-Path $cfg 'config.toml'), @'
 [[preview]]
 match = "*.pdf"
 run = 'pdftoppm -png -singlefile -r 120 -f {n} -l {n} {path} {out}'

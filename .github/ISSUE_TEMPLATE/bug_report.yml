@@ -134,7 +134,7 @@ body:
     attributes:
       label: Config / 設定
       description: >
-        yazi の設定（`yazi.toml` / `keymap.toml` / `theme.toml`）や `kura.toml` を
+        yazi の設定（`yazi.toml` / `keymap.toml` / `theme.toml`）や `config.toml`（kura の） を
         使っている場合、関係しそうな部分を貼ってください。既定のままなら「既定」と。
       render: toml
     validations:

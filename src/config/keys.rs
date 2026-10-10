@@ -227,9 +227,13 @@ pub fn render_seq(keys: &[Key]) -> String {
 /// characters), so a keypress is never handled twice.
 pub fn from_egui(key: egui::Key, mods: &egui::Modifiers) -> Option<Key> {
     use egui::Key as K;
+    // `C` is Ctrl on Windows and Linux and Cmd on macOS (since v0.99.0): on
+    // macOS both Cmd and Ctrl come out as ctrl, so `<C-q>` is Cmd+Q there and
+    // one keymap line serves every platform. Before, Cmd was ctrl and sup
+    // together and matched no binding at all.
     let ctrl = mods.ctrl || mods.command;
     let alt = mods.alt;
-    let sup = mods.mac_cmd;
+    let sup = false;
     let named = |n: Named| {
         Some(Key { code: Code::Named(n), ctrl, alt, shift: mods.shift, sup })
     };
@@ -373,6 +377,24 @@ mod tests {
         let cs = Key::parse("<C-S-Up>").unwrap();
         assert!(cs.ctrl && cs.shift && cs.code == Code::Named(Named::Up));
         assert_eq!(Key::parse("<F5>").unwrap().code, Code::Named(Named::F(5)));
+    }
+
+    /// `C` is Cmd on macOS and Ctrl elsewhere, matched against what
+    /// `from_egui` makes of the key the user holds for it. On macOS Ctrl
+    /// itself still matches too.
+    #[test]
+    fn ctrl_is_cmd_on_macos() {
+        let c = Key::parse("<C-q>").unwrap();
+        let mods = if cfg!(target_os = "macos") {
+            egui::Modifiers { command: true, mac_cmd: true, ..Default::default() }
+        } else {
+            egui::Modifiers { ctrl: true, command: true, ..Default::default() }
+        };
+        assert_eq!(from_egui(egui::Key::Q, &mods), Some(c));
+        let ctrl = egui::Modifiers { ctrl: true, ..Default::default() };
+        assert_eq!(from_egui(egui::Key::Q, &ctrl), Some(c));
+        let cs = Key::parse("<C-S-p>").unwrap();
+        assert!(cs.ctrl && cs.shift && !cs.sup && cs.code == Code::Char('p'));
     }
 
     /// A symbol reached with shift still matches a binding written without it.

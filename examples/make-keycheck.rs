@@ -107,7 +107,8 @@ fn main() {
     // discarding: either the key was removed on purpose, or the keymap lost
     // something it should not have.
     let live: HashSet<String> = bindings.iter().map(key_of).collect();
-    let orphans: Vec<&String> = done.iter().filter(|k| !live.contains(*k)).collect();
+    let mut orphans: Vec<&String> = done.iter().filter(|k| !live.contains(*k)).collect();
+    orphans.sort(); // `done` is a HashSet: unsorted, `--check` would flap
     if !orphans.is_empty() {
         writeln!(out, "\n## Checked, but no longer in the keymap\n").unwrap();
         writeln!(

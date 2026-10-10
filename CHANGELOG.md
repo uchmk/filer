@@ -9,6 +9,33 @@
 
 ## [未リリース]
 
+## [0.99.0] - 2026-10-11
+
+uchmk のアプリ（kura・tsumugi・yagura）で倍率・キー・設定の置き場所を揃えた（ito v0.4 の共通仕様）。
+
+### 追加
+
+- 倍率を uchmk の共通の `common.toml` の `scale` に読み書きする。`<C-=>` などで変えると書き込み用のスレッドで書き、開いているほかの uchmk のアプリも 2〜3 秒以内に同じ倍率になる。手で書き換えても当たる。トーストは `Scale 110%`。
+- 環境変数 `KURA_SCALE`（`1.2` か `120%`）: その起動のあいだだけ倍率を固定し、common.toml は読まず書かない。
+- 設定の画面の General に倍率の行（50–200% と 250・300・400%）。
+- 自分の設定（`config.toml`・yazi の `keymap.toml`・`theme.toml`・`yazi.toml`）を保存すると、約 2 秒で自動で読み直す。`<C-F5>` も残す。
+- macOS で `<C-…>` のキーを Cmd で押せる（Ctrl でも押せる）。前は Cmd のキーがどの割り当てにも当たらなかった。
+- `<C-;>` も拡大（JIS 配列で `+` は Shift+`;`）。
+- F1 でヘルプが、一覧だけでなくタスク・スポット・差分のパネルの上からも開く。
+- 環境の報告（F12）に Common の行（common.toml のパスと倍率）。
+- TESTING.md 15.10-15.12、34.16、35.11、54.16。
+
+### 変更
+
+- 設定の置き場所を `%APPDATA%\uchmk\kura\config.toml`（Linux は `~/.config/uchmk/kura/config.toml`、macOS は `~/Library/Application Support/uchmk/kura/config.toml`）にした。前の `%APPDATA%\kura` の `kura.toml` は最初の起動で `config.toml` として移り、ほかのファイルも一緒に移る。設定の画面の「Open kura.toml」は「Open config.toml」になった。
+- 覚えたもの（履歴・窓の大きさなど）は uchmk の状態のフォルダへ移る。`KURA_STATE_HOME` で場所を変えられる。
+- 字体の候補（Nerd Font と日本語の字体）は ito の共通の並びを使う。
+- 窓の大きさの既定を 1280×800 にした（前は 1360×860）。
+
+### 修正
+
+- `cargo run --example make-keycheck -- --check` が、表に無いキーの印の順番で毎回違う結果を出して落ちることがあった。
+
 ## [0.98.0] - 2026-10-11
 
 ### 追加

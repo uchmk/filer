@@ -119,7 +119,7 @@ fn answer(request: Request, tx: &Sender<Ask>, ctx: &egui::Context) -> Reply {
 fn ask(request: Request) -> Reply {
     let at = address();
     let conn = ito_ipc::connect(&at).map_err(|_| {
-        "kura is not running (or its [mcp] enable is false in kura.toml); start kura and ask again".to_owned()
+        "kura is not running (or its [mcp] enable is false in kura's config.toml); start kura and ask again".to_owned()
     })?;
     let (mut r, mut w) = conn.split().map_err(|e| e.to_string())?;
     frame::write(&mut w, &(PROTO, request)).map_err(|e| format!("could not reach the kura window: {e}"))?;

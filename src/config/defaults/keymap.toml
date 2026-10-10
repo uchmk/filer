@@ -1,6 +1,11 @@
 # Built-in keymap. Mirrors yazi's defaults so an existing yazi keymap.toml can
 # prepend/append/replace on top of it. Users never edit this file; put your
 # changes in yazi's keymap.toml (or kura's own keymap.toml).
+#
+# `C` is Ctrl on Windows and Linux and Cmd on macOS (where Ctrl works for it
+# too, since v0.99.0): `<C-q>` is Ctrl+Q on one and Cmd+Q on the other, from
+# the same line. The keys every uchmk app shares: `<C-q>` quit, `<C-S-p>` the
+# palette, `<C-=>` / `<C-->` / `<C-0>` the scale and `<F1>` help.
 
 [[mgr.keymap]]
 on = "<Esc>"
@@ -294,13 +299,14 @@ desc = "Hardlink the yanked files"
 # the frame and without consuming the key, so both it and the binding under
 # `<C-->` used to run: one shrink from egui and one from the keymap on a single
 # press. It is switched off there and done here, where `~` lists it and the
-# keymap can move it.
+# keymap can move it. The scale is written to the shared common.toml, so every
+# uchmk app open follows it (since v0.99.0).
 #
-# Both `<C-+>` and `<C-=>`, because "bigger" is a different physical key per
+# `<C-+>`, `<C-=>` and `<C-;>`, because "bigger" is a different physical key per
 # layout: on US `+` is shift+equals, on JIS it is shift+semicolon while `=` is
-# shift+minus. Either spelling reaches the same command. This needs `from_egui`
+# shift+minus. Any of the three reaches the same command. This needs `from_egui`
 # to keep the shift out of a symbol's `Key` -- see `src/config/keys.rs`; while
-# it did not, neither of these two ever fired.
+# it did not, the shifted ones never fired.
 #
 # Not `<C-^>`, tempting as it looks beside `<C-->` on a JIS board: egui 0.36 has
 # no caret in `egui::Key` and `Key::from_name` does not accept "^", so the press
@@ -311,6 +317,10 @@ run = "scale in"
 desc = "Make everything bigger"
 [[mgr.keymap]]
 on = "<C-=>"
+run = "scale in"
+desc = "Make everything bigger"
+[[mgr.keymap]]
+on = "<C-;>"
 run = "scale in"
 desc = "Make everything bigger"
 [[mgr.keymap]]
@@ -603,7 +613,7 @@ on = [ "g", "D" ]
 run = "cd ~/Documents"
 desc = "Go to the documents directory"
 # Two directories are read, and the one you are most likely to be looking for
-# is kura's own -- `kura.toml` belongs there, and `<F1>` names both with the
+# is kura's own -- `config.toml` belongs there, and `<F1>` names both with the
 # empty one marked. `g`+`c` goes to kura's, `g`+`y` to yazi's, which is where
 # `keymap.toml`, `theme.toml` and `yazi.toml` usually live.
 #
@@ -724,8 +734,8 @@ desc = "Open help"
 on = "<F1>"
 run = "help"
 desc = "Open help"
-# The settings screen every uchmk app opens with Ctrl+, (Cmd+, on macOS, the
-# key every Mac app keeps for its preferences).
+# The settings screen every uchmk app opens with <C-,>: Ctrl+, (Cmd+, on macOS,
+# the key every Mac app keeps for its preferences).
 [[mgr.keymap]]
 on = "<C-,>"
 run = "settings"
@@ -788,7 +798,8 @@ on = "<C-S-p>"
 run = "palette"
 desc = "Command palette"
 # Trying a config change means pressing this often, and leaving the pane to do
-# it also un-maximises the pane. Hardly any terminal program reads Ctrl+F5.
+# it also un-maximises the pane. Hardly any terminal program reads Ctrl+F5
+# (on macOS this is Cmd+F5, which the shell never sees).
 [[term.keymap]]
 on = "<C-F5>"
 run = "config_reload"
@@ -1017,6 +1028,10 @@ on = "<C-=>"
 run = "scale in"
 desc = "Make everything bigger"
 [[help.keymap]]
+on = "<C-;>"
+run = "scale in"
+desc = "Make everything bigger"
+[[help.keymap]]
 on = "<C-->"
 run = "scale out"
 desc = "Make everything smaller"
@@ -1029,6 +1044,10 @@ desc = "Back to the original size"
 on = "<Esc>"
 run = "close"
 desc = "Close the task manager"
+[[tasks.keymap]]
+on = "<F1>"
+run = "help"
+desc = "Open help"
 [[tasks.keymap]]
 on = "q"
 run = "close"
@@ -1073,6 +1092,10 @@ on = "<C-=>"
 run = "scale in"
 desc = "Make everything bigger"
 [[tasks.keymap]]
+on = "<C-;>"
+run = "scale in"
+desc = "Make everything bigger"
+[[tasks.keymap]]
 on = "<C-->"
 run = "scale out"
 desc = "Make everything smaller"
@@ -1085,6 +1108,10 @@ desc = "Back to the original size"
 on = "<Esc>"
 run = "close"
 desc = "Close the spotter"
+[[spot.keymap]]
+on = "<F1>"
+run = "help"
+desc = "Open help"
 [[spot.keymap]]
 on = "<Tab>"
 run = "close"
@@ -1177,6 +1204,10 @@ on = "<C-=>"
 run = "scale in"
 desc = "Make everything bigger"
 [[spot.keymap]]
+on = "<C-;>"
+run = "scale in"
+desc = "Make everything bigger"
+[[spot.keymap]]
 on = "<C-->"
 run = "scale out"
 desc = "Make everything smaller"
@@ -1191,6 +1222,10 @@ desc = "Back to the original size"
 on = "q"
 run = "close"
 desc = "Close the comparison"
+[[diff.keymap]]
+on = "<F1>"
+run = "help"
+desc = "Open help"
 [[diff.keymap]]
 on = "<Esc>"
 run = "close"
@@ -1260,6 +1295,10 @@ on = "<C-=>"
 run = "scale in"
 desc = "Make everything bigger"
 [[diff.keymap]]
+on = "<C-;>"
+run = "scale in"
+desc = "Make everything bigger"
+[[diff.keymap]]
 on = "<C-->"
 run = "scale out"
 desc = "Make everything smaller"
@@ -1308,6 +1347,10 @@ run = "scale in"
 desc = "Make everything bigger"
 [[settings.keymap]]
 on = "<C-=>"
+run = "scale in"
+desc = "Make everything bigger"
+[[settings.keymap]]
+on = "<C-;>"
 run = "scale in"
 desc = "Make everything bigger"
 [[settings.keymap]]

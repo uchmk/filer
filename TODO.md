@@ -41,6 +41,16 @@
 - [ ] 実機のレーンの名前（作業フォルダ `C:\deviler-wintest` / `filer-armtest`、タスク `filer-auto-wintest*`、`%LOCALAPPDATA%iler-wintest`、`C:\deviler-evidence`）は動いているタスクを壊さないよう filer のまま残した。変えるなら、タスクを登録し直すのと一緒に `scripts/auto-wintest.ps1` と `.claude/windows-role.md`・`docs/claude/lanes.md` を直す【人】
 - [ ] 実機の机のデスクトップの `filer-fixtures` は `kura-fixtures` になった。次の run の前に `scripts\make-fixtures.ps1` を回す【人】
 
+## uchmk のアプリを揃える（v0.99.0、2026-10-11）
+
+倍率・キー・置き場所・環境変数を ito の共通仕様（[docs/common-spec.md](https://github.com/uchmk/ito/blob/main/docs/common-spec.md)）に揃えた。
+
+- [ ] 設定が `%APPDATA%\kura` から `%APPDATA%\uchmk\kura` へ自動で移った（`kura.toml` は `config.toml`）。自分で `KURA_CONFIG_HOME` を使っていれば、そのフォルダの `kura.toml` も `config.toml` に改名される。古いフォルダが残っていれば中身を確かめて消す【人】
+- [ ] 実機のレーンを common.toml から切り離す: レーンの kura が `<C-=>` を押すと持ち主の common.toml の倍率が変わり、机のほかの uchmk のアプリも大きくなる。`scripts/auto-wintest.ps1` で `UCHMK_CONFIG_DIR` を一時フォルダに向けるか、`KURA_SCALE=1` を渡す【実機】
+- [ ] macOS のヘルプと設定の画面のキーの名前を人の読む形（`⌘Q` など）にする。今は `<C-q>` と出る
+- [ ] 窓の位置と大きさを覚える処理を ito に寄せる（tsumugi と yagura にも同じものが要る）
+- [ ] 15.10・15.11（倍率がほかのアプリに伝わる）は tsumugi と yagura が common.toml を読むようになってから確かめる【実機】
+
 ## 多言語対応（2026-10-10、持ち主の希望）
 
 持ち主は filer も後で多言語にしたい。言語は uchmk のアプリ（filer・tsumugi・mimamori）で共通の `<設定のフォルダ>/uchmk/common.toml` の
@@ -61,7 +71,7 @@
 `ito-common`（置き場所・読み書き・時計・見張り）、`ito-theme`（13 の組み込みのテーマと色の読みやすさ）、`ito-prefs`（設定の画面の枠と部品）で、
 `ito-pane` と同じく `Cargo.toml` の `rev` で固定して読む（`rev` は ito のクレート全部で揃える）。
 
-- [ ] 設定の画面を `ito-prefs` の上に作る: `<P-,>`（Windows / Linux は Ctrl+,、macOS は Cmd+,）で窓いっぱいに開く。左に帯（検索・ページの一覧・下に「Open kura.toml」）、
+- [ ] 設定の画面を `ito-prefs` の上に作る: `<C-,>`（Windows / Linux は Ctrl+,、macOS は Cmd+,）で窓いっぱいに開く。左に帯（検索・ページの一覧・下に「Open kura.toml」）、
   右にページ（題・lead・見出し付きのカード、行の高さ 48）。キーは keymap の新しいセクション（`close`・ページを移る・検索）と `feed_*_key` で、Esc は 2 段。
   ページは General（Language と CLOCK のカードは共通の部品）、Theme（共通のページ。見本は kura の一覧とプレビューを今の色で描く）、kura.toml の主な行、
   Advanced（設定のフォルダのパスと Copy・Open、読み込みの警告）。kura.toml への書き込みは toml_edit でコメントを残し、UI ではないスレッドで行う。

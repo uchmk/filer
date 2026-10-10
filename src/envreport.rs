@@ -106,6 +106,17 @@ fn config(cfg: &crate::config::Config) -> Vec<(String, String)> {
     // the jump history and the window size are written here, and "delete this
     // and try again" is a step a report is often asked to take.
     rows.push(("State".into(), crate::config::Config::state_dir().display().to_string()));
+    // The file every uchmk app shares: the language, the theme, the clock and
+    // the scale (since v0.99.0) come from here unless kura's own says otherwise.
+    if let Some(base) = ito_common::base_dir() {
+        let path = ito_common::common_path(&base);
+        let said = match ito_common::Common::read(&base) {
+            Ok((c, _)) if path.exists() => format!("{}  (scale {})", path.display(), c.scale_or_one()),
+            Ok(_) => format!("{}  (not there yet)", path.display()),
+            Err(e) => format!("{}  ({e})", path.display()),
+        };
+        rows.push(("Common".into(), said));
+    }
     // What draws the window next time, and what decides it: the env var wins
     // for a run, then `[ui] backend` (Q70). The adapter it got is the `Adapter`
     // row of the last run, below.

@@ -33,13 +33,9 @@ impl Step {
 ///
 /// Not `zoom`: that one is already taken, by the image preview, and the two
 /// are genuinely different things — one resizes a picture inside the pane,
-/// this one resizes the whole window's text and chrome.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum ScaleTo {
-    In,
-    Out,
-    Reset,
-}
+/// this one resizes the whole window's text and chrome. ito's, so every uchmk
+/// app steps the same way (since v0.99.0).
+pub use ito_common::ScaleTo;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct EscapeWhat {
@@ -179,7 +175,7 @@ pub enum Act {
     /// Do again what [`Act::Undo`] took back.
     Redo,
 
-    /// Read `yazi.toml`, `keymap.toml`, `theme.toml` and `kura.toml` again
+    /// Read `yazi.toml`, `keymap.toml`, `theme.toml` and `config.toml` again
     /// without restarting.
     ConfigReload,
 

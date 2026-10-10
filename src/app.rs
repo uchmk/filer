@@ -329,7 +329,7 @@ pub enum Overlay {
 pub struct SettingsOverlay {
     /// The page, the search, and whether a control had the keys last frame.
     pub state: ito_prefs::State,
-    /// The kura.toml page's text fields while they are typed in.
+    /// The config.toml page's text fields while they are typed in.
     pub drafts: ito_prefs::Drafts,
     /// What the `[settings]` layer asked of the screen since it was last
     /// drawn: the next page, the search. Taken by the draw.
@@ -705,13 +705,13 @@ fn keymap_render(k: &Key) -> String {
 /// How many toasts [`App::toast_log`] keeps.
 pub const TOAST_LOG: usize = 16;
 
-/// A kura.toml the settings screen's "Open kura.toml" makes when there is
-/// none yet: only comments, so it changes nothing until a line is added.
-const KURA_TOML_START: &str = "# kura's own settings, beside yazi's yazi.toml, keymap.toml and theme.toml.
-# Every key, with what it does, is in the README: \"kura.toml\".
+/// A config.toml the settings screen's "Open config.toml" makes when there
+/// is none yet: only comments, so it changes nothing until a line is added.
+const OWN_FILE_START: &str = "# kura's own settings, beside yazi's yazi.toml, keymap.toml and theme.toml.
+# Every key, with what it does, is in the README: \"config.toml\".
 ";
 
-/// A row of kura.toml the settings screen changed: its table, its key, and
+/// A row of config.toml the settings screen changed: its table, its key, and
 /// the value written as TOML, or `None` to take the key out.
 #[derive(Debug, Clone, PartialEq)]
 pub struct KuraChange {
@@ -720,7 +720,7 @@ pub struct KuraChange {
     pub value: Option<String>,
 }
 
-/// One write for the kura.toml writer: the file, the folders to read the
+/// One write for the config.toml writer: the file, the folders to read the
 /// config from afterwards, and the changes in the order they were made.
 struct KuraJob {
     path: PathBuf,
@@ -728,7 +728,7 @@ struct KuraJob {
     changes: Vec<KuraChange>,
 }
 
-/// What a write of kura.toml came to: the rows written, as a toast says
+/// What a write of config.toml came to: the rows written, as a toast says
 /// them, and the config read back -- or what stopped it.
 pub(crate) struct KuraWritten {
     said: String,
@@ -762,11 +762,11 @@ fn kura_writer(done: Sender<KuraWritten>, ctx: egui::Context) -> Option<Sender<K
     spawned.ok().map(|_| tx)
 }
 
-/// Change the rows in kura.toml and keep the rest of it -- comments, order,
+/// Change the rows in config.toml and keep the rest of it -- comments, order,
 /// blank lines -- as it was; a file that is not there yet is started with
-/// [`KURA_TOML_START`]. A file that does not read as TOML is left alone.
+/// [`OWN_FILE_START`]. A file that does not read as TOML is left alone.
 fn write_kura_toml(job: KuraJob) -> KuraWritten {
-    let file = job.path.file_name().map_or_else(|| "kura.toml".into(), |n| n.to_string_lossy().into_owned());
+    let file = job.path.file_name().map_or_else(|| crate::config::OWN_FILE.into(), |n| n.to_string_lossy().into_owned());
     let said = job
         .changes
         .iter()
@@ -781,7 +781,7 @@ fn write_kura_toml(job: KuraJob) -> KuraWritten {
     let read = (|| {
         let text = match std::fs::read_to_string(&job.path) {
             Ok(t) => t,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => KURA_TOML_START.to_owned(),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => OWN_FILE_START.to_owned(),
             Err(e) => return Err(at(e.to_string())),
         };
         // A file of comments only keeps them at the top: toml_edit would
@@ -1501,16 +1501,19 @@ pub struct App {
     /// The `uchmk` folder common.toml is in, and what it said last.
     pub common_base: Option<PathBuf>,
     pub common: ito_common::Common,
-    /// What went wrong opening kura.toml from the settings screen, said
+    /// What went wrong opening config.toml from the settings screen, said
     /// from the thread that tried.
     settings_rx: crossbeam_channel::Receiver<String>,
     settings_tx: crossbeam_channel::Sender<String>,
-    /// The thread that writes kura.toml for the settings screen, started at
+    /// The thread that writes config.toml for the settings screen, started at
     /// its first write; one thread, so two quick changes land in order.
     kura_jobs: Option<Sender<KuraJob>>,
     /// What it wrote, with the config read back after.
     kura_rx: crossbeam_channel::Receiver<KuraWritten>,
     kura_tx: Sender<KuraWritten>,
+    /// When that write was read back: the watcher sees the same change a
+    /// moment later, and its reload then says nothing the write did not.
+    kura_wrote: Option<Instant>,
     pub preview: PreviewSlot,
     pub max_preview: bool,
     /// The terminal pane has the window. A third of the height is right for a
@@ -1609,6 +1612,17 @@ pub struct App {
     /// frame, so stepping from what egui currently reports would lose every
     /// press after the first in any one frame.
     pub scale: f32,
+    /// `KURA_SCALE` set the scale for this run, so common.toml's is neither
+    /// written nor followed.
+    scale_pinned: bool,
+    /// When a zoom key was last pressed. common.toml read back within a few
+    /// seconds of that can hold a step the writer has not reached yet.
+    scale_pressed: Option<Instant>,
+    /// The newest scale, for the thread that writes it to common.toml.
+    scale_tx: Option<Sender<f32>>,
+    /// What [`App::start_watching`] saw change, read off the UI thread.
+    watched_rx: Option<crossbeam_channel::Receiver<Watched>>,
+    watched_tx: Option<Sender<Watched>>,
     /// A copy job is blocked waiting for the new name being typed.
     pending_conflict: Option<Sender<Resolution>>,
 
@@ -1679,6 +1693,7 @@ impl App {
             kura_jobs: None,
             kura_rx,
             kura_tx,
+            kura_wrote: None,
             cfg,
             tabs: vec![tab],
             active: 0,
@@ -1751,6 +1766,11 @@ impl App {
             term_pending: None,
             ctx,
             scale: 1.0,
+            scale_pinned: false,
+            scale_pressed: None,
+            scale_tx: None,
+            watched_rx: None,
+            watched_tx: None,
             pending_conflict: None,
             dirty: HashMap::new(),
             counted: std::collections::HashSet::new(),
@@ -1776,23 +1796,62 @@ impl App {
         app
     }
 
-    /// Take the clock and the language from the shared common.toml
-    /// (`ito_common`, uchmk's common spec), then watch it: every 2 seconds
-    /// its time is looked at, and a changed file is read again off the UI
-    /// thread and applied by `drain_channels`, with no restart.
+    /// Take the clock, the language and the scale from the shared common.toml
+    /// (`ito_common`, uchmk's common spec), then watch it and kura's own files.
     pub fn load_common(&mut self) {
         let Some(base) = ito_common::base_dir() else { return };
         self.set_common(ito_common::Common::read(&base));
+        self.start_watching(&base);
+        self.common_base = Some(base);
+    }
+
+    /// Look every 2 seconds, on a thread of its own, at common.toml, which
+    /// another uchmk app may have changed, and at kura's config files, which
+    /// are read again by themselves once saved (`<C-F5>` still does it at
+    /// once). A changed file is read on that thread and applied by
+    /// `drain_channels`, with no restart.
+    fn start_watching(&mut self, base: &Path) {
+        let (common_tx, common_rx) = crossbeam_channel::unbounded();
         let (tx, rx) = crossbeam_channel::unbounded();
-        self.common_base = Some(base.clone());
-        self.common_tx = Some(tx.clone());
-        let ctx = self.ctx.clone();
-        ito_common::watch(vec![ito_common::common_path(&base)], Duration::from_secs(2), move |_| {
-            let alive = tx.send(ito_common::Common::read(&base)).is_ok();
+        let common = ito_common::common_path(base);
+        let paths: Vec<PathBuf> = std::iter::once(common.clone()).chain(crate::config::watched_files()).collect();
+        let (base, ctx, to_common, to_app) = (base.to_path_buf(), self.ctx.clone(), common_tx.clone(), tx.clone());
+        ito_common::watch(paths, Duration::from_secs(2), move |changed| {
+            let mut alive = true;
+            if changed.contains(&common) {
+                alive &= to_common.send(ito_common::Common::read(&base)).is_ok();
+            }
+            if changed.iter().any(|p| *p != common) {
+                alive &= to_app.send(Watched::Config(Box::new(Config::read_fresh(&crate::config::dirs_to_read())))).is_ok();
+            }
             ctx.request_repaint();
             alive
         });
-        self.common_rx = Some(rx);
+        self.common_rx = Some(common_rx);
+        self.common_tx = Some(common_tx);
+        self.watched_rx = Some(rx);
+        self.watched_tx = Some(tx);
+    }
+
+    /// What the watcher read of kura's own files, taken in.
+    fn drain_watched(&mut self) {
+        let Some(rx) = &self.watched_rx else { return };
+        let got: Vec<Watched> = rx.try_iter().collect();
+        for w in got {
+            match w {
+                Watched::Config(fresh) => {
+                    let mut cfg = Config::settle(&mut self.cfg, *fresh);
+                    cfg.take_term_env();
+                    // The settings screen's own write, coming round again.
+                    if self.kura_wrote.take().is_some_and(|t| t.elapsed() < Duration::from_secs(5)) {
+                        self.take_config_saying(cfg, Some(String::new()));
+                    } else {
+                        self.take_config(cfg);
+                    }
+                }
+                Watched::Failed(e) => self.warn(e),
+            }
+        }
     }
 
     /// Apply what common.toml said. A file that does not read keeps what was
@@ -1802,6 +1861,10 @@ impl App {
     pub fn set_common(&mut self, read: CommonRead) {
         match read {
             Ok((common, warnings)) => {
+                let pressed = self.scale_pressed.is_some_and(|t| t.elapsed() < Duration::from_secs(5));
+                if !self.scale_pinned && !pressed {
+                    self.set_scale(common.scale_or_one());
+                }
                 self.clock = common.clock_or(None);
                 let lang = match common.language.as_deref() {
                     Some(l) if l != "auto" => l.to_owned(),
@@ -1845,29 +1908,29 @@ impl App {
         });
     }
 
-    /// kura's own config folder, where kura.toml is (`KURA_CONFIG_HOME`).
+    /// kura's own config folder, where its config.toml is (`KURA_CONFIG_HOME`).
     pub fn kura_config_dir() -> Option<PathBuf> {
         crate::config::config_home("KURA_CONFIG_HOME")
     }
 
-    /// The kura.toml whose settings are in force: the last one read, since
+    /// The config.toml whose settings are in force: the last one read, since
     /// a later folder's `[ui]` replaces an earlier one's whole. Without any,
     /// the one kura's own folder would hold. Writing anywhere else would
     /// start a file that hides the one in use.
-    pub fn kura_toml_in_force(&self) -> Option<PathBuf> {
-        let read = self.cfg.loaded.iter().rev().find(|p| p.file_name().is_some_and(|n| n == "kura.toml"));
-        read.cloned().or_else(|| Self::kura_config_dir().map(|d| d.join("kura.toml")))
+    pub fn own_config_in_force(&self) -> Option<PathBuf> {
+        let read = self.cfg.loaded.iter().rev().find(|p| p.file_name().is_some_and(|n| n == crate::config::OWN_FILE));
+        read.cloned().or_else(|| Self::kura_config_dir().map(|d| d.join(crate::config::OWN_FILE)))
     }
 
-    /// Write what the settings screen's kura.toml page changed, off the UI
+    /// Write what the settings screen's config.toml page changed, off the UI
     /// thread and keeping the file's comments, then read the config back
     /// and apply it as `<C-F5>` does.
     pub fn write_kura(&mut self, changes: Vec<KuraChange>) {
         if changes.is_empty() {
             return;
         }
-        let Some(path) = self.kura_toml_in_force() else {
-            self.error("kura.toml: there is no config folder to keep it in");
+        let Some(path) = self.own_config_in_force() else {
+            self.error("config.toml: there is no config folder to keep it in");
             return;
         };
         self.write_kura_to(path, crate::config::dirs_to_read(), changes);
@@ -1882,7 +1945,7 @@ impl App {
         let sent = self.kura_jobs.as_ref().is_some_and(|tx| tx.send(KuraJob { path, dirs, changes }).is_ok());
         if !sent {
             self.kura_jobs = None;
-            self.error("kura.toml: could not start writing it");
+            self.error("config.toml: could not start writing it");
         }
     }
 
@@ -1894,17 +1957,18 @@ impl App {
                 let mut cfg = Config::settle(&mut self.cfg, fresh);
                 cfg.take_term_env();
                 self.take_config_saying(cfg, Some(w.said));
+                self.kura_wrote = Some(Instant::now());
             }
             Err(e) => self.error(e),
         }
     }
 
-    /// Open kura.toml in the system's editor for it, off the UI thread. A
+    /// Open config.toml in the system's editor for it, off the UI thread. A
     /// first one is made, with a line saying what goes in it, so the button
     /// works before there is anything to change.
-    pub fn open_kura_toml(&mut self) {
-        let Some(path) = self.kura_toml_in_force() else {
-            self.error("kura.toml: there is no config folder to keep it in");
+    pub fn open_own_config(&mut self) {
+        let Some(path) = self.own_config_in_force() else {
+            self.error("config.toml: there is no config folder to keep it in");
             return;
         };
         let tx = self.settings_tx.clone();
@@ -1912,8 +1976,8 @@ impl App {
         std::thread::spawn(move || {
             let made = match path.parent() {
                 _ if path.exists() => Ok(()),
-                Some(dir) => std::fs::create_dir_all(dir).and_then(|()| std::fs::write(&path, KURA_TOML_START)),
-                None => std::fs::write(&path, KURA_TOML_START),
+                Some(dir) => std::fs::create_dir_all(dir).and_then(|()| std::fs::write(&path, OWN_FILE_START)),
+                None => std::fs::write(&path, OWN_FILE_START),
             };
             if let Err(e) = made.and_then(|()| exec::open_default(&path)) {
                 let _ = tx.send(format!("{}: {e}", path.display()));
@@ -2196,6 +2260,7 @@ impl App {
         self.drain_search();
         self.drain_usage();
         self.drain_archive();
+        self.drain_watched();
         self.sync_spot();
         self.pump_terminal();
         self.flush_dirty();
@@ -3061,6 +3126,13 @@ impl App {
                 self.scale(to);
                 continue;
             }
+            // F1 is help in every uchmk app and from anywhere in it (since
+            // v0.99.0): over a panel it opens the key list in its place. The
+            // help panel's own `help` closes it, so that one goes through.
+            if a == Act::Help && layer != PanelLayer::Help {
+                self.act(Act::Help);
+                continue;
+            }
             layer.act(self, a);
         }
     }
@@ -3849,39 +3921,59 @@ impl App {
             }
     }
 
-    /// Zoom an image preview, which asks for a sharper decode as it grows.
     /// `KURA_SCALE` for one run: the scale `<C-=>` and `<C-->` would reach,
-    /// without a press (#228). A value that is not a number in 0.2 to 5.0 is
-    /// ignored, and the toast says so.
+    /// without a press (#228), and common.toml's is then left alone. `1.2`
+    /// or `120%`; a value that is not one from 0.2 to 5.0 is ignored, and the
+    /// toast says so.
     pub fn start_scaled(&mut self, text: Option<&str>) {
         let Some(text) = text.map(str::trim).filter(|t| !t.is_empty()) else { return };
-        match scale_from_text(text) {
+        match ito_common::parse_scale(text) {
             Some(next) => {
-                self.scale = next;
-                self.ctx.set_zoom_factor(next);
+                self.set_scale(next);
+                self.scale_pinned = true;
             }
-            None => self.error(format!("KURA_SCALE={text} is not a number from 0.2 to 5.0")),
+            None => self.error(format!("KURA_SCALE={text} is not a scale from 0.2 to 5.0 (or 20% to 500%)")),
         }
     }
 
+    fn set_scale(&mut self, s: f32) {
+        self.scale = s;
+        self.ctx.set_zoom_factor(s);
+    }
+
+    /// A zoom key: the step is ito's, as in every uchmk app, and it is
+    /// written to common.toml so the others follow.
     fn scale(&mut self, to: crate::config::cmd::ScaleTo) {
-            let now = self.scale;
-            let next = match to {
-                crate::config::cmd::ScaleTo::In => now + 0.1,
-                crate::config::cmd::ScaleTo::Out => now - 0.1,
-                crate::config::cmd::ScaleTo::Reset => 1.0,
-            };
-            let next = (next.clamp(0.2, 5.0) * 10.0).round() / 10.0;
-            self.scale = next;
-            self.ctx.set_zoom_factor(next);
-            // Held down, the toast's `×N` keeps counting after the scale has
-            // stopped moving; saying so is what tells the two apart.
-            let end = match to {
-                crate::config::cmd::ScaleTo::In if next >= 5.0 => " (maximum)",
-                crate::config::cmd::ScaleTo::Out if next <= 0.2 => " (minimum)",
-                _ => "",
-            };
-            self.toast_instead(&["Scale "], format!("Scale {}%{end}", (next * 100.0).round() as i32));
+        let next = ito_common::scale_step(self.scale, to);
+        self.set_scale(next);
+        self.scale_pressed = Some(Instant::now());
+        self.write_scale(next);
+        // Held down, the toast's `×N` keeps counting after the scale has
+        // stopped moving; saying so is what tells the two apart.
+        let said = ito_common::scale_text(next, &self.lang);
+        self.toast_instead(&["Scale ", "倍率 "], said);
+    }
+
+    /// Hand the scale to the thread that writes common.toml, started at the
+    /// first press. A held key sends many; it writes only the newest.
+    fn write_scale(&mut self, s: f32) {
+        let Some(base) = self.common_base.clone().filter(|_| !self.scale_pinned) else { return };
+        let failed = self.watched_tx.clone();
+        let tx = self.scale_tx.get_or_insert_with(|| {
+            let (tx, rx) = crossbeam_channel::unbounded::<f32>();
+            let _ = std::thread::Builder::new().name("kura-scale".into()).spawn(move || {
+                while let Ok(first) = rx.recv() {
+                    let s = rx.try_iter().last().unwrap_or(first);
+                    if let Err(e) = ito_common::edit_common(&base, |t| ito_common::scale_change(s).apply(t)) {
+                        if let Some(tx) = &failed {
+                            let _ = tx.send(Watched::Failed(format!("common.toml: {e}")));
+                        }
+                    }
+                }
+            });
+            tx
+        });
+        let _ = tx.send(s);
     }
 
     /// Move the current tab along the bar.
@@ -5685,7 +5777,8 @@ impl App {
         self.take_config_saying(cfg, None);
     }
 
-    /// [`App::take_config`], with `said` in the toast in place of "Reloaded".
+    /// [`App::take_config`], with `said` in the toast in place of "Reloaded";
+    /// an empty `said`, no toast but a warning.
     fn take_config_saying(&mut self, cfg: Config, said: Option<String>) {
         let old_term = self.cfg.term.clone();
         let files = cfg.loaded.len();
@@ -5702,6 +5795,8 @@ impl App {
         let done = said.unwrap_or_else(|| format!("Reloaded {files} config file(s)"));
         match warning {
             Some(w) => self.warn(w),
+            // Said already, by what the same change was a moment ago.
+            None if done.is_empty() => {}
             None if shell_waits => self.toast(format!(
                 "{done} — the pane keeps its shell until {}",
                 self.term_close_key().map_or("it is closed".into(), |k| format!("{k} closes it"))
@@ -7383,10 +7478,12 @@ fn completion_hits(entries: &[Entry], prefix: &str) -> Vec<String> {
     hits
 }
 
-/// `1.5` as a scale, in steps of a tenth between 0.2 and 5.0 as the keys make.
-fn scale_from_text(text: &str) -> Option<f32> {
-    let n: f32 = text.parse().ok().filter(|n: &f32| n.is_finite() && (0.2..=5.0).contains(n))?;
-    Some((n * 10.0).round() / 10.0)
+/// What the watcher thread of [`App::start_watching`] read, or what failed
+/// off the UI thread.
+enum Watched {
+    /// kura's own files changed; boxed, as a whole config is large.
+    Config(Box<crate::config::Fresh>),
+    Failed(String),
 }
 
 /// Whether two paths name the same file by their spelling: normalized, and
@@ -9838,7 +9935,7 @@ mod usage_view {
         assert!(a.toasts.last().is_some_and(|t| t.text.starts_with("common.toml:")));
     }
 
-    /// Wait for the kura.toml writer and apply what it read back.
+    /// Wait for the config.toml writer and apply what it read back.
     fn kura_written(a: &mut App) {
         let w = a.kura_rx.recv_timeout(Duration::from_secs(10)).expect("the writer answered");
         a.kura_written(w);
@@ -9848,14 +9945,14 @@ mod usage_view {
         KuraChange { table, key, value: value.map(str::to_owned) }
     }
 
-    /// The kura.toml page writes its rows into the file in force, keeping the
+    /// The config.toml page writes its rows into the file in force, keeping the
     /// comments around them, and the config read back is applied at once.
     #[test]
-    fn the_kura_toml_page_writes_and_keeps_comments() {
+    fn the_own_config_page_writes_and_keeps_comments() {
         let dir = util::test_dir("settings-kura");
         let cfg = dir.join("cfg");
         std::fs::create_dir_all(&cfg).unwrap();
-        let file = cfg.join("kura.toml");
+        let file = cfg.join("config.toml");
         std::fs::write(&file, "# mine\n[ui]\nfont_size = 14.0 # small\n").unwrap();
         let mut a = app_in(&dir);
         let changes = vec![change("ui", "font_size", Some("16.0")), change("term", "shell", Some("\"bash\""))];
@@ -9865,7 +9962,7 @@ mod usage_view {
         let text = std::fs::read_to_string(&file).unwrap();
         assert!(text.starts_with("# mine\n[ui]\nfont_size = 16.0 # small\n"), "kept what was there: {text}");
         assert!(text.contains("[term]\nshell = \"bash\"\n"), "{text}");
-        assert!(a.toasts.last().is_some_and(|t| t.text.starts_with("Saved kura.toml: font_size = 16.0")), "{:?}", a.toasts.last().map(|t| &t.text));
+        assert!(a.toasts.last().is_some_and(|t| t.text.starts_with("Saved config.toml: font_size = 16.0")), "{:?}", a.toasts.last().map(|t| &t.text));
         // An emptied row takes the key out, and the default comes back.
         a.write_kura_to(file.clone(), vec![cfg.clone()], vec![change("ui", "font_size", None)]);
         kura_written(&mut a);
@@ -9873,42 +9970,42 @@ mod usage_view {
         assert!(!text.contains("font_size"), "{text}");
         assert!(text.starts_with("# mine\n[ui]\n"), "{text}");
         assert_eq!(a.cfg.ui.font_size, crate::config::Ui::default().font_size);
-        assert!(a.toasts.last().is_some_and(|t| t.text == "Saved kura.toml: font_size removed"));
+        assert!(a.toasts.last().is_some_and(|t| t.text == "Saved config.toml: font_size removed"));
     }
 
-    /// A kura.toml that is not there yet is started with its comment; one
+    /// A config.toml that is not there yet is started with its comment; one
     /// that does not read as TOML is left as it is, and a toast says why.
     #[test]
-    fn the_kura_toml_page_starts_a_file_and_leaves_a_broken_one() {
+    fn the_own_config_page_starts_a_file_and_leaves_a_broken_one() {
         let dir = util::test_dir("settings-kura-new");
         let cfg = dir.join("cfg").join("kura");
-        let file = cfg.join("kura.toml");
+        let file = cfg.join("config.toml");
         let mut a = app_in(&dir);
         a.write_kura_to(file.clone(), vec![cfg.clone()], vec![change("ui", "max_history", Some("50"))]);
         kura_written(&mut a);
         let text = std::fs::read_to_string(&file).unwrap();
-        assert!(text.starts_with(KURA_TOML_START), "{text}");
-        assert!(text.ends_with("theme.toml.\n# Every key, with what it does, is in the README: \"kura.toml\".\n\n[ui]\nmax_history = 50\n"), "{text}");
+        assert!(text.starts_with(OWN_FILE_START), "{text}");
+        assert!(text.ends_with("theme.toml.\n# Every key, with what it does, is in the README: \"config.toml\".\n\n[ui]\nmax_history = 50\n"), "{text}");
         std::fs::write(&file, "[ui\nfont_size = 14.0\n").unwrap();
         a.write_kura_to(file.clone(), vec![cfg.clone()], vec![change("ui", "font_size", Some("16.0"))]);
         kura_written(&mut a);
         assert_eq!(std::fs::read_to_string(&file).unwrap(), "[ui\nfont_size = 14.0\n", "left alone");
         let last = a.toasts.last().unwrap();
-        assert!(last.level == Level::Error && last.text.contains("kura.toml"), "{}", last.text);
+        assert!(last.level == Level::Error && last.text.contains("config.toml"), "{}", last.text);
     }
 
-    /// The page writes to the kura.toml read last, which is the one in
+    /// The page writes to the config.toml read last, which is the one in
     /// force; without one, to kura's own folder.
     #[test]
-    fn the_kura_toml_in_force_is_the_last_one_read() {
+    fn the_own_config_in_force_is_the_last_one_read() {
         let dir = util::test_dir("settings-kura-force");
         let mut a = app_in(&dir);
-        a.cfg.loaded = vec![dir.join("yazi").join("kura.toml"), dir.join("yazi").join("theme.toml")];
-        assert_eq!(a.kura_toml_in_force(), Some(dir.join("yazi").join("kura.toml")));
-        a.cfg.loaded.push(dir.join("kura").join("kura.toml"));
-        assert_eq!(a.kura_toml_in_force(), Some(dir.join("kura").join("kura.toml")));
+        a.cfg.loaded = vec![dir.join("yazi").join("config.toml"), dir.join("yazi").join("theme.toml")];
+        assert_eq!(a.own_config_in_force(), Some(dir.join("yazi").join("config.toml")));
+        a.cfg.loaded.push(dir.join("kura").join("config.toml"));
+        assert_eq!(a.own_config_in_force(), Some(dir.join("kura").join("config.toml")));
         a.cfg.loaded.clear();
-        assert_eq!(a.kura_toml_in_force(), App::kura_config_dir().map(|d| d.join("kura.toml")));
+        assert_eq!(a.own_config_in_force(), App::kura_config_dir().map(|d| d.join(crate::config::OWN_FILE)));
         // Nothing changed is nothing written.
         a.write_kura(Vec::new());
         assert!(a.kura_rx.recv_timeout(Duration::from_millis(300)).is_err());
@@ -10321,7 +10418,7 @@ mod goto_and_history_keys {
 
     /// `g`+`c` goes to kura's own directory, not yazi's.
     ///
-    /// Both are read, but they hold different things: `kura.toml` only ever
+    /// Both are read, but they hold different things: `config.toml` only ever
     /// belongs in kura's, and that is the one a reader cannot find, because
     /// it is often the directory that does not exist yet. yazi's keeps its own
     /// key rather than the shared one.
@@ -10569,13 +10666,44 @@ mod window_scale {
             a.overlay = overlay;
             a.feed_overlay_key(Key::parse("<C-+>").unwrap());
             assert!((a.scale - 1.1).abs() < 1e-6, "`<C-+>` with {name} open: {}", a.scale);
-            a.feed_overlay_key(Key::parse("<C-->").unwrap());
-            a.feed_overlay_key(Key::parse("<C-->").unwrap());
+            a.feed_overlay_key(Key::parse("<C-;>").unwrap());
+            assert!((a.scale - 1.2).abs() < 1e-6, "`<C-;>` with {name} open: {}", a.scale);
+            for _ in 0..3 {
+                a.feed_overlay_key(Key::parse("<C-->").unwrap());
+            }
             assert!((a.scale - 0.9).abs() < 1e-6, "`<C-->` with {name} open: {}", a.scale);
             a.feed_overlay_key(Key::parse("<C-0>").unwrap());
             assert_eq!(a.scale, 1.0, "`<C-0>` with {name} open");
             // The panel is still up: resizing is not a way out of it.
             assert!(!matches!(a.overlay, Overlay::None), "{name} closed itself");
+        }
+    }
+
+    /// F1 is help from anywhere, as in every uchmk app (since v0.99.0): over
+    /// any panel it opens the key list, and pressed again it closes it.
+    #[test]
+    fn f1_opens_help_over_every_panel() {
+        use crate::app::{DiffOverlay, SpotOverlay, TasksOverlay};
+        let mut a = app();
+        let panels: Vec<(&str, Overlay)> = vec![
+            ("tasks", Overlay::Tasks(TasksOverlay { cursor: 0 })),
+            ("spot", Overlay::Spot(SpotOverlay { cursor: 0, scroll: 0 })),
+            ("diff", Overlay::Diff(DiffOverlay {
+                left: std::path::PathBuf::from("a"),
+                right: std::path::PathBuf::from("b"),
+                outcome: None,
+                offset: 0,
+                rows: 10,
+                cursor: 0,
+                hide_same: false, back: None,
+            })),
+        ];
+        for (name, overlay) in panels {
+            a.overlay = overlay;
+            a.feed_overlay_key(Key::parse("<F1>").unwrap());
+            assert!(matches!(a.overlay, Overlay::Help), "F1 over {name} opens help");
+            a.feed_overlay_key(Key::parse("<F1>").unwrap());
+            assert!(matches!(a.overlay, Overlay::None), "and F1 again closes it, from {name}");
         }
     }
 
@@ -11301,16 +11429,39 @@ mod said_out_loud {
         assert_eq!(cycling_in(&wrapped, &hits, 3), Some(dir), "the last one wraps to the first");
     }
 
-    /// #228: `KURA_SCALE` names a scale the keys could also reach.
+    /// #228: `KURA_SCALE` names a scale the keys could also reach, and holds
+    /// it for the run: common.toml's is not followed.
     #[test]
     fn the_scale_variable_is_a_number_the_keys_reach() {
-        assert_eq!(scale_from_text("1.5"), Some(1.5));
-        assert_eq!(scale_from_text("1.26"), Some(1.3));
-        assert_eq!(scale_from_text("0.2"), Some(0.2));
-        assert_eq!(scale_from_text("5"), Some(5.0));
-        for bad in ["0.1", "5.1", "x", "", "NaN", "inf", "-1"] {
-            assert_eq!(scale_from_text(bad), None, "{bad}");
+        let dir = crate::util::test_dir("pinned-scale");
+        let mut a = app_in(&dir);
+        a.start_scaled(Some("1.26"));
+        assert_eq!(a.scale, 1.3);
+        a.set_common(Ok((ito_common::Common { scale: Some(2.0), ..Default::default() }, Vec::new())));
+        assert_eq!(a.scale, 1.3, "pinned");
+        let mut b = app_in(&dir);
+        b.start_scaled(Some("120%"));
+        assert_eq!(b.scale, 1.2);
+        for bad in ["0.1", "5.1", "x", "NaN", "-1"] {
+            b.start_scaled(Some(bad));
+            assert_eq!(b.scale, 1.2, "{bad} is ignored");
         }
+        assert!(b.toasts.iter().any(|t| t.text.contains("KURA_SCALE=5.1")));
+    }
+
+    /// Since v0.99.0 another uchmk app's scale is followed, except just after
+    /// a key here moved it.
+    #[test]
+    fn the_common_scale_is_followed() {
+        use crate::config::cmd::ScaleTo;
+        let dir = crate::util::test_dir("common-scale");
+        let mut a = app_in(&dir);
+        let common = |s| Ok((ito_common::Common { scale: Some(s), ..Default::default() }, Vec::new()));
+        a.set_common(common(1.5));
+        assert_eq!(a.scale, 1.5);
+        a.act(Act::Scale(ScaleTo::In));
+        a.set_common(common(1.5));
+        assert_eq!(a.scale, 1.6, "a step the writer has not reached yet is not undone");
     }
 
     /// #174: the packing job names the format the typed name made.

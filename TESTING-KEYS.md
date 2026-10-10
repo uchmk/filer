@@ -4,7 +4,7 @@ Generated from `src/config/defaults/keymap.toml` by `cargo run --example make-ke
 across regenerations, so re-running after a keymap change costs nothing already done.
 Edit the ticks, not the rows: anything else here is overwritten.
 
-276 keys. How many are checked is not written here, so that two pull requests ticking
+285 keys. How many are checked is not written here, so that two pull requests ticking
 keys do not conflict over a total: `cargo run --example make-keycheck -- --stats`.
 
 A key is checked when it did what the description says _and_ did nothing else —
@@ -87,6 +87,7 @@ The file list: what is in front of you unless an overlay is.
 - [x] `=` — Hardlink the yanked files · `hardlink`
 - [x] `<C-+>` — Make everything bigger · `scale in`
 - [x] `<C-=>` — Make everything bigger · `scale in`
+- [ ] `<C-;>` — Make everything bigger · `scale in`
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 - [x] `<A-c>` — Copy the selection to the other pane · `send_pane`
@@ -288,6 +289,7 @@ This panel (`~` or `<F1>`).
 - [x] `G` — To the bottom · `arrow bot`
 - [x] `<C-+>` — Make everything bigger · `scale in`
 - [x] `<C-=>` — Make everything bigger · `scale in`
+- [ ] `<C-;>` — Make everything bigger · `scale in`
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 
@@ -298,6 +300,7 @@ The task manager (`w`).
 ### Input line
 
 - [x] `<Esc>` — Close the task manager · `close`
+- [ ] `<F1>` — Open help · `help`
 - [x] `q` — Close the task manager · `close`
 - [x] `j` — Next task · `arrow 1`
 - [x] `k` — Previous task · `arrow -1`
@@ -308,6 +311,7 @@ The task manager (`w`).
 - [x] `t` — Move the task to the front of the queue · `task_top`
 - [x] `<C-+>` — Make everything bigger · `scale in`
 - [x] `<C-=>` — Make everything bigger · `scale in`
+- [ ] `<C-;>` — Make everything bigger · `scale in`
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 
@@ -318,6 +322,7 @@ The details panel (`<Tab>`).
 ### Input line
 
 - [x] `<Esc>` — Close the spotter · `close`
+- [ ] `<F1>` — Open help · `help`
 - [x] `<Tab>` — Close the spotter · `close`
 - [x] `q` — Close the spotter · `close`
 - [x] `k` — Spot the previous file · `swipe -1`
@@ -338,6 +343,7 @@ The details panel (`<Tab>`).
 - [x] `y` — Copy the selected value · `copy cell`
 - [x] `<C-+>` — Make everything bigger · `scale in`
 - [x] `<C-=>` — Make everything bigger · `scale in`
+- [ ] `<C-;>` — Make everything bigger · `scale in`
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 
@@ -348,6 +354,7 @@ The side-by-side comparison (`<A-d>`).
 ### Compare (side by side)
 
 - [x] `q` — Close the comparison · `close`
+- [ ] `<F1>` — Open help · `help`
 - [x] `<Esc>` — Close the comparison · `close`
 - [x] `k` — Up one line · `arrow -1`
 - [x] `j` — Down one line · `arrow 1`
@@ -364,6 +371,7 @@ The side-by-side comparison (`<A-d>`).
 - [x] `C` — Copy the rows on screen (folders): state<TAB>path · `copy all`
 - [x] `<C-+>` — Make everything bigger · `scale in`
 - [x] `<C-=>` — Make everything bigger · `scale in`
+- [ ] `<C-;>` — Make everything bigger · `scale in`
 - [x] `<C-->` — Make everything smaller · `scale out`
 - [x] `<C-0>` — Back to the original size · `scale reset`
 
@@ -380,5 +388,6 @@ The side-by-side comparison (`<A-d>`).
 - [ ] `<C-f>` — Search the settings · `find`
 - [ ] `<C-+>` — Make everything bigger · `scale in`
 - [ ] `<C-=>` — Make everything bigger · `scale in`
+- [ ] `<C-;>` — Make everything bigger · `scale in`
 - [ ] `<C-->` — Make everything smaller · `scale out`
 - [ ] `<C-0>` — Back to the original size · `scale reset`

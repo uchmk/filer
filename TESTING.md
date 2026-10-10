@@ -319,33 +319,34 @@ job's progress, its speed, and cancelling it from `w` all need a copy big enough
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 7.1 | `~` with no `kura.toml` anywhere | **Both** directories are listed, the empty one marked `nothing here`. Before v0.25.0 only files that existed were shown |
+| 7.1 | `~` with no `config.toml` anywhere | **Both** directories are listed, the empty one marked `nothing here`. Before v0.25.0 only files that existed were shown |
 | 7.2 | Hover a path | The row lights up and the pointer becomes a hand |
 | 7.3 | Hover a key row | Nothing happens — it is not a link |
 | 7.4 | Click a config **file** | The panel closes, the list opens its directory with that file under the cursor. `<Enter>` then opens it |
 | 7.5 | Click a **directory** | The panel closes and the list goes there, empty or not |
-| 7.6 | Click the empty one, then create `kura.toml` there and `<C-F5>` | It appears in the panel next time, without `nothing here` |
+| 7.6 | Click the empty one, then create `config.toml` there | Within about 2 seconds, without `<C-F5>` (v0.99.0), it is read; it appears in the panel next time, without `nothing here` |
 | 7.7 | With `YAZI_CONFIG_HOME` / `KURA_CONFIG_HOME` set | The listed directories follow them |
-| 7.7a | Both variables naming **one** folder that holds a `kura.toml`, spelled differently: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`, `$env:KURA_CONFIG_HOME = 'c:\CFG\'` (v0.73.12, #180); then `~`, `kura env`, and `<C-F5>` | The folder is listed **once** in the panel and in `kura env`'s Config section, and `<C-F5>` says `Reloaded 1 config file(s)`. Before, it was listed twice and counted 2 |
+| 7.7a | Both variables naming **one** folder that holds a `config.toml`, spelled differently: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`, `$env:KURA_CONFIG_HOME = 'c:\CFG\'` (v0.73.12, #180); then `~`, `kura env`, and `<C-F5>` | The folder is listed **once** in the panel and in `kura env`'s Config section, and `<C-F5>` says `Reloaded 1 config file(s)`. Before, it was listed twice and counted 2 |
 | 7.7b | `$env:KURA_CONFIG_HOME` set to a 67-character folder, then `kura env` (v0.78.87, #248) | A key longer than 24 characters sits on its own line with its value indented below it, and the other rows' columns do not widen |
 | 7.8 | A config warning line | Still yellow, and not clickable |
 
 ## 8. Which shell the pane runs (v0.24.0)
 
 The setting is one line; the point of the section is that the **default** is the
-thing that surprises people. kura reads the config only at start and on `<C-F5>`
-(Q49), and a pane already running keeps the shell it started with, so a change to
-`[term]` takes `<C-F5>`, then `<C-S-t>` to end the old shell, then `<C-t>`.
+thing that surprises people. kura reads the config at start, by itself within about
+2 seconds of a save (since v0.99.0), and on `<C-F5>`; a pane already running keeps the
+shell it started with, so a change to `[term]` takes a save, then `<C-S-t>` to end the
+old shell, then `<C-t>`.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 8.1 | `<C-t>` with no `[term]` in `kura.toml`, then `$PSVersionTable.PSVersion` | `7.x` — `pwsh`, the default since v0.55.0 wherever it is installed (Q29). `5.1.x`, Windows PowerShell, only on a machine without `pwsh` |
-| 8.2 | With the pane open, add `[term]` / `shell = "powershell"`, `<C-F5>`, then `<C-S-t>`, `<C-t>`, ask again (v0.67.17) | The `<C-F5>` toast ends `— the pane keeps its shell until <C-S-t> closes it`; after `<C-S-t>` `<C-t>`, `5.1.x` |
+| 8.1 | `<C-t>` with no `[term]` in `config.toml`, then `$PSVersionTable.PSVersion` | `7.x` — `pwsh`, the default since v0.55.0 wherever it is installed (Q29). `5.1.x`, Windows PowerShell, only on a machine without `pwsh` |
+| 8.2 | With the pane open, add `[term]` / `shell = "powershell"` and save, without `<C-F5>`; then `<C-S-t>`, `<C-t>`, ask again (v0.67.17, v0.99.0) | Within about 2 seconds a toast ending `— the pane keeps its shell until <C-S-t> closes it`; after `<C-S-t>` `<C-t>`, `5.1.x` |
 | 8.3 | `$PROFILE` in each | Two different paths — `WindowsPowerShell\` for 5.1, `PowerShell\` for 7 |
 | 8.4 | With the OSC 7 hook in the pwsh profile only, `cd` and `<A-Up>` under each | Works under `pwsh`, and says so under 5.1. That asymmetry is the whole bug report |
 | 8.5 | `args = ["-NoLogo"]` | The banner is gone |
 | 8.6 | A `shell` that is not installed | It fails to start and says so — no silent empty pane |
-| 8.7 | Remove `[term]` again, `<C-F5>`, `<C-S-t>`, `<C-t>` (v0.67.17) | Back to the default (`7.x` where `pwsh` is installed). Without the `<C-F5>`, `<C-S-t>` `<C-t>` starts the old shell again: nothing has re-read the file |
+| 8.7 | Remove `[term]` again and save, then `<C-S-t>`, `<C-t>` (v0.67.17, v0.99.0) | Back to the default (`7.x` where `pwsh` is installed), with no `<C-F5>`: the save alone was read |
 
 ## 9. The outline at the end of a file (v0.23.1)
 
@@ -537,10 +538,13 @@ to answer a click.
 
 ## 15. Window scale, and the key it took back (v0.32.0)
 
+Since v0.99.0 the scale is `scale` in `%APPDATA%\uchmk\common.toml`, shared by every uchmk app
+(tsumugi and yagura follow it too). Have one of them open for 15.10 and 15.11.
+
 | # | Do | Expect |
 | --- | --- | --- |
 | 15.1 | `<C-->` with something yanked | **Only** the window shrinks. Until v0.32.0 it also made a hardlink — one press, two actions |
-| 15.2 | `<C-+>`, and `<C-=>` | Both make it bigger. Which of the two needs shift depends on the layout — on US `+` is shift+equals, on JIS `+` is shift+semicolon and `=` is shift+minus — and both spellings are bound so either reaches it (v0.45.6) |
+| 15.2 | `<C-+>`, `<C-=>` and `<C-;>` | All three make it bigger. Which of them needs shift depends on the layout — on US `+` is shift+equals, on JIS `+` is shift+semicolon and `=` is shift+minus — and every spelling is bound so any reaches it (v0.45.6; `<C-;>` since v0.99.0) |
 | 15.3 | `<C-0>` | Back to 100%, and a toast says so |
 | 15.4 | Hold `<C-->` down | It stops at 20%, and the toast's count adds up: 8 steps down from 100% and the rest at the floor (`Scale 20% (minimum) ×N`). `<C-+>` held stops at 500% |
 | 15.4a | The same, watching the window rather than the toast | It shrinks **smoothly** while held, with no flicker or blank frames between steps |
@@ -549,6 +553,9 @@ to answer a click.
 | 15.7 | `~` | `scale in` / `scale out` / `scale reset` are listed, like any other command |
 | 15.8 | Hold `<C-+>` until it stops, then `<C-->` until it stops (v0.57.3) | The toast reads `Scale 500% (maximum)`, then `Scale 20% (minimum)` — the `×N` alone could not tell stopped from still moving |
 | 15.9 | `=` with a file yanked from another drive (`R:` → `C:`) (v0.59.4) | The error reads `hardlinks can't cross drives (R: → C:). Use p to copy instead`, not Windows' "cannot move the file to a different disk drive" |
+| 15.10 | `<C-=>` once from 100%, then open `%APPDATA%\uchmk\common.toml` (v0.99.0) | The toast reads `Scale 110%`, and the file has `scale = 1.1`, with any comments in it kept. tsumugi or yagura, open beside it, grows to 110% within about 3 seconds |
+| 15.11 | Write `scale = 1.5` into common.toml by hand and save (v0.99.0) | kura goes to 150% within about 3 seconds, with no key pressed |
+| 15.12 | Start kura with `$env:KURA_SCALE='130%'`, press `<C-=>`, then change `scale` in common.toml (v0.99.0) | It starts at 130% and `<C-=>` steps to 140%, but common.toml is **not** written, and the hand edit is not followed: the variable pins the scale for this run |
 
 ## 16. Word, Excel and PowerPoint (v0.31.0)
 
@@ -576,7 +583,7 @@ to answer a click.
 ## 17. Previewers of your own (v0.30.0)
 
 Needs `pdftoppm` and `ffmpeg` on the `PATH` (`kura env` says), and the two
-rules from the README in `kura.toml`. **The end-to-end test runs `sh`, so it is
+rules from the README in `config.toml`. **The end-to-end test runs `sh`, so it is
 skipped on Windows — this section is the only coverage of the `cmd` path.**
 
 | # | Do | Expect |
@@ -649,10 +656,10 @@ was that a gentle turn moved nothing at all.
 | # | Do | Expect |
 | --- | --- | --- |
 | 20.1 | With kura open, edit `theme.toml` (change `[mgr] cwd` to something loud) and press `<C-F5>` | The color changes without restarting |
-| 20.2 | Change `[ui] font_size` in `kura.toml`, `<C-F5>` | The text resizes |
+| 20.2 | Change `[ui] font_size` in `config.toml`, `<C-F5>` | The text resizes |
 | 20.3 | Add a `keymap.toml` binding, `<C-F5>` | The new key works, and `<F1>` lists it |
 | 20.4 | Sort with `,s`, then `<C-F5>` | The sort **stays** as you set it — a reload does not undo what you changed by hand |
-| 20.5 | Put a syntax error in `kura.toml`, `<C-F5>` | An error toast naming the problem; the old config stays in force -- **including what the broken file itself set** (v0.67.18, Q47: before, its `[ui]` fell back to the defaults), and the toast ends `(the last settings read from it stay in force until it parses again)` |
+| 20.5 | Put a syntax error in `config.toml`, `<C-F5>` | An error toast naming the problem; the old config stays in force -- **including what the broken file itself set** (v0.67.18, Q47: before, its `[ui]` fell back to the defaults), and the toast ends `(the last settings read from it stay in force until it parses again)` |
 | 20.6 | `[ui] minimap = false`, `<C-F5>` | No minimap |
 | 20.7 | In `keymap.toml`, `[[mgr.prepend_keymap]]` `on = "<F8>"`, `run = 'cd C:\Windows\System32'` -- no quotes inside the command (v0.59.0) | `<F8>` lands in `C:\Windows\System32`. Until v0.59.0 the backslashes were dropped and the error named `C:WindowsSystem32` |
 
@@ -783,7 +790,7 @@ Run from a shell, not from inside the app.
 | 25.7 | Double-click `kura.exe` (no console) | Unchanged: the window opens, nothing is printed anywhere |
 | 25.8 | Open kura once, quit, then `kura env` (v0.29.0) | A **Last run** section: the adapter with its backend and device type, and every font file that was loaded |
 | 25.9 | On a fresh machine, `kura env` **before** ever opening kura | `not recorded — kura has not opened a window on this machine yet`, not an empty section |
-| 25.10 | Name a different font in `kura.toml`, `<C-F5>`, then `kura env` again | The new file is listed; the reload updates the record |
+| 25.10 | Name a different font in `config.toml`, `<C-F5>`, then `kura env` again | The new file is listed; the reload updates the record |
 | 25.8a | Open kura, quit, `kura env`, and check the **Window** row against the screen (v0.47.33) | The pixels are the window you can see, and `pt x scale` multiplies out to them. **This is the row that settles a DPI argument** — what a script measures with `GetClientRect`, or a `PrintWindow` capture, depends on the DPI awareness of whatever did the measuring, and can disagree with the window while looking right |
 | 25.8b | On a display at 150%, open kura, quit, then `kura env` | The Window row reads e.g. `2040 x 1290 px (1360 x 860 pt @ 1.5)` — the pixels are half again the points, and **nothing is cut off the right or bottom edge of the window** |
 | 25.11 | Linux / macOS: with no bold face anywhere (Windows cannot reach this: `system_bold_fonts()` always offers Meiryo, Yu Gothic and Consolas bold, which every Windows has) | `none found; bold is faked by overstriking` — the bold list is separate from the regular one on purpose |
@@ -908,7 +915,7 @@ the same lines -- so what is being tested here is mostly the instructions.
 | 29.9 | Put a handler of another tool's in `$PROFILE` first (`mise activate pwsh`, or a stand-in: `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`), the README hook after it, open a new pane, `cd C:\dev`, `<A-Up>` (v0.64.2) | Both run: the list moves to `C:\dev` **and** the other tool's handler still does its job (the stand-in's title reads `other: C:\dev`). Before v0.64.2 the README hook replaced the other one |
 | 29.10 | With no hook, in the pane (`pwsh`): exactly what the 29.1 toast says, then `<C-S-t>`, `<C-t>`, `cd C:\dev`, `<A-Up>` (v0.69.0, Q50) | The list moves to `C:\dev`. `Get-Content $PROFILE` ends with the lines `kura shell-hook` prints (a `# kura:` comment first), on lines of their own -- not glued to the profile's last line. `kura shell-hook powershell` and `kura shell-hook fish` print one line naming the problem, exit code 2 |
 | 29.11 | Linux: `kura shell-hook bash >> ~/.bashrc` (and `zsh >> ~/.zshrc` with `[term] shell = "zsh"`), new pane, `cd` to a folder with a space and Japanese in its name, `<A-Up>` (v0.69.0, Q50) | The list moves there, both names intact. Without the hook the toast names `shell-hook bash >> ~/.bashrc` |
-| 29.12 | With `[term] shell = "pwsh"` and `args` in `kura.toml`: `$env:KURA_TERM_SHELL = 'powershell'`, start kura, `<C-t>`, then `kura env` from the same shell; then `Remove-Item Env:KURA_TERM_SHELL` and again (v0.70.0, Q51) | With the variable: the toast is `Started powershell (Windows PowerShell 5.1) — …`, and `kura env` lists `powershell` as `terminal pane, from KURA_TERM_SHELL; [term] args not used: <the args>` (the `args` from `kura.toml`, since v0.73.11, #190) with `KURA_TERM_SHELL` among the variables. Without it: `pwsh` and `from [term] shell` again, and with `args = ["-NoLogo"]` in `kura.toml` the toast names them too: `Started pwsh -NoLogo — …` (v0.79.2, #281). The rest of the config took effect both times: `kura.toml`'s other settings (the font) and the `theme.toml` beside it (the theme lives there, not in `kura.toml`) |
+| 29.12 | With `[term] shell = "pwsh"` and `args` in `config.toml`: `$env:KURA_TERM_SHELL = 'powershell'`, start kura, `<C-t>`, then `kura env` from the same shell; then `Remove-Item Env:KURA_TERM_SHELL` and again (v0.70.0, Q51) | With the variable: the toast is `Started powershell (Windows PowerShell 5.1) — …`, and `kura env` lists `powershell` as `terminal pane, from KURA_TERM_SHELL; [term] args not used: <the args>` (the `args` from `config.toml`, since v0.73.11, #190) with `KURA_TERM_SHELL` among the variables. Without it: `pwsh` and `from [term] shell` again, and with `args = ["-NoLogo"]` in `config.toml` the toast names them too: `Started pwsh -NoLogo — …` (v0.79.2, #281). The rest of the config took effect both times: `config.toml`'s other settings (the font) and the `theme.toml` beside it (the theme lives there, not in `config.toml`) |
 | 29.13 | `$env:KURA_TERM_SHELL = 'pwsh'; $env:KURA_TERM_ARGS = '-NoProfile'`, start kura, `<C-t>`, then `kura env` from the same shell; then with `KURA_TERM_ARGS` alone (v0.78.37, Q81) | With both: the toast reads `Started pwsh -NoProfile — …`, the pane's PTY log shows no profile output, and `kura env` lists `terminal pane, from KURA_TERM_SHELL; args from KURA_TERM_ARGS: -NoProfile` with `KURA_TERM_ARGS` among the variables. With the arguments alone: the shell is the one `[term]` names (or the platform default), the arguments are not used, and `kura env` says `KURA_TERM_ARGS not used: it needs KURA_TERM_SHELL` (v0.78.49) |
 
 ## 30. Right-click paste in a prompt (v0.14.0)
@@ -1042,18 +1049,18 @@ apart), that it is legible on a light theme (33.6), the parse error's own wordin
 | 33.6 | A theme with a light background: `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }` in `theme.toml` (v0.73.42; nothing could set the window's background before), with a config warning on screen (33.1) and a `.txt` file in the list | Since v0.81.0 (Q93) the warning is **dark amber** and the `.txt` name **dark grey**, both easy to read on white, and the cursor's bar is a light blue the `.txt` name reads on; with `overall = { bg = "#000000" }` they are the light yellow and grey again |
 | 33.7 | Put a real syntax error in `yazi.toml` (`[mgr` with no `]`) and start | Since v0.81.0 (Q84) the toast's text is **one line** (it may wrap to **two** on a narrow window or under a long path, never more): `Config: <path>\yazi.toml: TOML parse error at line 1, column 5 — the rest in \`~\``. It does not cover the preview's first lines. `~` and `kura env` show all five lines, pointing at the line. **Inside its box**: nothing over the header, nothing past either edge of the window (v0.33.11) |
 | 33.8 | Narrow the window to about a third of the screen, with 33.7 still broken | The line wraps rather than running off; the box stays against the right edge |
-| 33.9 | Break **three** config files at once (`yazi.toml`, `keymap.toml`, `kura.toml`) and start | **One** one-line toast for all three: the first line of the first file's error, ending `— the rest and 2 more in \`~\`` (v0.81.0; a one-line warning with others ends `(+2 more, see \`~\`)`). `~` lists all three in full. The box stays inside the window |
+| 33.9 | Break **three** config files at once (`yazi.toml`, `keymap.toml`, `config.toml`) and start | **One** one-line toast for all three: the first line of the first file's error, ending `— the rest and 2 more in \`~\`` (v0.81.0; a one-line warning with others ends `(+2 more, see \`~\`)`). `~` lists all three in full. The box stays inside the window |
 | 33.10 | A single error longer than eight lines | The toast is its first line and `— the rest in \`~\`` (v0.81.0); the whole error is in `~` |
-| 33.11 | Put `[[preview]]` into `yazi.toml` (it belongs in `kura.toml`) and start | **One line**: `…\yazi.toml: [[preview]] belongs in kura.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13) |
+| 33.11 | Put `[[preview]]` into `yazi.toml` (it belongs in `config.toml`) and start | **One line**: `…\yazi.toml: [[preview]] belongs in config.toml, and nothing in this file was read`. Not the old `invalid type: map, expected a string` (v0.33.13) |
 | 33.12 | Put `[term]` into `yazi.toml` as well | A second line for it, same shape. Both say the file went unread, because it did |
-| 33.13 | Put `[term]` into a `yazi.toml` that is otherwise fine (no `[[preview]]`) | `… belongs in kura.toml and was ignored` — *ignored*, not *unread*: the rest of the file did load |
-| 33.14 | Put `[opener]` into `kura.toml` | The same warning the other way round: `belongs in yazi.toml` |
+| 33.13 | Put `[term]` into a `yazi.toml` that is otherwise fine (no `[[preview]]`) | `… belongs in config.toml and was ignored` — *ignored*, not *unread*: the rest of the file did load |
+| 33.14 | Put `[opener]` into `config.toml` | The same warning the other way round: `belongs in yazi.toml` |
 | 33.15 | Move both into the right files, `<C-F5>` | No warnings. `kura env` agrees, and the terminal pane now starts what `[term] shell` names |
-| 33.16 | With kura **already running**, create `%APPDATA%\kura\kura.toml`, then press `~` | The file is a row of its own, in the warning colour, reading `on disk, not read yet — <C-F5> re-reads config`. The directory is **not** `nothing here` (v0.34.0) |
-| 33.17 | `<C-F5>`, then `~` again | The row is now an ordinary loaded file, no marker |
-| 33.18 | Rebind `config_reload` to `<F9>` and repeat 33.16 | The row names `<F9>`, not `<C-F5>` — it is read from the keymap, not written into the message |
-| 33.19 | Bind `Q` to `quit` in `%APPDATA%\yazi\config\keymap.toml` and to `hidden toggle` in `%APPDATA%\kura\keymap.toml`, then run `kura env` (v0.73.33, Q57) | Warnings: `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<kura's path>) runs, not \`quit\` (<yazi's path>)`, both full paths. Bind `T` to `hidden toggle` in the kura file only: not a warning since v0.73.49 (Q60) -- an `Overrides` row says `` [mgr] `T`: `hidden toggle` (<kura's path>) instead of the default `plugin toggle-pane max-preview` ``; bound to that same default command, it is in neither |
-| 33.20 | With 33.11's `yazi.toml` (only `[[preview]]`) press `~`; then empty both config folders, start kura, create `kura.toml` and press `~` again (v0.73.41, #203) | The first time, the `yazi.toml` row is in the warning colour with `nothing in it was read — see below`, not listed as an ordinary read file. The second time, under the `on disk, not read yet` row: `(nothing read yet; the defaults are in use)`, not `(nothing found in either; …)` |
+| 33.16 | With kura **already running**, create `%APPDATA%\uchmk\kura\config.toml`, then press `~` within 2 seconds | The file is a row of its own, in the warning colour, reading `on disk, not read yet — <C-F5> re-reads config`. The directory is **not** `nothing here` (v0.34.0). Since v0.99.0 the file is read by itself after about 2 seconds, so the marker is only there that long |
+| 33.17 | `<C-F5>` (or wait 2 seconds), then `~` again | The row is now an ordinary loaded file, no marker |
+| 33.18 | Rebind `config_reload` to `<F9>` and repeat 33.16, pressing `~` within the 2 seconds | The row names `<F9>`, not `<C-F5>` — it is read from the keymap, not written into the message |
+| 33.19 | Bind `Q` to `quit` in `%APPDATA%\yazi\config\keymap.toml` and to `hidden toggle` in `%APPDATA%\uchmk\kura\keymap.toml`, then run `kura env` (v0.73.33, Q57) | Warnings: `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<kura's path>) runs, not \`quit\` (<yazi's path>)`, both full paths. Bind `T` to `hidden toggle` in the kura file only: not a warning since v0.73.49 (Q60) -- an `Overrides` row says `` [mgr] `T`: `hidden toggle` (<kura's path>) instead of the default `plugin toggle-pane max-preview` ``; bound to that same default command, it is in neither |
+| 33.20 | With 33.11's `yazi.toml` (only `[[preview]]`) press `~`; then empty both config folders, start kura, create `config.toml` and press `~` again within 2 seconds (v0.73.41, #203) | The first time, the `yazi.toml` row is in the warning colour with `nothing in it was read — see below`, not listed as an ordinary read file. The second time, under the `on disk, not read yet` row: `(nothing read yet; the defaults are in use)`, not `(nothing found in either; …)` |
 | 33.21 | In `yazi.toml`, write an opener with a Windows path in double quotes (`edit = [{ run = "C:\Users\me\nvim.exe" }]`) and start (v0.78.27) | The parse error, then one more line: `(a backslash in "double quotes" starts an escape: write a Windows path in 'single quotes')`. Change the quotes to `'…'`, `<C-F5>`: no warning |
 | 33.22 | Put a one-entry `[[mgr.keymap]]` (`on = "<F9>"`, `run = "config_reload"`) in `keymap.toml` and start (v0.78.27, #164, #258) | A warning: ``…keymap.toml: `[[mgr.keymap]]` replaces all N keys of [mgr] with 1 -- did you mean `[[mgr.prepend_keymap]]`?``. `q` still does nothing (the replacement is yazi's rule). Rename it to `[[mgr.prepend_keymap]]`, `<F9>`: no warning, and `q` quits |
 | 33.23 | With 33.22's `keymap.toml`, press `~` and narrow the window until the warning is wider than the panel; then press `C` and paste (v0.78.185) | The warning is not cut off at the right edge: it continues on the next row, indented. The copied text has the warning as one line |
@@ -1095,6 +1102,7 @@ size the panel comes out.
 | 34.13 | Rebind: `[[help.keymap]]` with `on = "n"`, `run = "arrow 1"`, `<C-F5>` | `n` scrolls. Before v0.34.0 the panel's keys were read off the event loop and could not be rebound at all |
 | 34.14 | Shrink the font with `<C-->` while parked at the bottom | Still parked at the bottom, panel full — more lines fit, so the stop moved |
 | 34.15 | `C` (v0.67.16) | Toast `Copied the help panel: N keys`. The clipboard holds the panel as text: `config` and the paths, then `keys` on a line of its own, then one `keys<TAB>description<TAB>command` line per key -- `Get-Clipboard \| Select-String "^j\t"` finds `j<TAB>Move cursor down<TAB>arrow 1`. The panel stays open |
+| 34.16 | Open the tasks panel, the spot panel (`<Tab>`) and a diff in turn, and press `<F1>` over each; press it again (v0.99.0) | Each time the key list opens over the panel, and the second `<F1>` closes it |
 
 ---
 
@@ -1107,16 +1115,17 @@ Windows needs confirming that nothing moved.**
 
 | # | Platform | Do | Expect |
 | --- | --- | --- | --- |
-| 35.1 | Windows | `kura env` with both variables unset | `%APPDATA%\yazi\config` and `%APPDATA%\kura` — **unchanged from v0.34.0.** This is the row that must not have moved |
+| 35.1 | Windows | `kura env` with both variables unset | `%APPDATA%\yazi\config` and `%APPDATA%\uchmk\kura`. yazi's folder is **unchanged from v0.34.0**; kura's own moved from `%APPDATA%\kura` in v0.99.0 (35.11) |
 | 35.2 | Windows | Put `[mgr] sort_by = "mtime"` in `%APPDATA%\yazi\config\yazi.toml` | Read. yazi's own directory still shares with kura |
-| 35.3 | macOS | `kura env` | `~/.config/yazi` and `~/.config/kura`, **not** `~/Library/Application Support/…` |
+| 35.3 | macOS | `kura env` | `~/.config/yazi` and `~/.config/uchmk/kura`, **not** `~/Library/Application Support/…` |
 | 35.4 | macOS | Install yazi, run `yazi` once, put a `yazi.toml` where yazi reads it | kura reads the same file. This is the whole point of the change: before v0.35.0 kura looked under `~/Library/Application Support/yazi/config/`, which yazi never writes |
-| 35.5 | macOS | Anyone upgrading with config in `~/Library/Application Support/kura/` | It is **no longer read** — `kura env` lists it as missing. Move it to `~/.config/kura/`. Called out as a 変更 in CHANGELOG |
+| 35.5 | macOS | Anyone upgrading with config in `~/Library/Application Support/kura/` | It is **no longer read** — `kura env` lists it as missing. Move it to `~/.config/uchmk/kura/`. Called out as a 変更 in CHANGELOG |
 | 35.6 | Linux | `kura env` | `~/.config/yazi` — **not** `~/.config/yazi/config` |
-| 35.7 | Linux / macOS | `XDG_CONFIG_HOME=/tmp/x kura env` | `/tmp/x/yazi` and `/tmp/x/kura` |
+| 35.7 | Linux / macOS | `XDG_CONFIG_HOME=/tmp/x kura env` | `/tmp/x/yazi` and `/tmp/x/uchmk/kura` |
 | 35.8 | Linux / macOS | `XDG_CONFIG_HOME=relative kura env`, and again with it empty | Falls back to `~/.config/…`. XDG says a relative value is ignored |
-| 35.9 | Any | `last-run.toml` | Still in the state directory (`data_dir()`), which this change did **not** touch. On Windows that is the same `%APPDATA%\kura`; on Linux `~/.local/share/kura` |
-| 35.10 | Any | Symlink `kura.toml` into the config directory from elsewhere, then `<C-F5>` | Read through the link. Re-check after editing via the **link path** with an editor that saves by rename — that replaces the symlink with a regular file |
+| 35.9 | Any | `last-run.toml` | In the state folder: `KURA_STATE_HOME` when set, else `%LOCALAPPDATA%\uchmk\kura` on Windows, `~/.local/state/uchmk/kura` on Linux and `~/Library/Application Support/uchmk/kura/state` on macOS (v0.99.0) |
+| 35.10 | Any | Symlink `config.toml` into the config directory from elsewhere, then `<C-F5>` | Read through the link. Re-check after editing via the **link path** with an editor that saves by rename — that replaces the symlink with a regular file |
+| 35.11 | Windows | With no `%APPDATA%\uchmk` folder, put a `kura.toml` with a comment and a `bookmarks.toml` in `%APPDATA%\kura`, then start kura (v0.99.0) | They are now `%APPDATA%\uchmk\kura\config.toml` (the comment kept) and `%LOCALAPPDATA%\uchmk\kura\bookmarks.toml`, and the bookmarks are there. Repeat with a file already at the new place: nothing is moved over it |
 
 ---
 
@@ -1500,7 +1509,7 @@ no prompt, no panel -- except where the row opens one itself (47.5).
 | 47.3 | The same as 47.2, then minimise the window | Still no rise while minimised |
 | 47.4 | If 47.1-47.3 still rise: `Get-Process kura \| % Threads \| sort TotalProcessorTime -desc \| select -first 3 Id, TotalProcessorTime`, twice, 10 s apart | Report which thread's time grows, and its start address if a tool can name it. That thread is the next thing to look at |
 | 47.5 | Open the `f` prompt, touch nothing for 10 s, and read the CPU before and after (v0.59.3). Start kura without `--keys`, as in 47.1 | No rise, as with no prompt open (47.1). The caret is steady rather than blinking. Until v0.59.3 the blink drew twice a second: 0.14-0.30 CPU-s per 10 s (#103, #110) |
-| 47.6 | `[ui] backend = "gl"` in `kura.toml`, no `WGPU_BACKEND`; start kura, then 47.1 (v0.74.0, Q70) | `kura env`'s `Adapter` line ends `(Gl, …; set by [ui] backend = "gl")` (`set by WGPU_BACKEND=…` where that variable wins; v0.78.148), and 47.1 holds where it failed under Vulkan and DX12 (the x64 AMD machine) |
+| 47.6 | `[ui] backend = "gl"` in `config.toml`, no `WGPU_BACKEND`; start kura, then 47.1 (v0.74.0, Q70) | `kura env`'s `Adapter` line ends `(Gl, …; set by [ui] backend = "gl")` (`set by WGPU_BACKEND=…` where that variable wins; v0.78.148), and 47.1 holds where it failed under Vulkan and DX12 (the x64 AMD machine) |
 | 47.7 | `[ui] backend = "directx"`, then `"metal"` on Windows (v0.74.0, Q70) | The window opens both times, drawn the way `auto` draws (`Adapter` reads `(Gl, …)` where the machine has GL; v0.75.5 -- before, Vulkan, which spun the x64 AMD machine's core again). A config warning says `"directx" is not one of auto, vulkan, dx12, metal, gl`, then `"metal" is macOS only` (v0.74.8); `kura env`'s `Warnings` row says the same both times, and its `Backend` row reads `[ui] backend = "directx"`. The window's toast ends with what it fell back to, `drawing with Gl instead` (v0.75.6); `kura env` says the same, `drawing with Gl instead` (v0.78.107; before, it kept `drawing with the default`) |
 | 47.8 | No `[ui] backend` and no `WGPU_BACKEND`, then `backend = "vulkan"` (Windows, v0.75.0) | `kura env`'s `Adapter` ends `(Gl, …; set by [ui] backend = "auto")` the first time and `(Vulkan, …; set by [ui] backend = "vulkan")` the second (v0.78.148), no warning either time |
 | 47.8a | x64 with an AMD GPU only: 47.1 with nothing set (no `[ui] backend`, no `WGPU_BACKEND`) (#287) | 47.1 holds: the default picks GL, which idles at 0 CPU. Other machines skip this row |
@@ -1575,8 +1584,8 @@ and its `tools` lists `mcp__kura__kura_state` and `mcp__kura__kura_reveal`.
 | 50.1 | Start kura, go to a folder and put the cursor on a file; then in `claude`, `/mcp` | `kura` is listed as connected, with two tools, `kura_state` and `kura_reveal` |
 | 50.2 | Select two files with `<Space>`, then ask Claude "which file is under the cursor in kura, and what is selected?" | Claude calls `kura_state` and answers with that folder, that file and the two selected paths, as full Windows paths (`C:\…`) |
 | 50.3 | Ask Claude "show me `C:\Windows\notepad.exe` in kura" | Claude calls `kura_reveal`; the window goes to `C:\Windows` with the cursor on `notepad.exe`, without being clicked first, and Claude reports `kura is showing …`. Asking for a path that does not exist gets `… does not exist` and the window does not move |
-| 50.4 | Close every kura window, then ask Claude for `kura_state` again | The tool fails with `kura is not running (or its [mcp] enable is false in kura.toml); start kura and ask again`. Claude Code itself keeps working, and `/mcp` still lists `kura` |
-| 50.5 | Put `[mcp]` / `enable = false` in `kura.toml`, start kura, ask for `kura_state` | The same `kura is not running …` answer: the window opens no door. Take the line out again afterwards |
+| 50.4 | Close every kura window, then ask Claude for `kura_state` again | The tool fails with `kura is not running (or its [mcp] enable is false in config.toml); start kura and ask again`. Claude Code itself keeps working, and `/mcp` still lists `kura` |
+| 50.5 | Put `[mcp]` / `enable = false` in `config.toml`, start kura, ask for `kura_state` | The same `kura is not running …` answer: the window opens no door. Take the line out again afterwards |
 | 50.6 | Open two kura windows on different folders, ask for `kura_state`; close the first window, wait 30 seconds, ask again | The first answer is the first window's folder. After it closes, the second answer is the second window's folder |
 | 50.7 | Register `kura.com` instead (`claude mcp add kura -- "<folder>\kura.com" mcp`) and repeat 50.2 | The same answer: `kura.com` passes `mcp` to `kura.exe` with its input and output. No console window flashes when Claude Code starts it |
 
@@ -1658,23 +1667,24 @@ again within 2 seconds of the file changing, with no restart (v0.96.0); `<State:
 ## 54. The settings screen (v0.97.0)
 
 `<C-,>` opens the settings screen uchmk's apps share (`ito_prefs`), over the whole window. General writes the
-language and the clock into `common.toml` (as in section 53); Advanced shows the config folders and what went wrong
+language, the scale and the clock into `common.toml` (as in section 53); Advanced shows the config folders and what went wrong
 reading them. `<State:>` reads `overlay: settings` while it is open. Have tsumugi or mimamori at hand for 54.4.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| 54.1 | Press `<C-,>` in the list, then `<C-,>` again | The screen covers the whole window: `Search settings`, `General`, `kura.toml` and `Advanced` on the left with **Open kura.toml** at the bottom, the page on the right, in the colours of `theme.toml`. The second `<C-,>` closes it and the list is as it was. In the terminal pane (`<C-t>`), `<C-,>` goes to the shell instead and the screen stays shut |
+| 54.1 | Press `<C-,>` in the list, then `<C-,>` again | The screen covers the whole window: `Search settings`, `General`, `config.toml` and `Advanced` on the left with **Open config.toml** at the bottom, the page on the right, in the colours of `theme.toml`. The second `<C-,>` closes it and the list is as it was. In the terminal pane (`<C-t>`), `<C-,>` goes to the shell instead and the screen stays shut |
 | 54.2 | Open it; `<C-Tab>` three times, `<C-S-Tab>`; `<C-PageDown>`, `<C-PageUp>` | The page goes kura.toml, Advanced, General (wrapping), Advanced (wrapping back); then General and Advanced. No key reaches the list behind it |
 | 54.3 | Open it; `<C-f>`, type `date`; `<Esc>`; `<Esc>` | The search box takes the keys, only General stays in the nav and the date rows are lit. The first `<Esc>` leaves the box with the screen still open; the second closes the screen. `j` typed in the box is a letter, not a cursor move |
 | 54.4 | With tsumugi open too, on General set the language to Japanese, then turn `Show the time in the status bar` off and on, and change the time format | Each change shows at once: the screen's words and kura's clock (`(土)`, the 12-hour form) change in the same frame or the next, and tsumugi's within 3 seconds. `common.toml` keeps any comment it had. No toast |
 | 54.5 | Use `<Tab>` / `<S-Tab>` and `<Space>` on General | The focus moves between the controls with a visible ring, and `<Space>` flips a switch. Nothing happens in the list behind |
-| 54.6 | On Advanced, press **Copy** on the `kura` row, then paste into Notepad | The path of kura's config folder (`%APPDATA%\kura`), with a toast `Copied: …` |
+| 54.6 | On Advanced, press **Copy** on the `kura` row, then paste into Notepad | The path of kura's config folder (`%APPDATA%\uchmk\kura`), with a toast `Copied: …` |
 | 54.7 | On Advanced, press **Open** on the `yazi` row | The screen closes and the list is in yazi's config folder (`%APPDATA%\yazi\config`) |
 | 54.8 | Save `bogus = [` into yazi's `yazi.toml`, `<C-F5>`, then open Advanced; fix the file and press **Reload** | The parse error is listed under `PROBLEMS READING THE CONFIG` in the warning colour, in a fixed-width font, its `^` under the column it means. After **Reload** it reads `No problems` |
-| 54.9 | Press **Open kura.toml** with no `kura.toml` yet | The file is made with two comment lines and opens in the editor for `.toml` (or Notepad); the screen stays open. With the file there it opens as it is |
-| 54.10 | With the language on Japanese, open the screen | The nav reads `一般` / `kura.toml` / `詳細`, the rows' words are Japanese, and the search box finds `時計` |
-| 54.11 | Put `font_size = 14.0 # mine` under `[ui]` in kura.toml; on the kura.toml page type `16` in `Font size` and press `<Enter>` | The list's text grows at once, with a toast `Saved kura.toml: font_size = 16.0`. The file reads `font_size = 16.0 # mine`, its other lines and comments as they were |
-| 54.12 | Type `abc` in `Font size`, `<Enter>`; then `100`, `<Enter>` | A red toast `Font size: "abc" is not a number from 6 to 72`, then the same for `100`. kura.toml is not changed |
-| 54.13 | Turn `Minimap` off, set `Icons` to `ascii`, then put `pwsh` in `Shell` and leave the field with `<Tab>`; open a pane with `<C-t>`; empty `Shell`, close the pane and open one again | The minimap and the icons change at once. kura.toml gets `minimap = false`, `icons = "ascii"` and `[term]` `shell = "pwsh"`, and the pane runs PowerShell 7. Emptied, the `shell` line is gone and the next pane runs the default shell |
-| 54.14 | Save `[ui` into kura.toml, then change `Font size` on the page | A red toast naming kura.toml and the parse error; the file is left exactly as it was. Fix it and the page writes again |
-| 54.15 | With a kura.toml only in yazi's folder (`%APPDATA%\yazi\config\kura.toml`), `<C-F5>`, then change `Row padding` and press **Open kura.toml** | Both go to that file: no kura.toml is made in `%APPDATA%\kura` |
+| 54.9 | Press **Open config.toml** with no `config.toml` yet | The file is made with two comment lines and opens in the editor for `.toml` (or Notepad); the screen stays open. With the file there it opens as it is |
+| 54.10 | With the language on Japanese, open the screen | The nav reads `一般` / `config.toml` / `詳細`, the rows' words are Japanese, and the search box finds `時計` |
+| 54.11 | Put `font_size = 14.0 # mine` under `[ui]` in config.toml; on the config.toml page type `16` in `Font size` and press `<Enter>` | The list's text grows at once, with a toast `Saved config.toml: font_size = 16.0`. The file reads `font_size = 16.0 # mine`, its other lines and comments as they were |
+| 54.12 | Type `abc` in `Font size`, `<Enter>`; then `100`, `<Enter>` | A red toast `Font size: "abc" is not a number from 6 to 72`, then the same for `100`. config.toml is not changed |
+| 54.13 | Turn `Minimap` off, set `Icons` to `ascii`, then put `pwsh` in `Shell` and leave the field with `<Tab>`; open a pane with `<C-t>`; empty `Shell`, close the pane and open one again | The minimap and the icons change at once. config.toml gets `minimap = false`, `icons = "ascii"` and `[term]` `shell = "pwsh"`, and the pane runs PowerShell 7. Emptied, the `shell` line is gone and the next pane runs the default shell |
+| 54.14 | Save `[ui` into config.toml, then change `Font size` on the page | A red toast naming config.toml and the parse error; the file is left exactly as it was. Fix it and the page writes again |
+| 54.15 | With a config.toml only in yazi's folder (`%APPDATA%\yazi\config\config.toml`), `<C-F5>`, then change `Row padding` and press **Open config.toml** | Both go to that file: no config.toml is made in `%APPDATA%\uchmk\kura` |
+| 54.16 | On General, pick `150%` in the `Scale` row (v0.99.0) | kura grows at once, common.toml gets `scale = 1.5`, and tsumugi or yagura, open beside it, follows within about 3 seconds |

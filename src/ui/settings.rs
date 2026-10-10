@@ -3,7 +3,7 @@
 //! CLOCK rows; kura hands it its pages and its colours.
 //!
 //! General writes common.toml (the language and the clock every uchmk app
-//! shares) through `App::write_common`, off the UI thread. kura.toml shows
+//! shares) through `App::write_common`, off the UI thread. config.toml shows
 //! the main rows of kura's own file and writes a change through
 //! `App::write_kura`, off the UI thread and keeping the file's comments.
 //! Advanced says where the config is read from and what was wrong with it.
@@ -11,7 +11,7 @@
 use std::path::PathBuf;
 
 use egui::{Rect, RichText, Ui};
-use ito_prefs::{button, clock_card, field, language_row, row, section, select, sep, switch, Drafts, Look, Nav, Words};
+use ito_prefs::{button, clock_card, field, language_row, row, scale_row, section, select, sep, switch, Drafts, Look, Nav, Words};
 use ito_theme::{mix, Colors};
 
 use crate::app::{App, KuraChange, Overlay};
@@ -23,6 +23,7 @@ pub struct KuraWords {
     pub general: &'static str,
     pub general_lead: &'static str,
     pub language_note: &'static str,
+    pub scale_note: &'static str,
     pub advanced: &'static str,
     pub advanced_lead: &'static str,
     pub folders: &'static str,
@@ -87,12 +88,13 @@ fn not_a_number_ja(label: &str, text: &str, lo: f64, hi: f64) -> String {
 
 pub const EN: KuraWords = KuraWords {
     general: "General",
-    general_lead: "The language and the clock, shared with every uchmk app through common.toml.",
+    general_lead: "The language, the scale and the clock, shared with every uchmk app through common.toml.",
     language_note: "The words of this screen and the clock's weekday; the rest of kura is in English for now",
+    scale_note: "The size of everything on screen (the same as Ctrl+= and Ctrl+-)",
     advanced: "Advanced",
     advanced_lead: "Where kura reads its settings, and what it found wrong in them.",
     folders: "CONFIG FOLDERS",
-    kura_note: "kura.toml, and kura's own keymap.toml and theme.toml",
+    kura_note: "config.toml, and kura's own keymap.toml and theme.toml",
     yazi_note: "yazi's yazi.toml, keymap.toml and theme.toml, read as they are",
     common_note: "common.toml: the language, the clock and the theme of every uchmk app",
     copy: "Copy",
@@ -105,7 +107,7 @@ pub const EN: KuraWords = KuraWords {
     reload_note: "After editing a file by hand (the same as Ctrl+F5)",
     reload_button: "Reload",
     no_folder: "(no config folder on this system)",
-    kura_lead: "kura's own settings. A change is written into kura.toml at once, keeping its comments, and read back as Ctrl+F5 does.",
+    kura_lead: "kura's own settings. A change is written into config.toml at once, keeping its comments, and read back as Ctrl+F5 does.",
     look: "LOOK",
     font_size: "Font size",
     font_size_note: "Points, for the list, the preview and the panels",
@@ -143,12 +145,13 @@ pub const EN: KuraWords = KuraWords {
 
 pub const JA: KuraWords = KuraWords {
     general: "一般",
-    general_lead: "言語と時計。common.toml を通して uchmk のどのアプリにも同じものが当たる。",
+    general_lead: "言語・倍率・時計。common.toml を通して uchmk のどのアプリにも同じものが当たる。",
     language_note: "この画面の言葉と時計の曜日。kura のほかの言葉はいまは英語",
+    scale_note: "画面のすべての大きさ（Ctrl+= と Ctrl+- と同じ）",
     advanced: "詳細",
     advanced_lead: "kura が設定を読む場所と、読んだときに見つかった問題。",
     folders: "設定のフォルダ",
-    kura_note: "kura.toml と、kura だけの keymap.toml・theme.toml",
+    kura_note: "config.toml と、kura だけの keymap.toml・theme.toml",
     yazi_note: "yazi の yazi.toml・keymap.toml・theme.toml をそのまま読む",
     common_note: "common.toml: uchmk のどのアプリにも当たる言語・時計・テーマ",
     copy: "コピー",
@@ -161,7 +164,7 @@ pub const JA: KuraWords = KuraWords {
     reload_note: "ファイルを手で直したあとに（Ctrl+F5 と同じ）",
     reload_button: "読み直す",
     no_folder: "（この環境には設定のフォルダがない）",
-    kura_lead: "kura だけの設定。変えるとすぐ kura.toml に書き（コメントは残す）、Ctrl+F5 と同じに読み直す。",
+    kura_lead: "kura だけの設定。変えるとすぐ config.toml に書き（コメントは残す）、Ctrl+F5 と同じに読み直す。",
     look: "見た目",
     font_size: "文字の大きさ",
     font_size_note: "ポイント。一覧・プレビュー・パネルの文字",
@@ -234,7 +237,7 @@ const GENERAL: usize = 0;
 const KURA: usize = 1;
 const ADVANCED: usize = 2;
 
-/// What the kura.toml page shows: the settings in force, read before the
+/// What the config.toml page shows: the settings in force, read before the
 /// screen takes the overlay.
 struct KuraNow {
     font_size: String,
@@ -275,7 +278,7 @@ impl KuraNow {
     }
 }
 
-/// A number row of kura.toml: its key in `[ui]`, its words, what it is now,
+/// A number row of config.toml: its key in `[ui]`, its words, what it is now,
 /// and the numbers it takes.
 struct Num<'a> {
     key: &'static str,
@@ -320,7 +323,7 @@ fn backends() -> Vec<(&'static str, &'static str)> {
     list
 }
 
-/// The kura.toml page: the main rows of `[ui]`, `[mcp]` and `[term]`.
+/// The config.toml page: the main rows of `[ui]`, `[mcp]` and `[term]`.
 fn kura_page(ui: &mut Ui, l: Look, k: &KuraWords, now: &KuraNow, drafts: &mut Drafts, out: &mut Vec<KuraChange>, bad: &mut Option<String>) {
     let set = |key: &'static str, value: String| KuraChange { table: "ui", key, value: Some(value) };
     section(ui, l, k.look, |ui| {
@@ -397,6 +400,7 @@ pub fn draw(app: &mut App, ui: &mut Ui, full: Rect, queued: &mut Vec<Act>) {
     let k = KuraWords::of(&app.lang);
     let language = app.common.language.clone().unwrap_or_else(|| "auto".to_owned());
     let clock = app.clock.clone();
+    let scale = app.scale;
     let warnings = app.cfg.warnings.clone();
     let folders = [
         Folder { name: "kura", note: k.kura_note, dir: App::kura_config_dir() },
@@ -409,10 +413,12 @@ pub fn draw(app: &mut App, ui: &mut Ui, full: Rect, queued: &mut Vec<Act>) {
     let mut state = std::mem::take(&mut ov.state);
     let mut drafts = std::mem::take(&mut ov.drafts);
 
-    let pages = [(k.general, k.general_lead), ("kura.toml", k.kura_lead), (k.advanced, k.advanced_lead)];
+    let pages = [(k.general, k.general_lead), ("config.toml", k.kura_lead), (k.advanced, k.advanced_lead)];
     let mut index = vec![
         (GENERAL, w.language),
         (GENERAL, k.language_note),
+        (GENERAL, w.scale),
+        (GENERAL, k.scale_note),
         (GENERAL, w.clock),
         (GENERAL, w.show_time),
         (GENERAL, w.time_format),
@@ -457,7 +463,7 @@ pub fn draw(app: &mut App, ui: &mut Ui, full: Rect, queued: &mut Vec<Act>) {
     for f in &folders {
         index.extend([(ADVANCED, f.name), (ADVANCED, f.note)]);
     }
-    let nav = Nav { pages: &pages, index: &index, words: w, file: "kura.toml" };
+    let nav = Nav { pages: &pages, index: &index, words: w, file: "config.toml" };
 
     let mut changes = Vec::new();
     let mut kura = Vec::new();
@@ -470,6 +476,9 @@ pub fn draw(app: &mut App, ui: &mut Ui, full: Rect, queued: &mut Vec<Act>) {
         GENERAL => {
             section(ui, l, &w.language.to_uppercase(), |ui| {
                 changes.extend(language_row(ui, l, w, &language, k.language_note));
+            });
+            section(ui, l, &w.scale.to_uppercase(), |ui| {
+                changes.extend(scale_row(ui, l, w, scale, k.scale_note));
             });
             changes.extend(clock_card(ui, l, w, &clock));
         }
@@ -528,7 +537,7 @@ pub fn draw(app: &mut App, ui: &mut Ui, full: Rect, queued: &mut Vec<Act>) {
         queued.push(Act::Settings);
     }
     if out.open_file {
-        app.open_kura_toml();
+        app.open_own_config();
     }
     if let Some(path) = copy {
         match crate::exec::set_clipboard(&path) {

@@ -78,7 +78,7 @@ note = "`~` か `<F1>` でヘルプを開く。上部の設定パスの並びが
 [section.8]
 title = "ターミナルペインが起動するシェル"
 note = """
-**`[term]` は `kura.toml` に書く。**`yazi.toml` に書いても黙って無視される
+**`[term]` は `config.toml` に書く。**`yazi.toml` に書いても黙って無視される
 （v0.33.13 でそれを警告するようにした）。設定を変えたら `<C-S-t>` でシェルを終わらせてから
 `<C-t>` で開き直すこと。`<C-t>` の往復では同じシェルが生き続ける（1.5 / 1.6）。
 """
@@ -120,6 +120,9 @@ note = "左端の列（いまいるディレクトリの親）をマウスで操
 [section.15]
 title = "ウィンドウの拡大縮小と、取り返したキー"
 note = """
+v0.99.0 から倍率は `%APPDATA%\\uchmk\\common.toml` の `scale` で、uchmk の全アプリが共有する（tsumugi と yagura も従う）。
+15.10 と 15.11 のために、どちらかを開いておく。
+
 **v0.32.0 まで `<C-->` はウィンドウ縮小とハードリンク作成を同時にやっていた** —— 1 打で 2 動作。
 それを分けたのがこの節。ハードリンク作成は `=` に移った（v0.45.6 まで `<C-S-->` だったが、
 **あの和音はどのキーボードでも打てなかった**）。
@@ -248,7 +251,7 @@ note = "時計は共有の `uchmk/common.toml` の `[clock]` と `language` を�
 
 [section.54]
 title = "設定の画面（v0.97.0）"
-note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）が窓いっぱいに開く。一般は言語と時計を `common.toml` に書き（53 節と同じ）、詳細は設定のフォルダと読んだときの問題を出す。開いている間 `<State:>` は `overlay: settings`。54.4 のために tsumugi か mimamori を用意する。"
+note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）が窓いっぱいに開く。一般は言語と倍率と時計を `common.toml` に書き（53 節と同じ）、詳細は設定のフォルダと読んだときの問題を出す。開いている間 `<State:>` は `overlay: settings`。54.4 のために tsumugi か mimamori を用意する。"
 
 [row]
 # 1. ターミナルペイン
@@ -348,25 +351,25 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 "4.9" = '大きさの分かる SVG（100 × 100 に半径 40 の円）で `<A-i>` を 1 回押して 2 秒待つ。次に `<A-1>`（v0.73.53、#219）→ `<A-i>` で 1 段（1.25 倍）大きくなり、そこで止まる。v0.73.53 より前は、くっきり描き直すたびに収まる倍率が下がり、4096 px の上限まで大きくなり続けた。`<A-1>` は SVG 自身の大きさを論理ピクセルで出す。ブラウザーと同じ大きさ（画面の倍率 100% なら円の直径 80 px、150% なら 120 px。v0.73.62、Q65）で、注記は `· 1:1`、`zoom: 100%`'
 
 # 7. ヘルプパネルの設定ファイルパス
-"7.1" = 'どこにも `kura.toml` が無い状態で `~` → **両方の**ディレクトリが並び、空のほうに `nothing here` が付く（v0.25.0 までは存在するファイルしか出なかった）'
+"7.1" = 'どこにも `config.toml` が無い状態で `~` → **両方の**ディレクトリが並び、空のほうに `nothing here` が付く（v0.25.0 までは存在するファイルしか出なかった）'
 "7.2" = 'パスの行をホバー → 行が光り、ポインタが手の形になる'
 "7.3" = 'キーの行をホバー → 何も起きない。そこはリンクではない'
 "7.4" = '設定**ファイル**をクリック → パネルが閉じ、そのファイルにカーソルを置いた状態でディレクトリが開く。`<Enter>` でそのまま開ける'
 "7.5" = '**ディレクトリ**をクリック → パネルが閉じ、空でもそこへ移動する'
-"7.6" = '空のほうをクリックし、そこに `kura.toml` を作って `<C-F5>` → 次に開いたとき `nothing here` が消えている'
+"7.6" = '空のほうをクリックし、そこに `config.toml` を作る → `<C-F5>` を押さなくても 2 秒ほどで読まれ（v0.99.0）、次に開いたとき `nothing here` が消えている'
 "7.7" = '`YAZI_CONFIG_HOME` / `KURA_CONFIG_HOME` を設定した状態で → 並ぶディレクトリがそれに従う'
-'7.7a' = '''2 つの変数に、`kura.toml` のある**同じ**フォルダを綴りを変えて渡す: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`、`$env:KURA_CONFIG_HOME = 'c:\CFG\'`（v0.73.12、#180）。それから `~`、`kura env`、`<C-F5>` → パネルにも `kura env` の Config の節にもフォルダは **1 回**だけ出て、`<C-F5>` は `Reloaded 1 config file(s)`。以前は 2 回出て 2 と数えた'''
+'7.7a' = '''2 つの変数に、`config.toml` のある**同じ**フォルダを綴りを変えて渡す: `$env:YAZI_CONFIG_HOME = 'C:\cfg'`、`$env:KURA_CONFIG_HOME = 'c:\CFG\'`（v0.73.12、#180）。それから `~`、`kura env`、`<C-F5>` → パネルにも `kura env` の Config の節にもフォルダは **1 回**だけ出て、`<C-F5>` は `Reloaded 1 config file(s)`。以前は 2 回出て 2 と数えた'''
 '7.7b' = '''67 文字のフォルダを `$env:KURA_CONFIG_HOME` に入れて `kura env`（v0.78.87、#248）→ 24 文字を超えるキーは自分の行に出て、値はその下に字下げされ、ほかの行の桁は広がらない'''
 "7.8" = '設定の警告行 → 黄色のまま。クリックできない'
 
 # 8. ターミナルペインが起動するシェル
-"8.1" = '`kura.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `7.x`（`pwsh`。v0.55.0 から、入っていればこれが既定。Q29）。`pwsh` の無い機械でだけ `5.1.x`（Windows PowerShell）'
-"8.2" = 'ペインを開いたまま `[term]` / `shell = "powershell"` を足し、`<C-F5>`、続けて `<C-S-t>` → `<C-t>` → もう一度聞く（v0.67.17）→ `<C-F5>` のトーストの末尾が `— the pane keeps its shell until <C-S-t> closes it`。`<C-S-t>` `<C-t>` のあとは `5.1.x`'
+"8.1" = '`config.toml` に `[term]` が無い状態で `<C-t>`、`$PSVersionTable.PSVersion` → `7.x`（`pwsh`。v0.55.0 から、入っていればこれが既定。Q29）。`pwsh` の無い機械でだけ `5.1.x`（Windows PowerShell）'
+"8.2" = 'ペインを開いたまま `[term]` / `shell = "powershell"` を足して保存（`<C-F5>` は押さない）、続けて `<C-S-t>` → `<C-t>` → もう一度聞く（v0.67.17、v0.99.0）→ 2 秒ほどで末尾が `— the pane keeps its shell until <C-S-t> closes it` のトースト。`<C-S-t>` `<C-t>` のあとは `5.1.x`'
 "8.3" = 'それぞれで `$PROFILE` → 別のパスが出る（5.1 は `WindowsPowerShell\`、7 は `PowerShell\`）'
 "8.4" = 'OSC 7 のフックを pwsh のプロファイルにだけ入れて、それぞれで `cd` して `<A-Up>` → pwsh では追従し、5.1 ではその旨が出る。**この非対称そのものが報告の中身**'
 "8.5" = '`args = ["-NoLogo"]` → 起動時のバナーが消える'
 "8.6" = 'インストールされていない `shell` を指定 → 起動に失敗し、その旨が出る（無言の空ペインにならない）'
-"8.7" = '`[term]` を消して `<C-F5>` → `<C-S-t>` → `<C-t>`（v0.67.17）→ 既定に戻る（`pwsh` が入っていれば `7.x`）。`<C-F5>` を抜くと、`<C-S-t>` `<C-t>` は前のシェルをまた起動する（誰もファイルを読み直していない）'
+"8.7" = '`[term]` を消して保存 → `<C-S-t>` → `<C-t>`（v0.67.17、v0.99.0）→ `<C-F5>` を押さなくても既定に戻る（`pwsh` が入っていれば `7.x`）。保存だけで読み直されている'
 
 # 14. 親ディレクトリの列
 "14.1" = 'そこの**ディレクトリ**をクリック → 従来どおり中へ入る'
@@ -378,7 +381,7 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 
 # 15. ウィンドウの拡大縮小
 "15.1" = '何かヤンクした状態で `<C-->` → **ウィンドウが縮むだけ。**v0.32.0 まではハードリンクも同時に作っていた（1 打で 2 動作）'
-"15.2" = '`<C-+>` と `<C-=>` → どちらでも大きくなる。どちらに shift が要るかは配列次第（US は `+` が shift+equals、JIS は `+` が shift+semicolon で `=` が shift+minus）。**両方の綴りが割り当ててあるのでどちらからでも届く**（v0.45.6）'
+"15.2" = '`<C-+>`、`<C-=>`、`<C-;>` → どれでも大きくなる。どれに shift が要るかは配列次第（US は `+` が shift+equals、JIS は `+` が shift+semicolon で `=` が shift+minus）。**どの綴りも割り当ててあるのでどれからでも届く**（v0.45.6、`<C-;>` は v0.99.0 から）'
 "15.3" = '`<C-0>` → 100% に戻り、トーストがそう言う'
 "15.4" = '`<C-->` を押しっぱなし → 20% で止まり、トーストの回数が勘定に合う（100% から 8 段、残りは床で `Scale 20% (minimum) ×N`）。`<C-+>` の押しっぱなしは 500% で止まる'
 "15.4a" = '同じことを、トーストではなく窓を見ながら → 押している間**滑らかに**縮み、段の間にちらつきや空のフレームが出ない'
@@ -386,6 +389,9 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 "15.6" = '画像の上で `<A-i>` / `<A-o>` → **画像の**拡大縮小のまま影響を受けない（`zoom` と `scale` は別のコマンド）'
 "15.7" = '`~` → `scale in` / `scale out` / `scale reset` が他のコマンドと同じように並んでいる'
 '15.9' = '''別のドライブのファイルをヤンクして `=`（`R:` → `C:`）（v0.59.4）→ エラーが Windows の「別のディスク ドライブに移動できません」ではなく `hardlinks can't cross drives (R: → C:). Use p to copy instead` と言う'''
+"15.10" = '100% から `<C-=>` を 1 回押し、`%APPDATA%\uchmk\common.toml` を開く（v0.99.0）→ トーストが `Scale 110%`、ファイルに `scale = 1.1` が入り、中のコメントは元のまま。隣に開いた tsumugi か yagura も 3 秒ほどで 110% になる'
+"15.11" = 'common.toml に手で `scale = 1.5` と書いて保存（v0.99.0）→ キーを押さなくても 3 秒ほどで kura が 150% になる'
+"15.12" = '`$env:KURA_SCALE="130%"` で kura を起動し、`<C-=>` を押してから common.toml の `scale` を変える（v0.99.0）→ 130% で始まり `<C-=>` で 140% になるが、common.toml には**書かれず**、手の書き換えにも従わない。この起動の間は変数が倍率を決める'
 
 # 5. 2 ファイルの差分表示
 '5.9' = '''2 つの**ディレクトリ**で実行（v0.43.0）→ 断られない。フォルダの比較が開き、パスに `<` `>` `~` `=` の印が付いた一覧が出る（45 節）。断られるのはファイルとフォルダを 1 つずつ選んだときだけで、それは 45.9'''
@@ -483,10 +489,10 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 
 # 20. 設定とテーマ
 "20.1" = 'kura を開いたまま `theme.toml` を編集し（`[mgr] cwd` を目立つ色に）、`<C-F5>` → 再起動せずに色が変わる'
-"20.2" = '`kura.toml` の `[ui] font_size` を変えて `<C-F5>` → 文字の大きさが変わる'
+"20.2" = '`config.toml` の `[ui] font_size` を変えて `<C-F5>` → 文字の大きさが変わる'
 "20.3" = '`keymap.toml` に割り当てを足して `<C-F5>` → 新しいキーが効き、`<F1>` の一覧にも出る'
 "20.4" = '`,s` で並べ替えてから `<C-F5>` → **並び順は自分で設定したまま残る。**再読み込みが手で変えたものを元に戻さないこと'
-"20.5" = '`kura.toml` に構文エラーを入れて `<C-F5>` → 問題を挙げたエラーのトーストが出て、**以前の設定がそのまま効き続ける**。**壊れたファイル自身が決めていた値も含めて**（v0.67.18、Q47。それまでは、その `[ui]` が既定値に戻っていた）。トーストの末尾は `(the last settings read from it stay in force until it parses again)`'
+"20.5" = '`config.toml` に構文エラーを入れて `<C-F5>` → 問題を挙げたエラーのトーストが出て、**以前の設定がそのまま効き続ける**。**壊れたファイル自身が決めていた値も含めて**（v0.67.18、Q47。それまでは、その `[ui]` が既定値に戻っていた）。トーストの末尾は `(the last settings read from it stay in force until it parses again)`'
 "20.6" = '`[ui] minimap = false` にして `<C-F5>` → ミニマップが出なくなる'
 '20.7' = '''`keymap.toml` に `[[mgr.prepend_keymap]]` で `on = "<F8>"`、`run = 'cd C:\Windows\System32'`（コマンドの中に引用符なし）を書く（v0.59.0）→ `<F8>` で `C:\Windows\System32` に着く。v0.59.0 までは `\` が落ち、エラーが `C:WindowsSystem32` を挙げていた'''
 
@@ -562,7 +568,7 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 "25.7" = '`kura.exe` をダブルクリック（コンソール無し）→ 以前のまま。ウィンドウが開き、どこにも何も出力されない'
 "25.8" = 'kura を一度開いて終了し、そのあと `kura env` → **Last run** の節が出る。アダプタとそのバックエンド・デバイス種別、読み込まれた全フォントファイル'
 "25.9" = '新しい機械で、kura を一度も開かずに `kura env` → `not recorded — kura has not opened a window on this machine yet` と出る（空の節ではない）'
-"25.10" = '`kura.toml` で別のフォントを指定して `<C-F5>`、もう一度 `kura env` → 新しいファイルが並ぶ。再読み込みが記録を更新している'
+"25.10" = '`config.toml` で別のフォントを指定して `<C-F5>`、もう一度 `kura env` → 新しいファイルが並ぶ。再読み込みが記録を更新している'
 "25.8a" = 'kura を開いて終了し、`kura env` の **Window** の行を画面と突き合わせる（v0.47.33）→ ピクセルの数が目の前の窓と一致し、`pt × 倍率` がその数になる。**DPI の議論に決着を付けるのはこの行。**外から `GetClientRect` で測った値も `PrintWindow` のキャプチャも、**測った側のプロセスの DPI 認識に依存する**ので、窓と食い違ったまま両方もっともらしく見えることがある'
 "25.8b" = '150% 表示の画面で kura を開いて終了し、`kura env` → Window の行が例えば `2040 x 1290 px (1360 x 860 pt @ 1.5)` と出る。ピクセルがポイントの 1.5 倍で、**窓の右端も下端も何も切れていない**'
 "25.11" = 'Linux / macOS: ボールド体がどこにも無い状態で（Windows では届かない。`system_bold_fonts()` がどの Windows にもあるメイリオ・游ゴシック・Consolas の太字を必ず候補に入れる）→ `none found; bold is faked by overstriking` と出る。ボールドの一覧を通常のものと分けてあるのは、このため'
@@ -626,7 +632,7 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 '29.9' = '''`$PROFILE` に別のツールのハンドラを先に置き（`mise activate pwsh`、または代わりに `$ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = { param($s, $e) [Console]::Title = "other: $($e.NewPath)" }`）、その後に README のフックを置いて、新しいペインで `cd C:\dev`、`<A-Up>`（v0.64.2）→ 両方動く: 一覧が `C:\dev` に移り、**かつ**別のツールのハンドラも働いている（代わりのものならタイトルが `other: C:\dev`）。v0.64.2 より前は README のフックが別のものを置き換えていた'''
 '29.10' = '''フックの無い状態で、ペイン（`pwsh`）で 29.1 のトーストのとおりに打ち、`<C-S-t>`、`<C-t>`、`cd C:\dev`、`<A-Up>`（v0.69.0、Q50）→ 一覧が `C:\dev` に移る。`Get-Content $PROFILE` の末尾が `kura shell-hook` の出力（先頭は `# kura:` のコメント）で、プロファイルの最後の行にくっつかず別の行になっている。`kura shell-hook powershell` と `kura shell-hook fish` は問題を 1 行で言い、終了コード 2'''
 '29.11' = '''Linux で `kura shell-hook bash >> ~/.bashrc`（と、`[term] shell = "zsh"` で `zsh >> ~/.zshrc`）、新しいペインで名前に空白と日本語を含むフォルダへ `cd`、`<A-Up>`（v0.69.0、Q50）→ 一覧がそこへ移り、名前はどちらも崩れない。フックが無いとトーストが `shell-hook bash >> ~/.bashrc` を挙げる'''
-'29.12' = '''`kura.toml` に `[term] shell = "pwsh"` と `args` を書いた状態で、`$env:KURA_TERM_SHELL = 'powershell'` にして kura を起動し `<C-t>`、同じシェルから `kura env`。次に `Remove-Item Env:KURA_TERM_SHELL` してもう一度（v0.70.0、Q51）→ 変数があるときはトーストが `Started powershell (Windows PowerShell 5.1) — …` で、`kura env` は `powershell` を `terminal pane, from KURA_TERM_SHELL; [term] args not used: <args>` と出し（`kura.toml` の `args`。v0.73.11 から、#190）、変数の欄に `KURA_TERM_SHELL` がある。無いときは `pwsh` と `from [term] shell` に戻り、`kura.toml` に `args = ["-NoLogo"]` があればトーストにも `Started pwsh -NoLogo — …` と出る（v0.79.2、#281）。どちらでも `kura.toml` の他の設定（フォント、テーマ）は効いている'''
+'29.12' = '''`config.toml` に `[term] shell = "pwsh"` と `args` を書いた状態で、`$env:KURA_TERM_SHELL = 'powershell'` にして kura を起動し `<C-t>`、同じシェルから `kura env`。次に `Remove-Item Env:KURA_TERM_SHELL` してもう一度（v0.70.0、Q51）→ 変数があるときはトーストが `Started powershell (Windows PowerShell 5.1) — …` で、`kura env` は `powershell` を `terminal pane, from KURA_TERM_SHELL; [term] args not used: <args>` と出し（`config.toml` の `args`。v0.73.11 から、#190）、変数の欄に `KURA_TERM_SHELL` がある。無いときは `pwsh` と `from [term] shell` に戻り、`config.toml` に `args = ["-NoLogo"]` があればトーストにも `Started pwsh -NoLogo — …` と出る（v0.79.2、#281）。どちらでも `config.toml` の他の設定（フォント、テーマ）は効いている'''
 '29.13' = '''`$env:KURA_TERM_SHELL = 'pwsh'; $env:KURA_TERM_ARGS = '-NoProfile'` にして kura を起動し `<C-t>`、同じシェルから `kura env`。次に `KURA_TERM_ARGS` だけにしてもう一度（v0.78.34、Q81）→ 両方あるときはトーストが `Started pwsh -NoProfile — …` で、PTY ログにプロファイルの出力が無く、`kura env` は `terminal pane, from KURA_TERM_SHELL; args from KURA_TERM_ARGS: -NoProfile` と出し、変数の欄に `KURA_TERM_ARGS` がある。引数だけのときは、シェルは `[term]` が決めたもの（無ければ既定）のままで、引数は使われず、`kura env` が `KURA_TERM_ARGS not used: it needs KURA_TERM_SHELL` と言う（v0.78.49）'''
 
 # 30. プロンプトでの右クリック貼り付け
@@ -699,17 +705,17 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 # 33. 設定の警告と、その色
 "33.4" = '実際に失敗するものを作る（入っていないプログラムを指定したオープナー、25.8）→ こちらは**赤**のまま。一目で区別が付くこと'
 "33.6" = '背景の明るいテーマ（`theme.toml` に `[app]` / `overall = { bg = "#ffffff", fg = "#222222" }`。v0.73.42 より前は窓の背景を決める手段が無かった）で、設定の警告（33.1）を出し、一覧に `.txt` を置く → v0.81.0（Q93）から警告は**暗い琥珀**、`.txt` の名前は**濃いグレー**で、白の上でも楽に読める。カーソルの行の帯は薄い青で、その上の `.txt` の名前も読める。`overall = { bg = "#000000" }` なら明るい黄色とグレーに戻る'
-'33.9' = '''設定ファイルを**3 つ同時に**壊して（`yazi.toml`、`keymap.toml`、`kura.toml`）起動する → 3 つで **1 行のトーストが 1 つ**: 最初のファイルのエラーの 1 行目で、末尾が ``— the rest and 2 more in `~` ``（v0.81.0。1 行の警告がほかにもあるときは ``(+2 more, see `~`)``）。`~` には 3 つとも全文で並ぶ。箱は窓の中に収まる'''
-"33.11" = '`[[preview]]` を `yazi.toml` に入れて（本来は `kura.toml`）起動 → **1 行で** `…\yazi.toml: [[preview]] belongs in kura.toml, and nothing in this file was read`。以前の `invalid type: map, expected a string` ではない（v0.33.13）'
+'33.9' = '''設定ファイルを**3 つ同時に**壊して（`yazi.toml`、`keymap.toml`、`config.toml`）起動する → 3 つで **1 行のトーストが 1 つ**: 最初のファイルのエラーの 1 行目で、末尾が ``— the rest and 2 more in `~` ``（v0.81.0。1 行の警告がほかにもあるときは ``(+2 more, see `~`)``）。`~` には 3 つとも全文で並ぶ。箱は窓の中に収まる'''
+"33.11" = '`[[preview]]` を `yazi.toml` に入れて（本来は `config.toml`）起動 → **1 行で** `…\yazi.toml: [[preview]] belongs in config.toml, and nothing in this file was read`。以前の `invalid type: map, expected a string` ではない（v0.33.13）'
 "33.12" = '`[term]` も `yazi.toml` に入れる → それについても同じ形の行が 1 つ増える。どちらも「このファイルは読まれなかった」と述べる。実際そうだから'
-"33.13" = '`[[preview]]` の無い、それ以外は正常な `yazi.toml` に `[term]` を入れる → `… belongs in kura.toml and was ignored`。*unread* ではなく *ignored* —— ファイルの残りは読み込まれている'
-"33.14" = '`[opener]` を `kura.toml` に入れる → 逆向きの同じ警告（`belongs in yazi.toml`）'
+"33.13" = '`[[preview]]` の無い、それ以外は正常な `yazi.toml` に `[term]` を入れる → `… belongs in config.toml and was ignored`。*unread* ではなく *ignored* —— ファイルの残りは読み込まれている'
+"33.14" = '`[opener]` を `config.toml` に入れる → 逆向きの同じ警告（`belongs in yazi.toml`）'
 "33.15" = '両方を正しいファイルへ移して `<C-F5>` → 警告が消える。`kura env` の表示も一致し、ターミナルペインが `[term] shell` の指すものを起動するようになる'
-"33.16" = 'kura を**起動したまま** `%APPDATA%\kura\kura.toml` を作り、`~` を押す → そのファイルが 1 行として、警告色で `on disk, not read yet — <C-F5> re-reads config` と出る。ディレクトリは `nothing here` に**ならない**（v0.34.0）'
-"33.17" = '`<C-F5>` してから、もう一度 `~` → 普通に読み込まれたファイルの行になり、印が消える'
-"33.18" = '`config_reload` を `<F9>` に割り当て直して 33.16 を繰り返す → 行が `<C-F5>` ではなく `<F9>` を示す。メッセージに埋め込まれているのではなく、keymap から読んでいるため'
-"33.19" = '`%APPDATA%\yazi\config\keymap.toml` で `Q` を `quit` に、`%APPDATA%\kura\keymap.toml` で `hidden toggle` に割り当て、`kura env` を回す（v0.73.33、Q57）→ Warnings が `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<kura のパス>) runs, not \`quit\` (<yazi のパス>)` と、両方のファイルをフルパスで言う。`T` を kura のファイルだけで `hidden toggle` にすると、v0.73.49 からは警告ではなく（Q60）、`Overrides` の行に `` [mgr] `T`: `hidden toggle` (<kura のパス>) instead of the default `plugin toggle-pane max-preview` `` と出る。既定と同じコマンドにすると、どちらにも出ない'
-"33.20" = '33.11 の `yazi.toml`（`[[preview]]` だけ）で `~` を押す。次に両方の設定フォルダを空にして起動し、`kura.toml` を作ってからもう一度 `~`（v0.73.41、#203）→ 1 回目は `yazi.toml` の行が警告色で `nothing in it was read — see below` と出て、普通に読んだファイルとしては並ばない。2 回目は `on disk, not read yet` の行の下が `(nothing read yet; the defaults are in use)` で、`(nothing found in either; …)` ではない'
+"33.16" = 'kura を**起動したまま** `%APPDATA%\uchmk\kura\config.toml` を作り、2 秒以内に `~` を押す → そのファイルが 1 行として、警告色で `on disk, not read yet — <C-F5> re-reads config` と出る。ディレクトリは `nothing here` に**ならない**（v0.34.0）。v0.99.0 からは 2 秒ほどでひとりでに読まれるので、印はその間だけ'
+"33.17" = '`<C-F5>`（か 2 秒待つ）してから、もう一度 `~` → 普通に読み込まれたファイルの行になり、印が消える'
+"33.18" = '`config_reload` を `<F9>` に割り当て直して 33.16 を繰り返す（`~` は 2 秒以内）→ 行が `<C-F5>` ではなく `<F9>` を示す。メッセージに埋め込まれているのではなく、keymap から読んでいるため'
+"33.19" = '`%APPDATA%\yazi\config\keymap.toml` で `Q` を `quit` に、`%APPDATA%\uchmk\kura\keymap.toml` で `hidden toggle` に割り当て、`kura env` を回す（v0.73.33、Q57）→ Warnings が `[mgr] \`Q\` is bound more than once; only \`hidden toggle\` (<kura のパス>) runs, not \`quit\` (<yazi のパス>)` と、両方のファイルをフルパスで言う。`T` を kura のファイルだけで `hidden toggle` にすると、v0.73.49 からは警告ではなく（Q60）、`Overrides` の行に `` [mgr] `T`: `hidden toggle` (<kura のパス>) instead of the default `plugin toggle-pane max-preview` `` と出る。既定と同じコマンドにすると、どちらにも出ない'
+"33.20" = '33.11 の `yazi.toml`（`[[preview]]` だけ）で `~` を押す。次に両方の設定フォルダを空にして起動し、`config.toml` を作ってから 2 秒以内にもう一度 `~`（v0.73.41、#203）→ 1 回目は `yazi.toml` の行が警告色で `nothing in it was read — see below` と出て、普通に読んだファイルとしては並ばない。2 回目は `on disk, not read yet` の行の下が `(nothing read yet; the defaults are in use)` で、`(nothing found in either; …)` ではない'
 "33.21" = '`yazi.toml` に、Windows のパスを二重引用符で書いたオープナー（`edit = [{ run = "C:\Users\me\nvim.exe" }]`）を書いて起動する（v0.78.27）→ 読み込みエラーの後にもう 1 行、二重引用符の中のバックスラッシュはエスケープになるので Windows のパスは単一引用符で書く、という英語の 1 行（`(a backslash in "double quotes" starts an escape: …)`）が出る。単一引用符に変えて `<C-F5>` すると警告は出ない'
 "33.22" = '`keymap.toml` に 1 項目だけの `[[mgr.keymap]]`（`on = "<F9>"`、`run = "config_reload"`）を書いて起動する（v0.78.27、#164、#258）→ ``…keymap.toml: `[[mgr.keymap]]` replaces all N keys of [mgr] with 1 -- did you mean `[[mgr.prepend_keymap]]`?`` と警告が出る。`q` は効かないまま（置き換えは yazi の規則）。`[[mgr.prepend_keymap]]` に直して `<F9>` すると警告は消え、`q` で終わる'
 "33.23" = '33.22 の `keymap.toml` で `~` を押し、警告がパネルより広くなるまで窓を狭める。次に `C` で写して貼る（v0.78.185）→ 警告は右端で切れず、字下げして次の行に続く。写した文では警告は 1 行のまま'
@@ -717,18 +723,20 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 # 34. ヘルプパネル自身のスクロール
 "34.14" = '最下部に着けた状態で `<C-->` でフォントを小さくする → 最下部に着いたまま、パネルも埋まっている。行がより多く入るので、止まる位置が動いたということ'
 "34.15" = '`C`（v0.67.16）→ トースト `Copied the help panel: N keys`。クリップボードにパネルが文字で入る: `config` とパス、続いて 1 行だけの `keys`、そのあと 1 キー 1 行の `キー<TAB>説明<TAB>コマンド`。`Get-Clipboard | Select-String "^j\t"` で `j<TAB>Move cursor down<TAB>arrow 1` が見つかる。パネルは開いたまま'
+"34.16" = 'タスクのパネル、spot パネル（`<Tab>`）、差分を順に開き、それぞれの上で `<F1>`。もう一度押す（v0.99.0）→ どれでもキーの一覧がパネルの上に開き、2 回目の `<F1>` で閉じる'
 
 # 35. 設定の探索場所（OS ごと）
-"35.1" = '[Windows] 両方の環境変数を未設定にして `kura env` → `%APPDATA%\yazi\config` と `%APPDATA%\kura`。**v0.34.0 から変わっていないこと。**動いていてはいけない行'
+"35.1" = '[Windows] 両方の環境変数を未設定にして `kura env` → `%APPDATA%\yazi\config` と `%APPDATA%\uchmk\kura`。yazi のフォルダは **v0.34.0 から変わっていない。**kura 自身のものは v0.99.0 で `%APPDATA%\kura` から移った（35.11）'
 "35.2" = '[Windows] `%APPDATA%\yazi\config\yazi.toml` に `[mgr] sort_by = "mtime"` を置く → 読まれる。yazi 自身のディレクトリを kura と共有したまま'
-"35.3" = '[macOS] `kura env` → `~/.config/yazi` と `~/.config/kura`。`~/Library/Application Support/…` では**ない**'
+"35.3" = '[macOS] `kura env` → `~/.config/yazi` と `~/.config/uchmk/kura`。`~/Library/Application Support/…` では**ない**'
 "35.4" = '[macOS] yazi を入れて一度 `yazi` を起動し、yazi が読む場所に `yazi.toml` を置く → kura が同じファイルを読む。**これがこの変更の目的。**v0.35.0 以前は `~/Library/Application Support/yazi/config/` を見ていて、yazi はそこに書かない'
-"35.5" = '[macOS] `~/Library/Application Support/kura/` に設定を置いたまま更新した場合 → **もう読まれない。**`kura env` には無いものとして出る。`~/.config/kura/` へ移すこと（CHANGELOG に**変更**として明記した）'
+"35.5" = '[macOS] `~/Library/Application Support/kura/` に設定を置いたまま更新した場合 → **もう読まれない。**`kura env` には無いものとして出る。`~/.config/uchmk/kura/` へ移すこと（CHANGELOG に**変更**として明記した）'
 "35.6" = '[Linux] `kura env` → `~/.config/yazi`。`~/.config/yazi/config` では**ない**'
-"35.7" = '[Linux / macOS] `XDG_CONFIG_HOME=/tmp/x kura env` → `/tmp/x/yazi` と `/tmp/x/kura`'
+"35.7" = '[Linux / macOS] `XDG_CONFIG_HOME=/tmp/x kura env` → `/tmp/x/yazi` と `/tmp/x/uchmk/kura`'
 "35.8" = '[Linux / macOS] `XDG_CONFIG_HOME=relative kura env` と、空にした場合 → どちらも `~/.config/…` に戻る。XDG の仕様では相対値は無視する'
-"35.9" = '[共通] `last-run.toml` → 状態ディレクトリ（`data_dir()`）のまま。この変更では**触っていない**。Windows では同じ `%APPDATA%\kura`、Linux では `~/.local/share/kura`'
-"35.10" = '[共通] 別の場所から設定ディレクトリへ `kura.toml` をシンボリックリンクして `<C-F5>` → リンク越しに読まれる。**リンクのパス経由で、保存時に改名するエディタで編集したあと**もう一度確かめること（それをするとシンボリックリンクが普通のファイルに置き換わる）'
+"35.9" = '[共通] `last-run.toml` → 状態のフォルダにある。`KURA_STATE_HOME` があればそこ、無ければ Windows は `%LOCALAPPDATA%\uchmk\kura`、Linux は `~/.local/state/uchmk/kura`、macOS は `~/Library/Application Support/uchmk/kura/state`（v0.99.0）'
+"35.10" = '[共通] 別の場所から設定ディレクトリへ `config.toml` をシンボリックリンクして `<C-F5>` → リンク越しに読まれる。**リンクのパス経由で、保存時に改名するエディタで編集したあと**もう一度確かめること（それをするとシンボリックリンクが普通のファイルに置き換わる）'
+"35.11" = '[Windows] `%APPDATA%\uchmk` フォルダが無い状態で、`%APPDATA%\kura` にコメント入りの `kura.toml` と `bookmarks.toml` を置いて起動（v0.99.0）→ `%APPDATA%\uchmk\kura\config.toml`（コメントは残る）と `%LOCALAPPDATA%\uchmk\kura\bookmarks.toml` になり、ブックマークも使える。新しい場所にファイルがある状態で繰り返す → その上には移さない'
 
 # 36. T と <F3> の違い
 '36.10' = '''`[[mgr.prepend_keymap]]` で `<S-t>` を目に見えるもの（`run = "quit"`）に割り当てて `<C-F5>`、続けて `T`（Shift と t）を押す → **割り当ては発火しない**: kura は終わらず、`T` は既定の `T` の動き（36.1）をする。Shift と文字はその文字そのものとして届くので、`<S-t>` はどのキーにも当たらない。テストが固定している教訓そのもの。警告がそれを言う（v0.78.7）: `kura env` の `Warnings` に `` `<S-t>` can never be pressed: Shift with a printable key arrives as the character it types -- write `T` `` が出て、`<C-F5>` の後にトーストにも出る。（既定を置き換える `[[mgr.keymap]]` に書くと、一覧ではどのキーも、`q` も含めて何も起きない）'''
@@ -881,7 +889,7 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 "47.3" = "47.2 のあと窓を最小化する → 最小化していても増えない"
 "47.4" = "47.1〜47.3 でまだ増えるとき: `Get-Process kura \\| % Threads \\| sort TotalProcessorTime -desc \\| select -first 3 Id, TotalProcessorTime` を 10 秒あけて 2 回 → どのスレッドの時間が増えるかと、分かれば開始アドレスを報告する。次に調べるのはそのスレッド"
 '47.5' = '''`f` のプロンプトを開いて 10 秒何も触らず、前後で CPU を読む（v0.59.3）。47.1 と同じく `--keys` なしで起動する → プロンプトを開いていないとき（47.1）と同じく増えない。キャレットは点滅せず常に出ている。v0.59.3 までは点滅のために毎秒 2 回描いていて、10 秒で 0.14〜0.30 CPU 秒（#103、#110）'''
-"47.6" = '`kura.toml` に `[ui] backend = "gl"`、`WGPU_BACKEND` は無しで起動し、47.1 をする（v0.74.0、Q70）→ `kura env` の `Adapter` の行が `(Gl, …; set by [ui] backend = "gl")` で終わり（`WGPU_BACKEND` が勝つときは `set by WGPU_BACKEND=…`。v0.78.148）、Vulkan と DX12 では通らなかった 47.1 が通る（x64 の AMD の機械）'
+"47.6" = '`config.toml` に `[ui] backend = "gl"`、`WGPU_BACKEND` は無しで起動し、47.1 をする（v0.74.0、Q70）→ `kura env` の `Adapter` の行が `(Gl, …; set by [ui] backend = "gl")` で終わり（`WGPU_BACKEND` が勝つときは `set by WGPU_BACKEND=…`。v0.78.148）、Vulkan と DX12 では通らなかった 47.1 が通る（x64 の AMD の機械）'
 "47.7" = '`[ui] backend = "directx"`、次に Windows で `"metal"`（v0.74.0、Q70）→ どちらも窓は開き、`auto` と同じに描く（GL のある機械では `Adapter` が `(Gl, …)`。v0.75.5。以前は Vulkan で、x64 の AMD の機械ではまた 1 コアを使った）。設定の警告が `"directx" is not one of auto, vulkan, dx12, metal, gl`、次に `"metal" is macOS only`（v0.74.8）と言う。`kura env` の `Warnings` の行も 2 回とも同じことを言い、`Backend` の行は `[ui] backend = "directx"`。窓のトーストは、何で描いたかを `drawing with Gl instead` と言って終わる（v0.75.6）。`kura env` も同じく `drawing with Gl instead` と言う（v0.78.107。以前は `drawing with the default` のまま）'
 "47.8" = '`[ui] backend` も `WGPU_BACKEND` も無しで起動し、次に `backend = "vulkan"`（Windows、v0.75.0）→ `kura env` の `Adapter` が 1 回目は `(Gl, …; set by [ui] backend = "auto")`、2 回目は `(Vulkan, …; set by [ui] backend = "vulkan")` で終わり（v0.78.148）、どちらも警告は出ない'
 "47.8a" = 'AMD の GPU の x64 の機械だけ: 何も書かずに（`[ui] backend` も `WGPU_BACKEND` も無し）47.1（#287）→ 47.1 が通る: 既定が GL を選び、何もしていない間の CPU は 0。ほかの機械はこの行を飛ばす'
@@ -906,8 +914,8 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 "50.1" = 'kura を起動してフォルダに入り、カーソルをファイルに置く → `claude` で `/mcp` → `kura` が接続済みで、ツールが 2 つ（`kura_state` と `kura_reveal`）'
 "50.2" = '`<Space>` で 2 ファイル選び、Claude に「kura でカーソルの下のファイルと選んだものは？」と聞く → Claude が `kura_state` を呼び、そのフォルダ・そのファイル・選んだ 2 つのパスを Windows のフルパス（`C:\…`）で答える'
 "50.3" = 'Claude に「kura で `C:\Windows\notepad.exe` を見せて」→ Claude が `kura_reveal` を呼び、窓をクリックしなくても `C:\Windows` に移ってカーソルが `notepad.exe` に乗る。Claude は `kura is showing …` と言う。無いパスなら `… does not exist` で、窓は動かない'
-"50.4" = 'kura の窓を全部閉じて、もう一度 `kura_state` を頼む → ツールが `kura is not running (or its [mcp] enable is false in kura.toml); start kura and ask again` で失敗する。Claude Code 自体は動き続け、`/mcp` にも `kura` が残る'
-"50.5" = '`kura.toml` に `[mcp]` / `enable = false` を書いて起動し、`kura_state` を頼む → 同じ `kura is not running …`: 窓は扉を開かない。終わったら行を消す'
+"50.4" = 'kura の窓を全部閉じて、もう一度 `kura_state` を頼む → ツールが `kura is not running (or its [mcp] enable is false in config.toml); start kura and ask again` で失敗する。Claude Code 自体は動き続け、`/mcp` にも `kura` が残る'
+"50.5" = '`config.toml` に `[mcp]` / `enable = false` を書いて起動し、`kura_state` を頼む → 同じ `kura is not running …`: 窓は扉を開かない。終わったら行を消す'
 "50.6" = '別々のフォルダで kura の窓を 2 つ開き、`kura_state` を頼む。1 つ目の窓を閉じて 30 秒待ち、もう一度 → 1 回目は 1 つ目の窓のフォルダ。閉じたあとの 2 回目は 2 つ目の窓のフォルダ'
 "50.7" = '`kura.com` で登録し直し（`claude mcp add kura -- "<フォルダ>\kura.com" mcp`）、50.2 をする → 同じ答え: `kura.com` が `mcp` を入出力ごと `kura.exe` に渡す。Claude Code が起動するときにコンソールの窓は出ない'
 "53.1" = '`common.toml` なしで kura を起動する → 時計がステータスバーの右端、位置（`3/12`）の後ろに、バーと同じ字体・一番強い文字の色（左の薄い項目より明るい）で出る。システムの日時と一致する'
@@ -920,18 +928,19 @@ note = "`<C-,>` で uchmk のアプリ共通の設定の画面（`ito_prefs`）�
 "53.8" = 'kura を動かしたまま、`common.toml` を `language = "e`（壊れた行）で保存し、次に `language = "en"` に直して保存する（v0.96.0） → 1 回目の保存から 3 秒以内に `common.toml:` で始まるトーストが出て（1 度だけ。`common.toml: common.toml:` ではない）、時計はそれまでの表示のまま。2 回目のあとは曜日が `(Sat)` に戻る'
 "53.9" = 'kura を `[clock]` / `show = false` の `common.toml` で動かしたまま、ファイルを消す（v0.96.0） → 3 秒以内に既定の時計（`2026/10/10 (Sat) 14:32`）が戻る'
 "53.10" = 'kura・tsumugi・mimamori を一緒に開き、tsumugi の設定の画面（`Ctrl+,`）で時計の 24 時間表記を切り、次に言語を日本語にする（v0.96.0） → それぞれの変更から 3 秒以内に 3 つの時計が揃って変わる（12 時間表記、次に `(土)`）。kura にトーストは出ない。mimamori の設定の画面で戻すと 3 つとも戻る'
-"54.1" = '一覧で `<C-,>`、もう一度 `<C-,>` → 画面が窓全体を覆う。左に `Search settings`・`General`・`kura.toml`・`Advanced`、下に **Open kura.toml**、右にページ。色は `theme.toml` のもの。2 回目の `<C-,>` で閉じ、一覧は元のまま。ターミナルペイン（`<C-t>`）では `<C-,>` はシェルに届き、画面は開かない'
+"54.1" = '一覧で `<C-,>`、もう一度 `<C-,>` → 画面が窓全体を覆う。左に `Search settings`・`General`・`config.toml`・`Advanced`、下に **Open config.toml**、右にページ。色は `theme.toml` のもの。2 回目の `<C-,>` で閉じ、一覧は元のまま。ターミナルペイン（`<C-t>`）では `<C-,>` はシェルに届き、画面は開かない'
 "54.2" = '開いて `<C-Tab>` を 3 回、`<C-S-Tab>`、`<C-PageDown>`・`<C-PageUp>` → ページが kura.toml、Advanced、General（一周）、Advanced（逆に一周）、次に General、Advanced と動く。後ろの一覧にはキーが届かない'
 "54.3" = '開いて `<C-f>`、`date` と打つ。`<Esc>`、`<Esc>` → 検索欄がキーを取り、ナビには General だけが残り、日付の行が光る。1 回目の `<Esc>` は欄から出るだけで画面は開いたまま。2 回目で閉じる。欄に打った `j` は文字で、カーソル移動ではない'
 "54.4" = 'tsumugi も開いたまま、General で言語を日本語にし、`Show the time in the status bar` を切って戻し、時刻の形式を変える → どの変更もすぐ出る: 画面の言葉と kura の時計（`(土)`、12 時間表記）が同じかその次のフレームで、tsumugi は 3 秒以内に変わる。`common.toml` のコメントは残る。トーストは出ない'
 "54.5" = 'General で `<Tab>` / `<S-Tab>` と `<Space>` を使う → フォーカスが見える輪付きで部品の間を動き、`<Space>` でスイッチが切り替わる。後ろの一覧では何も起きない'
-"54.6" = 'Advanced の `kura` の行で **Copy** を押し、メモ帳に貼る → kura の設定のフォルダ（`%APPDATA%\kura`）のパス。`Copied: …` のトーストが出る'
+"54.6" = 'Advanced の `kura` の行で **Copy** を押し、メモ帳に貼る → kura の設定のフォルダ（`%APPDATA%\uchmk\kura`）のパス。`Copied: …` のトーストが出る'
 "54.7" = 'Advanced の `yazi` の行で **Open** を押す → 画面が閉じ、一覧が yazi の設定のフォルダ（`%APPDATA%\yazi\config`）にいる'
 "54.8" = 'yazi の `yazi.toml` に `bogus = [` を保存して `<C-F5>`、Advanced を開く。ファイルを直して **Reload** → `PROBLEMS READING THE CONFIG` の下に読み込みのエラーが警告の色・等幅の字で出て、`^` が指す桁の下にある。**Reload** のあとは `No problems`'
-"54.9" = '`kura.toml` がまだ無い状態で **Open kura.toml** を押す → コメント 2 行のファイルが作られ、`.toml` のエディタ（無ければメモ帳）で開く。画面は開いたまま。ファイルがあればそのまま開く'
-"54.10" = '言語を日本語にして画面を開く → ナビが `一般` / `kura.toml` / `詳細`、行の言葉が日本語になり、検索欄で `時計` が見つかる'
-"54.11" = 'kura.toml の `[ui]` に `font_size = 14.0 # mine` を書く。kura.toml のページの `Font size` に `16` と打って `<Enter>` → 一覧の字がすぐ大きくなり、`Saved kura.toml: font_size = 16.0` のトーストが出る。ファイルは `font_size = 16.0 # mine` になり、ほかの行とコメントは元のまま'
-"54.12" = '`Font size` に `abc` と打って `<Enter>`、次に `100` と打って `<Enter>` → 赤いトースト `Font size: "abc" is not a number from 6 to 72`、`100` でも同じ。kura.toml は変わらない'
-"54.13" = '`Minimap` を切り、`Icons` を `ascii` にし、`Shell` に `pwsh` と入れて `<Tab>` で欄を出る。`<C-t>` でペインを開く。`Shell` を空にし、ペインを閉じてまた開く → ミニマップとアイコンはすぐ変わる。kura.toml に `minimap = false`・`icons = "ascii"`・`[term]` の `shell = "pwsh"` が入り、ペインは PowerShell 7 で開く。空にすると `shell` の行が消え、次のペインは既定のシェル'
-"54.14" = 'kura.toml に `[ui` と保存し、ページで `Font size` を変える → kura.toml と読み込みのエラーを言う赤いトースト。ファイルはそのまま。直せばまた書ける'
-"54.15" = 'kura.toml が yazi のフォルダ（`%APPDATA%\yazi\config\kura.toml`）にだけある状態で `<C-F5>`、`Row padding` を変えて **Open kura.toml** を押す → どちらもそのファイルに向かい、`%APPDATA%\kura` に kura.toml は作られない'
+"54.9" = '`config.toml` がまだ無い状態で **Open config.toml** を押す → コメント 2 行のファイルが作られ、`.toml` のエディタ（無ければメモ帳）で開く。画面は開いたまま。ファイルがあればそのまま開く'
+"54.10" = '言語を日本語にして画面を開く → ナビが `一般` / `config.toml` / `詳細`、行の言葉が日本語になり、検索欄で `時計` が見つかる'
+"54.11" = 'config.toml の `[ui]` に `font_size = 14.0 # mine` を書く。config.toml のページの `Font size` に `16` と打って `<Enter>` → 一覧の字がすぐ大きくなり、`Saved config.toml: font_size = 16.0` のトーストが出る。ファイルは `font_size = 16.0 # mine` になり、ほかの行とコメントは元のまま'
+"54.12" = '`Font size` に `abc` と打って `<Enter>`、次に `100` と打って `<Enter>` → 赤いトースト `Font size: "abc" is not a number from 6 to 72`、`100` でも同じ。config.toml は変わらない'
+"54.13" = '`Minimap` を切り、`Icons` を `ascii` にし、`Shell` に `pwsh` と入れて `<Tab>` で欄を出る。`<C-t>` でペインを開く。`Shell` を空にし、ペインを閉じてまた開く → ミニマップとアイコンはすぐ変わる。config.toml に `minimap = false`・`icons = "ascii"`・`[term]` の `shell = "pwsh"` が入り、ペインは PowerShell 7 で開く。空にすると `shell` の行が消え、次のペインは既定のシェル'
+"54.14" = 'config.toml に `[ui` と保存し、ページで `Font size` を変える → config.toml と読み込みのエラーを言う赤いトースト。ファイルはそのまま。直せばまた書ける'
+"54.15" = 'config.toml が yazi のフォルダ（`%APPDATA%\yazi\config\config.toml`）にだけある状態で `<C-F5>`、`Row padding` を変えて **Open config.toml** を押す → どちらもそのファイルに向かい、`%APPDATA%\uchmk\kura` に config.toml は作られない'
+"54.16" = '一般の `倍率` の行で `150%` を選ぶ（v0.99.0）→ kura がすぐ大きくなり、common.toml に `scale = 1.5` が入る。隣に開いた tsumugi か yagura も 3 秒ほどで従う'

@@ -535,7 +535,7 @@ impl HelpRow {
 /// What the panel says about configuration.
 ///
 /// Every directory that is searched, not only the ones something was found in:
-/// "where does `kura.toml` go" is the question a panel listing loaded files
+/// "where does `config.toml` go" is the question a panel listing loaded files
 /// cannot answer, because the answer is a file that does not exist yet. An
 /// empty directory is the most useful row on the list for the reader who needs
 /// it, and the only one that was missing.
@@ -1595,7 +1595,7 @@ mod help_config_rows {
 
     /// Every searched directory is listed, found in or not.
     ///
-    /// "Where does `kura.toml` go" is the one question a list of loaded files
+    /// "Where does `config.toml` go" is the one question a list of loaded files
     /// cannot answer, because the answer is a file that does not exist yet.
     /// The empty directory is the row that answers it, and it was the row that
     /// was missing — the panel used to show only what it had read.
@@ -1664,14 +1664,14 @@ mod help_config_rows {
 
     /// 33.16: a config file written after the window opened is named, not hidden.
     ///
-    /// `kura.toml` created while kura is running is the ordinary way to reach
+    /// `config.toml` created while kura is running is the ordinary way to reach
     /// this: the file is right there in the directory the panel is listing, and
     /// the panel said "nothing here" -- which reads as kura being unable to see
     /// it rather than not having looked since it started.
     #[test]
     fn a_file_on_disk_that_was_not_read_says_so() {
         let dir = crate::util::test_dir("help-unread");
-        let written = dir.join("kura.toml");
+        let written = dir.join("config.toml");
         std::fs::write(&written, "[ui]\nfont_size = 16.0\n").expect("write the config");
 
         let ctx = egui::Context::default();
@@ -1682,12 +1682,13 @@ mod help_config_rows {
         let rows = config_rows(&app, std::slice::from_ref(&dir));
         let unread = rows
             .iter()
-            .find(|r| r.text.trim() == "kura.toml")
+            .find(|r| r.text.trim() == "config.toml")
             .expect("the file on disk is a row of its own");
         assert!(unread.warning, "and it is marked, not listed as read");
         assert!(unread.raw.contains("not read yet"), "{:?}", unread.raw);
         // The key comes from the keymap rather than from this string.
-        assert!(unread.raw.contains("<C-F5>"), "{:?}", unread.raw);
+        let reload = crate::config::keys::Key::parse("<C-F5>").unwrap().to_string();
+        assert!(unread.raw.contains(&reload), "{:?}", unread.raw);
         let goes = Some(Act::Reveal(written.display().to_string()));
         assert_eq!(unread.goes_to, goes, "clicking it still goes to the file");
         assert!(
@@ -1706,7 +1707,7 @@ mod help_config_rows {
     /// the row exists because the file does.
     fn unread(label: &str) -> (std::path::PathBuf, std::path::PathBuf, App) {
         let dir = crate::util::test_dir(label);
-        let written = dir.join("kura.toml");
+        let written = dir.join("config.toml");
         std::fs::write(&written, "[ui]\nfont_size = 16.0\n").expect("write the config");
         let ctx = egui::Context::default();
         let mut app = App::new(crate::config::Config::load(), dir.clone(), ctx);
@@ -1727,13 +1728,13 @@ mod help_config_rows {
         let (dir, written, mut app) = unread("help-reread");
 
         let before = config_rows(&app, std::slice::from_ref(&dir));
-        let row = before.iter().find(|r| r.text.trim() == "kura.toml").expect("a row before");
+        let row = before.iter().find(|r| r.text.trim() == "config.toml").expect("a row before");
         assert!(row.warning, "unread to begin with, or the test proves nothing");
 
         // What the reload changed: the file is now among the ones that were read.
         app.cfg.loaded = vec![written.clone()];
         let after = config_rows(&app, std::slice::from_ref(&dir));
-        let rows: Vec<&HelpRow> = after.iter().filter(|r| r.text.trim() == "kura.toml").collect();
+        let rows: Vec<&HelpRow> = after.iter().filter(|r| r.text.trim() == "config.toml").collect();
         assert_eq!(rows.len(), 1, "one row for one file, not the read one and the unread one");
         assert!(!rows[0].warning, "and it is no longer marked");
         assert_eq!(rows[0].raw, "", "nor does it carry the note: {:?}", rows[0].raw);
@@ -1760,9 +1761,10 @@ mod help_config_rows {
         app.cfg.keymap = km;
 
         let rows = config_rows(&app, std::slice::from_ref(&dir));
-        let row = rows.iter().find(|r| r.text.trim() == "kura.toml").expect("the unread row");
+        let row = rows.iter().find(|r| r.text.trim() == "config.toml").expect("the unread row");
         assert_eq!(row.raw, "on disk, not read yet — <F9> re-reads config");
-        assert!(!row.raw.contains("<C-F5>"), "the default is not written into it: {:?}", row.raw);
+        let reload = crate::config::keys::Key::parse("<C-F5>").unwrap().to_string();
+        assert!(!row.raw.contains(&reload), "the default is not written into it: {:?}", row.raw);
     }
 
     /// The reload key is read out of the keymap in force.
@@ -1770,7 +1772,8 @@ mod help_config_rows {
     fn the_reload_key_is_looked_up() {
         let ctx = egui::Context::default();
         let mut app = App::new(crate::config::Config::load(), std::env::temp_dir(), ctx);
-        assert_eq!(key_for(&app, &Act::ConfigReload).as_deref(), Some("<C-F5>"));
+        let reload = crate::config::keys::Key::parse("<C-F5>").unwrap().to_string();
+        assert_eq!(key_for(&app, &Act::ConfigReload), Some(reload));
 
         let text = "[[mgr.prepend_keymap]]\non = \"<F9>\"\nrun = \"config_reload\"\n";
         let (km, _) = crate::config::Keymap::load(&[text]);
