@@ -891,8 +891,8 @@ note = "確かめる `filer.exe` をフルパスで、`claude` を動かすタ�
 "49.4" = "冒頭の prompt で `dir`（成功）と `Get-Item nothing-here`（エラー）→ ペインの左の余白にそれぞれ細い帯: `dir` は緑、失敗したほうは赤。全画面のプログラム（`nvim`）の中には出ない"
 "49.5" = "ペインで `echo https://example.com` → Ctrl を押しながら指す → Ctrl の間だけ下線が付き、ポインタが手になる。Ctrl+クリックで既定のブラウザが開く。普通のクリックは今までどおり選択だけ"
 "49.6" = "リポジトリのフォルダで `echo src\\main.rs:10` → Ctrl+クリック → 一覧が `src` に移り、カーソルが `main.rs` に乗る（行番号は使わない）。無いパスなら一覧は動かない"
-"49.7" = "``Write-Host \"`e]8;;https://example.com`e\\click me`e]8;;`e\\\"``（OSC 8 のリンク）→ `click me` を Ctrl+クリック → Ctrl を押す前から `click me` に点線の下線があり、クリックで `https://example.com` が開く"
-"49.8" = "画像: `chafa -f sixels some.png`（`winget install hpjansson.Chafa`）か `wezterm imgcat some.png` → プログラムが出した位置に画像が描かれ、文字と一緒にスクロールする（`<S-PageUp>`）。`clear` で消える"
+"49.7" = "``Write-Host \"`e]8;;https://example.com`e\\click me`e]8;;`e\\\"``（OSC 8 のリンク）を `FILER_PTY_LOG` を付けて出し、`click me` を Ctrl+クリック（v0.86.29: 同梱の ConPTY 1.24.2607.10001 は OSC 8 の始まりと終わりを落とすので、TODO.md の `【pane】` の項目で通せるようになるまでこの行は通らない。`[ ]` のままにして、ログの `out` の行に `]8;;` が残っているかを書く）→ Ctrl を押す前から `click me` に点線の下線があり、クリックで `https://example.com` が開く。ログの `out` の行が `click me` だけなら、ペインにリンクは届いていない: filer の失敗でなく ConPTY の限界"
+"49.8" = "iTerm2 のインライン画像（OSC 1337。ConPTY を通る）: `wezterm imgcat some.png`、または pwsh から `$e=[char]27; Write-Host \"$e]1337;File=inline=1;width=8;height=4:$([Convert]::ToBase64String([IO.File]::ReadAllBytes('some.png')))`a\"`（`chafa -f sixels` は試験にならない: ConPTY が DCS を落とし、本文が文字で出る）→ プログラムが出した位置に画像が描かれ、文字と一緒にスクロールする（`<S-PageUp>`）。`clear` で消える"
 "49.10" = "ペインで `claude` → `one`、`<S-Enter>`、`two` と打つ (v0.86.0, tsumugi 2.55) → Claude Code の入力欄に `one` と `two` が 2 行で入り、何も送られない。`<Enter>` で両方が送られる"
 "49.10a" = "ペインで `cmd`（か `bash`）→ `echo one`、`<S-Enter>` (v0.86.0, tsumugi 2.55) → `<Enter>` と同じく行が実行される: kitty のキーボードプロトコルを求めないシェルでは変わらない（pwsh は検証にならない: PSReadLine が `<S-Enter>` を `AddLine` に結ぶので、行は実行されず続きになる）"
 "50.1" = 'filer を起動してフォルダに入り、カーソルをファイルに置く → `claude` で `/mcp` → `filer` が接続済みで、ツールが 2 つ（`filer_state` と `filer_reveal`）'
