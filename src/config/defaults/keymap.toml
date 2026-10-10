@@ -787,12 +787,6 @@ desc = "Show the key list"
 on = "<C-S-p>"
 run = "palette"
 desc = "Command palette"
-# No terminal program can be sent Ctrl+, (it has no control code), so the
-# settings screen is reachable from the pane too.
-[[term.keymap]]
-on = "<C-,>"
-run = "settings"
-desc = "Open the settings screen"
 # Trying a config change means pressing this often, and leaving the pane to do
 # it also un-maximises the pane. Hardly any terminal program reads Ctrl+F5.
 [[term.keymap]]

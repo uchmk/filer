@@ -67,7 +67,7 @@
   Advanced（設定のフォルダのパスと Copy・Open、読み込みの警告）。kura.toml への書き込みは toml_edit でコメントを残し、UI ではないスレッドで行う。
   - [x] （v0.97.0。`src/ui/settings.rs` が `ito_prefs::show` に kura のページと色を渡す。キーは `PanelLayer::Settings`、書き込みは `App::write_common`、フォルダの Open は一覧をそこへ移す）枠と General・Advanced: `<C-,>` で開く overlay、keymap の `[settings]`、Esc は 2 段、General（Language と CLOCK を common.toml へ UI ではないスレッドで書く）、
     Advanced（設定のフォルダと Copy・Open、読み込みの警告）、帯の下の「Open kura.toml」。
-  - [ ] kura.toml の主な行のページ（toml_edit でコメントを残して書く）。
+  - [x] （v0.98.0。`kura_page` が行を `KuraChange` にし、`App::write_kura` が読んでいる kura.toml（最後に読んだもの）へ書き込み用のスレッドで `ito_common::set_key` / `remove_key` を当てて書き、読み直した設定を `<C-F5>` と同じに当てる。範囲の外の数はトースト）kura.toml の主な行のページ（toml_edit でコメントを残して書く）。
   - [ ] Theme のページ（共通のページ。見本は kura の一覧とプレビューを今の色で描く）。テーマと yazi の `theme.toml` の関係が決まるまで作らずに残してよい（要確認: Q98）
 - [x] （v0.94.0。`App::load_common` が起動時に読み、`draw_status` が右端に描く。見張りは次の項目）ステータスバーの右端に時計を出す: 字体は一覧と同じ、色は一番強い文字の色。ポインタを載せると日付を全部出す。分が変わるときだけ再描画する（`Clock::next_minute`）。
   `[clock]` は common.toml だけから読む（filer.toml に上書きは持たない）。
@@ -76,7 +76,7 @@
 - [ ] README（キー表・設定の画面の節・common.toml）、TESTING.md（設定の画面・時計・common.toml を外で書き換えると tsumugi と mimamori と一緒に変わる行）を更新する。
   - [x] （v0.96.1）common.toml と時計の分: README の節に見張り・ほかのアプリと揃って変わること・知らないキーは飛ばすこと・テーマはまだ当てないことを書き、TESTING.md 53.6 を今の動き（ファイルの残りは当たる）に直し、53.10（tsumugi・mimamori と一緒に変わる）を足した。
   - [ ] 設定の画面の分（README のキー表と節、TESTING.md の新しい節）。上の「設定の画面を `ito-prefs` の上に作る」が入ってから。
-    v0.97.0 で枠と General・Advanced の分は書いた（README「Settings screen」、TESTING.md 54 節）。残るページを足すときにそれぞれ書き足す。
+    v0.97.0 で枠と General・Advanced の分は書いた（README「Settings screen」、TESTING.md 54 節）。v0.98.0 で kura.toml のページ（54.11-54.15）。残るのは Theme のページ。
 
 ## 検索（`s` / `S`）が不要なファイルを出しすぎる（2026-10-10、持ち主の希望）
 

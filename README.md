@@ -314,7 +314,8 @@ syntax theme.
 ### kura.toml (GUI-only settings)
 
 [`kura.example.toml`](kura.example.toml) in this repository is a commented copy of the defaults —
-copy it to `%APPDATA%\kura\kura.toml` and edit from there.
+copy it to `%APPDATA%\kura\kura.toml` and edit from there. The [settings screen](#settings-screen)'s
+kura.toml page writes the main rows for you, keeping the file's comments.
 
 ```toml
 [ui]
@@ -527,7 +528,7 @@ priority so the focused directory is never made to wait behind it.
 
 ## Settings screen
 
-`<C-,>` (`<Cmd-,>` on macOS; `settings`) opens the settings screen every uchmk app shares: the pages
+`<C-,>` (`<Cmd-,>` on macOS; `settings`) in the list opens the settings screen every uchmk app shares: the pages
 down the left, a search box over them, and **Open kura.toml** at the bottom (made with a first line
 saying what goes in it, when there is none yet). `<C-,>` again closes it, as does `<Esc>` — the
 first `<Esc>` only leaves the search box or a control that has the keys. `<C-Tab>` / `<C-PageDown>`
@@ -538,6 +539,7 @@ are the `[settings]` keymap section.
 | Page | |
 | --- | --- |
 | General | The language and the clock, written into [common.toml](#commontoml-the-clock) as soon as they are changed, off the UI thread and keeping the file's comments; every other open uchmk app follows within 2 seconds. The language sets the words of this screen and the clock's weekday; the rest of kura is in English for now |
+| kura.toml | The main rows of [kura.toml](#kuratoml-gui-only-settings) — font size, row padding, icons, the minimap, Markdown rendering, the preview's debounce and text limit, the history length, the window size, the backend, the MCP server and the terminal pane's shell — written into the kura.toml in force (the last one read; kura's own folder when there is none) as soon as they are changed, keeping its comments, and read back as `<C-F5>` does. A number is written on `<Enter>` or on leaving the field, and one out of range is not written but said in a toast. An emptied shell takes the line out. The window, backend, MCP and Markdown rows are read at start |
 | Advanced | Where the config is read from — kura's folder, yazi's and the `uchmk` one — each with **Copy** (the path) and **Open** (the list goes there), what was wrong when the config was last read, and **Reload** (`<C-F5>`) |
 
 The colours come from yazi's `theme.toml`, as the rest of kura's are.
@@ -593,7 +595,6 @@ rather than another set of bindings. Only what the `[term]` keymap section binds
 | `<C-t>` | give the keys back to the list, leaving the shell running |
 | `<C-S-t>` | close the pane and end the shell — asking first when a program (lazygit, an editor, a build) is still running under it |
 | `<F1>` `<C-S-p>` | the key list / the command palette |
-| `<C-,>` | the settings screen |
 | `<C-F5>` | read the config files again, as in the list |
 | `<A-Up>` | put the file list where the shell is |
 | `<A-j>` `<A-k>` | five lines down / up the scrollback — the keys that scroll the preview from the list |

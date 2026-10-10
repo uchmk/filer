@@ -329,6 +329,8 @@ pub enum Overlay {
 pub struct SettingsOverlay {
     /// The page, the search, and whether a control had the keys last frame.
     pub state: ito_prefs::State,
+    /// The kura.toml page's text fields while they are typed in.
+    pub drafts: ito_prefs::Drafts,
     /// What the `[settings]` layer asked of the screen since it was last
     /// drawn: the next page, the search. Taken by the draw.
     pub keys: ito_prefs::Keys,
@@ -708,6 +710,102 @@ pub const TOAST_LOG: usize = 16;
 const KURA_TOML_START: &str = "# kura's own settings, beside yazi's yazi.toml, keymap.toml and theme.toml.
 # Every key, with what it does, is in the README: \"kura.toml\".
 ";
+
+/// A row of kura.toml the settings screen changed: its table, its key, and
+/// the value written as TOML, or `None` to take the key out.
+#[derive(Debug, Clone, PartialEq)]
+pub struct KuraChange {
+    pub table: &'static str,
+    pub key: &'static str,
+    pub value: Option<String>,
+}
+
+/// One write for the kura.toml writer: the file, the folders to read the
+/// config from afterwards, and the changes in the order they were made.
+struct KuraJob {
+    path: PathBuf,
+    dirs: Vec<PathBuf>,
+    changes: Vec<KuraChange>,
+}
+
+/// What a write of kura.toml came to: the rows written, as a toast says
+/// them, and the config read back -- or what stopped it.
+pub(crate) struct KuraWritten {
+    said: String,
+    read: Result<crate::config::Fresh, String>,
+}
+
+/// The writer's thread: each job, and every job queued behind it, as one
+/// write of the newest values, and the config read back after it.
+fn kura_writer(done: Sender<KuraWritten>, ctx: egui::Context) -> Option<Sender<KuraJob>> {
+    let (tx, rx) = crossbeam_channel::unbounded::<KuraJob>();
+    let spawned = std::thread::Builder::new().name("kura-toml".into()).spawn(move || {
+        while let Ok(first) = rx.recv() {
+            let mut jobs: Vec<KuraJob> = vec![first];
+            for j in rx.try_iter() {
+                match jobs.last_mut() {
+                    Some(m) if m.path == j.path => {
+                        m.changes.extend(j.changes);
+                        m.dirs = j.dirs;
+                    }
+                    _ => jobs.push(j),
+                }
+            }
+            for j in jobs {
+                if done.send(write_kura_toml(j)).is_err() {
+                    return;
+                }
+                ctx.request_repaint();
+            }
+        }
+    });
+    spawned.ok().map(|_| tx)
+}
+
+/// Change the rows in kura.toml and keep the rest of it -- comments, order,
+/// blank lines -- as it was; a file that is not there yet is started with
+/// [`KURA_TOML_START`]. A file that does not read as TOML is left alone.
+fn write_kura_toml(job: KuraJob) -> KuraWritten {
+    let file = job.path.file_name().map_or_else(|| "kura.toml".into(), |n| n.to_string_lossy().into_owned());
+    let said = job
+        .changes
+        .iter()
+        .map(|c| match &c.value {
+            Some(v) => format!("{} = {v}", c.key),
+            None => format!("{} removed", c.key),
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let said = format!("Saved {file}: {said}");
+    let at = |e: String| format!("{}: {e}", job.path.display());
+    let read = (|| {
+        let text = match std::fs::read_to_string(&job.path) {
+            Ok(t) => t,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => KURA_TOML_START.to_owned(),
+            Err(e) => return Err(at(e.to_string())),
+        };
+        // A file of comments only keeps them at the top: toml_edit would
+        // hold them as the document's tail and put the new table above.
+        let only_comments = text.lines().all(|l| l.trim().is_empty() || l.trim_start().starts_with('#'));
+        let (head, body) = match only_comments {
+            true if text.trim().is_empty() => (String::new(), String::new()),
+            true => (format!("{}\n\n", text.trim_end()), String::new()),
+            false => (String::new(), text),
+        };
+        let new = job
+            .changes
+            .iter()
+            .try_fold(body, |t, c| match &c.value {
+                Some(v) => ito_common::set_key(&t, Some(c.table), c.key, v),
+                None => ito_common::remove_key(&t, Some(c.table), c.key),
+            })
+            .map_err(at)?;
+        let new = head + &new;
+        ito_common::write_atomic(&job.path, new)?;
+        Ok(Config::read_fresh(&job.dirs))
+    })();
+    KuraWritten { said, read }
+}
 
 pub struct Toast {
     pub text: String,
@@ -1407,6 +1505,12 @@ pub struct App {
     /// from the thread that tried.
     settings_rx: crossbeam_channel::Receiver<String>,
     settings_tx: crossbeam_channel::Sender<String>,
+    /// The thread that writes kura.toml for the settings screen, started at
+    /// its first write; one thread, so two quick changes land in order.
+    kura_jobs: Option<Sender<KuraJob>>,
+    /// What it wrote, with the config read back after.
+    kura_rx: crossbeam_channel::Receiver<KuraWritten>,
+    kura_tx: Sender<KuraWritten>,
     pub preview: PreviewSlot,
     pub max_preview: bool,
     /// The terminal pane has the window. A third of the height is right for a
@@ -1562,6 +1666,7 @@ impl App {
         let render_markdown = cfg.ui.render_markdown;
 
         let (settings_tx, settings_rx) = crossbeam_channel::unbounded();
+        let (kura_tx, kura_rx) = crossbeam_channel::unbounded();
         let mut app = Self {
             clock: ito_common::Clock::default(),
             lang: "en".into(),
@@ -1571,6 +1676,9 @@ impl App {
             common: ito_common::Common::default(),
             settings_rx,
             settings_tx,
+            kura_jobs: None,
+            kura_rx,
+            kura_tx,
             cfg,
             tabs: vec![tab],
             active: 0,
@@ -1742,22 +1850,70 @@ impl App {
         crate::config::config_home("KURA_CONFIG_HOME")
     }
 
+    /// The kura.toml whose settings are in force: the last one read, since
+    /// a later folder's `[ui]` replaces an earlier one's whole. Without any,
+    /// the one kura's own folder would hold. Writing anywhere else would
+    /// start a file that hides the one in use.
+    pub fn kura_toml_in_force(&self) -> Option<PathBuf> {
+        let read = self.cfg.loaded.iter().rev().find(|p| p.file_name().is_some_and(|n| n == "kura.toml"));
+        read.cloned().or_else(|| Self::kura_config_dir().map(|d| d.join("kura.toml")))
+    }
+
+    /// Write what the settings screen's kura.toml page changed, off the UI
+    /// thread and keeping the file's comments, then read the config back
+    /// and apply it as `<C-F5>` does.
+    pub fn write_kura(&mut self, changes: Vec<KuraChange>) {
+        if changes.is_empty() {
+            return;
+        }
+        let Some(path) = self.kura_toml_in_force() else {
+            self.error("kura.toml: there is no config folder to keep it in");
+            return;
+        };
+        self.write_kura_to(path, crate::config::dirs_to_read(), changes);
+    }
+
+    /// [`App::write_kura`] to a file named here, reading the config back from
+    /// `dirs`: what a test drives with a folder of its own.
+    pub(crate) fn write_kura_to(&mut self, path: PathBuf, dirs: Vec<PathBuf>, changes: Vec<KuraChange>) {
+        if self.kura_jobs.is_none() {
+            self.kura_jobs = kura_writer(self.kura_tx.clone(), self.ctx.clone());
+        }
+        let sent = self.kura_jobs.as_ref().is_some_and(|tx| tx.send(KuraJob { path, dirs, changes }).is_ok());
+        if !sent {
+            self.kura_jobs = None;
+            self.error("kura.toml: could not start writing it");
+        }
+    }
+
+    /// The writer's answer: the config it read back, applied with what a
+    /// broken file gave last time kept, or what stopped the write.
+    pub(crate) fn kura_written(&mut self, w: KuraWritten) {
+        match w.read {
+            Ok(fresh) => {
+                let mut cfg = Config::settle(&mut self.cfg, fresh);
+                cfg.take_term_env();
+                self.take_config_saying(cfg, Some(w.said));
+            }
+            Err(e) => self.error(e),
+        }
+    }
+
     /// Open kura.toml in the system's editor for it, off the UI thread. A
     /// first one is made, with a line saying what goes in it, so the button
     /// works before there is anything to change.
     pub fn open_kura_toml(&mut self) {
-        let Some(dir) = Self::kura_config_dir() else {
+        let Some(path) = self.kura_toml_in_force() else {
             self.error("kura.toml: there is no config folder to keep it in");
             return;
         };
         let tx = self.settings_tx.clone();
         let ctx = self.ctx.clone();
         std::thread::spawn(move || {
-            let path = dir.join("kura.toml");
-            let made = if path.exists() {
-                Ok(())
-            } else {
-                std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(&path, KURA_TOML_START))
+            let made = match path.parent() {
+                _ if path.exists() => Ok(()),
+                Some(dir) => std::fs::create_dir_all(dir).and_then(|()| std::fs::write(&path, KURA_TOML_START)),
+                None => std::fs::write(&path, KURA_TOML_START),
             };
             if let Err(e) = made.and_then(|()| exec::open_default(&path)) {
                 let _ = tx.send(format!("{}: {e}", path.display()));
@@ -2003,6 +2159,9 @@ impl App {
         }
         while let Ok(e) = self.settings_rx.try_recv() {
             self.error(e);
+        }
+        while let Ok(w) = self.kura_rx.try_recv() {
+            self.kura_written(w);
         }
         // A launch reports at most once, and its watcher lets go of the channel
         // when it stops caring, so a disconnected one is finished with.
@@ -5523,6 +5682,11 @@ impl App {
     /// The half of `<C-F5>` after the files are read: what a test drives with
     /// a config read from a directory of its own.
     pub(crate) fn take_config(&mut self, cfg: Config) {
+        self.take_config_saying(cfg, None);
+    }
+
+    /// [`App::take_config`], with `said` in the toast in place of "Reloaded".
+    fn take_config_saying(&mut self, cfg: Config, said: Option<String>) {
         let old_term = self.cfg.term.clone();
         let files = cfg.loaded.len();
         let warning = config_toast(&cfg.warnings);
@@ -5535,13 +5699,14 @@ impl App {
         // A theme change can turn every row a different color, and the preview
         // holds a highlighted copy of the old one.
         self.preview = PreviewSlot::default();
+        let done = said.unwrap_or_else(|| format!("Reloaded {files} config file(s)"));
         match warning {
             Some(w) => self.warn(w),
             None if shell_waits => self.toast(format!(
-                "Reloaded {files} config file(s) — the pane keeps its shell until {}",
+                "{done} — the pane keeps its shell until {}",
                 self.term_close_key().map_or("it is closed".into(), |k| format!("{k} closes it"))
             )),
-            None => self.toast(format!("Reloaded {files} config file(s)")),
+            None => self.toast(done),
         }
     }
 
@@ -9673,6 +9838,82 @@ mod usage_view {
         assert!(a.toasts.last().is_some_and(|t| t.text.starts_with("common.toml:")));
     }
 
+    /// Wait for the kura.toml writer and apply what it read back.
+    fn kura_written(a: &mut App) {
+        let w = a.kura_rx.recv_timeout(Duration::from_secs(10)).expect("the writer answered");
+        a.kura_written(w);
+    }
+
+    fn change(table: &'static str, key: &'static str, value: Option<&str>) -> KuraChange {
+        KuraChange { table, key, value: value.map(str::to_owned) }
+    }
+
+    /// The kura.toml page writes its rows into the file in force, keeping the
+    /// comments around them, and the config read back is applied at once.
+    #[test]
+    fn the_kura_toml_page_writes_and_keeps_comments() {
+        let dir = util::test_dir("settings-kura");
+        let cfg = dir.join("cfg");
+        std::fs::create_dir_all(&cfg).unwrap();
+        let file = cfg.join("kura.toml");
+        std::fs::write(&file, "# mine\n[ui]\nfont_size = 14.0 # small\n").unwrap();
+        let mut a = app_in(&dir);
+        let changes = vec![change("ui", "font_size", Some("16.0")), change("term", "shell", Some("\"bash\""))];
+        a.write_kura_to(file.clone(), vec![cfg.clone()], changes);
+        kura_written(&mut a);
+        assert_eq!(a.cfg.ui.font_size, 16.0, "applied without a restart");
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert!(text.starts_with("# mine\n[ui]\nfont_size = 16.0 # small\n"), "kept what was there: {text}");
+        assert!(text.contains("[term]\nshell = \"bash\"\n"), "{text}");
+        assert!(a.toasts.last().is_some_and(|t| t.text.starts_with("Saved kura.toml: font_size = 16.0")), "{:?}", a.toasts.last().map(|t| &t.text));
+        // An emptied row takes the key out, and the default comes back.
+        a.write_kura_to(file.clone(), vec![cfg.clone()], vec![change("ui", "font_size", None)]);
+        kura_written(&mut a);
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert!(!text.contains("font_size"), "{text}");
+        assert!(text.starts_with("# mine\n[ui]\n"), "{text}");
+        assert_eq!(a.cfg.ui.font_size, crate::config::Ui::default().font_size);
+        assert!(a.toasts.last().is_some_and(|t| t.text == "Saved kura.toml: font_size removed"));
+    }
+
+    /// A kura.toml that is not there yet is started with its comment; one
+    /// that does not read as TOML is left as it is, and a toast says why.
+    #[test]
+    fn the_kura_toml_page_starts_a_file_and_leaves_a_broken_one() {
+        let dir = util::test_dir("settings-kura-new");
+        let cfg = dir.join("cfg").join("kura");
+        let file = cfg.join("kura.toml");
+        let mut a = app_in(&dir);
+        a.write_kura_to(file.clone(), vec![cfg.clone()], vec![change("ui", "max_history", Some("50"))]);
+        kura_written(&mut a);
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert!(text.starts_with(KURA_TOML_START), "{text}");
+        assert!(text.ends_with("theme.toml.\n# Every key, with what it does, is in the README: \"kura.toml\".\n\n[ui]\nmax_history = 50\n"), "{text}");
+        std::fs::write(&file, "[ui\nfont_size = 14.0\n").unwrap();
+        a.write_kura_to(file.clone(), vec![cfg.clone()], vec![change("ui", "font_size", Some("16.0"))]);
+        kura_written(&mut a);
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "[ui\nfont_size = 14.0\n", "left alone");
+        let last = a.toasts.last().unwrap();
+        assert!(last.level == Level::Error && last.text.contains("kura.toml"), "{}", last.text);
+    }
+
+    /// The page writes to the kura.toml read last, which is the one in
+    /// force; without one, to kura's own folder.
+    #[test]
+    fn the_kura_toml_in_force_is_the_last_one_read() {
+        let dir = util::test_dir("settings-kura-force");
+        let mut a = app_in(&dir);
+        a.cfg.loaded = vec![dir.join("yazi").join("kura.toml"), dir.join("yazi").join("theme.toml")];
+        assert_eq!(a.kura_toml_in_force(), Some(dir.join("yazi").join("kura.toml")));
+        a.cfg.loaded.push(dir.join("kura").join("kura.toml"));
+        assert_eq!(a.kura_toml_in_force(), Some(dir.join("kura").join("kura.toml")));
+        a.cfg.loaded.clear();
+        assert_eq!(a.kura_toml_in_force(), App::kura_config_dir().map(|d| d.join("kura.toml")));
+        // Nothing changed is nothing written.
+        a.write_kura(Vec::new());
+        assert!(a.kura_rx.recv_timeout(Duration::from_millis(300)).is_err());
+    }
+
     /// `<C-,>` opens the screen and closes it; Esc closes it; the page and
     /// search chords reach `ito_prefs` as its `Keys`, not the list behind.
     #[test]
@@ -9681,6 +9922,8 @@ mod usage_view {
         let mut a = app_in(&dir);
         let opens = a.cfg.keymap.mgr.iter().find(|b| b.on == vec![Key::parse("<C-,>").unwrap()]);
         assert_eq!(opens.map(|b| b.run.clone()), Some(vec![Act::Settings]), "`<C-,>` opens it from the list");
+        let in_pane = a.cfg.keymap.term.iter().any(|b| b.on == vec![Key::parse("<C-,>").unwrap()]);
+        assert!(!in_pane, "in the terminal pane `<C-,>` is the shell's");
         a.act(Act::Settings);
         assert!(matches!(a.overlay, Overlay::Settings(_)));
         let keys = |a: &App| match &a.overlay {

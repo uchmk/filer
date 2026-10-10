@@ -319,6 +319,13 @@ pub struct Config {
     pub warnings: Vec<String>,
 }
 
+/// The config files as just read, before [`Config::settle`] keeps what a
+/// broken one gave last time.
+pub struct Fresh {
+    cfg: Config,
+    broken: Broken,
+}
+
 /// Which kinds of file failed to parse in one read, and where their messages
 /// are in `warnings` -- what [`Config::reload`] needs to keep the last good
 /// values in their place.
@@ -355,12 +362,31 @@ impl Config {
     /// `prev` is emptied of what is kept: it is the config being replaced.
     pub fn reload(prev: &mut Config) -> Self {
         let mut cfg = Self::reload_from(prev, &dirs_to_read());
-        cfg.term.take_env(std::env::var_os("KURA_TERM_SHELL"), std::env::var_os("KURA_TERM_ARGS"));
+        cfg.take_term_env();
         cfg
     }
 
+    /// `KURA_TERM_SHELL` and `KURA_TERM_ARGS` over `[term]`, as at start.
+    pub fn take_term_env(&mut self) {
+        self.term.take_env(std::env::var_os("KURA_TERM_SHELL"), std::env::var_os("KURA_TERM_ARGS"));
+    }
+
     pub(crate) fn reload_from(prev: &mut Config, dirs: &[PathBuf]) -> Self {
-        let (mut cfg, broken) = Self::read(dirs);
+        Self::settle(prev, Self::read_fresh(dirs))
+    }
+
+    /// The first half of a reload, which touches the disk: the files read,
+    /// with nothing kept yet. The settings screen's writer runs it on its own
+    /// thread and hands the result to [`Config::settle`] on the UI's.
+    pub fn read_fresh(dirs: &[PathBuf]) -> Fresh {
+        let (cfg, broken) = Self::read(dirs);
+        Fresh { cfg, broken }
+    }
+
+    /// The second half: what a file that no longer parses gave last time is
+    /// taken from `prev` and kept.
+    pub fn settle(prev: &mut Config, fresh: Fresh) -> Self {
+        let Fresh { mut cfg, broken } = fresh;
         if !broken.any() {
             return cfg;
         }
@@ -666,12 +692,12 @@ fn comparable(dir: &Path) -> PathBuf {
 /// day a test needs to load a config file, it can take the directory as an
 /// argument instead.
 #[cfg(test)]
-fn dirs_to_read() -> Vec<PathBuf> {
+pub(crate) fn dirs_to_read() -> Vec<PathBuf> {
     Vec::new()
 }
 
 #[cfg(not(test))]
-fn dirs_to_read() -> Vec<PathBuf> {
+pub(crate) fn dirs_to_read() -> Vec<PathBuf> {
     config_dirs()
 }
 
