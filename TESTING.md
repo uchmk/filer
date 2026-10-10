@@ -1536,7 +1536,7 @@ the cells. filer's own shell sets no prompt marks, so give pwsh a prompt that wr
 (`FILER_TERM_SHELL=pwsh`, `FILER_TERM_ARGS=-NoProfile`, then paste this into the pane):
 
 ```powershell
-function prompt { $e = [char]27; $c = if ($?) { 0 } else { 1 }; "$e]133;D;$c$e\$e]133;A$e\PS $PWD> $e]133;B$e\" }
+function prompt { $ok = $?; $e = [char]27; $c = if ($ok) { 0 } else { 1 }; "$e]133;D;$c$e\$e]133;A$e\PS $PWD> $e]133;B$e\" }
 ```
 
 | # | Do | Expect |
