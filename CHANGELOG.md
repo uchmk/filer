@@ -9,6 +9,12 @@
 
 ## [未リリース]
 
+## [0.86.19] - 2026-10-10
+
+### 追加
+
+- `scripts\mcp.ps1`: `filer mcp` に JSON-RPC を流す道具（`-Tool` / `-Arguments` で `tools/call`、`-List` で `tools/list`、`-Address` で `FILER_ADDRESS`）。TESTING.md の節 50 を、Claude Code なしで押せる。Linux で書いたため Windows では未実行。
+
 ## [0.86.18] - 2026-10-10
 
 ### 変更

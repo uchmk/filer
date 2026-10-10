@@ -24,7 +24,7 @@
 - [ ] （#305 の提案 1）`scripts/make-fixtures.ps1`（と `.sh`）に `outline.docx`（見出し 1 / 2 / 1 と本文 2 段落の最小 OOXML）を足す。16.3 / 16.3a / 16.3b が要る。`【実機】`
 - [ ] （#305・#306 の提案、マージ担当は `.claude/` に書けないのでここに積む）`.claude/windows-role.md` の x64 と ARM64 の両方の「Re-tests of changed behaviour」から、済んだ 16.3b、37.8b、49.5 を外す（16.3b は #305 / #306 で `[x]`、49.5 と 37.8b は x64 で `[x]`）。ARM64 の表には 37.8b・49.5 を ARM64 の二台目として足してよい。`【人】`
 - [x] （v0.85.7。`pane title:` の行を足した）`<State:>` に `pane title:` の行（tsumugi-pane が返すタイトル。空でも出す）を足す。1.35 で確認ダイアログの文言は読めるが、v0.85.3 が変えた「タイトルが空か」は読めず、x64 と ARM64 を同じ行で比べられない（#300 の提案 1）。
-- [ ] （#302・#303 の提案）`scripts\mcp.ps1`（`-Address … -Tool filer_state`）を足し、`filer mcp` に JSON-RPC を流す道具にする。ARM64 は `Start-Mcp` / `Rpc` / `Call` を scratch に書いて `$args` の衝突で 1 回余計に回した。`【実機】`
+- [x] （v0.86.19。`scripts\mcp.ps1` を足した: `filer mcp` を起動して `initialize` から `tools/call`（`-Tool` / `-Arguments`）か `tools/list`（`-List`）まで流し、結果を JSON で出す。`-Address` は子プロセスだけの `FILER_ADDRESS`。Linux で書いたので Windows では未実行、最初のレーンが 50.1 / 50.2 で一度確かめる）（#302・#303 の提案）`scripts\mcp.ps1`（`-Address … -Tool filer_state`）を足し、`filer mcp` に JSON-RPC を流す道具にする。ARM64 は `Start-Mcp` / `Rpc` / `Call` を scratch に書いて `$args` の衝突で 1 回余計に回した。`【実機】`
 - [ ] （#302・#303 の提案）TESTING.md の節 50 の前書きに `FILER_ADDRESS`（持ち主の窓と扉を奪い合わない）と `claude -p --mcp-config … --output-format stream-json` の `init` で 50.1 の `/mcp` を読めることを書く。`【QA】`
 - [x] （v0.85.9。`mcp:` の行を足した）`<State:>` に `mcp:`（扉の名前か `off`）の行を足す。「窓が無い」と「`enable = false`」を 50.4 / 50.5 で見分けるには `config:` の行から推すしかない。
 - [ ] （#302 の提案）50.7 の「コンソールの窓が出ない」は、ARM64 は測れないとして `[ ]` に残し、x64 は約 5ms 間隔の窓の列挙（753 回）で出なかったと `[x]` にした。5ms より短い窓は取りこぼすので、持ち主が外観の行として扱うか決める。`【人】`
